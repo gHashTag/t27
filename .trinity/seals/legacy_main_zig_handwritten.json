@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:88c4ba2b8d2fc505a49a525079402be1968d1be420c36fc8241d2e8e9239b3b8",
+  "built_by": "t27c-bootstrap@0.4.0+5ffb20790",
+  "gen_hash_c": "sha256:2eabfadaa47c21dafad6a599006b53127a615f9a58afdda86fdf777bae0ed99c",
   "gen_hash_rust": "sha256:91f6e162b63f4688f5e4a515a2c23024ee689394539f04fecde9644b006fa419",
   "gen_hash_verilog": "sha256:a18ecdc04e1092bd1e8b2ef8e2850a467c90bf3f3fa98709ccb46f69342d0f15",
   "gen_hash_zig": "sha256:8c72dd1892289701fcd6a126eec1f6c7cfc8c365f706b1eb887a428afd6baf2e",
   "module": "main_zig_handwritten",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:05:53Z",
+  "sealed_at": "2026-10-07T09:51:44Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3b65d34b5a660d11c8a0a7e6ca20e1fdccfc64420ae95359c0eeabf13a39f618",
   "spec_path": "contrib/backend/zig/legacy/main_zig_handwritten.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-main_zig_handwritten-3538823/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: spec.zig:5:7: error: duplicate struct member name 'std'"
   }
 }

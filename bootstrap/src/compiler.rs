@@ -19106,6 +19106,30 @@ pub struct CCodegen {
     /// them writes the global, never a fresh local (#6052).
     module_var_names: std::collections::HashSet<String>,
     local_tuple_counter: u32,
+    /// #7352: the `defer` statements of every block open in the item being
+    /// emitted, outermost first. A `defer` is not written where it stands; it
+    /// is written at each exit of its block -- the fall-through end, a
+    /// `return`, a `break`, a `continue` -- innermost scope first and each
+    /// scope in reverse order, the order Zig runs them in. Before this the
+    /// statement reached C as `/* unsupported: StmtExpr */;` and never ran.
+    c_defer_scopes: Vec<CDeferScope>,
+    /// C return type of the fn being emitted, `None` for a void fn, a test, a
+    /// bench or an invariant body. A `return v;` under a pending `defer`
+    /// evaluates `v` into a temp of this type before the deferred statements
+    /// run, as Zig does.
+    c_current_ret_type: Option<String>,
+    /// Constructs gen-c refuses rather than lowers (`errdefer`, a `defer`
+    /// outside any block). `compile_c` fails with these instead of writing C
+    /// that silently drops a statement.
+    c_refusals: Vec<String>,
+}
+
+/// One block's pending `defer` statements (#7352). `loop_body` marks the body
+/// of a loop: a `break` or `continue` runs the scopes down to and including
+/// it, a `return` runs every scope of the item.
+struct CDeferScope {
+    stmts: Vec<Node>,
+    loop_body: bool,
 }
 
 /// The integer width suffix of a typed builtin -- `cast_i8`, `abs_i16`.
@@ -19141,6 +19165,9 @@ impl CCodegen {
             const_defs: std::collections::HashMap::new(),
             module_var_names: std::collections::HashSet::new(),
             local_tuple_counter: 0,
+            c_defer_scopes: Vec::new(),
+            c_current_ret_type: None,
+            c_refusals: Vec::new(),
         }
     }
 
@@ -21058,9 +21085,10 @@ long double: fabsl, default: llabs)(x)",
             self.write_indent();
             self.write_line("/* TODO: implement */");
         } else {
-            for stmt in &node.children {
-                self.gen_c_stmt(stmt);
-            }
+            self.c_defer_scopes.clear();
+            self.c_current_ret_type = (ret_type != "void").then(|| ret_type.clone());
+            self.gen_c_body(&node.children, false);
+            self.c_current_ret_type = None;
         }
 
         self.dedent();
@@ -21113,6 +21141,9 @@ long double: fabsl, default: llabs)(x)",
         // global never changed and a function reading it still saw 0.
         bound.extend(self.module_var_names.iter().cloned());
         let mut tuple_ctr = 0u32;
+        self.c_defer_scopes.clear();
+        self.c_current_ret_type = None;
+        self.c_defer_open(false);
         for stmt in &node.children {
             let fresh = stmt.kind == NodeKind::StmtAssign
                 && stmt.children.len() >= 2
@@ -21175,6 +21206,7 @@ long double: fabsl, default: llabs)(x)",
                 self.gen_c_stmt(stmt);
             }
         }
+        self.c_defer_close(&node.children);
 
         if node.children.is_empty() {
             self.write_indent();
@@ -21213,9 +21245,9 @@ long double: fabsl, default: llabs)(x)",
             );
             self.write_line(&format!("void {}(void) {{", fn_name));
             self.indent();
-            for stmt in &node.children {
-                self.gen_c_stmt(stmt);
-            }
+            self.c_defer_scopes.clear();
+            self.c_current_ret_type = None;
+            self.gen_c_body(&node.children, false);
             self.dedent();
             self.write_line("}");
             return;
@@ -21312,9 +21344,9 @@ long double: fabsl, default: llabs)(x)",
         self.write_indent();
         self.write_line(&format!("/* bench: {} */", node.name));
 
-        for stmt in &node.children {
-            self.gen_c_stmt(stmt);
-        }
+        self.c_defer_scopes.clear();
+        self.c_current_ret_type = None;
+        self.gen_c_body(&node.children, false);
 
         if node.children.is_empty() {
             self.write_indent();
@@ -21344,6 +21376,10 @@ long double: fabsl, default: llabs)(x)",
     fn gen_c_stmt(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprReturn => {
+                if self.c_defer_scopes.iter().any(|s| !s.stmts.is_empty()) {
+                    self.gen_c_return_with_defers(node);
+                    return;
+                }
                 self.write_indent();
                 self.write("return ");
                 // The STATEMENT return, distinct from the expression one. The
@@ -21353,20 +21389,8 @@ long double: fabsl, default: llabs)(x)",
                 // exists to prevent, one level up.
                 let outer_return = self.c_in_return;
                 self.c_in_return = true;
-                if !node.children.is_empty() {
-                    // A returned array literal needs the compound-literal cast
-                    // to the fn's [T; N] struct; bare braces are not a C
-                    // expression.
-                    if node.children[0].kind == NodeKind::ExprArrayLiteral {
-                        if let Some(name) = self.current_ret_array_type.clone() {
-                            self.write(&format!("({})", name));
-                            self.gen_c_array_value(&node.children[0]);
-                        } else {
-                            self.gen_c_expr(&node.children[0]);
-                        }
-                    } else {
-                        self.gen_c_expr(&node.children[0]);
-                    }
+                if let Some(value) = node.children.first() {
+                    self.gen_c_return_operand(value);
                 }
                 self.c_in_return = outer_return;
                 self.write_line(";");
@@ -21771,10 +21795,35 @@ long double: fabsl, default: llabs)(x)",
                 self.gen_c_for_range_stmt(node);
             }
             NodeKind::StmtBreak => {
+                for stmt in self.c_pending_defers(true) {
+                    self.gen_c_stmt(&stmt);
+                }
                 self.write_line("break;");
             }
             NodeKind::StmtContinue => {
+                for stmt in self.c_pending_defers(true) {
+                    self.gen_c_stmt(&stmt);
+                }
                 self.write_line("continue;");
+            }
+            NodeKind::StmtExpr if node.extra_op == "scope_exit" => {
+                // #7352: `defer S;` -- recorded on the innermost open block and
+                // written at its exits (`c_defer_close`, `c_pending_defers`).
+                // `errdefer` runs only on an error return, which C has no
+                // spelling of here, and a `defer` with no open block has no
+                // exit to run at: both are refused, never dropped.
+                match (node.name.as_str(), node.children.first()) {
+                    ("defer", Some(inner)) if !self.c_defer_scopes.is_empty() => {
+                        let inner = inner.clone();
+                        if let Some(scope) = self.c_defer_scopes.last_mut() {
+                            scope.stmts.push(inner);
+                        }
+                    }
+                    _ => self.c_refusals.push(format!(
+                        "gen-c: `{}` at line {} is not lowered to C (#7352)",
+                        node.name, node.line
+                    )),
+                }
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -21791,6 +21840,112 @@ long double: fabsl, default: llabs)(x)",
         }
     }
 
+    /// Emit a block's statements as one `defer` scope (#7352): the scope opens
+    /// before the first statement, and the deferred statements run where the
+    /// block falls through its end. A block that ends in `return`, `break` or
+    /// `continue` has already run them at that exit.
+    fn gen_c_body(&mut self, stmts: &[Node], loop_body: bool) {
+        self.c_defer_open(loop_body);
+        for stmt in stmts {
+            self.gen_c_stmt(stmt);
+        }
+        self.c_defer_close(stmts);
+    }
+
+    fn c_defer_open(&mut self, loop_body: bool) {
+        self.c_defer_scopes.push(CDeferScope {
+            stmts: Vec::new(),
+            loop_body,
+        });
+    }
+
+    fn c_defer_close(&mut self, stmts: &[Node]) {
+        let Some(scope) = self.c_defer_scopes.pop() else {
+            return;
+        };
+        let exits = stmts.last().is_some_and(|s| {
+            matches!(
+                s.kind,
+                NodeKind::ExprReturn | NodeKind::StmtBreak | NodeKind::StmtContinue
+            )
+        });
+        if !exits {
+            for stmt in scope.stmts.iter().rev() {
+                self.gen_c_stmt(stmt);
+            }
+        }
+    }
+
+    /// The deferred statements an exit runs: innermost scope first, each scope
+    /// in reverse order of declaration. `to_loop` (a `break` or `continue`)
+    /// stops at the innermost loop body and runs nothing when there is none;
+    /// otherwise (a `return`) every scope of the item runs.
+    fn c_pending_defers(&self, to_loop: bool) -> Vec<Node> {
+        if to_loop && !self.c_defer_scopes.iter().any(|s| s.loop_body) {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        for scope in self.c_defer_scopes.iter().rev() {
+            out.extend(scope.stmts.iter().rev().cloned());
+            if to_loop && scope.loop_body {
+                break;
+            }
+        }
+        out
+    }
+
+    /// The operand of a `return`. A returned array literal needs the
+    /// compound-literal cast to the fn's [T; N] struct; bare braces are not a
+    /// C expression.
+    fn gen_c_return_operand(&mut self, value: &Node) {
+        if value.kind == NodeKind::ExprArrayLiteral {
+            if let Some(name) = self.current_ret_array_type.clone() {
+                self.write(&format!("({})", name));
+                self.gen_c_array_value(value);
+                return;
+            }
+        }
+        self.gen_c_expr(value);
+    }
+
+    /// `return` under a pending `defer` (#7352). Zig evaluates the returned
+    /// value first and runs the deferred statements after, so a `defer` that
+    /// changes what the value reads does not change the value. The value goes
+    /// into a temp, the deferred statements run, the temp is returned.
+    fn gen_c_return_with_defers(&mut self, node: &Node) {
+        let defers = self.c_pending_defers(false);
+        let Some(value) = node.children.first() else {
+            for stmt in &defers {
+                self.gen_c_stmt(stmt);
+            }
+            self.write_indent();
+            self.write_line("return;");
+            return;
+        };
+        let ty = self
+            .c_current_ret_type
+            .clone()
+            .unwrap_or_else(|| "__auto_type".to_string());
+        self.write_indent();
+        self.write_line("{");
+        self.indent();
+        self.write_indent();
+        self.write(&format!("{} __t27_ret = ", ty));
+        let outer_return = self.c_in_return;
+        self.c_in_return = true;
+        self.gen_c_return_operand(value);
+        self.c_in_return = outer_return;
+        self.write_line(";");
+        for stmt in &defers {
+            self.gen_c_stmt(stmt);
+        }
+        self.write_indent();
+        self.write_line("return __t27_ret;");
+        self.dedent();
+        self.write_indent();
+        self.write_line("}");
+    }
+
     fn gen_c_if_stmt(&mut self, node: &Node) {
         self.write_indent();
         self.write("if (");
@@ -21801,9 +21956,7 @@ long double: fabsl, default: llabs)(x)",
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_c_stmt(stmt);
-            }
+            self.gen_c_body(&node.children[1].children, false);
         }
         self.dedent();
 
@@ -21817,9 +21970,7 @@ long double: fabsl, default: llabs)(x)",
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_c_stmt(stmt);
-                }
+                self.gen_c_body(&else_block.children, false);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -21839,9 +21990,7 @@ long double: fabsl, default: llabs)(x)",
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_c_stmt(stmt);
-            }
+            self.gen_c_body(&node.children[1].children, false);
         }
         self.dedent();
 
@@ -21855,9 +22004,7 @@ long double: fabsl, default: llabs)(x)",
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_c_stmt(stmt);
-                }
+                self.gen_c_body(&else_block.children, false);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -21886,9 +22033,7 @@ long double: fabsl, default: llabs)(x)",
         self.indent();
         let body_idx = node.children.len().saturating_sub(1);
         if node.children.len() > 1 {
-            for stmt in &node.children[body_idx].children {
-                self.gen_c_stmt(stmt);
-            }
+            self.gen_c_body(&node.children[body_idx].children, true);
             if body_idx > 1 {
                 self.gen_c_stmt(unwrap_single(&node.children[1]));
             }
@@ -21935,9 +22080,7 @@ long double: fabsl, default: llabs)(x)",
             self.gen_c_expr(&node.children[0].children[1]);
             self.write_line(&format!("; {var}++) {{"));
             self.indent();
-            for stmt in &node.children[body_idx].children {
-                self.gen_c_stmt(stmt);
-            }
+            self.gen_c_body(&node.children[body_idx].children, true);
             self.dedent();
             self.write_indent();
             self.write_line("}");
@@ -21954,9 +22097,7 @@ long double: fabsl, default: llabs)(x)",
         // Emit body
         let body_idx = node.children.len().saturating_sub(1);
         if !node.children.is_empty() {
-            for stmt in &node.children[body_idx].children {
-                self.gen_c_stmt(stmt);
-            }
+            self.gen_c_body(&node.children[body_idx].children, true);
         }
 
         self.dedent();
@@ -21977,9 +22118,7 @@ long double: fabsl, default: llabs)(x)",
         self.write_line(" {");
         self.indent();
         if node.children.len() > 2 {
-            for stmt in &node.children[2].children {
-                self.gen_c_stmt(stmt);
-            }
+            self.gen_c_body(&node.children[2].children, true);
         }
         self.dedent();
         self.write_indent();
@@ -23419,6 +23558,9 @@ impl Compiler {
         // const-inlines `let`, corrupting the source-level output. Fixes #1455.
         let mut codegen = CCodegen::new();
         codegen.gen_c(&ast);
+        if !codegen.c_refusals.is_empty() {
+            return Err(codegen.c_refusals.join("\n"));
+        }
         Ok(codegen.into_string())
     }
 

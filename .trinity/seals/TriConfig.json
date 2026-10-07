@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:5db3173c5d5d39513e958b685ad19380d6beef3e2e0c28a7e624a4e20686a6ec",
+  "gen_hash_c": "sha256:6c22c8cbb1f366080e899ab378770f777aeb15803a69393fd6be09570ea3da49",
   "gen_hash_rust": "sha256:d8ccf1fc4cb45257a7ee08a9ff9ea0bfc897b1158fe191836dc6c2198dfcb4cd",
   "gen_hash_verilog": "sha256:56d2eeb60b68e271520851a1d2fa5e0de5f671a115a9bb3430b1a2c056c2de8f",
   "gen_hash_zig": "sha256:6395e0965a44273cc35f493b17a74af495822a97b56703771dd1444fae163bd3",
   "module": "TriConfig",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:57Z",
+  "sealed_at": "2026-10-07T08:53:02Z",
   "spec_hash": "sha256:5b0ee6c43560598a035ff97271295ba459930140467cae84b14ce25d95d494c9",
   "spec_path": "specs/tri/utils/config.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-config-1848701/spec.zig:47:53: error: use of undeclared identifier 'eq_pos'"
+    "blocked": "does not compile: spec.zig:47:53: error: use of undeclared identifier 'eq_pos'"
   }
 }

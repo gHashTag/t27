@@ -197,6 +197,12 @@ bootstrap/tests/core_selfhost.rs
 # lowers byte-identically to gen-c; the new shapes themselves are fixtures.
 bootstrap/tests/core_selfhost.rs
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), gen-c
+# defects lane of epic #5980 (self-host P1), issue #7352: gen-c writes `defer` at every exit of its block
+# instead of an `unsupported` comment; the test compiles and RUNS the C. compiler.rs and FROZEN_HASH are
+# listed above.
+bootstrap/tests/genc_defer.rs
+
 # one-time 2026-10-06, merge route for #6804 (Refs #6803): master-side mods of label-gated #6826/#6847
 # ride the combined diff and trip the local own-language hook on the merge commit. Standing owner
 # authorization 2026-10-06 ("add the label yourself and do the foreign part", translated). Same four
