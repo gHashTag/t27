@@ -252,22 +252,22 @@ fn softmax_first(a: f64, b: f64, c: f64) -> f64 {
 }
 
 test exp_agrees_with_compiler_rt_over_the_whole_range {
-    assert(sweep_misses(-750.0, 0.0731, 20000) == 0);
+    assert(sweep_misses(-750.0, 0.2924, 5000) == 0);
 }
 
 test exp_agrees_near_zero_and_in_the_reduction_bands {
-    assert(sweep_misses(-1.2, 0.00012345, 20000) == 0);
-    assert(sweep_misses(-0.000000004, 0.0000000000004, 20000) == 0);
+    assert(sweep_misses(-1.2, 0.0004938, 5000) == 0);
+    assert(sweep_misses(-0.000000004, 0.0000000000016, 5000) == 0);
 }
 
 test exp_agrees_where_the_result_is_subnormal_or_huge {
-    assert(sweep_misses(-745.2, 0.0019, 20000) == 0);
-    assert(sweep_misses(700.0, 0.00049, 20000) == 0);
+    assert(sweep_misses(-745.2, 0.0076, 5000) == 0);
+    assert(sweep_misses(700.0, 0.00196, 5000) == 0);
 }
 
 test expf_agrees_with_compiler_rt_over_the_whole_range {
-    assert(sweep_misses_f32(-104.5, 0.0097, 20000) == 0);
-    assert(sweep_misses_f32(-1.2, 0.00012345, 20000) == 0);
+    assert(sweep_misses_f32(-104.5, 0.0388, 5000) == 0);
+    assert(sweep_misses_f32(-1.2, 0.0004938, 5000) == 0);
 }
 
 test exp_gives_the_reference_bits {

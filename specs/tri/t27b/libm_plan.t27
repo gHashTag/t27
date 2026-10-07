@@ -155,6 +155,8 @@ test the_routines_are_renamed_into_the_reserved_prefix {
     assert std.mem.indexOf(u8, routine(EXP, CALL_F64), PORT) != null;
     assert std.mem.indexOf(u8, routine(EXP, CALL_F32), PORT) != null;
     assert !std.mem.eql(u8, routine(EXP, CALL_F64), routine(EXP, CALL_F32));
+    assert routine(EXP + 1, CALL_F64).len == 0;
+    assert routine(EXP + 1, CALL_F32).len == 0;
 }
 
 test the_refusals_name_the_call_and_say_why {

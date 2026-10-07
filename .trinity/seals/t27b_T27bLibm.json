@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+b1c7d2cbb",
+  "gen_hash_c": "sha256:b4df5ec824f201451ec6df9cb6b51cda0457f7f4a2f6d5dd87052023aa8e46d6",
+  "gen_hash_rust": "sha256:879e627980693861f0f36c1b2cfc3884b42619412aef756f8fa7d5b097395436",
+  "gen_hash_verilog": "sha256:7fd38a54614e967053ecb0051c7a7cc7dc9ecf3e45c779cf3461ef4692f18e14",
+  "gen_hash_zig": "sha256:072eb42f8a542edfc9927b754564a93b55135415ae6c27a8276643944e23bc5c",
+  "module": "T27bLibm",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:51:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:398d23fd7ccc62085a35f37bdb9f504abeffb0ec09039804d89bc618806681d1",
+  "spec_path": "specs/tri/t27b/libm.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}
