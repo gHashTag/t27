@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 48,
+ "max_not_pass": 47,
  "counts": {
-  "pass": 488,
+  "pass": 490,
   "pass_vacuous": 262,
-  "not_pass": 48
+  "not_pass": 47
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -119,7 +119,7 @@
   {"path": "specs/compiler/theory/sieve.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/toolchain.t27", "t27b": "pass"},
   {"path": "specs/compiler/verilog_branch_context.t27", "t27b": "blocked", "blocker": "ExprLiteral(value ignored) statement", "reason": "unimplemented"},
-  {"path": "specs/compiler/zig_field_syntax.t27", "t27b": "blocked", "blocker": "ExprStructLit(zig keyword field)", "reason": "unimplemented"},
+  {"path": "specs/compiler/zig_field_syntax.t27", "t27b": "blocked", "blocker": "type str?", "reason": "unimplemented"},
   {"path": "specs/compiler/zig_primitive_bindings.t27", "t27b": "blocked", "blocker": "type (alias)", "reason": "unimplemented"},
   {"path": "specs/compiler/zig_test_shadowing.t27", "t27b": "blocked", "blocker": "StmtAssign(reference redeclares)", "reason": "unimplemented"},
   {"path": "specs/compiler/zig_value_ignored.t27", "t27b": "blocked", "blocker": "ExprBinary(value ignored) statement", "reason": "unimplemented"},
@@ -197,7 +197,7 @@
   {"path": "specs/fpga/fifo.t27", "t27b": "pass"},
   {"path": "specs/fpga/gf16_accel.t27", "t27b": "pass"},
   {"path": "specs/fpga/hw_types.t27", "t27b": "pass"},
-  {"path": "specs/fpga/linker.t27", "t27b": "blocked", "blocker": "ExprStructLit(zig keyword field)", "reason": "unimplemented"},
+  {"path": "specs/fpga/linker.t27", "t27b": "pass"},
   {"path": "specs/fpga/memory.t27", "t27b": "pass"},
   {"path": "specs/fpga/partition.t27", "t27b": "pass"},
   {"path": "specs/fpga/power.t27", "t27b": "pass"},
@@ -745,6 +745,7 @@
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/value_params.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/zig_keyword_field.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/args.t27", "t27b": "blocked", "blocker": "type (alias)", "reason": "unimplemented"},
