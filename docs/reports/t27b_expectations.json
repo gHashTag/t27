@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 28,
+ "max_not_pass": 25,
  "counts": {
-  "pass": 531,
+  "pass": 534,
   "pass_vacuous": 262,
-  "not_pass": 28
+  "not_pass": 25
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -273,7 +273,7 @@
   {"path": "specs/ml/activation/silu_swish_vbt_activation.t27", "t27b": "pass_vacuous"},
   {"path": "specs/ml/layers/conv2d_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
-  {"path": "specs/ml/rl/dqn.t27", "t27b": "blocked", "blocker": "ExprCall(undeclared fn)", "reason": "unimplemented"},
+  {"path": "specs/ml/rl/dqn.t27", "t27b": "blocked", "blocker": "ExprCall(@max)", "reason": "unimplemented"},
   {"path": "specs/multipath_router.t27", "t27b": "pass_vacuous"},
   {"path": "specs/numeric/bnf1024.t27", "t27b": "pass"},
   {"path": "specs/numeric/bnf128.t27", "t27b": "pass"},
@@ -453,7 +453,7 @@
   {"path": "specs/port/trinity/src/tri/gen_fuzz.t27", "t27b": "blocked", "blocker": "ExprCall(@intCast)", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_gradient.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_gradient_descent.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_image.t27", "t27b": "blocked", "blocker": "type std.mem.Allocator", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_image.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_kmeans.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_leb128.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_linear_regression.t27", "t27b": "pass"},
@@ -726,7 +726,7 @@
   {"path": "specs/tri/agent/memory.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/catalog/health.t27", "t27b": "pass"},
   {"path": "specs/tri/collections/context.t27", "t27b": "pass_vacuous"},
-  {"path": "specs/tri/crypto/hex.t27", "t27b": "blocked", "blocker": "ExprCall", "reason": "unimplemented"},
+  {"path": "specs/tri/crypto/hex.t27", "t27b": "pass"},
   {"path": "specs/tri/math/math.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/math/measurement.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/net/cloud.t27", "t27b": "pass_vacuous"},
@@ -770,7 +770,7 @@
   {"path": "specs/tri/t27b/conformance/zig_keyword_field.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},
-  {"path": "specs/tri/utils/args.t27", "t27b": "blocked", "blocker": "type (alias)", "reason": "unimplemented"},
+  {"path": "specs/tri/utils/args.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/arrow_time.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/utils/colors.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/utils/error.t27", "t27b": "pass_vacuous"},
