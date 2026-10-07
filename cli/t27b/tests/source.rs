@@ -3113,3 +3113,62 @@ fn exp_ignores_a_declared_libm_fn() {
     let src = "module a;\n\nfn t27b_libm_exp(x: f64) -> f64 {\n    return x;\n}\n\nfn e(x: f64) -> f64 {\n    return @exp(x);\n}\n\ntest t {\n    assert(e(1.0) == 2.7182818284590455);\n    assert(t27b_libm_exp(1.0) == 1.0);\n}\n";
     assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
 }
+
+/// A run-time `@log` of an f64 calls compiler_rt's `log` written in t27
+/// (`specs/tri/t27b/libm.t27`, with its `T27B_LIBM_*` tables), so the bits
+/// are the reference's.
+#[test]
+fn log_runtime_calls_compiler_rt() {
+    let src = "module a;
+
+fn l(x: f64) -> f64 {
+    return @log(x);
+}
+
+test bits {
+    assert(l(2.0) == 0.6931471805599453);
+    assert(l(0.5) == -0.6931471805599453);
+    assert(l(10.0) == 2.302585092994046);
+    assert(l(1.05) == 0.04879016416943205);
+    assert(l(1.0) == 0.0);
+    assert(l(5e-324) == -744.4400719213812);
+    var v: f64 = 3.0;
+    assert(@log(v) == 1.0986122886681098);
+    const n: f64 = l(-1.0);
+    assert(n != n);
+}
+
+test wrong {
+    assert(l(2.0) == 0.6931471805599452);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("bits", false, true), ("wrong", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 0.6931471805599452)"))));
+}
+
+/// `@log` is refused where Zig folds it with the compiler's own log (a
+/// compile-time operand, an invariant), and on an f32 or an integer, which
+/// have no ported routine.
+#[test]
+fn log_rejections() {
+    let cases: &[(&str, &str)] = &[
+        ("fn f() -> f64 { return @log(2.0); }", "ExprCall(@log)"),
+        ("const K: f64 = 2.0;\n\nfn f() -> f64 { return @log(K); }", "ExprCall(@log)"),
+        ("fn f(x: f32) -> f32 { return @log(x); }", "ExprCall(@log)"),
+        ("fn f(x: i32) -> f64 { return @log(x); }", "ExprCall(@log)"),
+        ("fn g(x: f64) -> f64 { return @log(x); }\n\ninvariant k: g(2.0) > 0.5;", "ExprCall(@log)"),
+    ];
+    for (body, construct) in cases {
+        let m = rejected(&format!("module a;\n\n{}\n", body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+    }
+}
+
+/// A file's own `T27B_LIBM_*` constant does not replace the table `@log`
+/// reads, and the file still reads its own.
+#[test]
+fn log_ignores_a_declared_libm_table() {
+    let src = "module a;\n\nconst T27B_LIBM_LOG_CHI: [2]f64 = [5.0, 6.0];\n\nfn l(x: f64) -> f64 {\n    return @log(x);\n}\n\nfn pick(i: usize) -> f64 {\n    return T27B_LIBM_LOG_CHI[i];\n}\n\ntest t {\n    assert(l(2.0) == 0.6931471805599453);\n    assert(pick(1) == 6.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+}

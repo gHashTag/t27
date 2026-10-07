@@ -393,13 +393,14 @@ struct Lower<'a> {
     /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
     shifted_muls: HashSet<usize>,
     /// Locals Zig knows at compile time: a `const` whose initializer reads
-    /// nothing a run-time value (`runtime_ast`). A `@exp` of one is folded by
-    /// the compiler, not run by compiler_rt.
+    /// nothing a run-time value (`runtime_ast`). A `@exp` or `@log` of one is
+    /// folded by the compiler, not run by compiler_rt.
     ct_locals: HashSet<String>,
-    /// The fns whose bodies reach `@exp`: calling one where Zig evaluates at
-    /// compile time (an invariant, a module constant) runs the compiler's own
-    /// exp, so that call is refused.
-    exp_fns: HashSet<String>,
+    /// The fns whose bodies reach `@exp` or `@log`, each with the builtin it
+    /// reaches: calling one where Zig evaluates at compile time (an
+    /// invariant, a module constant) runs the compiler's own routine, so that
+    /// call is refused.
+    libm_fns: HashMap<String, &'static str>,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -506,7 +507,7 @@ fn lower_mode<'a>(
         misprinted_if: HashSet::new(),
         shifted_muls: HashSet::new(),
         ct_locals: HashSet::new(),
-        exp_fns: HashSet::new(),
+        libm_fns: HashMap::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -518,17 +519,21 @@ fn lower_mode<'a>(
     } else {
         vec![ast]
     };
-    // A run-time `@exp` is a call of compiler_rt's routine, which
-    // `specs/tri/t27b/libm.t27` writes in t27: its fns join the program, as
-    // `__t27b_` helpers, when the file uses `@exp`.
+    // A run-time `@exp` or `@log` is a call of compiler_rt's routine, which
+    // `specs/tri/t27b/libm.t27` writes in t27: its fns and tables join the
+    // program, as `__t27b_` helpers, when the file uses one of them.
     let mut prelude: Vec<String> = Vec::new();
-    if calls_builtin(std::slice::from_ref(ast), "@exp") {
+    if LIBM_BUILTINS.iter().any(|b| calls_builtin(std::slice::from_ref(ast), b.0)) {
         for f in libm_prelude() {
             prelude.push(f.name.clone());
             items.push(f);
         }
     }
-    l.exp_fns = reaching(&items, "@exp");
+    for b in LIBM_BUILTINS {
+        for f in reaching(&items, b.0) {
+            l.libm_fns.entry(f).or_insert(b.0);
+        }
+    }
 
     // Struct declarations are laid out on first use, like Zig's lazy
     // analysis: an unused struct with an unsupported member rejects nothing.
@@ -2947,10 +2952,10 @@ impl<'a> Lower<'a> {
     /// no `sret` destination is given.
     fn call(&mut self, c: &Node, sret: Option<Expr>) -> R<(Expr, Option<LTy>, Option<u32>)> {
         self.see(c);
-        if self.comptime && self.exp_fns.contains(&c.name) {
+        if let Some(b) = self.libm_fns.get(&c.name).filter(|_| self.comptime).copied() {
             return self.reject(
-                "ExprCall(@exp)",
-                format!("`{}` reaches `@exp` at compile time, where Zig folds it with the compiler's own exp", c.name),
+                &format!("ExprCall({})", b),
+                format!("`{}` reaches `{}` at compile time, where Zig folds it with the compiler's own {}", c.name, b, &b[1..]),
             );
         }
         let (id, params, ret) = match self.sigs.get(&c.name) {
@@ -3036,12 +3041,15 @@ impl<'a> Lower<'a> {
         Ok((Expr { ty, kind: ExprKind::Call { func: id, args } }, ret, temp))
     }
 
-    /// `@exp(x)` of a run-time f64 or f32: a call of `__t27b_libm_exp` or
-    /// `__t27b_libm_expf`, compiler_rt's `exp`/`expf` written in t27
-    /// (`specs/tri/t27b/libm.t27`), so the bits are the reference's. Neither
-    /// routine is correctly rounded, and an operand Zig knows at compile time
-    /// is folded by the compiler's own exp instead: that shape is refused.
-    fn exp_call(&mut self, n: &Node) -> R<Val> {
+    /// `@exp(x)` of a run-time f64 or f32, or `@log(x)` of a run-time f64: a
+    /// call of the routine `LIBM_BUILTINS` names, compiler_rt's `exp`/`expf`/
+    /// `log` written in t27 (`specs/tri/t27b/libm.t27`), so the bits are the
+    /// reference's. None is correctly rounded, and an operand Zig knows at
+    /// compile time is folded by the compiler's own routine instead: that
+    /// shape is refused, and so is a type with no ported routine.
+    fn libm_call(&mut self, n: &Node, b: &'static (&'static str, &'static str, Option<&'static str>)) -> R<Val> {
+        let (builtin, f64_fn, f32_fn) = *b;
+        let kind = format!("ExprCall({})", builtin);
         let arg = &n.children[0];
         let v = self.expr(arg)?;
         if let Val::Poison = v {
@@ -3049,20 +3057,24 @@ impl<'a> Lower<'a> {
         }
         if self.comptime || !self.runtime_ast(arg) {
             return self.reject(
-                "ExprCall(@exp)",
-                "of a value Zig knows at compile time, which it folds with the compiler's own exp, not compiler_rt's".into(),
+                &kind,
+                format!(
+                    "of a value Zig knows at compile time, which it folds with the compiler's own {}, not compiler_rt's",
+                    &builtin[1..]
+                ),
             );
         }
-        let e = match v {
-            Val::E(e) if matches!(e.ty, Ty::F64 | Ty::F32) => e,
+        let (e, name) = match v {
+            Val::E(e) if e.ty == Ty::F64 => (e, f64_fn),
+            Val::E(e) if e.ty == Ty::F32 && f32_fn.is_some() => (e, f32_fn.unwrap()),
             v => {
                 let d = self.val_desc(&v);
-                return self.reject("ExprCall(@exp)", format!("of {}, not a run-time f32 or f64", d));
+                let want = if f32_fn.is_some() { "a run-time f32 or f64" } else { "a run-time f64" };
+                return self.reject(&kind, format!("of {}, not {}", d, want));
             }
         };
-        let name = if e.ty == Ty::F64 { "__t27b_libm_exp" } else { "__t27b_libm_expf" };
         let Some(id) = self.sigs.get(name).filter(|s| !s.poisoned).map(|s| s.id) else {
-            return self.reject("ExprCall(@exp)", format!("`{}` did not lower", name));
+            return self.reject(&kind, format!("`{}` did not lower", name));
         };
         let ty = e.ty;
         let a = self.reg(Val::E(e))?;
@@ -3406,7 +3418,10 @@ impl<'a> Lower<'a> {
                     self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
                 }
             },
-            NodeKind::ExprCall if n.name == "@exp" && n.children.len() == 1 => self.exp_call(n),
+            NodeKind::ExprCall if n.children.len() == 1 && LIBM_BUILTINS.iter().any(|b| b.0 == n.name) => {
+                let b = LIBM_BUILTINS.iter().find(|b| b.0 == n.name).unwrap();
+                self.libm_call(n, b)
+            }
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 // An identifier is printed as a value (`gf16.GF16`), not
@@ -7450,14 +7465,25 @@ fn is_value_stmt(c: &Node) -> bool {
 /// The name every fn of `specs/tri/t27b/libm.t27` starts with.
 const LIBM_PREFIX: &str = "t27b_libm_";
 
-/// The fns of `specs/tri/t27b/libm.t27`, parsed once and renamed into t27b's
-/// own `__t27b_` helpers, so a file that declares a `t27b_libm_` fn of its own
-/// (libm.t27 itself, or a mutant of it) still gets compiler_rt's routine for
-/// `@exp`, as Zig does. That spec is also a conformance file: its tests hold
-/// these routines to Zig's `@exp` under the reference.
+/// The name every table of `specs/tri/t27b/libm.t27` starts with.
+const LIBM_TABLE_PREFIX: &str = "T27B_LIBM_";
+
+/// The Zig math builtins t27b runs through `specs/tri/t27b/libm.t27`: the
+/// builtin, the prelude fn for an f64 operand, and the one for an f32
+/// operand where a port exists.
+const LIBM_BUILTINS: &[(&str, &str, Option<&str>)] =
+    &[("@exp", "__t27b_libm_exp", Some("__t27b_libm_expf")), ("@log", "__t27b_libm_log", None)];
+
+/// The fns and tables of `specs/tri/t27b/libm.t27`, parsed once and renamed
+/// into t27b's own `__t27b_` / `__T27B_` helpers, every reference to them
+/// included, so a file that declares a `t27b_libm_` fn or a `T27B_LIBM_`
+/// constant of its own (libm.t27 itself, or a mutant of it) still gets
+/// compiler_rt's routine for `@exp` and `@log`, as Zig does. That spec is also
+/// a conformance file: its tests hold these routines to Zig's builtins under
+/// the reference.
 fn libm_prelude() -> &'static [Node] {
     fn rename(n: &mut Node) {
-        if n.name.starts_with(LIBM_PREFIX) {
+        if n.name.starts_with(LIBM_PREFIX) || n.name.starts_with(LIBM_TABLE_PREFIX) {
             n.name = format!("__{}", n.name);
         }
         n.children.iter_mut().for_each(rename);
@@ -7467,7 +7493,10 @@ fn libm_prelude() -> &'static [Node] {
         Ok(ast) => ast
             .children
             .into_iter()
-            .filter(|n| n.kind == NodeKind::FnDecl && n.name.starts_with(LIBM_PREFIX))
+            .filter(|n| {
+                (n.kind == NodeKind::FnDecl && n.name.starts_with(LIBM_PREFIX))
+                    || (n.kind == NodeKind::ConstDecl && n.name.starts_with(LIBM_TABLE_PREFIX))
+            })
             .map(|mut n| {
                 rename(&mut n);
                 n

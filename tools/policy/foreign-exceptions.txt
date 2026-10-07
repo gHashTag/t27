@@ -382,3 +382,9 @@ tools/queen/criteria_backfill.py
 # the conformance spec, dogfooded first); an operand Zig folds at compile time is refused.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7217:
+# t27b coverage lane 1 -- a run-time @log of an f64 calls compiler_rt log written in t27 (specs/tri/t27b/libm.t27,
+# with its T27B_LIBM_* tables; the conformance spec, dogfooded first); a compile-time operand and f32 are refused.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
