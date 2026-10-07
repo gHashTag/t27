@@ -335,3 +335,12 @@ cli/t27b/tests/tail.rs
 # discount_holds). The workflow runs the rule; the selftest drives it against stubbed master runs.
 .github/workflows/auto-merge-ready-prs.yml
 tools/bees/merger_gate_selftest.py
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7345:
+# the reviewer bee, carried over from the open PR #5777 (which conflicts with master), with one fix: it writes
+# a discounted-check line only where the merger will accept it, i.e. master's newest completed run of the same
+# job at or after the merge base FAILED. The rule is specs/queen/merger_gate.t27 (run_says, look_back,
+# discount_holds); reviewer.py mirrors it with a pointer and has no rule of its own. criteria_backfill.py comes
+# with it unchanged from #5777: the reviewer imports it to run an issue's criteria, and its self-test needs it.
+tools/bees/reviewer.py
+tools/queen/criteria_backfill.py
