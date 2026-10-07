@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:b60fa9ea2a22f8dc1420e7071233afd913bc7fa924f116e42a0b3f9471e74706",
   "gen_hash_rust": "sha256:4ed7d8a9e8d167f72851de6511289e6ea0b72e02e5df9c7968e951a5fc09d625",
   "gen_hash_verilog": "sha256:c63d88c0e7b7aaefe6a1664aa0afc7c03277a13703b24a5cd1c32388de25e937",
-  "gen_hash_zig": "sha256:c0910f130803522e5670f6b25e62ef81486fe07183da8f7ba85ed94f6f294841",
+  "gen_hash_zig": "sha256:eeac5327e1663fc8409cb9a99fe427240963601b93bc69a6de024f52f1ecc54a",
   "module": "MultiHeadAttention",
   "ring": 12,
-  "sealed_at": "2026-10-05T19:06:23Z",
-  "spec_hash": "sha256:a5d9781f8c218f09b7aea795044a234bfa735e768848b6a2feca49fc5497b65c",
+  "sealed_at": "2026-10-07T04:11:24Z",
+  "spec_hash": "sha256:e303aa62c1526f02c953a4446e6c1c4b275cb3ae68e39ef42dfef313045a646c",
   "spec_path": "specs/ml/transformer/multi_head_attn.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-multi_head_attn-945127/spec.zig:183:19: error: use of undeclared identifier 'random_input'"
+    "blocked": "does not compile: /tmp/t27c-test-report-multi_head_attn-2835366/spec.zig:182:19: error: use of undeclared identifier 'random_input'"
   }
 }
