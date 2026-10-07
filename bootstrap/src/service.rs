@@ -2557,9 +2557,9 @@ pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Op
         }
         let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
         let mut v = serde_json::json!({"kind": cr::CORPUS_DOMAIN, "commit": run["commit"], "t27b_sha256": hx(Path::new(b))?, "t27c_sha256": hx(&std::env::current_exe()?)?,
-            "totals": run["summary"].as_object().map(|o| o.iter().filter(|e| !cr::TOTALS_UNSIGNED.contains(&e.0.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect::<serde_json::Map<_, _>>()), "nonce": hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)), "key_id": receipt_key_id(key.verifying_key().as_bytes()), "leaves": {}});
+            "totals": run["summary"].as_object().map(|o| o.iter().filter(|e| !cr::TOTALS_UNSIGNED.contains(&e.0.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect::<serde_json::Map<_, _>>()), "nonce": hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)), "key_id": receipt_key_id(&crate::ed25519::public_key(key)), "leaves": {}});
         for (i, n) in cr::LEAF_LISTS.iter().enumerate() { l[i].sort(); v[format!("{n}_root")] = hex_lower(&cr_root(&l[i])).into(); v["leaves"][*n] = l[i].clone().into(); }
-        v["signature"] = hex_lower(&ed25519_dalek::Signer::sign(&key, &receipt_message_of_json(&v)).to_bytes()).into();
+        v["signature"] = hex_lower(&crate::ed25519::sign(key, &receipt_message_of_json(&v))).into();
         return Ok(println!("{}", serde_json::to_string_pretty(&v)?));
     }
     let (x, y) = (read(a)?, read(b)?);
