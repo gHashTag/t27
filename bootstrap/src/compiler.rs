@@ -28725,8 +28725,16 @@ impl RustCodegen {
 
     /// Emit an expression in an integer position (return value, typed local).
     fn expr_to_rust_as(&self, node: &Node, ty: &str) -> String {
-        let s = self.expr_to_rust(node);
         let ty = ty.trim();
+        // #7534: t27 coerces a `T` to `?T`; Rust needs `Some(..)`. Wrapped only when
+        // the value is known not to be optional already, so `null` stays `None`.
+        if let Some(inner) = ty.strip_prefix("Option<").and_then(|t| t.strip_suffix('>')) {
+            if self.rust_expr_is_plain(node) {
+                return format!("Some({})", self.expr_to_rust_as(node, inner));
+            }
+            return self.expr_to_rust(node);
+        }
+        let s = self.expr_to_rust(node);
         if !Self::is_int_type(ty) {
             return s;
         }
@@ -28739,6 +28747,25 @@ impl RustCodegen {
         match self.infer_int_type(node) {
             Some(actual) if actual != ty => format!("({}) as {}", s, ty),
             _ => s,
+        }
+    }
+
+    /// True when `node` is surely not an `Option`: a literal, an operator, a cast, a
+    /// struct or tuple, or a name or call whose declared type is not `Option<..>`.
+    /// Anything unknown (index, field, `if`, untyped name) answers false.
+    fn rust_expr_is_plain(&self, node: &Node) -> bool {
+        let plain = |t: Option<&String>| t.is_some_and(|t| !t.starts_with("Option<"));
+        match node.kind {
+            NodeKind::ExprLiteral | NodeKind::ExprBinary | NodeKind::ExprUnary => true,
+            NodeKind::ExprCast | NodeKind::ExprStructLit | NodeKind::ExprTuple => true,
+            NodeKind::ExprEnumValue | NodeKind::ExprArrayLiteral => true,
+            NodeKind::ExprIdentifier if node.name == "null" => false,
+            NodeKind::ExprIdentifier => {
+                plain(self.var_types.get(&node.name).or_else(|| self.const_types.get(&node.name)))
+            }
+            NodeKind::ExprCall => plain(self.fn_ret_types.get(&node.name)),
+            NodeKind::ExprFieldAccess => node.name == "?", // `x.?` unwraps
+            _ => false,
         }
     }
 
