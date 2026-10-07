@@ -2141,6 +2141,9 @@ impl<'a> Lower<'a> {
                 return self.tuple_local(init, name, t, out);
             }
         }
+        if init.kind == NodeKind::ExprTuple && !mutable {
+            return self.tuple_value_local(init, &name, out);
+        }
         let v = self.expr(init)?;
         match v {
             Val::Poison => self.bind(&name, Binding::Const(Val::Poison)),
@@ -3059,6 +3062,20 @@ impl<'a> Lower<'a> {
             NodeKind::ExprCall if n.name == "@enumFromInt" => {
                 self.reject("ExprCall(@enumFromInt)", "with no enum result type".into())
             }
+            // `@sqrt(x)` of a run-time float: gen-zig prints it as written.
+            // A compile-time float (`@sqrt(2.0)`) Zig folds at its own
+            // precision, and an integer it refuses: both stay refused.
+            NodeKind::ExprCall if n.name == "@sqrt" && n.children.len() == 1 => match self.expr(&n.children[0])? {
+                Val::E(e) if e.ty.is_float() => {
+                    let ty = e.ty;
+                    Ok(Val::E(Expr { ty, kind: ExprKind::FSqrt(Box::new(e)) }))
+                }
+                Val::Poison => Err(()),
+                v => {
+                    let d = self.val_desc(&v);
+                    self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
+                }
+            },
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 let t = self.lty(&n.children[0].name)?;
@@ -3718,6 +3735,29 @@ impl<'a> Lower<'a> {
             return Ok(Val::E(Expr {
                 ty: Ty::Bool,
                 kind: ExprKind::Const(op.holds(ord, 0) as i128),
+            }));
+        }
+        // A comptime_int outside the run-time operand's range: Zig settles the
+        // comparison at compile time (`x < 1 << 32` holds for every u32) and
+        // still evaluates the run-time side.
+        let ranged = match (&a, &b) {
+            (Val::E(x), Val::Ct(c)) if x.ty.is_int() && !x.ty.fits(*c) => Some((op, *c)),
+            (Val::Ct(c), Val::E(y)) if y.ty.is_int() && !y.ty.fits(*c) => Some((op.swap(), *c)),
+            _ => None,
+        };
+        if let Some((op, c)) = ranged {
+            let x = match (a, b) {
+                (Val::E(x), _) | (_, Val::E(x)) => x,
+                _ => unreachable!(),
+            };
+            // `x op c` with x always below c (or always above it).
+            let held = if c > x.ty.max() { op.holds(0, 1) } else { op.holds(1, 0) };
+            return Ok(Val::E(Expr {
+                ty: Ty::Bool,
+                kind: ExprKind::Seq {
+                    stmts: vec![Stmt::Eval(x)],
+                    value: Box::new(Expr { ty: Ty::Bool, kind: ExprKind::Const(held as i128) }),
+                },
             }));
         }
         let (x, y) = self.peer(a, b, op.symbol())?;
@@ -4513,6 +4553,25 @@ impl<'a> Lower<'a> {
                 };
                 return self.slice_of(addr_of(&arr), len, want.clone());
             }
+        }
+        // `&[_]T{ ... } ** n` where a slice is wanted: t27c prints
+        // `&.{ ... } ** n`, which Zig reads as `(&.{ ... }) ** n`, a pointer
+        // to a tuple, and refuses once it analyzes it ("expected indexable").
+        // In a fn nothing analyzed reaches it is only parsed, so it lowers to
+        // the stub trap no test reaches; anywhere else it stays refused.
+        if self.unanalyzed_fn
+            && n.kind == NodeKind::ExprUnary
+            && n.extra_op == "&"
+            && n.children.len() == 1
+            && is_repeat_op(&n.children[0])
+            && matches!(want, LTy::Str | LTy::Slice(..))
+        {
+            self.see(n);
+            let k = self.new_slot(want)?;
+            let site = self.site(TrapKind::Stub, "`&` of a repeated array literal in a fn the reference never analyzes".into(), Ty::Bool);
+            let trap = Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site };
+            let addr = Expr { ty: Ty::Ptr, kind: ExprKind::Seq { stmts: vec![trap], value: Box::new(slot_expr(k)) } };
+            return Ok(Val::M(Place { addr, off: 0, ty: want.clone(), mutable: false, temp: Some(k) }));
         }
         let v = self.expr(n)?;
         self.coerce_to(v, want)

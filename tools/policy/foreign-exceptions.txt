@@ -209,3 +209,16 @@ tools/l2_regen_check.py
 # adds is checked as one it modifies, so the L2 step's "ok: no gen/ file modified (new files allowed)" became
 # false. Two echo lines and a comment in the existing workflow; the rule is specs/policy/l2_generation.t27.
 .github/workflows/l1-traceability.yml
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #7244 ("add the label yourself
+# and do the work", translated): t27b coverage lane 2 -- a `const` tuple local, `@sqrt` of a run-time float
+# (FSQRT, with its encoder case), a comparison with a comptime_int outside the operand's range, and `&` of a
+# repeated array literal in a fn the reference never analyzes. Conformance specs first:
+# specs/tri/t27b/conformance/tuple_local.t27, float_sqrt.t27, cmp_out_of_range.t27, repeat_addr_unreached.t27.
+cli/t27b/src/a64.rs
+cli/t27b/src/codegen.rs
+cli/t27b/src/eval.rs
+cli/t27b/src/ir.rs
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/tuple.rs
+cli/t27b/tests/encoder.rs
