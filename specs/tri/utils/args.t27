@@ -112,7 +112,7 @@ module TriArgs;
         return kind_is("--", WORD_DOUBLE_DASH) + kind_is("--verbose", WORD_LONG) + kind_is("--out=a.txt", WORD_LONG)
             + kind_is("--=", WORD_LONG) + kind_is("-v", WORD_SHORT) + kind_is("-vxz", WORD_SHORT_GROUP)
             + kind_is("-", WORD_POSITIONAL) + kind_is("", WORD_POSITIONAL) + kind_is("file", WORD_POSITIONAL)
-            + kind_is("a-b", WORD_POSITIONAL) + kind_is("---", WORD_LONG);
+            + kind_is("a-b", WORD_POSITIONAL) + kind_is("---", WORD_LONG) + kind_is("-ab", WORD_SHORT_GROUP);
     }
 
     // after "--" every word is positional, "--" itself too
@@ -172,7 +172,7 @@ module TriArgs;
 
     test word_kinds
         given result = kinds()
-        when expected = 11
+        when expected = 12
         then result == expected
 
     test double_dash_ends_options
