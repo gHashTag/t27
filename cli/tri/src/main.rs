@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitCode};
 
 mod abandoned;
 mod census;
@@ -995,7 +995,19 @@ fn cmd_health(root: &Path, target: Option<&str>) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => {
+            e.print();
+            if e.use_stderr() {
+                // Usage error - exit with code 1
+                std::process::exit(1);
+            } else {
+                // Help/version request - exit with code 0
+                std::process::exit(0);
+            }
+        }
+    };
 
     match &cli.command {
         Commands::Status => {
