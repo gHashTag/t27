@@ -221,4 +221,5 @@ cli/t27b/src/eval.rs
 cli/t27b/src/ir.rs
 cli/t27b/src/lower.rs
 cli/t27b/src/lower/tuple.rs
+cli/t27b/tests/differential.rs
 cli/t27b/tests/encoder.rs

@@ -1118,6 +1118,7 @@ fn show_expr(p: &Program, f: &Func, e: &Expr) -> String {
             format!("({} f{} {})", show_expr(p, f, lhs), op.symbol(), show_expr(p, f, rhs))
         }
         ExprKind::FNeg(a) => format!("-f{}", show_expr(p, f, a)),
+        ExprKind::FSqrt(a) => format!("@sqrt({})", show_expr(p, f, a)),
         ExprKind::IntToFloat(a) => format!("@floatFromInt({})", show_expr(p, f, a)),
         ExprKind::FloatCast(a) => format!("@floatCast({}):{}", show_expr(p, f, a), e.ty.name()),
         ExprKind::FloatToInt { arg, site } => {
