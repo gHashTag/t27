@@ -86,6 +86,8 @@ use std::collections::{HashMap, HashSet};
 mod float;
 #[path = "../../../gen/rust/tri/t27b/builtin_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
+#[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
 mod refvars;
 mod tuple;
 
@@ -3504,6 +3506,37 @@ impl<'a> Lower<'a> {
         Ok(Val::E(Expr { ty: to, kind: ExprKind::Cast { arg: Box::new(e), site } }))
     }
 
+    /// `@intCast(x)` with integer result type `ty` from the context (`@as`, a typed binding, a parameter, a
+    /// return). What is refused and what the rest lowers to: specs/tri/t27b/int_cast_plan.t27.
+    fn int_cast(&mut self, n: &Node, ty: Ty) -> R<Val> {
+        self.see(n);
+        let shape = ic::shape(n.children.len(), ty.is_int());
+        let v = if shape == ic::GO { self.expr(&n.children[0])? } else { Val::Poison };
+        let (k, from, c) = match &v {
+            Val::Poison if shape == ic::GO => return Err(()),
+            Val::E(e) if e.ty.is_int() => (ic::K_INT, e.ty, if let ExprKind::Const(c) = e.kind { Some(c) } else { None }),
+            Val::Ct(c) => (ic::K_CT, ty, Some(*c)),
+            _ => (ic::K_OTHER, ty, None),
+        };
+        let (fits, wrap) = (c.is_some_and(|c| ty.fits(c)), self.mode == OverflowMode::Wrap);
+        let plan = |k| ic::plan(k, from.bits(), from.signed(), ty.bits(), ty.signed(), c.is_some(), fits, wrap);
+        let kind = match (if shape == ic::GO { plan(k) } else { shape }, v) {
+            (ic::KEEP, v) => return Ok(v),
+            (ic::FOLD | ic::FOLD_WRAP, _) => ExprKind::Const(ty.wrap(c.unwrap())), // a FOLD fits `ty`: wrap keeps it
+            (ic::WIDEN, Val::E(e)) => ExprKind::Widen(Box::new(e)),
+            (a, Val::E(e)) if ic::is_cast(a) => {
+                let what = format!("{} {} to {}", ic::SITE, from.name(), ty.name());
+                ExprKind::Cast { arg: Box::new(e), site: if ic::traps(a) { self.site(TrapKind::Cast, what, ty) } else { 0 } }
+            }
+            (a, v) => {
+                let d = match &v { Val::E(e) => e.ty.name().into(), Val::Ct(c) => c.to_string(), _ => self.val_desc(&v) };
+                let d = if v.is_poison() { format!("{} operands", n.children.len()) } else { d };
+                return self.reject(ic::WHAT, format!("`@intCast` of {} to {}: {}", d, ty.name(), ic::why(a)));
+            }
+        };
+        Ok(Val::E(Expr { ty, kind }))
+    }
+
     /// A module-level `var` named where t27c's Zig backend needs a
     /// compile-time value: Zig cannot read or write a container-level `var`
     /// in a `comptime` block or in a module-level initializer.
@@ -4852,6 +4885,9 @@ impl<'a> Lower<'a> {
         }
         if let (NodeKind::ExprCall, "@floatCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             return self.float_cast_call(n, *ty);
+        }
+        if let (NodeKind::ExprCall, "@intCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
+            return self.int_cast(n, *ty);
         }
         if let (NodeKind::ExprCall, "@intFromEnum", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             let v = self.int_from_enum(n, TagUse::Want(*ty))?;

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:fdb4387fd78a898156787cf3273db8dce4541a3e3ed8be38af45eba0fdf2f732",
+  "gen_hash_rust": "sha256:ac15c1a1652af4e7c4e6cf5c264219de80ad841e4bdca02e56457b843bfd1fe4",
+  "gen_hash_verilog": "sha256:40343b26cdb9e4a84eb6513f9030d363cfdc6a2186a292fa4ce7adfcbcca7084",
+  "gen_hash_zig": "sha256:4aa662bb5fcd6c0e1480325d2db3b1f4fcc375bb9c7628e3d49e02a0aa197488",
+  "module": "T27bIntCastPlan",
+  "ring": 12,
+  "sealed_at": "2026-10-07T22:44:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:4de93edab47dc680f5c6ba63a21b777330f0f7cdc673cf751ecb25ece1913152",
+  "spec_path": "specs/tri/t27b/int_cast_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
+}
