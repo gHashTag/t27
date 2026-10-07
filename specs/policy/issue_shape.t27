@@ -1,0 +1,220 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/policy/issue_shape.t27 -- the "Issue Shape" gate: which sections a new issue must carry.
+; Owner's hard rule, 2026-10-07: no new issue may be created without the sections the Queen needs to dispatch it.
+; --
+; This file is the single source of truth for the rule. It is lowered by `t27c gen-c` to
+; gen/c/policy/issue_shape.c (never hand-edited, L2); .github/workflows/issue-shape.yml feeds
+; the issue body into check_all() below and fails on any DENY. The only override is the owner's
+; label `epic` or `roadmap` on an issue.
+; --
+; Decisions, stated where the rule lives:
+; - Issues labeled `epic` or `roadmap` are ALLOW: they are meta-issues that don't need dispatch.
+; - Issues with all four sections (Boundary, User Scenarios, Requirements, Success Criteria) are ALLOW.
+; - Issues missing any section are DENY: the gate closes the issue, labels it `needs-shape`, and comments.
+; - The gate checks for exact section headers: "## Boundary", "## User Scenarios", "## Requirements", "## Success Criteria".
+; - Section order doesn't matter, but all must be present.
+; - Empty sections (just the header) are ALLOW: the content can be filled later.
+; - The gate runs on issue creation and edit events.
+; --
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module PolicyIssueShape;
+
+/// The verdict on one issue body.
+pub const ALLOW : u8 = 0;
+pub const DENY : u8 = 1;
+
+/// Why. Every code below DENY_FROM allows; every code at or above it denies.
+pub const R_EPIC : u8 = 1;
+pub const R_ROADMAP : u8 = 2;
+pub const R_COMPLETE : u8 = 3;
+pub const R_MISSING_BOUNDARY : u8 = 4;
+pub const R_MISSING_SCENARIOS : u8 = 5;
+pub const R_MISSING_REQUIREMENTS : u8 = 6;
+pub const R_MISSING_SUCCESS : u8 = 7;
+pub const R_MALFORMED : u8 = 8;
+pub const DENY_FROM : u8 = 16;
+
+/// The failure messages.
+pub const MSG_MISSING : str = " missing required section '$'; the issue needs all four: Boundary, User Scenarios, Requirements, Success Criteria$";
+pub const MSG_SHAPE : str = " issue shape incomplete: missing sections above; label 'needs-shape' applied and issue closed$";
+pub const MSG_EPIC : str = " issue labeled 'epic' - meta-issue, not dispatched$";
+pub const MSG_ROADMAP : str = " issue labeled 'roadmap' - meta-issue, not dispatched$";
+
+/// '$' and ',' as numbers: a char literal is not a const initializer in every backend.
+pub const LIST_END : u8 = 36;
+pub const LIST_SEP : u8 = 44;
+
+/// ASCII lowercase of one byte.
+pub fn lower(c: u8) -> u8 {
+    if (c >= 'A' and c <= 'Z') { return c + 32; }
+    return c;
+}
+
+/// Case-insensitive substring search for "## <section>".
+pub fn has_section(body: []const u8, from: usize, to: usize, section: []const u8) -> bool {
+    const section_len : usize = section.len;
+    if (to - from < section_len + 3) { return false; } // "## " + section
+    
+    var i : usize = from;
+    while (i <= to - section_len - 3) {
+        // Check for "## "
+        if (body[i] != '#' or body[i+1] != '#' or body[i+2] != ' ') { 
+            i += 1; 
+            continue; 
+        }
+        
+        // Check section name case-insensitively
+        var j : usize = 0;
+        var match : bool = true;
+        while (j < section_len) {
+            var a : u8 = body[i + 3 + j];
+            var b : u8 = section[j];
+            if (lower(a) != lower(b)) { 
+                match = false; 
+                break; 
+            }
+            j += 1;
+        }
+        
+        if (match) { return true; }
+        i += 1;
+    }
+    return false;
+}
+
+/// Check if issue has epic or roadmap label.
+pub fn is_meta_issue(body: []const u8, from: usize, to: usize) -> bool {
+    // Look for "epic:" or "roadmap:" in the body (case-insensitive)
+    const epic : str = "epic:";
+    const roadmap : str = "roadmap:";
+    
+    return has_section(body, from, to, epic) or has_section(body, from, to, roadmap);
+}
+
+/// Check which sections are missing.
+pub fn check_sections(body: []const u8, from: usize, to: usize) -> u8 {
+    const boundary : str = "boundary";
+    const scenarios : str = "user scenarios";
+    const requirements : str = "requirements";
+    const success : str = "success criteria";
+    
+    var missing : u8 = 0;
+    
+    if (!has_section(body, from, to, boundary)) { missing = R_MISSING_BOUNDARY; }
+    if (!has_section(body, from, to, scenarios)) { 
+        if (missing == 0) missing = R_MISSING_SCENARIOS; 
+    }
+    if (!has_section(body, from, to, requirements)) { 
+        if (missing == 0) missing = R_MISSING_REQUIREMENTS; 
+    }
+    if (!has_section(body, from, to, success)) { 
+        if (missing == 0) missing = R_MISSING_SUCCESS; 
+    }
+    
+    return missing;
+}
+
+/// The verdict for one issue body.
+pub fn judge(body: []const u8, from: usize, to: usize) -> u8 {
+    if (to <= from) { return R_MALFORMED; }
+    
+    // Check for epic or roadmap labels first
+    if (is_meta_issue(body, from, to)) {
+        return R_EPIC; // Allow meta-issues
+    }
+    
+    // Check all sections
+    const missing : u8 = check_sections(body, from, to);
+    if (missing == 0) {
+        return R_COMPLETE; // All sections present
+    }
+    
+    return missing; // Missing sections
+}
+
+/// ALLOW or DENY for a judgment.
+pub fn verdict(r: u8) -> u8 {
+    if (r >= DENY_FROM) { return DENY; }
+    return ALLOW;
+}
+
+/// The verdict for one issue body, the classifier in one call.
+pub fn classify(body: []const u8, from: usize, to: usize) -> u8 {
+    return verdict(judge(body, from, to));
+}
+
+/// Write one byte at w if it fits; the returned position keeps counting past the end.
+pub fn put(out: []u8, w: usize, cap: usize, c: u8) -> usize {
+    if (w < cap) { out[w] = c; }
+    return w + 1;
+}
+
+/// Write s[from..to].
+pub fn put_range(out: []u8, w: usize, cap: usize, s: []const u8, from: usize, to: usize) -> usize {
+    var p : usize = w;
+    var i : usize = from;
+    while (i < to) {
+        p = put(out, p, cap, s[i]);
+        i += 1;
+    }
+    return p;
+}
+
+/// Write a '$'-terminated message piece without its '$'.
+pub fn put_msg(out: []u8, w: usize, cap: usize, msg: []const u8) -> usize {
+    var p : usize = w;
+    var i : usize = 0;
+    while (msg[i] != LIST_END) {
+        p = put(out, p, cap, msg[i]);
+        i += 1;
+    }
+    return p;
+}
+
+/// Format the missing section message.
+pub fn put_missing_msg(out: []u8, w: usize, cap: usize, missing: u8) -> usize {
+    var p : usize = w;
+    const section : str = switch (missing) {
+        R_MISSING_BOUNDARY => "Boundary",
+        R_MISSING_SCENARIOS => "User Scenarios", 
+        R_MISSING_REQUIREMENTS => "Requirements",
+        R_MISSING_SUCCESS => "Success Criteria",
+        else => "",
+    };
+    if (section.len > 0) {
+        p = put_msg(out, p, cap, MSG_MISSING);
+        p = put_range(out, p, cap, section, 0, section.len);
+    }
+    return p;
+}
+
+/// Write the full error message for a judgment.
+pub fn put_error(out: []u8, w: usize, cap: usize, judgment: u8) -> usize {
+    var p : usize = w;
+    
+    if (judgment == R_EPIC) {
+        p = put_msg(out, p, cap, MSG_EPIC);
+    } else if (judgment == R_ROADMAP) {
+        p = put_msg(out, p, cap, MSG_ROADMAP);
+    } else if (judgment == R_MISSING_BOUNDARY or judgment == R_MISSING_SCENARIOS or judgment == R_MISSING_REQUIREMENTS or judgment == R_MISSING_SUCCESS) {
+        p = put_missing_msg(out, p, cap, judgment);
+        p = put_msg(out, p, cap, MSG_SHAPE);
+    } else {
+        p = put_msg(out, p, cap, MSG_SHAPE);
+    }
+    
+    return p;
+}
+
+/// Check one issue body and write error messages.
+pub fn check_all(body: []const u8, body_len: usize, out: []u8, out_cap: usize) -> u32 {
+    var judgment : u8 = judge(body, 0, body_len);
+    var p : usize = put_error(out, 0, out_cap, judgment);
+    
+    // Null-terminate the output
+    if (p < out_cap) { out[p] = 0; }
+    
+    // Return non-zero if we should deny (i.e., not ALLOW)
+    return if (verdict(judgment) == DENY) 1 else 0;
+}

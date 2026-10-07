@@ -1,0 +1,39 @@
+name: Issue Shape
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  group: issue-shape-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  issue-shape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check issue shape
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          printf '#include "gen/c/policy/issue_shape.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_all((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n' | cc -w -I . -x c -o "$RUNNER_TEMP/gate" -
+          
+          if gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[] | select(.name == "epic" or .name == "roadmap")' | grep -q .; then
+            echo "Meta-issue - skipping gate"
+            exit 0
+          fi
+          
+          ISSUE_BODY="$(gh issue view "$ISSUE_NUMBER" --json body --jq .body)"
+          if echo "$ISSUE_BODY" | "$RUNNER_TEMP/gate" | grep -q "missing required section"; then
+            gh issue edit "$ISSUE_NUMBER" --add-label needs-shape --state closed
+          elif gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[] | select(.name == "needs-shape")' | grep -q .; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label needs-shape --state open
+          fi
