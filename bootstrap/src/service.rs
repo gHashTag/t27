@@ -2557,8 +2557,8 @@ pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Op
             let (f, t) = (r["file"].as_str().unwrap_or(""), r["t27b"].as_str().unwrap_or(""));
             (l[0].push(pair(f, &hx(&root.join(f))?)), l[1].push(pair(f, &pair(t, r["reference"].as_str().unwrap_or("")))));
             let o = if cr::output_counted(spec_str(t)) { let mut w = argv.split_whitespace().chain([b, "asm", f]); Command::new(w.next().unwrap_or(b)).args(w).current_dir(root).output()? } else { continue };
-            anyhow::ensure!(o.status.success(), "t27b asm {f}: {}; a counted file without its output refuses the receipt", o.status);
-            l[2].push(pair(f, &hex_lower(&cr_sha(&[&o.stdout]))));
+            let d = if o.status.success() { hex_lower(&cr_sha(&[&o.stdout])) } else { pair(cr::ASM_FAILED, &hex_lower(&cr_sha(&[&o.stderr]))) };
+            l[2].push(pair(f, &d)); // a passing file whose asm fails keeps a leaf: spec ASM_FAILED
         }
         let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
         let mut v = serde_json::json!({"kind": cr::CORPUS_DOMAIN, "commit": run["commit"], "t27b_sha256": hx(Path::new(b))?, "t27c_sha256": hx(&std::env::current_exe()?)?,

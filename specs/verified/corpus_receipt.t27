@@ -29,7 +29,10 @@
 ;     verdict -- value: the t27b verdict, TAB, the reference verdict, for every file in the run;
 ;     output  -- value: lowercase hex SHA-256 of `t27b asm <file>` stdout, only for the files whose
 ;                t27b verdict output_counted() accepts (pass and pass_vacuous: t27b compiled and
-;                ran them clean). An asm that does not exit 0 on such a file refuses the receipt.
+;                ran them clean). When asm does not exit 0 on such a file (the object writer lacks
+;                a construct the JIT has: 28 of 1007 passing files on the #7576 branch), the value is
+;                pair(ASM_FAILED, hex SHA-256 of its stderr): the file keeps a leaf, a change in
+;                why it fails changes the leaf, and the leaf can never read as a digest.
 ; - Each list's root is the RFC 6962 Merkle tree hash: an empty list hashes the empty string; one
 ;   leaf hashes LEAF_PREFIX then the line; n > 1 leaves split at split_point(n), the largest power
 ;   of two below n, and hash NODE_PREFIX, the left root, the right root. Not the "duplicate the
@@ -68,6 +71,9 @@ pub const CH_TAB : u32 = 9;
 /// The two t27b verdicts whose asm output is a leaf.
 pub const VERDICT_PASS : str = "pass";
 pub const VERDICT_PASS_VACUOUS : str = "pass_vacuous";
+
+/// An output leaf's value starts with this when `t27b asm` did not exit 0 on a passing file.
+pub const ASM_FAILED : str = "asm-failed";
 
 /// compare_first_problem() answers, in judgment order.
 pub const CMP_OK : u8 = 0;
@@ -222,6 +228,13 @@ test "an empty side of a pair still has its tab" {
     assert pair_char("", "x", 1) == 120;
     assert pair_char("p", "", 1) == CH_TAB;
     assert pair_char("p", "", 2) == LINE_END;
+}
+
+test "a failed asm is a leaf of its own, never a digest" {
+    assert pair_len(ASM_FAILED, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855") == 75;
+    assert pair_char(ASM_FAILED, "e3", 10) == CH_TAB;
+    assert text_is(ASM_FAILED, "asm-failed") == true;
+    assert text_is(ASM_FAILED, "") == false;
 }
 
 test "text equality is byte equality, length first" {
