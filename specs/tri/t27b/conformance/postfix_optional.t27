@@ -3,7 +3,7 @@
 ; reference runs it (gHashTag/t27#6063 lane 1, issue #7415). Every test here passes `t27c test-report`;
 ; t27b must give the same verdict on each, or refuse the file.
 ; t27c's type mapper writes a struct field's `T?` as Zig's `?T` (#6451), so `str?` is `?[]const u8` and
-; `Point?` an optional struct. The two spellings name one type: a `u16?` field goes into a `?u16`
+; `PostfixPoint?` an optional struct. The two spellings name one type: a `u16?` field goes into a `?u16`
 ; parameter and back.
 ; Not here: `-> T?` and `const X: T? = ..` do not parse, and a parameter's `T?` loses its `?` in the
 ; parser, so the reference and t27b both read that parameter as a plain `T`.
@@ -11,26 +11,29 @@
 
 module T27bConformancePostfixOptional;
 
-const Point = struct {
+// Named PostfixPoint and PostfixReply, not Point and Reply: specs/tri/math/bezier.t27 owns Point and
+// specs/compiler/zig_field_syntax.t27 owns Reply, and a conformance fixture type name is unique in the
+// corpus (Q66; tri types ratchet, #7522).
+const PostfixPoint = struct {
     x: i32,
     y: i32,
 };
 
-const Reply = struct {
+const PostfixReply = struct {
     ok: bool,
     note: str?,
     code: u16?,
-    at: Point?,
+    at: PostfixPoint?,
 };
 
-fn make(ok: bool) -> Reply {
+fn make(ok: bool) -> PostfixReply {
     if (ok) {
-        return Reply{ .ok = true, .note = null, .code = null, .at = null };
+        return PostfixReply{ .ok = true, .note = null, .code = null, .at = null };
     }
-    return Reply{ .ok = false, .note = "bad", .code = 404, .at = Point{ .x = 2, .y = 3 } };
+    return PostfixReply{ .ok = false, .note = "bad", .code = 404, .at = PostfixPoint{ .x = 2, .y = 3 } };
 }
 
-fn note_len(r: Reply) -> usize {
+fn note_len(r: PostfixReply) -> usize {
     if (r.note != null) {
         return r.note.?.len;
     }
@@ -45,7 +48,7 @@ fn code_or(x: ?u16, d: u16) -> u16 {
     return d;
 }
 
-fn sum_at(r: Reply, d: i32) -> i32 {
+fn sum_at(r: PostfixReply, d: i32) -> i32 {
     if (r.at != null) {
         return r.at.?.x * 10 + r.at.?.y;
     }
@@ -53,7 +56,7 @@ fn sum_at(r: Reply, d: i32) -> i32 {
 }
 
 // A field set after the struct is built, inside a loop.
-fn first_multiple(start: u16, k: u16) -> Reply {
+fn first_multiple(start: u16, k: u16) -> PostfixReply {
     var r = make(true);
     var i: u16 = 0;
     while (i < 5) {
