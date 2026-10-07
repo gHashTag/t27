@@ -78,53 +78,161 @@ impl<'a> Lower<'a> {
     }
 
     /// `abs(x)` with no `fn abs` declared: t27c's Zig backend prints the
-    /// builtin `@abs(x)` (its `declared_fns` guard). A typed f64 / f32 loses
-    /// its sign bit, so `-0.0` gives `+0.0`; written `x <= 0 ? 0 - x : x`,
-    /// with `x` evaluated once (`NaN <= 0` is false: a NaN comes back as is).
-    /// A comptime operand folds. A typed integer is refused: Zig's `@abs`
-    /// of an `iN` is a `uN`. `None`: not this call.
+    /// builtin `@abs(x)` (its `declared_fns` guard), so it lowers as
+    /// `abs_of` does. `None`: not this call.
     pub(super) fn bare_abs(&mut self, n: &Node) -> R<Option<Val>> {
         if n.name != "abs" || self.sigs.contains_key("abs") || self.poison_names.contains("abs") {
             return Ok(None);
         }
+        self.abs_of(n, "ExprCall(undeclared fn)", "ExprCall(abs of an integer)").map(Some)
+    }
+
+    /// `@abs(x)`, printed by gen-zig as written.
+    pub(super) fn builtin_abs(&mut self, n: &Node) -> R<Val> {
+        self.abs_of(n, "ExprCall(@abs)", "ExprCall(@abs of an integer)")
+    }
+
+    /// Zig's `@abs(x)`. A typed f64 / f32 loses its sign bit, so `-0.0`
+    /// gives `+0.0`; written `x <= 0 ? 0 - x : x`, with `x` evaluated once
+    /// (`NaN <= 0` is false: a NaN comes back as is, its sign bit too, which
+    /// no t27 expression can read). A comptime operand folds. A typed
+    /// integer is refused: Zig's `@abs` of an `iN` is a `uN`.
+    fn abs_of(&mut self, n: &Node, what: &str, of_int: &str) -> R<Val> {
         self.see(n);
         if n.children.len() != 1 {
             let k = n.children.len();
-            return self.reject("ExprCall(undeclared fn)", format!("call to `abs` with {} arguments", k));
+            return self.reject(what, format!("call to `{}` with {} arguments", n.name, k));
         }
         let x = match self.expr(&n.children[0])? {
             Val::Poison => return Err(()),
-            Val::Cf(q) => return Ok(Some(Val::Cf(q.abs()))),
+            Val::Cf(q) => return Ok(Val::Cf(q.abs())),
             Val::Ct(c) => match c.checked_abs() {
-                Some(a) => return Ok(Some(Val::Ct(a))),
+                Some(a) => return Ok(Val::Ct(a)),
                 None => return self.reject("literal out of range", format!("abs({})", c)),
             },
             Val::E(e) if e.ty.is_float() => e,
             v => {
-                let d = match &v { Val::E(e) => e.ty.name().to_string(), _ => self.val_desc(&v) };
-                return self.reject("ExprCall(abs of an integer)", format!("`abs` of {}: Zig's @abs of an iN is a uN", d));
+                let d = self.operand_desc(&v);
+                return self.reject(of_int, format!("`{}` of {}: Zig's @abs of an iN is a uN", n.name, d));
             }
         };
         let ty = x.ty;
         let mut stmts = Vec::new();
-        let x = if matches!(x.kind, ExprKind::Const(_) | ExprKind::Var(_)) {
-            x
-        } else {
-            let k = self.new_slot(&LTy::S(ty))?;
-            stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: x });
-            Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } }
-        };
+        let x = self.once(x, &mut stmts)?;
         let zero = Val::Cf(Q::zero());
         let le = self.binary("<=", Val::E(x.clone()), zero.clone())?;
         let cond = self.coerce(le, Ty::Bool)?;
         let neg = self.binary("-", zero, Val::E(x.clone()))?;
         let neg = self.coerce(neg, ty)?;
         let sel = Expr { ty, kind: ExprKind::Select { cond: Box::new(cond), then: Box::new(neg), els: Box::new(x) } };
-        if stmts.is_empty() {
-            return Ok(Some(Val::E(sel)));
-        }
-        Ok(Some(Val::E(Expr { ty, kind: ExprKind::Seq { stmts, value: Box::new(sel) } })))
+        Ok(Val::E(seq(stmts, sel)))
     }
+
+    /// `@max(a, b)` / `@min(a, b)`, printed by gen-zig as written. Two
+    /// operands of one float type, or one typed float and a literal (which
+    /// takes that type): a NaN operand gives the other operand, and when the
+    /// two compare equal (`-0.0`, `+0.0`) the first one is the result, as
+    /// Zig's Debug build gives it. Two operands of one integer type: the
+    /// larger / smaller. Each operand is evaluated once, `a` first. Refused:
+    /// an integer beside a literal (Zig narrows the result type to the
+    /// literal's range, so later arithmetic overflows where t27b's would
+    /// not), mixed types, two literals, and more than two operands.
+    pub(super) fn max_min(&mut self, n: &Node) -> R<Val> {
+        self.see(n);
+        let max = n.name == "@max";
+        let what = if max { "ExprCall(@max)" } else { "ExprCall(@min)" };
+        if n.children.len() != 2 {
+            return self.reject(what, format!("{} operands", n.children.len()));
+        }
+        let a = self.expr(&n.children[0])?;
+        let b = self.expr(&n.children[1])?;
+        if a.is_poison() || b.is_poison() {
+            return Err(());
+        }
+        let ty = match (&a, &b) {
+            (Val::E(x), Val::E(y)) if x.ty == y.ty && (x.ty.is_float() || x.ty.is_int()) => x.ty,
+            (Val::E(x), Val::Cf(_) | Val::Ct(_)) if x.ty.is_float() => x.ty,
+            (Val::Cf(_) | Val::Ct(_), Val::E(y)) if y.ty.is_float() => y.ty,
+            _ => {
+                let (da, db) = (self.operand_desc(&a), self.operand_desc(&b));
+                return self.reject(what, format!("of {} and {}", da, db));
+            }
+        };
+        let a = self.coerce(a, ty)?;
+        let b = self.coerce(b, ty)?;
+        let mut stmts = Vec::new();
+        let a = self.once(a, &mut stmts)?;
+        let b = self.once(b, &mut stmts)?;
+        let (lo, hi) = if max { (a.clone(), b.clone()) } else { (b.clone(), a.clone()) };
+        let pick_b = self.binary("<", Val::E(lo), Val::E(hi))?;
+        let pick_b = self.coerce(pick_b, Ty::Bool)?;
+        let mut sel = select(ty, pick_b, b.clone(), a.clone());
+        if ty.is_float() {
+            let b_nan = self.binary("!=", Val::E(b.clone()), Val::E(b.clone()))?;
+            let b_nan = self.coerce(b_nan, Ty::Bool)?;
+            sel = select(ty, b_nan, a.clone(), sel);
+            let a_nan = self.binary("!=", Val::E(a.clone()), Val::E(a.clone()))?;
+            let a_nan = self.coerce(a_nan, Ty::Bool)?;
+            sel = select(ty, a_nan, b, sel);
+        }
+        Ok(Val::E(seq(stmts, sel)))
+    }
+
+    /// `std.math.pi` and `std.math.e`: the comptime_float literals Zig's
+    /// `std/math.zig` declares, so they round to binary128 here as there.
+    /// `None`: not one of them (a local named `std` included).
+    pub(super) fn std_math_const(&mut self, n: &Node) -> Option<Val> {
+        let digits = match n.name.as_str() {
+            "pi" => "3.14159265358979323846264338327950288419716939937510",
+            "e" => "2.71828182845904523536028747135266249775724709369995",
+            _ => return None,
+        };
+        let [m] = &n.children[..] else { return None };
+        let [s] = &m.children[..] else { return None };
+        if m.kind != NodeKind::ExprFieldAccess
+            || m.name != "math"
+            || s.kind != NodeKind::ExprIdentifier
+            || s.name != "std"
+            || self.lookup("std").is_some()
+            || self.const_nodes.contains_key("std")
+        {
+            return None;
+        }
+        self.see(n);
+        Q::parse(digits).ok().map(Val::Cf)
+    }
+
+    /// `x` as an operand read more than once: itself if it is a constant or
+    /// a local, else stored to a fresh slot by a statement pushed on `stmts`.
+    fn once(&mut self, x: Expr, stmts: &mut Vec<Stmt>) -> R<Expr> {
+        if matches!(x.kind, ExprKind::Const(_) | ExprKind::Var(_)) {
+            return Ok(x);
+        }
+        let ty = x.ty;
+        let k = self.new_slot(&LTy::S(ty))?;
+        stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: x });
+        Ok(Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } })
+    }
+
+    /// A refused operand, named for the message: its type if it is typed.
+    fn operand_desc(&self, v: &Val) -> String {
+        match v {
+            Val::E(e) => e.ty.name().to_string(),
+            _ => self.val_desc(v),
+        }
+    }
+}
+
+fn select(ty: Ty, cond: Expr, then: Expr, els: Expr) -> Expr {
+    Expr { ty, kind: ExprKind::Select { cond: Box::new(cond), then: Box::new(then), els: Box::new(els) } }
+}
+
+/// `value` after `stmts`, or `value` alone when there are none.
+fn seq(stmts: Vec<Stmt>, value: Expr) -> Expr {
+    if stmts.is_empty() {
+        return value;
+    }
+    Expr { ty: value.ty, kind: ExprKind::Seq { stmts, value: Box::new(value) } }
 }
 
 // ------------------------------------------------------------- binary128

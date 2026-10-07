@@ -3318,6 +3318,8 @@ impl<'a> Lower<'a> {
                     self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
                 }
             },
+            NodeKind::ExprCall if n.name == "@abs" => self.builtin_abs(n),
+            NodeKind::ExprCall if n.name == "@max" || n.name == "@min" => self.max_min(n),
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 // An identifier is printed as a value (`gf16.GF16`), not
@@ -3370,6 +3372,9 @@ impl<'a> Lower<'a> {
                     if let Some(len) = self.peek_string(&n.children[0])? {
                         return Ok(Val::E(Expr { ty: Ty::U64, kind: ExprKind::Const(len as i128) }));
                     }
+                }
+                if let Some(v) = self.std_math_const(n) {
+                    return Ok(v);
                 }
                 match self.member(n)? {
                     Ok(p) => self.place_value(p),
