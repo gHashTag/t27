@@ -1468,12 +1468,28 @@ impl<'a> Lower<'a> {
             }
             return self.rodata(init, t);
         }
+        let saved_sites = self.sites.len();
         let v = if node.extra_type.trim().is_empty() {
             self.expr(init)?
         } else {
             let ty = self.ty(&node.extra_type)?;
             let v = self.expr_as(init, &LTy::S(ty))?;
             Val::E(self.coerce(v, ty)?)
+        };
+        // `const AREA = W * H;` with a typed `H`: Zig folds the typed
+        // arithmetic at compile time, and a step out of range is an error.
+        let v = match v {
+            Val::E(x) if !matches!(x.kind, ExprKind::Const(_)) => match const_eval(&x) {
+                Some(Some(c)) => {
+                    self.sites.truncate(saved_sites);
+                    Val::E(Expr { kind: ExprKind::Const(c), ty: x.ty })
+                }
+                Some(None) => {
+                    return self.reject("ConstDecl", format!("`{}` overflows {}", node.name, x.ty.name()))
+                }
+                None => Val::E(x),
+            },
+            v => v,
         };
         match &v {
             Val::Ct(_) | Val::Cf(..) | Val::S(..) | Val::A(..) | Val::Poison => Ok(v),
@@ -4189,13 +4205,22 @@ impl<'a> Lower<'a> {
     fn fold_len(&mut self, e: &Node) -> R<Option<i128>> {
         let saved_line = self.line;
         let saved_ct = std::mem::replace(&mut self.comptime, true);
+        let saved_sites = self.sites.len();
         let r = self.expr(e);
         self.comptime = saved_ct;
+        // The trap sites of the folded tree are never emitted.
+        self.sites.truncate(saved_sites);
         self.line = saved_line;
         Ok(match r? {
             Val::Poison => return Err(()),
             Val::Ct(c) => Some(c),
-            Val::E(Expr { kind: ExprKind::Const(c), ty }) if ty.is_int() => Some(c),
+            Val::E(x) => match const_eval(&x) {
+                Some(Some(c)) => Some(c),
+                Some(None) => {
+                    return self.reject("type [N]T", format!("length overflows {}", x.ty.name()))
+                }
+                None => None,
+            },
             _ => None,
         })
     }
@@ -6913,6 +6938,34 @@ fn find_const<'n>(n: &'n Node, name: &str) -> Option<&'n Node> {
 
 /// An array length kept as text (`N+1`) parsed back as an expression, when it
 /// is built only from integer literals, names, `+ - *` and parentheses.
+/// The value of a typed integer expression built only from constants, `+ - *`
+/// and widenings, as Zig evaluates it at compile time: every step must fit
+/// its type. None when the tree is not of that shape; Some(None) when a step
+/// leaves its type's range (a compile error in Zig).
+fn const_eval(e: &Expr) -> Option<Option<i128>> {
+    if !e.ty.is_int() {
+        return None;
+    }
+    let v = match &e.kind {
+        ExprKind::Const(c) => Some(*c),
+        ExprKind::Widen(x) => const_eval(x)?,
+        ExprKind::Arith { op, lhs, rhs, .. } => {
+            let (x, y) = match (const_eval(lhs)?, const_eval(rhs)?) {
+                (Some(x), Some(y)) => (x, y),
+                _ => return Some(None),
+            };
+            match op {
+                ArithOp::Add | ArithOp::AddW => x.checked_add(y),
+                ArithOp::Sub | ArithOp::SubW => x.checked_sub(y),
+                ArithOp::Mul | ArithOp::MulW => x.checked_mul(y),
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    Some(v.filter(|v| e.ty.fits(*v)))
+}
+
 fn len_expr(len: &str) -> Option<Node> {
     if !len.contains(['+', '-', '*', '(']) {
         return None;
