@@ -2839,6 +2839,8 @@ fn type_alias_rejections() {
         // printed into Zig verbatim, where `str` names nothing
         ("const S = str;\nfn f(x: S) -> u32 { return 1; }", "type (alias)", "`S`"),
         ("const W = [4]str;\nfn f(x: W) -> u32 { return 1; }", "type (alias)", "`W`"),
+        // a struct literal of a scalar alias: refused, not recursed into
+        ("const Code = u8;\nconst Duo = Code;\nfn f() -> u32 {\n    const p: Duo = Duo{ .lo = 3, .hi = 9 };\n    return 1;\n}", "ExprStructLit", "`Duo` is"),
         ("const Code = u8;\nfn f() -> u32 { return Code; }", "ExprIdentifier(type as value)", "`Code`"),
     ];
     for (body, construct, detail) in cases {

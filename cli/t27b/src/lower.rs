@@ -1324,7 +1324,7 @@ impl<'a> Lower<'a> {
                 LTy::S(_) => None,
             }
         } else if init.kind == NodeKind::ExprStructLit && !init.name.is_empty() {
-            Some(self.lty(&init.name)?)
+            Some(self.struct_lit_ty(init)?)
         } else {
             None
         };
@@ -3168,7 +3168,7 @@ impl<'a> Lower<'a> {
                 if n.name.is_empty() {
                     return self.reject("ExprStructLit", "anonymous `.{}` literal with no result type".into());
                 }
-                let t = self.lty(&n.name)?;
+                let t = self.struct_lit_ty(n)?;
                 self.struct_temp(n, t)
             }
             _ => {
@@ -5002,6 +5002,18 @@ impl<'a> Lower<'a> {
     }
 
     /// Check a struct literal's own name, if it has one, against `want`.
+    /// The type a named struct literal builds. Only a struct takes `T{ .f = .. }`:
+    /// an alias of a scalar (`const Duo = u8;`) is refused here, as Zig does,
+    /// rather than handed back to `init`, which would re-enter for ever.
+    fn struct_lit_ty(&mut self, n: &Node) -> R<LTy> {
+        let t = self.lty(&n.name)?;
+        if !matches!(t, LTy::Struct(_)) {
+            let tn = self.type_name(&t);
+            return self.reject("ExprStructLit", format!("`{}` is {}, not a struct", n.name, tn));
+        }
+        Ok(t)
+    }
+
     fn lit_type(&mut self, n: &Node, want: &LTy) -> R<()> {
         if n.name.is_empty() {
             return Ok(());
