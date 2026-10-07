@@ -26,7 +26,9 @@ fn AnnounceHeader_parse(buf: []const u8, out: *AnnounceHeader) -> bool {
     return true;
 }
 
-fn AnnounceHeader_serialise(self: AnnounceHeader, buf: [*]u8) -> void {
+fn AnnounceHeader_serialise(self: AnnounceHeader, buf: []u8) -> void {
+    // Source: crates/trios-mesh/src/packet.rs takes buf: &mut [u8; Self::MIN_WIRE]
+    // This slice parameter preserves the buffer length to prevent overflows
     buf[0] = PACKET_TYPE_ANNOUNCE;
     var i: usize = 0;
     while (i < 16) {
