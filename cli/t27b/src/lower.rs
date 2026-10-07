@@ -6331,11 +6331,14 @@ impl<'a> Lower<'a> {
         let LTy::Arr(_, len) = t else { return Ok(None) };
         let tn = self.type_name(t);
         let (elems, count) = if is_repeat_op(n) {
-            let lhs = &n.children[0];
+            // `[1] ** n` keeps its elements as text; the reference pastes
+            // them back as `.{ 1 } ** n`, so they are parsed back the same way.
+            let text = self.text_lit(&n.children[0])?;
+            let lhs = text.as_ref().unwrap_or(&n.children[0]);
             if lhs.children.is_empty() {
                 return self.reject(
                     "ExprArrayLiteral(repeat)",
-                    "`** n` applied to an empty or text-form array literal".into(),
+                    "`** n` applied to an empty array literal".into(),
                 );
             }
             let c = &n.children[1];
