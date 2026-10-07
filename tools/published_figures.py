@@ -257,6 +257,37 @@ def tool_at(commit):
     return counts, pins
 
 
+def pins_at(commit):
+    """The pins of this file at `commit`, read as literals -- nothing is executed or counted."""
+    rc, src = git("show", f"{commit}:tools/published_figures.py")
+    if rc != 0:
+        return {}
+    try:
+        node = next(n.value for n in ast.parse(src).body
+                    if isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "FIGURES" for t in n.targets))
+        return {row[0]: row[3] for row in ast.literal_eval(node)}
+    except (StopIteration, ValueError, SyntaxError):
+        return {}
+
+
+def written_at(i, name, pinned, start, now):
+    """The commit of `start`'s history that wrote this pin, if the count there WAS the pin; else None.
+    A branch that re-pinned and then merged master carries a pin master has since outrun: that is lag,
+    not a bad write, and only the branch's history can tell the two apart (a shallow clone is deepened)."""
+    _, shallow = git("rev-parse", "--is-shallow-repository")
+    if shallow.strip() == "true":
+        git("fetch", "--no-tags", "--quiet", "--deepen=300", "origin", start)
+    _, out = git("log", "--format=%H", start, "--", "tools/published_figures.py")
+    writer = None
+    for c in out.split():
+        if pins_at(c).get(name) != pinned:
+            break
+        writer = c
+    if writer and now - diff_delta(writer, "HEAD")[i] == pinned:
+        return writer
+    return None
+
+
 # ---- the rule: specs/ci/derived_data.t27, compiled from its gen-c output -------------------
 
 CONSTS = ("KIND_PUBLISHED_FIGURE", "IN_SPEC", "IN_MATCHER", "EV_PULL_REQUEST", "EV_MASTER", "BY_HUMAN",
@@ -340,6 +371,11 @@ def check() -> int:
         matches = pinned == now or (at_head is not None and pinned == now - at_head[i])
         moved = k["IN_SPEC"] if own[i] else 0
         why = []
+        if touched and not matches and pr_head:
+            w = written_at(i, name, pinned, pr_head, now)
+            if w:
+                matches = True
+                why.append(f"the pin held at {w[:9]}, where this branch wrote it")
         if name in old_counts and old_counts[name] != now:
             moved |= k["IN_MATCHER"]
             why.append(f"the matcher changed meaning: the base tool counts {old_counts[name]} on this tree, this one {now}")
@@ -352,7 +388,7 @@ def check() -> int:
             else:
                 why.append(f"this change writes {pinned}; the count is {now}"
                            + (f" here and {now - at_head[i]} at the PR head" if at_head is not None else "")
-                           + " (a branch that re-pinned and then merged master re-runs --bless)")
+                           + ", and it did not hold where this branch wrote it")
         elif own[i]:
             why.append(f"this change moves it {own[i]:+d}")
         # A pin this change restated already holds its own delta; one it left alone does not.
