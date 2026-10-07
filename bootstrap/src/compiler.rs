@@ -22825,7 +22825,10 @@ long double: fabsl, default: llabs)(x)",
         let last_idx = cases.len() - 1;
         for (i, case) in cases.iter().enumerate() {
             if case.kind == NodeKind::ConstDecl {
-                let is_else = case.name.is_empty() || case.name == "else";
+                // #7428: `_ =>` is the catch-all arm, as `else` is. It was
+                // written as the comparison `(x == _)`, which C rejects.
+                let is_else =
+                    case.name.is_empty() || case.name == "else" || case.name == "_";
                 let is_last = i == last_idx;
 
                 if is_else {
