@@ -29,7 +29,7 @@ its source's own spec already defines (`AsmSection`, `LinkSection`, `HwType`
 against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
 spec (`LockFreeStack`, `RTree`, `Point`).
 
-    DRIFT     67
+    DRIFT     61
     DISTINCT  43
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
@@ -61,15 +61,13 @@ definition moves. `tri types classified` cross-checks the file against a live
 Non-empty drift in either direction exits non-zero. A classification nobody
 re-reads becomes a claim about a tree that no longer exists.
 
-## DRIFT -- 67 names
+## DRIFT -- 61 names
 
 One concept, two definitions. These are the ones with a repair.
 
 | Name | Defs | Where | Suggested repair |
 |------|------|-------|------------------|
 | `AppState` | 2 | 2 files | Define AppState once in a trios-server common port module and `use` it from both endpoint por... |
-| `AsmSection` | 2 | 2 files | Have the compiler.rs port `use` the Assembler module's AsmSection; move AsmSectionKind into a... |
-| `AssembledInstr` | 2 | 2 files | Have the port `use` the Assembler module's AssembledInstr; pick one string spelling. |
 | `AttentionOutput` | 2 | 2 files | Pick the rank (`[][]f32` is the defensible one -- one row per head) and define AttentionOutpu... |
 | `BenchmarkReport` | 2 | 2 files | Keep eval.t27's as the owner (benchmark.t27 already imports it), fold in pass_at_5/synth_rate... |
 | `BlinkState` | 4 | 4 files | Hoist one BlinkState { counter, led } into the shared openxc7-synth primitives module propose... |
@@ -82,19 +80,15 @@ One concept, two definitions. These are the ones with a repair.
 | `FileChange` | 2 | 2 files | Converge on one FileChange { path, status, staged, additions, deletions } owned by specs/file... |
 | `FileInfo` | 3 | 3 files | Merge specs/tri/io/filesystem.t27 and specs/tri/io/fs.t27 — pick one timestamp type (u64 or I... |
 | `Graph` | 2 | 2 files | Have graph_bfs.t27 `use` tri::graph::graph and drop its local Graph; separately, teach the re... |
-| `HirBoardResources` | 2 | 2 files | Put HirBoardResources in one compiler-port module and `use` it from both slices. |
 | `HttpRequest` | 2 | 2 files | Extract one http-types module (HttpMethod, HttpHeader/HttpHeaders, HttpStatus) and have both ... |
 | `HttpResponse` | 3 | 3 files | Delete router.t27's stub and import server/http.t27's HttpResponse; then reconcile adapters.t... |
 | `HttpStatus` | 2 | 2 files | Pick `[]const u8` and have server/http.t27 import tri::net::http::HttpStatus. This is the che... |
-| `HwType` | 2 | 2 files | Have the compiler.rs port use HwTypes.HwType, or record in hw_types.t27 why the port's tag en... |
 | `HybridBigInt` | 2 | 2 files | Highest-value fix in this slice. Choose one representation (the Option-cache + dirty version ... |
 | `Hypervector` | 2 | 2 files | Qualify the type in the contract doc (`hybrid_arithmetic::HybridBigInt`) or regenerate that s... |
 | `Issue` | 2 | 2 files | Have specs/port/scripts/tri-search.t27 use the github::issues Issue and add url there, or ren... |
 | `JitCompiler` | 2 | 2 files | Reconcile with JitCache in the same pass: whether the code buffer is a fixed [65536]u8 or a h... |
 | `LSTMWeights` | 2 | 2 files | Pick one parameterisation (split W_ii/W_hi is the interoperable one) and delete the other fil... |
 | `LedConfig` | 4 | 4 files | One per-LED LedConfig (name, is_active_low, default_state, optional bit_position) in a shared... |
-| `LinkSection` | 2 | 2 files | Have the port `use` Linker.LinkSection; pick one spelling of the alignment field. |
-| `LinkedSymbol` | 2 | 2 files | Have the port `use` Linker.LinkedSymbol. |
 | `LockFreeStack` | 2 | 2 files | Delete the port's LockFreeStack and `use` TriLockfreeStack, or drop the port as a copy of gen... |
 | `LockGuard` | 2 | 2 files | Have the report port `use` the lock port's LockGuard and drop the stub. |
 | `LogEntry` | 2 | 2 files | Merge tri/utils/logger.t27 and tri/utils/logging.t27 into one module — the function sets are ... |
