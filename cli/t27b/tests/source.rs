@@ -2836,6 +2836,9 @@ fn type_alias_rejections() {
     let cases: &[(&str, &str, &str)] = &[
         ("const Allocator = std.mem.Allocator;\nfn f(a: Allocator) -> u32 { return 1; }", "type (alias)", "`Allocator`"),
         ("const A = B;\nconst B = A;\nfn f(x: A) -> u32 { return 1; }", "type (alias)", "`A`"),
+        // printed into Zig verbatim, where `str` names nothing
+        ("const S = str;\nfn f(x: S) -> u32 { return 1; }", "type (alias)", "`S`"),
+        ("const W = [4]str;\nfn f(x: W) -> u32 { return 1; }", "type (alias)", "`W`"),
         ("const Code = u8;\nfn f() -> u32 { return Code; }", "ExprIdentifier(type as value)", "`Code`"),
     ];
     for (body, construct, detail) in cases {

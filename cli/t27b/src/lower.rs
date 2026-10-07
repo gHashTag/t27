@@ -1062,13 +1062,20 @@ impl<'a> Lower<'a> {
         self.spells_type(t, 0).then_some(t)
     }
 
+    /// The text is printed into Zig verbatim, so only Zig spellings count:
+    /// `str` / `string` are t27 names Zig does not know, and `[N]T` counts
+    /// only when `T` itself spells a type. (`?T`, `*T` and `&str` never get
+    /// here: the reference's parser leaves such a constant with no value.)
     fn spells_type(&self, t: &str, depth: u32) -> bool {
         if depth > 16 {
             return false;
         }
+        if let Some(rest) = t.strip_prefix('[') {
+            return rest
+                .split_once(']')
+                .is_some_and(|(_, elem)| self.spells_type(elem.trim(), depth + 1));
+        }
         Ty::from_name(t).is_some()
-            || matches!(t, "str" | "&str" | "string")
-            || t.starts_with(|c: char| matches!(c, '[' | '?' | '*'))
             || self.struct_nodes.contains_key(t)
             || self.enum_nodes.contains_key(t)
             || self
