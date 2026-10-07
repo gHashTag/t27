@@ -28772,6 +28772,30 @@ impl RustCodegen {
                 "unreachable!()".to_string()
             }
             NodeKind::ExprIdentifier => node.name.clone(),
+            // Zig's repeat `[v] ** n` is Rust's `[v; n]`; verbatim, rustc read `[v] * (*n)`.
+            // A sole literal or name element arrives as bracket TEXT, a typed one as a child.
+            NodeKind::ExprBinary
+                if node.extra_op == "**"
+                    && node.children.len() == 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && (node.children[0].children.len() == 1
+                        || (node.children[0].children.is_empty()
+                            && node.children[0].extra_type.is_empty()
+                            && !node.children[0].extra_size.trim().is_empty()
+                            && !node.children[0].extra_size.contains([',', ';', ']']))) =>
+            {
+                let lhs = &node.children[0];
+                let val = match lhs.children.first() {
+                    Some(c) => self.expr_to_rust(c),
+                    None => lhs.extra_size.trim().to_string(),
+                };
+                let count = self.expr_to_rust(&node.children[1]);
+                if self.infer_int_type(&node.children[1]).is_some_and(|t| t != "usize") {
+                    format!("[{}; ({}) as usize]", val, count)
+                } else {
+                    format!("[{}; {}]", val, count)
+                }
+            }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
                     let mut left = self.expr_to_rust(&node.children[0]);
