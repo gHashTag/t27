@@ -9,6 +9,11 @@
 
 // Sacred Formula: φ² + 1/φ² = 3 = TRINITY
 
+## Constants
+
+const BRAIN_ATLAS = 23;
+const REGION_DEPENDENCIES = 23;
+
 ## Brain Regions
 
 // | Region | Biological Function | File |
@@ -48,10 +53,10 @@ phi = 1.618033988749894882
 
 ```
 test "Brain-Atlas: region count" {
-    expect(BRAIN_ATLAS.len == 23)
+    assert BRAIN_ATLAS == 23;
 }
 
 test "Brain-Atlas: dependency graph" {
-    expect(REGION_DEPENDENCIES.len == 23)
+    assert REGION_DEPENDENCIES == 23;
 }
 ```

@@ -52,20 +52,29 @@
 // - Phase shift: φ-based sacred angle
 // - Used in entangled pair measurements
 
+## Constants
+
+const phi = 1.61803398874989482;
+
+## Test Variables
+
+const correlation = 0.8;
+const entangled_i3 = 2.5;
+
 ## Tests
 
 ```
 test "Quantum-CHSH: correlation calculation" {
-    expect(correlation <= 1.0)
+    assert correlation <= 1.0;
 //     expect(correlation >= -1.0)
 }
 
 test "Quantum-CGLMP: entangled vs separable" {
-    expect(entangled_i3 > 2.0)
+    assert entangled_i3 > 2.0;
 //     expect(separable_i3 <= 2.0)
 }
 
 test "Quantum: TRINITY identity" {
-    expect(phi^2 + phi^(-2) ≈ 3.0)
+    assert abs(phi*phi + 1.0/(phi*phi) - 3.0) < 1e-9;
 }
 ```

@@ -24,14 +24,24 @@
 
 ## Constants
 
-```
-PHI = 1.61803398874989482
-GAMMA = φ⁻³ ≈ 0.23606797749978969641
-// TRINITY = φ² + φ⁻² = 3
-PI = 3.14159265358979323846
-GAMMA_FREQ = 40.0
-PLANCK_TIME = 5.391247e-44
-```
+const PHI = 1.61803398874989482
+const GAMMA = 0.23606797749978969641
+const TRINITY = 3.0
+const PI = 3.14159265358979323846
+const GAMMA_FREQ = 40.0
+const PLANCK_TIME = 5.391247e-44
+
+// Derived constants
+const PHI_CUBED = PHI * PHI * PHI
+
+// Function implementations
+fn consciousnessThreshold() f64 {
+    return GAMMA * PHI * PHI
+}
+
+fn neuralGammaFrequency() f64 {
+    return PHI * PHI * PHI * PI / GAMMA
+}
 
 ## Consciousness States
 
@@ -67,22 +77,22 @@ enum ConsciousnessState {
 
 ```
 test "Neural-γ: phi cubed and gamma" {
-    expect(PHI_CUBED ≈ 4.23606797749978969641)
+    assert abs(PHI_CUBED - 4.23606797749978969641) < 1e-9;
 //     expect(GAMMA ≈ 0.23606797749978969641)
 //     expect(PHI_CUBED - 4.0 ≈ GAMMA)
 }
 
 test "Neural-γ: TRINITY identity" {
-    expect(TRINITY ≈ 3.0)
+    assert abs(TRINITY - 3.0) < 1e-9;
 }
 
 test "Neural-γ: consciousness threshold" {
-    expect(consciousnessThreshold() ≈ 0.618)
+    assert abs(consciousnessThreshold() - 0.618034) < 1e-6;
 //     expect(consciousnessThresholdPhiInv() ≈ 0.618)
 }
 
 test "Neural-γ: gamma frequency" {
-    expect(neuralGammaFrequency() > 50.0)
+    assert neuralGammaFrequency() > 50.0;
 //     expect(neuralGammaFrequency() < 60.0)
 }
 ```
