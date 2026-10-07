@@ -1559,7 +1559,8 @@ fn run_fpga_smoke_gate(
     let report_dir = report_path.parent().unwrap_or(&fallback_dir);
     fs::create_dir_all(report_dir)?;
 
-    let mut cmd = Command::new(tri);
+    let mut cmd = Command::new("sh");
+    cmd.arg(tri);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
