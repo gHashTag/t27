@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 25,
+ "max_not_pass": 24,
  "counts": {
-  "pass": 533,
+  "pass": 535,
   "pass_vacuous": 262,
-  "not_pass": 25
+  "not_pass": 24
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -370,7 +370,7 @@
   {"path": "specs/port/scripts/gen_w381.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w382.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w384.t27", "t27b": "pass"},
-  {"path": "specs/port/scripts/gen_w384_lean.t27", "t27b": "codegen", "blocker": "t27b: unsupported construct FnDecl(frame size) at line 0 (fn main_appends_the_exact_w384_text: 16448 bytes of local aggregates; at most 16384 per frame)", "reason": "unimplemented"},
+  {"path": "specs/port/scripts/gen_w384_lean.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w385.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w386.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w387.t27", "t27b": "pass"},
@@ -751,6 +751,7 @@
   {"path": "specs/tri/t27b/conformance/float_as.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_mul_pow2.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_sqrt.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/large_frame.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/repeat_addr_unreached.t27", "t27b": "pass"},
