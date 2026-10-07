@@ -3520,7 +3520,21 @@ mod tests {
              done\necho\necho \"  tests       4\"\necho \"  pass        $p\"\necho \"  FAIL        $f\"\n\
              [ \"$f\" -gt 0 ] && exit ${{FAIL_RC:-0}}\nexit ${{PASS_RC:-0}}\n"
         );
-        std::fs::write(&stub, script).unwrap();
+        // A child shell writes the stub; this process never opens it for
+        // writing. A test thread that forks while this process holds a write
+        // fd to the stub leaves that fd open in its child until the child
+        // execs, and exec'ing the stub inside that window fails with ETXTBSY
+        // ("Text file busy"): the parallel harness hit it in about one run
+        // in ten. `printf '%s'` writes the script byte for byte.
+        let wrote = Command::new("sh")
+            .arg("-c")
+            .arg("printf '%s' \"$1\" > \"$2\"")
+            .arg("sh")
+            .arg(&script)
+            .arg(&stub)
+            .status()
+            .unwrap();
+        assert!(wrote.success(), "could not write the stub {}", stub.display());
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
         let s = stub.to_string_lossy().into_owned();
