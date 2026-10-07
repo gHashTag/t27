@@ -55,6 +55,7 @@ import os
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -175,6 +176,32 @@ class Log:
         self.f.close()
 
 
+def kill_group(p):
+    """SIGKILL the session `p` leads (start_new_session=True), so a timeout also
+    stops what `p` started -- t27c's spec_tests, zig -- instead of leaving it to
+    PID 1 (#7090). A group that is already gone is fine."""
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def run_group(cmd, timeout, **kw):
+    """subprocess.run(capture_output=True, text=True) in a session of its own:
+    on the timeout the whole group is killed before TimeoutExpired is raised."""
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True, start_new_session=True, **kw) as p:
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            kill_group(p)
+            p.communicate()
+            raise
+        finally:
+            kill_group(p)
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
 def run(cmd, log, cwd=None, env=None, timeout=None, tail=40):
     """Run `cmd`, stream its output into the log, return (exit code, tail).
 
@@ -190,11 +217,12 @@ def run(cmd, log, cwd=None, env=None, timeout=None, tail=40):
         stdin=subprocess.DEVNULL,
         text=True,
         errors="replace",
+        start_new_session=True,
     )
     lines = []
     killer = None
     if timeout:
-        killer = threading.Timer(timeout, p.kill)
+        killer = threading.Timer(timeout, kill_group, (p,))
         killer.start()
     for line in p.stdout:
         log.f.write(line)
@@ -202,6 +230,7 @@ def run(cmd, log, cwd=None, env=None, timeout=None, tail=40):
         if len(lines) > 4000:
             del lines[:2000]
     code = p.wait()
+    kill_group(p)
     timed_out = False
     if killer:
         timed_out = not killer.is_alive() and code < 0
@@ -365,10 +394,9 @@ def reference_one(worker, file, tests=None):
     env["TMPDIR"] = str(tmp)
     for attempt in range(3):
         try:
-            out = subprocess.run(
+            out = run_group(
                 [str(T27C), "test-report", file, "--specs-dir", CORPUS_DIR, "--verbose"],
-                cwd=CLONE, env=env, capture_output=True, text=True, errors="replace",
-                timeout=REF_TIMEOUT_S,
+                REF_TIMEOUT_S, cwd=CLONE, env=env, errors="replace",
             )
             break
         except subprocess.TimeoutExpired:

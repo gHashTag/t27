@@ -12,6 +12,13 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7090:
+# both Railway labs run tini as PID 1, so orphans are reaped, and kill a timed-out command's whole process
+# group; the t27c lab's queue worker no longer dies on an error. contrib/railway/t27b-lab/lab.py is listed below.
+contrib/railway/t27b-lab/Dockerfile
+infra/t27c-lab/Dockerfile
+infra/t27c-lab/lab.py
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
 # `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
 # hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.
