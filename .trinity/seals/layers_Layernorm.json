@@ -1,12 +1,20 @@
 {
-  "gen_hash_c": "sha256:df988e7586d7d5cb956523a19736fe1cec9b8366c79afd7e6b69b84a1f685d7f",
-  "gen_hash_rust": "sha256:49b444ce265c48d9a998269bff9a8f7f1409ebbc88a91cb3a301c4fbe2f6c414",
-  "gen_hash_verilog": "sha256:f6d94f8d879cbe0bd459194f48e3782cd1b7acff7756c3252efdf3a513f9352c",
-  "gen_hash_zig": "sha256:53c1392a0538a5b2a98c7cee6fa3ef9b2cfd5ca7507347894899c4441930af7f",
+  "built_by": "t27c-bootstrap@0.4.0+20425aaa3",
+  "gen_hash_c": "sha256:d7bfa28de4c29f9735404777df410d7a3670db5976157dd92f3e5b5740faca60",
+  "gen_hash_rust": "sha256:da8ed98ab965b8056df19d42b0686685525ba35e769fe27b68b7306a19a6591a",
+  "gen_hash_verilog": "sha256:6fd972510bc55a7b0deeef1544068ad9a749f8ff0160dc447f0542102890d76a",
+  "gen_hash_zig": "sha256:55b2366f90224f9eacd2ee88532398500221112bce470b4a63afba6b0c708556",
   "module": "Layernorm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-07T08:59:06Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:66140f4e2276cb6fa8f5ccb4ab8cf4bcc9f54d62e68735ce62ef42c1732aa24c",
-  "spec_path": "specs/ml/layers/layernorm_layer.t27"
+  "spec_hash": "sha256:01af1b15566525162107c29cd139eb9d98b48186fd5133768a2b6db3aae3d9e6",
+  "spec_path": "specs/ml/layers/layernorm_layer.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }
