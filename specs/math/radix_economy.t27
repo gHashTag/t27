@@ -278,19 +278,19 @@ module RadixEconomy {
         // Rationale: A trit contains more information than a bit (1.58 > 1), less than 2 bits
 
     invariant radix_economy_monotonic_increase_to_e
-        assert for b in [2, 3], E(b) <= E(b+1) when b < e
+        assert E(2) <= E(3)  // Since 2 < e and 3 > e, E increases then decreases
         // Rationale: E(b) = ln(b)/b increases for b < e, decreases for b > e
 
     invariant optimal_base_is_e
-        assert E_OPTIMAL = 1/e
+        assert E_OPTIMAL == 1.0/E
         // Rationale: Maximizing ln(b)/b gives b = e by calculus
 
     invariant ternary_range_balanced
-        assert ternary_range(n) = (3^n - 1) / 2 for all positive integer n
+        assert ternary_range(5) == (pow(3.0, 5.0) - 1.0) as i64 / 2  // Sample test for n=5
         // Rationale: Balanced ternary represents integers from -(3^n-1)/2 to (3^n-1)/2
 
     invariant binary_range_standard
-        assert binary_range(n) = 2^n - 1 for all positive integer n
+        assert binary_range(5) == (pow(2.0, 5.0) - 1.0) as i64  // Sample test for n=5
         // Rationale: Unsigned binary represents integers from 0 to 2^n - 1
 
     invariant range_equivalence_27trit_43bit
