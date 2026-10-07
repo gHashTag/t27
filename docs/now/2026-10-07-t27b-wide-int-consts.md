@@ -1,0 +1,13 @@
+# NOW -- t27b: integer constants wider than 64 bits (2026-10-07)
+
+## `type u128`, u256, u512, u1024 as folded constants (Closes #7423)
+
+- New conformance spec `specs/tri/t27b/conformance/wide_int_const.t27`: 4 tests, 4 pass with 0 vacuous under `t27c test-report`, and the same 4 under t27b in trap and wrap mode, with 15 runtime asserts.
+- t27c prints `const X: u128 = <literal>;` unchanged, so Zig folds every operation on X at compile time. t27b now does the same, with exact big integers and Zig's comptime rules: `+ - *` must stay inside the type, `+% -% *%` wrap, `<<` drops the bits shifted out, `>>` rounds toward minus infinity, `/ %` need a non-zero divisor, and two typed operands must share one type. A comparison of wide values becomes a constant bool, and an `as` back to a standard width must fit. A fn no test reaches may name a wide type in its signature, because Zig never resolves it.
+- Still refused by name (`type u128` and the like): a run-time wide value (a parameter of a reached fn, a local, a result, a wide constant mixed with a run-time operand), mixed wide types in arithmetic, `/ % & | ^` on a negative operand, and everything Zig's compiler rejects (overflow, out-of-range values and casts, a shift by the full width, a division by zero).
+- `specs/port/bootstrap/src/phi_f64_literals.t27` stays blocked on `type i128`: it uses i128 as a run-time parameter and local, which needs register pairs, and it also needs tuples, `str ==` and string indexing from other lanes.
+- 13 mutants of the spec each fail the same single test in t27b and in the reference. `cargo test -p t27b` on the Railway lab passes, including the new `tests/wide.rs` (6 tests: the spec, the mutants, what Zig refuses, what t27b cannot hold, comparisons and unused constants, unreached signatures). Unit tests check the big-integer arithmetic against i128 on sampled values.
+- Corpus on the Railway lab, master 05e633d03 vs this branch: pass 824 -> 830, blocked 538 -> 532, mismatch 0, jit/interp mismatch 0. Only six files change, all blocked -> pass.
+- Code is in `cli/t27b/src/lower.rs`, `cli/t27b/src/lower/{wide,unanalyzed}.rs` and `cli/t27b/tests/wide.rs`, listed in `tools/policy/foreign-exceptions.txt` under the owner's standing rule; the spec that replaces it is the t27b port (#6198).
+- Ledger `docs/reports/t27b_expectations.json`: `specs/numeric/gft128.t27`, `gft256.t27`, `gft512.t27`, `gft1024.t27` move to pass, and `specs/port/trios/crates/trios-cli/src/lock.t27` (a `u128` constant, reference 5/5 pass) and the new spec are added as pass. not_pass 25 -> 21.
+Refs #6063. Closes #7423.

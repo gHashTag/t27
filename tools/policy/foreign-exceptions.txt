@@ -12,6 +12,13 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
+# issue #7423: t27b coverage lane 3 -- integer constants wider than 64 bits (`type u128`, u256, u512, u1024)
+# are folded at compile time with exact big integers, by Zig's comptime rules. Conformance spec first:
+# specs/tri/t27b/conformance/wide_int_const.t27. lower.rs and lower/unanalyzed.rs are listed below.
+cli/t27b/src/lower/wide.rs
+cli/t27b/tests/wide.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
 # (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
 # makes the host key outside the tree, `t27c run-record --challenge --require-level` reports each receipt's

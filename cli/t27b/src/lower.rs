@@ -76,6 +76,7 @@ mod formulti;
 mod lencall;
 mod stdmem;
 mod unanalyzed;
+mod wide;
 
 use crate::codegen;
 use crate::compiler::{Node, NodeKind};
@@ -261,6 +262,9 @@ struct Lower<'a> {
     globals: HashMap<String, Val>,
     const_nodes: HashMap<String, &'a Node>,
     resolving: HashSet<String>,
+    /// Module constants of an integer type wider than 64 bits, folded
+    /// exactly (`wide`); None when the value was refused.
+    wide_vals: HashMap<String, Option<wide::Big>>,
     /// Module-level `var` declarations, in source order.
     var_nodes: Vec<&'a Node>,
     /// Test, bench and invariant blocks (by address) that name a module-level
@@ -360,9 +364,11 @@ struct Lower<'a> {
     /// something analyzed references it, so a body stub there is never seen.
     unanalyzed_fn: bool,
     /// Fns outside `analyzed` whose signature names a struct t27b cannot lay
-    /// out (`unresolved_sig`): no body, and a call to one is refused.
+    /// out or an integer wider than 64 bits (`unresolved_sig`): no body, and
+    /// a call to one is refused.
     unresolved: HashSet<String>,
-    /// A `layout` failed since this was last cleared (`unresolved_sig`).
+    /// A `layout` failed, or a wide integer type was refused, since this was
+    /// last cleared (`unresolved_sig`).
     layout_err: bool,
     /// Every type the last rejected `signature` refused failed in `layout`.
     sig_layout_only: bool,
@@ -443,6 +449,7 @@ fn lower_mode<'a>(
         globals: HashMap::new(),
         const_nodes: HashMap::new(),
         resolving: HashSet::new(),
+        wide_vals: HashMap::new(),
         var_nodes: Vec::new(),
         leaky: HashMap::new(),
         mod_vars: HashMap::new(),
@@ -656,7 +663,7 @@ fn lower_mode<'a>(
     let mut const_names: Vec<String> = l.const_nodes.keys().cloned().collect();
     const_names.sort();
     for name in const_names {
-        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() {
+        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() || l.wide_decl(&name) {
             continue;
         }
         let _ = l.global(&name);
@@ -1050,8 +1057,7 @@ impl<'a> Lower<'a> {
                 if let Some(target) = self.alias_target(t) {
                     return self.ty(target);
                 }
-                let (construct, detail) = self.type_construct(t);
-                self.reject(&construct, detail)
+                self.reject_type(t)
             }
         }
     }
@@ -3237,6 +3243,13 @@ impl<'a> Lower<'a> {
                 if (op == "==" || op == "!=") && (self.is_null(&n.children[0]) || self.is_null(&n.children[1])) {
                     return self.null_compare(&op, n);
                 }
+                // A comparison of compile-time integers wider than 64 bits
+                // (Zig folds it): a constant bool.
+                if matches!(op.as_str(), "==" | "!=" | "<" | "<=" | ">" | ">=") {
+                    if let Some(w) = self.holds_wide(n) {
+                        return self.wide_compare(n, w);
+                    }
+                }
                 let (x, y) = (&n.children[0], &n.children[1]);
                 let lit = |n: &Node| n.kind == NodeKind::ExprEnumValue;
                 let ordered = (self.names_variant(x) || self.names_variant(y)) && !lit(x) && !lit(y);
@@ -3351,6 +3364,11 @@ impl<'a> Lower<'a> {
             NodeKind::ExprCast => {
                 if n.children.len() != 1 {
                     return self.reject("ExprCast", "unexpected shape".into());
+                }
+                // A compile-time integer wider than 64 bits, brought back to
+                // a standard width (`@intCast`, checked by Zig's compiler).
+                if let Some(w) = self.holds_wide(&n.children[0]) {
+                    return self.wide_cast(n, w);
                 }
                 // The operand first, so that in recovery mode an unsupported
                 // operand and an unsupported target type are both named.
@@ -4149,8 +4167,7 @@ impl<'a> Lower<'a> {
                 return Ok(LTy::Arr(Box::new(inner), n));
             }
         }
-        let (construct, detail) = self.type_construct(t);
-        self.reject(&construct, detail)
+        self.reject_type(t)
     }
 
     /// The length of array type `t`, spelled `len`.

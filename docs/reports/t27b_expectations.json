@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 25,
+ "max_not_pass": 21,
  "counts": {
-  "pass": 533,
+  "pass": 539,
   "pass_vacuous": 262,
-  "not_pass": 25
+  "not_pass": 21
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -294,13 +294,13 @@
   {"path": "specs/numeric/gf512.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf6.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf96.t27", "t27b": "pass"},
-  {"path": "specs/numeric/gft1024.t27", "t27b": "blocked", "blocker": "type u1024", "reason": "unimplemented"},
-  {"path": "specs/numeric/gft128.t27", "t27b": "blocked", "blocker": "type u128", "reason": "unimplemented"},
+  {"path": "specs/numeric/gft1024.t27", "t27b": "pass"},
+  {"path": "specs/numeric/gft128.t27", "t27b": "pass"},
   {"path": "specs/numeric/gft16.t27", "t27b": "pass"},
-  {"path": "specs/numeric/gft256.t27", "t27b": "blocked", "blocker": "type u256", "reason": "unimplemented"},
+  {"path": "specs/numeric/gft256.t27", "t27b": "pass"},
   {"path": "specs/numeric/gft32.t27", "t27b": "pass"},
   {"path": "specs/numeric/gft4.t27", "t27b": "pass"},
-  {"path": "specs/numeric/gft512.t27", "t27b": "blocked", "blocker": "type u512", "reason": "unimplemented"},
+  {"path": "specs/numeric/gft512.t27", "t27b": "pass"},
   {"path": "specs/numeric/gft64.t27", "t27b": "pass"},
   {"path": "specs/numeric/gft8.t27", "t27b": "pass"},
   {"path": "specs/numeric/gfternary.t27", "t27b": "blocked", "blocker": "ExprCall(@setEvalBranchQuota)", "reason": "unimplemented"},
@@ -486,6 +486,7 @@
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/roster.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/status.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/submit.t27", "t27b": "pass"},
+  {"path": "specs/port/trios/crates/trios-cli/src/lock.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/metrics.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-doctor/rings/SILVER-RING-DR-00/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-doctor/src/main.t27", "t27b": "pass"},
@@ -766,6 +767,7 @@
   {"path": "specs/tri/t27b/conformance/untyped_local_uses.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/value_ignored.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/value_params.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/wide_int_const.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/zig_keyword_field.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},

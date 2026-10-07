@@ -22,7 +22,8 @@ impl<'a> Lower<'a> {
     /// before it. Zig resolves a fn's parameter and result types only when
     /// the fn is analyzed, so on a fn nothing analyzed reaches, a struct
     /// whose layout fails (`Node` holding `[N]Node`, a field of a type t27b
-    /// does not lower) is never laid out and refuses nothing. Such a fn has
+    /// does not lower) is never laid out and refuses nothing, and neither
+    /// does an integer type wider than 64 bits (`wide`). Such a fn has
     /// no body here, and what its signature reported is withdrawn: true then.
     ///
     /// An undeclared name is still refused: Zig's AstGen resolves every name
@@ -58,7 +59,7 @@ impl<'a> Lower<'a> {
         self.reject(
             "ExprCall(unresolved fn)",
             format!(
-                "call to `{}`, a fn no test reaches whose signature names a struct t27b cannot lay out",
+                "call to `{}`, a fn no test reaches whose signature names a struct t27b cannot lay out or a wide integer",
                 c.name
             ),
         )
