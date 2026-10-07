@@ -1,0 +1,5 @@
+// #7419: gen-c pastes an early else into the chain: `7(x == 1) ? (10) : 0`.
+module switch_else_not_last;
+fn k(x: i64) -> i64 {
+    return switch (x) { else => 7, 1 => 10 };
+}

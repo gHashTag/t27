@@ -1,0 +1,5 @@
+// #7308: gen-c has no value for a switch that matches no arm.
+module switch_no_else;
+fn k(x: i64) -> i64 {
+    return switch (x) { 1 => 10, 2 => 20 };
+}

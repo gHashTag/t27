@@ -1,0 +1,12 @@
+// C calls the end on every pass; Zig calls it once.
+module for_end_call;
+fn lim() -> usize {
+    return 3;
+}
+fn g() -> usize {
+    var s: usize = 0;
+    for (0..lim()) |i| {
+        s += i;
+    }
+    return s;
+}

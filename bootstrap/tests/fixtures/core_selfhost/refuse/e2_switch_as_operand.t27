@@ -1,0 +1,6 @@
+// #7419: `1 + (x == 1) ? (10) : 0` adds before it compares.
+module switch_as_operand;
+fn k(x: i64) -> i64 {
+    var a: i64 = 1 + switch (x) { 1 => 10, else => 0 };
+    return a;
+}

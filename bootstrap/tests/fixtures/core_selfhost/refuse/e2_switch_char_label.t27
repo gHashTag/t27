@@ -1,0 +1,5 @@
+// #7419: gen-c upper-cases a char label, `'a'` becomes `'A'`.
+module switch_char_label;
+fn k(x: u8) -> i64 {
+    return switch (x) { 'a' => 1, else => 0 };
+}
