@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trios/crates/trios-ui/rings/UR-08/src/lib.t27
+//
+// Port of the trios Rust source crates/trios-ui/rings/UR-08/src/lib.rs (the
+// UR-08 app shell + router ring, 151 lines at 8b229e9489ee) to t27, so the
+// ring is generated from this spec instead of hand-written Rust. This is
+// roadmap stage 6 of 9 (goal #4548); the shape follows the sibling ring
+// port specs/port/trios/crates/trios-scarab-types/rings/SR-01/src/lib.t27.
+//
+// WHAT IS CARRIED AS CODE
+//
+// The Route enum with its five variants in declaration order (lines 16-27),
+// the navigation label and icon of every variant (lines 31-50), the sidebar
+// order all() returns (line 54), the route equality the nav active flag is
+// built on (line 72), the nav-items computation (lines 67-74), the route the
+// shell starts on (line 64), the sidebar index bounds check (lines 92-97),
+// the header title "Trinity <label>" (line 117), the route-to-panel mapping
+// render_route decides (lines 131-137), and the component mount_app mounts
+// (line 147).
+//
+// WHAT IS DELIBERATELY LEFT OUT
+//
+// The Dioxus component bodies themselves: rsx!, use_signal, use_palette,
+// use_settings_atom and VirtualDom::new are the UI framework and the mount
+// plumbing -- the world, not the decision -- so AppShell (line 62),
+// render_route (line 130) and mount_app (line 146) keep their names with
+// `undefined;` bodies no test calls, and every decision inside them is
+// carried by a pure helper here that the tests assert on. The imports of the
+// sibling rings (UR-00, UR-01, UR-03, UR-04, UR-05, UR-06, UR-07) do not
+// resolve yet: cross-module use is not portable, so NavItem is declared
+// locally with the three fields the shell logic reads.
+//
+// t27 has no string concatenation, so the header title the original composes
+// at render time ("Trinity {current.label()}") is unrolled per variant; the
+// rendered strings match the original for all five routes.
+
+pub enum Route { Social, Chat, Agents, Mcp, Settings, }
+
+// NavItem is the UR-03 sidebar item the shell maps routes onto (original
+// line 10 import, filled at lines 69-73): only the fields the shell reads.
+pub struct NavItem { label: str, icon: str, active: bool, }
+
+// NavItemList is the Vec<NavItem> the shell builds (original line 67): t27
+// has no growable lists, so it is a fixed-capacity struct of five items --
+// one per route -- with a len.
+pub struct NavItemList { items: [5]NavItem, len: usize, }
+
+// RouteList is the Vec<Route> all() returns (original line 53): the same
+// fixed-capacity shape, five slots in sidebar order with a len.
+pub struct RouteList { items: [5]Route, len: usize, }
+
+// Route_label returns the navigation label of a route. Ports Route::label
+// (original line 31): the variant matched, one static string per arm.
+pub fn Route_label(self: Route) -> str {
+    return switch (self) {
+        .Social => "Social",
+        .Chat => "Chat",
+        .Agents => "Agents",
+        .Mcp => "MCP",
+        .Settings => "Settings",
+    };
+}
+
+// Route_icon returns the navigation icon of a route. Ports Route::icon
+// (original line 42): the same match, one emoji per arm.
+pub fn Route_icon(self: Route) -> str {
+    return switch (self) {
+        .Social => "🕸️",
+        .Chat => "💬",
+        .Agents => "🤖",
+        .Mcp => "🔌",
+        .Settings => "⚙️",
+    };
+}
+
+// Route_all returns all routes in sidebar order. Ports Route::all (original
+// line 53): vec![Social, Chat, Agents, Mcp, Settings] becomes the fixed
+// RouteList -- the order carried by the items, the count by the len.
+pub fn Route_all() -> RouteList {
+    return RouteList { items: [.Social, .Chat, .Agents, .Mcp, .Settings], len: 5 };
+}
+
+// Route_eq compares two routes for equality. The original derives PartialEq
+// (original line 15) and compares the active route against each route
+// (`*active_route.read() == *r`, original line 72): this is the comparison
+// the nav active flag is built on.
+pub fn Route_eq(a: Route, b: Route) -> bool {
+    return a == b;
+}
+
+// AppShell_default_route is the route the shell's signal starts on (original
+// line 64, use_signal(|| Route::Social)): the Social feed is the initial
+// view.
+pub fn AppShell_default_route() -> Route {
+    return Route.Social;
+}
+
+// AppShell_nav_items builds the sidebar items from the sidebar order with the
+// active flag on the current route. Ports the nav_items computation inside
+// AppShell (original lines 67-74): one NavItem per route, label and icon
+// from the Route helpers, active exactly when the route equals the active
+// one.
+pub fn AppShell_nav_items(active: Route) -> NavItemList {
+    return NavItemList {
+        items: [
+            NavItem { label: Route_label(Route.Social), icon: Route_icon(Route.Social), active: Route_eq(active, Route.Social) },
+            NavItem { label: Route_label(Route.Chat), icon: Route_icon(Route.Chat), active: Route_eq(active, Route.Chat) },
+            NavItem { label: Route_label(Route.Agents), icon: Route_icon(Route.Agents), active: Route_eq(active, Route.Agents) },
+            NavItem { label: Route_label(Route.Mcp), icon: Route_icon(Route.Mcp), active: Route_eq(active, Route.Mcp) },
+            NavItem { label: Route_label(Route.Settings), icon: Route_icon(Route.Settings), active: Route_eq(active, Route.Settings) },
+        ],
+        len: 5,
+    };
+}
+
+// AppShell_select_route is the decision inside the sidebar's on_select
+// callback (original lines 92-97): an index below the number of routes
+// selects the route at that index; an out-of-range index is ignored and the
+// active route is left unchanged. The active_route.set(...) on the signal is
+// the caller's job.
+pub fn AppShell_select_route(active: Route, idx: usize) -> Route {
+    const all = Route_all();
+    if (idx < all.len) {
+        return all.items[idx];
+    }
+    return active;
+}
+
+// AppShell_header_title returns the header text the shell renders (original
+// line 117, "Trinity {current.label()}"): the app name followed by the
+// current route's label. There is no string concatenation in t27, so the
+// composition is unrolled per variant.
+pub fn AppShell_header_title(current: Route) -> str {
+    return switch (current) {
+        .Social => "Trinity Social",
+        .Chat => "Trinity Chat",
+        .Agents => "Trinity Agents",
+        .Mcp => "Trinity MCP",
+        .Settings => "Trinity Settings",
+    };
+}
+
+// render_route_panel names the panel component a route renders. Ports the
+// match inside render_route (original lines 130-138): each route maps to the
+// sibling ring's panel (UR-09 SocialPanel, UR-04 ChatPanel, UR-05 AgentList,
+// UR-06 McpPanel, UR-07 SettingsPanel); the panels themselves are the
+// sibling rings' to render.
+pub fn render_route_panel(route: Route) -> str {
+    return switch (route) {
+        .Social => "SocialPanel",
+        .Chat => "ChatPanel",
+        .Agents => "AgentList",
+        .Mcp => "McpPanel",
+        .Settings => "SettingsPanel",
+    };
+}
+
+// mount_app_root_component names the component the VirtualDom mounts
+// (original line 147, VirtualDom::new(AppShell)): the app shell is the root.
+pub fn mount_app_root_component() -> str {
+    return "AppShell";
+}
+
+// AppShell is the main application shell component (original line 62). The
+// rsx! tree, use_signal, use_palette and use_settings_atom are the Dioxus UI
+// framework -- the world, not a decision -- so the body is the generator's
+// caller's to fill; every decision inside it (default route, nav items,
+// sidebar selection, header title, rendered route) is carried by the pure
+// helpers above, and no test calls this.
+pub fn AppShell() {
+    undefined;
+}
+
+// render_route renders the content for a given route (original line 130).
+// The rsx! bodies are the UI framework; the decision -- which panel each
+// route renders -- is carried by render_route_panel above, and no test calls
+// this.
+pub fn render_route(route: Route) {
+    undefined;
+}
+
+// mount_app mounts the full TRIOS application (original line 146). Building
+// the VirtualDom is the Dioxus runtime -- the world, not a decision; the
+// component it mounts, AppShell, is named by mount_app_root_component above,
+// and no test calls this.
+pub fn mount_app() {
+    undefined;
+}
+
+// Labels match the original's match arms exactly (lines 33-37): note the Mcp
+// variant renders as "MCP", not "Mcp".
+test route_labels {
+    assert(Route_label(Route.Social) == "Social");
+    assert(Route_label(Route.Chat) == "Chat");
+    assert(Route_label(Route.Agents) == "Agents");
+    assert(Route_label(Route.Mcp) == "MCP");
+    assert(Route_label(Route.Settings) == "Settings");
+}
+
+// Icons match the original's emoji arms exactly (lines 44-48).
+test route_icons {
+    assert(Route_icon(Route.Social) == "🕸️");
+    assert(Route_icon(Route.Chat) == "💬");
+    assert(Route_icon(Route.Agents) == "🤖");
+    assert(Route_icon(Route.Mcp) == "🔌");
+    assert(Route_icon(Route.Settings) == "⚙️");
+}
+
+// The sidebar order is Social, Chat, Agents, Mcp, Settings (original line
+// 54): five routes, len five.
+test route_all_sidebar_order {
+    const all = Route_all();
+    assert(all.len == 5);
+    assert(all.items[0] == Route.Social);
+    assert(all.items[1] == Route.Chat);
+    assert(all.items[2] == Route.Agents);
+    assert(all.items[3] == Route.Mcp);
+    assert(all.items[4] == Route.Settings);
+}
+
+// Route equality: the decision behind the nav active flag (original line 72).
+test route_eq_cases {
+    assert(Route_eq(Route.Agents, Route.Agents));
+    assert(!Route_eq(Route.Mcp, Route.Settings));
+}
+
+// The shell starts on the Social feed (original line 64).
+test default_route_is_social {
+    assert(AppShell_default_route() == Route.Social);
+}
+
+// Nav items: one per route in sidebar order, label and icon from the Route
+// helpers, active exactly on the current route (original lines 67-74).
+test nav_items_mark_active_route {
+    const nav = AppShell_nav_items(Route.Chat);
+    assert(nav.len == 5);
+    assert(nav.items[1].active);
+    assert(!nav.items[0].active);
+    assert(!nav.items[4].active);
+    assert(nav.items[1].label == "Chat");
+    assert(nav.items[1].icon == "💬");
+
+    const first = AppShell_nav_items(Route.Social);
+    assert(first.items[0].active);
+    assert(!first.items[1].active);
+    assert(first.items[0].label == "Social");
+
+    const last = AppShell_nav_items(Route.Settings);
+    assert(last.items[4].active);
+    assert(!last.items[3].active);
+    assert(last.items[4].label == "Settings");
+}
+
+// Sidebar selection: an in-range index selects that route, an out-of-range
+// index leaves the active route unchanged (original lines 92-97).
+test select_route_bounds {
+    assert(AppShell_select_route(Route.Social, 2) == Route.Agents);
+    assert(AppShell_select_route(Route.Chat, 0) == Route.Social);
+    assert(AppShell_select_route(Route.Chat, 4) == Route.Settings);
+    assert(AppShell_select_route(Route.Chat, 5) == Route.Chat);
+    assert(AppShell_select_route(Route.Agents, 99) == Route.Agents);
+}
+
+// The header title is "Trinity " followed by the route's label (original
+// line 117).
+test header_title_matches_label {
+    assert(AppShell_header_title(Route.Social) == "Trinity Social");
+    assert(AppShell_header_title(Route.Chat) == "Trinity Chat");
+    assert(AppShell_header_title(Route.Agents) == "Trinity Agents");
+    assert(AppShell_header_title(Route.Mcp) == "Trinity MCP");
+    assert(AppShell_header_title(Route.Settings) == "Trinity Settings");
+}
+
+// Route-to-panel mapping, verbatim from the original's match (original lines
+// 131-137).
+test render_route_panel_names {
+    assert(render_route_panel(Route.Social) == "SocialPanel");
+    assert(render_route_panel(Route.Chat) == "ChatPanel");
+    assert(render_route_panel(Route.Agents) == "AgentList");
+    assert(render_route_panel(Route.Mcp) == "McpPanel");
+    assert(render_route_panel(Route.Settings) == "SettingsPanel");
+}
+
+// The VirtualDom mounts the app shell (original line 147).
+test mount_app_root_component_is_appshell {
+    assert(mount_app_root_component() == "AppShell");
+}
