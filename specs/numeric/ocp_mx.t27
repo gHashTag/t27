@@ -53,6 +53,8 @@
 
 module OCP_MX {
 
+    use E8M0.{E8M0_BIAS, E8M0_NAN_CODE};
+
     // ---- Element kinds: E2M1, E2M3, E3M2, E4M3, E5M2, INT8 ----
 
     const K_E2M1 : i64 = 0;
@@ -77,8 +79,8 @@ module OCP_MX {
 
     const BLOCK_K     : i64 = 32;
     const SCALE_BITS  : i64 = 8;
-    const E8M0_BIAS   : i64 = 127;    // as in `e8m0.t27`
-    const E8M0_NAN    : i64 = 255;
+    const E8M0_BIAS   : i64 = (E8M0_BIAS as i64);    // imported from E8M0 module
+    const E8M0_NAN    : i64 = (E8M0_NAN_CODE as i64);
     const IN_SHIFT    : i64 = 12;     // inputs are integers in units of 2^-12
     const OUT_SHIFT   : i64 = 24;     // errors are measured in units of 2^-24
 
@@ -287,7 +289,7 @@ module OCP_MX {
     }
 
     // ---- The worked block: 31 weights within +-0.17 and one outlier, 3.3 ----
-    // Inputs in units of 2^-12; entry 13 is the outlier (13517 / 4096 = 3.29999...).
+    // Inputs in units of 2^-12; entry 13 is the outlier (13517 / 4096 = 3.300049, the nearest 2^-12 step to 3.3).
 
     const BLOCK_A : [32]i64 = [-690, 161, -391, 460, -92, -644, 207, -345, 506, -46,
         -598, 253, -299, 13517, 0, -552, 299, -253, 598, 46, -506, 345, -207, 644, 92,

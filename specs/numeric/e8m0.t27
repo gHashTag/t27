@@ -48,9 +48,9 @@ module E8M0 {
 
     // ---- Field geometry, from the OCP MX v1.0 specification ----
 
-    const E8M0_BITS       : u32 = 8;
-    const E8M0_BIAS       : i32 = 127;   // code 127 == 2^0
-    const E8M0_NAN_CODE   : u32 = 255;   // the one reserved code
+    pub const E8M0_BITS       : u32 = 8;
+    pub const E8M0_BIAS       : i32 = 127;   // code 127 == 2^0
+    pub const E8M0_NAN_CODE   : u32 = 255;   // the one reserved code
     const E8M0_MAX_FINITE : u32 = 254;   // largest finite code, 2^127
     const E8M0_MIN_FINITE : u32 = 0;     // smallest finite code, 2^-127
     const E8M0_ONE        : u32 = 127;   // the code whose value is 1.0
