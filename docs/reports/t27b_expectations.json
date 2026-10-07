@@ -14,7 +14,7 @@
  },
  "max_not_pass": 28,
  "counts": {
-  "pass": 530,
+  "pass": 531,
   "pass_vacuous": 262,
   "not_pass": 28
  },
@@ -333,7 +333,7 @@
   {"path": "specs/port/bootstrap/src/phi_f64_literals.t27", "t27b": "blocked", "blocker": "type i128", "reason": "unimplemented"},
   {"path": "specs/port/bootstrap/src/sensitivity.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/health.t27", "t27b": "pass"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/memory.t27", "t27b": "blocked", "blocker": "type [N]T", "reason": "unimplemented"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/memory.t27", "t27b": "codegen", "blocker": "t27b: unsupported construct FnDecl(frame size) at line 0 (fn save_memory_content_too_long: 50032 bytes of local aggregates; at most 16384 per frame)", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-needs-you.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-registry.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27", "t27b": "pass"},
@@ -739,6 +739,7 @@
   {"path": "specs/tri/sort/insertion_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/sort/selection_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/anonymous_struct.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/array_len_expr.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/array_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/array_literal_value.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/array_repeat_text.t27", "t27b": "pass"},
