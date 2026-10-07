@@ -1,0 +1,150 @@
+// SPDX-License-Identifier: Apache-2.0
+; eval_branch_quota.t27 0 Eval Branch Quota Conformance Specification
+; Tests @setEvalBranchQuota(n) construct with various operand types and values.
+
+module eval-branch-quota-conformance;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+// Valid quota values
+const ZERO_QUOTA : u32 = 0;
+const SMALL_QUOTA : u32 = 100;
+const LARGE_QUOTA : u32 = 100000;
+const MAX_U32 : u32 = 4294967295;
+
+// ============================================================================
+// Tests for valid compile-time u32 operands
+// ============================================================================
+
+test "zero_quota" {
+    @setEvalBranchQuota(0);
+    // No compile-time loops, should pass
+    const x: u32 = 1;
+    assert(x == 1);
+}
+
+test "small_positive_quota" {
+    @setEvalBranchQuota(100);
+    // Simple compile-time loop that should pass with quota 100
+    var sum: u32 = 0;
+    for (0..10) |i| {
+        sum += i;
+    }
+    assert(sum == 45);
+}
+
+test "large_positive_quota" {
+    @setEvalBranchQuota(100000);
+    // Larger compile-time loop that should pass with quota 100000
+    var sum: u32 = 0;
+    for (0..1000) |i| {
+        sum += i;
+    }
+    assert(sum == 499500);
+}
+
+test "max_u32_quota" {
+    @setEvalBranchQuota(4294967295);
+    // Maximum u32 value as quota
+    var sum: u32 = 0;
+    for (0..100) |i| {
+        sum += i;
+    }
+    assert(sum == 4950);
+}
+
+test "quota_with_const_variable" {
+    const Q: u32 = 1000;
+    @setEvalBranchQuota(Q);
+    // Use const variable as quota operand
+    var product: u32 = 1;
+    for (1..10) |i| {
+        product *= i;
+    }
+    assert(product == 362880);
+}
+
+// ============================================================================
+// Tests for invalid operands (should be rejected)
+// ============================================================================
+
+// Note: These tests are designed to be rejected by the compiler.
+// The actual rejection messages may vary between implementations.
+
+test "negative_quota_should_be_rejected" {
+    // This should be rejected: negative value
+    @setEvalBranchQuota(-1);
+    assert(true);  // This line should not be reached
+}
+
+test "quota_above_u32_max_should_be_rejected" {
+    // This should be rejected: value above u32 max
+    @setEvalBranchQuota(4294967296);
+    assert(true);  // This line should not be reached
+}
+
+test "floating_point_quota_should_be_rejected" {
+    // This should be rejected: floating point operand
+    @setEvalBranchQuota(100.0);
+    assert(true);  // This line should not be reached
+}
+
+test "runtime_variable_quota_should_be_rejected" {
+    // This should be rejected: runtime variable as operand
+    var runtime_value: u32 = 100;
+    @setEvalBranchQuota(runtime_value);
+    assert(true);  // This line should not be reached
+}
+
+test "string_quota_should_be_rejected" {
+    // This should be rejected: string operand
+    @setEvalBranchQuota("100");
+    assert(true);  // This line should not be reached
+}
+
+// ============================================================================
+// Nested quota settings
+// ============================================================================
+
+test "nested_quota_settings" {
+    @setEvalBranchQuota(1000);
+    var outer_sum: u32 = 0;
+    
+    for (0..10) |i| {
+        outer_sum += i;
+        
+        // Inner quota setting
+        @setEvalBranchQuota(100);
+        var inner_sum: u32 = 0;
+        for (0..5) |j| {
+            inner_sum += j;
+        }
+        assert(inner_sum == 10);
+    }
+    
+    assert(outer_sum == 45);
+}
+
+// ============================================================================
+// Bench blocks with quota (to verify they work)
+// ============================================================================
+
+bench "bench_with_small_quota" {
+    @setEvalBranchQuota(10000);
+    var result: u32 = 0;
+    for (0..100) |i| {
+        result += i;
+    }
+    _ = result;
+}
+
+bench "bench_with_large_quota" {
+    @setEvalBranchQuota(100000);
+    var result: u64 = 0;
+    for (0..1000) |i| {
+        result += @as(u64, i);
+    }
+    _ = result;
+}

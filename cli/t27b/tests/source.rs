@@ -3142,3 +3142,120 @@ fn large_frames_are_probed() {
         assert_eq!(e.construct, "FnDecl(frame size)");
     }
 }
+
+// ---------------------------------------------------------------- eval branch quota
+
+#[test]
+fn eval_branch_quota_valid_operands() {
+    let src = "module q;
+
+const Q: u32 = 1000;
+
+test zero_quota {
+    @setEvalBranchQuota(0);
+    assert(true);
+}
+
+test small_quota {
+    @setEvalBranchQuota(100);
+    var sum: u32 = 0;
+    for (0..10) |i| {
+        sum += i;
+    }
+    assert(sum == 45);
+}
+
+test large_quota {
+    @setEvalBranchQuota(100000);
+    var sum: u32 = 0;
+    for (0..1000) |i| {
+        sum += i;
+    }
+    assert(sum == 499500);
+}
+
+test const_variable_quota {
+    @setEvalBranchQuota(Q);
+    var product: u32 = 1;
+    for (1..10) |i| {
+        product *= i;
+    }
+    assert(product == 362880);
+}
+
+test nested_quota {
+    @setEvalBranchQuota(1000);
+    var outer: u32 = 0;
+    for (0..5) |i| {
+        outer += i;
+        @setEvalBranchQuota(100);
+        var inner: u32 = 0;
+        for (0..3) |j| {
+            inner += j;
+        }
+        assert(inner == 3);
+    }
+    assert(outer == 10);
+}
+";
+    let r = run(src);
+    assert_eq!(
+        names_ok(&r),
+        vec![
+            ("zero_quota", false, true),
+            ("small_quota", false, true),
+            ("large_quota", false, true),
+            ("const_variable_quota", false, true),
+            ("nested_quota", false, true),
+        ]
+    );
+}
+
+#[test]
+fn eval_branch_quota_invalid_operands_rejected() {
+    let cases: &[(&str, &str)] = &[
+        ("@setEvalBranchQuota(-1)", "ExprCall"),
+        ("@setEvalBranchQuota(4294967296)", "ExprCall"),
+        ("@setEvalBranchQuota(100.0)", "ExprCall"),
+        ("var x: u32 = 100; @setEvalBranchQuota(x)", "ExprCall"),
+        ("@setEvalBranchQuota(\"100\")", "ExprCall"),
+    ];
+    
+    for (expr, construct) in cases {
+        let src = &format!("module q;\ntest t {{ {}; assert(true); }}\n", expr);
+        let m = rejected(src);
+        assert!(m.contains(&format!("unsupported construct {}", construct)), "{}: {}", expr, m);
+    }
+}
+
+#[test]
+fn eval_branch_quota_in_bench_blocks() {
+    let src = "module q;
+
+bench bench_small_quota {
+    @setEvalBranchQuota(10000);
+    var result: u32 = 0;
+    for (0..100) |i| {
+        result += i;
+    }
+    _ = result;
+}
+
+bench bench_large_quota {
+    @setEvalBranchQuota(100000);
+    var result: u64 = 0;
+    for (0..1000) |i| {
+        result += @as(u64, i);
+    }
+    _ = result;
+}
+";
+    let r = run(src);
+    assert_eq!(
+        names_ok(&r),
+        vec![
+            ("bench_small_quota", false, true),
+            ("bench_large_quota", false, true),
+        ]
+    );
+}
