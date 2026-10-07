@@ -19,6 +19,13 @@
 # (AArch64 stack probing), so the aggregate cap per frame rises from 16 KiB to 1 MiB. The conformance spec is
 # specs/tri/t27b/conformance/large_frame.t27; cli/t27b/tests/source.rs is already listed below.
 cli/t27b/src/codegen.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7422
+# (epic #6063, lane 5): t27b drops the stale StmtAssign(reference redeclares) scan and lowers a top-level
+# local that takes a module var's name where the reference's `_lv` rename agrees with t27 scoping.
+# The fixture is specs/tri/t27b/conformance/shadow_module_var.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
 # issue #7368: t27b coverage lane 3 -- integer types of every width 1..31 (`type u1`, i2, u4, u21) are held
 # like a u8 and checked against their own range. Conformance spec first:
