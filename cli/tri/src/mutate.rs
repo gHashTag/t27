@@ -106,7 +106,7 @@ pub enum MutateCmd {
         #[arg(long)]
         lab_wait: Option<u64>,
     },
-    /// `mutate spec` on each .t27 in --dir by name, then one exit and killed share (rules: specs/tri/mutate/census.t27); every arg after --dir goes to each run.
+    /// `mutate spec` on each .t27 in --dir by name, then one exit and killed share (rules: specs/tri/mutate/census.t27); every arg after --dir goes to each run; with --lab the census is one lab run (#7471).
     Census {
         #[arg(long)]
         dir: String,
@@ -118,6 +118,10 @@ pub enum MutateCmd {
 pub fn run(cmd: &MutateCmd) -> Result<()> {
     match cmd {
         MutateCmd::Run { file, cmd, max } => mutate(Path::new(file), cmd, *max),
+        MutateCmd::Census { dir, pass } if pass.iter().any(|a| a == "--lab") => {
+            #[derive(clap::Parser)] struct LabCli { #[command(subcommand)] cmd: MutateCmd }
+            run(&<LabCli as clap::Parser>::try_parse_from(["tri", "spec", "--file", dir.as_str()].into_iter().chain(pass.iter().map(String::as_str)))?.cmd)
+        }
         MutateCmd::Spec {
             file,
             func,
@@ -1386,6 +1390,7 @@ impl LabEnv {
 /// One `--lab` request, its files already read.
 struct LabRun {
     rel: String,
+    census: bool, // `rel` is a directory: `mutate census --dir rel` there, each .t27 in it up (#7471)
     /// What goes up: each file's path in the repo and its bytes (for `mutate spec`, `rel` alone).
     files: Vec<(String, Vec<u8>)>,
     func: Option<String>,
@@ -1605,7 +1610,8 @@ fn lab_run_sh(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Str
     let q = sh_quote;
     let (jobs, zig_j, max, secs) = (jobs.to_string(), zig_j.to_string(), run.max.to_string(), run.secs.to_string());
     let accepted = format!("{d}/accepted");
-    let mut args = vec!["mutate", "spec", "--file", &run.rel, "--jobs", &jobs, "--zig-threads", &zig_j, "--max", &max];
+    let (cmd, what) = if run.census { ("census", "--dir") } else { ("spec", "--file") };
+    let mut args = vec!["mutate", cmd, what, &run.rel, "--jobs", &jobs, "--zig-threads", &zig_j, "--max", &max];
     args.extend(["--timeout", &secs, "--t27c", &env.t27c]);
     if let Some(f) = &run.func {
         args.extend(["--fn", f]);
@@ -1622,17 +1628,17 @@ fn lab_run_sh(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Str
     format!(
         "echo $$ > {pid}\n\
          cd {w} || {cd_failed}\n\
-         H=$({tri} mutate spec --help 2>&1)\n\
+         H=$({tri} mutate spec --help 2>&1; {tri} mutate {cmd} --help 2>&1)\n\
          for f in {flags}; do case \"$H\" in *\"$f\"*) ;; *) {no_flag};; esac; done\n\
          PATH={zig}:\"$PATH\"; export PATH\n\
          {tri} {args} > {out} 2>&1\n\
          echo $? > {tmp} && mv {tmp} {exit}\n",
         pid = q(&format!("{d}/pid")),
         w = q(&format!("{d}/w")),
-        cd_failed = fail("\"tri mutate spec --lab: cannot cd to the run's copy of specs/\""),
+        cd_failed = fail(&format!("\"tri mutate {cmd} --lab: cannot cd to the run's copy of specs/\"")),
         flags = flags.join(" "),
         no_flag = fail(&format!(
-            "\"tri mutate spec --lab: {} has no $f (built $(date -u -r {tri} +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)); set T27C_LAB_TRI to a newer build\"",
+            "\"tri mutate {cmd} --lab: {} has no $f (built $(date -u -r {tri} +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)); set T27C_LAB_TRI to a newer build\"",
             env.tri.replace('"', "")
         )),
         zig = q(&env.zig),
@@ -1667,7 +1673,7 @@ fn lab_launch(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Res
     }
     let q = sh_quote;
     let (s, dq, src, tri) = (q(&stage), q(d), q(&env.src), q(&env.tri));
-    let mut up = String::new();
+    let mut up = if run.census { format!("rm -f \"$D/w/\"{}/*.t27 && ", q(&run.rel)) } else { String::new() };
     for (i, (rel, _)) in run.files.iter().enumerate() {
         let parent = Path::new(rel).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
         up += &format!("mkdir -p \"$D/w/\"{} && base64 -d \"$S/f{i}.b64\" > \"$D/w/\"{} && ", q(&parent), q(rel));
@@ -1828,9 +1834,14 @@ fn lab_request(
         }
     }
     let rel = rel.to_str().filter(|r| !r.is_empty() && r.is_ascii()).with_context(|| format!("--lab needs an ASCII path: {file}"))?.to_string();
-    let spec = std::fs::read(path).with_context(|| format!("cannot read {file}"))?;
+    let census = path.is_dir();
+    let mut paths: Vec<PathBuf> = if census { std::fs::read_dir(path)?.filter_map(|e| Some(e.ok()?.path())).filter(|p| p.extension().is_some_and(|x| x == "t27")).collect() } else { vec![path.into()] };
+    paths.sort();
+    let at = |p: &PathBuf| p.file_name().and_then(|n| n.to_str()).filter(|n| n.is_ascii()).map(|n| if census { format!("{rel}/{n}") } else { rel.clone() });
+    let files = paths.iter().map(|p| Ok((at(p).with_context(|| format!("--lab needs ASCII names: {}", p.display()))?, std::fs::read(p).with_context(|| format!("cannot read {}", p.display()))?))).collect::<Result<Vec<_>>>()?;
+    anyhow::ensure!(!files.is_empty(), "no .t27 file in {file}; a census of none is exit 1 (census.t27 census_of)");
     if let Some(f) = func {
-        if !String::from_utf8_lossy(&spec).split('\n').any(|l| t27_fn_header(l).as_deref() == Some(f)) {
+        if !files.iter().any(|(_, b)| String::from_utf8_lossy(b).split('\n').any(|l| t27_fn_header(l).as_deref() == Some(f))) {
             bail!("no function named `{f}` in {file}");
         }
     }
@@ -1842,7 +1853,7 @@ fn lab_request(
         }
         None => None,
     };
-    Ok(LabRun { files: vec![(rel.clone(), spec)], rel, func: func.map(str::to_string), accepted, max, jobs, zig_threads, secs, fail_on_survived: gate, wait })
+    Ok(LabRun { files, rel, census, func: func.map(str::to_string), accepted, max, jobs, zig_threads, secs, fail_on_survived: gate, wait })
 }
 
 /// `--fail-on-survived` and `--accepted`, as given.
@@ -3261,6 +3272,7 @@ mod tests {
     fn lab_run_of(spec: &str, max: usize, wait: u64) -> LabRun {
         LabRun {
             rel: "specs/x/a.t27".into(),
+            census: false,
             files: vec![("specs/x/a.t27".into(), spec.as_bytes().to_vec())],
             func: None,
             accepted: None,
@@ -3355,7 +3367,7 @@ mod tests {
              case \"$*\" in *--help*) echo '{help}'; exit 0;; esac\n\
              echo \"$*\" >> {r}/calls\n\
              test -f specs/x/dep.t27 || {{ echo 'no copy of specs/'; exit 9; }}\n\
-             cat specs/x/a.t27 specs/y/b.t27 2>/dev/null\n\
+             cat specs/x/a.t27 specs/y/*.t27 2>/dev/null\n\
              while [ -f {r}/hold ]; do sleep 0.05; done\n\
              if [ -f {r}/orphan ]; then sleep 30 & echo $! > {r}/orphan.pid; fi\n\
              echo '4 of 4 killed'\n\
@@ -3427,6 +3439,24 @@ mod tests {
         assert_eq!(code, lab::EXIT_OK, "{out}");
         assert!(out.contains("\nA\nB\n4 of 4 killed\n"), "each file went up to its own path: {out}");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A directory is a census there (#7471): `mutate census --dir`, its specs up and the lab's
+    /// stale .t27 in it gone first; a tri without `--dir` is exit 1, never the gate's 2.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_lab_directory_runs_a_census() {
+        for (tag, help, want) in [("census", format!("{LAB_HELP} --dir"), lab::EXIT_OK), ("census-old", LAB_HELP.into(), lab::EXIT_TOOL_FAILED)] {
+            let (root, env) = lab_fixture(tag, &help);
+            std::fs::create_dir_all(root.join("src/specs/y")).and_then(|_| std::fs::write(root.join("src/specs/y/old.t27"), "OLD\n")).unwrap();
+            let mut run = lab_run_of("A\n", 5, 3600);
+            (run.rel, run.census, run.files[0].0) = ("specs/y".into(), true, "specs/y/b.t27".into());
+            let (code, out) = lab_go(&env, &run);
+            let calls = format!("mutate census --dir specs/y --jobs 2 --zig-threads {} --max 5 --timeout 60 --t27c /bin/true", lab_zig_j(2));
+            let ok = if want == lab::EXIT_OK { out.contains("\nA\n4 of 4 killed\n") && lab_calls(&root) == [calls] } else { out.contains("has no --dir") };
+            assert!(code == want && ok, "{tag}: exit {code}: {out}");
+            let _ = std::fs::remove_dir_all(&root);
+        }
     }
 
     /// The same run through `railway ssh` instead of `sh -c`: a stand-in
