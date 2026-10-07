@@ -213,3 +213,9 @@ tools/l2_regen_check.py
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
+# owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
+# (label owner-approved-foreign on the PR for #7176): t27c names on stderr each `use` the splice finds no
+# spec for, from the gate every gen path runs (main.rs, listed above). An edit to the existing resolver and
+# a test of it through the binary. The debt is #5980: t27core self-host moves the resolver into a spec.
+bootstrap/src/use_resolve.rs
+bootstrap/tests/unresolved_use.rs

@@ -54,40 +54,106 @@ fn find_specs_root(input: &Path) -> Option<PathBuf> {
     }
 }
 
-/// `use a::b::c;` -> `<specs>/a/b/c.t27`
+/// The module path a `use` line names, read the way the resolver reads it, or
+/// `None` for a line that is not an import. `use a::b::c;   // note` -> `a::b::c`.
+fn use_path_expr(line: &str) -> Option<&str> {
+    let rest = line.trim().strip_prefix("use ")?;
+    // W587: strip a trailing comment BEFORE the semicolon. A line like
+    // `use igla::race::cordic;   // note` left the whole comment inside the
+    // module path, so the import silently resolved to nothing -- and the
+    // comment in question was one I added in W571 to explain the import.
+    let rest = match rest.find("//") {
+        Some(i) => &rest[..i],
+        None => rest,
+    };
+    let path_expr = rest.trim().trim_end_matches(';').trim();
+    if path_expr.is_empty() || !path_expr.contains("::") && path_expr.contains(' ') {
+        return None;
+    }
+    Some(path_expr)
+}
+
+/// `a::b::c` -> `<specs>/a/b/c.t27`, whether or not that file exists.
+fn use_path(specs_root: &Path, path_expr: &str) -> PathBuf {
+    let mut p = specs_root.to_path_buf();
+    // #5978: `use sandbox.session_timeout;` is the same path as
+    // `use sandbox::session_timeout;` -- the parser now reads both, and
+    // stores the dotted one as `sandbox::session_timeout`. Splitting on
+    // `::` alone looked for `specs/sandbox.session_timeout.t27`, so the
+    // parser and this resolver disagreed about one import.
+    for seg in path_expr.split("::").flat_map(|s| s.split('.')) {
+        p.push(seg);
+    }
+    p.set_extension("t27");
+    p
+}
+
+/// `use a::b::c;` -> `<specs>/a/b/c.t27`, for each target that exists.
 fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
+    source
+        .lines()
+        .filter_map(use_path_expr)
+        .map(|e| use_path(specs_root, e))
+        .filter(|p| p.is_file())
+        .collect()
+}
+
+/// #7176: one warning per `use` line `use_targets` drops. A target that is not
+/// a file was skipped without a word, `gen` exited 0, and the first error came
+/// from zig, about an identifier (`use of undeclared identifier 'LIST_END'`),
+/// never about the `use` line. `tri mutate spec` read that as a spec that does
+/// not pass (#7148): its copy sat in the system temp dir, with no `specs/`
+/// above it.
+///
+/// A warning, not an error, and the exit code is unchanged: 182 `use` lines in
+/// the tracked corpus name no file (16 brace lists, #2537; 54 items of a
+/// module, #5552; 112 with no spec at all), and the zig backend still emits an
+/// `@import` for a qualified reference through such a line
+/// (`tests/dotted_module_name.rs`). Making it an error is #7176's next step.
+/// The note goes to stderr; the generated code on stdout does not change.
+pub fn missing_use_notes(input_path: &Path, source: &str) -> Vec<String> {
+    missing_uses(
+        &input_path.display().to_string(),
+        source,
+        find_specs_root(input_path).as_deref(),
+    )
+}
+
+fn missing_uses(label: &str, source: &str, specs_root: Option<&Path>) -> Vec<String> {
     let mut out = Vec::new();
-    for line in source.lines() {
-        let t = line.trim();
-        let rest = match t.strip_prefix("use ") {
-            Some(r) => r,
+    for (i, line) in source.lines().enumerate() {
+        let expr = match use_path_expr(line) {
+            Some(e) => e,
             None => continue,
         };
-        // W587: strip a trailing comment BEFORE the semicolon. A line like
-        // `use igla::race::cordic;   // note` left the whole comment inside the
-        // module path, so the import silently resolved to nothing -- and the
-        // comment in question was one I added in W571 to explain the import.
-        let rest = match rest.find("//") {
-            Some(i) => &rest[..i],
-            None => rest,
+        let why = match specs_root {
+            None => format!("no specs/ directory above {}", label),
+            Some(root) => {
+                let p = use_path(root, expr);
+                if p.is_file() {
+                    continue;
+                }
+                let module = p.parent().map(|d| d.with_extension("t27"));
+                if expr.contains('{') {
+                    format!("no spec at {} (a brace list is not read, #2537)", p.display())
+                } else if let Some(m) = module.filter(|m| m.is_file()) {
+                    format!(
+                        "no spec at {} ({} exists; one item of a module is not read, #5552)",
+                        p.display(),
+                        m.display()
+                    )
+                } else {
+                    format!("no spec at {}", p.display())
+                }
+            }
         };
-        let path_expr = rest.trim().trim_end_matches(';').trim();
-        if path_expr.is_empty() || !path_expr.contains("::") && path_expr.contains(' ') {
-            continue;
-        }
-        let mut p = specs_root.to_path_buf();
-        // #5978: `use sandbox.session_timeout;` is the same path as
-        // `use sandbox::session_timeout;` -- the parser now reads both, and
-        // stores the dotted one as `sandbox::session_timeout`. Splitting on
-        // `::` alone looked for `specs/sandbox.session_timeout.t27`, so the
-        // parser and this resolver disagreed about one import.
-        for seg in path_expr.split("::").flat_map(|s| s.split('.')) {
-            p.push(seg);
-        }
-        p.set_extension("t27");
-        if p.is_file() {
-            out.push(p);
-        }
+        out.push(format!(
+            "warning: {}:{}: use {} resolves to no spec: {}; nothing is spliced from it (#7176)",
+            label,
+            i + 1,
+            expr,
+            why
+        ));
     }
     out
 }
@@ -1013,3 +1079,90 @@ mod alias_tests {
     }
 }
 
+
+#[cfg(test)]
+mod missing_use_tests {
+    use super::*;
+
+    /// A scratch `specs/` holding `a/b.t27`, so a target can exist or not.
+    fn specs_with_a_b(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir()
+            .join(format!("t27c-7176-{}-{}", std::process::id(), tag))
+            .join("specs");
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("a")).expect("dir");
+        std::fs::write(d.join("a/b.t27"), "module b;\npub const K : u8 = 3;\n").expect("write");
+        d
+    }
+
+    const SRC: &str = "module m;\n\
+                       use a::b;\n\
+                       use a::gone;   // a note\n\
+                       use a::b::Item;\n\
+                       use a::b::{X, Y};\n\
+                       // use a::commented;\n\
+                       use a.b;\n";
+
+    #[test]
+    fn a_use_line_is_read_the_way_the_resolver_reads_it() {
+        assert_eq!(use_path_expr("use a::b::c;"), Some("a::b::c"));
+        assert_eq!(use_path_expr("    use igla::race::cordic;   // note"), Some("igla::race::cordic"));
+        assert_eq!(use_path_expr("use sandbox.session;"), Some("sandbox.session"));
+        assert_eq!(use_path_expr("use = 24,"), None);
+        assert_eq!(use_path_expr("use ;"), None);
+        assert_eq!(use_path_expr("// use a::b;"), None);
+        assert_eq!(use_path_expr("user::x;"), None);
+    }
+
+    #[test]
+    fn each_use_line_the_resolver_drops_is_named_by_line() {
+        let root = specs_with_a_b("lines");
+        let notes = missing_uses("m.t27", SRC, Some(&root));
+        let lines: Vec<&str> = notes
+            .iter()
+            .map(|n| n.split(": use ").next().unwrap_or(""))
+            .collect();
+        assert_eq!(lines, vec!["warning: m.t27:3", "warning: m.t27:4", "warning: m.t27:5"], "{:#?}", notes);
+        assert_eq!(
+            notes[0],
+            format!(
+                "warning: m.t27:3: use a::gone resolves to no spec: no spec at {}; nothing is spliced from it (#7176)",
+                root.join("a/gone.t27").display()
+            )
+        );
+    }
+
+    #[test]
+    fn an_item_of_a_module_and_a_brace_list_name_their_issues() {
+        let root = specs_with_a_b("kinds");
+        let notes = missing_uses("m.t27", SRC, Some(&root));
+        assert!(notes[1].contains(&format!("({} exists; one item of a module is not read, #5552)", root.join("a/b.t27").display())), "{}", notes[1]);
+        assert!(notes[2].contains("(a brace list is not read, #2537)"), "{}", notes[2]);
+        assert!(!notes[0].contains("#5552") && !notes[0].contains("#2537"), "{}", notes[0]);
+    }
+
+    #[test]
+    fn with_no_specs_directory_every_use_line_is_named() {
+        let notes = missing_uses("/tmp/q/m.t27", SRC, None);
+        assert_eq!(notes.len(), 5, "{:#?}", notes);
+        assert_eq!(
+            notes[0],
+            "warning: /tmp/q/m.t27:2: use a::b resolves to no spec: no specs/ directory above /tmp/q/m.t27; nothing is spliced from it (#7176)"
+        );
+        assert!(missing_uses("m.t27", "module m;\npub const N : u8 = 1;\n", None).is_empty());
+    }
+
+    /// The splice and the warning read one line the same way: every `use`
+    /// line is either a target `use_targets` returns or a warning, never both
+    /// and never neither.
+    #[test]
+    fn every_use_line_is_spliced_or_named() {
+        let root = specs_with_a_b("agree");
+        let read = SRC.lines().filter_map(use_path_expr).count();
+        let targets = use_targets(SRC, &root);
+        let notes = missing_uses("m.t27", SRC, Some(&root));
+        assert_eq!(read, 5);
+        assert_eq!(targets.len(), 2, "{:?}", targets);
+        assert_eq!(targets.len() + notes.len(), read);
+    }
+}

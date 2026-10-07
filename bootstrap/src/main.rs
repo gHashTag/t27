@@ -4407,6 +4407,12 @@ fn typecheck_refusal_for_ast(label: &str, ast: &compiler::Node) -> Option<String
 /// the same messages `t27c typecheck` prints. There is no flag to skip this:
 /// a skip flag would be the next gate that stays green.
 fn typecheck_gate(path: &Path, raw: &str) -> anyhow::Result<()> {
+    // #7176: a `use` the splice finds no spec for is named here, once per gen
+    // command, before anything that could fail on the names it would have
+    // brought. A warning: the exit code and stdout do not change.
+    for note in use_resolve::missing_use_notes(path, raw) {
+        eprintln!("{}", note);
+    }
     if let Some((ast, _)) = typecheck_input_ast(path, raw) {
         if let Some(msg) = typecheck_refusal_for_ast(&path.display().to_string(), &ast) {
             anyhow::bail!("{}", msg);
