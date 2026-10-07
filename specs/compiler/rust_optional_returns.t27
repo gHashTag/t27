@@ -3,7 +3,6 @@
 ; E0308 "mismatched types", at `return (x / 2);`. A value returned from a `?T`
 ; fn is now wrapped in `Some(..)` when it is known not to be optional already;
 ; `null`, an optional local and a call to a `?T` fn pass through unwrapped.
-;
 ; Rust-only shapes covered: a value and `null` from the same fn, a narrower
 ; integer (the width cast goes inside `Some`), a struct value, a tail value, a
 ; forwarded optional call, a forwarded optional local, and an unwrap `x.?`.
