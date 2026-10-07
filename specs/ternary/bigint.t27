@@ -22,9 +22,9 @@ module TernaryBigInt;
 // Imports
 // ============================================================================
 
-use tritype-base::Trit;
-use tritype-base::trit_negate;
-use tritype-base::trit_multiply;
+use base::types::Trit;
+use base::types::trit_negate;
+use base::types::trit_multiply;
 
 // ============================================================================
 // Constants
