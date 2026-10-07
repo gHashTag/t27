@@ -55,9 +55,15 @@ pub enum MutateCmd {
         /// specs/queen/actors.t27 alone has 261, hence 1000 and not 200.
         #[arg(long, default_value_t = 1000)]
         max: usize,
-        /// Mutants run at once.
-        #[arg(long, default_value_t = 4)]
-        jobs: usize,
+        /// Mutants run at once: 4 by default, 8 with --lab (trap T11), where
+        /// the lab's free pids may cut it (specs/tri/mutate/lab.t27 lab_jobs).
+        #[arg(long)]
+        jobs: Option<usize>,
+        /// zig's -j for each mutant's compile. Default: the cores shared by
+        /// the jobs (specs/tri/mutate/lab.t27 zig_j). On the lab, 8 jobs at
+        /// zig's own default held 394 pids and at -j6 58, in the same time.
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..=4096))]
+        zig_threads: Option<u32>,
         /// Seconds each step of a mutant (`t27c gen`, the zig compile, the test
         /// run) may take, each on its own clock. Only the test run outliving it
         /// is a HANG; gen or the compile outliving it is the machine's load, and
@@ -67,6 +73,28 @@ pub enum MutateCmd {
         /// The t27c binary; default target/release/t27c, then t27c on PATH.
         #[arg(long)]
         t27c: Option<String>,
+        /// Exit 2 when a mutant survives or hangs and --accepted does not name
+        /// it (specs/tri/mutate/survivors.t27, #7303). Without this flag or
+        /// --accepted, survivors exit 0 as before.
+        #[arg(long)]
+        fail_on_survived: bool,
+        /// File of accepted mutants, one per line as this command prints them
+        /// under SURVIVED or HUNG: `path:line [kind]`; text after `]` is a
+        /// note, `#` starts a comment line. Turns the gate on. A listed mutant
+        /// that is now killed fails the gate too, until its line is removed.
+        #[arg(long)]
+        accepted: Option<String>,
+        /// Run on the Railway lab instead (#7050). The spec and the accepted
+        /// file go up over `railway ssh`, the run is a nohup'd job in its own
+        /// directory, and the same command called again reads it back. Exit
+        /// 0..2 are the tool's codes, 3 = no result, 4 = orphaned processes,
+        /// 5 = still running (specs/tri/mutate/lab.t27). The lab, its binaries
+        /// and the runs' directory are T27C_LAB_* variables (`LabEnv`).
+        #[arg(long)]
+        lab: bool,
+        /// With --lab: seconds to wait for the run before exit 5 (default 3600).
+        #[arg(long)]
+        lab_wait: Option<u64>,
     },
 }
 
@@ -78,16 +106,74 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
             func,
             max,
             jobs,
+            zig_threads,
             timeout,
             t27c,
-        } => mutate_spec(
-            Path::new(file),
-            func.as_deref(),
-            *max,
-            *jobs,
-            *timeout,
-            t27c.as_deref(),
-        ),
+            fail_on_survived,
+            accepted,
+            lab,
+            lab_wait,
+        } if *lab => {
+            if t27c.is_some() {
+                bail!("--t27c names a binary here; on the lab set T27C_LAB_BIN instead");
+            }
+            let run = lab_request(
+                file,
+                func.as_deref(),
+                accepted.as_deref(),
+                *max,
+                jobs.unwrap_or(8),
+                *zig_threads,
+                *timeout,
+                *fail_on_survived,
+                lab_wait.unwrap_or(3600),
+            )?;
+            let code = lab_mutate_spec(&LabEnv::from_env(), &run, &mut std::io::stdout(), &|s| {
+                std::thread::sleep(std::time::Duration::from_secs(s))
+            })
+            .unwrap_or_else(|e| {
+                println!("error: {e:#}");
+                lab::EXIT_NO_RESULT
+            });
+            if code != lab::EXIT_OK {
+                use std::io::Write;
+                let _ = std::io::stdout().flush();
+                std::process::exit(code as i32);
+            }
+            Ok(())
+        }
+        MutateCmd::Spec {
+            file,
+            func,
+            max,
+            jobs,
+            zig_threads,
+            timeout,
+            t27c,
+            fail_on_survived,
+            accepted,
+            lab_wait,
+            ..
+        } => {
+            if lab_wait.is_some() {
+                bail!("--lab-wait goes with --lab");
+            }
+            let jobs = jobs.unwrap_or(4);
+            let cores = std::thread::available_parallelism().map(|n| n.get() as u32).unwrap_or(1);
+            mutate_spec(
+                Path::new(file),
+                func.as_deref(),
+                *max,
+                jobs,
+                zig_threads.unwrap_or_else(|| lab::zig_j(cores, jobs as u32)),
+                *timeout,
+                t27c.as_deref(),
+                &GateArgs {
+                    fail_on_survived: *fail_on_survived,
+                    accepted: accepted.as_deref(),
+                },
+            )
+        }
     }
 }
 
@@ -1063,17 +1149,12 @@ fn compile_fate(stderr: &str) -> Fate {
 /// clock over both made a cold compile on a loaded machine read as a hang, and
 /// `zig test` exits 1 on a compile error as on a failing test (#7148; the same
 /// defect is unclebob/mutator issue 1).
-fn zig_fate(zig: &Path, compile_secs: u64, run_secs: u64) -> Result<Fate> {
+fn zig_fate(zig: &Path, zig_j: u32, compile_secs: u64, run_secs: u64) -> Result<Fate> {
     let dir = zig.parent().unwrap_or(Path::new("."));
     let bin = zig.with_extension("bin");
     let err = zig.with_extension("err");
     let compiled = run_with_timeout(
-        Command::new("zig")
-            .arg("test")
-            .arg(zig)
-            .arg("--test-no-exec")
-            .arg(format!("-femit-bin={}", bin.display()))
-            .current_dir(dir),
+        &mut zig_compile(zig, &bin, zig_j),
         std::process::Stdio::null(),
         std::fs::File::create(&err)?.into(),
         compile_secs,
@@ -1098,8 +1179,21 @@ fn zig_fate(zig: &Path, compile_secs: u64, run_secs: u64) -> Result<Fate> {
     }
 }
 
+/// The compile half of `zig_fate`: zig's own thread count is a pid each, so -j
+/// bounds what one job holds (specs/tri/mutate/lab.t27 job_pids).
+fn zig_compile(zig: &Path, bin: &Path, zig_j: u32) -> Command {
+    let mut c = Command::new("zig");
+    c.arg("test")
+        .arg(zig)
+        .arg("--test-no-exec")
+        .arg(format!("-femit-bin={}", bin.display()))
+        .arg(format!("-j{zig_j}"))
+        .current_dir(zig.parent().unwrap_or(Path::new(".")));
+    c
+}
+
 /// Lower one spec copy with `t27c gen`, then compile and run it (`zig_fate`).
-fn spec_fate(t27c: &str, spec: &Path, zig: &Path, secs: u64) -> Result<Fate> {
+fn spec_fate(t27c: &str, spec: &Path, zig: &Path, zig_j: u32, secs: u64) -> Result<Fate> {
     let err = zig.with_extension("err");
     let out = std::fs::File::create(zig)?;
     match run_with_timeout(
@@ -1113,7 +1207,7 @@ fn spec_fate(t27c: &str, spec: &Path, zig: &Path, secs: u64) -> Result<Fate> {
             "t27c gen: {}",
             first_error(&std::fs::read_to_string(&err).unwrap_or_default())
         ))),
-        Some(true) => zig_fate(zig, secs, secs),
+        Some(true) => zig_fate(zig, zig_j, secs, secs),
     }
 }
 
@@ -1187,6 +1281,851 @@ fn spec_report(file: &Path, ran: &[(&SpecMutant, Fate)]) -> String {
     out
 }
 
+// The survivor gate (#7303). The rule is specs/tri/mutate/survivors.t27; the five
+// functions below are its copy, and `the_gate_agrees_with_every_assert_row_of_its_spec`
+// evaluates every `assert` row of that spec against them, so a row the spec changes
+// fails the test until this copy follows. The codes follow cargo-mutants: 2 is the
+// gate's verdict, 1 stays the error exit for a run that is not whole.
+const EXIT_OK: u8 = 0;
+const EXIT_FAILED: u8 = 1;
+const EXIT_SURVIVED: u8 = 2;
+
+fn gate_on(fail_on_survived: bool, accepted_given: bool) -> bool {
+    fail_on_survived || accepted_given
+}
+
+fn not_killed(survived: u32, hung: u32) -> u32 {
+    survived + hung
+}
+
+fn unaccepted(missed: u32, accepted_hits: u32) -> u32 {
+    if accepted_hits > missed {
+        return missed;
+    }
+    missed - accepted_hits
+}
+
+fn survivor_exit(on: bool, survived: u32, hung: u32, accepted_hits: u32, accepted_killed: u32) -> u8 {
+    if !on {
+        return EXIT_OK;
+    }
+    if unaccepted(not_killed(survived, hung), accepted_hits) > 0 {
+        return EXIT_SURVIVED;
+    }
+    if accepted_killed > 0 {
+        return EXIT_SURVIVED;
+    }
+    EXIT_OK
+}
+
+fn mutate_exit(baseline_green: bool, not_run: u32, survivors: u8) -> u8 {
+    if !baseline_green {
+        return EXIT_FAILED;
+    }
+    if not_run > 0 {
+        return EXIT_FAILED;
+    }
+    survivors
+}
+
+// What `tri mutate spec --lab` decides about a run on the Railway lab (#7050). The
+// rule is specs/tri/mutate/lab.t27; this module is its copy, and
+// `the_lab_rules_agree_with_every_assert_row_of_their_spec` evaluates every `assert`
+// row of that spec against it. `lab_mutate_spec` below is the `railway ssh`
+// plumbing that calls it (slice 3 of #7050).
+mod lab {
+    /// A run's state, read from its directory on the lab.
+    pub const RUN_NONE: u8 = 0;
+    pub const RUN_RUNNING: u8 = 1;
+    pub const RUN_DONE: u8 = 2;
+    pub const RUN_LOST: u8 = 3;
+
+    /// `--lab`'s exit codes: 0..2 are the remote tool's, passed through; 3..5 the lab's own.
+    pub const EXIT_OK: u8 = 0;
+    pub const EXIT_TOOL_FAILED: u8 = 1;
+    pub const EXIT_SURVIVED: u8 = 2;
+    pub const EXIT_NO_RESULT: u8 = 3;
+    pub const EXIT_ORPHANS: u8 = 4;
+    pub const EXIT_STILL_RUNNING: u8 = 5;
+
+    /// The remote tool's code for a failed survivor gate: the gate's own constant.
+    pub const TOOL_RC_SURVIVED: u32 = super::EXIT_SURVIVED as u32;
+
+    pub const SSH_MAX_ATTEMPTS: u32 = 3;
+    pub const POLL_BASE_SECONDS: u32 = 5;
+    pub const POLL_CAP_SECONDS: u32 = 60;
+
+    /// Pids left for the lab's other lanes: one batch of 8 jobs at zig's own thread
+    /// count on the lab's 48 cores (the measurements are in the spec).
+    pub const PID_RESERVE: u32 = 408;
+    /// Pids one job holds besides its zig compile's -j threads.
+    pub const JOB_OVERHEAD_PIDS: u32 = 3;
+
+    /// The run's state from what its directory shows; an exit file wins over a runner still closing.
+    pub fn run_state(dir_exists: bool, exit_written: bool, runner_alive: bool) -> u8 {
+        if !dir_exists {
+            return RUN_NONE;
+        }
+        if exit_written {
+            return RUN_DONE;
+        }
+        if runner_alive {
+            return RUN_RUNNING;
+        }
+        RUN_LOST
+    }
+
+    /// A run starts only where none is.
+    pub fn launch_allowed(state: u8) -> bool {
+        state == RUN_NONE
+    }
+
+    /// The directory goes only when nothing will write to it again and nothing runs in it.
+    pub fn may_remove(state: u8, orphans: u32) -> bool {
+        if orphans > 0 {
+            return false;
+        }
+        state == RUN_DONE || state == RUN_LOST
+    }
+
+    /// The exit code of `--lab`: orphans outrank the tool's verdict, and a code the
+    /// tool never defined is a failed tool, never a verdict.
+    pub fn lab_exit(state: u8, tool_rc: u32, orphans: u32) -> u8 {
+        if state == RUN_RUNNING {
+            return EXIT_STILL_RUNNING;
+        }
+        if state != RUN_DONE {
+            return EXIT_NO_RESULT;
+        }
+        if orphans > 0 {
+            return EXIT_ORPHANS;
+        }
+        if tool_rc == 0 {
+            return EXIT_OK;
+        }
+        if tool_rc == TOOL_RC_SURVIVED {
+            return EXIT_SURVIVED;
+        }
+        EXIT_TOOL_FAILED
+    }
+
+    /// After `attempts` failed tries of one ssh call: only a read, only a transient
+    /// failure, at most SSH_MAX_ATTEMPTS tries in all. A write is never resent.
+    pub fn ssh_should_retry(attempts: u32, transient: bool, is_write: bool) -> bool {
+        if is_write {
+            return false;
+        }
+        transient && attempts < SSH_MAX_ATTEMPTS
+    }
+
+    /// Seconds to wait before poll number `polls` (from 0): 5, 10, 20, 40, then 60.
+    pub fn poll_wait_seconds(polls: u32) -> u32 {
+        let (mut wait, mut n) = (POLL_BASE_SECONDS, 0);
+        while n < polls && wait < POLL_CAP_SECONDS {
+            wait *= 2;
+            n += 1;
+        }
+        if wait > POLL_CAP_SECONDS {
+            return POLL_CAP_SECONDS;
+        }
+        wait
+    }
+
+    /// zig's -j for each mutant's `zig test`: the cores shared by the jobs, at least 1.
+    pub fn zig_j(nproc: u32, jobs: u32) -> u32 {
+        if jobs == 0 {
+            return 1;
+        }
+        let j = nproc / jobs;
+        if j == 0 {
+            return 1;
+        }
+        j
+    }
+
+    /// The pids one job holds: its compile's -j threads and the overhead. The flag
+    /// caps --zig-threads at 4096 and zig_j is at most the lab's core count, so the
+    /// sum cannot overflow.
+    pub fn job_pids(zig_threads: u32) -> u32 {
+        zig_threads + JOB_OVERHEAD_PIDS
+    }
+
+    /// How many mutants may run at once: the request, cut to the pids left after the
+    /// reserve. `per_job` 0 is no measurement and refuses; 0 = do not start.
+    pub fn lab_jobs(requested: u32, pids_max: u32, pids_used: u32, per_job: u32) -> u32 {
+        if per_job == 0 {
+            return 0;
+        }
+        if pids_used + PID_RESERVE >= pids_max {
+            return 0;
+        }
+        let fit = (pids_max - pids_used - PID_RESERVE) / per_job;
+        if fit < requested {
+            return fit;
+        }
+        requested
+    }
+}
+
+// `tri mutate spec --lab` (#7050, slice 3): the same run, on the Railway lab.
+// The decisions are `mod lab`'s, so specs/tri/mutate/lab.t27's; what follows
+// only carries them over `railway ssh`. A run is a nohup'd job in a directory
+// named from a hash of the request, so the same command called again reads the
+// run it started, whatever happened to the ssh in between.
+
+/// Where `--lab` runs and how it gets there. The first six names are the ones
+/// scripts/tri_loop/t27b.py reads. `T27C_LAB_LOCAL=1` runs the same scripts
+/// with `sh -c` on this machine instead: on the lab itself, and in the tests.
+struct LabEnv {
+    local: bool,
+    railway: String,
+    project: Option<String>,
+    environment: String,
+    service: String,
+    dir: Option<String>,
+    tri: String,
+    t27c: String,
+    src: String,
+    zig: String,
+    runs: String,
+    /// Where `pids.max` and `pids.current` are read: cgroup v2's root by default.
+    cgroup: String,
+}
+
+impl LabEnv {
+    fn from_env() -> LabEnv {
+        let get = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
+        let or = |k: &str, d: &str| get(k).unwrap_or_else(|| d.to_string());
+        LabEnv {
+            local: get("T27C_LAB_LOCAL").as_deref() == Some("1"),
+            railway: or("T27C_LAB_RAILWAY", "railway"),
+            project: get("T27C_LAB_PROJECT"),
+            environment: or("T27C_LAB_ENV", "production"),
+            service: or("T27C_LAB_SERVICE", "t27c-lab"),
+            dir: get("T27C_LAB_DIR"),
+            tri: or("T27C_LAB_TRI", "/data/target/release/tri"),
+            t27c: or("T27C_LAB_BIN", "/data/target/release/t27c"),
+            src: or("T27C_LAB_SRC", "/data/src"),
+            zig: or("T27C_LAB_ZIG", "/opt/zig"),
+            // Not /data: it was down to 160M free on 2026-10-07 (#7062).
+            runs: or("T27C_LAB_RUNS", "/tmp"),
+            cgroup: or("T27C_LAB_CGROUP", "/sys/fs/cgroup"),
+        }
+    }
+
+    fn describe(&self) -> String {
+        if self.local {
+            "`sh -c` here (T27C_LAB_LOCAL=1)".to_string()
+        } else {
+            format!("`{} ssh -s {} -e {}`", self.railway, self.service, self.environment)
+        }
+    }
+}
+
+/// One `--lab` request, its files already read.
+struct LabRun {
+    rel: String,
+    spec: Vec<u8>,
+    func: Option<String>,
+    accepted: Option<Vec<u8>>,
+    max: usize,
+    jobs: usize,
+    /// --zig-threads as given; `None` = zig_j over the lab's cores.
+    zig_threads: Option<u32>,
+    secs: u64,
+    fail_on_survived: bool,
+    wait: u64,
+}
+
+const LAB_BEGIN: &str = "TRI-MUTATE-LAB-BEGIN";
+const LAB_END: &str = "TRI-MUTATE-LAB-END";
+/// Seconds one ssh call may take, as scripts/tri_loop/t27b.py allows it.
+const LAB_CALL_SECS: u64 = 180;
+/// Base64 characters per upload call, as t27b.py sends them.
+const LAB_CHUNK: usize = 64000;
+/// A cgroup's `max` sets no cap below the kernel's: Linux caps pid_max at 2^22.
+const LAB_PIDS_UNCAPPED: u32 = 1 << 22;
+
+/// One shell word: single-quoted, each `'` closed, escaped and reopened.
+fn sh_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', r"'\''"))
+}
+
+/// RFC 4648 base64 with padding: the spec reaches the lab as text in a command.
+fn base64_encode(b: &[u8]) -> String {
+    const A: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut s = String::with_capacity(b.len().div_ceil(3) * 4);
+    for c in b.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        for i in 0..4 {
+            s.push(if i <= c.len() { A[(n >> (18 - 6 * i) & 63) as usize] as char } else { '=' });
+        }
+    }
+    s
+}
+
+/// The lines a script printed between its markers, `\r` trimmed; `None` when
+/// the answer did not come back whole (a dropped ssh, a cut stream, a banner
+/// only).
+fn lab_marked(stdout: &str) -> Option<Vec<String>> {
+    let lines: Vec<&str> = stdout.lines().map(|l| l.trim_end_matches('\r')).collect();
+    let begin = lines.iter().position(|l| *l == LAB_BEGIN)?;
+    let end = lines.iter().rposition(|l| *l == LAB_END)?;
+    (begin < end).then(|| lines[begin + 1..end].iter().map(|l| l.to_string()).collect())
+}
+
+/// What one call brought back: the marked lines, or why there were none.
+type LabAnswer = std::result::Result<Vec<String>, String>;
+
+/// `script` once, in a subshell, so an `exit` in it cannot eat the end
+/// marker. An `Err` is a caller that could not start `railway` (or `sh`) at
+/// all, which no retry mends.
+fn lab_call_once(env: &LabEnv, script: &str) -> Result<LabAnswer> {
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let wrapped = format!("echo {LAB_BEGIN}; ( {script} ); echo {LAB_END}");
+    let mut cmd = if env.local {
+        let mut c = Command::new("sh");
+        c.arg("-c").arg(&wrapped);
+        c
+    } else {
+        let mut c = Command::new(&env.railway);
+        c.arg("ssh");
+        if let Some(p) = &env.project {
+            c.args(["-p", p]);
+        }
+        c.args(["-e", &env.environment, "-s", &env.service]).arg(&wrapped);
+        if let Some(d) = &env.dir {
+            c.current_dir(d);
+        }
+        c
+    };
+    cmd.stdin(std::process::Stdio::null());
+    let n = CALLS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let base = std::env::temp_dir().join(format!("tri-mutate-lab-{}-{n}", std::process::id()));
+    let (out_path, err_path) = (base.with_extension("out"), base.with_extension("err"));
+    let done = run_with_timeout(
+        &mut cmd,
+        std::fs::File::create(&out_path)?.into(),
+        std::fs::File::create(&err_path)?.into(),
+        LAB_CALL_SECS,
+    );
+    let read = |p: &Path| std::fs::read(p).map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
+    let (stdout, stderr) = (read(&out_path), read(&err_path));
+    let _ = std::fs::remove_file(&out_path);
+    let _ = std::fs::remove_file(&err_path);
+    if done.with_context(|| format!("cannot reach the lab with {}", env.describe()))?.is_none() {
+        return Ok(Err(format!("no answer within {LAB_CALL_SECS} s")));
+    }
+    Ok(lab_marked(&stdout).ok_or_else(|| {
+        let last = stderr.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim();
+        format!("the answer came back cut{}", if last.is_empty() { String::new() } else { format!(": {last}") })
+    }))
+}
+
+/// `script` on the lab, tried again only as `lab::ssh_should_retry` allows: a
+/// read after a cut answer, never a write.
+fn lab_call(env: &LabEnv, script: &str, is_write: bool) -> Result<LabAnswer> {
+    let mut attempts = 0;
+    loop {
+        let got = lab_call_once(env, script)?;
+        attempts += 1;
+        if !lab::ssh_should_retry(attempts, got.is_err(), is_write) {
+            return Ok(got);
+        }
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+}
+
+/// What a probe reads from a run's directory and from the lab around it.
+#[derive(Debug, Default, PartialEq)]
+struct LabProbe {
+    dir: bool,
+    /// The tool's exit code, once the exit file is there.
+    exit: Option<u32>,
+    alive: bool,
+    /// `PID CMDLINE` of each process whose working directory is in the run's
+    /// directory, the runner itself left out.
+    orphans: Vec<String>,
+    pids_max: u32,
+    pids_used: u32,
+    /// The lab's cores (`nproc`); 0 when it did not say, which zig_j reads as -j1.
+    nproc: u32,
+}
+
+impl LabProbe {
+    fn state(&self) -> u8 {
+        lab::run_state(self.dir, self.exit.is_some(), self.alive)
+    }
+}
+
+/// The probe, as one read: the run's three files, every process working in
+/// its directory, the pids cgroup's cap and use, and the lab's cores.
+fn lab_probe_script(env: &LabEnv, d: &str) -> String {
+    format!(
+        "D={}; G={}; if [ -d \"$D\" ]; then echo dir 1; else echo dir 0; fi; \
+         if [ -f \"$D/exit\" ]; then echo \"exit $(cat \"$D/exit\")\"; fi; \
+         P=$(cat \"$D/pid\" 2>/dev/null); \
+         if [ -n \"$P\" ] && kill -0 \"$P\" 2>/dev/null; then echo alive 1; else echo alive 0; fi; \
+         if [ -d \"$D\" ]; then for p in /proc/[0-9]*; do c=$(readlink \"$p/cwd\" 2>/dev/null) || continue; \
+         case \"$c\" in \"$D\"|\"$D\"/*) n=${{p#/proc/}}; if [ \"$n\" != \"$P\" ]; then \
+         echo \"orphan $n $(tr '\\000' ' ' < \"$p/cmdline\" 2>/dev/null | cut -c1-200)\"; fi;; esac; done; fi; \
+         echo \"pids $(cat \"$G/pids.max\" 2>/dev/null || echo max) $(cat \"$G/pids.current\" 2>/dev/null || echo 0)\"; \
+         echo \"nproc $(nproc 2>/dev/null || echo 0)\"",
+        sh_quote(d),
+        sh_quote(&env.cgroup)
+    )
+}
+
+/// A probe's lines; `None` when one of its three always-printed lines is
+/// missing. An exit file that holds no number is a code the tool does not
+/// define, so `lab_exit` reads it as a failed tool.
+fn parse_lab_probe(lines: &[String]) -> Option<LabProbe> {
+    let mut p = LabProbe::default();
+    let (mut dir, mut alive, mut pids) = (false, false, false);
+    for l in lines {
+        let (k, v) = l.split_once(' ').unwrap_or((l.as_str(), ""));
+        match k {
+            "dir" => (p.dir, dir) = (v == "1", true),
+            "exit" => p.exit = Some(v.trim().parse().unwrap_or(u32::MAX)),
+            "alive" => (p.alive, alive) = (v == "1", true),
+            "orphan" => p.orphans.push(v.to_string()),
+            "pids" => {
+                let (m, u) = v.split_once(' ').unwrap_or((v, ""));
+                p.pids_max = if m == "max" { LAB_PIDS_UNCAPPED } else { m.parse().unwrap_or(0) };
+                p.pids_used = u.trim().parse().unwrap_or(0);
+                pids = true;
+            }
+            "nproc" => p.nproc = v.trim().parse().unwrap_or(0),
+            _ => {}
+        }
+    }
+    (dir && alive && pids).then_some(p)
+}
+
+fn lab_probe(env: &LabEnv, d: &str) -> Result<std::result::Result<LabProbe, String>> {
+    Ok(match lab_call(env, &lab_probe_script(env, d), false)? {
+        Ok(lines) => parse_lab_probe(&lines).ok_or_else(|| format!("the probe's answer is incomplete: {lines:?}")),
+        Err(why) => Err(why),
+    })
+}
+
+/// The run's directory name: a hash of everything that makes two requests
+/// the same run, so the same command called again finds the run it started.
+fn lab_run_name(env: &LabEnv, run: &LabRun) -> String {
+    use sha2::{Digest, Sha256};
+    let args = format!(
+        "{:?} {} {} {:?} {} {} {} {} {} {}",
+        run.func,
+        run.max,
+        run.jobs,
+        run.zig_threads,
+        run.secs,
+        run.fail_on_survived,
+        run.accepted.is_some(),
+        env.tri,
+        env.t27c,
+        env.src
+    );
+    let mut h = Sha256::new();
+    for part in [run.rel.as_bytes(), &run.spec, run.accepted.as_deref().unwrap_or(b""), args.as_bytes()] {
+        h.update((part.len() as u64).to_le_bytes());
+        h.update(part);
+    }
+    format!("tri-mutate-{}", &hex::encode(h.finalize())[..16])
+}
+
+/// The job the lab runs. Every way it can end writes an exit file, the last
+/// step through a rename, so a reader never sees half a code. A tri built
+/// before a flag answers clap's usage error, exit 2, which would read as the
+/// survivor gate's 2: each flag is looked up in its `--help` first.
+fn lab_run_sh(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> String {
+    let q = sh_quote;
+    let (jobs, zig_j, max, secs) = (jobs.to_string(), zig_j.to_string(), run.max.to_string(), run.secs.to_string());
+    let accepted = format!("{d}/accepted");
+    let mut args = vec!["mutate", "spec", "--file", &run.rel, "--jobs", &jobs, "--zig-threads", &zig_j, "--max", &max];
+    args.extend(["--timeout", &secs, "--t27c", &env.t27c]);
+    if let Some(f) = &run.func {
+        args.extend(["--fn", f]);
+    }
+    if run.fail_on_survived {
+        args.push("--fail-on-survived");
+    }
+    if run.accepted.is_some() {
+        args.extend(["--accepted", &accepted]);
+    }
+    let flags: Vec<&str> = args.iter().copied().filter(|a| a.starts_with("--")).collect();
+    let (tri, out, exit, tmp) = (q(&env.tri), q(&format!("{d}/out")), q(&format!("{d}/exit")), q(&format!("{d}/exit.tmp")));
+    let fail = |why: &str| format!("{{ echo {why} > {out}; echo 1 > {tmp} && mv {tmp} {exit}; exit 1; }}");
+    format!(
+        "echo $$ > {pid}\n\
+         cd {w} || {cd_failed}\n\
+         H=$({tri} mutate spec --help 2>&1)\n\
+         for f in {flags}; do case \"$H\" in *\"$f\"*) ;; *) {no_flag};; esac; done\n\
+         PATH={zig}:\"$PATH\"; export PATH\n\
+         {tri} {args} > {out} 2>&1\n\
+         echo $? > {tmp} && mv {tmp} {exit}\n",
+        pid = q(&format!("{d}/pid")),
+        w = q(&format!("{d}/w")),
+        cd_failed = fail("\"tri mutate spec --lab: cannot cd to the run's copy of specs/\""),
+        flags = flags.join(" "),
+        no_flag = fail(&format!(
+            "\"tri mutate spec --lab: {} has no $f (built $(date -u -r {tri} +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)); set T27C_LAB_TRI to a newer build\"",
+            env.tri.replace('"', "")
+        )),
+        zig = q(&env.zig),
+        args = args.iter().map(|a| q(a)).collect::<Vec<_>>().join(" "),
+    )
+}
+
+/// Upload the spec (and the accepted file), then start the job: each call a
+/// write, sent once. The upload goes to a staging directory; the launch takes
+/// the run's directory with one `mkdir`, so two callers cannot both start it,
+/// and writes the launching shell's pid at once, so a probe in the gap before
+/// the job's own pid sees a live run and not a lost one.
+fn lab_launch(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Result<LabAnswer> {
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|t| t.subsec_nanos()).unwrap_or(0);
+    let stage = format!("{d}.up.{}.{nanos}", std::process::id());
+    let mut files: Vec<(&str, &[u8])> = vec![("spec.b64", &run.spec)];
+    if let Some(a) = &run.accepted {
+        files.push(("acc.b64", a));
+    }
+    for (name, bytes) in &files {
+        let b64 = base64_encode(bytes);
+        let mut parts: Vec<&str> = b64.as_bytes().chunks(LAB_CHUNK).map(|c| std::str::from_utf8(c).unwrap()).collect();
+        if parts.is_empty() {
+            parts.push("");
+        }
+        for part in parts {
+            let up = format!("mkdir -p {s} && printf %s {} >> {s}/{name} && echo ok", sh_quote(part), s = sh_quote(&stage));
+            if let Err(why) = lab_call(env, &up, true)? {
+                return Ok(Err(format!("upload of {name}: {why}; {stage} may be left on the lab")));
+            }
+        }
+    }
+    let q = sh_quote;
+    let (s, dq, src, tri) = (q(&stage), q(d), q(&env.src), q(&env.tri));
+    let parent = Path::new(&run.rel).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+    let acc = if run.accepted.is_some() { " && base64 -d \"$S/acc.b64\" > \"$D/accepted\"" } else { "" };
+    let script = format!(
+        "S={s}; D={dq}; trap 'rm -rf \"$S\"' EXIT; \
+         if mkdir \"$D\" 2>/dev/null; then echo $$ > \"$D/pid\"; \
+         if {{ mkdir \"$D/w\" && cp -r {src}/specs \"$D/w/specs\" && mkdir -p \"$D/w/\"{parent} && \
+         base64 -d \"$S/spec.b64\" > \"$D/w/\"{rel}{acc} && printf %s {runsh} | base64 -d > \"$D/run.sh\"; }} 2> \"$D/out\"; then \
+         if command -v setsid >/dev/null 2>&1; then nohup setsid sh \"$D/run.sh\" >/dev/null 2>&1 & \
+         else nohup sh \"$D/run.sh\" >/dev/null 2>&1 & fi; \
+         i=0; while [ \"$(cat \"$D/pid\")\" = \"$$\" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done; \
+         echo \"launched pid $(cat \"$D/pid\")\"; \
+         echo \"specs from {src_shown} at $(git -C {src} log -1 --format=%h 2>/dev/null)\"; \
+         echo \"tool {tri_shown} built $(date -u -r {tri} +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)\"; \
+         else echo 1 > \"$D/exit\"; echo 'setup failed on the lab; its errors are the run output'; fi; \
+         else echo 'the run directory was already taken'; fi",
+        parent = q(&parent),
+        rel = q(&run.rel),
+        runsh = q(&base64_encode(lab_run_sh(env, run, d, jobs, zig_j).as_bytes())),
+        src_shown = env.src.replace('"', ""),
+        tri_shown = env.tri.replace('"', ""),
+    );
+    lab_call(env, &script, true)
+}
+
+fn lab_state_name(state: u8) -> &'static str {
+    match state {
+        lab::RUN_NONE => "none",
+        lab::RUN_RUNNING => "running",
+        lab::RUN_DONE => "done",
+        _ => "lost",
+    }
+}
+
+/// `tri mutate spec --lab`: start the run on the lab unless the same request
+/// already has one, wait for it up to `run.wait` seconds, print its output,
+/// and clean up as specs/tri/mutate/lab.t27 allows. Returns `lab_exit`.
+fn lab_mutate_spec(env: &LabEnv, run: &LabRun, out: &mut dyn std::io::Write, sleep: &dyn Fn(u64)) -> Result<u8> {
+    let d = format!("{}/{}", env.runs.trim_end_matches('/'), lab_run_name(env, run));
+    writeln!(out, "Lab run {d}, through {}.", env.describe())?;
+    let mut p = match lab_probe(env, &d)? {
+        Ok(p) => p,
+        Err(why) => {
+            writeln!(out, "The lab did not answer ({why}). Nothing was started.")?;
+            return Ok(lab::EXIT_NO_RESULT);
+        }
+    };
+    if lab::launch_allowed(p.state()) {
+        // zig's -j follows the request, not the cut: a cut batch keeps its per-job cost.
+        let zig_j = run.zig_threads.unwrap_or_else(|| lab::zig_j(p.nproc, run.jobs as u32));
+        let per_job = lab::job_pids(zig_j);
+        let jobs = lab::lab_jobs(run.jobs as u32, p.pids_max, p.pids_used, per_job);
+        if jobs == 0 {
+            writeln!(
+                out,
+                "Not started: the lab has {} of {} pids in use, {} are kept for its other lanes, and one job at zig -j{zig_j} \
+                 costs {per_job} (specs/tri/mutate/lab.t27 lab_jobs).",
+                p.pids_used,
+                p.pids_max,
+                lab::PID_RESERVE,
+            )?;
+            return Ok(lab::EXIT_NO_RESULT);
+        }
+        writeln!(
+            out,
+            "Starting it: {jobs} job(s) of {} asked, zig -j{zig_j} each, on {} cores; the lab has {} of {} pids in use.",
+            run.jobs, p.nproc, p.pids_used, p.pids_max
+        )?;
+        match lab_launch(env, run, &d, jobs, zig_j)? {
+            Ok(lines) => lines.iter().try_for_each(|l| writeln!(out, "  {l}"))?,
+            Err(why) => writeln!(out, "The launch did not answer whole ({why}); reading back what landed.")?,
+        }
+        p = match lab_probe(env, &d)? {
+            Ok(p) => p,
+            Err(why) => {
+                writeln!(out, "The lab did not answer after the launch ({why}). Call the same command again to read the run.")?;
+                return Ok(lab::EXIT_NO_RESULT);
+            }
+        };
+        if p.state() == lab::RUN_NONE {
+            writeln!(out, "The launch did not land: there is no run directory.")?;
+            return Ok(lab::EXIT_NO_RESULT);
+        }
+    } else {
+        writeln!(out, "Reading the run already there ({}).", lab_state_name(p.state()))?;
+    }
+    let (mut polls, mut waited) = (0u32, 0u64);
+    while p.state() == lab::RUN_RUNNING {
+        if waited >= run.wait {
+            writeln!(out, "Still running after {waited} s of waiting. Call the same command again to read it.")?;
+            return Ok(lab::lab_exit(lab::RUN_RUNNING, 0, 0));
+        }
+        let s = lab::poll_wait_seconds(polls) as u64;
+        sleep(s);
+        (waited, polls) = (waited + s, polls + 1);
+        p = match lab_probe(env, &d)? {
+            Ok(p) => p,
+            Err(why) => {
+                writeln!(out, "Lost the lab while waiting ({why}); the run may go on. Call the same command again to read it.")?;
+                return Ok(lab::EXIT_NO_RESULT);
+            }
+        };
+    }
+    let state = p.state();
+    if state == lab::RUN_DONE {
+        let cat = format!("F={}/out; cat \"$F\"; if [ -n \"$(tail -c1 \"$F\")\" ]; then echo; fi", sh_quote(&d));
+        match lab_call(env, &cat, false)? {
+            Ok(lines) => lines.iter().try_for_each(|l| writeln!(out, "{l}"))?,
+            Err(why) => {
+                writeln!(out, "The run finished, but its output did not come back ({why}); it stays in {d}.")?;
+                return Ok(lab::EXIT_NO_RESULT);
+            }
+        }
+    } else {
+        writeln!(out, "The run stopped without an exit code: the lab restarted, or the job was killed.")?;
+    }
+    let orphans = p.orphans.len() as u32;
+    if orphans > 0 {
+        writeln!(out, "{orphans} ORPHAN process(es) still run in {d} (trap T9: a killed `zig test` leaves its test binary spinning):")?;
+        p.orphans.iter().try_for_each(|o| writeln!(out, "  {o}"))?;
+        writeln!(out, "The directory stays until none is left: kill them on the lab, then call the same command again.")?;
+    }
+    if lab::may_remove(state, orphans) {
+        match lab_call(env, &format!("rm -rf {} && echo ok", sh_quote(&d)), true)? {
+            Ok(_) => writeln!(out, "Removed {d}.")?,
+            Err(why) => writeln!(out, "Could not remove {d} ({why}).")?,
+        }
+        if state == lab::RUN_LOST {
+            writeln!(out, "Call the same command again to start a new run.")?;
+        }
+    }
+    Ok(lab::lab_exit(state, p.exit.unwrap_or(u32::MAX), orphans))
+}
+
+/// The `--lab` request from the command line: the spec's path as the lab's
+/// copy of the repo will hold it, and every file read here, so a missing one
+/// fails before anything reaches the lab.
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
+fn lab_request(
+    file: &str,
+    func: Option<&str>,
+    accepted: Option<&str>,
+    max: usize,
+    jobs: usize,
+    zig_threads: Option<u32>,
+    secs: u64,
+    gate: bool,
+    wait: u64,
+) -> Result<LabRun> {
+    let path = Path::new(file);
+    let mut rel = PathBuf::new();
+    for c in path.components() {
+        match c {
+            std::path::Component::Normal(n) => rel.push(n),
+            std::path::Component::CurDir => {}
+            _ => bail!("--lab needs the spec's path relative to the repo root, without `..`: {file}"),
+        }
+    }
+    let rel = rel.to_str().filter(|r| !r.is_empty() && r.is_ascii()).with_context(|| format!("--lab needs an ASCII path: {file}"))?.to_string();
+    let spec = std::fs::read(path).with_context(|| format!("cannot read {file}"))?;
+    if let Some(f) = func {
+        if !String::from_utf8_lossy(&spec).split('\n').any(|l| t27_fn_header(l).as_deref() == Some(f)) {
+            bail!("no function named `{f}` in {file}");
+        }
+    }
+    let accepted = match accepted {
+        Some(p) => {
+            let b = std::fs::read(p).with_context(|| format!("cannot read --accepted {p}"))?;
+            parse_accepted(&String::from_utf8_lossy(&b)).with_context(|| format!("in --accepted {p}"))?;
+            Some(b)
+        }
+        None => None,
+    };
+    Ok(LabRun { rel, spec, func: func.map(str::to_string), accepted, max, jobs, zig_threads, secs, fail_on_survived: gate, wait })
+}
+
+/// `--fail-on-survived` and `--accepted`, as given.
+pub(crate) struct GateArgs<'a> {
+    pub fail_on_survived: bool,
+    pub accepted: Option<&'a str>,
+}
+
+/// One line of an accepted file: a mutant as `push_site` prints it.
+#[derive(Debug, Clone, PartialEq)]
+struct Accepted {
+    path: String,
+    line: usize,
+    kind: String,
+}
+
+/// Read an accepted file: `path:line [kind]` per line, as the report prints a
+/// survivor or a hung mutant, so a line can be copied from it as it stands;
+/// text after `]` is a note. Blank lines and `#` lines are skipped. Any other
+/// line is an error that names it: a gate that skipped what it cannot read
+/// would pass a survivor the file meant to name and missed.
+fn parse_accepted(text: &str) -> Result<Vec<Accepted>> {
+    let mut out = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let s = raw.trim();
+        if s.is_empty() || s.starts_with('#') {
+            continue;
+        }
+        match accepted_line(s) {
+            Some(a) => out.push(a),
+            None => bail!(
+                "accepted file line {}: `{s}` is not `path:line [kind]` as `tri mutate spec` \
+                 prints a survivor",
+                i + 1
+            ),
+        }
+    }
+    Ok(out)
+}
+
+/// `path:line [kind]` and an optional note, or `None`.
+fn accepted_line(s: &str) -> Option<Accepted> {
+    let open = s.find(" [")?;
+    let close = open + s[open..].find(']')?;
+    let kind = &s[open + 2..close];
+    let head = &s[..open];
+    let colon = head.rfind(':')?;
+    let line = head[colon + 1..].parse::<usize>().ok()?;
+    if kind.is_empty() || kind.contains(' ') || colon == 0 {
+        return None;
+    }
+    Some(Accepted { path: head[..colon].to_string(), line, kind: kind.to_string() })
+}
+
+/// The accepted line names this run's spec: the same file once both resolve,
+/// else the same text without a leading `./`.
+fn names_file(path: &str, file: &Path) -> bool {
+    match (std::fs::canonicalize(path), std::fs::canonicalize(file)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => path.trim_start_matches("./") == file.to_string_lossy().trim_start_matches("./"),
+    }
+}
+
+/// What the gate counts, from the mutants that ran. `missed` lists the
+/// not-killed mutants the file does not name; `now_killed` the accepted lines
+/// whose mutants all ran and were all killed. A line whose mutants did not run
+/// (another `--fn`, past `--max`, a line that moved) or were all unviable is in
+/// neither list, as survivors.t27 says.
+struct GateCounts<'a> {
+    survived: u32,
+    hung: u32,
+    accepted_hits: u32,
+    missed: Vec<&'a SpecMutant>,
+    now_killed: Vec<&'a Accepted>,
+}
+
+fn gate_counts<'a>(
+    file: &Path,
+    ran: &[(&'a SpecMutant, Fate)],
+    accepted: &'a [Accepted],
+) -> GateCounts<'a> {
+    let mine: Vec<&Accepted> = accepted.iter().filter(|a| names_file(&a.path, file)).collect();
+    let listed = |m: &SpecMutant| mine.iter().any(|a| a.line == m.line && a.kind == m.kind);
+    let not_killed: Vec<&SpecMutant> = ran
+        .iter()
+        .filter(|(_, f)| matches!(f, Fate::Survived | Fate::Hang(_)))
+        .map(|(m, _)| *m)
+        .collect();
+    let mut now_killed = Vec::new();
+    for a in &mine {
+        let fates: Vec<&Fate> = ran
+            .iter()
+            .filter(|(m, f)| m.line == a.line && m.kind == a.kind && !matches!(f, Fate::Unviable(_)))
+            .map(|(_, f)| f)
+            .collect();
+        if !fates.is_empty()
+            && fates.iter().all(|f| matches!(f, Fate::Killed(_)))
+            && !now_killed.contains(a)
+        {
+            now_killed.push(*a);
+        }
+    }
+    GateCounts {
+        survived: ran.iter().filter(|(_, f)| *f == Fate::Survived).count() as u32,
+        hung: ran.iter().filter(|(_, f)| matches!(f, Fate::Hang(_))).count() as u32,
+        accepted_hits: not_killed.iter().filter(|m| listed(m)).count() as u32,
+        missed: not_killed.into_iter().filter(|m| !listed(m)).collect(),
+        now_killed,
+    }
+}
+
+/// The gate's lines under the report, and its exit code.
+fn gate_report(file: &Path, from: Option<&str>, c: &GateCounts) -> (String, u8) {
+    let code = survivor_exit(
+        true,
+        c.survived,
+        c.hung,
+        c.accepted_hits,
+        c.now_killed.len() as u32,
+    );
+    let mut out = format!(
+        "Survivor gate (specs/tri/mutate/survivors.t27): {} not killed ({} survived, {} hung), {}; \
+         {} accepted line(s) now killed.\n",
+        not_killed(c.survived, c.hung),
+        c.survived,
+        c.hung,
+        match from {
+            Some(p) => format!("{} accepted by {p}", c.accepted_hits),
+            None => "no --accepted file".to_string(),
+        },
+        c.now_killed.len()
+    );
+    if !c.missed.is_empty() {
+        out.push_str(&format!("{} NOT ACCEPTED -- a test gap until a test kills it or the file names it:\n", c.missed.len()));
+        for m in &c.missed {
+            out.push_str(&format!("  {}:{} [{}]\n", file.display(), m.line, m.kind));
+        }
+    }
+    if !c.now_killed.is_empty() {
+        out.push_str(&format!("{} ACCEPTED BUT KILLED -- remove the line from {}:\n", c.now_killed.len(), from.unwrap_or("the accepted file")));
+        for a in &c.now_killed {
+            out.push_str(&format!("  {}:{} [{}]\n", a.path, a.line, a.kind));
+        }
+    }
+    out.push_str(if code == EXIT_OK { "Gate passed.\n" } else { "Gate FAILED: exit 2.\n" });
+    (out, code)
+}
+
 fn resolve_t27c(explicit: Option<&str>) -> String {
     if let Some(p) = explicit {
         return p.to_string();
@@ -1249,11 +2188,23 @@ fn mutate_spec(
     func: Option<&str>,
     max: usize,
     jobs: usize,
+    zig_j: u32,
     secs: u64,
     t27c: Option<&str>,
+    gate: &GateArgs,
 ) -> Result<()> {
     let original =
         std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?;
+    // Read before the baseline: a file the gate cannot read fails in seconds,
+    // not after the whole run.
+    let accepted = match gate.accepted {
+        Some(p) => parse_accepted(
+            &std::fs::read_to_string(p).with_context(|| format!("cannot read --accepted {p}"))?,
+        )
+        .with_context(|| format!("in --accepted {p}"))?,
+        None => Vec::new(),
+    };
+    let on = gate_on(gate.fail_on_survived, gate.accepted.is_some());
     if let Some(f) = func {
         if !original.split('\n').any(|l| t27_fn_header(l).as_deref() == Some(f)) {
             bail!("no function named `{f}` in {}", file.display());
@@ -1268,7 +2219,7 @@ fn mutate_spec(
     // like the mutants, so a `use` it cannot resolve fails here, loudly.
     let base = dir.join("base.t27");
     std::fs::write(&base, &original)?;
-    let fate = spec_fate(&t27c, &base, &dir.join("base.zig"), secs)?;
+    let fate = spec_fate(&t27c, &base, &dir.join("base.zig"), zig_j, secs)?;
     if fate != Fate::Survived {
         let _ = std::fs::remove_dir_all(&dir);
         bail!(
@@ -1287,7 +2238,7 @@ fn mutate_spec(
         return Ok(());
     }
     println!(
-        "{} mutant(s) in {}{scope}, {} at a time: {}.",
+        "{} mutant(s) in {}{scope}, {} at a time, zig -j{zig_j} each: {}.",
         mutants.len(),
         file.display(),
         jobs.max(1),
@@ -1314,7 +2265,7 @@ fn mutate_spec(
                 let zig = dir.join(format!("m{i}.zig"));
                 let fate = std::fs::write(&spec, apply_spec_mutant(&original, &mutants[i]))
                     .map_err(anyhow::Error::from)
-                    .and_then(|_| spec_fate(&t27c, &spec, &zig, secs))
+                    .and_then(|_| spec_fate(&t27c, &spec, &zig, zig_j, secs))
                     .map_err(|e| format!("{e:#}"));
                 *fates[i].lock().unwrap() = Some(fate);
                 let _ = std::fs::remove_file(&spec);
@@ -1341,9 +2292,23 @@ fn mutate_spec(
         for (m, e) in &not_run {
             println!("  {}:{} [{}]: {e}", file.display(), m.line, m.kind);
         }
-        bail!("{} of {} mutant(s) could not be run", not_run.len(), mutants.len());
     }
-    Ok(())
+    let mut survivors = EXIT_OK;
+    if on && not_run.is_empty() {
+        let counts = gate_counts(file, &ran, &accepted);
+        let (lines, code) = gate_report(file, gate.accepted, &counts);
+        print!("{lines}");
+        survivors = code;
+    }
+    match mutate_exit(true, not_run.len() as u32, survivors) {
+        EXIT_OK => Ok(()),
+        EXIT_SURVIVED => {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            std::process::exit(EXIT_SURVIVED as i32);
+        }
+        _ => bail!("{} of {} mutant(s) could not be run", not_run.len(), mutants.len()),
+    }
 }
 
 #[cfg(test)]
@@ -1962,12 +2927,20 @@ mod tests {
         COUNT_TO.replace("        i += 1;\n", "        _ = &i;\n")
     }
 
+    #[test]
+    fn each_compile_gets_its_zig_threads() {
+        let c = zig_compile(Path::new("/w/m1.zig"), Path::new("/w/m1.bin"), 6);
+        let args: Vec<_> = c.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(args, ["test", "/w/m1.zig", "--test-no-exec", "-femit-bin=/w/m1.bin", "-j6"]);
+        assert_eq!(c.get_current_dir(), Some(Path::new("/w")));
+    }
+
     fn zig_fate_of(name: &str, src: &str, compile_secs: u64, run_secs: u64) -> Result<Fate> {
         let dir = std::env::temp_dir().join(format!("tri-mutate-fate-{}-{name}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let zig = dir.join("m.zig");
         std::fs::write(&zig, src).unwrap();
-        let fate = zig_fate(&zig, compile_secs, run_secs);
+        let fate = zig_fate(&zig, 1, compile_secs, run_secs);
         let _ = std::fs::remove_dir_all(&dir);
         fate
     }
@@ -2037,7 +3010,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let spec = dir.join("m.t27");
         std::fs::write(&spec, "module M;\n").unwrap();
-        let fate = spec_fate("false", &spec, &dir.join("m.zig"), 60);
+        let fate = spec_fate("false", &spec, &dir.join("m.zig"), 1, 60);
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(
             fate.unwrap(),
@@ -2094,5 +3067,619 @@ mod tests {
              0 survived, 0 hung, 0 unviable.\n",
             "nothing listed when everything was killed"
         );
+    }
+
+    /// A value in a spec's asserts: a bool or a count.
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    enum V {
+        B(bool),
+        N(u32),
+    }
+
+    type Vars = std::collections::HashMap<String, V>;
+    type Consts = std::collections::HashMap<String, u32>;
+
+    /// The Rust copy of a spec's functions: name, the whole call (for messages), arguments.
+    type Calls<'a> = &'a dyn Fn(&str, &str, &[V]) -> V;
+
+    /// Split a call's arguments at the commas outside parentheses.
+    fn top_args(s: &str) -> Vec<&str> {
+        let (mut depth, mut start, mut out) = (0, 0, Vec::new());
+        for (i, c) in s.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                ',' if depth == 0 => {
+                    out.push(&s[start..i]);
+                    start = i + 1;
+                }
+                _ => {}
+            }
+        }
+        out.push(&s[start..]);
+        out
+    }
+
+    /// Argument `i` of the call `e`, as a bool.
+    fn arg_b(a: &[V], i: usize, e: &str) -> bool {
+        match a[i] {
+            V::B(v) => v,
+            other => panic!("argument {i} of `{e}` is {other:?}, not a bool"),
+        }
+    }
+
+    /// Argument `i` of the call `e`, as a count.
+    fn arg_n(a: &[V], i: usize, e: &str) -> u32 {
+        match a[i] {
+            V::N(v) => v,
+            other => panic!("argument {i} of `{e}` is {other:?}, not a count"),
+        }
+    }
+
+    /// Evaluate one side of a spec's assert with the Rust copy of its functions.
+    fn eval(e: &str, vars: &Vars, consts: &Consts, calls: Calls<'_>) -> V {
+        let e = e.trim();
+        match e {
+            "true" => return V::B(true),
+            "false" => return V::B(false),
+            _ => {}
+        }
+        if let Ok(n) = e.parse::<u32>() {
+            return V::N(n);
+        }
+        if let (Some(open), true) = (e.find('('), e.ends_with(')')) {
+            let a: Vec<V> = top_args(&e[open + 1..e.len() - 1]).iter().map(|x| eval(x, vars, consts, calls)).collect();
+            return calls(e[..open].trim(), e, &a);
+        }
+        if let Some(v) = vars.get(e) {
+            return *v;
+        }
+        match consts.get(e) {
+            Some(n) => V::N(*n),
+            None => panic!("cannot evaluate `{e}`"),
+        }
+    }
+
+    /// Every `assert` row in the tests of the spec at `rel` (from the repo root)
+    /// holds for `calls`, and the spec's `pub const`s are exactly `rust_consts`.
+    /// The rows are read from the spec, not copied here: a row the spec changes
+    /// fails the caller's test until the Rust follows it, and so does a constant
+    /// the spec adds or changes.
+    fn assert_every_row_of(rel: &str, rust_consts: &[(&str, u32)], calls: Calls<'_>) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel);
+        let spec = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let mut consts = Consts::new();
+        for l in spec.lines() {
+            if let Some(rest) = l.strip_prefix("pub const ") {
+                let (name, val) = rest.split_once(" = ").expect("pub const NAME : T = N;");
+                let name = name.split(':').next().unwrap().trim().to_string();
+                consts.insert(name, val.trim_end_matches(';').parse::<u32>().unwrap());
+            }
+        }
+        let mut want: Vec<(String, u32)> = rust_consts.iter().map(|(n, v)| (n.to_string(), *v)).collect();
+        let mut got: Vec<(String, u32)> = consts.iter().map(|(n, v)| (n.clone(), *v)).collect();
+        want.sort();
+        got.sort();
+        assert_eq!(got, want, "{rel}: the spec's constants are the Rust copy's");
+        let (mut test, mut vars, mut rows) = (None::<String>, Vars::new(), 0);
+        for l in spec.lines() {
+            let t = l.trim();
+            if let Some(name) = l.strip_prefix("test ") {
+                test = Some(name.trim_end_matches(" {").to_string());
+                vars.clear();
+            } else if l == "}" {
+                test = None;
+            } else if let (Some(_), Some(rest)) = (&test, t.strip_prefix("var ")) {
+                let (lhs, rhs) = rest.split_once(" = ").expect("var X : T = E;");
+                let var = lhs.split(':').next().unwrap().trim().to_string();
+                let v = eval(rhs.trim_end_matches(';'), &vars, &consts, calls);
+                vars.insert(var, v);
+            } else if let (Some(name), Some(rest)) = (&test, t.strip_prefix("assert ")) {
+                let (lhs, rhs) = rest.trim_end_matches(';').split_once(" == ").expect("assert A == B;");
+                assert_eq!(eval(lhs, &vars, &consts, calls), eval(rhs, &vars, &consts, calls), "{rel}: test {name}: {t}");
+                rows += 1;
+            }
+        }
+        let in_spec = spec.lines().filter(|l| l.trim_start().starts_with("assert ")).count();
+        assert!(rows > 0, "no assert rows read from {}", path.display());
+        assert_eq!(rows, in_spec, "{rel}: every assert row of the spec is evaluated, none skipped");
+    }
+
+    /// #7303: every `assert` row in the tests of specs/tri/mutate/survivors.t27
+    /// holds for the Rust gate, and its EXIT_ codes are the spec's.
+    #[test]
+    fn the_gate_agrees_with_every_assert_row_of_its_spec() {
+        let consts = [("EXIT_OK", EXIT_OK as u32), ("EXIT_FAILED", EXIT_FAILED as u32), ("EXIT_SURVIVED", EXIT_SURVIVED as u32)];
+        assert_every_row_of("specs/tri/mutate/survivors.t27", &consts, &|f, e, a| match f {
+            "gate_on" => V::B(gate_on(arg_b(a, 0, e), arg_b(a, 1, e))),
+            "not_killed" => V::N(not_killed(arg_n(a, 0, e), arg_n(a, 1, e))),
+            "unaccepted" => V::N(unaccepted(arg_n(a, 0, e), arg_n(a, 1, e))),
+            "survivor_exit" => V::N(survivor_exit(arg_b(a, 0, e), arg_n(a, 1, e), arg_n(a, 2, e), arg_n(a, 3, e), arg_n(a, 4, e)) as u32),
+            "mutate_exit" => V::N(mutate_exit(arg_b(a, 0, e), arg_n(a, 1, e), arg_n(a, 2, e) as u8) as u32),
+            f => panic!("survivors.t27 calls `{f}`, which the Rust gate does not have"),
+        });
+    }
+
+    /// #7050: every `assert` row in the tests of specs/tri/mutate/lab.t27 holds
+    /// for the Rust copy in `lab`, and its constants are the spec's. The lab's
+    /// copy of the gate's 2 is the gate's own constant, so a drift between the
+    /// two specs fails here or in the test above.
+    #[test]
+    fn the_lab_rules_agree_with_every_assert_row_of_their_spec() {
+        use lab::*;
+        let consts = [
+            ("RUN_NONE", RUN_NONE as u32),
+            ("RUN_RUNNING", RUN_RUNNING as u32),
+            ("RUN_DONE", RUN_DONE as u32),
+            ("RUN_LOST", RUN_LOST as u32),
+            ("EXIT_OK", lab::EXIT_OK as u32),
+            ("EXIT_TOOL_FAILED", EXIT_TOOL_FAILED as u32),
+            ("EXIT_SURVIVED", lab::EXIT_SURVIVED as u32),
+            ("EXIT_NO_RESULT", EXIT_NO_RESULT as u32),
+            ("EXIT_ORPHANS", EXIT_ORPHANS as u32),
+            ("EXIT_STILL_RUNNING", EXIT_STILL_RUNNING as u32),
+            ("TOOL_RC_SURVIVED", TOOL_RC_SURVIVED),
+            ("SSH_MAX_ATTEMPTS", SSH_MAX_ATTEMPTS),
+            ("POLL_BASE_SECONDS", POLL_BASE_SECONDS),
+            ("POLL_CAP_SECONDS", POLL_CAP_SECONDS),
+            ("PID_RESERVE", PID_RESERVE),
+            ("JOB_OVERHEAD_PIDS", JOB_OVERHEAD_PIDS),
+        ];
+        assert_every_row_of("specs/tri/mutate/lab.t27", &consts, &|f, e, a| match f {
+            "run_state" => V::N(run_state(arg_b(a, 0, e), arg_b(a, 1, e), arg_b(a, 2, e)) as u32),
+            "launch_allowed" => V::B(launch_allowed(arg_n(a, 0, e) as u8)),
+            "may_remove" => V::B(may_remove(arg_n(a, 0, e) as u8, arg_n(a, 1, e))),
+            "lab_exit" => V::N(lab_exit(arg_n(a, 0, e) as u8, arg_n(a, 1, e), arg_n(a, 2, e)) as u32),
+            "ssh_should_retry" => V::B(ssh_should_retry(arg_n(a, 0, e), arg_b(a, 1, e), arg_b(a, 2, e))),
+            "poll_wait_seconds" => V::N(poll_wait_seconds(arg_n(a, 0, e))),
+            "zig_j" => V::N(zig_j(arg_n(a, 0, e), arg_n(a, 1, e))),
+            "job_pids" => V::N(job_pids(arg_n(a, 0, e))),
+            "lab_jobs" => V::N(lab_jobs(arg_n(a, 0, e), arg_n(a, 1, e), arg_n(a, 2, e), arg_n(a, 3, e))),
+            f => panic!("lab.t27 calls `{f}`, which the Rust copy does not have"),
+        });
+        assert_eq!(TOOL_RC_SURVIVED, super::EXIT_SURVIVED as u32, "the lab passes the gate's own 2 through");
+    }
+
+    /// A line copied from the report as it stands is an accepted entry: a
+    /// survivor's `path:line [kind]`, and a hung mutant's with its reason.
+    /// Anything else fails with its line number, never quietly.
+    #[test]
+    fn an_accepted_file_reads_as_the_report_prints() {
+        let got = parse_accepted(
+            "# equivalent: 5 * 2^k never equals 60\n\
+             \n  specs/tri/mutate/lab.t27:100 [flip-cmp]\n\
+             specs/x.t27:7 [drop-step] (its tests outlived --timeout)\n\
+             ./a/b.t27:12 [swap-arith] -- equal at the boundary\n",
+        )
+        .unwrap();
+        let a = |path: &str, line: usize, kind: &str| Accepted { path: path.to_string(), line, kind: kind.to_string() };
+        assert_eq!(
+            got,
+            vec![
+                a("specs/tri/mutate/lab.t27", 100, "flip-cmp"),
+                a("specs/x.t27", 7, "drop-step"),
+                a("./a/b.t27", 12, "swap-arith"),
+            ]
+        );
+        for bad in ["specs/x.t27 [flip-cmp]", "specs/x.t27:7", "specs/x.t27:seven [flip-cmp]", "x.t27:7 []", ":7 [flip-cmp]"] {
+            let e = parse_accepted(&format!("# ok\n{bad}\n")).unwrap_err().to_string();
+            assert!(e.starts_with("accepted file line 2: "), "{bad}: {e}");
+        }
+        assert!(names_file("./specs/x.t27", Path::new("specs/x.t27")));
+        assert!(!names_file("specs/y.t27", Path::new("specs/x.t27")));
+    }
+
+    /// The gate's counts from one run: what the file names is accepted; a
+    /// listed line whose mutants were all killed is reported to be removed; an
+    /// unviable mutant and another file's line count nowhere.
+    #[test]
+    fn the_gate_counts_what_ran_against_the_accepted_file() {
+        let m = |line: usize, kind: &'static str| SpecMutant {
+            line,
+            through: line,
+            kind,
+            before: "x".to_string(),
+            after: "y".to_string(),
+        };
+        let (s1, s2, h1, k1, k2a, k2b, u1) = (
+            m(10, "flip-cmp"),
+            m(11, "flip-cmp"),
+            m(12, "drop-step"),
+            m(13, "drop-guard"),
+            m(14, "flip-cmp"),
+            m(14, "flip-cmp"),
+            m(15, "swap-arith"),
+        );
+        let ran = vec![
+            (&s1, Fate::Survived),
+            (&s2, Fate::Survived),
+            (&h1, Fate::Hang("its tests outlived --timeout")),
+            (&k1, Fate::Killed(KilledBy::Test)),
+            (&k2a, Fate::Killed(KilledBy::Test)),
+            (&k2b, Fate::Survived),
+            (&u1, Fate::Unviable("zig: error: x".to_string())),
+        ];
+        let file = Path::new("s.t27");
+        let accepted = parse_accepted(
+            "s.t27:10 [flip-cmp]\ns.t27:13 [drop-guard]\ns.t27:14 [flip-cmp]\ns.t27:15 [swap-arith]\nother.t27:11 [flip-cmp]\n",
+        )
+        .unwrap();
+        let c = gate_counts(file, &ran, &accepted);
+        assert_eq!((c.survived, c.hung, c.accepted_hits), (3, 1, 2), "s1 and k2b are named; s2 and h1 are not");
+        assert_eq!(c.missed.iter().map(|m| m.line).collect::<Vec<_>>(), vec![11, 12]);
+        assert_eq!(c.now_killed.iter().map(|a| a.line).collect::<Vec<_>>(), vec![13], "14 still has a survivor; 15 was unviable");
+        let (out, code) = gate_report(file, Some("acc.txt"), &c);
+        assert_eq!(code, EXIT_SURVIVED);
+        assert!(out.starts_with("Survivor gate (specs/tri/mutate/survivors.t27): 4 not killed (3 survived, 1 hung), 2 accepted by acc.txt; 1 accepted line(s) now killed.\n"), "{out}");
+        assert!(out.contains("2 NOT ACCEPTED -- a test gap until a test kills it or the file names it:\n  s.t27:11 [flip-cmp]\n  s.t27:12 [drop-step]\n"), "{out}");
+        assert!(out.contains("1 ACCEPTED BUT KILLED -- remove the line from acc.txt:\n  s.t27:13 [drop-guard]\n"), "{out}");
+        assert!(out.ends_with("Gate FAILED: exit 2.\n"), "{out}");
+
+        let all = parse_accepted("s.t27:10 [flip-cmp]\ns.t27:11 [flip-cmp]\ns.t27:12 [drop-step]\ns.t27:14 [flip-cmp]\n").unwrap();
+        let (out, code) = gate_report(file, Some("acc.txt"), &gate_counts(file, &ran, &all));
+        assert_eq!(code, EXIT_OK, "every not-killed mutant named, no named line killed: {out}");
+        assert!(out.ends_with("Gate passed.\n"), "{out}");
+
+        let none: Vec<Accepted> = Vec::new();
+        let (out, code) = gate_report(file, None, &gate_counts(file, &[(&k1, Fate::Killed(KilledBy::Test))], &none));
+        assert_eq!(code, EXIT_OK, "the flag alone on a run with no survivor passes");
+        assert!(out.starts_with("Survivor gate (specs/tri/mutate/survivors.t27): 0 not killed (0 survived, 0 hung), no --accepted file; 0 accepted line(s) now killed.\n"), "{out}");
+    }
+
+    /// RFC 4648 section 10's vectors.
+    #[test]
+    fn base64_matches_the_rfc_vectors() {
+        let vectors = [("", ""), ("f", "Zg=="), ("fo", "Zm8="), ("foo", "Zm9v"), ("foob", "Zm9vYg=="), ("fooba", "Zm9vYmE="), ("foobar", "Zm9vYmFy")];
+        for (plain, coded) in vectors {
+            assert_eq!(base64_encode(plain.as_bytes()), coded, "{plain:?}");
+        }
+    }
+
+    /// A quoted word is one word that `sh` reads back as it was, quotes,
+    /// dollars, backslashes and newlines included.
+    #[test]
+    fn a_quoted_word_reaches_the_shell_unchanged() {
+        for w in ["plain", "it's", "a b", "$HOME `id` \\n", "line\nbreak", "''", ""] {
+            let out = Command::new("sh").arg("-c").arg(format!("printf %s {}", sh_quote(w))).output().unwrap();
+            assert_eq!(String::from_utf8(out.stdout).unwrap(), w);
+        }
+    }
+
+    /// Only the lines between the markers are the answer; a stream that lost
+    /// either marker is no answer at all, so a read can try again.
+    #[test]
+    fn an_answer_is_what_lies_between_the_markers() {
+        let got = lab_marked("banner\r\nTRI-MUTATE-LAB-BEGIN\r\ndir 1\r\nTRI-MUTATE-LAB-END\r\n");
+        assert_eq!(got, Some(vec!["dir 1".to_string()]));
+        assert_eq!(lab_marked("TRI-MUTATE-LAB-BEGIN\nTRI-MUTATE-LAB-END\n"), Some(vec![]));
+        assert_eq!(lab_marked("TRI-MUTATE-LAB-BEGIN\ndir 1\n"), None, "cut before the end");
+        assert_eq!(lab_marked("dir 1\nTRI-MUTATE-LAB-END\n"), None, "no begin");
+        assert_eq!(lab_marked("TRI-MUTATE-LAB-END\nTRI-MUTATE-LAB-BEGIN\n"), None, "out of order");
+    }
+
+    /// The probe's lines read as the state `lab::run_state` decides; a probe
+    /// missing a line it always prints is no answer.
+    #[test]
+    fn a_probe_reads_as_the_spec_decides() {
+        let lines = |s: &str| s.lines().map(str::to_string).collect::<Vec<_>>();
+        let p = parse_lab_probe(&lines("dir 1\nexit 2\nalive 0\norphan 77 zig test x\npids 1000 745")).unwrap();
+        assert_eq!((p.state(), p.exit, p.orphans.len(), p.pids_max, p.pids_used), (lab::RUN_DONE, Some(2), 1, 1000, 745));
+        let p = parse_lab_probe(&lines("dir 1\nalive 1\npids max 3")).unwrap();
+        assert_eq!((p.state(), p.pids_max), (lab::RUN_RUNNING, LAB_PIDS_UNCAPPED));
+        assert_eq!(parse_lab_probe(&lines("dir 1\nalive 0\npids 1000 3")).unwrap().state(), lab::RUN_LOST);
+        assert_eq!(parse_lab_probe(&lines("dir 0\nalive 0\npids 1000 3")).unwrap().state(), lab::RUN_NONE);
+        let half = parse_lab_probe(&lines("dir 1\nexit \nalive 0\npids 1000 3")).unwrap();
+        assert_eq!(lab::lab_exit(half.state(), half.exit.unwrap(), 0), lab::EXIT_TOOL_FAILED, "an exit file with no number");
+        assert_eq!(parse_lab_probe(&lines("dir 1\npids 1000 3")), None, "no alive line");
+        assert_eq!(parse_lab_probe(&lines("dir 1\nalive 1")), None, "no pids line");
+    }
+
+    fn lab_env_at(root: &Path) -> LabEnv {
+        let r = root.display();
+        LabEnv {
+            local: true,
+            railway: "railway".into(),
+            project: None,
+            environment: "production".into(),
+            service: "t27c-lab".into(),
+            dir: None,
+            tri: format!("{r}/tri"),
+            t27c: "/bin/true".into(),
+            src: format!("{r}/src"),
+            zig: "/nonexistent-zig".into(),
+            runs: format!("{r}/runs"),
+            cgroup: format!("{r}/cg"),
+        }
+    }
+
+    fn lab_run_of(spec: &str, max: usize, wait: u64) -> LabRun {
+        LabRun {
+            rel: "specs/x/a.t27".into(),
+            spec: spec.as_bytes().to_vec(),
+            func: None,
+            accepted: None,
+            max,
+            jobs: 2,
+            zig_threads: None,
+            secs: 60,
+            fail_on_survived: false,
+            wait,
+        }
+    }
+
+    /// The run's name is the request: the same one finds the same directory,
+    /// and any change to the spec, the arguments or the binaries is another run.
+    #[test]
+    fn the_run_name_is_the_request() {
+        let env = lab_env_at(Path::new("/r"));
+        let base = lab_run_name(&env, &lab_run_of("pub fn a() {}\n", 5, 0));
+        assert!(base.starts_with("tri-mutate-") && base.len() == "tri-mutate-".len() + 16, "{base}");
+        assert_eq!(base, lab_run_name(&env, &lab_run_of("pub fn a() {}\n", 5, 9)), "--lab-wait is not part of the run");
+        assert_ne!(base, lab_run_name(&env, &lab_run_of("pub fn a() {} \n", 5, 0)));
+        assert_ne!(base, lab_run_name(&env, &lab_run_of("pub fn a() {}\n", 6, 0)));
+        let mut zj = lab_run_of("pub fn a() {}\n", 5, 0);
+        zj.zig_threads = Some(6);
+        assert_ne!(base, lab_run_name(&env, &zj), "--zig-threads is part of the run");
+        let mut acc = lab_run_of("pub fn a() {}\n", 5, 0);
+        acc.accepted = Some(Vec::new());
+        assert_ne!(base, lab_run_name(&env, &acc), "an empty accepted file still turns the gate on");
+        let other = LabEnv { tri: "/other/tri".into(), ..lab_env_at(Path::new("/r")) };
+        assert_ne!(base, lab_run_name(&other, &lab_run_of("pub fn a() {}\n", 5, 0)));
+    }
+
+    /// The request is checked here, before anything reaches the lab: a path
+    /// the lab's copy of the repo cannot hold, a `--fn` the spec does not
+    /// have, an accepted file that does not parse.
+    #[test]
+    fn a_lab_request_is_checked_before_the_lab() {
+        let ok = lab_request("./src/mutate.rs", Some("lab_request"), None, 5, 8, None, 60, false, 0).unwrap();
+        assert_eq!(ok.rel, "src/mutate.rs");
+        for bad in ["/tmp/x.t27", "../x.t27", "src/../x.t27"] {
+            let e = lab_request(bad, None, None, 5, 8, None, 60, false, 0).err().expect(bad);
+            assert!(format!("{e:#}").contains("relative to the repo root"), "{bad}: {e:#}");
+        }
+        let e = lab_request("src/mutate.rs", Some("no_such_fn"), None, 5, 8, None, 60, false, 0).err().unwrap();
+        assert!(format!("{e:#}").contains("no function named `no_such_fn`"), "{e:#}");
+        let acc = std::env::temp_dir().join(format!("tri-lab-acc-{}", std::process::id()));
+        std::fs::write(&acc, "a.t27 line 3\n").unwrap();
+        let e = lab_request("src/mutate.rs", None, acc.to_str(), 5, 8, None, 60, false, 0).err().unwrap();
+        assert!(format!("{e:#}").contains("in --accepted"), "{e:#}");
+        let _ = std::fs::remove_file(&acc);
+    }
+
+    /// A `railway` that cannot be started is an error, which `run` turns into
+    /// exit 3, never a verdict.
+    #[test]
+    fn a_lab_that_cannot_be_reached_is_an_error() {
+        let env = LabEnv { local: false, railway: "/nonexistent/railway".into(), ..lab_env_at(Path::new("/r")) };
+        let mut out = Vec::new();
+        let e = lab_mutate_spec(&env, &lab_run_of("x", 1, 0), &mut out, &|_| {}).err().unwrap();
+        assert!(format!("{e:#}").contains("cannot reach the lab"), "{e:#}");
+    }
+
+    #[cfg(target_os = "linux")]
+    const LAB_HELP: &str = "--file --fn --max --jobs --zig-threads --timeout --t27c --fail-on-survived --accepted";
+
+    /// zig's -j a lab run on this machine passes: zig_j over its own cores, as the probe reads them.
+    #[cfg(target_os = "linux")]
+    fn lab_zig_j(jobs: u32) -> u32 {
+        let n = Command::new("nproc").output().unwrap();
+        lab::zig_j(String::from_utf8_lossy(&n.stdout).trim().parse().unwrap(), jobs)
+    }
+
+    /// A lab on this machine: `T27C_LAB_LOCAL=1` with a fake `tri` that
+    /// prints the spec it was given, logs its arguments, holds while a `hold`
+    /// file exists, leaves a `sleep` behind while an `orphan` file exists, and
+    /// exits with the code in `rc`.
+    #[cfg(target_os = "linux")]
+    fn lab_fixture(tag: &str, help: &str) -> (PathBuf, LabEnv) {
+        use std::os::unix::fs::PermissionsExt;
+        let root = std::env::temp_dir().join(format!("tri-lab-test-{}-{tag}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for d in ["src/specs/x", "runs", "cg"] {
+            std::fs::create_dir_all(root.join(d)).unwrap();
+        }
+        std::fs::write(root.join("src/specs/x/dep.t27"), "dep\n").unwrap();
+        std::fs::write(root.join("cg/pids.max"), "1000\n").unwrap();
+        std::fs::write(root.join("cg/pids.current"), "100\n").unwrap();
+        std::fs::write(root.join("rc"), "0\n").unwrap();
+        let r = root.display();
+        let tri = format!(
+            "#!/bin/sh\n\
+             case \"$*\" in *--help*) echo '{help}'; exit 0;; esac\n\
+             echo \"$*\" >> {r}/calls\n\
+             test -f specs/x/dep.t27 || {{ echo 'no copy of specs/'; exit 9; }}\n\
+             cat specs/x/a.t27\n\
+             while [ -f {r}/hold ]; do sleep 0.05; done\n\
+             if [ -f {r}/orphan ]; then sleep 30 & echo $! > {r}/orphan.pid; fi\n\
+             echo '4 of 4 killed'\n\
+             exit $(cat {r}/rc)\n"
+        );
+        std::fs::write(root.join("tri"), tri).unwrap();
+        std::fs::set_permissions(root.join("tri"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        let env = lab_env_at(&root);
+        (root, env)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn lab_go(env: &LabEnv, run: &LabRun) -> (u8, String) {
+        let mut out = Vec::new();
+        let code = lab_mutate_spec(env, run, &mut out, &|_| std::thread::sleep(std::time::Duration::from_millis(100))).unwrap();
+        (code, String::from_utf8(out).unwrap())
+    }
+
+    #[cfg(target_os = "linux")]
+    fn lab_calls(root: &Path) -> Vec<String> {
+        std::fs::read_to_string(root.join("calls")).unwrap_or_default().lines().map(str::to_string).collect()
+    }
+
+    /// Base64 as written here is what `base64 -d` on the lab reads, for every
+    /// byte value.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn every_byte_survives_base64_on_the_lab() {
+        let all: Vec<u8> = (0..=255u8).chain((0..=255u8).rev()).collect();
+        let out = Command::new("sh").arg("-c").arg(format!("printf %s {} | base64 -d", base64_encode(&all))).output().unwrap();
+        assert_eq!(out.stdout, all);
+    }
+
+    /// A run starts, its output comes back, the tool's code passes through
+    /// as `lab_exit` maps it, and the directory goes.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_lab_run_reads_back_and_removes_its_directory() {
+        let (root, env) = lab_fixture("pass", LAB_HELP);
+        let run = lab_run_of("pub fn a() {}\n", 5, 3600);
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(out.contains("pub fn a() {}\n4 of 4 killed\n"), "the spec went up and the output came back: {out}");
+        assert!(out.contains(&format!("Starting it: 2 job(s) of 2 asked, zig -j{} each", lab_zig_j(2))), "{out}");
+        let d = format!("{}/{}", env.runs, lab_run_name(&env, &run));
+        assert!(out.contains(&format!("Removed {d}.")), "{out}");
+        assert!(!Path::new(&d).exists());
+        assert_eq!(
+            lab_calls(&root),
+            vec![format!("mutate spec --file specs/x/a.t27 --jobs 2 --zig-threads {} --max 5 --timeout 60 --t27c /bin/true", lab_zig_j(2))]
+        );
+        for (rc, want) in [("2", lab::EXIT_SURVIVED), ("7", lab::EXIT_TOOL_FAILED), ("1", lab::EXIT_TOOL_FAILED)] {
+            std::fs::write(root.join("rc"), rc).unwrap();
+            let (code, out) = lab_go(&env, &lab_run_of(&format!("rc {rc}\n"), 5, 3600));
+            assert_eq!(code, want, "tool rc {rc}: {out}");
+        }
+        assert_eq!(std::fs::read_dir(&env.runs).unwrap().count(), 0, "every run removed, no staging left");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The pids the lab has left cut the jobs; none left, nothing starts.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_labs_free_pids_cut_the_jobs() {
+        let (root, env) = lab_fixture("pids", LAB_HELP);
+        std::fs::write(root.join("cg/pids.current"), format!("{}", 1000 - lab::PID_RESERVE - lab::job_pids(lab_zig_j(8)))).unwrap();
+        let mut run = lab_run_of("pids\n", 5, 3600);
+        run.jobs = 8;
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        let want = format!("--jobs 1 --zig-threads {} ", lab_zig_j(8));
+        assert!(lab_calls(&root)[0].contains(&want), "a cut batch keeps the request's -j: {:?}", lab_calls(&root));
+        // An explicit --zig-threads sets the cost: 2 jobs at -j1 cost 2 * job_pids(1).
+        std::fs::write(root.join("cg/pids.current"), format!("{}", 1000 - lab::PID_RESERVE - 2 * lab::job_pids(1))).unwrap();
+        let mut run = lab_run_of("pids at -j1\n", 5, 3600);
+        (run.jobs, run.zig_threads) = (8, Some(1));
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(lab_calls(&root)[1].contains("--jobs 2 --zig-threads 1 "), "{:?}", lab_calls(&root));
+        std::fs::write(root.join("cg/pids.current"), "900").unwrap();
+        let (code, out) = lab_go(&env, &lab_run_of("pids again\n", 5, 3600));
+        assert_eq!(code, lab::EXIT_NO_RESULT, "{out}");
+        assert!(out.contains("Not started: the lab has 900 of 1000 pids in use"), "{out}");
+        assert_eq!(lab_calls(&root).len(), 2, "nothing started");
+        assert_eq!(std::fs::read_dir(&env.runs).unwrap().count(), 0);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Exit 5 leaves the run going; the same command called again reads that
+    /// run and starts no second one.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_same_command_again_reads_the_run_it_started() {
+        let (root, env) = lab_fixture("again", LAB_HELP);
+        std::fs::write(root.join("hold"), "").unwrap();
+        let (code, out) = lab_go(&env, &lab_run_of("again\n", 5, 0));
+        assert_eq!(code, lab::EXIT_STILL_RUNNING, "{out}");
+        assert!(out.contains("Still running after 0 s of waiting"), "{out}");
+        std::fs::remove_file(root.join("hold")).unwrap();
+        let (code, out) = lab_go(&env, &lab_run_of("again\n", 5, 3600));
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(out.contains("Reading the run already there ("), "{out}");
+        assert!(out.contains("4 of 4 killed"), "{out}");
+        assert_eq!(lab_calls(&root).len(), 1, "one run, read twice");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A directory whose runner died with no exit file is LOST: exit 3, the
+    /// directory goes, nothing is started over it; the next call starts afresh.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_lost_run_is_cleared_not_restarted() {
+        let (root, env) = lab_fixture("lost", LAB_HELP);
+        let run = lab_run_of("lost\n", 5, 3600);
+        let d = PathBuf::from(format!("{}/{}", env.runs, lab_run_name(&env, &run)));
+        std::fs::create_dir_all(&d).unwrap();
+        let mut dead = Command::new("true").spawn().unwrap();
+        dead.wait().unwrap();
+        std::fs::write(d.join("pid"), dead.id().to_string()).unwrap();
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_NO_RESULT, "{out}");
+        assert!(out.contains("Reading the run already there (lost)."), "{out}");
+        assert!(out.contains("stopped without an exit code"), "{out}");
+        assert!(!d.exists(), "{out}");
+        assert!(lab_calls(&root).is_empty(), "nothing started over a lost run");
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert_eq!(lab_calls(&root).len(), 1);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A process left working in the run's directory outranks the verdict
+    /// (exit 4) and keeps the directory; once it is gone, the same command
+    /// reads the verdict and removes the directory (trap T9).
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn an_orphan_keeps_the_directory_until_it_is_gone() {
+        let (root, env) = lab_fixture("orphan", LAB_HELP);
+        std::fs::write(root.join("orphan"), "").unwrap();
+        let run = lab_run_of("orphan\n", 5, 3600);
+        let d = PathBuf::from(format!("{}/{}", env.runs, lab_run_name(&env, &run)));
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_ORPHANS, "{out}");
+        let pid = std::fs::read_to_string(root.join("orphan.pid")).unwrap().trim().to_string();
+        assert!(out.contains(&format!("  {pid} sleep 30")), "{out}");
+        assert!(d.exists(), "{out}");
+        std::fs::remove_file(root.join("orphan")).unwrap();
+        Command::new("kill").args(["-KILL", &pid]).status().unwrap();
+        for _ in 0..100 {
+            if std::fs::read_link(format!("/proc/{pid}/cwd")).is_err() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(!d.exists(), "{out}");
+        assert_eq!(lab_calls(&root).len(), 1, "read again, not run again");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A tri built before a flag would answer clap's usage error, exit 2, which
+    /// reads as the survivor gate's 2. run.sh looks each flag up in `--help`
+    /// first, so the run fails as the tool (1) and names the flag.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_tri_without_a_flag_fails_as_the_tool_not_as_the_gate() {
+        let (root, env) = lab_fixture("noflag", "--file --fn --max --jobs --zig-threads --timeout --t27c");
+        let mut run = lab_run_of("noflag\n", 5, 3600);
+        run.accepted = Some(b"specs/x/a.t27:1 [flip-cmp]\n".to_vec());
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_TOOL_FAILED, "{out}");
+        assert!(out.contains("has no --accepted"), "{out}");
+        assert!(lab_calls(&root).is_empty(), "the tool never ran");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A launch whose setup fails (here: no specs/ to copy) still writes an
+    /// exit file, so it reads as a failed tool with the setup's errors, not as
+    /// a lost run.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_failed_setup_reads_as_a_failed_tool() {
+        let (root, mut env) = lab_fixture("setup", LAB_HELP);
+        env.src = root.join("no-src").display().to_string();
+        let (code, out) = lab_go(&env, &lab_run_of("setup\n", 5, 3600));
+        assert_eq!(code, lab::EXIT_TOOL_FAILED, "{out}");
+        assert!(out.contains("setup failed on the lab"), "{out}");
+        assert!(out.contains("no-src/specs"), "cp's own error is the output: {out}");
+        assert!(lab_calls(&root).is_empty());
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

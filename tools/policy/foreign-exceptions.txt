@@ -70,6 +70,10 @@ bootstrap/src/main.rs
 # FROZEN_HASH moves with compiler.rs.
 bootstrap/tests/t27a_cli.rs
 bootstrap/stage0/FROZEN_HASH
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), gen-c
+# defects lane of epic #5980 (self-host P1): one regression test per gen-c defect. compiler.rs and FROZEN_HASH
+# are listed above. #7318: array dimensions and negated literal consts keep no `_` separator.
+bootstrap/tests/genc_digit_separators.rs
 # owner-approved 2026-10-05, #6457: via the coordinator ("fix it and do not stop, do what is best"), the parked
 # `tri t27b dogfood` command and the `tri t27b next` tie-break land as an exception. Every decision is
 # specs/tri/t27b/dogfood.t27 (gen-c); the Python is I/O plumbing only. Debt #6198. Removed again before merge.
