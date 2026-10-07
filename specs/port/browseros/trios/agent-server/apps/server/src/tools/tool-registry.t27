@@ -51,7 +51,7 @@ pub fn ToolRegistry_names(self: ToolRegistry) -> [][]const u8 {
     // Create a fixed-size array with a known size at compile time
     // We'll use a reasonable maximum size and handle smaller cases
     const MAX_SIZE = 100;
-    var names: [MAX_SIZE][]const u8 = undefined;
+    var names: [MAX_SIZE]str = undefined;
     var count: usize = 0;
     
     var i: usize = 0;
