@@ -1,14 +1,14 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+95182e95b",
+  "built_by": "t27c-bootstrap@0.5.0+706788bde",
   "gen_hash_c": "sha256:69d7fc1762a0409d91c8a78570da38ddaef813c318d059486b35f25462d6628e",
   "gen_hash_rust": "sha256:f1e6fe43b64af1be59ff17eb457cce57cde227b7c5787bfb8ed6890577ff5847",
   "gen_hash_verilog": "sha256:4a58726f07220b5cf8642c88170c3e573b7266a8cd3b9e399bbc8a2eab8ca5ab",
   "gen_hash_zig": "sha256:97a6dc92feb0915b2778ca72ab59ead26259a1fae4343487ce90dc08a1e8d782",
   "module": "T27bBuiltinPlan",
   "ring": 12,
-  "sealed_at": "2026-10-07T21:18:45Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:06468fcd1bfc225c4a7f6672a4ad10c45d619e958b7111a03f1ce28859c93e5b",
+  "sealed_at": "2026-10-07T21:58:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:dde5bcdec2366866b00296f62765bc63fa54de16d442d71cca0b8f651cc895cd",
   "spec_path": "specs/tri/t27b/builtin_plan.t27",
   "tests": {
     "failed": 0,

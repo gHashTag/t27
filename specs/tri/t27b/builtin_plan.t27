@@ -13,8 +13,11 @@
 ;   `@abs(x)` of an f64 / f32 is the magnitude: -0.0 gives +0.0, -inf gives +inf, a NaN stays a NaN.
 ;   A comptime operand folds. A typed integer is refused: Zig's `@abs` of an `iN` is a `uN`.
 ;   `@max(a, b)` / `@min(a, b)` of two floats of one type: a NaN operand gives the other operand, and when
-;   the two compare equal (-0.0 and +0.0) the FIRST operand is the result. A literal beside a typed float
-;   takes that float's type. Of two integers of one type: the larger / smaller. Each operand runs once.
+;   the two compare equal (-0.0 and +0.0) the FIRST operand is the result. That sign is t27b's choice: Zig
+;   0.16 leaves it to the target (x86_64 gives the first operand, as the t27b lab's reference does; aarch64
+;   gives +0.0 for @max and -0.0 for @min; measured for #7394), so no conformance test pins it. A literal
+;   beside a typed float takes that float's type. Of two integers of one type: the larger / smaller. Each
+;   operand runs once.
 ;   Refused: an integer beside a literal (Zig narrows the result type to the literal's range), mixed
 ;   types, two literals, and any other number of operands.
 ;   `std.math.pi` and `std.math.e` are the comptime_float literals of Zig's lib/std/math.zig, held as
@@ -344,6 +347,7 @@ test a_nan_operand_gives_the_other_operand {
     assert bp_is_nan(run_plan(MIN, true, nan, nan));
 }
 
+// t27b's choice where Zig leaves the sign to the target (see the header).
 test equal_operands_give_the_first {
     const nz : f64 = bp_neg(0.0);
     assert 1.0 / run_plan(MAX, true, nz, 0.0) < 0.0;
