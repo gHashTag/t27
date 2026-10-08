@@ -145,8 +145,8 @@ impl<'a> Lower<'a> {
         }
         let elem = if let LTy::Slice(e, _) = &dst.ty { (**e).clone() } else { LTy::S(Ty::U8) };
         let flat = elem == LTy::Str || !has_brackets(&elem);
-        let (repeat, typed) = (c.extra_size.contains(';'), !c.extra_type.trim().is_empty());
-        let ask = |n, text| sl::plan(at, named, flat, repeat, n, text, typed);
+        let (repeat, typed, strings) = (c.extra_size.contains(';'), !c.extra_type.trim().is_empty(), self.holds_str(&elem)?);
+        let ask = |n, text| sl::plan(at, named, flat, repeat, n, text, typed, strings);
         let (mut act, mut text) = (ask(c.children.len(), !c.extra_size.trim().is_empty()), None);
         if act == sl::PARSE {
             text = self.text_lit(c)?;
