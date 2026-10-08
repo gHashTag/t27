@@ -1,0 +1,19 @@
+// gHashTag/t27#7774: Cross-module import regression test
+// This module uses double_it from zig_use_import_lib.t27
+// Expected generated @import: @import("zig_use_import_lib.zig");
+
+use zig_use_import_lib::double_it;
+
+pub fn quadruple(x: i32) -> i32 { 
+    var once : i32 = double_it(x); 
+    var twice : i32 = double_it(once); 
+    return twice; 
+}
+
+test quadruple_quadruples { 
+    assert(quadruple(5) == 20); 
+}
+
+test quadruple_works_with_negative { 
+    assert(quadruple(-3) == -12); 
+}

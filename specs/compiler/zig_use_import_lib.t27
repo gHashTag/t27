@@ -1,0 +1,12 @@
+// gHashTag/t27#7774: Cross-module import regression test
+// This module defines double_it function that should be imported by zig_use_import.t27
+// Expected generated @import: @import("zig_use_import_lib.zig");
+
+pub fn double_it(x: i32) -> i32 { 
+    var out : i32 = x * 2; 
+    return out; 
+}
+
+test double_it_doubles { 
+    assert(double_it(21) == 42); 
+}
