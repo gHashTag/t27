@@ -250,6 +250,23 @@ fn an_undefined_argument_nobody_reads() {
     assert!(m.contains("construct ExprIdentifier(undefined argument read) at line 8"), "{}", m);
 }
 
+// ------------------------------------------------ `/` and `%` of two integer constants
+
+/// `const CLK_DIV : u32 = CLK_HZ / (UART_BAUD * 16);` (gf16_uart_sim_bench.t27): Zig folds `/` and an unsigned `%` of
+/// two constants at compile time (specs/tri/t27b/const_div_plan.t27; `t27c test-report` passes the conformance spec
+/// 5/5, none vacuous). A zero divisor and a signed `%`, which the reference refuses, stay refused as `ConstDecl`.
+#[test]
+fn integer_constants_divide_at_compile_time() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/const_division.t27"));
+    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\npub const A : i32 = -7;\npub const B : i32 = 2;\npub const C : i32 = A / B;\n\ntest t {\n    assert(C == -3);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("C == -3", "C == -4"))), vec![("t", false, false)]);
+    for bad in ["A % B", "A / 0"] {
+        assert!(rejected(&src.replace("A / B", bad)).contains("construct ConstDecl"), "{}", bad);
+    }
+}
+
 // ------------------------------------------------ @bitCast, @intFromBool and the std.math NaN fns
 
 /// #7791: an f32's bits through a frame slot, integers of one size, a bool as a u1, and `std.math.nan` / `isNan` /

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "gen_hash_c": "sha256:fd80b61aea468c099853d453eb200ea86816b7d62dc62a916c90aba6098fe9a9",
+  "gen_hash_rust": "sha256:c20a6c4dac46de6ea46e94232b9cce99304bd8b35b22c26542983f3870e7783a",
+  "gen_hash_verilog": "sha256:1128d7c871f955fb0c59bb1309be368f3d170dc025787931a22e6c91b49c64e9",
+  "gen_hash_zig": "sha256:387f310587458b1d62c6c760c4406ecdaed68c1394f538647a10ac1e548c87c1",
+  "module": "T27bConformanceConstDivision",
+  "ring": 12,
+  "sealed_at": "2026-10-08T12:20:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:deab81bbed0902011d6d4a5f113de1f77c54fc6120f587aec1d847ea9aef5b25",
+  "spec_path": "specs/tri/t27b/conformance/const_division.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}
