@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:b7678ae274440d6e10784fab404c7443e039bd1d2d99fbd034acbabfab2c9c8a",
+  "gen_hash_rust": "sha256:d4e6cfae93faeeb9d3a17cbfa1231516b56275294635c2b119edd2b9a8d39cee",
+  "gen_hash_verilog": "sha256:6b2b5579421fcbaab77d8c572df6501e35b85c9145eb328d24af979f19d76ce7",
+  "gen_hash_zig": "sha256:f6f71bf7474d13a9fd10daaeb30de43f089d974c9dc014371b79ad4456990782",
+  "module": "tool_trinity_tri_dashboard",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:ec71b6e50e6435ef16d2c7b771cf30b9b57e0bc2a20af3a77db22a70fedcc01f",
+  "spec_path": "specs/tools/trinity/tri/dashboard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

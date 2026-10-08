@@ -174,12 +174,126 @@ measure it are written in **t27**, not in Rust or Python by hand.
   `cli/t27b/src/*.rs` 8247 lines plus `cli/t27b/tests/*.rs` 2865 (Rust, and
   it mounts `bootstrap/src/compiler.rs`; 14338 plus 7070 after #6864's
   brace-invariant predicates, +54 and +53; 14327 plus 7072 after #6911's
-  module-var-in-test fix, -11 and +2), `scripts/tri_loop/t27b.py` 1829
+  module-var-in-test fix, -11 and +2; 15453 plus 7719 after #7368's odd-width
+  integers, +111 and +42 on master cd6708d32's 15342 plus 7677; 14952 plus 7757
+  after #7531 moved the A64 encoders to `specs/tri/t27b/a64.t27`, -520 on master
+  ec5c3cf78's 15472 plus 7757; 14847 plus 7775 after #7526's Mach-O port to
+  `specs/tri/t27b/macho.t27`, -132 and 0 on master 27493414d's 14979 plus
+  7775; 14745 plus 7775 after #7549 moved `bitmask_imm`, `logic_imm` and
+  `mov_imm` to `a64.t27` too, -102 on master 499487306's 14847 plus 7775;
+  14812 plus 7814 after #7394's glue for `@abs`, `@max`, `@min` and
+  `std.math.pi` / `e`, whose plan is `specs/tri/t27b/builtin_plan.t27`, +43
+  and 0 on master 95182e95b's 14769 plus 7814; 14848 plus 7833 after #7412's
+  glue for `@intCast` with an integer result type, whose plan is
+  `specs/tri/t27b/int_cast_plan.t27`, +36 and +19 on master 1120d30ae's 14812
+  plus 7814; 14881 plus 7848 after #7391's glue for `@exp`, whose plan is
+  `specs/tri/t27b/libm_plan.t27` and whose routines are
+  `specs/tri/t27b/libm.t27`, +33 and +15 on master 6fba037d1's 14848 plus
+  7833; 14881 plus 7858 after #7217's `@log` from the same plan, 0 and +10
+  on master 8c7b2ccff's 14881 plus 7848; 14917 plus 7877 after #7423's glue
+  for integer constants wider than 64 bits, whose plan is
+  `specs/tri/t27b/wide_plan.t27`, +36 and +19 on master 8415029ea's 14881
+  plus 7858; 14945 plus 7877 after #7550's refusal of a return that hands
+  out the address of the fn's own frame, +28 and 0 on master 5f3087125's
+  14917 plus 7877; 14919 plus 7874 after #7422 removed the stale
+  `StmtAssign(reference redeclares)` scan, -26 and -3 on master 2eabc3edd's
+  14945 plus 7877; 14876 plus 7874 after #7673 moved the greedy blockers
+  order, its replay and FNV-1a to `specs/tri/t27b/blockers.t27`, -43 and 0
+  on master ef26684a1's 14919 plus 7874; 14842 plus 7866 after #7680's glue
+  for array literals the reference prints as `@constCast(&[_]E{ ... })`,
+  whose plan is `specs/tri/t27b/slice_lit_plan.t27`, -34 and -8 on master
+  3d7130691's 14876 plus 7874; 14873 plus 7905 after #7459's glue for
+  `@setEvalBranchQuota`, +31 and +39 on master 6157f8d07's 14842 plus 7866;
+  14885 plus 7924 after #7740's glue for the
+  `type mismatch` family, whose plan is `specs/tri/t27b/coerce_plan.t27`,
+  +12 and +19 on master b8cb93f34's 14873 plus 7905; 14905 plus 7942 after
+  #7690's glue for a local bound to a void fn's result, whose plan is
+  `specs/tri/t27b/void_bind_plan.t27`, +20 and +18 on master 1d9c5960d's
+  14885 plus 7924; 14944 plus 7964 after #7691's glue for a local bound to
+  the W585 scaffold the reference never calls, whose plan is
+  `specs/tri/t27b/scaffold_plan.t27`, +39 and +22 on master d42df2b06's
+  14905 plus 7942; 14967 plus 7987 after #7448's glue for module vars that
+  hold a string or start undefined, +23 and +23 on master 579bc55aa's 14944
+  plus 7964; `cli/t27b/src/*/*.rs`, which the glob above never counted, is
+  1222 more on master 1f2448e98, 16189 in all; 14995 plus 1166, 16161 in
+  all, after #7524's `.len` call port, +28 glue and -56; 15026 plus 1177,
+  16203 in all, and `cli/t27b/tests/*.rs` 8005, after #7735's glue for `.{}`
+  by its result type and the refusal of a store of the fn's own frame address,
+  whose plans are `specs/tri/t27b/empty_lit_plan.t27` and
+  `specs/tri/t27b/frame_store_plan.t27`, +31, +11 and +18 on master
+  4d7d2d3bd's 14995 plus 1166 and 7987; 15043 plus 1202, 16245 in all, and
+  tests 8027, after #7765's refusal of a write through an array literal the
+  reference prints as `@constCast(&[_]E{ ... })`, whose plan is
+  `specs/tri/t27b/slice_lit_plan.t27`, +17, +25 and +22 on master 0c729d928;
+  15064 plus 1202, 16266 in all, and tests 8043, after #7796's glue for
+  `undefined` as an argument the callee never reads, whose plan is
+  `specs/tri/t27b/undefined_arg_plan.t27`, +21 and +16 in the tests on master
+  7f7bf2cb6's 15043 plus 1202 and 8027; 15100 plus 1202, 16302 in all, and tests
+  8062, after #7791's glue for `@bitCast` and `@intFromBool`, whose plan is
+  `specs/tri/t27b/bit_cast_plan.t27`, and for `std.math.nan`, `isNan`,
+  `isPositiveInf` and `isNegativeInf` from `libm_plan.t27`, +36 and +19 on
+  master f53a734b7's 15064 plus 1202 and 8043; 15145 plus 1202, 16347 in all,
+  and `cli/t27b/tests/*.rs` 8094, after #7790's glue for `@divTrunc` and a
+  `@panic` statement (`specs/tri/t27b/builtin_plan.t27`), +16 and +19 on
+  master 14e1c7be9's 15129 plus 1202 and 8075; 15183 plus 1202, 16385 in all,
+  and tests 8105, after #7737's glue for `?*anyopaque` and `@ptrFromInt` to an
+  optional pointer, whose plan is `specs/tri/t27b/opaque_plan.t27`, +38, 0 and
+  +11 on master 81da89413's 15145 plus 1202 and 8094),
+  `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
-  Railway lab). Update these numbers in the PR that moves them.
+  Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
 
 This is the "Own language first" rule below, applied to code: a project whose
 claim is "here is a language worth writing" writes its own backend in it.
+
+**A lane's evidence (#7672).** A t27b coverage PR proves "nothing regressed"
+with two signed corpus receipts, not a pasted table of lab numbers.
+
+- Base: `git merge-base origin/master HEAD`. Head: the PR's head, pushed to a
+  branch on origin. Use `https://t27b-lab-production.up.railway.app/runs/<sha>.receipt.json`
+  when it exists; otherwise request it with a fresh challenge you keep:
+  `c=$(openssl rand -hex 32); ssh t27b-lab "mkdir -p /srv/requests && printf %s $c > /srv/requests/<sha>"`.
+  The lab runs one request between master polls (about 10 minutes each, at most
+  4 waiting, dropped after 6 hours) and publishes `/runs/<sha>.json` and the receipt.
+- From a master checkout's root: `t27c corpus-receipt compare BASE.json HEAD.json
+  --challenge <base's> --challenge-head <head's>` (omit a challenge you did not
+  write). Paste its output and exit code: `lane` lines name each changed file.
+- Exit 3 IMPROVED_ONLY, 0 EQUIVALENT or 4 NEUTRAL may merge. Exit 1 REGRESSED
+  blocks the merge; exit 2 REFUSED means the evidence did not authenticate, so
+  it proves nothing. The rules are `specs/verified/corpus_receipt.t27`.
+
+## Actors, not threads (owner rule, 2026-10-08)
+
+Owner's rule, 2026-10-08: the Queen and the swarm move to the actor model.
+Tracking: #7851.
+
+- **Everything that runs at the same time is an actor.** That covers a round,
+  a reviewer, a poller and a runner lane. Each one has a pid and a bounded
+  mailbox, and a supervisor restarts it. The rules are one spec,
+  `specs/queen/actors.t27`, built on BEAM/OTP: links, monitors, a control lane,
+  one_for_one / one_for_all / rest_for_one, restart intensity and backoff. A
+  runtime reaches those rules only through the spec's generated card.
+- **No new loops.** Queen or swarm work gets no new `setInterval` timer, thread
+  pool, worker counter or ad-hoc promise fan-out. A new concurrent piece is a
+  new actor under a supervisor.
+- **Replace in this order, never another:**
+  1. An MVP of the actor runtime runs the same workload.
+  2. Its tests pass.
+  3. A benchmark runs the current loop and the actor runtime on the same input,
+     measuring throughput, latency, recovery from a crashed worker, and work
+     lost.
+  4. The numbers are posted on #7851.
+  5. Only then does the swap happen, and only if the actors are at least as good
+     on every measure.
+
+  Never swap first and measure later.
+- **Where the code lives.** The Queen server lives in `gHashTag/trios`, on
+  branches `queen` and `queen-runners`. `gHashTag/BrowserOS` is a fork of
+  someone else's project. It holds the browser extension and nothing else: no
+  Queen code, no server code, no specs, no plans.
+
+This section is the rule's one full home. The AGENTS.md of our other
+repositories point here; they do not copy it.
 
 ## Own language first
 

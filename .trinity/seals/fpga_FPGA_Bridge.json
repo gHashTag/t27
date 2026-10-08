@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:b62db8258be0ab9fe613dddb50b31ebde9e1d56e4fd3119be51e880534c00ea7",
-  "gen_hash_rust": "sha256:d1c6ce678fb63db26f6636dc92f17710400cc3acb14cbe4fede86013e365941c",
-  "gen_hash_verilog": "sha256:1fcc41e8c75934e2aa15c4637c5628a80f15e54de03e719dfc2f39d10cb291f1",
-  "gen_hash_zig": "sha256:8693182a13b284fde0be44c4de5891e9e4cafdc8a6fb93e09daeba554dbe2921",
+  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "gen_hash_c": "sha256:a94d844a4e5db4cad07a876b50b0a2111183c087b75944cc5933c986d7e63e51",
+  "gen_hash_rust": "sha256:e44544eb358c8f734f2e65ef904315499eae9a7b54fb74a20cac55c34e9b1ebf",
+  "gen_hash_verilog": "sha256:70b1d3bc6cdf69490c1c50bf096c8a1ee065c8a75d9b678a8b218abbdd40819b",
+  "gen_hash_zig": "sha256:b6c675cd1b1a35609c87e93bb1315e767c9a15d5d0d370ef143a0421af10d863",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:53:14Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:549e7fa1e7b391e1adeb47ce9e3d4525c56831823e9a119105b8b6718172c8ef",
+  "sealed_at": "2026-10-08T12:31:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:18e1f5c84ec32537b9176be36b798c2743ea840058b5097550e32a2b0f02958e",
   "spec_path": "specs/fpga/bridge.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-bridge-454/spec.zig:152:32: error: use of undeclared identifier 'spi_is_busy'"
+    "blocked": "does not compile: spec.zig:192:44: error: use of undeclared identifier 'TernaryWord'"
   }
 }

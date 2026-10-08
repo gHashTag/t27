@@ -244,7 +244,11 @@ pub fn arith(op: ArithOp, ty: Ty, a: i128, b: i128, amt_ty: Ty) -> Result<i128, 
                     return Err(TrapKind::ShiftRange);
                 }
                 b
+            } else if (0..bits).contains(&b) {
+                b
             } else {
+                // Wrap mode: the low bits of the amount (a power-of-two
+                // width; lowering refuses a runtime one on an odd width).
                 b & (bits - 1)
             };
             if matches!(op, ArithOp::Shl | ArithOp::ShlW) {

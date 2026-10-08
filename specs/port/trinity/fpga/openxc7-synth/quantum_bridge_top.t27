@@ -31,7 +31,9 @@ module quantum_bridge_top {
 
     // === Input/Output types ===
 
-    pub struct Inputs {
+    // Not named Inputs: the other openxc7-synth tops use that name for {clk},
+    // and this top also takes rst_n (tri types ratchet, #7437).
+    pub struct BridgeInputs {
         clk : bool,        // input wire clk — 50 MHz
         rst_n : bool,      // input wire rst_n — active low button, tied to VCC for auto-start
     }
@@ -42,8 +44,8 @@ module quantum_bridge_top {
 
     // === Port record constructors ===
 
-    fn inputs(clk: bool, rst_n: bool) -> Inputs {
-        return Inputs{ .clk = clk, .rst_n = rst_n };
+    fn inputs(clk: bool, rst_n: bool) -> BridgeInputs {
+        return BridgeInputs{ .clk = clk, .rst_n = rst_n };
     }
 
     fn outputs(led: bool) -> Outputs {
@@ -146,7 +148,7 @@ module quantum_bridge_top {
     }
 
     test port_records {
-        const i : Inputs = inputs(true, false);
+        const i : BridgeInputs = inputs(true, false);
         assert(i.clk);
         assert(i.rst_n == false);
         const o : Outputs = outputs(true);

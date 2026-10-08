@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/undefined_arg_plan.t27 -- how t27b lowers `undefined` written as an argument of a call,
+; `createTempFile(undefined)` or `publish(funnel, undefined)` (t27b coverage epic #6063; written in t27 under
+; the port epic #6198). Everything t27b decides about such an argument is in this file and reaches cli/t27b
+; through `t27c gen-rust` (gen/rust/tri/t27b/undefined_arg_plan.rs): which arguments it takes, the value it
+; passes, and the name and words of the refusal. The Rust glue in cli/t27b/src/lower.rs only reads whether
+; the callee is a declared fn, whether its body names the parameter and whether the parameter's type lives
+; in memory, asks `plan`, and builds the answer.
+; --
+; What the reference does (zig 0.16.0, the default x86_64 Debug backend `t27c test-report` builds with;
+; measured on the t27c lab and pinned by specs/tri/t27b/conformance/undefined_arg.t27):
+;   - t27c's Zig backend prints the call as written, `createTempFile(undefined)`, and Zig coerces `undefined`
+;     to the parameter's type. The call runs, and so do its effects and its other arguments. A callee whose
+;     body never names the parameter (gen-zig prints `_ = allocator; // unused by the spec body`) sees nothing.
+;   - A callee that reads the parameter reads dead memory (0xAA bytes in this build), and a test passes on
+;     it: `is_seven(undefined) == false` with `return x == 7;`, `first(undefined) != 7` with `return p.a;`,
+;     `width(undefined) != 3` with `return s.len;` and `pick(undefined)` branching on a bool all pass. No
+;     corpus spec reads one; specs/port/trinity/src/tri/gen_temp_file.t27 (a `[]u8` allocator) and
+;     specs/port/trios/crates/trios-rainbow-bridge/src/funnel_client.t27 (an event struct) pass one that
+;     nobody reads.
+;   - An `undefined` for a `void` parameter is void's one value; t27b already passes it (#7267), and it is
+;     not asked here.
+; --
+; What t27b does. UNREAD: the callee is a declared fn whose body never names the parameter, so the call runs
+; and the argument holds a value of the parameter's type that nobody reads: zero for a register (UNREAD_ZERO),
+; unwritten memory for an aggregate (UNREAD_MEMORY). READ_BY_CALLEE: the body names the parameter at all
+; (an over-count, as scaffold_plan.t27's is): refused by name, so t27b never passes a spec on a value the
+; reference never had. NOT_MINE: anything else (a builtin, a method, a call whose callee was not declared)
+; goes on to t27b's other paths, which refuse `undefined` as an unknown name as before.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bUndefinedArgPlan;
+
+// The answer.
+pub const NOT_MINE : u8 = 0;
+pub const UNREAD_ZERO : u8 = 1;
+pub const UNREAD_MEMORY : u8 = 2;
+pub const READ_BY_CALLEE : u8 = 3;
+
+/// The decision for one `undefined` argument. declared: the callee is a declared fn t27b lowered a signature
+/// for. read: its body names the parameter. agg: the parameter's type lives in memory (a struct, an array, a
+/// slice, an optional), not in a register.
+pub fn plan(declared: bool, read: bool, agg: bool) -> u8 {
+    if (!declared) { return NOT_MINE; }
+    if (read) { return READ_BY_CALLEE; }
+    if (agg) { return UNREAD_MEMORY; }
+    return UNREAD_ZERO;
+}
+
+/// Is the answer a refusal? Its construct is `what`, its words `why`.
+pub fn refuses(act: u8) -> bool {
+    return act == READ_BY_CALLEE;
+}
+
+/// Does the glue pass a value for the argument?
+pub fn takes(act: u8) -> bool {
+    return act == UNREAD_ZERO or act == UNREAD_MEMORY;
+}
+
+/// The construct a refusal names.
+pub fn what(act: u8) -> str {
+    if (act == READ_BY_CALLEE) { return "ExprIdentifier(undefined argument read)"; }
+    return "";
+}
+
+/// The words of a refusal.
+pub fn why(act: u8) -> str {
+    if (act == READ_BY_CALLEE) {
+        return "the reference passes `undefined` to a parameter its callee reads, which reads dead memory";
+    }
+    return "";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the shapes the corpus has, then the order of the questions.
+// ----------------------------------------------------------------------------------------------------------
+
+test an_argument_nobody_reads_is_taken {
+    // gen_temp_file.t27's `createTempFile(undefined)` into an unread `[]u8`, funnel_client.t27's
+    // `InMemoryFunnel_publish(new_funnel, undefined)` into an unread struct: memory nobody reads.
+    assert(plan(true, false, true) == UNREAD_MEMORY);
+    // A scalar or a pointer nobody reads: zero in a register.
+    assert(plan(true, false, false) == UNREAD_ZERO);
+    assert(takes(UNREAD_MEMORY) and takes(UNREAD_ZERO));
+    assert(!refuses(UNREAD_MEMORY) and !refuses(UNREAD_ZERO));
+    assert(std.mem.eql(u8, what(UNREAD_ZERO), ""));
+}
+
+test a_callee_that_reads_the_parameter_is_refused {
+    // `is_seven(undefined) == false` with `return x == 7;`: the reference passes on 0xAA bytes.
+    assert(plan(true, true, false) == READ_BY_CALLEE);
+    assert(plan(true, true, true) == READ_BY_CALLEE);
+    assert(refuses(READ_BY_CALLEE));
+    assert(!takes(READ_BY_CALLEE));
+    assert(std.mem.eql(u8, what(READ_BY_CALLEE), "ExprIdentifier(undefined argument read)"));
+    assert(std.mem.indexOf(u8, why(READ_BY_CALLEE), "callee reads") != null);
+}
+
+test what_is_not_a_declared_fn_is_left_alone {
+    assert(plan(false, false, false) == NOT_MINE);
+    assert(plan(false, true, true) == NOT_MINE);
+    assert(plan(false, false, true) == NOT_MINE);
+    assert(!takes(NOT_MINE) and !refuses(NOT_MINE));
+    assert(std.mem.eql(u8, why(NOT_MINE), ""));
+}
+
+test the_answers_are_distinct {
+    assert(NOT_MINE != UNREAD_ZERO and UNREAD_ZERO != UNREAD_MEMORY and UNREAD_MEMORY != READ_BY_CALLEE);
+    assert(std.mem.eql(u8, what(UNREAD_MEMORY), ""));
+    assert(std.mem.eql(u8, why(UNREAD_MEMORY), ""));
+}

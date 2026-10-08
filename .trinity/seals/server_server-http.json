@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:989f033b386f62c86eb16fdfeeec74f36f042de2b6fabe0c609b05941a89fa18",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:94ba2cd659a45c887899f86d29fb5905948dd7c10b28cd3ee40c597e9ff106de",
   "gen_hash_rust": "sha256:222b165310fd62955c76a6c8b62be4db336e23aae0d05ff38e6391d2389edfd1",
   "gen_hash_verilog": "sha256:1be9b6b2edd147b3ac70dd25df84facc452d179488029c516b1acea5669682fd",
   "gen_hash_zig": "sha256:c6e6aba714d3c4890df75bae35d8d6bbe9fef1a3df9db696980a10ffc38faefc",
   "module": "server-http",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:50Z",
+  "sealed_at": "2026-10-07T07:09:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:92b8fefafdcd5432e2e727775245efc91d91bc13d70a7b5b87be535c039c7f26",
   "spec_path": "specs/server/http.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-http-1847511/spec.zig:90:59: error: invalid builtin function: '@ptrFromNull'"
+    "blocked": "does not compile: spec.zig:90:59: error: invalid builtin function: '@ptrFromNull'"
   }
 }

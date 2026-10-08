@@ -287,3 +287,17 @@ fn a_spec_that_does_not_exist_is_refused() {
     assert!(text.contains("REFUSED"), "{text}");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// The checked-in run_record.rs is exactly what gen-rust writes from the spec.
+#[test]
+fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
+        .args(["gen-rust", "specs/verified/run_record.t27"])
+        .current_dir(&root)
+        .output()
+        .expect("run t27c gen-rust");
+    assert!(fresh.status.success(), "gen-rust failed: {}", String::from_utf8_lossy(&fresh.stderr));
+    let checked_in = std::fs::read(root.join("bootstrap/gen/rust/verified/run_record.rs")).unwrap();
+    assert!(fresh.stdout == checked_in, "run_record.rs drifted from specs/verified/run_record.t27; regenerate it");
+}

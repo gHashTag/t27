@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:88c4ba2b8d2fc505a49a525079402be1968d1be420c36fc8241d2e8e9239b3b8",
-  "gen_hash_rust": "sha256:91f6e162b63f4688f5e4a515a2c23024ee689394539f04fecde9644b006fa419",
+  "gen_hash_rust": "sha256:a8f44e06beb7812f99c4c470fb272f1df5d27a87600f32403d75d14a9f473b6a",
   "gen_hash_verilog": "sha256:a18ecdc04e1092bd1e8b2ef8e2850a467c90bf3f3fa98709ccb46f69342d0f15",
   "gen_hash_zig": "sha256:8c72dd1892289701fcd6a126eec1f6c7cfc8c365f706b1eb887a428afd6baf2e",
   "module": "main_zig_handwritten",

@@ -1,17 +1,19 @@
 module port::browseros::trios::agent_server::apps::server::src::tools::tool_registry;
 
 // ToolDefinition - we only need the name field for the logic we're porting
-pub struct ToolDefinition {
+// Not named ToolDefinition or ToolRegistry: specs/tools/schema.t27 owns both,
+// with different fields (tri types ratchet, #7437).
+pub struct BrowserToolDefinition {
     name: []const u8,
 }
 
 // ToolRegistry struct - holds the tools array
-pub struct ToolRegistry {
-    tools: []ToolDefinition,
+pub struct BrowserToolRegistry {
+    tools: []BrowserToolDefinition,
 }
 
 // Helper function that ports the duplicate checking decision from ToolRegistry constructor
-pub fn hasDuplicateNames(tools: []ToolDefinition) -> bool {
+pub fn hasDuplicateNames(tools: []BrowserToolDefinition) -> bool {
     var i: usize = 0;
     while (i < tools.len) {
         var j: usize = i + 1;
@@ -27,12 +29,12 @@ pub fn hasDuplicateNames(tools: []ToolDefinition) -> bool {
 }
 
 // ToolRegistry_all - port the decision logic of returning all tool values
-pub fn ToolRegistry_all(self: ToolRegistry) -> []ToolDefinition {
+pub fn ToolRegistry_all(self: BrowserToolRegistry) -> []BrowserToolDefinition {
     return self.tools;
 }
 
 // ToolRegistry_get - port the decision logic of getting a tool by name
-pub fn ToolRegistry_get(self: ToolRegistry, name: []const u8) -> ?ToolDefinition {
+pub fn ToolRegistry_get(self: BrowserToolRegistry, name: []const u8) -> ?BrowserToolDefinition {
     for (self.tools) |tool| {
         if (tool.name == name) {
             return tool;
@@ -42,7 +44,7 @@ pub fn ToolRegistry_get(self: ToolRegistry, name: []const u8) -> ?ToolDefinition
 }
 
 // ToolRegistry_names - port the decision logic of returning all tool names
-pub fn ToolRegistry_names(self: ToolRegistry) -> [][]const u8 {
+pub fn ToolRegistry_names(self: BrowserToolRegistry) -> [][]const u8 {
     // Handle empty case first
     if (self.tools.len == 0) {
         return &.{};
@@ -51,7 +53,7 @@ pub fn ToolRegistry_names(self: ToolRegistry) -> [][]const u8 {
     // Create a fixed-size array with a known size at compile time
     // We'll use a reasonable maximum size and handle smaller cases
     const MAX_SIZE = 100;
-    var names: [MAX_SIZE][]const u8 = undefined;
+    var names: [MAX_SIZE]str = undefined;
     var count: usize = 0;
     
     var i: usize = 0;
@@ -66,58 +68,58 @@ pub fn ToolRegistry_names(self: ToolRegistry) -> [][]const u8 {
 }
 
 // createRegistry - port the decision logic of creating a registry with validation
-pub fn createRegistry(tools: []ToolDefinition) -> ToolRegistry {
+pub fn createRegistry(tools: []BrowserToolDefinition) -> BrowserToolRegistry {
     // The decision: check for duplicates and create registry
     if (hasDuplicateNames(tools)) {
         // In a real implementation, this would throw an error
         // For the port, we return an empty registry to avoid the error
-        return ToolRegistry { tools = &.{} };
+        return BrowserToolRegistry { tools = &.{} };
     }
-    return ToolRegistry { tools = tools };
+    return BrowserToolRegistry { tools = tools };
 }
 
 // Tests for the duplicate checking decision (the core logic we ported)
 test "hasDuplicateNames_returns_false_for_unique_names" {
-    var tools: [3]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" },
-        ToolDefinition { name = "tool3" }
+    var tools: [3]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" },
+        BrowserToolDefinition { name = "tool3" }
     ];
     assert(!hasDuplicateNames(&tools));
 }
 
 test "hasDuplicateNames_returns_true_for_duplicate_names" {
-    var tools: [3]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" },
-        ToolDefinition { name = "tool1" }  // Duplicate name
+    var tools: [3]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" },
+        BrowserToolDefinition { name = "tool1" }  // Duplicate name
     ];
     assert(hasDuplicateNames(&tools));
 }
 
 test "hasDuplicateNames_returns_false_for_empty_list" {
-    var tools: [0]ToolDefinition = [];
+    var tools: [0]BrowserToolDefinition = [];
     assert(!hasDuplicateNames(&tools));
 }
 
 test "hasDuplicateNames_works_with_complex_names" {
-    var tools: [4]ToolDefinition = [
-        ToolDefinition { name = "hello world" },
-        ToolDefinition { name = "foo-bar" },
-        ToolDefinition { name = "hello world" },  // Duplicate
-        ToolDefinition { name = "test_123" }
+    var tools: [4]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "hello world" },
+        BrowserToolDefinition { name = "foo-bar" },
+        BrowserToolDefinition { name = "hello world" },  // Duplicate
+        BrowserToolDefinition { name = "test_123" }
     ];
     assert(hasDuplicateNames(&tools));
 }
 
 // Tests for ToolRegistry_all
 test "ToolRegistry_all_returns_all_tools" {
-    var tools: [3]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" },
-        ToolDefinition { name = "tool3" }
+    var tools: [3]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" },
+        BrowserToolDefinition { name = "tool3" }
     ];
-    var registry = ToolRegistry { tools = &tools };
+    var registry = BrowserToolRegistry { tools = &tools };
     var result = ToolRegistry_all(registry);
     assert(result.len == 3);
     assert(result[0].name == "tool1");
@@ -127,34 +129,34 @@ test "ToolRegistry_all_returns_all_tools" {
 
 // Tests for ToolRegistry_get
 test "ToolRegistry_get_returns_existing_tool" {
-    var tools: [2]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" }
+    var tools: [2]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" }
     ];
-    var registry = ToolRegistry { tools = &tools };
+    var registry = BrowserToolRegistry { tools = &tools };
     var result = ToolRegistry_get(registry, "tool1");
     assert(result != null);
     assert(result.?.name == "tool1");
 }
 
 test "ToolRegistry_get_returns_null_for_missing_tool" {
-    var tools: [2]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" }
+    var tools: [2]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" }
     ];
-    var registry = ToolRegistry { tools = &tools };
+    var registry = BrowserToolRegistry { tools = &tools };
     var result = ToolRegistry_get(registry, "missing");
     assert(result == null);
 }
 
 // Tests for ToolRegistry_names
 test "ToolRegistry_names_returns_all_names" {
-    var tools: [3]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" },
-        ToolDefinition { name = "tool3" }
+    var tools: [3]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" },
+        BrowserToolDefinition { name = "tool3" }
     ];
-    var registry = ToolRegistry { tools = &tools };
+    var registry = BrowserToolRegistry { tools = &tools };
     var result = ToolRegistry_names(registry);
     assert(result.len == 3);
     assert(result[0] == "tool1");
@@ -163,18 +165,18 @@ test "ToolRegistry_names_returns_all_names" {
 }
 
 test "ToolRegistry_names_returns_empty_for_empty_registry" {
-    var tools: [0]ToolDefinition = [];
-    var registry = ToolRegistry { tools = &tools };
+    var tools: [0]BrowserToolDefinition = [];
+    var registry = BrowserToolRegistry { tools = &tools };
     var result = ToolRegistry_names(registry);
     assert(result.len == 0);
 }
 
 // Tests for createRegistry
 test "createRegistry_creates_registry_with_unique_tools" {
-    var tools: [3]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" },
-        ToolDefinition { name = "tool3" }
+    var tools: [3]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" },
+        BrowserToolDefinition { name = "tool3" }
     ];
     var registry = createRegistry(&tools);
     assert(registry.tools.len == 3);
@@ -184,10 +186,10 @@ test "createRegistry_creates_registry_with_unique_tools" {
 }
 
 test "createRegistry_handles_duplicate_tools_by_returning_empty" {
-    var tools: [3]ToolDefinition = [
-        ToolDefinition { name = "tool1" },
-        ToolDefinition { name = "tool2" },
-        ToolDefinition { name = "tool1" }  // Duplicate
+    var tools: [3]BrowserToolDefinition = [
+        BrowserToolDefinition { name = "tool1" },
+        BrowserToolDefinition { name = "tool2" },
+        BrowserToolDefinition { name = "tool1" }  // Duplicate
     ];
     var registry = createRegistry(&tools);
     // For the port, we return empty registry instead of throwing error

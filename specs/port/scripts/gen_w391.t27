@@ -20,14 +20,16 @@ pub const VERDICT_APPEND: i32 = 0;
 pub const VERDICT_SKIP_NO_BLOCK: i32 = 1;
 pub const VERDICT_SKIP_WRONG_WAVE: i32 = 2;
 
-pub struct Segment {
+// Not named Segment or Segments: gen_w390.t27 uses those names with u32
+// fields, and this port keeps i64 and usize (tri types ratchet, #7437).
+pub struct W391Segment {
     wave: i64,
     start: usize,
     end: usize,
 }
 
-pub struct Segments {
-    items: [100]Segment,
+pub struct W391Segments {
+    items: [100]W391Segment,
     len: usize,
 }
 
@@ -65,8 +67,8 @@ fn header_wave_at(text: str, at: usize) -> i64 {
     return wave;
 }
 
-pub fn wave_segments(text: str) -> Segments {
-    var segs: Segments = undefined;
+pub fn wave_segments(text: str) -> W391Segments {
+    var segs: W391Segments = undefined;
     segs.len = 0;
     var i: usize = 0;
     while i < text.len {
@@ -75,7 +77,7 @@ pub fn wave_segments(text: str) -> Segments {
             if segs.len > 0 {
                 segs.items[segs.len - 1].end = i;
             }
-            segs.items[segs.len] = Segment { wave: w, start: i, end: text.len };
+            segs.items[segs.len] = W391Segment { wave: w, start: i, end: text.len };
             segs.len += 1;
         }
         i += 1;
@@ -126,10 +128,10 @@ test wave_segments_edges {
 
 test append_w391_appends {
     const text = "x\n// Wave Loop 390\nw390_body\n";
-    const (v, start, end) = append_w391(text);
+    const (v, start, stop) = append_w391(text);
     assert(v == VERDICT_APPEND);
     assert(start == 2);
-    assert(end == 29);
+    assert(stop == 29);
 }
 
 test append_w391_skips {
@@ -148,8 +150,8 @@ test append_w391_on_spec_shaped_text {
     assert(segs.len == 2);
     assert(segs.items[1].wave == 390);
     assert(segs.items[1].start == 33);
-    const (v, start, end) = append_w391(text);
+    const (v, start, stop) = append_w391(text);
     assert(v == VERDICT_APPEND);
     assert(start == segs.items[1].start);
-    assert(end == segs.items[1].end);
+    assert(stop == segs.items[1].end);
 }

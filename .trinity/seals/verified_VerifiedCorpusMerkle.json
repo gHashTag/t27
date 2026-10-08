@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+20d20c9d2",
+  "gen_hash_c": "sha256:fb5ce62587f21de8bf9ba01761494ec4c7cf5d9960e3ad51b3c661dc6fcf015e",
+  "gen_hash_rust": "sha256:e10b55b920e8028cf2f1dd74b70208f2814cec36fdeff9c2c15c996f5f48f936",
+  "gen_hash_verilog": "sha256:a1751a434c6f280ed658aeddc72f41e652e580506ae70cfe367633d5c025fd6a",
+  "gen_hash_zig": "sha256:a93f3bc6cc1f89a0f739d35730d39e162b05ca077ae4ae3a21053b2f5e64058b",
+  "module": "VerifiedCorpusMerkle",
+  "ring": 12,
+  "sealed_at": "2026-10-08T06:13:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:62a21dc8e36f220d8ed404ef17d6acc5d71626ad7d6850c349f1dda581d145a8",
+  "spec_path": "specs/verified/corpus_merkle.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

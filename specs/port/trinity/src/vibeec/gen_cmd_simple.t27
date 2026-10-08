@@ -26,23 +26,23 @@ pub fn main() !void {
 }
 
 test "validate_args valid input" {
-    var test_args: [3][]const u8 = ["program", "input.tri", "output.zig"];
+    var test_args: [3]str = ["program", "input.tri", "output.zig"];
     assert(validate_args(&test_args) == true);
 }
 
 test "validate_args insufficient args" {
-    var test_args: [1][]const u8 = ["program"];
+    var test_args: [1]str = ["program"];
     assert(validate_args(&test_args) == false);
 }
 
 test "get_output_path with explicit output" {
-    var test_args: [3][]const u8 = ["program", "input.tri", "custom.zig"];
+    var test_args: [3]str = ["program", "input.tri", "custom.zig"];
     const result = get_output_path(&test_args);
     assert(result == "custom.zig");
 }
 
 test "get_output_path default output" {
-    var test_args: [2][]const u8 = ["program", "input.tri"];
+    var test_args: [2]str = ["program", "input.tri"];
     const result = get_output_path(&test_args);
     assert(result == "output.zig");
 }

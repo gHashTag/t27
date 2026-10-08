@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:a4cb6902ad84eff8ff71043dda20b65bf6525631367d35058befb4d1cca719b8",
+  "gen_hash_rust": "sha256:1dcdb05f3bcbc8c0d239324505429f12452ba06f9c8af361235a54bd119b57c0",
+  "gen_hash_verilog": "sha256:232308328c19449ca2e5910a64f622d93d5a0739a2613281c543fbe22a2cba29",
+  "gen_hash_zig": "sha256:2c0512a12e1230652feb5a79db54843825707083d0487e679f1fb1e91b88e078",
+  "module": "tool_trinity_tri_sacred_const",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:919c18f67e038698f5ac41f2fdeea6e476da5c5e5dc228fbdb5fa228a1f387e6",
+  "spec_path": "specs/tools/trinity/tri/sacred-const.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

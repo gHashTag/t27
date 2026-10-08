@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+05e633d",
+  "gen_hash_c": "sha256:6931f0dfd29085d4a8bbde60af06aeff07543c2fcfca6e4a47b08a3d92ee0548",
+  "gen_hash_rust": "sha256:a10f97b7a3de22dc48fe22c67adae82abdb85e8225dd788a5cb37779a1c4d5eb",
+  "gen_hash_verilog": "sha256:4c2057e50f08fe1511953b571d2089de668d5f618bb510ef3e7829284e0911cf",
+  "gen_hash_zig": "sha256:5b8d1d0e1219485bcadf6d1d68d8d971ecd07e203c7b68869fe8a9ced4f75f24",
+  "module": "automation::reddit_desk",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:55:38Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:2802e22499af7f60518cd911869e88cf80f4003c800e4865a2db1ff23dd9b253",
+  "spec_path": "specs/automation/reddit-desk.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

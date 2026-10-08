@@ -24,6 +24,9 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[path = "../../../gen/rust/tri/mutate/census.rs"]
+#[allow(dead_code, unused_parens)]
+mod census; // t27c gen-rust of specs/tri/mutate/census.t27 (#7433): every rule of `mutate census`
 
 #[derive(Subcommand)]
 pub enum MutateCmd {
@@ -121,6 +124,13 @@ pub enum MutateCmd {
         #[arg(long)]
         t27c: Option<String>,
     },
+    /// `mutate spec` on each .t27 in --dir by name, then one exit and killed share (rules: specs/tri/mutate/census.t27); every arg after --dir goes to each run.
+    Census {
+        #[arg(long)]
+        dir: String,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        pass: Vec<String>,
+    },
 }
 
 pub fn run(cmd: &MutateCmd) -> Result<()> {
@@ -207,6 +217,36 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
             expect,
             t27c,
         } => plant(Path::new(file), *line, from, to, expect, t27c.as_deref()),
+        MutateCmd::Census { dir, pass } => {
+            let mut specs: Vec<PathBuf> = std::fs::read_dir(dir)?.filter_map(|e| Some(e.ok()?.path())).collect();
+            specs.retain(|p| p.extension().is_some_and(|x| x == "t27"));
+            specs.sort();
+            let (mut code, mut sum) = (census::EXIT_OK, [0u64; 7]);
+            for spec in &specs {
+                let out = Command::new(std::env::current_exe()?).args(["mutate", "spec", "--file"]).arg(spec).args(pass).stderr(std::process::Stdio::inherit()).output()?;
+                // gen-rust lowers `string` to `&'static str` (#7449): one leak per spec, as `t27c asm` does.
+                let text: &'static str = Box::leak(String::from_utf8_lossy(&out.stdout).into_owned().into_boxed_str());
+                let mut unsound = 0;
+                for line in text.lines().filter(|l| census::is_summary_line(*l)) {
+                    if census::summary_adds_up(line) {
+                        (0..=census::COUNT_UNVIABLE).for_each(|n| sum[n as usize] += census::count_at(line, n));
+                    } else {
+                        unsound += 1;
+                    }
+                }
+                let rc = census::spec_read(out.status.code().map_or(255, |c| c as u8), unsound);
+                println!("{text}census: {} exit {rc}", spec.display());
+                code = census::census_exit(code, rc);
+            }
+            let at = |n: u32| sum[n as usize];
+            let (k, n, s) = (at(census::COUNT_KILLED), at(census::COUNT_MUTANTS), at(census::COUNT_SURVIVED));
+            let (h, u) = (at(census::COUNT_HUNG), at(census::COUNT_UNVIABLE));
+            let t = census::killed_tenths(k, census::judged(k, s, h));
+            let code = census::census_of(specs.len() as u32, code);
+            let (w, d) = (census::tenths_whole_part(t), census::tenths_digit(t));
+            println!("census: {} spec(s), exit {code}: {k} of {n} killed, {w}.{d}% of judged; {s} survived, {h} hung, {u} unviable.", specs.len());
+            std::process::exit(code.into())
+        }
     }
 }
 
@@ -4139,6 +4179,34 @@ mod tests {
             assert_eq!(code, want, "tool rc {rc}: {out}");
         }
         assert_eq!(std::fs::read_dir(&env.runs).unwrap().count(), 0, "every run removed, no staging left");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The same run through `railway ssh` instead of `sh -c`: a stand-in
+    /// `railway` records the target it was given and runs the script it got.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_lab_run_goes_through_railway_ssh() {
+        use std::os::unix::fs::PermissionsExt;
+        let (root, mut env) = lab_fixture("ssh", LAB_HELP);
+        let r = root.display();
+        let fake = format!(
+            "#!/bin/sh\n\
+             echo \"$1 $2 $3 $4 $5 $6 $7\" >> {r}/railway.args\n\
+             for a; do last=$a; done\n\
+             exec sh -c \"$last\"\n"
+        );
+        std::fs::write(root.join("railway"), fake).unwrap();
+        std::fs::set_permissions(root.join("railway"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        (env.local, env.railway, env.project) = (false, format!("{r}/railway"), Some("p1".into()));
+        let (code, out) = lab_go(&env, &lab_run_of("pub fn a() {}\n", 5, 3600));
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(out.contains("pub fn a() {}\n4 of 4 killed\n"), "{out}");
+        let args = std::fs::read_to_string(root.join("railway.args")).unwrap();
+        assert!(args.lines().count() >= 3, "probe, launch and read-back each went over ssh: {args}");
+        assert!(args.lines().all(|l| l == "ssh -p p1 -e production -s t27c-lab"), "{args}");
+        assert_eq!(lab_calls(&root).len(), 1, "one run started");
+        assert_eq!(std::fs::read_dir(&env.runs).unwrap().count(), 0, "the run was removed");
         let _ = std::fs::remove_dir_all(&root);
     }
 

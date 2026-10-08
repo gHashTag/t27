@@ -2,7 +2,7 @@
   "_what": "Env names where the Lean completeness theorem and the Rust classifier disagree.",
   "_why": "The test asserted agreement one spec at a time and died on the first, so 72 of these 73 were invisible. A ledger reports all of them and can only shrink: a new name here fails the test, and a name that starts agreeing must be REMOVED or the test fails on the stale entry.",
   "_model_empty": "true means the Lean module has no functions, globals or tests -- the theorem proves the empty module lowerable, which is true of nothing in the spec. Those are the cheapest to retire.",
-  "max_entries": 77,
+  "max_entries": 78,
   "entries": {
     "ar_coa_planning": {
       "lean": true,
@@ -107,6 +107,11 @@
     "ml_rl_ppo_critic": {
       "lean": true,
       "rust": false,
+      "model_empty": false
+    },
+    "ml_transformer_multi_head_attention": {
+      "lean": false,
+      "rust": true,
       "model_empty": false
     },
     "numeric_formats": {

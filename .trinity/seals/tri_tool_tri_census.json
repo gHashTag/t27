@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:e21bc7de79b0216428b2a7e53302da60005d6794d48cb5d87c7c376cc12af2e3",
+  "gen_hash_rust": "sha256:aa4dd03b254521b177b1235897b552cf935bc0f698618fd61bfe8cf2a2855725",
+  "gen_hash_verilog": "sha256:161601609234c9bdc63ad976b9efed19d9c8153fa04270d925a796469ba7ae3a",
+  "gen_hash_zig": "sha256:9587c864dcadb0e6069c897183e6e42d2d0745bb1072b92076a38bcff03792ac",
+  "module": "tool_tri_census",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:11:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:78b33ff10501747543211cd27d8b1b3d96d18af31aa3e09f05cbaa9290146c03",
+  "spec_path": "specs/tools/tri/census.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

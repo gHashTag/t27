@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:54ba2a31d55b5b32c2a7fde2ede9b1bfbee65e10a4e35c56e7b355bf68a80914",
+  "gen_hash_rust": "sha256:f2adb10e34c33954f497b0b25bb532504cfe00b453491fa40cae117c8019f2a4",
+  "gen_hash_verilog": "sha256:393ea19048d75d124dd7ef185fc7c415ab4d0257e02eb525d9f5f754146ba3d2",
+  "gen_hash_zig": "sha256:50190da772c747fe9c04ec14bc670d2d839762954b662ea596589b42bd3bd097",
+  "module": "tool_trinity_tri_bio",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:05ff0a5eea4f6ec7574d159e6c8cec20e9925565f4f24fbb3591f5ee52eeb423",
+  "spec_path": "specs/tools/trinity/tri/bio.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

@@ -12,7 +12,7 @@ name: Own Language
 # lefthook.yml (pre-commit and pre-push).
 #
 # The only override is the label `owner-approved-foreign`, which only the owner
-# adds. Changing the gate itself (the spec, its generated file, lefthook.yml,
+# adds, and it waives the path check only, never the foreign-line budget. Changing the gate itself (the spec, its generated file, lefthook.yml,
 # this workflow, tools/policy/foreign-exceptions.txt) needs that label too: the
 # spec marks them protected. The label is applied only on the owner's explicit
 # approval, which the PR body quotes (AGENTS.md 'Only t27'). A base without the
@@ -50,6 +50,19 @@ jobs:
           printf '#include "gen/c/policy/own_language.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_all((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n' | cc -w -I . -x c -o "$RUNNER_TEMP/gate" -
           { git show "$BASE:tools/policy/foreign-exceptions.txt"; printf '\n--ci\n'; git diff --name-status "$BASE...$HEAD"; } > "$RUNNER_TEMP/in"
           "$RUNNER_TEMP/gate" < "$RUNNER_TEMP/in"
+
+      # No label condition: the budget holds for every pull request (owner rule
+      # 2026-10-07, #7371). It is compiled from BASE, so a PR cannot loosen it; the
+      # HEAD copy is used only while BASE predates check_budget().
+      - name: Foreign-line budget -- at most 40 added lines per file, 80 per PR
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git show "$BASE:gen/c/policy/own_language.c" > "$RUNNER_TEMP/gate.c"
+          grep -q check_budget "$RUNNER_TEMP/gate.c" || git show "$HEAD:gen/c/policy/own_language.c" > "$RUNNER_TEMP/gate.c"
+          printf '#include "gate.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_budget((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n' | cc -w -I "$RUNNER_TEMP" -x c -o "$RUNNER_TEMP/budget" -
+          git diff --numstat --no-renames "$BASE...$HEAD" | "$RUNNER_TEMP/budget"
 
       - name: The owner approved foreign code in this pull request
         if: ${{ contains(github.event.pull_request.labels.*.name, 'owner-approved-foreign') }}

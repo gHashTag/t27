@@ -51,28 +51,28 @@ fn compile_and_write_tri(path: []const u8) -> i32 {
 
 test main_with_insufficient_args {
     // Test main function with insufficient arguments
-    var args1: [1][]const u8 = ["tnc"];
+    var args1: [1]str = ["tnc"];
     const result = main(1, &args1);
     assert(result == 1);
 }
 
 test main_with_valid_args {
     // Test main function with valid arguments
-    var args2: [2][]const u8 = ["tnc", "test.tri"];
+    var args2: [2]str = ["tnc", "test.tri"];
     const result = main(2, &args2);
     assert(result == 0);
 }
 
 test main_with_invalid_file_extension {
     // Test main function with invalid file extension
-    var args3: [2][]const u8 = ["tnc", "test.txt"];
+    var args3: [2]str = ["tnc", "test.txt"];
     const result = main(2, &args3);
     assert(result == 1);
 }
 
 test main_with_short_path {
     // Test main function with path too short
-    var args4: [2][]const u8 = ["tnc", "a.tr"];
+    var args4: [2]str = ["tnc", "a.tr"];
     const result = main(2, &args4);
     assert(result == 1);
 }

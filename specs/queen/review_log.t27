@@ -149,6 +149,30 @@ test classify_retries {
     assert classify_review_line("gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == RETRY;
 }
 
+// Prefix, not substring (#7396). #7359 turned str_starts_with from a substring
+// check into a real prefix check, and every test above passed both before and
+// after. These lines carry a rule's needle somewhere other than at offset 0, so
+// they classify differently under the two bodies and pin the fix.
+
+test classify_listing_prefix_not_substring {
+    assert classify_review_line("x reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == OTHER;
+    assert classify_review_line("x reviewer: gh pr list -R -> 500: Internal server error") == OTHER;
+    assert classify_review_line("reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == LISTING_ERROR_504;
+    assert classify_review_line("reviewer: gh pr list -R -> 500: Internal server error") == LISTING_ERROR_OTHER;
+}
+
+test classify_retry_prefix_not_substring {
+    assert classify_review_line("x gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == OTHER;
+    assert classify_review_line("gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == RETRY;
+}
+
+test str_starts_with_is_a_prefix_check {
+    assert str_starts_with("x reviewer: gh pr list", "reviewer: gh pr list") == false;
+    assert str_starts_with("reviewer: gh pr list -R", "reviewer: gh pr list") == true;
+    assert str_starts_with("reviewer: gh", "reviewer: gh pr list") == false;
+    assert str_starts_with("anything", "") == true;
+}
+
 test classify_lock_contention {
     assert classify_review_line("another reviewer run holds the lock; exiting") == LOCK_CONTENTION;
 }

@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/frame_address_store.t27 -- a fn that stores the address of a local of its own frame
+; through a pointer parameter, in the shape of specs/port/trinity/src/tri/gen_lockfree_stack.t27's
+; `LockFreeStack_push` (gHashTag/t27#7735, #7736): a list head that ends up pointing at a dead local.
+; gen-zig prints it as written (`chain.first = &cell;`). In Zig the address dangles once the fn returns. The test
+; below passes `t27c test-report` (zig 0.16.0) only because it reads the cell right after the return, before any
+; other call reuses the dead frame. With a call in between that fills a 4 KiB array of its own with 0x55, the same
+; read sees 6148914691236517205, not 7.
+; t27b refuses the file as StmtAssign(frame address), the store-side twin of ExprReturn(frame address) (#7550,
+; specs/tri/t27b/conformance/frame_address_return.t27); its ledger records the verdict as reference-bug ("the
+; reference passes it for the wrong reason; t27b is right not to"). Before #7735 t27b took it: its interpreter
+; faulted on the read ("8-byte access at stack+0x18 is outside every live slot") while its JIT read the stale stack,
+; a JIT/interpreter mismatch. The decision is specs/tri/t27b/frame_store_plan.t27.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceFrameAddressStore;
+
+pub const FrameStoreCell = struct {
+    value: i64,
+    next: ?*FrameStoreCell,
+};
+
+pub const FrameStoreChain = struct {
+    first: ?*FrameStoreCell = null,
+};
+
+// Link a local cell in front of the chain: the cell is this fn's, and so is its address.
+pub fn frame_store_push(chain: *FrameStoreChain, value: i64) -> void {
+    var cell: FrameStoreCell = FrameStoreCell { value = value, next = chain.first };
+    chain.first = &cell;
+}
+
+test frame_store_read_after_return {
+    var chain = FrameStoreChain { first = null };
+    frame_store_push(&chain, 7);
+    assert(chain.first != null);
+    assert(chain.first.?.value == 7);
+}
