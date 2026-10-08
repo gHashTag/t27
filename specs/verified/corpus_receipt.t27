@@ -641,6 +641,9 @@ test "a new file is judged as a move from not yet" {
     assert lane_file(false, true, "", "mismatch\tpass", "", "") == FILE_NEW_DEFECT;
     assert lane_file(false, true, "", "fail\tpass", "", "") == FILE_NEW_DEFECT;
     assert lane_file(false, true, "", "pass\tfail", "", "d1") == FILE_NEW_DISAGREE;
+    assert lane_file(false, true, "", "pass_vacuous\tfail", "", "d1") == FILE_NEW_DISAGREE;
+    // the base value of a file the base lacks is never read
+    assert lane_file(false, true, "blocked\tpass", "blocked\tpass", "", "") == FILE_NEUTRAL;
 }
 
 test "a moved reference regresses before the t27b half is read" {
@@ -685,6 +688,7 @@ test "the asm of a file passing on both sides may move; a failing asm regresses"
     assert lane_file(true, true, "pass\tpass", "pass\tpass", "asm-failed\te1", "asm-failed\te2") == FILE_NEUTRAL;
     assert lane_file(true, true, "pass_vacuous\tpass", "pass\tpass", "d1", "asm-failed\te1") == FILE_ASM_FAILED;
     assert lane_file(true, true, "pass_vacuous\tpass", "pass_vacuous\tpass", "d1", "d2") == FILE_NEUTRAL;
+    assert lane_file(true, true, "pass_vacuous\tpass", "pass_vacuous\tpass", "d1", "asm-failed\te1") == FILE_ASM_FAILED;
 }
 
 test "a file that still does not run moves sideways, neither toward nor away from pass" {

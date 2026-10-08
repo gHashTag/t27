@@ -1,14 +1,14 @@
 {
   "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
-  "gen_hash_c": "sha256:6b1cb296caca9cf523b72a5aa8133129f6d9c15baf18171f5de9a72d983bedb6",
+  "gen_hash_c": "sha256:d26263c701c214c44880304d25197e2368a1aee09cdc8334fb7b2eda26b25443",
   "gen_hash_rust": "sha256:638eaa3df713c2084d5726a64ddceaae22a7e8d07e1b69eb2882b85ebb3aad5a",
   "gen_hash_verilog": "sha256:6f5f02d3b738eb2bb40d1c23fa69fec35dd8d87badd336b92e32881ad3731fe4",
-  "gen_hash_zig": "sha256:119a2295def113b1217f6f096cb22f69a24e7840fcd82deb899beb3ba5943086",
+  "gen_hash_zig": "sha256:ebd47adbfc2e08c382dbf50e369fb3fd4a14f10afdd21b956e3051db091c5522",
   "module": "VerifiedCorpusReceipt",
   "ring": 12,
-  "sealed_at": "2026-10-08T04:15:12Z",
+  "sealed_at": "2026-10-08T04:24:44Z",
   "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:65ef51d7cb2b1668d26313f94842dfb497f11f461f85a6e94e9aee39de676ba6",
+  "spec_hash": "sha256:f37339613d0a1978a54e473689d4a1cf9854397d5287680f035e69dedc752098",
   "spec_path": "specs/verified/corpus_receipt.t27",
   "tests": {
     "failed": 0,
