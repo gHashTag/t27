@@ -286,6 +286,8 @@ struct Lower<'a> {
     leaky: HashMap<usize, String>,
     /// Each module-level `var` that lowered: its writable place.
     mod_vars: HashMap<String, Place>,
+    /// Module `var` names a top-level local of this body may take (`shadow_names`).
+    shadow_ok: HashSet<String>,
     /// Initial bytes of each module-level `var` (`Program::globals`).
     globals_init: Vec<Vec<u8>>,
     /// The global of each array type and value a `slice_lit` interned.
@@ -470,6 +472,7 @@ fn lower_mode<'a>(
         var_nodes: Vec::new(),
         leaky: HashMap::new(),
         mod_vars: HashMap::new(),
+        shadow_ok: HashSet::new(),
         globals_init: Vec::new(),
         statics: HashMap::new(),
         fns: HashMap::new(), scaffold: HashMap::new(),
@@ -1370,10 +1373,10 @@ impl<'a> Lower<'a> {
     }
 
     /// A local, assigned parameter or capture with the name of a module-level
-    /// var. In a test the reference's Zig refuses it ("local variable shadows
-    /// declaration"); in a fn it renames the local to `<name>_lv` for every
-    /// mention in the fn, including the ones meant for the module var. Either
-    /// way there is no reference verdict to match, so t27b refuses it.
+    /// var. The reference renames it to `<name>_lv` in every mention in the
+    /// body (W736, #6295); `local` lets through the cases where that agrees
+    /// with t27 scoping (`shadow_names`). Otherwise there is no reference
+    /// verdict to match, so t27b refuses it.
     fn no_var_shadow(&mut self, name: &str) -> R<()> {
         if self.mod_vars.contains_key(name) {
             return self.reject(
@@ -1524,6 +1527,7 @@ impl<'a> Lower<'a> {
         self.tuple_locals.clear();
         self.dead_lits.clear();
         self.discards.clear();
+        self.shadow_ok = shadow_names(body, &self.mod_vars);
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -1645,6 +1649,7 @@ impl<'a> Lower<'a> {
         }
         let nparams = self.vars.len();
         let mut body = Vec::new();
+        n.params.iter().for_each(|(p, _)| { self.shadow_ok.remove(p); });
         for (pname, _) in n.params.iter() {
             // The reference renames a parameter that shadows a module-level
             // declaration (`x_arg`), except one the body assigns: that one
@@ -2232,7 +2237,9 @@ impl<'a> Lower<'a> {
         if name.is_empty() || name.contains(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
             return self.reject("StmtLocal", format!("binding `{}`", name));
         }
-        self.no_var_shadow(&name)?;
+        if !(self.scopes.len() == 1 && !self.comptime && self.shadow_ok.contains(&name)) {
+            self.no_var_shadow(&name)?;
+        }
         let ann = n.extra_type.trim().to_string();
         // The Zig backend's `zig_declared_int_type`: only these spellings
         // pin `1 << n` in the initializer (not an alias that resolves to one).
@@ -7643,6 +7650,28 @@ fn is_value_stmt(c: &Node) -> bool {
 
 fn mentions(ns: &[Node], name: &str) -> bool {
     ns.iter().any(|n| (n.kind == NodeKind::ExprIdentifier && n.name == name) || mentions(&n.children, name))
+}
+
+/// The module `var`s a top-level local of `body` may shadow: the reference's
+/// `<name>_lv` rename of every mention in the body agrees with t27 scoping
+/// when the declaration is top-level, the body's only one of the name, and
+/// nothing before it (its own initializer included) mentions the name.
+fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<String> {
+    fn decls(ns: &[Node], name: &str) -> usize {
+        ns.iter().map(|n| usize::from(n.kind == NodeKind::StmtLocal && n.name == name) + decls(&n.children, name)).sum()
+    }
+    let mut ok = HashSet::new();
+    for (i, s) in body.iter().enumerate() {
+        if s.kind == NodeKind::StmtLocal
+            && mod_vars.contains_key(&s.name)
+            && !mentions(&body[..i], &s.name)
+            && !mentions(&s.children, &s.name)
+            && decls(body, &s.name) == 1
+        {
+            ok.insert(s.name.clone());
+        }
+    }
+    ok
 }
 
 /// The reference's `collect_mutable_names`: is `name` the target (or the base
