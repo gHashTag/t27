@@ -2546,6 +2546,11 @@ use crate::{corpus_receipt as cr, cr_leaves as leaves, cr_pair as pair, cr_root,
 pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Option<String>, head_challenge: Option<String>, runner: Option<String>) -> anyhow::Result<()> {
     let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
     let (hx, hexarg) = (|p: &Path| std::fs::read(p).map(|d| hex_lower(&cr_sha(&[&d]))), |f, s: Option<String>| s.map(|s| parse_challenge_hex(f, &s)).transpose().map_err(anyhow::Error::msg));
+    if action == "admit" { // #7672: does the lab run request `a`? b is "age_s,index,on_origin"
+        let f = |k: usize| b.split(',').nth(k).and_then(|s| s.parse().ok()).unwrap_or(u32::MAX);
+        let r = cr::request_verdict(spec_str(a), f(0), f(1), f(2) == 1);
+        println!("{}", cr::REQUEST_NAMES[r as usize]); std::process::exit(cr::request_exit(r) as i32)
+    }
     if action == "sign" {
         let (run, mut l, argv) = (read(a)?, [vec![], vec![], vec![]], runner.unwrap_or_default());
         for r in run["results"].as_array().into_iter().flatten() {
@@ -2567,14 +2572,19 @@ pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Op
     let bound = |v: &serde_json::Value| cr::LEAF_LISTS.iter().all(|n| v[format!("{n}_root")].as_str() == Some(&hex_lower(&cr_root(&leaves(v, n)))));
     let (problem, same) = (cr::compare_first_problem(ba, ha, bound(&x), bound(&y)), |k: &str| x[k] == y[k]);
     println!("base {} {} {} leaves-bound {}\nhead {} {} {} leaves-bound {}", x["commit"], auth_name(ba), level_name(bl), bound(&x), y["commit"], auth_name(ha), level_name(hl), bound(&y));
+    let m = |v: &serde_json::Value, n: &str| leaves(v, n).into_iter().filter_map(|s| s.split_once(cr::CH_TAB as u8 as char).map(|(p, q)| (p.to_string(), q.to_string()))).collect::<std::collections::BTreeMap<_, _>>();
     for n in cr::LEAF_LISTS.iter().filter(|_| problem == cr::CMP_OK) {
-        let m = |v| leaves(v, n).into_iter().filter_map(|s| s.split_once(cr::CH_TAB as u8 as char).map(|(p, q)| (p.to_string(), q.to_string()))).collect::<std::collections::BTreeMap<_, _>>();
-        let (p, q) = (m(&x), m(&y));
+        let (p, q) = (m(&x, *n), m(&y, *n));
         let changes = p.keys().chain(q.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().map(|f| (f, cr::leaf_change(p.contains_key(f), q.contains_key(f), p.get(f) == q.get(f))));
         changes.filter(|c| c.1 != cr::LEAF_SAME).for_each(|(f, c)| println!("  {n} {} {f}", ["same", "only-head", "only-base", "changed"][c as usize]));
     }
-    let code = cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root"));
-    println!("{}", if code == cr::EXIT_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), ["EQUIVALENT", "DIFFERENT"][code as usize]) });
+    let ((vb, vh), (ob, oh), s) = ((m(&x, "verdict"), m(&y, "verdict")), (m(&x, "output"), m(&y, "output")), |o: Option<&String>| spec_str(o.map_or("", |v| v)));
+    let worst = vb.keys().chain(vh.keys()).filter(|_| problem == cr::CMP_OK).collect::<std::collections::BTreeSet<_>>().into_iter() // #7672, a lane's judgment
+        .map(|f| (f, cr::lane_file(vb.contains_key(f), vh.contains_key(f), s(vb.get(f)), s(vh.get(f)), s(ob.get(f)), s(oh.get(f))))).filter(|c| c.1 != cr::FILE_SAME)
+        .inspect(|(f, c)| println!("  lane {} {f}", cr::FILE_NAMES[*c as usize])).fold(cr::FILE_SAME, |a, c| cr::lane_worst(a, c.1));
+    let d = |v: &serde_json::Value, k: usize| v["totals"][cr::DISAGREE_TOTALS[k]].as_u64().unwrap_or(0) as u32;
+    let code = cr::lane_verdict(problem, cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root")), worst, d(&x, 0), d(&y, 0), d(&x, 1), d(&y, 1));
+    println!("{}", if code == cr::LANE_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), cr::LANE_NAMES[code as usize]) });
     std::process::exit(code as i32)
 }
 

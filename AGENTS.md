@@ -200,10 +200,26 @@ measure it are written in **t27**, not in Rust or Python by hand.
   14945 plus 7877),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
-  Railway lab). Update these numbers in the PR that moves them.
+  Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
 
 This is the "Own language first" rule below, applied to code: a project whose
 claim is "here is a language worth writing" writes its own backend in it.
+
+**A lane's evidence (#7672).** A t27b coverage PR proves "nothing regressed"
+with two signed corpus receipts, not a pasted table of lab numbers.
+
+- Base: `git merge-base origin/master HEAD`. Head: the PR's head, pushed to a
+  branch on origin. Use `https://t27b-lab-production.up.railway.app/runs/<sha>.receipt.json`
+  when it exists; otherwise request it with a fresh challenge you keep:
+  `c=$(openssl rand -hex 32); ssh t27b-lab "mkdir -p /srv/requests && printf %s $c > /srv/requests/<sha>"`.
+  The lab runs one request between master polls (about 10 minutes each, at most
+  4 waiting, dropped after 6 hours) and publishes `/runs/<sha>.json` and the receipt.
+- From a master checkout's root: `t27c corpus-receipt compare BASE.json HEAD.json
+  --challenge <base's> --challenge-head <head's>` (omit a challenge you did not
+  write). Paste its output and exit code: `lane` lines name each changed file.
+- Exit 3 IMPROVED_ONLY, 0 EQUIVALENT or 4 NEUTRAL may merge. Exit 1 REGRESSED
+  blocks the merge; exit 2 REFUSED means the evidence did not authenticate, so
+  it proves nothing. The rules are `specs/verified/corpus_receipt.t27`.
 
 ## Own language first
 
