@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:adc1a9f91796be3de325b642f267b7072735de863bf6ca2d29e0f45852cf6f65",
+  "gen_hash_rust": "sha256:bd754e2a93c8b8746ddb5673381d6c4b294e2c8a3db9ec6a42934d67e2d36735",
+  "gen_hash_verilog": "sha256:accaefa58178edf7583c74d83748bc62b19ffecd0374cbe14ddecd237450d2f6",
+  "gen_hash_zig": "sha256:289e5193e82cb19f39fa8c86a69080ffd537cafda1db2eb3b5d1b89a5fab1f1b",
+  "module": "tool_tri_health",
+  "ring": 12,
+  "sealed_at": "2026-10-08T18:56:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:7903b5d89811715bcc2a09c3b5a9ae22de1b0b7f0dfde7710f7e951b6d010bd2",
+  "spec_path": "specs/tools/tri/health.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
