@@ -2,7 +2,7 @@
   "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
   "verdicts": {
     "DRIFT": 61,
-    "DISTINCT": 40
+    "DISTINCT": 41
   },
   "names": [
     {
@@ -716,6 +716,17 @@
       "evidence": "Five sites, four subjects. `output: Trit, proof_trace: ProofTrace, ml_confidence: float, ar_steps: int, fusion_method: string` \u2014 the result of a neuro-symbolic ML+AR fusion. `success: bool; stage_reached: u32; lex_tokens: u32; parse_nodes: u32; type_errors: u32; opt_folds: u32; opt_dead: u32; opt_copies: u32; opt_strengths: u32; gen_lines: u32; error_msg: str;` \u2014 per-stage counters for one compile. `generated: string, token_count: u32` \u2014 one LLM decode (twice; the second is the _tmp_pipeline_import clone). `spec_path: String, success: Bool, status: CompileStatus, duration_ns: Int, error_msg: String` \u2014 one row of a batch compile run. The closest pair, compiler/pipeline and tri/pipeline/batch_runner, share only `success` and `error_msg` and sit at different granularities: stages within one compile vs one spec among many.",
       "confidence": "high \u2014 four unrelated pipelines is settled by the surrounding specs; the one thing I did not resolve is whether batch_runner was meant to embed compiler/pipeline's result rather than restate success/error_msg",
       "suggested_action": "Rename per subsystem (FusionResult / CompilePipelineResult / GenerationResult / BatchEntryResult); and delete the _tmp_pipeline_import clone."
+    },
+    {
+      "name": "Point",
+      "sites": [
+        "specs/basics/17_structs.t27:7",
+        "specs/tri/math/bezier.t27:13"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "17_structs.t27:7 `pub struct Point { x: i32, y: i32 }` is lesson 17 of the t27.ai \"t27 basics\" course (`module basics_17_structs`, `; A struct groups named fields, each with its own type.`); nothing reads it, and its only test asserts `FIELDS_IN_POINT == 2`. The course text quotes it verbatim (`Point { x: i32, y: i32 } declares a type with...`). bezier.t27:13 `pub const Point = struct { x : \"f64\", y : \"f64\" }` is the control-point type of `module TriBezier` (De Casteljau evaluation), used by `BezierCurve.control : []Point` and returned by `evaluate`. Integer teaching example versus f64 geometry; different modules, no import edge either way. Also two of the three declaration forms: bare `pub struct X` versus `pub const X = struct`.",
+      "confidence": "certain -- a two-field teaching struct that nothing uses and a curve library's working type share a name, not a concept",
+      "suggested_action": "None. The lesson's Point is quoted by the course page, so renaming it would break the lesson; TriBezier's could become BezierPoint if the name is ever wanted elsewhere."
     },
     {
       "name": "PolicyOutput",

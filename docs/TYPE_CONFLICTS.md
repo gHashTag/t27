@@ -30,7 +30,7 @@ against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
 spec (`LockFreeStack`, `RTree`, `Point`).
 
     DRIFT     61
-    DISTINCT  40
+    DISTINCT  41
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
 file is the summary; that file is the record.
@@ -138,7 +138,7 @@ has had it: `tri types dup` no longer reports the name, and its row is gone.
 
 Every remaining DRIFT row needs a decision about which module owns the concept.
 
-## DISTINCT -- 40 names
+## DISTINCT -- 41 names
 
 Two concepts that met on a name. Nothing to converge; the question is only
 whether to rename.
@@ -171,6 +171,7 @@ whether to rename.
 | `Parser` | 2 | 2 files | None needed; if flattened, PinsParser is the natural rename for the pins one (it is already t... |
 | `PipelineConfig` | 3 | 3 files | Delete specs/igla/coder/_tmp_pipeline_import.t27 — it is a temp import artifact that duplicat... |
 | `PipelineResult` | 5 | 5 files | Rename per subsystem (FusionResult / CompilePipelineResult / GenerationResult / BatchEntryRes... |
+| `Point` | 2 | 2 files | None. The basics lesson's Point is quoted by its course page; TriBezier's could become BezierP... |
 | `Promise` | 2 | 2 files | None urgent. Note the report's field list for the async site is wrong — see the pattern note ... |
 | `ProofStep` | 3 | 3 files | Rename the math one to DerivationStep (and share the single copy between phi_split_optimality... |
 | `QueryResult` | 3 | 3 files | Rename per subsystem (DatalogAnswer / NotebookAnswer / SimilarityHit); no shared meaning to p... |
