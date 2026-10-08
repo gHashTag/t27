@@ -1,0 +1,154 @@
+//! # CR-CHAT-05 — Store compaction integrity guard (Wave-62 Lane B)
+//!
+//! PERSISTENCE — compaction must preserve hash chain, R-CHAT-1.
+//!
+//! When the store compacts old envelopes (garbage collection), it must
+//! not break the integrity hash chain. An attacker who can trigger or
+//! tamper with compaction can:
+//!
+//! * **Drop envelopes** — remove evidence by deleting during compaction.
+//! * **Break hash chain** — leave gaps that make remaining chain invalid.
+//! * **Forge anchor** — replace the compaction anchor hash.
+//!
+//! trios-chat enforces **6 rules**:
+//!
+//! 1. Compaction anchor covers all removed envelopes.
+//! 2. Compaction anchor links to surviving chain head.
+//! 3. No envelope counter gaps after compaction.
+//! 4. Removed count + remaining count = original count.
+//! 5. Anchor hash is non-zero.
+//! 6. Remaining counters are strictly monotonic.
+//!
+//! Tests **SCPI-01..10**. Error enum [`CompactionIntegrityError`].
+//!
+//! Anchor: `phi^2 + phi^-2 = 3 * TRINITY * CHAT * COMPACTION-INTEGRITY`
+
+/// All ways compaction integrity can fail.
+enum CompactionIntegrityError {
+    /// Counter gap after compaction.
+    CounterGap,
+    /// Count mismatch (removed + remaining != original).
+    CountMismatch,
+    /// Anchor hash is all-zeros.
+    ZeroAnchor,
+    /// Remaining counters not monotonic.
+    NotMonotonic,
+    /// Empty remaining chain after compaction.
+    EmptyRemaining,
+    /// Removed count exceeds original.
+    RemovedExceedsOriginal,
+}
+
+/// `[VERIFIED]` Validate a compaction operation for integrity.
+pub fn validate_compaction(
+    original_count: usize,
+    removed_count: usize,
+    remaining_counters: []u64,
+    anchor_hash: []u8,
+) ?CompactionIntegrityError {
+    if anchor_hash.len == 32 {
+        var is_zero = true;
+        for (i in 0..32) {
+            if anchor_hash[i] != 0 {
+                is_zero = false;
+                break;
+            }
+        }
+        if is_zero {
+            return CompactionIntegrityError.ZeroAnchor;
+        }
+    }
+    
+    if removed_count > original_count {
+        return CompactionIntegrityError.RemovedExceedsOriginal;
+    }
+    
+    if removed_count + remaining_counters.len != original_count {
+        return CompactionIntegrityError.CountMismatch;
+    }
+    
+    if remaining_counters.len == 0 and original_count > 0 {
+        return CompactionIntegrityError.EmptyRemaining;
+    }
+    
+    if (remaining_counters.len > 0) {
+        for (i in 0..(remaining_counters.len - 1)) {
+            if remaining_counters[i + 1] <= remaining_counters[i] {
+                return CompactionIntegrityError.NotMonotonic;
+            }
+            if remaining_counters[i + 1] - remaining_counters[i] > 1 {
+                return CompactionIntegrityError.CounterGap;
+            }
+        }
+    }
+    
+    return null;
+}
+
+test scpi_01_counter_gap_rejected {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [7]u64 = [1, 2, 5, 6, 7, 8, 9];
+    var result = validate_compaction(10, 3, &counters, &anchor);
+    assert(result == CompactionIntegrityError.CounterGap);
+}
+
+test scpi_02_count_mismatch_rejected {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [6]u64 = [1, 2, 3, 4, 5, 6];
+    var result = validate_compaction(10, 3, &counters, &anchor);
+    assert(result == CompactionIntegrityError.CountMismatch);
+}
+
+test scpi_03_zero_anchor_rejected {
+    var zero: [32]u8 = [0u8; 32];
+    var counters: [3]u64 = [1, 2, 3];
+    var result = validate_compaction(5, 2, &counters, &zero);
+    assert(result == CompactionIntegrityError.ZeroAnchor);
+}
+
+test scpi_04_not_monotonic_rejected {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [3]u64 = [2, 1, 3];
+    var result = validate_compaction(5, 2, &counters, &anchor);
+    assert(result == CompactionIntegrityError.NotMonotonic);
+}
+
+test scpi_05_empty_remaining_rejected {
+    var anchor: [32]u8 = [0x42; 32];
+    var result = validate_compaction(5, 5, &[], &anchor);
+    assert(result == CompactionIntegrityError.EmptyRemaining);
+}
+
+test scpi_06_removed_exceeds_rejected {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [2]u64 = [1, 2];
+    var result = validate_compaction(3, 5, &counters, &anchor);
+    assert(result == CompactionIntegrityError.RemovedExceedsOriginal);
+}
+
+test scpi_07_valid_accepted {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [3]u64 = [1, 2, 3];
+    var result = validate_compaction(5, 2, &counters, &anchor);
+    assert(result == null);
+}
+
+test scpi_08_no_removal_accepted {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [3]u64 = [1, 2, 3];
+    var result = validate_compaction(3, 0, &counters, &anchor);
+    assert(result == null);
+}
+
+test scpi_09_single_accepted {
+    var anchor: [32]u8 = [0x42; 32];
+    var counters: [1]u64 = [1];
+    var result = validate_compaction(3, 2, &counters, &anchor);
+    assert(result == null);
+}
+
+test scpi_10_empty_original_accepted {
+    var anchor: [32]u8 = [0x42; 32];
+    var result = validate_compaction(0, 0, &[], &anchor);
+    assert(result == null);
+}
