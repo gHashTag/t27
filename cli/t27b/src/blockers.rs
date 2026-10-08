@@ -6,13 +6,19 @@
 //! that is the first rejection in 300 files may be the last one in none. This
 //! module works from the full set of blockers per file (`lower::blockers`)
 //! and orders constructs greedily by the number of whole files each one
-//! unlocks, given the ones already chosen.
+//! unlocks, given the ones already chosen. That order, its replay and FNV-1a
+//! are specs/tri/t27b/blockers.t27 (#7673); the rest of this file is I/O.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+
+#[path = "../../../gen/rust/tri/t27b/blockers.rs"]
+#[allow(dead_code, unused_parens, clippy::all)]
+mod spec; // t27c gen-rust of specs/tri/t27b/blockers.t27
+pub use spec::fnv64;
 
 /// One greedy step: supporting `construct`, after every construct of the
 /// earlier steps, unlocks `unlocked` more files, `cumulative` in all.
@@ -23,81 +29,32 @@ pub struct Step {
     pub cumulative: usize,
 }
 
+/// The constructs of `files` and of `order` in name order, and `files` as
+/// rows of 0/1 over them: the layout specs/tri/t27b/blockers.t27 reads.
+fn layout<'a>(files: &'a [BTreeSet<String>], order: &'a [Step]) -> (Vec<&'a String>, Vec<u8>) {
+    let names: Vec<&String> = files.iter().flatten().chain(order.iter().map(|s| &s.construct)).collect::<BTreeSet<_>>().into_iter().collect();
+    let m = files.iter().flat_map(|f| names.iter().map(move |c| f.contains(*c) as u8)).collect();
+    (names, m)
+}
+
 /// Greedy set-cover order over `files` (each the set of constructs a file
-/// needs; an empty set is a file already unlocked and is not counted).
-///
-/// Each step picks the construct that unlocks the most files outright. When
-/// no single construct unlocks any file, it picks the one that moves the most
-/// files closest to done: the score of a construct is the sum, over the
-/// files that need it, of 1 / (constructs the file still needs). Ties go to
-/// the construct needed by more files, then to the name, so the order is
-/// deterministic. Stops when every file is unlocked.
+/// needs; an empty set is a file already unlocked and is not counted), as
+/// specs/tri/t27b/blockers.t27 `greedy` orders it.
 pub fn greedy(files: &[BTreeSet<String>]) -> Vec<Step> {
-    let mut remaining: Vec<BTreeSet<String>> = files.iter().filter(|f| !f.is_empty()).cloned().collect();
-    let mut steps = Vec::new();
-    let mut cumulative = 0usize;
-    while !remaining.is_empty() {
-        // construct -> (files it unlocks alone, progress score, files needing it)
-        let mut score: BTreeMap<&str, (usize, f64, usize)> = BTreeMap::new();
-        for f in &remaining {
-            let k = f.len();
-            for c in f {
-                let e = score.entry(c.as_str()).or_insert((0, 0.0, 0));
-                if k == 1 {
-                    e.0 += 1;
-                }
-                e.1 += 1.0 / k as f64;
-                e.2 += 1;
-            }
-        }
-        let best = score
-            .iter()
-            .max_by(|a, b| {
-                let (x, y) = (a.1, b.1);
-                x.0.cmp(&y.0)
-                    .then(x.1.partial_cmp(&y.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .then(x.2.cmp(&y.2))
-                    // Reverse on the name: the alphabetically first wins a tie.
-                    .then(b.0.cmp(a.0))
-            })
-            .map(|(c, _)| c.to_string());
-        let Some(c) = best else { break };
-        for f in remaining.iter_mut() {
-            f.remove(&c);
-        }
-        let before = remaining.len();
-        remaining.retain(|f| !f.is_empty());
-        let unlocked = before - remaining.len();
-        cumulative += unlocked;
-        steps.push(Step { construct: c, unlocked, cumulative });
-    }
-    steps
+    let (names, mut m) = layout(files, &[]);
+    let (mut at, mut got, mut cum) = (vec![0; names.len()], vec![0; names.len()], vec![0; names.len()]);
+    let n = spec::greedy(&mut m, files.len(), names.len(), &mut at, &mut got, &mut cum);
+    (0..n).map(|i| Step { construct: names[at[i]].clone(), unlocked: got[i], cumulative: cum[i] }).collect()
 }
 
 /// The cumulative number of `files` unlocked after each step of `order`
 /// (constructs a file needs that the order never names keep it locked).
 pub fn replay(order: &[Step], files: &[BTreeSet<String>]) -> Vec<usize> {
-    let mut chosen: BTreeSet<&str> = BTreeSet::new();
-    let mut out = Vec::with_capacity(order.len());
-    for s in order {
-        chosen.insert(s.construct.as_str());
-        let n = files
-            .iter()
-            .filter(|f| !f.is_empty() && f.iter().all(|c| chosen.contains(c.as_str())))
-            .count();
-        out.push(n);
-    }
-    out
-}
-
-/// FNV-1a, 64 bits: the key of a file's source in the reference cache.
-pub fn fnv64(bytes: &[u8]) -> u64 {
-    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in bytes {
-        h ^= *b as u64;
-        h = h.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    h
+    let (names, mut m) = layout(files, order);
+    let at = order.iter().map(|s| names.binary_search(&&s.construct).expect("layout names every step")).collect();
+    let mut cum = vec![0; order.len()];
+    spec::replay(&mut m, files.len(), names.len(), at, &mut cum);
+    cum
 }
 
 /// `t27b corpus`: give every file that timed out in the parallel pass exactly
