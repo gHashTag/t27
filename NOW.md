@@ -2,6 +2,16 @@
 
 Last updated: 2026-09-23
 
+## NOTE: Dual NOW.md Files Issue #2253
+
+This file (root NOW.md) and docs/NOW.md currently exist as separate, divergent files:
+- Root NOW.md: 390 lines, last changed 2026-08-09 (this file)
+- docs/NOW.md: 5,200 lines, updated by every PR with frozen archive content
+
+The .gitattributes file confirms this is NOT a symlink (git ls-tree shows 100644 blob).
+Owner must decide: symlink to docs/NOW.md, delete this file, or keep both with separate purposes.
+See issue #2253 for context.
+
 ## typecheck: warnings are PRINTED, and the unused-variable false positive is fixed (Refs #1948)
 
 - `typecheck` built every warning message and then dropped it: the OK branch printed only the total, so a warning was unactionable -- you could watch the number grow and never learn what it was. The messages were already in `result.errors`; they are printed now. Some are real correctness findings downgraded to warnings (a call to an undefined function, an argument type mismatch), so the silence actively hid defects
