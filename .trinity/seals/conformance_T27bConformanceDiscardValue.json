@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "gen_hash_c": "sha256:4ba0526ee65484a6caff69638d9d2547e4be110c634943ddb8d875e5cff80bde",
+  "gen_hash_rust": "sha256:f42c81969584a5b48a430effde0658c10827fd11742a7814ac45b1b312ee80f0",
+  "gen_hash_verilog": "sha256:29acc6a1c4265c46bb0d548c327f7579b3e0925222ebfc244666a231ccf1b0fc",
+  "gen_hash_zig": "sha256:dd98f3ff424315514c3d1a45e9420445e99aaf3394bdf699b75ab606e6b5eff5",
+  "module": "T27bConformanceDiscardValue",
+  "ring": 12,
+  "sealed_at": "2026-10-08T12:19:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:a5f6edc44c94854f3408c2a3865e16cf5dd79b391e97f8ad660343c6319b963c",
+  "spec_path": "specs/tri/t27b/conformance/discard_value.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

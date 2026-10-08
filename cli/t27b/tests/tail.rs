@@ -230,3 +230,18 @@ fn an_undefined_argument_nobody_reads() {
     let m = rejected(&src.replace("y == 7", "x == 7"));
     assert!(m.contains("construct ExprIdentifier(undefined argument read) at line 8"), "{}", m);
 }
+
+// ------------------------------------------------ `_ = e;` with e not a bare name
+
+/// `_ = e;` (collect_type_decls.t27): at the top of a fn body the reference's dead-store pass deletes it unless e
+/// holds a call; anywhere else e runs and its value is dropped (specs/tri/t27b/discard_plan.t27; `t27c test-report`
+/// passes the conformance spec 5/5, none vacuous). A nested `_ = a + b;` that overflows traps on both sides.
+#[test]
+fn a_discarded_value_runs_unless_the_reference_deletes_it() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/discard_value.t27"));
+    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn f(a: u8, b: u8) -> u8 {\n    _ = a + b;\n    return a;\n}\n\ntest t {\n    assert(f(200, 100) == 200);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    let r = run(&src.replace("    _ = a + b;\n", "    if (a > 0) {\n        _ = a + b;\n    }\n"));
+    assert!(matches!(r[0].2, Err((TrapKind::Overflow, _))), "{:?}", r);
+}
