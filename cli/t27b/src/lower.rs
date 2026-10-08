@@ -103,6 +103,10 @@ mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numer
 mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
 #[path = "../../../gen/rust/tri/t27b/scaffold_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input()`, which the reference never calls
+#[path = "../../../gen/rust/tri/t27b/empty_lit_plan.rs"] #[allow(dead_code, unused_parens)]
+mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its result type
+#[path = "../../../gen/rust/tri/t27b/frame_store_plan.rs"] #[allow(dead_code, unused_parens)]
+mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
 mod refvars;
 mod tuple;
 
@@ -2497,6 +2501,11 @@ impl<'a> Lower<'a> {
         let target = &n.children[0];
         let op = n.extra_op.as_str();
         if matches!(target.kind, NodeKind::ExprFieldAccess | NodeKind::ExprIndex) {
+            // #7735: this frame's address, stored where the caller reads it after the return.
+            let x = self.frame_addr(&n.children[1]);
+            if fsp::refuses(self.in_test, !self.unanalyzed_fn, x.is_some(), self.param_root(target)) {
+                return self.reject(fsp::what(), format!("the address of `{}`, {}", x.unwrap_or_default(), fsp::why()));
+            }
             let dst = self.lvalue(target)?;
             return self.store(dst, op, &n.children[1], out);
         }
@@ -2894,6 +2903,18 @@ impl<'a> Lower<'a> {
         let Some(Binding::Mem(p)) = self.lookup(&b.name) else { return None };
         let held = n.kind == NodeKind::ExprUnary || matches!(p.ty, LTy::Arr(_, len) if len > 0);
         (held && matches!(p.addr.kind, ExprKind::Slot(_))).then(|| b.name.clone())
+    }
+
+    /// Whether assignment target `t` is reached through a parameter of pointer or slice type (#7735).
+    fn param_root(&self, mut t: &Node) -> bool {
+        while matches!(t.kind, NodeKind::ExprFieldAccess | NodeKind::ExprIndex) && !t.children.is_empty() {
+            t = &t.children[0];
+        }
+        t.kind == NodeKind::ExprIdentifier && self.discards.contains_key(&t.name) && match self.lookup(&t.name) {
+            Some(Binding::Var { id, .. }) => matches!(self.ltys[id as usize], LTy::Ptr(..)),
+            Some(Binding::Mem(p)) => matches!(p.ty, LTy::Ptr(..) | LTy::Slice(..)),
+            _ => false,
+        }
     }
 
     /// An expression statement whose value nothing uses, and which is
@@ -5137,6 +5158,16 @@ impl<'a> Lower<'a> {
                     return Err(());
                 };
                 return self.slice_of(addr_of(&arr), len, want.clone());
+            }
+        }
+        // `&.{}` where a slice is wanted: a zero-length one (plan `empty_lit_plan.t27`, #7735).
+        if let (NodeKind::ExprUnary, "&", [c]) = (&n.kind, n.extra_op.as_str(), &n.children[..]) {
+            let w = if matches!(want, LTy::Slice(..) | LTy::Str) { el::WANT_SLICE } else { el::WANT_OTHER };
+            if c.kind == NodeKind::ExprTuple && el::plan(w, true, c.children.len()) == el::EMPTY_SLICE {
+                self.see(n);
+                let elem = if let LTy::Slice(e, _) = want { (**e).clone() } else { LTy::S(Ty::U8) };
+                let Val::M(arr) = self.struct_temp(c, LTy::Arr(Box::new(elem), 0))? else { return Err(()) };
+                return self.slice_of(addr_of(&arr), 0, want.clone());
             }
         }
         // `&[_]T{ ... } ** n` where a slice is wanted: t27c prints

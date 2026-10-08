@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/frame_store_plan.t27 -- when t27b refuses an assignment that stores the address of a local of the
+; fn's own frame where its caller reads it (issue #7735, t27b coverage epic #6063; written in t27 under the port
+; epic #6198). The decision and its words reach cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/frame_store_plan.rs); the Rust glue in cli/t27b/src/lower.rs (`assign`) gathers the four
+; facts below and asks.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab): `chain.first = &cell;`, with `cell` a
+; local of the fn and `chain` its pointer parameter, is printed as written. The address dangles once the fn
+; returns, and the caller reads a dead frame. It reads the right bytes only while no other call has reused that
+; frame: in gen_lockfree_stack.t27 (#7736) a call in between that fills 4 KiB of its own stack with 0x55 makes the
+; popped value 11162965 instead of 10. specs/tri/t27b/conformance/frame_address_store.t27 is the smallest shape.
+; What t27b did: its interpreter faulted on the read ("8-byte access at stack+0x18 is outside every live slot")
+; while its JIT read the stale stack, a JIT/interpreter mismatch. No backend can agree with the reference here in
+; general, so t27b refuses the store, as it refuses the return of such an address (ExprReturn(frame address),
+; #7550), and the ledger records the spec as reference-bug.
+; --
+; The facts. in_test: the body is a test or an invariant, whose frame lives until its last read. reached: a test
+; reaches the fn (Zig analyzes it). frame_address: the stored value holds the address of a local held in this
+; frame (`&x`, or a slice of a local array with elements, as #7550 defines it). through_param: the target is
+; reached through a parameter of pointer or slice type, so the caller owns the memory written.
+; Not covered: a store through a module-level var, or through a pointer local that points outside the frame.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bFrameStorePlan;
+
+/// Whether t27b refuses the assignment.
+pub fn refuses(in_test: bool, reached: bool, frame_address: bool, through_param: bool) -> bool {
+    if (in_test or !reached) { return false; }
+    return frame_address and through_param;
+}
+
+/// The construct a refusal names.
+pub fn what() -> str {
+    return "StmtAssign(frame address)";
+}
+
+/// The words of a refusal, after the name of the local.
+pub fn why() -> str {
+    return "a local of this fn's frame, stored through a parameter: the frame ends at the return, and the caller reads it";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shape, then each fact that lets the store through.
+// ----------------------------------------------------------------------------------------------------------
+
+test a_frame_address_through_a_parameter_is_refused {
+    // gen_lockfree_stack.t27's `stack.head = &node;` in LockFreeStack_push.
+    assert(refuses(false, true, true, true));
+}
+
+test a_test_body_keeps_its_frame {
+    assert(!refuses(true, true, true, true));
+}
+
+test a_fn_no_test_reaches_is_left_alone {
+    assert(!refuses(false, false, true, true));
+}
+
+test any_other_value_is_stored {
+    assert(!refuses(false, true, false, true));
+}
+
+test a_target_in_this_frame_is_stored {
+    assert(!refuses(false, true, true, false));
+}
+
+test the_refusal_names {
+    assert(std.mem.eql(u8, what(), "StmtAssign(frame address)"));
+    assert(why().len > 0);
+    assert(!std.mem.eql(u8, why(), what()));
+}
