@@ -524,6 +524,11 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         verbose: bool,
     },
+    /// Print every `use` edge as "importer<TAB>imported" for specs/ci/affected.t27 (#7565)
+    UseEdges {
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+    },
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
@@ -3865,6 +3870,26 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
     println!("  violation overstates the debt. NO TESTS has declarations and");
     println!("  checks none of them -- that is the L4 violation. Only MEASURED");
     println!("  specs have a rate.");
+    Ok(())
+}
+
+/// #7565: every `use` edge under `specs_dir`, "importer\timported", sorted -- the `--graph`
+/// section specs/ci/affected.t27 reads, from the resolver t27c compiles with.
+fn run_use_edges(specs_dir: &Path) -> anyhow::Result<()> {
+    let mut files = Vec::new();
+    for e in walkdir::WalkDir::new(specs_dir) {
+        let p = e?.into_path();
+        if p.extension().is_some_and(|x| x == "t27") {
+            files.push(p);
+        }
+    }
+    files.sort();
+    for f in files {
+        let src = fs::read_to_string(&f).with_context(|| format!("{}", f.display()))?;
+        for t in use_resolve::use_edges(&src, specs_dir) {
+            println!("{}\t{}", f.display(), t.display());
+        }
+    }
     Ok(())
 }
 
@@ -11697,6 +11722,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => run_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -12128,6 +12154,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => run_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?

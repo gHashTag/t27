@@ -3820,11 +3820,12 @@ impl<'a> Lower<'a> {
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
         let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
-        let t = xp::takes_type(b) && n.children.len() == 1; // `std.math.nan(f32)`: its routine takes no argument
-        let v = if n.children.len() == 1 && !t { self.expr(&n.children[0])? } else { Val::Poison };
+        let ok = n.children.len() == xp::arity(b);
+        let t = xp::takes_type(b) && ok; // `std.math.nan(f32)`: the first operand names the type, which no argument carries
+        let v = if ok && !t { self.expr(&n.children[0])? } else { Val::Poison };
         let k = match &v {
             _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
-            Val::Poison if n.children.len() == 1 => return Err(()),
+            Val::Poison if ok => return Err(()),
             Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
             Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
             Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
@@ -3832,7 +3833,14 @@ impl<'a> Lower<'a> {
         };
         let a = xp::plan(b, n.children.len(), k);
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
-            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args: if t { vec![] } else { vec![self.reg(v)?] } } })),
+            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => {
+                let mut args = if t { vec![] } else { vec![self.reg(v)?] };
+                for c in &n.children[1..] {
+                    let r = self.expr_as(c, &LTy::S(if k == xp::K_F64 { Ty::F64 } else { Ty::F32 }))?; // `@rem(x, 2.0)`: the first one's type
+                    args.push(self.reg(r)?);
+                }
+                Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args } }))
+            }
             _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),
         }
     }
