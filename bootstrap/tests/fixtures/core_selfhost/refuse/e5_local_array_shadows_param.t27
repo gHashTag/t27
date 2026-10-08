@@ -1,0 +1,7 @@
+// P1 slice 5: a local array named like a parameter; gen-c writes C that
+// redeclares the parameter in the function's own block.
+module shadow_param;
+fn sp_first(sp_n: usize) -> u8 {
+    var sp_n: [2]u8 = [_]u8{1} ** 2;
+    return sp_n[0];
+}
