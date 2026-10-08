@@ -10,7 +10,7 @@ module cron_trinity_brain_ci;
 
 pub const KIND : str = "cron";
 pub const ID : str = "github-actions/trinity/brain-ci";
-pub const NAME : str = "S³AI Brain CI — \"Functional MRI\" Gate";
+pub const NAME : str = "S3AI Brain CI - \"Functional MRI\" Gate";
 pub const HOST : str = "github-actions";
 pub const REPO : str = "trinity";
 pub const SERVICE : str = ".github/workflows/brain-ci.yml";

@@ -12,7 +12,7 @@ pub const KIND : str = "cron";
 pub const ID : str = "railway-cron/999/jobsearch-cron";
 pub const NAME : str = "jobsearch-cron";
 pub const HOST : str = "railway-cron";
-pub const REPO : str = "railway";
+pub const REPO : str = "999";
 pub const SERVICE : str = "jobsearch-cron";
 pub const SUMMARY_EN : str = "The scheduled job-search service of the Railway project, reachable at cron.t27.ai.";
 ; No expression is readable from a checkout; the dashboard holds it.

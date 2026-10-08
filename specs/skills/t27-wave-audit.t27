@@ -11,7 +11,7 @@ module skill_t27_wave_audit;
 
 pub const KIND : str = "skill";
 pub const ID : str = "t27/wave-audit";
-pub const NAME : str = "Wave Audit — Comprehensive Project Analysis";
+pub const NAME : str = "Wave Audit - Comprehensive Project Analysis";
 pub const REPO : str = "t27";
 pub const SOURCE : str = "SKILL.md";
 pub const SUMMARY_EN : str = "Full-spectrum audit of t27 project: GitHub issues analysis, weakness identification, SOTA research review, decomposed plan, and implementation of critical fixes.";

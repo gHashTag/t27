@@ -17,7 +17,7 @@ pub const NAME : str = "Funnel: club invoices nobody paid";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
 pub const SERVICE : str = "src/inngest_app/functions/analytics/clubInvoiceAbandonedWatch.ts:22";
-pub const DOMAIN : str = "analytics";
+pub const DOMAIN : str = "club";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "cron";
 pub const EVENT : str = "";

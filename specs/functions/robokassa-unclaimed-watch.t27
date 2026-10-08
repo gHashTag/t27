@@ -17,7 +17,7 @@ pub const NAME : str = "Money: roubles that arrived and were never credited";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
 pub const SERVICE : str = "src/inngest_app/functions/money/robokassaUnclaimedWatch.ts:44";
-pub const DOMAIN : str = "money";
+pub const DOMAIN : str = "robokassa";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "cron";
 pub const EVENT : str = "";
