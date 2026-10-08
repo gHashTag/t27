@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+eda79f025",
+  "gen_hash_c": "sha256:c7db1bf591620efad003781fd00eec1d5770e766313d4c1fabd1241cc11555b4",
+  "gen_hash_rust": "sha256:7efd5c741223c27961df38e0cc93b5d92606ef86a52d5c302d4b42084e7e42bd",
+  "gen_hash_verilog": "sha256:08153b04fedb87a617038fe0e37c05a5ed67c518080bc1d1c999054f05113276",
+  "gen_hash_zig": "sha256:9136f09d44fd901b7dbdfcb30d831613e02e2818942cb1b5b6f4b3ebf5bf0325",
+  "module": "MemoryGraphScope",
+  "ring": 12,
+  "sealed_at": "2026-10-08T18:01:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:10369b02a460abcf6f8ea37d1044850e64a442b3932c66759a2db79ffbcda50b",
+  "spec_path": "specs/memory/graph/scope.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
+}
