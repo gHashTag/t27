@@ -10,7 +10,7 @@ pub fn GhClient_issue_body(issue_num: i32) -> str {
 }
 
 pub fn LockGuard_acquire() -> LockGuard { 
-    return LockGuard {};
+    return LockGuard { _file: 0, lock_path: "" };
 }
 
 pub fn GhClient_issue_edit(issue_num: i32, body: str) -> void { 
@@ -27,7 +27,12 @@ pub fn update_table(body: str, agent: str, status: str, bpb: ?f64) -> str {
 
 // Define the data structures used
 pub struct Config {}
-pub struct LockGuard {}
+// The same two fields as LockGuard in src/lock.t27, so the corpus holds one
+// LockGuard shape, not two (tri types ratchet, #7437).
+pub struct LockGuard {
+    _file: u32,
+    lock_path: []const u8,
+}
 pub struct TableRow {
     agent: str,
     task: str,

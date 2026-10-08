@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 37,
+ "max_not_pass": 35,
  "counts": {
-  "pass": 919,
+  "pass": 923,
   "pass_vacuous": 151,
-  "not_pass": 37
+  "not_pass": 35
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -582,7 +582,7 @@
   {"path": "specs/port/trinity/src/storm/experience_engine.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_aabb.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_arithmetic.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_assertion.t27", "t27b": "blocked", "blocker": "type anyopaque", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_assertion.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_barrier.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_base64.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_bezier.t27", "t27b": "pass"},
@@ -597,7 +597,7 @@
   {"path": "specs/port/trinity/src/tri/gen_fuzz.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_gradient.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_gradient_descent.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_hazard_pointers.t27", "t27b": "blocked", "blocker": "type anyopaque", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_hazard_pointers.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_image.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_index.t27", "t27b": "pass_vacuous"},
   {"path": "specs/port/trinity/src/tri/gen_key_value.t27", "t27b": "pass"},
@@ -991,6 +991,7 @@
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/numeric_coercion.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/opaque_pointer.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/pointer_equality.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/postfix_optional.t27", "t27b": "pass"},
@@ -1027,6 +1028,7 @@
   {"path": "specs/tri/t27b/libm.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/libm_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/macho.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/opaque_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/ptr_eq_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/reduce.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/scaffold_plan.t27", "t27b": "pass"},

@@ -97,6 +97,8 @@ mod pe; // t27c gen-rust of specs/tri/t27b/ptr_eq_plan.t27: `==` / `!=` of point
 mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
 #[path = "../../../gen/rust/tri/t27b/wide_plan.rs"] #[allow(dead_code, unused_parens, unexpected_cfgs)]
 mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wider than 64 bits, folded
+#[path = "../../../gen/rust/tri/t27b/opaque_plan.rs"] #[allow(dead_code, unused_parens)]
+mod oq; // t27c gen-rust of specs/tri/t27b/opaque_plan.t27: `anyopaque`, `@ptrFromInt` to an optional pointer
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
 #[path = "../../../gen/rust/tri/t27b/coerce_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -3723,6 +3725,29 @@ impl<'a> Lower<'a> {
         Ok(Val::E(Expr { ty: to, kind: ExprKind::Cast { arg: Box::new(e), site } }))
     }
 
+    /// `@ptrFromInt(x)` for an optional pointer: the address, null when it is 0 (plan `opaque_plan.t27`, #7737).
+    fn ptr_from_int(&mut self, n: &Node, want: &LTy) -> R<Option<Val>> {
+        let (w, t) = match want {
+            LTy::Opt(o) if matches!(**o, LTy::Ptr(..)) => (oq::W_OPT_PTR, &**o),
+            LTy::Ptr(..) => (oq::W_PTR, want),
+            _ => return Ok(None),
+        };
+        let LTy::Ptr(p, _) = t else { return Ok(None) };
+        let opaque = matches!(**p, LTy::Struct(id) if self.structs[id as usize].name == "anyopaque");
+        let act = oq::from_int(w, if opaque { 1 } else { self.size_align(p)?.1 }, n.children.len());
+        if act == oq::NOT_MINE { return Ok(None); }
+        self.see(n);
+        if oq::refuses(act) { return self.reject(oq::what(act), oq::why(act).into()); }
+        let x = self.expr_as(&n.children[0], &LTy::S(Ty::U64))?;
+        let k = self.new_slot(want)?;
+        let at = Box::new(Expr { ty: Ty::U64, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } });
+        let zero = Box::new(Expr { ty: Ty::U64, kind: ExprKind::Const(0) });
+        let flag = Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op: CmpOp::Ne, lhs: at, rhs: zero } };
+        let stmts = vec![Stmt::Store { addr: slot_expr(k), off: 0, value: self.reg(x)? }, Stmt::Store { addr: slot_expr(k), off: 8, value: flag }];
+        let addr = Expr { ty: Ty::Ptr, kind: ExprKind::Seq { stmts, value: Box::new(slot_expr(k)) } };
+        Ok(Some(Val::M(Place { addr, off: 0, ty: want.clone(), mutable: false, temp: Some(k) })))
+    }
+
     /// `@intCast(x)` with integer result type `ty` from the context (`@as`, a typed binding, a parameter, a
     /// return). What is refused and what the rest lowers to: specs/tri/t27b/int_cast_plan.t27.
     fn int_cast(&mut self, n: &Node, ty: Ty) -> R<Val> {
@@ -4529,6 +4554,16 @@ impl<'a> Lower<'a> {
                 return Ok(LTy::Arr(Box::new(inner), n));
             }
         }
+        // `anyopaque` names no layout: only a pointer to it (plan `opaque_plan.t27`, #7737).
+        if t == "anyopaque" && !oq::refuses(oq::opaque_type(by_value)) {
+            let id = *self.struct_ids.entry(t.into()).or_insert(self.structs.len() as u32);
+            if id as usize == self.structs.len() {
+                let (what, why) = (oq::what(oq::REFUSE_BY_VALUE).into(), oq::why(oq::REFUSE_BY_VALUE).into());
+                let fail = Some(Reject { construct: what, line: self.line, detail: why });
+                self.structs.push(StructDef { name: t.into(), fields: Vec::new(), size: None, align: 1, fail });
+            }
+            return Ok(LTy::Struct(id));
+        }
         self.layout_err |= wp::is_wide(t.as_bytes()); // Zig resolves a wide type only where it is used (`unresolved_sig`)
         let (construct, detail) = self.type_construct(t);
         self.reject(&construct, detail)
@@ -5175,6 +5210,9 @@ impl<'a> Lower<'a> {
                 Err(()) if self.recover => Ok(Val::Poison),
                 r => r,
             };
+        }
+        if n.kind == NodeKind::ExprCall && n.name == "@ptrFromInt" {
+            if let Some(v) = self.ptr_from_int(n, want)? { return Ok(v); }
         }
         if let LTy::Opt(inner) = want {
             if self.is_null(n) {

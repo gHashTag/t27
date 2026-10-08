@@ -3222,3 +3222,14 @@ fn large_frames_are_probed() {
         assert_eq!(e.construct, "FnDecl(frame size)");
     }
 }
+
+/// `?*anyopaque` and `@ptrFromInt` to an optional pointer (#7737): the
+/// conformance spec runs as `t27c test-report` does (3 pass, none vacuous),
+/// and a non-optional result is refused by name.
+#[test]
+fn opaque_pointers() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/opaque_pointer.t27"));
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let m = rejected("module a;\n\nfn f(p: *anyopaque) -> bool {\n    return true;\n}\n\ntest t {\n    assert(f(@ptrFromInt(8)));\n}\n");
+    assert!(m.contains("ExprCall(@ptrFromInt)") && m.contains("not optional"), "{}", m);
+}

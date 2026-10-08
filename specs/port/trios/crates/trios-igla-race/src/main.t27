@@ -11,15 +11,17 @@ pub enum RaceCommand {
     Best,
 }
 
-pub struct Cli {
+// Not named Cli: trios-doctor ports its own Cli with different fields (tri
+// types ratchet, #7437).
+pub struct RaceCli {
     command: RaceCommand,
 }
 
 // Decision: Parse CLI args (would normally come from command line)
-pub fn parse_cli() -> Cli {
+pub fn parse_cli() -> RaceCli {
     // Default CLI for testing - in real usage this would parse actual args
     let command = RaceCommand.Start;
-    return Cli { command: command };
+    return RaceCli { command: command };
 }
 
 // Decision: Check if BPB is good enough to stop early

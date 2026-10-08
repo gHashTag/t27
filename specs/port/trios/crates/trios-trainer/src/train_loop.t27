@@ -31,7 +31,9 @@ pub struct LedgerRow {
 pub struct EmbargoBlock {}
 
 /// Result of a training run
-pub struct RunResult {
+// Not named RunResult: trios-cli cmd/run.t27 ports a different RunResult (tri
+// types ratchet, #7437).
+pub struct TrainRunResult {
     pub final_bpb: f32,
     pub best_bpb: f32,
     pub steps_completed: usize,
@@ -40,7 +42,7 @@ pub struct RunResult {
 /// Run the training loop
 ///
 /// This is a skeleton that will be filled in during PR-2/PR-3 migration.
-pub fn run(config: Config) -> RunResult {
+pub fn run(config: Config) -> TrainRunResult {
     return undefined;  // Plumbing: println! statements, ledger operations, file I/O
 }
 
