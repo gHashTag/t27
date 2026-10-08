@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:f72db2fd480d44ec82508adc93474cfac1ed514f96dbbdcf00c4a1ac900dd8e1",
+  "gen_hash_rust": "sha256:0b72fa24f7ab94ce0a661840bd507cd1946495c24ea06d4574132d31fcaa2511",
+  "gen_hash_verilog": "sha256:83107a5dbddde2f3bfe130814571a2b7a644013c6283a8c479ec851a9369e7f4",
+  "gen_hash_zig": "sha256:6aa758d8d638a191d3444c3b3427c0a6756e477dd6016ed006a3f0226b4e9549",
+  "module": "tool_tri_orphaned",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:24:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:72d7a0eac14c58620cf00bc8d2ea5b6fff617d8e9dab6e6b41493b9995fa92f4",
+  "spec_path": "specs/tools/tri/orphaned.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

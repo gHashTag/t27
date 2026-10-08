@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:11e6301d2aaa238dc1346b824c2eee82c03f6049eae640cdb34b84d3ae3f5a62",
+  "gen_hash_rust": "sha256:ff24e1d7f72dd90c57c6f2007bd4a24d9877e4ef3baf1892c3613fd0bf8659a9",
+  "gen_hash_verilog": "sha256:5b654df94c9a2a80997fa11f2c326b7ae6e53cd60ef0906a4da7ecab7bb75e39",
+  "gen_hash_zig": "sha256:b7b571180a39c45746390bb7b8209b06a338a7be06b3b00a401b42a0191f0631",
+  "module": "tool_tri_prose",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:24:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:e2b92ac70aa82f0e204644ee8a92e9516fe782480010bfd5d1e3e4d1d7ab45b6",
+  "spec_path": "specs/tools/tri/prose.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
