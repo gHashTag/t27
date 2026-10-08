@@ -111,6 +111,8 @@ mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's a
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/lazy_sig_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ls; // t27c gen-rust of specs/tri/t27b/lazy_sig_plan.t27: `anytype`, `[*]T` on a fn nothing analyzed reaches
 mod refvars;
 mod tuple;
 
@@ -1174,11 +1176,13 @@ impl<'a> Lower<'a> {
             } else {
                 self.lty(pty)
             };
+            self.layout_err |= r.is_err() && self.lazy_sig(pty, true);
             self.sig_layout_only &= r.is_ok() || self.layout_err;
             match r {
                 Ok(t) => params.push(t),
-                // Recovery mode reports every parameter and the return type.
-                Err(()) if self.recover => bad = true,
+                // Recovery mode reports every parameter and the return type, and so does an unreached fn
+                // until a refusal `unresolved_sig` cannot withdraw.
+                Err(()) if self.recover || (self.layout_err && !self.analyzed.contains(&n.name)) => bad = true,
                 Err(()) => return Err(()),
             }
         }
@@ -1190,6 +1194,7 @@ impl<'a> Lower<'a> {
         } else {
             self.layout_err = false;
             let r = self.ret_lty(rt);
+            self.layout_err |= r.is_err() && self.lazy_sig(rt, false);
             self.sig_layout_only &= r.is_ok() || self.layout_err;
             Some(r?)
         };
