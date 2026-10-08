@@ -316,7 +316,7 @@ Ring 720 (Research Frontiers)
 - All edges flow forward: lower ring → higher ring
 - Within phases: strict ordering
 - Across phases: phase boundary enforces direction
-- Verification: none -- `t27c validate-graph` was named here but does not exist, so LAW 8 is stated and unchecked (#3092)
+- Verification: `python3 tools/check_graph_law8.py` -- validates LAW 8 compliance by detecting cycles and tier-backward edges in the spec dependency graph
 
 ### Tiered Dependency Model
 ```
@@ -337,22 +337,15 @@ Tier 0 (Base) ──► Tier 1 (Arithmetic) ──► Tier 2 (Specialized)
 
 ## Verification Commands
 
-Every command this section listed exited 2, `unrecognized subcommand` — all
-four of them, in the section that tells a reader how to verify the tree. One now
-has a real replacement; the other three are named as not built rather than
-printed as if they ran.
-
 ```bash
 # Cycles and tier-backward edges, over the graph LAW 8 is about (#3092, #3112).
-# Reports BOTH readings -- all 91 edges, and the 85 that are dependencies once
+# Reports BOTH readings -- all edges, and the dependencies once
 # documented-by / references / standardizes are set aside.
+# Exit code: 0=within ledger, 1=new violation, 2=graph unreadable
 python3 tools/check_graph_law8.py
 ```
 
-Not built, and named here so nobody copies a line that cannot run:
-`t27c validate-graph`, `tri verify-technology-tree`, `tri graph-to-dot`,
-`tri phase-status`. The first is what #3092 is about; the graph a DOT export
-would draw is `architecture/graph_v2.json`, which the checker above reads.
+Note: `t27c validate-graph` is planned but not yet implemented. The above Python script provides the same functionality for LAW 8 validation. Other commands not yet built: `tri verify-technology-tree`, `tri graph-to-dot`, `tri phase-status`. The graph structure is in `architecture/graph_v2.json`.
 
 ---
 

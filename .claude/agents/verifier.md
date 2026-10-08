@@ -26,6 +26,7 @@ Ensure all changes meet t27 quality standards and invariant laws.
    - L5 (IDENTITY): Validate phi calculations with tolerance
    - L6 (CEILING): Check numeric SSOT integrity
    - L7 (UNITY): Verify no new shell scripts on critical path
+   - L8 (GRAPH TOPOLOGY): Validate spec dependency graph for cycles using `python3 tools/check_graph_law8.py`
 
 3. **Code Review**
    - Check style consistency
