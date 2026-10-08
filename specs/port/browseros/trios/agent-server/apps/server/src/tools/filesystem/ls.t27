@@ -36,7 +36,9 @@ module ls {
     // localeCompare(base) order of printable ASCII, lower case standing for both cases.
     const LOCALE_ORDER: str = " _-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$0123456789abcdefghijklmnopqrstuvwxyz";
 
-    pub struct Entry {
+    // Not named Entry: specs/tri/utils/template.t27 owns Entry (tri types
+    // ratchet, #7437).
+    pub struct LsEntry {
         name: str,
         is_dir: bool,
         size: u64,
@@ -140,7 +142,7 @@ module ls {
 
     // Array.prototype.sort is stable: an insertion sort that moves an index
     // only past strictly greater names keeps equal names in readdir order.
-    fn sort_by_name(entries: []const Entry, idx: []usize, n: usize) -> void {
+    fn sort_by_name(entries: []const LsEntry, idx: []usize, n: usize) -> void {
         var i: usize = 1;
         while (i < n) {
             const cur = idx[i];
@@ -165,7 +167,7 @@ module ls {
     }
 
     // The text execute returns for an already-read directory.
-    pub fn ls_text(entries: []const Entry, limit_param: i64, buf: []u8) -> usize {
+    pub fn ls_text(entries: []const LsEntry, limit_param: i64, buf: []u8) -> usize {
         const limit = effective_limit(limit_param);
         var dirs: [256]usize = [_]usize{0} ** 256;
         var files: [256]usize = [_]usize{0} ** 256;
@@ -291,14 +293,14 @@ module ls {
     }
 
     test ls_text_lists_dirs_then_files {
-        var es: [7]Entry = [
-            Entry { name: "src", is_dir: true, size: 0 },
-            Entry { name: "README.md", is_dir: false, size: 2048 },
-            Entry { name: ".git", is_dir: true, size: 0 },
-            Entry { name: "b.txt", is_dir: false, size: 12 },
-            Entry { name: "A.txt", is_dir: false, size: 1536 },
-            Entry { name: "node_modules", is_dir: true, size: 0 },
-            Entry { name: "a.txt", is_dir: false, size: 0 },
+        var es: [7]LsEntry = [
+            LsEntry { name: "src", is_dir: true, size: 0 },
+            LsEntry { name: "README.md", is_dir: false, size: 2048 },
+            LsEntry { name: ".git", is_dir: true, size: 0 },
+            LsEntry { name: "b.txt", is_dir: false, size: 12 },
+            LsEntry { name: "A.txt", is_dir: false, size: 1536 },
+            LsEntry { name: "node_modules", is_dir: true, size: 0 },
+            LsEntry { name: "a.txt", is_dir: false, size: 0 },
         ];
         var buf: [512]u8 = undefined;
         const full = ".git/\nnode_modules/\nsrc/\nA.txt (1.5KB)\na.txt (0B)\nb.txt (12B)\nREADME.md (2.0KB)";
@@ -311,14 +313,14 @@ module ls {
     }
 
     test ls_text_keeps_equal_names_in_readdir_order {
-        var es: [7]Entry = [
-            Entry { name: "Zeta", is_dir: false, size: 1 },
-            Entry { name: "alpha", is_dir: false, size: 1 },
-            Entry { name: "_x", is_dir: false, size: 1 },
-            Entry { name: "10", is_dir: false, size: 1 },
-            Entry { name: "9", is_dir: false, size: 1 },
-            Entry { name: "a", is_dir: false, size: 1 },
-            Entry { name: "A", is_dir: false, size: 2 },
+        var es: [7]LsEntry = [
+            LsEntry { name: "Zeta", is_dir: false, size: 1 },
+            LsEntry { name: "alpha", is_dir: false, size: 1 },
+            LsEntry { name: "_x", is_dir: false, size: 1 },
+            LsEntry { name: "10", is_dir: false, size: 1 },
+            LsEntry { name: "9", is_dir: false, size: 1 },
+            LsEntry { name: "a", is_dir: false, size: 1 },
+            LsEntry { name: "A", is_dir: false, size: 2 },
         ];
         var buf: [256]u8 = undefined;
         const n15 = ls_text(&es, 0, &buf);
@@ -326,7 +328,7 @@ module ls {
     }
 
     test ls_text_empty_directory {
-        var es: [0]Entry = [];
+        var es: [0]LsEntry = [];
         var buf: [64]u8 = undefined;
         const n16 = ls_text(&es, 5, &buf);
         assert(std.mem.eql(u8, buf[0:n16], "(empty directory)"));
