@@ -45,7 +45,10 @@ pub enum HwTypeTag {
     GF16
 }
 
-pub struct HwType {
+// Named CompilerHwType, not HwType: specs/fpga/hw_types.t27 owns HwType, with
+// flag fields instead of this flattened enum payload, and one name may not
+// carry two field lists in the corpus (tri types ratchet, #7437).
+pub struct CompilerHwType {
     tag: HwTypeTag,
     width: u32,
     len: u32,
@@ -60,7 +63,7 @@ pub struct VerilogRange {
 
 const FIELDS_NONE: [8]u32 = [0, 0, 0, 0, 0, 0, 0, 0];
 
-pub fn HwType_hw_width(self: HwType) -> u32 {
+pub fn HwType_hw_width(self: CompilerHwType) -> u32 {
     return switch (self.tag) {
         .Bits => self.width,
         .UInt => self.width,
@@ -75,7 +78,7 @@ pub fn HwType_hw_width(self: HwType) -> u32 {
     };
 }
 
-fn HwType_bundle_width(self: HwType) -> u32 {
+fn HwType_bundle_width(self: CompilerHwType) -> u32 {
     // Carries the Bundle arm of hw_width (line 28705): the sum of the field
     // widths.
     var total: u32 = 0;
@@ -106,28 +109,28 @@ fn HwType_enum_width(n: u32) -> u32 {
     return 8;
 }
 
-pub fn HwType_is_signed(self: HwType) -> bool {
+pub fn HwType_is_signed(self: CompilerHwType) -> bool {
     return switch (self.tag) {
         .SInt => true,
         else => false,
     };
 }
 
-pub fn HwType_is_clock_like(self: HwType) -> bool {
+pub fn HwType_is_clock_like(self: CompilerHwType) -> bool {
     return switch (self.tag) {
         .Clock => true,
         else => false,
     };
 }
 
-pub fn HwType_is_reset_like(self: HwType) -> bool {
+pub fn HwType_is_reset_like(self: CompilerHwType) -> bool {
     return switch (self.tag) {
         .Reset => true,
         else => false,
     };
 }
 
-pub fn HwType_verilog_range(self: HwType) -> VerilogRange {
+pub fn HwType_verilog_range(self: CompilerHwType) -> VerilogRange {
     const w = HwType_hw_width(self);
     if (w <= 1) {
         return VerilogRange{ .empty = true, .hi = 0 };
@@ -136,19 +139,19 @@ pub fn HwType_verilog_range(self: HwType) -> VerilogRange {
 }
 
 test hw_width_integer_payloads {
-    const bits8 = HwType{ .tag = HwTypeTag.Bits, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const uint16 = HwType{ .tag = HwTypeTag.UInt, .width = 16, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const sint32 = HwType{ .tag = HwTypeTag.SInt, .width = 32, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const bits8 = CompilerHwType{ .tag = HwTypeTag.Bits, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const uint16 = CompilerHwType{ .tag = HwTypeTag.UInt, .width = 16, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const sint32 = CompilerHwType{ .tag = HwTypeTag.SInt, .width = 32, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_hw_width(bits8) == 8);
     assert(HwType_hw_width(uint16) == 16);
     assert(HwType_hw_width(sint32) == 32);
 }
 
 test hw_width_single_bit_kinds {
-    const boolean = HwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const clock = HwType{ .tag = HwTypeTag.Clock, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const reset = HwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const gf16 = HwType{ .tag = HwTypeTag.GF16, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const boolean = CompilerHwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const clock = CompilerHwType{ .tag = HwTypeTag.Clock, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const reset = CompilerHwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const gf16 = CompilerHwType{ .tag = HwTypeTag.GF16, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_hw_width(boolean) == 1);
     assert(HwType_hw_width(clock) == 1);
     assert(HwType_hw_width(reset) == 1);
@@ -159,8 +162,8 @@ test hw_width_vector_multiplies_element_by_length {
     // Vector(Box<HwType>, u32): element width x length (original line 28704).
     // t27 cannot nest an HwType inside an HwType, so `width` carries the
     // element's precomputed width (an SInt(4) element is 4 bits).
-    const vec_sint4_x3 = HwType{ .tag = HwTypeTag.Vector, .width = 4, .len = 3, .fields = FIELDS_NONE, .n_fields = 0 };
-    const vec_sint1_x5 = HwType{ .tag = HwTypeTag.Vector, .width = 1, .len = 5, .fields = FIELDS_NONE, .n_fields = 0 };
+    const vec_sint4_x3 = CompilerHwType{ .tag = HwTypeTag.Vector, .width = 4, .len = 3, .fields = FIELDS_NONE, .n_fields = 0 };
+    const vec_sint1_x5 = CompilerHwType{ .tag = HwTypeTag.Vector, .width = 1, .len = 5, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_hw_width(vec_sint4_x3) == 12);
     assert(HwType_hw_width(vec_sint1_x5) == 5);
 }
@@ -168,11 +171,11 @@ test hw_width_vector_multiplies_element_by_length {
 test hw_width_bundle_sums_field_widths {
     // Bundle(Vec<(String, HwType)>): the sum of the field widths (line 28705).
     const f3: [8]u32 = [4, 4, 8, 0, 0, 0, 0, 0];
-    const bundle3 = HwType{ .tag = HwTypeTag.Bundle, .width = 0, .len = 0, .fields = f3, .n_fields = 3 };
+    const bundle3 = CompilerHwType{ .tag = HwTypeTag.Bundle, .width = 0, .len = 0, .fields = f3, .n_fields = 3 };
     assert(HwType_hw_width(bundle3) == 16);
     assert(HwType_bundle_width(bundle3) == 16);
     const f1: [8]u32 = [32, 0, 0, 0, 0, 0, 0, 0];
-    const bundle1 = HwType{ .tag = HwTypeTag.Bundle, .width = 0, .len = 0, .fields = f1, .n_fields = 1 };
+    const bundle1 = CompilerHwType{ .tag = HwTypeTag.Bundle, .width = 0, .len = 0, .fields = f1, .n_fields = 1 };
     assert(HwType_hw_width(bundle1) == 32);
 }
 
@@ -195,20 +198,20 @@ test hw_width_enum_variant_ladder {
 }
 
 test hw_width_enum_via_hw_width {
-    const enum4 = HwType{ .tag = HwTypeTag.Enum, .width = 0, .len = 4, .fields = FIELDS_NONE, .n_fields = 0 };
-    const enum65 = HwType{ .tag = HwTypeTag.Enum, .width = 0, .len = 65, .fields = FIELDS_NONE, .n_fields = 0 };
+    const enum4 = CompilerHwType{ .tag = HwTypeTag.Enum, .width = 0, .len = 4, .fields = FIELDS_NONE, .n_fields = 0 };
+    const enum65 = CompilerHwType{ .tag = HwTypeTag.Enum, .width = 0, .len = 65, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_hw_width(enum4) == 2);
     assert(HwType_hw_width(enum65) == 8);
 }
 
 test is_signed_is_true_only_for_top_level_sint {
-    const sint8 = HwType{ .tag = HwTypeTag.SInt, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const uint8 = HwType{ .tag = HwTypeTag.UInt, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const bits8 = HwType{ .tag = HwTypeTag.Bits, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const boolean = HwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const sint8 = CompilerHwType{ .tag = HwTypeTag.SInt, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const uint8 = CompilerHwType{ .tag = HwTypeTag.UInt, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const bits8 = CompilerHwType{ .tag = HwTypeTag.Bits, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const boolean = CompilerHwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
     // matches!(self, HwType::SInt(_)) matches the top-level variant only, so a
     // Vector of SInt elements is not itself signed (line 28729).
-    const vec_of_sint = HwType{ .tag = HwTypeTag.Vector, .width = 8, .len = 2, .fields = FIELDS_NONE, .n_fields = 0 };
+    const vec_of_sint = CompilerHwType{ .tag = HwTypeTag.Vector, .width = 8, .len = 2, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_is_signed(sint8));
     assert(!HwType_is_signed(uint8));
     assert(!HwType_is_signed(bits8));
@@ -217,10 +220,10 @@ test is_signed_is_true_only_for_top_level_sint {
 }
 
 test is_clock_like_is_true_only_for_clock {
-    const clock = HwType{ .tag = HwTypeTag.Clock, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const reset = HwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const boolean = HwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const gf16 = HwType{ .tag = HwTypeTag.GF16, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const clock = CompilerHwType{ .tag = HwTypeTag.Clock, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const reset = CompilerHwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const boolean = CompilerHwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const gf16 = CompilerHwType{ .tag = HwTypeTag.GF16, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_is_clock_like(clock));
     assert(!HwType_is_clock_like(reset));
     assert(!HwType_is_clock_like(boolean));
@@ -228,9 +231,9 @@ test is_clock_like_is_true_only_for_clock {
 }
 
 test is_reset_like_is_true_only_for_reset {
-    const reset = HwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const clock = HwType{ .tag = HwTypeTag.Clock, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const boolean = HwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const reset = CompilerHwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const clock = CompilerHwType{ .tag = HwTypeTag.Clock, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const boolean = CompilerHwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
     assert(HwType_is_reset_like(reset));
     assert(!HwType_is_reset_like(clock));
     assert(!HwType_is_reset_like(boolean));
@@ -239,9 +242,9 @@ test is_reset_like_is_true_only_for_reset {
 test verilog_range_is_empty_for_width_at_most_one {
     // w <= 1: the original returns String::new() (lines 28742-28743); the port
     // carries the decision as empty = true.
-    const boolean = HwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const bits1 = HwType{ .tag = HwTypeTag.Bits, .width = 1, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const reset = HwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const boolean = CompilerHwType{ .tag = HwTypeTag.Bool, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const bits1 = CompilerHwType{ .tag = HwTypeTag.Bits, .width = 1, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const reset = CompilerHwType{ .tag = HwTypeTag.Reset, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
     const r_bool = HwType_verilog_range(boolean);
     assert(r_bool.empty);
     assert(r_bool.hi == 0);
@@ -255,12 +258,12 @@ test verilog_range_hi_is_width_minus_one {
     // w > 1: the original returns format!("[{}:0]", w - 1) (lines 28744-28745);
     // the port carries hi = w - 1 with empty = false, and the caller renders
     // [hi:0].
-    const bits2 = HwType{ .tag = HwTypeTag.Bits, .width = 2, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const bits8 = HwType{ .tag = HwTypeTag.Bits, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const gf16 = HwType{ .tag = HwTypeTag.GF16, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
-    const vec16 = HwType{ .tag = HwTypeTag.Vector, .width = 4, .len = 4, .fields = FIELDS_NONE, .n_fields = 0 };
+    const bits2 = CompilerHwType{ .tag = HwTypeTag.Bits, .width = 2, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const bits8 = CompilerHwType{ .tag = HwTypeTag.Bits, .width = 8, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const gf16 = CompilerHwType{ .tag = HwTypeTag.GF16, .width = 0, .len = 0, .fields = FIELDS_NONE, .n_fields = 0 };
+    const vec16 = CompilerHwType{ .tag = HwTypeTag.Vector, .width = 4, .len = 4, .fields = FIELDS_NONE, .n_fields = 0 };
     const f3: [8]u32 = [8, 8, 8, 0, 0, 0, 0, 0];
-    const bundle24 = HwType{ .tag = HwTypeTag.Bundle, .width = 0, .len = 0, .fields = f3, .n_fields = 3 };
+    const bundle24 = CompilerHwType{ .tag = HwTypeTag.Bundle, .width = 0, .len = 0, .fields = f3, .n_fields = 3 };
     const r_bits2 = HwType_verilog_range(bits2);
     assert(!r_bits2.empty);
     assert(r_bits2.hi == 1);

@@ -35,7 +35,7 @@ struct HirIpCore {
 }
 
 struct HirBoardResources {
-    name: []const u8,
+    name: str,
     luts: u32,
     ffs: u32,
     bram18: u32,

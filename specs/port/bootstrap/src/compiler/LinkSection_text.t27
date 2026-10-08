@@ -1,15 +1,15 @@
 module LinkSection_text;
 
 pub struct LinkSection {
-    pub name: []const u8,
+    pub name: &str,
     pub vaddr: u32,
     pub size: u32,
     pub flags: u32,
-    pub alignment: u32,
+    pub align: u32,
 }
 
 pub struct LinkedSymbol {
-    pub name: []const u8,
+    pub name: &str,
     pub value: u32,
     pub size: u32,
     pub section_idx: u32,
@@ -28,7 +28,7 @@ pub fn LinkSection_text(vaddr: u32, size: u32) -> LinkSection {
         .vaddr = vaddr,
         .size = size,
         .flags = 5,
-        .alignment = 4,
+        .align = 4,
     };
 }
 
@@ -38,7 +38,7 @@ pub fn LinkSection_data(vaddr: u32, size: u32) -> LinkSection {
         .vaddr = vaddr,
         .size = size,
         .flags = 3,
-        .alignment = 4,
+        .align = 4,
     };
 }
 
@@ -48,7 +48,7 @@ pub fn LinkSection_bss(vaddr: u32, size: u32) -> LinkSection {
         .vaddr = vaddr,
         .size = size,
         .flags = 2,
-        .alignment = 4,
+        .align = 4,
     };
 }
 
@@ -98,7 +98,7 @@ test LinkSection_text_creates_correct_section {
     assert(section.vaddr == 0x1000);
     assert(section.size == 0x100);
     assert(section.flags == 5);
-    assert(section.alignment == 4);
+    assert(section.align == 4);
 }
 
 test LinkSection_data_creates_correct_section {
@@ -107,7 +107,7 @@ test LinkSection_data_creates_correct_section {
     assert(section.vaddr == 0x2000);
     assert(section.size == 0x200);
     assert(section.flags == 3);
-    assert(section.alignment == 4);
+    assert(section.align == 4);
 }
 
 test LinkSection_bss_creates_correct_section {
@@ -116,14 +116,14 @@ test LinkSection_bss_creates_correct_section {
     assert(section.vaddr == 0x3000);
     assert(section.size == 0x300);
     assert(section.flags == 2);
-    assert(section.alignment == 4);
+    assert(section.align == 4);
 }
 
 test LinkSection_end_calculates_correctly {
-    const section1 = LinkSection{.name = "test", .vaddr = 0x1000, .size = 0x100, .flags = 0, .alignment = 0};
+    const section1 = LinkSection{.name = "test", .vaddr = 0x1000, .size = 0x100, .flags = 0, .align = 0};
     assert(LinkSection_end(section1) == 0x1100);
     
-    const section2 = LinkSection{.name = "test", .vaddr = 0xFFFFFFFF, .size = 1, .flags = 0, .alignment = 0};
+    const section2 = LinkSection{.name = "test", .vaddr = 0xFFFFFFFF, .size = 1, .flags = 0, .align = 0};
     assert(LinkSection_end(section2) == 0xFFFFFFFF); // saturating_add behavior
 }
 
