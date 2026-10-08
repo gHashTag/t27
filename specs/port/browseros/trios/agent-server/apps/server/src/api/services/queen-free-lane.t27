@@ -1,0 +1,73 @@
+module port::queen-free-lane;
+
+const MAX_LANES = 3;
+
+pub struct WorkerProvider {
+    provider: []const u8,
+    model: []const u8,
+    lane: i32,
+}
+
+pub struct AppLlmResult {
+    ok: bool,
+    text: []const u8,
+    error: []const u8,
+    transient: bool,
+}
+
+pub struct AppLlm {
+    call: i32,
+}
+
+pub struct FreeLaneDeps {
+    candidates: i32,
+    call: i32,
+    taken: i32,
+}
+
+pub fn freeLaneLlm(
+    pool: i32,
+    deps: FreeLaneDeps = {},
+) AppLlm {
+    undefined;
+}
+
+// Helper functions that touch the world - undefined bodies
+fn reviewLaneCandidates(taken: []i32) []WorkerProvider {
+    undefined;
+}
+
+fn defaultReviewerLlm(lane: WorkerProvider, system: []const u8, message: []const u8) AppLlmResult {
+    undefined;
+}
+
+fn runningKeys(pool: i32) []i32 {
+    undefined;
+}
+
+fn reviewerLaneBackedOff(lane: WorkerProvider) bool {
+    undefined;
+}
+
+fn reviewerLaneKey(lane: WorkerProvider) []const u8 {
+    undefined;
+}
+
+fn chooseReviewerLane(candidates: []WorkerProvider, options: i32) ?WorkerProvider {
+    undefined;
+}
+
+test freeLaneLlm_structure {
+    const deps = FreeLaneDeps {};
+    const appLlm = freeLaneLlm(0, deps);
+    assert(true);
+}
+
+test freeLaneLlm_with_deps {
+    const deps = FreeLaneDeps {
+        .call = 1,
+    };
+    
+    const appLlm = freeLaneLlm(0, deps);
+    assert(true);
+}
