@@ -237,11 +237,13 @@ pub const REVIEW_MARKER : str = "t27-bees:review:";
 
 /// What is checked is posted apart from what is opined. Before the model reads the diff, every
 /// changed .t27 file (at most MAX_COMPILER_CHECKS of them) is run through the t27 compiler at the
-/// pull request's head, and the compiler's answer is posted as a checked fact. The compiler is wasm
-/// inside the supervisor: it reads the text, and nothing from the repository is executed.
+/// pull request's head, and the compiler's answer is posted as a checked fact. The compiler only
+/// reads the text (t27c parse, parse-complete, typecheck, in a process with an empty environment);
+/// nothing from the repository is generated, built or run, so nothing it says is a test result.
 /// A typecheck that passes is not a pass when the parser discarded tokens to get there:
 /// `t27c typecheck` answers ok on the English sentence "the cat sat on the mat", so discarded tokens
-/// make a file broken on their own.
+/// make a file broken on their own. And a pass says the file is well formed, not that it is right:
+/// the typechecker does not resolve every name (measured 2026-10-08: `return y;` with no `y` passes).
 pub const V_CLEAN : u8 = 0;
 pub const V_BROKEN : u8 = 1;
 pub const MAX_COMPILER_CHECKS : u32 = 10;
