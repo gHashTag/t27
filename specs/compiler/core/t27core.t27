@@ -24,10 +24,16 @@
 ;         M items: [_]SCALAR{ EXPR, ... }; N, M decimals; used as a[i][j])
 ;   [pub] fn NAME ( P : SCALAR , ... ) [-> SCALAR|void] { STMT* }
 ;   test NAME { STMT* }
-;   STMT: var|const|let NAME : SCALAR = EXPR ;   NAME = EXPR ;   A[I] = EXPR ;
-;         NAME OP= EXPR ;   A[I] OP= EXPR ;       (OP one of + - * / % | & ^)
+;   STMT: var|const|let NAME : SCALAR = VALUE ;   NAME = VALUE ;   A[I] = VALUE ;
+;         NAME OP= VALUE ;   A[I] OP= VALUE ;     (OP one of + - * / % | & ^)
 ;         CALL ;   if ( EXPR ) { } [else if ... | else { }]
-;         while ( EXPR ) { }   break ;   continue ;   return [EXPR] ;
+;         while ( EXPR ) { }   break ;   continue ;   return [VALUE] ;
+;         for ( EXPR .. EXPR ) |NAME| { }   (one range, `_` allowed; the end
+;         calls nothing and the body cannot change it: gen-c reads it on every
+;         pass; no for-each, #7420)
+;   VALUE: EXPR, or switch ( EXPR ) { LABEL => VALUE , ... else => VALUE [,] }
+;         (LABEL a number or -number with no `_`; the subject calls nothing;
+;         `else` once and last; never an operand: gen-c's ternaries, #7419)
 ;   EXPR: or and == != < > <= >= | ^ & << >> + - * / % ; unary - ! ~ ;
 ;         X as SCALAR ; f(args) ; a[i] ; a[i][j] ; ( EXPR ) ; number ; 'c' ;
 ;         true false                                (no `defer`: #7352)
@@ -107,6 +113,10 @@ const T_SHR: i64 = 284;
 const T_POW: i64 = 285;
 const T_BAD: i64 = 286;
 const T_OPEQ: i64 = 287;
+const T_FOR: i64 = 288;
+const T_SWITCH: i64 = 289;
+const T_DOTDOT: i64 = 290;
+const T_ARM: i64 = 291;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
 const N_NUM: i64 = 1;
@@ -121,6 +131,8 @@ const N_INDEX: i64 = 9;
 const N_CALL: i64 = 10;
 const N_NEGLIT: i64 = 11;
 const N_LIST: i64 = 12;
+const N_SWITCH: i64 = 13;
+const N_ARM: i64 = 14;
 const S_LOCAL: i64 = 20;
 const S_ASSIGN: i64 = 21;
 const S_EXPR: i64 = 22;
@@ -129,6 +141,7 @@ const S_WHILE: i64 = 24;
 const S_BREAK: i64 = 25;
 const S_CONTINUE: i64 = 26;
 const S_RETURN: i64 = 27;
+const S_FOR: i64 = 28;
 const D_CONST: i64 = 40;
 const D_VAR: i64 = 41;
 const D_ARRAY: i64 = 42;
@@ -423,10 +436,16 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_STRUCT, 0, 6) or tok_is(t, W_INVARIA, 't', 9)) {
         return T_BAD;
     }
-    if (tok_is(t, W_BENCH, 0, 5) or tok_is(t, W_FOR, 0, 3) or tok_is(t, W_TRY, 0, 3)) {
+    if (tok_is(t, W_FOR, 0, 3)) {
+        return T_FOR;
+    }
+    if (tok_is(t, W_SWITCH, 0, 6)) {
+        return T_SWITCH;
+    }
+    if (tok_is(t, W_BENCH, 0, 5) or tok_is(t, W_TRY, 0, 3)) {
         return T_BAD;
     }
-    if (tok_is(t, W_SWITCH, 0, 6) or tok_is(t, W_USING, 0, 5) or tok_is(t, W_USE, 0, 3)) {
+    if (tok_is(t, W_USING, 0, 5) or tok_is(t, W_USE, 0, 3)) {
         return T_BAD;
     }
     if (tok_is(t, W_PRAGMA, 0, 6) or tok_is(t, W_IN, 0, 2)) {
@@ -469,13 +488,13 @@ fn pair_kind(c: i64, d: i64) -> i64 {
         return T_OR;
     }
     if (c == '=' and d == '>') {
-        return T_BAD;
+        return T_ARM;
     }
     if (c == '+' and d == '+') {
         return T_BAD;
     }
     if (c == '.' and d == '.') {
-        return T_BAD;
+        return T_DOTDOT;
     }
     if (d == '=' and (c == '+' or c == '-' or c == '*' or c == '/')) {
         return T_OPEQ;
@@ -987,6 +1006,102 @@ fn parse_if() -> i64 {
     return n;
 }
 
+; for (A..B) |i| { }: gen-c writes `for (size_t i = A; i < B; i++)` and reads
+; B on every pass, so `check` holds B fixed (#7307, #7420).
+fn parse_for() -> i64 {
+    var t: i64 = p;
+    advance();
+    expect('(');
+    var lo: i64 = parse_expr();
+    expect(T_DOTDOT);
+    var hi: i64 = parse_expr();
+    expect(')');
+    expect('|');
+    var cap: i64 = p;
+    expect(T_IDENT);
+    expect('|');
+    var n: i64 = mk(S_FOR, t, lo, parse_block());
+    nd_c[n as usize] = hi;
+    nd_aux[n as usize] = cap;
+    return n;
+}
+
+; One arm: nd_aux 0 for a number label, 1 for -number, 2 for `else`. gen-c
+; upper-cases a char or name label and keeps a `_` in a number (#7419).
+fn parse_arm() -> i64 {
+    var t: i64 = p;
+    var how: i64 = 0;
+    if (cur() == T_ELSE) {
+        how = 2;
+        advance();
+    } else {
+        if (cur() == '-') {
+            how = 1;
+            advance();
+            t = p;
+        }
+        if (cur() != T_NUM or has_sep(t)) {
+            fail(E_SYNTAX, tpos(t));
+            return 0;
+        }
+        advance();
+    }
+    expect(T_ARM);
+    var arm: i64 = mk(N_ARM, t, parse_value(), 0);
+    nd_aux[arm as usize] = how;
+    return arm;
+}
+
+; gen-c writes a switch as `(s == L) ? (v) : ... : e`, the subject once per
+; arm; `else` anywhere but last, or missing, does not survive (#7308, #7419).
+fn parse_switch() -> i64 {
+    var t: i64 = p;
+    advance();
+    expect('(');
+    var subj: i64 = parse_expr();
+    expect(')');
+    expect(K_LBRACE);
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    while (!failed and cur() != K_RBRACE) {
+        if (tail != 0 and naux(tail) == 2) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+        var arm: i64 = parse_arm();
+        if (failed) {
+            return 0;
+        }
+        if (head == 0) {
+            head = arm;
+        } else {
+            nd_next[tail as usize] = arm;
+        }
+        tail = arm;
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    if (!failed and (tail == 0 or naux(tail) != 2)) {
+        fail(E_SYNTAX, tpos(t));
+        return 0;
+    }
+    return mk(N_SWITCH, t, subj, head);
+}
+
+; A whole value: C's `?:` binds looser than every operator gen-c writes
+; around it, so a switch is never an operand (#7419).
+fn parse_value() -> i64 {
+    if (cur() == T_SWITCH) {
+        return parse_switch();
+    }
+    return parse_expr();
+}
+
 fn parse_stmt() -> i64 {
     var k: i64 = cur();
     var t: i64 = p;
@@ -997,7 +1112,7 @@ fn parse_stmt() -> i64 {
         expect(':');
         var ty: i64 = expect_scalar();
         expect('=');
-        var init: i64 = parse_expr();
+        var init: i64 = parse_value();
         expect(';');
         var n: i64 = mk(S_LOCAL, name, init, 0);
         nd_aux[n as usize] = ty;
@@ -1005,6 +1120,9 @@ fn parse_stmt() -> i64 {
     }
     if (k == T_IF) {
         return parse_if();
+    }
+    if (k == T_FOR) {
+        return parse_for();
     }
     if (k == T_WHILE) {
         p = p + 1;
@@ -1029,7 +1147,7 @@ fn parse_stmt() -> i64 {
             p = p + 1;
             return mk(S_RETURN, t, 0, 0);
         }
-        var v: i64 = parse_expr();
+        var v: i64 = parse_value();
         expect(';');
         return mk(S_RETURN, t, v, 0);
     }
@@ -1049,7 +1167,7 @@ fn parse_stmt() -> i64 {
                 op = p;
             }
             p = p + 1;
-            var rhs: i64 = parse_expr();
+            var rhs: i64 = parse_value();
             expect(';');
             var asg: i64 = mk(S_ASSIGN, t, lhs, rhs);
             nd_c[asg as usize] = op;
@@ -1426,9 +1544,133 @@ fn rank(t: i64) -> i64 {
     return 0;
 }
 
+fn mentions_call(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (e == 0) {
+        return false;
+    }
+    if (k == N_CALL) {
+        return true;
+    }
+    if (k == N_BIN or k == N_INDEX) {
+        return mentions_call(na(e)) or mentions_call(nb(e));
+    }
+    if (k == N_UN or k == N_CAST) {
+        return mentions_call(na(e));
+    }
+    if (k == N_SWITCH) {
+        if (mentions_call(na(e))) {
+            return true;
+        }
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            if (mentions_call(na(arm))) {
+                return true;
+            }
+            arm = nnext(arm);
+        }
+    }
+    return false;
+}
+
+; Whether a statement list makes a call, at any depth.
+fn calls_in(head: i64) -> bool {
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        if (k == S_EXPR or mentions_call(na(s))) {
+            return true;
+        }
+        if (k == S_ASSIGN and mentions_call(nb(s))) {
+            return true;
+        }
+        if (k == S_IF and (calls_in(nb(s)) or calls_in(nc(s)))) {
+            return true;
+        }
+        if ((k == S_WHILE or k == S_FOR) and calls_in(nb(s))) {
+            return true;
+        }
+        if (k == S_FOR and mentions_call(nc(s))) {
+            return true;
+        }
+        s = nnext(s);
+    }
+    return false;
+}
+
+; Whether a statement list assigns the name `t`, at any depth.
+fn assigns(head: i64, t: i64) -> bool {
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        if (k == S_ASSIGN and tok_eq(ntok(na(s)), t)) {
+            return true;
+        }
+        if (k == S_IF and (assigns(nb(s), t) or assigns(nc(s), t))) {
+            return true;
+        }
+        if ((k == S_WHILE or k == S_FOR) and assigns(nb(s), t)) {
+            return true;
+        }
+        s = nnext(s);
+    }
+    return false;
+}
+
+fn is_module_var(t: i64) -> bool {
+    var d: i64 = decls;
+    while (d != 0) {
+        if ((nkind(d) == D_VAR or nkind(d) == D_ARRAY) and tok_eq(ntok(d), t)) {
+            return true;
+        }
+        d = nnext(d);
+    }
+    return false;
+}
+
+; Whether `e` may change while `body` runs: a call, a name the body assigns,
+; or a module var when the body calls anything.
+fn varies(e: i64, body: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (e == 0) {
+        return false;
+    }
+    if (k == N_CALL) {
+        return true;
+    }
+    if (k == N_IDENT or k == N_INDEX) {
+        if (assigns(body, ntok(e))) {
+            return true;
+        }
+        if (is_module_var(ntok(e)) and calls_in(body)) {
+            return true;
+        }
+    }
+    if (k == N_BIN or k == N_INDEX) {
+        return varies(na(e), body) or varies(nb(e), body);
+    }
+    if (k == N_UN or k == N_CAST) {
+        return varies(na(e), body);
+    }
+    return false;
+}
+
 fn check_expr(e: i64) -> void {
     var k: i64 = nkind(e);
     if (failed or e == 0) {
+        return;
+    }
+    if (k == N_SWITCH) {
+        if (mentions_call(na(e))) {
+            fail(E_SYNTAX, tpos(ntok(e)));
+            return;
+        }
+        check_expr(na(e));
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            check_expr(na(arm));
+            arm = nnext(arm);
+        }
         return;
     }
     if (k == N_IDENT and tok_is(ntok(e), W_UNDEFINE, 'd', 9)) {
@@ -1543,6 +1785,14 @@ fn check_stmts(head: i64, test_body: i64) -> void {
         } else if (k == S_WHILE) {
             check_expr(na(s));
             check_stmts(nb(s), 0);
+        } else if (k == S_FOR) {
+            check_expr(na(s));
+            check_expr(nc(s));
+            if (!failed and varies(nc(s), nb(s))) {
+                fail(E_SYNTAX, tpos(ntok(s)));
+                return;
+            }
+            check_stmts(nb(s), 0);
         } else {
             check_expr(na(s));
         }
@@ -1619,6 +1869,39 @@ fn emit_items(head: i64) -> void {
     }
 }
 
+; The last arm is `else` (parse_switch): every other one is followed by ` : `.
+fn emit_switch(e: i64) -> void {
+    var arm: i64 = nb(e);
+    while (arm != 0) {
+        if (naux(arm) == 2) {
+            emit_expr(na(arm));
+        } else {
+            put('(');
+            emit_expr(na(e));
+            t_eq();
+            if (naux(arm) == 1) {
+                put('-');
+            }
+            put_tok(ntok(arm));
+            t_then();
+            emit_expr(na(arm));
+            put(')');
+            t_colon();
+        }
+        arm = nnext(arm);
+    }
+}
+
+; A `_` capture names nothing, so gen-c names the counter `__t27_i`.
+fn emit_counter(s: i64) -> void {
+    var t: i64 = naux(s);
+    if (tk_len[t as usize] == 1 and src[(tk_pos[t as usize]) as usize] == '_') {
+        t_hidden_i();
+    } else {
+        put_tok(t);
+    }
+}
+
 fn emit_expr(e: i64) -> void {
     var k: i64 = nkind(e);
     if (k == N_BIN) {
@@ -1667,6 +1950,8 @@ fn emit_expr(e: i64) -> void {
         emit_items(na(e));
         put(' ');
         put(K_RBRACE);
+    } else if (k == N_SWITCH) {
+        emit_switch(e);
     } else {
         put_tok(ntok(e));
     }
@@ -1750,6 +2035,21 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
         t_close_brace();
     } else if (k == S_IF) {
         emit_if_tail(s, lvl);
+    } else if (k == S_FOR) {
+        t_kw_for();
+        emit_counter(s);
+        t_assign();
+        emit_expr(na(s));
+        t_semi_sp();
+        emit_counter(s);
+        t_less();
+        emit_expr(nc(s));
+        t_semi_sp();
+        emit_counter(s);
+        t_for_body();
+        emit_stmts(nb(s), lvl + 1);
+        indent(lvl);
+        t_close_brace();
     }
 }
 
@@ -2205,6 +2505,91 @@ test assert_outside_tests_takes_the_header {
     assert(!has_tests);
 }
 
+; "module m;fn f(n: usize) -> usize {var s: usize = 0;for (0..n) |_| {s += 1;}
+; return s;}": `for (size_t __t27_i = 0; ...`, 821 bytes in all (#7307).
+test for_writes_a_size_t_counter {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a6e2866206e663b, 8, n1);
+    var n3: i64 = feed(0x2029657a69737520, 8, n2);
+    var n4: i64 = feed(0x657a697375203e2d, 8, n3);
+    var n5: i64 = feed(0x3a73207261767b20, 8, n4);
+    var n6: i64 = feed(0x3d20657a69737520, 8, n5);
+    var n7: i64 = feed(0x2820726f663b3020, 8, n6);
+    var n8: i64 = feed(0x5f7c20296e2e2e30, 8, n7);
+    var n9: i64 = feed(0x203d2b20737b207c, 8, n8);
+    var n10: i64 = feed(0x72757465727d3b31, 8, n9);
+    var n11: i64 = feed(0x7d3b73206e, 5, n10);
+    assert(compile(n11) == 821);
+    assert(out_at(714) == 'f');
+    assert(out_at(719) == 's');
+    assert(out_at(726) == '_');
+    assert(out_at(732) == 'i');
+}
+
+; "module m;fn f(x: i64) -> i64 {return switch (x) {1 => 2, else => 3};}":
+; `return (x == 1) ? (2) : 3;`, 747 bytes in all (#7308).
+test switch_writes_a_ternary {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x697773206e727574, 8, n4);
+    var n6: i64 = feed(0x2029782820686374, 8, n5);
+    var n7: i64 = feed(0x2c32203e3d20317b, 8, n6);
+    var n8: i64 = feed(0x3e3d2065736c6520, 8, n7);
+    var n9: i64 = feed(0x7d3b7d3320, 5, n8);
+    assert(compile(n9) == 747);
+    assert(out_at(716) == '?');
+    assert(out_at(722) == ':');
+}
+
+; "module m;fn f(x: i64) -> i64 {return switch (x) {1 => 2};}": no `else`.
+test switch_without_else_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x697773206e727574, 8, n4);
+    var n6: i64 = feed(0x2029782820686374, 8, n5);
+    var n7: i64 = feed(0x7d32203e3d20317b, 8, n6);
+    var n8: i64 = feed(0x7d3b, 2, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;fn f(x: i64) -> i64 {return 1 + switch (x) {else => 3};}": C
+; would add before it compares (#7419).
+test switch_as_an_operand_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x2b2031206e727574, 8, n4);
+    var n6: i64 = feed(0x2068637469777320, 8, n5);
+    var n7: i64 = feed(0x736c657b20297828, 8, n6);
+    var n8: i64 = feed(0x3b7d33203e3d2065, 8, n7);
+    var n9: i64 = feed(0x7d, 1, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;fn f(n: usize) -> void {var e: usize = n;for (0..e) |i| {e = i;}}":
+; C reads the end on every pass, Zig once.
+test for_end_assigned_in_its_body_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a6e2866206e663b, 8, n1);
+    var n3: i64 = feed(0x2029657a69737520, 8, n2);
+    var n4: i64 = feed(0x2064696f76203e2d, 8, n3);
+    var n5: i64 = feed(0x203a65207261767b, 8, n4);
+    var n6: i64 = feed(0x203d20657a697375, 8, n5);
+    var n7: i64 = feed(0x302820726f663b6e, 8, n6);
+    var n8: i64 = feed(0x7c697c2029652e2e, 8, n7);
+    var n9: i64 = feed(0x3b69203d20657b20, 8, n8);
+    var n10: i64 = feed(0x7d7d, 2, n9);
+    assert(compile(n10) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
 test put_int_writes_decimal {
     reset_out();
     put_int(907);
@@ -2601,5 +2986,46 @@ fn t_cast_close() -> void {
 ; , 
 fn t_comma() -> void {
     w(0x202c, 2);
+}
+
+; for (size_t 
+fn t_kw_for() -> void {
+    w(0x7a69732820726f66, 8);
+    w(0x20745f65, 4);
+}
+
+; __t27_i
+fn t_hidden_i() -> void {
+    w(0x695f3732745f5f, 7);
+}
+
+; ; 
+fn t_semi_sp() -> void {
+    w(0x203b, 2);
+}
+
+;  < 
+fn t_less() -> void {
+    w(0x203c20, 3);
+}
+
+; ++) {\n
+fn t_for_body() -> void {
+    w(0xa7b20292b2b, 6);
+}
+
+;  == 
+fn t_eq() -> void {
+    w(0x203d3d20, 4);
+}
+
+; ) ? (
+fn t_then() -> void {
+    w(0x28203f2029, 5);
+}
+
+;  : 
+fn t_colon() -> void {
+    w(0x203a20, 3);
 }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin or a `std.math` fn,
-; written in t27 (issues #7391, #7217 and #7791, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log),
-; std.math.nan, isNan, isPositiveInf, isNegativeInf).
+; written in t27 (issues #7391, #7217, #7791 and #7819, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log),
+; std.math.nan, isNan, isPositiveInf, isNegativeInf, and @floor, @ceil, @round, @trunc and @rem of an f32).
 ; `t27c test-report` runs `zig test` without libc, so a run-time `@exp(x)` is a call into Zig's
 ; compiler_rt: `exp` for an f64 and `expf` for an f32, both ports of the FreeBSD/musl fdlibm code.
 ; A run-time `@log(x)` of an f64 is compiler_rt's `log`, a port of musl's table-driven log.c.
@@ -453,6 +453,193 @@ fn t27b_libm_isneginf(t27b_x: f64) -> bool {
 fn t27b_libm_isneginff(t27b_x: f32) -> bool {
     const t27b_inf: f32 = @bitCast(t27b_libm_inf32);
     return t27b_x == -t27b_inf;
+}
+
+// The f32 rounding builtins and `@rem` (#7819, for specs/numeric/gf16.t27). Measured on the t27c lab (zig 0.16.0,
+// x86_64 Debug, a CPU with SSE4.1): `@floor`, `@ceil` and `@trunc` of an f32 are `roundss`, exact, and a signalling
+// NaN comes back quieted (0x7F800001 gives 0x7FC00001), as aarch64's frintm / frintp / frintz give it. `@round` is a
+// call of compiler_rt `roundf`, which returns a NaN as it is; `@rem` is compiler_rt `fmodf`. The ports below are
+// compiler_rt's (floor_ceil.zig, round.zig, trunc.zig, fmod.zig: musl's floorf.c, ceilf.c, roundf.c, truncf.c,
+// fmodf.c), step for step on the bits, with one change: `floorf`, `ceilf` and `truncf` quiet a NaN (`x + x`, which
+// keeps its sign and payload), as the instruction does. compiler_rt shifts bits out at the top (`u << 1 == 0`,
+// `ux << 9`); those tests read the same bits through a mask here.
+const t27b_libm_frac32: u32 = 0x007FFFFF;
+const t27b_libm_ones32: u32 = 0xFFFFFFFF;
+const t27b_libm_negzero32: u32 = 0x80000000;
+
+// compiler_rt `floorf` (`impl(f32, .floor, x)`).
+fn t27b_libm_floorf(t27b_x: f32) -> f32 {
+    if (t27b_x != t27b_x) {
+        return t27b_x + t27b_x;
+    }
+    var t27b_u: u32 = @bitCast(t27b_x);
+    const t27b_be: i32 = @intCast((t27b_u >> 23) & 0xFF);
+    const t27b_e: i32 = t27b_be - 127;
+    if (t27b_e >= 23) {
+        return t27b_x;
+    }
+    if (t27b_e >= 0) {
+        const t27b_m: u32 = t27b_libm_frac32 >> t27b_e;
+        if ((t27b_u & t27b_m) == 0) {
+            return t27b_x;
+        }
+        if ((t27b_u >> 31) == 1) {
+            t27b_u = t27b_u + t27b_m;
+        }
+        return @bitCast(t27b_u & (t27b_libm_ones32 ^ t27b_m));
+    }
+    if ((t27b_u >> 31) == 0) {
+        return 0.0;
+    }
+    if ((t27b_u & 0x7FFFFFFF) != 0) {
+        return -1.0;
+    }
+    return t27b_x;
+}
+
+// compiler_rt `ceilf` (`impl(f32, .ceil, x)`).
+fn t27b_libm_ceilf(t27b_x: f32) -> f32 {
+    if (t27b_x != t27b_x) {
+        return t27b_x + t27b_x;
+    }
+    var t27b_u: u32 = @bitCast(t27b_x);
+    const t27b_be: i32 = @intCast((t27b_u >> 23) & 0xFF);
+    const t27b_e: i32 = t27b_be - 127;
+    if (t27b_e >= 23) {
+        return t27b_x;
+    }
+    if (t27b_e >= 0) {
+        const t27b_m: u32 = t27b_libm_frac32 >> t27b_e;
+        if ((t27b_u & t27b_m) == 0) {
+            return t27b_x;
+        }
+        if ((t27b_u >> 31) == 0) {
+            t27b_u = t27b_u + t27b_m;
+        }
+        return @bitCast(t27b_u & (t27b_libm_ones32 ^ t27b_m));
+    }
+    if ((t27b_u >> 31) != 0) {
+        return @bitCast(t27b_libm_negzero32);
+    }
+    if ((t27b_u & 0x7FFFFFFF) != 0) {
+        return 1.0;
+    }
+    return t27b_x;
+}
+
+// compiler_rt `roundf`: half away from zero. `f32_toint` is 1 / floatEps(f32) = 2^23.
+fn t27b_libm_roundf(t27b_x0: f32) -> f32 {
+    var t27b_x: f32 = t27b_x0;
+    const t27b_u: u32 = @bitCast(t27b_x0);
+    const t27b_e: u32 = (t27b_u >> 23) & 0xFF;
+    if (t27b_e >= 150) {
+        return t27b_x;
+    }
+    if ((t27b_u >> 31) != 0) {
+        t27b_x = -t27b_x;
+    }
+    if (t27b_e < 126) {
+        return 0.0 * t27b_x0;
+    }
+    var t27b_y: f32 = t27b_x + 8388608.0 - 8388608.0 - t27b_x;
+    if (t27b_y > 0.5) {
+        t27b_y = t27b_y + t27b_x - 1.0;
+    } else if (t27b_y <= -0.5) {
+        t27b_y = t27b_y + t27b_x + 1.0;
+    } else {
+        t27b_y = t27b_y + t27b_x;
+    }
+    if ((t27b_u >> 31) != 0) {
+        return -t27b_y;
+    }
+    return t27b_y;
+}
+
+// compiler_rt `truncf`.
+fn t27b_libm_truncf(t27b_x: f32) -> f32 {
+    if (t27b_x != t27b_x) {
+        return t27b_x + t27b_x;
+    }
+    const t27b_u: u32 = @bitCast(t27b_x);
+    const t27b_be: i32 = @intCast((t27b_u >> 23) & 0xFF);
+    var t27b_e: i32 = t27b_be - 127 + 9;
+    if (t27b_e >= 32) {
+        return t27b_x;
+    }
+    if (t27b_e < 9) {
+        t27b_e = 1;
+    }
+    const t27b_m: u32 = t27b_libm_ones32 >> t27b_e;
+    if ((t27b_u & t27b_m) == 0) {
+        return t27b_x;
+    }
+    return @bitCast(t27b_u & (t27b_libm_ones32 ^ t27b_m));
+}
+
+// compiler_rt `fmodf` (`generic_fmod(f32, x, y)`): the remainder of x / y truncated toward zero, exact, with the sign
+// of x. compiler_rt's `i = ux -% uy; if (i >> 31 == 0)` is `ux >= uy` here: both are below 2^25 at that point.
+fn t27b_libm_fmodf(t27b_x: f32, t27b_y: f32) -> f32 {
+    var t27b_ux: u32 = @bitCast(t27b_x);
+    var t27b_uy: u32 = @bitCast(t27b_y);
+    var t27b_ex: i32 = @intCast((t27b_ux >> 23) & 0xFF);
+    var t27b_ey: i32 = @intCast((t27b_uy >> 23) & 0xFF);
+    const t27b_sx: u32 = t27b_ux & 0x80000000;
+    if ((t27b_uy & 0x7FFFFFFF) == 0 or t27b_y != t27b_y or t27b_ex == 255) {
+        return (t27b_x * t27b_y) / (t27b_x * t27b_y);
+    }
+    if ((t27b_ux & 0x7FFFFFFF) <= (t27b_uy & 0x7FFFFFFF)) {
+        if ((t27b_ux & 0x7FFFFFFF) == (t27b_uy & 0x7FFFFFFF)) {
+            return 0.0 * t27b_x;
+        }
+        return t27b_x;
+    }
+    if (t27b_ex == 0) {
+        var t27b_i: u32 = (t27b_ux & t27b_libm_frac32) << 9;
+        while ((t27b_i >> 31) == 0) {
+            t27b_ex = t27b_ex - 1;
+            t27b_i = t27b_i << 1;
+        }
+        t27b_ux = (t27b_ux & t27b_libm_frac32) << (1 - t27b_ex);
+    } else {
+        t27b_ux = (t27b_ux & t27b_libm_frac32) | 0x00800000;
+    }
+    if (t27b_ey == 0) {
+        var t27b_j: u32 = (t27b_uy & t27b_libm_frac32) << 9;
+        while ((t27b_j >> 31) == 0) {
+            t27b_ey = t27b_ey - 1;
+            t27b_j = t27b_j << 1;
+        }
+        t27b_uy = (t27b_uy & t27b_libm_frac32) << (1 - t27b_ey);
+    } else {
+        t27b_uy = (t27b_uy & t27b_libm_frac32) | 0x00800000;
+    }
+    while (t27b_ex > t27b_ey) {
+        if (t27b_ux >= t27b_uy) {
+            if (t27b_ux == t27b_uy) {
+                return 0.0 * t27b_x;
+            }
+            t27b_ux = t27b_ux - t27b_uy;
+        }
+        t27b_ux = t27b_ux << 1;
+        t27b_ex = t27b_ex - 1;
+    }
+    if (t27b_ux >= t27b_uy) {
+        if (t27b_ux == t27b_uy) {
+            return 0.0 * t27b_x;
+        }
+        t27b_ux = t27b_ux - t27b_uy;
+    }
+    while ((t27b_ux >> 23) == 0) {
+        t27b_ux = t27b_ux << 1;
+        t27b_ex = t27b_ex - 1;
+    }
+    if (t27b_ex > 0) {
+        const t27b_eu: u32 = @intCast(t27b_ex);
+        t27b_ux = (t27b_ux - 0x00800000) | (t27b_eu << 23);
+    } else {
+        t27b_ux = t27b_ux >> (1 - t27b_ex);
+    }
+    return @bitCast(t27b_ux | t27b_sx);
 }
 
 // ---------------------------------------------------------------- tests
