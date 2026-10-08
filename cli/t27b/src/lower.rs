@@ -73,6 +73,9 @@
 mod arraylit;
 mod floatas;
 mod formulti;
+/// Which call is the `.len` field: `specs/tri/t27b/lencall.t27`, t27c gen-rust.
+#[path = "../../../gen/rust/tri/t27b/lencall.rs"]
+#[allow(dead_code, unused_parens)]
 mod lencall;
 mod stdmem;
 mod unanalyzed;
@@ -7929,5 +7932,30 @@ fn zig_syntax_defects(ns: &[Node], line: u32, found: &mut Vec<(u32, &'static str
             _ => {}
         }
         zig_syntax_defects(&n.children, at, found);
+    }
+}
+
+/// `x.len()` and `len(x)` lower as the length FIELD, as t27c's Zig backend
+/// prints both (W570; Zig has no `len` method on a slice or an array). Which
+/// call stands for which receiver is decided by the `lencall` module above;
+/// this only builds the field access it names.
+impl<'a> Lower<'a> {
+    fn len_call(&mut self, c: &Node) -> R<Option<Val>> {
+        let declared = self.sigs.contains_key("len") || self.poison_names.contains("len");
+        let recv = match lencall::receiver(c.extra_kind == "method", c.children.len(), c.name.as_bytes().to_vec(), declared) {
+            lencall::RECV_CHILD => c.children[0].clone(),
+            lencall::RECV_PATH => {
+                let mut segs = c.name[..c.name.len() - 4].split('.');
+                let first = segs.next().unwrap_or_default();
+                let mut n = Node { kind: NodeKind::ExprIdentifier, name: first.into(), line: c.line, ..Node::default() };
+                for s in segs {
+                    n = Node { kind: NodeKind::ExprFieldAccess, name: s.into(), line: c.line, children: vec![n], ..Node::default() };
+                }
+                n
+            }
+            _ => return Ok(None),
+        };
+        let field = Node { kind: NodeKind::ExprFieldAccess, name: "len".into(), line: c.line, children: vec![recv], ..Node::default() };
+        self.expr(&field).map(Some)
     }
 }
