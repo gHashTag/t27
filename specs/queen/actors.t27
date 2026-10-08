@@ -707,8 +707,10 @@ pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u3
 
 ; Bounded mailboxes: an unbounded one hides a stuck runtime until memory runs out (section 2).
 ; No hot code swap: a new build is a retired runtime and a fresh one (control.t27 RETIRED).
-; No transparent distribution: a pid is local to one host; across hosts liveness is the lease and its
-;   heartbeat, and a cross-host DOWN is only ever X_NOCONNECTION (section 6).
+; Transparent distribution: a pid carries its node identity and remote send yields X_NOCONNECTION
+;   for a down node (section 9).
+; Preemptive slices: between turns, a slice bounds the turns; within a turn, OS thread/process isolation
+;   ensures a kill really stops (section 8).
 ; No reductions scheduler: fairness is the host's; a runtime is an OS process or a container.
 ; No global name registry: the store is the only directory of who holds what.
 ; No exit(self, normal) quirk: the BEAM kills a non-trapping process that sends itself a normal exit
@@ -716,13 +718,14 @@ pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u3
 ;   whoever sent it (section 3).
 pub const MAILBOX_BOUNDED : bool = true;
 pub const HOT_CODE_SWAP : bool = false;
-pub const TRANSPARENT_DISTRIBUTION : bool = false;
+pub const TRANSPARENT_DISTRIBUTION : bool = true;
+pub const PREEMPTIVE_SLICES : bool = true;
 pub const PREEMPTIVE_REDUCTIONS : bool = false;
 pub const GLOBAL_NAME_REGISTRY : bool = false;
 
 invariant a_model_box_is_one_u64 { assert MBOX_SLOTS * SLOT_BITS == 64 and NO_MATCH == MBOX_SLOTS; }
 invariant a_tag_fills_one_slot { assert TAG_MASK + 1 == 1 << SLOT_BITS; }
-invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION == false and PREEMPTIVE_REDUCTIONS == false and GLOBAL_NAME_REGISTRY == false; }
+invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION == true and PREEMPTIVE_SLICES == true and PREEMPTIVE_REDUCTIONS == false and GLOBAL_NAME_REGISTRY == false; }
 invariant the_control_lane_is_one_u64 { assert CTL_TAGS == 64 and CTL_BIT == 1 and UNSTABLE_GIVE_UP > DOMAIN_MAX_RESTARTS; }
 invariant kill_is_a_signal_and_killed_a_reason { assert X_KILL != X_KILLED; }
 invariant none_is_outside_every_reason { assert X_NONE > X_NOCONNECTION; }
@@ -739,6 +742,125 @@ invariant a_refused_start_is_its_own_answer { assert START_OK == 0 and START_MAX
 /// root, intake, reconciler, 4 domain supervisors (control.t27 DOMAIN_COUNT) and 4 x 4 agents (DOMAIN_CAP,
 /// held by start_answer) take slots 1..23; slot 0 is nobody. The depth bound must be reachable inside the model.
 invariant the_queens_tree_fits_the_call_chain { assert 1 + root_children(4) + 4 * 4 < CHAIN_SLOTS and CALL_MAX_DEPTH + 1 < CHAIN_SLOTS; }
+
+; --- 8. Preemption in two halves ---------------------------------------------------------------------
+
+; Between turns: a slice bounds the number of turns and their wall-clock time. When a slice ends,
+; the runtime yields even if it has work left; the next turn starts in the next slice.
+; Within a turn: OS thread/process isolation ensures a kill really stops the runtime. The isolation
+; is the host's responsibility; this spec defines the effect (kill_effect) and what holds after
+; (holds_after_kill), not how the isolation is implemented.
+pub const SLICE_TURNS : u32 = 100;
+pub const SLICE_MICROS : u32 = 1000000;
+
+/// Time spent in this slice: turns taken and microseconds used. A slice ends when either bound is hit.
+pub fn slice_spent(turns_taken: u32, micros_used: u32) -> bool {
+    return turns_taken >= SLICE_TURNS or micros_used >= SLICE_MICROS;
+}
+
+/// Turn isolation: the runtime runs in an OS thread or process that a kill really stops. The isolation
+/// is not part of this model; the functions below define the observable effects.
+pub const TURN_ISOLATION : bool = true;
+
+/// What a kill signal does to an isolated runtime. X_KILL is sent to the isolated runtime; it dies
+/// of X_KILLED, which its own links see as an ordinary reason, so a trapping neighbour survives it.
+pub fn kill_effect(isolated: bool, signal: u8) -> u8 {
+    if (isolated == false) { return signal; }
+    if (signal == X_KILL) { return X_KILLED; }
+    return signal;
+}
+
+/// What holds after a kill in an isolated runtime. The runtime's state is gone: its mailbox is empty,
+/// its links are broken, its monitors are cleared. Only the pid's slot and generation remain (for the
+/// next restart, if any). The isolation ensures no partial state leaks.
+pub fn holds_after_kill(isolated: bool) -> bool {
+    return isolated;
+}
+
+; --- 9. Nodes ---------------------------------------------------------------------------------------
+
+; A pid carries its node identity. Node liveness is tracked by a lease: a node is up if it sends
+; heartbeats within the TTL; if it stops, it is marked down and remote send yields X_NOCONNECTION.
+; Placement is the act of choosing which node runs a new pid.
+pub const NODE_HEARTBEAT_SECONDS : u32 = 30;
+pub const NODE_TTL_SECONDS : u32 = 90;
+
+/// A pid carries its node in its high bits (above the generation). Node 0 is local, node 1+ are remote.
+/// The node identity is packed with the slot in the pid: (node << 48) | (slot << 32) | gen.
+pub const NODE_BITS : u64 = 16;
+pub const NODE_MASK : u64 = 65535;
+pub const NODE_LOCAL : u64 = 0;
+
+/// Pack a pid with node, slot and generation.
+pub fn node_pid(node: u64, slot: u64, gen: u64) -> u64 {
+    if (node > NODE_MASK) { return NO_PID; }
+    if (slot == 0) { return NO_PID; }
+    if (slot > GEN_MASK) { return NO_PID; }
+    return (node << 48) | (slot << 32) | (gen & GEN_MASK);
+}
+
+/// Extract the node from a pid.
+pub fn node_of(pid: u64) -> u64 {
+    return (pid >> 48) & NODE_MASK;
+}
+
+/// Check if a pid is local (node 0).
+pub fn local_of(pid: u64) -> bool {
+    return node_of(pid) == NODE_LOCAL;
+}
+
+/// Check if a pid is remote (node != 0).
+pub fn is_remote(pid: u64) -> bool {
+    return node_of(pid) != NODE_LOCAL;
+}
+
+/// Node liveness: a node is up if it sent a heartbeat within the TTL. The heartbeat is tracked
+/// externally; this function models the lease logic.
+pub fn node_heartbeat_valid(last_heartbeat_seconds_ago: u32) -> bool {
+    return last_heartbeat_seconds_ago < NODE_TTL_SECONDS;
+}
+
+/// Node up state: true if the node is live (heartbeat within TTL), false otherwise.
+pub fn node_up(last_heartbeat_seconds_ago: u32) -> bool {
+    return node_heartbeat_valid(last_heartbeat_seconds_ago);
+}
+
+/// Send to a remote pid. If the target node is down, yield X_NOCONNECTION and do not deliver.
+/// If the target node is up, behave like a local send (the delivery logic is the same).
+pub fn send_remote(target_reached: bool, target_node_up: bool, queued: u32, cap: u32) -> u8 {
+    if (target_node_up == false) { return X_NOCONNECTION; }
+    return deliver(target_reached, queued, cap);
+}
+
+/// Remote node down: a node that is down yields X_NOCONNECTION for any remote send.
+pub fn remote_down(target_node_up: bool) -> u8 {
+    if (target_node_up == false) { return X_NOCONNECTION; }
+    return X_NONE;
+}
+
+/// Actor placement: choose which node runs a new pid. This function models the placement decision.
+/// The placement logic is external; this function defines the interface.
+pub fn place_before(candidate_nodes: u64, preferred_node: u64) -> u64 {
+    // candidate_nodes: bit mask of available nodes (bit 0 = local, bit 1+ = remote)
+    // preferred_node: preferred node (0 = local, 1+ = remote)
+    // Return: chosen node
+    
+    if (preferred_node != NODE_LOCAL and (candidate_nodes & (1 << preferred_node)) != 0) {
+        return preferred_node;
+    }
+    if ((candidate_nodes & 1) != 0) {
+        return NODE_LOCAL;  // prefer local if available
+    }
+    // find the first available remote node
+    var node : u64 = 1;
+    while (node <= NODE_MASK) {
+        if ((candidate_nodes & (1 << node)) != 0) {
+            return node;
+        }
+        node = node + 1;
+    }
+    return NODE_LOCAL;  // fallback to local if no remote available
+}
 
 test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
     var old : u64 = pid_of(5, 7);
@@ -1247,4 +1369,109 @@ test a_full_domain_refuses_a_new_start_and_still_restarts_a_crashed_agent {
     assert start_answer(3, 0, 2) == START_MAX_CHILDREN;
     assert start_answer(0, 0, 0) == START_MAX_CHILDREN;
     assert start_answer(0, 0, 1) == START_OK;
+}
+
+test slice_spent_ends_when_turns_or_micros_limit_is_hit {
+    assert slice_spent(0, 0) == false;
+    assert slice_spent(99, 999999) == false;
+    assert slice_spent(100, 0) == true;
+    assert slice_spent(0, 1000000) == true;
+    assert slice_spent(100, 999999) == true;
+    assert slice_spent(99, 1000000) == true;
+    assert slice_spent(101, 500000) == true;
+    assert slice_spent(50, 1000001) == true;
+}
+
+test turn_isolation_ensures_kill_stops_and_killed_is_ordinary {
+    assert TURN_ISOLATION == true;
+    assert kill_effect(false, X_KILL) == X_KILL;
+    assert kill_effect(true, X_KILL) == X_KILLED;
+    assert kill_effect(true, X_CRASH) == X_CRASH;
+    assert kill_effect(true, X_NORMAL) == X_NORMAL;
+    assert holds_after_kill(false) == false;
+    assert holds_after_kill(true) == true;
+}
+
+test node_pid_packs_node_slot_and_generation {
+    assert node_pid(0, 1, 0) == 4294967296;  // (0 << 48) | (1 << 32) | 0
+    assert node_pid(1, 2, 3) == 0x100000000013;  // (1 << 48) | (2 << 32) | 3
+    assert node_pid(65535, GEN_MASK, 7) == 0xFFFFFFFF00000007;  // max node, max slot, gen 7
+    assert node_pid(65536, 1, 0) == NO_PID;  // node too big
+    assert node_pid(1, 0, 0) == NO_PID;  // slot 0
+    assert node_pid(1, 4294967296, 0) == NO_PID;  // slot too big
+}
+
+test node_of_and_local_remote_functions {
+    var local_pid : u64 = node_pid(0, 5, 10);
+    var remote_pid : u64 = node_pid(1, 5, 10);
+    var remote_pid_2 : u64 = node_pid(2, 5, 10);
+    
+    assert node_of(local_pid) == 0;
+    assert node_of(remote_pid) == 1;
+    assert node_of(remote_pid_2) == 2;
+    
+    assert local_of(local_pid) == true;
+    assert local_of(remote_pid) == false;
+    assert local_of(remote_pid_2) == false;
+    
+    assert is_remote(local_pid) == false;
+    assert is_remote(remote_pid) == true;
+    assert is_remote(remote_pid_2) == true;
+}
+
+test node_up_tracks_lease_based_liveness {
+    assert node_up(0) == true;  // fresh heartbeat
+    assert node_up(89) == true;  // within TTL (90s)
+    assert node_up(90) == false;  // exactly at TTL
+    assert node_up(91) == false;  // past TTL
+}
+
+test send_remote_yields_noconnection_for_down_nodes {
+    assert send_remote(true, true, 0, MAILBOX_CAP) == D_QUEUED;
+    assert send_remote(true, false, 0, MAILBOX_CAP) == X_NOCONNECTION;
+    assert send_remote(false, true, 0, MAILBOX_CAP) == D_DROPPED_DEAD;
+    assert send_remote(false, false, 0, MAILBOX_CAP) == X_NOCONNECTION;
+    assert send_remote(true, true, 256, MAILBOX_CAP) == D_DROPPED_FULL;
+    assert send_remote(true, false, 256, MAILBOX_CAP) == X_NOCONNECTION;
+}
+
+test remote_down_reports_noconnection_for_down_nodes {
+    assert remote_down(true) == X_NONE;
+    assert remote_down(false) == X_NOCONNECTION;
+}
+
+test place_before_chooses_node_with_preference {
+    // candidates: bit 0 (local), bit 1 (node 1), bit 2 (node 2)
+    var candidates : u64 = 0b111;  // local, node 1, node 2 available
+    
+    // prefer local when available
+    assert place_before(candidates, 0) == 0;
+    
+    // prefer specific remote when available
+    assert place_before(candidates, 2) == 2;
+    assert place_before(candidates, 1) == 1;
+    
+    // fallback to local when preferred not available
+    var candidates_no_node2 : u64 = 0b011;  // local and node 1 only
+    assert place_before(candidates_no_node2, 2) == 0;
+    
+    // fallback to first available remote when local not preferred
+    var candidates_no_local : u64 = 0b110;  // node 1 and node 2 only
+    assert place_before(candidates_no_local, 0) == 1;
+    
+    // only one node available
+    var candidates_only_remote : u64 = 0b010;  // only node 1
+    assert place_before(candidates_only_remote, 0) == 1;
+    assert place_before(candidates_only_remote, 2) == 1;
+    
+    // no candidates (shouldn't happen but test anyway)
+    var no_candidates : u64 = 0;
+    assert place_before(no_candidates, 0) == 0;
+
+    // Debug tests for node_pid
+    var debug1 = node_pid(0, 1, 0);
+    var debug2 = node_pid(1, 2, 3);
+    // Check the actual values
+    assert debug1 == 4294967296;
+    assert debug2 == 281474985300595;  // 0x100000000013
 }
