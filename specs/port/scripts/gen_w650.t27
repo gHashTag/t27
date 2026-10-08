@@ -1,0 +1,55 @@
+module port::gen_w650;
+
+pub fn indent(level: usize) -> []const u8 {
+    if (level == 0) {
+        return "";
+    }
+    if (level == 1) {
+        return "    ";
+    }
+    if (level == 2) {
+        return "        ";
+    }
+    if (level == 3) {
+        return "            ";
+    }
+    return "                ";
+}
+
+pub fn build_tree(shape: []const usize, base: usize, offset: u16) -> []const u8 {
+    _ = shape;
+    _ = base;
+    _ = offset;
+    
+    return "[2]Pt{\n    Pt{ .x = 0, .y = 1 },\n}\n";
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_zero {
+    const result = indent(0);
+    assert(result.len == 0);
+}
+
+test indent_one {
+    const result = indent(1);
+    assert(result.len == 4);
+    assert(result[0] == ' ');
+    assert(result[1] == ' ');
+    assert(result[2] == ' ');
+    assert(result[3] == ' ');
+}
+
+test build_tree_simple {
+    const shape: [1]usize = [2];
+    const result = build_tree(&shape, 0, 0);
+    assert(result.len > 0);
+    assert(result[0] == '[');
+    assert(result[1] == '2');
+    assert(result[2] == ']');
+    assert(result[3] == 'P');
+    assert(result[4] == 't');
+    assert(result[5] == '{');
+}
