@@ -156,6 +156,25 @@ fn wide_integer_constants_fold_or_are_refused() {
     }
 }
 
+// ------------------------------------------------ numeric coercion (the `type mismatch` family)
+
+/// specs/tri/t27b/coerce_plan.t27: the conformance spec runs (`t27c test-report`: 4 pass); each edit below is a
+/// shape Zig 0.16 refuses, so t27b refuses it too, as a `type mismatch` on the line it names.
+#[test]
+fn numeric_coercion_follows_zig() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/numeric_coercion.t27");
+    assert_eq!(names_ok(&run(src)).iter().filter(|t| !t.1 && t.2).count(), 4);
+    for (from, to, why) in [("a + NC_EXP_MAX;", "NC_EXP_MAX + a;", "expected u8, found i8"), ("d : f64 = target", "d : f32 = target", "expected f32, found i32"),
+        ("(a: i64, b: u32)", "(a: i64, b: u64)", "65 bits"), ("byte(NC_EXP_MAX) == 63", "byte(NC_BIG) == 63", "expected i8, found u8"),
+        ("NC_NINE - NC_FOUR;", "NC_NINE + NC_BIG;", "expected u4, found u8"), ("x + NC_TWO_60;", "x + (NC_TWO_60 + 1);", "expected f64, found u64")] {
+        let m = rejected(&src.replacen(from, to, 1));
+        assert!(m.contains("unsupported construct type mismatch") && m.contains(why), "{}: {}", to, m);
+    }
+    // Two constants whose sum does not fit their type do not fold: the run-time `+` traps, as before the plan.
+    let r = run("module a;\n\nconst B: u8 = 200;\n\nfn f() -> u8 {\n    return B + B;\n}\n\ntest t {\n    assert(f() == 144);\n}\n");
+    assert_eq!(r[0].2, Err((TrapKind::Overflow, 6)));
+}
+
 // ------------------------------------------------ a void fn's result bound by a local
 
 /// #7690: `const r = f(x);` with `f` void runs the call and binds void's one value, which `==` folds equal to

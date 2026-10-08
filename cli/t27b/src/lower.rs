@@ -94,6 +94,8 @@ mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compil
 mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wider than 64 bits, folded
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
+#[path = "../../../gen/rust/tri/t27b/coerce_plan.rs"] #[allow(dead_code, unused_parens)]
+mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numeric type where Zig takes another
 #[path = "../../../gen/rust/tri/t27b/void_bind_plan.rs"] #[allow(dead_code, unused_parens)]
 mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
 mod refvars;
@@ -2892,6 +2894,37 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
+            // `@setEvalBranchQuota(n);` raises the backward-branch budget of
+            // Zig's compile-time evaluation and does nothing at run time. t27b
+            // does not model that budget, so a higher one opens no gap: the
+            // statement lowers to nothing. Zig wants a compile-time `u32`
+            // operand; anything else is refused.
+            "@setEvalBranchQuota" => {
+                if c.children.len() != 1 {
+                    return self.reject(
+                        "ExprCall(@setEvalBranchQuota)",
+                        format!("with {} arguments", c.children.len()),
+                    );
+                }
+                let arg = &c.children[0];
+                let v = self.expr(arg)?;
+                let n = match &v {
+                    Val::Poison => return Err(()),
+                    Val::Ct(n) => Some(*n),
+                    Val::E(Expr { ty, kind: ExprKind::Const(n) }) if ty.is_int() => {
+                        Some(*n)
+                    }
+                    _ => None,
+                };
+                match n {
+                    Some(n) if (0..=u32::MAX as i128).contains(&n) => Ok(()),
+                    Some(n) => self.reject("ExprCall(@setEvalBranchQuota)", format!("of {}, outside u32", n)),
+                    None => {
+                        let d = self.val_desc(&v);
+                        self.reject("ExprCall(@setEvalBranchQuota)", format!("of {}, not a compile-time integer", d))
+                    }
+                }
+            }
             "assert_eq" => {
                 if c.children.len() != 2 {
                     return self.reject(
@@ -3121,17 +3154,16 @@ impl<'a> Lower<'a> {
                 if to == Ty::F64 && e.ty == Ty::F32 {
                     return Ok(float::float_cast(e, to));
                 }
-                if to.can_widen_from(e.ty) {
-                    if let ExprKind::Const(c) = e.kind {
-                        return Ok(Expr {
-                            ty: to,
-                            kind: ExprKind::Const(c),
-                        });
-                    }
-                    return Ok(Expr {
-                        ty: to,
-                        kind: ExprKind::Widen(Box::new(e)),
-                    });
+                // specs/tri/t27b/coerce_plan.t27: a widening, a constant that fits, an integer a float holds exactly.
+                let c = match e.kind { ExprKind::Const(c) => Some(c), _ => None };
+                if e.ty.is_int() && to.is_float() && cp::int_to_float(e.ty.bits(), e.ty.signed(), to.bits(), c.is_some(), c.map_or(0, |c| c.unsigned_abs() as u64)) == cp::CONVERT {
+                    return match self.int_to_float(Val::E(e), to, "type mismatch")? { Val::E(f) => Ok(f), _ => Err(()) };
+                }
+                let act = if e.ty.is_int() && to.is_int() { cp::int_to_int(e.ty.bits(), e.ty.signed(), to.bits(), to.signed(), c.is_some(), c.is_some_and(|c| to.fits(c))) } else { cp::REFUSE };
+                match (act, c) {
+                    (cp::WIDEN | cp::FOLD, Some(c)) => return Ok(Expr { ty: to, kind: ExprKind::Const(c) }),
+                    (cp::WIDEN, None) => return Ok(Expr { ty: to, kind: ExprKind::Widen(Box::new(e)) }),
+                    _ => {}
                 }
                 self.reject(
                     "type mismatch",
@@ -3179,20 +3211,14 @@ impl<'a> Lower<'a> {
                 if x.ty == Ty::F32 && y.ty == Ty::F64 {
                     return Ok((float::float_cast(x, Ty::F64), y));
                 }
-                if x.ty.can_widen_from(y.ty) {
-                    let t = x.ty;
-                    let y = self.coerce(Val::E(y), t)?;
-                    return Ok((x, y));
-                }
-                if y.ty.can_widen_from(x.ty) {
-                    let t = y.ty;
-                    let x = self.coerce(Val::E(x), t)?;
-                    return Ok((x, y));
-                }
-                self.reject(
-                    "type mismatch",
-                    format!("`{}` on {} and {}", what, x.ty.name(), y.ty.name()),
-                )
+                // specs/tri/t27b/coerce_plan.t27: the integer type with more bits (the first on a tie), or the float.
+                let t = match (x.ty.is_int(), y.ty.is_int()) {
+                    (true, true) => if cp::peer_is_first(x.ty.bits(), y.ty.bits()) { x.ty } else { y.ty },
+                    (false, true) if x.ty.is_float() => x.ty,
+                    (true, false) if y.ty.is_float() => y.ty,
+                    _ => return self.reject("type mismatch", format!("`{}` on {} and {}", what, x.ty.name(), y.ty.name())),
+                };
+                Ok((self.coerce(Val::E(x), t)?, self.coerce(Val::E(y), t)?))
             }
             (Val::E(x), v @ Val::Cf(..)) => {
                 let t = x.ty;
@@ -3867,6 +3893,12 @@ impl<'a> Lower<'a> {
         if !ty.is_int() && !bitwise {
             return self.reject(&format!("ExprBinary({})", op), "on bool".into());
         }
+        // Two typed constants fold as Zig folds them where the plan says so (specs/tri/t27b/coerce_plan.t27).
+        if let (ExprKind::Const(p), ExprKind::Const(q), true) = (&x.kind, &y.kind, ty.is_int()) {
+            let r = match aop { ArithOp::Add | ArithOp::AddW => p.checked_add(*q), ArithOp::Sub | ArithOp::SubW => p.checked_sub(*q), ArithOp::Mul | ArithOp::MulW => p.checked_mul(*q), ArithOp::And => Some(p & q), ArithOp::Or => Some(p | q), ArithOp::Xor => Some(p ^ q), _ => None };
+            let b = op.as_bytes();
+            if let Some(r) = r.filter(|r| cp::folds(b[0], b.get(1).copied().unwrap_or(0), b.len(), ty.fits(*r))) { return Ok(Val::E(Expr { ty, kind: ExprKind::Const(ty.wrap(r)) })); }
+        }
         let site = match aop {
             ArithOp::Add | ArithOp::Sub | ArithOp::Mul => {
                 self.site(TrapKind::Overflow, format!("{} on {}", op, ty.name()), ty)
@@ -4162,6 +4194,17 @@ impl<'a> Lower<'a> {
                     value: Box::new(Expr { ty: Ty::Bool, kind: ExprKind::Const(held as i128) }),
                 },
             }));
+        }
+        // Two integers of different types compare by value (specs/tri/t27b/coerce_plan.t27).
+        let k = |e: &Expr| match e.kind { ExprKind::Const(c) => Some(c), _ => None };
+        let ints = match (&a, &b) { (Val::E(x), Val::E(y)) if x.ty.is_int() && y.ty.is_int() && x.ty != y.ty => Some((x.ty, y.ty, k(x), k(y))), _ => None };
+        if let Some((sx, sy, cx, cy)) = ints {
+            let t = match cp::compare_in(sx.bits(), sx.signed(), cx.is_some_and(|c| sy.fits(c)), sy.bits(), sy.signed(), cy.is_some_and(|c| sx.fits(c))) {
+                cp::IN_A => sx, cp::IN_B => sy, cp::IN_I64 => Ty::I64,
+                r => return self.reject("type mismatch", format!("`{}` on {} and {}: {}", op.symbol(), sx.name(), sy.name(), cp::why(r))),
+            };
+            let (x, y) = (self.coerce(a, t)?, self.coerce(b, t)?);
+            return Ok(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op, lhs: Box::new(x), rhs: Box::new(y) } }));
         }
         let (x, y) = self.peer(a, b, op.symbol())?;
         if x.ty == Ty::Bool && !matches!(op, CmpOp::Eq | CmpOp::Ne) {

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+3a101a61c",
+  "gen_hash_c": "sha256:2140e3cbc141ad504a2ce706cba80dcc685f84d74a18a5571f1568b968e414ff",
+  "gen_hash_rust": "sha256:1c2e0c6211efd0c4872e6f49a8f941eb12b3a2a19856172ea7ff0b6bbaa5093f",
+  "gen_hash_verilog": "sha256:b47b5a3f361e7450895c09856acb7f18584e1e7e4d187080cc469ba2803c8759",
+  "gen_hash_zig": "sha256:058ef5b00ded3ea05aaff436eaff217f0fb97b2f431a7c4bd58df00b5bd1bcd2",
+  "module": "T27bConformanceNumericCoercion",
+  "ring": 12,
+  "sealed_at": "2026-10-08T08:40:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:67acdb7efbd25d4dc22a62f464eb3509d421443a7c50dddad94eb13c31ab39b1",
+  "spec_path": "specs/tri/t27b/conformance/numeric_coercion.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
