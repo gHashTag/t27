@@ -92,6 +92,8 @@ mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an i
 mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
 #[path = "../../../gen/rust/tri/t27b/wide_plan.rs"] #[allow(dead_code, unused_parens, unexpected_cfgs)]
 mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wider than 64 bits, folded
+#[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
+mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
 mod refvars;
 mod tuple;
 
@@ -280,6 +282,8 @@ struct Lower<'a> {
     mod_vars: HashMap<String, Place>,
     /// Initial bytes of each module-level `var` (`Program::globals`).
     globals_init: Vec<Vec<u8>>,
+    /// The global of each array type and value a `slice_lit` interned.
+    statics: HashMap<(String, Vec<u8>), u32>,
     /// Lowering what t27c's Zig backend evaluates at compile time (an
     /// `invariant`, which it emits as a `comptime` block, or a module-level
     /// initializer): a module-level `var` is not visible there.
@@ -455,6 +459,7 @@ fn lower_mode<'a>(
         leaky: HashMap::new(),
         mod_vars: HashMap::new(),
         globals_init: Vec::new(),
+        statics: HashMap::new(),
         comptime: false,
         struct_nodes: HashMap::new(),
         structs: Vec::new(),
@@ -2764,7 +2769,7 @@ impl<'a> Lower<'a> {
                 // Build the result in the caller's memory.
                 let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
                 let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
-                if !self.slice_literal_return(c, &dst, out)? {
+                if !self.slice_lit(sl::AT_RETURN, true, c, &dst, out)? {
                     self.init(c, dst, true, out)?;
                 }
                 out.push(Stmt::Return(Some(sret)));
@@ -6081,7 +6086,7 @@ impl<'a> Lower<'a> {
             let sub = field_place(dst, &fields[i]);
             let v = &c.children[0];
             if v.kind == NodeKind::ExprArrayLiteral && matches!(fields[i].ty, LTy::Str | LTy::Slice(..)) {
-                self.slice_field(n, &sname, v, sub, out)?;
+                self.slice_lit(sl::AT_FIELD, n.name == sname, v, &sub, out)?;
                 continue;
             }
             self.init(v, sub, true, out)?;
@@ -6100,45 +6105,6 @@ impl<'a> Lower<'a> {
             r?;
         }
         Ok(())
-    }
-
-    /// An array literal for slice field `dst` of struct literal `n`. t27c's
-    /// Zig backend writes `@constCast(&[_]T{ ... })` when the literal names
-    /// its struct (otherwise `.{ ... }`, which Zig refuses for a slice).
-    /// Only the empty literal is taken: its slice has length zero, so where
-    /// it points is never read. A non-empty one points at a constant in the
-    /// reference, which outlives any frame t27b could build it in.
-    fn slice_field(&mut self, n: &Node, sname: &str, v: &Node, dst: Place, out: &mut Vec<Stmt>) -> R<()> {
-        self.see(v);
-        if n.name != sname {
-            return self.reject(
-                "ExprArrayLiteral(to slice)",
-                "an array literal for a slice field of an anonymous struct literal (the reference writes `.{ ... }`)".into(),
-            );
-        }
-        let elem = match &dst.ty {
-            LTy::Slice(elem, _) => (**elem).clone(),
-            _ => LTy::S(Ty::U8),
-        };
-        if !(elem == LTy::Str || !has_brackets(&elem)) {
-            return self.reject(
-                "ExprArrayLiteral(to slice)",
-                "an array literal for a slice-of-arrays field (the reference writes `.{ ... }`)".into(),
-            );
-        }
-        if !v.children.is_empty() || !v.extra_size.trim().is_empty() || !v.extra_type.trim().is_empty() {
-            return self.reject(
-                "ExprArrayLiteral(to slice field)",
-                "a non-empty array literal for a slice field (the reference points into a constant)".into(),
-            );
-        }
-        let Val::M(arr) = self.struct_temp(v, LTy::Arr(Box::new(elem), 0))? else {
-            return Err(());
-        };
-        let Val::M(src) = self.slice_of(addr_of(&arr), 0, dst.ty.clone())? else {
-            return Err(());
-        };
-        self.copy(&dst, src, out)
     }
 
     /// `dst = src` for a struct: one copy. Both addresses are evaluated, dst

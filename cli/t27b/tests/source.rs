@@ -2729,7 +2729,7 @@ fn array_literals_typed_by_their_use() {
 
 /// The shapes next to those: the reference refuses the first three (`.{ ... }`
 /// of the wrong length, `.{ ... }` for a slice field of an anonymous literal)
-/// or points into a constant (a non-empty slice field); a local also read
+/// or builds it in the frame (run-time elements in a slice field); a local also read
 /// other than as an argument stays unsupported.
 #[test]
 fn array_literals_typed_by_their_use_rejections() {
@@ -2737,9 +2737,9 @@ fn array_literals_typed_by_their_use_rejections() {
     let cases: &[(&str, &str, &str)] = &[
         ("test t { const p = [1, 2, 3]; assert(first(p) == 1); }", "ExprArrayLiteral", "3 elements for `[2]u8`"),
         (
-            "test t { const c = Cur{ .pos = 0, .data = [1, 2] }; assert(c.data.len == 2); }",
+            "test t { var v: i32 = 3; v += 1; const c = Cur{ .pos = 0, .data = [v, 2] }; assert(c.data.len == 2); }",
             "ExprArrayLiteral(to slice field)",
-            "a non-empty array literal for a slice field",
+            "an array literal of run-time values for a slice field",
         ),
         (
             "test t { assert(take(.{ .pos = 0, .data = [] }) == 0); }",
