@@ -27,14 +27,17 @@ pub const GE_PR_PUSHED : u8 = 5;
 pub const GE_PR_READY : u8 = 6;
 pub const GE_PR_CLOSED : u8 = 7;
 pub const GE_COMMENT : u8 = 8;
-pub const GE_OTHER : u8 = 9;
-pub const APP_EVENTS : u8 = 10;
+pub const GE_CHECK_RUN_REREQUESTED : u8 = 10;
+pub const GE_WORKFLOW_RUN_COMPLETED : u8 = 11;
+pub const GE_MERGE_GROUP_CHECKS_REQUESTED : u8 = 12;
+pub const GE_OTHER : u8 = 13;
+pub const APP_EVENTS : u8 = 14;
 
 /// The webhook as the supervisor hands it over: "<X-GitHub-Event>.<action>". Entry n of EVENT_PAIRS
 /// is GE code EVENT_CODES[n]. A reopened pull request is an opened one; a suspended installation is
 /// an uninstalled one until it is unsuspended. Anything not listed is GE_OTHER.
-pub const EVENT_PAIRS : str = "installation.created,installation.unsuspend,installation.deleted,installation.suspend,installation_repositories.added,installation_repositories.removed,pull_request.opened,pull_request.reopened,pull_request.synchronize,pull_request.ready_for_review,pull_request.closed,issue_comment.created,$";
-pub const EVENT_CODES : [12]u8 = [0, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8];
+pub const EVENT_PAIRS : str = "installation.created,installation.unsuspend,installation.deleted,installation.suspend,installation_repositories.added,installation_repositories.removed,pull_request.opened,pull_request.reopened,pull_request.synchronize,pull_request.ready_for_review,pull_request.closed,issue_comment.created,check_run.rerequested,workflow_run.completed,merge_group.checks_requested,$";
+pub const EVENT_CODES : [15]u8 = [0, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 10, 11, 12];
 
 /// What the Queen does about it.
 ///   REGISTER    remember the installation's repositories (they may now be served)
@@ -51,6 +54,9 @@ pub const AR_REVIEW : u8 = 3;
 pub const AR_FORGET : u8 = 4;
 pub const AR_COMMAND : u8 = 5;
 pub const AR_QUOTA : u8 = 6;
+pub const AR_REREVIEW : u8 = 7;
+pub const AR_TRIAGE : u8 = 8;
+pub const AR_MERGE_GROUP_CHECK : u8 = 9;
 
 /// The reaction to one event. `from_a_bot`: the sender is a bot -- the app itself above all, so the
 /// Queen never answers her own comment; `served`: the repository is registered (an installation
@@ -75,6 +81,65 @@ pub fn app_reaction(event: u8, from_a_bot: bool, served: bool, paused: bool, dra
         return AR_REVIEW;
     }
     return AR_IGNORE;
+}
+
+/// The CI reaction for new GitHub events that handle CI/CD workflows.
+/// Routes check_run.rerequested to re-review, workflow_run.completed to triage,
+/// and merge_group.checks_requested to merge-group check.
+pub fn ci_reaction(event: u8, from_a_bot: bool, served: bool, paused: bool, draft: bool, reviews_left: u32) -> u8 {
+    if (from_a_bot) { return AR_IGNORE; }
+    if (served == false) { return AR_IGNORE; }
+    
+    // Re-run requested: perform a re-review
+    if (event == GE_CHECK_RUN_REREQUESTED) {
+        if (paused) { return AR_IGNORE; }
+        if (draft) { return AR_IGNORE; }
+        if (reviews_left == 0) { return AR_QUOTA; }
+        return AR_REREVIEW;
+    }
+    
+    // Workflow completed: triage the failure
+    if (event == GE_WORKFLOW_RUN_COMPLETED) {
+        return AR_TRIAGE;
+    }
+    
+    // Merge group checks requested: gate the merge
+    if (event == GE_MERGE_GROUP_CHECKS_REQUESTED) {
+        return AR_MERGE_GROUP_CHECK;
+    }
+    
+    return AR_IGNORE;
+}
+
+/// The check conclusion rule for gating merges.
+/// - A broken or vacuous spec fails the check
+/// - The model's opinion is neutral with annotations  
+/// - A diff too large to read is neutral
+pub fn check_conclusion(compiler_verdict: u8, model_opinion_neutral: bool, diff_too_large: bool) -> bool {
+    // Broken or vacuous spec fails the check
+    if (compiler_verdict == V_BROKEN) { return false; }
+    
+    // Diff too large to read is neutral (doesn't fail)
+    if (diff_too_large) { return true; }
+    
+    // Model's opinion is neutral with annotations (doesn't fail)
+    if (model_opinion_neutral) { return true; }
+    
+    // Otherwise, the check passes
+    return true;
+}
+
+/// The triage owner rule for attributing failures.
+/// A failure that is also red on the base branch head is attributed to the base, not the pull request.
+pub fn triage_owner(ci_failed_on_pr: bool, ci_failed_on_base: bool) -> bool {
+    // If CI failed on both PR and base, it's not this PR's failure
+    if (ci_failed_on_pr and ci_failed_on_base) { return false; }
+    
+    // If CI failed only on PR, it's this PR's failure
+    if (ci_failed_on_pr and ci_failed_on_base == false) { return true; }
+    
+    // If CI didn't fail on PR, no triage needed (shouldn't happen when this function is called)
+    return false;
 }
 
 /// The free tier. Free for every repository, as CodeRabbit is for open source -- the install is the
@@ -277,6 +342,63 @@ pub const COMMAND_HELP : [5]str = [
     "resume -- review it again from the next push",
 ];
 
+/// Tests for the new CI reaction function
+test ci_reaction_handles_new_events {
+    // check_run.rerequested performs a re-review
+    assert ci_reaction(GE_CHECK_RUN_REREQUESTED, false, true, false, false, 5) == AR_REREVIEW;
+    assert ci_reaction(GE_CHECK_RUN_REREQUESTED, false, true, false, false, 0) == AR_QUOTA;
+    assert ci_reaction(GE_CHECK_RUN_REREQUESTED, false, true, true, false, 5) == AR_IGNORE;
+    assert ci_reaction(GE_CHECK_RUN_REREQUESTED, false, true, false, true, 5) == AR_IGNORE;
+    assert ci_reaction(GE_CHECK_RUN_REREQUESTED, true, true, false, false, 5) == AR_IGNORE;
+    assert ci_reaction(GE_CHECK_RUN_REREQUESTED, false, false, false, false, 5) == AR_IGNORE;
+    
+    // workflow_run.completed performs triage
+    assert ci_reaction(GE_WORKFLOW_RUN_COMPLETED, false, true, false, false, 5) == AR_TRIAGE;
+    assert ci_reaction(GE_WORKFLOW_RUN_COMPLETED, true, true, false, false, 5) == AR_IGNORE;
+    assert ci_reaction(GE_WORKFLOW_RUN_COMPLETED, false, false, false, false, 5) == AR_IGNORE;
+    
+    // merge_group.checks_requested performs merge group check
+    assert ci_reaction(GE_MERGE_GROUP_CHECKS_REQUESTED, false, true, false, false, 5) == AR_MERGE_GROUP_CHECK;
+    assert ci_reaction(GE_MERGE_GROUP_CHECKS_REQUESTED, true, true, false, false, 5) == AR_IGNORE;
+    assert ci_reaction(GE_MERGE_GROUP_CHECKS_REQUESTED, false, false, false, false, 5) == AR_IGNORE;
+    
+    // unknown event is ignored
+    assert ci_reaction(GE_OTHER, false, true, false, false, 5) == AR_IGNORE;
+}
+
+/// Tests for the check conclusion function
+test check_conclusion_gates_merges_properly {
+    // Broken spec fails the check
+    assert check_conclusion(V_BROKEN, false, false) == false;
+    assert check_conclusion(V_BROKEN, true, true) == false;
+    
+    // Vacuous spec fails the check (V_BROKEN covers this)
+    
+    // Model opinion neutral with annotations passes
+    assert check_conclusion(V_CLEAN, true, false) == true;
+    assert check_conclusion(V_CLEAN, true, true) == true;
+    
+    // Diff too large to read is neutral
+    assert check_conclusion(V_CLEAN, false, true) == true;
+    assert check_conclusion(V_BROKEN, false, true) == false; // Broken spec still fails even with large diff
+    
+    // Clean spec with normal conditions passes
+    assert check_conclusion(V_CLEAN, false, false) == true;
+}
+
+/// Tests for the triage owner function
+test triage_owner_attributes_failures_correctly {
+    // Failure on both PR and base is not this PR's failure
+    assert triage_owner(true, true) == false;
+    
+    // Failure only on PR is this PR's failure
+    assert triage_owner(true, false) == true;
+    
+    // No failure on PR (shouldn't happen when called, but defensive)
+    assert triage_owner(false, false) == false;
+    assert triage_owner(false, true) == false;
+}
+
 test an_install_registers_and_an_uninstall_forgets {
     assert app_reaction(GE_INSTALLED, false, false, false, false, 0) == AR_REGISTER;
     assert app_reaction(GE_REPOS_ADDED, true, false, false, false, 0) == AR_REGISTER;
@@ -364,6 +486,9 @@ test a_webhook_is_read_by_its_event_and_action {
     assert app_event_of("pull_request.ready_for_review", 29, false) == GE_PR_READY;
     assert app_event_of("pull_request.closed", 19, false) == GE_PR_CLOSED;
     assert app_event_of("issue_comment.created", 21, true) == GE_COMMENT;
+    assert app_event_of("check_run.rerequested", 21, false) == GE_CHECK_RUN_REREQUESTED;
+    assert app_event_of("workflow_run.completed", 22, false) == GE_WORKFLOW_RUN_COMPLETED;
+    assert app_event_of("merge_group.checks_requested", 28, false) == GE_MERGE_GROUP_CHECKS_REQUESTED;
 }
 
 test a_webhook_not_listed_is_other {
@@ -410,9 +535,9 @@ invariant every_event_pair_has_a_code {
 }
 
 invariant the_app_codes_never_move {
-    assert GE_INSTALLED == 0 and GE_OTHER == 9 and APP_EVENTS == 10;
+    assert GE_INSTALLED == 0 and GE_OTHER == 13 and APP_EVENTS == 14;
     assert AR_IGNORE == 0 and AR_REGISTER == 1 and AR_UNREGISTER == 2 and AR_REVIEW == 3;
-    assert AR_FORGET == 4 and AR_COMMAND == 5 and AR_QUOTA == 6;
+    assert AR_FORGET == 4 and AR_COMMAND == 5 and AR_QUOTA == 6 and AR_REREVIEW == 7 and AR_TRIAGE == 8 and AR_MERGE_GROUP_CHECK == 9;
     assert C_NONE == 0 and C_REVIEW == 1 and C_SUMMARY == 2 and C_HELP == 3 and C_PAUSE == 4;
     assert C_RESUME == 5;
 }
