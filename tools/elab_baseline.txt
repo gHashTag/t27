@@ -27,6 +27,12 @@
 # `uart` stays 0: its spec line was restored, not absorbed here. The version
 # header is 12.0 because CI (ubuntu noble iverilog 12.0-2build2) measured every
 # other row identical to the 13.0 numbers (master run 37423783199).
+#
+# 2026-10-08: 177 -> 183. `mmcm 2`, `reset_sync 2` and `mtbf 2` are NEW
+# modules (specs/fpga/{mmcm,reset_sync,mtbf}.t27, #7585): coverage arriving,
+# not a regression in an existing row. Each pair is one line of the
+# string-field class (#2433): `cfg.name == ""` / `m.name == ""` in the
+# module's validate_* fn, reported as unbound and as its condition.
 adapter 0
 apb_bridge 4
 assembler 4
@@ -47,10 +53,13 @@ hw_types 0
 linker 4
 mac 0
 memory 5
+mmcm 2
+mtbf 2
 partition 2
 placement 6
 power 2
 power_analysis 1
+reset_sync 2
 router 8
 simulator 2
 spi 0

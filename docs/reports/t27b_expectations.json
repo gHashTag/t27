@@ -14,7 +14,7 @@
  },
  "max_not_pass": 41,
  "counts": {
-  "pass": 894,
+  "pass": 897,
   "pass_vacuous": 151,
   "not_pass": 41
  },
@@ -223,9 +223,12 @@
   {"path": "specs/fpga/hw_types.t27", "t27b": "pass"},
   {"path": "specs/fpga/linker.t27", "t27b": "pass"},
   {"path": "specs/fpga/memory.t27", "t27b": "pass"},
+  {"path": "specs/fpga/mmcm.t27", "t27b": "pass"},
+  {"path": "specs/fpga/mtbf.t27", "t27b": "pass"},
   {"path": "specs/fpga/partition.t27", "t27b": "pass"},
   {"path": "specs/fpga/power.t27", "t27b": "pass"},
   {"path": "specs/fpga/power_analysis.t27", "t27b": "pass"},
+  {"path": "specs/fpga/reset_sync.t27", "t27b": "pass"},
   {"path": "specs/fpga/router.t27", "t27b": "pass"},
   {"path": "specs/fpga/simulator.t27", "t27b": "pass"},
   {"path": "specs/fpga/stdlib.t27", "t27b": "pass"},

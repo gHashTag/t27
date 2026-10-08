@@ -102,38 +102,38 @@ module Mmcm {
 
     // === Lock model ===
 
-    pub struct LockState {
+    pub struct MmcmLockState {
         lock_counter_us : u32,
         locked : bool,
     }
 
-    fn unlocked_state() -> LockState {
-        return LockState{ .lock_counter_us = 0, .locked = false };
+    fn unlocked_state() -> MmcmLockState {
+        return MmcmLockState{ .lock_counter_us = 0, .locked = false };
     }
 
     // One microsecond of settling with a legal, unchanging configuration
-    fn lock_step(s: LockState) -> LockState {
+    fn lock_step(s: MmcmLockState) -> MmcmLockState {
         if s.locked {
             return s;
         }
         if s.lock_counter_us + 1 >= LOCK_WINDOW_US {
-            return LockState{ .lock_counter_us = LOCK_WINDOW_US, .locked = true };
+            return MmcmLockState{ .lock_counter_us = LOCK_WINDOW_US, .locked = true };
         }
-        return LockState{ .lock_counter_us = s.lock_counter_us + 1, .locked = false };
+        return MmcmLockState{ .lock_counter_us = s.lock_counter_us + 1, .locked = false };
     }
 
     // A reconfiguration drops lock immediately and restarts the window
-    fn relock(s: LockState) -> LockState {
+    fn relock(s: MmcmLockState) -> MmcmLockState {
         return unlocked_state();
     }
 
     // Settle the model for a given number of microseconds without stepping
     // one microsecond at a time: lock arrives exactly at the window edge
-    fn lock_after(us: u32) -> LockState {
+    fn lock_after(us: u32) -> MmcmLockState {
         if us >= LOCK_WINDOW_US {
-            return LockState{ .lock_counter_us = LOCK_WINDOW_US, .locked = true };
+            return MmcmLockState{ .lock_counter_us = LOCK_WINDOW_US, .locked = true };
         }
-        return LockState{ .lock_counter_us = us, .locked = false };
+        return MmcmLockState{ .lock_counter_us = us, .locked = false };
     }
 
     // === Validation ===
