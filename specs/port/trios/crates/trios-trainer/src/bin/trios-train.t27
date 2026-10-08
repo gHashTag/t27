@@ -1,0 +1,125 @@
+// Port of gHashTag/trios crates/trios-trainer/src/bin/trios-train.rs at 8b229e9489ee.
+//
+// The original main() is plumbing: clap argument parsing, Config::load from a TOML
+// file, prints, and the run(&config) training call. The decisions inside it are
+// ported below as pure helpers; main itself keeps its name with an undefined body
+// that no test calls.
+//
+// Mappings from the original:
+// - Args.seed: Option<u64> and Args.steps: Option<usize> become a presence bool plus
+//   the value (?T has no unwrap syntax in .t27 today).
+// - trios_trainer::config::validate_lr_phi_band becomes validate_lr_phi_band (INV-8).
+// - anyhow::bail! becomes inv8_exit_code returning i32 (EXIT_FAIL = 1).
+// - the --dry-run early return becomes next_step_after_validate (0 = stop before
+//   training, 1 = start training).
+// - the Gate-2 verdict prints become gate2_verdict returning the marker line.
+// - main() -> Result<()> becomes main() -> i32, the process exit code.
+
+module port::trios_train;
+
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+
+// INV-8: the learning rate must sit in the phi band [0.001, 0.01], inclusive.
+pub fn validate_lr_phi_band(lr: f64) -> bool {
+    return lr >= 0.001 and lr <= 0.01;
+}
+
+// The INV-8 gate as an exit code: EXIT_OK keeps going, EXIT_FAIL is the bail
+// ("LR violates INV-8: must be in [0.001, 0.01]").
+pub fn inv8_exit_code(lr: f64) -> i32 {
+    if (validate_lr_phi_band(lr)) {
+        return EXIT_OK;
+    }
+    return EXIT_FAIL;
+}
+
+// A --seed given on the CLI overrides the config value; an absent one keeps it.
+pub fn apply_seed_override(has_seed: bool, seed: u64, config_seed: u64) -> u64 {
+    if (has_seed) {
+        return seed;
+    }
+    return config_seed;
+}
+
+// A --steps given on the CLI overrides the config value; an absent one keeps it.
+pub fn apply_steps_override(has_steps: bool, steps: usize, config_steps: usize) -> usize {
+    if (has_steps) {
+        return steps;
+    }
+    return config_steps;
+}
+
+// The step main takes after the INV-8 gate passes: 0 means --dry-run was given, so
+// the caller prints the config summary and stops before training; 1 means the
+// caller starts run(&config).
+pub fn next_step_after_validate(dry_run: bool) -> i32 {
+    if (dry_run) {
+        return 0;
+    }
+    return 1;
+}
+
+// The Gate-2 verdict line main prints for a finished training result:
+// best_bpb < 1.50 is a victory candidate, best_bpb < 1.85 is above target,
+// anything else is below target. The caller prints the returned line.
+pub fn gate2_verdict(best_bpb: f64) -> []const u8 {
+    if (best_bpb < 1.50) {
+        return "[x] GATE-2 VICTORY CANDIDATE";
+    }
+    if (best_bpb < 1.85) {
+        return " Above target evidence";
+    }
+    return " Below target evidence";
+}
+
+// Plumbing: clap parsing, config file load, prints, run(&config). The body is
+// undefined and no test calls it.
+pub fn main() -> i32 {
+    undefined;
+}
+
+test lr_phi_band_edges {
+    // The band [0.001, 0.01] includes both ends.
+    assert(validate_lr_phi_band(0.001));
+    assert(validate_lr_phi_band(0.01));
+    assert(validate_lr_phi_band(0.005));
+    assert(!validate_lr_phi_band(0.0));
+    assert(!validate_lr_phi_band(0.0009));
+    assert(!validate_lr_phi_band(0.011));
+}
+
+test inv8_exit_code_bails_out_of_band {
+    assert(inv8_exit_code(0.005) == EXIT_OK);
+    assert(inv8_exit_code(0.02) == EXIT_FAIL);
+}
+
+test seed_override_given_and_absent {
+    // --seed 43 overrides the config value 7.
+    assert(apply_seed_override(true, 43, 7) == 43);
+    // No --seed keeps the config value 7.
+    assert(apply_seed_override(false, 43, 7) == 7);
+}
+
+test steps_override_given_and_absent {
+    // --steps 100 overrides the config value 500.
+    assert(apply_steps_override(true, 100, 500) == 100);
+    // No --steps keeps the config value 500.
+    assert(apply_steps_override(false, 100, 500) == 500);
+}
+
+test dry_run_stops_before_training {
+    // --dry-run stops before run(&config); otherwise training starts.
+    assert(next_step_after_validate(true) == 0);
+    assert(next_step_after_validate(false) == 1);
+}
+
+test gate2_verdict_bands {
+    assert(gate2_verdict(1.2) == "[x] GATE-2 VICTORY CANDIDATE");
+    // 1.50 is not < 1.50, so it takes the above-target arm.
+    assert(gate2_verdict(1.50) == " Above target evidence");
+    assert(gate2_verdict(1.84) == " Above target evidence");
+    // 1.85 is not < 1.85, so it takes the below-target arm.
+    assert(gate2_verdict(1.85) == " Below target evidence");
+    assert(gate2_verdict(2.0) == " Below target evidence");
+}
