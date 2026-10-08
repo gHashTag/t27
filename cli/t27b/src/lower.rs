@@ -5737,6 +5737,10 @@ impl<'a> Lower<'a> {
     fn int_to_float(&mut self, v: Val, to: Ty, what: &str) -> R<Val> {
         let e = match v {
             Val::Poison => return Err(()),
+            // A comptime_int rounds as below, inside 64 bits (coerce_plan.t27 `float_from_int_literal`).
+            Val::Ct(c) if cp::float_from_int_literal(i64::try_from(c).is_ok() || u64::try_from(c).is_ok(), to.bits()) == cp::ROUND => {
+                Expr { ty: Ty::I64, kind: ExprKind::Const(c) }
+            }
             Val::Ct(c) => return Ok(Val::E(self.coerce(Val::Ct(c), to)?)),
             Val::E(e) if e.ty.is_int() => e,
             v => {
