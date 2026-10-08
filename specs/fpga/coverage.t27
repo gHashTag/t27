@@ -136,54 +136,82 @@ module Coverage {
     }
 
     // === Hit accounting: copies, never side effects ===
+    // One rule says what "covered" means for every kind of point, so a
+    // stricter rule (an at-least-N threshold, say) is one edit, not eight.
+    // A hit returns a new point, built field by field like the constructors.
+
+    fn covered(hit_count: u32) -> bool {
+        return hit_count > 0;
+    }
 
     fn mark_hit_line(p: LinePoint) -> LinePoint {
-        var result = p;
-        result.hit_count = p.hit_count + 1;
-        return result;
+        return LinePoint{
+            .name = p.name,
+            .module_name = p.module_name,
+            .kind = p.kind,
+            .line_no = p.line_no,
+            .hit_count = p.hit_count + 1,
+        };
     }
 
     fn mark_hit_toggle(p: TogglePoint) -> TogglePoint {
-        var result = p;
-        result.hit_count = p.hit_count + 1;
-        return result;
+        return TogglePoint{
+            .name = p.name,
+            .module_name = p.module_name,
+            .bit_index = p.bit_index,
+            .rise = p.rise,
+            .hit_count = p.hit_count + 1,
+        };
     }
 
     fn mark_hit_state(p: FsmStatePoint) -> FsmStatePoint {
-        var result = p;
-        result.hit_count = p.hit_count + 1;
-        return result;
+        return FsmStatePoint{
+            .fsm_name = p.fsm_name,
+            .state_name = p.state_name,
+            .hit_count = p.hit_count + 1,
+        };
     }
 
     fn mark_hit_transition(p: FsmTransitionPoint) -> FsmTransitionPoint {
-        var result = p;
-        result.hit_count = p.hit_count + 1;
-        return result;
+        return FsmTransitionPoint{
+            .fsm_name = p.fsm_name,
+            .from_state = p.from_state,
+            .to_state = p.to_state,
+            .illegal = p.illegal,
+            .hit_count = p.hit_count + 1,
+        };
     }
 
     fn is_covered_line(p: LinePoint) -> bool {
-        return p.hit_count > 0;
+        return covered(p.hit_count);
     }
 
     fn is_covered_toggle(p: TogglePoint) -> bool {
-        return p.hit_count > 0;
+        return covered(p.hit_count);
     }
 
     fn is_covered_state(p: FsmStatePoint) -> bool {
-        return p.hit_count > 0;
+        return covered(p.hit_count);
     }
 
     fn is_covered_transition(p: FsmTransitionPoint) -> bool {
-        return p.hit_count > 0;
+        return covered(p.hit_count);
     }
 
     // === Report math: integer percent, 0 when nothing was measured ===
+
+    fn percent(hit: u32, total: u32) -> u32 {
+        if total == 0 {
+            return 0;
+        }
+        return (hit * 100) / total;
+    }
 
     fn hit_lines(points: [LinePoint], count: u32) -> u32 {
         var hit : u32 = 0;
         var i : u32 = 0;
         while i < count {
-            if points[i].hit_count > 0 {
+            if is_covered_line(points[i]) {
                 hit = hit + 1;
             }
             i = i + 1;
@@ -192,17 +220,14 @@ module Coverage {
     }
 
     fn line_coverage_percent(points: [LinePoint], count: u32) -> u32 {
-        if count == 0 {
-            return 0;
-        }
-        return (hit_lines(points, count) * 100) / count;
+        return percent(hit_lines(points, count), count);
     }
 
     fn hit_toggles(points: [TogglePoint], count: u32) -> u32 {
         var hit : u32 = 0;
         var i : u32 = 0;
         while i < count {
-            if points[i].hit_count > 0 {
+            if is_covered_toggle(points[i]) {
                 hit = hit + 1;
             }
             i = i + 1;
@@ -211,10 +236,7 @@ module Coverage {
     }
 
     fn toggle_coverage_percent(points: [TogglePoint], count: u32) -> u32 {
-        if count == 0 {
-            return 0;
-        }
-        return (hit_toggles(points, count) * 100) / count;
+        return percent(hit_toggles(points, count), count);
     }
 
     // === FSM: every state and arc; illegal arcs must stay cold ===
@@ -223,7 +245,7 @@ module Coverage {
         var hit : u32 = 0;
         var i : u32 = 0;
         while i < count {
-            if points[i].hit_count > 0 {
+            if is_covered_state(points[i]) {
                 hit = hit + 1;
             }
             i = i + 1;
@@ -235,7 +257,7 @@ module Coverage {
         var hit : u32 = 0;
         var i : u32 = 0;
         while i < count {
-            if points[i].hit_count > 0 {
+            if is_covered_transition(points[i]) {
                 hit = hit + 1;
             }
             i = i + 1;
@@ -248,7 +270,7 @@ module Coverage {
         var i : u32 = 0;
         while i < count {
             if points[i].illegal == true {
-                if points[i].hit_count > 0 {
+                if is_covered_transition(points[i]) {
                     hit = hit + 1;
                 }
             }
@@ -268,10 +290,7 @@ module Coverage {
     }
 
     fn report_percent(r: CoverageReport) -> u32 {
-        if r.points_total == 0 {
-            return 0;
-        }
-        return (r.points_hit * 100) / r.points_total;
+        return percent(r.points_hit, r.points_total);
     }
 
     // === Validation ===
@@ -373,10 +392,19 @@ module Coverage {
         given p0 = line_point("a", "M", 1)
         and p1 = mark_hit_line(p0)
         and p2 = mark_hit_line(p1)
+        and b = mark_hit_line(branch_point("fifo.full", "FIFO", 88))
+        and f = mark_hit_toggle(toggle_fall("txd", "UART_TX", 3))
+        and s = mark_hit_state(fsm_state("uart_ctrl", "IDLE"))
         then p0.hit_count == 0
         and p2.hit_count == 2
         and is_covered_line(p0) == false
         and is_covered_line(p2) == true
+        and b.kind == 4
+        and b.line_no == 88
+        and f.rise == false
+        and f.bit_index == 3
+        and s.state_name == "IDLE"
+        and is_covered_state(s) == true
 
     test line_coverage_percent_mixed
         given a = mark_hit_line(line_point("a", "M", 1))
