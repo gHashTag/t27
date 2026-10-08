@@ -230,7 +230,7 @@ fn a_fresh_requirement_needs_a_long_enough_challenge() {
 #[test]
 fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    for name in ["signed_receipt", "die_binding", "independence"] {
+    for name in ["signed_receipt", "die_binding", "independence", "corpus_receipt"] {
     let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .args(["gen-rust", &format!("specs/verified/{name}.t27")])
         .current_dir(&root)

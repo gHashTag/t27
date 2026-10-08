@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """t27b lab: run `t27b corpus` on Railway instead of the owner's Mac.
 
-Issue #6071, epic #6063. One process does three things:
+Issue #6071, epic #6063. One process does four things:
 
 * serves T27_SRV (default /srv) over HTTP on $PORT: /latest.json,
   /runs/<sha>.json, /runs/<sha>.log, /status.json;
 * on start, and then every T27_POLL_SECONDS (default 600) if
   origin/<T27_REF> moved, runs the lab once on that commit;
+* between polls, runs and signs a commit a lane PR asked for by writing
+  T27_SRV/requests/<sha> (#7672, lane_request);
 * never writes anywhere but its own disk. The repository is public and is
   cloned anonymously; there are no secrets in this service.
 
@@ -101,6 +103,7 @@ T27B_TIMEOUT_MS = int(os.environ.get("T27B_TIMEOUT_MS", "60000"))
 REF_TIMEOUT_S = int(os.environ.get("T27_REFERENCE_TIMEOUT_S", "300"))
 # #6442: generated cases per run for `tri t27b fuzz` (0 turns the step off).
 FUZZ_CASES = int(os.environ.get("T27_FUZZ_CASES", "1000"))
+SEED = os.environ.pop("T27_RECEIPT_SEED", None)  # #7672: no child (a build, a test, a requested commit's code) inherits it
 TARGET = "aarch64-unknown-linux-gnu"
 QEMU = ["qemu-aarch64", "-L", "/usr/aarch64-linux-gnu"]
 
@@ -108,6 +111,7 @@ CLONE = WORK / "t27"
 TARGET_DIR = WORK / "target"
 T27C = TARGET_DIR / "release" / "t27c"
 T27B = TARGET_DIR / TARGET / "release" / "t27b"
+JUDGE = WORK / "t27c-master"  # #7672: master's t27c admits lane requests, never a requested commit's own
 
 def git_blob_sha(path):
     """The sha git gives this file's bytes (`git hash-object`), or None."""
@@ -595,7 +599,7 @@ def parse_cargo_test(lines):
 # ------------------------------------------------------------ one run
 
 
-def lab_run(sha, log):
+def lab_run(sha, log, challenge=SRV / "challenge"):
     doc = {
         "lab": "t27b-lab",
         "issue": "https://github.com/gHashTag/t27/issues/6071",
@@ -746,11 +750,11 @@ def lab_run(sha, log):
     if have_t27b and have_t27c and FUZZ_CASES > 0:
         step("fuzz", fuzz)
 
-    def receipt():  # #7576: sign the run with T27_RECEIPT_SEED (trust NAMED); the nonce is SRV/challenge, if a caller wrote one
-        key, run_file, ch = WORK / "receipt-ed25519.key", WORK / "receipt-run.json", SRV / "challenge"
-        nonce = ["--nonce", ch.read_text().strip()] if ch.exists() else []
+    def receipt():  # #7576: sign the run with T27_RECEIPT_SEED (trust NAMED); the nonce is the challenge file's text, if any
+        key, run_file, ch = WORK / "receipt-ed25519.key", WORK / "receipt-run.json", challenge
+        nonce = ["--nonce", ch.read_text().strip()] if ch.exists() and ch.read_text().strip() else []
         with os.fdopen(os.open(key, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600), "w") as f:
-            f.write(os.environ["T27_RECEIPT_SEED"])
+            f.write(SEED)
         try:
             write_json(run_file, doc)
             p = run_group([str(c) for c in [T27C, "corpus-receipt", "sign", run_file, T27B, "--runner", " ".join(QEMU)] + nonce],
@@ -815,7 +819,7 @@ def lab_run(sha, log):
         doc["results"] = results
         if reference:
             steps["ratchet"] = ratchet(doc, log)
-        if os.environ.get("T27_RECEIPT_SEED"):
+        if SEED:
             step("receipt", receipt)
     elif reference:
         # Reference-only lab: t27b could not run here, say so and count the reference.
@@ -908,6 +912,27 @@ def serve():
     httpd.serve_forever()
 
 
+def lane_request(master):
+    """#7672: master's t27c judges each SRV/requests/<sha> (corpus_receipt.t27 request_verdict), exit 1 drops it; run and
+    sign the oldest admitted one, its text the challenge, into /runs/<sha>.json and its receipt. True when one ran."""
+    q = sorted((SRV / "requests").glob("*"), key=lambda p: p.stat().st_mtime) if JUDGE.exists() else []
+    out = lambda *a, **kw: subprocess.run(a, capture_output=True, text=True, timeout=300, **kw).stdout.split()  # noqa: E731
+    known = set(out("git", "ls-remote", "--heads", REPO) + out("git", "rev-list", "--first-parent", master, cwd=CLONE)) if q else ()
+    waiting = []
+    for r in q:
+        facts = "%d,%d,%d" % (time.time() - r.stat().st_mtime, len(waiting), r.name in known)
+        p = subprocess.run([str(JUDGE), "corpus-receipt", "admit", "--", r.name, facts], capture_output=True, text=True, timeout=60)
+        print("lane request %r %s: %s" % (r.name[:80], facts, p.stdout.strip() or p.returncode), flush=True)
+        r.unlink() if p.returncode == 1 else waiting.append((p.returncode, r))
+    r = next((r for code, r in waiting if code == 0), None)
+    if r:
+        log = Log(SRV / "runs" / ("%s.log" % r.name))
+        write_json(SRV / "runs" / ("%s.json" % r.name), dict(lab_run(r.name, log, r), finished=now(), ref="request"))
+        log.close()
+        r.unlink()
+    return r is not None
+
+
 def run_done(doc):
     """Whether a published run settles its commit. A run whose checkout failed
     (2026-10-05 16:35Z, 18a240eca: a fresh container's `git clone` got
@@ -932,6 +957,7 @@ def main():
         except ValueError:
             pass
     while True:
+        ran = False
         try:
             sha = remote_sha()
             if sha != last:
@@ -941,15 +967,18 @@ def main():
                     IMAGE["lab_py_sha"], IMAGE["dockerfile_sha"], IMAGE["image_built"], IMAGE["railway_deployment"]))
                 set_status(phase="running", commit=sha, started=now(), progress=None)
                 doc = lab_run(sha, log)
+                if doc["steps"].get("build_t27c", {}).get("ok"):
+                    shutil.copy2(T27C, JUDGE)
                 publish(doc, sha)
                 log("published /runs/%s.json: %s" % (sha, json.dumps(doc.get("summary"))))
                 log.close()
                 last = sha if run_done(doc) else None
             set_status(phase="idle", commit=sha, next_poll_in_s=POLL, retry=last is None)
+            ran = lane_request(sha)
         except Exception as e:
             print("lab loop error: %s" % e, flush=True)
             set_status(phase="error", error=str(e))
-        time.sleep(POLL)
+        time.sleep(0 if ran else POLL)
 
 
 if __name__ == "__main__":
