@@ -11,7 +11,7 @@ relu 10
 dot27 8,5
 contrib 7
 activate 6
-build_tree 6
+build_tree 7
 clamp 6
 clear 6
 match_at 6
