@@ -78,6 +78,8 @@ class TokenType(Enum):
     BANG_EQ = "bang_eq"
     AMP_AMP = "amp_amp"
     PIPE_PIPE = "pipe_pipe"
+    AND = "and"
+    OR = "or"
     AMP = "amp"
     PIPE = "pipe"
     CARET = "caret"
@@ -124,6 +126,8 @@ KEYWORDS = {
     "void": TokenType.KW_VOID,
     "true": TokenType.KW_TRUE,
     "false": TokenType.KW_FALSE,
+    "and": TokenType.AND,
+    "or": TokenType.OR,
     "_": TokenType.KW_UNDERSCORE,
 }
 
@@ -814,22 +818,24 @@ class Parser:
 
     def parse_or(self) -> Node:
         left = self.parse_and()
-        while self.current.type == TokenType.PIPE_PIPE:
+        while self.current.type in (TokenType.PIPE_PIPE, TokenType.OR):
+            op = "||" if self.current.type == TokenType.PIPE_PIPE else "or"
             self.next()
             right = self.parse_and()
             node = Node("expr_binary")
-            node.extra["operator"] = "||"
+            node.extra["operator"] = op
             node.children = [left, right]
             left = node
         return left
 
     def parse_and(self) -> Node:
         left = self.parse_comparison()
-        while self.current.type == TokenType.AMP_AMP:
+        while self.current.type in (TokenType.AMP_AMP, TokenType.AND):
+            op = "&&" if self.current.type == TokenType.AMP_AMP else "and"
             self.next()
             right = self.parse_comparison()
             node = Node("expr_binary")
-            node.extra["operator"] = "&&"
+            node.extra["operator"] = op
             node.children = [left, right]
             left = node
         return left
@@ -971,7 +977,7 @@ class Parser:
                     path_parts.append(self.current.lexeme)
                     self.next()
 
-            # Function call with qualified path
+            # Function call (both simple and qualified)
             if self.current.type == TokenType.LPAREN:
                 node = Node("expr_call")
                 node.name = "::".join(path_parts)
@@ -1092,9 +1098,11 @@ def generate_zig(node: Node, indent: int = 0) -> str:
         pub_prefix = "pub " if node.extra.get("pub") == "true" else ""
         return_type = f" {node.extra['return_type']}" if node.extra.get("return_type") else ""
         params = ", ".join([generate_zig(p) for p in node.children[:-1]])
-        body = generate_zig(node.children[-1], indent + 4)
+        body_node = node.children[-1]
         emit(f"{pub_prefix}fn {node.name}({params}){return_type} {{")
-        output.append(body)
+        # Manually process body statements without outer braces
+        for stmt in body_node.children:
+            output.append(generate_zig(stmt, indent + 4))
         emit("}")
 
     elif node.node_type == "param":
@@ -1151,11 +1159,31 @@ def generate_zig(node: Node, indent: int = 0) -> str:
         return f"{base}.{field}"
 
     elif node.node_type == "expr_binary":
-        if len(node.children) >= 2:
-            op = node.extra.get("operator", "")
+        op = node.extra.get("operator", "")
+        # Convert and/or to &&/|| for Zig
+        if op == "and":
+            op = "&&"
+        elif op == "or":
+            op = "||"
+        
+        # Handle unary operators (single child)
+        if op in ("!", "-", "~") and len(node.children) == 1:
+            operand = node.children[0]
+            operand_str = generate_zig(operand)
+            # Add parentheses around binary expressions and comparisons
+            if operand.node_type == "expr_binary":
+                operand_op = operand.extra.get("operator")
+                if operand_op in ("and", "or", "&", "|", "^", "+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!="):
+                    return f"{op}({operand_str})"
+                else:
+                    return f"{op}{operand_str}"
+        
+        # Handle binary operators (two children)
+        elif len(node.children) >= 2:
             left = generate_zig(node.children[0])
             right = generate_zig(node.children[1])
             return f"{left} {op} {right}"
+        
         return node.value if node.value else ""
 
     elif node.node_type == "expr_return":
