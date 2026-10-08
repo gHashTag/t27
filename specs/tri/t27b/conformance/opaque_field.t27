@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/opaque_field.t27 -- structs with a std container field that is set to `undefined`
+; and never read, as the reference runs them (issue #7890, t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. The plan is
+; specs/tri/t27b/opaque_field_plan.t27.
+; Zig instantiates `std.StringHashMap(Entry)` and `std.ArrayList(u32)` when it lays the structs out; the tests read
+; and write only the other fields, through a pointer, by value and through a copy. The port this mirrors is
+; trinity's vibeec_original/bogatyrs_registry.t27 (`plugins: std.StringHashMap(PluginEntry)`).
+; Not here: a test that reads the container field or asks for a size; t27b keeps `type (generic)` for those.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceOpaqueField;
+
+pub struct Entry {
+    name: []const u8,
+    on: bool,
+}
+
+pub struct Registry {
+    plugins: std.StringHashMap(Entry),
+    count: u32,
+    weight: u32,
+}
+
+pub struct Shelf {
+    items: std.ArrayList(u32),
+    size: u32,
+}
+
+const Self = Registry;
+
+fn registry_init(n: u32) -> Self {
+    return Self{ .plugins = undefined, .count = n, .weight = n * 2 };
+}
+
+fn registry_count(r: *const Self) -> u32 {
+    return r.count;
+}
+
+fn registry_bump(r: *Self) void {
+    r.count = r.count + 1;
+}
+
+fn shelf(n: u32) -> Shelf {
+    return Shelf{ .items = undefined, .size = n };
+}
+
+test a_registry_holds_its_count {
+    var r = registry_init(3);
+    assert(registry_count(&r) == 3);
+    registry_bump(&r);
+    assert(registry_count(&r) == 4);
+    assert(r.weight == 6);
+}
+
+test a_copy_keeps_the_other_fields {
+    const a = registry_init(5);
+    var b = a;
+    registry_bump(&b);
+    assert(a.count == 5);
+    assert(b.count == 6);
+    assert(b.weight == 10);
+}
+
+test a_list_field_beside_a_size {
+    const s = shelf(9);
+    assert(s.size == 9);
+    const t = shelf(s.size + 1);
+    assert(t.size == 10);
+}

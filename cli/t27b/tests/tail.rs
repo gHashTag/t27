@@ -282,3 +282,20 @@ fn f32_rounding_and_rem_call_their_ports() {
         assert!(m.contains(&format!("construct ExprCall({}) at line 4", what)) && m.contains(why), "{}", m);
     }
 }
+
+// ------------------------------------------------ a std container field nothing reads
+
+/// `plugins: std.StringHashMap(PluginEntry)` (bogatyrs_registry.t27, #7890): set to `undefined` and never read, so it
+/// takes zero bytes and no test can tell (specs/tri/t27b/opaque_field_plan.t27; `t27c test-report` passes the
+/// conformance spec 3/3, none vacuous). A read of the field, a size or another generic keeps `type (generic)`.
+#[test]
+fn a_std_container_field_nothing_reads() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/opaque_field.t27");
+    let r = run(src);
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    assert_eq!(names_ok(&run(&src.replace("t.size == 10", "t.size == 11"))).iter().filter(|t| !t.2).count(), 1);
+    for (from, to) in [("s.size == 9", "s.items.len == 9"), ("s.size == 9", "@sizeOf(Shelf) == 9"),
+        ("std.ArrayList(u32)", "std.AutoHashMap(u32, u32)"), ("std.ArrayList(u32)", "std.ArrayList(str)")] {
+        assert!(rejected(&src.replace(from, to)).contains("type (generic)"), "{}", to);
+    }
+}

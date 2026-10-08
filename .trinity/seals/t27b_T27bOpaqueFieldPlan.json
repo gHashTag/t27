@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "gen_hash_c": "sha256:643ac6285a26a2ef35db23db46e091eb1c0f81eef9c35f6f0a4a39c3f2034ced",
+  "gen_hash_rust": "sha256:9692003d591302959c72003678657a2377edd63b99eda9c0b3e87213c51bfe21",
+  "gen_hash_verilog": "sha256:b113da4188212e231e8dc1aed2cff4f678a8140455862672ffd382e08c13e2bc",
+  "gen_hash_zig": "sha256:39ee41ea36efff9d3811cb73e7cea209de4b7bec04a5c2d15324dfd4a8d9c053",
+  "module": "T27bOpaqueFieldPlan",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:39:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:09f5e10bdb83d473f35439f6fb408a0ce245698912cc6f1d3ca93974cb3929cc",
+  "spec_path": "specs/tri/t27b/opaque_field_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
+}

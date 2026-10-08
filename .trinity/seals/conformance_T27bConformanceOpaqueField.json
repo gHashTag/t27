@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "gen_hash_c": "sha256:1a4b54f6e26f3a61ad96a73a22c950a6baf127771a6a6b3b327868e5e2d6a1d4",
+  "gen_hash_rust": "sha256:8a950ada292cc465577b829285964d59fd5cb35a690c29fd928557d6c81dab69",
+  "gen_hash_verilog": "sha256:a995066e13a82d499fd91d4d7ea36a708b433c3ae0542e69b92e2da665acf64b",
+  "gen_hash_zig": "sha256:0a48f6795aa8e4a94b18abc13336dd5779c0b9bf03d69130f0e8b188055cdf0e",
+  "module": "T27bConformanceOpaqueField",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:39:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:6739ffb8c5681cdecc31b6d88843d4812acbe530a437bb8e87de7cca5822c69e",
+  "spec_path": "specs/tri/t27b/conformance/opaque_field.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

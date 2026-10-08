@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/opaque_field_plan.t27 -- when t27b lays out a struct field of a std container type as zero bytes
+; (issue #7890, t27b coverage epic #6063; written in t27 under the port epic #6198). The decision reaches cli/t27b
+; through `t27c gen-rust` (gen/rust/tri/t27b/opaque_field_plan.rs); the Rust glue in cli/t27b/src/lower.rs
+; (`layout_fields`) asks it about a field whose type t27b refused, passing the spec's own source text.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab): t27c prints `plugins:
+; std.StringHashMap(PluginEntry)` as written, and Zig instantiates the container when the struct is laid out, for
+; any element type Zig can name (`std.ArrayList(Entry)` too); an undeclared element (`Missing`, or t27's `str`,
+; which t27c does not map inside the parentheses) or member (`std.NoSuch`) fails the compile. The corpus has the
+; shape in trinity's vibeec_original/bogatyrs_registry.t27: the registry's `plugins` is set to `undefined` by
+; `BogatyrRegistry_init` and nothing reads it; its seven tests check values that never touch it.
+; --
+; What t27b does. Such a field (OPAQUE) takes zero bytes: as nothing in the file names it but to set it to
+; `undefined`, and nothing asks for a size, an offset, a field by name or the bytes of a value, no test can tell
+; its size from Zig's. The glue checks the element type is one Zig reads in the file; `touched` and `sized` read
+; the source text, so a mention in a comment counts too (a refusal, never a wrong pass).
+; Not covered (NOT_MINE, the refusal `type (generic)` stays): any other generic, a field the file reads or writes,
+; and a file that sizes or reinterprets anything.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bOpaqueFieldPlan;
+
+// The answer.
+pub const NOT_MINE : u8 = 0;
+pub const OPAQUE : u8 = 1;
+
+// Bytes the source is read by.
+const DOT : u8 = 46;
+const EQUALS : u8 = 61;
+const SPACE : u8 = 32;
+const TAB : u8 = 9;
+const NEWLINE : u8 = 10;
+const CLOSE_PAREN : u8 = 41;
+const UNDERSCORE : u8 = 95;
+
+/// `t` starts with `prefix`.
+fn opens(t: []const u8, prefix: []const u8) -> bool {
+    if (t.len < prefix.len) { return false; }
+    var i : usize = 0;
+    while (i < prefix.len and t[i] == prefix[i]) {
+        i = i + 1;
+    }
+    return i == prefix.len;
+}
+
+/// `c` can continue an identifier.
+fn ident_byte(c: u8) -> bool {
+    return (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == UNDERSCORE;
+}
+
+/// `c` is blank.
+fn blank(c: u8) -> bool {
+    return c == SPACE or c == TAB or c == NEWLINE or c == 13;
+}
+
+/// Where the element type starts in `std.StringHashMap(T)` or `std.ArrayList(T)`, else 0. The element ends one byte
+/// before the end of `t`.
+pub fn arg_start(t: []const u8) -> usize {
+    if (t.len == 0 or t[t.len - 1] != CLOSE_PAREN) { return 0; }
+    if (t.len > 19 and opens(t, "std.StringHashMap(")) { return 18; }
+    if (t.len > 15 and opens(t, "std.ArrayList(")) { return 14; }
+    return 0;
+}
+
+/// The first byte of `src` from `at` on that is not blank.
+fn skip_blanks(src: []const u8, at: usize) -> usize {
+    var i : usize = at;
+    while (i < src.len and blank(src[i])) {
+        i = i + 1;
+    }
+    return i;
+}
+
+/// After byte `at` of `src`, past blanks, comes `= undefined` followed by a byte that ends a name. (`== undefined`
+/// is not it: the byte after the first `=` is then `=`, not the `u` of `undefined`.)
+fn set_undefined(src: []const u8, at: usize) -> bool {
+    const eq : usize = skip_blanks(src, at);
+    if (eq >= src.len or src[eq] != EQUALS) { return false; }
+    const word : usize = skip_blanks(src, eq + 1);
+    if (!opens(src[word .. src.len], "undefined")) { return false; }
+    const end : usize = word + 9;
+    return end == src.len or !ident_byte(src[end]);
+}
+
+/// The source names field `name` as a field (`.name`) anywhere, other than to set it to `undefined`.
+pub fn touched(src: []const u8, name: []const u8) -> bool {
+    if (name.len == 0) { return true; }
+    var i : usize = 0;
+    while (i < src.len) {
+        if (src[i] == DOT and opens(src[i + 1 .. src.len], name)) {
+            const end : usize = i + 1 + name.len;
+            const whole : bool = end == src.len or !ident_byte(src[end]);
+            if (whole and !set_undefined(src, end)) { return true; }
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// The source holds `word` somewhere.
+fn holds(src: []const u8, word: []const u8) -> bool {
+    var i : usize = 0;
+    while (i + word.len <= src.len) {
+        if (opens(src[i .. src.len], word)) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// The source asks for a size, an offset, a field by name or the bytes of a value.
+pub fn sized(src: []const u8) -> bool {
+    return holds(src, "@sizeOf") or holds(src, "@alignOf") or holds(src, "@offsetOf") or holds(src, "@bitOffsetOf")
+        or holds(src, "@bitSizeOf") or holds(src, "@bitCast") or holds(src, "@ptrCast") or holds(src, "@alignCast")
+        or holds(src, "@field") or holds(src, "@memcpy") or holds(src, "@memset") or holds(src, "@intFromPtr")
+        or holds(src, "asBytes");
+}
+
+/// A field whose type t27b refused. container: the type is `std.StringHashMap(T)` or `std.ArrayList(T)` with T a
+/// type Zig reads in the file. touched / sized: what the two scans above found.
+pub fn field(container: bool, touched_src: bool, sized_src: bool) -> u8 {
+    if (container and !touched_src and !sized_src) { return OPAQUE; }
+    return NOT_MINE;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shape, then what keeps its refusal.
+// ----------------------------------------------------------------------------------------------------------
+
+test the_two_containers_find_their_element {
+    // bogatyrs_registry.t27's `std.StringHashMap(PluginEntry)`.
+    assert(arg_start("std.StringHashMap(PluginEntry)") == 18);
+    assert(arg_start("std.ArrayList(u32)") == 14);
+    assert(arg_start("std.AutoHashMap(u32, u8)") == 0);
+    assert(arg_start("std.StringHashMap()") == 0);
+    assert(arg_start("std.ArrayList()") == 0);
+    assert(arg_start("std.ArrayList(T)") == 14);
+    assert(arg_start("std.StringHashMap(Entry") == 0);
+    assert(arg_start("std.NoSuch(Entry)") == 0);
+    assert(arg_start("") == 0);
+}
+
+test a_field_set_only_to_undefined_is_untouched {
+    assert(!touched("Self{ .plugins = undefined, }", "plugins"));
+    assert(!touched("R{ .plugins=undefined }", "plugins"));
+    assert(!touched("plugins: std.StringHashMap(E),", "plugins"));
+    assert(!touched("r.plugins_count == 0", "plugins"));
+    assert(!touched("x.pluginsx", "plugins"));
+    assert(!touched("R{ .plugins = undefined", "plugins"));
+    assert(!touched(" plugins: u8", "plugins"));
+    assert(!touched("", "plugins"));
+}
+
+test any_other_mention_touches_it {
+    assert(touched("self.plugins.count()", "plugins"));
+    assert(touched("r.plugins = other;", "plugins"));
+    assert(touched("r.plugins == undefined", "plugins"));
+    assert(touched("R{ .plugins = undefinedness }", "plugins"));
+    assert(touched("x.plugins ", "plugins"));
+    assert(touched("x.plugins =", "plugins"));
+    assert(touched("x.plugins", "plugins"));
+    assert(touched("a.b", ""));
+}
+
+test sizes_and_reinterpretations_are_seen {
+    assert(sized("const n = @sizeOf(Reg);"));
+    assert(sized("@field(r, name)"));
+    assert(sized("std.mem.asBytes(&r)"));
+    assert(sized("@bitCast(x)"));
+    assert(!sized("const n = r.count;"));
+    assert(!sized("@size"));
+    assert(!sized(""));
+}
+
+test each_observer_is_seen_on_its_own {
+    assert(sized("@sizeOf"));
+    assert(sized("@alignOf"));
+    assert(sized("@offsetOf"));
+    assert(sized("@bitOffsetOf"));
+    assert(sized("@bitSizeOf"));
+    assert(sized("@bitCast"));
+    assert(sized("@ptrCast"));
+    assert(sized("@alignCast"));
+    assert(sized("@field"));
+    assert(sized("@memcpy"));
+    assert(sized("@memset"));
+    assert(sized("@intFromPtr"));
+    assert(sized("asBytes"));
+}
+
+test the_byte_classes {
+    // `0` `9` `A` `Z` `a` `z` `_` continue a name; `/` `:` `@` `[` and the backquote and `{` do not.
+    assert(ident_byte(48) and ident_byte(57) and ident_byte(65) and ident_byte(90));
+    assert(ident_byte(97) and ident_byte(122) and ident_byte(95));
+    assert(!ident_byte(47) and !ident_byte(58) and !ident_byte(64) and !ident_byte(91));
+    assert(!ident_byte(96) and !ident_byte(123));
+    assert(blank(32) and blank(9) and blank(10) and blank(13));
+    assert(!blank(61) and !blank(0));
+    assert(!opens("std", "std.ArrayList("));
+    assert(opens("std.ArrayList(", "std.ArrayList("));
+}
+
+test only_an_unobserved_container_is_opaque {
+    assert(field(true, false, false) == OPAQUE);
+    assert(field(true, true, false) == NOT_MINE);
+    assert(field(true, false, true) == NOT_MINE);
+    assert(field(false, false, false) == NOT_MINE);
+}

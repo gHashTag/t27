@@ -109,6 +109,8 @@ mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input
 mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its result type
 #[path = "../../../gen/rust/tri/t27b/frame_store_plan.rs"] #[allow(dead_code, unused_parens)]
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
+#[path = "../../../gen/rust/tri/t27b/opaque_field_plan.rs"] #[allow(dead_code, unused_parens)]
+mod of; // t27c gen-rust of specs/tri/t27b/opaque_field_plan.t27: a std container field nothing reads, zero bytes
 #[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -4600,6 +4602,14 @@ impl<'a> Lower<'a> {
         }
     }
 
+    /// A field of type `t` that no test can tell from Zig's (specs/tri/t27b/opaque_field_plan.t27): a std container of
+    /// a type Zig reads here, which the source never names but to set it to `undefined` and never sizes.
+    fn opaque_field(&self, t: &str, name: &str) -> bool {
+        let (k, src) = (of::arg_start(t.as_bytes()), self.src.unwrap_or("").as_bytes());
+        let container = k > 0 && self.src.is_some() && self.zig_spelled(&t[k..t.len() - 1]);
+        of::field(container, of::touched(src, name.as_bytes()), of::sized(src)) == of::OPAQUE
+    }
+
     /// The fieldless, zero-size struct that stands for `void`. Its key is
     /// a keyword, so no declared struct can take it.
     fn void_struct(&mut self) -> u32 {
@@ -5141,7 +5151,14 @@ impl<'a> Lower<'a> {
             if fields.iter().any(|g| g.name == f.name) {
                 return self.reject("StructDecl", format!("`{}` has two fields `{}`", node.name, f.name));
             }
-            let ty = self.lty(&f.extra_type)?;
+            let nerr = self.errors.len();
+            let ty = match self.lty(&f.extra_type) {
+                Err(()) if self.opaque_field(f.extra_type.trim(), &f.name) => {
+                    self.errors.truncate(nerr);
+                    LTy::Struct(self.void_struct())
+                }
+                r => r?,
+            };
             let (fs, fa) = self.size_align(&ty)?;
             let off = size.div_ceil(fa) * fa;
             size = off + fs;
