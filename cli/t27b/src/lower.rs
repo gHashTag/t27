@@ -111,6 +111,8 @@ mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's a
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/literal_plan.rs"] #[allow(dead_code, unused_parens)]
+mod lp; // t27c gen-rust of specs/tri/t27b/literal_plan.t27: a literal's text as the t27c parser keeps it
 mod refvars;
 mod tuple;
 
@@ -3902,7 +3904,10 @@ impl<'a> Lower<'a> {
                         Err(what) => self.reject(what, format!("`{}`", s)),
                     };
                 } else if s.contains('.') || (s.contains(['e', 'E']) && !s.starts_with("0x")) {
-                    match float::Q::parse(s) {
+                    // A minus the parser folded in front is Zig's negation of the literal after it (`lp`).
+                    let (b, neg) = (s.as_bytes(), lp::FLOAT_NEGATED);
+                    let sign = lp::float_sign(b[0], b.get(1).copied().unwrap_or(0), b.len());
+                    match float::Q::parse(&s[lp::skip(sign)..]).map(|q| if sign == neg { q.neg() } else { q }) {
                         Ok(q) => {
                             let suffix = n.extra_type.trim();
                             if suffix.is_empty() {

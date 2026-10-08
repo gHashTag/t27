@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/literal_plan.t27 -- how t27b reads a literal's text as the t27c parser keeps it and gen-zig
+; prints it (issue #7809, t27b coverage epic #6063; written in t27 under the port epic #6198).
+; The t27c parser keeps a number literal as its source text, and folds a unary minus in front of it into that
+; text: `const NEG_PI: f64 = -3.141592653589793;` reaches t27b as the literal "-3.141592653589793". gen-zig
+; prints the text back as written, so Zig reads it as the negation of the literal after the minus. Everything
+; t27b decides about the text is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/literal_plan.rs); the glue in cli/t27b/src/lower.rs passes the text's bytes as numbers
+; (gen-rust gives a `str` parameter the type `&'static str`, #7449, and a character literal does not compare
+; with a u8 there, #7604), strips what the plan says to, and parses the rest as before.
+; --
+; The rules, measured on the t27c lab (`t27c test-report`, zig 0.16.0, x86_64 Debug):
+;   A float literal with a folded minus (FLOAT_NEGATED) is the comptime_float after the minus, negated: its
+;   binary128 value with the sign flipped, a zero included (`-0.0` is a negative zero once it is an f64).
+;   An integer literal with a folded minus was already read so (#6352); this plan does not change it.
+;   A lone `-`, or a minus in front of anything that is not a decimal digit, is no number (NOT_A_NUMBER):
+;   the glue keeps its refusal.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bLiteralPlan;
+
+// The bytes the plan reads, as numbers (#7604).
+pub const B_MINUS : u8 = 45;
+pub const B_ZERO : u8 = 48;
+pub const B_NINE : u8 = 57;
+
+// How the text of a float literal starts (float_sign).
+pub const FLOAT_PLAIN : u8 = 0;
+pub const FLOAT_NEGATED : u8 = 1;
+pub const NOT_A_NUMBER : u8 = 2;
+
+/// Is the byte a decimal digit?
+pub fn is_digit(c: u8) -> bool {
+    return c >= B_ZERO and c <= B_NINE;
+}
+
+/// A float literal's text of `len` bytes, the first two `first` and `second` (0 past the end). FLOAT_NEGATED:
+/// the parser folded a minus in front; read the text after it and negate the value. FLOAT_PLAIN: read it as
+/// it is. NOT_A_NUMBER: a minus with no digit after it.
+pub fn float_sign(first: u8, second: u8, len: usize) -> u8 {
+    if (first != B_MINUS) { return FLOAT_PLAIN; }
+    if (len < 2 or !is_digit(second)) { return NOT_A_NUMBER; }
+    return FLOAT_NEGATED;
+}
+
+/// How many bytes the glue skips before it parses: the folded minus.
+pub fn skip(sign: u8) -> usize {
+    if (sign == FLOAT_NEGATED) { return 1; }
+    return 0;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests
+// ----------------------------------------------------------------------------------------------------------
+
+test a_folded_minus_in_front_of_a_digit_negates {
+    // lee_monte_carlo_baseline.t27: `const NEG_PI: f64 = -3.141592653589793;`.
+    assert float_sign(B_MINUS, 51, 18) == FLOAT_NEGATED;
+    assert float_sign(B_MINUS, B_ZERO, 4) == FLOAT_NEGATED;
+    assert float_sign(B_MINUS, B_NINE, 2) == FLOAT_NEGATED;
+    assert skip(FLOAT_NEGATED) == 1;
+}
+
+test a_literal_with_no_minus_is_read_as_it_is {
+    assert float_sign(51, 46, 3) == FLOAT_PLAIN;
+    assert float_sign(B_ZERO, 46, 3) == FLOAT_PLAIN;
+    assert float_sign(46, 53, 2) == FLOAT_PLAIN;
+    assert skip(FLOAT_PLAIN) == 0;
+}
+
+test a_minus_with_no_digit_after_it_is_no_number {
+    assert float_sign(B_MINUS, 0, 1) == NOT_A_NUMBER;
+    assert float_sign(B_MINUS, 46, 3) == NOT_A_NUMBER;
+    assert float_sign(B_MINUS, B_MINUS, 4) == NOT_A_NUMBER;
+    assert float_sign(B_MINUS, B_NINE + 1, 2) == NOT_A_NUMBER;
+    assert float_sign(B_MINUS, B_ZERO - 1, 2) == NOT_A_NUMBER;
+    assert skip(NOT_A_NUMBER) == 0;
+}
+
+test the_bytes_are_their_ascii_codes {
+    assert B_MINUS == 45;
+    assert B_ZERO == 48;
+    assert B_NINE == 57;
+    assert is_digit(48) and is_digit(57) and is_digit(53);
+    assert !is_digit(47) and !is_digit(58) and !is_digit(45);
+}
