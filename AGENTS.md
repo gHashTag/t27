@@ -193,7 +193,9 @@ measure it are written in **t27**, not in Rust or Python by hand.
   on master 8c7b2ccff's 14881 plus 7848; 14917 plus 7877 after #7423's glue
   for integer constants wider than 64 bits, whose plan is
   `specs/tri/t27b/wide_plan.t27`, +36 and +19 on master 8415029ea's 14881
-  plus 7858),
+  plus 7858; 14945 plus 7877 after #7550's refusal of a return that hands
+  out the address of the fn's own frame, +28 and 0 on master 5f3087125's
+  14917 plus 7877),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab). Update these numbers in the PR that moves them.
