@@ -1,0 +1,184 @@
+module T27bLenCall;
+// Which calls t27b lowers as the `.len` FIELD (gHashTag/t27#6198, Refs
+// #6063 #5980). cli/t27b/src/lower.rs mounts the `t27c gen-rust` output
+// of this file (gen/rust/tri/t27b/lencall.rs) as `mod lencall` and only
+// builds the field-access nodes this file names.
+//
+// t27c's Zig backend prints both `x.len()` and `len(x)` as the length field
+// `x.len` (W570; Zig has no `len` method on a slice or an array). t27b
+// lowers each such call as that field access, so the field access decides
+// what has a length. Three call shapes stand for it:
+//
+//   - a method call named `len` the parser kept with its receiver as the
+//     ONE child: the receiver is that child (RECV_CHILD);
+//   - a call with no arguments whose name is a dotted path ending in `.len`
+//     (`a.b.len()`): the receiver is the path `a.b` (RECV_PATH). Every
+//     segment is non-empty and made of ASCII letters, digits and `_`; the
+//     first does not start with a digit;
+//   - a free call `len(x)` with one argument, when no fn named `len` is
+//     declared (nor poisoned): the receiver is `x` (RECV_CHILD).
+//
+// Anything else is an ordinary call (RECV_NONE). A method call with
+// arguments never falls through to the other two shapes, and a no-argument
+// call whose name is longer than `.len` but does not end in it is not a
+// free `len(x)` either.
+//
+// Not here: building the nodes, the receiver's type. Those stay in Rust.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+/// An ordinary call: not a length.
+pub const RECV_NONE : u8 = 0;
+/// The receiver is the call's one child.
+pub const RECV_CHILD : u8 = 1;
+/// The receiver is the dotted path in the call's name, minus `.len`.
+pub const RECV_PATH : u8 = 2;
+
+/// True for a byte a path segment may hold: ASCII letter, digit or `_`.
+pub fn seg_byte(c: u8) -> bool {
+    if (c == 95) { return true; }
+    if (c >= 48 and c <= 57) { return true; }
+    if (c >= 65 and c <= 90) { return true; }
+    if (c >= 97 and c <= 122) { return true; }
+    return false;
+}
+
+/// True for an ASCII digit.
+pub fn digit_byte(c: u8) -> bool {
+    return c >= 48 and c <= 57;
+}
+
+/// True when `name` is exactly `len`.
+pub fn is_len(name: []u8) -> bool {
+    if (name.len != 3) { return false; }
+    return name[0] == 108 and name[1] == 101 and name[2] == 110;
+}
+
+/// True when `name` is a receiver path followed by `.len`: longer than
+/// `.len`, ending in it, every segment of the path valid.
+pub fn len_path(name: []u8) -> bool {
+    const n: usize = name.len;
+    if (n <= 4) { return false; }
+    if (name[n - 4] != 46 or name[n - 3] != 108 or name[n - 2] != 101 or name[n - 1] != 110) { return false; }
+    const end: usize = n - 4;
+    if (digit_byte(name[0])) { return false; }
+    var seg: usize = 0;
+    var i: usize = 0;
+    while (i < end) {
+        const c: u8 = name[i];
+        if (c == 46) {
+            if (seg == 0) { return false; }
+            seg = 0;
+        } else {
+            if (!seg_byte(c)) { return false; }
+            seg = seg + 1;
+        }
+        i = i + 1;
+    }
+    return seg > 0;
+}
+
+/// Which receiver a call with name `name`, `children` children, a
+/// `method` mark from the parser, and `len_declared` (a fn named `len` is
+/// declared or poisoned) stands for.
+pub fn receiver(method: bool, children: usize, name: []u8, len_declared: bool) -> u8 {
+    if (method and children > 0) {
+        if (children == 1 and is_len(name)) { return RECV_CHILD; }
+        return RECV_NONE;
+    }
+    if (children == 0 and name.len > 4) {
+        if (len_path(name)) { return RECV_PATH; }
+        return RECV_NONE;
+    }
+    if (children == 1 and !len_declared and is_len(name)) { return RECV_CHILD; }
+    return RECV_NONE;
+}
+
+fn put(buf: []u8, s: []const u8) -> usize {
+    var i: usize = 0;
+    while (i < s.len) {
+        buf[i] = s[i];
+        i = i + 1;
+    }
+    return i;
+}
+
+test segment_bytes {
+    assert(seg_byte(95));
+    assert(seg_byte(48));
+    assert(seg_byte(57));
+    assert(seg_byte(65));
+    assert(seg_byte(90));
+    assert(seg_byte(97));
+    assert(seg_byte(122));
+    assert(!seg_byte(47));
+    assert(!seg_byte(58));
+    assert(!seg_byte(64));
+    assert(!seg_byte(91));
+    assert(!seg_byte(96));
+    assert(!seg_byte(123));
+    assert(!seg_byte(46));
+    assert(!seg_byte(200));
+    assert(digit_byte(48));
+    assert(digit_byte(57));
+    assert(!digit_byte(47));
+    assert(!digit_byte(58));
+}
+
+test only_len_is_len {
+    var buf: [16]u8 = undefined;
+    assert(is_len(buf[0:put(&buf, "len")]));
+    assert(!is_len(buf[0:put(&buf, "lex")]));
+    assert(!is_len(buf[0:put(&buf, "Len")]));
+    assert(!is_len(buf[0:put(&buf, "lan")]));
+    assert(!is_len(buf[0:put(&buf, "lens")]));
+    assert(!is_len(buf[0:put(&buf, "le")]));
+}
+
+test dotted_paths {
+    var buf: [32]u8 = undefined;
+    assert(len_path(buf[0:put(&buf, "x.len")]));
+    assert(len_path(buf[0:put(&buf, "a.b.len")]));
+    assert(len_path(buf[0:put(&buf, "self.items_2.len")]));
+    assert(len_path(buf[0:put(&buf, "_a.b9.len")]));
+    assert(len_path(buf[0:put(&buf, "a.0.len")]));
+    assert(!len_path(buf[0:put(&buf, ".len")]));
+    assert(!len_path(buf[0:put(&buf, "x.lex")]));
+    assert(!len_path(buf[0:put(&buf, "x.size")]));
+    assert(!len_path(buf[0:put(&buf, "xlen")]));
+    assert(!len_path(buf[0:put(&buf, "xxlen")]));
+    assert(!len_path(buf[0:put(&buf, "9a.len")]));
+    assert(!len_path(buf[0:put(&buf, "a..len")]));
+    assert(!len_path(buf[0:put(&buf, "a.b..len")]));
+    assert(!len_path(buf[0:put(&buf, "a-b.len")]));
+    assert(!len_path(buf[0:put(&buf, "a.b-c.len")]));
+    assert(len_path(buf[0:put(&buf, "a.b.len.len")]));
+}
+
+test method_len_with_one_receiver {
+    var buf: [16]u8 = undefined;
+    assert_eq(receiver(true, 1, buf[0:put(&buf, "len")], false), RECV_CHILD);
+    assert_eq(receiver(true, 1, buf[0:put(&buf, "len")], true), RECV_CHILD);
+    assert_eq(receiver(true, 2, buf[0:put(&buf, "len")], false), RECV_NONE);
+    assert_eq(receiver(true, 1, buf[0:put(&buf, "size")], false), RECV_NONE);
+    assert_eq(receiver(true, 2, buf[0:put(&buf, "x.len")], false), RECV_NONE);
+}
+
+test path_call_without_children {
+    var buf: [16]u8 = undefined;
+    assert_eq(receiver(false, 0, buf[0:put(&buf, "a.b.len")], false), RECV_PATH);
+    assert_eq(receiver(true, 0, buf[0:put(&buf, "a.b.len")], false), RECV_PATH);
+    assert_eq(receiver(false, 0, buf[0:put(&buf, "a.b.len")], true), RECV_PATH);
+    assert_eq(receiver(false, 0, buf[0:put(&buf, "a.b.size")], false), RECV_NONE);
+    assert_eq(receiver(false, 0, buf[0:put(&buf, "1.len")], false), RECV_NONE);
+    assert_eq(receiver(false, 0, buf[0:put(&buf, "len")], false), RECV_NONE);
+    assert_eq(receiver(false, 1, buf[0:put(&buf, "a.b.len")], false), RECV_NONE);
+}
+
+test free_len_of_one_argument {
+    var buf: [16]u8 = undefined;
+    assert_eq(receiver(false, 1, buf[0:put(&buf, "len")], false), RECV_CHILD);
+    assert_eq(receiver(false, 1, buf[0:put(&buf, "len")], true), RECV_NONE);
+    assert_eq(receiver(false, 2, buf[0:put(&buf, "len")], false), RECV_NONE);
+    assert_eq(receiver(false, 0, buf[0:put(&buf, "len")], false), RECV_NONE);
+    assert_eq(receiver(false, 1, buf[0:put(&buf, "size")], false), RECV_NONE);
+}
