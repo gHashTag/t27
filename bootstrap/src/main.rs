@@ -68,6 +68,10 @@ mod die_binding;
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod corpus_receipt;
 use corpus_receipt as cr;
+// specs/verified/ddc_receipt.t27 (#7699): a DDC run of t27core as a signed receipt, judged by T732's ddc_verdict.
+#[path = "../gen/rust/verified/ddc_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ddc_receipt;
 fn cr_sha(parts: &[&[u8]]) -> [u8; 32] { use sha2::Digest; parts.iter().fold(sha2::Sha256::new(), |h, p| h.chain_update(p)).finalize().into() }
 fn cr_root(l: &[String]) -> [u8; 32] { let k = cr::split_point(l.len() as u32) as usize;
     if l.len() < 2 { l.first().map_or(cr_sha(&[]), |x| cr_sha(&[&[cr::LEAF_PREFIX], x.as_bytes()])) } else { cr_sha(&[&[cr::NODE_PREFIX], &cr_root(&l[..k]), &cr_root(&l[k..])]) } }
@@ -368,6 +372,9 @@ enum Commands {
         #[arg(long)] challenge_head: Option<String>,
         #[arg(long)] runner: Option<String>,
     },
+    /// #7699: `sign RUN.json [--nonce N]` signs a DDC run of t27core; `verify RECEIPT [--challenge N]` checks one and
+    /// prints T732's verdict over its routes (specs/verified/ddc_receipt.t27); `due RUN.json [LAST]` exits 0 to run DDC.
+    DdcReceipt { #[arg(value_parser = ["sign", "verify", "due"])] action: String, a: String, b: Option<String>, #[arg(long, alias = "challenge")] nonce: Option<String> },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
@@ -11856,6 +11863,7 @@ async fn main() -> anyhow::Result<()> {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
         Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
+        Commands::DdcReceipt { action, a, b, nonce } => service::run_ddc_receipt(&std::env::current_dir()?, &action, &a, b, nonce)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -12286,6 +12294,7 @@ fn main() -> anyhow::Result<()> {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
         Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
+        Commands::DdcReceipt { action, a, b, nonce } => service::run_ddc_receipt(&std::env::current_dir()?, &action, &a, b, nonce)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }

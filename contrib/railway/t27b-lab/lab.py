@@ -831,8 +831,44 @@ def lab_run(sha, log, challenge=SRV / "challenge"):
         doc["results"] = [
             {"file": f, "reference": v, "reference_detail": w, "t27b": "not run"} for f, (v, w) in sorted(reference.items())
         ]
+    step("ddc", lambda: ddc_receipt(sha, log, challenge)) if have_t27c and have_t27b and SEED else None  # #7699
     return doc
 
+
+def ddc_receipt(sha, log, challenge):
+    """#7699 (specs/verified/ddc_receipt.t27): build t27core on routes A, B, C and sign the run when `ddc-receipt due` says so."""
+    core, w, DDC, sh = CLONE / "specs" / "compiler" / "core", WORK / "ddc", SRV / "ddc", lambda b: hashlib.sha256(b).hexdigest()  # noqa: E731
+    shutil.rmtree(w, ignore_errors=True), w.mkdir(parents=True), DDC.mkdir(exist_ok=True)
+    S, h, text, e = core / "t27core.t27", core / "t27core_ddc.t27", (core / "t27core_ddc.t27").read_text(), subprocess.run([str(T27C), "gen-c", str(core / "t27core.t27")], capture_output=True, timeout=600)
+    packed = lambda fn: b"".join(b"".join((int(x) % 2 ** 64).to_bytes(8, "little") for x in a.split(","))[:None if k == "4" else int(a.split(",")[1])]  # noqa: E731
+                                 for k, a in re.findall(r"d([14])\(([^)]*)\)", text.split("fn %s() -> void {" % fn)[1].split("\n}")[0]))  # d4: 4 words, d1(x, n): n bytes
+    doc = {"commit": sha, "s_sha256": sh(S.read_bytes()), "e_sha256": sh(e.stdout) if e.returncode == 0 else "", "harness_sha256": sh(text.encode()),
+           "frozen_hash": (CLONE / "bootstrap" / "stage0" / "FROZEN_HASH").read_text().split()[0], "harness_s_sha256": sh(packed("ddc_source")), "t27c_sha256": sh(T27C.read_bytes())}
+    write_json(w / "run.json", doc)
+    due = subprocess.run([str(T27C), "ddc-receipt", "due", str(w / "run.json"), str(DDC / "latest.receipt.json")], timeout=60).returncode
+    if due:  # due_exit: 0 runs; 1 skips; anything else is a t27c without ddc-receipt, which could not sign either
+        return {"skipped": "S, E and FROZEN_HASH are those of /ddc/latest.receipt.json" if due == 1 else "no t27c ddc-receipt here"}
+    (w / "core.c").write_bytes(e.stdout), (w / "d.c").write_text(re.search(r'DRIVER: &str = r#"(.*?)"#', (CLONE / "bootstrap" / "tests" / "core_selfhost.rs").read_text(), re.S)[1])
+    a = subprocess.run([str(w / "core")], stdin=S.open("rb"), capture_output=True, timeout=600) if run(["cc", "-O1", "-w", "-o", w / "core", w / "d.c"], log)[0] == 0 else None  # A: E, cc and the commit's own driver; stdout is stage 2
+    b, c, x = run(QEMU + [T27B, "test", h, "--check"], log, cwd=CLONE, timeout=3600)[0], {"pass": 0, "fail": 1}.get(reference_one(999, str(h.relative_to(CLONE)))[0]), sh(packed("ddc_expected"))
+    out = lambda code, ran=True: "not_run" if code is None or not ran else "pass" if code == 0 else "fail"  # noqa: E731
+    routes = [("A", "cc", first_line(["cc", "--version"]), out(a and a.returncode), sh(a.stdout) if a else ""),  # B and C compare stage 2 with the harness's E in-program
+              ("B", T27B, "t27b %s %s" % (sha, TARGET), out(b, b not in (2, 3, 5, 64, 74)), x), ("C", "zig", "zig " + first_line(["zig", "version"]), out(c), x)]
+    doc["routes"] = [{"route": r, "builder_sha256": sh(Path(shutil.which(p) or p).resolve().read_bytes()), "built_by": by, "outcome": o, "front_end":
+                      "bootstrap/src/compiler.rs@" + doc["frozen_hash"], "stage2_sha256": s2 if o == "pass" else ""} for r, p, by, o, s2 in routes]
+    nonce, key = (["--nonce", challenge.read_text().strip()] if challenge.exists() and challenge.read_text().strip() else []), w / "receipt-ed25519.key"
+    with os.fdopen(os.open(key, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600), "w") as f:
+        f.write(SEED)
+    try:
+        write_json(w / "run.json", doc)
+        p = run_group([str(T27C), "ddc-receipt", "sign", str(w / "run.json")] + nonce, 600, cwd=CLONE, env=dict(os.environ, T27_RECEIPT_KEY=str(key)))
+    finally:
+        key.unlink()
+    if p.returncode != 0:
+        raise RuntimeError("t27c ddc-receipt sign exited %s: %s" % (p.returncode, p.stderr.strip()[-300:]))
+    [write_json(DDC / n, json.loads(p.stdout)) for n in ("%s.receipt.json" % sha, "latest.receipt.json")]
+    v = subprocess.run([str(T27C), "ddc-receipt", "verify", str(DDC / "latest.receipt.json")] + nonce, cwd=CLONE, capture_output=True, text=True, timeout=60)
+    return {"json": "/ddc/%s.receipt.json" % sha, "routes": [r[3] for r in routes], "verify": v.stdout.strip().splitlines()[-1:]}
 
 def ratchet(doc, log):
     """The per-spec ratchet of this commit against its own ledger (#6115).

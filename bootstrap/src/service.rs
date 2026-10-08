@@ -2328,6 +2328,10 @@ fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
 /// The same message read back from a stored receipt: an absent field is null,
 /// exactly as the writer stores an absent fact.
 fn receipt_message_of_json(v: &serde_json::Value) -> Vec<u8> {
+    if v["kind"] == dr::DDC_DOMAIN { // #7699: a DDC receipt signs its own domain (specs/verified/ddc_receipt.t27)
+        let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..dr::ddc_domain_line_len()).map(|k| dr::ddc_domain_line_char(k) as u8).collect::<Vec<u8>>());
+        return { dr::DDC_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
+    }
     if v.get("kind").and_then(|k| k.as_str()) == Some(cr::CORPUS_DOMAIN) { // #7576: a corpus receipt signs its own domain
         let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..cr::corpus_domain_line_len()).map(|k| cr::corpus_domain_line_char(k) as u8).collect::<Vec<u8>>());
         return { cr::CORPUS_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
@@ -2586,6 +2590,29 @@ pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Op
     let code = cr::lane_verdict(problem, cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root")), worst, d(&x, 0), d(&y, 0), d(&x, 1), d(&y, 1));
     println!("{}", if code == cr::LANE_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), cr::LANE_NAMES[code as usize]) });
     std::process::exit(code as i32)
+}
+
+use crate::ddc_receipt as dr; // #7699, rules: specs/verified/ddc_receipt.t27; the run's facts come from the t27b lab's DDC step
+pub fn run_ddc_receipt(root: &Path, action: &str, a: &str, b: Option<String>, nonce: Option<String>) -> anyhow::Result<()> {
+    let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
+    let (mut v, s, hexarg) = (read(a)?, |v: &serde_json::Value, k: &str| spec_str(v[k].as_str().unwrap_or("")), |f, n: Option<String>| n.map(|n| parse_challenge_hex(f, &n)).transpose().map_err(anyhow::Error::msg));
+    if action == "due" { // b: the last signed DDC receipt, if there is one
+        let l = b.and_then(|p| read(&p).ok()).unwrap_or_default();
+        std::process::exit(dr::due_exit(dr::ddc_due(l.is_object(), dr::DDC_INPUT_FIELDS.iter().filter(|k| l[**k] != v[**k]).count() as u32)) as i32)
+    }
+    if action == "sign" {
+        let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
+        v["kind"] = dr::DDC_DOMAIN.into(); v["nonce"] = hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)).into(); v["key_id"] = receipt_key_id(&crate::ed25519::public_key(key)).into();
+        v["signature"] = hex_lower(&crate::ed25519::sign(key, &receipt_message_of_json(&v))).into();
+        return Ok(println!("{}", serde_json::to_string_pretty(&v)?));
+    }
+    let ((auth, level), e, r) = (receipt_auth(root, &v, hexarg("--challenge", nonce)?.as_deref()), s(&v, "e_sha256"), |i: usize, k: &str| s(&v["routes"][i], k));
+    let (st, n) = (|i: usize| dr::route_state(i as u32, r(i, "route"), r(i, "outcome"), r(i, "stage2_sha256"), e), v["routes"].as_array().map_or(0, |x| x.len()));
+    let verdict = dr::ddc_receipt_verdict(n as u32, s(&v, "s_sha256"), s(&v, "harness_s_sha256"), e, st(0), st(1), st(2), r(0, "front_end"), r(1, "front_end"), r(2, "front_end"));
+    let problem = dr::ddc_first_problem(s(&v, "kind"), auth);
+    (0..n).for_each(|i| println!("  route {} {} {} stage 2 {}", r(i, "route"), r(i, "outcome"), r(i, "front_end"), ["not run", "is not E", "is E"][st(i).min(2) as usize]));
+    println!("ddc {} {} {}: {}; C4 holds: {}", v["commit"], auth_name(auth), level_name(level), if problem == dr::DDC_OK { dr::DDC_NAMES[verdict as usize] } else { "REFUSED: not an authenticated DDC receipt" }, dr::c4_holds(problem, verdict));
+    std::process::exit(dr::ddc_exit(problem, verdict) as i32)
 }
 
 /// `t27c receipt-key init|show`: create this host's receipt key, or say which
