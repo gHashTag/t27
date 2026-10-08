@@ -1,0 +1,10 @@
+// A module that imports another one: accept/use_transitive.t27 reaches
+// use_dep through it.
+module use_mid;
+use selfhost_use::use_dep;
+fn um_four(a: i64) -> i64 {
+    return ud_twice(ud_twice(a));
+}
+test um_values {
+    assert(um_four(3) == 12);
+}

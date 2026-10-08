@@ -1,0 +1,10 @@
+// #7938: the importer declares UD_LIMIT too. gen-c splices ud_unused, but not
+// use_dep's UD_LIMIT, as the importer has one, so the spliced ud_unused
+// reads the importer's 9 and returns 12, where its module gives 10. The
+// core refuses a name both declare.
+module use_also_declared;
+use selfhost_use::use_dep;
+const UD_LIMIT: i64 = 9;
+fn uad_value() -> i64 {
+    return ud_unused();
+}
