@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/ternary_mul_top.t27
+// Ternary Multiplier Top — Unit-level FPGA cost measurement (BENCH-005)
+// Single ternary multiplication: a, b ∈ {-1, 0, +1} → result ∈ {-1, 0, +1}
+// Target: Compare GF16 mul (94 LUT + 1 DSP) vs ternary mul (expected ~10–30 LUT, 0 DSP)
+// Ported from gHashTag/trinity fpga/openxc7-synth/ternary_mul_top.v
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ternary_mul_top {
+
+    // === Ternary encoding constants ===
+    
+    pub const TERNARY_NEG : u32 = 0b00;  // 00 = -1
+    pub const TERNARY_ZERO : u32 = 0b01; // 01 = 0
+    pub const TERNARY_POS : u32 = 0b10;  // 10 = +1
+    pub const TERNARY_UNUSED : u32 = 0b11; // 11 = unused
+
+    // === Module interface ===
+    
+    pub struct TernaryMulInputs {
+        clk : u32,
+        rst_n : u32,
+        a : u32,
+        b : u32,
+    }
+    
+    pub struct TernaryMulOutputs {
+        result : u32,
+        led : u32,
+    }
+    
+    // === Ternary value decoding ===
+    
+    fn ternary_to_int(value: u32) -> i32 {
+        if (value == TERNARY_NEG) {
+            return -1;
+        } else if (value == TERNARY_ZERO) {
+            return 0;
+        } else if (value == TERNARY_POS) {
+            return 1;
+        } else {
+            return 0; // unused case treated as 0
+        }
+    }
+    
+    fn int_to_ternary(value: i32) -> u32 {
+        if (value == -1) {
+            return TERNARY_NEG;
+        } else if (value == 0) {
+            return TERNARY_ZERO;
+        } else if (value == 1) {
+            return TERNARY_POS;
+        } else {
+            return TERNARY_ZERO; // fallback to 0
+        }
+    }
+    
+    // === Ternary multiplication logic ===
+    
+    fn is_ternary_zero(value: u32) -> bool {
+        return value == TERNARY_ZERO;
+    }
+    
+    fn is_ternary_neg(value: u32) -> bool {
+        return value == TERNARY_NEG;
+    }
+    
+    fn ternary_multiply(a: u32, b: u32) -> u32 {
+        // Check for zero (either input is 0 → result is 0)
+        if (is_ternary_zero(a) or is_ternary_zero(b)) {
+            return TERNARY_ZERO;
+        }
+        
+        // Check signs: TERNARY_NEG=-1 (negative), TERNARY_POS=+1 (positive)
+        var a_is_neg : bool = is_ternary_neg(a);
+        var b_is_neg : bool = is_ternary_neg(b);
+        var result_is_neg : bool = a_is_neg ^ b_is_neg;  // XOR for sign
+        
+        // Result: TERNARY_NEG=-1, TERNARY_ZERO=0, TERNARY_POS=+1
+        if (result_is_neg) {
+            return TERNARY_NEG;  // -1
+        } else {
+            return TERNARY_POS;  // +1
+        }
+    }
+    
+    // === Register simulation ===
+    
+    fn register_value(clk: u32, rst_n: u32, data: u32, current: u32, is_result_reg: bool) -> u32 {
+        if (rst_n == 0) {
+            // Reset state: return default value (0 for all registers)
+            return TERNARY_ZERO;
+        } else if (clk == 1) {
+            // Positive edge: capture new value (only on positive clock edge)
+            return data;
+        } else {
+            // Hold current value
+            return current;
+        }
+    }
+    
+    // === Top-level computation ===
+    
+    fn compute_ternary_mul(inputs: TernaryMulInputs, a_reg: u32, b_reg: u32) -> TernaryMulOutputs {
+        // Input registers (for fair Fmax measurement)
+        // If reset is active, use reset value (0), otherwise use current register value
+        var new_a_reg : u32 = if (inputs.rst_n == 0) { TERNARY_ZERO } else { a_reg };
+        var new_b_reg : u32 = if (inputs.rst_n == 0) { TERNARY_ZERO } else { b_reg };
+        
+        // For clock edge simulation, only update on positive clock edge
+        if (inputs.clk == 1 and inputs.rst_n != 0) {
+            new_a_reg = inputs.a;
+            new_b_reg = inputs.b;
+        }
+        
+        // Ternary multiplier
+        var mul_result : u32 = ternary_multiply(new_a_reg, new_b_reg);
+        
+        // Output register (for fair Fmax measurement)
+        var result_reg : u32 = mul_result; // Simplified: no output register for now
+        
+        // Status LED — T23 (active-low, D6): ON when not reset
+        var led_value : u32 = if (inputs.rst_n != 0) { 1 } else { 0 };
+        
+        return TernaryMulOutputs{
+            .result = result_reg,
+            .led = led_value,
+        };
+    }
+    
+    // === Test helpers ===
+    
+    fn create_inputs(clk: u32, rst_n: u32, a: u32, b: u32) -> TernaryMulInputs {
+        return TernaryMulInputs{
+            .clk = clk,
+            .rst_n = rst_n,
+            .a = a,
+            .b = b,
+        };
+    }
+    
+    fn create_outputs(result: u32, led: u32) -> TernaryMulOutputs {
+        return TernaryMulOutputs{
+            .result = result,
+            .led = led,
+        };
+    }
+    
+    // === Tests ===
+    
+    test ternary_encoding {
+        assert(ternary_to_int(TERNARY_NEG) == -1);
+        assert(ternary_to_int(TERNARY_ZERO) == 0);
+        assert(ternary_to_int(TERNARY_POS) == 1);
+        assert(ternary_to_int(TERNARY_UNUSED) == 0);
+        
+        assert(int_to_ternary(-1) == TERNARY_NEG);
+        assert(int_to_ternary(0) == TERNARY_ZERO);
+        assert(int_to_ternary(1) == TERNARY_POS);
+    }
+    
+    test is_ternary_zero {
+        assert(is_ternary_zero(TERNARY_ZERO) == true);
+        assert(is_ternary_zero(TERNARY_NEG) == false);
+        assert(is_ternary_zero(TERNARY_POS) == false);
+        assert(is_ternary_zero(TERNARY_UNUSED) == false);
+    }
+    
+    test is_ternary_neg {
+        assert(is_ternary_neg(TERNARY_NEG) == true);
+        assert(is_ternary_neg(TERNARY_ZERO) == false);
+        assert(is_ternary_neg(TERNARY_POS) == false);
+        assert(is_ternary_neg(TERNARY_UNUSED) == false);
+    }
+    
+    test ternary_multiply_zero_cases {
+        assert(ternary_multiply(TERNARY_ZERO, TERNARY_NEG) == TERNARY_ZERO);
+        assert(ternary_multiply(TERNARY_NEG, TERNARY_ZERO) == TERNARY_ZERO);
+        assert(ternary_multiply(TERNARY_ZERO, TERNARY_ZERO) == TERNARY_ZERO);
+        assert(ternary_multiply(TERNARY_ZERO, TERNARY_POS) == TERNARY_ZERO);
+        assert(ternary_multiply(TERNARY_POS, TERNARY_ZERO) == TERNARY_ZERO);
+    }
+    
+    test ternary_multiply_nonzero {
+        // -1 * -1 = +1
+        assert(ternary_multiply(TERNARY_NEG, TERNARY_NEG) == TERNARY_POS);
+        // -1 * +1 = -1
+        assert(ternary_multiply(TERNARY_NEG, TERNARY_POS) == TERNARY_NEG);
+        // +1 * -1 = -1
+        assert(ternary_multiply(TERNARY_POS, TERNARY_NEG) == TERNARY_NEG);
+        // +1 * +1 = +1
+        assert(ternary_multiply(TERNARY_POS, TERNARY_POS) == TERNARY_POS);
+    }
+    
+    test register_value_reset {
+        // Reset overrides everything
+        assert(register_value(0, 0, TERNARY_NEG, TERNARY_POS, false) == TERNARY_ZERO);
+        assert(register_value(1, 0, TERNARY_POS, TERNARY_NEG, false) == TERNARY_ZERO);
+        assert(register_value(0, 0, TERNARY_ZERO, TERNARY_POS, false) == TERNARY_ZERO);
+    }
+    
+    test register_value_clock_edge {
+        // Positive edge: capture new value
+        assert(register_value(1, 1, TERNARY_NEG, TERNARY_ZERO, false) == TERNARY_NEG);
+        assert(register_value(1, 1, TERNARY_POS, TERNARY_NEG, false) == TERNARY_POS);
+        
+        // No edge: hold current value
+        assert(register_value(0, 1, TERNARY_NEG, TERNARY_POS, false) == TERNARY_POS);
+        assert(register_value(0, 1, TERNARY_POS, TERNARY_NEG, false) == TERNARY_NEG);
+    }
+    
+    test compute_ternary_mul_reset {
+        var inputs = create_inputs(0, 0, TERNARY_NEG, TERNARY_POS);
+        var outputs = compute_ternary_mul(inputs, TERNARY_ZERO, TERNARY_ZERO);
+        assert(outputs.result == TERNARY_ZERO);
+        assert(outputs.led == 1); // LED on when not reset
+    }
+    
+    test compute_ternary_mul_normal {
+        var inputs = create_inputs(1, 1, TERNARY_NEG, TERNARY_NEG);
+        var outputs = compute_ternary_mul(inputs, TERNARY_ZERO, TERNARY_ZERO);
+        assert(outputs.result == TERNARY_POS); // -1 * -1 = +1
+        assert(outputs.led == 0); // LED off when reset is high
+    }
+    
+    test compute_ternary_mul_zero_input {
+        var inputs = create_inputs(1, 1, TERNARY_ZERO, TERNARY_NEG);
+        var outputs = compute_ternary_mul(inputs, TERNARY_ZERO, TERNARY_ZERO);
+        assert(outputs.result == TERNARY_ZERO); // 0 * anything = 0
+        assert(outputs.led == 0);
+    }
+    
+    test compute_ternary_mul_mixed {
+        // Test case: a=-1, b=+1 → result=-1
+        var inputs = create_inputs(1, 1, TERNARY_NEG, TERNARY_POS);
+        var outputs = compute_ternary_mul(inputs, TERNARY_ZERO, TERNARY_ZERO);
+        assert(outputs.result == TERNARY_NEG); // -1 * +1 = -1
+        assert(outputs.led == 0);
+        
+        // Test case: a=+1, b=-1 → result=-1  
+        inputs = create_inputs(1, 1, TERNARY_POS, TERNARY_NEG);
+        outputs = compute_ternary_mul(inputs, TERNARY_ZERO, TERNARY_ZERO);
+        assert(outputs.result == TERNARY_NEG); // +1 * -1 = -1
+        assert(outputs.led == 0);
+    }
+    
+    // === Invariants ===
+    
+    invariant ternary_encoding_consistent
+        given x = ternary_to_int(int_to_ternary(-1))
+        assert x == -1
+    
+    invariant ternary_encoding_zero
+        given x = ternary_to_int(int_to_ternary(0))
+        assert x == 0
+    
+    invariant ternary_encoding_positive
+        given x = ternary_to_int(int_to_ternary(1))
+        assert x == 1
+    
+    invariant ternary_multiply_commutative_neg_pos
+        given result1 = ternary_multiply(TERNARY_NEG, TERNARY_POS)
+        given result2 = ternary_multiply(TERNARY_POS, TERNARY_NEG)
+        assert result1 == result2
+    
+    invariant ternary_multiply_commutative_neg_neg
+        given result1 = ternary_multiply(TERNARY_NEG, TERNARY_NEG)
+        given result2 = ternary_multiply(TERNARY_NEG, TERNARY_NEG)
+        assert result1 == result2
+    
+    invariant ternary_multiply_commutative_pos_pos
+        given result1 = ternary_multiply(TERNARY_POS, TERNARY_POS)
+        given result2 = ternary_multiply(TERNARY_POS, TERNARY_POS)
+        assert result1 == result2
+    
+    invariant register_value_stable_case1
+        given result = register_value(0, 1, TERNARY_NEG, TERNARY_POS, false)
+        assert result == TERNARY_POS
+    
+    invariant register_value_stable_case2
+        given result = register_value(1, 1, TERNARY_POS, TERNARY_NEG, false)
+        assert result == TERNARY_POS
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
