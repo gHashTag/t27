@@ -14,7 +14,7 @@
  },
  "max_not_pass": 36,
  "counts": {
-  "pass": 918,
+  "pass": 920,
   "pass_vacuous": 151,
   "not_pass": 36
  },
@@ -961,6 +961,7 @@
   {"path": "specs/tri/sort/insertion_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/sort/merge_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/sort/selection_sort.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/a64.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/bit_cast_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/builtin_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/check_budget.t27", "t27b": "pass"},
@@ -977,6 +978,7 @@
   {"path": "specs/tri/t27b/conformance/comptime_float.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/comptime_float_f128.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/const_optional.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/div_trunc_panic.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/empty_anon_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/eval_branch_quota.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_as.t27", "t27b": "pass"},

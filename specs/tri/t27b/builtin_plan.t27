@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/builtin_plan.t27 -- how t27b lowers `@abs`, `@max`, `@min` and `std.math.pi` / `std.math.e`
-; (issue #7394, t27b lane 4 of epic #6063; written in t27 under the port epic #6198).
+; (issue #7394, t27b lane 4 of epic #6063; written in t27 under the port epic #6198), and `@divTrunc` and a
+; `@panic` statement (issue #7790).
 ; gen-zig prints these four as written, and so does a bare `abs(x)` when no `fn abs` is declared, so t27b
 ; must give each of them the meaning Zig 0.16 gives it in a Debug build. Everything t27b decides about them
 ; is in this file and reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/builtin_plan.rs):
@@ -22,6 +23,15 @@
 ;   types, two literals, and any other number of operands.
 ;   `std.math.pi` and `std.math.e` are the comptime_float literals of Zig's lib/std/math.zig, held as
 ;   binary128 and rounded once where a typed float is needed.
+;   `@divTrunc(a, b)` of two integers is the truncated quotient, with a division-by-zero trap and then the
+;   MIN / -1 overflow trap; of two literals it folds. gen-zig prints a signed `a / b` as `@divTrunc(a, b)`
+;   (W593), so t27b's own `/` is the operator the reference runs for it (OPERATOR). Refused: a float or any
+;   other operand (Zig's `@divTrunc` of floats truncates a float quotient), another number of operands.
+;   `@panic("m");` fails the test that reaches it, and nothing else. Zig refuses a statement after it in the
+;   same block (`unreachable code`), so only the last statement of its block is a trap (P_TRAP). Refused: a
+;   message that is not a string literal (it would be evaluated, and no corpus spec needs it), and a
+;   `@panic` with statements after it. A `@panic` gen-zig prints as `return @panic(..)` (the tail of a
+;   non-void fn, #7533) and a `@panic` in an expression keep their refusals: the glue never asks.
 ; --
 ; A plan is a list of rows over numbered slots. Slot 0 is the literal 0, slots 1 and 2 are the operands
 ; (each evaluated once, in order), and row i writes slot 1 + arity + i. A row is
@@ -39,11 +49,12 @@
 
 module T27bBuiltinPlan;
 
-// Which call: a bare `abs(x)` with no `fn abs` declared, `@abs(x)`, `@max(a, b)`, `@min(a, b)`.
+// Which call: a bare `abs(x)` with no `fn abs` declared, `@abs(x)`, `@max(a, b)`, `@min(a, b)`, `@divTrunc(a, b)`.
 pub const BARE_ABS : u8 = 0;
 pub const ABS : u8 = 1;
 pub const MAX : u8 = 2;
 pub const MIN : u8 = 3;
+pub const DIV_TRUNC : u8 = 4;
 
 // What one lowered operand is, as the glue sees it.
 pub const K_FLOAT : u8 = 0;
@@ -59,12 +70,15 @@ pub const REFUSE : u8 = 0;
 pub const FROM_FIRST : u8 = 1;
 pub const FROM_SECOND : u8 = 2;
 pub const FOLD : u8 = 3;
+// Lower the call as t27b's binary operator op_text(OP_DIV) of its two operands.
+pub const OPERATOR : u8 = 4;
 
 // The operator of a row, and the fields of a row.
 pub const OP_SUB : u8 = 0;
 pub const OP_LT : u8 = 1;
 pub const OP_LE : u8 = 2;
 pub const OP_NE : u8 = 3;
+pub const OP_DIV : u8 = 4;
 pub const F_OP : u8 = 0;
 pub const F_L : u8 = 1;
 pub const F_R : u8 = 2;
@@ -82,7 +96,7 @@ pub const E_DIGITS : str = "2.71828182845904523536028747135266249775724709369995
 
 /// How many operands the call takes.
 pub fn arity(b: u8) -> usize {
-    if (b == MAX or b == MIN) { return 2; }
+    if (b == MAX or b == MIN or b == DIV_TRUNC) { return 2; }
     return 1;
 }
 
@@ -92,6 +106,7 @@ pub fn what_arity(b: u8) -> str {
     if (b == BARE_ABS) { return "ExprCall(undeclared fn)"; }
     if (b == ABS) { return "ExprCall(@abs)"; }
     if (b == MAX) { return "ExprCall(@max)"; }
+    if (b == DIV_TRUNC) { return "ExprCall(@divTrunc)"; }
     return "ExprCall(@min)";
 }
 
@@ -99,6 +114,7 @@ pub fn what_arity(b: u8) -> str {
 pub fn what_operands(b: u8) -> str {
     if (b == BARE_ABS) { return "ExprCall(abs of an integer)"; }
     if (b == ABS) { return "ExprCall(@abs of an integer)"; }
+    if (b == DIV_TRUNC) { return "ExprCall(@divTrunc of a non-integer)"; }
     return what_arity(b);
 }
 
@@ -107,9 +123,18 @@ pub fn is_literal(k: u8) -> bool {
     return k == K_CF or k == K_CT;
 }
 
+/// A typed integer or a comptime_int.
+pub fn is_integer(k: u8) -> bool {
+    return k == K_INT or k == K_CT;
+}
+
 /// The decision table. k1, k2: the operands' kinds (k2 is K_OTHER for a one-operand call); same: both
-/// operands are typed and of one type. Returns REFUSE, FROM_FIRST, FROM_SECOND or FOLD.
+/// operands are typed and of one type. Returns REFUSE, FROM_FIRST, FROM_SECOND, FOLD or OPERATOR.
 pub fn type_from(b: u8, k1: u8, k2: u8, same: bool) -> u8 {
+    if (b == DIV_TRUNC) {
+        if (is_integer(k1) and is_integer(k2)) { return OPERATOR; }
+        return REFUSE;
+    }
     if (b == BARE_ABS or b == ABS) {
         if (k1 == K_FLOAT) { return FROM_FIRST; }
         if (is_literal(k1)) { return FOLD; }
@@ -168,7 +193,44 @@ pub fn op_text(op: u8) -> str {
     if (op == OP_SUB) { return "-"; }
     if (op == OP_LT) { return "<"; }
     if (op == OP_LE) { return "<="; }
+    if (op == OP_DIV) { return "/"; }
     return "!=";
+}
+
+/// The operator a call answered OPERATOR lowers to.
+pub fn operator(b: u8) -> u8 {
+    if (b == DIV_TRUNC) { return OP_DIV; }
+    return OP_SUB;
+}
+
+// What a `@panic(..);` statement lowers to: a trap that always fires, or a refusal.
+pub const P_TRAP : u8 = 0;
+pub const P_ARITY : u8 = 1;
+pub const P_MESSAGE : u8 = 2;
+pub const P_NOT_LAST : u8 = 3;
+
+/// A `@panic` statement the reference does not return. args: its operand count; literal: the one operand is
+/// a string literal; last: it is the last statement of its block.
+pub fn panic_stmt(args: usize, literal: bool, last: bool) -> u8 {
+    if (args != 1) { return P_ARITY; }
+    if (!literal) { return P_MESSAGE; }
+    if (!last) { return P_NOT_LAST; }
+    return P_TRAP;
+}
+
+/// The construct a refused `@panic` statement names.
+pub fn panic_what(act: u8) -> str {
+    if (act == P_MESSAGE) { return "ExprCall(@panic with non-literal message)"; }
+    if (act == P_NOT_LAST) { return "ExprCall(@panic before more statements)"; }
+    return "ExprCall(@panic)";
+}
+
+/// Why, in the refusal's detail.
+pub fn panic_why(act: u8) -> str {
+    if (act == P_MESSAGE) { return "the message is not a string literal"; }
+    if (act == P_NOT_LAST) { return "statements follow it in its block, which Zig refuses as unreachable code"; }
+    if (act == P_ARITY) { return "Zig's @panic takes one message"; }
+    return "";
 }
 
 /// The plan of b run over f64 values, slot by slot, the way the glue builds it in IR. For the tests; a
@@ -363,6 +425,54 @@ test integer_plans_are_one_compare {
     assert run_plan(MIN, false, 3.0, -4.0) == -4.0;
     assert run_plan(MAX, false, 200.0, 17.0) == 200.0;
     assert run_plan(MIN, false, 17.0, 200.0) == 17.0;
+}
+
+test div_trunc_takes_two_integers_and_lowers_as_the_division {
+    assert arity(DIV_TRUNC) == 2;
+    assert std.mem.eql(u8, what_arity(DIV_TRUNC), "ExprCall(@divTrunc)");
+    assert std.mem.eql(u8, what_operands(DIV_TRUNC), "ExprCall(@divTrunc of a non-integer)");
+    assert type_from(DIV_TRUNC, K_INT, K_INT, true) == OPERATOR;
+    assert type_from(DIV_TRUNC, K_INT, K_INT, false) == OPERATOR;
+    assert type_from(DIV_TRUNC, K_INT, K_CT, false) == OPERATOR;
+    assert type_from(DIV_TRUNC, K_CT, K_INT, false) == OPERATOR;
+    assert type_from(DIV_TRUNC, K_CT, K_CT, false) == OPERATOR;
+    assert operator(DIV_TRUNC) == OP_DIV;
+    assert std.mem.eql(u8, op_text(operator(DIV_TRUNC)), "/");
+    assert operator(MAX) != OP_DIV;
+    assert is_integer(K_INT) and is_integer(K_CT);
+    assert !is_integer(K_FLOAT) and !is_integer(K_CF) and !is_integer(K_OTHER);
+}
+
+test div_trunc_refuses_floats_and_everything_else {
+    assert type_from(DIV_TRUNC, K_FLOAT, K_FLOAT, true) == REFUSE;
+    assert type_from(DIV_TRUNC, K_INT, K_FLOAT, false) == REFUSE;
+    assert type_from(DIV_TRUNC, K_CF, K_CT, false) == REFUSE;
+    assert type_from(DIV_TRUNC, K_CT, K_CF, false) == REFUSE;
+    assert type_from(DIV_TRUNC, K_OTHER, K_INT, false) == REFUSE;
+    assert type_from(DIV_TRUNC, K_INT, K_OTHER, false) == REFUSE;
+    // The other calls never answer OPERATOR.
+    assert type_from(MAX, K_INT, K_INT, true) == FROM_FIRST;
+    assert type_from(ABS, K_CT, K_OTHER, false) == FOLD;
+}
+
+test a_last_panic_statement_with_a_literal_message_is_a_trap {
+    assert panic_stmt(1, true, true) == P_TRAP;
+    assert std.mem.eql(u8, panic_what(P_TRAP), "ExprCall(@panic)");
+    assert panic_why(P_TRAP).len == 0;
+}
+
+test a_panic_the_reference_refuses_or_that_is_not_taken_is_refused_by_name {
+    assert panic_stmt(1, true, false) == P_NOT_LAST;
+    assert panic_stmt(1, false, true) == P_MESSAGE;
+    assert panic_stmt(1, false, false) == P_MESSAGE;
+    assert panic_stmt(0, true, true) == P_ARITY;
+    assert panic_stmt(2, true, true) == P_ARITY;
+    assert std.mem.eql(u8, panic_what(P_NOT_LAST), "ExprCall(@panic before more statements)");
+    assert std.mem.eql(u8, panic_what(P_MESSAGE), "ExprCall(@panic with non-literal message)");
+    assert std.mem.eql(u8, panic_what(P_ARITY), "ExprCall(@panic)");
+    assert panic_why(P_NOT_LAST).len > 0;
+    assert panic_why(P_MESSAGE).len > 0;
+    assert panic_why(P_ARITY).len > 0;
 }
 
 test pi_and_e_are_zig_s_digits {
