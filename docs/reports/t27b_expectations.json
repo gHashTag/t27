@@ -14,7 +14,7 @@
  },
  "max_not_pass": 39,
  "counts": {
-  "pass": 898,
+  "pass": 900,
   "pass_vacuous": 151,
   "not_pass": 39
  },
@@ -980,6 +980,7 @@
   {"path": "specs/tri/t27b/conformance/numeric_coercion.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/pointer_equality.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/postfix_optional.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/repeat_addr_unreached.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/return_undefined_void.t27", "t27b": "pass"},
@@ -1010,6 +1011,7 @@
   {"path": "specs/tri/t27b/libm.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/libm_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/macho.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/ptr_eq_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/reduce.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/scaffold_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/slice_lit_plan.t27", "t27b": "pass"},
