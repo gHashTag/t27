@@ -27,6 +27,18 @@
 # `uart` stays 0: its spec line was restored, not absorbed here. The version
 # header is 12.0 because CI (ubuntu noble iverilog 12.0-2build2) measured every
 # other row identical to the 13.0 numbers (master run 37423783199).
+#
+# 2026-10-08: 177 -> 199. `coverage 22` is a NEW module (specs/fpga/coverage.t27,
+# #7578): coverage arriving, not a regression in an existing row. 20 of the 22
+# are the string-field class (#2433), `p.name == ""` and friends in the five
+# validate_* fns; 2 are `points[i].illegal` read through an array param in
+# illegal_hits (#2410). The four hit_* loops now call is_covered_*(points[i])
+# and elaborate, but the array param is still flattened (#2410), so they are
+# not yet meaningful hardware either -- the count is the honest floor.
+#
+# `eth_beacon 0` and `rgmii_sniff 0` arrived on master with e6e8257c5 (#7788)
+# without rows, so the ratchet read them as NEW and went red for every
+# branch that merged master. Both elaborate clean; a 0 row hides nothing.
 adapter 0
 apb_bridge 4
 assembler 4
@@ -35,6 +47,7 @@ bootrom 3
 bpsk 0
 bridge 16
 clock_domain 5
+coverage 22
 crossopt 0
 cts 2
 dft 6

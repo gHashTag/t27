@@ -14,7 +14,7 @@
  },
  "max_not_pass": 38,
  "counts": {
-  "pass": 925,
+  "pass": 926,
   "pass_vacuous": 151,
   "not_pass": 38
  },
@@ -220,6 +220,7 @@
   {"path": "specs/fpga/bootrom.t27", "t27b": "pass"},
   {"path": "specs/fpga/bpsk.t27", "t27b": "pass"},
   {"path": "specs/fpga/clock_domain.t27", "t27b": "pass"},
+  {"path": "specs/fpga/coverage.t27", "t27b": "pass"},
   {"path": "specs/fpga/crossopt.t27", "t27b": "pass"},
   {"path": "specs/fpga/cts.t27", "t27b": "pass"},
   {"path": "specs/fpga/dft.t27", "t27b": "pass"},
