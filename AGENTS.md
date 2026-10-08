@@ -235,10 +235,13 @@ measure it are written in **t27**, not in Rust or Python by hand.
   master f53a734b7's 15064 plus 1202 and 8043; 15145 plus 1202, 16347 in all,
   and `cli/t27b/tests/*.rs` 8094, after #7790's glue for `@divTrunc` and a
   `@panic` statement (`specs/tri/t27b/builtin_plan.t27`), +16 and +19 on
-  master 14e1c7be9's 15129 plus 1202 and 8075; 15150 plus 1233, 16383 in all,
-  and tests 8113, after #7857's glue for `anytype` and `[*]T` in the signature
-  of a fn nothing analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`), +5,
-  +31 and +19 on master 81da89413's 15145 plus 1202 and 8094),
+  master 14e1c7be9's 15129 plus 1202 and 8075; 15183 plus 1202, 16385 in all,
+  and tests 8105, after #7737's glue for `?*anyopaque` and `@ptrFromInt` to an
+  optional pointer, whose plan is `specs/tri/t27b/opaque_plan.t27`, +38, 0 and
+  +11 on master 81da89413's 15145 plus 1202 and 8094; 15188 plus 1233, 16421 in
+  all, and tests 8124, after #7857's glue for `anytype` and `[*]T` in the
+  signature of a fn nothing analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`),
+  +5, +31 and +19 on master 837879239's 15183 plus 1202 and 8105),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
