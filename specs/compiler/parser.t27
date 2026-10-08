@@ -1448,41 +1448,8 @@ module Parsing {
             self.advance();
         }
 
-        if (self.check(lexer::TokenKind::Ident)) {
-            decl.extra_return_type = self.current.lexeme;
-            self.advance();
-        } else if (self.check(lexer::TokenKind::LBracket)) {
-            var rt = "";
-            while (self.check(lexer::TokenKind::LBracket)) {
-                rt = rt ++ "[";
-                self.advance();
-                while (self.current.kind != lexer::TokenKind::RBracket 
-                       and self.current.kind != lexer::TokenKind::Eof) {
-                    rt = rt ++ self.current.lexeme;
-                    self.advance();
-                }
-                rt = rt ++ "]";
-                if (self.check(lexer::TokenKind::RBracket)) {
-                    self.advance();
-                }
-            }
-            if (self.check(lexer::TokenKind::KwConst)) {
-                rt = rt ++ "const ";
-                self.advance();
-            }
-            if (self.check(lexer::TokenKind::Star)) {
-                rt = rt ++ "*";
-                self.advance();
-            }
-            if (self.check(lexer::TokenKind::Ident)) {
-                rt = rt ++ self.current.lexeme;
-                self.advance();
-            }
-            decl.extra_return_type = rt;
-        } else if (self.check(lexer::TokenKind::KwVoid)) {
-            decl.extra_return_type = "void";
-            self.advance();
-        }
+        const return_type = self.parse_type_annotation();
+        decl.extra_return_type = return_type;
 
         if (self.check(lexer::TokenKind::KwConst)) {
             self.advance();
