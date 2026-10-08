@@ -241,11 +241,14 @@ measure it are written in **t27**, not in Rust or Python by hand.
   +11 on master 81da89413's 15145 plus 1202 and 8094; 15191 plus 1202, 16393
   in all, and tests 8119, after #7819's glue for `@floor`, `@ceil`, `@round`,
   `@trunc` and `@rem` of an f32 from `libm_plan.t27`, +8 and +14 on master
-  bbb77f0c3's 15183 plus 1202 and 8105; 15194 plus 1202, 16396 in all, and
-  tests 8135, after #7923's glue for `std.math.log` with base `std.math.e`
-  (`std.math.inf`, `std.math.log1p` and an f64 `@round` are plan and routines
-  only, `libm_plan.t27` and `libm.t27`), +3 and +16 on master e87e790ac's 15191
-  plus 1202 and 8119),
+  bbb77f0c3's 15183 plus 1202 and 8105; 15195 plus 1202, 16397 in all, and
+  `cli/t27b/tests/*.rs` 8134, after #7803's glue for `@floatFromInt` of a
+  comptime_int (`specs/tri/t27b/coerce_plan.t27`), +4 and +15 on master
+  10831352c's 15191 plus 1202 and 8119; 15198 plus 1202, 16400
+  in all, and tests 8150, after #7923's glue for `std.math.log` with base
+  `std.math.e` (`std.math.inf`, `std.math.log1p` and an f64 `@round` are plan
+  and routines only, `libm_plan.t27` and `libm.t27`), +3 and +16 on master
+  430c52293's 15195 plus 1202 and 8134),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
