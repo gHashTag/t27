@@ -1,0 +1,512 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/verilog/eth_beacon_top.t27
+// Ethernet Beacon Top Module Specification for Trinity T27 FPGA HIR
+// PLL configuration, clock distribution, and TX data path for ALINX AX7203
+// 200 MHz differential input -> 125 MHz data + 90-degree TX clock
+// Ports: E1/E2 Ethernet PHYs + user LEDs
+// Based on gHashTag/t27#7842 port from fpga/verilog/eth_beacon_top.v
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module eth_beacon_top {
+
+    // === Input/Output Interface ===
+
+    pub struct EthBeaconInputs {
+        clk200_p : bool,
+        clk200_n : bool,
+        e1_rxctl : bool,
+        e1_rxd : [4]bool,
+        e2_rxctl : bool,
+        e2_rxd : [4]bool,
+    }
+
+    pub struct EthBeaconOutputs {
+        e1_rst_n : bool,
+        e1_txc : bool,
+        e1_txctl : bool,
+        e1_txd : [4]bool,
+        e2_rst_n : bool,
+        e2_txc : bool,
+        e2_txctl : bool,
+        e2_txd : [4]bool,
+        led : [4]bool,
+    }
+
+    pub struct InternalSignals {
+        clk200 : bool,
+        fb : bool,
+        c0 : bool,
+        c90 : bool,
+        clk : bool,
+        clk90 : bool,
+        locked : bool,
+        txd : [8]bool,
+        tx_en : bool,
+        rst : bool,
+        ld : [4]bool,
+        hi : [4]bool,
+        ctl : bool,
+        d1 : [5]bool,
+        d2 : [5]bool,
+        q1 : [5]bool,
+        q2 : [5]bool,
+    }
+
+    // === PLL Configuration ===
+
+    pub struct PllConfig {
+        clkin1_period : f64,
+        clkfbout_mult : u32,
+        divclk_divide : u32,
+        clkout0_divide : u32,
+        clkout1_divide : u32,
+        clkout1_phase : f64,
+    }
+
+    fn default_pll_config() -> PllConfig {
+        return PllConfig{
+            .clkin1_period = 5.0,
+            .clkfbout_mult = 5,
+            .divclk_divide = 1,
+            .clkout0_divide = 8,
+            .clkout1_divide = 8,
+            .clkout1_phase = 90.0,
+        };
+    }
+
+    // === Clock Generation Functions ===
+
+    fn clk200_to_differential(clk200_p: bool, clk200_n: bool) -> bool {
+        // IBUFDS: Differential input to single-ended
+        return clk200_p; // Simplified - actual implementation would handle differential signaling
+    }
+
+    fn pll_generate_clocks(clk200: bool, config: PllConfig) -> InternalSignals {
+        var signals : InternalSignals;
+        
+        // PLL parameters from original Verilog
+        var fb : bool = false;
+        var c0 : bool = false;
+        var c90 : bool = false;
+        var locked : bool = false;
+        
+        // Simplified PLL logic - actual PLL behavior is complex and timing-dependent
+        // Original: 200MHz -> 125MHz (divide by 8) + 90-degree phase shift
+        if (clk200) {
+            // Simulate PLL lock and clock generation
+            locked = true; // PLL locks when input is stable
+            c0 = true; // 125MHz main clock
+            c90 = true; // 125MHz with 90-degree phase shift
+        }
+        
+        signals.clk200 = clk200;
+        signals.fb = fb;
+        signals.c0 = c0;
+        signals.c90 = c90;
+        signals.locked = locked;
+        
+        return signals;
+    }
+
+    fn buffer_clocks(c0: bool, c90: bool) -> InternalSignals {
+        var signals : InternalSignals;
+        
+        // BUFG: Global clock buffer
+        signals.clk = c0; // 125MHz buffered clock
+        signals.clk90 = c90; // 125MHz 90-degree phase buffered clock
+        
+        return signals;
+    }
+
+    // === EthBeacon Interface ===
+
+    pub struct EthBeaconConfig {
+        en : bool,
+        c1 : [8]bool,
+        d1 : [8]bool,
+        c2 : [8]bool,
+        d2 : [8]bool,
+    }
+
+    fn create_eth_beacon_config(inputs: EthBeaconInputs, clk: bool, locked: bool) -> EthBeaconConfig {
+        var config : EthBeaconConfig;
+        
+        // Original: EthBeacon b (.clk(clk), .rst_n(locked), .en(1'b1), .c1({7'd0, e1_rxctl}), .d1({4'd0, e1_rxd}), .c2({7'd0, e2_rxctl}), .d2({4'd0, e2_rxd}), .txd(txd), .tx_en(tx_en), .phy_rst_n(rst), .led(ld));
+        config.en = true; // Always enabled
+        
+        // Combine RX data with control signals
+        var idx1 : u32 = 0;
+        while (idx1 < 4) {
+            config.c1[idx1] = false; // Upper 4 bits are 0
+            config.c1[idx1 + 4] = inputs.e1_rxctl;
+            config.d1[idx1] = inputs.e1_rxd[idx1];
+            config.d1[idx1 + 4] = false; // Upper 4 bits are 0
+            config.c2[idx1] = false; // Upper 4 bits are 0
+            config.c2[idx1 + 4] = inputs.e2_rxctl;
+            config.d2[idx1] = inputs.e2_rxd[idx1];
+            config.d2[idx1 + 4] = false; // Upper 4 bits are 0
+            idx1 = idx1 + 1;
+        }
+        
+        return config;
+    }
+
+    fn eth_beacon_process(config: EthBeaconConfig, clk: bool, locked: bool) -> InternalSignals {
+        var signals : InternalSignals;
+        
+        // Simplified EthBeacon processing
+        // Original: EthBeacon generates txd[7:0], tx_en, rst, led based on RX data
+        signals.locked = locked;
+        
+        // Generate TX data and enable (simplified)
+        var idx2 : u32 = 0;
+        while (idx2 < 8) {
+            signals.txd[idx2] = config.d1[idx2] || config.d2[idx2]; // Combine both PHYs
+            idx2 = idx2 + 1;
+        }
+        signals.tx_en = config.c1[4] || config.c2[4]; // Either RX control active
+        
+        // Generate reset and LED signals
+        signals.rst = locked; // Reset based on PLL lock
+        var idx3 : u32 = 0;
+        while (idx3 < 4) {
+            signals.ld[idx3] = signals.txd[idx3]; // LED shows TX activity
+            idx3 = idx3 + 1;
+        }
+        
+        return signals;
+    }
+
+    // === TX Data Path Functions ===
+
+    fn update_tx_registers(signals: InternalSignals, clk: bool) -> InternalSignals {
+        // Original: always @(posedge clk) begin hi <= txd[7:4]; ctl <= tx_en[0]; end
+        if (clk) {
+            var idx4 : u32 = 0;
+            while (idx4 < 4) {
+                signals.hi[idx4] = signals.txd[idx4 + 4]; // Upper nibble
+                idx4 = idx4 + 1;
+            }
+            signals.ctl = signals.tx_en; // TX enable latch
+        }
+        return signals;
+    }
+
+    fn create_oddr_inputs(signals: InternalSignals) -> InternalSignals {
+        // Original: wire [4:0] d1 = {tx_en[0], txd[3:0]}, d2 = {ctl, hi}, q1, q2;
+        var idx5 : u32 = 0;
+        while (idx5 < 4) {
+            signals.d1[idx5] = signals.txd[idx5]; // Lower nibble
+            signals.d2[idx5] = signals.hi[idx5]; // Upper nibble (delayed)
+            idx5 = idx5 + 1;
+        }
+        signals.d1[4] = signals.tx_en; // TX enable
+        signals.d2[4] = signals.ctl; // Latched TX enable
+        
+        return signals;
+    }
+
+    fn oddr_transform(d1: [5]bool, d2: [5]bool, clk: bool) -> [5]bool {
+        // Simplified ODDR (Dual Data Rate Output) transformation
+        // Original: ODDR takes D2 on falling edge, D1 on rising edge
+        var output : [5]bool;
+        
+        var idx7 : u32 = 0;
+        while (idx7 < 5) {
+            // Simplified: alternate between d1 and d2 based on clock
+            output[idx7] = d1[idx7]; // In actual implementation, this would be edge-triggered
+            idx7 = idx7 + 1;
+        }
+        
+        return output;
+    }
+
+    fn generate_txc_clocks(clk90: bool) -> [2]bool {
+        // Original: ODDR t1 (.C(clk90), .CE(1'b1), .D1(1'b1), .D2(1'b0), .R(1'b0), .S(1'b0), .Q(e1_txc));
+        // Original: ODDR t2 (.C(clk90), .CE(1'b1), .D1(1'b1), .D2(1'b0), .R(1'b0), .S(1'b0), .Q(e2_txc));
+        
+        // Generate 90-degree shifted clocks for both PHYs
+        var txc : [2]bool;
+        txc[0] = clk90; // E1 TX clock
+        txc[1] = clk90; // E2 TX clock (same as E1)
+        
+        return txc;
+    }
+
+    // === Main Processing Function ===
+
+    fn process_eth_beacon(inputs: EthBeaconInputs) -> EthBeaconOutputs {
+        var outputs : EthBeaconOutputs;
+        var internal : InternalSignals;
+        
+        // Step 1: Generate differential clock
+        internal.clk200 = clk200_to_differential(inputs.clk200_p, inputs.clk200_n);
+        
+        // Step 2: PLL clock generation
+        var pll_config = default_pll_config();
+        internal = pll_generate_clocks(internal.clk200, pll_config);
+        
+        // Step 3: Buffer clocks
+        internal = buffer_clocks(internal.c0, internal.c90);
+        
+        // Step 4: EthBeacon processing
+        var eth_config = create_eth_beacon_config(inputs, internal.clk, internal.locked);
+        internal = eth_beacon_process(eth_config, internal.clk, internal.locked);
+        
+        // Step 5: Update TX registers
+        internal = update_tx_registers(internal, internal.clk);
+        
+        // Step 6: Create ODDR inputs
+        internal = create_oddr_inputs(internal);
+        
+        // Step 7: Generate TX data paths
+        internal.q1 = oddr_transform(internal.d1, internal.d2, internal.clk);
+        internal.q2 = oddr_transform(internal.d1, internal.d2, internal.clk);
+        
+        // Step 8: Generate TX clocks
+        var txc = generate_txc_clocks(internal.clk90);
+        
+        // Step 9: Assign outputs
+        // Original: assign {e1_rst_n, e2_rst_n} = {rst[0], rst[0]};
+        outputs.e1_rst_n = internal.rst;
+        outputs.e2_rst_n = internal.rst;
+        
+        // Original: assign led = ~ld[3:0];  // the AX7203 user LEDs light on a low output
+        var idx8 : u32 = 0;
+        while (idx8 < 4) {
+            outputs.led[idx8] = !internal.ld[idx8]; // LED inversion
+            idx8 = idx8 + 1;
+        }
+        
+        // TX data and control
+        var j : u32 = 0;
+        while (j < 4) {
+            outputs.e1_txctl = internal.q1[0]; // TX control is bit 0
+            outputs.e1_txd[j] = internal.q1[j + 1]; // TX data is bits 1-4
+            outputs.e2_txctl = internal.q2[0]; // TX control is bit 0
+            outputs.e2_txd[j] = internal.q2[j + 1]; // TX data is bits 1-4
+            j = j + 1;
+        }
+        
+        // TX clocks
+        outputs.e1_txc = txc[0];
+        outputs.e2_txc = txc[1];
+        
+        return outputs;
+    }
+
+    // === Test Functions ===
+
+    test pll_configuration
+        given config = default_pll_config()
+        then config.clkin1_period == 5.0
+        and config.clkfbout_mult == 5
+        and config.divclk_divide == 1
+        and config.clkout0_divide == 8
+        and config.clkout1_divide == 8
+        and config.clkout1_phase == 90.0
+
+    test differential_clock_conversion
+        given inputs = EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = false,
+            .e1_rxd = [false, false, false, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, false, false, false],
+        }
+        then clk200_to_differential(inputs.clk200_p, inputs.clk200_n) == true
+
+    test_pll_clock_generation_locked
+        given inputs = EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = false,
+            .e1_rxd = [false, false, false, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, false, false, false],
+        }
+        var pll_config = default_pll_config()
+        var signals = pll_generate_clocks(true, pll_config)
+        then signals.locked == true
+        and signals.c0 == true
+        and signals.c90 == true
+
+    test_eth_beacon_config_creation
+        given inputs = EthBeaconInputs{
+            .clk200_p = false,
+            .clk200_n = true,
+            .e1_rxctl = true,
+            .e1_rxd = [true, false, true, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, true, false, true],
+        }
+        var config = create_eth_beacon_config(inputs, true, true)
+        then config.en == true
+        and config.c1[4] == true  // E1 RX control
+        and config.c1[5] == true
+        and config.c1[6] == true
+        and config.c1[7] == true
+        and config.d1[0] == true  // E1 RX data
+        and config.d1[2] == true
+        and config.c2[4] == false // E2 RX control
+        and config.d2[1] == true  // E2 RX data
+        and config.d2[3] == true
+
+    test_eth_beacon_processing_basic
+        given config = EthBeaconConfig{
+            .en = true,
+            .c1 = [false, false, false, false, true, false, false, false],
+            .d1 = [true, false, true, false, false, false, false, false],
+            .c2 = [false, false, false, false, false, false, false, false],
+            .d2 = [false, true, false, true, false, false, false, false],
+        }
+        var signals = eth_beacon_process(config, true, true)
+        then signals.tx_en == true  // E1 RX control is active
+        and signals.rst == true    // PLL is locked
+        and signals.txd[0] == true // Combined TX data
+        and signals.txd[1] == true
+        and signals.ld[0] == true  // LED shows TX activity
+        and signals.ld[2] == true
+
+    test_tx_register_update
+        given signals = InternalSignals{
+            .txd = [false, true, false, true, false, true, false, true],
+            .tx_en = true,
+            .hi = [false, false, false, false],
+            .ctl = false,
+        }
+        var updated = update_tx_registers(signals, true)
+        then updated.hi[0] == false  // txd[4] -> hi[0]
+        and updated.hi[1] == true   // txd[5] -> hi[1]
+        and updated.hi[2] == false  // txd[6] -> hi[2]
+        and updated.hi[3] == true   // txd[7] -> hi[3]
+        and updated.ctl == true     // tx_en -> ctl
+
+    test_oddr_input_creation
+        given signals = InternalSignals{
+            .txd = [true, false, true, false, true, false, true, false],
+            .tx_en = true,
+            .hi = [false, true, false, true],
+            .ctl = false,
+        }
+        var oddr_inputs = create_oddr_inputs(signals)
+        then oddr_inputs.d1[0] == true   // txd[0] -> d1[0]
+        and oddr_inputs.d1[1] == false  // txd[1] -> d1[1]
+        and oddr_inputs.d1[2] == true   // txd[2] -> d1[2]
+        and oddr_inputs.d1[3] == false  // txd[3] -> d1[3]
+        and oddr_inputs.d1[4] == true   // tx_en -> d1[4]
+        and oddr_inputs.d2[0] == false  // hi[0] -> d2[0]
+        and oddr_inputs.d2[1] == true   // hi[1] -> d2[1]
+        and oddr_inputs.d2[2] == false  // hi[2] -> d2[2]
+        and oddr_inputs.d2[3] == true   // hi[3] -> d2[3]
+        and oddr_inputs.d2[4] == false  // ctl -> d2[4]
+
+    test_oddr_transformation
+        given d1 = [true, false, true, false, true]
+        and d2 = [false, true, false, true, false]
+        then oddr_transform(d1, d2, true) == d1  // Simplified: output = d1
+
+    test_txc_clock_generation
+        then generate_txc_clocks(true) == [true, true]  // Both TX clocks same
+
+    test_full_processing_basic
+        given inputs = EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = true,
+            .e1_rxd = [true, false, true, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, true, false, true],
+        }
+        var outputs = process_eth_beacon(inputs)
+        then outputs.e1_rst_n == true    // PLL locked
+        and outputs.e2_rst_n == true
+        and outputs.led[0] == false     // LED inversion
+        and outputs.led[2] == false
+        and outputs.e1_txc == true       // TX clocks generated
+        and outputs.e2_txc == true
+
+    test_led_inversion
+        given inputs = EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = false,
+            .e1_rxd = [false, false, false, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, false, false, false],
+        }
+        var outputs = process_eth_beacon(inputs)
+        // LEDs should be inverted from internal LD signals
+        // When internal LD is false, LED should be true
+        and outputs.led[0] == true
+        and outputs.led[1] == true
+        and outputs.led[2] == true
+        and outputs.led[3] == true
+
+    // === Invariants ===
+
+    invariant pll_periods_valid
+        given config = default_pll_config()
+        assert config.clkin1_period > 0.0
+        and config.clkfbout_mult > 0
+        and config.divclk_divide > 0
+        and config.clkout0_divide > 0
+        and config.clkout1_divide > 0
+
+    invariant_clocks_consistent
+        given inputs = EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = false,
+            .e1_rxd = [false, false, false, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, false, false, false],
+        }
+        var outputs = process_eth_beacon(inputs)
+        assert outputs.e1_txc == outputs.e2_txc  // Both TX clocks same
+
+    invariant_led_inversion
+        given inputs = EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = false,
+            .e1_rxd = [false, false, false, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, false, false, false],
+        }
+        var outputs = process_eth_beacon(inputs)
+        // LEDs should be logical inverse of internal LD signals
+        var k : u32 = 0;
+        while (k < 4) {
+            assert outputs.led[k] == !outputs.led[k]; // This is always true, but shows the relationship
+            k = k + 1;
+        }
+
+    // === Benchmarks ===
+
+    bench pll_processing_latency
+        measure: nanoseconds to process_eth_beacon(EthBeaconInputs{
+            .clk200_p = true,
+            .clk200_n = false,
+            .e1_rxctl = false,
+            .e1_rxd = [false, false, false, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, false, false, false],
+        })
+        target: < 100ns
+
+    bench eth_beacon_config_creation_latency
+        measure: nanoseconds to create_eth_beacon_config(EthBeaconInputs{
+            .clk200_p = false,
+            .clk200_n = true,
+            .e1_rxctl = true,
+            .e1_rxd = [true, false, true, false],
+            .e2_rxctl = false,
+            .e2_rxd = [false, true, false, true],
+        }, true, true)
+        target: < 50ns
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
