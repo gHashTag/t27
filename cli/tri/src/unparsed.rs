@@ -837,7 +837,7 @@ pub fn run(cmd: &UnparsedCmd, root: PathBuf) -> Result<()> {
         let silent_total: usize = silent.values().sum();
         println!("  nothing claimed                  {silent_total}");
         for (why, n) in &silent {
-            let tag = if *why == "unreadable" {
+            let tag = if BROKEN_INSTRUMENT.contains(why) {
                 "  <-- the tool failed, not the spec"
             } else {
                 ""
@@ -1097,6 +1097,14 @@ mod tests {
             !prod.contains(concat!("Located::None(", "_)")),
             "the reason is discarded at the match arm again"
         );
+        // Every reason named in BROKEN_INSTRUMENT must be a reason that is
+        // actually constructed, or the annotation silently marks nothing.
+        for why in super::BROKEN_INSTRUMENT {
+            assert!(
+                prod.contains(&format!("Located::None(\"{why}\")")),
+                "BROKEN_INSTRUMENT names `{why}`, which no site constructs"
+            );
+        }
     }
     use super::*;
 
@@ -1609,6 +1617,11 @@ enum Located {
     /// Nothing claimed, and why.
     None(&'static str),
 }
+
+/// The reasons a locate decides nothing. They are literals rather than `String`
+/// because the set is fixed and a reader needs to be able to enumerate it --
+/// see `BROKEN_INSTRUMENT`, which names the one that means the tool failed.
+const BROKEN_INSTRUMENT: &[&str] = &["unreadable"];
 
 /// `text` is the compiler's output for `path` AS THE SHARED SCOPE SAW IT.
 ///
