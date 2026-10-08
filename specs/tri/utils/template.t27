@@ -190,6 +190,32 @@ module TriTemplate;
     }
 
     // ═══════════════════════════════════════════════════════════
+    // 4. the end card of the gallery preview
+    // ═══════════════════════════════════════════════════════════
+
+    // The render's end-card defaults, which the host imports for its gallery
+    // preview (StoryTemplateGallery.tsx, gHashTag/999-multibots-telegraf#3803):
+    // with no card in the panel the preview drew #000000 and a green #00FF88
+    // button while the render delivered #0B0B0B and gold.
+    pub const END_CARD_DEFAULT_BACKGROUND : []const u8 = "#0B0B0B";
+    pub const END_CARD_DEFAULT_BUTTON : []const u8 = "#FFD700";
+
+    // Where the gallery preview takes a field of the end card: the panel's
+    // card when it holds one, else the render's default -- the preview never
+    // invents a colour of its own.
+    pub const GALLERY_PREVIEW_FROM_CARD_DEFAULTS : bool = true;
+
+    // What the gallery preview draws for a field of the end card: the panel's
+    // own value when its card holds one, else the render's default for the
+    // field.
+    fn gallery_preview_field(panel_has: bool, panel_value: []const u8, render_default: []const u8) -> []const u8 {
+        if (panel_has) {
+            return panel_value;
+        }
+        return render_default;
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // TDD: vectors from Jinja2 3.1 (Environment(keep_trailing_newline=
     // True).from_string(src).render(ctx)); a refused source is one Jinja
     // either rejects or reads as more than text and names
@@ -341,6 +367,29 @@ module TriTemplate;
         return ok;
     }
 
+    // the gallery preview's end card (gHashTag/999-multibots-telegraf#3803):
+    // no card in the panel is the render's defaults, not the theme's green
+    // on black
+    fn previews() -> usize {
+        var ok : usize = 0;
+        if (GALLERY_PREVIEW_FROM_CARD_DEFAULTS) {
+            ok = ok + 1;
+        }
+        if (same(gallery_preview_field(false, "#000000", END_CARD_DEFAULT_BACKGROUND), "#0B0B0B")) {
+            ok = ok + 1;
+        }
+        if (same(gallery_preview_field(false, "#00FF88", END_CARD_DEFAULT_BUTTON), "#FFD700")) {
+            ok = ok + 1;
+        }
+        if (same(END_CARD_DEFAULT_BACKGROUND, "#0B0B0B") and !same(END_CARD_DEFAULT_BUTTON, "#00FF88")) {
+            ok = ok + 1;
+        }
+        if (same(gallery_preview_field(true, "#123456", END_CARD_DEFAULT_BACKGROUND), "#123456")) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
     test templates_render_as_jinja2_renders_them
         given result = rendered()
         when expected = 28
@@ -354,4 +403,9 @@ module TriTemplate;
     test compile_parts_and_short_buffers
         given result = shapes()
         when expected = 8
+        then result == expected
+
+    test gallery_preview_without_a_card_is_the_render_defaults
+        given result = previews()
+        when expected = 5
         then result == expected
