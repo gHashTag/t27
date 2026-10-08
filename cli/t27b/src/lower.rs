@@ -96,6 +96,12 @@ mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wide
 mod oq; // t27c gen-rust of specs/tri/t27b/opaque_plan.t27: `anyopaque`, `@ptrFromInt` to an optional pointer
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
+#[path = "../../../gen/rust/tri/t27b/coerce_plan.rs"] #[allow(dead_code, unused_parens)]
+mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numeric type where Zig takes another
+#[path = "../../../gen/rust/tri/t27b/void_bind_plan.rs"] #[allow(dead_code, unused_parens)]
+mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
+#[path = "../../../gen/rust/tri/t27b/scaffold_plan.rs"] #[allow(dead_code, unused_parens)]
+mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input()`, which the reference never calls
 mod refvars;
 mod tuple;
 
@@ -286,6 +292,9 @@ struct Lower<'a> {
     globals_init: Vec<Vec<u8>>,
     /// The global of each array type and value a `slice_lit` interned.
     statics: HashMap<(String, Vec<u8>), u32>,
+    /// Fn declarations by name; this body's W585 locals (`sc`): consumer's type, read elsewhere, read by a callee.
+    fns: HashMap<String, &'a Node>,
+    scaffold: HashMap<String, (LTy, bool, bool)>,
     /// Lowering what t27c's Zig backend evaluates at compile time (an
     /// `invariant`, which it emits as a `comptime` block, or a module-level
     /// initializer): a module-level `var` is not visible there.
@@ -462,6 +471,7 @@ fn lower_mode<'a>(
         mod_vars: HashMap::new(),
         globals_init: Vec::new(),
         statics: HashMap::new(),
+        fns: HashMap::new(), scaffold: HashMap::new(),
         comptime: false,
         struct_nodes: HashMap::new(),
         structs: Vec::new(),
@@ -542,6 +552,7 @@ fn lower_mode<'a>(
         if item.kind == NodeKind::EnumDecl && !item.name.is_empty() {
             l.enum_nodes.insert(item.name.clone(), item);
         }
+        if item.kind == NodeKind::FnDecl { l.fns.entry(item.name.clone()).or_insert(item); }
         // Constants too, before any signature: a top-level Zig declaration
         // is visible above its own line, and a length like `[N]T` in a
         // signature may name a constant `use` spliced in after it.
@@ -1568,6 +1579,25 @@ impl<'a> Lower<'a> {
                 }
             }
         }
+        // W585: a name bound to a helper with no arguments and passed bare to a declared fn.
+        self.scaffold.clear();
+        let helper = |d: &&Node| d.children.first().is_some_and(|x| x.kind == NodeKind::ExprCall && x.children.is_empty() && sc::HELPERS.split(' ').any(|h| h == x.name));
+        let decls = |n: &str| { let mut d = Vec::new(); decls_of(body, n, &mut d); d };
+        let (mut calls, mut found) = (Vec::new(), Vec::new());
+        calls_in(body, &mut calls);
+        for c in &calls {
+            let (Some(sig), Some(f)) = (self.sigs.get(&c.name), self.fns.get(&c.name)) else { continue };
+            for ((a, t), (p, _)) in c.children.iter().zip(&sig.params).zip(&f.params) {
+                if a.kind == NodeKind::ExprIdentifier && decls(&a.name).iter().any(helper) {
+                    found.push((a.name.clone(), t.clone(), name_mentions(&f.children, p) > 0));
+                }
+            }
+        }
+        for (name, t, read) in &found {
+            let uses = decls(name).len() + found.iter().filter(|f| f.0 == *name).count();
+            let e = self.scaffold.entry(name.clone()).or_insert((t.clone(), name_mentions(body, name) > uses, false));
+            e.2 |= *read;
+        }
         self.addr_lit_locals(body);
         self.scopes.clear();
         self.scopes.push(HashMap::new());
@@ -2240,6 +2270,29 @@ impl<'a> Lower<'a> {
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
         let init = n.children.first().filter(|i| !is_undefined(i));
+        let helper = init.is_some_and(|i| i.kind == NodeKind::ExprCall && sc::HELPERS.split(' ').any(|h| h == i.name));
+        let s = self.scaffold.get(&name).cloned();
+        let act = sc::plan(helper, s.is_some(), mutable, !ann.is_empty(), s.as_ref().is_some_and(|s| s.1), s.as_ref().is_some_and(|s| s.2));
+        if sc::refuses(act) {
+            self.see(init.unwrap());
+            return self.reject(sc::what(act), format!("`{}`: {}", name, sc::why(act)));
+        }
+        if let Some((t, ..)) = s.filter(|_| act == sc::SCAFFOLD) {
+            let k = self.new_slot(&t)?;
+            if let Some(ty) = reg_ty(&t) { out.push(Stmt::Store { addr: slot_expr(k), off: 0, value: Expr { ty, kind: ExprKind::Const(0) } }); }
+            self.bind(&name, Binding::Mem(Place { addr: slot_expr(k), off: 0, ty: t, mutable: false, temp: None }));
+            return Ok(());
+        }
+        // `const r = f(x);` with `f` void (specs/tri/t27b/void_bind_plan.t27): the call, then void's value.
+        let void_call = init.is_some_and(|i| i.kind == NodeKind::ExprCall && self.sigs.get(&i.name).is_some_and(|s| s.ret.is_none() && !s.poisoned));
+        if vb::bind(void_call, !ann.is_empty()) == vb::BIND {
+            let (call, _, _) = self.call(init.unwrap(), None)?;
+            out.push(Stmt::Eval(call));
+            let t = LTy::Struct(self.void_struct());
+            let k = self.new_slot(&t)?;
+            self.bind(&name, Binding::Mem(Place { addr: slot_expr(k), off: 0, ty: t, mutable, temp: None }));
+            return Ok(());
+        }
         let ann = match init.filter(|_| mutable && ann.is_empty()).and_then(int_lit_width) {
             Some(w) => w.to_string(),
             None => ann,
@@ -2882,6 +2935,37 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
+            // `@setEvalBranchQuota(n);` raises the backward-branch budget of
+            // Zig's compile-time evaluation and does nothing at run time. t27b
+            // does not model that budget, so a higher one opens no gap: the
+            // statement lowers to nothing. Zig wants a compile-time `u32`
+            // operand; anything else is refused.
+            "@setEvalBranchQuota" => {
+                if c.children.len() != 1 {
+                    return self.reject(
+                        "ExprCall(@setEvalBranchQuota)",
+                        format!("with {} arguments", c.children.len()),
+                    );
+                }
+                let arg = &c.children[0];
+                let v = self.expr(arg)?;
+                let n = match &v {
+                    Val::Poison => return Err(()),
+                    Val::Ct(n) => Some(*n),
+                    Val::E(Expr { ty, kind: ExprKind::Const(n) }) if ty.is_int() => {
+                        Some(*n)
+                    }
+                    _ => None,
+                };
+                match n {
+                    Some(n) if (0..=u32::MAX as i128).contains(&n) => Ok(()),
+                    Some(n) => self.reject("ExprCall(@setEvalBranchQuota)", format!("of {}, outside u32", n)),
+                    None => {
+                        let d = self.val_desc(&v);
+                        self.reject("ExprCall(@setEvalBranchQuota)", format!("of {}, not a compile-time integer", d))
+                    }
+                }
+            }
             "assert_eq" => {
                 if c.children.len() != 2 {
                     return self.reject(
@@ -3111,17 +3195,16 @@ impl<'a> Lower<'a> {
                 if to == Ty::F64 && e.ty == Ty::F32 {
                     return Ok(float::float_cast(e, to));
                 }
-                if to.can_widen_from(e.ty) {
-                    if let ExprKind::Const(c) = e.kind {
-                        return Ok(Expr {
-                            ty: to,
-                            kind: ExprKind::Const(c),
-                        });
-                    }
-                    return Ok(Expr {
-                        ty: to,
-                        kind: ExprKind::Widen(Box::new(e)),
-                    });
+                // specs/tri/t27b/coerce_plan.t27: a widening, a constant that fits, an integer a float holds exactly.
+                let c = match e.kind { ExprKind::Const(c) => Some(c), _ => None };
+                if e.ty.is_int() && to.is_float() && cp::int_to_float(e.ty.bits(), e.ty.signed(), to.bits(), c.is_some(), c.map_or(0, |c| c.unsigned_abs() as u64)) == cp::CONVERT {
+                    return match self.int_to_float(Val::E(e), to, "type mismatch")? { Val::E(f) => Ok(f), _ => Err(()) };
+                }
+                let act = if e.ty.is_int() && to.is_int() { cp::int_to_int(e.ty.bits(), e.ty.signed(), to.bits(), to.signed(), c.is_some(), c.is_some_and(|c| to.fits(c))) } else { cp::REFUSE };
+                match (act, c) {
+                    (cp::INT_WIDEN | cp::INT_FOLD, Some(c)) => return Ok(Expr { ty: to, kind: ExprKind::Const(c) }),
+                    (cp::INT_WIDEN, None) => return Ok(Expr { ty: to, kind: ExprKind::Widen(Box::new(e)) }),
+                    _ => {}
                 }
                 self.reject(
                     "type mismatch",
@@ -3169,20 +3252,14 @@ impl<'a> Lower<'a> {
                 if x.ty == Ty::F32 && y.ty == Ty::F64 {
                     return Ok((float::float_cast(x, Ty::F64), y));
                 }
-                if x.ty.can_widen_from(y.ty) {
-                    let t = x.ty;
-                    let y = self.coerce(Val::E(y), t)?;
-                    return Ok((x, y));
-                }
-                if y.ty.can_widen_from(x.ty) {
-                    let t = y.ty;
-                    let x = self.coerce(Val::E(x), t)?;
-                    return Ok((x, y));
-                }
-                self.reject(
-                    "type mismatch",
-                    format!("`{}` on {} and {}", what, x.ty.name(), y.ty.name()),
-                )
+                // specs/tri/t27b/coerce_plan.t27: the integer type with more bits (the first on a tie), or the float.
+                let t = match (x.ty.is_int(), y.ty.is_int()) {
+                    (true, true) => if cp::peer_is_first(x.ty.bits(), y.ty.bits()) { x.ty } else { y.ty },
+                    (false, true) if x.ty.is_float() => x.ty,
+                    (true, false) if y.ty.is_float() => y.ty,
+                    _ => return self.reject("type mismatch", format!("`{}` on {} and {}", what, x.ty.name(), y.ty.name())),
+                };
+                Ok((self.coerce(Val::E(x), t)?, self.coerce(Val::E(y), t)?))
             }
             (Val::E(x), v @ Val::Cf(..)) => {
                 let t = x.ty;
@@ -3272,6 +3349,14 @@ impl<'a> Lower<'a> {
                 }
                 if (op == "==" || op == "!=") && (self.is_null(&n.children[0]) || self.is_null(&n.children[1])) {
                     return self.null_compare(&op, n);
+                }
+                if let Some(u) = n.children.iter().position(is_undefined).filter(|_| op == "==" || op == "!=") {
+                    let v = &n.children[1 - u];
+                    let void_name = v.kind == NodeKind::ExprIdentifier && matches!(self.lookup(&v.name), Some(Binding::Mem(p)) if self.is_void(&p.ty));
+                    let act = vb::compare(op == "==", op == "!=", void_name);
+                    if act != vb::NOT_MINE {
+                        return Ok(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Const(vb::folded(act) as i128) }));
+                    }
                 }
                 if let Some(v) = self.wide_fold(n, None)? { return Ok(v); }
                 let (x, y) = (&n.children[0], &n.children[1]);
@@ -3872,6 +3957,12 @@ impl<'a> Lower<'a> {
         if !ty.is_int() && !bitwise {
             return self.reject(&format!("ExprBinary({})", op), "on bool".into());
         }
+        // Two typed constants fold as Zig folds them where the plan says so (specs/tri/t27b/coerce_plan.t27).
+        if let (ExprKind::Const(p), ExprKind::Const(q), true) = (&x.kind, &y.kind, ty.is_int()) {
+            let r = match aop { ArithOp::Add | ArithOp::AddW => p.checked_add(*q), ArithOp::Sub | ArithOp::SubW => p.checked_sub(*q), ArithOp::Mul | ArithOp::MulW => p.checked_mul(*q), ArithOp::And => Some(p & q), ArithOp::Or => Some(p | q), ArithOp::Xor => Some(p ^ q), _ => None };
+            let b = op.as_bytes();
+            if let Some(r) = r.filter(|r| cp::folds(b[0], b.get(1).copied().unwrap_or(0), b.len(), ty.fits(*r))) { return Ok(Val::E(Expr { ty, kind: ExprKind::Const(ty.wrap(r)) })); }
+        }
         let site = match aop {
             ArithOp::Add | ArithOp::Sub | ArithOp::Mul => {
                 self.site(TrapKind::Overflow, format!("{} on {}", op, ty.name()), ty)
@@ -4167,6 +4258,17 @@ impl<'a> Lower<'a> {
                     value: Box::new(Expr { ty: Ty::Bool, kind: ExprKind::Const(held as i128) }),
                 },
             }));
+        }
+        // Two integers of different types compare by value (specs/tri/t27b/coerce_plan.t27).
+        let k = |e: &Expr| match e.kind { ExprKind::Const(c) => Some(c), _ => None };
+        let ints = match (&a, &b) { (Val::E(x), Val::E(y)) if x.ty.is_int() && y.ty.is_int() && x.ty != y.ty => Some((x.ty, y.ty, k(x), k(y))), _ => None };
+        if let Some((sx, sy, cx, cy)) = ints {
+            let t = match cp::compare_in(sx.bits(), sx.signed(), cx.is_some_and(|c| sy.fits(c)), sy.bits(), sy.signed(), cy.is_some_and(|c| sx.fits(c))) {
+                cp::IN_A => sx, cp::IN_B => sy, cp::IN_I64 => Ty::I64,
+                r => return self.reject("type mismatch", format!("`{}` on {} and {}: {}", op.symbol(), sx.name(), sy.name(), cp::compare_why(r))),
+            };
+            let (x, y) = (self.coerce(a, t)?, self.coerce(b, t)?);
+            return Ok(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op, lhs: Box::new(x), rhs: Box::new(y) } }));
         }
         let (x, y) = self.peer(a, b, op.symbol())?;
         if x.ty == Ty::Bool && !matches!(op, CmpOp::Eq | CmpOp::Ne) {

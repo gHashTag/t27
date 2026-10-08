@@ -1,20 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+f943ba355",
-  "gen_hash_c": "sha256:bf2135fed9ad32d80602738805bc21ca80bc9d3dab0aca6a69134acc24259d6e",
-  "gen_hash_rust": "sha256:d2756c562671bedb913974df94a8d603e276856a842202c9a15ed55a435a1f62",
-  "gen_hash_verilog": "sha256:502b41b6455a6332277856230f9e86e9e66a5a6fef7313e79ceae0823183654f",
-  "gen_hash_zig": "sha256:5a7b26d9ceaf0fb787303671414f6df54759746b6b0b9fb79f6fe3a40c7a7363",
+  "built_by": "t27c-bootstrap@0.5.0+d42df2b06",
+  "gen_hash_c": "sha256:3b1fc8a8248cbb420589994e7df00560288fbf630111def8d7474e050164b82b",
+  "gen_hash_rust": "sha256:7a4ee81361f1368520def1d916a7ef8ec577a9cd9bf0317614988c7fbfd4492a",
+  "gen_hash_verilog": "sha256:18c940e18623a0f133d0c3f11b21cf6fa33c1c101a202f4edccc13ee87364e24",
+  "gen_hash_zig": "sha256:de3a0e1b9cf7c38648d656f445f8e05a3b459c05b91694956cebe45105e83504",
   "module": "VerifiedDieBinding",
   "ring": 12,
-  "sealed_at": "2026-10-07T11:12:32Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:37c4c2163dea0f46623073198fbd44980370e3fabdbee78a222326f1ba99cd93",
+  "sealed_at": "2026-10-08T11:13:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:5bc5c583cde121ae64a03b975aacce29dafcff2206cef394a3dc76a464846f9c",
   "spec_path": "specs/verified/die_binding.t27",
   "tests": {
-    "failed": 0,
-    "failing": [],
-    "forced": false,
-    "passed": 20,
-    "total": 20
+    "blocked": "does not compile: runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
   }
 }

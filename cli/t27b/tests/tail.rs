@@ -155,3 +155,62 @@ fn wide_integer_constants_fold_or_are_refused() {
         assert!(m.contains(&format!("type {} at line", ty)) && m.contains(why), "{}: {}", src, m);
     }
 }
+
+// ------------------------------------------------ numeric coercion (the `type mismatch` family)
+
+/// specs/tri/t27b/coerce_plan.t27: the conformance spec runs (`t27c test-report`: 4 pass); each edit below is a
+/// shape Zig 0.16 refuses, so t27b refuses it too, as a `type mismatch` on the line it names.
+#[test]
+fn numeric_coercion_follows_zig() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/numeric_coercion.t27");
+    assert_eq!(names_ok(&run(src)).iter().filter(|t| !t.1 && t.2).count(), 4);
+    for (from, to, why) in [("a + NC_EXP_MAX;", "NC_EXP_MAX + a;", "expected u8, found i8"), ("d : f64 = target", "d : f32 = target", "expected f32, found i32"),
+        ("(a: i64, b: u32)", "(a: i64, b: u64)", "65 bits"), ("byte(NC_EXP_MAX) == 63", "byte(NC_BIG) == 63", "expected i8, found u8"),
+        ("NC_NINE - NC_FOUR;", "NC_NINE + NC_BIG;", "expected u4, found u8"), ("x + NC_TWO_60;", "x + (NC_TWO_60 + 1);", "expected f64, found u64")] {
+        let m = rejected(&src.replacen(from, to, 1));
+        assert!(m.contains("unsupported construct type mismatch") && m.contains(why), "{}: {}", to, m);
+    }
+    // Two constants whose sum does not fit their type do not fold: the run-time `+` traps, as before the plan.
+    let r = run("module a;\n\nconst B: u8 = 200;\n\nfn f() -> u8 {\n    return B + B;\n}\n\ntest t {\n    assert(f() == 144);\n}\n");
+    assert_eq!(r[0].2, Err((TrapKind::Overflow, 6)));
+}
+
+// ------------------------------------------------ a void fn's result bound by a local
+
+/// #7690: `const r = f(x);` with `f` void runs the call and binds void's one value, which `==` folds equal to
+/// `undefined` (specs/tri/t27b/void_bind_plan.t27); `t27c test-report` passes the conformance spec 9/9, none
+/// vacuous. A typed local, a non-void name against `undefined` and a void against itself keep their refusals.
+#[test]
+fn a_void_fn_s_result_bound_by_a_local() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/void_bind.t27"));
+    assert!(r.len() == 9 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn f() -> void {\n    return;\n}\n\ntest t {\n    const r = f();\n    const k: u32 = 3;\n    assert(r == undefined);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("r == undefined", "undefined != r"))), vec![("t", false, false)]);
+    for (from, to, why) in [("r = f()", "r: void = f()", "void fn `f` used as a value"), ("r == undefined", "k == undefined", "`undefined`"), ("r == undefined", "r == r", "on a struct")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(why), "{}", m);
+    }
+}
+
+// ------------------------------------------------ the W585 scaffold the reference never calls
+
+/// #7691: `given x = default_input()` passed bare to a declared fn is `const x = undefined;` in the reference,
+/// which never calls the helper; nor does t27b, and x holds a value of the consumer's parameter type that
+/// nobody reads (specs/tri/t27b/scaffold_plan.t27; `t27c test-report` passes the conformance spec 8/8, none
+/// vacuous). A local the reference would read is refused: by a callee (where the reference reads dead memory),
+/// elsewhere, as a `var` or with a type. A helper no declared fn is passed, or one given arguments, is called.
+#[test]
+fn a_scaffold_local_is_never_called() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/scaffold_local.t27"));
+    assert!(r.len() == 8 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nvar CALLS: u32 = 0;\n\nfn default_input() -> u32 {\n    CALLS = CALLS + 1;\n    return 7;\n}\n\nfn is_seven(x: u32) -> bool {\n    return true;\n}\n\ntest t {\n    const input = default_input();\n    assert(is_seven(input));\n    assert(CALLS == 0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("    assert(is_seven(input));\n", ""))), vec![("t", false, false)]);
+    let args = src.replace("default_input() -> u32 {\n    CALLS = CALLS + 1;", "default_input(k: u32) -> u32 {\n    CALLS = CALLS + k;");
+    assert_eq!(names_ok(&run(&args.replace("default_input();", "default_input(1);"))), vec![("t", false, false)]);
+    for (from, to, what) in [("return true", "return x == 7", "read by callee"), ("(CALLS == 0)", "(input == 7)", "read"), ("const input", "var input", "var"), ("input = ", "input: u32 = ", "typed")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(&format!("construct StmtLocal(scaffold {}) at line 15", what)), "{}", m);
+    }
+}
