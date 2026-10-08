@@ -1,0 +1,68 @@
+// #7308: a switch is a chain of C ternaries, `(s == L) ? (v) : ... : e`.
+// The core takes one only as a whole value, with number labels and `else`
+// last; gen-c loses the other shapes (#7419).
+module switchvalues;
+var g: [4]i64 = [_]i64{0, 1, 0, 0};
+fn grade(x: i64) -> i64 {
+    var y: i64 = switch (x) {
+        1 => 10,
+        -2 => 20,
+        0x10 => 30,
+        else => 0,
+    };
+    return y;
+}
+fn step(x: i64, y0: i64) -> i64 {
+    var y: i64 = y0;
+    y = switch (x) { 5 => y + 1, else => y * 2 };
+    y += switch (x) { 5 => 1, else => 2, };
+    return switch (y) {
+        3 => 4,
+        else => switch (x) { 1 => 2, else => 3 },
+    };
+}
+fn radix(x: i64) -> i64 {
+    return switch (x) { 0xaB => 1, 0b101 => 2, -0x10 => 3, 9223372036854775807 => 4, else => 5 };
+}
+fn letter(y: u8) -> u8 {
+    return switch (y) { 0 => 'a', 1 => '\n', else => y };
+}
+fn odd(x: i64) -> i64 {
+    return switch (x * 2 - 1) { 1 => -x, 3 => ~x, else => x as i64 };
+}
+fn only(x: i64) -> i64 {
+    return switch (x) { else => 42 };
+}
+fn at(i: usize) -> i64 {
+    return switch (g[i]) { 1 => 2, else => 3 };
+}
+fn big(x: i64) -> bool {
+    var c: bool = switch (x) { 1 => true, else => x > 3 and x < 9 };
+    return c;
+}
+test values {
+    assert(grade(1) == 10);
+    assert(grade(-2) == 20);
+    assert(grade(16) == 30);
+    assert(grade(7) == 0);
+    assert(step(5, 1) == 4);
+    assert(step(1, 1) == 2);
+    assert(step(2, 1) == 3);
+    assert(radix(171) == 1);
+    assert(radix(5) == 2);
+    assert(radix(-16) == 3);
+    assert(radix(9223372036854775807) == 4);
+    assert(radix(0) == 5);
+    assert(letter(0) == 'a');
+    assert(letter(1) == 10);
+    assert(letter(7) == 7);
+    assert(odd(1) == -1);
+    assert(odd(2) == -3);
+    assert(odd(3) == 3);
+    assert(only(9) == 42);
+    assert(at(1) == 2);
+    assert(at(0) == 3);
+    assert(big(1));
+    assert(big(5));
+    assert(!big(2));
+}
