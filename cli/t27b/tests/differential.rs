@@ -2272,7 +2272,7 @@ fn f64_refusals_name_the_construct() {
         ("return x + 1.0 / 0.0;", "ExprBinary"),
         ("return x * 2;", "ExprBinary(f64 * 2^k)"),
         ("return x % 2.0;", "ExprBinary(%)"),
-        ("return x + n;", "type mismatch"),
+        ("return x + @as(i64, n);", "type mismatch"),
     ] {
         let msg = first(body);
         assert!(msg.contains(&format!("unsupported construct {} ", want)), "{}: {}", body, msg);

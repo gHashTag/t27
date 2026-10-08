@@ -343,6 +343,20 @@ test "distinct dies are counted by DNA" {
     assert distinct_dies3(2, 1, 1) == 2;
     assert distinct_dies3(1, 2, 2) == 2;
     assert distinct_dies3(DNA_OBSERVED, DNA_OBSERVED, DNA_OBSERVED) == 1;
+    assert distinct_dies3(DNA_OBSERVED, DNA_OBSERVED_B, DNA_OBSERVED) == 2;
+}
+
+test "the second die's live reads, taken before and after, name it (#7758)" {
+    // its FUSE tail is 0x37, not die A's 0x4F; the tail is die data and does not refuse the read
+    var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED_B, FUSE_HI_OBSERVED_B);
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED_B, XSC_HI_OBSERVED_B);
+    assert die_read_first_wrong(fuse, xsc, fuse, xsc) == READ_OK;
+    assert dna_hex_matches(dna_from_xsc(xsc), "0389c0c2d85e85c") == true;
+    assert dna_text_well_formed("0389c0c2d85e85c") == true;
+    // die A before and die B after is a swap, not one die
+    var fuse_a : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xsc_a : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    assert die_read_first_wrong(fuse_a, xsc_a, fuse, xsc) == READ_DIE_CHANGED;
 }
 
 test "the v2 message differs from v1 in its first line and one field" {
@@ -433,6 +447,17 @@ test "the bench's own output parses to the observed die" {
     assert x == raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
     assert die_read_first_wrong(f, x, f, x) == READ_OK;
     assert dna_from_xsc(x) == DNA_OBSERVED;
+}
+
+test "the second bench's own output parses to its die" {
+    // openocd 0.12.0 on the AX7203 bench, 2026-10-08, lines joined with |
+    var out : string = "Info : JTAG tap: xc7.tap | FUSE_DNA 30391c37 3a17a1b4 | XSC_DNA 68607238 fe742f43 | shutdown";
+    var f : u64 = reader_raw(out, READER_FUSE_TAG);
+    var x : u64 = reader_raw(out, READER_XSC_TAG);
+    assert f == raw_from_fields(FUSE_LO_OBSERVED_B, FUSE_HI_OBSERVED_B);
+    assert x == raw_from_fields(XSC_LO_OBSERVED_B, XSC_HI_OBSERVED_B);
+    assert die_read_first_wrong(f, x, f, x) == READ_OK;
+    assert dna_from_xsc(x) == DNA_OBSERVED_B;
 }
 
 test "a missing or malformed read is no read" {
