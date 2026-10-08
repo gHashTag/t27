@@ -111,6 +111,8 @@ mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its resu
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
 #[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
+#[path = "../../../gen/rust/tri/t27b/optional_compare_plan.rs"] #[allow(dead_code, unused_parens)]
+mod oc; // t27c gen-rust of specs/tri/t27b/optional_compare_plan.t27: `?T == v`, by value or by tag
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
 #[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -5919,7 +5921,7 @@ impl<'a> Lower<'a> {
         Ok(Val::E(e))
     }
 
-    /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar) and `v` a `T`,
+    /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar or an enum: optional_compare_plan.t27) and `v` a `T`,
     /// either way round: Zig's comparison of an optional with a payload,
     /// equal only when `x` holds a value equal to `v`. None when neither
     /// operand is an optional.
@@ -5947,7 +5949,8 @@ impl<'a> Lower<'a> {
             _ => return self.reject(what, "an optional compared with a value that has effects".into()),
         }
         let LTy::Opt(inner) = p.ty.clone() else { unreachable!() };
-        if !matches!(*inner, LTy::S(_)) {
+        let by = oc::payload(match *inner { LTy::S(_) => oc::K_SCALAR, LTy::Enum(..) => oc::K_ENUM, _ => oc::K_OTHER });
+        if oc::refuses(by) {
             let t = self.type_name(&p.ty);
             return self.reject(what, format!("`{}` on {}", op, t));
         }
@@ -5963,7 +5966,7 @@ impl<'a> Lower<'a> {
         let flag = Expr { ty: Ty::Bool, kind: ExprKind::Load { addr: Box::new(addr.clone()), off: off + s } };
         let payload = self.place_value(Place { addr, off, ty: *inner, mutable: false, temp: None })?;
         let (l, r) = if left { (payload, other) } else { (other, payload) };
-        let cmp = self.binary(op, l, r)?;
+        let cmp = if by == oc::BY_TAG { self.enum_compare(op, &l, &r, false)?.ok_or(())? } else { self.binary(op, l, r)? };
         let cmp = self.coerce(cmp, Ty::Bool)?;
         let els = Expr { ty: Ty::Bool, kind: ExprKind::Const((op == "!=") as i128) };
         let e = Expr { ty: Ty::Bool, kind: ExprKind::Select { cond: Box::new(flag), then: Box::new(cmp), els: Box::new(els) } };

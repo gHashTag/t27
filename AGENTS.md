@@ -247,10 +247,13 @@ measure it are written in **t27**, not in Rust or Python by hand.
   10831352c's 15191 plus 1202 and 8119; 15224 plus 1202, 16426 in all, and
   tests 8149, after #7810's glue for `_ = e;` with e not a bare name, whose
   plan is `specs/tri/t27b/discard_plan.t27`, +29 and +15 on master 3d16be1f2's
-  15195 plus 1202 and 8134; 15229 plus 1233, 16462 in all, and tests 8168,
-  after #7857's glue for `anytype` and `[*]T` in the signature of a fn nothing
-  analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`), +5, +31 and +19 on
-  master 824c82d78's 15224 plus 1202 and 8149),
+  15195 plus 1202 and 8134; 15227 plus 1202, 16429 in all, and tests 8164,
+  after #7811's glue for an optional enum compared with a variant, whose plan
+  is `specs/tri/t27b/optional_compare_plan.t27`, +6 -3 and +15 on master
+  824c82d78's 15224 plus 1202 and 8149; 15232 plus 1233, 16465 in all, and tests
+  8183, after #7857's glue for `anytype` and `[*]T` in the signature of a fn
+  nothing analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`), +5, +31 and +19
+  on master 408d740d9's 15227 plus 1202 and 8164),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

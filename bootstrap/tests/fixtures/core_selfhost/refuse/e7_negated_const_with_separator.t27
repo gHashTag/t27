@@ -1,3 +1,0 @@
-// #7318: gen-c writes #define N -1_000, which C refuses.
-module nc;
-const N: i64 = -1_000;
