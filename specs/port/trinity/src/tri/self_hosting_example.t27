@@ -1,0 +1,137 @@
+module port::self_hosting_example;
+
+// Port of gHashTag/trinity:src/tri/self_hosting_example.zig (82 lines, one
+// function) to .t27. The original prints a banner, configures a
+// SelfHostingConfig, runs the self-hosting loop and prints the outcome.
+// Printing, the loop run and the allocator are plumbing: they stay in
+// `main`, which keeps an `undefined;` body that no test calls, while the
+// decisions inside it are ported below as pure functions and tested.
+
+// The exit verdict of the session: on success the original returns
+// normally; on failure its `try` propagates the error out of `main`,
+// which the process turns into a non-zero exit code.
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+
+// SelfHostingConfig, with only the fields the example reads and sets.
+struct SelfHostingConfig {
+    max_patches: u32,
+    confidence_threshold: f64,
+    require_human_approval: bool,
+    branch_prefix: str,
+    auto_rebuild: bool,
+    auto_commit: bool,
+    auto_push: bool,
+    test_timeout: u32,
+    verbose: bool,
+}
+
+// The session configuration block of `main` (original lines 25-35): at most
+// 3 self-patches per session, a 99.9 percent confidence threshold,
+// high-confidence patches auto-approved, successful patches committed but
+// not pushed, no automatic rebuild, a 60 second test timeout, and verbose
+// logging on.
+pub fn example_config() -> SelfHostingConfig {
+    return SelfHostingConfig {
+        max_patches: 3,
+        confidence_threshold: 0.999,
+        require_human_approval: false,
+        branch_prefix: "self-improve",
+        auto_rebuild: false,
+        auto_commit: true,
+        auto_push: false,
+        test_timeout: 60,
+        verbose: true,
+    };
+}
+
+// Original line 39: the threshold is displayed as a percentage
+// (`config.confidence_threshold * 100`).
+pub fn confidence_percent(threshold: f64) -> f64 {
+    return threshold * 100.0;
+}
+
+// Original line 28: a patch is auto-approved exactly when the session does
+// not require human approval.
+pub fn auto_approves(config: SelfHostingConfig) -> bool {
+    return !config.require_human_approval;
+}
+
+// Original line 27: the confidence the loop demands before it applies a
+// patch.
+pub fn meets_confidence(score: f64, threshold: f64) -> bool {
+    return score >= threshold;
+}
+
+// The banner `main` prints before the session starts (original lines 13 to
+// 22), kept as the marker string the caller prints.
+pub fn banner_title() -> str {
+    return "======== SACRED INTELLIGENCE SELF-HOSTING LOOP ========";
+}
+
+// The session verdict: a successful session exits 0 (the original returns
+// normally from `main`), a failed one exits 1 (the original's `try`
+// propagates the error out of `main`).
+pub fn session_exit_code(success: bool) -> i32 {
+    if (success) {
+        return EXIT_OK;
+    }
+    return EXIT_FAIL;
+}
+
+// Original `pub fn main() !void` (line 10): printing, the loop run and the
+// allocator are data moving in and out, so the body stays unported. The
+// decisions inside it are carried by the pure functions above; no test
+// calls this.
+pub fn main() {
+    undefined;
+}
+
+// Original test "SelfHostingConfig defaults": the session configuration has
+// a positive patch budget and a positive confidence threshold.
+test self_hosting_config_defaults {
+    const config = example_config();
+    assert(config.max_patches > 0);
+    assert(config.confidence_threshold > 0);
+    assert(config.max_patches == 3);
+    assert(config.confidence_threshold == 0.999);
+    assert(config.branch_prefix == "self-improve");
+    assert(config.test_timeout == 60);
+    assert(config.verbose);
+    assert(config.auto_commit);
+    assert(!config.auto_push);
+    assert(!config.auto_rebuild);
+    assert(!config.require_human_approval);
+}
+
+// The percentage shown for the configured threshold: 99.9 percent
+// confidence displays as a value between 99.8 and 100.
+test confidence_percent_scales {
+    const config = example_config();
+    const threshold = config.confidence_threshold;
+    assert(confidence_percent(0.5) == 50.0);
+    assert(confidence_percent(1.0) == 100.0);
+    assert(confidence_percent(threshold) > 99.8);
+    assert(confidence_percent(threshold) < 100.0);
+}
+
+// Auto-approval is on for the example session, and the 99.9 percent
+// threshold admits a 0.9995 score but not a 0.5 one.
+test auto_approval_and_threshold {
+    const config = example_config();
+    assert(auto_approves(config));
+    assert(meets_confidence(0.9995, config.confidence_threshold));
+    assert(!meets_confidence(0.5, config.confidence_threshold));
+}
+
+// A successful session exits 0 (the original returns normally); a failed
+// one exits 1 (the original's `try` propagates the error).
+test session_exit_code_decides {
+    assert(session_exit_code(true) == EXIT_OK);
+    assert(session_exit_code(false) == EXIT_FAIL);
+}
+
+// The banner line the caller prints before the session starts.
+test banner_title_marker {
+    assert(banner_title() == "======== SACRED INTELLIGENCE SELF-HOSTING LOOP ========");
+}
