@@ -221,11 +221,15 @@ measure it are written in **t27**, not in Rust or Python by hand.
   by its result type and the refusal of a store of the fn's own frame address,
   whose plans are `specs/tri/t27b/empty_lit_plan.t27` and
   `specs/tri/t27b/frame_store_plan.t27`, +31, +11 and +18 on master
-  4d7d2d3bd's 14995 plus 1166 and 7987; 15062 plus 1177, 16239 in all, and
-  `cli/t27b/tests/*.rs` 8024, after #7791's glue for `@bitCast` and
-  `@intFromBool`, whose plan is `specs/tri/t27b/bit_cast_plan.t27`, and for
-  `std.math.nan`, `isNan`, `isPositiveInf` and `isNegativeInf` from
-  `libm_plan.t27`, +36 and +19 on master 6e9781201's 15026 plus 1177 and 8005),
+  4d7d2d3bd's 14995 plus 1166 and 7987; 15043 plus 1202, 16245 in all, and
+  tests 8027, after #7765's refusal of a write through an array literal the
+  reference prints as `@constCast(&[_]E{ ... })`, whose plan is
+  `specs/tri/t27b/slice_lit_plan.t27`, +17, +25 and +22 on master 0c729d928;
+  15079 plus 1202, 16281 in all, and tests 8046, after #7791's glue for
+  `@bitCast` and `@intFromBool`, whose plan is
+  `specs/tri/t27b/bit_cast_plan.t27`, and for `std.math.nan`, `isNan`,
+  `isPositiveInf` and `isNegativeInf` from `libm_plan.t27`, +36 and +19 on
+  master 8e0f774ee's 15043 plus 1202 and 8027),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
