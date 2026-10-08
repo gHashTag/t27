@@ -8,7 +8,7 @@ struct AssembledInstr {
     rs1: u32,
     rs2: u32,
     imm: u32,
-    label: []const u8,
+    label: &str,
     is_gf16: bool,
 }
 

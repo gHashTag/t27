@@ -1,0 +1,306 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/bit_cast_plan.t27 -- how t27b lowers `@bitCast(x)` with a scalar result type, and
+; `@intFromBool(x)` (issue #7791, part of #7746; t27b coverage epic #6063; written in t27 under the port
+; epic #6198).
+; gen-zig prints both as written. specs/numeric/gf16.t27, the numeric SSOT, reads an f32's bits with
+; `const bits : u32 = @bitCast(value);`, builds one with `const out : f32 = @bitCast(out_bits);`, and counts
+; flags with `@as(u8, @intFromBool(is_fin))`.
+; Everything t27b decides about these two builtins is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/bit_cast_plan.rs). The Rust glue in cli/t27b/src/lower.rs classifies the operand it
+; lowered and the result type, asks `plan`, and builds the IR node the answer names.
+; --
+; What the reference does (zig 0.16.0, the x86_64 Debug backend `t27c test-report` builds with; measured on
+; the t27c lab for #7791, and pinned by specs/tri/t27b/conformance/bit_cast.t27):
+;   `@bitCast` takes its result type from the result location: `@as(T, ..)`, a typed binding, a parameter, a
+;   `return`. With none, Zig refuses it ("must have a known result type"); t27b keeps refusing that as an
+;   `ExprCall(@bitCast)`, and an aggregate result (`@as([4]u8, @bitCast(x))`) too: neither reaches this plan.
+;   The bits are kept exactly. A signalling NaN 0x7F800001 comes back as 0x7F800001 through a bitcast, a call
+;   and a return; -0.0 is 0x80000000; a u32 0xFFFFFFFF is the i32 -1.
+;   Zig refuses a literal operand ("cannot @bitCast from 'comptime_int'", and 'comptime_float'), and two
+;   types of different sizes ("@bitCast size mismatch"). A bool is one bit: `@bitCast` of a bool to a u1 is
+;   0 or 1, as `@intFromBool` is.
+;   `@intFromBool(b)` is a u1, 0 or 1, which coerces to any wider unsigned type.
+;   t27c's optimizer runs on fn bodies (not on tests, invariants or benches) before it prints Zig. Its
+;   `const_propagate` replaces every read of a local bound at the top of the body by `const x = <literal>` or
+;   `const x: T = <literal>`, where the literal is an integer its `is_literal` reads (decimal, or hex after
+;   0x, that an i64 holds), with that literal. So `@bitCast(x)` of such a local reaches Zig as
+;   `@bitCast(0x7FC00000)`, which Zig refuses: specs/tri/t27b/libm.t27 met it while #7791 was written
+;   (filed as #7807).
+; --
+; What t27b does. t27b holds a float as its bit pattern, so an int <-> float bitcast stores the operand in a
+; frame slot of the result's size and loads the result type from it (VIA_SLOT): no new IR node. Two
+; integer types of one size differ only in how the bits read, so that is a Cast with no trap site (WRAP),
+; two's complement as `@truncate` is. A bool to a u1, and `@intFromBool`, is a Widen of the bool (WIDEN).
+; The same type is the operand itself (KEEP). A constant operand folds to its bits read as the result type
+; (FOLD). Refused: any number of operands but one, a literal, an operand that is no scalar, two sizes, and
+; a bool result or a bool to a signed i1 (no corpus spec writes either). Refused too, in a fn body, the
+; name of a local `const_propagate` replaces (REFUSE_INLINED), as the reference does not compile it. The glue
+; collects those names per fn body with `reads_as_int`; a module-level constant is never replaced, so it
+; folds. Not modelled: an operand that only folds to a literal after the replacement (`@bitCast(x + 1)`),
+; which no corpus spec writes; t27b lowers it.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bBitCastPlan;
+
+// A type, as the glue sees it: a bool, an unsigned or a signed integer, a float. An operand may also be a
+// literal (a comptime_int or comptime_float) or something else (an aggregate, a pointer, a string).
+pub const T_BOOL : u8 = 0;
+pub const T_UINT : u8 = 1;
+pub const T_SINT : u8 = 2;
+pub const T_FLOAT : u8 = 3;
+pub const T_LITERAL : u8 = 4;
+pub const T_OTHER : u8 = 5;
+
+// What the call lowers to.
+pub const KEEP : u8 = 0;
+pub const FOLD : u8 = 1;
+pub const WIDEN : u8 = 2;
+pub const WRAP : u8 = 3;
+pub const VIA_SLOT : u8 = 4;
+pub const REFUSE_ARITY : u8 = 5;
+pub const REFUSE_LITERAL : u8 = 6;
+pub const REFUSE_OPERAND : u8 = 7;
+pub const REFUSE_SIZE : u8 = 8;
+pub const REFUSE_BOOL : u8 = 9;
+pub const REFUSE_INLINED : u8 = 10;
+
+/// The type code of a scalar type.
+pub fn code(is_bool: bool, is_float: bool, signed: bool) -> u8 {
+    if (is_bool) { return T_BOOL; }
+    if (is_float) { return T_FLOAT; }
+    if (signed) { return T_SINT; }
+    return T_UINT;
+}
+
+/// The size Zig gives a type of this code, in bits. t27b stores a bool in a byte; Zig's `@bitSizeOf(bool)` is 1.
+pub fn zig_bits(c: u8, bits: u32) -> u32 {
+    if (c == T_BOOL) { return 1; }
+    return bits;
+}
+
+/// A move that reads the operand at run time, or its fold when the operand is a constant.
+fn moved(act: u8, is_const: bool) -> u8 {
+    if (is_const) { return FOLD; }
+    return act;
+}
+
+/// Does t27c's `is_literal` read literal text as an integer: decimal digits, or hex digits after `0x` / `0X`,
+/// whose value an i64 holds? The glue asks it of a local's initializer.
+pub fn reads_as_int(text: []const u8) -> bool {
+    if (text.len >= 2 and text[0] == 48 and (text[1] == 120 or text[1] == 88)) {
+        return fits_i64(text[2 .. text.len], 16);
+    }
+    return fits_i64(text, 10);
+}
+
+/// Are `digits` one or more digits of `base` whose value an i64 holds? A fn of its own, not a local slice:
+/// gen-rust would type such a local `&'static str` beside a `&[u8]` parameter (#7806).
+fn fits_i64(digits: []const u8, base: u64) -> bool {
+    if (digits.len == 0) { return false; }
+    var n : u64 = 0;
+    var at : usize = 0;
+    while (at < digits.len) {
+        const ch : u8 = digits[at];
+        var d : u64 = 99;
+        if (ch >= 48 and ch <= 57) { d = (ch - 48) as u64; }
+        if (base == 16 and ch >= 97 and ch <= 102) { d = (ch - 87) as u64; }
+        if (base == 16 and ch >= 65 and ch <= 70) { d = (ch - 55) as u64; }
+        if (d >= base) { return false; }
+        if (n > (9223372036854775807 - d) / base) { return false; }
+        n = n * base + d;
+        at = at + 1;
+    }
+    return true;
+}
+
+/// The decision. from_bool: the call is `@intFromBool` (the glue passes u1 as the result type). operands: how
+/// many the call has. from, from_bits: the operand's code and t27b's width of its type. to, to_bits: the
+/// result type's. is_const: the operand is a typed constant. inlined: it is a constant of local names and
+/// literals in a fn body, which t27c's optimizer may turn into a literal.
+pub fn plan(from_bool: bool, operands: usize, from: u8, from_bits: u32, to: u8, to_bits: u32, is_const: bool, inlined: bool) -> u8 {
+    if (operands != 1) { return REFUSE_ARITY; }
+    if (from == T_LITERAL) { return REFUSE_LITERAL; }
+    if (inlined and !from_bool) { return REFUSE_INLINED; }
+    if (from == T_OTHER) { return REFUSE_OPERAND; }
+    if (from_bool) {
+        if (from != T_BOOL) { return REFUSE_OPERAND; }
+        return moved(WIDEN, is_const);
+    }
+    if (zig_bits(from, from_bits) != zig_bits(to, to_bits)) { return REFUSE_SIZE; }
+    if (from == to) { return KEEP; }
+    if (to == T_BOOL) { return REFUSE_BOOL; }
+    if (from == T_BOOL) {
+        if (to == T_UINT) { return moved(WIDEN, is_const); }
+        return REFUSE_BOOL;
+    }
+    if (from != T_FLOAT and to != T_FLOAT) { return moved(WRAP, is_const); }
+    return moved(VIA_SLOT, is_const);
+}
+
+/// The construct a refusal names.
+pub fn what(from_bool: bool) -> str {
+    if (from_bool) { return "ExprCall(@intFromBool)"; }
+    return "ExprCall(@bitCast)";
+}
+
+/// Why: the words after the operand and the result type.
+pub fn why(act: u8) -> str {
+    if (act == REFUSE_ARITY) { return "it takes one operand"; }
+    if (act == REFUSE_LITERAL) { return "Zig cannot bitcast a literal, which has no size"; }
+    if (act == REFUSE_OPERAND) { return "the operand is not a bool, an integer or a float"; }
+    if (act == REFUSE_SIZE) { return "the two sizes differ, which Zig refuses"; }
+    if (act == REFUSE_BOOL) { return "a bool result, or a bool to a signed integer, is not lowered"; }
+    if (act == REFUSE_INLINED) { return "t27c's optimizer may put a local constant's literal here, and Zig cannot bitcast a literal"; }
+    return "it did not lower";
+}
+
+// ---------------------------------------------------------------- tests
+
+/// A plan over the codes of two scalar types of t27b's widths, for a run-time operand.
+fn bc_run(from: u8, from_bits: u32, to: u8, to_bits: u32) -> u8 {
+    return plan(false, 1, from, from_bits, to, to_bits, false, false);
+}
+
+test an_int_and_a_float_of_one_size_go_through_a_slot {
+    assert bc_run(T_FLOAT, 32, T_UINT, 32) == VIA_SLOT;
+    assert bc_run(T_UINT, 32, T_FLOAT, 32) == VIA_SLOT;
+    assert bc_run(T_FLOAT, 32, T_SINT, 32) == VIA_SLOT;
+    assert bc_run(T_SINT, 64, T_FLOAT, 64) == VIA_SLOT;
+    assert bc_run(T_FLOAT, 64, T_UINT, 64) == VIA_SLOT;
+    assert plan(false, 1, T_FLOAT, 32, T_UINT, 32, true, false) == FOLD;
+    assert plan(false, 1, T_UINT, 64, T_FLOAT, 64, true, false) == FOLD;
+}
+
+test two_integers_of_one_size_wrap_and_one_type_is_kept {
+    assert bc_run(T_UINT, 32, T_SINT, 32) == WRAP;
+    assert bc_run(T_SINT, 8, T_UINT, 8) == WRAP;
+    assert bc_run(T_UINT, 21, T_SINT, 21) == WRAP;
+    assert plan(false, 1, T_SINT, 16, T_UINT, 16, true, false) == FOLD;
+    assert bc_run(T_FLOAT, 32, T_FLOAT, 32) == KEEP;
+    assert bc_run(T_UINT, 64, T_UINT, 64) == KEEP;
+    assert plan(false, 1, T_UINT, 32, T_UINT, 32, true, false) == KEEP;
+    assert bc_run(T_BOOL, 8, T_BOOL, 8) == KEEP;
+}
+
+test two_sizes_are_refused_as_zig_refuses_them {
+    assert bc_run(T_FLOAT, 32, T_UINT, 64) == REFUSE_SIZE;
+    assert bc_run(T_FLOAT, 64, T_FLOAT, 32) == REFUSE_SIZE;
+    assert bc_run(T_UINT, 16, T_SINT, 32) == REFUSE_SIZE;
+    assert bc_run(T_BOOL, 8, T_UINT, 8) == REFUSE_SIZE;
+    assert plan(false, 1, T_FLOAT, 32, T_UINT, 64, true, false) == REFUSE_SIZE;
+    assert zig_bits(T_BOOL, 8) == 1;
+    assert zig_bits(T_UINT, 8) == 8;
+}
+
+test a_bool_is_one_bit {
+    assert bc_run(T_BOOL, 8, T_UINT, 1) == WIDEN;
+    assert plan(false, 1, T_BOOL, 8, T_UINT, 1, true, false) == FOLD;
+    assert bc_run(T_BOOL, 8, T_SINT, 1) == REFUSE_BOOL;
+    assert bc_run(T_UINT, 1, T_BOOL, 8) == REFUSE_BOOL;
+    assert plan(true, 1, T_BOOL, 8, T_UINT, 1, false, false) == WIDEN;
+    assert plan(true, 1, T_BOOL, 8, T_UINT, 1, true, false) == FOLD;
+    assert plan(true, 1, T_UINT, 1, T_UINT, 1, false, false) == REFUSE_OPERAND;
+    assert plan(true, 1, T_FLOAT, 32, T_UINT, 1, false, false) == REFUSE_OPERAND;
+}
+
+test the_arity_then_the_operand_are_asked_first {
+    assert plan(false, 0, T_FLOAT, 32, T_UINT, 32, false, false) == REFUSE_ARITY;
+    assert plan(false, 2, T_FLOAT, 32, T_UINT, 32, false, false) == REFUSE_ARITY;
+    assert plan(true, 2, T_BOOL, 8, T_UINT, 1, false, false) == REFUSE_ARITY;
+    assert plan(false, 1, T_LITERAL, 32, T_FLOAT, 32, false, false) == REFUSE_LITERAL;
+    assert plan(true, 1, T_LITERAL, 1, T_UINT, 1, false, false) == REFUSE_LITERAL;
+    assert plan(false, 1, T_OTHER, 32, T_FLOAT, 32, false, false) == REFUSE_OPERAND;
+    assert plan(true, 1, T_OTHER, 8, T_UINT, 1, false, false) == REFUSE_OPERAND;
+}
+
+test a_local_constant_in_a_fn_may_reach_zig_as_a_literal {
+    assert plan(false, 1, T_UINT, 32, T_FLOAT, 32, true, true) == REFUSE_INLINED;
+    assert plan(false, 1, T_FLOAT, 64, T_SINT, 64, true, true) == REFUSE_INLINED;
+    assert plan(false, 1, T_UINT, 32, T_UINT, 32, true, true) == REFUSE_INLINED;
+    assert plan(false, 1, T_UINT, 32, T_FLOAT, 32, true, false) == FOLD;
+    assert plan(true, 1, T_BOOL, 8, T_UINT, 1, true, true) == FOLD;
+    assert plan(false, 1, T_LITERAL, 32, T_FLOAT, 32, false, true) == REFUSE_LITERAL;
+    assert plan(false, 2, T_UINT, 32, T_FLOAT, 32, true, true) == REFUSE_ARITY;
+    assert std.mem.indexOf(u8, why(REFUSE_INLINED), "optimizer") != null;
+}
+
+test t27c_reads_these_literals_as_integers {
+    assert reads_as_int("0x7FC00000");
+    assert reads_as_int("0X7fc00000");
+    assert reads_as_int("5");
+    assert reads_as_int("9223372036854775807");
+    assert !reads_as_int("9223372036854775808");
+    assert reads_as_int("0x7FFFFFFFFFFFFFFF");
+    assert !reads_as_int("0x8000000000000000");
+    assert !reads_as_int("0xFFFFFFFFFFFFFFFF");
+    assert !reads_as_int("0x");
+    assert !reads_as_int("");
+    assert !reads_as_int("1.5");
+    assert !reads_as_int("true");
+    assert !reads_as_int("0x1G");
+    assert !reads_as_int("0x1g");
+    assert reads_as_int("0xfF");
+    assert !reads_as_int("1e3");
+    assert reads_as_int("007");
+}
+
+test codes_of_the_scalar_types {
+    assert code(true, false, false) == T_BOOL;
+    assert code(false, true, false) == T_FLOAT;
+    assert code(false, false, true) == T_SINT;
+    assert code(false, false, false) == T_UINT;
+    assert code(true, true, true) == T_BOOL;
+}
+
+// Over every pair of the four scalar codes at widths 1, 8, 32, and 64 to 1, run time and constant: a move
+// happens only between two types of one size, a fold only for a constant, and every refusal says why.
+test only_one_size_moves {
+    var moves : u32 = 0;
+    var f : u8 = 0;
+    while (f < 4) {
+        var t : u8 = 0;
+        while (t < 4) {
+            var w : u32 = 0;
+            while (w < 4) {
+                var fb : u32 = 64;
+                if (w == 0) { fb = 1; }
+                if (w == 1) { fb = 8; }
+                if (w == 2) { fb = 32; }
+                var tb : u32 = fb;
+                if (w == 3) { tb = 1; }
+                const a : u8 = bc_run(f, fb, t, tb);
+                const c : u8 = plan(false, 1, f, fb, t, tb, true, false);
+                if (a == WIDEN or a == WRAP or a == VIA_SLOT) {
+                    moves = moves + 1;
+                    assert zig_bits(f, fb) == zig_bits(t, tb);
+                    assert f != t;
+                    assert c == FOLD;
+                } else if (a == KEEP) {
+                    assert f == t;
+                    assert c == KEEP;
+                } else {
+                    assert a == c;
+                    assert std.mem.indexOf(u8, why(a), "did not lower") == null;
+                }
+                w = w + 1;
+            }
+            t = t + 1;
+        }
+        f = f + 1;
+    }
+    // Width 1: bool to u1, u1 <-> i1 and four int <-> float; widths 8 and 32: six each; 64 to 1: bool to u1.
+    assert moves == 20;
+}
+
+test the_refusals_name_the_call_and_say_why {
+    assert std.mem.eql(u8, what(false), "ExprCall(@bitCast)");
+    assert std.mem.eql(u8, what(true), "ExprCall(@intFromBool)");
+    assert std.mem.eql(u8, why(REFUSE_ARITY), "it takes one operand");
+    assert std.mem.indexOf(u8, why(REFUSE_LITERAL), "literal") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_SIZE), "sizes differ") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_OPERAND), "not a bool") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_BOOL), "bool result") != null;
+    assert std.mem.indexOf(u8, why(VIA_SLOT), "did not lower") != null;
+    assert std.mem.indexOf(u8, why(KEEP), "did not lower") != null;
+}
