@@ -119,3 +119,16 @@ fn frame_address_store_is_refused() {
     let r = rejected(include_str!("../../../specs/tri/t27b/conformance/frame_address_store.t27"));
     assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
 }
+
+/// Strings behind a slice field or a returned slice (wrapup-auto.t27's `files_modified: ["..."]`): a static
+/// written at every entry, as a module var holding a string is (#7470; `t27c test-report`: 5 pass, none
+/// vacuous). A write through such a slice and run-time elements stay refused.
+#[test]
+fn string_slice_literal_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/string_slice_literal.t27"));
+    assert!(ran.len() == 5 && names_ok(&ran).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&ran));
+    let src = "module a;\n\npub const S = struct {\n    xs: [str],\n};\n\nfn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };\n}\n\ntest t {\n    var v = s();\n    assert(v.xs[1].len == 1);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert!(rejected(&src.replace("    assert(v.xs", "    v.xs[0] = \"z\";\n    assert(v.xs")).contains("StmtAssign(write through an array literal)"));
+    assert!(rejected(&src.replace("fn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };", "fn s(c: str) -> S {\n    return S{ .xs = [\"ab\", c] };").replace("s();", "s(\"c\");")).contains("ExprArrayLiteral(to slice field)"));
+}

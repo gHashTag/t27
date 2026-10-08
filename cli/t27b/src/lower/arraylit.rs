@@ -148,7 +148,7 @@ impl<'a> Lower<'a> {
         let elem = if let LTy::Slice(e, _) = &dst.ty { (**e).clone() } else { LTy::S(Ty::U8) };
         let flat = elem == LTy::Str || !has_brackets(&elem);
         let (repeat, typed, strings) = (c.extra_size.contains(';'), !c.extra_type.trim().is_empty(), self.holds_str(&elem)?);
-        let ask = |n, text| sl::plan(at, named, flat, repeat, n, text, typed, strings);
+        let ask = |n, text| sl::plan(at, named, flat, repeat, n, text, typed);
         let (mut act, mut text) = (ask(c.children.len(), !c.extra_size.trim().is_empty()), None);
         if act == sl::PARSE {
             text = self.text_lit(c)?;
@@ -167,7 +167,22 @@ impl<'a> Lower<'a> {
             self.lit_log.push((act, format!("{:?}", elem), self.line));
         }
         let t = LTy::Arr(Box::new(elem), len);
-        let arr = if sl::is_static(act) {
+        let arr = if sl::written_at_entry(act, strings) {
+            // Strings: written at every entry (`str_globals`, #7470), as no image can hold their addresses.
+            let seen = self.errors.len();
+            let v = match self.const_agg(lit, &t) {
+                Err(()) if self.errors.get(seen).is_some_and(|e| e.construct == "ConstDecl") => {
+                    self.errors.truncate(seen);
+                    return self.reject(sl::what(at, sl::REFUSE_RUN_TIME), sl::why(at, sl::REFUSE_RUN_TIME).into());
+                }
+                v => v?,
+            };
+            let (size, _) = self.size_align(&t)?;
+            self.globals_init.push(vec![0u8; size as usize]);
+            let p = Place { addr: Expr { ty: Ty::Ptr, kind: ExprKind::Global(self.globals_init.len() as u32 - 1) }, off: 0, ty: t, mutable: true, temp: None };
+            self.str_globals.push((p.clone(), v));
+            p
+        } else if sl::is_static(act) {
             let (size, _) = self.size_align(&t)?;
             let (mut buf, seen) = (vec![0u8; size as usize], self.errors.len());
             if self.const_fill(lit, &t, &mut buf, 0).is_err() {

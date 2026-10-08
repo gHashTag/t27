@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/string_slice_literal.t27 -- an array literal whose elements hold a `str`, for a slice
+; field or a returned slice, as the reference runs it (t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints: `@constCast(&[_][]const u8{ "a", "bb" })` for the literal, the same form as
+; for scalar elements (specs/tri/t27b/slice_lit_plan.t27). The array is a comptime constant of slices that point
+; at string literals; reading it is defined, writing it is not (#7765), so nothing here writes it.
+; The shape is specs/automation/wrapup-auto.t27's own: a named struct literal, written `field: value`, whose
+; `files_modified: [str]` is `["specs/automation/wrapup-auto.t27"]`, then read through `.len` and `[0].len`.
+; Every test reads its values at run time.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceStringSliceLiteral;
+
+pub const SsInput = struct {
+    summary: str,
+    files: [str],
+    issue: u32,
+};
+
+pub const SsPair = struct {
+    name: str,
+    weight: u32,
+};
+
+pub const SsTable = struct {
+    rows: []SsPair,
+    title: str,
+};
+
+fn ss_input() -> SsInput {
+    return SsInput { summary: "Test session", files: ["specs/automation/wrapup-auto.t27", "AGENTS.md"], issue: 350 };
+}
+
+fn ss_names() -> [str] {
+    return ["alpha", "be", "c"];
+}
+
+fn ss_table() -> SsTable {
+    return SsTable{ .rows = []SsPair{ SsPair{ .name = "left", .weight = 3 }, SsPair{ .name = "right", .weight = 4 } }, .title = "pairs" };
+}
+
+fn ss_total_len(xs: [str]) -> usize {
+    var n: usize = 0;
+    for (xs) |x| {
+        n = n + x.len;
+    }
+    return n;
+}
+
+test a_slice_field_of_strings_as_wrapup_writes_it {
+    var input = SsInput {
+        summary: "Test session",
+        files: ["specs/automation/wrapup-auto.t27"],
+        issue: 350,
+    };
+    assert(input.issue == 350);
+    assert(input.files.len == 1);
+    assert(input.files[0].len == 32);
+    assert(input.files[0][6] == 'a');
+}
+
+test a_literal_built_in_a_fn {
+    const input = ss_input();
+    assert(input.files.len == 2);
+    assert(input.files[1].len == 9);
+    assert(input.files[1][0] == 'A');
+    assert(ss_total_len(input.files) == 41);
+}
+
+test a_returned_slice_of_strings {
+    const names = ss_names();
+    assert(names.len == 3);
+    assert(names[0].len == 5);
+    assert(names[2][0] == 'c');
+    assert(ss_total_len(names) == 8);
+}
+
+test struct_elements_that_hold_a_string {
+    const t = ss_table();
+    assert(t.rows.len == 2);
+    assert(t.rows[1].weight == 4);
+    assert(t.rows[1].name.len == 5);
+    assert(t.rows[0].name[0] == 'l');
+}
+
+test the_same_literal_read_again {
+    const a = ss_names();
+    const b = ss_names();
+    assert(a[1].len == b[1].len);
+    assert(b[1][1] == 'e');
+}
