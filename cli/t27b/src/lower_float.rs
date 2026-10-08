@@ -90,10 +90,10 @@ impl<'a> Lower<'a> {
         self.builtin_plan(n).map(Some)
     }
 
-    /// `@abs(x)`, `@max(a, b)`, `@min(a, b)` and a bare `abs(x)`: what they take, the result type
-    /// and the select chain each lowers to (`plan_rows`) are specs/tri/t27b/builtin_plan.t27.
+    /// `@abs(x)`, `@max(a, b)`, `@min(a, b)`, `@divTrunc(a, b)` and a bare `abs(x)`: what they take, the
+    /// result type and the select chain or operator each lowers to are specs/tri/t27b/builtin_plan.t27.
     pub(super) fn builtin_plan(&mut self, n: &Node) -> R<Val> {
-        let b = match n.name.as_str() { "@abs" => bp::ABS, "@max" => bp::MAX, "@min" => bp::MIN, _ => bp::BARE_ABS };
+        let b = match n.name.as_str() { "@abs" => bp::ABS, "@max" => bp::MAX, "@min" => bp::MIN, "@divTrunc" => bp::DIV_TRUNC, _ => bp::BARE_ABS };
         self.see(n);
         if n.children.len() != bp::arity(b) {
             return self.reject(bp::what_arity(b), format!("`{}` with {} operands", n.name, n.children.len()));
@@ -105,6 +105,7 @@ impl<'a> Lower<'a> {
         let ty_of = |v: &Val| if let Val::E(e) = v { Some(e.ty) } else { None };
         let same = vals.len() == 2 && ty_of(&vals[0]) == ty_of(&vals[1]);
         let ty = match (bp::type_from(b, operand_kind(vals.first()), operand_kind(vals.get(1)), same), &vals[0]) {
+            (bp::OPERATOR, _) => return self.binary(bp::op_text(bp::operator(b)), vals[0].clone(), vals[1].clone()),
             (bp::FOLD, Val::Cf(q)) => return Ok(Val::Cf(q.abs())),
             (bp::FOLD, Val::Ct(c)) => return c.checked_abs().map(Val::Ct).map_or_else(|| self.reject("literal out of range", format!("abs({})", c)), Ok),
             (bp::REFUSE, _) => {
