@@ -100,6 +100,7 @@ mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numer
 mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
 #[path = "../../../gen/rust/tri/t27b/scaffold_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input()`, which the reference never calls
+#[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)] mod bc; // `@bitCast` of a scalar, `@intFromBool`
 mod refvars;
 mod tuple;
 
@@ -413,6 +414,7 @@ struct Lower<'a> {
     /// `*` expressions (by address) that t27c's strength reduction may rewrite
     /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
     shifted_muls: HashSet<usize>,
+    lit_consts: HashSet<String>, // this fn's locals t27c's optimizer replaces by their literal (bit_cast_plan.t27)
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -520,6 +522,7 @@ fn lower_mode<'a>(
         tail_returns: HashSet::new(),
         misprinted_if: HashSet::new(),
         shifted_muls: HashSet::new(),
+        lit_consts: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -1608,6 +1611,8 @@ impl<'a> Lower<'a> {
         self.enter_float_names(n);
         self.in_test = false;
         self.unanalyzed_fn = !self.analyzed.contains(&n.name);
+        let lits = n.children.iter().filter(|s| s.kind == NodeKind::StmtLocal && !s.extra_mutable && s.children.len() == 1);
+        self.lit_consts = lits.filter(|s| s.children[0].kind == NodeKind::ExprLiteral && bc::reads_as_int(s.children[0].value.trim().as_bytes())).map(|s| s.name.clone()).collect();
         let (params, ret, poisoned) = {
             let s = &self.sigs[&n.name];
             (s.params.clone(), s.ret.clone(), s.poisoned)
@@ -3418,6 +3423,7 @@ impl<'a> Lower<'a> {
                 self.unary(&op, v)
             }
             NodeKind::ExprCall if n.name == "@intFromEnum" => self.int_from_enum(n, TagUse::Value),
+            NodeKind::ExprCall if n.name == "@intFromBool" => self.bit_cast(n, Ty::UN(1)),
             NodeKind::ExprCall if n.name == "@floatFromInt" || n.name == "@intFromFloat" || n.name == "@floatCast" => {
                 self.reject(&format!("ExprCall({})", n.name), "with no result type".into())
             }
@@ -3682,8 +3688,10 @@ impl<'a> Lower<'a> {
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
         let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
-        let v = if n.children.len() == 1 { self.expr(&n.children[0])? } else { Val::Poison };
+        let t = xp::takes_type(b) && n.children.len() == 1; // `std.math.nan(f32)`: its routine takes no argument
+        let v = if n.children.len() == 1 && !t { self.expr(&n.children[0])? } else { Val::Poison };
         let k = match &v {
+            _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
             Val::Poison if n.children.len() == 1 => return Err(()),
             Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
             Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
@@ -3691,10 +3699,37 @@ impl<'a> Lower<'a> {
             _ => xp::K_OTHER,
         };
         let a = xp::plan(b, n.children.len(), k);
-        match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| s.id)) {
-            (Val::E(e), Some(func)) => Ok(Val::E(Expr { ty: e.ty, kind: ExprKind::Call { func, args: vec![self.reg(Val::E(e))?] } })),
+        match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
+            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args: if t { vec![] } else { vec![self.reg(v)?] } } })),
             _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),
         }
+    }
+
+    /// `@bitCast(x)` with scalar result type `ty`, and `@intFromBool(x)` (`ty` u1), as specs/tri/t27b/bit_cast_plan.t27 says.
+    fn bit_cast(&mut self, n: &Node, ty: Ty) -> R<Val> {
+        self.see(n);
+        let v = if n.children.len() == 1 { self.expr(&n.children[0])? } else { Val::Poison };
+        let code = |t: Ty| bc::code(t == Ty::Bool, t.is_float(), t.signed());
+        let (from, bits, c) = match &v {
+            Val::Poison if n.children.len() == 1 => return Err(()),
+            Val::E(e) => (code(e.ty), e.ty.bits(), if let ExprKind::Const(c) = e.kind { Some(c) } else { None }),
+            Val::Ct(_) | Val::Cf(..) => (bc::T_LITERAL, 0, None),
+            _ => (bc::T_OTHER, 0, None),
+        };
+        let inl = !self.in_test && n.children.first().is_some_and(|c| c.kind == NodeKind::ExprIdentifier && self.lit_consts.contains(&c.name));
+        let a = bc::plan(n.name == "@intFromBool", n.children.len(), from, bits, code(ty), ty.bits(), c.is_some(), inl);
+        let slot = if a == bc::VIA_SLOT { self.new_slot(&LTy::S(ty))? } else { 0 };
+        let d = if let Val::E(e) = &v { e.ty.name().to_string() } else { self.val_desc(&v) };
+        let kind = match (a, v) {
+            (bc::KEEP, v) => return Ok(v),
+            (bc::FOLD, _) => ExprKind::Const(ty.wrap(c.unwrap_or(0))),
+            (bc::WIDEN, Val::E(e)) => ExprKind::Widen(Box::new(e)),
+            (bc::WRAP, Val::E(e)) => ExprKind::Cast { arg: Box::new(e), site: 0 },
+            (bc::VIA_SLOT, Val::E(e)) => ExprKind::Seq { stmts: vec![Stmt::Store { addr: slot_expr(slot), off: 0, value: e }],
+                value: Box::new(Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(slot)), off: 0 } }) },
+            (a, _) => return self.reject(bc::what(n.name == "@intFromBool"), format!("`{}` of {} to {}: {}", n.name, d, ty.name(), bc::why(a))),
+        };
+        Ok(Val::E(Expr { ty, kind }))
     }
 
     /// A module-level `var` named where t27c's Zig backend needs a
@@ -5067,6 +5102,7 @@ impl<'a> Lower<'a> {
         if let (NodeKind::ExprCall, "@intCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             return self.int_cast(n, *ty);
         }
+        if let (NodeKind::ExprCall, "@bitCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) { return self.bit_cast(n, *ty); }
         if let (NodeKind::ExprCall, "@intFromEnum", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             let v = self.int_from_enum(n, TagUse::Want(*ty))?;
             return self.coerce_to(v, want);

@@ -14,7 +14,7 @@
  },
  "max_not_pass": 41,
  "counts": {
-  "pass": 894,
+  "pass": 896,
   "pass_vacuous": 151,
   "not_pass": 41
  },
@@ -330,7 +330,7 @@
   {"path": "specs/numeric/gf1024.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf128.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf14.t27", "t27b": "pass"},
-  {"path": "specs/numeric/gf16.t27", "t27b": "blocked", "blocker": "ExprCall(@bitCast)", "reason": "unimplemented"},
+  {"path": "specs/numeric/gf16.t27", "t27b": "blocked", "blocker": "ExprCall(@floor)", "reason": "unimplemented"},
   {"path": "specs/numeric/gf256.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf48.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf512.t27", "t27b": "pass"},
@@ -955,6 +955,7 @@
   {"path": "specs/tri/sort/insertion_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/sort/merge_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/sort/selection_sort.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/bit_cast_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/builtin_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/check_budget.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/coerce_plan.t27", "t27b": "pass"},
@@ -963,6 +964,7 @@
   {"path": "specs/tri/t27b/conformance/array_literal_value.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/array_repeat_text.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/bare_abs.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/bit_cast.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/brace_invariant.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/builtin_abs_max_min_pi.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/cmp_out_of_range.t27", "t27b": "pass"},
