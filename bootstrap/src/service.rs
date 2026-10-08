@@ -3852,6 +3852,8 @@ pub fn run_run_record(
     spec: &str,
     challenge: Option<String>,
     require_level: String,
+    receipts: &str,
+    json_out: Option<String>,
 ) -> anyhow::Result<()> {
     use crate::run_record as rr;
     use std::path::Component;
@@ -3947,10 +3949,11 @@ pub fn run_run_record(
         die: u8,
         dna_n: u64,
         key_n: u64,
+        rec: serde_json::Value,
     }
 
     let mut rows: Vec<Row> = Vec::new();
-    for (file, v) in read_dir_json(&repo_root.join(".trinity/receipts")) {
+    for (file, v) in read_dir_json(&repo_root.join(receipts)) {
         if !get_str(&v, "spec").map(|p| tail_match(&p, spec)).unwrap_or(false) {
             continue;
         }
@@ -3990,7 +3993,7 @@ pub fn run_run_record(
         // the level and die checks it judges first have already refused such a receipt.
         let num = |k: &str| get_str(&v, k).and_then(|t| u64::from_str_radix(&t, 16).ok()).unwrap_or(0);
         let (dna_n, key_n) = (num(DEVICE_DNA_FIELD), num("key_id"));
-        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die, dna_n, key_n });
+        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die, dna_n, key_n, rec: v });
     }
 
     let count = rows.len().min(255) as u8;
@@ -4049,7 +4052,7 @@ pub fn run_run_record(
     // independence.t27 (R3-3, #7497): are three placements independent evidence? This verifier
     // has no roster, so every key is ROSTER_NONE and INDEP_DIES is the most a run can reach.
     use crate::independence as ind;
-    if let [a, b, c] = rows.as_slice() {
+    let indep = if let [a, b, c] = rows.as_slice() {
         let first = ind::indep_first_missing(code, run_level, die_lvl, a.dna_n, b.dna_n, c.dna_n, a.key_n, b.key_n, c.key_n);
         let why = match first {
             ind::INDEP_MISSING_NONE => "NONE",
@@ -4065,10 +4068,11 @@ pub fn run_run_record(
             _ => "INDEP_NONE",
         };
         let dies = ind::distinct_dies3(a.dna_n, b.dna_n, c.dna_n);
-        println!("Independence: {level} (independence.t27; first missing {why} ({first}); {dies} distinct dies; no roster)");
+        format!("{level} (independence.t27; first missing {why} ({first}); {dies} distinct dies; no roster)")
     } else {
-        println!("Independence: not judged -- independence.t27 takes exactly {} placements", ind::placements_needed());
-    }
+        format!("not judged -- independence.t27 takes exactly {} placements", ind::placements_needed())
+    };
+    println!("Independence: {indep}");
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
     // citable_at: completeness first, then the level the citation requires.
@@ -4083,6 +4087,26 @@ pub fn run_run_record(
         );
     } else {
         println!("Verdict run reference: INVALID_NO_RUN -- an incomplete run is no run reference");
+    }
+    // --json: the same judgment, machine-readable, for readers that cannot run t27c (the Spec
+    // Explorer's Chip tab). Every value is one computed above; nothing is re-judged here.
+    if let Some(path) = json_out {
+        let field = |r: &Row, k: &str| r.rec.get(k).cloned().unwrap_or(serde_json::Value::Null);
+        let keys = ["device_dna", "key_id", "seeds", "verdict_word", "toolchain", "seal_hash", "utc_unix", "nonce"];
+        let rs: Vec<serde_json::Value> = rows.iter().map(|r| {
+            let mut o: serde_json::Map<String, serde_json::Value> = keys.iter().map(|k| (k.to_string(), field(r, k))).collect();
+            o.insert("file".into(), r.file.clone().into());
+            o.insert("auth".into(), level_name(r.level).into());
+            o.insert("complete".into(), (r.missing == 0 && r.producer_ok).into());
+            o.into()
+        }).collect();
+        let doc = serde_json::json!({
+            "spec": spec, "receipts_dir": receipts, "judged_by": crate::producer_identity(),
+            "challenge": challenge.as_deref().map(hex_lower), "receipts": rs,
+            "first_missing": name(code), "run_complete": code == 0, "authentication": level_name(run_level),
+            "die": die, "independence": indep, "citable": citable, "required_level": level_name(required),
+        });
+        std::fs::write(&path, serde_json::to_string_pretty(&doc)? + "\n")?;
     }
     std::process::exit(if citable { 0 } else { 1 });
 }
