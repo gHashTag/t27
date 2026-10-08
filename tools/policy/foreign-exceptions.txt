@@ -19,6 +19,13 @@
 # (AArch64 stack probing), so the aggregate cap per frame rises from 16 KiB to 1 MiB. The conformance spec is
 # specs/tri/t27b/conformance/large_frame.t27; cli/t27b/tests/source.rs is already listed below.
 cli/t27b/src/codegen.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7448
+# (epic #6063 lane 5): t27b fills a module var declared `undefined` with 0xAA bytes (Zig Debug on x86_64;
+# not portable, so no fixture reads one before a write), and writes a module var that holds a string at the start of every test, invariant and bench.
+# Conformance specs: specs/tri/t27b/conformance/str_module_var.t27 and undefined_module_var.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
 # issue #7368: t27b coverage lane 3 -- integer types of every width 1..31 (`type u1`, i2, u4, u21) are held
 # like a u8 and checked against their own range. Conformance spec first:
@@ -230,6 +237,12 @@ cli/t27b/tests/differential.rs
 fpga/verilog/poc_slot_a_jtag.v
 fpga/verilog/poc_slot_b_jtag.v
 
+# owner 2026-10-08, chat (approving "a thin Verilog wrapper of Xilinx primitives, <=40 lines, and an XDC,
+# <=40 lines" for the board's Ethernet firmware, translated), issue #7788: the AX7203 Ethernet beacon.
+# Every decision is specs/fpga/eth_beacon.t27; the wrapper holds IBUFDS, PLLE2_ADV, BUFG and ODDR only.
+fpga/verilog/eth_beacon_top.v
+fpga/verilog/eth_beacon_top.xdc
+
 # owner 2026-10-06, epic #6971 / issue #6993 (label owner-approved-foreign on #6993; standing approval "add
 # the label yourself and do the foreign part, never ask about labels", translated): `tri mutate spec` --
 # guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
@@ -417,5 +430,8 @@ cli/t27b/src/macho.rs
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7402:
 # t27b coverage lane 1 -- `return undefined;` in a void fn is a plain return. Conformance spec first:
 # specs/tri/t27b/conformance/return_undefined_void.t27.
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7410:
+# t27b coverage lane 1 -- `@setEvalBranchQuota(n);` is a compile-time no-op. Conformance spec first:
+# specs/tri/t27b/conformance/eval_branch_quota.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs

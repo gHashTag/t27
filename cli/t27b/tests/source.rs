@@ -525,6 +525,28 @@ test wrong_name_fails {
     assert_eq!(r[3].2, Err((TrapKind::Assert, 59)));
 }
 
+/// A module var with a string in it (#7448): every test starts from its
+/// initial value, which a fn may overwrite with another string.
+#[test]
+fn module_vars_hold_strings() {
+    let src = "module a;\n\nstruct Pin {\n    port: str,\n    bank: u8,\n}\n\nconst CLK: Pin = Pin{ .port = \"clk\", .bank = 14 };\n\nvar label: str = \"board\";\nvar pins: [2]Pin = [CLK, Pin{ .port = \"tx\", .bank = 34 }];\n\nfn rename() -> void {\n    pins[0].port = \"renamed\";\n    label = \"x\";\n}\n\ntest writes {\n    rename();\n    assert(pins[0].port == \"renamed\" and label == \"x\");\n}\n\ntest starts_fresh {\n    assert(pins[0].port == \"clk\" and pins[1].bank == 34 and label == \"board\");\n}\n\ntest wrong_fails {\n    assert(label == \"board\");\n    assert(pins[1].port == \"clk\");\n}\n";
+    let r = run(src);
+    let want = vec![("writes", false, true), ("starts_fresh", false, true), ("wrong_fails", false, false)];
+    assert_eq!(names_ok(&r), want);
+    assert_eq!(r[2].2, Err((TrapKind::Assert, line_of(src, "assert(pins[1].port == \"clk\")"))));
+}
+
+/// A module var declared `= undefined` starts as Zig's Debug build leaves it,
+/// 0xAA in every byte, in every test (#7448).
+#[test]
+fn undefined_module_vars_read_as_0xaa() {
+    let src = "module a;\n\nstruct C {\n    k: u32,\n    on: bool,\n}\n\nvar w: [3]u32 = undefined;\nvar b: u8 = undefined;\nvar c: C = undefined;\n\ntest fresh {\n    assert(w[0] == 0xAAAAAAAA and w[2] == 2863311530 and b == 170);\n}\n\ntest writes {\n    w[1] = 4;\n    c = C{ .k = 9, .on = true };\n    assert(w[1] == 4 and w[0] == 0xAAAAAAAA and c.k == 9 and c.on);\n}\n\ntest fresh_again {\n    assert(w[1] == 0xAAAAAAAA and c.k == 0xAAAAAAAA);\n}\n\ntest wrong_fails {\n    assert(b == 170);\n    assert(w[1] == 0);\n}\n";
+    let r = run(src);
+    let want = vec![("fresh", false, true), ("writes", false, true), ("fresh_again", false, true), ("wrong_fails", false, false)];
+    assert_eq!(names_ok(&r), want);
+    assert_eq!(r[3].2, Err((TrapKind::Assert, line_of(src, "assert(w[1] == 0)"))));
+}
+
 #[test]
 fn string_rejections_are_precise() {
     let head = "module s;\n\nconst S: str = \"ab\";\n\n";
@@ -534,7 +556,8 @@ fn string_rejections_are_precise() {
         ("test t { assert(S.ptr == 0); }", "ExprFieldAccess(str)", "`.ptr` of a str"),
         ("test t { var s: str = \"x\"; s.len = 2; }", "StmtAssign", "assignment through a constant"),
         ("test t { assert(S); }", "condition", "expected bool, found a string"),
-        ("const P = struct { s: str };\nvar Q: P = P{ .s = \"x\" };\ntest t { assert(Q.s.len == 1); }", "VarDecl(module, pointer/str/slice)", "module-level var `Q`"),
+        ("var Q: []i32 = [1];\ntest t { assert(Q.len == 1); }", "VarDecl(module, pointer/slice)", "module-level var `Q`"),
+        ("var Q: str = undefined;\ntest t { assert(Q.len == 1); }", "ConstDecl", "`undefined` in a constant with strings"),
         ("fn g() str { return \"x\"; }\nconst P = struct { s: str };\nconst Q = P{ .s = g() };\ntest t { assert(Q.s.len == 1); }", "ConstDecl", "not a string literal"),
         ("const P = struct { s: str, n: u8 };\nfn h() u8 { return 1; }\nconst Q = P{ .s = \"x\", .n = h() };\ntest t { assert(Q.n == 1); }", "ConstDecl", "not a compile-time value"),
         ("fn f() u32 { return 1; }\nconst T: str = f();\ntest t { assert(T.len == 0); }", "ConstDecl", "not a string literal"),
@@ -1296,7 +1319,7 @@ fn module_var_rejections_are_precise() {
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
         ("invariant i { assert(g == 0); }", "ExprIdentifier(var at comptime)", "module-level var `g`"),
         ("var h = 3;\ntest t { assert(h == 3); }", "VarDecl(module, untyped)", "`h` has no type"),
-        ("const B: u32 = 2;\nvar h: u32 = B * 2;\ntest t { assert(h == 4); }", "VarDecl(module)", "not a compile-time integer"),
+        ("const B: u32 = 2;\nvar h: u32 = B / 2;\ntest t { assert(h == 1); }", "VarDecl(module)", "not a compile-time integer"),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
@@ -3082,6 +3105,45 @@ test wrong {
     assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 11"))));
     let m = rejected("module a;\n\ntest t {\n    return undefined;\n}\n");
     assert!(m.starts_with("t27b: unsupported construct "), "{}", m);
+}
+
+/// `@setEvalBranchQuota(n);` does nothing at run time; a run-time, negative
+/// or too-large operand is refused.
+#[test]
+fn eval_branch_quota_is_a_no_op() {
+    let src = "module a;
+
+const Q: u32 = 5000;
+
+fn f(x: u32) -> u32 {
+    var y: u32 = x;
+    @setEvalBranchQuota(Q);
+    y = y + 1;
+    @setEvalBranchQuota(10000);
+    return y;
+}
+
+test t {
+    @setEvalBranchQuota(1);
+    assert(f(1) == 2);
+}
+
+test wrong {
+    assert(f(1) == 1);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
+    let cases = [
+        "fn f() -> u32 {\n    var n: u32 = 3;\n    n = n + 1;\n    @setEvalBranchQuota(n);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(-1);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(4294967296);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(1, 2);\n    return 0;\n}",
+    ];
+    for body in cases {
+        let m = rejected(&format!("module a;\n\n{}\n\ntest t {{\n    assert(f() == 0);\n}}\n", body));
+        assert!(m.starts_with("t27b: unsupported construct ExprCall(@setEvalBranchQuota) at line"), "{}: {}", body, m);
+    }
 }
 
 /// #7415: a struct field's `T?` is `?T`, as t27c's type mapper writes it;
