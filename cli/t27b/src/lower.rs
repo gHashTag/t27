@@ -2776,6 +2776,14 @@ impl<'a> Lower<'a> {
             }
             return Ok(());
         }
+        // #7550: the address of a local of this fn's frame dangles once the fn
+        // returns. Zig returns it all the same, and a test reading through it
+        // passes only while nothing reuses the dead frame: the interpreter
+        // faults on that read and the JIT reads stale stack. So t27b refuses.
+        if let Some(x) = v.filter(|_| !self.unanalyzed_fn).and_then(|c| self.frame_addr(c)) {
+            let why = format!("returns the address of `{}`, a local of this fn's frame, which ends at the return", x);
+            return self.reject("ExprReturn(frame address)", why);
+        }
         match (self.ret.clone(), v) {
             (None, None) => out.push(Stmt::Return(None)),
             (Some(t), Some(c)) if is_agg(&t) => {
@@ -2800,6 +2808,24 @@ impl<'a> Lower<'a> {
             }
         }
         Ok(())
+    }
+
+    /// The local in this fn's frame whose address the returned value `n`
+    /// holds: `&x`, `x[a..b]` or `x[a..]`, or a struct literal field that
+    /// is one (#7550).
+    fn frame_addr(&self, n: &Node) -> Option<String> {
+        if n.kind == NodeKind::ExprStructLit {
+            return n.children.iter().filter_map(|f| f.children.first()).find_map(|c| self.frame_addr(c));
+        }
+        let range = n.children.get(1).is_some_and(|r| r.kind == NodeKind::ExprBinary && r.extra_op == "..");
+        let addr = match n.kind {
+            NodeKind::ExprUnary => n.extra_op == "&",
+            NodeKind::ExprIndex => matches!(n.extra_op.as_str(), "slice" | "slice_open") || n.extra_op.is_empty() && range,
+            _ => false,
+        };
+        let b = n.children.first().filter(|b| addr && b.kind == NodeKind::ExprIdentifier)?;
+        let local = matches!(self.lookup(&b.name), Some(Binding::Mem(p)) if matches!(p.addr.kind, ExprKind::Slot(_)));
+        local.then(|| b.name.clone())
     }
 
     /// An expression statement whose value nothing uses, and which is
