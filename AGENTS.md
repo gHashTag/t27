@@ -252,6 +252,39 @@ with two signed corpus receipts, not a pasted table of lab numbers.
   blocks the merge; exit 2 REFUSED means the evidence did not authenticate, so
   it proves nothing. The rules are `specs/verified/corpus_receipt.t27`.
 
+## Actors, not threads (owner rule, 2026-10-08)
+
+Owner's rule, 2026-10-08: the Queen and the swarm move to the actor model.
+Tracking: #7851.
+
+- **Everything that runs at the same time is an actor.** That covers a round,
+  a reviewer, a poller and a runner lane. Each one has a pid and a bounded
+  mailbox, and a supervisor restarts it. The rules are one spec,
+  `specs/queen/actors.t27`, built on BEAM/OTP: links, monitors, a control lane,
+  one_for_one / one_for_all / rest_for_one, restart intensity and backoff. A
+  runtime reaches those rules only through the spec's generated card.
+- **No new loops.** Queen or swarm work gets no new `setInterval` timer, thread
+  pool, worker counter or ad-hoc promise fan-out. A new concurrent piece is a
+  new actor under a supervisor.
+- **Replace in this order, never another:**
+  1. An MVP of the actor runtime runs the same workload.
+  2. Its tests pass.
+  3. A benchmark runs the current loop and the actor runtime on the same input,
+     measuring throughput, latency, recovery from a crashed worker, and work
+     lost.
+  4. The numbers are posted on #7851.
+  5. Only then does the swap happen, and only if the actors are at least as good
+     on every measure.
+
+  Never swap first and measure later.
+- **Where the code lives.** The Queen server lives in `gHashTag/trios`, on
+  branches `queen` and `queen-runners`. `gHashTag/BrowserOS` is a fork of
+  someone else's project. It holds the browser extension and nothing else: no
+  Queen code, no server code, no specs, no plans.
+
+This section is the rule's one full home. The AGENTS.md of our other
+repositories point here; they do not copy it.
+
 ## Own language first
 
 When this project publishes something about itself, it publishes in **this
