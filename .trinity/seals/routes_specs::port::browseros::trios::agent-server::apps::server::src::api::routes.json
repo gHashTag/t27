@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:9b28f20b1a8dc7c6f3c4a6b8274aba4dad962278685528040c3a17e9f2604ad8",
+  "gen_hash_rust": "sha256:5b87846db6821188c6d91b93d4cbb7e74f47e60c3802de5189f5c42f68c96f63",
+  "gen_hash_verilog": "sha256:1d4cdaa91ebd05fcd18004e658d74cbf9c71532483cd4828e5dae9350a958324",
+  "gen_hash_zig": "sha256:f90c882b1b4238c0f8fa67aa5651060ddd2a825fc2148f8beddaa3a2609ba20b",
+  "module": "specs::port::browseros::trios::agent-server::apps::server::src::api::routes",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:09:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:dce62ac76bf4b8bb08a76199e9997baccde806ef823508c70eb3984e33649bdd",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/status.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

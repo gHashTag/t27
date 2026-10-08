@@ -19,6 +19,9 @@
 // 55, 56, 63, 64, 119 and 120 'a' bytes, which straddle every padding
 // boundary, computed with Python's hashlib.
 // Mutation-checked 2026-10-06: 25 mutants; every one fails a test.
+// 2026-10-07: to_hex/hash_hex give the 64-letter text every t27c seal,
+// FROZEN_HASH and CREDIT_HASH compare, so t27c and its build.rs hash with
+// this spec and no longer link the sha2 crate (Refs #7332).
 
 module TriSha256;
     use base::types;
@@ -209,6 +212,65 @@ module TriSha256;
         return true;
     }
 
+    // one nibble 0..15 as its lower-case hex letter
+    fn hex_char(n: usize) -> u8 {
+        if (n >= 10) {
+            return (n + 87) as u8;
+        }
+        return (n + 48) as u8;
+    }
+
+    // the digest as 64 lower-case hex letters: the text form that seals,
+    // FROZEN_HASH, CREDIT_HASH and `t27c hash` print and compare
+    fn to_hex(d: [32]u8) -> [64]u8 {
+        var out : [64]u8 = [48] ** 64;
+        var i : usize = 0;
+        while (i < 32) {
+            out[2 * i] = hex_char((d[i] as usize) / 16);
+            out[2 * i + 1] = hex_char((d[i] as usize) % 16);
+            i = i + 1;
+        }
+        return out;
+    }
+
+    fn hash_hex(data: []const u8) -> [64]u8 {
+        return to_hex(hash(data));
+    }
+
+    // 64 hex letters equal the expected text, letter by letter
+    fn text_is(h: [64]u8, want: []const u8) -> bool {
+        if (want.len != 64) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < 64) {
+            if (h[i] != want[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // the two FIPS digests use all sixteen hex letters between them
+    fn hex_vectors() -> usize {
+        var ok : usize = 0;
+        if (text_is(hash_hex(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")) {
+            ok = ok + 1;
+        }
+        if (text_is(hash_hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")) {
+            ok = ok + 1;
+        }
+        // a wrong digest and a short text are refused
+        if (text_is(hash_hex("abc"), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855") == false) {
+            ok = ok + 1;
+        }
+        if (text_is(hash_hex(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8") == false) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
     fn a_bytes(n: usize) -> [32]u8 {
         var x : [120]u8 = [97] ** 120;
         return hash(x[0..n]);
@@ -324,4 +386,9 @@ module TriSha256;
     test init_is_the_fips_initial_state
         given result = initial_ok()
         when expected = true
+        then result == expected
+
+    test hex_text_is_lower_case_and_matches_hashlib
+        given result = hex_vectors()
+        when expected = 4
         then result == expected

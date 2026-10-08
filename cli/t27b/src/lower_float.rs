@@ -87,43 +87,46 @@ impl<'a> Lower<'a> {
         if n.name != "abs" || self.sigs.contains_key("abs") || self.poison_names.contains("abs") {
             return Ok(None);
         }
+        self.builtin_plan(n).map(Some)
+    }
+
+    /// `@abs(x)`, `@max(a, b)`, `@min(a, b)` and a bare `abs(x)`: what they take, the result type
+    /// and the select chain each lowers to (`plan_rows`) are specs/tri/t27b/builtin_plan.t27.
+    pub(super) fn builtin_plan(&mut self, n: &Node) -> R<Val> {
+        let b = match n.name.as_str() { "@abs" => bp::ABS, "@max" => bp::MAX, "@min" => bp::MIN, _ => bp::BARE_ABS };
         self.see(n);
-        if n.children.len() != 1 {
-            let k = n.children.len();
-            return self.reject("ExprCall(undeclared fn)", format!("call to `abs` with {} arguments", k));
+        if n.children.len() != bp::arity(b) {
+            return self.reject(bp::what_arity(b), format!("`{}` with {} operands", n.name, n.children.len()));
         }
-        let x = match self.expr(&n.children[0])? {
-            Val::Poison => return Err(()),
-            Val::Cf(q) => return Ok(Some(Val::Cf(q.abs()))),
-            Val::Ct(c) => match c.checked_abs() {
-                Some(a) => return Ok(Some(Val::Ct(a))),
-                None => return self.reject("literal out of range", format!("abs({})", c)),
-            },
-            Val::E(e) if e.ty.is_float() => e,
-            v => {
-                let d = match &v { Val::E(e) => e.ty.name().to_string(), _ => self.val_desc(&v) };
-                return self.reject("ExprCall(abs of an integer)", format!("`abs` of {}: Zig's @abs of an iN is a uN", d));
+        let vals = n.children.iter().map(|c| self.expr(c)).collect::<R<Vec<Val>>>()?;
+        if vals.iter().any(Val::is_poison) {
+            return Err(());
+        }
+        let ty_of = |v: &Val| if let Val::E(e) = v { Some(e.ty) } else { None };
+        let same = vals.len() == 2 && ty_of(&vals[0]) == ty_of(&vals[1]);
+        let ty = match (bp::type_from(b, operand_kind(vals.first()), operand_kind(vals.get(1)), same), &vals[0]) {
+            (bp::FOLD, Val::Cf(q)) => return Ok(Val::Cf(q.abs())),
+            (bp::FOLD, Val::Ct(c)) => return c.checked_abs().map(Val::Ct).map_or_else(|| self.reject("literal out of range", format!("abs({})", c)), Ok),
+            (bp::REFUSE, _) => {
+                let d: Vec<String> = vals.iter().map(|v| ty_of(v).map_or_else(|| self.val_desc(v), |t| t.name().into())).collect();
+                return self.reject(bp::what_operands(b), format!("`{}` of {}", n.name, d.join(" and ")));
             }
+            (from, _) => ty_of(&vals[from as usize - 1]).unwrap(), // FROM_FIRST, FROM_SECOND: the operand's slot
         };
-        let ty = x.ty;
-        let mut stmts = Vec::new();
-        let x = if matches!(x.kind, ExprKind::Const(_) | ExprKind::Var(_)) {
-            x
-        } else {
-            let k = self.new_slot(&LTy::S(ty))?;
-            stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: x });
-            Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } }
-        };
-        let zero = Val::Cf(Q::zero());
-        let le = self.binary("<=", Val::E(x.clone()), zero.clone())?;
-        let cond = self.coerce(le, Ty::Bool)?;
-        let neg = self.binary("-", zero, Val::E(x.clone()))?;
-        let neg = self.coerce(neg, ty)?;
-        let sel = Expr { ty, kind: ExprKind::Select { cond: Box::new(cond), then: Box::new(neg), els: Box::new(x) } };
-        if stmts.is_empty() {
-            return Ok(Some(Val::E(sel)));
+        self.plan_rows(b, ty, Val::Cf(Q::zero()), vals)
+    }
+
+    /// `std.math.pi` / `std.math.e` (no local or constant named `std`): builtin_plan.t27's digits.
+    pub(super) fn std_math_const(&mut self, n: &Node) -> Option<Val> {
+        let d = match n.name.as_str() { "pi" => bp::PI_DIGITS, "e" => bp::E_DIGITS, _ => return None };
+        let [m] = &n.children[..] else { return None };
+        let [s] = &m.children[..] else { return None };
+        let shape = m.kind == NodeKind::ExprFieldAccess && m.name == "math" && s.kind == NodeKind::ExprIdentifier && s.name == "std";
+        if !shape || self.lookup("std").is_some() || self.const_nodes.contains_key("std") {
+            return None;
         }
-        Ok(Some(Val::E(Expr { ty, kind: ExprKind::Seq { stmts, value: Box::new(sel) } })))
+        self.see(n);
+        Some(Val::Cf(Q::parse(d).ok()?))
     }
 }
 

@@ -1,7 +1,13 @@
 //! Hard language guard: fail `cargo build` if Cyrillic appears in specs or unlisted docs.
 //! See docs/nona-03-manifest/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md Article LANG-EN.
 
-use sha2::{Digest, Sha256};
+// Hashing is specs/tri/crypto/sha256.t27, lowered by `t27c gen-rust`.
+#[path = "gen/rust/tri/crypto/sha256.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod sha256;
+fn sha256_hex(data: &[u8]) -> String {
+    sha256::hash_hex(data).iter().map(|&c| c as char).collect()
+}
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -250,7 +256,7 @@ fn main() {
              See FROZEN.md and CANON.md M5."
         )
     });
-    let live_hash = format!("{:x}", Sha256::digest(&compiler_bytes));
+    let live_hash = sha256_hex(&compiler_bytes);
     let frozen_text = fs::read_to_string(&frozen_path).unwrap_or_else(|e| {
         panic!(
             "t27c FROZEN HASH violation: cannot read bootstrap/stage0/FROZEN_HASH: {e}\n\
@@ -302,7 +308,7 @@ fn main() {
              or shadowed."
         )
     });
-    let live_credit = format!("{:x}", Sha256::digest(article.as_bytes()));
+    let live_credit = sha256_hex(article.as_bytes());
     let sealed_credit = fs::read_to_string(&credit_seal_path).unwrap_or_else(|e| {
         panic!(
             "t27c CREDIT SEAL violation: cannot read bootstrap/stage0/CREDIT_HASH: {e}\n\

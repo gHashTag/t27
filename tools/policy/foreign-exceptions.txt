@@ -28,6 +28,12 @@ cli/t27b/src/codegen.rs
 cli/t27b/src/eval.rs
 cli/t27b/tests/differential.rs
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7376
+# (epic #5980): t27b fills a constant array repeat once and copies its bytes, so a module var is no longer
+# capped at 65536 elements and the self-hosted core's buffers can grow. The conformance spec is
+# specs/tri/t27b/conformance/big_repeat_global.t27.
+cli/t27b/src/lower.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
 # (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
 # makes the host key outside the tree, `t27c run-record --challenge --require-level` reports each receipt's
@@ -224,6 +230,12 @@ cli/t27b/tests/differential.rs
 fpga/verilog/poc_slot_a_jtag.v
 fpga/verilog/poc_slot_b_jtag.v
 
+# owner 2026-10-08, chat (approving "a thin Verilog wrapper of Xilinx primitives, <=40 lines, and an XDC,
+# <=40 lines" for the board's Ethernet firmware, translated), issue #7788: the AX7203 Ethernet beacon.
+# Every decision is specs/fpga/eth_beacon.t27; the wrapper holds IBUFDS, PLLE2_ADV, BUFG and ODDR only.
+fpga/verilog/eth_beacon_top.v
+fpga/verilog/eth_beacon_top.xdc
+
 # owner 2026-10-06, epic #6971 / issue #6993 (label owner-approved-foreign on #6993; standing approval "add
 # the label yourself and do the foreign part, never ask about labels", translated): `tri mutate spec` --
 # guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
@@ -407,3 +419,12 @@ cli/t27b/tests/source.rs
 # (port epic #6198): cli/t27b/src/macho.rs shrinks to glue around gen/rust/tri/t27b/macho.rs, the t27c gen-rust
 # output of specs/tri/t27b/macho.t27 (Mach-O layout and bytes). The glue adds 21 lines and deletes 153.
 cli/t27b/src/macho.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7402:
+# t27b coverage lane 1 -- `return undefined;` in a void fn is a plain return. Conformance spec first:
+# specs/tri/t27b/conformance/return_undefined_void.t27.
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7410:
+# t27b coverage lane 1 -- `@setEvalBranchQuota(n);` is a compile-time no-op. Conformance spec first:
+# specs/tri/t27b/conformance/eval_branch_quota.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs

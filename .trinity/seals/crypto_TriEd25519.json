@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+cfda070b2",
-  "gen_hash_c": "sha256:20d2100cae38e6c5e9b92829e86025864337fec1c9780b6ea2f4426721ad9035",
-  "gen_hash_rust": "sha256:7b3718daadda0d0faf37eb03a1c46e83ac52a5058f0ffcca0c29b642f8844c6e",
-  "gen_hash_verilog": "sha256:9bc84152b10c7b08ebec4981895ba13c7bc63846d405a06389fae007c8aa8812",
-  "gen_hash_zig": "sha256:bd494779a811fa2d8f71f70c9cca86a2ac777d31d81b2038eb5e5b30993eacaa",
+  "built_by": "t27c-bootstrap@0.4.0+8d6b8dd8f",
+  "gen_hash_c": "sha256:fc57fca3fc2295b61c02e768dfbfa7070b348c0092ed4b2b0a8b0a615e912360",
+  "gen_hash_rust": "sha256:268b3f80e6edfea61534052ee5812879376b63eee7d1fbfdff2aa0ab4b2062c6",
+  "gen_hash_verilog": "sha256:7f5dfb6001952929d260afcb4f5c178dd31e3b2735d806dc55966568e4b1d2ad",
+  "gen_hash_zig": "sha256:e00ed98a354a4f5e9a788cbe2f49a19890bf6a77e1259bbf17087f2cd5529fc9",
   "module": "TriEd25519",
   "ring": 12,
-  "sealed_at": "2026-10-07T09:43:52Z",
+  "sealed_at": "2026-10-07T11:59:48Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:1062640d73cad8c3a24fcf66ea81acbf79f31b92c19e4595aacdef4e7fafba03",
+  "spec_hash": "sha256:27c8a99f8647a2fba321e29769f206af801e978b577b98f5b2014b31efc5bbf8",
   "spec_path": "specs/tri/crypto/ed25519.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 14,
-    "total": 14
+    "passed": 16,
+    "total": 16
   }
 }

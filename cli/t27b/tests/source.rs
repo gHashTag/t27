@@ -1296,7 +1296,7 @@ fn module_var_rejections_are_precise() {
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
         ("invariant i { assert(g == 0); }", "ExprIdentifier(var at comptime)", "module-level var `g`"),
         ("var h = 3;\ntest t { assert(h == 3); }", "VarDecl(module, untyped)", "`h` has no type"),
-        ("const B: u32 = 2;\nvar h: u32 = B * 2;\ntest t { assert(h == 4); }", "VarDecl(module)", "not a compile-time integer"),
+        ("const B: u32 = 2;\nvar h: u32 = B / 2;\ntest t { assert(h == 1); }", "VarDecl(module)", "not a compile-time integer"),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
@@ -2643,13 +2643,7 @@ fn optionals_the_reference_does_not_match_are_refused() {
 /// BLOCKED under `t27c test-report`, so t27b must not pass it either.
 #[test]
 fn shapes_the_reference_cannot_compile_are_refused() {
-    let cases: [(&str, &str); 5] = [
-        // `var w = 1; w = 9;` at the top of a test: the reference emits the
-        // assignment as `const w = 9;`, a redeclaration.
-        (
-            "module a;\n\ntest t {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 9);\n}\n",
-            "StmtAssign(reference redeclares)",
-        ),
+    let cases: [(&str, &str); 4] = [
         // A pointer param written only through `p.*`: the reference rebinds
         // it `var p = p_arg;`, which Zig rejects as never mutated.
         (
@@ -2676,6 +2670,9 @@ fn shapes_the_reference_cannot_compile_are_refused() {
         let m = rejected(src);
         assert!(m.starts_with(&format!("t27b: unsupported construct {}", want)), "{}", m);
     }
+    // Since #6295 the reference writes a test's own local in place (#7422).
+    let r = run("module w;\n\ntest t {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 9);\n}\n\ntest u {\n    var w: u32 = 1;\n    w += 2;\n    assert(w == 3);\n}\n\ntest v {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 1);\n}\n");
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, true), ("v", false, false)]);
     // The near misses still run: a param the body assigns directly (the
     // reference's `var n = n_arg;` is then mutated) and a mapped field type.
     let r = run("module h;\n\nconst S = struct { name: str, xs: [u32; 2] };\n\nfn inc(n: u32) -> u32 {\n    n = n + 1;\n    return n;\n}\n\ntest t {\n    assert(inc(1) == 2);\n}\n");
@@ -2732,7 +2729,7 @@ fn array_literals_typed_by_their_use() {
 
 /// The shapes next to those: the reference refuses the first three (`.{ ... }`
 /// of the wrong length, `.{ ... }` for a slice field of an anonymous literal)
-/// or points into a constant (a non-empty slice field); a local also read
+/// or builds it in the frame (run-time elements in a slice field); a local also read
 /// other than as an argument stays unsupported.
 #[test]
 fn array_literals_typed_by_their_use_rejections() {
@@ -2740,9 +2737,9 @@ fn array_literals_typed_by_their_use_rejections() {
     let cases: &[(&str, &str, &str)] = &[
         ("test t { const p = [1, 2, 3]; assert(first(p) == 1); }", "ExprArrayLiteral", "3 elements for `[2]u8`"),
         (
-            "test t { const c = Cur{ .pos = 0, .data = [1, 2] }; assert(c.data.len == 2); }",
+            "test t { var v: i32 = 3; v += 1; const c = Cur{ .pos = 0, .data = [v, 2] }; assert(c.data.len == 2); }",
             "ExprArrayLiteral(to slice field)",
-            "a non-empty array literal for a slice field",
+            "an array literal of run-time values for a slice field",
         ),
         (
             "test t { assert(take(.{ .pos = 0, .data = [] }) == 0); }",
@@ -3045,6 +3042,84 @@ fn bare_abs_rejections() {
     for (body, construct) in cases {
         let m = rejected(&format!("module a;\n\n{}\n", body));
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+    }
+}
+
+/// `return undefined;` in a void fn is a plain `return;`: the work before it
+/// is kept, the work after it skipped. In a test block it stays refused.
+#[test]
+fn return_undefined_in_a_void_fn() {
+    let src = "module a;
+
+const C = struct {
+    n: u32,
+};
+
+fn bump(c: *C, stop: bool) -> void {
+    c.n = c.n + 1;
+    if (stop) {
+        return undefined;
+    }
+    c.n = c.n + 10;
+}
+
+test kept {
+    var c = C{ .n = 0 };
+    bump(&c, true);
+    assert(c.n == 1);
+    bump(&c, false);
+    assert(c.n == 12);
+}
+
+test wrong {
+    var c = C{ .n = 0 };
+    bump(&c, true);
+    assert(c.n == 11);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("kept", false, true), ("wrong", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 11"))));
+    let m = rejected("module a;\n\ntest t {\n    return undefined;\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct "), "{}", m);
+}
+
+/// `@setEvalBranchQuota(n);` does nothing at run time; a run-time, negative
+/// or too-large operand is refused.
+#[test]
+fn eval_branch_quota_is_a_no_op() {
+    let src = "module a;
+
+const Q: u32 = 5000;
+
+fn f(x: u32) -> u32 {
+    var y: u32 = x;
+    @setEvalBranchQuota(Q);
+    y = y + 1;
+    @setEvalBranchQuota(10000);
+    return y;
+}
+
+test t {
+    @setEvalBranchQuota(1);
+    assert(f(1) == 2);
+}
+
+test wrong {
+    assert(f(1) == 1);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
+    let cases = [
+        "fn f() -> u32 {\n    var n: u32 = 3;\n    n = n + 1;\n    @setEvalBranchQuota(n);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(-1);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(4294967296);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(1, 2);\n    return 0;\n}",
+    ];
+    for body in cases {
+        let m = rejected(&format!("module a;\n\n{}\n\ntest t {{\n    assert(f() == 0);\n}}\n", body));
+        assert!(m.starts_with("t27b: unsupported construct ExprCall(@setEvalBranchQuota) at line"), "{}: {}", body, m);
     }
 }
 

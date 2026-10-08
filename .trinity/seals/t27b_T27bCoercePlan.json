@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+c9cbf526d",
+  "gen_hash_c": "sha256:19648bc691a41c7e91fbfe3195004efea92f079a08bf8fcf5c689eddab25c878",
+  "gen_hash_rust": "sha256:41c26251f8b3e6a736d138805716342a1447a81a1d754543ff6e12f4d9395cb5",
+  "gen_hash_verilog": "sha256:e2e27fb3ca6e1f7ef53262d962537146ab32bdd8fcef57f7e25346c2ae70bfc5",
+  "gen_hash_zig": "sha256:e3fb7fb279ad1895a53a65d25d879fb9a469d0f49d999d3a998e462605c39374",
+  "module": "T27bCoercePlan",
+  "ring": 12,
+  "sealed_at": "2026-10-08T09:32:01Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:1dc91ed70dc3dbff1d28777fc4bf0f096be6203f1517918104f66a30c8f9854c",
+  "spec_path": "specs/tri/t27b/coerce_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}

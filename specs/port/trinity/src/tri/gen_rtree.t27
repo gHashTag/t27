@@ -7,7 +7,9 @@ pub const Rect = struct {
     y_max: f64,
 };
 
-pub const RTree = struct {
+// Not named RTree: specs/tri/trees/rtree.t27 owns RTree, a node tree rather
+// than these flat arrays (tri types ratchet, #7437).
+pub const GenRTree = struct {
     rects: []Rect,
     data: []?i64,
     allocator: ?i64,
@@ -18,19 +20,19 @@ pub fn Rect_intersects(self: Rect, other: Rect) bool {
         self.y_min <= other.y_max and self.y_max >= other.y_min;
 }
 
-pub fn RTree_init(allocator: ?i64) RTree {
+pub fn RTree_init(allocator: ?i64) GenRTree {
     return undefined;
 }
 
-pub fn RTree_insert(rt: *RTree, rect: Rect, datum: ?i64) void {
+pub fn RTree_insert(rt: *GenRTree, rect: Rect, datum: ?i64) void {
     return undefined;
 }
 
-pub fn RTree_search(rt: *const RTree, query: Rect, allocator: ?i64) ?i64 {
+pub fn RTree_search(rt: *const GenRTree, query: Rect, allocator: ?i64) ?i64 {
     return undefined;
 }
 
-pub fn RTree_deinit(rt: *RTree) void {
+pub fn RTree_deinit(rt: *GenRTree) void {
     return undefined;
 }
 
