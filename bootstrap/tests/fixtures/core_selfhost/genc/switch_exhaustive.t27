@@ -3,8 +3,7 @@
 // refuses that source, as Zig does (see both_refuse/). Every switch below is
 // exhaustive and is accepted: an `else` arm, or an enum switch naming every
 // variant. A `_` arm also counts as the catch-all (the corpus spec
-// specs/demos/jones_topology_decision_gate.t27 keeps generating), but gen-c
-// writes `(x == _)` for it, a separate defect, so it is not built here.
+// specs/demos/jones_topology_decision_gate.t27 keeps generating).
 module gencswitch;
 const Sign = enum(i8) {
     neg = -1,
@@ -32,12 +31,20 @@ fn sign_value(s: Sign) -> i64 {
         .pos => 1,
     };
 }
+fn rest(x: i64) -> i64 {
+    return switch (x) {
+        1 => 10,
+        _ => 7,
+    };
+}
 test integer_switch_with_else {
     assert(tens(1) == 10);
     assert(tens(2) == 20);
     assert(tens(3) == 0);
     assert(below(-2) == 2);
     assert(below(7) == 99);
+    assert(rest(1) == 10);
+    assert(rest(5) == 7);
 }
 test enum_switch_naming_every_variant {
     assert(sign_value(Sign.neg) == -1);
