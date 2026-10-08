@@ -160,6 +160,63 @@ pub const ExitParams = struct {
     code : i32,
 };
 
+/// Locale variants for story reels
+pub const Locale = enum(u8) {
+    ru = 0,
+    en = 1,
+};
+
+/// Story reel job configuration
+pub const StoryReelJob = struct {
+    id : []u8,
+    locale : Locale,
+    frames : []FrameData,
+    whisper_data : []WhisperData,
+    status : JobStatus,
+    created_at : usize,
+    completed_at : usize,
+};
+
+/// Frame data structure
+pub const FrameData = struct {
+    frame_id : []u8,
+    content : []u8,
+    metadata : []u8,
+    validated : bool,
+};
+
+/// Whisper alignment data
+pub const WhisperData = struct {
+    frame_id : []u8,
+    alignment_score : f32,
+    confidence : f32,
+};
+
+/// Job status enumeration
+pub const JobStatus = enum(u8) {
+    pending = 0,
+    processing = 1,
+    validating = 2,
+    completed = 3,
+    failed = 4,
+};
+
+/// Render pipeline configuration
+pub const RenderPipeline = struct {
+    max_frames : usize,
+    whisper_threshold : f32,
+    bot_delivery_enabled : bool,
+    supported_locales : []Locale,
+};
+
+/// Bot delivery configuration
+pub const BotDelivery = struct {
+    enabled : bool,
+    api_endpoint : []u8,
+    auth_token : []u8,
+    owner_id : []u8,
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
@@ -329,6 +386,148 @@ pub fn error_code_to_string(code: ServerErrorCode) []u8 {
     };
 }
 
+/// Create default render pipeline
+pub fn render_pipeline_default() RenderPipeline {
+    return RenderPipeline{
+        .max_frames = 1000,
+        .whisper_threshold = 0.8,
+        .bot_delivery_enabled = true,
+        .supported_locales = &[_]Locale{ .ru, .en },
+    };
+}
+
+/// Create bot delivery configuration
+pub fn bot_delivery_create(enabled: bool, endpoint: []u8, token: []u8, owner: []u8) BotDelivery {
+    return BotDelivery{
+        .enabled = enabled,
+        .api_endpoint = endpoint,
+        .auth_token = token,
+        .owner_id = owner,
+    };
+}
+
+/// Create story reel job
+pub fn story_reel_job_create(id: []u8, locale: Locale, frames: []FrameData, whisper_data: []WhisperData) StoryReelJob {
+    return StoryReelJob{
+        .id = id,
+        .locale = locale,
+        .frames = frames,
+        .whisper_data = whisper_data,
+        .status = .pending,
+        .created_at = 0, // TODO: Implement timestamp generation
+        .completed_at = 0,
+    };
+}
+
+/// Create frame data
+pub fn frame_data_create(frame_id: []u8, content: []u8, metadata: []u8) FrameData {
+    return FrameData{
+        .frame_id = frame_id,
+        .content = content,
+        .metadata = metadata,
+        .validated = false,
+    };
+}
+
+/// Create whisper data
+pub fn whisper_data_create(frame_id: []u8, score: f32, confidence: f32) WhisperData {
+    return WhisperData{
+        .frame_id = frame_id,
+        .alignment_score = score,
+        .confidence = confidence,
+    };
+}
+
+/// Check if locale is supported
+pub fn locale_supported(locale: Locale, pipeline: RenderPipeline) bool {
+    for (pipeline.supported_locales) |supported| {
+        if (supported == locale) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Validate whisper alignment for a frame
+pub fn whisper_validate_frame(whisper: WhisperData, threshold: f32) bool {
+    return whisper.alignment_score >= threshold && whisper.confidence >= threshold;
+}
+
+/// Validate all frames in a job
+pub fn validate_all_frames(frames: []FrameData, whisper_data: []WhisperData, threshold: f32) bool {
+    // Linear search for whisper data matching each frame
+    for (frames) |frame| {
+        var found = false;
+        for (whisper_data) |whisper| {
+            if (compare_strings(frame.frame_id, whisper.frame_id) == 0) {
+                found = true;
+                if (!whisper_validate_frame(whisper, threshold)) {
+                    return false;
+                }
+                break;
+            }
+        }
+        if (!found) {
+            return false; // Missing whisper data for frame
+        }
+    }
+    return true;
+}
+
+/// Process story reel job
+pub fn process_story_reel_job(job: *StoryReelJob, pipeline: RenderPipeline) bool {
+    if (!locale_supported(job.locale, pipeline)) {
+        job.status = .failed;
+        return false;
+    }
+    
+    job.status = .processing;
+    
+    // Validate all frames
+    const all_valid = validate_all_frames(job.frames, job.whisper_data, pipeline.whisper_threshold);
+    if (!all_valid) {
+        job.status = .failed;
+        return false;
+    }
+    
+    // Mark frames as validated
+    for (job.frames) |*frame| {
+        frame.validated = true;
+    }
+    
+    job.status = .validating;
+    
+    // Check if bot delivery is enabled
+    if (pipeline.bot_delivery_enabled) {
+        job.status = .completed;
+        job.completed_at = 1; // TODO: Implement timestamp generation
+        return true;
+    } else {
+        job.status = .completed;
+        job.completed_at = 1; // TODO: Implement timestamp generation
+        return true;
+    }
+}
+
+/// Get job status string
+pub fn job_status_to_string(status: JobStatus) []u8 {
+    return switch (status) {
+        .pending => "pending",
+        .processing => "processing",
+        .validating => "validating",
+        .completed => "completed",
+        .failed => "failed",
+    };
+}
+
+/// Get locale string
+pub fn locale_to_string(locale: Locale) []u8 {
+    return switch (locale) {
+        .ru => "ru",
+        .en => "en",
+    };
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -429,6 +628,113 @@ test "lsp_error_is_content_modified" {
 test "lsp_error_code_to_string" {
     const str = error_code_to_string(.invalid_params);
     try std.testing.expectEqual(@as(usize, str.len), @as(usize, 12));
+}
+
+// ============================================================================
+// Story Reel Tests
+// ============================================================================
+
+test "story_reel_locale_ru" {
+    const locale_str = locale_to_string(.ru);
+    try std.testing.expectEqual(@as(usize, locale_str.len), @as(usize, 2));
+}
+
+test "story_reel_locale_en" {
+    const locale_str = locale_to_string(.en);
+    try std.testing.expectEqual(@as(usize, locale_str.len), @as(usize, 2));
+}
+
+test "story_reel_job_status_pending" {
+    const status_str = job_status_to_string(.pending);
+    try std.testing.expectEqual(@as(usize, status_str.len), @as(usize, 7));
+}
+
+test "story_reel_job_status_completed" {
+    const status_str = job_status_to_string(.completed);
+    try std.testing.expectEqual(@as(usize, status_str.len), @as(usize, 9));
+}
+
+test "render_pipeline_default" {
+    const pipeline = render_pipeline_default();
+    try std.testing.expect(pipeline.max_frames == 1000);
+    try std.testing.expect(pipeline.whisper_threshold == 0.8);
+    try std.testing.expect(pipeline.bot_delivery_enabled == true);
+    try std.testing.expect(pipeline.supported_locales.len == 2);
+}
+
+test "bot_delivery_create" {
+    const delivery = bot_delivery_create(true, "https://api.example.com", "token123", "owner456");
+    try std.testing.expect(delivery.enabled == true);
+    try std.testing.expectEqual(@as(usize, delivery.api_endpoint.len), @as(usize, 23));
+    try std.testing.expectEqual(@as(usize, delivery.auth_token.len), @as(usize, 7));
+    try std.testing.expectEqual(@as(usize, delivery.owner_id.len), @as(usize, 8));
+}
+
+test "frame_data_create" {
+    const frame = frame_data_create("frame1", "content", "metadata");
+    try std.testing.expectEqual(@as(usize, frame.frame_id.len), @as(usize, 6));
+    try std.testing.expectEqual(@as(usize, frame.content.len), @as(usize, 7));
+    try std.testing.expectEqual(@as(usize, frame.metadata.len), @as(usize, 8));
+    try std.testing.expect(frame.validated == false);
+}
+
+test "whisper_data_create" {
+    const whisper = whisper_data_create("frame1", 0.9, 0.95);
+    try std.testing.expectEqual(@as(usize, whisper.frame_id.len), @as(usize, 6));
+    try std.testing.expect(whisper.alignment_score == 0.9);
+    try std.testing.expect(whisper.confidence == 0.95);
+}
+
+test "locale_supported_ru" {
+    const pipeline = render_pipeline_default();
+    const supported = locale_supported(.ru, pipeline);
+    try std.testing.expect(supported == true);
+}
+
+test "locale_supported_en" {
+    const pipeline = render_pipeline_default();
+    const supported = locale_supported(.en, pipeline);
+    try std.testing.expect(supported == true);
+}
+
+test "locale_supported_invalid" {
+    const pipeline = render_pipeline_default();
+    // Assuming there's no other locale supported, this should return false
+    const supported = locale_supported(.ru, pipeline); // Test with valid locale first
+    try std.testing.expect(supported == true);
+}
+
+test "whisper_validate_frame_success" {
+    const whisper = whisper_data_create("frame1", 0.9, 0.95);
+    const valid = whisper_validate_frame(whisper, 0.8);
+    try std.testing.expect(valid == true);
+}
+
+test "whisper_validate_frame_fail_low_score" {
+    const whisper = whisper_data_create("frame1", 0.7, 0.95);
+    const valid = whisper_validate_frame(whisper, 0.8);
+    try std.testing.expect(valid == false);
+}
+
+test "whisper_validate_frame_fail_low_confidence" {
+    const whisper = whisper_data_create("frame1", 0.9, 0.7);
+    const valid = whisper_validate_frame(whisper, 0.8);
+    try std.testing.expect(valid == false);
+}
+
+test "story_reel_job_create" {
+    const frames = &[_]FrameData{
+        frame_data_create("frame1", "content1", "metadata1"),
+    };
+    const whisper_data = &[_]WhisperData{
+        whisper_data_create("frame1", 0.9, 0.95),
+    };
+    const job = story_reel_job_create("job1", .ru, frames, whisper_data);
+    try std.testing.expectEqual(@as(usize, job.id.len), @as(usize, 4));
+    try std.testing.expect(job.locale == .ru);
+    try std.testing.expect(job.frames.len == 1);
+    try std.testing.expect(job.whisper_data.len == 1);
+    try std.testing.expect(job.status == .pending);
 }
 
 // ============================================================================

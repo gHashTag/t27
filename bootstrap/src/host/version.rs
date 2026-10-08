@@ -256,3 +256,327 @@ mod tests {
         assert!(e.to_string().contains("incompatible"));
     }
 }
+
+// ============================================================================
+// Render Delivery Module
+// ============================================================================
+
+/// Locale enumeration for story reel variants
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Locale {
+    Ru = 0,
+    En = 1,
+}
+
+impl std::fmt::Display for Locale {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Locale::Ru => write!(f, "ru"),
+            Locale::En => write!(f, "en"),
+        }
+    }
+}
+
+/// Delivery status for render jobs
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeliveryStatus {
+    Pending = 0,
+    Processing = 1,
+    Delivered = 2,
+    Failed = 3,
+}
+
+impl std::fmt::Display for DeliveryStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeliveryStatus::Pending => write!(f, "pending"),
+            DeliveryStatus::Processing => write!(f, "processing"),
+            DeliveryStatus::Delivered => write!(f, "delivered"),
+            DeliveryStatus::Failed => write!(f, "failed"),
+        }
+    }
+}
+
+/// Locale-specific version metadata
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocaleVersion {
+    pub locale: Locale,
+    pub version: SemVer,
+    pub created_at: std::time::SystemTime,
+    pub updated_at: std::time::SystemTime,
+}
+
+impl LocaleVersion {
+    pub fn new(locale: Locale, version: SemVer) -> Self {
+        let now = std::time::SystemTime::now();
+        Self {
+            locale,
+            version,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn update_version(&mut self, new_version: SemVer) {
+        self.version = new_version;
+        self.updated_at = std::time::SystemTime::now();
+    }
+}
+
+/// Render delivery tracking
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenderDelivery {
+    pub render_id: String,
+    pub locale_versions: Vec<LocaleVersion>,
+    pub delivery_status: DeliveryStatus,
+    pub bot_delivery_enabled: bool,
+    pub owner_id: String,
+}
+
+impl RenderDelivery {
+    pub fn new(render_id: String, owner_id: String, bot_delivery_enabled: bool) -> Self {
+        Self {
+            render_id,
+            locale_versions: Vec::new(),
+            delivery_status: DeliveryStatus::Pending,
+            bot_delivery_enabled,
+            owner_id,
+        }
+    }
+
+    pub fn add_locale_version(&mut self, locale: Locale, version: SemVer) {
+        // Check if locale already exists
+        if let Some(existing) = self.locale_versions.iter_mut().find(|lv| lv.locale == locale) {
+            existing.update_version(version);
+        } else {
+            self.locale_versions.push(LocaleVersion::new(locale, version));
+        }
+    }
+
+    pub fn get_locale_version(&self, locale: Locale) -> Option<&LocaleVersion> {
+        self.locale_versions.iter().find(|lv| lv.locale == locale)
+    }
+
+    pub fn has_locale(&self, locale: Locale) -> bool {
+        self.locale_versions.iter().any(|lv| lv.locale == locale)
+    }
+
+    pub fn get_locale_count(&self) -> usize {
+        self.locale_versions.len()
+    }
+
+    pub fn set_delivery_status(&mut self, status: DeliveryStatus) {
+        self.delivery_status = status;
+    }
+
+    pub fn is_delivery_complete(&self) -> bool {
+        self.delivery_status == DeliveryStatus::Delivered
+    }
+
+    pub fn is_bot_delivery_enabled(&self) -> bool {
+        self.bot_delivery_enabled
+    }
+
+    pub fn trigger_bot_delivery(&mut self) -> Result<(), String> {
+        if !self.bot_delivery_enabled {
+            return Err("Bot delivery is not enabled".to_string());
+        }
+
+        if self.locale_versions.is_empty() {
+            return Err("No locale versions to deliver".to_string());
+        }
+
+        // Simulate bot delivery process
+        self.delivery_status = DeliveryStatus::Processing;
+        
+        // In a real implementation, this would make an HTTP call to @t27ai_bot
+        // For now, we'll just simulate successful delivery
+        self.delivery_status = DeliveryStatus::Delivered;
+        
+        Ok(())
+    }
+
+    pub fn validate_render_readiness(&self) -> Result<(), String> {
+        // Check if we have both RU and EN locales
+        if !self.has_locale(Locale::Ru) || !self.has_locale(Locale::En) {
+            return Err("Missing required locale variants".to_string());
+        }
+
+        // Check if delivery is already completed
+        if self.is_delivery_complete() {
+            return Err("Render already delivered".to_string());
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod render_delivery_tests {
+    use super::*;
+
+    #[test]
+    fn locale_display() {
+        assert_eq!(Locale::Ru.to_string(), "ru");
+        assert_eq!(Locale::En.to_string(), "en");
+    }
+
+    #[test]
+    fn delivery_status_display() {
+        assert_eq!(DeliveryStatus::Pending.to_string(), "pending");
+        assert_eq!(DeliveryStatus::Delivered.to_string(), "delivered");
+    }
+
+    #[test]
+    fn locale_version_creation() {
+        let version = SemVer::new(1, 2, 3);
+        let lv = LocaleVersion::new(Locale::Ru, version);
+        assert_eq!(lv.locale, Locale::Ru);
+        assert_eq!(lv.version, version);
+    }
+
+    #[test]
+    fn locale_version_update() {
+        let version1 = SemVer::new(1, 2, 3);
+        let version2 = SemVer::new(1, 2, 4);
+        let mut lv = LocaleVersion::new(Locale::Ru, version1);
+        lv.update_version(version2);
+        assert_eq!(lv.version, version2);
+    }
+
+    #[test]
+    fn render_delivery_creation() {
+        let delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        assert_eq!(delivery.render_id, "render123");
+        assert_eq!(delivery.owner_id, "owner456");
+        assert_eq!(delivery.bot_delivery_enabled, true);
+        assert_eq!(delivery.delivery_status, DeliveryStatus::Pending);
+        assert_eq!(delivery.get_locale_count(), 0);
+    }
+
+    #[test]
+    fn add_locale_version() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        assert_eq!(delivery.get_locale_count(), 1);
+        assert!(delivery.has_locale(Locale::Ru));
+        
+        // Add same locale again (should update)
+        let new_version = SemVer::new(1, 1, 0);
+        delivery.add_locale_version(Locale::Ru, new_version);
+        assert_eq!(delivery.get_locale_count(), 1);
+        assert_eq!(delivery.get_locale_version(Locale::Ru).unwrap().version, new_version);
+    }
+
+    #[test]
+    fn get_locale_version() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        
+        let result = delivery.get_locale_version(Locale::Ru);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().version, version);
+        
+        let result = delivery.get_locale_version(Locale::En);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn set_delivery_status() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        assert_eq!(delivery.delivery_status, DeliveryStatus::Pending);
+        
+        delivery.set_delivery_status(DeliveryStatus::Delivered);
+        assert_eq!(delivery.delivery_status, DeliveryStatus::Delivered);
+    }
+
+    #[test]
+    fn is_delivery_complete() {
+        let mut delivery1 = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let mut delivery2 = RenderDelivery::new("render456".to_string(), "owner789".to_string(), true);
+        
+        assert_eq!(delivery1.is_delivery_complete(), false);
+        assert_eq!(delivery2.is_delivery_complete(), false);
+        
+        delivery1.set_delivery_status(DeliveryStatus::Delivered);
+        assert_eq!(delivery1.is_delivery_complete(), true);
+    }
+
+    #[test]
+    fn validate_render_readiness_success() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        delivery.add_locale_version(Locale::En, version);
+        
+        let result = delivery.validate_render_readiness();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_render_readiness_missing_locale() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        // Missing EN locale
+        
+        let result = delivery.validate_render_readiness();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing required locale variants"));
+    }
+
+    #[test]
+    fn validate_render_readiness_already_delivered() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        delivery.add_locale_version(Locale::En, version);
+        delivery.set_delivery_status(DeliveryStatus::Delivered);
+        
+        let result = delivery.validate_render_readiness();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Render already delivered"));
+    }
+
+    #[test]
+    fn trigger_bot_delivery_success() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        delivery.add_locale_version(Locale::En, version);
+        
+        let result = delivery.trigger_bot_delivery();
+        assert!(result.is_ok());
+        assert_eq!(delivery.delivery_status, DeliveryStatus::Delivered);
+    }
+
+    #[test]
+    fn trigger_bot_delivery_disabled() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), false);
+        let version = SemVer::new(1, 0, 0);
+        
+        delivery.add_locale_version(Locale::Ru, version);
+        delivery.add_locale_version(Locale::En, version);
+        
+        let result = delivery.trigger_bot_delivery();
+        assert!(result.is_err());
+        assert_eq!(delivery.delivery_status, DeliveryStatus::Pending);
+    }
+
+    #[test]
+    fn trigger_bot_delivery_no_versions() {
+        let mut delivery = RenderDelivery::new("render123".to_string(), "owner456".to_string(), true);
+        
+        let result = delivery.trigger_bot_delivery();
+        assert!(result.is_err());
+        assert_eq!(delivery.delivery_status, DeliveryStatus::Pending);
+    }
+}

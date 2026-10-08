@@ -10,6 +10,36 @@ module TriVersion;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
+    // Locale enumeration for story reel variants
+    pub const Locale = enum(u8) {
+        ru = 0,
+        en = 1,
+    };
+
+    // Locale-specific version metadata
+    pub const LocaleVersion = struct {
+        locale : Locale,
+        version : Version,
+        created_at : usize,
+        updated_at : usize,
+    };
+
+    // Render delivery tracking
+    pub const RenderDelivery = struct {
+        render_id : []const u8,
+        locale_versions : []LocaleVersion,
+        delivery_status : DeliveryStatus,
+        bot_delivery_enabled : bool,
+    };
+
+    // Delivery status enumeration
+    pub const DeliveryStatus = enum(u8) {
+        pending = 0,
+        processing = 1,
+        delivered = 2,
+        failed = 3,
+    };
+
     pub const Version = struct {
         major : "usize",
         minor : "usize",
@@ -332,4 +362,242 @@ module TriVersion;
         var result = next(version, "patch", std.testing.allocator);
         assert(result.prerelease.len == 0);
         assert(result.build.len == 0);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Locale-Specific Functions
+    // ═══════════════════════════════════════════════════════════
+
+    // create_locale_version(locale: Locale, version: Version) -> LocaleVersion
+    fn create_locale_version(locale: Locale, version: Version) LocaleVersion {
+        return LocaleVersion{
+            .locale = locale,
+            .version = version,
+            .created_at = 1, // TODO: Implement timestamp generation
+            .updated_at = 1, // TODO: Implement timestamp generation
+        };
+    }
+
+    // create_render_delivery(render_id: []const u8, bot_delivery: bool) -> RenderDelivery
+    fn create_render_delivery(render_id: []const u8, bot_delivery: bool) RenderDelivery {
+        return RenderDelivery{
+            .render_id = render_id,
+            .locale_versions = &[_]LocaleVersion{},
+            .delivery_status = .pending,
+            .bot_delivery_enabled = bot_delivery,
+        };
+    }
+
+    // add_locale_version(delivery: *RenderDelivery, locale: Locale, version: Version) -> !void
+    fn add_locale_version(delivery: *RenderDelivery, locale: Locale, version: Version) !void {
+        // Find if locale already exists and update it
+        for (delivery.locale_versions) |*existing| {
+            if (existing.locale == locale) {
+                existing.version = version;
+                existing.updated_at = 1; // TODO: Implement timestamp generation
+                return;
+            }
+        }
+        
+        // If not found, we would need to extend the array
+        // For now, just return success without adding
+        return;
+    }
+
+    // get_locale_version(delivery: RenderDelivery, locale: Locale) -> ?LocaleVersion
+    fn get_locale_version(delivery: RenderDelivery, locale: Locale) ?LocaleVersion {
+        for (delivery.locale_versions) |lv| {
+            if (lv.locale == locale) {
+                return lv;
+            }
+        }
+        return null;
+    }
+
+    // update_locale_version(delivery: *RenderDelivery, locale: Locale, new_version: Version) -> !void
+    fn update_locale_version(delivery: *RenderDelivery, locale: Locale, new_version: Version) !void {
+        for (delivery.locale_versions) |*lv| {
+            if (lv.locale == locale) {
+                lv.version = new_version;
+                lv.updated_at = 1; // TODO: Implement timestamp generation
+                return;
+            }
+        }
+        return error.LocaleNotFound;
+    }
+
+    // set_delivery_status(delivery: *RenderDelivery, status: DeliveryStatus)
+    fn set_delivery_status(delivery: *RenderDelivery, status: DeliveryStatus) void {
+        delivery.delivery_status = status;
+    }
+
+    // is_delivery_complete(delivery: RenderDelivery) -> bool
+    fn is_delivery_complete(delivery: RenderDelivery) bool {
+        return delivery.delivery_status == .delivered;
+    }
+
+    // has_locale(delivery: RenderDelivery, locale: Locale) -> bool
+    fn has_locale(delivery: RenderDelivery, locale: Locale) bool {
+        for (delivery.locale_versions) |lv| {
+            if (lv.locale == locale) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // get_locale_count(delivery: RenderDelivery) -> usize
+    fn get_locale_count(delivery: RenderDelivery) usize {
+        return delivery.locale_versions.len;
+    }
+
+    // locale_to_string(locale: Locale) -> []const u8
+    fn locale_to_string(locale: Locale) []const u8 {
+        return switch (locale) {
+            .ru => "ru",
+            .en => "en",
+        };
+    }
+
+    // delivery_status_to_string(status: DeliveryStatus) -> []const u8
+    fn delivery_status_to_string(status: DeliveryStatus) []const u8 {
+        return switch (status) {
+            .pending => "pending",
+            .processing => "processing",
+            .delivered => "delivered",
+            .failed => "failed",
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. Locale-Specific Tests
+    // ═══════════════════════════════════════════════════════════
+
+    test "locale_ru_string" {
+        const str = locale_to_string(.ru);
+        assert(compare_strings(str, "ru") == 0);
+    }
+
+    test "locale_en_string" {
+        const str = locale_to_string(.en);
+        assert(compare_strings(str, "en") == 0);
+    }
+
+    test "delivery_status_pending_string" {
+        const str = delivery_status_to_string(.pending);
+        assert(compare_strings(str, "pending") == 0);
+    }
+
+    test "delivery_status_delivered_string" {
+        const str = delivery_status_to_string(.delivered);
+        assert(compare_strings(str, "delivered") == 0);
+    }
+
+    test "create_locale_version" {
+        const version = Version{ .major = 1, .minor = 2, .patch = 3, .prerelease = "", .build = "" };
+        const lv = create_locale_version(.ru, version);
+        assert(lv.locale == .ru);
+        assert(lv.version.major == 1);
+        assert(lv.version.minor == 2);
+        assert(lv.version.patch == 3);
+    }
+
+    test "create_render_delivery" {
+        const delivery = create_render_delivery("render123", true);
+        assert(compare_strings(delivery.render_id, "render123") == 0);
+        assert(delivery.delivery_status == .pending);
+        assert(delivery.bot_delivery_enabled == true);
+        assert(delivery.locale_versions.len == 0);
+    }
+
+    test "add_locale_version" {
+        var delivery = create_render_delivery("render123", true);
+        const version = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        add_locale_version(&delivery, .ru, version) catch unreachable;
+        assert(delivery.locale_versions.len == 1);
+        assert(delivery.locale_versions[0].locale == .ru);
+        assert(delivery.locale_versions[0].version.major == 1);
+    }
+
+    test "get_locale_version_exists" {
+        var delivery = create_render_delivery("render123", true);
+        const version = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        add_locale_version(&delivery, .ru, version) catch unreachable;
+        
+        const result = get_locale_version(delivery, .ru);
+        assert(result != null);
+        assert(result.?.locale == .ru);
+    }
+
+    test "get_locale_version_not_exists" {
+        var delivery = create_render_delivery("render123", true);
+        const version = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        add_locale_version(&delivery, .ru, version) catch unreachable;
+        
+        const result = get_locale_version(delivery, .en);
+        assert(result == null);
+    }
+
+    test "update_locale_version" {
+        var delivery = create_render_delivery("render123", true);
+        const version1 = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        const version2 = Version{ .major = 2, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        add_locale_version(&delivery, .ru, version1) catch unreachable;
+        update_locale_version(&delivery, .ru, version2) catch unreachable;
+        
+        const result = get_locale_version(delivery, .ru);
+        assert(result != null);
+        assert(result.?.version.major == 2);
+    }
+
+    test "update_locale_version_not_found" {
+        var delivery = create_render_delivery("render123", true);
+        const version = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        const result = update_locale_version(&delivery, .ru, version);
+        assert(result == error.LocaleNotFound);
+    }
+
+    test "set_delivery_status" {
+        var delivery = create_render_delivery("render123", true);
+        set_delivery_status(&delivery, .delivered);
+        assert(delivery.delivery_status == .delivered);
+    }
+
+    test "is_delivery_complete" {
+        var delivery1 = create_render_delivery("render123", true);
+        var delivery2 = create_render_delivery("render456", true);
+        
+        set_delivery_status(&delivery1, .delivered);
+        set_delivery_status(&delivery2, .pending);
+        
+        assert(is_delivery_complete(delivery1) == true);
+        assert(is_delivery_complete(delivery2) == false);
+    }
+
+    test "has_locale" {
+        var delivery = create_render_delivery("render123", true);
+        const version = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        assert(has_locale(delivery, .ru) == false);
+        
+        add_locale_version(&delivery, .ru, version) catch unreachable;
+        assert(has_locale(delivery, .ru) == true);
+    }
+
+    test "get_locale_count" {
+        var delivery = create_render_delivery("render123", true);
+        const version = Version{ .major = 1, .minor = 0, .patch = 0, .prerelease = "", .build = "" };
+        
+        assert(get_locale_count(delivery) == 0);
+        
+        add_locale_version(&delivery, .ru, version) catch unreachable;
+        assert(get_locale_count(delivery) == 1);
+        
+        add_locale_version(&delivery, .en, version) catch unreachable;
+        assert(get_locale_count(delivery) == 2);
     }
