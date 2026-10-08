@@ -7,7 +7,7 @@ module basics_15_loops;
 pub fn sum_to(n: u8) -> u16 {
     var s : u16 = 0;
     for i in 0..n {
-        s = s + i;
+        s = s + (i as u16);
     }
     return s;
 }
@@ -24,4 +24,16 @@ pub const SUM_BELOW_5 : u16 = 10;
 
 test zero_to_four_add_up_to_ten {
     assert SUM_BELOW_5 == 0 + 1 + 2 + 3 + 4;
+}
+
+test sum_to_works {
+    assert sum_to(5) == 10;
+    assert sum_to(3) == 3;
+    assert sum_to(0) == 0;
+}
+
+test count_up_works {
+    assert count_up(5) == 5;
+    assert count_up(3) == 3;
+    assert count_up(0) == 0;
 }
