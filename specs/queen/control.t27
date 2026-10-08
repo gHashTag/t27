@@ -247,8 +247,56 @@ pub const DOMAINS : [4]str = [
     "queen-ops: the supervisor, its reviewers and the board"
 ];
 pub const DOMAIN_COUNT : u32 = 4;
-/// Runtimes per domain, originals and clones together.
-pub const DOMAIN_CAP : u32 = 4;
+
+/// A domain is an AFFINITY, not a cap (owner, 2026-10-08, #6657). This card used to cap each domain at
+/// four runtimes, sixteen in all. The swarm it governs runs on 70 lanes, so the cap would have cut its
+/// parallelism by about four. A task is placed on a runtime of its own domain when one is idle (it
+/// keeps that domain's build and worktrees warm). Otherwise it is placed on any free lane, which then
+/// becomes a clone of that domain. A task waits only when every lane is busy.
+/// Domain codes, index = DOMAINS.
+pub const DOMAIN_T27C : u8 = 0;
+pub const DOMAIN_T27B : u8 = 1;
+pub const DOMAIN_SPECS : u8 = 2;
+pub const DOMAIN_QUEEN_OPS : u8 = 3;
+
+/// The path prefixes of each domain. These are comma-separated lists ending in '$', walked byte by byte
+/// as in specs/policy/own_language.t27. The order of the checks in domain_of_path matters: the C
+/// backend's sources sit under bootstrap/, which is otherwise the compiler's.
+pub const PREFIXES_T27C : str = "gen/c/,specs/isa/,specs/asm/,bootstrap/src/codegen_c,$";
+pub const PREFIXES_T27B : str = "cli/t27b/,specs/tri/t27b/,bootstrap/,$";
+pub const PREFIXES_QUEEN_OPS : str = "specs/queen/,tools/queen/,tools/bees/,trios/,docs/coordination/,$";
+pub const DOMAIN_LIST_END : u8 = 36;
+pub const DOMAIN_LIST_SEP : u8 = 44;
+
+/// Does path[0..len] start with one entry of `list`?
+pub fn starts_with_one_of(list: []const u8, path: []const u8, len: usize) -> bool {
+    var i : usize = 0;
+    while (list[i] != DOMAIN_LIST_END) {
+        var k : usize = 0;
+        var ok : bool = true;
+        while (list[i] != DOMAIN_LIST_SEP and list[i] != DOMAIN_LIST_END) {
+            if (k >= len) {
+                ok = false;
+            } else {
+                if (path[k] != list[i]) { ok = false; }
+            }
+            k += 1;
+            i += 1;
+        }
+        if (ok) { return true; }
+        if (list[i] == DOMAIN_LIST_SEP) { i += 1; }
+    }
+    return false;
+}
+
+/// The domain of one path. A task's domain is the domain of the first path its boundary declares. A
+/// path no prefix names is spec work: most of the corpus is.
+pub fn domain_of_path(path: []const u8, len: usize) -> u8 {
+    if (starts_with_one_of(PREFIXES_T27C, path, len)) { return DOMAIN_T27C; }
+    if (starts_with_one_of(PREFIXES_T27B, path, len)) { return DOMAIN_T27B; }
+    if (starts_with_one_of(PREFIXES_QUEEN_OPS, path, len)) { return DOMAIN_QUEEN_OPS; }
+    return DOMAIN_SPECS;
+}
 
 /// Agent runtime states. BOOT happens once per runtime; a finished task goes through COMPACT back to
 /// IDLE without a rebuild.
@@ -303,15 +351,16 @@ pub fn builds_after_task(builds: u32) -> u32 {
     return builds;
 }
 
-/// How a task gets an agent: reuse an idle one of its domain, else clone one while the domain is under
-/// its cap, else wait. The Queen never takes the task herself.
+/// How a task gets an agent: reuse an idle one of its domain, else clone one onto any free lane, else
+/// wait for a lane. The capacity is the lane count of section 4, recomputed at every wake. The Queen
+/// never takes the task herself.
 pub const P_REUSE : u8 = 0;
 pub const P_CLONE : u8 = 1;
 pub const P_WAIT : u8 = 2;
 
-pub fn placement(idle_in_domain: u32, total_in_domain: u32) -> u8 {
+pub fn placement(idle_in_domain: u32, running: u32, cap: u32) -> u8 {
     if (idle_in_domain > 0) { return P_REUSE; }
-    if (total_in_domain < DOMAIN_CAP) { return P_CLONE; }
+    if (running < cap) { return P_CLONE; }
     return P_WAIT;
 }
 
@@ -544,7 +593,7 @@ invariant every_kind_has_a_name { assert EVENT_KINDS == 10 and EV_TICK == EVENT_
 invariant the_heartbeat_beats_inside_the_ttl { assert TASK_HEARTBEAT_SECONDS * 3 == TASK_LEASE_TTL_SECONDS; }
 invariant the_lease_beats_the_age_reaper { assert TASK_LEASE_TTL_SECONDS < 120 * 60; }
 invariant the_tick_is_slower_than_a_lease { assert RECONCILE_SECONDS > TASK_LEASE_TTL_SECONDS; }
-invariant the_population_is_small { assert DOMAIN_CAP * DOMAIN_COUNT <= 70; }
+invariant every_domain_has_a_name { assert DOMAIN_COUNT == 4 and DOMAIN_QUEEN_OPS == DOMAIN_COUNT - 1; }
 invariant illegal_is_outside_every_agent_state { assert AG_ILLEGAL > AG_RETIRED; }
 /// Every journal entry, effect kind and answer of section 7 is its own value. An answer that equals
 /// another one would read a fenced-out holder as a look.
@@ -701,9 +750,9 @@ test one_runtime_takes_task_b_after_task_a_without_a_rebuild {
 }
 
 test a_clone_keeps_the_lineage_and_gets_its_own_lease {
-    assert placement(1, 3) == P_REUSE;
-    assert placement(0, 3) == P_CLONE;
-    assert placement(0, DOMAIN_CAP) == P_WAIT;
+    assert placement(1, 3, 70) == P_REUSE;
+    assert placement(0, 3, 70) == P_CLONE;
+    assert placement(0, 70, 70) == P_WAIT;
     assert queen_executes_tasks() == false;
     assert clone_lineage(6657) == 6657;
     var clone : u32 = clone_holder(7, 8);
@@ -713,6 +762,35 @@ test a_clone_keeps_the_lineage_and_gets_its_own_lease {
     // parent and clone race for one task: only one lands, through the same claim
     assert claim_lands(NO_HOLDER, 7, false, 0, 0) == true;
     assert claim_lands(7, clone, false, 1, 0) == false;
+}
+
+test a_domain_is_an_affinity_not_a_cap {
+    // owner 2026-10-08: no hard four per domain. A fifth, a sixteenth and a sixty-ninth task of one
+    // domain all get a lane while lanes are free.
+    assert placement(0, 4, 70) == P_CLONE;
+    assert placement(0, 16, 70) == P_CLONE;
+    assert placement(0, 69, 70) == P_CLONE;
+    // an idle runtime of the task's own domain is preferred, even with lanes free
+    assert placement(1, 0, 70) == P_REUSE;
+    // and a full swarm makes a task wait, whatever its domain
+    assert placement(0, 70, 70) == P_WAIT;
+    assert placement(0, 71, 70) == P_WAIT;
+}
+
+test a_task_takes_the_domain_of_its_first_path {
+    assert domain_of_path("gen/c/queen/review_valve.c", 26) == DOMAIN_T27C;
+    assert domain_of_path("bootstrap/src/codegen_c.rs", 26) == DOMAIN_T27C;
+    assert domain_of_path("bootstrap/src/compiler.rs", 25) == DOMAIN_T27B;
+    assert domain_of_path("cli/t27b/src/lower.rs", 21) == DOMAIN_T27B;
+    assert domain_of_path("specs/tri/t27b/lencall.t27", 26) == DOMAIN_T27B;
+    assert domain_of_path("specs/queen/control.t27", 23) == DOMAIN_QUEEN_OPS;
+    assert domain_of_path("tools/queen/publish.py", 22) == DOMAIN_QUEEN_OPS;
+    assert domain_of_path("specs/tri/sort/quick_sort.t27", 29) == DOMAIN_SPECS;
+    assert domain_of_path("docs/now/x.md", 13) == DOMAIN_SPECS;
+    // a prefix longer than the path does not match
+    assert domain_of_path("gen/c", 5) == DOMAIN_SPECS;
+    // the length bounds the match: only "specs/q" is read
+    assert domain_of_path("specs/queen/control.t27", 7) == DOMAIN_SPECS;
 }
 
 test agent_memory_never_overrides_the_store {
