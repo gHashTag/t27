@@ -282,3 +282,21 @@ fn f32_rounding_and_rem_call_their_ports() {
         assert!(m.contains(&format!("construct ExprCall({}) at line 4", what)) && m.contains(why), "{}", m);
     }
 }
+
+// ------------------------------------------------ anonymous struct results that nest
+
+/// `-> struct { user: struct { login: []const u8 }, .. }` (merger_gate_selftest.t27, #7886): each `struct { }` is a
+/// type of its own and `.{ .user = .{ .login = login } }` fills it field by field (specs/tri/t27b/anon_nest_plan.t27;
+/// `t27c test-report` passes the conformance spec 3/3, none vacuous). A default or a generic field type keeps
+/// `type (anonymous struct)`.
+#[test]
+fn an_anonymous_struct_result_whose_fields_nest() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/anon_struct_nested.t27");
+    let r = run(src);
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    assert_eq!(names_ok(&run(&src.replace("== 16", "== 17"))).iter().filter(|t| !t.2).count(), 1);
+    let m = rejected(&src.replace("weight: u32 },", "weight: u32 = 0 },"));
+    assert!(m.contains("type (anonymous struct)") && m.contains("only `name: type` fields"), "{}", m);
+    let m = rejected(&src.replace("user: struct { login: []const u8 },", "user: struct { login: std.ArrayList(u8) },"));
+    assert!(m.contains("type (anonymous struct)"), "{}", m);
+}

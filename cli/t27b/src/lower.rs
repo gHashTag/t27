@@ -109,6 +109,8 @@ mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input
 mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its result type
 #[path = "../../../gen/rust/tri/t27b/frame_store_plan.rs"] #[allow(dead_code, unused_parens)]
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
+#[path = "../../../gen/rust/tri/t27b/anon_nest_plan.rs"] #[allow(dead_code, unused_parens)]
+mod an; // t27c gen-rust of specs/tri/t27b/anon_nest_plan.t27: anonymous struct results whose fields nest them
 #[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -1234,12 +1236,17 @@ impl<'a> Lower<'a> {
             .and_then(|r| r.trim().strip_prefix('{'))
             .and_then(|r| r.strip_suffix('}'))
             .unwrap_or("{");
-        if body.contains(['{', '}', '(', ')', '=']) {
+        if !an::plain(body.as_bytes()) {
             return self.reject("type (anonymous struct)", format!("`{}`: only `name: type` fields", rt));
         }
         let mut fields: Vec<Field<'a>> = Vec::new();
         let (mut size, mut align) = (0u32, 1u32);
-        let parts: Vec<&str> = body.split(',').map(str::trim).collect();
+        let (mut parts, mut at) = (Vec::new(), 0);
+        while at <= body.len() {
+            let end = an::field_end(body.as_bytes(), at);
+            parts.push(body[at..end].trim());
+            at = end + 1;
+        }
         for (i, p) in parts.iter().enumerate() {
             // A trailing comma leaves one empty part at the end.
             if p.is_empty() && i + 1 == parts.len() && i > 0 {
@@ -1266,10 +1273,13 @@ impl<'a> Lower<'a> {
                 }
                 zt.push_str(tok);
             }
-            if !self.zig_spelled(&zt) {
+            let ty = if an::nested(zt.as_bytes()) {
+                self.anon_struct_ret(&format!("{}.{}", f, name), &zt)?
+            } else if self.zig_spelled(&zt) {
+                self.lty(&zt)?
+            } else {
                 return self.reject("type (anonymous struct)", format!("`{}`: field type `{}` is not a Zig type", rt, zt));
-            }
-            let ty = self.lty(&zt)?;
+            };
             let (fs, fa) = self.size_align(&ty)?;
             let off = size.div_ceil(fa) * fa;
             size = off + fs;

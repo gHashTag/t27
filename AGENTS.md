@@ -241,7 +241,10 @@ measure it are written in **t27**, not in Rust or Python by hand.
   +11 on master 81da89413's 15145 plus 1202 and 8094; 15191 plus 1202, 16393
   in all, and tests 8119, after #7819's glue for `@floor`, `@ceil`, `@round`,
   `@trunc` and `@rem` of an f32 from `libm_plan.t27`, +8 and +14 on master
-  bbb77f0c3's 15183 plus 1202 and 8105),
+  bbb77f0c3's 15183 plus 1202 and 8105; 15201 plus 1202, 16403 in all, and
+  tests 8137, after #7886's glue for an anonymous struct result whose fields
+  nest (`specs/tri/t27b/anon_nest_plan.t27`), +10 and +18 on master 10831352c's
+  15191 plus 1202 and 8119),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

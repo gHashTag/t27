@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "gen_hash_c": "sha256:7e33bd03d10d7410e6880113d96bf12d4f72ddc9e2f1d7f92bda35df5b433c3a",
+  "gen_hash_rust": "sha256:7e4c6e092035f98e97fa38e6da3c36730a118b5e8d4abbf77d72a1fe62ae9334",
+  "gen_hash_verilog": "sha256:d1d30966e4c80898426897dba39740525f64562a2e192dde237e9734c3460d74",
+  "gen_hash_zig": "sha256:5e535bd30ccc6d54c1eb21461800e712846c4c13d88a63223df43383ce92ddc4",
+  "module": "T27bConformanceAnonStructNested",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:00:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:814ff344f28444c33d7aec055d36af4a1fd57075014e744993590ece445a23fb",
+  "spec_path": "specs/tri/t27b/conformance/anon_struct_nested.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

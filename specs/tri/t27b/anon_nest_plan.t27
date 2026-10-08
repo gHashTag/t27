@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/anon_nest_plan.t27 -- how t27b reads a fn's anonymous struct result type whose fields are
+; anonymous structs themselves, `-> struct { user: struct { login: []const u8 }, state: []const u8 }` (issue
+; #7886, t27b coverage epic #6063; written in t27 under the port epic #6198). The decisions reach cli/t27b
+; through `t27c gen-rust` (gen/rust/tri/t27b/anon_nest_plan.rs); the Rust glue in cli/t27b/src/lower.rs
+; (`anon_struct_ret`) asks `plain` about the body, splits it where `field_end` says, and asks `nested` about
+; each field's type: a nested one is read the same way, as its own struct.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/anon_struct_nested.t27): t27c's Zig backend prints the result type token by token,
+; `struct { user : struct { login : [ ] const u8 } , state : [ ] const u8 , }`. Zig makes each `struct { }` a type
+; of its own, created once as the fn's signature is analyzed, and `.{ .user = .{ .login = login } }` coerces to
+; it field by field. The corpus has the shape in tools/bees/merger_gate_selftest.t27 (`review`, `label`, `pr`,
+; three levels deep in `run`).
+; --
+; What t27b does. A body is plain when it has no `=` (a default), no `(` or `)` (a call or a generic) and its
+; braces balance; anything else keeps `type (anonymous struct)`. Its fields end at the commas outside braces. A
+; field whose type, tokens rejoined, is `struct{...}` is a nested anonymous struct, interned per fn and field
+; path as Zig makes it distinct; any other field type goes on to t27b's check that Zig spells it.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bAnonNestPlan;
+
+// Bytes the reference's spelling is read by.
+const OPEN_BRACE : u8 = 123;
+const CLOSE_BRACE : u8 = 125;
+const OPEN_PAREN : u8 = 40;
+const CLOSE_PAREN : u8 = 41;
+const EQUALS : u8 = 61;
+const COMMA : u8 = 44;
+
+/// `t` starts with `head`.
+fn starts(t: []const u8, head: []const u8) -> bool {
+    if (t.len < head.len) { return false; }
+    var i : usize = 0;
+    while (i < head.len) {
+        if (t[i] != head[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// The body of `struct { ... }` holds fields only: no `=`, no `(` or `)`, and braces that balance.
+pub fn plain(body: []const u8) -> bool {
+    var depth : u32 = 0;
+    var i : usize = 0;
+    while (i < body.len) {
+        const c : u8 = body[i];
+        if (c == EQUALS or c == OPEN_PAREN or c == CLOSE_PAREN) { return false; }
+        if (c == OPEN_BRACE) { depth = depth + 1; }
+        if (c == CLOSE_BRACE) {
+            if (depth == 0) { return false; }
+            depth = depth - 1;
+        }
+        i = i + 1;
+    }
+    return depth == 0;
+}
+
+/// Where the field that starts at byte `from` of a plain body ends: the next comma outside braces, else the
+/// body's length.
+pub fn field_end(body: []const u8, from: usize) -> usize {
+    var depth : u32 = 0;
+    var i : usize = from;
+    while (i < body.len) {
+        const c : u8 = body[i];
+        if (c == COMMA and depth == 0) { return i; }
+        if (c == OPEN_BRACE) { depth = depth + 1; }
+        if (c == CLOSE_BRACE and depth > 0) { depth = depth - 1; }
+        i = i + 1;
+    }
+    return body.len;
+}
+
+/// A field's type, tokens rejoined, is a nested anonymous struct: `struct{`, a plain body, `}`.
+pub fn nested(t: []const u8) -> bool {
+    if (t.len < 9 or t[t.len - 1] != CLOSE_BRACE) { return false; }
+    return starts(t, "struct{") and plain(t[7 .. t.len - 1]);
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shape, then what keeps its refusal.
+// ----------------------------------------------------------------------------------------------------------
+
+test a_body_of_fields_with_nested_structs_is_plain {
+    // merger_gate_selftest.t27's `review`, as the reference prints it.
+    assert(plain(" user : struct { login : [ ] const u8 } , state : [ ] const u8 , "));
+    assert(plain(" a : u32 "));
+    assert(plain(""));
+    assert(plain(" r : struct { v : struct { t : u8 } } "));
+}
+
+test defaults_calls_and_stray_braces_are_not {
+    assert(!plain(" a : u32 = 0 "));
+    assert(!plain(" m : std.StringHashMap(u8) "));
+    assert(!plain(" a : u32 ) "));
+    assert(!plain(" u : struct { a : u8 "));
+    assert(!plain(" u : a } , b : { "));
+    assert(!plain(" } "));
+}
+
+test fields_end_at_commas_outside_braces {
+    // " user : struct { login : u8 , id : u8 } , state : u8 " -- the comma inside the braces is not an end.
+    assert(field_end(" user : struct { login : u8 , id : u8 } , state : u8 ", 0) == 40);
+    assert(field_end(" user : struct { login : u8 , id : u8 } , state : u8 ", 41) == 53);
+    assert(field_end("a,b", 0) == 1);
+    assert(field_end("a,b", 2) == 3);
+    assert(field_end("", 0) == 0);
+    assert(field_end(" x : struct { } } , y ", 0) == 18);
+}
+
+test a_rejoined_struct_type_is_nested {
+    assert(nested("struct{login:[]const u8}"));
+    assert(nested("struct{v:struct{t:u8}}"));
+    assert(nested("struct{a}"));
+}
+
+test any_other_type_is_not {
+    assert(!nested("struct{}"));
+    assert(!nested("[]const u8"));
+    assert(!nested("structs{a:u8}"));
+    assert(!nested("struct{a:u8"));
+    assert(!nested("Struct{a:u8}"));
+    assert(!nested(""));
+    assert(!nested("x}"));
+    assert(!nested("struct"));
+    assert(!nested("struct{a=1}"));
+    assert(!nested("struct{a}}"));
+}
+
+test starts_reads_a_prefix {
+    assert(starts("struct{", "struct{"));
+    assert(starts("struct{a}", "struct{"));
+    assert(!starts("stru", "struct{"));
+    assert(!starts("strucx{", "struct{"));
+    assert(!starts("", "s"));
+}

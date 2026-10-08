@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/anon_struct_nested.t27 -- fns whose anonymous struct result type has anonymous
+; structs as fields, as the reference runs them (issue #7886, t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. The plan is
+; specs/tri/t27b/anon_nest_plan.t27.
+; t27c prints each result type token by token and Zig makes every `struct { }` in it a type of its own; the
+; `.{ ... }` literals coerce to them field by field. The port this mirrors is tools/bees/merger_gate_selftest.t27
+; (`review`, `label`, `pr`).
+; Not here: a field with a default (`= 0`) or a generic type (`std.StringHashMap(u8)`), which keep
+; `type (anonymous struct)`.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceAnonStructNested;
+
+pub fn review(login: []const u8, score: u32) -> struct {
+    user: struct { login: []const u8 },
+    score: u32,
+} {
+    return .{
+        .user = .{ .login = login },
+        .score = score,
+    };
+}
+
+pub fn label(by: []const u8, weight: u32) -> struct {
+    event: []const u8,
+    label: struct { name: []const u8, weight: u32 },
+    actor: struct { login: []const u8 },
+} {
+    return .{
+        .event = "labeled",
+        .label = .{ .name = "bee-reviewed", .weight = weight },
+        .actor = .{ .login = by },
+    };
+}
+
+pub fn pr(n: u32) -> struct {
+    result: struct {
+        view: struct {
+            number: u32,
+            title: []const u8,
+        },
+        open: bool,
+    },
+} {
+    return .{
+        .result = .{
+            .view = .{
+                .number = n,
+                .title = "x (Closes #1)",
+            },
+            .open = n > 10,
+        },
+    };
+}
+
+test a_nested_field_holds_its_value {
+    const r = review("t27-bees", 7);
+    assert(r.user.login.len == 8);
+    assert(r.user.login[0] == 116);
+    assert(r.score == 7);
+}
+
+test two_nested_fields_side_by_side {
+    const l = label("queen", 3);
+    assert(l.label.weight == 3);
+    assert(l.label.name.len == 12);
+    assert(l.actor.login.len == 5);
+    assert(l.event[0] == 108);
+}
+
+test three_levels_deep {
+    const p = pr(12);
+    assert(p.result.view.number == 12);
+    assert(p.result.open);
+    assert(p.result.view.title.len == 13);
+    const q = pr(4);
+    assert(!q.result.open);
+    assert(q.result.view.number + p.result.view.number == 16);
+    const t = pr(10);
+    assert(!t.result.open);
+}

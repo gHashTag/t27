@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "gen_hash_c": "sha256:2f51ea7cc9ac89bee14d8021a4bfec172a48847c319ad8690a624b18dd9a770e",
+  "gen_hash_rust": "sha256:e030b0363b06df5191ff4fc551f143eb236edde7baf5a215bf989369228bf132",
+  "gen_hash_verilog": "sha256:a66a6cedb9758888c06e766293f38031cfb89ee06f0e23c425a47abfb3036a0d",
+  "gen_hash_zig": "sha256:82ac74e21b22069b205c2c0417e1cb538dd3cf0efa7bd3e652be8d14556d96af",
+  "module": "T27bAnonNestPlan",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:00:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:5282b1c077d53778f5d74295110496c0ea93a56a9145cbb7dcfb4030aeaa6188",
+  "spec_path": "specs/tri/t27b/anon_nest_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}
