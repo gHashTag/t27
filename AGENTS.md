@@ -202,7 +202,9 @@ measure it are written in **t27**, not in Rust or Python by hand.
   on master ef26684a1's 14919 plus 7874; 14842 plus 7866 after #7680's glue
   for array literals the reference prints as `@constCast(&[_]E{ ... })`,
   whose plan is `specs/tri/t27b/slice_lit_plan.t27`, -34 and -8 on master
-  3d7130691's 14876 plus 7874; 14885 plus 7924 after #7740's glue for the
+  3d7130691's 14876 plus 7874; 14873 plus 7905 after #7459's glue for
+  `@setEvalBranchQuota`, +31 and +39 on master 6157f8d07's 14842 plus 7866;
+  14885 plus 7924 after #7740's glue for the
   `type mismatch` family, whose plan is `specs/tri/t27b/coerce_plan.t27`,
   +12 and +19 on master b8cb93f34's 14873 plus 7905; 14905 plus 7942 after
   #7690's glue for a local bound to a void fn's result, whose plan is
@@ -210,10 +212,15 @@ measure it are written in **t27**, not in Rust or Python by hand.
   14885 plus 7924; 14944 plus 7964 after #7691's glue for a local bound to
   the W585 scaffold the reference never calls, whose plan is
   `specs/tri/t27b/scaffold_plan.t27`, +39 and +22 on master d42df2b06's
-  14905 plus 7942; 14984 plus 8009 after #7765's refusal of a write through
-  an array literal the reference prints as `@constCast(&[_]E{ ... })`, whose
-  plan is `specs/tri/t27b/slice_lit_plan.t27`, +17 and +22 on master
-  1f2448e98's 14967 plus 7987),
+  14905 plus 7942; 14967 plus 7987 after #7448's glue for module vars that
+  hold a string or start undefined, +23 and +23 on master 579bc55aa's 14944
+  plus 7964; `cli/t27b/src/*/*.rs`, which the glob above never counted, is
+  1222 more on master 1f2448e98, 16189 in all; 14995 plus 1166, 16161 in
+  all, after #7524's `.len` call port, +28 glue and -56; 15012 plus 1191,
+  16203 in all, and `cli/t27b/tests/*.rs` 8009, after #7765's refusal of a
+  write through an array literal the reference prints as
+  `@constCast(&[_]E{ ... })`, whose plan is `specs/tri/t27b/slice_lit_plan.t27`,
+  +17, +25 and +22 on master 4d7d2d3bd's 14995 plus 1166 and 7987),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

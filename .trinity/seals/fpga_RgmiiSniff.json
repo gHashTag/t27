@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+cb9df57c5",
+  "gen_hash_c": "sha256:8ff6c8050cb7e25f3c00a14f09dcacc2c315fbb269eb68696e10f7cee1b71fc7",
+  "gen_hash_rust": "sha256:3b6ca6b51a537b428672d405171237fe5318ba19eb64385ad724d7584c9dfdad",
+  "gen_hash_verilog": "sha256:bf1af9606f46e3d920afce54453da52bd154ee15d80c8de423673a41df294b58",
+  "gen_hash_zig": "sha256:89067a35acdb45ab89f2cbd3ea3a13e3e60a4cce7f18a82f85aa5e2e6c3d9d3e",
+  "module": "RgmiiSniff",
+  "ring": 12,
+  "sealed_at": "2026-10-08T12:06:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:469f071b82d5ab0efbf1799fc25cd60ad1cdd7f3b9d20d36d015a9d201ceb6d8",
+  "spec_path": "specs/fpga/rgmii_sniff.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

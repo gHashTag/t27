@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: Apache-2.0
+module RgmiiSniff;
+// specs/fpga/rgmii_sniff.t27 -- what a KSZ9031 says on its RGMII receive side, counted in the
+// PHY's own receive-clock domain (issue #7788). One instance per PHY, clocked by RXC; the
+// wrapper samples RX_CTL and RXD[3:0] on the rising edge only (open-flow IDDR is half-dead,
+// openXC7#114), which is enough: at 10/100 both edges carry the same nibble, and at 1000
+// the rising nibble is the low one, so a preamble still reads 5 and the SFD D.
+//
+// What it keeps, for a JTAG readout:
+//   frames  -- rising edges of RX_CTL, i.e. frames started (16 bits, wraps);
+//   inband  -- RXD while RX_CTL is low, latched whenever it is nonzero (RGMII in-band
+//              status {duplex, speed[1:0], link}); 0 means the PHY never put status there;
+//   head    -- the first eight rising-edge nibbles of the latest frame, first in bits 3:0.
+//              A good capture reads 0x55555555 or ends 0xD5555555 at 10/100 and 1000 alike.
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at most
+// once on each path and every right-hand side reads values from before the edge.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+var prev : u8 = 0
+var frames : u16 = 0
+var inband : u8 = 0
+var k : u8 = 8
+var head : u32 = 0
+
+fn on_clock(ctl: u8, d: u8) {
+    if ((ctl & 1) == 1) {
+        if ((prev & 1) == 0) {
+            frames = (((frames as u32) + 1) % 65536) as u16;
+            head = (d & 15) as u32;
+            k = 1;
+        } else {
+            if (k < 8) {
+                head = head | (((d & 15) as u32) << ((4 * k) as u32));
+                k = k + 1;
+            }
+        }
+    } else {
+        if ((d & 15) != 0) { inband = d & 15; }
+    }
+    prev = ctl & 1;
+}
+
+test a_frame_is_counted_once_and_its_preamble_is_kept {
+    prev = 0; frames = 0; inband = 0; k = 8; head = 0;
+    on_clock(0, 0);
+    var i : u8 = 0;
+    while (i < 7) { on_clock(1, 5); i = i + 1; }
+    on_clock(1, 13);
+    on_clock(1, 4);
+    on_clock(0, 0);
+    assert_eq(frames, 1);
+    assert_eq(head, 3579139413);
+    assert_eq(inband, 0);
+}
+
+test in_band_status_is_latched_between_frames_and_zero_does_not_erase_it {
+    prev = 0; frames = 0; inband = 0; k = 8; head = 0;
+    on_clock(0, 11);
+    on_clock(0, 0);
+    assert_eq(inband, 11);
+    on_clock(1, 5);
+    on_clock(0, 13);
+    assert_eq(inband, 13);
+    assert_eq(frames, 1);
+}
+
+test the_frame_counter_wraps {
+    prev = 0; frames = 65535; inband = 0; k = 8; head = 0;
+    on_clock(1, 5);
+    assert_eq(frames, 0);
+}
