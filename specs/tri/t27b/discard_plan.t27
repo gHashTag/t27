@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/discard_plan.t27 -- how t27b lowers `_ = e;` where e is not a bare name: `_ = process(node);`,
+; `_ = "children_processed";` (t27b coverage epic #6063; written in t27 under the port epic #6198). Everything
+; t27b decides about such a discard is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/discard_plan.rs): which discards it takes, which of them run, and which are left to t27b's
+; other paths. The Rust glue in cli/t27b/src/lower.rs only reads where the statement is and whether e holds a
+; call, asks `plan`, and builds the answer: nothing, or e evaluated and dropped.
+; --
+; What the reference does (zig 0.16.0, the default x86_64 Debug backend `t27c test-report` builds with;
+; measured on the t27c lab and pinned by specs/tri/t27b/conformance/discard_value.t27):
+;   - Before gen-zig, `optimize` runs its dead-store pass (`dead_store_elim_with`) over the top-level statements
+;     of every fn body. On the Zig path `keep_call_discards` is on: a `_ = e;` whose e holds a call stays, and
+;     any other `_ = e;` there is deleted. `_ = a + b;` with a u8 200 and 100 does not trap there.
+;   - Nested blocks of a fn, and every block of a test, invariant or bench, are not touched: t27c prints
+;     `_ = e;` as written. Zig evaluates e, with its effects and its traps (the same `_ = a + b;` nested in an
+;     `if` traps), and drops the value, void or not.
+;   - At the top level of a test, t27c's test-binding form prints `const _ = e;`, and Zig refuses it ("'_' used
+;     as an identifier without @"_" syntax").
+;   - specs/port/bootstrap/src/compiler/collect_type_decls.t27 writes `_ = process(node);` (a void fn) at the top
+;     of a body, `_ = "literal";` in the arms of an `if`, and a trailing `_ = "literal";` that is deleted.
+; --
+; What t27b does. DELETED: at the top level of a fn body, an e with no call is not lowered at all, as the
+; reference deletes it. EVALUATE: anywhere else, e is lowered and evaluated for its effects and its traps, and
+; its value is dropped. NOT_MINE: a bare name (`_ = p;`, t27b's parameter-discard path, which models Zig's
+; pointless-discard rule), and any `_ = e;` at the top level of a test, invariant or bench (t27b's test-binding
+; path, left as it was).
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bDiscardPlan;
+
+// The answer.
+pub const NOT_MINE : u8 = 0;
+pub const DELETED : u8 = 1;
+pub const EVALUATE : u8 = 2;
+
+/// The decision for one `_ = e;`. name: e is a bare name. test_top: the statement is at the top level of a test,
+/// invariant or bench. fn_top: it is at the top level of a fn body, where the reference's dead-store pass runs.
+/// call: e holds a call anywhere in it.
+pub fn plan(name: bool, test_top: bool, fn_top: bool, call: bool) -> u8 {
+    if (name) { return NOT_MINE; }
+    if (test_top) { return NOT_MINE; }
+    if (fn_top and !call) { return DELETED; }
+    return EVALUATE;
+}
+
+/// Does the answer lower e?
+pub fn runs(act: u8) -> bool {
+    return act == EVALUATE;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the shapes the corpus has, then what is left alone.
+// ----------------------------------------------------------------------------------------------------------
+
+test a_call_discarded_at_the_top_of_a_fn_runs {
+    // collect_type_decls.t27's `_ = process_node_for_types(node);`: kept by keep_call_discards.
+    assert(plan(false, false, true, true) == EVALUATE);
+    assert(runs(EVALUATE));
+}
+
+test a_discard_with_no_call_at_the_top_of_a_fn_is_deleted {
+    // collect_type_decls.t27's trailing `_ = "children_processed";`, and `_ = a + b;`, which then cannot trap.
+    assert(plan(false, false, true, false) == DELETED);
+    assert(!runs(DELETED));
+}
+
+test a_nested_discard_runs_with_or_without_a_call {
+    // collect_type_decls.t27's `_ = "struct_fields_collected";` in an arm of an `if`; a nested
+    // `_ = a + b;` traps on overflow, as the reference's does.
+    assert(plan(false, false, false, false) == EVALUATE);
+    assert(plan(false, false, false, true) == EVALUATE);
+}
+
+test a_bare_name_and_a_test_binding_are_left_alone {
+    assert(plan(true, false, true, false) == NOT_MINE);
+    assert(plan(true, false, false, true) == NOT_MINE);
+    assert(plan(true, true, false, true) == NOT_MINE);
+    assert(plan(false, true, false, true) == NOT_MINE);
+    assert(plan(false, true, false, false) == NOT_MINE);
+    assert(!runs(NOT_MINE));
+}
