@@ -612,6 +612,18 @@ module ZeroDSP_MAC;
         }
         assert all_ready
 
+    invariant mac_all_units_initially_zero_accumulator
+        var all_zero = true
+        var i = 0
+        while (i < NUM_MAC_UNITS) {
+            if (mac_get_accumulator(i) != 0) {
+                all_zero = false;
+                break;
+            }
+            i = i + 1;
+        }
+        assert all_zero
+
     invariant mac_units_independent
         given a0 = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
         and   b0 = TernaryWord{.raw = pack_trit(Trit.pos, 0)}
