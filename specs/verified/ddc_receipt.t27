@@ -15,6 +15,8 @@
 ; - specs/verified/signed_receipt.t27 (R3-1, #7332) owns the scheme (Ed25519), the key registry,
 ;   the field line `name=value\n`, the nonce rule and auth_first_missing / receipt_level. A DDC
 ;   receipt is judged by exactly those rules; only its domain line and its fields are new.
+; - specs/verified/corpus_receipt.t27 (#7576) owns text_is() (byte equality) and HARDWARE_ROOTED
+;   (false: the lab key is NAMED); this file uses both and restates neither.
 ; --
 ; Why: until this rule the C4 cell cited logs copied by hand to the t27b lab (ddc6508/*.out). A
 ; receipt binds the run to a commit, to the hashes of S, E and the harness, to each route's builder
@@ -78,6 +80,7 @@
 module VerifiedDdcReceipt;
 
 use verified::signed_receipt;
+use verified::corpus_receipt;
 use compiler::theory::toolchain;
 
 /// The signed message starts with this line; a receipt's `kind` field carries the same text.
@@ -130,9 +133,6 @@ pub const DDC_EXIT_REFUSED : u8 = 2;
 pub const DDC_EXIT_CANNOT_RUN : u8 = 3;
 pub const DDC_EXIT_BACKEND_AGREEMENT : u8 = 4;
 
-/// The trust ceiling, stated so a reader cannot round it up.
-pub const HARDWARE_ROOTED : bool = false;
-
 ; --- The message ---------------------------------------------------------------------------------
 
 /// The first line: DDC_DOMAIN, then a newline. Field lines are signed_receipt's.
@@ -146,18 +146,7 @@ pub fn ddc_domain_line_char(k: u32) -> u32 {
     return LINE_END;
 }
 
-; --- Texts ---------------------------------------------------------------------------------------
-
-/// Byte equality of two texts.
-pub fn text_is(a: string, b: string) -> bool {
-    if ((a.len as u32) != (b.len as u32)) { return false; }
-    var k : u32 = 0;
-    while (k < (a.len as u32)) {
-        if ((a[k] as u32) != (b[k] as u32)) { return false; }
-        k = k + 1;
-    }
-    return true;
-}
+; --- Digests -------------------------------------------------------------------------------------
 
 /// A sha256 as receipts write it: DIGEST_HEX_LEN hex digits in git's lowercase spelling.
 pub fn digest_well_formed(d: string) -> bool {
@@ -345,14 +334,6 @@ test "nine signed fields, the routes and the nonce among them" {
     assert text_is(DDC_INPUT_FIELDS[2], "frozen_hash") == true;
     assert text_is(DDC_S_PATH, "specs/compiler/core/t27core.t27") == true;
     assert text_is(DDC_HARNESS_PATH, "specs/compiler/core/t27core_ddc.t27") == true;
-}
-
-test "text equality is byte equality, length first" {
-    assert text_is("pass", "pass") == true;
-    assert text_is("pass", "pas") == false;
-    assert text_is("pas", "pass") == false;
-    assert text_is("pass", "past") == false;
-    assert text_is("", "") == true;
 }
 
 test "a digest is sixty-four lowercase hex digits" {
