@@ -103,7 +103,8 @@ mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numer
 mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
 #[path = "../../../gen/rust/tri/t27b/scaffold_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input()`, which the reference never calls
-#[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)] mod bc; // `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
+mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
 mod refvars;
 mod tuple;
 
@@ -3739,8 +3740,7 @@ impl<'a> Lower<'a> {
         let (from, bits, c) = match &v {
             Val::Poison if n.children.len() == 1 => return Err(()),
             Val::E(e) => (code(e.ty), e.ty.bits(), if let ExprKind::Const(c) = e.kind { Some(c) } else { None }),
-            Val::Ct(_) | Val::Cf(..) => (bc::T_LITERAL, 0, None),
-            _ => (bc::T_OTHER, 0, None),
+            v => (if matches!(v, Val::Ct(_) | Val::Cf(..)) { bc::T_LITERAL } else { bc::T_OTHER }, 0, None),
         };
         let inl = !self.in_test && n.children.first().is_some_and(|c| c.kind == NodeKind::ExprIdentifier && self.lit_consts.contains(&c.name));
         let a = bc::plan(n.name == "@intFromBool", n.children.len(), from, bits, code(ty), ty.bits(), c.is_some(), inl);
