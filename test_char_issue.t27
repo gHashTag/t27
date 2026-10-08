@@ -1,0 +1,14 @@
+module gap_char_byte;
+
+pub fn digit_value(c: u8) -> u8 {
+    if (c >= '0' and c <= '9') {
+        return c - '0';
+    }
+    return 255;
+}
+
+test digit_values {
+    assert digit_value(48) == 0;
+    assert digit_value(57) == 9;
+    assert digit_value(65) == 255;
+}
