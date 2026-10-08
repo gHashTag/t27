@@ -109,6 +109,8 @@ mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input
 mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its result type
 #[path = "../../../gen/rust/tri/t27b/frame_store_plan.rs"] #[allow(dead_code, unused_parens)]
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
+#[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 mod refvars;
 mod tuple;
 
@@ -3150,7 +3152,7 @@ impl<'a> Lower<'a> {
         }
         let mut args = Vec::new();
         for (i, a) in c.children.iter().enumerate() {
-            let v = self.arg_as(a, &params[i])?;
+            let v = if is_undefined(a) && !self.is_void(&params[i]) { self.undefined_arg(c, i, a, &params[i])? } else { self.arg_as(a, &params[i])? };
             args.push(match v {
                 // By reference; the callee never writes it.
                 Val::M(p) => addr_of(&p),
@@ -3175,6 +3177,25 @@ impl<'a> Lower<'a> {
             Some(t) => reg_ty(t).unwrap(),
         };
         Ok((Expr { ty, kind: ExprKind::Call { func: id, args } }, ret, temp))
+    }
+
+    /// `f(undefined)` for a parameter that is not `void` (specs/tri/t27b/undefined_arg_plan.t27): the call runs and
+    /// the argument is a value of the parameter's type that nobody reads, or the plan's refusal.
+    fn undefined_arg(&mut self, c: &Node, i: usize, a: &Node, t: &LTy) -> R<Val> {
+        let p = self.fns.get(&c.name).and_then(|f| f.params.get(i).map(|(p, _)| (p.clone(), name_mentions(&f.children, p) > 0)));
+        let act = ua::plan(p.is_some(), p.as_ref().is_some_and(|p| p.1), is_agg(t));
+        if !ua::takes(act) && !ua::refuses(act) {
+            return self.arg_as(a, t);
+        }
+        self.see(a);
+        if ua::refuses(act) {
+            return self.reject(ua::what(act), format!("`{}` of `{}`: {}", p.map_or(String::new(), |p| p.0), c.name, ua::why(act)));
+        }
+        if act == ua::UNREAD_MEMORY {
+            let k = self.new_slot(t)?;
+            return Ok(Val::M(Place { addr: slot_expr(k), off: 0, ty: t.clone(), mutable: false, temp: None }));
+        }
+        Ok(val_of(Expr { ty: reg_ty(t).unwrap_or(Ty::Ptr), kind: ExprKind::Const(0) }, t))
     }
 
     // ----------------------------------------------------------- expressions

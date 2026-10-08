@@ -1,0 +1,123 @@
+module port::trinity_loss;
+
+/// φ⁻² = 1/(φ²) ≈ 0.381966...  — truncated to 3 significant figures per spec.
+pub const PHI_INV_SQ: f32 = 0.382;
+
+/// Default margin for the triplet loss (φ⁻² ≈ 0.5 is the spec value).
+pub const DEFAULT_MARGIN: f32 = 0.5;
+
+/// Default λ weighting for the φ-prior term.
+pub const DEFAULT_LAMBDA: f32 = 0.1;
+
+/// Compute the ternary dot product of two 64-element ternary vectors.
+///
+/// Elements are expected to be in {-1, 0, 1}; the function is defined for
+/// all i8 values but is meaningful only for ternary inputs.
+pub fn dot_ternary(a: [64]i8, b: [64]i8) -> i32 {
+    var acc: i32 = 0;
+    var i: usize = 0;
+    while (i < 64) {
+        acc += (a[i] as i32) * (b[i] as i32);
+        i += 1;
+    }
+    return acc;
+}
+
+/// Ternary cosine analogue: `dot_ternary(a, b) / 64`.
+///
+/// Range is [-1.0, 1.0] for unit ternary vectors; can exceed ±1 for dense
+/// vectors with only non-zero entries (maximum = 1.0, minimum = -1.0 for
+/// properly ternary {-1,0,1} inputs).
+pub fn sim(a: [64]i8, b: [64]i8) -> f32 {
+    return (dot_ternary(a, b) as f32) / 64.0;
+}
+
+/// Count the number of zero entries in a ternary vector (ℓ₀ norm of zeros).
+pub fn zero_count(a: [64]i8) -> u32 {
+    var cnt: u32 = 0;
+    var i: usize = 0;
+    while (i < 64) {
+        if (a[i] == 0) {
+            cnt += 1;
+        }
+        i += 1;
+    }
+    return cnt;
+}
+
+/// The φ-prior sparsity penalty term (scalar).
+///
+/// ```text
+/// L_phi_prior = PHI_INV_SQ * (zero_count(a) + zero_count(p) + zero_count(n)) / 192
+/// ```
+///
+/// 192 = 3 × 64 normalises by the total number of entries across the triplet.
+pub fn phi_prior_term(a: [64]i8, p: [64]i8, n: [64]i8) -> f32 {
+    const zeros = zero_count(a) + zero_count(p) + zero_count(n);
+    return PHI_INV_SQ * (zeros as f32) / 192.0;
+}
+
+/// Compute the full Trinity loss for one (anchor, positive, negative) triplet.
+///
+/// ```text
+/// L_triplet  = max(0, margin + sim(a,n) - sim(a,p))
+/// L_phi      = PHI_INV_SQ * (zero_count(a)+zero_count(p)+zero_count(n)) / 192
+/// L_total    = L_triplet + lambda * L_phi
+/// ```
+///
+/// # Arguments
+/// * `a`      – anchor ternary vector
+/// * `p`      – positive ternary vector (semantically similar to anchor)
+/// * `n`      – negative ternary vector (semantically dissimilar from anchor)
+/// * `margin` – triplet margin (default 0.5 = `DEFAULT_MARGIN`)
+/// * `lambda` – φ-prior weighting (default 0.1 = `DEFAULT_LAMBDA`)
+pub fn trinity_loss(a: [64]i8, p: [64]i8, n: [64]i8, margin: f32, lambda: f32) -> f32 {
+    const sim_ap = sim(a, p);
+    const sim_an = sim(a, n);
+    const l_triplet = if (margin + sim_an - sim_ap > 0.0) margin + sim_an - sim_ap else 0.0;
+    const l_phi = phi_prior_term(a, p, n);
+    return l_triplet + lambda * l_phi;
+}
+
+test dot_all_ones {
+    const a = [1i8; 64];
+    const b = [1i8; 64];
+    assert(dot_ternary(a, b) == 64);
+}
+
+test dot_opposite {
+    const a = [1i8; 64];
+    const b = [-1i8; 64];
+    assert(dot_ternary(a, b) == -64);
+}
+
+test sim_range {
+    const a = [1i8; 64];
+    const b = [1i8; 64];
+    assert(@abs(sim(a, b) - 1.0) < 0.000001);
+}
+
+test zero_count_full {
+    const a = [0i8; 64];
+    assert(zero_count(a) == 64);
+}
+
+test zero_count_none {
+    const a = [1i8; 64];
+    assert(zero_count(a) == 0);
+}
+
+test phi_prior_all_zeros {
+    const a = [0i8; 64];
+    const p = [0i8; 64];
+    const n = [0i8; 64];
+    const expected = 0.382;
+    assert(@abs(phi_prior_term(a, p, n) - expected) < 0.0001);
+}
+
+test trinity_loss_perfect_triplet {
+    const a = [1i8; 64];
+    const p = [1i8; 64];
+    const n = [-1i8; 64];
+    assert(trinity_loss(a, p, n, DEFAULT_MARGIN, DEFAULT_LAMBDA) == 0.0);
+}

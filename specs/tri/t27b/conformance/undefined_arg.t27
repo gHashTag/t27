@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/undefined_arg.t27 -- `undefined` written as an argument of a call to a declared fn
+; whose body never names that parameter, as the reference runs it (t27b coverage epic #6063). Every test here
+; passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints: the call as written, `ua_slice(undefined)`, with `_ = s; // unused by the
+; spec body` in the callee. Zig coerces `undefined` to the parameter's type. The call runs, with its effects
+; and its other arguments, and nobody reads the value.
+; The shapes are the corpus's own: specs/port/trinity/src/tri/gen_temp_file.t27 (a `[]u8` allocator nobody
+; reads, and an optional array result) and specs/port/trios/crates/trios-rainbow-bridge/src/funnel_client.t27
+; (an event struct with no fields, next to a struct argument that is read). Every test reads a result or
+; UA_CALLS at run time.
+; Not here, because a spec that holds it passes the reference on dead memory: a callee that reads the
+; parameter. t27b refuses it by name (specs/tri/t27b/undefined_arg_plan.t27).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceUndefinedArg;
+
+var UA_CALLS: u32 = 0;
+
+pub const UaEvent = struct {
+};
+
+pub const UaPair = struct {
+    a: u32,
+    b: u32,
+};
+
+/// gen_temp_file.t27's shape: the allocator is plumbing.
+fn ua_temp_name(allocator: []u8) -> ?[5]u8 {
+    var result: [5]u8 = undefined;
+    for (0..result.len) |i| {
+        result[i] = "/tmp/tempXXXXXX"[i];
+    }
+    return result;
+}
+
+/// funnel_client.t27's shape: the event is never read, the pair is.
+fn ua_publish(p: UaPair, ev: UaEvent) -> u32 {
+    return p.a + p.b;
+}
+
+/// A scalar nobody reads, an effect, and a second argument that is read.
+fn ua_next(x: u32, y: u32) -> u32 {
+    UA_CALLS = UA_CALLS + 1;
+    return y + 1;
+}
+
+/// A struct by value nobody reads.
+fn ua_count(p: UaPair) -> u32 {
+    return 9;
+}
+
+/// A pointer nobody reads.
+fn ua_seen(p: *const UaPair) -> bool {
+    return true;
+}
+
+/// An array by value nobody reads.
+fn ua_first_free(slots: [4]u8, start: u8) -> u8 {
+    return start + 2;
+}
+
+fn ua_bump() -> u32 {
+    UA_CALLS = UA_CALLS + 10;
+    return 3;
+}
+
+/// `undefined` in a fn body.
+fn ua_in_a_fn() -> u32 {
+    return ua_next(undefined, 4);
+}
+
+test an_unread_slice_parameter {
+    const result = ua_temp_name(undefined);
+    assert(result != null);
+    const name = result.?;
+    assert(name[0] == '/');
+    assert(name[4] == '/');
+    assert(name[2] == 'm');
+}
+
+test an_unread_struct_with_no_fields {
+    const p = UaPair{ .a = 20, .b = 30 };
+    assert(ua_publish(p, undefined) == 50);
+}
+
+test the_call_runs_and_its_other_arguments_are_passed {
+    assert(ua_next(undefined, 1) == 2);
+    assert(UA_CALLS == 1);
+    assert(ua_next(undefined, ua_bump()) == 4);
+    assert(UA_CALLS == 12);
+}
+
+test an_unread_struct_by_value {
+    assert(ua_count(undefined) == 9);
+}
+
+test an_unread_pointer {
+    assert(ua_seen(undefined));
+}
+
+test an_unread_array_by_value {
+    assert(ua_first_free(undefined, 5) == 7);
+}
+
+test undefined_in_a_fn_body {
+    assert(ua_in_a_fn() == 5);
+    assert(UA_CALLS == 1);
+}

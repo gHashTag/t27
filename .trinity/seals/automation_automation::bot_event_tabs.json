@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+5263bba",
+  "gen_hash_c": "sha256:2b146c6a65a72e7cf23b805c24b8d9e46069f51f4e7ce183fe343e04f9e108e9",
+  "gen_hash_rust": "sha256:e2cf30547e29ce8728d111b4e82c351a25a6aec9ff8c04e513a5ee8ae83d4504",
+  "gen_hash_verilog": "sha256:34c27ff87d79fb290ae30e8cdb842822af885467c14d74031b71f574ee0ef486",
+  "gen_hash_zig": "sha256:299b5acb1d81008ebae11cdc4bfa72741d33827d5245bad9e67428e9393d75fd",
+  "module": "automation::bot_event_tabs",
+  "ring": 12,
+  "sealed_at": "2026-10-08T15:24:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:bc03bd92743cde7b23a5e8ccc166ec6ac2999d2477f7c31b3ee20c95a723fbe0",
+  "spec_path": "specs/automation/bot-event-tabs.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}
