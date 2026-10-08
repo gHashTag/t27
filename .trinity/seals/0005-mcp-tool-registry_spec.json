@@ -1,0 +1,16 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+unknown",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
+  "module": "spec",
+  "ring": 12,
+  "sealed_at": "2026-10-08T15:33:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:d00d00154073aa13a376b762702a36c50c4b5c2ea83ac1cd6afdfa5696c2872b",
+  "spec_path": "dataset/igla-coder/v0.1/pairs/0005-mcp-tool-registry/spec.tri",
+  "tests": {
+    "blocked": "codegen failed: parse error at module level near line 1: unexpected token after expression statement: Ident"
+  }
+}

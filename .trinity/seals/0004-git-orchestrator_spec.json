@@ -1,0 +1,16 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+unknown",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
+  "module": "spec",
+  "ring": 12,
+  "sealed_at": "2026-10-08T15:33:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:0eebd8a9045fd16b1c3bd46fc1518d5c82dcf51cdc579006222c91fcfeb4e244",
+  "spec_path": "dataset/igla-coder/v0.1/pairs/0004-git-orchestrator/spec.tri",
+  "tests": {
+    "blocked": "codegen failed: parse error at module level near line 1: unexpected token after expression statement: Ident"
+  }
+}

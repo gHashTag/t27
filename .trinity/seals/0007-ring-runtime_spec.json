@@ -1,0 +1,16 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+unknown",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
+  "module": "spec",
+  "ring": 12,
+  "sealed_at": "2026-10-08T15:33:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:ba5421b4fb88095c3edb629415d12fb2ed6bc1a7392934f6426799d430ae2979",
+  "spec_path": "dataset/igla-coder/v0.1/pairs/0007-ring-runtime/spec.tri",
+  "tests": {
+    "blocked": "codegen failed: parse error at module level near line 1: unexpected token after expression statement: Ident"
+  }
+}
