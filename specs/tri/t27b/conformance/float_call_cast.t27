@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/float_call_cast.t27 -- `x as T` with a float operand that is a function call
+; (gHashTag/t27#7805, t27b coverage item C10 of #6488). Every test here passes `t27c test-report`; t27b must give the
+; same verdict on each, or refuse the file.
+; gen-zig picks the builtin from how the operand is spelled: a function call that returns a float is spelled
+; as a float since #6941, so `half() as f32` is `@as(f32, @floatCast(half()))` and not refused.
+; The issue was that t27b's copy of the spelling rule predates this change, so it refused the cast.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceFloatCallCast;
+
+fn half() -> f64 {
+    return 0.5;
+}
+
+fn quarter() -> f64 {
+    return 0.25;
+}
+
+fn three() -> u32 {
+    return 3;
+}
+
+// Function calls returning floats should be recognized as float expressions
+fn call_to_f32() -> f32 {
+    return half() as f32;
+}
+
+fn call_to_f64() -> f64 {
+    return half() as f64;
+}
+
+fn binary_with_calls() -> f32 {
+    return (half() - quarter()) as f32;
+}
+
+fn call_to_int() -> i32 {
+    return half() as i32;
+}
+
+fn int_call_to_f32() -> f32 {
+    return three() as f32;
+}
+
+test float_call_to_f32 {
+    assert(call_to_f32() == 0.5);
+}
+
+test float_call_to_f64 {
+    assert(call_to_f64() == 0.5);
+}
+
+test binary_calls_to_f32 {
+    assert(binary_with_calls() == 0.25);
+}
+
+test float_call_to_int {
+    assert(call_to_int() == 0);
+}
+
+test int_call_to_f32_stays_int {
+    assert(int_call_to_f32() == 3.0);
+}

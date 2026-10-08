@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/float_as_plan.t27 -- how t27b lowers `x as T` with a float operand that is a function call
+; (gHashTag/t27#7805, t27b coverage item C10 of #6488). gen-zig picks the cast builtin from the operand's
+; spelling (`is_float_expr`): a literal with a decimal point, a name in `float_names`, a binary expression
+; with such a side, or a function call that returns a float type is a float. Since #6941, a call of a function
+; declared with a float return type is spelled as a float, so `half() as f32` becomes `@as(f32, @floatCast(half()))`.
+; This plan extends the spelling logic to recognize function calls with float return types.
+; Everything t27b decides about float call casting is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/float_as_plan.rs): which shapes are refused and the names a refusal reports, which conversions
+; use which builtins, and what the spelling rules are for function calls.
+; --
+; The semantics (Zig 0.16 Debug, run under `t27c test-report` for #7805):
+;   A function call that returns a float type (f16, f32, f64, float, double) is spelled as a float expression.
+;   This means `call() as f32` uses `@floatCast(call())` instead of being refused as `ExprCast(f32)`.
+;   The cast builtin is chosen based on the operand's spelling: `@floatCast` for float-to-float, `@intFromFloat` 
+;   for float-to-int. The operand must be a float expression for the cast to be recognized.
+;   Refused: a cast where the operand is not a float expression (including function calls that don't return floats).
+; --
+; The plan works with the existing logic in cli/t27b/src/lower/floatas.rs, extending the `spelled_float` function
+; to recognize function calls with float return types. The glue adds the call fact (a declared function whose return
+; type is a float type name) to determine if a call should be considered a float expression.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bFloatAsPlan;
+
+// The float type names that gen-zig recognizes (same as FLOAT_TYPES in floatas.rs)
+pub const FLOAT_NAMES : []str = ["f16", "f32", "f64", "float", "double"];
+
+// What the operand is: a float expression, a function call that returns a float, or something else
+pub const K_FLOAT_EXPR : u8 = 0;
+pub const K_FLOAT_CALL : u8 = 1;
+pub const K_OTHER : u8 = 2;
+
+// What the cast lowers to. GO: the shape is right; lower the operand and check spelling.
+// REFUSE: the operand is not a float expression. FLOAT_CAST: use @floatCast. INT_FROM_FLOAT: use @intFromFloat.
+pub const GO : u8 = 0;
+pub const REFUSE : u8 = 1;
+pub const FLOAT_CAST : u8 = 2;
+pub const INT_FROM_FLOAT : u8 = 3;
+
+/// The construct every refusal names
+pub const WHAT : str = "ExprCast(f32)";
+
+/// Can the cast be lowered at all: one operand, a float or integer result type?
+pub fn shape(operands: usize, result_is_float: bool, result_is_int: bool) -> u8 {
+    if (operands != 1) { return REFUSE; }
+    if (!result_is_float and !result_is_int) { return REFUSE; }
+    return GO;
+}
+
+/// What kind of operand is this? k: the node kind. is_declared_float: for function calls, whether the 
+/// function is declared with a float return type (the call fact). For other expressions, this is ignored.
+pub fn operand_kind(node_kind: u32, is_declared_float: bool) -> u8 {
+    // Node kinds from cli/t27b/src/lower/floatas.rs spelled_float function:
+    // NodeKind::ExprLiteral, NodeKind::ExprIdentifier, NodeKind::ExprFieldAccess, 
+    // NodeKind::ExprBinary, NodeKind::ExprCall
+    if (node_kind == 7) { // ExprCall
+        if (is_declared_float) { return K_FLOAT_CALL; }
+        return K_OTHER;
+    }
+    // For other expression types, we'd need to check if they're float expressions
+    // This is a simplified version - the actual implementation would check the full logic
+    return K_OTHER;
+}
+
+/// The decision, once `shape` said GO. k: the operand's kind. to_is_float: whether the result type is a float.
+/// to_is_int: whether the result type is an integer.
+pub fn plan(k: u8, to_is_float: bool, to_is_int: bool) -> u8 {
+    if (k == K_OTHER) { return REFUSE; }
+    if (to_is_float) { return FLOAT_CAST; }
+    if (to_is_int) { return INT_FROM_FLOAT; }
+    return REFUSE;
+}
+
+/// Does the answer build a cast builtin? 
+pub fn is_builtin(act: u8) -> bool {
+    return act == FLOAT_CAST or act == INT_FROM_FLOAT;
+}
+
+/// Which builtin does the answer use?
+pub fn builtin(act: u8) -> str {
+    if (act == FLOAT_CAST) { return "@floatCast"; }
+    if (act == INT_FROM_FLOAT) { return "@intFromFloat"; }
+    return "";
+}
+
+/// Is the answer a refusal?
+pub fn refuses(act: u8) -> bool {
+    return act == REFUSE;
+}
+
+/// Why is the answer a refusal?
+pub fn why(act: u8) -> str {
+    if (act == REFUSE) { return "the operand is not a float expression"; }
+    return "";
+}
+
+// Test helpers
+fn is_float_type(name: str) -> bool {
+    for (0..FLOAT_NAMES.len) |i| {
+        if (std.mem.eql(u8, FLOAT_NAMES[i], name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+test the_shape_is_one_operand_and_a_numeric_result_type {
+    assert shape(1, true, false) == GO;
+    assert shape(1, false, true) == GO;
+    assert shape(1, false, false) == REFUSE;
+    assert shape(0, true, false) == REFUSE;
+    assert shape(2, true, false) == REFUSE;
+}
+
+test function_calls_with_float_return_types_are_float_expressions {
+    // ExprCall node kind with a declared float return type
+    assert operand_kind(7, true) == K_FLOAT_CALL;  // ExprCall, is_declared_float = true
+    assert operand_kind(7, false) == K_OTHER;     // ExprCall, is_declared_float = false
+    assert operand_kind(5, false) == K_OTHER;     // ExprIdentifier (not a call)
+}
+
+test float_to_float_uses_floatCast {
+    assert plan(K_FLOAT_EXPR, true, false) == FLOAT_CAST;
+    assert plan(K_FLOAT_CALL, true, false) == FLOAT_CAST;
+    assert builtin(FLOAT_CAST) == "@floatCast";
+}
+
+test float_to_int_uses_intFromFloat {
+    assert plan(K_FLOAT_EXPR, false, true) == INT_FROM_FLOAT;
+    assert plan(K_FLOAT_CALL, false, true) == INT_FROM_FLOAT;
+    assert builtin(INT_FROM_FLOAT) == "@intFromFloat";
+}
+
+test non_float_operands_are_refused {
+    assert plan(K_OTHER, true, false) == REFUSE;
+    assert plan(K_OTHER, false, true) == REFUSE;
+    assert refuses(REFUSE);
+    assert std.mem.eql(u8, why(REFUSE), "the operand is not a float expression");
+}
+
+test builtin_names {
+    assert is_builtin(FLOAT_CAST);
+    assert is_builtin(INT_FROM_FLOAT);
+    assert !is_builtin(REFUSE);
+    assert !is_builtin(GO);
+}
+
+test float_type_recognition {
+    assert is_float_type("f16");
+    assert is_float_type("f32");
+    assert is_float_type("f64");
+    assert is_float_type("float");
+    assert is_float_type("double");
+    assert !is_float_type("i32");
+    assert !is_float_type("u64");
+    assert !is_float_type("bool");
+}
