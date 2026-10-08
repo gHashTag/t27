@@ -14,7 +14,7 @@
  },
  "max_not_pass": 38,
  "counts": {
-  "pass": 916,
+  "pass": 917,
   "pass_vacuous": 151,
   "not_pass": 38
  },
@@ -224,6 +224,7 @@
   {"path": "specs/fpga/cts.t27", "t27b": "pass"},
   {"path": "specs/fpga/dft.t27", "t27b": "pass"},
   {"path": "specs/fpga/e2e_demo.t27", "t27b": "pass"},
+  {"path": "specs/fpga/eth_crc.t27", "t27b": "pass"},
   {"path": "specs/fpga/fifo.t27", "t27b": "pass"},
   {"path": "specs/fpga/gf16_accel.t27", "t27b": "pass"},
   {"path": "specs/fpga/hw_types.t27", "t27b": "pass"},
