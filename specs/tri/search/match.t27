@@ -66,3 +66,9 @@ module SearchMatch;
         when result = exhaustive(input)
         then result != undefined
 
+    // Test if-expression with braced arms (issue #2397)
+    test "if_expression_constant"
+        given value = -5.0
+        when abs_val = if (value < 0.0) { -value } else { value }
+        then abs_val == 5.0
+
