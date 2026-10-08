@@ -52,3 +52,121 @@ test verify_trinity_constants {
     assert EXTERNAL == false;
     assert AGENTS[0] == "T";
 }
+
+// Carry-only allocator plan for t27b (gHashTag/t27#7917)
+// Treats std.mem.Allocator as an opaque two-word struct { ptr, vtable }
+// Accepts std.testing.allocator as a valid source value
+// Refuses method calls and field access with clear errors
+module T27bCarryOnlyAllocator;
+
+// The answers.
+pub const CARRY_ONLY : u8 = 0;
+pub const REFUSE_METHOD_CALL : u8 = 1;
+pub const REFUSE_FIELD_ACCESS : u8 = 2;
+pub const NOT_MINE : u8 = 3;
+
+/// std.mem.Allocator type handling. is_method_call: true when a method is being called.
+pub fn allocator_type(is_method_call: bool) -> u8 {
+    if (is_method_call) { return REFUSE_METHOD_CALL; }
+    return CARRY_ONLY;
+}
+
+/// std.testing.allocator value handling.
+pub fn testing_allocator_value() -> u8 {
+    return CARRY_ONLY;
+}
+
+/// Field access on allocator (e.g., .ptr, .vtable).
+pub fn field_access(field_name: []const u8) -> u8 {
+    if (field_name == "ptr" or field_name == "vtable") {
+        return REFUSE_FIELD_ACCESS;
+    }
+    return NOT_MINE;
+}
+
+/// Method call on allocator (e.g., alloc, free, create, destroy).
+pub fn method_call(method_name: []const u8) -> u8 {
+    const allocator_methods = [_]str{ "alloc", "free", "create", "destroy", "resize", "realloc", "alignedAlloc" };
+    for (allocator_methods) |method| {
+        if (std.mem.eql(u8, method_name, method)) {
+            return REFUSE_METHOD_CALL;
+        }
+    }
+    return NOT_MINE;
+}
+
+/// Is the answer a refusal? Its construct is `what`, its words `why`.
+pub fn refuses(act: u8) -> bool {
+    return act == REFUSE_METHOD_CALL or act == REFUSE_FIELD_ACCESS;
+}
+
+/// The construct a refusal names.
+pub fn what(act: u8) -> str {
+    if (act == REFUSE_METHOD_CALL) { return "ExprCall(allocator_method)"; }
+    if (act == REFUSE_FIELD_ACCESS) { return "ExprFieldAccess(allocator_field)"; }
+    return "";
+}
+
+/// The words of a refusal.
+pub fn why(act: u8) -> str {
+    if (act == REFUSE_METHOD_CALL) {
+        return "carry-only allocator: method calls are not allowed (only copying, storing, passing and returning)";
+    }
+    if (act == REFUSE_FIELD_ACCESS) {
+        return "carry-only allocator: field access is not allowed (only copying, storing, passing and returning)";
+    }
+    return "";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: verify the carry-only allocator behavior.
+// ----------------------------------------------------------------------------------------------------------
+
+test allocator_type_accepts_struct_field {
+    // std.mem.Allocator as struct field should be accepted
+    assert(allocator_type(false) == CARRY_ONLY);
+    assert(!refuses(CARRY_ONLY));
+}
+
+test allocator_type_refuses_method_calls {
+    // Method calls on std.mem.Allocator should be refused
+    assert(allocator_type(true) == REFUSE_METHOD_CALL);
+    assert(refuses(REFUSE_METHOD_CALL));
+}
+
+test testing_allocator_value_accepted {
+    // std.testing.allocator should be accepted as a valid value
+    assert(testing_allocator_value() == CARRY_ONLY);
+}
+
+test field_access_refusal {
+    // Field access on allocator should be refused
+    assert(field_access("ptr") == REFUSE_FIELD_ACCESS);
+    assert(field_access("vtable") == REFUSE_FIELD_ACCESS);
+    assert(field_access("unknown") == NOT_MINE);
+    assert(refuses(REFUSE_FIELD_ACCESS));
+    assert(!refuses(NOT_MINE));
+}
+
+test method_call_refusal {
+    // Common allocator methods should be refused
+    assert(method_call("alloc") == REFUSE_METHOD_CALL);
+    assert(method_call("free") == REFUSE_METHOD_CALL);
+    assert(method_call("create") == REFUSE_METHOD_CALL);
+    assert(method_call("destroy") == REFUSE_METHOD_CALL);
+    assert(method_call("resize") == REFUSE_METHOD_CALL);
+    assert(method_call("realloc") == REFUSE_METHOD_CALL);
+    assert(method_call("alignedAlloc") == REFUSE_METHOD_CALL);
+    assert(method_call("unknown") == NOT_MINE);
+    assert(refuses(REFUSE_METHOD_CALL));
+    assert(!refuses(NOT_MINE));
+}
+
+test refusal_messages {
+    assert(std.mem.eql(u8, what(REFUSE_METHOD_CALL), "ExprCall(allocator_method)"));
+    assert(std.mem.eql(u8, what(REFUSE_FIELD_ACCESS), "ExprFieldAccess(allocator_field)"));
+    assert(std.mem.eql(u8, what(CARRY_ONLY), "") and std.mem.eql(u8, what(NOT_MINE), ""));
+    assert(why(REFUSE_METHOD_CALL).len > 0);
+    assert(why(REFUSE_FIELD_ACCESS).len > 0);
+    assert(std.mem.eql(u8, why(NOT_MINE), ""));
+}
