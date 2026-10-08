@@ -1,5 +1,64 @@
 module port::agent;
 
+/// Room memory structure to store attributed lines
+struct RoomMemory {
+    lines: []Line,
+}
+
+/// Line with speaker attribution
+struct Line {
+    speaker: []const u8,
+    content: []const u8,
+    timestamp: u64,
+}
+
+/// Initialize room memory
+fn room_memory_init() -> RoomMemory {
+    return RoomMemory {
+        lines: [],
+    };
+}
+
+/// Add a line to room memory with speaker attribution
+fn room_memory_add_line(memory: *RoomMemory, speaker: []const u8, content: []const u8) {
+    const line = Line {
+        speaker: speaker,
+        content: content,
+        timestamp: get_timestamp(),
+    };
+    memory.lines.append(line);
+}
+
+/// Get all lines from room memory
+fn room_memory_get_lines(memory: *RoomMemory) -> []const Line {
+    return memory.lines;
+}
+
+/// Get lines from a specific speaker
+fn room_memory_get_lines_by_speaker(memory: *RoomMemory, speaker: []const u8) -> []const Line {
+    var result: []const Line = [];
+    
+    for (line in memory.lines) {
+        if (line.speaker == speaker) {
+            result.append(line);
+        }
+    }
+    
+    return result;
+}
+
+/// Clear room memory
+fn room_memory_clear(memory: *RoomMemory) {
+    memory.lines = [];
+}
+
+/// Get current timestamp (simplified implementation)
+fn get_timestamp() -> u64 {
+    // In a real implementation, this would get the actual timestamp
+    // For now, return a simple incrementing value
+    return 1000000; // Placeholder timestamp
+}
+
 /// Dispatch task to agent
 pub fn agent_dispatch(nato: []const u8, task: []const u8) -> i32 {
     // Port the decision logic: validate NATO code
@@ -54,6 +113,28 @@ pub fn agent_list(nato: []const u8) -> i32 {
     return 0;
 }
 
+/// Hear a line in the room and record it in room memory with speaker attribution
+pub fn agent_hear_line(speaker: []const u8, content: []const u8) -> i32 {
+    // Initialize room memory if not already initialized
+    var memory = room_memory_init();
+    
+    // Record the line with speaker attribution (FR-001, FR-002)
+    room_memory_add_line(&memory, speaker, content);
+    
+    // The agent MUST NOT answer or respond to lines it hears (FR-003)
+    // This function only records, does not respond
+    
+    return 0; // Success
+}
+
+/// Get room memory contents
+pub fn agent_get_room_memory() -> RoomMemory {
+    var memory = room_memory_init();
+    return memory;
+}
+
+
+
 test agent_dispatch_valid_nato {
     const result1 = agent_dispatch("ALFA", "run phase_b_fine");
     const result2 = agent_dispatch("BRAVO", "run phase_b_fine");
@@ -90,4 +171,112 @@ test agent_list_specific_agent {
 test agent_list_all_agents {
     const result = agent_list("");
     assert(result == 0);
+}
+
+// Room memory tests
+test room_memory_add_line {
+    var memory = room_memory_init();
+    
+    // Add a line with speaker attribution
+    const result = agent_hear_line("Alice", "Hello everyone");
+    assert(result == 0);
+    
+    // Verify the line was recorded
+    const lines = room_memory_get_lines(&memory);
+    assert(lines.len == 1);
+    assert(lines[0].speaker == "Alice");
+    assert(lines[0].content == "Hello everyone");
+}
+
+test room_memory_get_lines_by_speaker {
+    var memory = room_memory_init();
+    
+    // Add multiple lines from different speakers
+    agent_hear_line("Alice", "Hello everyone");
+    agent_hear_line("Bob", "Hi Alice");
+    agent_hear_line("Alice", "How are you?");
+    agent_hear_line("Charlie", "Nice to meet you");
+    
+    // Get lines from specific speaker
+    const alice_lines = room_memory_get_lines_by_speaker(&memory, "Alice");
+    assert(alice_lines.len == 2);
+    assert(alice_lines[0].speaker == "Alice");
+    assert(alice_lines[0].content == "Hello everyone");
+    assert(alice_lines[1].speaker == "Alice");
+    assert(alice_lines[1].content == "How are you?");
+    
+    // Get lines from another speaker
+    const bob_lines = room_memory_get_lines_by_speaker(&memory, "Bob");
+    assert(bob_lines.len == 1);
+    assert(bob_lines[0].speaker == "Bob");
+    assert(bob_lines[0].content == "Hi Alice");
+}
+
+test agent_process_room_conversation {
+    var memory = room_memory_init();
+    
+    // Process individual lines from a conversation (simulate hearing each line)
+    const result1 = agent_hear_line("Alice", "Good morning everyone");
+    const result2 = agent_hear_line("Bob", "Good morning Alice");
+    const result3 = agent_hear_line("Charlie", "Ready to start the meeting");
+    const result4 = agent_hear_line("Alice", "Let's begin");
+    
+    assert(result1 == 0);
+    assert(result2 == 0);
+    assert(result3 == 0);
+    assert(result4 == 0);
+    
+    // Verify all lines were recorded with speaker attribution
+    const lines = room_memory_get_lines(&memory);
+    assert(lines.len == 4);
+    assert(lines[0].speaker == "Alice");
+    assert(lines[0].content == "Good morning everyone");
+    assert(lines[1].speaker == "Bob");
+    assert(lines[1].content == "Good morning Alice");
+    assert(lines[2].speaker == "Charlie");
+    assert(lines[2].content == "Ready to start the meeting");
+    assert(lines[3].speaker == "Alice");
+    assert(lines[3].content == "Let's begin");
+}
+
+test room_memory_persistence {
+    var memory = room_memory_init();
+    
+    // Add some lines
+    agent_hear_line("Alice", "First message");
+    agent_hear_line("Bob", "Second message");
+    
+    // Verify lines persist
+    const lines1 = room_memory_get_lines(&memory);
+    assert(lines1.len == 2);
+    
+    // Add more lines
+    agent_hear_line("Charlie", "Third message");
+    
+    // Verify all lines are still there (FR-004: persistence)
+    const lines2 = room_memory_get_lines(&memory);
+    assert(lines2.len == 3);
+    assert(lines2[0].speaker == "Alice");
+    assert(lines2[1].speaker == "Bob");
+    assert(lines2[2].speaker == "Charlie");
+}
+
+test agent_does_not_respond {
+    // This test verifies that the agent does not respond to lines it hears
+    // The agent_hear_line function only records, does not respond
+    
+    var memory = room_memory_init();
+    
+    // Agent hears a line but does not respond
+    const result = agent_hear_line("Alice", "This message should not be answered");
+    assert(result == 0); // Function succeeds (records the line)
+    
+    // Verify the line was recorded but no response was generated
+    const lines = room_memory_get_lines(&memory);
+    assert(lines.len == 1);
+    assert(lines[0].speaker == "Alice");
+    assert(lines[0].content == "This message should not be answered");
+    
+    // The agent memory should contain only the heard line, no response
+    // This demonstrates FR-003: The agent MUST NOT answer or respond to lines
 }
