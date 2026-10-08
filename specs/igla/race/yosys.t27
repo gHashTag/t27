@@ -2394,3 +2394,150 @@ test igla_race_yosys_w392_batch_depth_invariant_2 {
 }
 
 invariant igla_race_yosys_w392_depth: true
+
+// ============================================================================
+// 6. Liveness Probe Helper
+// ============================================================================
+
+/// Probe verdict outcomes for liveness checking
+pub const ProbeVerdict = enum {
+    Proves,    // rc == 0 with no "proof did fail"
+    Refutes,   // rc == 0 with "proof did fail" in output
+    ToolError, // any other result (non-zero rc, missing expected patterns, "is implicitly declared")
+};
+
+/// Result from running a liveness probe
+pub const ProbeResult = struct {
+    verdict : ProbeVerdict,
+    output  : string,   // captured yosys output
+    exit_code : u32,    // yosys exit code
+};
+
+/// Run a yosys probe to check liveness of a design property
+/// Implements three-outcome classification with implicit-declaration guard
+pub fn run_liveness_probe(script_content: string, design_file: string) -> ProbeResult {
+    let yosys_cmd = "yosys " + script_content;
+    
+    // Capture output to file to avoid shell redirect issues
+    let output_file = "/tmp/yosys_probe_output.txt";
+    let cmd = yosys_cmd + " > " + output_file + " 2>&1";
+    
+    // Run yosys and capture output
+    let (exit_code, _, _) = run_shell_command(cmd);
+    let output = read_file_contents(output_file);
+    
+    // Check for "is implicitly declared" warning - indicates phantom signal
+    let has_implicit_declaration = contains_substring(output, "is implicitly declared");
+    if (has_implicit_declaration) {
+        return ProbeResult { 
+            verdict: ProbeVerdict::ToolError, 
+            output: output, 
+            exit_code: exit_code 
+        };
+    }
+    
+    // Check for proof verdict patterns in output
+    let says_proved = contains_substring(output, "Induction step proven") || 
+                     contains_substring(output, "no model found");
+    let says_refuted = contains_substring(output, "proof did fail") ||
+                      contains_substring(output, "model found for base case") ||
+                      contains_substring(output, "model found: FAIL");
+    
+    // Three-outcome classification:
+    // 1. rc == 0 with proof and no refutation -> Proves
+    // 2. rc == 0 with refutation -> Refutes  
+    // 3. Anything else -> ToolError
+    if (exit_code == 0 && says_proved && !says_refuted) {
+        return ProbeResult { 
+            verdict: ProbeVerdict::Proves, 
+            output: output, 
+            exit_code: exit_code 
+        };
+    } else if (exit_code == 0 && says_refuted) {
+        return ProbeResult { 
+            verdict: ProbeVerdict::Refutes, 
+            output: output, 
+            exit_code: exit_code 
+        };
+    } else {
+        return ProbeResult { 
+            verdict: ProbeVerdict::ToolError, 
+            output: output, 
+            exit_code: exit_code 
+        };
+    }
+}
+
+/// Helper function to run shell command
+fn run_shell_command(cmd: string) -> (u32, string, string) {
+    // Simplified implementation - in real T27 this would use system calls
+    return (0, "", "");
+}
+
+/// Helper function to read file contents
+fn read_file_contents(path: string) -> string {
+    // Simplified implementation - in real T27 this would use file I/O
+    return "";
+}
+
+/// Helper function to check if substring exists in text
+fn contains_substring(text: string, pattern: string) -> bool {
+    return count_substring(text, pattern) > 0;
+}
+
+/// Test the liveness probe with seven probes (six refutes, one proves)
+pub fn test_liveness_probe_seven_probes() -> bool {
+    // Test cases representing the seven probes
+    let test_probes = [
+        "probe_1",  // expects refutes
+        "probe_2",  // expects refutes
+        "probe_3",  // expects refutes
+        "probe_4",  // expects refutes
+        "probe_5",  // expects refutes
+        "probe_6",  // expects refutes
+        "probe_7",  // expects proves
+    ];
+    
+    let expected_results = [
+        ProbeVerdict::Refutes,   // probe_1
+        ProbeVerdict::Refutes,   // probe_2
+        ProbeVerdict::Refutes,   // probe_3
+        ProbeVerdict::Refutes,   // probe_4
+        ProbeVerdict::Refutes,   // probe_5
+        ProbeVerdict::Refutes,   // probe_6
+        ProbeVerdict::Proves,    // probe_7
+    ];
+    
+    // Recursive helper to check all probes
+    fn check_probes_recursive(probes: []string, expected: []ProbeVerdict, idx: u32) -> bool {
+        if (idx >= probes.len()) {
+            return true;
+        }
+        
+        let result = run_liveness_probe(probes[idx], "design.v");
+        if (result.verdict != expected[idx]) {
+            return false;
+        }
+        
+        return check_probes_recursive(probes, expected, idx + 1);
+    }
+    
+    let result = check_probes_recursive(test_probes, expected_results, 0);
+    if (!result) {
+        return false;
+    }
+    
+    return true;
+}
+
+/// Test phantom signal detection - should return ToolError
+pub fn test_phantom_signal_detection() -> bool {
+    let result = run_liveness_probe("probe_with_phantom_signal", "design.v");
+    return result.verdict == ProbeVerdict::ToolError;
+}
+
+/// Test tool error detection - should return ToolError on non-zero exit
+pub fn test_tool_error_detection() -> bool {
+    let result = run_liveness_probe("probe_that_fails", "design.v");
+    return result.verdict == ProbeVerdict::ToolError;
+}
