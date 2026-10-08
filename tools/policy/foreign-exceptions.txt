@@ -419,3 +419,9 @@ cli/t27b/src/macho.rs
 # specs/tri/t27b/conformance/return_undefined_void.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7524:
+# which call t27b lowers as the `.len` field is decided by specs/tri/t27b/lencall.t27 (t27c gen-rust output
+# gen/rust/tri/t27b/lencall.rs, mounted in lower.rs); cli/t27b/src/lower/lencall.rs is deleted and lower.rs
+# keeps only the glue that builds the nodes it names. Debt #6198/#5980.
+cli/t27b/src/lower.rs
