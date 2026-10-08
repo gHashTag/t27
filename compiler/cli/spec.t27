@@ -567,3 +567,222 @@ bench spec_list_latency {
     // target: < 10ms
     _ = spec_list();
 }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Command: tri test-report <spec> — Generate test report with proper exit codes
+    // ═════════════════════════════════════════════════════════════════════
+
+    pub fn test_report(spec_path: []const u8, specs_dir: []const u8) i32 {
+        // Check if spec exists
+        if (!file_exists(spec_path)) {
+            error_print("Spec not found: ");
+            error_print(spec_path);
+            return 1;
+        }
+
+        // Read spec content
+        const content = read_file(spec_path);
+        if (content == null) {
+            error_print("Failed to read spec: ");
+            error_print(spec_path);
+            return 1;
+        }
+
+        // Parse spec
+        const context = parse(content.?, spec_path);
+
+        if (context.has_errors()) {
+            error_print("Parse errors in ");
+            error_print(spec_path);
+            error_print(":\n");
+            for (context.errors) |err| {
+                error_print("  Line ");
+                print_int(err.line);
+                error_print(":");
+                print_int(err.column);
+                error_print(": ");
+                error_print(err.message);
+                error_print("\n");
+            }
+            return 1;
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // TDD CONTRACT ENFORCEMENT
+        // ═════════════════════════════════════════════════════════════════════
+        var has_tests = false;
+        var test_count: usize = 0;
+        var invariant_count: usize = 0;
+
+        // Count tests and invariants
+        if (context.ast_root.test_section) |section| {
+            test_count += section.test_cases.len;
+        }
+
+        if (context.ast_root.invariant_section) |section| {
+            invariant_count += section.invariants.len;
+        }
+
+        if (context.ast_root.spec_decl) |spec| {
+            test_count += spec.test_blocks.len;
+            invariant_count += spec.invariants.len;
+        }
+
+        has_tests = (test_count > 0) or (invariant_count > 0);
+
+        if (!has_tests) {
+            error_print("TDD contract violated: no tests in spec\n");
+            error_print("\n");
+            error_print("The t27 project follows Test-Driven Development where:\n");
+            error_print("  1. Every spec MUST have at least one 'test' or 'invariant' block\n");
+            error_print("  2. Tests are written BEFORE or WITH the implementation\n");
+            error_print("  3. Conformance JSON is generated FROM tests, not hand-written\n");
+            error_print("\n");
+            error_print("To fix this error:\n");
+            error_print("  1. Add a .test section with test cases to your spec\n");
+            error_print("  2. Or add a .invariant section with invariant declarations\n");
+            error_print("  3. Or use the high-level TDD syntax with 'test' and 'invariant' blocks\n");
+            error_print("\n");
+            error_print("Example:\n");
+            error_print("  .test\n");
+            error_print("      ; my_test\n");
+            error_print("      ; Verify: functionality works\n");
+            error_print("      ; Expected: correct result\n");
+            error_print("\n");
+            error_print("  .invariant\n");
+            error_print("      ; my_invariant\n");
+            error_print("      ; For all valid inputs: output is valid\n");
+            error_print("      ; Rationale: ensures correctness\n");
+            error_print("\n");
+            error_print("NOTE: There is NO --allow-no-tests flag (prototype mode is disabled per policy)");
+            return 1;
+        }
+
+        print("TDD contract validated: ");
+        print_int(test_count);
+        error_print(" tests, ");
+        print_int(invariant_count);
+        error_print(" invariants\n");
+
+        // ═════════════════════════════════════════════════════════════════════
+        // CODE GENERATION AND COMPILATION CHECK
+        // ═════════════════════════════════════════════════════════════════════
+
+        // Generate Zig code to check compilation
+        const codegen_opts = CodegenOptions{
+            .emit_comments = true,
+            .emit_debug = true,
+            .optimize_level = 0,
+            .target_triple = "native",
+            .include_runtime = true,
+        };
+
+        const zig_code = generate_zig(content.?, spec_path, codegen_opts);
+        
+        // Write to temporary file for compilation check
+        const temp_file = "temp_spec.zig";
+        const write_result = write_file(temp_file, zig_code);
+        if (write_result != 0) {
+            error_print("Failed to write temporary Zig file\n");
+            return 1;
+        }
+
+        // Check if compilation succeeds
+        const compile_result = compile_zig_file(temp_file);
+        
+        // Clean up temporary file
+        _ = delete_file(temp_file);
+
+        if (compile_result != 0) {
+            // Compilation failed - spec is BLOCKED
+            error_print("BLOCKED  does not compile: ");
+            error_print(spec_path);
+            error_print("\n\n");
+            error_print("A blocked spec is not a failing one. It never produced a\n");
+            error_print("binary, so it has no per-test result to report.\n");
+            
+            // Exit with non-zero code when blocked (FR-001)
+            return 1;
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // TEST EXECUTION
+        // ═════════════════════════════════════════════════════════════════════
+
+        // Generate test code
+        const testgen_opts = TestGenOptions{
+            .backend = "zig",
+            .emit_comments = true,
+            .emit_benchmarks = true,
+            .output_format = "code",
+        };
+
+        const testgen = TestGen.new(context.ast_root, testgen_opts);
+        const test_code = testgen.generate();
+
+        // Write test file
+        const test_file = "temp_spec_test.zig";
+        const test_write_result = write_file(test_file, test_code);
+        if (test_write_result != 0) {
+            error_print("Failed to write test file\n");
+            return 1;
+        }
+
+        // Run tests
+        const test_result = run_zig_tests(test_file);
+        
+        // Clean up test file
+        _ = delete_file(test_file);
+
+        if (test_result != 0) {
+            error_print("Tests failed in ");
+            error_print(spec_path);
+            error_print("\n");
+            return test_result;
+        }
+
+        print("All tests passed in ");
+        print(spec_path);
+        error_print("\n");
+        return 0;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Helper functions for test-report
+    // ═════════════════════════════════════════════════════════════════════
+
+    // Compile a Zig file and return exit code
+    fn compile_zig_file(zig_file: []const u8) i32 {
+        // Use system zig compiler to check compilation
+        const cmd = "zig build-exe " ++ zig_file ++ " -femit-bin=/dev/null -fno-strip";
+        const result = shell_command(cmd);
+        return result.exit_code;
+    }
+
+    // Run Zig tests and return exit code
+    fn run_zig_tests(test_file: []const u8) i32 {
+        // Compile and run tests
+        const cmd = "zig test " ++ test_file;
+        const result = shell_command(cmd);
+        return result.exit_code;
+    }
+
+    // Shell command execution result
+    const ShellResult = struct {
+        exit_code: i32,
+        stdout: []const u8,
+        stderr: []const u8,
+    };
+
+    // Execute shell command and return result
+    fn shell_command(cmd: []const u8) ShellResult {
+        // This is a simplified version - in practice you'd need to implement
+        // proper shell command execution with stdout/stderr capture
+        // For now, assume we have a way to execute commands and get exit codes
+        const result = execute_shell_command(cmd);
+        return ShellResult{
+            .exit_code = result.exit_code,
+            .stdout = result.stdout,
+            .stderr = result.stderr,
+        };
+    }
