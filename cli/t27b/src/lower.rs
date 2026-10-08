@@ -95,6 +95,8 @@ mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an i
 mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
 #[path = "../../../gen/rust/tri/t27b/wide_plan.rs"] #[allow(dead_code, unused_parens, unexpected_cfgs)]
 mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wider than 64 bits, folded
+#[path = "../../../gen/rust/tri/t27b/opaque_plan.rs"] #[allow(dead_code, unused_parens)]
+mod oq; // t27c gen-rust of specs/tri/t27b/opaque_plan.t27: `anyopaque`, `@ptrFromInt` to an optional pointer
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
 #[path = "../../../gen/rust/tri/t27b/coerce_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -113,6 +115,8 @@ mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)
 mod oc; // t27c gen-rust of specs/tri/t27b/optional_compare_plan.t27: `?T == v`, by value or by tag
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
+mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
 mod refvars;
 mod tuple;
 
@@ -2562,6 +2566,16 @@ impl<'a> Lower<'a> {
                 return Ok(());
             }
         }
+        // `_ = e;`, e not a bare name (specs/tri/t27b/discard_plan.t27): deleted where the reference deletes it, else e runs.
+        if name == "_" && (op.is_empty() || op == "=") {
+            let (mut calls, top) = (Vec::new(), self.scopes.len() == 1);
+            calls_in(std::slice::from_ref(rhs), &mut calls);
+            match dp::plan(rhs.kind == NodeKind::ExprIdentifier, self.in_test && top, !self.in_test && top, !calls.is_empty()) {
+                dp::DELETED => return Ok(()),
+                dp::EVALUATE => return self.discard_value(rhs, out),
+                _ => {}
+            }
+        }
         // A module-level var written at the top of a test is a write to
         // module state, as in a fn body: since #6295 the reference no longer
         // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
@@ -2648,6 +2662,23 @@ impl<'a> Lower<'a> {
             }
             None => self.reject("StmtAssign(undeclared)", format!("assignment to undeclared `{}`", name)),
         }
+    }
+
+    /// `_ = e;` that runs (discard_plan.t27's EVALUATE): e is evaluated for its effects and traps, its value dropped.
+    fn discard_value(&mut self, e: &Node, out: &mut Vec<Stmt>) -> R<()> {
+        self.see(e);
+        if e.kind == NodeKind::ExprCall && self.sigs.contains_key(&e.name) {
+            let (call, _, _) = self.call(e, None)?;
+            out.push(Stmt::Eval(call));
+            return Ok(());
+        }
+        match self.expr(e)? {
+            Val::Poison => return Err(()),
+            Val::E(x) | Val::P(x, _) => out.push(Stmt::Eval(x)),
+            Val::M(p) if !pure_addr(&p.addr) => out.push(Stmt::Eval(p.addr)),
+            _ => {}
+        }
+        Ok(())
     }
 
     /// `undefined;`, the body stub a port leaves where plumbing was. t27c's
@@ -3722,6 +3753,29 @@ impl<'a> Lower<'a> {
         Ok(Val::E(Expr { ty: to, kind: ExprKind::Cast { arg: Box::new(e), site } }))
     }
 
+    /// `@ptrFromInt(x)` for an optional pointer: the address, null when it is 0 (plan `opaque_plan.t27`, #7737).
+    fn ptr_from_int(&mut self, n: &Node, want: &LTy) -> R<Option<Val>> {
+        let (w, t) = match want {
+            LTy::Opt(o) if matches!(**o, LTy::Ptr(..)) => (oq::W_OPT_PTR, &**o),
+            LTy::Ptr(..) => (oq::W_PTR, want),
+            _ => return Ok(None),
+        };
+        let LTy::Ptr(p, _) = t else { return Ok(None) };
+        let opaque = matches!(**p, LTy::Struct(id) if self.structs[id as usize].name == "anyopaque");
+        let act = oq::from_int(w, if opaque { 1 } else { self.size_align(p)?.1 }, n.children.len());
+        if act == oq::NOT_MINE { return Ok(None); }
+        self.see(n);
+        if oq::refuses(act) { return self.reject(oq::what(act), oq::why(act).into()); }
+        let x = self.expr_as(&n.children[0], &LTy::S(Ty::U64))?;
+        let k = self.new_slot(want)?;
+        let at = Box::new(Expr { ty: Ty::U64, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } });
+        let zero = Box::new(Expr { ty: Ty::U64, kind: ExprKind::Const(0) });
+        let flag = Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op: CmpOp::Ne, lhs: at, rhs: zero } };
+        let stmts = vec![Stmt::Store { addr: slot_expr(k), off: 0, value: self.reg(x)? }, Stmt::Store { addr: slot_expr(k), off: 8, value: flag }];
+        let addr = Expr { ty: Ty::Ptr, kind: ExprKind::Seq { stmts, value: Box::new(slot_expr(k)) } };
+        Ok(Some(Val::M(Place { addr, off: 0, ty: want.clone(), mutable: false, temp: Some(k) })))
+    }
+
     /// `@intCast(x)` with integer result type `ty` from the context (`@as`, a typed binding, a parameter, a
     /// return). What is refused and what the rest lowers to: specs/tri/t27b/int_cast_plan.t27.
     fn int_cast(&mut self, n: &Node, ty: Ty) -> R<Val> {
@@ -3789,11 +3843,12 @@ impl<'a> Lower<'a> {
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
         let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
-        let t = xp::takes_type(b) && n.children.len() == 1; // `std.math.nan(f32)`: its routine takes no argument
-        let v = if n.children.len() == 1 && !t { self.expr(&n.children[0])? } else { Val::Poison };
+        let ok = n.children.len() == xp::arity(b);
+        let t = xp::takes_type(b) && ok; // `std.math.nan(f32)`: the first operand names the type, which no argument carries
+        let v = if ok && !t { self.expr(&n.children[0])? } else { Val::Poison };
         let k = match &v {
             _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
-            Val::Poison if n.children.len() == 1 => return Err(()),
+            Val::Poison if ok => return Err(()),
             Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
             Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
             Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
@@ -3801,7 +3856,14 @@ impl<'a> Lower<'a> {
         };
         let a = xp::plan(b, n.children.len(), k);
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
-            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args: if t { vec![] } else { vec![self.reg(v)?] } } })),
+            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => {
+                let mut args = if t { vec![] } else { vec![self.reg(v)?] };
+                for c in &n.children[1..] {
+                    let r = self.expr_as(c, &LTy::S(if k == xp::K_F64 { Ty::F64 } else { Ty::F32 }))?; // `@rem(x, 2.0)`: the first one's type
+                    args.push(self.reg(r)?);
+                }
+                Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args } }))
+            }
             _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),
         }
     }
@@ -4528,6 +4590,16 @@ impl<'a> Lower<'a> {
                 return Ok(LTy::Arr(Box::new(inner), n));
             }
         }
+        // `anyopaque` names no layout: only a pointer to it (plan `opaque_plan.t27`, #7737).
+        if t == "anyopaque" && !oq::refuses(oq::opaque_type(by_value)) {
+            let id = *self.struct_ids.entry(t.into()).or_insert(self.structs.len() as u32);
+            if id as usize == self.structs.len() {
+                let (what, why) = (oq::what(oq::REFUSE_BY_VALUE).into(), oq::why(oq::REFUSE_BY_VALUE).into());
+                let fail = Some(Reject { construct: what, line: self.line, detail: why });
+                self.structs.push(StructDef { name: t.into(), fields: Vec::new(), size: None, align: 1, fail });
+            }
+            return Ok(LTy::Struct(id));
+        }
         self.layout_err |= wp::is_wide(t.as_bytes()); // Zig resolves a wide type only where it is used (`unresolved_sig`)
         let (construct, detail) = self.type_construct(t);
         self.reject(&construct, detail)
@@ -5175,6 +5247,9 @@ impl<'a> Lower<'a> {
                 r => r,
             };
         }
+        if n.kind == NodeKind::ExprCall && n.name == "@ptrFromInt" {
+            if let Some(v) = self.ptr_from_int(n, want)? { return Ok(v); }
+        }
         if let LTy::Opt(inner) = want {
             if self.is_null(n) {
                 self.see(n);
@@ -5700,6 +5775,10 @@ impl<'a> Lower<'a> {
     fn int_to_float(&mut self, v: Val, to: Ty, what: &str) -> R<Val> {
         let e = match v {
             Val::Poison => return Err(()),
+            // A comptime_int rounds as below, inside 64 bits (coerce_plan.t27 `float_from_int_literal`).
+            Val::Ct(c) if cp::float_from_int_literal(i64::try_from(c).is_ok() || u64::try_from(c).is_ok(), to.bits()) == cp::ROUND => {
+                Expr { ty: Ty::I64, kind: ExprKind::Const(c) }
+            }
             Val::Ct(c) => return Ok(Val::E(self.coerce(Val::Ct(c), to)?)),
             Val::E(e) if e.ty.is_int() => e,
             v => {

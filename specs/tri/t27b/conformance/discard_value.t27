@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/discard_value.t27 -- `_ = e;` where e is not a bare name, as the reference runs it
+; (t27b coverage epic #6063). Every test here passes `t27c test-report`; t27b must give the same verdict on each,
+; or refuse the file.
+; What the reference does: before gen-zig, its dead-store pass (`dead_store_elim_with`, with
+; `keep_call_discards` on the Zig path) deletes each `_ = e;` at the top level of a fn body whose e holds no
+; call; one whose e holds a call stays. Everywhere else (a nested block of a fn, any block of a test) t27c
+; prints `_ = e;` as written, and Zig evaluates e, with its effects and its traps, and drops the value.
+; The shapes are specs/port/bootstrap/src/compiler/collect_type_decls.t27's own: `_ = process(node);` for a
+; void fn at the top of a body, `_ = "literal";` in the arms of an `if`, and a trailing `_ = "literal";` the
+; reference deletes. Every test reads DV_CALLS or a result at run time.
+; Not here, because the reference does not pass it: `_ = e;` at the top level of a test, which t27c prints as
+; `const _ = e;` and Zig refuses; and a nested `_ = a + b;` that overflows, which traps in both.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceDiscardValue;
+
+var DV_CALLS: u32 = 0;
+
+pub const DvPair = struct {
+    lo: u32,
+    hi: u32,
+};
+
+fn dv_note(n: u32) -> void {
+    DV_CALLS = DV_CALLS + n;
+}
+
+fn dv_twice(n: u32) -> u32 {
+    DV_CALLS = DV_CALLS + n;
+    return n * 2;
+}
+
+fn dv_pair(n: u32) -> DvPair {
+    DV_CALLS = DV_CALLS + n;
+    return DvPair{ .lo = n, .hi = n + 1 };
+}
+
+/// collect_type_decls.t27's process_node_for_types: literals discarded in the arms, and after them.
+fn dv_process(node: []const u8) -> void {
+    if (std.mem.eql(u8, node, "StructDecl")) {
+        _ = "struct_fields_collected";
+        dv_note(1);
+    } else if (std.mem.eql(u8, node, "EnumDecl")) {
+        _ = "enum_collected";
+        dv_note(10);
+    }
+    _ = "children_processed";
+}
+
+/// collect_type_decls.t27's collect_type_decls: a void call discarded at the top of a body.
+fn dv_collect(node: []const u8, structs: []const u8) -> void {
+    _ = dv_process(node);
+}
+
+/// A call whose value is dropped, a call inside a larger expression, a struct result: each runs.
+fn dv_top(n: u32) -> u32 {
+    _ = dv_twice(n);
+    _ = dv_twice(n) + 1;
+    _ = dv_pair(n);
+    _ = n + 1;
+    return DV_CALLS;
+}
+
+/// A pure `_ = a + b;` at the top of a body is deleted by the reference, so it cannot trap.
+fn dv_deleted(a: u8, b: u8) -> u8 {
+    _ = a + b;
+    return a;
+}
+
+/// Nested discards run only on the arm taken.
+fn dv_nested(n: u32) -> u32 {
+    if (n > 1) {
+        _ = "literal";
+        _ = dv_twice(n);
+        _ = n + 1;
+    } else {
+        _ = dv_twice(100);
+    }
+    return DV_CALLS;
+}
+
+test a_void_call_discarded_at_the_top_runs {
+    dv_collect("StructDecl", "");
+    assert(DV_CALLS == 1);
+    dv_collect("EnumDecl", "");
+    assert(DV_CALLS == 11);
+    dv_collect("FnDecl", "");
+    assert(DV_CALLS == 11);
+}
+
+test calls_discarded_at_the_top_run_once_each {
+    assert(dv_top(3) == 9);
+    assert(DV_CALLS == 9);
+}
+
+test a_pure_discard_at_the_top_is_deleted {
+    assert(dv_deleted(200, 100) == 200);
+    assert(dv_deleted(7, 8) == 7);
+}
+
+test nested_discards_run_on_the_arm_taken {
+    assert(dv_nested(3) == 3);
+    assert(dv_nested(1) == 103);
+}
+
+test a_discard_nested_in_a_test_runs {
+    if (DV_CALLS == 0) {
+        _ = dv_twice(4);
+        _ = "x";
+    }
+    assert(DV_CALLS == 4);
+}
