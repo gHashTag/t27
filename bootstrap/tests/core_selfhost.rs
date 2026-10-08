@@ -178,6 +178,8 @@ const REFUSALS: &[(&str, i64)] = &[
 /// Fixtures and refusals kept as t27 data, so a new shape needs no new Rust:
 /// `fixtures/core_selfhost/accept/*.t27` join FIXTURES, and
 /// `fixtures/core_selfhost/refuse/e<code>_<name>.t27` join REFUSALS.
+/// `genc/*.t27` are gen-c repros the core need not take: built and run, not compared.
+/// `both_refuse/*.t27` join BOTH_REFUSE.
 fn data_files(sub: &str) -> Vec<(String, String)> {
     let d = repo_root().join("bootstrap/tests/fixtures/core_selfhost").join(sub);
     let mut v: Vec<(String, String)> = std::fs::read_dir(&d)
@@ -225,16 +227,19 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
     assert!(self_c == core_c, "fixpoint broken: core(t27core.t27) != gen-c(t27core.t27)");
 
     // 3. Fixtures.
-    let fixtures: Vec<String> = FIXTURES.iter().map(|s| s.to_string())
-        .chain(data_files("accept").into_iter().map(|(_, s)| s))
+    let fixtures: Vec<(bool, String)> = FIXTURES.iter().map(|s| (true, s.to_string()))
+        .chain(data_files("accept").into_iter().map(|(_, s)| (true, s)))
+        .chain(data_files("genc").into_iter().map(|(_, s)| (false, s)))
         .collect();
-    for (i, src) in fixtures.iter().enumerate() {
+    for (i, (core_too, src)) in fixtures.iter().enumerate() {
         let path = dir.join(format!("fixture{}.t27", i));
         std::fs::write(&path, src).unwrap();
         let want = gen_c(&path).unwrap_or_else(|| panic!("gen-c refused fixture {}", i));
-        let got = run_core(&core, src.as_bytes())
-            .unwrap_or_else(|c| panic!("core refused fixture {} with code {}:\n{}", i, c, src));
-        assert!(got == want, "fixture {} differs from gen-c:\n{}", i, src);
+        if *core_too {
+            let got = run_core(&core, src.as_bytes())
+                .unwrap_or_else(|c| panic!("core refused fixture {} with code {}:\n{}", i, c, src));
+            assert!(got == want, "fixture {} differs from gen-c:\n{}", i, src);
+        }
         let cname = format!("fixture{}.c", i);
         std::fs::write(dir.join(&cname), &want).unwrap();
         let strict = ["-std=c99", "-Werror=implicit-function-declaration"];
@@ -268,7 +273,10 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
         }
     }
 
-    for (i, src) in BOTH_REFUSE.iter().enumerate() {
+    let both: Vec<String> = BOTH_REFUSE.iter().map(|s| s.to_string())
+        .chain(data_files("both_refuse").into_iter().map(|(_, s)| s))
+        .collect();
+    for (i, src) in both.iter().enumerate() {
         let path = dir.join(format!("refused{}.t27", i));
         std::fs::write(&path, src).unwrap();
         assert!(gen_c(&path).is_none(), "gen-c accepted a refused shape:\n{}", src);
