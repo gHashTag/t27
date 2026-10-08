@@ -712,10 +712,12 @@ pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u3
 ; - Between turns, a slice. A scheduler runs at most SLICE_TURNS turns, or turns for SLICE_MICROS,
 ;   then yields to the host's timers and I/O. Measured before this (t27#7851 ring benchmark): one
 ;   message chain ran 200 000 turns without yielding once, so no timer and no socket could run.
-; - Within a turn, isolation. A turn whose work burns CPU, or runs code a bee wrote, runs in an OS
-;   thread or an OS process. The OS preempts it, and the runtime can stop it for real. A kill then ends
-;   the work. A turn on the host's own thread can only be abandoned: its pid dies, whatever it sends
-;   is dropped, and its late result is fenced by the lease.
+; - Within a turn, isolation. A turn whose work burns CPU runs in an OS thread, and one that runs code
+;   a bee wrote, or must be stoppable, runs in an OS process. The OS preempts both, so neither holds
+;   the host's thread. Only a process is certain to stop when killed. Measured 2026-10-09 on the
+;   Queen's host (Bun 1.3.11): `worker.terminate()` left a spinning worker thread counting, still
+;   running 3 s later. A kill of a thread turn, like a kill of a turn on the loop, only abandons it:
+;   its pid dies, whatever it sends is dropped, and its late result is fenced by the lease.
 
 pub const SLICE_TURNS : u32 = 64;
 pub const SLICE_MICROS : u32 = 5000;
@@ -727,17 +729,18 @@ pub fn slice_spent(turns: u32, micros: u32) -> bool {
 }
 
 /// Where a turn runs. On the host's thread: nothing of its own, and it cannot be stopped. In an OS
-/// thread: the OS preempts it, and terminate stops it. In an OS process: also its own memory, so a leak
-/// or a crash in foreign code stays there, and SIGKILL stops it.
+/// thread: the OS preempts it, but terminate is not certain to stop it (section 8). In an OS process:
+/// its own memory, so a leak or a crash in foreign code stays there, and SIGKILL stops it.
 pub const ISO_LOOP : u8 = 0;
 pub const ISO_THREAD : u8 = 1;
 pub const ISO_PROCESS : u8 = 2;
 
-/// Code a bee wrote, or any compiler or command run on its work, goes to a process. Work that burns
-/// CPU in this build's own code goes to a thread. Waiting on I/O stays on the loop: it holds no CPU, and
-/// a thread for it would only cost memory.
-pub fn turn_isolation(cpu_bound: bool, runs_foreign_code: bool) -> u8 {
+/// Code a bee wrote, any compiler or command run on its work, and any work that must stop when its turn
+/// is killed go to a process. Other work that burns CPU in this build's own code goes to a thread.
+/// Waiting on I/O stays on the loop: it holds no CPU, and a thread for it would only cost memory.
+pub fn turn_isolation(cpu_bound: bool, runs_foreign_code: bool, must_stop: bool) -> u8 {
     if (runs_foreign_code) { return ISO_PROCESS; }
+    if (must_stop) { return ISO_PROCESS; }
     if (cpu_bound) { return ISO_THREAD; }
     return ISO_LOOP;
 }
@@ -747,8 +750,8 @@ pub const KILL_ABANDONS : u8 = 0;
 pub const KILL_STOPS : u8 = 1;
 
 pub fn kill_effect(isolation: u8) -> u8 {
-    if (isolation == ISO_LOOP) { return KILL_ABANDONS; }
-    return KILL_STOPS;
+    if (isolation == ISO_PROCESS) { return KILL_STOPS; }
+    return KILL_ABANDONS;
 }
 
 /// A turn whose work was abandoned still holds what it held, its row and its key lane, until the work
@@ -1383,17 +1386,20 @@ test a_scheduler_yields_after_its_slice_and_not_before {
 }
 
 test foreign_and_cpu_work_runs_where_a_kill_stops_it {
-    assert turn_isolation(false, false) == ISO_LOOP;
-    assert turn_isolation(true, false) == ISO_THREAD;
-    assert turn_isolation(false, true) == ISO_PROCESS;
-    assert turn_isolation(true, true) == ISO_PROCESS;
+    assert turn_isolation(false, false, false) == ISO_LOOP;
+    assert turn_isolation(true, false, false) == ISO_THREAD;
+    assert turn_isolation(false, true, false) == ISO_PROCESS;
+    assert turn_isolation(true, true, false) == ISO_PROCESS;
+    assert turn_isolation(true, false, true) == ISO_PROCESS;
+    assert turn_isolation(false, false, true) == ISO_PROCESS;
     assert kill_effect(ISO_LOOP) == KILL_ABANDONS;
-    assert kill_effect(ISO_THREAD) == KILL_STOPS;
+    // measured: a terminated worker thread kept spinning, so a thread kill is not a stop
+    assert kill_effect(ISO_THREAD) == KILL_ABANDONS;
     assert kill_effect(ISO_PROCESS) == KILL_STOPS;
     // an abandoned turn keeps its row and lane until its work ends; a stopped one lets go at once
     assert holds_after_kill(ISO_LOOP, false) == true;
     assert holds_after_kill(ISO_LOOP, true) == false;
-    assert holds_after_kill(ISO_THREAD, false) == false;
+    assert holds_after_kill(ISO_THREAD, false) == true;
     assert holds_after_kill(ISO_PROCESS, false) == false;
 }
 
