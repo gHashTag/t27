@@ -57,7 +57,7 @@ impl<'a> Lower<'a> {
             let init = &d.children[0];
             let by_addr = !is_addr_lit(init);
             let lit = if by_addr { init } else { &init.children[0] };
-            if lit.children.is_empty() || !by_addr && lit.extra_size.trim() != "_" || lit.extra_size.contains(';') {
+            if lit.children.is_empty() || !by_addr && lit.extra_size.trim() != "_" {
                 continue;
             }
             let mut elem = None;
