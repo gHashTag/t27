@@ -1,0 +1,7 @@
+// P1 slice 5: a dimension read at run time. gen-c writes an initialized C
+// variable-length array, which C refuses; Zig needs a comptime size.
+module runtime_dimension;
+fn rd_first(rd_n: usize) -> u8 {
+    var rd_a: [rd_n]u8 = [_]u8{0} ** rd_n;
+    return rd_a[0];
+}

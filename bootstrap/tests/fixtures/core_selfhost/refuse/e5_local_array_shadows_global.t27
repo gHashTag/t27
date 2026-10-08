@@ -1,0 +1,8 @@
+// P1 slice 5: gen-c writes a local array named like a module name as a C
+// array that shadows it, which Zig refuses. The core refuses the name.
+module shadow_global;
+var sg_buf: i64 = 0;
+fn sg_first() -> u8 {
+    var sg_buf: [2]u8 = [_]u8{1} ** 2;
+    return sg_buf[0];
+}

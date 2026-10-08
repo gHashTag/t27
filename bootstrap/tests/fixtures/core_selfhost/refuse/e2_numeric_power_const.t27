@@ -1,0 +1,5 @@
+// #7427: a const numeric power becomes
+// `static const int64_t NP_K = /* repeat: 2 ** 10 */ {0};` -- 0, not 1024,
+// and cc accepts it. The core refuses it.
+module numeric_power_const;
+const NP_K: i64 = 2 ** 10;

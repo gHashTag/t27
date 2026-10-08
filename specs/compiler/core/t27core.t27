@@ -22,9 +22,14 @@
 ;   [pub] var NAME : [N]SCALAR = [_]SCALAR{ EXPR, ... } ;   (N items)
 ;   [pub] var NAME : [N][M]SCALAR = [_][M]SCALAR{ ROW, ... } ;   (N ROWs of
 ;         M items: [_]SCALAR{ EXPR, ... }; N, M decimals; used as a[i][j])
+;         (an array's `** COUNT` is its dimension: the same token or value)
 ;   [pub] fn NAME ( P : SCALAR , ... ) [-> SCALAR|void] { STMT* }
 ;   test NAME { STMT* }
 ;   STMT: var|const|let NAME : SCALAR = VALUE ;   NAME = VALUE ;   A[I] = VALUE ;
+;         var NAME : [N]SCALAR = ... ;   var NAME : [N][M]SCALAR = ... ;
+;         (a local array, initialized as a module array is; N and COUNT are
+;         numbers or consts with a number value, and NAME is declared nowhere
+;         else in its function or module: gen-c writes C's shadowing array)
 ;         NAME OP= VALUE ;   A[I] OP= VALUE ;     (OP one of + - * / % | & ^)
 ;         CALL ;   if ( EXPR ) { } [else if ... | else { }]
 ;         while ( EXPR ) { }   break ;   continue ;   return [VALUE] ;
@@ -36,7 +41,7 @@
 ;         `else` once and last; never an operand: gen-c's ternaries, #7419)
 ;   EXPR: or and == != < > <= >= | ^ & << >> + - * / % ; unary - ! ~ ;
 ;         X as SCALAR ; f(args) ; a[i] ; a[i][j] ; ( EXPR ) ; number ; 'c' ;
-;         true false                                (no `defer`: #7352)
+;         true false            (no `defer`: #7352; no numeric `**`: #7427)
 ;   SCALAR: bool u8 i8 u16 i16 u32 i32 u64 i64 usize
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
@@ -58,6 +63,8 @@ const SRC_MAX: i64 = 262144;
 const OUT_MAX: i64 = 262144;
 const TOK_MAX: i64 = 262144;
 const NODE_MAX: i64 = 262144;
+; Local arrays in scope at once, while `check` walks a function.
+const SCOPE_MAX: i64 = 4096;
 
 ; Error codes. `err_pos` is the byte offset in `src`.
 const E_LEX: i64 = 1;
@@ -210,6 +217,7 @@ var nd_b: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_c: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_next: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_aux: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
+var scope_arr: [SCOPE_MAX]i64 = [_]i64{0} ** SCOPE_MAX;
 
 var src_len: i64 = 0;
 var out_len: i64 = 0;
@@ -223,6 +231,8 @@ var has_tests: bool = false;
 var uses_assert: bool = false;
 var mod_tok: i64 = 0;
 var decls: i64 = 0;
+var scope_len: i64 = 0;
+var cur_decl: i64 = 0;
 
 ; ---------------------------------------------------------------- output
 
@@ -1110,6 +1120,10 @@ fn parse_stmt() -> i64 {
         var name: i64 = p;
         expect(T_IDENT);
         expect(':');
+        // gen-c writes a local array as a module one without `static`.
+        if (!failed and k == T_VAR and cur() == K_LBRACKET) {
+            return parse_array(name);
+        }
         var ty: i64 = expect_scalar();
         expect('=');
         var init: i64 = parse_value();
@@ -1200,12 +1214,8 @@ fn parse_const_value() -> i64 {
     var k1: i64 = kind(p + 1);
     var t: i64 = p;
     if (k == '-' and k1 == T_NUM) {
+        // gen-c's `#define` for `-N` drops N's `_` separators since #7318.
         if (kind(p + 2) == ';') {
-            // gen-c's `#define` for `-N` keeps N's `_` separators (#7318).
-            if (has_sep(p + 1)) {
-                fail(E_CONST, tpos(t + 1));
-                return 0;
-            }
             p = p + 2;
             return mk(N_NEGLIT, t + 1, 0, 0);
         }
@@ -1267,16 +1277,22 @@ fn parse_elem(ty: i64, inner: i64) -> void {
     }
 }
 
-; A plain decimal's value, else -1; past NODE_MAX, more than a list holds.
+; A plain decimal's value, `_` skipped, else -1; past NODE_MAX, more than a
+; list holds.
 fn num_val(t: i64) -> i64 {
     var i: i64 = tk_pos[t as usize];
     var v: i64 = 0;
+    if (kind(t) != T_NUM) {
+        return -1;
+    }
     while (i < tk_pos[t as usize] + tk_len[t as usize]) {
         var d: i64 = (src[i as usize] as i64) - '0';
-        if (d < 0 or d > 9 or v > NODE_MAX) {
-            return -1;
+        if (src[i as usize] != '_') {
+            if (d < 0 or d > 9 or v > NODE_MAX) {
+                return -1;
+            }
+            v = v * 10 + d;
         }
-        v = v * 10 + d;
         i = i + 1;
     }
     return v;
@@ -1324,16 +1340,12 @@ fn parse_list(dim: i64, row: i64, ty: i64) -> i64 {
 }
 
 ; var NAME : [SIZE]T = [_]T{VALUE} ** COUNT ;  -- `name` is already consumed.
-; VALUE is a number; emit_global finds it three tokens before COUNT. A list
+; VALUE is a number; emit_array finds it three tokens before COUNT. A list
 ; initializer sets nd_c instead, and nd_b to the inner dimension, if any.
+; gen-c drops a dimension's `_` separators since #7318.
 fn parse_array(name: i64) -> i64 {
     expect(K_LBRACKET);
     var size: i64 = parse_size();
-    // gen-c writes a dimension with its `_` separators kept (#7318).
-    if (!failed and kind(size) == T_NUM and has_sep(size)) {
-        fail(E_ARRAY, tpos(size));
-        return 0;
-    }
     expect(K_RBRACKET);
     var inner: i64 = 0;
     if (!failed and cur() == K_LBRACKET) {
@@ -1529,19 +1541,108 @@ fn list_len(head: i64) -> i64 {
     return n;
 }
 
-; How many indexes a name takes: 2 or 1 for an array global, else 0.
+fn arr_rank(d: i64) -> i64 {
+    if (nc(d) != 0 and nb(d) != 0) {
+        return 2;
+    }
+    return 1;
+}
+
+; How many indexes a name takes: 2 or 1 for an array in scope, local first,
+; else 0.
 fn rank(t: i64) -> i64 {
+    var i: i64 = scope_len - 1;
+    while (i >= 0) {
+        if (tok_eq(ntok(scope_arr[i as usize]), t)) {
+            return arr_rank(scope_arr[i as usize]);
+        }
+        i = i - 1;
+    }
     var d: i64 = decls;
     while (d != 0) {
         if (nkind(d) == D_ARRAY and tok_eq(ntok(d), t)) {
-            if (nc(d) != 0 and nb(d) != 0) {
-                return 2;
-            }
-            return 1;
+            return arr_rank(d);
         }
         d = nnext(d);
     }
     return 0;
+}
+
+; How many locals, local arrays and `for` captures a statement list names
+; `t`, at any depth.
+fn local_count(head: i64, t: i64) -> i64 {
+    var n: i64 = 0;
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        if ((k == S_LOCAL or k == D_ARRAY) and tok_eq(ntok(s), t)) {
+            n = n + 1;
+        }
+        if (k == S_FOR and tok_eq(naux(s), t)) {
+            n = n + 1;
+        }
+        if (k == S_IF) {
+            n = n + local_count(nb(s), t) + local_count(nc(s), t);
+        }
+        if (k == S_WHILE or k == S_FOR) {
+            n = n + local_count(nb(s), t);
+        }
+        s = nnext(s);
+    }
+    return n;
+}
+
+; A local array's name is declared nowhere else in its function or module:
+; gen-c writes C's shadowing array, which Zig refuses.
+fn arr_name_ok(s: i64) -> bool {
+    var t: i64 = ntok(s);
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) != D_TEST and tok_eq(ntok(d), t)) {
+            return false;
+        }
+        d = nnext(d);
+    }
+    var prm: i64 = na(cur_decl);
+    while (prm != 0) {
+        if (tok_eq(ntok(prm), t)) {
+            return false;
+        }
+        prm = nnext(prm);
+    }
+    return local_count(nb(cur_decl), t) == 1;
+}
+
+; The number token a size stands for: itself, or the value of the const it
+; names when that value is one number (gen-c's `#define`); else 0. A local
+; array sized otherwise is a C variable-length array, which C cannot
+; initialize.
+fn size_lit(t: i64) -> i64 {
+    if (kind(t) == T_NUM) {
+        return t;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_CONST and tok_eq(ntok(d), t)) {
+            if (nkind(na(d)) == N_NUM) {
+                return ntok(na(d));
+            }
+            return 0;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; A repeat's `** COUNT` is its dimension: the same token or the same decimal.
+; A short one leaves C zeros where Zig refuses the type.
+fn repeat_ok(d: i64) -> bool {
+    var a: i64 = size_lit(na(d));
+    var b: i64 = size_lit(nb(d));
+    if (nc(d) != 0 or tok_eq(na(d), nb(d))) {
+        return true;
+    }
+    return a != 0 and b != 0 and num_val(a) >= 0 and num_val(a) == num_val(b);
 }
 
 fn mentions_call(e: i64) -> bool {
@@ -1557,6 +1658,15 @@ fn mentions_call(e: i64) -> bool {
     }
     if (k == N_UN or k == N_CAST) {
         return mentions_call(na(e));
+    }
+    if (k == N_LIST) {
+        var it: i64 = na(e);
+        while (it != 0) {
+            if (mentions_call(it)) {
+                return true;
+            }
+            it = nnext(it);
+        }
     }
     if (k == N_SWITCH) {
         if (mentions_call(na(e))) {
@@ -1578,7 +1688,12 @@ fn calls_in(head: i64) -> bool {
     var s: i64 = head;
     while (s != 0) {
         var k: i64 = nkind(s);
-        if (k == S_EXPR or mentions_call(na(s))) {
+        // A local array's nd_a is its size token; its list is nd_c.
+        if (k == D_ARRAY) {
+            if (mentions_call(nc(s))) {
+                return true;
+            }
+        } else if (k == S_EXPR or mentions_call(na(s))) {
             return true;
         }
         if (k == S_ASSIGN and mentions_call(nb(s))) {
@@ -1759,11 +1874,33 @@ fn declared_in(head: i64, t: i64) -> bool {
     return false;
 }
 
+; A local array is in scope from its declaration to the end of its block.
+fn check_local_array(s: i64) -> void {
+    if (!arr_name_ok(s)) {
+        fail(E_NAME, tpos(ntok(s)));
+        return;
+    }
+    if (size_lit(na(s)) == 0 or (nc(s) == 0 and size_lit(nb(s)) == 0) or !repeat_ok(s)) {
+        fail(E_ARRAY, tpos(ntok(s)));
+        return;
+    }
+    check_expr(nc(s));
+    if (scope_len >= SCOPE_MAX) {
+        fail(E_LIMIT, tpos(ntok(s)));
+        return;
+    }
+    scope_arr[scope_len as usize] = s;
+    scope_len = scope_len + 1;
+}
+
 fn check_stmts(head: i64, test_body: i64) -> void {
     var s: i64 = head;
+    var mark: i64 = scope_len;
     while (!failed and s != 0) {
         var k: i64 = nkind(s);
-        if (k == S_ASSIGN) {
+        if (k == D_ARRAY) {
+            check_local_array(s);
+        } else if (k == S_ASSIGN) {
             var lhs: i64 = na(s);
             if (nkind(lhs) == N_IDENT) {
                 var t: i64 = ntok(lhs);
@@ -1798,6 +1935,7 @@ fn check_stmts(head: i64, test_body: i64) -> void {
         }
         s = nnext(s);
     }
+    scope_len = mark;
 }
 
 fn check() -> void {
@@ -1805,6 +1943,7 @@ fn check() -> void {
     while (!failed and d != 0) {
         var k: i64 = nkind(d);
         var t: i64 = ntok(d);
+        cur_decl = d;
         if (k == D_FN) {
             if (tok_is(t, W_ASSERT, 0, 6) or tok_is(t, W_DEFAULT_, 0x7475706e69, 13) or tok_is(t, W_VALID_IN, 0x747570, 11)) {
                 fail(E_NAME, tpos(t));
@@ -1820,6 +1959,10 @@ fn check() -> void {
         } else if (k == D_CONST or k == D_VAR) {
             check_expr(na(d));
         } else if (k == D_ARRAY) {
+            if (!repeat_ok(d)) {
+                fail(E_ARRAY, tpos(nb(d)));
+                return;
+            }
             check_expr(nc(d));
         }
         d = nnext(d);
@@ -1999,7 +2142,9 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
         return;
     }
     indent(lvl);
-    if (k == S_LOCAL) {
+    if (k == D_ARRAY) {
+        emit_array(s);
+    } else if (k == S_LOCAL) {
         emit_ctype(naux(s));
         put(' ');
         put_tok(ntok(s));
@@ -2072,44 +2217,50 @@ fn num_is_zero(t: i64) -> bool {
     return true;
 }
 
+; `T NAME[N]` or `T NAME[N][M]` and its initializer: the bytes of a module
+; array after `static `, and of a local array after its indent.
+fn emit_array(d: i64) -> void {
+    emit_ctype(naux(d));
+    put(' ');
+    put_tok(ntok(d));
+    put(K_LBRACKET);
+    put_tok(na(d));
+    put(K_RBRACKET);
+    if (nc(d) != 0) {
+        if (nb(d) != 0) {
+            put(K_LBRACKET);
+            put_tok(nb(d));
+            put(K_RBRACKET);
+        }
+        t_assign();
+        emit_expr(nc(d));
+        t_semi_nl();
+        return;
+    }
+    // gen-c keeps `{0}` for a zero value and writes a GNU range for any
+    // other (#6050): before, every repeat came out `{0}`.
+    var vt: i64 = nb(d) - 3;
+    t_repeat();
+    put_tok(vt);
+    t_repeat_mid();
+    put_tok(nb(d));
+    if (num_is_zero(vt)) {
+        t_repeat_end();
+    } else {
+        t_range_open();
+        put_tok(nb(d));
+        t_range_mid();
+        put_tok(vt);
+        t_range_end();
+    }
+}
+
 fn emit_global(d: i64) -> void {
     var k: i64 = nkind(d);
     var v: i64 = na(d);
     if (k == D_ARRAY) {
         t_static();
-        emit_ctype(naux(d));
-        put(' ');
-        put_tok(ntok(d));
-        put(K_LBRACKET);
-        put_tok(na(d));
-        put(K_RBRACKET);
-        if (nc(d) != 0) {
-            if (nb(d) != 0) {
-                put(K_LBRACKET);
-                put_tok(nb(d));
-                put(K_RBRACKET);
-            }
-            t_assign();
-            emit_expr(nc(d));
-            t_semi_nl();
-            return;
-        }
-        // gen-c keeps `{0}` for a zero value and writes a GNU range for any
-        // other (#6050): before, every repeat came out `{0}`.
-        var vt: i64 = nb(d) - 3;
-        t_repeat();
-        put_tok(vt);
-        t_repeat_mid();
-        put_tok(nb(d));
-        if (num_is_zero(vt)) {
-            t_repeat_end();
-        } else {
-            t_range_open();
-            put_tok(nb(d));
-            t_range_mid();
-            put_tok(vt);
-            t_range_end();
-        }
+        emit_array(d);
         return;
     }
     if (k == D_CONST and nkind(v) == N_NEGLIT) {
@@ -2306,6 +2457,8 @@ pub fn compile(n: i64) -> i64 {
     uses_assert = false;
     mod_tok = 0;
     decls = 0;
+    scope_len = 0;
+    cur_decl = 0;
     if (n < 0 or n > SRC_MAX) {
         fail(E_LIMIT, 0);
         return -1;
@@ -2459,15 +2612,79 @@ test leading_zero_is_refused {
     assert(err_code == E_LEX);
 }
 
-; "module m;var a: [1_0]u8 = [_]u8{0} ** 2;": gen-c writes `a[1_0]` (#7318).
-test separator_in_a_dimension_is_refused {
+; "module m;var a: [1_0]u8 = [_]u8{0} ** 1_0;": gen-c writes `a[10]` and
+; `** 10` since #7318, 562 bytes in all.
+test separator_in_a_dimension_is_dropped {
     var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
     var n2: i64 = feed(0x203a61207261763b, 8, n1);
     var n3: i64 = feed(0x2038755d305f315b, 8, n2);
     var n4: i64 = feed(0x7b38755d5f5b203d, 8, n3);
-    var n5: i64 = feed(0x3b32202a2a207d30, 8, n4);
+    var n5: i64 = feed(0x5f31202a2a207d30, 8, n4);
+    var n6: i64 = feed(0x3b30, 2, n5);
+    assert(compile(n6) == 562);
+    assert(out_at(505) == 'a');
+    assert(out_at(507) == '1');
+    assert(out_at(508) == '0');
+    assert(out_at(509) == K_RBRACKET);
+    assert(out_at(533) == '1');
+    assert(out_at(534) == '0');
+}
+
+; "module m;var a: [4]u8 = [_]u8{1} ** 2;": C fills two, Zig refuses.
+test short_repeat_count_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a61207261763b, 8, n1);
+    var n3: i64 = feed(0x203d2038755d345b, 8, n2);
+    var n4: i64 = feed(0x7d317b38755d5f5b, 8, n3);
+    var n5: i64 = feed(0x3b32202a2a20, 6, n4);
     assert(compile(n5) == -1);
     assert(err_code == E_ARRAY);
+}
+
+; "module m;fn f() -> u8 {var a: [2]u8 = [_]u8{7} ** 2;return a[1];}": a
+; local array is a module one without `static`, 792 bytes in all.
+test local_array_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292866206e663b, 8, n1);
+    var n3: i64 = feed(0x767b203875203e2d, 8, n2);
+    var n4: i64 = feed(0x325b203a61207261, 8, n3);
+    var n5: i64 = feed(0x5f5b203d2038755d, 8, n4);
+    var n6: i64 = feed(0x2a207d377b38755d, 8, n5);
+    var n7: i64 = feed(0x757465723b32202a, 8, n6);
+    var n8: i64 = feed(0x3b5d315b61206e72, 8, n7);
+    var n9: i64 = feed(0x7d, 1, n8);
+    assert(compile(n9) == 792);
+    assert(out_at(689) == ' ');
+    assert(out_at(690) == 'u');
+    assert(out_at(698) == 'a');
+    assert(out_at(750) == '7');
+}
+
+; "module m;var a: i64 = 0;fn f() -> void {var a: [1]u8 = [_]u8{0} ** 1;}":
+; C's shadowing array, which Zig refuses.
+test local_array_shadowing_a_global_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a61207261763b, 8, n1);
+    var n3: i64 = feed(0x3b30203d20343669, 8, n2);
+    var n4: i64 = feed(0x2d20292866206e66, 8, n3);
+    var n5: i64 = feed(0x7b2064696f76203e, 8, n4);
+    var n6: i64 = feed(0x5b203a6120726176, 8, n5);
+    var n7: i64 = feed(0x5b203d2038755d31, 8, n6);
+    var n8: i64 = feed(0x207d307b38755d5f, 8, n7);
+    var n9: i64 = feed(0x7d3b31202a2a, 6, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;const P: i64 = 2 ** 3;": gen-c writes `/* repeat: 2 ** 3 */ {0}`,
+; a zero (#7427).
+test numeric_power_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x502074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x3b33202a2a2032, 7, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_SYNTAX);
 }
 
 ; "module m;var a:[1][1]u8=[_][1]u8{[_]u8{7}};": `a[1][1] = { { 7 } };`.

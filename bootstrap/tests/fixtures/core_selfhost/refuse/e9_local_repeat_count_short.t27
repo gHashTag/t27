@@ -1,0 +1,6 @@
+// P1 slice 5: the same short repeat count on a local array.
+module local_count_short;
+fn lc_last() -> u8 {
+    var lc_a: [4]u8 = [_]u8{1} ** 2;
+    return lc_a[3];
+}

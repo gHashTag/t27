@@ -250,6 +250,21 @@ fn an_undefined_argument_nobody_reads() {
     assert!(m.contains("construct ExprIdentifier(undefined argument read) at line 8"), "{}", m);
 }
 
+// ------------------------------------------------ an optional enum against a variant
+
+/// `?E == v` (ST-00's `Adapter_parse("claude") == Adapter.Claude`): equal only when the optional holds v's tag, so
+/// null is `!=` every variant (specs/tri/t27b/optional_compare_plan.t27; `t27c test-report` passes the conformance
+/// spec 6/6, none vacuous). A variant of another enum stays refused, as Zig refuses it.
+#[test]
+fn an_optional_enum_compares_by_tag() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/optional_enum_compare.t27"));
+    assert!(r.len() == 6 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\npub enum K {\n    A,\n    B,\n}\n\npub enum L {\n    A,\n}\n\nfn get(b: bool) -> ?K {\n    if (b) {\n        return K.B;\n    }\n    return null;\n}\n\ntest t {\n    assert(get(true) == K.B);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("get(true) == K.B", "get(false) == K.B"))), vec![("t", false, false)]);
+    assert!(rejected(&src.replace("K.B);\n}\n", "L.A);\n}\n")).contains("construct type mismatch at line 20"));
+}
+
 // ------------------------------------------------ @bitCast, @intFromBool and the std.math NaN fns
 
 /// #7791: an f32's bits through a frame slot, integers of one size, a bool as a u1, and `std.math.nan` / `isNan` /

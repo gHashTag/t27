@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 33,
+ "max_not_pass": 32,
  "counts": {
-  "pass": 931,
+  "pass": 934,
   "pass_vacuous": 151,
-  "not_pass": 33
+  "not_pass": 32
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -702,7 +702,7 @@
   {"path": "specs/port/trios/crates/trios-server/src/tools/gitbutler.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-server/src/tools/golden_float.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-server/src/tools/mod.t27", "t27b": "pass"},
-  {"path": "specs/port/trios/crates/trios-store/rings/ST-00/src/lib.t27", "t27b": "blocked", "blocker": "ExprBinary(?T)", "reason": "unimplemented"},
+  {"path": "specs/port/trios/crates/trios-store/rings/ST-00/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-ternary/rings/TR-01/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-train-cpu/src/bin/tjepa_modules/encoder.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-train-cpu/src/bin/train_state.t27", "t27b": "pass"},
@@ -997,6 +997,7 @@
   {"path": "specs/tri/t27b/conformance/numeric_coercion.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/opaque_pointer.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/optional_enum_compare.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/pointer_equality.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/postfix_optional.t27", "t27b": "pass"},
@@ -1035,6 +1036,7 @@
   {"path": "specs/tri/t27b/libm_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/macho.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/opaque_plan.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/optional_compare_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/ptr_eq_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/reduce.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/scaffold_plan.t27", "t27b": "pass"},
