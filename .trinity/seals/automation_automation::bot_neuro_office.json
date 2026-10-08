@@ -1,20 +1,20 @@
 {
   "built_by": "t27c-bootstrap@0.5.1+7c88448",
-  "gen_hash_c": "sha256:d184847ff6573eb66f17b79e1e9c44acd2de799b4204b660e10b9a3938a76d74",
-  "gen_hash_rust": "sha256:1e4b5ee2bbe722089b5e280fbfa7ec444115728ba3acc0fd30d09d235b6291ae",
-  "gen_hash_verilog": "sha256:b4cbcc0284e879aadcd9a2e91a315479701373c22c6323a8f7664ed5fe32a6b4",
-  "gen_hash_zig": "sha256:d989599857d10f1099cdc8fe8d9f032fad46a52515f429c3b92842bcc206bb11",
+  "gen_hash_c": "sha256:91f961b192f435b12f04cef4966cc7cde899796a90cca94eb3c83b2c908ca61e",
+  "gen_hash_rust": "sha256:5845441976118261a32d0c16c2f3501a70026785891d2b72dfdb192f8b8c3919",
+  "gen_hash_verilog": "sha256:5e424cb89d9a2b0459e0e7fe4ad3c6f6d9e836c69868602e7c6109f811a4a087",
+  "gen_hash_zig": "sha256:b4b9d61f9800ea889a699aeaf3643b9f1495d2f41ac38767e144ee8ac7a6e747",
   "module": "automation::bot_neuro_office",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:53:46Z",
+  "sealed_at": "2026-10-08T20:47:22Z",
   "sealed_by": "t27c-bootstrap@0.5.1",
-  "spec_hash": "sha256:d865b5634eea980d38f9529b82002052ff46602eeb57e49cee3109891f5fd2ad",
+  "spec_hash": "sha256:8aad127ae58bb4fc3c55d414693236ff673708cf076d464d009aebc9a0044496",
   "spec_path": "specs/automation/bot-neuro-office.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 8,
-    "total": 8
+    "passed": 9,
+    "total": 9
   }
 }
