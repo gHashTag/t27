@@ -184,6 +184,17 @@ impl<'a> Lower<'a> {
                 }
                 Ok(())
             }
+            // `.{}` for a declared struct: every field's default (plan `empty_lit_plan.t27`, #7735).
+            LTy::Struct(id) if el::plan(el::WANT_STRUCT, false, n.children.len()) == el::DEFAULTS => {
+                let id = *id;
+                if fresh && pure_addr(&dst.addr) {
+                    return self.init_struct(n, id, &dst, out);
+                }
+                let k = self.new_slot(&t)?;
+                let tmp = Place { addr: slot_expr(k), off: 0, ty: t.clone(), mutable: true, temp: None };
+                self.init_struct(n, id, &tmp, out)?;
+                self.copy(&dst, tmp, out)
+            }
             _ => {
                 let tn = self.type_name(&t);
                 self.reject("ExprTuple", format!("a tuple literal where `{}` is expected", tn))

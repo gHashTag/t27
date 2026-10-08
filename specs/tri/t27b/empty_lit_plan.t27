@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/empty_lit_plan.t27 -- how t27b lowers `.{}`, the empty anonymous literal, by its result type
+; (issue #7735, t27b coverage epic #6063; written in t27 under the port epic #6198).
+; Everything t27b decides about it is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/empty_lit_plan.rs). The Rust glue (cli/t27b/src/lower/tuple.rs for a struct,
+; cli/t27b/src/lower.rs for a slice) reads what the context wants, asks `plan`, and builds the answer.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/empty_anon_literal.t27): t27c's Zig backend prints `.{}` as `.{  }` and `&.{}` as
+; `&.{  }`, and Zig coerces each to its result type:
+;   - a declared struct (not a tuple type) takes the default of every field: `return .{};`, `var c: S = .{};`,
+;     `f(.{})`. A field without a default is a compile error, which t27b reports as `ExprStructLit` (missing
+;     field), the way it does for a named literal that leaves one out.
+;   - `&.{}` where a slice is wanted, mutable or not, of any element type, `str` included, is a zero-length slice.
+;     Where it points is never read.
+; The corpus cases: gen_lockfree_stack.t27's `return .{};` and tool-registry.t27's `return &.{};` and
+; `ToolRegistry { tools = &.{} }`.
+; --
+; Everything else is NOT_MINE and goes on to t27b's other paths, which lower or refuse it as before: a literal with
+; elements (`.{ a, b }` for a tuple type or an array, refused for a declared struct), `.{}` for an array `[0]T`
+; (the array path takes it), `.{}` with no `&` where a slice is wanted (Zig refuses it), `&.{}` where a pointer is
+; wanted, and a literal with no result type (`const t = .{};`, the untyped tuple local path).
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bEmptyLitPlan;
+
+// What the context wants, as the glue sees it.
+pub const WANT_STRUCT : u8 = 0;
+pub const WANT_SLICE : u8 = 1;
+pub const WANT_OTHER : u8 = 2;
+
+// The answer.
+pub const NOT_MINE : u8 = 0;
+pub const DEFAULTS : u8 = 1;
+pub const EMPTY_SLICE : u8 = 2;
+
+/// The decision. want: WANT_STRUCT (a declared struct, not a tuple type), WANT_SLICE (a slice or `str`), or
+/// WANT_OTHER. addr: the literal is the operand of `&`. elements: how many element nodes the literal has.
+pub fn plan(want: u8, addr: bool, elements: usize) -> u8 {
+    if (elements > 0) { return NOT_MINE; }
+    if (want == WANT_STRUCT and !addr) { return DEFAULTS; }
+    if (want == WANT_SLICE and addr) { return EMPTY_SLICE; }
+    return NOT_MINE;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then what stays with the other paths.
+// ----------------------------------------------------------------------------------------------------------
+
+test a_struct_takes_its_defaults {
+    // gen_lockfree_stack.t27's `return .{};` from `-> GenLockFreeStack`.
+    assert(plan(WANT_STRUCT, false, 0) == DEFAULTS);
+}
+
+test an_addressed_empty_literal_is_an_empty_slice {
+    // tool-registry.t27's `return &.{};` from `-> [][]const u8` and `.tools = &.{}`.
+    assert(plan(WANT_SLICE, true, 0) == EMPTY_SLICE);
+}
+
+test elements_are_never_mine {
+    assert(plan(WANT_STRUCT, false, 2) == NOT_MINE);
+    assert(plan(WANT_SLICE, true, 1) == NOT_MINE);
+    assert(plan(WANT_OTHER, false, 3) == NOT_MINE);
+}
+
+test the_wrong_form_for_its_type_is_not_mine {
+    // `&.{}` where a struct is wanted, and `.{}` with no `&` where a slice is.
+    assert(plan(WANT_STRUCT, true, 0) == NOT_MINE);
+    assert(plan(WANT_SLICE, false, 0) == NOT_MINE);
+}
+
+test any_other_type_is_not_mine {
+    // An array, a tuple type, a pointer, no result type at all.
+    assert(plan(WANT_OTHER, false, 0) == NOT_MINE);
+    assert(plan(WANT_OTHER, true, 0) == NOT_MINE);
+}
