@@ -11,12 +11,12 @@ pub enum RaceCommand {
     Best,
 }
 
-pub struct Cli {
+pub struct Cli_main {
     command: RaceCommand,
 }
 
 // Decision: Parse CLI args (would normally come from command line)
-pub fn parse_cli() -> Cli {
+pub fn parse_cli() -> Cli_main {
     // Default CLI for testing - in real usage this would parse actual args
     let command = RaceCommand.Start;
     return Cli { command: command };

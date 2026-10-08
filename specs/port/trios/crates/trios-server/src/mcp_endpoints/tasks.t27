@@ -1,15 +1,15 @@
 module port::tasks;
 
-pub fn assign(state: AppState, params: Value) -> Value {
+pub fn assign(state: AppState_tasks, params: Value_tasks) -> Value_tasks {
     return Value{task_id: "task-123", status: "assigned"};
 }
 
-pub fn status(state: AppState, params: Value) -> Value {
-    return Value{task_id: "task-123", status: "assigned"};
+pub fn status(state: AppState_tasks, params: Value_tasks) -> Value_tasks {
+    return Value_tasks{task_id: "task-123", status: "assigned"};
 }
 
-pub fn update_status(state: AppState, params: Value) -> Value {
-    return Value{task_id: "task-123", status: "assigned"};
+pub fn update_status(state: AppState_tasks, params: Value_tasks) -> Value_tasks {
+    return Value_tasks{task_id: "task-123", status: "assigned"};
 }
 
 struct TaskEntry {
@@ -19,29 +19,29 @@ struct TaskEntry {
     status: str,
 }
 
-struct AppState {
+struct AppState_tasks {
     tasks: TaskEntry,
 }
 
-struct Value {
+struct Value_tasks {
     task_id: str,
     status: str,
 }
 
 test test_assign {
-    const state = AppState{tasks: TaskEntry{id: "", agent_id: "", task: "", status: ""}};
-    const result = assign(state, Value{task_id: "", status: ""});
+    const state = AppState_tasks{tasks: TaskEntry{id: "", agent_id: "", task: "", status: ""}};
+    const result = assign(state, Value_tasks{task_id: "", status: ""});
     assert(result.task_id == "task-123");
 }
 
 test test_status {
-    const state = AppState{tasks: TaskEntry{id: "", agent_id: "", task: "", status: ""}};
-    const result = status(state, Value{task_id: "", status: ""});
+    const state = AppState_tasks{tasks: TaskEntry{id: "", agent_id: "", task: "", status: ""}};
+    const result = status(state, Value_tasks{task_id: "", status: ""});
     assert(result.task_id == "task-123");
 }
 
 test test_update_status {
-    const state = AppState{tasks: TaskEntry{id: "", agent_id: "", task: "", status: ""}};
-    const result = update_status(state, Value{task_id: "", status: ""});
+    const state = AppState_tasks{tasks: TaskEntry{id: "", agent_id: "", task: "", status: ""}};
+    const result = update_status(state, Value_tasks{task_id: "", status: ""});
     assert(result.task_id == "task-123");
 }

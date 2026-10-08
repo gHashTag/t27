@@ -1,6 +1,8 @@
 module port::trios::server::src::mcp_endpoints::experience;
 
-const AppState = struct{};
+const AppState_experience = struct{};
+
+const Value_experience = struct{};
 
 pub fn is_md_file(ext: []const u8) -> bool {
     return ext == "md";
@@ -13,7 +15,7 @@ pub fn compute_truncate_len(len: usize, limit: usize) -> usize {
     return len;
 }
 
-pub fn read(_state: AppState, params: ?Value) -> Value {
+pub fn read(_state: AppState_experience, params: ?Value_experience) -> Value_experience {
     _ = _state; // unused by the spec body
     _ = params; // unused by the spec body
     undefined;

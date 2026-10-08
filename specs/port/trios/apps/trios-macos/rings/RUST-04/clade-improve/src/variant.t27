@@ -1,30 +1,30 @@
 module specs::port::trios::apps::trios_macos::rings::RUST_04::clade_improve::src;
 
-enum Variant {
+enum Variant_clade_improve {
     Prod,
     Staging,
     Dev,
 }
 
 // Helper function for from_env: decides variant from environment string
-fn variant_from_env_str(env: []const u8) -> Variant {
+fn variant_from_env_str(env: []const u8) -> Variant_clade_improve {
     if (env == "dev") {
-        return Variant::Dev;
+        return Variant_clade_improve::Dev;
     }
     if (env == "staging") {
-        return Variant::Staging;
+        return Variant_clade_improve::Staging;
     }
-    return Variant::Prod;
+    return Variant_clade_improve::Prod;
 }
 
 // Original function: reads environment variable and returns Variant
-pub fn Variant_from_env() -> Variant {
+pub fn Variant_from_env() -> Variant_clade_improve {
     let env = get_env_trios_variant(); // undefined: plumbing
     return variant_from_env_str(env);
 }
 
 // Helper function for mcp_port: decides port from Variant
-fn variant_mcp_port_str(self: Variant) -> u16 {
+fn variant_mcp_port_str(self: Variant_clade_improve) -> u16 {
     switch (self) {
         .Prod => 9105,
         .Staging => 9205,
@@ -33,12 +33,12 @@ fn variant_mcp_port_str(self: Variant) -> u16 {
 }
 
 // Original function: returns mcp port based on Variant
-pub fn Variant_mcp_port(self: Variant) -> u16 {
+pub fn Variant_mcp_port(self: Variant_clade_improve) -> u16 {
     return variant_mcp_port_str(self);
 }
 
 // Helper function for working_dir: decides working directory string from root and Variant
-fn variant_working_dir_str(root: []const u8, self: Variant) -> []const u8 {
+fn variant_working_dir_str(root: []const u8, self: Variant_clade_improve) -> []const u8 {
     switch (self) {
         .Prod => root,
         .Staging => std::fmt::alloc("{}/.worktrees/staging", root),
@@ -47,28 +47,28 @@ fn variant_working_dir_str(root: []const u8, self: Variant) -> []const u8 {
 }
 
 // Original function: returns working directory PathBuf based on Variant
-pub fn Variant_working_dir(self: Variant) -> []const u8 {
+pub fn Variant_working_dir(self: Variant_clade_improve) -> []const u8 {
     let root = trios_config_project_dir(); // undefined: plumbing
     return variant_working_dir_str(root, self);
 }
 
 // Helper function for is_production: decides if Variant is Prod
-fn variant_is_production_str(self: Variant) -> bool {
-    return self == Variant::Prod;
+fn variant_is_production_str(self: Variant_clade_improve) -> bool {
+    return self == Variant_clade_improve::Prod;
 }
 
 // Original function: returns true if Variant is Prod
-pub fn Variant_is_production(self: Variant) -> bool {
+pub fn Variant_is_production(self: Variant_clade_improve) -> bool {
     return variant_is_production_str(self);
 }
 
 // Helper function for can_self_modify: decides if Variant can self modify
-fn variant_can_self_modify_str(self: Variant) -> bool {
-    return self == Variant::Dev;
+fn variant_can_self_modify_str(self: Variant_clade_improve) -> bool {
+    return self == Variant_clade_improve::Dev;
 }
 
 // Original function: returns true if Variant is Dev
-pub fn Variant_can_self_modify(self: Variant) -> bool {
+pub fn Variant_can_self_modify(self: Variant_clade_improve) -> bool {
     return variant_can_self_modify_str(self);
 }
 
@@ -84,57 +84,57 @@ fn trios_config_project_dir() -> []const u8 {
 // Tests for helper functions
 
 test variant_from_env_str_dev {
-    assert(variant_from_env_str("dev") == Variant::Dev);
+    assert(variant_from_env_str("dev") == Variant_clade_improve::Dev);
 }
 
 test variant_from_env_str_staging {
-    assert(variant_from_env_str("staging") == Variant::Staging);
+    assert(variant_from_env_str("staging") == Variant_clade_improve::Staging);
 }
 
 test variant_from_env_str_other {
-    assert(variant_from_env_str("prod") == Variant::Prod);
-    assert(variant_from_env_str("") == Variant::Prod);
-    assert(variant_from_env_str("unknown") == Variant::Prod);
+    assert(variant_from_env_str("prod") == Variant_clade_improve::Prod);
+    assert(variant_from_env_str("") == Variant_clade_improve::Prod);
+    assert(variant_from_env_str("unknown") == Variant_clade_improve::Prod);
 }
 
 test variant_mcp_port_str_prod {
-    assert(variant_mcp_port_str(Variant::Prod) == 9105);
+    assert(variant_mcp_port_str(Variant_clade_improve::Prod) == 9105);
 }
 
 test variant_mcp_port_str_staging {
-    assert(variant_mcp_port_str(Variant::Staging) == 9205);
+    assert(variant_mcp_port_str(Variant_clade_improve::Staging) == 9205);
 }
 
 test variant_mcp_port_str_dev {
-    assert(variant_mcp_port_str(Variant::Dev) == 9305);
+    assert(variant_mcp_port_str(Variant_clade_improve::Dev) == 9305);
 }
 
 test variant_working_dir_str_prod {
-    assert(variant_working_dir_str("/project", Variant::Prod) == "/project");
+    assert(variant_working_dir_str("/project", Variant_clade_improve::Prod) == "/project");
 }
 
 test variant_working_dir_str_staging {
-    assert(variant_working_dir_str("/project", Variant::Staging) == "/project/.worktrees/staging");
+    assert(variant_working_dir_str("/project", Variant_clade_improve::Staging) == "/project/.worktrees/staging");
 }
 
 test variant_working_dir_str_dev {
-    assert(variant_working_dir_str("/project", Variant::Dev) == "/project/.trinity/dev");
+    assert(variant_working_dir_str("/project", Variant_clade_improve::Dev) == "/project/.trinity/dev");
 }
 
 test variant_is_production_str_true {
-    assert(variant_is_production_str(Variant::Prod) == true);
+    assert(variant_is_production_str(Variant_clade_improve::Prod) == true);
 }
 
 test variant_is_production_str_false {
-    assert(variant_is_production_str(Variant::Staging) == false);
-    assert(variant_is_production_str(Variant::Dev) == false);
+    assert(variant_is_production_str(Variant_clade_improve::Staging) == false);
+    assert(variant_is_production_str(Variant_clade_improve::Dev) == false);
 }
 
 test variant_can_self_modify_str_true {
-    assert(variant_can_self_modify_str(Variant::Dev) == true);
+    assert(variant_can_self_modify_str(Variant_clade_improve::Dev) == true);
 }
 
 test variant_can_self_modify_str_false {
-    assert(variant_can_self_modify_str(Variant::Prod) == false);
-    assert(variant_can_self_modify_str(Variant::Staging) == false);
+    assert(variant_can_self_modify_str(Variant_clade_improve::Prod) == false);
+    assert(variant_can_self_modify_str(Variant_clade_improve::Staging) == false);
 }

@@ -1,6 +1,6 @@
 module port::run;
 
-struct RunResult {
+struct RunResult_run {
     pub exp_id: str,
     pub val_bpb: f64,
     pub train_bpb: f64,
@@ -8,7 +8,7 @@ struct RunResult {
     pub params: u64,
 }
 
-pub fn run(exp_id: str, seeds: u32) -> ?RunResult {
+pub fn run(exp_id: str, seeds: u32) -> ?RunResult_run {
     return null;
 }
 
@@ -24,7 +24,7 @@ fn parse_params(stdout: str) -> u64 {
     return 0;
 }
 
-fn report_result(result: ?RunResult) -> ?bool {
+fn report_result(result: ?RunResult_run) -> ?bool {
     return null;
 }
 

@@ -27,7 +27,10 @@ pub fn update_table(body: str, agent: str, status: str, bpb: ?f64) -> str {
 
 // Define the data structures used
 pub struct Config {}
-pub struct LockGuard {}
+pub struct LockGuard {
+    _file: u32,
+    lock_path: []const u8,
+}
 pub struct TableRow {
     agent: str,
     task: str,
