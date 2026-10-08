@@ -3,17 +3,14 @@
 ; backend prints as `@constCast(&[_]E{ ... })`: a slice field of a named struct literal, and the value of a fn
 ; that returns a slice, mutable or not (#7680, t27b coverage epic #6063; the shapes of specs/tri/graph/graph.t27,
 ; topological_sort.t27 and bellman_ford.t27).
-; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
-; What the reference does with them (zig 0.16.0, the default x86_64 Debug backend that `t27c test-report` builds
-; with):
+; Every test here passes `t27c test-report` on every backend it builds with (x86_64 Debug on the t27c lab, LLVM on
+; the native aarch64 CI job); t27b must give the same verdict on each, or refuse the file.
+; What the reference does with them (zig 0.16.0):
 ;   - E is the destination's element type. The literal's own type text is not printed, so `[]usize{ 0, 1 }`,
 ;     `[0, 1]` and a bare `[]usize` (no elements) differ only in their elements.
-;   - The array is a comptime value. Zig interns it: one object per element type and value, wherever the literal
-;     is written, alive for the whole process. This backend keeps it in writable memory, so a write through the
-;     mutable slice succeeds, and every later evaluation of an equal literal reads what was written: the same
-;     site, another site, and a `[]const` one too. A literal of another value or another element type is
-;     another object.
-;   - `t27c test-report` runs each test in its own process, so every test starts from the written constants.
+;   - The array is a comptime value, interned: one object per element type and value. Reading it is defined.
+;   - Writing it is undefined behaviour in Zig: x86_64 Debug keeps the write, LLVM faults (#7765). So no test
+;     here writes; t27b refuses a program that would, by name, and cli/t27b/tests/arraylit.rs checks that.
 ; t27b's plan for these is specs/tri/t27b/slice_lit_plan.t27.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -74,7 +71,7 @@ fn static_narrow() -> []u32 {
 }
 
 // Two literals with the same bytes and different element types: [0, 1] as u32 is 2^32 as one usize.
-fn static_pair32() -> []u32 {
+fn static_pair32() -> []const u32 {
     return [0, 1];
 }
 
@@ -90,10 +87,6 @@ fn static_sum(xs: []const usize) -> usize {
         i += 1;
     }
     return s;
-}
-
-fn static_set_first(xs: []usize, v: usize) -> void {
-    xs[0] = v;
 }
 
 test a_constant_slice_field_holds_its_elements {
@@ -118,42 +111,20 @@ test a_constant_returned_as_a_mutable_slice {
     assert(hs[2].from == 2);
 }
 
-test a_write_is_read_by_the_next_evaluation_of_the_same_literal {
-    const a = static_order();
-    static_set_first(a.order, 9);
-    const b = static_order();
-    assert(b.order[0] == 9);
-    assert(static_sum(b.order) == 15);
-}
-
-test a_write_is_read_through_an_equal_literal_elsewhere {
-    const a = static_order();
-    static_set_first(a.order, 7);
-    const c = static_same_bag();
-    assert(c.items[0] == 7);
-    assert(static_order_view()[0] == 7);
-}
-
-test another_value_or_element_type_is_another_object {
-    const a = static_order();
-    static_set_first(a.order, 8);
-    assert(static_prefix()[0] == 0);
-    assert(static_narrow()[0] == 0);
-    assert(a.order[0] == 8);
-    var p = static_pair32();
-    p[1] = 5;
-    assert(static_pair32()[1] == 5);
+test another_value_or_element_type_reads_its_own_elements {
+    assert(static_prefix().len == 3);
+    assert(static_prefix()[2] == 2);
+    assert(static_narrow().len == 4);
+    assert(static_narrow()[3] == 3);
+    assert(static_pair32()[1] == 1);
     assert(static_wide()[0] == 4294967296);
+    assert(static_order().order[1] == 1);
 }
 
-test a_write_through_a_returned_mutable_slice {
-    var hs = static_hops();
-    hs[0].weight = 40;
-    assert(static_hops()[0].weight == 40);
-}
-
-test every_test_starts_from_the_constants {
+test equal_literals_at_three_sites_read_the_same_elements {
     assert(static_order().order[0] == 0);
+    assert(static_same_bag().items[3] == 3);
+    assert(static_order_view()[2] == 2);
+    assert(static_sum(static_order_view()) == static_sum(static_same_bag().items));
     assert(static_hops()[0].weight == 4);
-    assert(static_same_bag().items[0] == 0);
 }
