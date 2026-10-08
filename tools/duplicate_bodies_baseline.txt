@@ -9,9 +9,9 @@ smul 20,2
 tmul 13
 relu 10
 dot27 8,5
+build_tree 7
 contrib 7
 activate 6
-build_tree 7
 clamp 6
 clear 6
 match_at 6
@@ -44,7 +44,6 @@ gmul 3
 has_star_inner 3
 hex_nibble_of 3
 list_active 3
-ln 3
 negate 3
 neuronN 3
 on_comb 3,2
@@ -125,6 +124,7 @@ instantiate_ports 2
 is_counter_power_of_two 2
 kill 2
 led_config 2
+ln 2
 local_branch 2
 log2_frac 2
 log2v 2
