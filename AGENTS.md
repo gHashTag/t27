@@ -252,7 +252,7 @@ measure it are written in **t27**, not in Rust or Python by hand.
   is `specs/tri/t27b/optional_compare_plan.t27`, +6 -3 and +15 on master
   824c82d78's 15224 plus 1202 and 8149; 15227 plus 1202, 16429 in all, and
   tests 8174, after #7822's `@bitCast` result type from an assignment, for the
-  f32 `@log`, `@log2` and `@log10` ports, +0 and +10 on master 408d740d9's
+  f32 `@log`, `@log2` and `@log10` ports, +0 and +10 on master 4daabae70's
   15227 plus 1202 and 8164),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
