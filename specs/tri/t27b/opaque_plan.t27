@@ -1,0 +1,72 @@
+module tri::t27b::opaque_plan;
+
+// Plan documenting lowering decisions for anyopaque and @ptrFromInt to optional pointers
+// Processable by t27c gen-rust
+
+// Test cases for @ptrFromInt lowering behavior
+
+// @ptrFromInt(0) as ?*anyopaque should be null
+fn test_ptr_from_int_zero() bool {
+    const ptr = @ptrFromInt(0);
+    return ptr == null;
+}
+
+// @ptrFromInt(8) as ?*anyopaque should be non-null  
+fn test_ptr_from_int_eight() bool {
+    const ptr = @ptrFromInt(8);
+    return ptr != null;
+}
+
+// Runtime @ptrFromInt(n) as ?*anyopaque
+fn test_ptr_from_int_runtime(n: u64) bool {
+    const ptr = @ptrFromInt(n);
+    return if (n == 0) ptr == null else ptr != null;
+}
+
+// Test helper function with ?*anyopaque parameter
+fn helper(ptr: ?*anyopaque) bool {
+    return ptr != null;
+}
+
+// Test cases for ?*anyopaque usage patterns
+
+// ?*anyopaque parameter
+fn test_param(ptr: ?*anyopaque) bool {
+    return ptr != null;
+}
+
+// ?*anyopaque field
+struct TestStruct {
+    field: ?*anyopaque,
+}
+
+fn test_field() bool {
+    var s = TestStruct{ .field = null };
+    return s.field == null;
+}
+
+// ?*anyopaque local
+fn test_local() bool {
+    var ptr: ?*anyopaque = null;
+    return ptr == null;
+}
+
+test plan_basic {
+    assert(test_ptr_from_int_zero());
+    assert(test_ptr_from_int_eight());
+    assert(test_ptr_from_int_runtime(0));
+    assert(test_ptr_from_int_runtime(8));
+    assert(test_ptr_from_int_runtime(16));
+}
+
+test plan_helpers {
+    assert(helper(null));
+    assert(helper(@ptrFromInt(1)));
+}
+
+test plan_types {
+    assert(test_param(null));
+    assert(test_param(@ptrFromInt(1)));
+    assert(test_field());
+    assert(test_local());
+}

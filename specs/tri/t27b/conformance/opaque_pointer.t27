@@ -1,0 +1,79 @@
+module tri::t27b::conformance::opaque_pointer;
+
+// Conformance spec for ?*anyopaque parameters, fields, locals, and @ptrFromInt to optional pointers
+
+// Test ?*anyopaque parameters
+fn test_param(ptr: ?*anyopaque) bool {
+    return ptr != null;
+}
+
+// Test ?*anyopaque field
+struct TestStruct {
+    field: ?*anyopaque,
+}
+
+fn test_field() bool {
+    var s = TestStruct{ .field = null };
+    return s.field == null;
+}
+
+// Test ?*anyopaque local
+fn test_local() bool {
+    var ptr: ?*anyopaque = null;
+    return ptr == null;
+}
+
+// Test @ptrFromInt(0) as ?*anyopaque (should be null)
+fn test_ptr_from_int_zero() bool {
+    const ptr = @ptrFromInt(0);
+    return ptr == null;
+}
+
+// Test @ptrFromInt(8) as ?*anyopaque (should be non-null)
+fn test_ptr_from_int_eight() bool {
+    const ptr = @ptrFromInt(8);
+    return ptr != null;
+}
+
+// Test runtime @ptrFromInt(n) as ?*anyopaque
+fn test_ptr_from_int_runtime(n: u64) bool {
+    const ptr = @ptrFromInt(n);
+    return if (n == 0) ptr == null else ptr != null;
+}
+
+// Test helper function that uses ?*anyopaque parameter
+fn helper(ptr: ?*anyopaque) bool {
+    return ptr != null;
+}
+
+test param_test {
+    assert(test_param(null));
+    assert(test_param(@ptrFromInt(1)));
+}
+
+test field_test {
+    assert(test_field());
+}
+
+test local_test {
+    assert(test_local());
+}
+
+test ptr_from_int_zero_test {
+    assert(test_ptr_from_int_zero());
+}
+
+test ptr_from_int_eight_test {
+    assert(test_ptr_from_int_eight());
+}
+
+test ptr_from_int_runtime_test {
+    assert(test_ptr_from_int_runtime(0));
+    assert(test_ptr_from_int_runtime(8));
+    assert(test_ptr_from_int_runtime(16));
+}
+
+test helper_test {
+    assert(helper(null));
+    assert(helper(@ptrFromInt(1)));
+}
