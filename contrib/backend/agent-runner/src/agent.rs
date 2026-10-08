@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::time::Instant;
+use tokio::time::{sleep, Duration};
 
 use crate::api::{AnthropicClient, ContentBlock, Message, MessageContent};
 use crate::config::Config;
@@ -17,6 +18,26 @@ pub struct AgentReport {
     pub task_completed: bool,
     pub summary: String,
     pub duration_seconds: f64,
+}
+
+// ─── Agent Configuration ───────────────────────────────────────────────────────
+
+pub struct AgentConfig {
+    pub agent_name: String,
+    pub agent_trade: String,
+    pub is_treasurer: bool,
+    pub has_multiple_tabs: bool,
+}
+
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            agent_name: "Unknown".to_string(),
+            agent_trade: "Unknown".to_string(),
+            is_treasurer: false,
+            has_multiple_tabs: false,
+        }
+    }
 }
 
 // ─── System Prompt Builder ────────────────────────────────────────────────────
@@ -65,7 +86,7 @@ You have access to the following tools:
 
 1. **Be systematic**: Start by understanding the codebase structure before making changes
 2. **Verify your work**: After making changes, run tests or checks to verify correctness
-3. **Log your reasoning**: Explain what you're doing and why before each action
+3. **Log your reasoning**: Explain what're doing and why before each action
 4. **Handle errors gracefully**: If a command fails, read the error and adapt
 5. **Complete the full task**: Don't stop until the task is truly done
 
@@ -86,9 +107,80 @@ You have access to the following tools:
     parts.join("\n\n---\n\n")
 }
 
+// ─── Retry Logic with Exponential Backoff ─────────────────────────────────────
+
+async fn call_api_with_retry(
+    client: &AnthropicClient,
+    config: &Config,
+    system_prompt: &str,
+    messages: &[Message],
+    tool_defs: serde_json::Value,
+    max_retries: u32,
+) -> Result<(serde_json::Value, u64)> {
+    let mut delays = vec![Duration::from_secs(4), Duration::from_secs(8), Duration::from_secs(16)];
+    
+    for attempt in 0..=max_retries {
+        let api_call_start = Instant::now();
+        
+        match client
+            .send_message(config, system_prompt, messages, tool_defs.clone())
+            .await
+        {
+            Ok((response, duration_ms)) => {
+                return Ok((response, duration_ms));
+            }
+            Err(e) => {
+                if attempt == max_retries {
+                    return Err(e.context(format!("API call failed after {} retries", max_retries)));
+                }
+                
+                let delay = delays.get(attempt).unwrap_or(&Duration::from_secs(16));
+                logger::log_info(&format!(
+                    "API call failed on attempt {} ({}), retrying in {:?}...",
+                    attempt + 1,
+                    e,
+                    delay
+                ));
+                
+                sleep(*delay).await;
+            }
+        }
+    }
+    
+    Err(anyhow::anyhow!("API call failed after all retries"))
+}
+
+// ─── Member Identity Prefix ──────────────────────────────────────────────────
+
+fn add_member_identity_prefix(text: &str, agent_config: &AgentConfig) -> String {
+    if agent_config.agent_name != "Unknown" && agent_config.agent_trade != "Unknown" {
+        format!("{} the {}:\n\n{}", agent_config.agent_name, agent_config.agent_trade, text)
+    } else {
+        text.to_string()
+    }
+}
+
+// ─── Payment Button Logic ─────────────────────────────────────────────────────
+
+fn should_show_payment_buttons(agent_config: &AgentConfig) -> bool {
+    // Payment buttons should only show in Treasurer's tab when person has multiple tabs
+    agent_config.is_treasurer && agent_config.has_multiple_tabs
+}
+
+fn add_payment_buttons_to_response(text: &str, agent_config: &AgentConfig) -> String {
+    if should_show_payment_buttons(agent_config) {
+        format!(
+            "{}\n\n\n[💳 Pay Now] [💳 Pay Later] [💳 Subscribe]",
+            text
+        )
+    } else {
+        text.to_string()
+    }
+}
+
 // ─── Main Agent Loop ──────────────────────────────────────────────────────────
 
-pub async fn run_agent(config: &Config) -> Result<AgentReport> {
+pub async fn run_agent(config: &Config, agent_config: AgentConfig) -> Result<AgentReport> {
     let agent_start = Instant::now();
 
     logger::log_banner("T27 AUTONOMOUS AGENT STARTING");
@@ -146,12 +238,16 @@ pub async fn run_agent(config: &Config) -> Result<AgentReport> {
             messages.len(),
         );
 
-        // Call the API — with timing
-        let api_call_start = Instant::now();
-        let (response, duration_ms) = client
-            .send_message(config, &system_prompt, &messages, tool_defs.clone())
-            .await
-            .with_context(|| format!("API call failed on turn {}", turn))?;
+        // Call the API with retry logic — FR-002: Retry up to 3 times with exponential backoff
+        let (response, duration_ms) = call_api_with_retry(
+            &client,
+            config,
+            &system_prompt,
+            &messages,
+            tool_defs.clone(),
+            3, // max_retries
+        ).await.with_context(|| format!("API call failed on turn {}", turn))?;
+        
         let api_elapsed_ms = api_call_start.elapsed().as_millis() as u64;
 
         // Update token counts
@@ -173,12 +269,18 @@ pub async fn run_agent(config: &Config) -> Result<AgentReport> {
         // Process content blocks — collect assistant message content
         let mut assistant_blocks: Vec<ContentBlock> = Vec::new();
         let mut tool_use_blocks: Vec<(String, String, serde_json::Value)> = Vec::new();
+        let mut text_responses: Vec<String> = Vec::new();
 
         for block in &response.content {
             match block {
                 ContentBlock::Text { text } => {
                     logger::log_text_block(text);
-                    assistant_blocks.push(block.clone());
+                    // FR-003: Add member identity prefix to text responses
+                    let prefixed_text = add_member_identity_prefix(text, &agent_config);
+                    text_responses.push(prefixed_text);
+                    assistant_blocks.push(ContentBlock::Text { 
+                        text: prefixed_text.clone() 
+                    });
                 }
                 ContentBlock::Thinking { thinking } => {
                     logger::log_thinking_block(thinking);
@@ -293,12 +395,12 @@ pub async fn run_agent(config: &Config) -> Result<AgentReport> {
         // ── end_turn or no tools — agent is done ──────────────────────────────
 
         if stop_reason == "end_turn" || stop_reason.is_empty() {
-            for block in &response.content {
-                if let ContentBlock::Text { text } = block {
-                    completion_summary = text.clone();
-                    break;
-                }
-            }
+            // Combine all text responses and add payment buttons if needed
+            let combined_response = text_responses.join("\n\n");
+            let final_response = add_payment_buttons_to_response(&combined_response, &agent_config);
+            
+            completion_summary = final_response.clone();
+            
             logger::log_info(&format!(
                 "Agent ended turn naturally (stop_reason={})",
                 stop_reason
