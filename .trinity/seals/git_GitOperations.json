@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:30a1f55aa5ec1ec671a7625c93d3bb97b32441f76ae9612ec3d4b3a08907ac38",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:c2798f83ea07dd7e246addbc80d99ac158a0b5a3d0d4257e44e7773c590377d1",
   "gen_hash_rust": "sha256:96869fc60f70c758a4d29474abd466656fd05d29d5001cecf7ca402b9d8ca762",
   "gen_hash_verilog": "sha256:5e4e180db70bd179252cb35291f08533464c38ae173b332550f9d8bb34ee0f5a",
   "gen_hash_zig": "sha256:643b1c39cce272c8b5f1f081a1df484638bfea21b6d3ee6f294ba5f1beb57d17",
   "module": "GitOperations",
   "ring": 12,
-  "sealed_at": "2026-10-04T08:33:06Z",
+  "sealed_at": "2026-10-07T07:08:58Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:13689763d79260c7f2d5eefe508b2dab9820bc528b591c4ce75ac7f773b9162d",
   "spec_path": "specs/git/operations.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-operations-19411/spec.zig:21:25: error: use of undeclared identifier 'str'"
+    "blocked": "does not compile: spec.zig:21:25: error: use of undeclared identifier 'str'"
   }
 }
