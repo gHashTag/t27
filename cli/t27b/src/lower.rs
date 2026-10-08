@@ -94,6 +94,8 @@ mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compil
 mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wider than 64 bits, folded
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
+#[path = "../../../gen/rust/tri/t27b/void_bind_plan.rs"] #[allow(dead_code, unused_parens)]
+mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
 mod refvars;
 mod tuple;
 
@@ -2238,6 +2240,16 @@ impl<'a> Lower<'a> {
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
         let init = n.children.first().filter(|i| !is_undefined(i));
+        // `const r = f(x);` with `f` void (specs/tri/t27b/void_bind_plan.t27): the call, then void's value.
+        let void_call = init.is_some_and(|i| i.kind == NodeKind::ExprCall && self.sigs.get(&i.name).is_some_and(|s| s.ret.is_none() && !s.poisoned));
+        if vb::bind(void_call, !ann.is_empty()) == vb::BIND {
+            let (call, _, _) = self.call(init.unwrap(), None)?;
+            out.push(Stmt::Eval(call));
+            let t = LTy::Struct(self.void_struct());
+            let k = self.new_slot(&t)?;
+            self.bind(&name, Binding::Mem(Place { addr: slot_expr(k), off: 0, ty: t, mutable, temp: None }));
+            return Ok(());
+        }
         let ann = match init.filter(|_| mutable && ann.is_empty()).and_then(int_lit_width) {
             Some(w) => w.to_string(),
             None => ann,
@@ -3270,6 +3282,14 @@ impl<'a> Lower<'a> {
                 }
                 if (op == "==" || op == "!=") && (self.is_null(&n.children[0]) || self.is_null(&n.children[1])) {
                     return self.null_compare(&op, n);
+                }
+                if let Some(u) = n.children.iter().position(is_undefined).filter(|_| op == "==" || op == "!=") {
+                    let v = &n.children[1 - u];
+                    let void_name = v.kind == NodeKind::ExprIdentifier && matches!(self.lookup(&v.name), Some(Binding::Mem(p)) if self.is_void(&p.ty));
+                    let act = vb::compare(op == "==", op == "!=", void_name);
+                    if act != vb::NOT_MINE {
+                        return Ok(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Const(vb::folded(act) as i128) }));
+                    }
                 }
                 if let Some(v) = self.wide_fold(n, None)? { return Ok(v); }
                 let (x, y) = (&n.children[0], &n.children[1]);

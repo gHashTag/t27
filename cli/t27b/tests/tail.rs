@@ -155,3 +155,21 @@ fn wide_integer_constants_fold_or_are_refused() {
         assert!(m.contains(&format!("type {} at line", ty)) && m.contains(why), "{}: {}", src, m);
     }
 }
+
+// ------------------------------------------------ a void fn's result bound by a local
+
+/// #7690: `const r = f(x);` with `f` void runs the call and binds void's one value, which `==` folds equal to
+/// `undefined` (specs/tri/t27b/void_bind_plan.t27); `t27c test-report` passes the conformance spec 9/9, none
+/// vacuous. A typed local, a non-void name against `undefined` and a void against itself keep their refusals.
+#[test]
+fn a_void_fn_s_result_bound_by_a_local() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/void_bind.t27"));
+    assert!(r.len() == 9 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn f() -> void {\n    return;\n}\n\ntest t {\n    const r = f();\n    const k: u32 = 3;\n    assert(r == undefined);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("r == undefined", "undefined != r"))), vec![("t", false, false)]);
+    for (from, to, why) in [("r = f()", "r: void = f()", "void fn `f` used as a value"), ("r == undefined", "k == undefined", "`undefined`"), ("r == undefined", "r == r", "on a struct")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(why), "{}", m);
+    }
+}
