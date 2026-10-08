@@ -1,20 +1,20 @@
 {
   "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
-  "gen_hash_c": "sha256:5cf616226a9c676e5e1404a99d1fa80b902fbea25de2970f0f8f06c539f16b17",
-  "gen_hash_rust": "sha256:cd16a834c17ef73cbc6ffee684569f8fbf069917e6098f840f077a32ac65f01e",
-  "gen_hash_verilog": "sha256:ae60b66d7705c328712b38850318cc9115f2a674475371405209bd20dd2a550b",
-  "gen_hash_zig": "sha256:fa123801263171453b0bcd2b6c89163d9fa833fbbfac171e7fe3e0b15884dc62",
+  "gen_hash_c": "sha256:578c0248e6b6a123ca9ddeb292dbccc4312062f0e2b2b917c8c3475487d97ce6",
+  "gen_hash_rust": "sha256:15247ca82883c30bbb7e1b19c668589b2f8c51120f013ba995c6611acc5f1000",
+  "gen_hash_verilog": "sha256:602fe1bf78f56d6747d05ad918ba7a60e03ba0a74d6df2fde00731efa4c5d9f4",
+  "gen_hash_zig": "sha256:c25034ca4f7728ce6ad65807bb291d2dae9fce1fa11b5dd1272626d563a1616b",
   "module": "T27bSliceLitPlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T04:40:14Z",
+  "sealed_at": "2026-10-08T04:47:04Z",
   "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:527d2c361dd4ffbc8c92c4e9eb31c2f317aa9f337e6ea81fff5e80f44f1c5ffd",
+  "spec_hash": "sha256:efe2682f42018d06ac5fe9b4236963ce1bfb1659507ca31eda99c2c2897a27ad",
   "spec_path": "specs/tri/t27b/slice_lit_plan.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 9,
-    "total": 9
+    "passed": 10,
+    "total": 10
   }
 }

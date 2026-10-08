@@ -150,6 +150,13 @@ test elements_kept_as_text_are_read_back {
     assert(!is_static(PARSE));
 }
 
+test one_element_wins_over_size_text {
+    // The glue asks again after PARSE with the elements it read back; a dimension never has elements.
+    assert(plan(AT_FIELD, true, true, false, 1, false, false) == STATIC);
+    assert(plan(AT_RETURN, true, true, false, 1, true, true) == STATIC);
+    assert(plan(AT_FIELD, true, true, false, 3, true, false) == STATIC);
+}
+
 test a_dimension_without_elements {
     assert(plan(AT_FIELD, true, true, false, 0, true, true) == REFUSE_DIMENSION);
     assert(plan(AT_RETURN, true, true, false, 0, true, true) == NOT_MINE);
