@@ -1,0 +1,230 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/bit_cast.t27 -- `@bitCast` between an integer and a float of one size,
+; `@intFromBool`, and std.math.nan / isNan / isPositiveInf / isNegativeInf, as the reference runs them
+; (gHashTag/t27#7791, part of #7746, a lane of #6063). Every test here passes `t27c test-report`; t27b must
+; give the same verdict on each, or refuse the file.
+; The shapes are specs/numeric/gf16.t27's: a typed binding that reads an f32's bits
+; (`const bits : u32 = @bitCast(value);`) and one that builds an f32 from them, a test that pins a pattern
+; (`const tie : f32 = @bitCast(tie_b);`), `std.math.nan(f32)` passed to an encoder and negated, `isNan` /
+; `isPositiveInf` / `isNegativeInf` of a decoded value, and `@as(u8, @intFromBool(..))` summed. Then: a
+; bitcast as a `return`, an argument and an `@as`, signed integers of one size, f64 and u64, a signalling
+; NaN's payload through a call, a bool to a u1, a bitcast inside a loop, and module-level constants, which
+; both sides fold.
+; Every assert reads a value a fn computes at run time, so each test has runtime asserts.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceBitCast;
+
+// Module-level constants: Zig knows them at compile time, and so does t27b, which folds a bitcast of one.
+const BC_ALL_ONES : u32 = 0xFFFFFFFF;
+const BC_TWO : f32 = 2.0;
+
+/// A float's sign, biased exponent and fraction packed as 1 + 8 + 23 bits, then rebuilt: the round trip
+/// gf16.t27's encoder and decoder make, without their rounding.
+fn bc_split(value: f32) -> u32 {
+    const raw : u32 = @bitCast(value);
+    const sign : u32 = raw >> 31;
+    const expo : u32 = (raw >> 23) & 0xFF;
+    const frac : u32 = raw & 0x7FFFFF;
+    return (sign << 31) | (expo << 23) | frac;
+}
+
+fn bc_build(sign: u32, expo: u32, frac: u32) -> f32 {
+    const out_bits : u32 = (sign << 31) | (expo << 23) | frac;
+    const out : f32 = @bitCast(out_bits);
+    return out;
+}
+
+/// The biased exponent, or 255 for a NaN or an infinity.
+pub fn bc_exponent(value: f32) u32 {
+    const raw : u32 = @bitCast(value);
+    return (raw >> 23) & 0xFF;
+}
+
+/// 2 for a NaN (any payload, either sign), 1 for an infinity, 0 otherwise: gf16.t27's first test.
+fn bc_class(value: f32) -> u8 {
+    const raw : u32 = @bitCast(value);
+    if ((raw >> 23) & 0xFF == 0xFF) {
+        if (raw & 0x7FFFFF != 0) {
+            return 2;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+fn bc_bits(x: f32) -> u32 {
+    return @bitCast(x);
+}
+
+fn bc_float(b: u32) -> f32 {
+    return @bitCast(b);
+}
+
+fn bc_pass(x: f32) -> f32 {
+    return x;
+}
+
+fn bc_low_byte(b: u32) -> u32 {
+    return b & 0xFF;
+}
+
+fn bc_signed(b: u32) -> i32 {
+    const s : i32 = @bitCast(b);
+    return s;
+}
+
+fn bc_unsigned16(s: i16) -> u16 {
+    const u : u16 = @bitCast(s);
+    return u;
+}
+
+fn bc_f64_bits(x: f64) -> u64 {
+    const b : u64 = @bitCast(x);
+    return b;
+}
+
+fn bc_f64_of(b: i64) -> f64 {
+    const x : f64 = @bitCast(b);
+    return x;
+}
+
+fn bc_bit(flag: bool) -> u1 {
+    const one : u1 = @bitCast(flag);
+    return one;
+}
+
+/// A `var` bound to a literal: t27c's optimizer replaces only a `const` by its literal (#7807), so this bitcast
+/// reaches Zig as written.
+fn bc_from_var() -> f32 {
+    var b : u32 = 0x40400000;
+    const x : f32 = @bitCast(b);
+    return x;
+}
+
+/// How many of a, b, c hold: gf16.t27's `@as(u8, @intFromBool(..))` sum.
+fn bc_count(a: bool, b: bool, c: bool) -> u8 {
+    const count = @as(u8, @intFromBool(a)) +
+                   @as(u8, @intFromBool(b)) +
+                   @as(u8, @intFromBool(c));
+    return count;
+}
+
+/// The sum of the biased exponents of 1, 2, 4 .. 2^(n-1).
+fn bc_exponent_sum(n: u32) -> u32 {
+    var s : u32 = 0;
+    var x : f32 = 1.0;
+    var i : u32 = 0;
+    while (i < n) {
+        const raw : u32 = @bitCast(x);
+        s = s + ((raw >> 23) & 0xFF);
+        x = x * 2.0;
+        i = i + 1;
+    }
+    return s;
+}
+
+test "bits_of_a_float" {
+    try std.testing.expectEqual(@as(u32, 0x3F800000), bc_bits(bc_pass(1.0)));
+    try std.testing.expectEqual(@as(u32, 0xBF800000), bc_bits(bc_pass(-1.0)));
+    try std.testing.expectEqual(@as(u32, 0x80000000), bc_bits(-bc_pass(0.0)));
+    try std.testing.expectEqual(@as(u32, 0x00000001), bc_bits(bc_pass(1.0e-45)));
+    try std.testing.expectEqual(@as(u32, 0x7F7FFFFF), bc_bits(bc_pass(3.4028234663852886e38)));
+    try std.testing.expectEqual(@as(u32, 127), bc_exponent(bc_pass(1.5)));
+    try std.testing.expectEqual(@as(u32, 0x3F802000), bc_split(1.0009765625));
+    try std.testing.expectEqual(@as(u32, 0xC0200000), bc_split(-2.5));
+}
+
+test "a_float_from_its_bits" {
+    const tie_b : u32 = 0x3F802000;
+    const tie : f32 = @bitCast(tie_b);
+    try std.testing.expectEqual(@as(f32, 1.0009765625), bc_pass(tie));
+    try std.testing.expectEqual(@as(f32, -2.0), bc_build(1, 128, 0));
+    try std.testing.expectEqual(@as(f32, 0.75), bc_build(0, 126, 0x400000));
+    const sub : f32 = bc_build(0, 0, 1);
+    try std.testing.expect(sub > 0.0 and sub < 1.2e-38);
+    try std.testing.expectEqual(@as(u32, 0), bc_exponent(sub));
+    const inf : f32 = bc_build(0, 255, 0);
+    try std.testing.expect(inf > 3.4028234663852886e38);
+    try std.testing.expectEqual(@as(u8, 1), bc_class(-inf));
+}
+
+test "the_bits_of_a_nan_survive" {
+    // A signalling NaN's payload comes back through a bitcast, a call and a return, as does a quiet one's.
+    const snan_b : u32 = 0x7F800001;
+    const snan : f32 = @bitCast(snan_b);
+    try std.testing.expectEqual(@as(u32, 0x7F800001), bc_bits(bc_pass(snan)));
+    try std.testing.expectEqual(@as(u32, 0xFFC00123), bc_bits(bc_pass(bc_float(0xFFC00123))));
+    try std.testing.expectEqual(@as(u8, 2), bc_class(snan));
+    try std.testing.expectEqual(@as(u8, 2), bc_class(bc_float(0xFFFFFFFF)));
+    try std.testing.expectEqual(@as(u8, 0), bc_class(bc_float(0x7F7FFFFF)));
+    try std.testing.expect(snan != snan);
+}
+
+test "nan_and_the_predicates_in_gf16_s_shapes" {
+    try std.testing.expectEqual(@as(u8, 2), bc_class(std.math.nan(f32)));
+    try std.testing.expectEqual(@as(u8, 2), bc_class(-std.math.nan(f32)));
+    try std.testing.expectEqual(@as(u32, 0x7FC00000), bc_bits(std.math.nan(f32)));
+    try std.testing.expectEqual(@as(u32, 0xFFC00000), bc_bits(-std.math.nan(f32)));
+    try std.testing.expect(std.math.isNan(bc_float(0x7F800001)));
+    try std.testing.expect(std.math.isNan(bc_build(1, 255, 7)));
+    try std.testing.expect(!std.math.isNan(bc_build(1, 255, 0)));
+    try std.testing.expect(std.math.isPositiveInf(bc_build(0, 255, 0)));
+    try std.testing.expect(std.math.isNegativeInf(bc_build(1, 255, 0)));
+    try std.testing.expect(!std.math.isPositiveInf(bc_build(1, 255, 0)));
+    try std.testing.expect(!std.math.isNegativeInf(bc_build(1, 254, 0x7FFFFF)));
+    try std.testing.expect(std.math.isNan(std.math.nan(f64)));
+    try std.testing.expect(!std.math.isPositiveInf(bc_f64_of(0x7FF8000000000000)));
+}
+
+test "a_bitcast_as_a_return_an_argument_and_an_as" {
+    try std.testing.expectEqual(@as(u32, 0x40490FDB), bc_bits(3.1415927));
+    try std.testing.expectEqual(@as(f32, 2.0), bc_float(0x40000000));
+    try std.testing.expectEqual(@as(f32, 3.0), bc_from_var());
+    try std.testing.expectEqual(@as(u32, 0xDB), bc_low_byte(@bitCast(bc_pass(3.1415927))));
+    try std.testing.expectEqual(@as(u32, 0x3F000000), @as(u32, @bitCast(bc_pass(0.5))));
+}
+
+test "integers_of_one_size" {
+    try std.testing.expectEqual(@as(i32, -1), bc_signed(0xFFFFFFFF));
+    try std.testing.expectEqual(@as(i32, -2147483648), bc_signed(0x80000000));
+    try std.testing.expectEqual(@as(i32, 2147483647), bc_signed(0x7FFFFFFF));
+    try std.testing.expectEqual(@as(u16, 0xFFFE), bc_unsigned16(-2));
+    try std.testing.expectEqual(@as(u16, 0x8000), bc_unsigned16(-32768));
+    const k : u8 = 200;
+    const sk : i8 = @bitCast(k);
+    try std.testing.expectEqual(@as(i8, -56), sk);
+    try std.testing.expectEqual(@as(i32, -1082130432), @as(i32, @bitCast(bc_pass(-1.0))));
+    const ones : i32 = @bitCast(BC_ALL_ONES);
+    try std.testing.expectEqual(@as(i32, -1), ones);
+    try std.testing.expectEqual(@as(i32, -1), bc_signed(@bitCast(ones)));
+    const two_bits : u32 = @bitCast(BC_TWO);
+    try std.testing.expectEqual(@as(u32, 0x40000000), two_bits);
+    try std.testing.expectEqual(@as(u32, 0x40000000), bc_bits(BC_TWO));
+}
+
+test "f64_and_its_bits" {
+    try std.testing.expectEqual(@as(u64, 0x3FF0000000000000), bc_f64_bits(1.0));
+    try std.testing.expectEqual(@as(u64, 0x8000000000000000), bc_f64_bits(-bc_f64_of(0)));
+    try std.testing.expectEqual(@as(u64, 0x7FF8000000000000), bc_f64_bits(std.math.nan(f64)));
+    try std.testing.expectEqual(@as(f64, -2.0), bc_f64_of(-4611686018427387904));
+    try std.testing.expectEqual(@as(u64, 0xFFFFFFFFFFFFFFFF), bc_f64_bits(bc_f64_of(-1)));
+    try std.testing.expect(std.math.isNan(bc_f64_of(-1)));
+}
+
+test "a_bool_and_int_from_bool" {
+    try std.testing.expectEqual(@as(u8, 2), bc_count(true, false, true));
+    try std.testing.expectEqual(@as(u8, 0), bc_count(false, false, false));
+    try std.testing.expectEqual(@as(u8, 3), bc_count(true, true, true));
+    try std.testing.expectEqual(@as(u1, 1), bc_bit(bc_exponent(1.0) == 127));
+    try std.testing.expectEqual(@as(u1, 0), bc_bit(bc_exponent(1.0) == 0));
+    try std.testing.expectEqual(@as(u1, 1), @as(u1, @intFromBool(bc_exponent(1.0) == 127)));
+    const on : u32 = @intFromBool(bc_exponent(2.0) == 128);
+    try std.testing.expectEqual(@as(u32, 1), on);
+}
+
+test "a_bitcast_in_a_loop" {
+    // 127 + 128 + 129 + 130
+    try std.testing.expectEqual(@as(u32, 514), bc_exponent_sum(4));
+    try std.testing.expectEqual(@as(u32, 0), bc_exponent_sum(0));
+}

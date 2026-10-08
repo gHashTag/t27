@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "gen_hash_c": "sha256:0960dc8a7cda318dcff34f3d7100a22b010ce78625c16e3139a18e6ad8941bba",
+  "gen_hash_rust": "sha256:2b59c1a3e77809075c096f5d4c4be27af36f33347279e93f2c3b66a9c3f8b936",
+  "gen_hash_verilog": "sha256:c22ead6948f20bacad3f398e8b93c447a586cb2595398cfe8e9581e0421046ff",
+  "gen_hash_zig": "sha256:1f5005113377d7543d93bdae5b6945aa00330bc2bd2291585dccc6a7736c5539",
+  "module": "ResetSync",
+  "ring": 12,
+  "sealed_at": "2026-10-08T12:44:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:ab5d45ee38bb74dc6b97bc6d6a6024f5219ce91266dc18ebe44744e500ffcc36",
+  "spec_path": "specs/fpga/reset_sync.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 16,
+    "total": 16
+  }
+}

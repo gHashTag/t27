@@ -228,10 +228,14 @@ measure it are written in **t27**, not in Rust or Python by hand.
   15064 plus 1202, 16266 in all, and tests 8043, after #7796's glue for
   `undefined` as an argument the callee never reads, whose plan is
   `specs/tri/t27b/undefined_arg_plan.t27`, +21 and +16 in the tests on master
-  7f7bf2cb6's 15043 plus 1202 and 8027; 15080 plus 1202, 16282 in all, and
-  `cli/t27b/tests/*.rs` 8062, after #7790's glue for `@divTrunc` and a
+  7f7bf2cb6's 15043 plus 1202 and 8027; 15100 plus 1202, 16302 in all, and tests
+  8062, after #7791's glue for `@bitCast` and `@intFromBool`, whose plan is
+  `specs/tri/t27b/bit_cast_plan.t27`, and for `std.math.nan`, `isNan`,
+  `isPositiveInf` and `isNegativeInf` from `libm_plan.t27`, +36 and +19 on
+  master f53a734b7's 15064 plus 1202 and 8043; 15145 plus 1202, 16347 in all,
+  and `cli/t27b/tests/*.rs` 8094, after #7790's glue for `@divTrunc` and a
   `@panic` statement (`specs/tri/t27b/builtin_plan.t27`), +16 and +19 on
-  master f53a734b7's 15064 plus 1202 and 8043),
+  master 14e1c7be9's 15129 plus 1202 and 8075),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

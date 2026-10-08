@@ -35,6 +35,11 @@
 # illegal_hits (#2410). The four hit_* loops now call is_covered_*(points[i])
 # and elaborate, but the array param is still flattened (#2410), so they are
 # not yet meaningful hardware either -- the count is the honest floor.
+# 2026-10-08: 199 -> 205. `mmcm 2`, `reset_sync 2` and `mtbf 2` are NEW
+# modules (specs/fpga/{mmcm,reset_sync,mtbf}.t27, #7585): coverage arriving,
+# not a regression in an existing row. Each pair is one line of the
+# string-field class (#2433): `cfg.name == ""` / `m.name == ""` in the
+# module's validate_* fn, reported as unbound and as its condition.
 #
 # `eth_beacon 0` and `rgmii_sniff 0` arrived on master with e6e8257c5 (#7788)
 # without rows, so the ratchet read them as NEW and went red for every
@@ -61,10 +66,13 @@ hw_types 0
 linker 4
 mac 0
 memory 5
+mmcm 2
+mtbf 2
 partition 2
 placement 6
 power 2
 power_analysis 1
+reset_sync 2
 rgmii_sniff 0
 router 8
 simulator 2

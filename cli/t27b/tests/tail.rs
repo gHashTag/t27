@@ -249,3 +249,22 @@ fn an_undefined_argument_nobody_reads() {
     let m = rejected(&src.replace("y == 7", "x == 7"));
     assert!(m.contains("construct ExprIdentifier(undefined argument read) at line 8"), "{}", m);
 }
+
+// ------------------------------------------------ @bitCast, @intFromBool and the std.math NaN fns
+
+/// #7791: an f32's bits through a frame slot, integers of one size, a bool as a u1, and `std.math.nan` / `isNan` /
+/// `isPositiveInf` / `isNegativeInf` from libm.t27 (specs/tri/t27b/bit_cast_plan.t27, libm_plan.t27); `t27c
+/// test-report` passes the conformance spec 9/9, none vacuous. What Zig refuses is refused by name.
+#[test]
+fn bit_cast_int_from_bool_and_the_nan_fns() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/bit_cast.t27"));
+    assert!(r.len() == 9 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn f(x: f32) -> u32 {\n    const b: u32 = @bitCast(x);\n    return b;\n}\n\ntest t {\n    assert(f(1.0) == 0x3F800000);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    for (from, to, what, why) in [("@bitCast(x)", "@bitCast(1.0)", "@bitCast", "literal"), ("b: u32", "b: u64", "@bitCast", "sizes differ"),
+        ("@bitCast(x)", "@intFromBool(x)", "@intFromBool", "not a bool"), ("f(1.0) == 0x3F800000", "std.math.isNan(f(1.0))", "std.math.isNan", "not an f64"),
+        ("const b: u32 = @bitCast(x)", "const k: u32 = 5;\n    const b: f32 = @bitCast(k)", "@bitCast", "optimizer")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(&format!("construct ExprCall({}) at line", what)) && m.contains(why), "{}", m);
+    }
+}

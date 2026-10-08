@@ -1,20 +1,20 @@
 {
   "built_by": "t27c-bootstrap@0.5.1+5263bba",
-  "gen_hash_c": "sha256:202860dcf0637ed8cadb03d9aa3a6e68716a46032094e7674fcd1a486c3f4588",
-  "gen_hash_rust": "sha256:875c7156036f71b45b5ae2d1983bb9bcbdabf07c60978686049c70caf3aa39f3",
-  "gen_hash_verilog": "sha256:70c46aad42fd20ea4d3825babc96d6e95b902e1ed6659e78c58df13fbc7db89e",
-  "gen_hash_zig": "sha256:4d5865c3432d8208a43948baaab920635fc0d74ec242d76f25164c384000b9a4",
+  "gen_hash_c": "sha256:db362c746537e9624a5ca42738c2b78e2f051ccd40b3a15675b7a082ecf87d07",
+  "gen_hash_rust": "sha256:f774d15ca565893fb8f5278ab3f807299c163ea522f493e13de32635f6d310dd",
+  "gen_hash_verilog": "sha256:70bb792bd84a5a444733950019d85352c275e3080e3e1a360e11714a4dade250",
+  "gen_hash_zig": "sha256:fe845dcd92b49abf907f01ea863cbcfa7b45ccda626983fcdb4d2a2196d2600e",
   "module": "automation::bot_topic_tabs",
   "ring": 12,
-  "sealed_at": "2026-10-08T13:21:22Z",
+  "sealed_at": "2026-10-08T16:06:39Z",
   "sealed_by": "t27c-bootstrap@0.5.1",
-  "spec_hash": "sha256:4b4ac2d37cd7b055b9941e50209ce48ca46a34adb34a72cd66890d5e8d4a9cd9",
+  "spec_hash": "sha256:bc4cc9e8d1eafec45e8397c55a42c39cdfc91f07920d6f4e77364152f65948b4",
   "spec_path": "specs/automation/bot-topic-tabs.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 13,
-    "total": 13
+    "passed": 14,
+    "total": 14
   }
 }
