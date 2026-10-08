@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:62df5f35b68a99b6861c555195fc20e8755283d24fe4b2abec0e3bb420233556",
+  "gen_hash_rust": "sha256:73c6efb3e8a0eac74e0d0c661eb3bc5d4ddb9d29e874be90ecbf3e05448c4630",
+  "gen_hash_verilog": "sha256:afeb584958b6b465f8c71cae90e6f6d205680ba40a7a90a4d21c4f4ea3dbd51c",
+  "gen_hash_zig": "sha256:842c257bcc64ab0b41873fe550d2c88da5422efbb60e58cbc3df0a45c0490ff5",
+  "module": "fn_instagram_competitors_find",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:09:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:5bf77c6b66a8613f4389f989242357124edc50a82f1106d19eaa2b0aad562753",
+  "spec_path": "specs/functions/instagram-competitors-find.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

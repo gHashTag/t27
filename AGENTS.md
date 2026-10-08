@@ -183,13 +183,56 @@ measure it are written in **t27**, not in Rust or Python by hand.
   `mov_imm` to `a64.t27` too, -102 on master 499487306's 14847 plus 7775;
   14812 plus 7814 after #7394's glue for `@abs`, `@max`, `@min` and
   `std.math.pi` / `e`, whose plan is `specs/tri/t27b/builtin_plan.t27`, +43
-  and 0 on master 95182e95b's 14769 plus 7814),
+  and 0 on master 95182e95b's 14769 plus 7814; 14848 plus 7833 after #7412's
+  glue for `@intCast` with an integer result type, whose plan is
+  `specs/tri/t27b/int_cast_plan.t27`, +36 and +19 on master 1120d30ae's 14812
+  plus 7814; 14881 plus 7848 after #7391's glue for `@exp`, whose plan is
+  `specs/tri/t27b/libm_plan.t27` and whose routines are
+  `specs/tri/t27b/libm.t27`, +33 and +15 on master 6fba037d1's 14848 plus
+  7833; 14881 plus 7858 after #7217's `@log` from the same plan, 0 and +10
+  on master 8c7b2ccff's 14881 plus 7848; 14917 plus 7877 after #7423's glue
+  for integer constants wider than 64 bits, whose plan is
+  `specs/tri/t27b/wide_plan.t27`, +36 and +19 on master 8415029ea's 14881
+  plus 7858; 14945 plus 7877 after #7550's refusal of a return that hands
+  out the address of the fn's own frame, +28 and 0 on master 5f3087125's
+  14917 plus 7877; 14919 plus 7874 after #7422 removed the stale
+  `StmtAssign(reference redeclares)` scan, -26 and -3 on master 2eabc3edd's
+  14945 plus 7877; 14876 plus 7874 after #7673 moved the greedy blockers
+  order, its replay and FNV-1a to `specs/tri/t27b/blockers.t27`, -43 and 0
+  on master ef26684a1's 14919 plus 7874; 14842 plus 7866 after #7680's glue
+  for array literals the reference prints as `@constCast(&[_]E{ ... })`,
+  whose plan is `specs/tri/t27b/slice_lit_plan.t27`, -34 and -8 on master
+  3d7130691's 14876 plus 7874; 14885 plus 7924 after #7740's glue for the
+  `type mismatch` family, whose plan is `specs/tri/t27b/coerce_plan.t27`,
+  +12 and +19 on master b8cb93f34's 14873 plus 7905; 14905 plus 7942 after
+  #7690's glue for a local bound to a void fn's result, whose plan is
+  `specs/tri/t27b/void_bind_plan.t27`, +20 and +18 on master 1d9c5960d's
+  14885 plus 7924; 14944 plus 7964 after #7691's glue for a local bound to
+  the W585 scaffold the reference never calls, whose plan is
+  `specs/tri/t27b/scaffold_plan.t27`, +39 and +22 on master d42df2b06's
+  14905 plus 7942),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
-  Railway lab). Update these numbers in the PR that moves them.
+  Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
 
 This is the "Own language first" rule below, applied to code: a project whose
 claim is "here is a language worth writing" writes its own backend in it.
+
+**A lane's evidence (#7672).** A t27b coverage PR proves "nothing regressed"
+with two signed corpus receipts, not a pasted table of lab numbers.
+
+- Base: `git merge-base origin/master HEAD`. Head: the PR's head, pushed to a
+  branch on origin. Use `https://t27b-lab-production.up.railway.app/runs/<sha>.receipt.json`
+  when it exists; otherwise request it with a fresh challenge you keep:
+  `c=$(openssl rand -hex 32); ssh t27b-lab "mkdir -p /srv/requests && printf %s $c > /srv/requests/<sha>"`.
+  The lab runs one request between master polls (about 10 minutes each, at most
+  4 waiting, dropped after 6 hours) and publishes `/runs/<sha>.json` and the receipt.
+- From a master checkout's root: `t27c corpus-receipt compare BASE.json HEAD.json
+  --challenge <base's> --challenge-head <head's>` (omit a challenge you did not
+  write). Paste its output and exit code: `lane` lines name each changed file.
+- Exit 3 IMPROVED_ONLY, 0 EQUIVALENT or 4 NEUTRAL may merge. Exit 1 REGRESSED
+  blocks the merge; exit 2 REFUSED means the evidence did not authenticate, so
+  it proves nothing. The rules are `specs/verified/corpus_receipt.t27`.
 
 ## Own language first
 

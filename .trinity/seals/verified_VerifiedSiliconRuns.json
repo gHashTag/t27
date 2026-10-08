@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+12c41a42b",
+  "gen_hash_c": "sha256:25759465fe375fa98f09b61ef0262183b51ec2e4d522bc12e815dbd37c61809a",
+  "gen_hash_rust": "sha256:28ee84c3dd72fdb81a2fc823ef15f190dc924d3361aacc77a43fff89520b93b8",
+  "gen_hash_verilog": "sha256:8cb961e02e456270ee62186bf269e8ace2220643636f502d7cbdc58b0abc4b4a",
+  "gen_hash_zig": "sha256:8820ef0064832d2b2de2a7e4ad2087d74de4b0e92211441c43a6dddcdfec85d0",
+  "module": "VerifiedSiliconRuns",
+  "ring": 12,
+  "sealed_at": "2026-10-08T08:17:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:ca2b0f70f285b648b7715944b72b2ce4fd2ad6cee7cb95c0f52b18a8829a50ac",
+  "spec_path": "specs/verified/silicon_runs.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
+}

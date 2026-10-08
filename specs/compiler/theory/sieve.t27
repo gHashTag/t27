@@ -115,7 +115,11 @@
 ;   5 REFERENCE_BUG) and a reducer (#6445). As in Zig's per-backend matrix, the front end is shared.
 ;   C4 FALSE: DDC of t27core now runs (#6508, T732) and each route's stage 2 equals gen-c byte for
 ;   byte, but every route shares compiler.rs's front end (T729): back-end agreement, not an
-;   independent bootstrap. The independent path is the self-hosted front end, #5980.
+;   independent bootstrap. Since #7699 the evidence is a signed DDC receipt, not a copied log: the
+;   t27b lab runs the three routes whenever S, E or FROZEN_HASH moved and signs the run
+;   (specs/verified/ddc_receipt.t27, served as /ddc/<sha>.receipt.json), and `t27c ddc-receipt
+;   verify` recomputes T732's verdict from the signed fields. It says DDC_BACKEND_AGREEMENT, so the
+;   cell stays FALSE; it turns on DDC_INDEPENDENT only, which needs the self-hosted front end, #5980.
 ;   C5 FALSE (no source-level interpreter; the compiler IS the reference; #5980).
 ;   C6 NA (AOT).
 ;   C7 FALSE (no compile-speed or code-quality number against a reference is published; #6444 gave
@@ -527,7 +531,8 @@ test t740_known_cells {
 ; that, when closed, turns it to TRUE or states why it stays FALSE:
 ;   C1 -> #7595 (a mechanised semantics of a t27 subset and a preservation proof for one backend)
 ;   C4, C5 (t27c) -> #5980 (the self-hosted core: a front end that does not share compiler.rs, so
-;         DDC becomes independent, and a second path to the source's meaning)
+;         DDC becomes independent -- a signed DDC receipt saying DDC_INDEPENDENT, #7699 -- and a
+;         second path to the source's meaning)
 ;   C6 (t27b), C7 -> #7596 (measured warmup; compile speed and code quality published against a
 ;         reference compiler)
 ; History. At 682564f48 there were eleven FALSE cells, mapped to #6446, #6441, #6442, #6445, #6508,

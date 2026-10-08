@@ -225,12 +225,32 @@ fn a_fresh_requirement_needs_a_long_enough_challenge() {
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 
+/// --receipts judges a run kept in its own subdirectory; --json writes that same judgment.
+#[test]
+fn json_writes_the_judgment_of_a_run_kept_in_a_receipts_subdirectory() {
+    let (root, key, _) = tree("json");
+    std::fs::create_dir_all(root.join(".trinity/receipts/run1")).unwrap();
+    for (i, d) in ["050d58218fd9854", "0a1b2c3d4e5f607", "123456789abcdef"].iter().enumerate() {
+        receipt_dna(&root, &format!("run1/link-177000000{i}-{i}.json"), Some(CHALLENGE), Some(&key), Some(d));
+    }
+    let out = root.join("verdict.json");
+    let args = ["run-record", SPEC, "--challenge", CHALLENGE, "--receipts", ".trinity/receipts/run1", "--json", out.to_str().unwrap()];
+    let (code, text) = t27c(&root, &key, &args);
+    assert_eq!(code, Some(0), "{text}");
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!((v["run_complete"].as_bool(), v["authentication"].as_str(), v["die"].as_str()), (Some(true), Some("FRESH"), Some("NAMED")), "{v}");
+    assert!(v["independence"].as_str().unwrap().starts_with("INDEP_DIES"), "{v}");
+    assert_eq!(v["receipts"].as_array().unwrap().len(), 3, "{v}");
+    assert!(v["judged_by"].as_str().unwrap().starts_with("t27c-bootstrap@"), "{v}");
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
 /// The receipt constants and decisions t27c runs are generated from the spec;
 /// the checked-in copy is exactly what gen-rust writes today.
 #[test]
 fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    for name in ["signed_receipt", "die_binding", "independence"] {
+    for name in ["signed_receipt", "die_binding", "independence", "corpus_receipt", "ddc_receipt"] {
     let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .args(["gen-rust", &format!("specs/verified/{name}.t27")])
         .current_dir(&root)

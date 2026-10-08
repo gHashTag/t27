@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+d42df2b06",
+  "gen_hash_c": "sha256:27228fd7cbec4a2a27c86fb720833a4b54f16855486d75690be262fcdf4b83c8",
+  "gen_hash_rust": "sha256:d13d9d6289182df7f7e7e420c025f4833ce064c7f18735ff672c8213a9ee5e17",
+  "gen_hash_verilog": "sha256:27601919944b0d6b9d4bbbb8af8f450e897ee8e7ae68a4a326d227258bd5e98c",
+  "gen_hash_zig": "sha256:7d8647780c47a554efc2e32e53222be1f31c8f50e8298f54de3f98f98c847bc5",
+  "module": "T27bConformanceScaffoldLocal",
+  "ring": 12,
+  "sealed_at": "2026-10-08T09:55:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:321b2dfc91aee14f480a5a5ca7a05418e75809ebcfedc8f85e54401d7f06b198",
+  "spec_path": "specs/tri/t27b/conformance/scaffold_local.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}
