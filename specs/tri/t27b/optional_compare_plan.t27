@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/optional_compare_plan.t27 -- which payloads t27b compares when `x == v` or `x != v` puts an
+; optional `?T` against a value of its payload type T (t27b coverage epic #6063; written in t27 under the port
+; epic #6198). What t27b decides about the payload is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/optional_compare_plan.rs). The Rust glue in cli/t27b/src/lower.rs (`opt_compare`) reads the
+; payload's kind, asks `payload`, and compares the payload by value, by tag, or refuses as before. Its other
+; questions (two optionals, an ordering operator, a value with effects) are asked before this plan, unchanged.
+; --
+; What the reference does (zig 0.16.0, the default x86_64 Debug backend `t27c test-report` builds with;
+; measured on the t27c lab and pinned by specs/tri/t27b/conformance/optional_enum_compare.t27):
+;   - t27c's Zig backend prints `x == v` as written. Zig compares an optional with a value of its payload type:
+;     `==` holds only when x holds a value and that value equals v, and `!=` is its negation, so a null x is
+;     `!=` every value. Either side may be the optional.
+;   - For an enum payload, equal means the same tag: specs/port/trios/crates/trios-store/rings/ST-00/src/lib.t27
+;     asserts `Adapter_parse("claude") == Adapter.Claude` with `Adapter_parse` returning `?Adapter`.
+;   - A payload Zig does not compare with `==` (a struct, an array, a slice) does not compile.
+; --
+; What t27b does. BY_VALUE: an integer, float or bool payload, compared as t27b compares two scalars (what t27b
+; already took). BY_TAG: an enum payload, compared as t27b compares two values of one enum, so a value of another
+; enum is refused as `type mismatch`, as Zig refuses it. REFUSE_PAYLOAD: any other payload keeps its refusal,
+; `ExprBinary(?T)`; pointers among them, which #7742 decides.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bOptionalComparePlan;
+
+// The payload's kind, as the glue reads it.
+pub const K_SCALAR : u8 = 0;
+pub const K_ENUM : u8 = 1;
+pub const K_OTHER : u8 = 2;
+
+// The answer.
+pub const BY_VALUE : u8 = 1;
+pub const BY_TAG : u8 = 2;
+pub const REFUSE_PAYLOAD : u8 = 3;
+
+/// How the payload of the optional is compared with the other operand.
+pub fn payload(kind: u8) -> u8 {
+    if (kind == K_SCALAR) { return BY_VALUE; }
+    if (kind == K_ENUM) { return BY_TAG; }
+    return REFUSE_PAYLOAD;
+}
+
+/// Is the answer a refusal?
+pub fn refuses(act: u8) -> bool {
+    return act == REFUSE_PAYLOAD;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the shapes the corpus has, then what stays refused.
+// ----------------------------------------------------------------------------------------------------------
+
+test an_enum_payload_is_compared_by_tag {
+    // ST-00's `Adapter_parse("claude") == Adapter.Claude`.
+    assert(payload(K_ENUM) == BY_TAG);
+    assert(!refuses(payload(K_ENUM)));
+}
+
+test a_scalar_payload_is_compared_by_value_as_before {
+    assert(payload(K_SCALAR) == BY_VALUE);
+    assert(!refuses(payload(K_SCALAR)));
+}
+
+test any_other_payload_stays_refused {
+    assert(payload(K_OTHER) == REFUSE_PAYLOAD);
+    assert(refuses(payload(K_OTHER)));
+    assert(payload(7) == REFUSE_PAYLOAD);
+    assert(payload(255) == REFUSE_PAYLOAD);
+}
+
+test the_answers_are_distinct {
+    assert(payload(K_SCALAR) != payload(K_ENUM));
+    assert(payload(K_ENUM) != payload(K_OTHER));
+    assert(payload(K_SCALAR) != payload(K_OTHER));
+}
