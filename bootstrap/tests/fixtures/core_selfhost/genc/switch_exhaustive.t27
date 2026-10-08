@@ -1,0 +1,51 @@
+// #7308: a switch on an integer needs a catch-all arm. gen-c lowers a switch
+// to a chain of ternaries and, with no `else`, ended the chain with 0. It now
+// refuses that source, as Zig does (see both_refuse/). Every switch below is
+// exhaustive and is accepted: `else`, `_`, or an enum switch naming every variant.
+module gencswitch;
+const Sign = enum(i8) {
+    neg = -1,
+    zero = 0,
+    pos = 1,
+};
+fn tens(x: i64) -> i64 {
+    return switch (x) {
+        1 => 10,
+        2 => 20,
+        else => 0,
+    };
+}
+fn below(x: i64) -> i64 {
+    return switch (x) {
+        -1 => 1,
+        -2 => 2,
+        else => 99,
+    };
+}
+fn rest(x: i64) -> i64 {
+    return switch (x) {
+        1 => 10,
+        _ => 7,
+    };
+}
+fn sign_value(s: Sign) -> i64 {
+    return switch (s) {
+        .neg => -1,
+        .zero => 0,
+        .pos => 1,
+    };
+}
+test integer_switch_with_else {
+    assert(tens(1) == 10);
+    assert(tens(2) == 20);
+    assert(tens(3) == 0);
+    assert(below(-2) == 2);
+    assert(below(7) == 99);
+    assert(rest(1) == 10);
+    assert(rest(5) == 7);
+}
+test enum_switch_naming_every_variant {
+    assert(sign_value(Sign.neg) == -1);
+    assert(sign_value(Sign.zero) == 0);
+    assert(sign_value(Sign.pos) == 1);
+}

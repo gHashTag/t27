@@ -1,0 +1,7 @@
+// A slice is outside the subset.
+module slice_range;
+var a: [3]i64 = [_]i64{1, 2, 3};
+fn m() -> i64 {
+    var y: i64 = a[0..2][0];
+    return y;
+}

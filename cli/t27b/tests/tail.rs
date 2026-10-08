@@ -282,3 +282,32 @@ fn a_folded_minus_negates_a_float_literal() {
     assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
     assert_eq!(names_ok(&run(&src.replace("-0.0", "0.0"))), vec![("t", false, false)]);
 }
+
+// ------------------------------------------------ @floatFromInt of a comptime_int
+
+/// #7803: `c as f32` is `@as(f32, @floatFromInt(c))` in the reference, and Zig rounds a comptime_int c there,
+/// ties to even (specs/tri/t27b/coerce_plan.t27; `t27c test-report` passes the conformance spec 5/5, none
+/// vacuous). A coercion of an inexact c does not compile, and a c wider than 64 bits keeps that rule.
+#[test]
+fn a_comptime_int_rounds_in_float_from_int() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/float_from_int_literal.t27"));
+    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    for src in ["fn f() -> f32 {\n    const a: f32 = 16777217;\n    return a;\n}\n", "fn f() -> f32 {\n    return 0x1FFFFFFFFFFFFFFFF as f32;\n}\n"] {
+        let m = rejected(&format!("module a;\n\n{}\ntest t {{\n    assert(f() > 0.0);\n}}\n", src));
+        assert!(m.contains("construct literal out of range at line"), "{}", m);
+    }
+}
+
+// ------------------------------------------------ f32 @floor, @ceil, @round, @trunc and @rem
+
+/// #7819: of an f32 they call libm.t27's ports of compiler_rt (`roundf` half away from zero, `fmodf` signed as the
+/// dividend), and `@rem`'s second operand takes the first one's type (specs/tri/t27b/libm_plan.t27). An f64 is refused.
+#[test]
+fn f32_rounding_and_rem_call_their_ports() {
+    let src = "module a;\n\nfn f(x: f32) -> f32 {\n    return @round(x) + @floor(x) + @ceil(x) + @trunc(x) + @rem(x, 2.0);\n}\n\ntest t {\n    assert(f(-2.5) == -10.5);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    for (from, to, what, why) in [("x: f32) -> f32", "x: f64) -> f64", "@round", "no f64 routine"), ("@rem(x, 2.0)", "@rem(x)", "@rem", "`@rem` two")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(&format!("construct ExprCall({}) at line 4", what)) && m.contains(why), "{}", m);
+    }
+}

@@ -21527,7 +21527,26 @@ long double: fabsl, default: llabs)(x)",
                         // "unknown type name 'u8'". `param_type_to_c` strips
                         // it for a slice parameter; the same strip is needed
                         // here.
-                        let elem = elem.trim();
+                        let mut elem = elem.trim();
+                        // #7441: a nested `[16][16]u8` kept its inner `[16]`
+                        // in the element, and `type_to_c` passed the text
+                        // through: `[16]u8 m[16]`, which is not C. Every
+                        // inner fixed dimension moves to the declarator, as
+                        // `c_array_field` and a module-level array already
+                        // do: `uint8_t m[16][16]`. A slice or sentinel
+                        // dimension stops the peel and keeps the old path.
+                        let mut inner_dims = String::new();
+                        if !size.trim().is_empty() {
+                            while let Some(r) = elem.strip_prefix('[') {
+                                let Some(c) = r.find(']') else { break };
+                                let d = r[..c].trim();
+                                if d.is_empty() || d == "_" || d.contains(';') || d.contains(':') {
+                                    break;
+                                }
+                                inner_dims.push_str(&format!("[{}]", Self::c_literal(d)));
+                                elem = r[c + 1..].trim();
+                            }
+                        }
                         let (qual, elem) = match elem.strip_prefix("const ") {
                             Some(rest) => ("const ", rest.trim()),
                             None => ("", elem),
@@ -21549,7 +21568,10 @@ long double: fabsl, default: llabs)(x)",
                         } else {
                             // #7318: `[1_0]u8` must not reach C as `x[1_0]`.
                             let size = Self::c_literal(size);
-                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                            self.write(&format!(
+                                "{} {}[{}]{}",
+                                c_elem, node.name, size, inner_dims
+                            ));
                         }
                     } else {
                         self.write(&format!("int {}", node.name));
@@ -21928,8 +21950,9 @@ long double: fabsl, default: llabs)(x)",
             } else {
                 cap
             };
+            // #7307: the capture is a `usize`; an `int` counter ran zero times past INT_MAX.
             self.write_indent();
-            self.write(&format!("for (int {var} = "));
+            self.write(&format!("for (size_t {var} = "));
             self.gen_c_expr(&node.children[0].children[0]);
             self.write(&format!("; {var} < "));
             self.gen_c_expr(&node.children[0].children[1]);
@@ -21968,7 +21991,7 @@ long double: fabsl, default: llabs)(x)",
         let var = &node.name;
         self.write_indent();
         if node.children.len() >= 2 {
-            self.write(&format!("for (int {var} = "));
+            self.write(&format!("for (size_t {var} = "));
             self.gen_c_expr(&node.children[0]);
             self.write(&format!("; {var} < "));
             self.gen_c_expr(&node.children[1]);
@@ -23413,10 +23436,45 @@ impl Compiler {
         Ok((codegen.into_string(), refusal))
     }
 
+    /// #7308: gen-c lowers a switch to a ternary chain and ended it with `0` when no arm
+    /// matched. Like Zig, refuse an integer switch (a numeric, negative or char label) with no
+    /// `else` or `_` arm; enum-literal labels are left alone, naming every variant is exhaustive.
+    fn c_int_switch_without_else(node: &Node, owner: &str) -> Option<String> {
+        let owner = match node.kind {
+            NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::InvariantBlock | NodeKind::BenchBlock => {
+                node.name.as_str()
+            }
+            _ => owner,
+        };
+        if node.kind == NodeKind::ExprSwitch && node.children.len() > 1 {
+            let labels: Vec<&str> = node.children[1..]
+                .iter()
+                .filter(|a| a.kind == NodeKind::ConstDecl)
+                .map(|a| a.name.as_str())
+                .collect();
+            let catch_all = labels.iter().any(|n| n.is_empty() || *n == "else" || *n == "_");
+            let int_label = |n: &&str| {
+                n.trim_start_matches('-').starts_with(|c: char| c.is_ascii_digit() || c == '\'')
+            };
+            if !catch_all && labels.iter().any(int_label) {
+                return Some(format!(
+                    "non-exhaustive switch in `{}`: a switch on an integer needs an `else` arm \
+                     (labels {}) (#7308)",
+                    if owner.is_empty() { "<module>" } else { owner },
+                    labels.join(", ")
+                ));
+            }
+        }
+        node.children.iter().find_map(|c| Self::c_int_switch_without_else(c, owner))
+    }
+
     pub fn compile_c(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let ast = parser.parse()?;
+        if let Some(e) = Self::c_int_switch_without_else(&ast, "") {
+            return Err(e);
+        }
         // Emit FAITHFUL C from the AST; the C compiler optimizes downstream. See
         // the note on compile_rust: t27c's optimizer drops reassigned locals and
         // const-inlines `let`, corrupting the source-level output. Fixes #1455.
@@ -43713,7 +43771,7 @@ mod tests_phase40_coverage {
     fn test_parse_for_range_c() {
         let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
         let out = Compiler::compile_c(code).expect("compile should succeed");
-        assert!(out.contains("for (int i = 0; i < 8; i++)"), "C output: {}", out);
+        assert!(out.contains("for (size_t i = 0; i < 8; i++)"), "C output: {}", out);
     }
 
     #[test]
