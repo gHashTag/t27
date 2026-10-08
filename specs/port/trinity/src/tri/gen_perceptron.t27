@@ -1,15 +1,15 @@
 module port::trinity::tri::gen_perceptron;
 
 pub struct Perceptron {
-    weights: [0]f64, // Using array instead of slice to avoid initialization issues
+    weights: [1]f64, // Using array with 1 element to allow weight updates
     learning_rate: f64,
     allocator: usize, // Using usize as placeholder for allocator
 }
 
 fn Perceptron_init(allocator: usize, inputs: usize, lr: f64) -> Perceptron {
-    // Port the decision: create perceptron with empty array and given learning rate
+    // Port the decision: create perceptron with initialized weight and given learning rate
     // Note: allocator parameter is ignored as per "port the decision, not the plumbing"
-    const weights: [0]f64 = []; // Empty array for ported decision
+    const weights: [1]f64 = [0.0]; // Initialize weight to 0.0 for testing
     return Perceptron {
         .weights = weights,
         .learning_rate = lr,
@@ -28,9 +28,9 @@ fn Perceptron_predict(perceptron: Perceptron, inputs: []const f64) -> i32 {
     return if (sum >= 0) 1 else 0;
 }
 
-fn Perceptron_train(perceptron: Perceptron, inputs: []const f64, target: i32) -> void {
+fn Perceptron_train(perceptron: *Perceptron, inputs: []const f64, target: i32) -> void {
     // Port the decision: update weights based on prediction error
-    const guess = Perceptron_predict(perceptron, inputs);
+    const guess = Perceptron_predict(perceptron.*, inputs);
     const diff: f64 = target - guess;
     for i in 0..inputs.len {
         if (i < perceptron.weights.len) {
@@ -61,12 +61,14 @@ test perceptron_predict_simple {
 }
 
 test perceptron_training_update {
-    const p = Perceptron_init(0, 2, 0.1);
+    var p = Perceptron_init(0, 2, 0.1);
     const inputs: [2]f64 = [1, 1];
-    // Test that train can be called without errors
-    Perceptron_train(p, &inputs, 1);
-    // If we reach here, the function call didn't crash
-    assert(true);
+    // Record initial weight
+    const initial_weight = p.weights[0];
+    // Train the perceptron
+    Perceptron_train(&p, &inputs, 1);
+    // Verify that the weight was updated (should be different from initial)
+    assert(p.weights[0] != initial_weight);
 }
 
 test perceptron_edge_cases {
