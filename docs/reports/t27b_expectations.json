@@ -14,7 +14,7 @@
  },
  "max_not_pass": 51,
  "counts": {
-  "pass": 875,
+  "pass": 877,
   "pass_vacuous": 150,
   "not_pass": 51
  },
@@ -981,6 +981,7 @@
   {"path": "specs/tri/t27b/conformance/return_undefined_void.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scope_exit.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scoped_gf16.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/static_slice_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/struct_lit_if.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/test_local_write.t27", "t27b": "pass"},
@@ -1002,6 +1003,7 @@
   {"path": "specs/tri/t27b/libm_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/macho.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/reduce.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/slice_lit_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/wide_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/args.t27", "t27b": "pass"},
