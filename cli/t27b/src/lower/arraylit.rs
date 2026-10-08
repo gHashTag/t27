@@ -19,8 +19,8 @@
 //! nothing names is never analyzed by the reference, so it is skipped
 //! (`unreferenced_tuple_const`), not evaluated.
 //!
-//! `return [ ... ];` in a fn returning a slice is `@constCast(&[_]E{ ... })`:
-//! an empty slice, or a slice of a constant array (`slice_literal_return`).
+//! `return [ ... ];` in a fn returning a slice, or a slice field's literal, is
+//! `@constCast(&[_]E{ ... })` (`slice_lit`, plan `specs/tri/t27b/slice_lit_plan.t27`).
 
 use super::*;
 
@@ -133,60 +133,54 @@ impl<'a> Lower<'a> {
         Ok(Some(()))
     }
 
-    /// `return [ ... ];` (or `[_]T{ ... }`, `[]T{}`) where the fn returns a
-    /// slice, written into `dst`. The reference writes
-    /// `@constCast(&[_]E{ ... })` with E the return element type: empty, an
-    /// empty slice; otherwise a slice of a constant array, which outlives the
-    /// call because its elements are comptime values -- so here it is
-    /// read-only data. Elements known only at run time are refused (the
-    /// reference returns a pointer into its own frame), and so is a mutable
-    /// slice from a fn some test reaches (a write through it faults there).
-    pub(super) fn slice_literal_return(&mut self, c: &Node, dst: &Place, out: &mut Vec<Stmt>) -> R<bool> {
-        if c.kind != NodeKind::ExprArrayLiteral || c.extra_size.contains(';') {
+    /// An array literal the reference prints `@constCast(&[_]E{ ... })`, E the
+    /// element type of slice `dst`: a field's value or a return's
+    /// (`return [ ... ];`, `[_]T{ ... }`, `[]T{}`). As
+    /// `specs/tri/t27b/slice_lit_plan.t27` decides: a zero-length slice, or a
+    /// slice of the one writable static of its type and value (Zig interns
+    /// it), reset on every host entry like a module var. False for NOT_MINE.
+    pub(super) fn slice_lit(&mut self, at: u8, named: bool, c: &Node, dst: &Place, out: &mut Vec<Stmt>) -> R<bool> {
+        if c.kind != NodeKind::ExprArrayLiteral || !matches!(dst.ty, LTy::Slice(..) | LTy::Str) {
             return Ok(false);
         }
-        let elem = match &dst.ty {
-            LTy::Slice(e, _) => (**e).clone(),
-            LTy::Str => LTy::S(Ty::U8),
-            _ => return Ok(false),
-        };
-        if !(elem == LTy::Str || !has_brackets(&elem)) {
-            return Ok(false);
+        let elem = if let LTy::Slice(e, _) = &dst.ty { (**e).clone() } else { LTy::S(Ty::U8) };
+        let flat = elem == LTy::Str || !has_brackets(&elem);
+        let (repeat, typed, strings) = (c.extra_size.contains(';'), !c.extra_type.trim().is_empty(), self.holds_str(&elem)?);
+        let ask = |n, text| sl::plan(at, named, flat, repeat, n, text, typed, strings);
+        let (mut act, mut text) = (ask(c.children.len(), !c.extra_size.trim().is_empty()), None);
+        if act == sl::PARSE {
+            text = self.text_lit(c)?;
+            act = ask(text.as_ref().map_or(0, |l| l.children.len()), false);
         }
-        if c.children.is_empty() && c.extra_size.trim().is_empty() {
-            self.see(c);
-            let Val::M(arr) = self.struct_temp(c, LTy::Arr(Box::new(elem), 0))? else {
-                return Err(());
-            };
-            let Val::M(src) = self.slice_of(addr_of(&arr), 0, dst.ty.clone())? else {
-                return Err(());
-            };
-            self.copy(dst, src, out)?;
-            return Ok(true);
-        }
-        let text = self.text_lit(c)?;
-        let lit = text.as_ref().unwrap_or(c);
-        if lit.children.is_empty() {
+        if act == sl::NOT_MINE {
             return Ok(false);
         }
         self.see(c);
-        if matches!(dst.ty, LTy::Slice(_, true)) && !self.unanalyzed_fn {
-            return self.reject(
-                "ExprArrayLiteral(constant to mutable slice)",
-                "an array literal returned as a mutable slice from a fn a test reaches".into(),
-            );
+        if sl::refuses(act) {
+            return self.reject(sl::what(at, act), sl::why(at, act).into());
         }
+        let lit = text.as_ref().unwrap_or(c);
         let len = lit.children.len() as u32;
-        let seen = self.errors.len();
-        let arr = match self.rodata(lit, LTy::Arr(Box::new(elem), len)) {
-            Ok(Val::M(arr)) => arr,
-            Ok(_) => return Err(()),
-            Err(()) => {
-                if let Some(e) = self.errors.get_mut(seen).filter(|e| e.construct == "ConstDecl") {
-                    e.construct = "ExprArrayLiteral(run-time slice return)".into();
+        let t = LTy::Arr(Box::new(elem), len);
+        let arr = if sl::is_static(act) {
+            let (size, _) = self.size_align(&t)?;
+            let (mut buf, seen) = (vec![0u8; size as usize], self.errors.len());
+            if self.const_fill(lit, &t, &mut buf, 0).is_err() {
+                if self.errors.get(seen).is_some_and(|e| e.construct == "ConstDecl") {
+                    self.errors.truncate(seen);
+                    return self.reject(sl::what(at, sl::REFUSE_RUN_TIME), sl::why(at, sl::REFUSE_RUN_TIME).into());
                 }
                 return Err(());
             }
+            let n = self.globals_init.len() as u32;
+            let k = *self.statics.entry((format!("{:?}", t), buf.clone())).or_insert(n);
+            if k == n {
+                self.globals_init.push(buf);
+            }
+            Place { addr: Expr { ty: Ty::Ptr, kind: ExprKind::Global(k) }, off: 0, ty: t, mutable: true, temp: None }
+        } else {
+            let Val::M(p) = self.struct_temp(c, t)? else { return Err(()) };
+            p
         };
         let Val::M(src) = self.slice_of(addr_of(&arr), len, dst.ty.clone())? else {
             return Err(());

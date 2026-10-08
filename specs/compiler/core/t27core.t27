@@ -42,16 +42,16 @@
 
 ; Three compilers build this module, not one (#6508, T732 in
 ; specs/compiler/theory/toolchain.t27): gen-c + cc, t27b, and the Zig reference.
-; So every buffer holds 65536, the most a t27b repeat initializer expands to
-; (this file and its output must fit), every index is `as usize` as in Zig,
+; So every buffer holds 262144 (this file and its output must fit; t27b's
+; old 65536 repeat cap is gone, #7376), every index is `as usize` as in Zig,
 ; and `/` `%` are unsigned: Zig refuses them on signed operands.
 
 module t27core;
 
-const SRC_MAX: i64 = 65536;
-const OUT_MAX: i64 = 65536;
-const TOK_MAX: i64 = 65536;
-const NODE_MAX: i64 = 65536;
+const SRC_MAX: i64 = 262144;
+const OUT_MAX: i64 = 262144;
+const TOK_MAX: i64 = 262144;
+const NODE_MAX: i64 = 262144;
 
 ; Error codes. `err_pos` is the byte offset in `src`.
 const E_LEX: i64 = 1;

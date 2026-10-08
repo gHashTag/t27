@@ -21,11 +21,19 @@
 ;   bit 57 on), BYPASS 1 bit. XSC_DNA without ISC_ENABLE read all ones: the register is not on
 ;   the chain until ISC_ENABLE, and this spec refuses that read (DNA_ALL_ONES).
 ; - The two instructions agree: FUSE_DNA bits 63..7 are XSC_DNA bits 56..0. FUSE_DNA bits 6..0
-;   read 0x4F; whether that tail is the same on every die is PENDING a second board.
+;   (the tail) read 0x4F on this die.
 ; - An independent decoder, `openFPGALoader -c digilent_hs2 --read-dna`, printed 0x0050d58218fd9854:
 ;   the 57 shifted bits with the FIRST shifted bit as the most significant. That is the order
 ;   dna_from_xsc()/dna_from_fuse() return, so DNA_OBSERVED below is the value it printed.
-; - Distinct dies giving distinct DNA is PENDING: only one board was attached.
+; --
+; The second die (2026-10-08, issue #7758; ALINX AX7203 XC7A200T, the only cable attached, openocd
+; 0.12.0 with DNA_READER of die_binding.t27, two sessions, identical): FUSE_DNA 0x3a17a1b430391c37,
+; XSC_DNA 0xfe742f4368607238. Both decode to 0x389c0c2d85e85c, which `openFPGALoader --read-dna`
+; printed as 0x00389c0c2d85e85c; the XSC fill is the 7 ones as on die A. Its FUSE tail is 0x37, not
+; 0x4F. So the tail is per-die data, not framing: this rule no longer judges it, and a FUSE read is
+; well formed when its DNA bits are neither all zero nor all one. Whether the two reads name one die
+; is still decided by all 57 DNA bits (dna_agreement). Two dies gave two different DNA values; that
+; is two observations, not a uniqueness proof.
 ; --
 ; The reader is a command line, not a file (Only-t27: the gate refuses a new or edited .py, and
 ; this needs no new code). It prints each 64-bit read as two 32-bit fields, first-shifted first:
@@ -43,7 +51,8 @@
 ; order, the bit reversal and its width, the XSC mask, the FUSE shift, the fill and tail widths,
 ; each well-formedness check dropped, the tail constant, the agreement test inverted or skipped,
 ; hex case, hex nibble position, the hex length check, framing in reads_agree, pow2, the all-ones
-; width, and the XSC_DNA opcode.
+; width, and the XSC_DNA opcode. The tail check and its constant were removed on 2026-10-08 (#7758),
+; so those two mutants no longer apply.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module VerifiedDeviceDna;
@@ -59,9 +68,11 @@ pub const OP_BYPASS : u8 = 63;
 /// The DNA is 57 bits. Every read shifts 64 bits with TDI held high.
 pub const DNA_BITS : u8 = 57;
 pub const SHIFT_BITS : u8 = 64;
-/// FUSE_DNA carries 7 bits below the DNA; this die read them as 0x4F.
+/// FUSE_DNA carries 7 bits below the DNA. They differ between dies, so they are data, not framing:
+/// die A read 0x4F, die B read 0x37.
 pub const FUSE_TAIL_BITS : u8 = 7;
 pub const FUSE_TAIL_OBSERVED : u64 = 79;
+pub const FUSE_TAIL_OBSERVED_B : u64 = 55;
 /// XSC_DNA is 57 bits long, so with TDI high bits 57..63 come back as the 7 fill ones.
 pub const XSC_FILL_ONES : u64 = 127;
 
@@ -71,6 +82,12 @@ pub const FUSE_HI_OBSERVED : u64 = 0x2a19bf18;
 pub const XSC_LO_OBSERVED : u64 = 0x30835614;
 pub const XSC_HI_OBSERVED : u64 = 0xfe54337e;
 pub const DNA_OBSERVED : u64 = 0x50d58218fd9854;
+/// The second die's reads (issue #7758), in the same form.
+pub const FUSE_LO_OBSERVED_B : u64 = 0x30391c37;
+pub const FUSE_HI_OBSERVED_B : u64 = 0x3a17a1b4;
+pub const XSC_LO_OBSERVED_B : u64 = 0x68607238;
+pub const XSC_HI_OBSERVED_B : u64 = 0xfe742f43;
+pub const DNA_OBSERVED_B : u64 = 0x389c0c2d85e85c;
 /// The IDCODE read through the same path: bit 0 is 1 (IEEE 1149.1), so the convention holds.
 pub const IDCODE_OBSERVED : u64 = 0x13636093;
 
@@ -79,7 +96,6 @@ pub const DNA_OK : u8 = 0;
 pub const DNA_ALL_ZERO : u8 = 1;
 pub const DNA_ALL_ONES : u8 = 2;
 pub const DNA_BAD_FILL : u8 = 3;
-pub const DNA_BAD_TAIL : u8 = 4;
 
 /// Agreement codes for one FUSE_DNA read against one XSC_DNA read.
 pub const AGREE_SAME_DIE : u8 = 0;
@@ -153,12 +169,12 @@ pub fn xsc_first_wrong(raw: u64) -> u8 {
     return DNA_OK;
 }
 
-/// The same for a FUSE_DNA read; its framing is the tail as observed.
+/// The same for a FUSE_DNA read. The 7-bit tail is not judged: it is per-die data (#7758), and
+/// whether the read names this die is dna_agreement's question, over all 57 DNA bits.
 pub fn fuse_first_wrong(raw: u64) -> u8 {
     var dna : u64 = dna_from_fuse(raw);
     if (dna == 0) { return DNA_ALL_ZERO; }
     if (dna == dna_all_ones()) { return DNA_ALL_ONES; }
-    if (fuse_tail(raw) != FUSE_TAIL_OBSERVED) { return DNA_BAD_TAIL; }
     return DNA_OK;
 }
 
@@ -255,12 +271,42 @@ test "an XSC read without the fill ones is not a 57-bit register" {
     assert xsc_first_wrong(pow2(57) * 127 + xsc57) == DNA_OK;
 }
 
-test "a FUSE read with another tail is refused" {
+test "the FUSE tail is die data: another tail is still a well-formed read of the same die" {
     var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
-    assert fuse_first_wrong(fuse - 79 + 78) == DNA_BAD_TAIL;
-    assert fuse_first_wrong(fuse - 79 + 15) == 4;
-    assert fuse_first_wrong(fuse - 79) == DNA_BAD_TAIL;
-    assert dna_agreement(fuse - 79, raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED)) == AGREE_FUSE_BAD;
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    assert fuse_first_wrong(fuse - 79 + 78) == DNA_OK;
+    assert fuse_first_wrong(fuse - 79 + 55) == DNA_OK;
+    assert fuse_first_wrong(fuse - 79) == DNA_OK;
+    assert dna_from_fuse(fuse - 79 + 55) == DNA_OBSERVED;
+    assert dna_agreement(fuse - 79, xsc) == AGREE_SAME_DIE;
+    assert dna_agreement(fuse - 79 + 55, xsc) == 0;
+}
+
+test "the second die's live reads decode to the DNA openFPGALoader printed" {
+    var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED_B, FUSE_HI_OBSERVED_B);
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED_B, XSC_HI_OBSERVED_B);
+    assert fuse == 0x3a17a1b430391c37;
+    assert dna_from_fuse(fuse) == 0x389c0c2d85e85c;
+    assert dna_from_xsc(xsc) == 0x389c0c2d85e85c;
+    assert dna_from_xsc(xsc) == DNA_OBSERVED_B;
+    assert fuse_tail(fuse) == FUSE_TAIL_OBSERVED_B;
+    assert fuse_tail(fuse) == 0x37;
+    assert xsc_fill(xsc) == XSC_FILL_ONES;
+    assert fuse_first_wrong(fuse) == DNA_OK;
+    assert xsc_first_wrong(xsc) == DNA_OK;
+    assert dna_agreement(fuse, xsc) == AGREE_SAME_DIE;
+    assert dna_hex_matches(DNA_OBSERVED_B, "0389c0c2d85e85c") == true;
+}
+
+test "the two dies' tails differ, and their reads name two dies" {
+    var fuse_a : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xsc_a : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    var fuse_b : u64 = raw_from_fields(FUSE_LO_OBSERVED_B, FUSE_HI_OBSERVED_B);
+    var xsc_b : u64 = raw_from_fields(XSC_LO_OBSERVED_B, XSC_HI_OBSERVED_B);
+    assert fuse_tail(fuse_a) != fuse_tail(fuse_b);
+    assert DNA_OBSERVED != DNA_OBSERVED_B;
+    assert dna_agreement(fuse_a, xsc_b) == AGREE_DIFFER;
+    assert dna_agreement(fuse_b, xsc_a) == AGREE_DIFFER;
 }
 
 test "reads that differ in one DNA bit name different dies" {

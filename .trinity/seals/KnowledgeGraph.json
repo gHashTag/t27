@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:8c5b345d12ac932cf70da1febd1bfa579ebdbc9a50687afc9996d3b5b1372b0c",
-  "gen_hash_rust": "sha256:5615d46ae041c673fe6198935290cb60bb6d32851fd55b8390edc40dadcfd1a8",
+  "gen_hash_rust": "sha256:a6a631cc6ca51ccca4213695b76929c62c25dc4b49e92060119bb86a97379f71",
   "gen_hash_verilog": "sha256:ed2e1e73da3fee999b276bdc91ce5e80d91e9f6a0c5f6528ede7fc0d9025a4c8",
   "gen_hash_zig": "sha256:ace80bad546d9bdfb79cf3ce54fa3701f7ba72eac5a7a8a34d4a09592701189d",
   "module": "KnowledgeGraph",

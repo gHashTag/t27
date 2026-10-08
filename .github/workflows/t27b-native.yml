@@ -34,8 +34,10 @@
 # toolchain_stamp). No lab row can ever hit. So the reference is built here
 # (t27c release + zig 0.16.0, natively) and its cache is carried between runs
 # with actions/cache: master's runs seed it, a pull request restores master's,
-# and only specs whose `use` closure changed are re-run. A PR that changes
-# bootstrap/ rebuilds t27c, every key misses, and that run pays the full
+# and only specs whose `use` closure changed are re-run. That holds only while
+# the t27c bytes hold: t27c embeds the commit, so the binary itself is cached,
+# keyed by the tree of bootstrap/ + Cargo.lock + Cargo.toml (#7548). A PR that
+# changes those rebuilds t27c, every key misses, and that run pays the full
 # reference sweep.
 #
 # No secrets: the repository is public; nothing here writes to GitHub.
@@ -182,11 +184,34 @@ jobs:
           echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/zig/zig" version
 
+      # The same compiler sources must give the same t27c BYTES, or every refcache row misses (#7548):
+      # t27c embeds the commit, so a rebuild per run re-referenced all specs (19.4 of 21 min).
+      - name: Key the t27c binary by the tree of its sources
+        id: t27c-key
+        run: echo "key=t27c-bin-v1-${{ runner.os }}-${{ runner.arch }}-$(git rev-parse HEAD:bootstrap HEAD:Cargo.lock HEAD:Cargo.toml | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the t27c binary
+        id: t27c-bin
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/t27c-bin
+          key: ${{ steps.t27c-key.outputs.key }}
+
       - name: Build t27c and t27b (release, native arm64)
         run: |
-          cargo build --release -p t27c -p t27b
+          cargo build --release -p t27b
+          if [ -x ~/.cache/t27c-bin/t27c ]; then cp ~/.cache/t27c-bin/t27c target/release/t27c
+          else cargo build --release -p t27c && mkdir -p ~/.cache/t27c-bin && cp target/release/t27c ~/.cache/t27c-bin/; fi
           ./target/release/t27c --version
           sha256sum target/release/t27c target/release/t27b
+
+      # Saved now, not at the end: the ratchet step often fails, and the binary is good either way.
+      - name: Save the t27c binary
+        if: steps.t27c-bin.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/t27c-bin
+          key: ${{ steps.t27c-key.outputs.key }}
 
       # Unique key per run (caches are immutable); restore-keys picks the newest
       # one this ref may read: the PR's own, else master's.

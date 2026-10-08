@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:63b81d45307754ca79481d415237fc0b81e7fd3acc668c4ac89162e6fb6b5d0d",
+  "gen_hash_rust": "sha256:49e412c5352240e52e241388e3aa8ddf97bcf7c2ef6a9287d48bd52dbd3302dc",
+  "gen_hash_verilog": "sha256:1bc14d112a8ab84d6c662ec8cb0786da622549ee467ae3cd1e97c4cd5a1e250a",
+  "gen_hash_zig": "sha256:65b885b68dd66a26af5379ce2634c0f5431bb92daeddace73b4afe7f6c98f412",
+  "module": "fn_instagram_reels_analyze",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:09:37Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:9a3216d03aca68c5f86cdc6540ecc77cac18d180d54eb3e5355ffb7362346d6c",
+  "spec_path": "specs/functions/instagram-reels-analyze.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

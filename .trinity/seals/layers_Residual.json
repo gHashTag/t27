@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+cd6708d32",
   "gen_hash_c": "sha256:9ad46a1dc8554e3c6a40630b9b0876afb8aa6bf258d7e3e8f6b057dcd4ac1cf2",
-  "gen_hash_rust": "sha256:9df9fe0e545e32744cd95dec877262e68bbb401a77a685b62fc3486664bccaf5",
+  "gen_hash_rust": "sha256:5a556e15906942c9f6f1ac0465306383f697a83948088dbb992810ed674c0551",
   "gen_hash_verilog": "sha256:2540740cadd0c50d7ae2ad61a88cf1a8af3fade0442e221765cb05195e6fbd5e",
   "gen_hash_zig": "sha256:16ed9fc0cbc2a87ea3ad500420ff7a40cbcea30c607de40c9aa6a8ce8f5621bb",
   "module": "Residual",

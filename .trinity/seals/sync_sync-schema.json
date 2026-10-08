@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:52b231ba8998d0e0152910761c44d36e3f1193477e3a856c4d6c295d9eaab769",
-  "gen_hash_rust": "sha256:31d03e7b71cd1dad718d8026cc30acafcd9f0c681e9d76fea0d258479adb099c",
+  "gen_hash_rust": "sha256:581c737ebc890028eb1df21d5ec8e3a13ac97f865012499922111503a61332f3",
   "gen_hash_verilog": "sha256:0c5b53a94b6fc4cd73c9da958ac20aa162c1490b095e695a63b1c4d236d78085",
   "gen_hash_zig": "sha256:253eb20520ec1fa79dc622318b5f18e329ca4df23bf3c5aa321f1295a918e45b",
   "module": "sync-schema",

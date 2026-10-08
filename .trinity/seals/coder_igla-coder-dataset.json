@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:3db53ed5accb23129d0b54ddf98f97032581cdfbe8b55a4075b4319e4f49d55c",
-  "gen_hash_rust": "sha256:933bf62bd3030f8e57089017218520bb12f72e05dda927ee972324a1083811b4",
+  "gen_hash_rust": "sha256:194b6db368ce49ce782789685bdc18aa4e82ced32de2a13779448b24e8ccdc24",
   "gen_hash_verilog": "sha256:ca4b5edae76903601e57b78b3ad9892a1f37b85d377653ba816ef26460527529",
   "gen_hash_zig": "sha256:e3ec5494637876500fc730b6c1d976fb3c2aef2c127393d04ae7cfd1f00ed188",
   "module": "igla-coder-dataset",

@@ -33,7 +33,11 @@
 // [k]A, which rejects a non-canonical R. Two of these strict rules go past
 // the oracle: OpenSSL (through Python cryptography 46) accepts an identity
 // public key encoded as y = p + 1 or with the sign bit set; RFC 8032 5.1.3
-// says both decodings fail, and so they fail here.
+// says both decodings fail, and so they fail here. Like ed25519-dalek's
+// verify_strict, which t27c used before this spec, verify also rejects a
+// small-order public key or R ([8]P is the identity): with one, a
+// signature verifies for messages its key holder never signed, and
+// OpenSSL accepts both cases (tested below with vectors it accepts).
 //
 // Dialect notes: `use` is path-relative and unqualified, so every helper
 // here is named so it cannot clash with sha512.t27's items (init, update,
@@ -538,8 +542,16 @@ module TriEd25519;
         return sig;
     }
 
-    // accepts iff S < L, A decodes, and the encoding of [S]B - [k]A is
-    // exactly the R half, k = SHA-512(R || A || M) mod L
+    // [8]P is the identity exactly when P is one of the 8 small-order points
+    fn pt_small_order(p: EdPoint) -> bool {
+        const p2 = pt_add(p, p);
+        const p4 = pt_add(p2, p2);
+        return bytes32_eq(pt_pack(pt_add(p4, p4)), pt_pack(pt_identity()));
+    }
+
+    // accepts iff S < L, A decodes and has large order, and the encoding of
+    // [S]B - [k]A is exactly the R half, k = SHA-512(R || A || M) mod L, and
+    // that point has large order too
     pub fn verify(pk: [32]u8, msg: []const u8, sig: [64]u8) -> bool {
         var rb : [32]u8 = [0] ** 32;
         var sb : [32]u8 = [0] ** 32;
@@ -556,12 +568,18 @@ module TriEd25519;
         if (a.ok == false) {
             return false;
         }
+        if (pt_small_order(a.neg)) {
+            return false;
+        }
         var hk = init();
         update(&hk, rb[0..32]);
         update(&hk, pk[0..32]);
         update(&hk, msg);
         const k = sc_reduce(finish(&hk));
         const check = pt_add(pt_scalarmult(a.neg, k), pt_scalarbase(sb));
+        if (pt_small_order(check)) {
+            return false;
+        }
         return bytes32_eq(pt_pack(check), rb);
     }
 
@@ -740,8 +758,8 @@ module TriEd25519;
         assert sc_below_l(hex32("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0f"));
     }
 
-    // the identity key (y = 1) with R = [s]B, S = s verifies for any
-    // message; its two non-canonical encodings must not (RFC 8032 5.1.3)
+    // the identity key (y = 1) decodes but, being small order, verifies
+    // nothing; its two non-canonical encodings do not decode (RFC 8032 5.1.3)
     test "public keys decode only from canonical encodings" {
         const ident = hex32("0100000000000000000000000000000000000000000000000000000000000000");
         const ident_p1 = hex32("eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
@@ -749,8 +767,8 @@ module TriEd25519;
         const sig_b1 = hex64("58666666666666666666666666666666666666666666666666666666666666660100000000000000000000000000000000000000000000000000000000000000");
         const sig_00 = hex64("01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
         const sig_00nc = hex64("eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000");
-        assert verify(ident, "t27", sig_b1);
-        assert verify(ident, "t27", sig_00);
+        assert verify(ident, "t27", sig_b1) == false;
+        assert verify(ident, "t27", sig_00) == false;
         assert verify(ident_p1, "t27", sig_b1) == false;
         assert verify(ident_neg0, "t27", sig_b1) == false;
         assert verify(ident, "t27", sig_00nc) == false;
@@ -815,4 +833,32 @@ module TriEd25519;
             i = i + 1;
         }
         assert bytes32_eq(sc_reduce(x), hex32("298ecc828d1d139ae34eea6e29c5771b5b67be9106c9b2668cb63ac851d77906"));
+    }
+
+    // all 8 small-order points (canonical encodings, computed with Python
+    // integers) are small order; the base point and TEST 1's key are not
+    test "exactly the small-order points have [8]P = identity" {
+        assert pt_small_order(pt_decode_neg(hex32("0000000000000000000000000000000000000000000000000000000000000000")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("0000000000000000000000000000000000000000000000000000000000000080")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("0100000000000000000000000000000000000000000000000000000000000000")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc85")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac03fa")).neg);
+        assert pt_small_order(pt_decode_neg(hex32("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f")).neg);
+        assert pt_small_order(pt_base()) == false;
+        assert pt_small_order(pt_decode_neg(hex32("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")).neg) == false;
+    }
+
+    // both signatures satisfy the cofactorless equation and OpenSSL
+    // (Python cryptography 46) accepts them; ed25519-dalek verify_strict
+    // does not, and neither does this spec
+    test "a small-order key or a small-order R is rejected" {
+        const a8 = hex32("c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a");
+        const sig_a8 = hex64("0922dd887fef4d75ef2f2230ca285ebbde9d66341c945794ce6ad10f5d6be8910200000000000000000000000000000000000000000000000000000000000000");
+        assert pt_decode_neg(a8).ok;
+        assert verify(a8, "t27", sig_a8) == false;
+        const pk1 = hex32("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a");
+        const sig_r0 = hex64("0100000000000000000000000000000000000000000000000000000000000000e0301e53c7bc9a9d1ef589ec81b703e7d07ec94008ba98e0e9423c00f7ac750e");
+        assert verify(pk1, "t27", sig_r0) == false;
     }

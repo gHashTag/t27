@@ -11,6 +11,7 @@ relu 10
 dot27 8,5
 contrib 7
 activate 6
+build_tree 7
 clamp 6
 clear 6
 match_at 6
@@ -34,7 +35,6 @@ go_down 4
 int_to_bytes 4
 neuron4 4
 append 3
-build_tree 3
 category 3,2
 cos 3
 count_char_matches 3
@@ -42,6 +42,7 @@ floor_log2 3,2
 gadd 3
 gmul 3
 has_star_inner 3
+hex_nibble_of 3
 list_active 3
 ln 3
 negate 3
@@ -68,6 +69,8 @@ booth_mul_i16 2
 booth_mul_u32_inner 2
 build_edges_from_shared_ports 2
 build_knowledge_graph 2
+bytes32_eq 2
+bytes64_eq 2
 bytes_eq 2
 carries_src2 2
 charged 2
@@ -133,12 +136,14 @@ notebook_create 2
 orchestrate_agents_with_ppo 2
 ordinary_if 2
 perturb_rtl_minimally 2
+price_tokens 2
 prm_scored_pipeline 2
 put 2
 reject_resample 2
 reject_resample_for_sacred 2
 reject_resample_for_sacred_inner 2
 remove 2
+run_die_level_with 2
 run_forward 2
 rx_slice 2
 sample_imm 2

@@ -42,7 +42,7 @@ module TriTemplate;
 
     // one name of the context and its value (the .tri's StringHashMap
     // entry; a slice of slices cannot be a parameter yet, #6669)
-    pub const Entry = struct {
+    pub const TemplateEntry = struct {
         name : []const u8,
         value : []const u8,
     };
@@ -163,7 +163,7 @@ module TriTemplate;
         return at + s.len;
     }
 
-    fn lookup(name: []const u8, context: []const Entry) -> []const u8 {
+    fn lookup(name: []const u8, context: []const TemplateEntry) -> []const u8 {
         var k : usize = 0;
         while (k < context.len) {
             if (same(context[k].name, name)) {
@@ -174,7 +174,7 @@ module TriTemplate;
         return "";
     }
 
-    fn render(template: Template, context: []const Entry, out: []u8) -> usize {
+    fn render(template: Template, context: []const TemplateEntry, out: []u8) -> usize {
         var at : usize = 0;
         var k : usize = 0;
         while (k < template.parts.len) {
@@ -202,7 +202,7 @@ module TriTemplate;
         if (n == NONE) {
             return 0;
         }
-        var context : [4]Entry = [Entry{ .name = "", .value = "" }] ** 4;
+        var context : [4]TemplateEntry = [TemplateEntry{ .name = "", .value = "" }] ** 4;
         var m : usize = 0;
         var a : usize = 0;
         var i : usize = 0;
@@ -212,7 +212,7 @@ module TriTemplate;
                 while (ctx[e] != 61) {
                     e = e + 1;
                 }
-                context[m] = Entry{ .name = ctx[a .. e], .value = ctx[e + 1 .. i] };
+                context[m] = TemplateEntry{ .name = ctx[a .. e], .value = ctx[e + 1 .. i] };
                 m = m + 1;
                 a = i + 1;
             }
@@ -328,7 +328,7 @@ module TriTemplate;
             ok = ok + 1;
         }
         var out : [4]u8 = [0] ** 4;
-        var context : [1]Entry = [Entry{ .name = "v", .value = "xyz" }] ** 1;
+        var context : [1]TemplateEntry = [TemplateEntry{ .name = "v", .value = "xyz" }] ** 1;
         if (compile("{{v}}{{ v }}", &parts) == 2 and render(Template{ .parts = parts[0 .. 2] }, &context, &out) == NONE) {
             ok = ok + 1;
         }

@@ -1,8 +1,8 @@
 {
   "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
   "verdicts": {
-    "DRIFT": 50,
-    "DISTINCT": 34
+    "DRIFT": 61,
+    "DISTINCT": 40
   },
   "names": [
     {
@@ -15,6 +15,39 @@
       "evidence": "eval.t27:1825 `pub const AgentState = struct { policy_params: []f32, step_count: u32, last_reward: f32 }`, documented at line 1824 as `/// AgentState: snapshot of an RL agent during self-training.` and sitting under the banner `// Self-Training Pipeline Primitives (W112)` beside TrajectoryStep, AgentProfile and `compute_grpo_loss` (Group Relative Policy Optimization). agent-runner.t27:47 `struct AgentState { turn: u32, max_turns: u32, total_input_tokens: u64, total_output_tokens: u64, tool_call_counter: u32, task_completed: bool, completion_summary: str }`, under `// Agent State` in module AgentRunner, initialised by `fn agent_state_init(max_turns: u32) -> AgentState` and neighboured by `struct ToolResult` and `enum StopReason { EndTurn, ToolUse, MaxTokens, Unknown }`. Zero shared fields. Two different senses of \"agent\": a reinforcement-learning policy checkpoint (params/steps/reward) versus an LLM tool-use conversation loop's bookkeeping (turns/token counters/stop condition). Different trees, no import edge. Also a clean example of two of the three declaration forms: `pub const X = struct` versus bare `struct X`.",
       "confidence": "certain -- \"policy_params/last_reward\" and \"total_input_tokens/tool_call_counter\" cannot be the same object, and the surrounding banners name the two subsystems explicitly",
       "suggested_action": "Rename to RLAgentState and AgentRunnerState; nothing outside each file depends on the bare name."
+    },
+    {
+      "name": "AppState",
+      "sites": [
+        "specs/port/trios/crates/trios-server/src/mcp_endpoints/experience.t27:3",
+        "specs/port/trios/crates/trios-server/src/mcp_endpoints/tasks.t27:22"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "experience.t27:3 `const AppState = struct{};` (#4953) vs tasks.t27:22 `struct AppState { tasks: TaskEntry }` (#7102). Both port files of the SAME Rust crate, trios-server's mcp_endpoints, and both stand in for the one `AppState` the axum handlers of that crate share. One port left it empty because its decision logic never reads it; the other gave it the one field its `assign` test needs.",
+      "confidence": "certain -- two ports of handlers from one crate restating that crate's shared state type",
+      "suggested_action": "Define AppState once in a trios-server common port module and `use` it from both endpoint ports; the empty stub then disappears."
+    },
+    {
+      "name": "AsmSection",
+      "sites": [
+        "specs/fpga/assembler.t27:62",
+        "specs/port/bootstrap/src/compiler/AsmRelocEntry_new.t27:61"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "assembler.t27:62 `pub struct AsmSection { name : &str, kind : i8, base_address : u32, size : u32 }` vs AsmRelocEntry_new.t27:61 `pub struct AsmSection { pub name: str, pub kind: AsmSectionKind, pub base_address: u32, pub size: u32 }` (#6959). Same four fields in the same order; the port types `kind` as an enum where the spec uses i8. The port is of bootstrap/src/compiler.rs, which implements the assembler specs/fpga/assembler.t27 describes.",
+      "confidence": "certain -- the port restates the spec's own section record",
+      "suggested_action": "Have the compiler.rs port `use` the Assembler module's AsmSection; move AsmSectionKind into assembler.t27 if the enum is the better kind type."
+    },
+    {
+      "name": "AssembledInstr",
+      "sites": [
+        "specs/fpga/assembler.t27:30",
+        "specs/port/bootstrap/src/compiler/AssembledInstr_r_type.t27:4"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "assembler.t27:30 `pub struct AssembledInstr { address, opcode, rd, rs1, rs2, imm : u32, label : &str, is_gf16 : bool }` vs AssembledInstr_r_type.t27:4 (#6742), commented `// Struct definition based on the original AssembledInstr`, with the same eight fields in the same order; only the string spelling differs (&str vs []const u8).",
+      "confidence": "certain -- field-for-field identical, and the port's own comment names the original",
+      "suggested_action": "Have the port `use` the Assembler module's AssembledInstr; pick one string spelling."
     },
     {
       "name": "AttentionConfig",
@@ -81,6 +114,17 @@
       "evidence": "axi4.t27:52 `pub struct BusPort { name: &str, direction: i8, width: u32, channel: i8 }` -- ONE SIGNAL inside a bus, tagged with which AXI channel it belongs to (`CH_AW: i8 = 0, CH_AR = 1, CH_W = 2, CH_R = 3, CH_B = 4` follow immediately at lines 58-62; file header: \"Defines bus port groups for AW/AR/W/R/B channels\"). hir.t27:248 `pub struct BusPort { name: &str, bus_kind: i8, addr_width: u32, data_width: u32, is_master: bool, base_addr: u32 }` -- a WHOLE BUS INTERFACE on a module, over `BusKind = enum(i8) { axi4_lite, axi4_full, apb, wishbone }` (line 236), with `fn bus_port_total_signals(bp: BusPort) -> u32` (line 278) computing `bp.addr_width + bp.data_width * 2 + 9` -- i.e. this one BusPort EXPANDS INTO many of the other kind. Different granularity, only the trivial `name: &str` shared. The true counterpart of hir's BusPort is axi4's differently-named `AxiBusConfig { name: &str, kind: i8, addr_width: u32, data_width: u32, id_width: u32, has_region: bool, has_cache: bool, has_prot: bool, has_qos: bool, has_user: bool, has_lock: bool }` (line 36) -- same concept, `kind`/`bus_kind` rename, and no name collision. Caveat against \"unrelated subsystems\": both sit in specs/fpga/ and axi4.t27's header reads \"AXI4-Lite and AXI4-Full Bus Interface Specification for Trinity T27 FPGA HIR\" -- it is written FOR the other file, though neither declares a single `use`. Corroborating disagreement in the same pair: both declare `MAX_BUS_PORTS` with different values (axi4.t27:19 `= 32`, hir.t27:246 `= 8`), and the emitted Verilog carries it forward (axi4.v:20 `parameter [31:0] MAX_BUS_PORTS = 32;` vs hir.v:28 `= 8`).",
       "confidence": "high, not certain -- a signal and an interface are genuinely different objects, so this is not an edited copy; but they are same-subsystem neighbours designed to compose, so a cross-spec resolution over specs/fpga/ would silently pick the wrong granularity. I would need the HIR-to-AXI lowering (which does not exist as an import) to say which name the emitter actually binds.",
       "suggested_action": "Rename axi4.t27's to BusSignal (it is one wire) and reconcile the two MAX_BUS_PORTS values -- 32 vs 8 is a separate live disagreement that already reached the generated Verilog."
+    },
+    {
+      "name": "Cli",
+      "sites": [
+        "specs/port/trios/crates/trios-doctor/rings/BRONZE-RING-DR/src/main.t27:6",
+        "specs/port/trios/crates/trios-igla-race/src/main.t27:14"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "trios-doctor main.t27:6 `pub struct Cli { workspace: str, command: Command }` with `enum Command { Check, Heal, Report }` (#7258) vs trios-igla-race main.t27:14 `pub struct Cli { command: RaceCommand }` (#7165). The clap argument struct of two different binaries in two different crates; the command enums they hold are different types.",
+      "confidence": "certain -- each binary's own argument struct; `Cli` is the clap idiom, not a shared concept",
+      "suggested_action": "No defect. Prefix per binary (DoctorCli, RaceCli) if names must resolve."
     },
     {
       "name": "Color",
@@ -197,6 +241,17 @@
       "suggested_action": "Delete feed_forward_network.t27's FFNConfig and have it `use` feed_forward.t27, or fold the two files \u2014 one FFN layer should not have two configs."
     },
     {
+      "name": "FileChange",
+      "sites": [
+        "specs/file/schema.t27:117",
+        "specs/port/trios/crates/trios-git/src/status.t27:32"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "schema.t27:117 `struct FileChange { path: str, status: FileStatus, additions: u32, deletions: u32 }`, `// FileChange represents a change to a file`, vs status.t27:32 `pub struct FileChange { path: []const u8, status: FileStatus, staged: bool }`, `// The original's FileChange, the record one status entry becomes.` (#7051). Both are one working-tree entry of a version-control status: a path plus a FileStatus. They share `path` and `status`; the schema adds line counts, the git port adds `staged`.",
+      "confidence": "high -- same concept (a changed file in a status listing) with two partial field sets; the FileStatus enums should be compared before converging",
+      "suggested_action": "Converge on one FileChange { path, status, staged, additions, deletions } owned by specs/file/schema.t27 and have the trios-git port use it."
+    },
+    {
       "name": "FileInfo",
       "sites": [
         "specs/file/schema.t27:74",
@@ -218,6 +273,17 @@
       "evidence": "graph.t27:13 `pub const Graph(T) = struct { nodes : \"std.HashMap(T, []T)\", directed : \"bool\", }` \u2014 header \"Adjacency list representation\", with `fn empty(directed: bool)`, `fn add_node(graph: *Graph(T))`, `fn add_edge(graph: *Graph(T))`. graph_bfs.t27:13 `pub const Graph = struct { adj : \"[]Const []Const u8\", allocator : \"std.mem.Allocator\", }` \u2014 header \"Free graph memory\", with `fn init`, `fn add_edge(graph: *Graph)`, `fn traverse`, `fn deinit`. Same directory, same concept (an adjacency-list graph in the tri stdlib), both stub-generated, both own an `add_edge` over `*Graph` \u2014 but one is generic over T and keyed by HashMap while the other is a monomorphic byte-index adjacency array, and one tracks `directed` while the other tracks an allocator. NOTE ON THE INSTRUMENT: `tri types dup` renders the graph.t27 side as \"(newtype): T\" \u2014 it misreads `Graph(T) = struct` as a newtype declaration and loses both real fields. The field list above is read from the file.",
       "confidence": "High, not certain. Certain both files specify a graph in one stdlib directory and disagree; the alternative reading is that graph_bfs.t27 meant to define a BFS-local working structure and should never have called it Graph.",
       "suggested_action": "Have graph_bfs.t27 `use` tri::graph::graph and drop its local Graph; separately, teach the reader to parse a parameterised `Name(T) = struct` instead of reporting it as a newtype."
+    },
+    {
+      "name": "HirBoardResources",
+      "sites": [
+        "specs/port/bootstrap/src/compiler/HirIpCatalog_new.t27:37",
+        "specs/port/bootstrap/src/compiler/HirTernaryRegFile_new.t27:82"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "HirIpCatalog_new.t27:37 `struct HirBoardResources { name: []const u8, luts, ffs, bram18, dsp48, io_pins: u32 }` (#6986) vs HirTernaryRegFile_new.t27:82 `pub struct HirBoardResources { name: str, luts, ffs, bram18, dsp48, io_pins: u32 }`, followed by `// compiler.rs:29767 - pub fn arty_a7() -> Self`. Same six fields in the same order; both are ports of the one HirBoardResources in bootstrap/src/compiler.rs.",
+      "confidence": "certain -- two slices of the same compiler.rs port restating one struct",
+      "suggested_action": "Put HirBoardResources in one compiler-port module and `use` it from both slices."
     },
     {
       "name": "HttpRequest",
@@ -254,6 +320,17 @@
       "suggested_action": "Pick `[]const u8` and have server/http.t27 import tri::net::http::HttpStatus. This is the cheapest conflict in the census to retire, and retiring it removes one 'unbounded' answer from the quantifier census for free."
     },
     {
+      "name": "HwType",
+      "sites": [
+        "specs/fpga/hw_types.t27:38",
+        "specs/port/bootstrap/src/compiler/HwType_hw_width.t27:48"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "hw_types.t27:38 `pub struct HwType { tag: i8, width: u32, is_signed_flag, is_clock_flag, is_reset_flag: bool, elem_tag: i8, vec_len: u32, field_count: u32 }` (flat struct, module HwTypes) vs HwType_hw_width.t27:48 `pub struct HwType { tag: HwTypeTag, width: u32, len: u32, fields: [8]u32, n_fields: usize }` (#7015). Both are the hardware signal type the compiler lowers to Verilog: a tag plus a width, a vector length and a field count. The port is of bootstrap/src/compiler.rs, the implementation of the HwTypes spec.",
+      "confidence": "high -- one concept (a hardware signal type); the flag booleans of the spec are encoded in the port's tag enum",
+      "suggested_action": "Have the compiler.rs port use HwTypes.HwType, or record in hw_types.t27 why the port's tag enum and field array are a better shape and move it there."
+    },
+    {
       "name": "HybridBigInt",
       "sites": [
         "specs/ternary/hybrid_arithmetic.t27:32",
@@ -274,6 +351,17 @@
       "evidence": "sdk_contract.t27:20 `pub const Hypervector = struct { data: HybridBigInt, label: ?[]const u8 = null, ... }`. vsa/sdk.t27:29 `pub struct Hypervector { data: hybrid_arithmetic::HybridBigInt, label: ?[]const u8, }`. Same two fields, same order, same intent (\"Trinity SDK \u2014 High-level API\" in both headers) \u2014 the edits are a default initializer `= null` on one side and, more importantly, a dropped module qualifier. That qualifier is load-bearing: `HybridBigInt` is itself CONFLICTED (specs/ternary/hybrid_arithmetic.t27:32 vs specs/ternary/hybrid_bigint.t27:56), so vsa/sdk.t27 resolves to a specific one via `use hybrid_arithmetic;` (line 13) while sdk_contract.t27's bare `HybridBigInt` cannot be resolved at all. One unresolvable name inside another. Also worth flagging for the census: specs/api/sdk_contract.t27 is a Markdown document (`# TRINITY SDK \u2014 High-level API for Developers`, `## Specification`) and this struct sits inside a fenced code block \u2014 so one of the two 'definitions' is prose that no compiler reads.",
       "confidence": "Certain the two shapes are one default and one qualifier apart. Not certain the doc copy should count as a definition at all \u2014 that depends on whether the census means to scan Markdown-shaped .t27 files.",
       "suggested_action": "Qualify the type in the contract doc (`hybrid_arithmetic::HybridBigInt`) or regenerate that section from vsa/sdk.t27; and consider whether the struct scanner should skip fenced blocks in Markdown-shaped .t27 files."
+    },
+    {
+      "name": "IdentityConfig",
+      "sites": [
+        "specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27:3",
+        "specs/sacred/sacred_identity.t27:61"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "identity.t27:3 `pub struct IdentityConfig { installId: ?[]const u8, statePath: ?[]const u8 }` -- the BrowserOS agent server's install-id service config, beside IdentityStateFile { browserosId } (#7171). sacred_identity.t27:61 `pub const IdentityConfig = struct { log_path, persist_identity, verify_on_startup, declare_in_logs, sacred_timestamps, tolerance_pct }` -- the sacred-constants identity logger. Zero shared fields; two different senses of identity.",
+      "confidence": "certain -- an installation id versus a self-declaration logging policy",
+      "suggested_action": "Rename the port's to InstallIdentityConfig if names must resolve; the sacred one keeps the name."
     },
     {
       "name": "Info",
@@ -389,6 +477,39 @@
       "evidence": "compiler/linker.t27:27 `struct LinkResult { ok: bool; error: LinkError; error_msg: str; modules_linked: u32; symbols_resolved: u32; }` \u2014 in `module Linking` with `use compiler::parser;`, over `ModuleRef { module_name, file_path, resolved }` and `SymbolRef { symbol_name, module_name, symbol_type, is_pub, line }`: this is source-level module/import resolution, and its result is a pass/fail with an error message. fpga/linker.t27:150 `pub struct LinkResult { entry_addr : u32, total_text : u32, total_data : u32, total_bss : u32, num_symbols : u32, num_segments : u32, errors : u32, }` \u2014 \"Links assembled object files into executable images for ternary core ... section merging, symbol resolution, address assignment, relocations\", next to `LinkerConfig { entry, text_base, data_base, stack_size, heap_size, output_format }`: this is an ELF-style image layout, and its result is addresses and section sizes. Zero shared field names; `errors : u32` is a count, not the other's `ok: bool` + `error_msg: str`.",
       "confidence": "High, not certain. Certain the two describe different stages over different inputs (source modules vs object files) with no overlapping field. The reservation: both are 'the linker' of one toolchain, so a reader could argue for one shared result type \u2014 but nothing in either file suggests they were ever one.",
       "suggested_action": "Leave both; rename the binary one ImageLayout or LinkImage, which is what its fields actually describe, and the collision disappears."
+    },
+    {
+      "name": "LinkSection",
+      "sites": [
+        "specs/fpga/linker.t27:13",
+        "specs/port/bootstrap/src/compiler/LinkSection_text.t27:3"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "linker.t27:13 `pub struct LinkSection { name : &str, vaddr : u32, size : u32, flags : u32, align : u32 }` vs LinkSection_text.t27:3 `pub struct LinkSection { pub name: []const u8, pub vaddr: u32, pub size: u32, pub flags: u32, pub alignment: u32 }` (#7013). Same five fields in the same order; `align` is spelled `alignment` in the port. The port is of bootstrap/src/compiler.rs, which implements the Linker spec.",
+      "confidence": "certain -- the port restates the spec's own section record",
+      "suggested_action": "Have the port `use` Linker.LinkSection; pick one spelling of the alignment field."
+    },
+    {
+      "name": "LinkedSymbol",
+      "sites": [
+        "specs/fpga/linker.t27:68",
+        "specs/port/bootstrap/src/compiler/LinkSection_text.t27:11"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "linker.t27:68 `pub struct LinkedSymbol { name : &str, value, size, section_idx, bind, kind : u32 }` vs LinkSection_text.t27:11 (#7013) with the same six fields in the same order; only the string spelling and `pub` differ.",
+      "confidence": "certain -- field-for-field identical port of the spec's symbol record",
+      "suggested_action": "Have the port `use` Linker.LinkedSymbol."
+    },
+    {
+      "name": "LockGuard",
+      "sites": [
+        "specs/port/trios/crates/trios-cli/src/cmd/report.t27:30",
+        "specs/port/trios/crates/trios-cli/src/lock.t27:25"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "report.t27:30 `pub struct LockGuard {}` (#7195), under `// Define the data structures used`, vs lock.t27:25 `pub struct LockGuard { _file: u32, lock_path: []const u8 }`. Both are ports from the SAME crate, trios-cli, of the one LockGuard that src/lock.rs defines; report.rs only holds it, so its port left it empty.",
+      "confidence": "certain -- an empty stub of a type whose real port sits in the same crate's lock.t27",
+      "suggested_action": "Have the report port `use` the lock port's LockGuard and drop the stub."
     },
     {
       "name": "LogEntry",
@@ -535,6 +656,17 @@
       "evidence": "`lexer: lexer::Lexer, current: lexer::Token, peek: lexer::Token, had_error: bool, error_msg: str` vs `tokens: Vec<PinToken>, current: usize, current_module: Option<String>`. `current` is the only shared name and it is a Token on one side and a cursor index on the other. Different grammars \u2014 compiler/parser.t27's header says \"the complete recursive descent parser for the T27 language ... a 1:1 port of bootstrap/src/compiler.rs Parser\", pins/parser.t27's says \"Parse .t27 pin specifications into Pins IR\" \u2014 and different designs: streaming lexer with one-token lookahead vs a pre-tokenized Vec<PinToken> plus an index.",
       "confidence": "certain \u2014 two parsers for two different input languages, each with its own token type (lexer::Token vs PinToken)",
       "suggested_action": "None needed; if flattened, PinsParser is the natural rename for the pins one (it is already the module name)."
+    },
+    {
+      "name": "Path",
+      "sites": [
+        "specs/port/trios/crates/trios-server/src/tools/git.t27:7",
+        "specs/tri/io/fs.t27:13"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "git.t27:7 `struct Path { buf: []const u8 }` (#6916), a stand-in for std::path::Path in the trios-server git tool port, vs fs.t27:13 `pub const Path = struct { parts : \"[]const []const u8\", absolute : \"bool\" }` in module TriFs. Both are a filesystem path; one keeps the raw bytes, the other the split components.",
+      "confidence": "high -- same concept in two representations; the port's version exists only because it needed a Path to name",
+      "suggested_action": "Have the git tool port `use` TriFs.Path instead of declaring a stand-in."
     },
     {
       "name": "PinAssignment",
@@ -723,6 +855,17 @@
       "suggested_action": "Rename to DatalogRule and K3Implication \u2014 inside one package, an unqualified ar::Rule cannot be resolved by a reader or by the census."
     },
     {
+      "name": "RunResult",
+      "sites": [
+        "specs/port/trios/crates/trios-cli/src/cmd/run.t27:3",
+        "specs/port/trios/crates/trios-trainer/src/train_loop.t27:34"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "run.t27:3 `struct RunResult { exp_id: str, val_bpb: f64, train_bpb: f64, time_sec: f64, params: u64 }` (#7035), the record the CLI's `run(exp_id, seeds)` returns for one experiment, vs train_loop.t27:34 `pub struct RunResult { final_bpb: f32, best_bpb: f32, steps_completed: usize }` (#6920), `/// Result of a training run` in trios-trainer. Two crates, zero shared fields; one is an experiment summary keyed by id, the other a loop's end state.",
+      "confidence": "medium -- both describe a training run, but no field is shared and neither crate imports the other's",
+      "suggested_action": "Rename to ExperimentRunResult and TrainLoopResult if names must resolve; check later whether the CLI's record should be built from the trainer's."
+    },
+    {
       "name": "SacredConstants",
       "sites": [
         "specs/sacred/sacred_constants.t27:13",
@@ -883,6 +1026,28 @@
       "suggested_action": "Declare ToolCall once (tools/schema.t27's branded version is the most complete) and have provider/schema.t27 and server/session.t27 import it; the wire-level `[]u8` variant, if it must stay, should be named ProviderToolCallWire."
     },
     {
+      "name": "ToolDefinition",
+      "sites": [
+        "specs/port/browseros/trios/agent-server/apps/server/src/tools/tool-registry.t27:4",
+        "specs/tools/schema.t27:93"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "tool-registry.t27:4 `pub struct ToolDefinition { name: []const u8 }`, `// ToolDefinition - we only need the name field for the logic we're porting` (#7287), a port of the BrowserOS agent server's TypeScript registry, vs schema.t27:93 `struct ToolDefinition { id: ToolID, description: str, parameters: ToolParameters, metadata: ToolMetadata }` in t27's own module Tools. Both are an agent tool's definition, but of two different systems: the port mirrors BrowserOS's type and is meant to track it, the schema is t27's own. No shared field (`name` vs `id`).",
+      "confidence": "medium -- same idea in two systems that are not meant to be one; a converge would make the port stop mirroring its source",
+      "suggested_action": "Rename the port's to BrowserOsToolDefinition if names must resolve; do not merge it into Tools."
+    },
+    {
+      "name": "ToolRegistry",
+      "sites": [
+        "specs/port/browseros/trios/agent-server/apps/server/src/tools/tool-registry.t27:9",
+        "specs/tools/schema.t27:169"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "tool-registry.t27:9 `pub struct ToolRegistry { tools: []ToolDefinition }` (#7287) vs schema.t27:169 `struct ToolRegistry { tools: [ToolEntry], permissions: [PermissionEntry], custom: [ToolID] }`. Follows ToolDefinition: the BrowserOS registry port versus t27's own registry with permissions.",
+      "confidence": "medium -- follows ToolDefinition",
+      "suggested_action": "Rename with ToolDefinition (BrowserOsToolRegistry)."
+    },
+    {
       "name": "ToolResult",
       "sites": [
         "specs/server/agent-runner.t27:29",
@@ -947,6 +1112,29 @@
       "evidence": "config/schema.t27: `pub const ValidationResult = struct { valid : bool, errors : []ConfigError }` where `ConfigError { field : []u8, message : []u8, severity : []u8 }` \u2014 the outcome of validating `Config { version, provider, agents, mcp_servers, lsp, tui, logging, paths }`. tools/schema.t27: `struct ValidationResult { valid: bool, errors: [ValidationError] }` where `ValidationError { parameter: str, message: str, code: str }` \u2014 the outcome of validating a tool call's parameters against a ToolRegistry. Same two field names in the same order, but neither field list is an edit of the other: `errors` is domain-typed on each side (a config field with a severity vs a tool parameter with an error code), and that is intrinsic to what each validates, not a divergence. No import edge between config-schema and Tools.",
       "confidence": "high \u2014 the two validated objects are clearly different. What I cannot rule out is a third reading: this is one missing generic `ValidationResult<E>` rather than either verdict, in which case the right fix is an abstraction, not a rename. A stated intent for generics in the t27 type system would settle it.",
       "suggested_action": "No defect to fix today, but the name is unresolvable across specs: rename to ConfigValidationResult / ToolValidationResult, or introduce the generic both want."
+    },
+    {
+      "name": "Value",
+      "sites": [
+        "specs/port/trios/crates/trios-server/src/mcp_endpoints/tasks.t27:26",
+        "specs/port/trios/crates/trios-server/src/tools/git.t27:3",
+        "specs/port/trios/crates/trios-server/src/tools/mod.t27:15"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "tasks.t27:26 `struct Value { task_id: str, status: str }` (#7102); git.t27:3 `struct Value { field: i32 }` (#6916); mod.t27:15 `struct Value { _: usize }` (#7209). All three are ports from the same crate, trios-server, and all three stand in for serde_json::Value, the JSON value its MCP handlers take and return; each porter stubbed it with whatever fields its own function touched.",
+      "confidence": "high -- one foreign type (serde_json::Value) stubbed three ways in one crate's ports",
+      "suggested_action": "One JSON value stand-in for the trios-server ports (or a shared t27 JSON value spec) used by all three files."
+    },
+    {
+      "name": "Variant",
+      "sites": [
+        "specs/port/trios/apps/trios-macos/rings/RUST-04/clade-improve/src/oversight.t27:16",
+        "specs/tri/collections/variant.t27:13"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "oversight.t27:16 `struct Variant { // Placeholder - would be defined elsewhere in the trios codebase }` (#6758), an empty stand-in for clade-improve's candidate variant that an OversightAgent reviews, vs variant.t27:13 `pub const Variant(T) = struct { pub tag : []const u8, pub value : T }`, a generic tagged union in module TriVariant. A code-improvement candidate versus a sum-type container.",
+      "confidence": "high -- the placeholder carries no fields, so its concept is read from its user (OversightAgent), which reviews variants of an agent, not tagged values",
+      "suggested_action": "Rename the placeholder to CladeVariant if names must resolve."
     },
     {
       "name": "VerificationReport",

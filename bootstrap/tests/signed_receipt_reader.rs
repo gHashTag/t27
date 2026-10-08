@@ -64,8 +64,13 @@ fn tree(tag: &str) -> (std::path::PathBuf, std::path::PathBuf, String) {
 /// One complete receipt for the scratch spec, signed (when `key` is given)
 /// over the spec's message with `nonce` as the signed nonce.
 fn receipt(root: &std::path::Path, name: &str, nonce: Option<&str>, key: Option<&std::path::Path>) {
+    receipt_dna(root, name, nonce, key, None)
+}
+
+/// The same, and with `dna` the v2 receipt die_binding.t27 defines: the DNA third, domain v2.
+fn receipt_dna(root: &std::path::Path, name: &str, nonce: Option<&str>, key: Option<&std::path::Path>, dna: Option<&str>) {
     use ed25519_dalek::Signer;
-    let vals: [(&str, String); 9] = [
+    let mut vals: Vec<(&str, String)> = vec![
         ("device_record", "\"--busdev-num 1:4\"".into()),
         ("full_idcode", "\"idcode 0x03636093\"".into()),
         ("verdict_word", "0".into()),
@@ -76,6 +81,9 @@ fn receipt(root: &std::path::Path, name: &str, nonce: Option<&str>, key: Option<
         ("utc_unix", "1770000000".into()),
         ("nonce", nonce.map(|n| format!("\"{n}\"")).unwrap_or_else(|| "null".into())),
     ];
+    if let Some(d) = dna {
+        vals.insert(2, ("device_dna", format!("\"{d}\"")));
+    }
     let mut body: Vec<String> = vals.iter().map(|(k, v)| format!("\"{k}\":{v}")).collect();
     if let Some(key) = key {
         let seed_hex = std::fs::read_to_string(key).expect("key");
@@ -84,7 +92,7 @@ fn receipt(root: &std::path::Path, name: &str, nonce: Option<&str>, key: Option<
             .map(|i| u8::from_str_radix(&seed_hex.trim()[i..i + 2], 16).unwrap())
             .collect();
         let sk = ed25519_dalek::SigningKey::from_bytes(&seed.try_into().unwrap());
-        let mut msg = String::from("t27-receipt-v1\n");
+        let mut msg = String::from(if dna.is_some() { "t27-receipt-v2\n" } else { "t27-receipt-v1\n" });
         for (k, v) in &vals {
             msg.push_str(&format!("{k}={v}\n"));
         }
@@ -135,7 +143,27 @@ fn three_receipts_signed_for_this_challenge_are_a_fresh_run() {
     assert_eq!(code, Some(0), "{text}");
     assert!(text.contains("Authentication: FRESH"), "{text}");
     assert!(text.contains("may cite this run"), "{text}");
+    assert!(text.contains("Independence: INDEP_NONE") && text.contains("INDEP_DIE_UNNAMED (3)"), "{text}");
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// R3-3 (#7497): three dies named under the bench's one key reach INDEP_DIES, the most a verifier
+/// with no roster gives; three placements on ONE die are complete and fresh but not independent.
+#[test]
+fn independence_needs_three_distinct_dies() {
+    for (tag, dnas, want) in [
+        ("dies", ["050d58218fd9854", "0a1b2c3d4e5f607", "123456789abcdef"], "Independence: INDEP_DIES (independence.t27; first missing NONE (0); 3 distinct dies"),
+        ("onedie", ["050d58218fd9854"; 3], "Independence: INDEP_NONE (independence.t27; first missing INDEP_SHARED_DIE (5); 1 distinct dies"),
+    ] {
+        let (root, key, _) = tree(tag);
+        for (i, d) in dnas.iter().enumerate() {
+            receipt_dna(&root, &format!("link-177000000{i}-{i}.json"), Some(CHALLENGE), Some(&key), Some(d));
+        }
+        let (code, text) = t27c(&root, &key, &["run-record", SPEC, "--challenge", CHALLENGE]);
+        assert_eq!(code, Some(0), "{text}");
+        assert!(text.contains("Die: NAMED") && text.contains(want), "{text}");
+        let _ = std::fs::remove_dir_all(root.parent().unwrap());
+    }
 }
 
 /// THE REPLAY: the same genuine receipts offered to a verifier with another
@@ -197,21 +225,58 @@ fn a_fresh_requirement_needs_a_long_enough_challenge() {
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 
+/// --receipts judges a run kept in its own subdirectory; --json writes that same judgment.
+#[test]
+fn json_writes_the_judgment_of_a_run_kept_in_a_receipts_subdirectory() {
+    let (root, key, _) = tree("json");
+    std::fs::create_dir_all(root.join(".trinity/receipts/run1")).unwrap();
+    for (i, d) in ["050d58218fd9854", "0a1b2c3d4e5f607", "123456789abcdef"].iter().enumerate() {
+        receipt_dna(&root, &format!("run1/link-177000000{i}-{i}.json"), Some(CHALLENGE), Some(&key), Some(d));
+    }
+    let out = root.join("verdict.json");
+    let args = ["run-record", SPEC, "--challenge", CHALLENGE, "--receipts", ".trinity/receipts/run1", "--json", out.to_str().unwrap()];
+    let (code, text) = t27c(&root, &key, &args);
+    assert_eq!(code, Some(0), "{text}");
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!((v["run_complete"].as_bool(), v["authentication"].as_str(), v["die"].as_str()), (Some(true), Some("FRESH"), Some("NAMED")), "{v}");
+    assert!(v["independence"].as_str().unwrap().starts_with("INDEP_DIES"), "{v}");
+    assert_eq!(v["receipts"].as_array().unwrap().len(), 3, "{v}");
+    assert!(v["judged_by"].as_str().unwrap().starts_with("t27c-bootstrap@"), "{v}");
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
 /// The receipt constants and decisions t27c runs are generated from the spec;
 /// the checked-in copy is exactly what gen-rust writes today.
 #[test]
 fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for name in ["signed_receipt", "die_binding", "independence", "corpus_receipt", "ddc_receipt"] {
     let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
-        .args(["gen-rust", "specs/verified/signed_receipt.t27"])
+        .args(["gen-rust", &format!("specs/verified/{name}.t27")])
         .current_dir(&root)
         .output()
         .expect("run t27c gen-rust");
     assert!(fresh.status.success(), "gen-rust failed: {}", String::from_utf8_lossy(&fresh.stderr));
-    let checked_in = std::fs::read(root.join("bootstrap/gen/rust/verified/signed_receipt.rs")).unwrap();
+    let checked_in = std::fs::read(root.join(format!("bootstrap/gen/rust/verified/{name}.rs"))).unwrap();
     assert!(
         fresh.stdout == checked_in,
-        "bootstrap/gen/rust/verified/signed_receipt.rs drifted from specs/verified/signed_receipt.t27: \
+        "bootstrap/gen/rust/verified/{name}.rs drifted from specs/verified/{name}.t27: \
          regenerate it with `t27c gen-rust`, never hand-edit it"
     );
+    }
+}
+
+/// The hash and signature t27c signs and verifies with are generated from the
+/// crypto specs; the checked-in copies are exactly what gen-rust writes today.
+#[test]
+fn the_checked_in_crypto_is_what_gen_rust_writes_from_the_specs() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for name in ["sha256", "ed25519"] {
+        let spec = format!("specs/tri/crypto/{name}.t27");
+        let fresh = Command::new(env!("CARGO_BIN_EXE_t27c")).args(["gen-rust", &spec]).current_dir(&root).output();
+        let fresh = fresh.expect("run t27c gen-rust");
+        assert!(fresh.status.success(), "gen-rust {spec}: {}", String::from_utf8_lossy(&fresh.stderr));
+        let copy = format!("bootstrap/gen/rust/tri/crypto/{name}.rs");
+        assert!(fresh.stdout == std::fs::read(root.join(&copy)).unwrap(), "{copy} drifted from {spec}: regenerate it");
+    }
 }
