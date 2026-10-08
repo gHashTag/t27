@@ -215,6 +215,22 @@ fn a_scaffold_local_is_never_called() {
     }
 }
 
+// ------------------------------------------------ `undefined` as an argument
+
+/// `f(undefined)` for a parameter the callee never names (gen_temp_file.t27, funnel_client.t27): the call runs and
+/// nobody reads the value (specs/tri/t27b/undefined_arg_plan.t27; `t27c test-report` passes the conformance spec
+/// 7/7, none vacuous). A callee that names the parameter is refused, where the reference reads dead memory.
+#[test]
+fn an_undefined_argument_nobody_reads() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/undefined_arg.t27"));
+    assert!(r.len() == 7 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn is_seven(x: u32, y: u32) -> bool {\n    return y == 7;\n}\n\ntest t {\n    assert(is_seven(undefined, 7));\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace(", 7)", ", 8)"))), vec![("t", false, false)]);
+    let m = rejected(&src.replace("y == 7", "x == 7"));
+    assert!(m.contains("construct ExprIdentifier(undefined argument read) at line 8"), "{}", m);
+}
+
 // ------------------------------------------------ @bitCast, @intFromBool and the std.math NaN fns
 
 /// #7791: an f32's bits through a frame slot, integers of one size, a bool as a u1, and `std.math.nan` / `isNan` /

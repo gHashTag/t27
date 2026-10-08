@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "gen_hash_c": "sha256:7781eda129440ebd8c839df8b4b11dc63658017427cc85962030905630ac97c5",
+  "gen_hash_rust": "sha256:2fb216a685f41faaf55e76e0675e3dc87be9cebdb2569f146a0919319453dd34",
+  "gen_hash_verilog": "sha256:e0dff9624b5adb84f9564e5b21e7b93e7cbc0d4604430c3a4102a9792376fcbc",
+  "gen_hash_zig": "sha256:e5113561f02fbfe270a45353453d63d49741f0455a8af1a147764a7cfc4117d1",
+  "module": "Coverage",
+  "ring": 12,
+  "sealed_at": "2026-10-08T12:47:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:5af1253e1c92fec49198ebce2acc5d61f3613b904f0cf060b48a4a809581e26c",
+  "spec_path": "specs/fpga/coverage.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 26,
+    "total": 26
+  }
+}
