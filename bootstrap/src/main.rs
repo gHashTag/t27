@@ -351,6 +351,12 @@ enum Commands {
         /// (specs/verified/signed_receipt.t27). Default none: unsigned runs stay citable.
         #[arg(long, default_value = "none")]
         require_level: String,
+        /// The directory of receipts to judge as one run; an archived run lives in a subdirectory.
+        #[arg(long, default_value = ".trinity/receipts")]
+        receipts: String,
+        /// Also write the judgment as JSON to this path (the Spec Explorer's Chip tab reads it).
+        #[arg(long)]
+        json: Option<String>,
     },
 
     /// R3-1 (#7332): this host's receipt signing key. `init` creates an Ed25519
@@ -11856,8 +11862,8 @@ async fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
-        Commands::RunRecord { input, challenge, require_level } => {
-            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level)?
+        Commands::RunRecord { input, challenge, require_level, receipts, json } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level, &receipts, json)?
         }
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
@@ -12287,8 +12293,8 @@ fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
-        Commands::RunRecord { input, challenge, require_level } => {
-            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level)?
+        Commands::RunRecord { input, challenge, require_level, receipts, json } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level, &receipts, json)?
         }
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
