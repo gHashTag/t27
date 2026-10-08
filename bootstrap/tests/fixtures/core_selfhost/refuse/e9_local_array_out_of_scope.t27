@@ -1,0 +1,9 @@
+// P1 slice 5: a local array read after its block ends. gen-c exits 0 and its
+// C names an undeclared array; the core finds no array in scope.
+module out_of_scope;
+fn os_first() -> u8 {
+    if (true) {
+        var os_a: [2]u8 = [_]u8{1} ** 2;
+    }
+    return os_a[0];
+}

@@ -1,0 +1,58 @@
+// P1 slice 5 (#5980): a local array is declared as a module array is, and
+// gen-c writes the same C without `static`: a repeat as a GNU range (`{0}`
+// for a zero value), a list as C braces, a row list as a C matrix (#7495).
+module local_arrays;
+const LA_N: i64 = 4;
+fn la_fill(k: u8) -> u8 {
+    var a: [LA_N]u8 = [_]u8{5} ** LA_N;
+    var z: [3]u16 = [_]u16{0} ** 3;
+    var h: [2]i64 = [_]i64{0x10} ** 2;
+    var s: [1_0]u8 = [_]u8{1} ** 10;
+    a[1] = a[1] + k;
+    a[2] += 2;
+    z[2] = 9;
+    return a[0] + a[1] + a[2] + a[3] + (z[2] as u8) + (h[1] as u8) + s[9];
+}
+fn la_grid(i: usize, j: usize) -> i64 {
+    var m: [2][3]i64 = [_][3]i64{ [_]i64{ 1, 2, 3 }, [_]i64{ 4, -5, 6 } };
+    var row: [3]i64 = [_]i64{ 10, 20, 30 };
+    m[i][j] *= row[j];
+    return m[i][j] + m[1][1];
+}
+fn la_loops(n: usize) -> usize {
+    var total: usize = 0;
+    var lim: [1]usize = [_]usize{3};
+    for (0..lim[0]) |i| {
+        var sq: [2]usize = [_]usize{ i, i * i };
+        total += sq[1];
+    }
+    var w: usize = 0;
+    while (w < n) {
+        var one: [1]usize = [_]usize{1} ** 1;
+        total = total + one[0];
+        w = w + 1;
+    }
+    if (n > 1) {
+        var bonus: [2]usize = [_]usize{ 100, 200 };
+        total += bonus[1];
+    } else {
+        var none: [1]usize = [_]usize{0} ** 1;
+        total += none[0];
+    }
+    return total;
+}
+test local_array_values {
+    var t: [3]i64 = [_]i64{9} ** 3;
+    var u: [2][2]u8 = [_][2]u8{ [_]u8{ 1, 2 }, [_]u8{ 3, 4 } };
+    t[1] = 4;
+    t[2] -= 1;
+    u[1][0] += 10;
+    assert(la_fill(2) == 50);
+    assert(la_grid(0, 2) == 85);
+    assert(la_grid(1, 1) == -200);
+    assert(la_loops(2) == 207);
+    assert(la_loops(1) == 6);
+    assert(t[0] + t[1] + t[2] == 21);
+    assert(u[1][0] == 13);
+    assert(u[0][1] + u[1][1] == 6);
+}
