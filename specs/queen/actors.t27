@@ -676,7 +676,16 @@ pub fn lane_of(tag: u64) -> u8 {
 pub const TURN_MAX_SECONDS : u32 = 3600;
 
 pub fn hung_turn_signal(turn_age_seconds: u32) -> u8 {
-    if (turn_age_seconds >= TURN_MAX_SECONDS) { return X_KILL; }
+    return turn_signal(turn_age_seconds, TURN_MAX_SECONDS);
+}
+
+/// The same kill for a domain with its own bound: a reviewer's turn is one review, and a review is
+/// bounded far below a bee's hour (reviewer.t27 REVIEW_ROW_SECONDS). A bound of 0 means the default,
+/// so a domain that names none still gets TURN_MAX_SECONDS and never a turn that runs for good.
+pub fn turn_signal(turn_age_seconds: u32, max_seconds: u32) -> u8 {
+    var bound : u32 = max_seconds;
+    if (bound == 0) { bound = TURN_MAX_SECONDS; }
+    if (turn_age_seconds >= bound) { return X_KILL; }
     return X_NONE;
 }
 
@@ -1136,6 +1145,17 @@ test a_hung_turn_is_killed_and_its_task_reclaimed_at_once {
     assert reclaim_wait_seconds(death_reason(hung_turn_signal(TURN_MAX_SECONDS)), 30, 180) == 0;
     // a turn under the bound keeps its lease (180 s is control.t27 TASK_LEASE_TTL_SECONDS): longer turns are allowed
     assert TURN_MAX_SECONDS > 180;
+}
+
+test a_domain_bounds_its_own_turns_and_none_runs_for_good {
+    assert turn_signal(299, 300) == X_NONE;
+    assert turn_signal(300, 300) == X_KILL;
+    assert turn_signal(301, 300) == X_KILL;
+    // a domain that names no bound gets the default one, not an unbounded turn
+    assert turn_signal(TURN_MAX_SECONDS - 1, 0) == X_NONE;
+    assert turn_signal(TURN_MAX_SECONDS, 0) == X_KILL;
+    // the default is the hung-turn rule itself
+    assert turn_signal(TURN_MAX_SECONDS, TURN_MAX_SECONDS) == hung_turn_signal(TURN_MAX_SECONDS);
 }
 
 test every_lost_message_is_a_dead_letter_and_a_coalesced_one_is_not {
