@@ -4,11 +4,11 @@
 // This backend emits declarations only. The spec's checks live in
 // the Zig and Verilog outputs; do not read this file as verified.
 
-pub const KEEP: u8 = 0;
+pub const INT_KEEP: u8 = 0;
 
-pub const WIDEN: u8 = 1;
+pub const INT_WIDEN: u8 = 1;
 
-pub const FOLD: u8 = 2;
+pub const INT_FOLD: u8 = 2;
 
 pub const CONVERT: u8 = 3;
 
@@ -20,22 +20,15 @@ pub const IN_B: u8 = 6;
 
 pub const IN_I64: u8 = 7;
 
-pub fn widens(from_bits: u32, from_signed: bool, to_bits: u32, to_signed: bool) -> bool {
-    if (from_signed == to_signed) {
-        return (to_bits >= from_bits);
-    }
-    return (to_signed && (to_bits > from_bits));
-}
-
 pub fn int_to_int(from_bits: u32, from_signed: bool, to_bits: u32, to_signed: bool, is_const: bool, fits: bool) -> u8 {
     if ((from_bits == to_bits) && (from_signed == to_signed)) {
-        return KEEP;
+        return INT_KEEP;
     }
     if widens(from_bits, from_signed, to_bits, to_signed) {
-        return WIDEN;
+        return INT_WIDEN;
     }
     if (is_const && fits) {
-        return FOLD;
+        return INT_FOLD;
     }
     return REFUSE;
 }
@@ -134,14 +127,36 @@ pub fn folds(first: u8, second: u8, len: usize, fits: bool) -> bool {
     return (((arith || (first == B_AMP)) || (first == B_BAR)) || (first == B_CARET));
 }
 
-pub fn why(act: u8) -> &'static str {
+pub fn compare_why(act: u8) -> &'static str {
     if (act == REFUSE) {
         return "a u64 against a signed type needs 65 bits to compare in";
     }
     return "";
 }
 
-pub fn cp_bits(i: u32) -> u32 {
+pub const CHECK: u8 = 9;
+
+pub const FOLD: u8 = 5;
+
+pub const FOLD_WRAP: u8 = 6;
+
+pub const KEEP: u8 = 7;
+
+pub const K_CT: u8 = 1;
+
+pub const K_OTHER: u8 = 2;
+
+pub const REFUSE_ARITY: u8 = 1;
+
+pub const REFUSE_LITERAL: u8 = 4;
+
+pub const REFUSE_OPERAND: u8 = 3;
+
+pub const TRUNCATE: u8 = 10;
+
+pub const WIDEN: u8 = 8;
+
+pub fn icp_bits(i: u32) -> u32 {
     if ((i % 4) == 0) {
         return 8;
     }
@@ -154,7 +169,49 @@ pub fn cp_bits(i: u32) -> u32 {
     return 64;
 }
 
-pub fn cp_signed(i: u32) -> bool {
+pub fn icp_signed(i: u32) -> bool {
     return (i >= 4);
+}
+
+pub fn plan(k: u8, from_bits: u32, from_signed: bool, to_bits: u32, to_signed: bool, is_const: bool, fits: bool, wrap: bool) -> u8 {
+    if (k == K_OTHER) {
+        return REFUSE_OPERAND;
+    }
+    if (k == K_CT) {
+        if fits {
+            return FOLD;
+        }
+        return REFUSE_LITERAL;
+    }
+    if widens(from_bits, from_signed, to_bits, to_signed) {
+        if is_const {
+            return FOLD;
+        }
+        if ((from_bits == to_bits) && (from_signed == to_signed)) {
+            return KEEP;
+        }
+        return WIDEN;
+    }
+    if (is_const && wrap) {
+        return FOLD_WRAP;
+    }
+    if (is_const && fits) {
+        return FOLD;
+    }
+    if wrap {
+        return TRUNCATE;
+    }
+    return CHECK;
+}
+
+pub fn refuses(act: u8) -> bool {
+    return ((act >= REFUSE_ARITY) && (act <= REFUSE_LITERAL));
+}
+
+pub fn widens(from_bits: u32, from_signed: bool, to_bits: u32, to_signed: bool) -> bool {
+    if (from_signed == to_signed) {
+        return (to_bits >= from_bits);
+    }
+    return (to_signed && (to_bits > from_bits));
 }
 

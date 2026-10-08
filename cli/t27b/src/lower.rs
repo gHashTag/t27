@@ -3149,8 +3149,8 @@ impl<'a> Lower<'a> {
                 }
                 let act = if e.ty.is_int() && to.is_int() { cp::int_to_int(e.ty.bits(), e.ty.signed(), to.bits(), to.signed(), c.is_some(), c.is_some_and(|c| to.fits(c))) } else { cp::REFUSE };
                 match (act, c) {
-                    (cp::WIDEN | cp::FOLD, Some(c)) => return Ok(Expr { ty: to, kind: ExprKind::Const(c) }),
-                    (cp::WIDEN, None) => return Ok(Expr { ty: to, kind: ExprKind::Widen(Box::new(e)) }),
+                    (cp::INT_WIDEN | cp::INT_FOLD, Some(c)) => return Ok(Expr { ty: to, kind: ExprKind::Const(c) }),
+                    (cp::INT_WIDEN, None) => return Ok(Expr { ty: to, kind: ExprKind::Widen(Box::new(e)) }),
                     _ => {}
                 }
                 self.reject(
@@ -4181,7 +4181,7 @@ impl<'a> Lower<'a> {
         if let Some((sx, sy, cx, cy)) = ints {
             let t = match cp::compare_in(sx.bits(), sx.signed(), cx.is_some_and(|c| sy.fits(c)), sy.bits(), sy.signed(), cy.is_some_and(|c| sx.fits(c))) {
                 cp::IN_A => sx, cp::IN_B => sy, cp::IN_I64 => Ty::I64,
-                r => return self.reject("type mismatch", format!("`{}` on {} and {}: {}", op.symbol(), sx.name(), sy.name(), cp::why(r))),
+                r => return self.reject("type mismatch", format!("`{}` on {} and {}: {}", op.symbol(), sx.name(), sy.name(), cp::compare_why(r))),
             };
             let (x, y) = (self.coerce(a, t)?, self.coerce(b, t)?);
             return Ok(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op, lhs: Box::new(x), rhs: Box::new(y) } }));
