@@ -1,6 +1,11 @@
 [
   {
     "id": 2576,
-    "status": "resolved"
+    "status": "resolved",
+    "decision": "anytype",
+    "rationale": "Chose anytype approach to compile today without call-site changes, accepting loss of type constraints for 103 free functions",
+    "impact": "103 previously problematic declarations compile without error, 0 call-site modifications required",
+    "date_resolved": "2026-10-08",
+    "issue_summary": "Handling undeclared type parameters in free functions - chose anytype over comptime T: type to avoid 103 call-site changes"
   }
 ]
