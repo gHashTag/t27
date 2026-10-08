@@ -63,6 +63,12 @@ the catalog pull requests record this and do not bless or bypass them.
 contract, `typecheck:ratchet` and `eslint`. A check that fails on `main` before a change is
 reported as pre-existing, with its name, and is not counted as passing.
 
+### Corpus size scan gate
+
+The `corpus_size_scan` gate tracks both file count and total content lines to detect "hollowing" - cases where files exist but have been emptied or significantly reduced in content. The gate reports both `specs=` (file count) and `specs-lines=` (total content lines) and fails when content decreases while file count remains unchanged.
+
+**Coverage:** The gate counts both FILES and LINES: a spec emptied to zero bytes is now detected through content line tracking, preventing silent corpus degradation while preserving file count integrity.
+
 ## Reproducing a number
 
 To reproduce a count on the site, run the generator that produced it, in `apps/website` of
