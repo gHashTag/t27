@@ -2811,8 +2811,9 @@ impl<'a> Lower<'a> {
     }
 
     /// The local in this fn's frame whose address the returned value `n`
-    /// holds: `&x`, `x[a..b]` or `x[a..]`, or a struct literal field that
-    /// is one (#7550).
+    /// holds: `&x`, `x[a..b]` or `x[a..]` of a local array with elements,
+    /// or a struct literal field that is one (#7550). A slice of a str or
+    /// slice local points where that one does, not into the frame.
     fn frame_addr(&self, n: &Node) -> Option<String> {
         if n.kind == NodeKind::ExprStructLit {
             return n.children.iter().filter_map(|f| f.children.first()).find_map(|c| self.frame_addr(c));
@@ -2824,8 +2825,9 @@ impl<'a> Lower<'a> {
             _ => false,
         };
         let b = n.children.first().filter(|b| addr && b.kind == NodeKind::ExprIdentifier)?;
-        let local = matches!(self.lookup(&b.name), Some(Binding::Mem(p)) if matches!(p.addr.kind, ExprKind::Slot(_)));
-        local.then(|| b.name.clone())
+        let Some(Binding::Mem(p)) = self.lookup(&b.name) else { return None };
+        let held = n.kind == NodeKind::ExprUnary || matches!(p.ty, LTy::Arr(_, len) if len > 0);
+        (held && matches!(p.addr.kind, ExprKind::Slot(_))).then(|| b.name.clone())
     }
 
     /// An expression statement whose value nothing uses, and which is
