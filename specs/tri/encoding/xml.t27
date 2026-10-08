@@ -1,50 +1,551 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
-// Simplified XML parser | φ² + 1/φ² = 3 | TRINITY
+// XML encoding parser | φ² + 1/φ² = 3 | TRINITY
 
-module TriXml;
+module TriXmlParser;
     use base::types;
-    use math::constants;
+    use TriEncodingCommon;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const XmlNode = struct {
-        tag : "[]const u8",
-        attributes : "std.StringHashMap([]const u8)",
-        children : "[]XmlNode",
-        text : "[]const u8",
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // parse(text: []const u8) → void
-    fn parse(text: []const u8) -> void {
-        // Basic XML parsing implementation
-        _ = text; // Avoid unused parameter warning
-        // Simple XML parser - creates empty root node for now
-        // TODO: Implement full XML parsing from .tri spec
-        const dummy = text.len; // Use the parameter to avoid "not yet implemented"
+    pub struct XmlParser {
+        input: []const u8,
+        position: u32,
+        line: u32,
+        column: u32,
     }
 
-    // format(node: XmlNode) → void
-    fn format(node: XmlNode) -> void {
-        // Basic XML formatting implementation
-        _ = node; // Avoid unused parameter warning
-        // Simple XML formatter - outputs empty string for now
-        // TODO: Implement full XML formatting from .tri spec
-        const dummy = node.tag.len; // Use the parameter to avoid "not yet implemented"
+    pub struct XmlNode {
+        name: []const u8,
+        attributes: []XmlAttribute,
+        children: []XmlNode,
+        text: []const u8,
+        self_closing: bool,
+        start_line: u32,
+        end_line: u32,
+    }
+
+    pub struct XmlAttribute {
+        name: []const u8,
+        value: []const u8,
+        quoted: bool,
+    }
+
+    pub struct XmlParseResult {
+        root: ?XmlNode,
+        errors: []ParseError,
+    }
+
+    pub struct ParseError {
+        message: []const u8,
+        line: u32,
+        column: u32,
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 2. Parser Implementation
     // ═══════════════════════════════════════════════════════════
 
-    test "parse_basic_case"
-        given input = "test xml content"
+    pub fn new_parser(input: []const u8) -> XmlParser {
+        return XmlParser{
+            .input = input,
+            .position = 0,
+            .line = 1,
+            .column = 1,
+        };
+    }
+
+    pub fn parse(input: []const u8) -> XmlParseResult {
+        var parser = new_parser(input);
+        var errors: []ParseError = .{};
+
+        // Skip BOM if present
+        if (byte_order_mark(input)) |bom_pos| {
+            parser.position = bom_pos + 3;
+        }
+
+        // Skip XML declaration if present
+        parser.skip_xml_declaration();
+
+        // Parse root element
+        var root: ?XmlNode = null;
+        if (parser.position < parser.input.len) {
+            root = parser.parse_element();
+        }
+
+        return XmlParseResult{
+            .root = root,
+            .errors = errors,
+        };
+    }
+
+    fn skip_xml_declaration(?*Self) {
+        if (self.peek_sequence("<?xml")) {
+            while (self.peek_char() != '>' and self.position < self.input.len) {
+                self.consume_char();
+            }
+            if (self.peek_char() == '>') {
+                self.consume_char();
+            }
+        }
+    }
+
+    fn parse_element(?*Self) -> ?XmlNode {
+        if (self.peek_char() != '<') {
+            return null;
+        }
+
+        const start_pos = self.position;
+        self.consume_char(); // '<'
+
+        // Check for closing tag
+        if (self.peek_char() == '/') {
+            self.consume_char(); // '/'
+            self.skip_tag_name();
+            self.skip_whitespace();
+            if (self.consume_char() != '>') {
+                return null;
+            }
+            return null; // Closing tag, no element
+        }
+
+        // Parse element name
+        const name = self.parse_tag_name();
+        if (name.len == 0) {
+            return null;
+        }
+
+        // Parse attributes
+        var attributes: []XmlAttribute = .{};
+        while (true) {
+            self.skip_whitespace();
+            if (self.peek_char() == '>') {
+                self.consume_char();
+                break;
+            } else if (self.peek_char() == '/') {
+                // Self-closing tag
+                self.consume_char();
+                self.skip_whitespace();
+                if (self.consume_char() != '>') {
+                    return null;
+                }
+                break;
+            }
+
+            // Parse attribute
+            const attr = self.parse_attribute();
+            if (attr) |a| {
+                attributes = attributes ++ [a];
+            } else {
+                return null;
+            }
+        }
+
+        // Parse children and content
+        var children: []XmlNode = .{};
+        var text: []const u8 = .{};
+
+        while (true) {
+            self.skip_whitespace();
+            if (self.peek_sequence("</")) {
+                // Closing tag
+                self.consume_char(); // '<'
+                self.consume_char(); // '/'
+                const closing_name = self.parse_tag_name();
+                self.skip_whitespace();
+                if (self.consume_char() != '>') {
+                    return null;
+                }
+                
+                if (!bytes_are(closing_name, name)) {
+                    return null; // Mismatched closing tag
+                }
+                break;
+            }
+
+            if (self.peek_char() == '<') {
+                // Child element
+                const child = self.parse_element();
+                if (child) |c| {
+                    children = children ++ [c];
+                } else {
+                    return null;
+                }
+            } else {
+                // Text content
+                const content = self.parse_text_content();
+                text = text ++ content;
+            }
+        }
+
+        return XmlNode{
+            .name = name,
+            .attributes = attributes,
+            .children = children,
+            .text = text,
+            .self_closing = self.peek_char_at(start_pos + name.len + 1) == '/',
+            .start_line = self.line,
+            .end_line = self.line,
+        };
+    }
+
+    fn parse_attribute(?*Self) -> ?XmlAttribute {
+        const name = self.parse_tag_name();
+        if (name.len == 0 or bad_attr(name)) {
+            return null;
+        }
+
+        self.skip_whitespace();
+        
+        if (self.peek_char() != '=') {
+            return XmlAttribute{
+                .name = name,
+                .value = "",
+                .quoted = false,
+            };
+        }
+
+        self.consume_char(); // '='
+        self.skip_whitespace();
+
+        const quoted = self.peek_char() == '"';
+        var value: []const u8 = .{};
+
+        if (quoted) {
+            self.consume_char(); // '"'
+            while (self.peek_char() != '"') {
+                if (self.peek_char() == 0) {
+                    return null; // Unterminated quoted string
+                }
+                value = value ++ [self.consume_char()];
+            }
+            self.consume_char(); // '"'
+        } else {
+            while (self.peek_char() != '>' and self.peek_char() != ' ' and self.peek_char() != '\t' and self.peek_char() != '\n' and self.peek_char() != '\r') {
+                value = value ++ [self.consume_char()];
+            }
+        }
+
+        return XmlAttribute{
+            .name = name,
+            .value = value,
+            .quoted = quoted,
+        };
+    }
+
+    fn parse_tag_name(?*Self) -> []const u8 {
+        var name: []const u8 = .{};
+        
+        while (true) {
+            const c = self.peek_char();
+            if (c == '>' or c == ' ' or c == '\t' or c == '\n' or c == '\r' or c == '/' or c == '?') {
+                break;
+            }
+            if (c == 0) {
+                break;
+            }
+            name = name ++ [self.consume_char()];
+        }
+        
+        return name;
+    }
+
+    fn parse_text_content(?*Self) -> []const u8 {
+        var content: []const u8 = .{};
+        
+        while (true) {
+            const c = self.peek_char();
+            if (c == '<' or c == 0) {
+                break;
+            }
+            content = content ++ [self.consume_char()];
+        }
+        
+        return content;
+    }
+
+    fn skip_whitespace(?*Self) {
+        while (true) {
+            const c = self.peek_char();
+            if (c == ' ' or c == '\t' or c == '\n' or c == '\r') {
+                self.consume_char();
+                if (c == '\n') {
+                    self.line += 1;
+                    self.column = 1;
+                } else {
+                    self.column += 1;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn peek_sequence(?*Self, seq: []const u8) -> bool {
+        if (self.position + seq.len > self.input.len) {
+            return false;
+        }
+        
+        for (seq) |char, i| {
+            if (self.input[self.position + i] != char) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    fn peek_char(?*Self) -> u8 {
+        if (self.position >= self.input.len) {
+            return 0;
+        }
+        return self.input[self.position];
+    }
+
+    fn peek_char_at(?*Self, pos: u32) -> u8 {
+        if (pos >= self.input.len) {
+            return 0;
+        }
+        return self.input[pos];
+    }
+
+    fn consume_char(?*Self) -> u8 {
+        if (self.position >= self.input.len) {
+            return 0;
+        }
+        const c = self.input[self.position];
+        self.position += 1;
+        self.column += 1;
+        return c;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Utility Functions
+    // ═══════════════════════════════════════════════════════════
+
+    pub fn get_element_by_name(result: XmlParseResult, name: []const u8) -> []XmlNode {
+        var matching: []XmlNode = .{};
+        if (result.root) |root| {
+            matching = matching ++ self.find_elements_by_name(root, name);
+        }
+        return matching;
+    }
+
+    fn find_elements_by_name(?*Self, node: XmlNode, name: []const u8) -> []XmlNode {
+        var matching: []XmlNode = .{};
+        
+        if (bytes_are(node.name, name)) {
+            matching = matching ++ [node];
+        }
+        
+        for (node.children) |child| {
+            matching = matching ++ self.find_elements_by_name(child, name);
+        }
+        
+        return matching;
+    }
+
+    pub fn get_element_attributes(result: XmlParseResult, element_index: u32) -> []XmlAttribute {
+        if (!result.root) {
+            return .{};
+        }
+        
+        const root = result.root.?;
+        if (element_index == 0) {
+            return root.attributes;
+        }
+        
+        // For simplicity, just return attributes of the first matching element
+        const elements = self.get_element_by_name(result, root.name);
+        if (element_index < elements.len) {
+            return elements[element_index].attributes;
+        }
+        
+        return .{};
+    }
+
+    pub fn has_attribute(result: XmlParseResult, element_index: u32, attr_name: []const u8) -> bool {
+        common.has_attribute(result, element_index, attr_name);
+    }
+
+    pub fn get_attribute_value(result: XmlParseResult, element_index: u32, attr_name: []const u8) -> ?[]const u8 {
+        common.get_attribute_value(result, element_index, attr_name);
+    }
+
+    pub fn get_text_content(result: XmlParseResult, element_index: u32) -> []const u8 {
+        if (!result.root) {
+            return .{};
+        }
+        
+        const elements = self.get_element_by_name(result, result.root.?.name);
+        if (element_index < elements.len) {
+            return elements[element_index].text;
+        }
+        
+        return .{};
+    }
+
+    pub fn get_child_elements(result: XmlParseResult, element_index: u32) -> []XmlNode {
+        if (!result.root) {
+            return .{};
+        }
+        
+        const elements = self.get_element_by_name(result, result.root.?.name);
+        if (element_index < elements.len) {
+            return elements[element_index].children;
+        }
+        
+        return .{};
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    test "parse_empty_xml"
+        given input = ""
         when result = parse(input)
-        then result != undefined
+        then result.root == null
 
+    test "parse_simple_xml"
+        given input = "<root></root>"
+        when result = parse(input)
+        then result.root != null and result.root.?.name == "root"
+
+    test "parse_xml_with_attributes"
+        given input = "<root attr=\"value\"></root>"
+        when result = parse(input)
+        then result.root != null and result.root.?.attributes.len == 1
+
+    test "parse_xml_with_children"
+        given input = "<root><child></child></root>"
+        when result = parse(input)
+        then result.root != null and result.root.?.children.len == 1
+
+    test "parse_xml_with_text"
+        given input = "<root>text content</root>"
+        when result = parse(input)
+        then result.root != null and result.root.?.text == "text content"
+
+    test "parse_self_closing_xml"
+        given input = "<empty/>"
+        when result = parse(input)
+        then result.root != null and result.root.?.self_closing
+
+    test "parse_xml_declaration"
+        given input = "<?xml version=\"1.0\"?><root></root>"
+        when result = parse(input)
+        then result.root != null and result.root.?.name == "root"
+
+    test "parse_with_bom"
+        given input = "\xEF\xBB\xBF<root></root>"
+        when result = parse(input)
+        then result.root != null
+
+    test "bad_attr_detection"
+        given input = "<root\x00bad=\"value\"></root>"
+        when result = parse(input)
+        then result.root == null
+
+    test "skip_whitespace"
+        given input = "  \t\n<root></root>"
+        when result = parse(input)
+        then result.root != null
+
+    test "get_element_by_name"
+        given input = "<root><child></child><root></root></root>"
+        when result = parse(input)
+        when elements = get_element_by_name(result, "root")
+        then elements.len == 2
+
+    test "has_attribute"
+        given input = "<root class=\"test\"></root>"
+        when result = parse(input)
+        then has_attribute(result, 0, "class") == true
+
+    test "get_attribute_value"
+        given input = "<root data-value=\"42\"></root>"
+        when result = parse(input)
+        when value = get_attribute_value(result, 0, "data-value")
+        then value.? == "42"
+
+    test "get_text_content"
+        given input = "<root>Hello World</root>"
+        when result = parse(input)
+        when text = get_text_content(result, 0)
+        then text == "Hello World"
+
+    test "get_child_elements"
+        given input = "<root><child1></child1><child2></child2></root>"
+        when result = parse(input)
+        when children = get_child_elements(result, 0)
+        then children.len == 2
+
+    test "hex_helper_functions"
+        given hex_str = "2A"
+        when result = from_hex(hex_str)
+        then result.? == 42
+
+    test "digit_helper_function"
+        given char = '5'
+        when result = digit_of(char)
+        then result.? == 5
+
+    test "bytes_are_helper"
+        given a = "hello"
+        given b = "hello"
+        when result = bytes_are(a, b)
+        then result == true
+
+    test "bytes_are_helper_different"
+        given a = "hello"
+        given b = "world"
+        when result = bytes_are(a, b)
+        then result == false
+
+    test "skip_space_helper"
+        given data = "  \t\nhello"
+        when result = skip_space(data, 0)
+        then result == 4
+
+    test "refused_hex_helper"
+        given hex_str = "2AXF"
+        when result = refused_hex(hex_str)
+        then result == true
+
+    test "put_byte_helper"
+        given buffer = [0u8, 0u8, 0u8]
+        when result = put_byte(buffer, 1, 0xFF)
+        then result == true and buffer[1] == 0xFF
+
+    test "put_code_helper_ascii"
+        given buffer = [0u8, 0u8, 0u8, 0u8]
+        when result = put_code(buffer, 0, 'A')
+        then result == 1 and buffer[0] == 'A'
+
+    test "put_code_helper_multibyte"
+        given buffer = [0u8, 0u8, 0u8, 0u8]
+        when result = put_code(buffer, 0, 0x00E9) // é
+        then result == 2 and buffer[0] == 0xC3 and buffer[1] == 0xA9
+
+    test "bad_attr_helper_empty"
+        given name = ""
+        when result = bad_attr(name)
+        then result == true
+
+    test "bad_attr_helper_control_char"
+        given name = "attr\x01"
+        when result = bad_attr(name)
+        then result == true
+
+    test "byte_order_mark_helper_present"
+        given data = [0xEF, 0xBB, 0xBF, 'H', 'i']
+        when result = byte_order_mark(data)
+        then result.? == 0
+
+    test "byte_order_mark_helper_absent"
+        given data = "Hello"
+        when result = byte_order_mark(data)
+        then result == null
