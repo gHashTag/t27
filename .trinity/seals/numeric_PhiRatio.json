@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:d3cab8ed6a9a260e3b92fdc04010cccda6f638cf0b4e7dd1dda921c15401aace",
-  "gen_hash_rust": "sha256:e71dce5437bb50c6d970f9a5222e50c47698d9a273eb49d797a138f1b264c041",
-  "gen_hash_verilog": "sha256:8401f1990fc80723e2010b2cdb3a29d2664b4ed4215ca201523433925ca2d0cc",
-  "gen_hash_zig": "sha256:4e4ed7c47680cdaff1e82fcaa77d4e3767003f364db635a7d76eda7764814840",
+  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "gen_hash_c": "sha256:0b5dd097751f64431c702bdab1a3301f9b483c15c3928720e7f98d2e44b2fd75",
+  "gen_hash_rust": "sha256:ace5d84ffff2231d995373a7d328d3159f24874c6c1a570e7cde1692a7fcbfe3",
+  "gen_hash_verilog": "sha256:594ea1276e4f400e6ef0837d28734bc86371888a8f671786a6b9f96e4527348b",
+  "gen_hash_zig": "sha256:b773870ffce060256ffee9447cfbe966d0e9595b1d1a5e7ed2454858cc8c1a63",
   "module": "PhiRatio",
   "ring": 12,
-  "sealed_at": "2026-10-06T16:36:04Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:9343d321dd810ca0fc3cba58db5a3b74edb7a4c28b8ac279ffac5f87c2ab9296",
+  "sealed_at": "2026-10-08T12:53:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:33e64567c76e19612918723667d2aaa3440f605197977d099a00495d532805e8",
   "spec_path": "specs/numeric/phi_ratio.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-phi_ratio-188133/spec.zig:219:19: error: use of undeclared identifier 'phi_optimality_proof'"
+    "blocked": "does not compile: spec.zig:538:11: error: use of undeclared identifier 'elapsed_time_ns'"
   }
 }

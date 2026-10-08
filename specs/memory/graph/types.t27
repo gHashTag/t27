@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/memory/graph/types.t27 -- the records of the graph memory and what makes one well formed
+; Epic #7828, slice 1 (#7829). The model is read from getzep/graphiti (graphiti_core nodes.py, edges.py):
+;   EPISODE  a raw message as it arrived; its event time is valid_at;
+;   ENTITY   a person, company or thing named in episodes; a name and a summary;
+;   FACT     an edge between two entities ("Anna works at X"), carrying four times:
+;            valid_at / invalid_at   -- when it was true in the world,
+;            created_at / expired_at -- when this memory learned it and when it was superseded.
+; Graphiti scopes every record by a group_id inside a WHERE clause, nothing more. Here the group is
+; a field of every record from the start, and a fact may only join entities of its own group
+; (scope.t27, slice 2, makes cross-group reads impossible by construction).
+; Times are unix seconds; UNSET (0) means "not known" for valid_at and "never" for the end times.
+; Text never appears in this file: content lives sealed per user (crypt.t27, slice 3), and the
+; records here hold only ids, groups and times, which is what the temporal rules need.
+
+module MemoryGraphTypes;
+
+pub const UNSET : u64 = 0;
+
+pub const KIND_EPISODE : u8 = 1;
+pub const KIND_ENTITY : u8 = 2;
+pub const KIND_FACT : u8 = 3;
+
+; A record kind is one of the three; anything else is a corrupt row.
+pub fn is_kind(kind: u8) -> bool {
+    return kind == KIND_EPISODE || kind == KIND_ENTITY || kind == KIND_FACT;
+}
+
+; Ids and groups are never 0: 0 is how a missing reference reads.
+pub fn is_id(id: u64) -> bool {
+    return id != UNSET;
+}
+
+; A fact joins two distinct entities of the fact's own group.
+pub fn fact_endpoints_ok(group: u64, source: u64, source_group: u64, target: u64, target_group: u64) -> bool {
+    if (!is_id(group) || !is_id(source) || !is_id(target)) { return false; }
+    if (source == target) { return false; }
+    return source_group == group && target_group == group;
+}
+
+; World time: an end, when set, is not before a known start.
+pub fn world_times_ok(valid_at: u64, invalid_at: u64) -> bool {
+    if (invalid_at == UNSET || valid_at == UNSET) { return true; }
+    return invalid_at >= valid_at;
+}
+
+; System time: a record is created at a real moment, and expires no earlier.
+pub fn system_times_ok(created_at: u64, expired_at: u64) -> bool {
+    if (created_at == UNSET) { return false; }
+    if (expired_at == UNSET) { return true; }
+    return expired_at >= created_at;
+}
+
+pub fn fact_well_formed(valid_at: u64, invalid_at: u64, created_at: u64, expired_at: u64) -> bool {
+    return world_times_ok(valid_at, invalid_at) && system_times_ok(created_at, expired_at);
+}
+
+test kinds_are_exactly_three {
+    assert is_kind(KIND_EPISODE);
+    assert is_kind(KIND_ENTITY);
+    assert is_kind(KIND_FACT);
+    assert !is_kind(0);
+    assert !is_kind(4);
+}
+
+test a_fact_stays_in_its_group {
+    assert fact_endpoints_ok(7, 1, 7, 2, 7);
+    assert !fact_endpoints_ok(7, 1, 7, 2, 8);
+    assert !fact_endpoints_ok(7, 1, 8, 2, 7);
+    assert !fact_endpoints_ok(7, 1, 7, 1, 7);
+    assert !fact_endpoints_ok(0, 1, 0, 2, 0);
+    assert !fact_endpoints_ok(7, 0, 7, 2, 7);
+    assert !fact_endpoints_ok(7, 1, 7, 0, 7);
+}
+
+test world_end_not_before_start {
+    assert world_times_ok(100, 100);
+    assert world_times_ok(100, 200);
+    assert !world_times_ok(200, 100);
+    assert world_times_ok(UNSET, 100);
+    assert world_times_ok(100, UNSET);
+}
+
+test system_time_needs_a_creation {
+    assert system_times_ok(10, UNSET);
+    assert system_times_ok(10, 10);
+    assert !system_times_ok(10, 9);
+    assert !system_times_ok(UNSET, UNSET);
+}
+
+test well_formed_needs_both {
+    assert fact_well_formed(100, 200, 10, UNSET);
+    assert !fact_well_formed(200, 100, 10, UNSET);
+    assert !fact_well_formed(100, 200, UNSET, UNSET);
+}
+
+invariant unset_is_zero {
+    UNSET == 0;
+}
