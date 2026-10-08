@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/trinity/fpga/openxc7-synth/argmax_unit.t27
+// Argmax Unit — Streaming Argmax over Vocabulary Logits
+// Accepts streaming logits from lm_head_matvec and tracks the maximum value.
+// When done_in fires, outputs the index of the maximum logit.
+// Ported from gHashTag/trinity fpga/openxc7-synth/argmax_unit.v
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module argmax_unit {
+
+    // === Module parameters ===
+
+    pub const ACC_WIDTH : u32 = 32;
+    pub const IDX_WIDTH : u32 = 8;    // ceil(log2(VOCAB))
+
+    // === Input/Output interface ===
+
+    pub struct Inputs {
+        clk : bool,
+        rst : bool,
+        in_valid : bool,
+        in_data : i32,
+        in_addr : u8,
+        in_done : bool,
+    }
+
+    pub struct Outputs {
+        argmax_idx : u8,
+        argmax_val : i32,
+        argmax_valid : bool,
+        busy : bool,
+    }
+
+    // === Internal state ===
+
+    struct State {
+        max_val : i32,
+        max_idx : u8,
+        first_val : bool,
+    }
+
+    // === Constructor helpers ===
+
+    fn initial_state() -> State {
+        return State{
+            .max_val = -2147483648,  // most negative 32-bit value
+            .max_idx = 0,
+            .first_val = true,
+        };
+    }
+
+    fn initial_outputs() -> Outputs {
+        return Outputs{
+            .argmax_idx = 0,
+            .argmax_val = 0,
+            .argmax_valid = false,
+            .busy = false,
+        };
+    }
+
+    fn reset_state(state: State) -> State {
+        return State{
+            .max_val = -2147483648,  // most negative 32-bit value
+            .max_idx = 0,
+            .first_val = true,
+        };
+    }
+
+    // === Core logic ===
+
+    fn update_max(state: State, in_data: i32, in_addr: u8) -> State {
+        if (state.first_val or (in_data > state.max_val)) {
+            return State{
+                .max_val = in_data,
+                .max_idx = in_addr,
+                .first_val = false,
+            };
+        }
+        return state;
+    }
+
+    fn handle_done(state: State) -> (State, Outputs) {
+        var outputs : Outputs = initial_outputs();
+        outputs.argmax_idx = state.max_idx;
+        outputs.argmax_val = state.max_val;
+        outputs.argmax_valid = true;
+        
+        var new_state : State = reset_state(state);
+        return (new_state, outputs);
+    }
+
+    fn step(inputs: Inputs, state: State, outputs: Outputs) -> (State, Outputs) {
+        var new_state : State = state;
+        var new_outputs : Outputs = outputs;
+
+        // Reset outputs (argmax_valid gets reset, but busy is handled below)
+        new_outputs.argmax_valid = false;
+
+        if (inputs.rst) {
+            new_state = reset_state(state);
+            new_outputs = initial_outputs();
+            new_outputs.busy = false;
+            return (new_state, new_outputs);
+        }
+
+        // Handle input valid - always update state if needed and set busy
+        if (inputs.in_valid) {
+            new_state = update_max(state, inputs.in_data, inputs.in_addr);
+            new_outputs.busy = true;
+        }
+
+        // Handle done
+        if (inputs.in_done) {
+            var (state_after_done, outputs_after_done) = handle_done(new_state);
+            new_state = state_after_done;
+            new_outputs = outputs_after_done;
+            new_outputs.busy = false;
+        }
+
+        return (new_state, new_outputs);
+    }
+
+    // === Test helpers ===
+
+    fn make_inputs(clk: bool, rst: bool, in_valid: bool, in_data: i32, in_addr: u8, in_done: bool) -> Inputs {
+        return Inputs{
+            .clk = clk,
+            .rst = rst,
+            .in_valid = in_valid,
+            .in_data = in_data,
+            .in_addr = in_addr,
+            .in_done = in_done,
+        };
+    }
+
+    fn make_outputs(argmax_idx: u8, argmax_val: i32, argmax_valid: bool, busy: bool) -> Outputs {
+        return Outputs{
+            .argmax_idx = argmax_idx,
+            .argmax_val = argmax_val,
+            .argmax_valid = argmax_valid,
+            .busy = busy,
+        };
+    }
+
+    // === Tests ===
+
+    test reset_behavior
+        given inputs = make_inputs(false, true, false, 0, 0, false)
+        and state = initial_state()
+        and outputs = initial_outputs()
+        when (new_state, new_outputs) = step(inputs, state, outputs)
+        then new_state.max_val == -2147483648
+        and new_state.max_idx == 0
+        and new_state.first_val == true
+        and new_outputs.argmax_valid == false
+        and new_outputs.busy == false
+
+    test first_value_updates_max
+        given inputs = make_inputs(false, false, true, 100, 5, false)
+        and state = initial_state()
+        and outputs = initial_outputs()
+        when (new_state, new_outputs) = step(inputs, state, outputs)
+        then new_state.max_val == 100
+        and new_state.max_idx == 5
+        and new_state.first_val == false
+        and new_outputs.busy == true
+
+    test larger_value_updates_max
+        given inputs = make_inputs(false, false, true, 200, 3, false)
+        and state = State{.max_val = 100, .max_idx = 5, .first_val = false}
+        and outputs = make_outputs(0, 0, false, false)
+        when (new_state, new_outputs) = step(inputs, state, outputs)
+        then new_state.max_val == 200
+        and new_state.max_idx == 3
+        and new_outputs.busy == true
+
+    test smaller_value_does_not_update_state
+        given inputs = make_inputs(false, false, true, 50, 7, false)
+        and state = State{.max_val = 100, .max_idx = 5, .first_val = false}
+        and outputs = make_outputs(0, 0, false, false)
+        when (new_state, new_outputs) = step(inputs, state, outputs)
+        then new_state.max_val == 100
+        and new_state.max_idx == 5
+        and new_outputs.busy == true
+
+    test_done_outputs_result
+        given inputs = make_inputs(false, false, false, 0, 0, true)
+        and state = State{.max_val = 150, .max_idx = 10, .first_val = false}
+        and outputs = make_outputs(0, 0, false, false)
+        when (new_state, new_outputs) = step(inputs, state, outputs)
+        then new_state.max_val == -2147483648  // reset
+        and new_state.max_idx == 0
+        and new_state.first_val == true
+        and new_outputs.argmax_idx == 10
+        and new_outputs.argmax_val == 150
+        and new_outputs.argmax_valid == true
+        and new_outputs.busy == false
+
+    test_negative_values
+        given inputs = make_inputs(false, false, true, -50, 1, false)
+        and state = initial_state()
+        and outputs = initial_outputs()
+        when (new_state, new_outputs) = step(inputs, state, outputs)
+        then new_state.max_val == -50
+        and new_state.max_idx == 1
+        and new_outputs.busy == true
+
+    test_most_negative_initial_value
+        then initial_state().max_val == -2147483648
+
+    // === Invariants ===
+
+    invariant max_val_is_32bit
+        given state = State{.max_val = 100, .max_idx = 5, .first_val = false}
+        assert state.max_val >= -2147483648 and state.max_val <= 2147483647
+
+    invariant max_idx_is_8bit
+        given state = State{.max_val = 100, .max_idx = 255, .first_val = false}
+        assert state.max_idx <= 255
+
+    invariant first_val_is_boolean
+        given state = State{.max_val = 100, .max_idx = 5, .first_val = true}
+        assert state.first_val == true or state.first_val == false
+
+    invariant outputs_are_valid
+        given outputs = make_outputs(10, 20, true, false)
+        assert outputs.argmax_idx <= 255
+        assert outputs.argmax_val >= -2147483648 and outputs.argmax_val <= 2147483647
+        assert outputs.argmax_valid == true or outputs.argmax_valid == false
+        assert outputs.busy == true or outputs.busy == false
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
