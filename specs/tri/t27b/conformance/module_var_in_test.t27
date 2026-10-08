@@ -7,7 +7,7 @@
 ; it was bound as a fresh `const HITS = 3;`, which shadowed the declaration and Zig refused the file.)
 ; `t27c test-report` runs every test in a fresh process, so each test starts from the declared value.
 ; Not here: a test-local `var READY` with the name of a module var (renamed `READY_lv` by the reference;
-; t27b refuses it as StmtLocal(shadows module var)), a write to a module var inside an invariant, which
+; shadow_module_var.t27 covers it since #7668), a write to a module var inside an invariant, which
 ; Zig cannot do at comptime, and a second write to a test-local `var` (a family of its own, which
 ; test_local_write.t27 covers since #7422).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
