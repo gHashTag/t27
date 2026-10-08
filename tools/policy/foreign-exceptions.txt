@@ -230,6 +230,12 @@ cli/t27b/tests/differential.rs
 fpga/verilog/poc_slot_a_jtag.v
 fpga/verilog/poc_slot_b_jtag.v
 
+# owner 2026-10-08, chat (approving "a thin Verilog wrapper of Xilinx primitives, <=40 lines, and an XDC,
+# <=40 lines" for the board's Ethernet firmware, translated), issue #7788: the AX7203 Ethernet beacon.
+# Every decision is specs/fpga/eth_beacon.t27; the wrapper holds IBUFDS, PLLE2_ADV, BUFG and ODDR only.
+fpga/verilog/eth_beacon_top.v
+fpga/verilog/eth_beacon_top.xdc
+
 # owner 2026-10-06, epic #6971 / issue #6993 (label owner-approved-foreign on #6993; standing approval "add
 # the label yourself and do the foreign part, never ask about labels", translated): `tri mutate spec` --
 # guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
