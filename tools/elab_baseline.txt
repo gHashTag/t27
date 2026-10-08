@@ -28,7 +28,14 @@
 # header is 12.0 because CI (ubuntu noble iverilog 12.0-2build2) measured every
 # other row identical to the 13.0 numbers (master run 37423783199).
 #
-# 2026-10-08: 177 -> 183. `mmcm 2`, `reset_sync 2` and `mtbf 2` are NEW
+# 2026-10-08: 177 -> 199. `coverage 22` is a NEW module (specs/fpga/coverage.t27,
+# #7578): coverage arriving, not a regression in an existing row. 20 of the 22
+# are the string-field class (#2433), `p.name == ""` and friends in the five
+# validate_* fns; 2 are `points[i].illegal` read through an array param in
+# illegal_hits (#2410). The four hit_* loops now call is_covered_*(points[i])
+# and elaborate, but the array param is still flattened (#2410), so they are
+# not yet meaningful hardware either -- the count is the honest floor.
+# 2026-10-08: 199 -> 205. `mmcm 2`, `reset_sync 2` and `mtbf 2` are NEW
 # modules (specs/fpga/{mmcm,reset_sync,mtbf}.t27, #7585): coverage arriving,
 # not a regression in an existing row. Each pair is one line of the
 # string-field class (#2433): `cfg.name == ""` / `m.name == ""` in the
@@ -45,6 +52,7 @@ bootrom 3
 bpsk 0
 bridge 16
 clock_domain 5
+coverage 22
 crossopt 0
 cts 2
 dft 6
