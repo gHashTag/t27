@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:19d3564885d3d31ff148fea844c85f9034b3395ce775d293f26c07751ddc7436",
+  "gen_hash_rust": "sha256:09e3966909e0910a90e35ebcac5416bd0845d2ac35992778a32f46a9cbe1b1eb",
+  "gen_hash_verilog": "sha256:9cb17405c037470078a32d8e5f1603d28de8d86fb25c8602cfaabaa484520e48",
+  "gen_hash_zig": "sha256:368e7830b009b3f1257012bcdbae1309e98608cb04efd68b63cdfc71060a41a0",
+  "module": "tool_trinity_tri_hardware",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:91bf0ec25124fc072faa3ea8255e44d2463c4a33ec7bd5d8477b692e135fa6b3",
+  "spec_path": "specs/tools/trinity/tri/hardware.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

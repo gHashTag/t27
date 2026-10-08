@@ -69,21 +69,13 @@ test runtime {
     assert!(r.contains("ExprArrayLiteral(run-time slice return)"), "{}", r);
 }
 
-/// A constant returned as a mutable slice from a fn a test reaches is
-/// refused: a write through it faults in the reference (`t27c test-report`:
-/// 1 pass, as the test only reads its length).
+/// Constants behind a slice field or a returned slice, mutable or not: one
+/// writable static per type and value, as the reference interns them
+/// (`t27c test-report`: 8 pass, none vacuous).
 #[test]
-fn a_constant_returned_as_a_mutable_slice_is_refused() {
-    let src = r#"module e;
-
-fn buf() -> []f32 {
-    return [0.0, 1.0];
-}
-
-test reached {
-    assert(buf().len == 2);
-}
-"#;
-    let r = rejected(src);
-    assert!(r.contains("ExprArrayLiteral(constant to mutable slice)"), "{}", r);
+fn static_conformance_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/static_slice_literal.t27"));
+    let got = names_ok(&ran);
+    assert_eq!(got.len(), 8);
+    assert!(got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
 }

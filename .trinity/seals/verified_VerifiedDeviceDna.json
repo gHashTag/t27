@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+cfda070b2",
-  "gen_hash_c": "sha256:a3012e590b4368f196671f2c52453ac8df4db5fb2c1689a2378535c670180dfa",
-  "gen_hash_rust": "sha256:ad0a3ca54533687d1bb7b36f63d548e184c16962c93fb946c4841d1539995211",
-  "gen_hash_verilog": "sha256:d7f68fdaeb6f45a3082433515c30d2f91fbbe075db1ccabdc26511d24158ebae",
-  "gen_hash_zig": "sha256:65020e7248cce681ff8893be29c084275a2b4d8092ff338adbeab734c963f5e8",
+  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "gen_hash_c": "sha256:f6fda6016b15dbf619527691baf0e19324eba45371da7e69bcccd802165d4375",
+  "gen_hash_rust": "sha256:22cff45a35575ce04d3fa452ca820d45189dd500591ee8bf295f1001c4015e0c",
+  "gen_hash_verilog": "sha256:4c7638c670a8773e712a5b65cc2d5ca87928cf9fa8bfbca51060e8c35f53c6c0",
+  "gen_hash_zig": "sha256:663bfd794ae969f6a2d531ad8a3ea39d126009753f9e34b435404a8e4a134c0d",
   "module": "VerifiedDeviceDna",
   "ring": 12,
-  "sealed_at": "2026-10-07T09:44:20Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:fa01a2c574589f46c63d035a8772cde7fa39393c790e3fa3a5312e776baf9c2a",
+  "sealed_at": "2026-10-08T11:45:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:04b88f6195af63fa1bc343ab0d874b5e5444d1b3c770990894ba4a747c4182e5",
   "spec_path": "specs/verified/device_dna.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 13,
-    "total": 13
+    "passed": 15,
+    "total": 15
   }
 }

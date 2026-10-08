@@ -100,6 +100,19 @@ jobs:
         with:
           python-version: '3.12'
 
+      # LANG-EN for the specs this change touches: specs/policy/lang_en.t27, generated to C (#7548).
+      # bootstrap/build.rs no longer reruns on a spec edit, so this is where a changed spec is checked.
+      - name: No Cyrillic in a changed spec (specs/policy/lang_en.t27)
+        run: |
+          d=$(mktemp -d)
+          printf '#include "gen/c/policy/lang_en.c"\n#include <stdio.h>\nstatic uint8_t b[1<<24];int main(void){size_t n=fread(b,1,sizeof b,stdin);if(n==sizeof b)return 2;unsigned l=first_cyrillic_line(b,n);if(l)printf("%%u\\n",l);return l!=0;}\n' | cc -w -I . -x c -o "$d/gate" -
+          if printf 'a\n\320\277\n' | "$d/gate" >/dev/null; then echo "negative control passed: the gate is broken"; exit 1; fi
+          bad=0
+          for f in $(git diff --name-only --diff-filter=AMR HEAD^1 HEAD -- 'specs/*.t27' 'specs/*.tri'); do
+            l=$("$d/gate" < "$f") || { echo "::error file=$f,line=$l::Cyrillic in a spec (LANG-EN)"; bad=1; }
+          done
+          exit $bad
+
       - name: Build the compiler every check is measured against
         run: cargo build --release -p t27c
 

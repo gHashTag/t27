@@ -2099,6 +2099,39 @@ fn silicon_full_idcode_line(log: &str) -> Option<String> {
     log.lines().find(|l| l.contains("idcode")).map(|l| l.trim().to_string())
 }
 
+/// R3-2 (#7452): one (FUSE_DNA, XSC_DNA) read, or None. Two commands; the cable
+/// rule, the script and the parse are generated from specs/verified/die_binding.t27.
+fn silicon_dna_pair() -> Option<(u64, u64)> {
+    use crate::die_binding as db;
+    let (_, scan, scan_err) = run(Command::new("openFPGALoader").arg("--scan-usb"));
+    let cables = db::cables_listed(spec_str(&(scan + &scan_err)));
+    if !db::dna_read_allowed(cables) {
+        println!("  DNA not read: {cables} cables attached (die_binding.t27 reads with exactly one)");
+        return None;
+    }
+    let (_, out, err) = run(Command::new("openocd").args(["-c", db::DNA_READER]));
+    let out = spec_str(&(out + &err));
+    let (f, x) = (db::reader_raw(out, db::READER_FUSE_TAG), db::reader_raw(out, db::READER_XSC_TAG));
+    if f == db::HEX_NONE || x == db::HEX_NONE {
+        println!("  DNA not read: openocd printed no tagged read");
+        return None;
+    }
+    Some((f, x))
+}
+
+/// The receipt's device_dna: the reads before and after the run name one die, or null.
+fn silicon_device_dna(before: Option<(u64, u64)>, after: Option<(u64, u64)>) -> Option<String> {
+    use crate::die_binding as db;
+    let ((fb, xb), (fa, xa)) = (before?, after?);
+    if db::die_read_first_wrong(fb, xb, fa, xa) != db::READ_OK {
+        println!("  DNA not recorded: the reads before and after do not name one die");
+        return None;
+    }
+    let t: String = (0..db::DNA_HEX_LEN).map(|k| char::from(db::dna_hex_char(db::dna_from_xsc(xb), k) as u8)).collect();
+    println!("  DNA {t} (FUSE_DNA and XSC_DNA agree, before and after the run)");
+    Some(t)
+}
+
 /// R2-2: the toolchain identity baked at build time, verbatim -- and the SAME
 /// string `seal --save` writes as the seal's `built_by` (#7076, option A of
 /// #7072): a receipt's producer must match its seal's producer exactly, so
@@ -2275,8 +2308,7 @@ fn hex_bytes(s: &str) -> Option<Vec<u8>> {
 
 /// KEY_ID_HEX_LEN hex characters of SHA-256(public key).
 fn receipt_key_id(public: &[u8; 32]) -> String {
-    use sha2::Digest;
-    hex_lower(&sha2::Sha256::digest(public))[..KEY_ID_HEX_LEN as usize].to_string()
+    hex_lower(&crate::sha256::hash(public))[..KEY_ID_HEX_LEN as usize].to_string()
 }
 
 /// The signed message: the domain line, then `name=<JSON text>` for each
@@ -2296,6 +2328,14 @@ fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
 /// The same message read back from a stored receipt: an absent field is null,
 /// exactly as the writer stores an absent fact.
 fn receipt_message_of_json(v: &serde_json::Value) -> Vec<u8> {
+    if v["kind"] == dr::DDC_DOMAIN { // #7699: a DDC receipt signs its own domain (specs/verified/ddc_receipt.t27)
+        let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..dr::ddc_domain_line_len()).map(|k| dr::ddc_domain_line_char(k) as u8).collect::<Vec<u8>>());
+        return { dr::DDC_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
+    }
+    if v.get("kind").and_then(|k| k.as_str()) == Some(cr::CORPUS_DOMAIN) { // #7576: a corpus receipt signs its own domain
+        let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..cr::corpus_domain_line_len()).map(|k| cr::corpus_domain_line_char(k) as u8).collect::<Vec<u8>>());
+        return { cr::CORPUS_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
+    }
     receipt_message(|f| json_text(v.get(f).unwrap_or(&serde_json::Value::Null)))
 }
 
@@ -2359,7 +2399,7 @@ fn key_path_inside_repo(repo_root: &Path, key: &Path) -> bool {
 fn load_receipt_key_at(
     repo_root: &Path,
     path: &Path,
-) -> Result<Option<ed25519_dalek::SigningKey>, String> {
+) -> Result<Option<[u8; 32]>, String> {
     if key_path_inside_repo(repo_root, path) {
         return Err(format!(
             "the receipt key path {} is inside the repository; a private key never lives in the tree",
@@ -2385,7 +2425,7 @@ fn load_receipt_key_at(
     let seed: [u8; 32] = hex_bytes(text.trim())
         .and_then(|b| b.try_into().ok())
         .ok_or_else(|| format!("the receipt key {} is not a 32-byte hex seed", path.display()))?;
-    Ok(Some(ed25519_dalek::SigningKey::from_bytes(&seed)))
+    Ok(Some(seed))
 }
 
 /// Create a key at `path` and register its public half under KEY_DIR in
@@ -2407,7 +2447,6 @@ fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf
     std::fs::File::open("/dev/urandom")
         .and_then(|mut f| f.read_exact(&mut seed))
         .map_err(|e| format!("cannot read /dev/urandom: {e}"))?;
-    let signing = ed25519_dalek::SigningKey::from_bytes(&seed);
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -2418,7 +2457,7 @@ fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf
         .open(path)
         .map_err(|e| format!("cannot create {}: {e}", path.display()))?;
     f.write_all(format!("{}\n", hex_lower(&seed)).as_bytes()).map_err(|e| e.to_string())?;
-    let public = signing.verifying_key().to_bytes();
+    let public = crate::ed25519::public_key(seed);
     let id = receipt_key_id(&public);
     let dir = repo_root.join(RECEIPT_KEY_DIR);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -2429,18 +2468,17 @@ fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf
 
 /// Sign a receipt in place: the key id and the signature over the 9-field
 /// message, which already includes the receipt's nonce.
-fn sign_silicon_receipt(rec: &mut SiliconReceipt, key: &ed25519_dalek::SigningKey) {
-    use ed25519_dalek::Signer;
+fn sign_silicon_receipt(rec: &mut SiliconReceipt, key: &[u8; 32]) {
     let msg = receipt_message(|f| silicon_receipt_field(rec, f));
-    rec.key_id = Some(receipt_key_id(&key.verifying_key().to_bytes()));
-    rec.signature = Some(hex_lower(&key.sign(&msg).to_bytes()));
+    rec.key_id = Some(receipt_key_id(&crate::ed25519::public_key(*key)));
+    rec.signature = Some(hex_lower(&crate::ed25519::sign(*key, &msg)));
 }
 
 /// The registered public key for a key id, or None. The id must be
 /// KEY_ID_HEX_LEN hex characters (so it can never name a path outside
 /// KEY_DIR), the file must hold 32 hex bytes, and the id must be that key's
 /// own -- a public key filed under another key's name is not registered.
-fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<ed25519_dalek::VerifyingKey> {
+fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<[u8; 32]> {
     if !key_id_well_formed(spec_str(key_id)) {
         return None;
     }
@@ -2449,7 +2487,7 @@ fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<ed25519_dale
     if receipt_key_id(&public) != key_id {
         return None;
     }
-    ed25519_dalek::VerifyingKey::from_bytes(&public).ok()
+    Some(public)
 }
 
 /// One stored receipt's authentication: (auth_first_missing code, level).
@@ -2460,9 +2498,7 @@ fn receipt_auth(repo_root: &Path, v: &serde_json::Value, challenge: Option<&[u8]
     let key = s("key_id").and_then(|id| registered_receipt_key(repo_root, id));
     let signature_valid = match (&key, s("signature").and_then(hex_bytes)) {
         (Some(k), Some(sig)) => match <[u8; 64]>::try_from(sig.as_slice()) {
-            Ok(b) => k
-                .verify_strict(&receipt_message_of_json(v), &ed25519_dalek::Signature::from_bytes(&b))
-                .is_ok(),
+            Ok(b) => crate::ed25519::verify(*k, &receipt_message_of_json(v), b),
             Err(_) => false,
         },
         _ => false,
@@ -2510,6 +2546,75 @@ fn parse_challenge_hex(flag: &str, s: &str) -> Result<Vec<u8>, String> {
     Ok(b)
 }
 
+use crate::{corpus_receipt as cr, cr_leaves as leaves, cr_pair as pair, cr_root, cr_sha}; // #7576, rules: specs/verified/corpus_receipt.t27
+pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Option<String>, head_challenge: Option<String>, runner: Option<String>) -> anyhow::Result<()> {
+    let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
+    let (hx, hexarg) = (|p: &Path| std::fs::read(p).map(|d| hex_lower(&cr_sha(&[&d]))), |f, s: Option<String>| s.map(|s| parse_challenge_hex(f, &s)).transpose().map_err(anyhow::Error::msg));
+    if action == "admit" { // #7672: does the lab run request `a`? b is "age_s,index,on_origin"
+        let f = |k: usize| b.split(',').nth(k).and_then(|s| s.parse().ok()).unwrap_or(u32::MAX);
+        let r = cr::request_verdict(spec_str(a), f(0), f(1), f(2) == 1);
+        println!("{}", cr::REQUEST_NAMES[r as usize]); std::process::exit(cr::request_exit(r) as i32)
+    }
+    if action == "sign" {
+        let (run, mut l, argv) = (read(a)?, [vec![], vec![], vec![]], runner.unwrap_or_default());
+        for r in run["results"].as_array().into_iter().flatten() {
+            let (f, t) = (r["file"].as_str().unwrap_or(""), r["t27b"].as_str().unwrap_or(""));
+            (l[0].push(pair(f, &hx(&root.join(f))?)), l[1].push(pair(f, &pair(t, r["reference"].as_str().unwrap_or("")))));
+            let o = if cr::output_counted(spec_str(t)) { let mut w = argv.split_whitespace().chain([b, "asm", f]); Command::new(w.next().unwrap_or(b)).args(w).current_dir(root).output()? } else { continue };
+            let d = if o.status.success() { hex_lower(&cr_sha(&[&o.stdout])) } else { pair(cr::ASM_FAILED, &hex_lower(&cr_sha(&[&o.stderr]))) };
+            l[2].push(pair(f, &d)); // a passing file whose asm fails keeps a leaf: spec ASM_FAILED
+        }
+        let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
+        let mut v = serde_json::json!({"kind": cr::CORPUS_DOMAIN, "commit": run["commit"], "t27b_sha256": hx(Path::new(b))?, "t27c_sha256": hx(&std::env::current_exe()?)?,
+            "totals": run["summary"].as_object().map(|o| o.iter().filter(|e| !cr::TOTALS_UNSIGNED.contains(&e.0.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect::<serde_json::Map<_, _>>()), "nonce": hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)), "key_id": receipt_key_id(&crate::ed25519::public_key(key)), "leaves": {}});
+        for (i, n) in cr::LEAF_LISTS.iter().enumerate() { l[i].sort(); v[format!("{n}_root")] = hex_lower(&cr_root(&l[i])).into(); v["leaves"][*n] = l[i].clone().into(); }
+        v["signature"] = hex_lower(&crate::ed25519::sign(key, &receipt_message_of_json(&v))).into();
+        return Ok(println!("{}", serde_json::to_string_pretty(&v)?));
+    }
+    let (x, y) = (read(a)?, read(b)?);
+    let ((ba, bl), (ha, hl)) = (receipt_auth(root, &x, hexarg("--challenge", nonce)?.as_deref()), receipt_auth(root, &y, hexarg("--challenge-head", head_challenge)?.as_deref()));
+    let bound = |v: &serde_json::Value| cr::LEAF_LISTS.iter().all(|n| v[format!("{n}_root")].as_str() == Some(&hex_lower(&cr_root(&leaves(v, n)))));
+    let (problem, same) = (cr::compare_first_problem(ba, ha, bound(&x), bound(&y)), |k: &str| x[k] == y[k]);
+    println!("base {} {} {} leaves-bound {}\nhead {} {} {} leaves-bound {}", x["commit"], auth_name(ba), level_name(bl), bound(&x), y["commit"], auth_name(ha), level_name(hl), bound(&y));
+    let m = |v: &serde_json::Value, n: &str| leaves(v, n).into_iter().filter_map(|s| s.split_once(cr::CH_TAB as u8 as char).map(|(p, q)| (p.to_string(), q.to_string()))).collect::<std::collections::BTreeMap<_, _>>();
+    for n in cr::LEAF_LISTS.iter().filter(|_| problem == cr::CMP_OK) {
+        let (p, q) = (m(&x, *n), m(&y, *n));
+        let changes = p.keys().chain(q.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().map(|f| (f, cr::leaf_change(p.contains_key(f), q.contains_key(f), p.get(f) == q.get(f))));
+        changes.filter(|c| c.1 != cr::LEAF_SAME).for_each(|(f, c)| println!("  {n} {} {f}", ["same", "only-head", "only-base", "changed"][c as usize]));
+    }
+    let ((vb, vh), (ob, oh), s) = ((m(&x, "verdict"), m(&y, "verdict")), (m(&x, "output"), m(&y, "output")), |o: Option<&String>| spec_str(o.map_or("", |v| v)));
+    let worst = vb.keys().chain(vh.keys()).filter(|_| problem == cr::CMP_OK).collect::<std::collections::BTreeSet<_>>().into_iter() // #7672, a lane's judgment
+        .map(|f| (f, cr::lane_file(vb.contains_key(f), vh.contains_key(f), s(vb.get(f)), s(vh.get(f)), s(ob.get(f)), s(oh.get(f))))).filter(|c| c.1 != cr::FILE_SAME)
+        .inspect(|(f, c)| println!("  lane {} {f}", cr::FILE_NAMES[*c as usize])).fold(cr::FILE_SAME, |a, c| cr::lane_worst(a, c.1));
+    let d = |v: &serde_json::Value, k: usize| v["totals"][cr::DISAGREE_TOTALS[k]].as_u64().unwrap_or(0) as u32;
+    let code = cr::lane_verdict(problem, cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root")), worst, d(&x, 0), d(&y, 0), d(&x, 1), d(&y, 1));
+    println!("{}", if code == cr::LANE_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), cr::LANE_NAMES[code as usize]) });
+    std::process::exit(code as i32)
+}
+
+use crate::ddc_receipt as dr; // #7699, rules: specs/verified/ddc_receipt.t27; the run's facts come from the t27b lab's DDC step
+pub fn run_ddc_receipt(root: &Path, action: &str, a: &str, b: Option<String>, nonce: Option<String>) -> anyhow::Result<()> {
+    let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
+    let (mut v, s, hexarg) = (read(a)?, |v: &serde_json::Value, k: &str| spec_str(v[k].as_str().unwrap_or("")), |f, n: Option<String>| n.map(|n| parse_challenge_hex(f, &n)).transpose().map_err(anyhow::Error::msg));
+    if action == "due" { // b: the last signed DDC receipt, if there is one
+        let l = b.and_then(|p| read(&p).ok()).unwrap_or_default();
+        std::process::exit(dr::due_exit(dr::ddc_due(l.is_object(), dr::DDC_INPUT_FIELDS.iter().filter(|k| l[**k] != v[**k]).count() as u32)) as i32)
+    }
+    if action == "sign" {
+        let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
+        v["kind"] = dr::DDC_DOMAIN.into(); v["nonce"] = hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)).into(); v["key_id"] = receipt_key_id(&crate::ed25519::public_key(key)).into();
+        v["signature"] = hex_lower(&crate::ed25519::sign(key, &receipt_message_of_json(&v))).into();
+        return Ok(println!("{}", serde_json::to_string_pretty(&v)?));
+    }
+    let ((auth, level), e, r) = (receipt_auth(root, &v, hexarg("--challenge", nonce)?.as_deref()), s(&v, "e_sha256"), |i: usize, k: &str| s(&v["routes"][i], k));
+    let (st, n) = (|i: usize| dr::route_state(i as u32, r(i, "route"), r(i, "outcome"), r(i, "stage2_sha256"), e), v["routes"].as_array().map_or(0, |x| x.len()));
+    let verdict = dr::ddc_receipt_verdict(n as u32, s(&v, "s_sha256"), s(&v, "harness_s_sha256"), e, st(0), st(1), st(2), r(0, "front_end"), r(1, "front_end"), r(2, "front_end"));
+    let problem = dr::ddc_first_problem(s(&v, "kind"), auth);
+    (0..n).for_each(|i| println!("  route {} {} {} stage 2 {}", r(i, "route"), r(i, "outcome"), r(i, "front_end"), ["not run", "is not E", "is E"][st(i).min(2) as usize]));
+    println!("ddc {} {} {}: {}; C4 holds: {}", v["commit"], auth_name(auth), level_name(level), if problem == dr::DDC_OK { dr::DDC_NAMES[verdict as usize] } else { "REFUSED: not an authenticated DDC receipt" }, dr::c4_holds(problem, verdict));
+    std::process::exit(dr::ddc_exit(problem, verdict) as i32)
+}
+
 /// `t27c receipt-key init|show`: create this host's receipt key, or say which
 /// one `t27c silicon` would sign with. The private half is never printed.
 pub fn run_receipt_key(repo_root: &Path, action: &str) -> anyhow::Result<()> {
@@ -2538,7 +2643,7 @@ pub fn run_receipt_key(repo_root: &Path, action: &str) -> anyhow::Result<()> {
                 std::process::exit(1);
             }
             Ok(Some(k)) => {
-                let id = receipt_key_id(&k.verifying_key().to_bytes());
+                let id = receipt_key_id(&crate::ed25519::public_key(k));
                 let registered = registered_receipt_key(repo_root, &id).is_some();
                 println!("receipt key {id} at {}", path.display());
                 println!(
@@ -3747,6 +3852,8 @@ pub fn run_run_record(
     spec: &str,
     challenge: Option<String>,
     require_level: String,
+    receipts: &str,
+    json_out: Option<String>,
 ) -> anyhow::Result<()> {
     use crate::run_record as rr;
     use std::path::Component;
@@ -3840,10 +3947,13 @@ pub fn run_run_record(
         auth_code: u8,
         level: u8,
         die: u8,
+        dna_n: u64,
+        key_n: u64,
+        rec: serde_json::Value,
     }
 
     let mut rows: Vec<Row> = Vec::new();
-    for (file, v) in read_dir_json(&repo_root.join(".trinity/receipts")) {
+    for (file, v) in read_dir_json(&repo_root.join(receipts)) {
         if !get_str(&v, "spec").map(|p| tail_match(&p, spec)).unwrap_or(false) {
             continue;
         }
@@ -3879,7 +3989,11 @@ pub fn run_run_record(
         let (auth_code, level) = receipt_auth(repo_root, &v, challenge.as_deref());
         let dna = get_str(&v, DEVICE_DNA_FIELD);
         let die = die_level(level, dna.is_some(), dna.map(|t| dna_text_well_formed(spec_str(&t))).unwrap_or(false));
-        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die });
+        // independence.t27 takes the DNA and key id as numbers. A field that does not parse is 0;
+        // the level and die checks it judges first have already refused such a receipt.
+        let num = |k: &str| get_str(&v, k).and_then(|t| u64::from_str_radix(&t, 16).ok()).unwrap_or(0);
+        let (dna_n, key_n) = (num(DEVICE_DNA_FIELD), num("key_id"));
+        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die, dna_n, key_n, rec: v });
     }
 
     let count = rows.len().min(255) as u8;
@@ -3932,9 +4046,33 @@ pub fn run_run_record(
         if challenge.is_some() { "given" } else { "none" },
         level_name(required),
     );
-    let die = rows.iter().fold(run_die_level_start(), |run, r| run_die_level_with(run, r.die));
-    let die = if rows.is_empty() { "no receipts" } else if die == DIE_NAMED { "NAMED" } else { "NONE" };
+    let die_lvl = rows.iter().fold(run_die_level_start(), |run, r| run_die_level_with(run, r.die));
+    let die = if rows.is_empty() { "no receipts" } else if die_lvl == DIE_NAMED { "NAMED" } else { "NONE" };
     println!("Die: {die} (die_binding.t27: a signed DNA names the die; the DNA is no secret, so no level is device-rooted)");
+    // independence.t27 (R3-3, #7497): are three placements independent evidence? This verifier
+    // has no roster, so every key is ROSTER_NONE and INDEP_DIES is the most a run can reach.
+    use crate::independence as ind;
+    let indep = if let [a, b, c] = rows.as_slice() {
+        let first = ind::indep_first_missing(code, run_level, die_lvl, a.dna_n, b.dna_n, c.dna_n, a.key_n, b.key_n, c.key_n);
+        let why = match first {
+            ind::INDEP_MISSING_NONE => "NONE",
+            ind::INDEP_NOT_A_RUN => "INDEP_NOT_A_RUN",
+            ind::INDEP_NOT_FRESH => "INDEP_NOT_FRESH",
+            ind::INDEP_DIE_UNNAMED => "INDEP_DIE_UNNAMED",
+            ind::INDEP_DIE_CLAIMED_TWICE => "INDEP_DIE_CLAIMED_TWICE",
+            _ => "INDEP_SHARED_DIE",
+        };
+        let level = match ind::indep_level(first, ind::ROSTER_NONE, ind::ROSTER_NONE, ind::ROSTER_NONE) {
+            ind::INDEP_DIES => "INDEP_DIES",
+            ind::INDEP_OPERATORS => "INDEP_OPERATORS",
+            _ => "INDEP_NONE",
+        };
+        let dies = ind::distinct_dies3(a.dna_n, b.dna_n, c.dna_n);
+        format!("{level} (independence.t27; first missing {why} ({first}); {dies} distinct dies; no roster)")
+    } else {
+        format!("not judged -- independence.t27 takes exactly {} placements", ind::placements_needed())
+    };
+    println!("Independence: {indep}");
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
     // citable_at: completeness first, then the level the citation requires.
@@ -3949,6 +4087,26 @@ pub fn run_run_record(
         );
     } else {
         println!("Verdict run reference: INVALID_NO_RUN -- an incomplete run is no run reference");
+    }
+    // --json: the same judgment, machine-readable, for readers that cannot run t27c (the Spec
+    // Explorer's Chip tab). Every value is one computed above; nothing is re-judged here.
+    if let Some(path) = json_out {
+        let field = |r: &Row, k: &str| r.rec.get(k).cloned().unwrap_or(serde_json::Value::Null);
+        let keys = ["device_dna", "key_id", "seeds", "verdict_word", "toolchain", "seal_hash", "utc_unix", "nonce"];
+        let rs: Vec<serde_json::Value> = rows.iter().map(|r| {
+            let mut o: serde_json::Map<String, serde_json::Value> = keys.iter().map(|k| (k.to_string(), field(r, k))).collect();
+            o.insert("file".into(), r.file.clone().into());
+            o.insert("auth".into(), level_name(r.level).into());
+            o.insert("complete".into(), (r.missing == 0 && r.producer_ok).into());
+            o.into()
+        }).collect();
+        let doc = serde_json::json!({
+            "spec": spec, "receipts_dir": receipts, "judged_by": crate::producer_identity(),
+            "challenge": challenge.as_deref().map(hex_lower), "receipts": rs,
+            "first_missing": name(code), "run_complete": code == 0, "authentication": level_name(run_level),
+            "die": die, "independence": indep, "citable": citable, "required_level": level_name(required),
+        });
+        std::fs::write(&path, serde_json::to_string_pretty(&doc)? + "\n")?;
     }
     std::process::exit(if citable { 0 } else { 1 });
 }
@@ -4504,6 +4662,8 @@ pub fn run_silicon(
         Some(l) => println!("  idcode on {busdev}: {l}"),
         None => println!("  idcode on {busdev}: UNREADABLE -- the receipt carries null"),
     }
+    // die_binding.t27 (#7452): the DNA is read before any load and again after the run.
+    let dna_before = silicon_dna_pair();
 
     if let Some(wp) = &wrong_part {
         let (_, done, _) = load_bitstream(Path::new(wp), &busdev);
@@ -4648,7 +4808,7 @@ pub fn run_silicon(
     let receipt = SiliconReceipt {
         device_record: Some(format!("--busdev-num {busdev}")),
         full_idcode,
-        device_dna: None,
+        device_dna: silicon_device_dna(dna_before, silicon_dna_pair()),
         verdict_word: silicon_receipt_word(run_pass),
         seal_hash: silicon_seal_verify(&me, repo_root, spec),
         seeds: pnr_seed.into_iter().collect(),
@@ -4886,11 +5046,11 @@ mod r3_signed_receipt {
     /// A tree with a `.git` marker (so it is a repository root) and the test
     /// key registered under KEY_DIR. The key is derived from a fixed byte, not
     /// written out as a literal: it signs fixtures in a temp dir and nothing else.
-    fn repo_with_key(tag: &str) -> (PathBuf, ed25519_dalek::SigningKey) {
+    fn repo_with_key(tag: &str) -> (PathBuf, [u8; 32]) {
         let root = scratch(tag);
         std::fs::create_dir_all(root.join(".git")).unwrap();
-        let key = ed25519_dalek::SigningKey::from_bytes(&[7u8; 32]);
-        let public = key.verifying_key().to_bytes();
+        let key = [7u8; 32];
+        let public = crate::ed25519::public_key(key);
         let dir = root.join(RECEIPT_KEY_DIR);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join(format!("{}.pub", receipt_key_id(&public))), hex_lower(&public)).unwrap();
@@ -5035,19 +5195,30 @@ mod r3_signed_receipt {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// Ed25519 is deterministic: the spec's key and signature are byte-equal to
+    /// an independent implementation's (ed25519-dalek, a dev-dependency only).
+    #[test]
+    fn the_spec_signs_exactly_as_an_independent_ed25519() {
+        use ed25519_dalek::Signer;
+        let (seed, msg) = ([7u8; 32], b"t27-receipt-v2\nnonce=00\n".as_slice());
+        let oracle = ed25519_dalek::SigningKey::from_bytes(&seed);
+        assert_eq!(crate::ed25519::public_key(seed), oracle.verifying_key().to_bytes());
+        assert_eq!(crate::ed25519::sign(seed, msg), oracle.sign(msg).to_bytes());
+    }
+
     /// A key that is not under KEY_DIR, or filed under another key's id, or
     /// named by an id that could walk out of KEY_DIR, is not registered.
     #[test]
     fn only_a_key_filed_under_its_own_id_is_registered() {
         let (root, key) = repo_with_key("unreg");
-        let stranger = ed25519_dalek::SigningKey::from_bytes(&[9u8; 32]);
+        let stranger = [9u8; 32];
         let mut rec = receipt(None);
         sign_silicon_receipt(&mut rec, &stranger);
         assert_eq!(receipt_auth(&root, &stored(&rec), None), (AUTH_KEY_NOT_REGISTERED, LEVEL_NONE));
         // the stranger's public key filed under the registered key's name
-        let real_id = receipt_key_id(&key.verifying_key().to_bytes());
+        let real_id = receipt_key_id(&crate::ed25519::public_key(key));
         let p = root.join(RECEIPT_KEY_DIR).join(format!("{real_id}.pub"));
-        std::fs::write(&p, hex_lower(&stranger.verifying_key().to_bytes())).unwrap();
+        std::fs::write(&p, hex_lower(&crate::ed25519::public_key(stranger))).unwrap();
         assert!(registered_receipt_key(&root, &real_id).is_none());
         assert!(registered_receipt_key(&root, "../../etc/passwd").is_none());
         let _ = std::fs::remove_dir_all(&root);
@@ -5087,7 +5258,7 @@ mod r3_signed_receipt {
         assert_eq!(std::fs::metadata(&key_path).unwrap().permissions().mode() & 0o777, 0o600);
         let before = std::fs::read(&key_path).unwrap();
         let k = load_receipt_key_at(&repo, &key_path).unwrap().expect("key loads");
-        assert_eq!(receipt_key_id(&k.verifying_key().to_bytes()), id);
+        assert_eq!(receipt_key_id(&crate::ed25519::public_key(k)), id);
         assert!(registered_receipt_key(&repo, &id).is_some());
         assert!(receipt_key_init_at(&repo, &key_path).is_err());
         assert_eq!(std::fs::read(&key_path).unwrap(), before, "never overwritten");

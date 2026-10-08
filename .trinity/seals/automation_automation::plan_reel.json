@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:5c910e9d8c46358e9bcd3ec2417eb2ed9c6c61f47f1d604751e2743ba7363bb2",
+  "gen_hash_rust": "sha256:447164946aefc9f284786fc9af7c5ebed3e28be56092784df7abedaa535504bb",
+  "gen_hash_verilog": "sha256:47cf95c3baa855649819f49523624056f7766c1cebb4fc5b6d1d390f181fd13d",
+  "gen_hash_zig": "sha256:8f4981f93a4df0b2dd7f426032b9c1937890b625259965dbabc3c78ecc4f8efd",
+  "module": "automation::plan_reel",
+  "ring": 12,
+  "sealed_at": "2026-10-08T07:16:43Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:001c1ba25926e6d320ea0c44d49538e735edbb2ae0051214bd2b3e44a0212057",
+  "spec_path": "specs/automation/plan-reel.t27"
+}

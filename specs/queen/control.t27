@@ -247,8 +247,19 @@ pub const DOMAINS : [4]str = [
     "queen-ops: the supervisor, its reviewers and the board"
 ];
 pub const DOMAIN_COUNT : u32 = 4;
-/// Runtimes per domain, originals and clones together.
-pub const DOMAIN_CAP : u32 = 4;
+
+/// A domain is an AFFINITY, not a cap (owner, 2026-10-08, #6657). This card used to cap each domain at
+/// four runtimes, sixteen in all. The swarm it governs runs on 70 lanes, so the cap would have cut its
+/// parallelism by about four. A task is placed on a runtime of its own domain when one is idle (it
+/// keeps that domain's build and worktrees warm). Otherwise it is placed on any free lane, which then
+/// becomes a clone of that domain. A task waits only when every lane is busy.
+/// Domain codes, index = DOMAINS. specs/queen/domains.t27 reads a task's domain from its paths; it
+/// is kept apart from this card because the supervisor reads this card through a compiler wasm
+/// whose typechecker does not take that file's byte walks.
+pub const DOMAIN_T27C : u8 = 0;
+pub const DOMAIN_T27B : u8 = 1;
+pub const DOMAIN_SPECS : u8 = 2;
+pub const DOMAIN_QUEEN_OPS : u8 = 3;
 
 /// Agent runtime states. BOOT happens once per runtime; a finished task goes through COMPACT back to
 /// IDLE without a rebuild.
@@ -303,15 +314,16 @@ pub fn builds_after_task(builds: u32) -> u32 {
     return builds;
 }
 
-/// How a task gets an agent: reuse an idle one of its domain, else clone one while the domain is under
-/// its cap, else wait. The Queen never takes the task herself.
+/// How a task gets an agent: reuse an idle one of its domain, else clone one onto any free lane, else
+/// wait for a lane. The capacity is the lane count of section 4, recomputed at every wake. The Queen
+/// never takes the task herself.
 pub const P_REUSE : u8 = 0;
 pub const P_CLONE : u8 = 1;
 pub const P_WAIT : u8 = 2;
 
-pub fn placement(idle_in_domain: u32, total_in_domain: u32) -> u8 {
+pub fn placement(idle_in_domain: u32, running: u32, cap: u32) -> u8 {
     if (idle_in_domain > 0) { return P_REUSE; }
-    if (total_in_domain < DOMAIN_CAP) { return P_CLONE; }
+    if (running < cap) { return P_CLONE; }
     return P_WAIT;
 }
 
@@ -425,7 +437,11 @@ pub const EK_MODEL_CALL : u8 = 0;
 pub const EK_PUSH : u8 = 1;
 pub const EK_PULL_REQUEST : u8 = 2;
 pub const EK_COMMENT : u8 = 3;
-pub const EFFECT_KINDS : u8 = 4;
+/// A GitHub release of a tag (specs/queen/jobs.t27, #7676). Publishing one starts the release pipeline
+/// (release.yml runs on `release: published` and publishes the crate), so it is the most irreversible
+/// effect in this file: a second one would be a second publish attempt of the same version.
+pub const EK_RELEASE : u8 = 4;
+pub const EFFECT_KINDS : u8 = 5;
 
 /// What a holder does before an effect. DO_LOOK: ask GitHub, then after_look.
 /// DO_NOTHING: the holder is fenced out and must not run the effect or journal anything.
@@ -457,6 +473,7 @@ pub fn effect_can_be_looked_up(kind: u8) -> bool {
     if (kind == EK_PUSH) { return true; }
     if (kind == EK_PULL_REQUEST) { return true; }
     if (kind == EK_COMMENT) { return true; }
+    if (kind == EK_RELEASE) { return true; }
     return false;
 }
 
@@ -466,6 +483,7 @@ pub fn effect_can_be_looked_up(kind: u8) -> bool {
 pub fn receiver_refuses_a_copy(kind: u8) -> bool {
     if (kind == EK_PUSH) { return true; }
     if (kind == EK_PULL_REQUEST) { return true; }
+    if (kind == EK_RELEASE) { return true; }
     return false;
 }
 
@@ -544,14 +562,15 @@ invariant every_kind_has_a_name { assert EVENT_KINDS == 10 and EV_TICK == EVENT_
 invariant the_heartbeat_beats_inside_the_ttl { assert TASK_HEARTBEAT_SECONDS * 3 == TASK_LEASE_TTL_SECONDS; }
 invariant the_lease_beats_the_age_reaper { assert TASK_LEASE_TTL_SECONDS < 120 * 60; }
 invariant the_tick_is_slower_than_a_lease { assert RECONCILE_SECONDS > TASK_LEASE_TTL_SECONDS; }
-invariant the_population_is_small { assert DOMAIN_CAP * DOMAIN_COUNT <= 70; }
+invariant every_domain_has_a_name { assert DOMAIN_COUNT == 4 and DOMAIN_QUEEN_OPS == DOMAIN_COUNT - 1; }
 invariant illegal_is_outside_every_agent_state { assert AG_ILLEGAL > AG_RETIRED; }
 /// Every journal entry, effect kind and answer of section 7 is its own value. An answer that equals
 /// another one would read a fenced-out holder as a look.
 invariant the_effect_codes_are_distinct {
     assert EFF_NONE == 0 and EFF_INTENT == 1 and EFF_DONE == 2;
     assert EK_MODEL_CALL == 0 and EK_PUSH == 1 and EK_PULL_REQUEST == 2 and EK_COMMENT == 3;
-    assert EFFECT_KINDS == EK_COMMENT + 1;
+    assert EK_RELEASE == 4;
+    assert EFFECT_KINDS == EK_RELEASE + 1;
     assert DO_RUN == 0 and DO_SKIP == 1 and DO_LOOK == 2 and DO_NOTHING == 3 and DO_GIVE_UP == 4;
 }
 /// One crash does not end an attempt (a limit of 1 would make every runtime crash a counted failure,
@@ -701,9 +720,9 @@ test one_runtime_takes_task_b_after_task_a_without_a_rebuild {
 }
 
 test a_clone_keeps_the_lineage_and_gets_its_own_lease {
-    assert placement(1, 3) == P_REUSE;
-    assert placement(0, 3) == P_CLONE;
-    assert placement(0, DOMAIN_CAP) == P_WAIT;
+    assert placement(1, 3, 70) == P_REUSE;
+    assert placement(0, 3, 70) == P_CLONE;
+    assert placement(0, 70, 70) == P_WAIT;
     assert queen_executes_tasks() == false;
     assert clone_lineage(6657) == 6657;
     var clone : u32 = clone_holder(7, 8);
@@ -713,6 +732,19 @@ test a_clone_keeps_the_lineage_and_gets_its_own_lease {
     // parent and clone race for one task: only one lands, through the same claim
     assert claim_lands(NO_HOLDER, 7, false, 0, 0) == true;
     assert claim_lands(7, clone, false, 1, 0) == false;
+}
+
+test a_domain_is_an_affinity_not_a_cap {
+    // owner 2026-10-08: no hard four per domain. A fifth, a sixteenth and a sixty-ninth task of one
+    // domain all get a lane while lanes are free.
+    assert placement(0, 4, 70) == P_CLONE;
+    assert placement(0, 16, 70) == P_CLONE;
+    assert placement(0, 69, 70) == P_CLONE;
+    // an idle runtime of the task's own domain is preferred, even with lanes free
+    assert placement(1, 0, 70) == P_REUSE;
+    // and a full swarm makes a task wait, whatever its domain
+    assert placement(0, 70, 70) == P_WAIT;
+    assert placement(0, 71, 70) == P_WAIT;
 }
 
 test agent_memory_never_overrides_the_store {
@@ -803,4 +835,19 @@ test an_effect_that_keeps_crashing_its_holder_gives_up_after_three_runs {
     // a give-up is counted against the issue; a cancel is an interruption and is not
     assert give_up_counts_against_issue() == true;
     assert give_up_counts_against_issue() != cancel_counts_against_issue();
+}
+
+// #7676: a release is found by its tag, and GitHub answers 422 "already_exists" to a second release
+// of the same tag, so a restarted Queen looks before it publishes and never publishes twice.
+test a_release_is_looked_up_by_its_tag_and_never_published_twice {
+    assert effect_can_be_looked_up(EK_RELEASE) == true;
+    assert receiver_refuses_a_copy(EK_RELEASE) == true;
+    assert effect_action(EFF_NONE, EK_RELEASE, 0, 8, 8) == DO_RUN;
+    assert effect_action(EFF_INTENT, EK_RELEASE, 1, 8, 8) == DO_LOOK;
+    assert effect_action(EFF_DONE, EK_RELEASE, 1, 8, 8) == DO_SKIP;
+    assert after_look(true, 3) == DO_SKIP;
+    assert after_look(false, 1) == DO_RUN;
+    assert effect_may_repeat(EK_RELEASE, false) == false;
+    // a fenced-out holder does nothing, a release included
+    assert effect_action(EFF_NONE, EK_RELEASE, 0, 8, 7) == DO_NOTHING;
 }

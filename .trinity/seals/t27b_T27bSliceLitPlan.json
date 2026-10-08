@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:65dd3962776efeb4457922870aa1a12eeb41b2a6ac1743f2572ed681ac203cc9",
+  "gen_hash_rust": "sha256:9e1346dec8d7d04e176b84d5da5afbd4f5a08f9019494f8c6ee0ed8b388989cd",
+  "gen_hash_verilog": "sha256:d556ed6947f5e3f1252ee1f0bf18210107f6628716fed7d77a96ebd8b7837387",
+  "gen_hash_zig": "sha256:3892999655da37f40443bd3b372432a389d47610941490adfd45d154ab25859f",
+  "module": "T27bSliceLitPlan",
+  "ring": 12,
+  "sealed_at": "2026-10-08T04:58:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:3d7a3ebbae5a93d398f90ec43c8490897bb5d5387b60eb66701da0cc2781ab7a",
+  "spec_path": "specs/tri/t27b/slice_lit_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:9786003c6b6286499b0b3efa30dd0ece549410e182294d603a779945f97721ae",
+  "gen_hash_rust": "sha256:76c2e6872a451440f2b5f1c2084e2a0f2a9d7b89ede96bd4f5f9eb44f5ef78b2",
+  "gen_hash_verilog": "sha256:3f0838cd404a39a34b2f6d28031ef7b0039cfecbe27b076b416198a450241336",
+  "gen_hash_zig": "sha256:1bee973c3f3cd560ceadee67246a9f7c9d7adb8460cf3e5244c98c37d199801b",
+  "module": "ternary_mac_demo_top",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:09:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:e82bc80311c03db06a13bf47b25184e8d9544a78c6125fcb313e88dd87e28e15",
+  "spec_path": "specs/port/fpga/verilog/ternary_mac_demo_top.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}

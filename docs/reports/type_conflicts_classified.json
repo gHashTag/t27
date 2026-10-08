@@ -1,8 +1,8 @@
 {
   "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
   "verdicts": {
-    "DRIFT": 67,
-    "DISTINCT": 43
+    "DRIFT": 61,
+    "DISTINCT": 40
   },
   "names": [
     {
@@ -92,30 +92,6 @@
       "evidence": "benchmark.t27:26 `pub const BenchmarkResult = struct { task_id: string, generated: string, passed: bool, passed_at_5: bool, passed_at_10: bool, sacred_ok: bool, synth_ok: bool, ngram_score: f32 }` (`/// BenchmarkResult: outcome for a single task evaluation.`) -- one code-generation task's Pass@K outcome. low_bit_ternary.t27:32 `pub const BenchmarkResult = struct { accuracy_drop_pct: f64, compression_ratio: f64, latency_us: f64 }` in `module IGLALowBitTernary` (\"IGLA-Coder P7 Low-bit / ternary track\"), returned by `fn evaluate_accuracy(model_path: str, dataset: str) -> BenchmarkResult` beside `BitWidth = enum { Ternary_2b, Int4, Int8, Mixed_TTQ }` and `TernaryWeight { value: i2, scale: f32 }` -- a quantization quality measurement. Zero shared fields, no shared types, no import edge; \"benchmark\" means Pass@K correctness in one and accuracy/compression tradeoff in the other, in two different tracks under specs/igla/ (coder/ vs training/). This is the sharpest live demonstration of why the census must answer \"unbounded\": BOTH definitions are bound in forall domains, and each clause reads a field the other lacks -- low_bit_ternary.t27:66 `forall r : BenchmarkResult, r.compression_ratio >= 1.0` and :69 `forall r : BenchmarkResult, r.accuracy_drop_pct >= 0.0 && ... <= 100.0` against benchmark.t27's fourteen `forall results : []BenchmarkResult` clauses. Resolve the name wrong and `r.compression_ratio` names nothing.",
       "confidence": "certain -- accuracy_drop_pct/compression_ratio and passed_at_10/ngram_score measure unrelated quantities, and each file's own invariants confirm which it means",
       "suggested_action": "Rename the training one to QuantizationBenchmarkResult -- it is the smaller blast radius (two invariants, one function) and the name is more honest."
-    },
-    {
-      "name": "BlinkState",
-      "sites": [
-        "specs/port/trinity/fpga/openxc7-synth/blink_correct.t27:45",
-        "specs/port/trinity/fpga/openxc7-synth/blink_simple.t27:48",
-        "specs/port/trinity/fpga/openxc7-synth/d6_blink.t27:12",
-        "specs/port/trinity/fpga/openxc7-synth/d_blink_high.t27:93"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "blink_correct.t27:45 and d6_blink.t27:12 `{ counter : u32, led : bool }`; blink_simple.t27:48 `{ counter : u32, led_state : bool }`; d_blink_high.t27:93 `{ counter : u32 }`. All four are the register state of a one-module LED blinker, each `module trinity_top`, ported from sibling Verilog files in gHashTag/trinity fpga/openxc7-synth/ (#7138, #7078, #7098). Same concept as the CounterState and BufgConfig rows: one blinker counter spelled four ways, the LED either held as state or derived from a counter bit.",
-      "confidence": "high -- one concept (a free-running counter driving an LED); the field sets differ only in whether the LED bit is stored and what it is called",
-      "suggested_action": "Hoist one BlinkState { counter, led } into the shared openxc7-synth primitives module proposed for CounterState; d_blink_high can derive led from the counter."
-    },
-    {
-      "name": "Block",
-      "sites": [
-        "specs/port/scripts/gen_w377.t27:24",
-        "specs/port/tools/dedupe_identical_tests.t27:112"
-      ],
-      "verdict": "DISTINCT",
-      "evidence": "gen_w377.t27:24 `struct Block { chars: [BLOCK_CAP]u8, len: usize }` -- the matched text block copied out of a file, documented `// The matched block, copied out of the file text.` (#7236). dedupe_identical_tests.t27:112 `struct Block { start: u32, end: u32, name: str }` -- a test block's line span and name, built by `fn blocks(lines: []str) -> []Block` (#4566). Zero shared fields: one is a byte buffer, the other a line range.",
-      "confidence": "certain -- text contents versus a line span of a named test",
-      "suggested_action": "Rename to W377Block and TestBlockSpan if the names must resolve across specs."
     },
     {
       "name": "BufgConfig",
@@ -400,19 +376,6 @@
       "suggested_action": "Two things: have account/repo.t27 `use account::schema` instead of re-declaring Info and the four ID newtypes; and rename AuthConfig's tag to AuthInfo. Also consider a per-PAIR duplicate count alongside the per-name one, so exact copies inside CONFLICTED names stop being invisible."
     },
     {
-      "name": "Inputs",
-      "sites": [
-        "specs/port/trinity/fpga/openxc7-synth/blink_minimal.t27:21",
-        "specs/port/trinity/fpga/openxc7-synth/d_oscillator.t27:44",
-        "specs/port/trinity/fpga/openxc7-synth/d_slow_blink.t27:19",
-        "specs/port/trinity/fpga/openxc7-synth/quantum_bridge_top.t27:34"
-      ],
-      "verdict": "DISTINCT",
-      "evidence": "blink_minimal.t27:21, d_oscillator.t27:44 and d_slow_blink.t27:19 `pub struct Inputs { clk : bool }`; quantum_bridge_top.t27:34 `pub struct Inputs { clk : bool, rst_n : bool }` (#7032). Each is the input-port list of its own one-module design, the mirror of the Outputs row already judged DISTINCT for the same files: the porter's Inputs/Outputs naming for every top.",
-      "confidence": "certain -- per-module port bundles; three agree only because three designs have one clock and nothing else",
-      "suggested_action": "No defect. Prefix per module if names must resolve across specs, together with Outputs."
-    },
-    {
       "name": "Instance",
       "sites": [
         "specs/fpga/hir.t27:71",
@@ -536,17 +499,6 @@
       "evidence": "linker.t27:68 `pub struct LinkedSymbol { name : &str, value, size, section_idx, bind, kind : u32 }` vs LinkSection_text.t27:11 (#7013) with the same six fields in the same order; only the string spelling and `pub` differ.",
       "confidence": "certain -- field-for-field identical port of the spec's symbol record",
       "suggested_action": "Have the port `use` Linker.LinkedSymbol."
-    },
-    {
-      "name": "LockFreeStack",
-      "sites": [
-        "specs/port/trinity/src/tri/gen_lockfree_stack.t27:8",
-        "specs/tri/collections/lockfree_stack.t27:18"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "gen_lockfree_stack.t27:8 `pub const LockFreeStack = struct { head: ?*Node = null }` (#6957) vs lockfree_stack.t27:18 `pub const LockFreeStack = struct { head : \"?*LFNode\" }` in module TriLockfreeStack. Both are a Treiber stack holding one optional head pointer. The port is of gHashTag/trinity src/tri/gen_lockfree_stack.zig, a `gen_` file: code generated from the tri collection spec, now ported back beside its own source.",
-      "confidence": "certain -- one field, same meaning; the port is the generated output of the other",
-      "suggested_action": "Delete the port's LockFreeStack and `use` TriLockfreeStack, or drop the port as a copy of generated output."
     },
     {
       "name": "LockGuard",
@@ -766,17 +718,6 @@
       "suggested_action": "Rename per subsystem (FusionResult / CompilePipelineResult / GenerationResult / BatchEntryResult); and delete the _tmp_pipeline_import clone."
     },
     {
-      "name": "Point",
-      "sites": [
-        "specs/port/trinity/src/tri/gen_transform.t27:6",
-        "specs/tri/math/bezier.t27:13"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "gen_transform.t27:6 `struct Point { x: f64, y: f64 }` (#7186) vs bezier.t27:13 `pub const Point = struct { x : \"f64\", y : \"f64\" }` in module TriBezier. Identical fields. The port is of gHashTag/trinity src/tri/gen_transform.zig, a `gen_` file generated from tri math specs.",
-      "confidence": "certain -- field-for-field identical 2-D point",
-      "suggested_action": "One Point in a shared tri math module; both specs `use` it."
-    },
-    {
       "name": "PolicyOutput",
       "sites": [
         "specs/ml/rl/ppo_actor.t27:33",
@@ -855,17 +796,6 @@
       "evidence": "`answers: [Fact], proof_trace: ProofTrace, complete: bool` \u2014 a Datalog answer set over `Fact { predicate: string, args: [string], truth_value: Trit }` \u2014 vs `notebook_id: str, query: str, answer: str, sources: [5]str, confidence: f64, timestamp: u64` \u2014 a NotebookLM RAG answer with citations \u2014 vs `label: []const u8, similarity: f64` \u2014 one nearest-neighbour hit from a hyperdimensional sequence memory, beside `EncodedSequence { label: []const u8, vector: PackedBigInt }`. No field name occurs in more than one of the three.",
       "confidence": "certain \u2014 three unrelated retrieval systems (symbolic inference, RAG over documents, VSA cosine similarity), each with its own surrounding vocabulary",
       "suggested_action": "Rename per subsystem (DatalogAnswer / NotebookAnswer / SimilarityHit); no shared meaning to preserve."
-    },
-    {
-      "name": "RTree",
-      "sites": [
-        "specs/port/trinity/src/tri/gen_rtree.t27:10",
-        "specs/tri/trees/rtree.t27:26"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "gen_rtree.t27:10 `pub const RTree = struct { rects: []Rect, data: []?i64, allocator: ?i64 }` (#6750) vs rtree.t27:26 `pub const RTree = struct { root : \"?RTreeNode\", max_entries : \"usize\" }` in module TriRtree. Both are an R-tree spatial index; the port flattens it into parallel rect/data arrays where the spec keeps a node tree. The port is of gHashTag/trinity src/tri/gen_rtree.zig, generated from the tri tree spec.",
-      "confidence": "high -- same data structure; the representations differ, which is the defect a converge would settle",
-      "suggested_action": "Delete the port's RTree and `use` TriRtree, or drop the port as a copy of generated output."
     },
     {
       "name": "Rect",
@@ -969,28 +899,6 @@
       "evidence": "Mixed cluster, but two of the four drift inside one subsystem. vsa_core.t27: `pub const SearchResult = struct { index : usize, similarity : gf16, };`. similarity_search.t27: `struct SearchResult { index : usize, similarity : f64, distance : f64, }` \u2014 same first two field names and order, `similarity` widened gf16 \u2192 f64, `distance` added. Decisive: similarity_search.t27 line 9 is `use vsa::core;`, so it imports the very module that already exports SearchResult and then shadows it. The other two are different granularities: semantic_search.t27 `pub const SearchResult = struct { matches : []FormulaMatch, count : usize, query_time_ms : f64, }` is a result *container* (the VSA container is separately named `SearchResults { results, count, query_hash }`), and tri/search/search.t27 `pub const SearchResult = struct { index : \"?usize\", found : \"bool\", }` is a plain binary/linear array search on `[]const T`.",
       "confidence": "certain for the vsa_core/similarity_search pair \u2014 one file imports the other and redeclares the name with a widened scalar. The other two sites are unrelated and would be DISTINCT on their own.",
       "suggested_action": "Have specs/vsa/similarity_search.t27 use `vsa::core::SearchResult` and decide once whether the scalar is gf16 or f64; rename the memory/ and tri/search/ types (SemanticSearchResults, BinarySearchHit) so the name resolves to one thing."
-    },
-    {
-      "name": "Segment",
-      "sites": [
-        "specs/port/scripts/gen_w390.t27:10",
-        "specs/port/scripts/gen_w391.t27:23"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "gen_w390.t27:10 `pub const Segment = struct { wave: u32, start: u32, end: u32 }` (#5307) vs gen_w391.t27:23 `pub struct Segment { wave: i64, start: usize, end: usize }` (#7086). Same three fields in the same order, both `module port-scripts`, both one `// Wave Loop N` block of a spec file. Only the integer widths differ (w391 needs -1 as the no-match wave).",
-      "confidence": "certain -- consecutive wave generators restating one segment record",
-      "suggested_action": "One Segment in a shared port-scripts module with the w391 widths; both generators `use` it."
-    },
-    {
-      "name": "Segments",
-      "sites": [
-        "specs/port/scripts/gen_w390.t27:16",
-        "specs/port/scripts/gen_w391.t27:29"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "gen_w390.t27:16 `pub const Segments = struct { items: [100]Segment, len: u32 }` vs gen_w391.t27:29 `pub struct Segments { items: [100]Segment, len: usize }`. Same fixed-capacity list of the Segment row above; only `len`'s width differs.",
-      "confidence": "certain -- follows Segment",
-      "suggested_action": "Move with Segment."
     },
     {
       "name": "Session",
@@ -1104,18 +1012,6 @@
       "evidence": "base/ternary_memory.t27: `struct TernaryWord { trits : [TRIT_CAPACITY]TritCell, state : u8, checksum : u32 }` \u2014 27 trits as an array of addressable cells, with ternary_word_init/write_trit around it. fpga/mac.t27: `struct TernaryWord { raw : u32 }` \u2014 the packed word the MAC pipeline indexes with `extract_trit(word, index)`. The repo documents this collision itself, in the comment immediately above the second declaration: \"#2275: the packed word this spec has always assumed. No file in the corpus declares TernaryWord{raw} -- the base::ternary_memory struct is a different shape (trits/state/checksum) -- so `word.raw` fell past the part-select branch and flattened to the unbound identifier `word_raw`.\" A third shape exists as an alias in base/types.t27:53, `pub const TernaryWord = [WORD_BYTES]u8;`. Two specs disagree about one type, and the disagreement already produced a codegen defect.",
       "confidence": "certain \u2014 the defect, its mechanism, and its issue number are written in the source next to the declaration.",
       "suggested_action": "Resolve #2275 by naming the two shapes apart (TernaryWordCells for the memory view, PackedTernaryWord for the MAC view) and reconcile the base/types.t27:53 `[5]u8` alias, which is a third answer to the same question."
-    },
-    {
-      "name": "TestResults",
-      "sites": [
-        "specs/port/fpga/verilog/gft_smul_jtag.t27:21",
-        "specs/port/fpga/verilog/gft_train1_jtag.t27:26",
-        "specs/port/fpga/vivado/gf16_uart_sim_bench.t27:26"
-      ],
-      "verdict": "DISTINCT",
-      "evidence": "gft_smul_jtag.t27:21 `pub struct TestResults { zero_ok, comm_ok, gold_ok, ind_ok, ok, beat : bool }`; gft_train1_jtag.t27:26 `{ fix_ok, asc_ok, mov_ok, non_ok, final_ok : bool }` (#7274); gf16_uart_sim_bench.t27:26 `{ pass_count, fail_count, total_tests : u32 }` (#7234). Each is the self-test verdict of its own testbench module, ported from different .v files; the two JTAG ones name the checks their own design runs, and the UART bench counts instead of naming. No field is shared by any two.",
-      "confidence": "certain -- per-testbench result bundles with disjoint fields",
-      "suggested_action": "No defect. Prefix per module (SmulResults, Train1Results, UartBenchTally) if names must resolve."
     },
     {
       "name": "ToolCall",

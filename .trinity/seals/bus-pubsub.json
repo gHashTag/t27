@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:ebab3fddf5fc74404beea920760330a93054cf7694aa85162a37b5db6e9c31f3",
-  "gen_hash_rust": "sha256:0170bef3dfbe2686c8b503c856a37751d36231ffa7e8b7e44a9d6ba828d890d6",
+  "gen_hash_rust": "sha256:a98b8cea1ba0a1043dcb173ef1a7cf87f19e21b2647c88601df70b6dfee2c71f",
   "gen_hash_verilog": "sha256:6e335f45fb2f1e959a071005d2dc0140ab7c87ce96756cff6b6da20712ff1f7d",
   "gen_hash_zig": "sha256:1f3b10483efb965119113e09e9fb6254684366bcd535c7a5dbd20d1070fd2758",
   "module": "bus-pubsub",

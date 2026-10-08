@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+c6517ff",
   "gen_hash_c": "sha256:08c33ac9ef547209407ae82a8aea11e6ddd2994a7e9c278f4b73b35ed228053f",
-  "gen_hash_rust": "sha256:407e7a42c8582e693fd9c402849f00d53552a5a70f9e10ad7cdee906aef28f81",
+  "gen_hash_rust": "sha256:ee76bc5e854b5c8e6ed32ef3f68ed1bcc2bc39af66509b5f854435a2341038c4",
   "gen_hash_verilog": "sha256:9f5166138dfc65b91f9f938a3a9ca394040205638c835a1280a131e4c9800941",
   "gen_hash_zig": "sha256:6b69112da35cba986025e405daa74cef0f8190df11a1e58eeef72510bfd07236",
   "module": "port::trinity.src.tri.gen_image",

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:e75168deb5c7e973eb84215c005b0c7d2469fe9c32db7465698e8605962562b8",
-  "gen_hash_rust": "sha256:0a4064c4d5ae45dda501198128042849e7b9f0b1b598012ddf8ff34367df1b72",
+  "gen_hash_rust": "sha256:ce0913ee217603e6db0fe00a0ffee115a45d49f1275287b0c88307b8d7108c4a",
   "gen_hash_verilog": "sha256:495b48a5c98b7c1fccab460f017fcc48da428a1789ba23eaa7691edc1d0d9e13",
   "gen_hash_zig": "sha256:9ef5cffa8802200e4a4b81a4cdd3744be5119e033e8e4dbfea08b642f5bb05ba",
   "module": "SacredAttention",

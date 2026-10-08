@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:a052addfc58427b5eee84a8bcb311d3badf729c95814188ea554141bcf8685e9",
-  "gen_hash_rust": "sha256:41b129dc974441711eddd0d6fdc4badc771e49d4cbdded1832028e93fd1c24fb",
+  "gen_hash_rust": "sha256:83c09a724372e7b143506f55146cc290e5a56ea59487a0969105d4f50586e4bd",
   "gen_hash_verilog": "sha256:e5898774e51d2cbaa2315391ba6cd59b70e730cfa46db7ceade636a67ba8ce51",
   "gen_hash_zig": "sha256:49da89c3106523311d92234a8374d15bafcd8b5b78d4382fdb9e001163065795",
   "module": "published_figures",
