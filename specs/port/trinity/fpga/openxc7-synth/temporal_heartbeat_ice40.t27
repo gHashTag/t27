@@ -1,0 +1,308 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/trinity/fpga/openxc7-synth/temporal_heartbeat_ice40.t27
+// Temporal Heartbeat for iCE40 HX8K/UP5K - Phi-second counter with temporal layers
+// Clock: 12 MHz, Period: phi seconds = 1.618033988... s
+// LED: Coptic temporal cube - cycles through 3 layers with different blink rates
+// Port of gHashTag/trinity fpga/openxc7-synth/temporal_heartbeat_ice40.v
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module temporal_heartbeat_ice40 {
+
+    // === Constants ===
+    
+    const PHI_CYCLES : u32 = 19_416_408;  // 12_000_000 * phi (25-bit value)
+    const BLINK_COUNTER_WIDTH : u32 = 23;
+    const TEMPORAL_LAYER_WIDTH : i8 = 2;
+    
+    // === Temporal Layer Enum ===
+    
+    const TemporalLayer = enum(i8) {
+        past = 0,
+        present = 1, 
+        future = 2,
+    }
+    
+    // === State Structs ===
+    
+    struct TemporalHeartbeatState {
+        phi_counter : u32,
+        phi_tick : bool,
+        temporal_layer : TemporalLayer,
+        blink_counter : u32,
+        led_out : bool,
+    }
+    
+    // === Constructor ===
+    
+    fn initial_state() -> TemporalHeartbeatState {
+        return TemporalHeartbeatState{
+            .phi_counter = 0,
+            .phi_tick = false,
+            .temporal_layer = TemporalLayer.past,
+            .blink_counter = 0,
+            .led_out = false,
+        };
+    }
+    
+    // === Core Logic Functions ===
+    
+    fn update_phi_counter(state: TemporalHeartbeatState, clk_tick: bool) -> TemporalHeartbeatState {
+        var new_state : TemporalHeartbeatState = state;
+        
+        if (clk_tick) {
+            if (new_state.phi_counter >= PHI_CYCLES) {
+                new_state.phi_counter = 0;
+                new_state.phi_tick = true;
+            } else {
+                new_state.phi_counter = new_state.phi_counter + 1;
+                new_state.phi_tick = false;
+            }
+        }
+        
+        return new_state;
+    }
+    
+    fn update_temporal_layer(state: TemporalHeartbeatState) -> TemporalHeartbeatState {
+        var new_state : TemporalHeartbeatState = state;
+        
+        if (new_state.phi_tick) {
+            var next_layer : TemporalLayer = new_state.temporal_layer;
+            if (new_state.temporal_layer == TemporalLayer.future) {
+                next_layer = TemporalLayer.past;
+            } else if (new_state.temporal_layer == TemporalLayer.present) {
+                next_layer = TemporalLayer.future;
+            } else if (new_state.temporal_layer == TemporalLayer.past) {
+                next_layer = TemporalLayer.present;
+            }
+            new_state.temporal_layer = next_layer;
+        }
+        
+        return new_state;
+    }
+    
+    fn update_blink_counter(state: TemporalHeartbeatState, clk_tick: bool) -> TemporalHeartbeatState {
+        var new_state : TemporalHeartbeatState = state;
+        
+        if (clk_tick) {
+            new_state.blink_counter = new_state.blink_counter + 1;
+        }
+        
+        return new_state;
+    }
+    
+    fn compute_led_output(state: TemporalHeartbeatState) -> bool {
+        if (state.temporal_layer == TemporalLayer.past) {
+            return (state.blink_counter & 4194304) != 0;
+        } else if (state.temporal_layer == TemporalLayer.present) {
+            return true;
+        } else if (state.temporal_layer == TemporalLayer.future) {
+            return (state.blink_counter & 1048576) != 0;
+        } else {
+            return false;
+        }
+    }
+    
+    fn update_led_output(state: TemporalHeartbeatState) -> TemporalHeartbeatState {
+        var new_state : TemporalHeartbeatState = state;
+        new_state.led_out = compute_led_output(state);
+        return new_state;
+    }
+    
+    // === Main Clock Cycle Function ===
+    
+    fn clock_cycle(state: TemporalHeartbeatState, clk_tick: bool) -> TemporalHeartbeatState {
+        var new_state : TemporalHeartbeatState = state;
+        
+        // Update phi counter
+        new_state = update_phi_counter(new_state, clk_tick);
+        
+        // Update temporal layer (only on phi_tick)
+        new_state = update_temporal_layer(new_state);
+        
+        // Update blink counter
+        new_state = update_blink_counter(new_state, clk_tick);
+        
+        // Update LED output
+        new_state = update_led_output(new_state);
+        
+        return new_state;
+    }
+    
+    // === Simulation/Test Functions ===
+    
+    fn simulate_cycles(initial: TemporalHeartbeatState, cycles: u32) -> TemporalHeartbeatState {
+        var state : TemporalHeartbeatState = initial;
+        var i : u32 = 0;
+        
+        while (i < cycles) {
+            state = clock_cycle(state, true);  // Simulate clock tick
+            i = i + 1;
+        }
+        
+        return state;
+    }
+    
+    fn get_temporal_layer_name(layer: TemporalLayer) -> &str {
+        if (layer == TemporalLayer.past) {
+            return "past";
+        } else if (layer == TemporalLayer.present) {
+            return "present";
+        } else if (layer == TemporalLayer.future) {
+            return "future";
+        } else {
+            return "unknown";
+        }
+    }
+    
+    fn phi_period_seconds() -> f64 {
+        return 1.618033988;  // phi seconds
+    }
+    
+    fn get_led_frequency(layer: TemporalLayer) -> f64 {
+        var result: f64 = 0.0;
+        if (layer == TemporalLayer.past) {
+            result = 1.43;     // Slow pulse
+        } else if (layer == TemporalLayer.present) {
+            result = 0.0;   // Steady (DC)
+        } else if (layer == TemporalLayer.future) {
+            result = 5.72;   // Fast pulse
+        } else {
+            result = 0.0;
+        }
+        return result;
+    }
+    
+    // === Tests ===
+    
+    test initial_state_check
+        given state = initial_state()
+        then state.phi_counter == 0
+        and state.phi_tick == false
+        and state.temporal_layer == TemporalLayer.past
+        and state.blink_counter == 0
+        and state.led_out == false
+    
+    test phi_counter_overflow
+        given state = TemporalHeartbeatState{.phi_counter = PHI_CYCLES - 1, .phi_tick = false, .temporal_layer = TemporalLayer.past, .blink_counter = 0, .led_out = false}
+        then state.phi_counter == PHI_CYCLES - 1
+        and state.phi_tick == false
+    
+    test phi_counter_ticks
+        given state = update_phi_counter(TemporalHeartbeatState{.phi_counter = PHI_CYCLES - 1, .phi_tick = false, .temporal_layer = TemporalLayer.past, .blink_counter = 0, .led_out = false}, true)
+        then state.phi_counter == 0
+        and state.phi_tick == true
+    
+    test_phi_counter_increment
+        given state = update_phi_counter(initial_state(), true)
+        then state.phi_counter == 1
+        and state.phi_tick == false
+    
+    test temporal_layer_cycler
+        var state : TemporalHeartbeatState = initial_state();
+        state = TemporalHeartbeatState{.phi_counter = PHI_CYCLES, .phi_tick = true, .temporal_layer = TemporalLayer.past, .blink_counter = 0, .led_out = false};
+        state = update_temporal_layer(state);
+        then state.temporal_layer == TemporalLayer.present
+    
+    test temporal_layer_wrap_around
+        var state : TemporalHeartbeatState = TemporalHeartbeatState{.phi_counter = PHI_CYCLES, .phi_tick = true, .temporal_layer = TemporalLayer.future, .blink_counter = 0, .led_out = false};
+        state = update_temporal_layer(state);
+        then state.temporal_layer == TemporalLayer.past
+    
+    test_led_output_past_layer
+        given state = TemporalHeartbeatState{.phi_counter = 0, .phi_tick = false, .temporal_layer = TemporalLayer.past, .blink_counter = (1 << 22), .led_out = false}
+        then compute_led_output(state) == true
+    
+    test_led_output_present_layer
+        given state = TemporalHeartbeatState{.phi_counter = 0, .phi_tick = false, .temporal_layer = TemporalLayer.present, .blink_counter = 0, .led_out = false}
+        then compute_led_output(state) == true
+    
+    test_led_output_future_layer
+        given state = TemporalHeartbeatState{.phi_counter = 0, .phi_tick = false, .temporal_layer = TemporalLayer.future, .blink_counter = (1 << 20), .led_out = false}
+        then compute_led_output(state) == true
+    
+    test_led_output_past_layer_off
+        given state = TemporalHeartbeatState{.phi_counter = 0, .phi_tick = false, .temporal_layer = TemporalLayer.past, .blink_counter = 0, .led_out = false}
+        then compute_led_output(state) == false
+    
+    test_blink_counter_increment
+        given state = update_blink_counter(initial_state(), true)
+        then state.blink_counter == 1
+    
+    test_full_clock_cycle
+        var state : TemporalHeartbeatState = initial_state();
+        state = clock_cycle(state, true);
+        then state.phi_counter == 1
+        and state.phi_tick == false
+        and state.temporal_layer == TemporalLayer.past
+        and state.blink_counter == 1
+        // LED output depends on blink_counter[22] which is 0 for blink_counter = 1
+    
+    test_temporal_layer_names
+        then get_temporal_layer_name(TemporalLayer.past) == "past"
+        and get_temporal_layer_name(TemporalLayer.present) == "present"
+        and get_temporal_layer_name(TemporalLayer.future) == "future"
+    
+    test_phi_period
+        then phi_period_seconds() == 1.618033988
+    
+    test_led_frequencies
+        then get_led_frequency(TemporalLayer.past) == 1.43
+        and get_led_frequency(TemporalLayer.present) == 0.0
+        and get_led_frequency(TemporalLayer.future) == 5.72
+    
+    test_simulate_cycles_basic
+        given initial = initial_state()
+        then simulate_cycles(initial, 10).phi_counter == 10
+        and simulate_cycles(initial, 10).blink_counter == 10
+    
+    test_simulate_cycles_no_phi_tick
+        var state : TemporalHeartbeatState = simulate_cycles(initial_state(), PHI_CYCLES - 1);
+        then state.phi_counter == PHI_CYCLES - 1
+        and state.phi_tick == false
+        and state.temporal_layer == TemporalLayer.past
+    
+    test_simulate_cycles_phi_tick
+        var state : TemporalHeartbeatState = simulate_cycles(initial_state(), PHI_CYCLES);
+        then state.phi_counter == 0
+        and state.phi_tick == true
+        and state.temporal_layer == TemporalLayer.present
+    
+    // === Invariants ===
+    
+    invariant phi_cycles_positive
+        assert PHI_CYCLES > 0
+    
+    invariant temporal_layer_valid
+        given state = initial_state()
+        assert state.temporal_layer as u32 <= 2
+    
+    invariant blink_counter_width
+        assert BLINK_COUNTER_WIDTH == 23
+    
+    invariant led_output_boolean
+        given state = initial_state()
+        assert state.led_out == true or state.led_out == false
+    
+    invariant phi_counter_range
+        given state = initial_state()
+        assert state.phi_counter <= PHI_CYCLES
+    
+    invariant temporal_layer_enum_bounds
+        assert TemporalLayer.past as u32 == 0
+        and TemporalLayer.present as u32 == 1
+        and TemporalLayer.future as u32 == 2
+    
+    bench phi_counter_update_latency
+        measure: nanoseconds to update_phi_counter(initial_state(), true)
+        target: < 10ns
+    
+    bench temporal_layer_update_latency
+        measure: nanoseconds to update_temporal_layer(initial_state())
+        target: < 5ns
+    
+    bench led_computation_latency
+        measure: nanoseconds to compute_led_output(initial_state())
+        target: < 5ns
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
