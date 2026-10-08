@@ -1002,32 +1002,6 @@ impl<'a> Lower<'a> {
                         }
                     }
                 }
-                NodeKind::TestBlock => {
-                    let mut locals: HashSet<&str> = HashSet::new();
-                    let mut bound: HashSet<&str> = HashSet::new();
-                    for s in &item.children {
-                        if s.kind == NodeKind::StmtLocal && !s.name.is_empty() {
-                            locals.insert(s.name.as_str());
-                        }
-                        if s.kind == NodeKind::StmtAssign
-                            && s.children.len() >= 2
-                            && s.children[0].kind == NodeKind::ExprIdentifier
-                            && !s.children[0].name.is_empty()
-                        {
-                            let name = s.children[0].name.as_str();
-                            if bound.insert(name) && locals.contains(name) {
-                                found.push((
-                                    if s.line != 0 { s.line } else { item.line },
-                                    "StmtAssign(reference redeclares)",
-                                    format!(
-                                        "test `{}`: the first top-level assignment to the local `{}` is emitted by t27c's Zig backend as a fresh `const {} = ..`, a redeclaration",
-                                        item.name, name, name
-                                    ),
-                                ));
-                            }
-                        }
-                    }
-                }
                 _ => {}
             }
         }
