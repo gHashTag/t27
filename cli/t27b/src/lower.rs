@@ -2307,16 +2307,9 @@ impl<'a> Lower<'a> {
     /// `given p = [a, b]` where every use of `p` is an argument the callee
     /// declares as one array type `[N]T`: t27c's Zig backend writes
     /// `const p = .{ a, b }`, which coerces to `[N]T` at each call, so this
-    /// is a `[N]T` built once, here.
+    /// is a `[N]T` built once, here. A repeat `[v; n]` is `.{ v } ** n` there (#7909).
     fn tuple_local(&mut self, init: &Node, name: String, t: LTy, out: &mut Vec<Stmt>) -> R<()> {
         self.see(init);
-        if init.children.is_empty() && init.extra_type.trim().is_empty() && init.extra_size.contains(';') {
-            // The reference pastes `v;n` between the braces of `.{ ... }`.
-            return self.reject(
-                "ExprArrayLiteral(repeat)",
-                format!("`{}` = `[{}]` is passed where an array is declared", name, init.extra_size.trim()),
-            );
-        }
         let k = self.new_slot(&t)?;
         let dst = Place { addr: slot_expr(k), off: 0, ty: t, mutable: false, temp: None };
         self.init(init, dst.clone(), true, out)?;

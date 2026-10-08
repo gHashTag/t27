@@ -119,3 +119,16 @@ fn frame_address_store_is_refused() {
     let r = rejected(include_str!("../../../specs/tri/t27b/conformance/frame_address_store.t27"));
     assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
 }
+
+/// `const a = [v; n];` passed where `[N]T` is declared: `.{ v } ** n` in the reference (#7909; `t27c test-report`:
+/// 4 pass, none vacuous). A count other than N, or a v that T cannot hold, does not compile there; refused here.
+#[test]
+fn repeat_local_spec_passes_and_must_fit_its_array() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/repeat_local.t27"));
+    let got = names_ok(&ran);
+    assert!(got.len() == 4 && got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+    let src = "module a;\n\nfn total(a: [4]i8) -> i32 {\n    return (a[0] as i32) + (a[3] as i32);\n}\n\ntest t {\n    const a = [2; 4];\n    assert(total(a) == 4);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert!(rejected(&src.replace("[2; 4]", "[2; 3]")).contains("at line 8 (3 elements for `[4]i8`)"));
+    assert!(rejected(&src.replace("[2; 4]", "[300; 4]")).contains("at line 8 (300 does not fit in i8)"));
+}
