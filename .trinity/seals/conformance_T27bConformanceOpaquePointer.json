@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+3a101a61c",
+  "gen_hash_c": "sha256:a830c9e7ee4eb507dea9b9d83feab3472d51e5c9105a83cfe68c2b81ff2fcfb2",
+  "gen_hash_rust": "sha256:01600eeea1afb9113c4d1cfe4f228b8611317deb48bfd07c1c75139fd8ee5e80",
+  "gen_hash_verilog": "sha256:4097ae3cfd3df8d99ca8216d17e6ff62e5631a5b34fc3bdbef0e80e7b7b5feee",
+  "gen_hash_zig": "sha256:d03ff64aaa61a8bc3c09f1afccfbf71dee8cae5bda1665d26f7f90bc997834bb",
+  "module": "T27bConformanceOpaquePointer",
+  "ring": 12,
+  "sealed_at": "2026-10-08T08:30:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:6007b905b18f9332cb66e9517cb03201e7d95e95b45d77e076208a4584c63dd6",
+  "spec_path": "specs/tri/t27b/conformance/opaque_pointer.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}
