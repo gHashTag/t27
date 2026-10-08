@@ -3,9 +3,12 @@
 ; IEEE 802.3 clause 3.2.9: every MAC frame carries a 32-bit CRC over
 ; dst, src, length/type and payload, computed LSB-first with the
 ; reflected polynomial 0xEDB88320 (the reflection of 0x04C11DB7),
-; register pre-set and post-inverted with 0xFFFFFFFF. The receiver
-; recomputes and compares; a frame whose FCS matches arrives intact
-; with probability 1 - 2^-32 per the standard's error model.
+; register pre-set and post-inverted with 0xFFFFFFFF: the FCS field IS
+; the post-inverted register, transmitted LSB first. A receiver that
+; runs the same register over the frame INCLUDING its FCS is left at
+; the residue 0xDEBB20E3 (zlib view 0x2144DF1C), not at the preset --
+; that constant is the receiver's check, and a corrupted frame passes
+; it with probability 1 - 2^-32 per the standard's error model.
 ; ----
 ; SOURCE (IEEE 802.3-2018):
 ;   3.2.9   FCS field definition, CRC-32 polynomial, transmission order
@@ -16,8 +19,13 @@
 ;   crc32(b"123456789")          = 0xcbf43926  (the published check value)
 ;   crc32(b"a")                  = 0xe8b7be43
 ;   crc32(b"")                   = 0x00000000
-;   frame A crc32 = 0x68a6e702, FCS = 0x975918fd
-;   frame B crc32 = 0x755a0222, FCS = 0x8aa5fddd
+;   frame A crc32 = 0x68a6e702 -- the FCS field is that same value,
+;                                 sent LSB first: 02 e7 a6 68
+;   frame B crc32 = 0x755a0222
+;   crc32(frame A + fcs_le) = 0x2144df1c, and the running register
+;   over the same bytes is 0xdebb20e3: the receiver's residue. NOT
+;   0xffffffff -- a register that returns to its preset belongs to a
+;   CRC convention without the final inversion, not to this one.
 ; The table below is NOT trusted either: test table_is_derived recomputes
 ; all 256 entries from crc_bit, the same self-check packets.t27 runs on
 ; the Xilinx CRC table.
@@ -107,10 +115,11 @@ pub fn crc_buf(data : [32]u8, len : u32) u32 {
     return crc;
 }
 
-; The FCS the sender appends: the one's complement of the running CRC,
-; transmitted LSB first (802.3 3.2.9). A receiver that runs the same CRC
-; over the frame INCLUDING the FCS gets 0xFFFFFFFF -- the register returns
-; to its preset; that, not a comparison of values, is the receiver's check.
+; The FCS the sender appends: the post-inverted running register
+; (802.3 3.2.9), transmitted LSB first. A receiver that runs the same
+; register over the frame INCLUDING the FCS is left at the residue
+; 0xDEBB20E3 -- that constant, not a return to the preset, is the
+; receiver's check; zlib sees the same residue as 0x2144DF1C.
 pub fn fcs_of(crc : u32) u32 {
     return crc ^ CRC_INIT;
 }
@@ -127,7 +136,9 @@ test table_is_derived {
     assert bad == 0;
 }
 
-; zlib.crc32(b"123456789") -- the published CRC-32 check value.
+; zlib.crc32(b"123456789") -- the published CRC-32 check value. c8 below is
+; the running register (0x340bc6d9); the published value is its post-inversion,
+; the FCS view, so the assert goes through fcs_of.
 test check_value_123456789 {
     const c0 = crc_octet(0x31, CRC_INIT);
     const c1 = crc_octet(0x32, c0);
@@ -138,21 +149,24 @@ test check_value_123456789 {
     const c6 = crc_octet(0x37, c5);
     const c7 = crc_octet(0x38, c6);
     const c8 = crc_octet(0x39, c7);
-    assert c8 == 0xcbf43926;
+    assert fcs_of(c8) == 0xcbf43926;
 }
 
 ; zlib.crc32(b"a")
 test single_octet_a {
-    assert crc_buf([0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1) == 0xe8b7be43;
+    assert fcs_of(crc_buf([0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1)) == 0xe8b7be43;
 }
 
 ; No octets: preset, then the final inversion -- the CRC of nothing is 0.
+; crc_buf of an empty run hands back the preset itself, and fcs_of of that
+; is zero, so the assert goes through fcs_of.
 test empty_is_zero {
-    assert crc_buf([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0) == 0x00000000;
+    assert fcs_of(crc_buf([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 0)) == 0x00000000;
 }
 
 ; Frame A: broadcast dst, one src, IPv4 ethertype, first bytes of an IP header.
-; zlib.crc32 = 0x68a6e702, FCS = 0x975918fd.
+; zlib.crc32 = 0x68a6e702 (the FCS field, sent LSB first as 02 e7 a6 68);
+; the running register = 0x975918fd. The asserts pin both views.
 test frame_a_ipv4 {
     const crc = crc_buf([
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -161,35 +175,39 @@ test frame_a_ipv4 {
         0x45, 0x00, 0x00, 0x1C,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ], 18);
-    assert crc == 0x68a6e702;
-    assert fcs_of(crc) == 0x975918fd;
+    assert crc == 0x975918fd;
+    assert fcs_of(crc) == 0x68a6e702;
 }
 
 ; Frame B: the slow-protocols multicast dst an STP/LLDP frame uses, with a
-; length field instead of a type. zlib.crc32 = 0x755a0222.
+; length field instead of a type. zlib.crc32 = 0x755a0222 (the FCS field
+; value), running register = 0x8aa5fddd.
 test frame_b_length_field {
     const crc = crc_buf([
         0x01, 0x80, 0xC2, 0x00, 0x00, 0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x00, 0x26,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ], 14);
-    assert crc == 0x755a0222;
-    assert fcs_of(crc) == 0x8aa5fddd;
+    assert crc == 0x8aa5fddd;
+    assert fcs_of(crc) == 0x755a0222;
 }
 
 ; The FCS is always the complement: every vector above obeys it in one sweep.
+; Every vector above, both views, one sweep: the register and the FCS field
+; are complements of each other.
 test fcs_is_complement {
+    assert fcs_of(0x975918fd) == 0x68a6e702;
     assert fcs_of(0x68a6e702) == 0x975918fd;
-    assert fcs_of(0x755a0222) == 0x8aa5fddd;
-    assert fcs_of(0xcbf43926) == 0x340BC6D9;
+    assert fcs_of(0x8aa5fddd) == 0x755a0222;
+    assert fcs_of(0x340bc6d9) == 0xcbf43926;
     assert fcs_of(0x00000000) == 0xFFFFFFFF;
 }
 
-; The receiver's check: CRC over frame A WITH its FCS appended (FCS travels
-; LSB first: FD 18 59 97) leaves the register back at its preset 0xFFFFFFFF.
-; zlib.crc32(frame_a + fcs_le) = 0xFFFFFFFF, same tool, same run. The magic
-; constants 0x2144DF1C / 0xDEBB20E3 belong to other CRC conventions and are
-; deliberately NOT claimed here.
-test receiver_returns_to_preset {
+; The receiver's check: the register over frame A WITH its FCS appended
+; (the FCS travels LSB first: 02 e7 a6 68) settles at the residue
+; 0xDEBB20E3 -- never at the preset 0xFFFFFFFF, which this CRC's final
+; inversion rules out. zlib.crc32(frame_a + fcs_le) = 0x2144df1c, the
+; same residue in the post-inverted view; both computed, not recalled.
+test receiver_residue_is_the_magic {
     const c0 = crc_buf([
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0A, 0x0B,
         0x0C, 0x0D, 0x0E, 0x0F, 0x08, 0x00, 0x45, 0x00,
@@ -199,10 +217,11 @@ test receiver_returns_to_preset {
     const r = crc_buf([
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0A, 0x0B,
         0x0C, 0x0D, 0x0E, 0x0F, 0x08, 0x00, 0x45, 0x00,
-        0x00, 0x1C, 0xFD, 0x18, 0x59, 0x97, 0, 0,
+        0x00, 0x1C, 0x02, 0xE7, 0xA6, 0x68, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
     ], 22);
-    assert r == 0xFFFFFFFF;
+    assert c0 == 0x975918fd;
+    assert r == 0xDEBB20E3;
 }
 
 invariant fcs_complement_matches_crc {
