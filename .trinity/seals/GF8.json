@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:1f038dd0404125acfbf6d9b07dcd2deb04a04d32156b2fa602064b826de9dc3a",
   "module": "GF8",
   "ring": 12,
-  "sealed_at": "2026-10-07T06:37:55Z",
-  "spec_hash": "sha256:74c5c82c3557c76a1c5e1a0340106229b402f287a14f98d4c9126ba49c9b13d4",
+  "sealed_at": "2026-10-08T12:53:37Z",
+  "spec_hash": "sha256:f880ee1af077041bccfabb3f4f3479613c99a283359b5a12ff3f6c3735144a2c",
   "spec_path": "specs/numeric/gf8.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:181:25: error: unused capture"

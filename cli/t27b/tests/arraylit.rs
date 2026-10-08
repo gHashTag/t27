@@ -69,13 +69,53 @@ test runtime {
     assert!(r.contains("ExprArrayLiteral(run-time slice return)"), "{}", r);
 }
 
-/// Constants behind a slice field or a returned slice, mutable or not: one
-/// writable static per type and value, as the reference interns them
-/// (`t27c test-report`: 8 pass, none vacuous).
+/// A write through a slice a static literal backs is undefined behaviour in
+/// Zig (x86_64 Debug keeps it, LLVM faults), so it is refused at the write
+/// (#7765; t27c's parser gives an assignment the line after its `;`): through
+/// a callee's parameter, a struct element, an address, a slice of it. `set`
+/// counts only where a test calls it. Another element type's slice is written.
+#[test]
+fn a_write_through_a_static_literal_is_refused() {
+    let head = "module w;\n\nconst Hop = struct {\n    to: usize,\n    w: i64,\n};\n\nfn order() -> []usize {\n    return [0, 1, 2, 3];\n}\n\nfn hops() -> []Hop {\n    return []Hop{ .{ .to = 1, .w = 4 } };\n}\n\nfn set(xs: []usize, v: usize) -> void {\n    xs[0] = v;\n}\n\ntest t {\n";
+    let cases = [
+        ("    set(order(), 9);\n    assert(order()[0] == 9);\n}\n", 18),
+        ("    var hs = hops();\n    hs[0].w += 40;\n    assert(hops()[0].w == 44);\n}\n", 23),
+        ("    const p = &hops()[0];\n    p.w = 1;\n}\n", 21),
+        ("    const q = order()[1..];\n    q[0] = 7;\n}\n", 23),
+    ];
+    for (body, line) in cases {
+        let r = rejected(&format!("{}{}", head, body));
+        assert!(r.contains("StmtAssign(write through an array literal)") && r.contains(&format!("line {}", line)), "{}", r);
+    }
+    let other = "    var b: [2]u8 = [0, 0];\n    const s: []u8 = b[0..];\n    s[1] = 3;\n    assert(order()[1] == 1 and b[1] == 3);\n}\n";
+    assert_eq!(names_ok(&run(&format!("{}{}", head, other))), vec![("t", false, true)]);
+}
+
+/// Constants behind a slice field or a returned slice, mutable or not, read
+/// from one static per type and value, as the reference interns them
+/// (`t27c test-report`: 5 pass, none vacuous, on x86_64 and aarch64).
 #[test]
 fn static_conformance_spec_passes() {
     let ran = run(include_str!("../../../specs/tri/t27b/conformance/static_slice_literal.t27"));
     let got = names_ok(&ran);
-    assert_eq!(got.len(), 8);
+    assert_eq!(got.len(), 5);
     assert!(got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+}
+
+/// `.{}` by its result type: struct defaults, and `&.{}` as an empty slice
+/// (#7735; `t27c test-report`: 4 pass, none vacuous).
+#[test]
+fn empty_anon_literal_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/empty_anon_literal.t27"));
+    let got = names_ok(&ran);
+    assert_eq!(got.len(), 4);
+    assert!(got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+}
+
+/// This frame's address stored through a parameter: the reference passes it
+/// only by reading a dead frame, so it is refused by name (#7735).
+#[test]
+fn frame_address_store_is_refused() {
+    let r = rejected(include_str!("../../../specs/tri/t27b/conformance/frame_address_store.t27"));
+    assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
 }

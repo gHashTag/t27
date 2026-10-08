@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 77,
+  "max_entries": 74,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -58,18 +58,6 @@
       }
     },
     {
-      "path": "specs/fpga/spi.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 72,
-      "discard_by_channel": {
-        "bdd-block-fallback": 12,
-        "top-level-resync": 60
-      }
-    },
-    {
       "path": "specs/fpga/testbench/bootrom_tb.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -78,28 +66,6 @@
       "discard_tokens": 1,
       "discard_by_channel": {
         "clause-junk": 1
-      }
-    },
-    {
-      "path": "specs/fpga/top_level.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 46 -> 57 on 2026-10-02 (#5497): the added loss is `assert ... implies ...` and `measure:` lines (lines 208-222), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 57,
-      "discard_by_channel": {
-        "top-level-resync": 57
-      }
-    },
-    {
-      "path": "specs/fpga/uart.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 11,
-      "discard_by_channel": {
-        "bdd-block-fallback": 11
       }
     },
     {
@@ -597,18 +563,6 @@
       }
     },
     {
-      "path": "specs/math/phi_split_optimality.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 129 -> 131 on 2026-10-02 (#5497): the added loss is `assert forall bits: u8, {...}` and `forall i in 0..n` properties (lines 269-316), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 131,
-      "discard_by_channel": {
-        "brace-body": 66,
-        "top-level-resync": 65
-      }
-    },
-    {
       "path": "specs/math/phi_universal_attractor.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -618,17 +572,6 @@
       "discard_by_channel": {
         "brace-body": 20,
         "top-level-resync": 53
-      }
-    },
-    {
-      "path": "specs/math/radix_economy.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 55,
-      "discard_by_channel": {
-        "bdd-block-fallback": 55
       }
     },
     {
@@ -715,18 +658,6 @@
       "discard_by_channel": {
         "bdd-block-fallback": 143,
         "brace-body/in-fallback": 10
-      }
-    },
-    {
-      "path": "specs/numeric/phi_ratio.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 145,
-      "discard_by_channel": {
-        "bdd-block-fallback": 62,
-        "top-level-resync": 83
       }
     },
     {
@@ -888,6 +819,6 @@
       }
     }
   ],
-  "_why_entries_fell": "113 -> 109 (2026-10-05, #6437): four specs whose files were Rust-flavoured pseudo-t27 (a `loop`/`break` with `..` ranges, a `type Trit = Trit` self-alias, `format!`, `for (k, v)` and `if let`) were rewritten in t27 and now pass every phase -- ar/datalog_engine, ar/ternary_logic, test_framework/graph_drift_detection, test_framework/verilog_bench_harness. The ratchet reported each as an UNEXPECTED PASS; nothing else moved. The cap follows the count down. 113 -> 111 (2026-10-04, #6186): typecheck now resolves Zig's prefix optional `?T` (it only knew `T?`) and lets an optional accept its payload, so `specs/pins/parser.t27` (line 330, `cannot assign U32 to ?u32`) and `specs/port/scripts/gen_w378.t27` pass every phase; the ratchet reported both as UNEXPECTED PASS and nothing else moved. The cap follows the count down. 151 -> 133 (2026-10-02, #5497): 51 entries whose specs now pass every phase were removed (the ratchet reported each as an UNEXPECTED PASS); 6 specs that parse now and fail one phase later were re-keyed to that phase; 5 discard pins moved DOWN or only re-split their channels; 33 failures of ported specs merged while the gate was red were added under #5549, whose ports are to be redone. The cap follows the count down so nothing can hide in the slack. 29 core specs that began discarding tokens after bee edits were repaired, not recorded (#5572, #5575).",
+  "_why_entries_fell": "77 -> 74 (2026-10-08, #7804): the three GoldenFloat lesson specs this change rewrote -- math/phi_split_optimality (pinned 131), math/radix_economy (55) and numeric/phi_ratio (145) -- now consume every token (their `forall` properties are sampled asserts) and pass every phase; the ratchet reported each as an UNEXPECTED PASS and nothing else moved. The pins are dropped and the cap follows the count down. 113 -> 109 (2026-10-05, #6437): four specs whose files were Rust-flavoured pseudo-t27 (a `loop`/`break` with `..` ranges, a `type Trit = Trit` self-alias, `format!`, `for (k, v)` and `if let`) were rewritten in t27 and now pass every phase -- ar/datalog_engine, ar/ternary_logic, test_framework/graph_drift_detection, test_framework/verilog_bench_harness. The ratchet reported each as an UNEXPECTED PASS; nothing else moved. The cap follows the count down. 113 -> 111 (2026-10-04, #6186): typecheck now resolves Zig's prefix optional `?T` (it only knew `T?`) and lets an optional accept its payload, so `specs/pins/parser.t27` (line 330, `cannot assign U32 to ?u32`) and `specs/port/scripts/gen_w378.t27` pass every phase; the ratchet reported both as UNEXPECTED PASS and nothing else moved. The cap follows the count down. 151 -> 133 (2026-10-02, #5497): 51 entries whose specs now pass every phase were removed (the ratchet reported each as an UNEXPECTED PASS); 6 specs that parse now and fail one phase later were re-keyed to that phase; 5 discard pins moved DOWN or only re-split their channels; 33 failures of ported specs merged while the gate was red were added under #5549, whose ports are to be redone. The cap follows the count down so nothing can hide in the slack. 29 core specs that began discarding tokens after bee edits were repaired, not recorded (#5572, #5575).",
   "_why_entries_rose": "2026-10-05 (#6221, Refs #5776): 111 -> 113, a hand edit. Two ported specs from the 2026-10-04 batch merge (#5755 tri-issue-create, #5836 validation_engine) fail gen-verilog on a local string array, which the Verilog backend refuses (2-D array-of-aggregate lowering, W469). They landed while this job was already red at the type-conflict step, so the suite never ran on them; recorded under #5549 with the other ports to be redone. 2026-10-04 (#5949): 112 -> 113, a hand edit. typecheck now refuses a Rust `match` block, which the parser kept as text and every backend lowered to nothing (a defect that was always present: `auth/config` `get_type` generated `{}`). The corpus held 31 such blocks in 7 specs. 9 were rewritten in t27, as `switch` or `if`: all of auth/config, ar/restraint, ar/coa_planning, igla/training/roadmap and igla/evaluation/multi_lang_harness, and two of ar/composition's three. Two specs stay red: ar/composition already fails `verilog-no-keyword-decl` upstream, so its entry does not move, and git/diff, whose 21 blocks match `Ok`/`Err` of a shell command t27 cannot express, is the one new entry. No ledger entry could be retired against it without inventing a value (the one-token discard in fpga/testbench/bootrom_tb is `0xT27B007`, which has no hex reading and no other source). 2026-10-04 (#5923): 95 -> 112. +25 typecheck failures from a new rule that refuses a struct field with no type or an integer literal for a type (#3225) -- a defect that was always present, which gen-rust wrote as `pub f: ,` and `tri misread` counted; three more of the 28 specs it refuses already fail an earlier phase. -8 parse entries whose files were Markdown documents and are now t27 modules with passing tests. The cap follows the count down, 126 -> 112. a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed. 2026-10-02 (#5497): +2 typecheck failures that #5572 and #5575 unmasked, both in the frozen compiler core (#5573, #5574, each with its patch in the issue); and 7 discard pins raised by what the parser cannot express -- formal property statements (`forall`, `implies`, `==>`) that six specs gained in commits of 2026-09-23 .. 2026-09-30 (ternary_add 674e214d, top_level 48a9bbdd, opcodes 14d5d103, constants 9f168546, phi_split_optimality 7bf5794d, jones_polynomial 97296ccc) and pilot_pretraining in the bee commit 524387f6 of 2026-09-16. Each entry says which lines. The caps were hand-edited, which is the reviewable event."
 }
