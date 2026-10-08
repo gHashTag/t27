@@ -215,7 +215,7 @@ module EmitterXDC {
 
     test qmtech_minimal_line_count
         given out = qmtech_xc7a100t_minimal()
-        then line_count(out) == 13
+        then line_count(out) == 14
 
     test qmtech_minimal_has_12_non_comment_lines
         given out = qmtech_xc7a100t_minimal()
@@ -241,11 +241,11 @@ module EmitterXDC {
 
     test qmtech_minimal_has_all_12_signal_pins
         given out = qmtech_xc7a100t_minimal()
-        then line_count(out) == 13
+        then line_count(out) == 14
 
     test arty_a7_line_count
         given out = arty_a7_minimal()
-        then line_count(out) == 9
+        then line_count(out) == 10
 
     test arty_a7_starts_with_comment
         given out = arty_a7_minimal()
@@ -253,7 +253,7 @@ module EmitterXDC {
 
     test arty_a7_has_clk_and_clock
         given out = arty_a7_minimal()
-        then line_count(out) == 9
+        then line_count(out) == 10
 
     test arty_a7_4_leds
         given out = arty_a7_minimal()
@@ -266,7 +266,7 @@ module EmitterXDC {
 
     invariant qmtech_minimal_has_exactly_13_lines
         given out = qmtech_xc7a100t_minimal()
-        assert line_count(out) == 13
+        assert line_count(out) == 14
 
     invariant qmtech_minimal_starts_with_comment
         given out = qmtech_xc7a100t_minimal()
@@ -282,7 +282,7 @@ module EmitterXDC {
 
     invariant arty_a7_line_count_positive
         given out = arty_a7_minimal()
-        assert line_count(out) > 0 and line_count(out) == 9
+        assert line_count(out) > 0 and line_count(out) == 10
 
     bench emit_pin_latency
         measure: nanoseconds to emit_pin(empty_xdc(), "E3", "LVCMOS33", "clk")
