@@ -1,0 +1,198 @@
+module port::gen_w322;
+
+fn find_string(haystack: []const u8, needle: []const u8) -> ?usize {
+    if (needle.len == 0) {
+        return 0;
+    }
+    if (haystack.len < needle.len) {
+        return null;
+    }
+    
+    var i: usize = 0;
+    while (i <= haystack.len - needle.len) {
+        var j: usize = 0;
+        while (j < needle.len) {
+            if (haystack[i + j] != needle[j]) {
+                break;
+            }
+            j += 1;
+        }
+        if (j == needle.len) {
+            return i;
+        }
+        i += 1;
+    }
+    
+    return null;
+}
+
+pub fn get_last_block(lines: [][]const u8) -> ?[]const u8 {
+    var test_indices: []usize = [];
+    var inv_indices: []usize = [];
+    
+    var line_index: usize = 0;
+    for (lines) |line| {
+        if (line.strip().startswith('test ')) {
+            test_indices.append(line_index);
+        }
+        if (line.strip().startswith('invariant ')) {
+            inv_indices.append(line_index);
+        }
+        line_index += 1;
+    }
+    
+    if (test_indices.len < 2 or inv_indices.len < 1) {
+        return null;
+    }
+    
+    const last_inv = inv_indices[inv_indices.len - 1];
+    var tests_before: []usize = [];
+    
+    for (test_indices) |t| {
+        if (t < last_inv) {
+            tests_before.append(t);
+        }
+    }
+    
+    if (tests_before.len < 2) {
+        return null;
+    }
+    
+    const start_pos = tests_before[tests_before.len - 2];
+    var end_pos: usize = lines.len;
+    
+    var j: usize = last_inv + 1;
+    while (j < lines.len) {
+        const stripped = lines[j].strip();
+        if (stripped.len > 0 and 
+            (stripped.startswith('test ') or 
+             stripped.startswith('invariant ') or 
+             stripped.startswith('fn ') or 
+             stripped.startswith('pub ') or 
+             stripped.startswith('//') or 
+             stripped.startswith('type ') or 
+             stripped.startswith('struct '))) {
+            end_pos = j;
+            break;
+        }
+        j += 1;
+    }
+    
+    return lines[start_pos:end_pos];
+}
+
+pub fn transform_block(block_lines: [][]const u8) -> []const u8 {
+    // Simple implementation - just join with newlines manually
+    var result = "";
+    for (block_lines) |line, i| {
+        if (i > 0) {
+            result = result ++ "\n";
+        }
+        result = result ++ line;
+    }
+    result = result.replace("_w321", "_w322");
+    result = result.replace("_w320", "_w322");
+    result = result.replace("_w319", "_w322");
+    return result ++ "\n";
+}
+
+pub fn process_specs() {
+    undefined;
+}
+
+test get_last_block_valid {
+    var lines: [18][]const u8 = [
+        "pub fn f() -> i32 {",
+        "    return 42;",
+        "}",
+        "test basic {",
+        "    assert(f() == 42);",
+        "}",
+        "invariant always {",
+        "    true;",
+        "}",
+        "test advanced {",
+        "    assert(f() > 0);",
+        "}",
+        "invariant never {",
+        "    false;",
+        "}",
+        "test edge {",
+        "    assert(f() != 0);",
+        "}"
+    ];
+    
+    const result = get_last_block(&lines);
+    assert(result != null);
+    const block = result.?;
+    assert(block.len == 3);
+    assert(block[0] == "test edge {");
+    assert(block[1] == "    assert(f() != 0);");
+    assert(block[2] == "}");
+}
+
+test get_last_block_insufficient_tests {
+    var lines: [9][]const u8 = [
+        "pub fn f() -> i32 {",
+        "    return 42;",
+        "}",
+        "test basic {",
+        "    assert(f() == 42);",
+        "}",
+        "invariant always {",
+        "    true;",
+        "}"
+    ];
+    
+    const result = get_last_block(&lines);
+    assert(result == null);
+}
+
+test get_last_block_insufficient_invariants {
+    var lines: [6][]const u8 = [
+        "pub fn f() -> i32 {",
+        "    return 42;",
+        "}",
+        "test basic {",
+        "    assert(f() == 42);",
+        "}",
+        "test advanced {",
+        "    assert(f() > 0);",
+        "}"
+    ];
+    
+    const result = get_last_block(&lines);
+    assert(result == null);
+}
+
+test transform_block_replacements {
+    var block_lines: [5][]const u8 = [
+        "test w321_case {",
+        "    assert(_w321_value == _w320_other);",
+        "}",
+        "invariant w319_check {",
+        "    _w321_valid;",
+        "}"
+    ];
+    
+    const result = transform_block(&block_lines);
+    // Check if result contains the expected substrings
+    assert(find_string(result, "_w322_case") != null);
+    assert(find_string(result, "_w322_value == _w322_other") != null);
+    assert(find_string(result, "_w322_check") != null);
+    assert(find_string(result, "_w322_valid") != null);
+    assert(result.len > 0 and result[result.len - 1] == '\n');
+}
+
+test transform_block_no_replacements {
+    var block_lines: [3][]const u8 = [
+        "test basic {",
+        "    assert(true);",
+        "}"
+    ];
+    
+    const result = transform_block(&block_lines);
+    assert(find_string(result, "test basic") != null);
+    assert(find_string(result, "assert(true)") != null);
+    assert(result.len > 0 and result[result.len - 1] == '\n');
+}
