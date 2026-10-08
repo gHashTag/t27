@@ -131,3 +131,6 @@ specs/scratch/
 *.glob
 *.aux
 .trinity/notebook_commit_count
+
+# T27 compiler binary
+/t27c-built
