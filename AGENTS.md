@@ -301,3 +301,21 @@ documents addressed to other people's agents, the six negative controls, and the
 `;`-alone-on-a-line trap that silently discards a `module` declaration. This
 section is a pointer, not a copy -- the recorded defect in this codebase family
 is the hand-copied rule that only two of its three homes knew about.
+
+---
+
+## Actors, not threads
+
+Owner's rule, 2026-10-08: the Queen and the swarm move to the actor model. The gHashTag/BrowserOS fork holds the browser extension only.
+
+### Replacement order
+
+1. **MVP**: Implement basic actor model foundation for Queen coordination
+2. **Tests**: Ensure all existing functionality works under the new actor model
+3. **Benchmark**: Measure performance characteristics of the actor-based system
+4. **Numbers on #7851**: Gather metrics and data from the implementation
+5. **The swap**: Complete migration from current threading model to actor model
+
+### Queen code location
+
+The Queen code lives in the gHashTag/t27 repository, specifically in the paths managed by the Queen scheduler and Inngest app `t27-queen`. The actor model implementation will be coordinated through the existing cron and skill specs system.
