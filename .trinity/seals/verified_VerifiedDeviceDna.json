@@ -1,16 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+d42df2b06",
+  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
   "gen_hash_c": "sha256:f6fda6016b15dbf619527691baf0e19324eba45371da7e69bcccd802165d4375",
   "gen_hash_rust": "sha256:22cff45a35575ce04d3fa452ca820d45189dd500591ee8bf295f1001c4015e0c",
   "gen_hash_verilog": "sha256:4c7638c670a8773e712a5b65cc2d5ca87928cf9fa8bfbca51060e8c35f53c6c0",
   "gen_hash_zig": "sha256:663bfd794ae969f6a2d531ad8a3ea39d126009753f9e34b435404a8e4a134c0d",
   "module": "VerifiedDeviceDna",
   "ring": 12,
-  "sealed_at": "2026-10-08T11:13:29Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "sealed_at": "2026-10-08T11:45:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
   "spec_hash": "sha256:04b88f6195af63fa1bc343ab0d874b5e5444d1b3c770990894ba4a747c4182e5",
   "spec_path": "specs/verified/device_dna.t27",
   "tests": {
-    "blocked": "does not compile: runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
   }
 }
