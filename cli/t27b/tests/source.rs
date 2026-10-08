@@ -1314,7 +1314,13 @@ test overflow_traps {
 fn module_var_rejections_are_precise() {
     let head = "module a;\n\nvar g: u32 = 0;\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("test t { var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        // The reference renames `g` to `g_lv` in the whole test: here that
+        // reaches a mention before the declaration, or one outside the
+        // block that declares it, and Zig refuses the file.
+        ("test t { assert(g == 0); var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        ("test t { if (true) { var g: u32 = 1; assert(g == 1); } assert(g == 0); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        ("test t { var g: u32 = g + 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        ("fn f() u32 { var g: u32 = 1; var g: u32 = 2; return g; }\ntest t { assert(f() == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { g = g + 1; return g; }\ntest t { assert(f(1) == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
         ("invariant i { assert(g == 0); }", "ExprIdentifier(var at comptime)", "module-level var `g`"),
@@ -1335,6 +1341,13 @@ fn module_var_rejections_are_precise() {
     // next test starts from the declared value again.
     let write = "module c;\n\nvar g: u32 = 0;\n\nfn read() u32 { return g; }\n\ntest w {\n    g = 5;\n    assert(read() == 5);\n    g += 1;\n    assert(g == 6);\n}\n\ntest fresh {\n    assert(g == 0);\n}\n";
     assert_eq!(names_ok(&run(write)), vec![("w", false, true), ("fresh", false, true)]);
+    // A top-level local declared before any mention of the name, in a test
+    // or a fn: the reference's `g_lv` reaches exactly the mentions that are
+    // the local's, and a fn the body calls still reads the module var.
+    let shadow = "module d;\n\nvar g: u32 = 7;\n\nfn read() u32 { return g; }\n\nfn f(x: u32) u32 {\n    var g: u32 = x * 3;\n    g = g + 1;\n    return g + read();\n}\n\ntest t {\n    var g: u32 = 100;\n    g = g + 5;\n    assert(g == 105);\n    assert(read() == 7);\n    assert(f(2) == 14);\n}\n\ntest u {\n    var g: u32 = 1;\n    assert(g == 7);\n}\n";
+    let r = run(shadow);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(shadow, "g == 7"))));
 }
 
 #[test]

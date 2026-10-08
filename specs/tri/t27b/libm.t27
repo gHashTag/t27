@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin, written in t27
-; (issues #7391 and #7217, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log)).
+; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin or a `std.math` fn,
+; written in t27 (issues #7391, #7217 and #7791, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log),
+; std.math.nan, isNan, isPositiveInf, isNegativeInf).
 ; `t27c test-report` runs `zig test` without libc, so a run-time `@exp(x)` is a call into Zig's
 ; compiler_rt: `exp` for an f64 and `expf` for an f32, both ports of the FreeBSD/musl fdlibm code.
 ; A run-time `@log(x)` of an f64 is compiler_rt's `log`, a port of musl's table-driven log.c.
@@ -19,6 +20,8 @@
 ; - musl's log splits x = z * 2^k by subtracting a bit pattern from x's bits. Here z and k come
 ;   from multiplying by exact powers of two, which gives the same z and k, and the table index
 ;   (bits 45..51 of that difference) is the same affine function of z, computed exactly.
+; `std.math.nan`, `isNan`, `isPositiveInf` and `isNegativeInf` (#7791) are Zig 0.16's std/math/float.zig,
+; isnan.zig and isinf.zig, a line each: the canonical quiet NaN by its bits, `x != x`, `x == inf`, `x == -inf`.
 ; A `@exp` or `@log` of a literal (a comptime_float) is refused: Zig may fold it at 128-bit precision.
 ; The tests check the routines against Zig's `@exp` and `@log` on run-time operands: equal on every
 ; point of each sweep, under the reference; and against fixed values for both. A call Zig folds at
@@ -404,6 +407,54 @@ fn t27b_libm_log(t27b_x: f64) -> f64 {
     return t27b_lo + t27b_r2 * -0.5000000000000001 + t27b_r * t27b_r2 * (0.33333333331825593 + t27b_r * -0.2499999999622955 + t27b_r2 * (0.20000304511814496 + t27b_r * -0.16667054827627667)) + t27b_hi;
 }
 
+// The bits of the canonical quiet NaN (exponent all ones, the top fraction bit set) and of +inf (exponent
+// all ones, fraction zero), std/math/float.zig's `nan` and `inf`. Measured on the t27c lab: std.math.nan(f64)
+// is 0x7FF8000000000000 and std.math.nan(f32) 0x7FC00000. Module-level, so t27c's optimizer never puts the
+// literal itself in a `@bitCast`, which Zig refuses (specs/tri/t27b/bit_cast_plan.t27).
+const t27b_libm_qnan64: u64 = 0x7FF8000000000000;
+const t27b_libm_qnan32: u32 = 0x7FC00000;
+const t27b_libm_inf64: u64 = 0x7FF0000000000000;
+const t27b_libm_inf32: u32 = 0x7F800000;
+
+// std.math.nan(f64) and std.math.nan(f32).
+fn t27b_libm_nan() -> f64 {
+    return @bitCast(t27b_libm_qnan64);
+}
+
+fn t27b_libm_nanf() -> f32 {
+    return @bitCast(t27b_libm_qnan32);
+}
+
+// std.math.isNan (std/math/isnan.zig): `x != x`.
+fn t27b_libm_isnan(t27b_x: f64) -> bool {
+    return t27b_x != t27b_x;
+}
+
+fn t27b_libm_isnanf(t27b_x: f32) -> bool {
+    return t27b_x != t27b_x;
+}
+
+// std.math.isPositiveInf and isNegativeInf (std/math/isinf.zig): `x == math.inf(T)` and `x == -math.inf(T)`.
+fn t27b_libm_isposinf(t27b_x: f64) -> bool {
+    const t27b_inf: f64 = @bitCast(t27b_libm_inf64);
+    return t27b_x == t27b_inf;
+}
+
+fn t27b_libm_isposinff(t27b_x: f32) -> bool {
+    const t27b_inf: f32 = @bitCast(t27b_libm_inf32);
+    return t27b_x == t27b_inf;
+}
+
+fn t27b_libm_isneginf(t27b_x: f64) -> bool {
+    const t27b_inf: f64 = @bitCast(t27b_libm_inf64);
+    return t27b_x == -t27b_inf;
+}
+
+fn t27b_libm_isneginff(t27b_x: f32) -> bool {
+    const t27b_inf: f32 = @bitCast(t27b_libm_inf32);
+    return t27b_x == -t27b_inf;
+}
+
 // ---------------------------------------------------------------- tests
 
 fn exp_of(x: f64) -> f64 {
@@ -673,4 +724,97 @@ invariant log_folded_at_compile_time_is_compiler_rt: log_of(10.0) == 2.302585092
 test cross_entropy_of_a_one_hot_target {
     assert(cross_entropy(0.5, 0.5, 1.0, 0.0) == 0.6931471803599453);
     assert(cross_entropy(1.0, 0.0, 1.0, 0.0) < 0.00001);
+}
+
+// std.math.nan, isNan, isPositiveInf and isNegativeInf against the routines, on the bit patterns where they
+// part: the quiet and the signalling NaN of either sign, the infinities, the largest finite, the zeros.
+fn bits_of_f32(x: f32) -> u32 {
+    const b: u32 = @bitCast(x);
+    return b;
+}
+
+fn bits_of_f64(x: f64) -> u64 {
+    const b: u64 = @bitCast(x);
+    return b;
+}
+
+fn f32_of(b: u32) -> f32 {
+    const x: f32 = @bitCast(b);
+    return x;
+}
+
+fn f64_of(b: u64) -> f64 {
+    const x: f64 = @bitCast(b);
+    return x;
+}
+
+// How many of the f32 points the four routines and Zig's std.math classify differently.
+fn std_math_misses_f32() -> u32 {
+    var pts: [9]u32 = undefined;
+    pts[0] = 0x7FC00000;
+    pts[1] = 0xFFC00000;
+    pts[2] = 0x7F800001;
+    pts[3] = 0xFF800001;
+    pts[4] = 0x7F800000;
+    pts[5] = 0xFF800000;
+    pts[6] = 0x7F7FFFFF;
+    pts[7] = 0x80000000;
+    pts[8] = 0x00000001;
+    var misses: u32 = 0;
+    var i: usize = 0;
+    while (i < 9) {
+        const x: f32 = f32_of(pts[i]);
+        if (t27b_libm_isnanf(x) != std.math.isNan(x)) { misses = misses + 1; }
+        if (t27b_libm_isposinff(x) != std.math.isPositiveInf(x)) { misses = misses + 1; }
+        if (t27b_libm_isneginff(x) != std.math.isNegativeInf(x)) { misses = misses + 1; }
+        i = i + 1;
+    }
+    return misses;
+}
+
+fn std_math_misses_f64() -> u32 {
+    var pts: [7]u64 = undefined;
+    pts[0] = 0x7FF8000000000000;
+    pts[1] = 0xFFF8000000000000;
+    pts[2] = 0x7FF0000000000001;
+    pts[3] = 0x7FF0000000000000;
+    pts[4] = 0xFFF0000000000000;
+    pts[5] = 0x7FEFFFFFFFFFFFFF;
+    pts[6] = 0x8000000000000000;
+    var misses: u32 = 0;
+    var i: usize = 0;
+    while (i < 7) {
+        const x: f64 = f64_of(pts[i]);
+        if (t27b_libm_isnan(x) != std.math.isNan(x)) { misses = misses + 1; }
+        if (t27b_libm_isposinf(x) != std.math.isPositiveInf(x)) { misses = misses + 1; }
+        if (t27b_libm_isneginf(x) != std.math.isNegativeInf(x)) { misses = misses + 1; }
+        i = i + 1;
+    }
+    return misses;
+}
+
+test std_math_nan_is_the_canonical_quiet_nan {
+    assert(bits_of_f32(std.math.nan(f32)) == 0x7FC00000);
+    assert(bits_of_f64(std.math.nan(f64)) == 0x7FF8000000000000);
+    assert(bits_of_f32(t27b_libm_nanf()) == 0x7FC00000);
+    assert(bits_of_f64(t27b_libm_nan()) == 0x7FF8000000000000);
+    assert(bits_of_f32(-std.math.nan(f32)) == 0xFFC00000);
+    const n: f32 = std.math.nan(f32);
+    assert(n != n);
+}
+
+test the_nan_and_inf_predicates_are_zig_s {
+    assert(std_math_misses_f32() == 0);
+    assert(std_math_misses_f64() == 0);
+    assert(std.math.isNan(f32_of(0x7F800001)));
+    assert(!std.math.isNan(f32_of(0x7F800000)));
+    assert(std.math.isPositiveInf(f32_of(0x7F800000)));
+    assert(!std.math.isPositiveInf(f32_of(0xFF800000)));
+    assert(std.math.isNegativeInf(f64_of(0xFFF0000000000000)));
+    assert(!std.math.isNegativeInf(f64_of(0xFFF8000000000000)));
+    assert(t27b_libm_isnanf(f32_of(0xFF800001)));
+    assert(!t27b_libm_isposinff(f32_of(0x7F7FFFFF)));
+    assert(t27b_libm_isneginff(f32_of(0xFF800000)));
+    assert(t27b_libm_isposinf(f64_of(0x7FF0000000000000)));
+    assert(!t27b_libm_isnan(f64_of(0x8000000000000000)));
 }
