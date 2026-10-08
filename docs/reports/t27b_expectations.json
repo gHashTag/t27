@@ -14,7 +14,7 @@
  },
  "max_not_pass": 38,
  "counts": {
-  "pass": 905,
+  "pass": 907,
   "pass_vacuous": 151,
   "not_pass": 38
  },
@@ -298,6 +298,8 @@
   {"path": "specs/isa/tri27_machine.t27", "t27b": "pass"},
   {"path": "specs/lsp/language.t27", "t27b": "pass_vacuous"},
   {"path": "specs/math/gf_competitive.t27", "t27b": "pass"},
+  {"path": "specs/memory/graph/temporal.t27", "t27b": "pass"},
+  {"path": "specs/memory/graph/types.t27", "t27b": "pass"},
   {"path": "specs/memory/tmem/session.t27", "t27b": "pass"},
   {"path": "specs/memory/tmem/types.t27", "t27b": "pass"},
   {"path": "specs/mesh_routing.t27", "t27b": "pass_vacuous"},
