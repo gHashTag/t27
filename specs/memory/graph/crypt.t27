@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/memory/graph/crypt.t27 -- how content is sealed per group and forgotten by destroying a key
+; Epic #7828, slice 3 (#7882); the storage side of gHashTag/999-multibots-telegraf#3877.
+; Envelope encryption: every group (one owner, one user; scope.t27) has a 32-byte data key (DEK).
+; The DEK is stored only wrapped by a key-encryption key (KEK) that a KMS keeps OUTSIDE the app
+; host; unwrapping is the KMS's decision and is logged there. Content (episode text, entity
+; summaries, fact sentences) is sealed with ChaCha20-Poly1305 (RFC 8439) under the DEK.
+; The associated data is NOT stored: the reader rebuilds it from the row's own scope columns
+; (kind, owner, user, thread, record id, key version). A ciphertext copied into another group's
+; row, another thread or another record therefore fails its tag.
+; Forget = crypto-shredding: the DEK goes to DESTROYED (the KMS deletes the wrapped copy), and
+; every envelope sealed under it becomes unreadable, in backups too.
+; Search over sealed text uses HMAC tokens under an index key derived from the DEK, so the
+; tokens die with the key.
+; Honest boundary: whoever runs the code that holds an unwrapped DEK reads plaintext; keeping
+; operators out needs the client or an attested enclave (attest.t27, slice 6).
+
+module MemoryGraphCrypt;
+
+; Key states of a group's data key.
+pub const KEY_ACTIVE : u8 = 1;
+pub const KEY_RETIRED : u8 = 2;
+pub const KEY_DESTROYED : u8 = 3;
+
+; AEAD: ChaCha20-Poly1305, RFC 8439.
+pub const ALG_CHACHA20_POLY1305 : u8 = 1;
+pub const KEY_BYTES : u32 = 32;
+pub const NONCE_BYTES : u32 = 12;
+pub const TAG_BYTES : u32 = 16;
+
+; Envelope, little-endian: "TGE1" | version | alg | 2 reserved zero bytes | key_version u32 |
+; nonce (12) | ciphertext | tag (16).
+pub const ENV_MAGIC_0 : u8 = 0x54;
+pub const ENV_MAGIC_1 : u8 = 0x47;
+pub const ENV_MAGIC_2 : u8 = 0x45;
+pub const ENV_MAGIC_3 : u8 = 0x31;
+pub const ENV_VERSION : u8 = 1;
+pub const ENV_VERSION_OFFSET : u32 = 4;
+pub const ENV_ALG_OFFSET : u32 = 5;
+pub const ENV_RESERVED_OFFSET : u32 = 6;
+pub const ENV_KEY_VERSION_OFFSET : u32 = 8;
+pub const ENV_NONCE_OFFSET : u32 = 12;
+pub const ENV_HEADER_BYTES : u32 = 24;
+pub const ENV_OVERHEAD_BYTES : u32 = 40;
+pub const ENV_MAX_PLAINTEXT_BYTES : u32 = 1048576;
+
+; Associated data, rebuilt by the reader, little-endian: "TGA1" | kind u8 | 3 zero bytes |
+; owner u64 | user u64 | thread u64 | record u64 | key_version u32.
+pub const AAD_KIND_OFFSET : u32 = 4;
+pub const AAD_OWNER_OFFSET : u32 = 8;
+pub const AAD_USER_OFFSET : u32 = 16;
+pub const AAD_THREAD_OFFSET : u32 = 24;
+pub const AAD_RECORD_OFFSET : u32 = 32;
+pub const AAD_KEY_VERSION_OFFSET : u32 = 40;
+pub const AAD_BYTES : u32 = 44;
+
+; Search tokens: HMAC-SHA256 over "TGT1" | field u8 | normalized term, first 16 bytes.
+pub const HMAC_BYTES : u32 = 32;
+pub const TOKEN_BYTES : u32 = 16;
+pub const FIELD_ENTITY_NAME : u8 = 1;
+pub const FIELD_TERM : u8 = 2;
+
+; A key seals at most 2^32 envelopes with random 96-bit nonces, then it is rotated.
+pub const MAX_SEALS_PER_KEY : u64 = 4294967296;
+
+; Service tokens for an external store: expiring, at most 15 minutes, 30 s clock skew.
+pub const SERVICE_TOKEN_MAX_TTL : u64 = 900;
+pub const SERVICE_TOKEN_SKEW : u64 = 30;
+
+; Open status, checked in this order.
+pub const OPEN_OK : i32 = 0;
+pub const OPEN_ERR_HEADER : i32 = -1;
+pub const OPEN_ERR_KEY_DESTROYED : i32 = -2;
+pub const OPEN_ERR_KEY_VERSION : i32 = -3;
+pub const OPEN_ERR_KMS_DENIED : i32 = -4;
+pub const OPEN_ERR_TAG : i32 = -5;
+
+pub fn is_key_state(state: u8) -> bool {
+    return state == KEY_ACTIVE || state == KEY_RETIRED || state == KEY_DESTROYED;
+}
+
+; Keys only move forward: ACTIVE -> RETIRED -> DESTROYED, or ACTIVE -> DESTROYED.
+pub fn key_transition_ok(from: u8, to: u8) -> bool {
+    if (from == KEY_ACTIVE) { return to == KEY_RETIRED || to == KEY_DESTROYED; }
+    if (from == KEY_RETIRED) { return to == KEY_DESTROYED; }
+    return false;
+}
+
+; Only the active key seals new content; a retired key still opens what it sealed.
+pub fn may_seal(state: u8) -> bool {
+    return state == KEY_ACTIVE;
+}
+
+pub fn may_open(state: u8) -> bool {
+    return state == KEY_ACTIVE || state == KEY_RETIRED;
+}
+
+; Forget is the same step from any live state; a destroyed key stays destroyed. A group that
+; never had a key (state 0) has nothing to shred and stays without one.
+pub fn forget(state: u8) -> u8 {
+    if (state == 0) { return 0; }
+    return KEY_DESTROYED;
+}
+
+; Key versions start at 1; 0 is unset.
+pub fn next_key_version(version: u32) -> u32 {
+    return version + 1;
+}
+
+pub fn must_rotate(seals: u64) -> bool {
+    return seals >= MAX_SEALS_PER_KEY;
+}
+
+pub fn envelope_bytes(plaintext: u32) -> u32 {
+    return plaintext + ENV_OVERHEAD_BYTES;
+}
+
+; The plaintext length of an envelope, or -1 when it cannot be one.
+pub fn plaintext_bytes(envelope: u32) -> i64 {
+    if (envelope < ENV_OVERHEAD_BYTES) { return -1; }
+    var n : u32 = envelope - ENV_OVERHEAD_BYTES;
+    if (n > ENV_MAX_PLAINTEXT_BYTES) { return -1; }
+    return n as i64;
+}
+
+; Header bytes as read: magic, version, algorithm, reserved, key version and total length.
+pub fn header_ok(m0: u8, m1: u8, m2: u8, m3: u8, version: u8, alg: u8, r0: u8, r1: u8,
+                 key_version: u32, envelope: u32) -> bool {
+    if (m0 != ENV_MAGIC_0 || m1 != ENV_MAGIC_1 || m2 != ENV_MAGIC_2 || m3 != ENV_MAGIC_3) { return false; }
+    if (version != ENV_VERSION || alg != ALG_CHACHA20_POLY1305) { return false; }
+    if (r0 != 0 || r1 != 0 || key_version == 0) { return false; }
+    return plaintext_bytes(envelope) >= 0;
+}
+
+; The decision to release plaintext. header_ok: header_ok above; state: the group key's state;
+; version_match: the envelope's key version is one the group holds; kms_ok: the KMS unwrapped
+; the DEK for this caller; tag_ok: the Poly1305 tag verified over the rebuilt associated data.
+pub fn open_status(header: bool, state: u8, version_match: bool, kms_ok: bool, tag_ok: bool) -> i32 {
+    if (!header) { return OPEN_ERR_HEADER; }
+    if (!may_open(state)) { return OPEN_ERR_KEY_DESTROYED; }
+    if (!version_match) { return OPEN_ERR_KEY_VERSION; }
+    if (!kms_ok) { return OPEN_ERR_KMS_DENIED; }
+    if (!tag_ok) { return OPEN_ERR_TAG; }
+    return OPEN_OK;
+}
+
+; Byte i (0 = least significant) of a little-endian unsigned value.
+pub fn le_byte(value: u64, i: u32) -> u8 {
+    var shift : u64 = (i as u64) * 8;
+    return ((value >> shift) & 255) as u8;
+}
+
+; Byte i of the associated data for a record; 0 past the end. Every scope field is in it, so
+; changing any of them changes at least one byte, and the Poly1305 tag no longer verifies.
+pub fn aad_byte(i: u32, kind: u8, owner: u64, user: u64, thread: u64, record: u64, key_version: u32) -> u8 {
+    if (i == 0) { return 0x54; }
+    if (i == 1) { return 0x47; }
+    if (i == 2) { return 0x41; }
+    if (i == 3) { return 0x31; }
+    if (i == AAD_KIND_OFFSET) { return kind; }
+    if (i < AAD_OWNER_OFFSET) { return 0; }
+    if (i < AAD_USER_OFFSET) { return le_byte(owner, i - AAD_OWNER_OFFSET); }
+    if (i < AAD_THREAD_OFFSET) { return le_byte(user, i - AAD_USER_OFFSET); }
+    if (i < AAD_RECORD_OFFSET) { return le_byte(thread, i - AAD_THREAD_OFFSET); }
+    if (i < AAD_KEY_VERSION_OFFSET) { return le_byte(record, i - AAD_RECORD_OFFSET); }
+    if (i < AAD_BYTES) { return le_byte(key_version as u64, i - AAD_KEY_VERSION_OFFSET); }
+    return 0;
+}
+
+; Two scopes give the same associated data only if every byte agrees.
+pub fn aad_equal(kind_a: u8, owner_a: u64, user_a: u64, thread_a: u64, record_a: u64, version_a: u32,
+                 kind_b: u8, owner_b: u64, user_b: u64, thread_b: u64, record_b: u64, version_b: u32) -> bool {
+    var i : u32 = 0;
+    while (i < AAD_BYTES) {
+        var a : u8 = aad_byte(i, kind_a, owner_a, user_a, thread_a, record_a, version_a);
+        var b : u8 = aad_byte(i, kind_b, owner_b, user_b, thread_b, record_b, version_b);
+        if (a != b) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn is_field(field: u8) -> bool {
+    return field == FIELD_ENTITY_NAME || field == FIELD_TERM;
+}
+
+; A service token must expire, live at most SERVICE_TOKEN_MAX_TTL, be issued no later than
+; now + skew and not be expired at now.
+pub fn service_token_ok(iat: u64, exp: u64, now: u64) -> bool {
+    if (exp == 0 || iat == 0 || exp <= iat) { return false; }
+    if (exp - iat > SERVICE_TOKEN_MAX_TTL) { return false; }
+    if (iat > now + SERVICE_TOKEN_SKEW) { return false; }
+    return now < exp;
+}
+
+test key_states_are_exactly_three {
+    assert is_key_state(KEY_ACTIVE);
+    assert is_key_state(KEY_RETIRED);
+    assert is_key_state(KEY_DESTROYED);
+    assert !is_key_state(0);
+    assert !is_key_state(4);
+}
+
+test keys_only_move_forward {
+    assert key_transition_ok(KEY_ACTIVE, KEY_RETIRED);
+    assert key_transition_ok(KEY_ACTIVE, KEY_DESTROYED);
+    assert key_transition_ok(KEY_RETIRED, KEY_DESTROYED);
+    assert !key_transition_ok(KEY_RETIRED, KEY_ACTIVE);
+    assert !key_transition_ok(KEY_DESTROYED, KEY_ACTIVE);
+    assert !key_transition_ok(KEY_DESTROYED, KEY_RETIRED);
+    assert !key_transition_ok(KEY_ACTIVE, KEY_ACTIVE);
+    assert !key_transition_ok(0, KEY_ACTIVE);
+}
+
+test seal_with_active_open_with_live {
+    assert may_seal(KEY_ACTIVE);
+    assert !may_seal(KEY_RETIRED);
+    assert !may_seal(KEY_DESTROYED);
+    assert may_open(KEY_ACTIVE);
+    assert may_open(KEY_RETIRED);
+    assert !may_open(KEY_DESTROYED);
+    assert !may_open(0);
+}
+
+test forget_shreds_every_envelope {
+    var gone : u8 = forget(KEY_ACTIVE);
+    assert gone == KEY_DESTROYED;
+    assert forget(KEY_RETIRED) == KEY_DESTROYED;
+    assert forget(KEY_DESTROYED) == KEY_DESTROYED;
+    assert forget(0) == 0;
+    assert open_status(true, gone, true, true, true) == OPEN_ERR_KEY_DESTROYED;
+    assert !may_seal(gone);
+}
+
+test versions_and_rotation {
+    assert next_key_version(1) == 2;
+    assert !must_rotate(4294967295);
+    assert must_rotate(MAX_SEALS_PER_KEY);
+    assert !must_rotate(0);
+}
+
+test envelope_lengths {
+    assert envelope_bytes(0) == 40;
+    assert envelope_bytes(5) == 45;
+    assert plaintext_bytes(40) == 0;
+    assert plaintext_bytes(45) == 5;
+    assert plaintext_bytes(39) == -1;
+    assert plaintext_bytes(0) == -1;
+    assert plaintext_bytes(1048616) == 1048576;
+    assert plaintext_bytes(1048617) == -1;
+}
+
+test header_fields {
+    assert header_ok(0x54, 0x47, 0x45, 0x31, 1, 1, 0, 0, 1, 45);
+    assert !header_ok(0x54, 0x47, 0x45, 0x32, 1, 1, 0, 0, 1, 45);
+    assert !header_ok(0x55, 0x47, 0x45, 0x31, 1, 1, 0, 0, 1, 45);
+    assert !header_ok(0x54, 0x48, 0x45, 0x31, 1, 1, 0, 0, 1, 45);
+    assert !header_ok(0x54, 0x47, 0x46, 0x31, 1, 1, 0, 0, 1, 45);
+    assert header_ok(0x54, 0x47, 0x45, 0x31, 1, 1, 0, 0, 1, 40);
+    assert !header_ok(0x54, 0x47, 0x45, 0x31, 2, 1, 0, 0, 1, 45);
+    assert !header_ok(0x54, 0x47, 0x45, 0x31, 1, 2, 0, 0, 1, 45);
+    assert !header_ok(0x54, 0x47, 0x45, 0x31, 1, 1, 1, 0, 1, 45);
+    assert !header_ok(0x54, 0x47, 0x45, 0x31, 1, 1, 0, 1, 1, 45);
+    assert !header_ok(0x54, 0x47, 0x45, 0x31, 1, 1, 0, 0, 0, 45);
+    assert !header_ok(0x54, 0x47, 0x45, 0x31, 1, 1, 0, 0, 1, 39);
+}
+
+test open_checks_in_order {
+    assert open_status(true, KEY_ACTIVE, true, true, true) == OPEN_OK;
+    assert open_status(true, KEY_RETIRED, true, true, true) == OPEN_OK;
+    assert open_status(false, KEY_DESTROYED, false, false, false) == OPEN_ERR_HEADER;
+    assert open_status(true, KEY_DESTROYED, false, false, false) == OPEN_ERR_KEY_DESTROYED;
+    assert open_status(true, KEY_ACTIVE, false, false, false) == OPEN_ERR_KEY_VERSION;
+    assert open_status(true, KEY_ACTIVE, true, false, true) == OPEN_ERR_KMS_DENIED;
+    assert open_status(true, KEY_ACTIVE, true, true, false) == OPEN_ERR_TAG;
+    assert open_status(true, 0, true, true, true) == OPEN_ERR_KEY_DESTROYED;
+}
+
+test aad_layout_is_little_endian {
+    assert aad_byte(0, 3, 1, 2, 0, 9, 1) == 0x54;
+    assert aad_byte(3, 3, 1, 2, 0, 9, 1) == 0x31;
+    assert aad_byte(4, 3, 1, 2, 0, 9, 1) == 3;
+    assert aad_byte(5, 3, 1, 2, 0, 9, 1) == 0;
+    assert aad_byte(7, 3, 1, 2, 0, 9, 1) == 0;
+    assert aad_byte(8, 3, 258, 2, 0, 9, 1) == 2;
+    assert aad_byte(9, 3, 258, 2, 0, 9, 1) == 1;
+    assert aad_byte(15, 3, 9151314442816847872, 2, 0, 9, 1) == 127;
+    assert aad_byte(16, 3, 1, 2, 0, 9, 1) == 2;
+    assert aad_byte(24, 3, 1, 2, 5, 9, 1) == 5;
+    assert aad_byte(32, 3, 1, 2, 0, 9, 1) == 9;
+    assert aad_byte(40, 3, 1, 2, 0, 9, 16909060) == 4;
+    assert aad_byte(43, 3, 1, 2, 0, 9, 16909060) == 1;
+    assert aad_byte(44, 3, 1, 2, 0, 9, 1) == 0;
+}
+
+test the_scope_is_bound_into_the_tag {
+    assert aad_equal(3, 1, 2, 0, 9, 1, 3, 1, 2, 0, 9, 1);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 1, 1, 2, 0, 9, 1);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 3, 7, 2, 0, 9, 1);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 3, 1, 7, 0, 9, 1);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 3, 1, 2, 5, 9, 1);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 3, 1, 2, 0, 8, 1);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 3, 1, 2, 0, 9, 2);
+    assert !aad_equal(3, 1, 2, 0, 9, 1, 3, 1, 2, 0, 9, 257);
+    assert !aad_equal(3, 256, 2, 0, 9, 1, 3, 1, 2, 0, 9, 1);
+}
+
+test token_fields {
+    assert is_field(FIELD_ENTITY_NAME);
+    assert is_field(FIELD_TERM);
+    assert !is_field(0);
+    assert !is_field(3);
+}
+
+test service_tokens_expire {
+    assert service_token_ok(1000, 1900, 1000);
+    assert service_token_ok(1000, 1900, 1899);
+    assert !service_token_ok(1000, 1900, 1900);
+    assert !service_token_ok(1000, 1901, 1000);
+    assert !service_token_ok(1000, 0, 1000);
+    assert !service_token_ok(0, 900, 100);
+    assert !service_token_ok(1000, 1000, 999);
+    assert service_token_ok(1030, 1100, 1000);
+    assert !service_token_ok(1031, 1100, 1000);
+}
+
+invariant header_is_contiguous {
+    ENV_NONCE_OFFSET + NONCE_BYTES == ENV_HEADER_BYTES;
+}
+
+invariant overhead_is_header_and_tag {
+    ENV_HEADER_BYTES + TAG_BYTES == ENV_OVERHEAD_BYTES;
+}
+
+invariant aad_is_contiguous {
+    AAD_KEY_VERSION_OFFSET + 4 == AAD_BYTES;
+}
+
+invariant token_is_a_hmac_prefix {
+    TOKEN_BYTES <= HMAC_BYTES;
+}

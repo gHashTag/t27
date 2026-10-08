@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+eda79f025",
+  "gen_hash_c": "sha256:42bd5b19c4f1909b4ce5f507c05c967ae26849745a40dc5df23117bda71ad357",
+  "gen_hash_rust": "sha256:04511ccab72e4e5f669f3a101c32a6105c6b27540989ec728bb45de8a6dd9037",
+  "gen_hash_verilog": "sha256:aecc73aa34527ab6e2ae3f43f028e6a0cb1be15336d0e8a197c802d9d92730e7",
+  "gen_hash_zig": "sha256:90caddcde5563028e7ae34567142aa0e265806ac0d84598bd9c12069dcf77cbb",
+  "module": "MemoryGraphCrypt",
+  "ring": 12,
+  "sealed_at": "2026-10-08T18:01:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:1a1fc6b84c7c0c88d953e5ec89d05866c950917e69e554dcbced9109eef4ace5",
+  "spec_path": "specs/memory/graph/crypt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  }
+}
