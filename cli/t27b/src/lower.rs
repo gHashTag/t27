@@ -1341,6 +1341,7 @@ impl<'a> Lower<'a> {
         let with_str = match &t {
             LTy::Str => true,
             LTy::S(_) | LTy::Enum(..) | LTy::Struct(_) | LTy::Arr(..) => self.holds_str(&t)?,
+            LTy::Opt(_) if self.is_null(init) => false,
             _ => {
                 let d = self.type_name(&t);
                 return self.reject(
@@ -1364,6 +1365,7 @@ impl<'a> Lower<'a> {
                 buf.fill(0xAA);
                 Ok(())
             }
+            LTy::Opt(_) => Ok(()), // `= null` (#7910): zero bytes, a null flag; no payload is read before a write
             LTy::S(ty) => {
                 let ty = *ty;
                 let mut f = || -> R<()> {
