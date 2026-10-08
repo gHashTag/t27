@@ -5612,10 +5612,36 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     // reports the mismatch instead of certifying output gen no longer emits.
     let refusal = typecheck_input_ast(path, &source)
         .and_then(|(ast, _)| typecheck_refusal_for_ast(input_path, &ast));
+    
+    // Use the same approach as gen commands: resolve use statements first,
+    // then compile the resolved source. Fall back to raw source if resolution fails.
+    let resolved = use_resolve::resolve(path, &source);
+    let resolved_source = resolved;
+    
     let gated = |backend: fn(&str) -> Result<String, String>| -> Result<String, String> {
         match &refusal {
             Some(msg) => Err(msg.clone()),
-            None => backend(&source),
+            None => {
+                // Try resolved source first, fall back to raw if compilation fails
+                match backend(&resolved_source) {
+                    Ok(code) => Ok(code),
+                    Err(spliced_err) => {
+                        match backend(&source) {
+                            Ok(code) => {
+                                // The splice is discarded here and the unresolved original used
+                                // instead. Without this line that is invisible: the command
+                                // succeeds, and every import it resolved is silently gone.
+                                eprintln!(
+                                    "note: spliced source did not compile, falling back to the \
+                                    unresolved original -- imported declarations are NOT in this output"
+                                );
+                                Ok(code)
+                            }
+                            Err(_) => Err(spliced_err),
+                        }
+                    }
+                }
+            }
         }
     };
     let gen_hash_zig = match gated(compiler::Compiler::compile) {
