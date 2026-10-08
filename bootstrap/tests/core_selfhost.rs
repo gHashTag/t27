@@ -43,6 +43,7 @@ int main(void) {
     int64_t r = compile((int64_t)n);
     if (r < 0) {
         fprintf(stderr, "t27core: error %lld at byte %lld\n", (long long)err_code, (long long)err_pos);
+        fwrite(out, 1, (size_t)out_len, stdout);
         return 1;
     }
     fwrite(out, 1, (size_t)r, stdout);
@@ -76,8 +77,10 @@ fn gen_c(path: &Path) -> Option<Vec<u8>> {
     if out.status.success() { Some(out.stdout) } else { None }
 }
 
-/// Runs the built core on `src`: Ok(C bytes) or Err(error code).
-fn run_core(core: &Path, src: &[u8]) -> Result<Vec<u8>, i64> {
+/// Runs the built core on `src`: Ok(C bytes) or Err(error code). Code 10 asks
+/// for the module whose path under `specs` it prints: the core runs again with
+/// a NUL, that path, a newline and the module's text appended.
+fn run_core(core: &Path, src: &[u8], specs: &Path) -> Result<Vec<u8>, i64> {
     let mut child = Command::new(core)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -98,7 +101,12 @@ fn run_core(core: &Path, src: &[u8]) -> Result<Vec<u8>, i64> {
         .nth(2)
         .and_then(|s| s.parse().ok())
         .unwrap_or(-1);
-    Err(code)
+    match std::fs::read(specs.join(String::from_utf8_lossy(&out.stdout).as_ref())) {
+        Ok(text) if code == 10 && !out.stdout.is_empty() && src.len() < 1 << 18 => {
+            run_core(core, &[src, &[0u8][..], &out.stdout[..], &b"\n"[..], &text[..]].concat(), specs)
+        }
+        _ => Err(code),
+    }
 }
 
 fn cc(args: &[&str], dir: &Path) {
@@ -210,6 +218,9 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
     let root = repo_root();
     let spec = root.join("specs/compiler/core/t27core.t27");
     let dir = work_dir();
+    // gen-c finds the modules a fixture's `use` names in a `specs/` beside it.
+    let specs = dir.join("specs");
+    let _ = std::os::unix::fs::symlink(root.join("bootstrap/tests/fixtures/core_selfhost/specs"), &specs);
 
     // 1. gen-c builds the core; its own tests pass.
     let core_c = gen_c(&spec).expect("gen-c compiles t27core.t27");
@@ -223,7 +234,7 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
 
     // 2. Fixpoint.
     let own = std::fs::read(&spec).unwrap();
-    let self_c = run_core(&core, &own).expect("t27core accepts its own source");
+    let self_c = run_core(&core, &own, &specs).expect("t27core accepts its own source");
     assert!(self_c == core_c, "fixpoint broken: core(t27core.t27) != gen-c(t27core.t27)");
 
     // 3. Fixtures.
@@ -236,7 +247,7 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
         std::fs::write(&path, src).unwrap();
         let want = gen_c(&path).unwrap_or_else(|| panic!("gen-c refused fixture {}", i));
         if *core_too {
-            let got = run_core(&core, src.as_bytes())
+            let got = run_core(&core, src.as_bytes(), &specs)
                 .unwrap_or_else(|c| panic!("core refused fixture {} with code {}:\n{}", i, c, src));
             assert!(got == want, "fixture {} differs from gen-c:\n{}", i, src);
         }
@@ -267,7 +278,7 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
         }))
         .collect();
     for (src, code) in &refusals {
-        match run_core(&core, src.as_bytes()) {
+        match run_core(&core, src.as_bytes(), &specs) {
             Ok(_) => panic!("core accepted a lossy shape:\n{}", src),
             Err(c) => assert_eq!(c, *code, "wrong refusal code for:\n{}", src),
         }
@@ -280,7 +291,7 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
         let path = dir.join(format!("refused{}.t27", i));
         std::fs::write(&path, src).unwrap();
         assert!(gen_c(&path).is_none(), "gen-c accepted a refused shape:\n{}", src);
-        assert!(run_core(&core, src.as_bytes()).is_err(), "core accepted:\n{}", src);
+        assert!(run_core(&core, src.as_bytes(), &specs).is_err(), "core accepted:\n{}", src);
     }
 
     // 5. Corpus differential.
@@ -298,7 +309,7 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
                 continue;
             }
             let src = std::fs::read(&p).unwrap();
-            if let Ok(got) = run_core(&core, &src) {
+            if let Ok(got) = run_core(&core, &src, &root.join("specs")) {
                 accepted += 1;
                 if gen_c(&p).as_deref() != Some(&got[..]) {
                     mismatched.push(p.strip_prefix(&root).unwrap().display().to_string());
