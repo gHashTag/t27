@@ -53,10 +53,13 @@ pub const AR_COMMAND : u8 = 5;
 pub const AR_QUOTA : u8 = 6;
 
 /// The reaction to one event. `from_a_bot`: the sender is a bot -- the app itself above all, so the
-/// Queen never answers her own comment; `served`: the repository is registered and not paused;
-/// `draft`: the pull request is a draft (reviewed when it is marked ready); `reviews_left`: today's
-/// free reviews left for the installation (free_reviews_left).
-pub fn app_reaction(event: u8, from_a_bot: bool, served: bool, draft: bool, reviews_left: u32) -> u8 {
+/// Queen never answers her own comment; `served`: the repository is registered (an installation
+/// chose it); `paused`: a person paused this pull request (`@t27-bees pause`); `draft`: the pull
+/// request is a draft (reviewed when it is marked ready); `reviews_left`: today's free reviews left
+/// for the installation (free_reviews_left).
+/// A pause stops reviews and nothing else. Were it to unserve the pull request, the comment
+/// `@t27-bees resume` would itself be ignored and the pause could never be undone (#7697).
+pub fn app_reaction(event: u8, from_a_bot: bool, served: bool, paused: bool, draft: bool, reviews_left: u32) -> u8 {
     if (event == GE_INSTALLED) { return AR_REGISTER; }
     if (event == GE_REPOS_ADDED) { return AR_REGISTER; }
     if (event == GE_UNINSTALLED) { return AR_UNREGISTER; }
@@ -66,6 +69,7 @@ pub fn app_reaction(event: u8, from_a_bot: bool, served: bool, draft: bool, revi
     if (event == GE_PR_CLOSED) { return AR_FORGET; }
     if (event == GE_COMMENT) { return AR_COMMAND; }
     if (event == GE_PR_OPENED or event == GE_PR_PUSHED or event == GE_PR_READY) {
+        if (paused) { return AR_IGNORE; }
         if (draft) { return AR_IGNORE; }
         if (reviews_left == 0) { return AR_QUOTA; }
         return AR_REVIEW;
@@ -241,31 +245,42 @@ pub const COMMAND_HELP : [5]str = [
 ];
 
 test an_install_registers_and_an_uninstall_forgets {
-    assert app_reaction(GE_INSTALLED, false, false, false, 0) == AR_REGISTER;
-    assert app_reaction(GE_REPOS_ADDED, true, false, false, 0) == AR_REGISTER;
-    assert app_reaction(GE_UNINSTALLED, false, true, false, 9) == AR_UNREGISTER;
-    assert app_reaction(GE_REPOS_REMOVED, false, true, false, 9) == AR_UNREGISTER;
+    assert app_reaction(GE_INSTALLED, false, false, false, false, 0) == AR_REGISTER;
+    assert app_reaction(GE_REPOS_ADDED, true, false, false, false, 0) == AR_REGISTER;
+    assert app_reaction(GE_UNINSTALLED, false, true, false, false, 9) == AR_UNREGISTER;
+    assert app_reaction(GE_REPOS_REMOVED, false, true, false, false, 9) == AR_UNREGISTER;
 }
 
 test a_pull_request_is_reviewed_once_it_is_ready {
-    assert app_reaction(GE_PR_OPENED, false, true, false, 5) == AR_REVIEW;
-    assert app_reaction(GE_PR_PUSHED, false, true, false, 5) == AR_REVIEW;
-    assert app_reaction(GE_PR_READY, false, true, false, 5) == AR_REVIEW;
-    assert app_reaction(GE_PR_OPENED, false, true, true, 5) == AR_IGNORE;
-    assert app_reaction(GE_PR_CLOSED, false, true, false, 5) == AR_FORGET;
-    assert app_reaction(GE_COMMENT, false, true, false, 0) == AR_COMMAND;
+    assert app_reaction(GE_PR_OPENED, false, true, false, false, 5) == AR_REVIEW;
+    assert app_reaction(GE_PR_PUSHED, false, true, false, false, 5) == AR_REVIEW;
+    assert app_reaction(GE_PR_READY, false, true, false, false, 5) == AR_REVIEW;
+    assert app_reaction(GE_PR_OPENED, false, true, false, true, 5) == AR_IGNORE;
+    assert app_reaction(GE_PR_CLOSED, false, true, false, false, 5) == AR_FORGET;
+    assert app_reaction(GE_COMMENT, false, true, false, false, 0) == AR_COMMAND;
+}
+
+test a_pause_stops_reviews_and_nothing_else {
+    assert app_reaction(GE_PR_PUSHED, false, true, true, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_PR_OPENED, false, true, true, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_PR_READY, false, true, true, false, 5) == AR_IGNORE;
+    // the comment that would resume it is still heard, and closing still forgets
+    assert app_reaction(GE_COMMENT, false, true, true, false, 5) == AR_COMMAND;
+    assert app_reaction(GE_PR_CLOSED, false, true, true, false, 5) == AR_FORGET;
+    // a pause on a spent free tier is still a pause, not a quota notice
+    assert app_reaction(GE_PR_PUSHED, false, true, true, false, 0) == AR_IGNORE;
 }
 
 test the_queen_never_answers_herself_or_a_stranger_repo {
-    assert app_reaction(GE_PR_OPENED, true, true, false, 5) == AR_IGNORE;
-    assert app_reaction(GE_COMMENT, true, true, false, 5) == AR_IGNORE;
-    assert app_reaction(GE_PR_OPENED, false, false, false, 5) == AR_IGNORE;
-    assert app_reaction(GE_OTHER, false, true, false, 5) == AR_IGNORE;
-    assert app_reaction(APP_EVENTS, false, true, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_PR_OPENED, true, true, false, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_COMMENT, true, true, false, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_PR_OPENED, false, false, false, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_OTHER, false, true, false, false, 5) == AR_IGNORE;
+    assert app_reaction(APP_EVENTS, false, true, false, false, 5) == AR_IGNORE;
 }
 
 test the_free_tier_is_bounded_per_day {
-    assert app_reaction(GE_PR_OPENED, false, true, false, 0) == AR_QUOTA;
+    assert app_reaction(GE_PR_OPENED, false, true, false, false, 0) == AR_QUOTA;
     assert free_reviews_left(true, 0) == FREE_REVIEWS_PUBLIC;
     assert free_reviews_left(false, 0) == FREE_REVIEWS_PRIVATE;
     assert free_reviews_left(false, FREE_REVIEWS_PRIVATE - 1) == 1;
