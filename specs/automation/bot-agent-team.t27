@@ -1,0 +1,213 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/automation/bot-agent-team.t27 -- the core of the team (the Agent), joining by the link a person came by, hiring by a press, each member's tools, and the hand-over to the colleague whose trade a tool is.
+// Host: 999-multibots-telegraf src/navigation/topics/agentTeam.ts (callers in src/navigation/registerCommands.ts and src/services/trinityAgent.ts).
+// Trace: owner 2026-10-08 "as soon as a person enters the bot, chats with agents are made for his interests; each agent has its own chat named after its profession, with its own skills and tools -- a team of agents, not folders (the model of OpenAI's dots)".
+// Generated: t27c gen-ts; vendored spec and generated constants in src/spec/.
+// Claim status: routing contract. The cause measured on 2026-10-08: when a person enters via a referral link, they should be able to hire multiple agents, each with their own chat named after their profession, skills, and tools. When a tool belongs to another agent's trade, the conversation should hand over to that colleague.
+// v1 (2026-10-08): the Agent entity, joining flow via referral link, hiring action by press, toolsets by trade, hand-over mechanism to colleague whose trade a tool belongs to.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module automation::bot_agent_team {
+    pub const KIND : str = "automation";
+    pub const ID : str = "bot-agent-team";
+    pub const REPO : str = "999-multibots-telegraf";
+    pub const VERSION : u8 = 1;
+
+    // ---- Agent entity -----------------------------------------------------------------------
+    // Each agent has a profession, skills, and tools belonging to its trade
+    pub const AGENT_MIN_NAME_LEN : u8 = 2;
+    pub const AGENT_MAX_NAME_LEN : u8 = 50;
+    pub const AGENT_MIN_SKILLS : u8 = 1;
+    pub const AGENT_MAX_SKILLS : u8 = 10;
+    pub const AGENT_MIN_TOOLS : u8 = 1;
+    pub const AGENT_MAX_TOOLS : u8 = 20;
+
+    // ---- Joining flow ---------------------------------------------------------------------
+    // A person joins the bot via a referral link
+    pub const REFERRAL_LINK_PREFIX : str = "t27.app/agent/";
+    pub const REFERRAL_LINK_MAX_LEN : u32 = 100;
+    pub const REFERRAL_EXPIRY_HOURS : u32 = 168; // 7 days
+
+    // ---- Hiring action --------------------------------------------------------------------
+    // An agent is hired by a press (button click)
+    pub const HIRE_BUTTON_TEXT : str = "Hire Agent";
+    pub const HIRE_CONFIRMATION_TEXT : str = "Agent hired successfully";
+    pub const MAX_HIRE_ATTEMPTS : u8 = 3;
+
+    // ---- Toolsets by trade ----------------------------------------------------------------
+    // Each agent's tools belong to its trade/profession
+    pub const TOOL_TRADE_MAPPING : str = "agent_tools_by_trade";
+    pub const TRADE_SEPARATOR : str = ",";
+    pub const TOOL_SEPARATOR : str = ";";
+
+    // ---- Hand-over mechanism --------------------------------------------------------------
+    // When a tool belongs to another agent's trade, transfer to that colleague
+    pub const HANDOVER_MESSAGE : str = "Transferring you to the specialist who can help with this tool...";
+    pub const HANDOVER_TIMEOUT_MS : u32 = 30000; // 30 seconds
+    pub const MAX_HANDOVER_CHAIN : u8 = 5; // Prevent infinite hand-over loops
+
+    // ---- Chat management ------------------------------------------------------------------
+    // Each agent operates independently with its own chat context
+    pub const CHAT_NAME_PREFIX : str = "Agent: ";
+    pub const CHAT_NAME_MAX_LEN : u32 = 60;
+    pub const MAX_CONCURRENT_CHATS : u8 = 10;
+
+    // ---- Agent entity structure -----------------------------------------------------------
+    struct Agent {
+        id: str,
+        profession: str,
+        skills: str,
+        tools: str,
+        trade: str,
+        is_hired: bool,
+        chat_id: str,
+    }
+
+    // ---- Referral link validation ---------------------------------------------------------
+    fn referral_link_valid(link: str) -> bool {
+        let has_prefix = link.starts_with(REFERRAL_LINK_PREFIX);
+        let len_ok = link.len() <= REFERRAL_LINK_MAX_LEN;
+        return has_prefix && len_ok;
+    }
+
+    // ---- Agent name validation ------------------------------------------------------------
+    fn agent_name_valid(name: str) -> bool {
+        let len_ok = name.len() >= AGENT_MIN_NAME_LEN && name.len() <= AGENT_MAX_NAME_LEN;
+        let not_empty = name.len() > 0;
+        return len_ok && not_empty;
+    }
+
+    // ---- Skills validation ---------------------------------------------------------------
+    fn skills_valid(skills_count: u8, first_skill_len: u8) -> bool {
+        let count_ok = skills_count >= AGENT_MIN_SKILLS && skills_count <= AGENT_MAX_SKILLS;
+        let first_non_empty = first_skill_len > 0;
+        return count_ok && first_non_empty;
+    }
+
+    // ---- Tools validation ----------------------------------------------------------------
+    fn tools_valid(tools_count: u8, first_tool_len: u8) -> bool {
+        let count_ok = tools_count >= AGENT_MIN_TOOLS && tools_count <= AGENT_MAX_TOOLS;
+        let first_non_empty = first_tool_len > 0;
+        return count_ok && first_non_empty;
+    }
+
+    // ---- Hiring action -------------------------------------------------------------------
+    fn hire_agent_success(attempts: u8) -> bool {
+        return attempts <= MAX_HIRE_ATTEMPTS;
+    }
+
+    // ---- Tool trade lookup ---------------------------------------------------------------
+    fn tool_belongs_to_trade(tool: str, trade: str, tool_in_trade: str) -> bool {
+        return tool == tool_in_trade;
+    }
+
+    // ---- Hand-over decision --------------------------------------------------------------
+    fn should_handover(current_agent_trade: str, tool_trade: str, handover_chain: u8) -> bool {
+        let different_trades = current_agent_trade != tool_trade;
+        let chain_safe = handover_chain < MAX_HANDOVER_CHAIN;
+        return different_trades && chain_safe;
+    }
+
+    // ---- Chat creation -------------------------------------------------------------------
+    fn create_chat_name(profession: str) -> str {
+        let prefix = CHAT_NAME_PREFIX;
+        let profession_truncated = if profession.len() > CHAT_NAME_MAX_LEN - prefix.len() {
+            profession.slice(0, CHAT_NAME_MAX_LEN - prefix.len())
+        } else {
+            profession
+        };
+        return prefix + profession_truncated;
+    }
+
+    // ---- Agent creation ------------------------------------------------------------------
+    fn create_agent(id: str, profession: str, trade: str) -> Agent {
+        return Agent {
+            id: id,
+            profession: profession,
+            skills: [],
+            tools: [],
+            trade: trade,
+            is_hired: false,
+            chat_id: "",
+        };
+    }
+
+    // ---- Tests ----------------------------------------------------------------------------
+
+    test "referral link must start with correct prefix and be within length limits" {
+        assert(referral_link_valid("t27.app/agent/abc123"));
+        assert(referral_link_valid("t27.app/agent/short"));
+        assert(!referral_link_valid("https://t27.app/agent/abc123"));
+        assert(!referral_link_valid("t27.app/agent/" + "a".repeat(101)));
+        assert(!referral_link_valid(""));
+    }
+
+    test "agent name must be within valid length range" {
+        assert(agent_name_valid("dev"));
+        assert(agent_name_valid("developer"));
+        assert(!agent_name_valid("a"));
+        assert(!agent_name_valid("a".repeat(51)));
+        assert(!agent_name_valid(""));
+    }
+
+    test "skills must be within count range and first skill non-empty" {
+        assert(skills_valid(2, 6));  // 2 skills, first 6 chars
+        assert(skills_valid(10, 8)); // max skills, first 8 chars
+        assert(!skills_valid(0, 6)); // 0 skills
+        assert(!skills_valid(11, 6)); // too many skills
+        assert(!skills_valid(2, 0)); // first skill empty
+    }
+
+    test "tools must be within count range and first tool non-empty" {
+        assert(tools_valid(3, 3));  // 3 tools, first 3 chars
+        assert(tools_valid(20, 5)); // max tools, first 5 chars
+        assert(!tools_valid(0, 3)); // 0 tools
+        assert(!tools_valid(21, 3)); // too many tools
+        assert(!tools_valid(3, 0)); // first tool empty
+    }
+
+    test "hiring succeeds within attempt limit" {
+        assert(hire_agent_success(1));
+        assert(hire_agent_success(3));
+        assert(!hire_agent_success(4));
+        assert(!hire_agent_success(0));
+    }
+
+    test "tool belongs to trade when matches tool in trade" {
+        assert(tool_belongs_to_trade("git", "devops", "git"));
+        assert(tool_belongs_to_trade("docker", "devops", "docker"));
+        assert(!tool_belongs_to_trade("aws", "devops", "git"));
+        assert(!tool_belongs_to_trade("git", "design", "docker"));
+    }
+
+    test "handover happens when trades differ and chain is safe" {
+        assert(should_handover("devops", "design", 1));
+        assert(should_handover("design", "devops", 2));
+        assert(!should_handover("devops", "devops", 1));
+        assert(!should_handover("design", "devops", 5));
+        assert(!should_handover("devops", "design", 5));
+    }
+
+    test "chat name is properly prefixed and truncated" {
+        assert(create_chat_name("developer") == "Agent: developer");
+        assert(create_chat_name("a".repeat(50)) == "Agent: " + "a".repeat(50));
+        assert(create_chat_name("a".repeat(100)).len() == CHAT_NAME_MAX_LEN);
+        assert(create_chat_name("").len() == CHAT_NAME_PREFIX.len());
+    }
+
+    test "agent creation initializes all fields correctly" {
+        let agent = create_agent("dev123", "developer", "devops");
+        
+        assert(agent.id == "dev123");
+        assert(agent.profession == "developer");
+        assert(agent.trade == "devops");
+        assert(!agent.is_hired);
+        assert(agent.chat_id == "");
+    }
+
+    test "VERSION says what the header's last note says" {
+        assert(VERSION == 1);
+    }
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
