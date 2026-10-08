@@ -1,4 +1,4 @@
-// #7306: gen-c does not lex `<<=` either.
+// #7306, #7940: gen-c does not lex `<<=` either.
 module m;
 fn f() -> void {
     var x: i64 = 1;

@@ -25,6 +25,9 @@
 ;         (an array's `** COUNT` is its dimension: the same token or value)
 ;   [pub] fn NAME ( P : SCALAR , ... ) [-> SCALAR|void] { STMT* }
 ;   test NAME { STMT* }
+;   use A :: B ... ;   (the input carries module A/B.t27 after a NUL; the
+;         `fn`s and `const`s gen-c splices from it follow the importer's, and
+;         every lossy splice is refused: see "imports" below)
 ;   STMT: var|const|let NAME : SCALAR = VALUE ;   NAME = VALUE ;   A[I] = VALUE ;
 ;         var NAME : [N]SCALAR = ... ;   var NAME : [N][M]SCALAR = ... ;
 ;         (a local array, initialized as a module array is; N and COUNT are
@@ -65,6 +68,10 @@ const TOK_MAX: i64 = 262144;
 const NODE_MAX: i64 = 262144;
 ; Local arrays in scope at once, while `check` walks a function.
 const SCOPE_MAX: i64 = 4096;
+; Modules in one input (the importer and those its `use` lines reach), and
+; declarations spliced into it.
+const MOD_MAX: i64 = 64;
+const PULL_MAX: i64 = 4096;
 
 ; Error codes. `err_pos` is the byte offset in `src`.
 const E_LEX: i64 = 1;
@@ -76,6 +83,10 @@ const E_TESTASSIGN: i64 = 6;
 const E_CONST: i64 = 7;
 const E_LIMIT: i64 = 8;
 const E_ARRAY: i64 = 9;
+; The input names a module it does not carry: `out` holds the path to append.
+const E_NEED: i64 = 10;
+; An import gen-c splices with loss (#7379, #7380, #7381, #7702).
+const E_USE: i64 = 11;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -124,6 +135,7 @@ const T_FOR: i64 = 288;
 const T_SWITCH: i64 = 289;
 const T_DOTDOT: i64 = 290;
 const T_ARM: i64 = 291;
+const T_USE: i64 = 292;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
 const N_NUM: i64 = 1;
@@ -155,6 +167,7 @@ const D_ARRAY: i64 = 42;
 const D_FN: i64 = 43;
 const D_PARAM: i64 = 44;
 const D_TEST: i64 = 45;
+const D_USE: i64 = 46;
 
 ; Packed spellings of the words the lexer and checker recognise.
 const W_MODULE: i64 = 0x656c75646f6d;
@@ -185,6 +198,7 @@ const W_TRY: i64 = 0x797274;
 const W_SWITCH: i64 = 0x686374697773;
 const W_USING: i64 = 0x676e697375;
 const W_USE: i64 = 0x657375;
+const W_TYPE: i64 = 0x65707974;
 const W_PRAGMA: i64 = 0x616d67617270;
 const W_IN: i64 = 0x6e69;
 const W_BOOL: i64 = 0x6c6f6f62;
@@ -218,6 +232,15 @@ var nd_c: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_next: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_aux: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var scope_arr: [SCOPE_MAX]i64 = [_]i64{0} ** SCOPE_MAX;
+var mod_from: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var mod_to: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var mod_head: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var mod_tok0: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var mod_decls: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var mod_hit: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var mod_text: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
+var pulled: [PULL_MAX]i64 = [_]i64{0} ** PULL_MAX;
+var pulled_mod: [PULL_MAX]i64 = [_]i64{0} ** PULL_MAX;
 
 var src_len: i64 = 0;
 var out_len: i64 = 0;
@@ -233,6 +256,12 @@ var mod_tok: i64 = 0;
 var decls: i64 = 0;
 var scope_len: i64 = 0;
 var cur_decl: i64 = 0;
+var mod_count: i64 = 0;
+var pull_count: i64 = 0;
+var open_comments: i64 = 0;
+var dep_b: i64 = 0;
+var dep_k: i64 = 0;
+var dep_p: i64 = 0;
 
 ; ---------------------------------------------------------------- output
 
@@ -455,7 +484,10 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_BENCH, 0, 5) or tok_is(t, W_TRY, 0, 3)) {
         return T_BAD;
     }
-    if (tok_is(t, W_USING, 0, 5) or tok_is(t, W_USE, 0, 3)) {
+    if (tok_is(t, W_USE, 0, 3)) {
+        return T_USE;
+    }
+    if (tok_is(t, W_USING, 0, 5)) {
         return T_BAD;
     }
     if (tok_is(t, W_PRAGMA, 0, 6) or tok_is(t, W_IN, 0, 2)) {
@@ -553,6 +585,9 @@ fn skip_block(i: i64) -> i64 {
         } else {
             j = j + 1;
         }
+    }
+    if (depth > 0) {
+        open_comments = open_comments + 1;
     }
     return j;
 }
@@ -718,11 +753,15 @@ fn lex_one(i: i64) -> i64 {
     return i;
 }
 
-fn lex() -> void {
-    var i: i64 = 0;
+; Lexes module m's text, then a T_EOF token at its end.
+fn lex_module(m: i64) -> void {
+    var i: i64 = mod_from[m as usize];
+    src_len = mod_to[m as usize];
+    mod_tok0[m as usize] = tok_count;
     while (!failed and i < src_len) {
         i = lex_one(i);
     }
+    add_tok(T_EOF, src_len, 0);
 }
 
 ; ---------------------------------------------------------------- tree
@@ -1253,10 +1292,17 @@ fn parse_size() -> i64 {
     return t;
 }
 
+; Token t is `_`.
+fn is_hole(t: i64) -> bool {
+    return kind(t) == T_IDENT and tk_len[t as usize] == 1 and src[(tk_pos[t as usize]) as usize] == '_';
+}
+
 ; `[_]`, then `[M]` if `inner` is set, then the element type, which is `ty`.
+; No `!( ... and ... )` in this file: the Zig backend writes it `!a and b`
+; (#7936).
 fn parse_elem(ty: i64, inner: i64) -> void {
     expect(K_LBRACKET);
-    if (!failed and !(cur() == T_IDENT and tk_len[p as usize] == 1 and src[(tk_pos[p as usize]) as usize] == '_')) {
+    if (!failed and !is_hole(p)) {
         fail(E_ARRAY, tpos(p));
         return;
     }
@@ -1430,6 +1476,22 @@ fn parse_fn() -> i64 {
     var body: i64 = parse_block();
     var n: i64 = mk(D_FN, name, params, body);
     nd_aux[n as usize] = ret;
+    nd_c[n as usize] = p - 1;
+    return n;
+}
+
+; use A :: B ... ;  -- nd_tok is the first segment, nd_a the last.
+fn parse_use() -> i64 {
+    advance();
+    var first: i64 = p;
+    expect(T_IDENT);
+    while (!failed and cur() == ':' and kind(p + 1) == ':') {
+        advance();
+        advance();
+        expect(T_IDENT);
+    }
+    var n: i64 = mk(D_USE, first, p - 1, 0);
+    expect(';');
     return n;
 }
 
@@ -1447,6 +1509,9 @@ fn parse_decl() -> i64 {
     }
     if (k == T_FN) {
         return parse_fn();
+    }
+    if (k == T_USE) {
+        return parse_use();
     }
     if (k == T_TEST) {
         p = p + 1;
@@ -1477,6 +1542,7 @@ fn parse_decl() -> i64 {
             nd_kind[n as usize] = D_CONST;
         }
         nd_aux[n as usize] = ty;
+        nd_c[n as usize] = p - 1;
         return n;
     }
     fail(E_SYNTAX, tpos(t));
@@ -1515,6 +1581,79 @@ fn parse_module() -> void {
             nd_next[tail as usize] = d;
         }
         tail = d;
+    }
+}
+
+; The input is the importer, then, for each module its `use` lines reach, a
+; NUL, the path the `use` names (`a/b.t27`), a newline and that module's
+; text. The harness appends a module when the core asks for it (E_NEED).
+fn split_modules(n: i64) -> void {
+    var i: i64 = 0;
+    mod_count = 1;
+    mod_from[0] = 0;
+    while (i < n and src[i as usize] != 0) {
+        i = i + 1;
+    }
+    mod_to[0] = i;
+    while (!failed and i < n) {
+        if (mod_count >= MOD_MAX) {
+            fail(E_LIMIT, i);
+            return;
+        }
+        var j: i64 = i + 1;
+        mod_head[mod_count as usize] = j;
+        mod_hit[mod_count as usize] = 0;
+        while (j < n and src[j as usize] != '\n' and src[j as usize] != 0) {
+            j = j + 1;
+        }
+        if (j >= n or src[j as usize] != '\n') {
+            fail(E_USE, i);
+            return;
+        }
+        mod_from[mod_count as usize] = j + 1;
+        j = j + 1;
+        while (j < n and src[j as usize] != 0) {
+            j = j + 1;
+        }
+        mod_to[mod_count as usize] = j;
+        mod_count = mod_count + 1;
+        i = j;
+    }
+}
+
+; A module the importer reaches gets its own declaration chain; the
+; importer's name, tests and `decls` stay. One this core cannot read is kept
+; as text (mod_text): no word of the importer may name what it declares.
+fn load_module(m: i64, n: i64) -> void {
+    var t0: i64 = tok_count;
+    var n0: i64 = node_count;
+    var c0: i64 = open_comments;
+    var keep_tok: i64 = mod_tok;
+    var keep_tests: bool = has_tests;
+    var keep_decls: i64 = decls;
+    lex_module(m);
+    src_len = n;
+    decls = 0;
+    if (!failed) {
+        p = mod_tok0[m as usize];
+        parse_module();
+    }
+    mod_decls[m as usize] = decls;
+    mod_text[m as usize] = 0;
+    mod_tok = keep_tok;
+    has_tests = keep_tests;
+    decls = keep_decls;
+    if (failed and err_code != E_LIMIT) {
+        failed = false;
+        err_code = 0;
+        err_pos = 0;
+        tok_count = t0;
+        node_count = n0;
+        open_comments = c0;
+        mod_decls[m as usize] = 0;
+        mod_text[m as usize] = 1;
+        mod_tok0[m as usize] = tok_count;
+        add_tok(T_EOF, mod_to[m as usize], 0);
     }
 }
 
@@ -1598,7 +1737,7 @@ fn arr_name_ok(s: i64) -> bool {
     var t: i64 = ntok(s);
     var d: i64 = decls;
     while (d != 0) {
-        if (nkind(d) != D_TEST and tok_eq(ntok(d), t)) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
             return false;
         }
         d = nnext(d);
@@ -1966,6 +2105,952 @@ fn check() -> void {
             check_expr(nc(d));
         }
         d = nnext(d);
+    }
+}
+
+; ---------------------------------------------------------------- imports
+
+; gen-c resolves `use` as a source-to-source splice (bootstrap/src/
+; use_resolve.rs, #7378): it reads the modules the `use` lines reach, and
+; appends to the importer every `fn` and `const` a word of the importer names,
+; then every one a word of those names, sorted by module path, then by name.
+; It reads lines and words, not tokens, so this core mirrors its text rules
+; and takes the splice only where the text and the tokens agree. Every other
+; case is refused with E_USE: prose that pulls (#7379), a spliced `#define`
+; that captures a local (#7380), a var or let that is never spliced (#7381),
+; a global sized by an import (#7702), a declaration the line split cuts
+; short (#7937), a name the importer declares too (#7938), and one two
+; modules declare (#7939).
+
+fn named_decl(d: i64) -> bool {
+    return nkind(d) != D_TEST and nkind(d) != D_USE;
+}
+
+fn is_let(d: i64) -> bool {
+    return tok_is(ntok(d) - 1, W_LET, 0, 3);
+}
+
+; gen-c's `decl_name` takes `fn` and `const`, never `let` or `var`.
+fn splice_kind(d: i64) -> bool {
+    return nkind(d) == D_FN or (nkind(d) == D_CONST and !is_let(d));
+}
+
+; n bytes at j spell x, first byte lowest.
+fn word_at(j: i64, x: i64, n: i64) -> bool {
+    var i: i64 = 0;
+    while (i < n) {
+        if (at(j + i) != ((x >> (i * 8)) & 255)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; Bytes [s, s + n) spell token t.
+fn word_is(s: i64, n: i64, t: i64) -> bool {
+    var i: i64 = 0;
+    if (tk_len[t as usize] != n) {
+        return false;
+    }
+    while (i < n) {
+        if (at(s + i) != src[(tk_pos[t as usize] + i) as usize] as i64) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; -1, 0 or 1 as bytes [a, a + na) sort before, with or after [b, b + nb).
+fn cmp_bytes(a: i64, na_: i64, b: i64, nb_: i64) -> i64 {
+    var i: i64 = 0;
+    while (i < na_ and i < nb_) {
+        if (at(a + i) != at(b + i)) {
+            if (at(a + i) < at(b + i)) {
+                return -1;
+            }
+            return 1;
+        }
+        i = i + 1;
+    }
+    if (na_ == nb_) {
+        return 0;
+    }
+    if (na_ < nb_) {
+        return -1;
+    }
+    return 1;
+}
+
+; The first byte of the line holding byte i, and the newline (or module end)
+; that ends it.
+fn line_from(i: i64) -> i64 {
+    var j: i64 = i;
+    while (j > 0 and at(j - 1) != '\n') {
+        j = j - 1;
+    }
+    return j;
+}
+
+fn line_to(i: i64) -> i64 {
+    var j: i64 = i;
+    while (j < src_len and at(j) != '\n' and at(j) != 0) {
+        j = j + 1;
+    }
+    return j;
+}
+
+fn indent_at(ls: i64) -> i64 {
+    var j: i64 = ls;
+    while (at(j) == ' ' or at(j) == '\t') {
+        j = j + 1;
+    }
+    return j - ls;
+}
+
+; gen-c's `decl_name`: the first byte of the name a line declares, else -1.
+; The line opens, past its indent and an optional `pub `, with `fn `,
+; `const `, `struct `, `enum ` or `type ` and a name.
+fn line_decl(ls: i64) -> i64 {
+    var j: i64 = ls + indent_at(ls);
+    var k: i64 = 0;
+    if (word_at(j, W_PUB, 3) and at(j + 3) == ' ') {
+        j = j + 4;
+        j = j + indent_at(j);
+    }
+    if (word_at(j, W_FN, 2) and at(j + 2) == ' ') {
+        k = 3;
+    } else if (word_at(j, W_CONST, 5) and at(j + 5) == ' ') {
+        k = 6;
+    } else if (word_at(j, W_STRUCT, 6) and at(j + 6) == ' ') {
+        k = 7;
+    } else if ((word_at(j, W_ENUM, 4) or word_at(j, W_TYPE, 4)) and at(j + 4) == ' ') {
+        k = 5;
+    }
+    if (k == 0 or !is_alnum(at(j + k))) {
+        return -1;
+    }
+    return j + k;
+}
+
+; Byte j of a line ending at e, else 0: gen-c reads one line at a time.
+fn lat(j: i64, e: i64) -> i64 {
+    if (j >= e) {
+        return 0;
+    }
+    return at(j);
+}
+
+; gen-c's `depth_change`: adds to dep_b, dep_k and dep_p how far the line
+; at ls moves the brace, bracket and paren depth, outside strings, char
+; literals and `//`. A line opening with `;` moves nothing.
+fn depth_line(ls: i64) -> void {
+    var e: i64 = line_to(ls);
+    var j: i64 = ls;
+    var in_str: bool = false;
+    if (at(ls + indent_at(ls)) == ';') {
+        return;
+    }
+    while (j < e) {
+        var c: i64 = at(j);
+        if (in_str) {
+            if (c == '\\') {
+                j = j + 1;
+            } else if (c == '"') {
+                in_str = false;
+            }
+        } else if (c == '"') {
+            in_str = true;
+        } else if (c == '/' and lat(j + 1, e) == '/') {
+            j = e;
+        } else if (c == '\'' and lat(j + 1, e) == '\\' and lat(j + 3, e) == '\'') {
+            j = j + 3;
+        } else if (c == '\'' and lat(j + 2, e) == '\'') {
+            j = j + 2;
+        } else if (c == K_LBRACE) {
+            dep_b = dep_b + 1;
+        } else if (c == K_RBRACE) {
+            dep_b = dep_b - 1;
+        } else if (c == K_LBRACKET) {
+            dep_k = dep_k + 1;
+        } else if (c == K_RBRACKET) {
+            dep_k = dep_k - 1;
+        } else if (c == '(') {
+            dep_p = dep_p + 1;
+        } else if (c == ')') {
+            dep_p = dep_p - 1;
+        }
+        j = j + 1;
+    }
+}
+
+; gen-c's `top_level_indent`: the least indent of a declaring line, else 0.
+fn top_indent(a: i64, b: i64) -> i64 {
+    var top: i64 = -1;
+    var ls: i64 = a;
+    while (ls < b) {
+        if (line_decl(ls) >= 0 and (top < 0 or indent_at(ls) < top)) {
+            top = indent_at(ls);
+        }
+        ls = line_to(ls) + 1;
+    }
+    if (top < 0) {
+        return 0;
+    }
+    return top;
+}
+
+; The last line of the declaration gen-c's `split_decls` opens at ls: the
+; first line where the depth is closed, or the module's last line.
+fn split_end(ls: i64, b: i64) -> i64 {
+    var le: i64 = ls;
+    dep_b = 0;
+    dep_k = 0;
+    dep_p = 0;
+    depth_line(le);
+    while (line_to(le) + 1 < b and (dep_b > 0 or dep_k > 0 or dep_p > 0)) {
+        le = line_to(le) + 1;
+        depth_line(le);
+    }
+    return le;
+}
+
+; The token a declaration's text opens with: its `pub`, else its keyword.
+fn decl_first(d: i64) -> i64 {
+    if (kind(ntok(d) - 2) == T_PUB) {
+        return ntok(d) - 2;
+    }
+    return ntok(d) - 1;
+}
+
+; The `fn` or `const` of module m whose name starts at byte nm, alone on
+; the lines from its keyword's (ls) to its last token's (le), else 0.
+fn decl_on(m: i64, ls: i64, le: i64, nm: i64) -> i64 {
+    var d: i64 = mod_decls[m as usize];
+    while (d != 0) {
+        if (splice_kind(d) and tpos(ntok(d)) == nm and line_from(tpos(ntok(d) - 1)) == ls) {
+            var last: i64 = nc(d);
+            if (line_from(tpos(last)) == le and tpos(decl_first(d) - 1) < ls) {
+                if (kind(last + 1) == T_EOF or tpos(last + 1) > line_to(le)) {
+                    return d;
+                }
+            }
+            return 0;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+fn splicable(m: i64) -> i64 {
+    var n: i64 = 0;
+    var d: i64 = mod_decls[m as usize];
+    while (d != 0) {
+        if (splice_kind(d)) {
+            n = n + 1;
+        }
+        d = nnext(d);
+    }
+    return n;
+}
+
+; gen-c's `split_decls` over module m must find exactly its `fn`s and
+; `const`s, each on its own lines: else what gen-c splices, or skips as the
+; importer's own, is other text than this core read (#7937).
+fn check_split(m: i64) -> void {
+    var b: i64 = mod_to[m as usize];
+    var top: i64 = top_indent(mod_from[m as usize], b);
+    var found: i64 = 0;
+    var ls: i64 = mod_from[m as usize];
+    while (!failed and ls < b) {
+        var nm: i64 = line_decl(ls);
+        if (nm >= 0 and indent_at(ls) == top) {
+            var le: i64 = split_end(ls, b);
+            if (decl_on(m, ls, le, nm) == 0) {
+                fail(E_USE, ls);
+                return;
+            }
+            found = found + 1;
+            ls = le;
+        }
+        ls = line_to(ls) + 1;
+    }
+    if (!failed and found != splicable(m)) {
+        fail(E_USE, mod_from[m as usize]);
+    }
+}
+
+; gen-c's `module_level_names`: a declaring line at brace depth 0 of the
+; importer names one of its own, which is never spliced. It must be one.
+fn check_local_names() -> void {
+    var depth: i64 = 0;
+    var ls: i64 = mod_from[0];
+    while (!failed and ls < mod_to[0]) {
+        var nm: i64 = line_decl(ls);
+        if (depth == 0 and nm >= 0 and name_decl(nm) == 0) {
+            fail(E_USE, ls);
+            return;
+        }
+        dep_b = 0;
+        depth_line(ls);
+        depth = depth + dep_b;
+        if (depth < 0) {
+            depth = 0;
+        }
+        ls = line_to(ls) + 1;
+    }
+}
+
+; The importer's `fn` or `const` whose name starts at byte nm, else 0.
+fn name_decl(nm: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (splice_kind(d) and tpos(ntok(d)) == nm) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; gen-c reads a `use` line as `use ` at the line's start (past its indent),
+; the path with no blank inside it, then `;`, and blanks or `//` to the line
+; end.
+fn use_canonical(d: i64) -> bool {
+    var j: i64 = tpos(ntok(d) - 1);
+    var ls: i64 = line_from(j);
+    var t: i64 = ntok(d);
+    if (ls + indent_at(ls) != j or at(j + 3) != ' ') {
+        return false;
+    }
+    while (t < na(d)) {
+        if (tk_pos[t as usize] + tk_len[t as usize] != tk_pos[(t + 1) as usize]) {
+            return false;
+        }
+        t = t + 1;
+    }
+    var i: i64 = tpos(na(d) + 1) + 1;
+    while (at(i) == ' ' or at(i) == '\t') {
+        i = i + 1;
+    }
+    return at(i) == '\n' or at(i) == 0 or (at(i) == '/' and at(i + 1) == '/');
+}
+
+; The `use` of module m whose keyword is at byte j, else 0.
+fn use_at(m: i64, j: i64) -> i64 {
+    var d: i64 = mod_decls[m as usize];
+    while (d != 0) {
+        if (nkind(d) == D_USE and tpos(ntok(d) - 1) == j) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; The first `//` of the line at ls, else its end: gen-c's word and depth
+; rules read a line up to there.
+fn code_end(ls: i64) -> i64 {
+    var e: i64 = line_to(ls);
+    var j: i64 = ls;
+    while (j < e and (at(j) != '/' or lat(j + 1, e) != '/')) {
+        j = j + 1;
+    }
+    return j;
+}
+
+; Module m's code is printable ASCII (gen-c reads Unicode letters into its
+; words), with no control byte anywhere, and gen-c's `use` lines are this
+; core's.
+fn check_module_text(m: i64) -> void {
+    var ls: i64 = mod_from[m as usize];
+    while (ls < mod_to[m as usize]) {
+        var c: i64 = code_end(ls);
+        var i: i64 = ls;
+        while (i < line_to(ls)) {
+            var b: i64 = at(i);
+            if ((b < ' ' and b != '\t') or b == 127 or (b > '~' and i < c)) {
+                fail(E_USE, i);
+                return;
+            }
+            i = i + 1;
+        }
+        ls = line_to(ls) + 1;
+    }
+    ls = mod_from[m as usize];
+    while (ls < mod_to[m as usize]) {
+        var j: i64 = ls + indent_at(ls);
+        if (word_at(j, W_USE, 3) and at(j + 3) == ' ') {
+            var u: i64 = use_at(m, j);
+            if (u == 0 or !use_canonical(u)) {
+                fail(E_USE, j);
+                return;
+            }
+        }
+        ls = line_to(ls) + 1;
+    }
+    var d: i64 = mod_decls[m as usize];
+    while (d != 0) {
+        if (nkind(d) == D_USE and !use_canonical(d)) {
+            fail(E_USE, tpos(ntok(d)));
+            return;
+        }
+        d = nnext(d);
+    }
+}
+
+; The end of a path `a::b` at byte j, names joined by `::`, else -1.
+fn path_end(j: i64) -> i64 {
+    var i: i64 = j;
+    var more: bool = is_alnum(at(i));
+    if (!more) {
+        return -1;
+    }
+    while (more) {
+        while (is_alnum(at(i))) {
+            i = i + 1;
+        }
+        more = at(i) == ':' and at(i + 1) == ':' and is_alnum(at(i + 2));
+        if (more) {
+            i = i + 2;
+        }
+    }
+    return i;
+}
+
+; Whether path bytes [j, e), `a::b`, name module k: its header is `a/b.t27`.
+fn path_is(j: i64, e: i64, k: i64) -> bool {
+    var h: i64 = mod_head[k as usize];
+    var he: i64 = mod_from[k as usize] - 1;
+    var i: i64 = j;
+    while (i < e) {
+        if (h >= he) {
+            return false;
+        }
+        if (at(i) == ':') {
+            if (at(h) != '/') {
+                return false;
+            }
+            i = i + 2;
+        } else {
+            if (at(h) != at(i)) {
+                return false;
+            }
+            i = i + 1;
+        }
+        h = h + 1;
+    }
+    return h + 4 == he and word_at(h, 0x3732742e, 4);
+}
+
+fn put_path(j: i64, e: i64) -> void {
+    var i: i64 = j;
+    while (i < e) {
+        if (at(i) == ':') {
+            put('/');
+            i = i + 2;
+        } else {
+            put(at(i));
+            i = i + 1;
+        }
+    }
+    w(0x3732742e, 4);
+}
+
+; gen-c's `use_path_expr` on the line at ls of a module kept as text: the
+; first byte of the path to follow, or -1 for no `use`. A path other than
+; `a::b` (dotted, braced, `as`) is refused.
+fn text_use(ls: i64) -> i64 {
+    var j: i64 = ls + indent_at(ls);
+    if (!word_at(j, W_USE, 3) or at(j + 3) != ' ') {
+        return -1;
+    }
+    j = j + 4 + indent_at(j + 4);
+    var c: i64 = code_end(ls);
+    var e: i64 = path_end(j);
+    var i: i64 = e;
+    if (e < 0) {
+        i = j;
+    }
+    while (i < c and (at(i) == ' ' or at(i) == '\t')) {
+        i = i + 1;
+    }
+    while (i < c and at(i) == ';') {
+        i = i + 1;
+    }
+    while (i < c and (at(i) == ' ' or at(i) == '\t')) {
+        i = i + 1;
+    }
+    if (e >= 0 and i >= c) {
+        return j;
+    }
+    fail(E_USE, j);
+    return -1;
+}
+
+; Asks for the module path bytes [j, e) name unless the input carries it.
+fn reach(j: i64, e: i64) -> void {
+    var k: i64 = 1;
+    while (k < mod_count and !path_is(j, e, k)) {
+        k = k + 1;
+    }
+    if (k >= mod_count) {
+        out_len = 0;
+        put_path(j, e);
+        fail(E_NEED, j);
+        return;
+    }
+    mod_hit[k as usize] = 1;
+}
+
+; A line of a module kept as text opens, past its indent and an optional
+; `pub `, with a printable ASCII byte: gen-c trims Unicode blanks there.
+fn check_text_module(m: i64) -> void {
+    var ls: i64 = mod_from[m as usize];
+    while (!failed and ls < mod_to[m as usize]) {
+        var j: i64 = ls + indent_at(ls);
+        if (word_at(j, W_PUB, 3) and at(j + 3) == ' ') {
+            j = j + 4 + indent_at(j + 4);
+        }
+        if (j < line_to(ls) and (at(j) < ' ' or at(j) > '~')) {
+            fail(E_USE, j);
+            return;
+        }
+        ls = line_to(ls) + 1;
+    }
+}
+
+; Every `use` names a module the input carries, else the first one missing
+; is asked for: its path goes to `out` with E_NEED. Every module carried is
+; one a `use` names.
+fn request_missing() -> void {
+    var m: i64 = 0;
+    while (!failed and m < mod_count) {
+        var d: i64 = mod_decls[m as usize];
+        while (!failed and d != 0) {
+            if (nkind(d) == D_USE) {
+                reach(tpos(ntok(d)), tpos(na(d)) + tk_len[na(d) as usize]);
+            }
+            d = nnext(d);
+        }
+        var ls: i64 = mod_from[m as usize];
+        while (!failed and mod_text[m as usize] == 1 and ls < mod_to[m as usize]) {
+            var j: i64 = text_use(ls);
+            if (j >= 0) {
+                reach(j, path_end(j));
+            }
+            ls = line_to(ls) + 1;
+        }
+        m = m + 1;
+    }
+    m = 1;
+    if (failed) {
+        return;
+    }
+    while (m < mod_count) {
+        if (mod_hit[m as usize] == 0) {
+            fail(E_USE, mod_head[m as usize]);
+            return;
+        }
+        m = m + 1;
+    }
+}
+
+; How many declarations (of any kind) the reached modules give name t, and
+; the last of them in dep_find.
+fn dep_count(t: i64) -> i64 {
+    var n: i64 = 0;
+    var m: i64 = 1;
+    while (m < mod_count) {
+        var d: i64 = mod_decls[m as usize];
+        while (d != 0) {
+            if (named_decl(d) and tok_eq(ntok(d), t)) {
+                n = n + 1;
+            }
+            d = nnext(d);
+        }
+        m = m + 1;
+    }
+    return n;
+}
+
+fn dep_find(t: i64) -> i64 {
+    var m: i64 = 1;
+    while (m < mod_count) {
+        var d: i64 = mod_decls[m as usize];
+        while (d != 0) {
+            if (named_decl(d) and tok_eq(ntok(d), t)) {
+                return d;
+            }
+            d = nnext(d);
+        }
+        m = m + 1;
+    }
+    return 0;
+}
+
+; Whether a module kept as text has a line gen-c reads as declaring the name
+; spelled by bytes [s, s + n), at any indent.
+fn text_word(s: i64, n: i64) -> bool {
+    var m: i64 = 1;
+    while (m < mod_count) {
+        var ls: i64 = mod_from[m as usize];
+        while (mod_text[m as usize] == 1 and ls < mod_to[m as usize]) {
+            var nm: i64 = line_decl(ls);
+            if (nm >= 0 and !is_alnum(at(nm + n)) and cmp_bytes(nm, n, s, n) == 0) {
+                return true;
+            }
+            ls = line_to(ls) + 1;
+        }
+        m = m + 1;
+    }
+    return false;
+}
+
+; Whether a reached module declares a name spelled by bytes [s, s + n).
+fn dep_word(s: i64, n: i64) -> bool {
+    var m: i64 = 1;
+    if (text_word(s, n)) {
+        return true;
+    }
+    while (m < mod_count) {
+        var d: i64 = mod_decls[m as usize];
+        while (d != 0) {
+            if (named_decl(d) and word_is(s, n, ntok(d))) {
+                return true;
+            }
+            d = nnext(d);
+        }
+        m = m + 1;
+    }
+    return false;
+}
+
+fn pulled_word(s: i64, n: i64) -> bool {
+    var i: i64 = 0;
+    while (i < pull_count) {
+        if (word_is(s, n, ntok(pulled[i as usize]))) {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn is_pulled(t: i64) -> bool {
+    var i: i64 = 0;
+    while (i < pull_count) {
+        if (tok_eq(ntok(pulled[i as usize]), t)) {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn importer_decl(t: i64) -> bool {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            return true;
+        }
+        d = nnext(d);
+    }
+    return false;
+}
+
+; A name the importer and a reached module both declare: gen-c skips or
+; doubles it by spelling, not by scope (#7938).
+fn check_collisions() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        if (named_decl(d) and dep_word(tpos(ntok(d)), tk_len[ntok(d) as usize])) {
+            fail(E_USE, tpos(ntok(d)));
+        }
+        d = nnext(d);
+    }
+}
+
+fn module_of(t: i64) -> i64 {
+    var m: i64 = mod_count - 1;
+    while (m > 0 and mod_tok0[m as usize] > t) {
+        m = m - 1;
+    }
+    return m;
+}
+
+; gen-c's fixpoint, on tokens: each name a token in [t0, t1] spells that a
+; reached module declares is spliced; one two modules declare is not
+; (#7939). `from` is the spliced declaration the
+; tokens are, 0 for the importer: one of its names that is the importer's
+; would bind to the importer, and a spliced const may name nothing, as
+; gen-c orders the spliced `#define`s by name.
+fn pull_tokens(t0: i64, t1: i64, from: i64) -> void {
+    var t: i64 = t0;
+    while (!failed and t <= t1) {
+        if (kind(t) == T_IDENT and !is_pulled(t)) {
+            var n: i64 = dep_count(t);
+            var bad: bool = n > 1 or text_word(tpos(t), tk_len[t as usize]);
+            if (from != 0 and (importer_decl(t) or (n > 0 and nkind(from) == D_CONST))) {
+                bad = true;
+            }
+            if (n == 1 and !bad and !splice_kind(dep_find(t))) {
+                bad = true;
+            }
+            if (bad) {
+                fail(E_USE, tpos(t));
+                return;
+            }
+            if (n == 1) {
+                if (pull_count >= PULL_MAX) {
+                    fail(E_LIMIT, tpos(t));
+                    return;
+                }
+                pulled[pull_count as usize] = dep_find(t);
+                pulled_mod[pull_count as usize] = module_of(ntok(dep_find(t)));
+                pull_count = pull_count + 1;
+            }
+        }
+        t = t + 1;
+    }
+}
+
+fn pull_closure() -> void {
+    var i: i64 = 0;
+    pull_tokens(mod_tok0[0], mod_tok0[1] - 2, 0);
+    while (!failed and i < pull_count) {
+        var d: i64 = pulled[i as usize];
+        pull_tokens(ntok(d) - 1, nc(d), d);
+        i = i + 1;
+    }
+}
+
+; gen-c's `identifiers` over the lines [a, b): a word outside `//`, not
+; after `@`, not opening with a digit. Each one a reached module declares
+; must be spliced: else gen-c splices for prose (#7379), or leaves a var or
+; let undeclared (#7381).
+fn check_words(a: i64, b: i64) -> void {
+    var ls: i64 = a;
+    while (!failed and ls < b) {
+        var e: i64 = code_end(ls);
+        var j: i64 = ls;
+        while (j < e) {
+            if (is_alnum(at(j))) {
+                var s: i64 = j;
+                while (j < e and is_alnum(at(j))) {
+                    j = j + 1;
+                }
+                var word: bool = !is_digit(at(s)) and (s == ls or at(s - 1) != '@');
+                if (word and dep_word(s, j - s) and !pulled_word(s, j - s)) {
+                    fail(E_USE, s);
+                    return;
+                }
+            } else {
+                j = j + 1;
+            }
+        }
+        ls = line_to(ls) + 1;
+    }
+}
+
+; gen-c's `qualified_refs`: `M::x` or `M.x` anywhere in the importer, prose
+; and `//` included, for M a module it imports, pulls x and rewrites the
+; text. The core takes no qualified name.
+fn check_qualified() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        if (nkind(d) == D_USE) {
+            var t: i64 = na(d);
+            var n: i64 = tk_len[t as usize];
+            var s: i64 = mod_from[0];
+            while (s + n < mod_to[0]) {
+                var c: i64 = at(s + n);
+                var sep: bool = (c == ':' and at(s + n + 1) == ':' and is_alnum(at(s + n + 2))) or (c == '.' and is_alnum(at(s + n + 1)));
+                if (sep and word_is(s, n, t) and (s == 0 or !is_alnum(at(s - 1)))) {
+                    fail(E_USE, s);
+                    return;
+                }
+                s = s + 1;
+            }
+        }
+        d = nnext(d);
+    }
+}
+
+; Whether function or test d binds a parameter or local named t.
+fn binds(d: i64, t: i64) -> bool {
+    var prm: i64 = na(d);
+    if (nkind(d) != D_FN and nkind(d) != D_TEST) {
+        return false;
+    }
+    while (prm != 0) {
+        if (tok_eq(ntok(prm), t)) {
+            return true;
+        }
+        prm = nnext(prm);
+    }
+    return local_count(nb(d), t) > 0;
+}
+
+; A spliced name bound as a parameter or local anywhere: a spliced const is a
+; `#define` that rewrites it (#7380), and Zig refuses the shadow.
+fn check_shadow(pd: i64) -> void {
+    var d: i64 = decls;
+    var i: i64 = 0;
+    while (d != 0) {
+        if (binds(d, ntok(pd))) {
+            fail(E_USE, tpos(ntok(pd)));
+            return;
+        }
+        d = nnext(d);
+    }
+    while (i < pull_count) {
+        if (binds(pulled[i as usize], ntok(pd))) {
+            fail(E_USE, tpos(ntok(pd)));
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+; An importer global that names a spliced declaration: gen-c writes it
+; before the splice, so C reads it undeclared (#7702).
+fn check_globals() -> void {
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if (k == D_CONST or k == D_VAR or k == D_ARRAY) {
+            var t: i64 = ntok(d);
+            while (kind(t) != ';' and kind(t) != T_EOF) {
+                if (kind(t) == T_IDENT and is_pulled(t) and t != ntok(d)) {
+                    fail(E_USE, tpos(t));
+                    return;
+                }
+                t = t + 1;
+            }
+        }
+        d = nnext(d);
+    }
+}
+
+; Spliced declaration i sorts before j: by its module's path, then by name.
+fn pull_before(i: i64, j: i64) -> bool {
+    var mi: i64 = pulled_mod[i as usize];
+    var mj: i64 = pulled_mod[j as usize];
+    var c: i64 = cmp_bytes(mod_head[mi as usize], mod_from[mi as usize] - 1 - mod_head[mi as usize], mod_head[mj as usize], mod_from[mj as usize] - 1 - mod_head[mj as usize]);
+    var ti: i64 = ntok(pulled[i as usize]);
+    var tj: i64 = ntok(pulled[j as usize]);
+    if (c == 0) {
+        c = cmp_bytes(tk_pos[ti as usize], tk_len[ti as usize], tk_pos[tj as usize], tk_len[tj as usize]);
+    }
+    return c < 0;
+}
+
+fn swap_pulled(i: i64) -> void {
+    var d: i64 = pulled[i as usize];
+    var m: i64 = pulled_mod[i as usize];
+    pulled[i as usize] = pulled[(i - 1) as usize];
+    pulled_mod[i as usize] = pulled_mod[(i - 1) as usize];
+    pulled[(i - 1) as usize] = d;
+    pulled_mod[(i - 1) as usize] = m;
+}
+
+; The spliced declarations, in gen-c's order, follow the importer's.
+fn splice_pulled() -> void {
+    var i: i64 = 1;
+    while (i < pull_count) {
+        var j: i64 = i;
+        while (j > 0 and pull_before(j, j - 1)) {
+            swap_pulled(j);
+            j = j - 1;
+        }
+        i = i + 1;
+    }
+    var tail: i64 = decls;
+    while (nnext(tail) != 0) {
+        tail = nnext(tail);
+    }
+    i = 0;
+    while (i < pull_count) {
+        nd_next[tail as usize] = pulled[i as usize];
+        tail = pulled[i as usize];
+        i = i + 1;
+    }
+    nd_next[tail as usize] = 0;
+}
+
+fn has_endmodule() -> bool {
+    var t: i64 = mod_tok0[0];
+    while (kind(t) != T_EOF) {
+        if (kind(t) == T_IDENT and tok_is(t, W_ENDMODUL, 'e', 9)) {
+            return true;
+        }
+        t = t + 1;
+    }
+    return false;
+}
+
+; The importer with what gen-c splices into it, or a refusal. gen-c finds
+; no splice where a block comment hides a line, or text after `endmodule`.
+fn resolve_uses() -> void {
+    var m: i64 = 0;
+    if (open_comments > 0 or has_endmodule()) {
+        fail(E_USE, 0);
+    }
+    while (!failed and m < mod_count) {
+        if (mod_text[m as usize] == 1) {
+            check_text_module(m);
+        } else {
+            check_module_text(m);
+            if (!failed) {
+                check_split(m);
+            }
+            // A reached module whose text this core does not read as gen-c
+            // does is kept as text instead.
+            if (failed and m > 0) {
+                failed = false;
+                err_code = 0;
+                err_pos = 0;
+                mod_decls[m as usize] = 0;
+                mod_text[m as usize] = 1;
+                check_text_module(m);
+            }
+        }
+        m = m + 1;
+    }
+    if (!failed) {
+        check_local_names();
+    }
+    if (!failed) {
+        request_missing();
+    }
+    if (!failed) {
+        check_collisions();
+    }
+    if (!failed) {
+        pull_closure();
+    }
+    if (!failed) {
+        check_words(mod_from[0], mod_to[0]);
+    }
+    m = 0;
+    while (!failed and m < pull_count) {
+        var d: i64 = pulled[m as usize];
+        check_words(line_from(tpos(ntok(d) - 1)), line_to(tpos(nc(d))));
+        if (!failed) {
+            check_shadow(d);
+        }
+        m = m + 1;
+    }
+    if (!failed) {
+        check_qualified();
+    }
+    if (!failed) {
+        check_globals();
+    }
+    if (!failed) {
+        splice_pulled();
     }
 }
 
@@ -2459,13 +3544,30 @@ pub fn compile(n: i64) -> i64 {
     decls = 0;
     scope_len = 0;
     cur_decl = 0;
+    mod_count = 0;
+    pull_count = 0;
+    open_comments = 0;
     if (n < 0 or n > SRC_MAX) {
         fail(E_LIMIT, 0);
         return -1;
     }
-    lex();
+    split_modules(n);
     if (!failed) {
+        lex_module(0);
+        src_len = n;
+    }
+    if (!failed) {
+        p = mod_tok0[0];
         parse_module();
+        mod_decls[0] = decls;
+    }
+    var m: i64 = 1;
+    while (!failed and m < mod_count) {
+        load_module(m, n);
+        m = m + 1;
+    }
+    if (!failed and mod_count + count_kind(D_USE, D_USE, D_USE) > 1) {
+        resolve_uses();
     }
     if (!failed) {
         check();
@@ -2805,6 +3907,69 @@ test for_end_assigned_in_its_body_is_refused {
     var n10: i64 = feed(0x7d7d, 2, n9);
     assert(compile(n10) == -1);
     assert(err_code == E_SYNTAX);
+}
+
+; "module m;\nuse a;\nfn f() -> i64 { return g(); }\n", then a NUL and
+; "a.t27\nmodule a;\nfn g() -> i64 { return 7; }\n": gen-c splices g after
+; f, 774 bytes in all.
+test use_splices_after_the_importer {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3b61206573750a3b, 8, n1);
+    var n3: i64 = feed(0x20292866206e660a, 8, n2);
+    var n4: i64 = feed(0x7b20343669203e2d, 8, n3);
+    var n5: i64 = feed(0x206e727574657220, 8, n4);
+    var n6: i64 = feed(0xa7d203b292867, 8, n5);
+    var n7: i64 = feed(0x6f6d0a3732742e61, 8, n6);
+    var n8: i64 = feed(0xa3b6120656c7564, 8, n7);
+    var n9: i64 = feed(0x2d20292867206e66, 8, n8);
+    var n10: i64 = feed(0x207b20343669203e, 8, n9);
+    var n11: i64 = feed(0x37206e7275746572, 8, n10);
+    var n12: i64 = feed(0xa7d203b, 4, n11);
+    assert(compile(n12) == 774);
+    assert(out_at(508) == 'f');
+    assert(out_at(525) == 'g');
+    assert(out_at(751) == '7');
+}
+
+; "module m;\nuse a;\n" alone: the core asks for "a.t27" (E_NEED).
+test use_asks_for_its_module {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3b61206573750a3b, 8, n1);
+    var n3: i64 = feed(0xa, 1, n2);
+    assert(compile(n3) == -1);
+    assert(err_code == E_NEED);
+    assert(out_len == 5);
+    assert(out_at(0) == 'a');
+    assert(out_at(1) == '.');
+    assert(out_at(4) == '7');
+}
+
+; "module m;\nuse a;\n; g\n" with module a: prose names g, so gen-c would
+; splice it though no code calls it (#7379).
+test use_prose_pull_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3b61206573750a3b, 8, n1);
+    var n3: i64 = feed(0x2e61000a67203b0a, 8, n2);
+    var n4: i64 = feed(0x75646f6d0a373274, 8, n3);
+    var n5: i64 = feed(0x6e660a3b6120656c, 8, n4);
+    var n6: i64 = feed(0x203e2d2029286720, 8, n5);
+    var n7: i64 = feed(0x6572207b20343669, 8, n6);
+    var n8: i64 = feed(0x203b37206e727574, 8, n7);
+    var n9: i64 = feed(0xa7d, 2, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_USE);
+}
+
+; "module m;var a: [1]u8 = [x]u8{0};": the element type opens with `[_]`.
+; Built by the Zig backend before is_hole, this core took `[x]` (#7936).
+test element_type_needs_a_hole {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a61207261763b, 8, n1);
+    var n3: i64 = feed(0x203d2038755d315b, 8, n2);
+    var n4: i64 = feed(0x7d307b38755d785b, 8, n3);
+    var n5: i64 = feed(0x3b, 1, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_ARRAY);
 }
 
 test put_int_writes_decimal {
