@@ -11,12 +11,12 @@ relu 10
 dot27 8,5
 contrib 7
 activate 6
+build_tree 6
 clamp 6
 clear 6
 match_at 6
 quantize 6,5
 relu_prime 6
-build_tree 5
 count 5
 exp_approx 5
 floor 5,4

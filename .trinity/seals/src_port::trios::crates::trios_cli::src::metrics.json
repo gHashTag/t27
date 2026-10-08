@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:24fb8c99b08ce10367103fcc6033d639ee3fa42bcbee6a1bef63d6c8624ada7f",
+  "gen_hash_rust": "sha256:cede6d42ea652a2cc89ddbf49fdbdb8c78e3b3273231ecb8574c2e77b9b08607",
+  "gen_hash_verilog": "sha256:f015ed22ebd67369ecc8f7a7f911fa51853e7400e31aec055e699b7596f6927a",
+  "gen_hash_zig": "sha256:570deefa0df0989f0e4235d2bdfe84ac5f31256ac6d3fb3a07b84c2ba3fc5992",
+  "module": "port::trios::crates::trios_cli::src::metrics",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:11:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:5f1265e369d5ef653922680ee28d6b41059f3b44c1f6d670b5033be94b9d2f0d",
+  "spec_path": "specs/port/trios/crates/trios-cli/src/metrics.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
+}
