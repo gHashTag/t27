@@ -58,7 +58,10 @@ pub struct AsmSymbol {
     pub is_global: bool,
 }
 
-pub struct AsmSection {
+// Named CompilerAsmSection, not AsmSection: specs/fpga/assembler.t27 owns
+// AsmSection with `kind: i8`, and this port keeps the typed AsmSectionKind,
+// so the two field lists differ (tri types ratchet, #7437).
+pub struct CompilerAsmSection {
     pub name: str,
     pub kind: AsmSectionKind,
     pub base_address: u32,
@@ -91,8 +94,8 @@ pub fn AsmSymbol_validate(s: AsmSymbol) -> u32 {
     return 0;
 }
 
-pub fn AsmSection_text(base: u32) -> AsmSection {
-    return AsmSection {
+pub fn AsmSection_text(base: u32) -> CompilerAsmSection {
+    return CompilerAsmSection {
         name: ".text",
         kind: AsmSectionKind::Text,
         base_address: base,
@@ -100,8 +103,8 @@ pub fn AsmSection_text(base: u32) -> AsmSection {
     };
 }
 
-pub fn AsmSection_data(base: u32) -> AsmSection {
-    return AsmSection {
+pub fn AsmSection_data(base: u32) -> CompilerAsmSection {
+    return CompilerAsmSection {
         name: ".data",
         kind: AsmSectionKind::Data,
         base_address: base,
@@ -109,8 +112,8 @@ pub fn AsmSection_data(base: u32) -> AsmSection {
     };
 }
 
-pub fn AsmSection_bss(base: u32) -> AsmSection {
-    return AsmSection {
+pub fn AsmSection_bss(base: u32) -> CompilerAsmSection {
+    return CompilerAsmSection {
         name: ".bss",
         kind: AsmSectionKind::Bss,
         base_address: base,
@@ -118,8 +121,8 @@ pub fn AsmSection_bss(base: u32) -> AsmSection {
     };
 }
 
-pub fn AsmSection_rodata(base: u32) -> AsmSection {
-    return AsmSection {
+pub fn AsmSection_rodata(base: u32) -> CompilerAsmSection {
+    return CompilerAsmSection {
         name: ".rodata",
         kind: AsmSectionKind::Rodata,
         base_address: base,
@@ -127,7 +130,7 @@ pub fn AsmSection_rodata(base: u32) -> AsmSection {
     };
 }
 
-pub fn AsmSection_end(s: AsmSection) -> u32 {
+pub fn AsmSection_end(s: CompilerAsmSection) -> u32 {
     if (s.size > 0xFFFFFFFF - s.base_address) {
         return 0xFFFFFFFF;
     }
@@ -225,7 +228,7 @@ test AsmSection_end_zero_size {
 }
 
 test AsmSection_end_grows {
-    const section = AsmSection {
+    const section = CompilerAsmSection {
         name: ".data",
         kind: AsmSectionKind::Data,
         base_address: 0x2000,
@@ -235,7 +238,7 @@ test AsmSection_end_grows {
 }
 
 test AsmSection_end_saturates {
-    const section = AsmSection {
+    const section = CompilerAsmSection {
         name: ".bss",
         kind: AsmSectionKind::Bss,
         base_address: 0xFFFFFFF0,
@@ -245,7 +248,7 @@ test AsmSection_end_saturates {
 }
 
 test AsmSection_end_saturates_at_max {
-    const section = AsmSection {
+    const section = CompilerAsmSection {
         name: ".rodata",
         kind: AsmSectionKind::Rodata,
         base_address: 0xFFFFFFFF,
@@ -255,7 +258,7 @@ test AsmSection_end_saturates_at_max {
 }
 
 test AsmSection_end_boundary_no_overflow {
-    const section = AsmSection {
+    const section = CompilerAsmSection {
         name: ".text",
         kind: AsmSectionKind::Text,
         base_address: 0xFFFFFFF0,
