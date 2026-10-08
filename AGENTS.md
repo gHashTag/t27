@@ -210,10 +210,11 @@ measure it are written in **t27**, not in Rust or Python by hand.
   14885 plus 7924; 14944 plus 7964 after #7691's glue for a local bound to
   the W585 scaffold the reference never calls, whose plan is
   `specs/tri/t27b/scaffold_plan.t27`, +39 and +22 on master d42df2b06's
-  14905 plus 7942; 14965 plus 7980 after #7796's glue for `undefined` as an
-  argument the callee never reads, whose plan is
-  `specs/tri/t27b/undefined_arg_plan.t27`, +21 and +16 on master 2781ae37b's
-  14944 plus 7964),
+  14905 plus 7942; 14967 plus 7987 after #7470's module vars that hold a
+  string or start undefined, +23 and +23 on master 579bc55aa's 14944 plus
+  7964; 14988 plus 8003 after #7796's glue for `undefined` as an argument the
+  callee never reads, whose plan is `specs/tri/t27b/undefined_arg_plan.t27`,
+  +21 and +16 on master 1f2448e98's 14967 plus 7987),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
