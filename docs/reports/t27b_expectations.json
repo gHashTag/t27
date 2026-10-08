@@ -14,7 +14,7 @@
  },
  "max_not_pass": 36,
  "counts": {
-  "pass": 922,
+  "pass": 923,
   "pass_vacuous": 151,
   "not_pass": 36
  },
@@ -338,7 +338,7 @@
   {"path": "specs/numeric/gf1024.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf128.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf14.t27", "t27b": "pass"},
-  {"path": "specs/numeric/gf16.t27", "t27b": "blocked", "blocker": "ExprCall(@floor)", "reason": "unimplemented"},
+  {"path": "specs/numeric/gf16.t27", "t27b": "blocked", "blocker": "ExprCall(@log)", "reason": "unimplemented"},
   {"path": "specs/numeric/gf256.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf48.t27", "t27b": "pass"},
   {"path": "specs/numeric/gf512.t27", "t27b": "pass"},
@@ -990,6 +990,7 @@
   {"path": "specs/tri/t27b/conformance/frame_address_store.t27", "t27b": "blocked", "blocker": "StmtAssign(frame address)", "reason": "reference-bug"},
   {"path": "specs/tri/t27b/conformance/int_cast.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/large_frame.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/libm_rounding.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/numeric_coercion.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},

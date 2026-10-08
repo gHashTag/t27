@@ -126,6 +126,12 @@ fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+/// #7565: the `use` edges of one spec, for `t27c use-edges` (main.rs); std only, t27b compiles
+/// this file too.
+pub fn use_edges(source: &str, specs_root: &Path) -> Vec<PathBuf> {
+    use_targets(source, specs_root)
+}
+
 /// #7176: one warning per `use` line `use_targets` drops. A target that is not
 /// a file was skipped without a word, `gen` exited 0, and the first error came
 /// from zig, about an identifier (`use of undeclared identifier 'LIST_END'`),
