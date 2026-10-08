@@ -115,6 +115,8 @@ mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's a
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
+mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
 mod refvars;
 mod tuple;
 
@@ -2564,6 +2566,16 @@ impl<'a> Lower<'a> {
                 return Ok(());
             }
         }
+        // `_ = e;`, e not a bare name (specs/tri/t27b/discard_plan.t27): deleted where the reference deletes it, else e runs.
+        if name == "_" && (op.is_empty() || op == "=") {
+            let (mut calls, top) = (Vec::new(), self.scopes.len() == 1);
+            calls_in(std::slice::from_ref(rhs), &mut calls);
+            match dp::plan(rhs.kind == NodeKind::ExprIdentifier, self.in_test && top, !self.in_test && top, !calls.is_empty()) {
+                dp::DELETED => return Ok(()),
+                dp::EVALUATE => return self.discard_value(rhs, out),
+                _ => {}
+            }
+        }
         // A module-level var written at the top of a test is a write to
         // module state, as in a fn body: since #6295 the reference no longer
         // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
@@ -2650,6 +2662,23 @@ impl<'a> Lower<'a> {
             }
             None => self.reject("StmtAssign(undeclared)", format!("assignment to undeclared `{}`", name)),
         }
+    }
+
+    /// `_ = e;` that runs (discard_plan.t27's EVALUATE): e is evaluated for its effects and traps, its value dropped.
+    fn discard_value(&mut self, e: &Node, out: &mut Vec<Stmt>) -> R<()> {
+        self.see(e);
+        if e.kind == NodeKind::ExprCall && self.sigs.contains_key(&e.name) {
+            let (call, _, _) = self.call(e, None)?;
+            out.push(Stmt::Eval(call));
+            return Ok(());
+        }
+        match self.expr(e)? {
+            Val::Poison => return Err(()),
+            Val::E(x) | Val::P(x, _) => out.push(Stmt::Eval(x)),
+            Val::M(p) if !pure_addr(&p.addr) => out.push(Stmt::Eval(p.addr)),
+            _ => {}
+        }
+        Ok(())
     }
 
     /// `undefined;`, the body stub a port leaves where plumbing was. t27c's
