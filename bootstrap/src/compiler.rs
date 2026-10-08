@@ -24632,12 +24632,12 @@ fn collect_const_types(node: &Node, out: &mut std::collections::HashMap<String, 
 }
 
 /// Collect the Rust type of every explicitly typed local in a function body.
-fn collect_typed_locals(nodes: &[Node], out: &mut std::collections::HashMap<String, String>) {
+fn collect_typed_locals(nodes: &[Node], out: &mut std::collections::HashMap<String, String>, this: &RustCodegen) {
     for n in nodes {
         if n.kind == NodeKind::StmtLocal && !n.name.is_empty() && !n.extra_type.trim().is_empty() {
-            out.insert(n.name.clone(), RustCodegen::t27_type_to_rust(&n.extra_type));
+            out.insert(n.name.clone(), this.t27_type_to_rust(&n.extra_type));
         }
-        collect_typed_locals(&n.children, out);
+        collect_typed_locals(&n.children, out, this);
     }
 }
 
@@ -27128,7 +27128,7 @@ impl RustCodegen {
             .children
             .iter()
             .filter(|c| c.kind == NodeKind::ExprIdentifier && !c.name.is_empty())
-            .all(|c| self.rust_type_is_copy(&Self::t27_type_to_rust(&c.extra_type)));
+            .all(|c| self.rust_type_is_copy(&self.t27_type_to_rust(&c.extra_type)));
         if all_fields_copy {
             self.write_line("#[derive(Debug, Clone, Copy)]");
         } else {
@@ -27167,7 +27167,7 @@ impl RustCodegen {
             // Struct fields are stored as ExprIdentifier with name and extra_type
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
-                let field_type = Self::t27_type_to_rust(&child.extra_type);
+                let field_type = self.t27_type_to_rust(&child.extra_type);
                 // A struct that holds an OPTIONAL of itself is infinitely sized in Rust:
                 //
                 //     pub left: Option<KDNode>            error[E0072]
@@ -27280,14 +27280,14 @@ impl RustCodegen {
             .map(str::trim)
             .filter(|a| !a.is_empty())
             // A named parameter (`e: SSEEvent`) keeps only its type; a bare type stays.
-            .map(|a| Self::t27_type_to_rust(a.rsplit(':').next().unwrap_or(a).trim()))
+            .map(|a| self.t27_type_to_rust(a.rsplit(':').next().unwrap_or(a).trim()))
             .collect();
         let ret = ret.trim();
         // `void` and an absent return are the same thing, and Rust writes neither.
         let tail = if ret.is_empty() || ret == "void" {
             String::new()
         } else {
-            format!(" -> {}", Self::t27_type_to_rust(ret))
+            format!(" -> {}", self.t27_type_to_rust(ret))
         };
         Some(format!("fn({}){}", args.join(", "), tail))
     }
@@ -27296,7 +27296,7 @@ impl RustCodegen {
         let const_type = if node.extra_type.is_empty() {
             "i32".to_string()
         } else {
-            Self::t27_type_to_rust(node.extra_type.as_str())
+            self.t27_type_to_rust(node.extra_type.as_str())
         };
         // A function TYPE is not a value, so it cannot be the initialiser of a const.
         if let Some(child) = node.children.first() {
@@ -27383,7 +27383,7 @@ impl RustCodegen {
         let params_str = params
             .iter()
             .map(|(n, t)| {
-                let rust_ty = Self::t27_type_to_rust(t);
+                let rust_ty = self.t27_type_to_rust(t);
                 let is_slice = t.trim_start().starts_with("[]");
                 // The element type must come from a `Vec<T>` the mapping
                 // actually produced. `[]const u8` is a Zig-ism that
@@ -27457,7 +27457,7 @@ impl RustCodegen {
         let ret_type = if node.extra_return_type.is_empty() {
             "()".to_string()
         } else {
-            Self::t27_type_to_rust(node.extra_return_type.as_str())
+            self.t27_type_to_rust(node.extra_return_type.as_str())
         };
 
         self.fn_ret_type = ret_type.clone();
@@ -27515,10 +27515,10 @@ impl RustCodegen {
                 self.var_types.insert(pname.clone(), "&[u8]".to_string());
             } else if !ptype.trim().is_empty() {
                 self.var_types
-                    .insert(pname.clone(), Self::t27_type_to_rust(ptype));
+                    .insert(pname.clone(), self.t27_type_to_rust(ptype));
             }
         }
-        collect_typed_locals(&node.children, &mut self.var_types);
+        collect_typed_locals(&node.children, &mut self.var_types, self);
         // A local declared without a type still has one — `let n = x as u16`
         // is a u16. Recorded after the explicit types above, so a declared
         // type always wins over an inferred one.
@@ -27573,7 +27573,7 @@ impl RustCodegen {
                         let mutable = child.extra_mutable || self.mut_names.contains(&child.name);
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
-                        let typ = Self::t27_type_to_rust(&child.extra_type);
+                        let typ = self.t27_type_to_rust(&child.extra_type);
                         // The same question `gen_rust_stmt` asks. This function carries its
                         // own copy of the local-emission logic, and a fix applied to only
                         // one of the two is not applied: the first attempt at this patched
@@ -27864,7 +27864,7 @@ impl RustCodegen {
                     return;
                 }
                 let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
-                let typ = Self::t27_type_to_rust(&stmt.extra_type);
+                let typ = self.t27_type_to_rust(&stmt.extra_type);
                 if stmt.children.is_empty() || Self::is_undefined_init(&stmt.children) {
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {};", kw, stmt.name));
@@ -28033,12 +28033,12 @@ impl RustCodegen {
         let one = args.len() == 1;
         Some(match name {
             // Target named by the source: exact.
-            "@as" if two => format!("({} as {})", a(1), Self::t27_type_to_rust(&a(0))),
+            "@as" if two => format!("({} as {})", a(1), self.t27_type_to_rust(&a(0))),
             "@intCast" | "@floatCast" | "@truncate" if two => {
-                format!("({} as {})", a(1), Self::t27_type_to_rust(&a(0)))
+                format!("({} as {})", a(1), self.t27_type_to_rust(&a(0)))
             }
             "@intFromFloat" | "@floatFromInt" if two => {
-                format!("({} as {})", a(1), Self::t27_type_to_rust(&a(0)))
+                format!("({} as {})", a(1), self.t27_type_to_rust(&a(0)))
             }
             // Target inferred from context, exactly as in Zig.
             "@intCast" | "@floatCast" | "@truncate" | "@intFromFloat" | "@floatFromInt"
@@ -28210,7 +28210,7 @@ impl RustCodegen {
         false
     }
 
-    fn t27_type_to_rust(t27_type: &str) -> String {
+    fn t27_type_to_rust(&self, t27_type: &str) -> String {
         let t = t27_type.trim();
         // Handle optional types. t27 writes the Zig spelling -- a LEADING `?`
         // (`?u64`, `?[]u8`) -- and only the trailing form was recognised, so
@@ -28251,10 +28251,10 @@ impl RustCodegen {
                     // incompatible Rust: `std.StringHashMap(u32)` gave
                     // `HashMap<String, u32>` while `std.HashMap([]const u8, u32)` gave
                     // `HashMap<&'static str, u32>`. One emitter, one answer.
-                    let key = Self::t27_type_to_rust("[]const u8");
+                    let key = self.t27_type_to_rust("[]const u8");
                     let out = format!(
                         "std::collections::HashMap<{key}, {}>",
-                        Self::t27_type_to_rust(args[0].trim())
+                        self.t27_type_to_rust(args[0].trim())
                     );
                     return if is_optional { format!("Option<{out}>") } else { out };
                 }
@@ -28266,8 +28266,8 @@ impl RustCodegen {
                 if parts.len() == 2 {
                     let out = format!(
                         "std::collections::HashMap<{}, {}>",
-                        Self::t27_type_to_rust(parts[0].trim()),
-                        Self::t27_type_to_rust(parts[1].trim())
+                        self.t27_type_to_rust(parts[0].trim()),
+                        self.t27_type_to_rust(parts[1].trim())
                     );
                     return if is_optional { format!("Option<{out}>") } else { out };
                 }
@@ -28299,7 +28299,7 @@ impl RustCodegen {
             // it without the comma. Emitting `(T,)` there would change the type.
             let mapped: Vec<String> = parts
                 .iter()
-                .map(|q| Self::t27_type_to_rust(q.trim()))
+                .map(|q| self.t27_type_to_rust(q.trim()))
                 .collect();
             let joined = format!("({})", mapped.join(", "));
             return if is_optional { format!("Option<{joined}>") } else { joined };
@@ -28364,7 +28364,13 @@ impl RustCodegen {
             //
             // The Zig backend already writes `const SPDX_HEADER: []const u8` and
             // `zig build-obj` accepts it.
-            "[]const u8" => "&'static str".to_string(),
+            "[]const u8" => {
+                if self.byte_params {
+                    "&[u8]".to_string()
+                } else {
+                    "&'static str".to_string()
+                }
+            },
             t if t.starts_with("[]") => {
                 // `[]const u8` is the Zig spelling of a slice of const u8, and
                 // the `const` qualifies the POINTEE. Rust's `Vec<T>` has no
@@ -28378,7 +28384,7 @@ impl RustCodegen {
                 // diagnosable error code.
                 let inner = t[2..].trim_start();
                 let inner = inner.strip_prefix("const ").unwrap_or(inner);
-                format!("Vec<{}>", Self::t27_type_to_rust(inner))
+                format!("Vec<{}>", self.t27_type_to_rust(inner))
             }
             // [T; N] form (Rust-style fixed array). Must stay a real array:
             // dropping the element type produced `Vec<>`, which does not compile.
@@ -28386,7 +28392,7 @@ impl RustCodegen {
                 let body = &t[1..t.len() - 1];
                 match body.split_once(';') {
                     Some((elem, len)) => {
-                        let elem_rust = Self::t27_type_to_rust(elem.trim());
+                        let elem_rust = self.t27_type_to_rust(elem.trim());
                         let len = len.trim();
                         if len.chars().all(|c| c.is_ascii_digit()) {
                             format!("[{}; {}]", elem_rust, len)
@@ -28409,7 +28415,7 @@ impl RustCodegen {
                     // spec size consts are u32, so cast in the const-expr position.
                     let elem = inside[..semi].trim();
                     let size = inside[semi + 1..].trim();
-                    format!("[{}; {} as usize]", Self::t27_type_to_rust(elem), size)
+                    format!("[{}; {} as usize]", self.t27_type_to_rust(elem), size)
                 } else {
                     // Two spellings share this shape and the element type sits on
                     // opposite sides of the bracket.
@@ -28429,10 +28435,10 @@ impl RustCodegen {
                     if after.trim().is_empty() {
                         // t27's own `[T]`: the element is inside and there is no
                         // size, so a growable Vec is the honest lowering.
-                        format!("Vec<{}>", Self::t27_type_to_rust(inside))
+                        format!("Vec<{}>", self.t27_type_to_rust(inside))
                     } else if inside.trim().is_empty() {
                         // `[]T` -- a slice. Also unsized.
-                        format!("Vec<{}>", Self::t27_type_to_rust(after))
+                        format!("Vec<{}>", self.t27_type_to_rust(after))
                     } else {
                         // Zig-style `[N]T`: the SIZE is in the brackets. It was
                         // discarded here and the type came out `Vec<T>`, which
@@ -28460,9 +28466,9 @@ impl RustCodegen {
                                     .chars()
                                     .all(|c| c.is_ascii_alphanumeric() || c == '_'));
                         if !sized {
-                            return_unsized(Self::t27_type_to_rust(after))
+                            return_unsized(self.t27_type_to_rust(after))
                         } else {
-                        let elem = Self::t27_type_to_rust(after);
+                        let elem = self.t27_type_to_rust(after);
                         if size.chars().all(|c| c.is_ascii_digit()) {
                             format!("[{}; {}]", elem, size)
                         } else {
@@ -28487,9 +28493,9 @@ impl RustCodegen {
                 // bare means MUTABLE in the source language.
                 let rest = t[1..].trim_start();
                 if let Some(inner) = rest.strip_prefix("const ") {
-                    format!("*const {}", Self::t27_type_to_rust(inner))
+                    format!("*const {}", self.t27_type_to_rust(inner))
                 } else if let Some(inner) = rest.strip_prefix("mut ") {
-                    format!("*mut {}", Self::t27_type_to_rust(inner))
+                    format!("*mut {}", self.t27_type_to_rust(inner))
                 } else {
                     // Stays `*mut` HERE. A bare `*T` is an out-parameter and
                     // `&mut T` is the only rendering under which the emitted
@@ -28498,7 +28504,7 @@ impl RustCodegen {
                     // reached struct fields, and `pub fail: &mut ACTrieNode`
                     // needs a lifetime: 9 introduced E0106/E0308 across 3
                     // specs, against 1 revealed. See `gen_fn`.
-                    format!("*mut {}", Self::t27_type_to_rust(rest))
+                    format!("*mut {}", self.t27_type_to_rust(rest))
                 }
             }
             // A dotted foreign type has no Rust spelling either.
@@ -28526,7 +28532,7 @@ impl RustCodegen {
                 if head.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && !head.is_empty() {
                     let mapped: Vec<String> = args
                         .split(',')
-                        .map(|a| Self::t27_type_to_rust(a.trim()))
+                        .map(|a| self.t27_type_to_rust(a.trim()))
                         .collect();
                     format!("{}<{}>", head, mapped.join(", "))
                 } else {
