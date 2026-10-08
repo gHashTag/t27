@@ -1,6 +1,6 @@
 [package]
 name = "t27c"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "T27 Bootstrap Compiler for Trinity S³AI Framework"
 license = "MIT"
