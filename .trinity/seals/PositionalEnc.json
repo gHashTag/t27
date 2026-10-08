@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:43948ff8748236c59a34c515f23813baa7677b37691784c89741383e2d5535b4",
+  "gen_hash_c": "sha256:152c2032b55c39bf976b5e7e0802940851967931c6aff1080682613db4c6c0db",
   "gen_hash_rust": "sha256:971c7c003332c3ac9dfabedeb9ba2d03eb4e51c608fd7b8f8813cdd4fab511de",
   "gen_hash_verilog": "sha256:96245440bd8bab8194644fa599735346b9c9f85e6d3f9dc99ed0372ef2df5eef",
   "gen_hash_zig": "sha256:05add1a27bd534808da1d81b00391422abf63faf32f8c2a4cff2b601a68d0f87",
   "module": "PositionalEnc",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-07T07:09:12Z",
   "spec_hash": "sha256:c68d93e7dd9a6bdd053b119a5e3e27670c2ccc37f1e68bb1f619c5968c27dfd1",
-  "spec_path": "specs/ml/transformer/positional_encoding.t27"
+  "spec_path": "specs/ml/transformer/positional_encoding.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:28:17: error: use of undeclared identifier 'd_model'"
+  }
 }

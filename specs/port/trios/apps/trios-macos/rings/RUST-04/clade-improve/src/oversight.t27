@@ -13,7 +13,9 @@ struct ChangeSpec {
     // Placeholder - would be defined elsewhere in the trios codebase
 }
 
-struct Variant {
+// Not named Variant: specs/tri/collections/variant.t27 owns Variant (tri types
+// ratchet, #7437).
+struct CladeVariant {
     // Placeholder - would be defined elsewhere in the trios codebase
 }
 
@@ -33,7 +35,7 @@ fn OversightAgent_new() -> OversightAgent {
     }
 }
 
-fn OversightAgent_evaluate(agent: OversightAgent, changes: []const ChangeSpec, _variant: []const Variant) -> (OversightResult, []const u8) {
+fn OversightAgent_evaluate(agent: OversightAgent, changes: []const ChangeSpec, _variant: []const CladeVariant) -> (OversightResult, []const u8) {
     // Port the decision logic, not the plumbing
     // The original calls: self.constitution.evaluate(changes)
     // For now, return a placeholder result
@@ -85,7 +87,7 @@ test OversightAgent_new_initializes_correctly {
 test OversightAgent_evaluate_returns_result_and_token {
     var agent = OversightAgent_new();
     var changes: [1]ChangeSpec = [ChangeSpec{}]; // Empty change spec for testing
-    var variant: [0]Variant = []; // Empty variant for testing
+    var variant: [0]CladeVariant = []; // Empty variant for testing
     
     var result = OversightAgent_evaluate(agent, &changes, &variant);
     // The function should return a tuple of (OversightResult, token)
