@@ -1,0 +1,9 @@
+# NOW -- t27b runs a test local named for a module var (2026-10-07)
+
+## cli/t27b/src/lower.rs, specs/tri/t27b/conformance/shadow_module_var.t27 (Closes #7668)
+
+- Lane 5 of #6063. `specs/compiler/zig_test_shadowing.t27` was blocked twice. The first refusal, the stale `StmtAssign(reference redeclares)` scan, was removed on master by #7671 (#7422, merged ef26684a1), with `test_local_write.t27` as its spec. This entry is the second one, filed as #7668.
+- The second refusal was `StmtLocal(shadows module var)`. Since #6295, gen-zig renames a local that takes a module var's name to `<name>_lv` for every mention in that fn or test body. That rename agrees with t27 scoping only in one case: the declaration is a top-level statement of the body, nothing before it mentions the name (its own initializer included), and the body declares the name once. t27b now lowers exactly that case as a plain local. Every other shape is still refused, because the reference cannot compile it. Those shapes are: a mention before the declaration, a nested declaration, a self-initializer, a second declaration, and a parameter with the name.
+- New conformance spec `specs/tri/t27b/conformance/shadow_module_var.t27`, written first. The reference passes it 5 of 5, with 12 runtime asserts and 0 vacuous. It covers u32, bool and i64 locals in tests and in a fn. A called fn still writes the module var while a local shadows it.
+- `cli/t27b/tests/source.rs`: the refusal cases above each get a precise check, and a run case checks that the interpreter and the JIT agree on pass and fail (the run case for a second write to a test's own local is master's, from #7671). Every one of these verdicts was checked against the reference on the Railway t27b lab first.
+- Ledger: `specs/compiler/zig_test_shadowing.t27` moves from `blocked` to `pass`. `shadow_module_var.t27` gets a `pass` row.

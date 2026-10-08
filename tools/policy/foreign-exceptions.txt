@@ -24,6 +24,10 @@ cli/t27b/src/codegen.rs
 # (epic #6063 lane 5): t27b fills a module var declared `undefined` with 0xAA bytes (Zig Debug on x86_64;
 # not portable, so no fixture reads one before a write), and writes a module var that holds a string at the start of every test, invariant and bench.
 # Conformance specs: specs/tri/t27b/conformance/str_module_var.t27 and undefined_module_var.t27.
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7668
+# (the rest of #7422; epic #6063, lane 5): t27b lowers a top-level local that takes a module var's name
+# where the reference's `_lv` rename agrees with t27 scoping.
+# The fixture is specs/tri/t27b/conformance/shadow_module_var.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
