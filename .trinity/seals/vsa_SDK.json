@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:e1619d2c7384c506010ee3f8db4330e14518830168c61b183be37ad579dccd3d",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:d2da0f6268c91a6b47fb912b85087933ccc4c1cd46f9c29b168f45608006f478",
   "gen_hash_rust": "sha256:813822ab10be13d1b2386678c9ad8130df2333769dfef9cea72dbe50e9b2cff3",
   "gen_hash_verilog": "sha256:f40f4a52f962969176a47a31c6ebbc6a55c016f71257041b8c949ac89d81b754",
   "gen_hash_zig": "sha256:b77206ded101634b2d5802fa49d66e790e78baf15614ba96345ff21e47931502",
   "module": "SDK",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:16:51Z",
+  "sealed_at": "2026-10-07T07:09:35Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:41cb5bde9a464e6243cff0eefdd91bb0931ffd452217ec6f6357c974196e34e7",
   "spec_path": "specs/vsa/sdk.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-sdk-55130/spec.zig:23:11: error: use of undeclared identifier 'hybrid_arithmetic'"
+    "blocked": "does not compile: spec.zig:23:11: error: use of undeclared identifier 'hybrid_arithmetic'"
   }
 }
