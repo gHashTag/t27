@@ -371,6 +371,38 @@ module AuthConfig {
         assert(PROVIDER_GITLAB == "gitlab");
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // Vacuity Gate Specification: absence_sweep starvation diagnosis
+    // ═══════════════════════════════════════════════════════════
+    //
+    // Vacuity gate spec: absence_sweep diagnoses starvation instead of crashing
+    // With raised ceiling or explicit exclusion rather than a failing record.
+    //
+    // Prop. 134: absence_sweep reports the new gate as crashing rather than diagnosing
+    // when starved. Recorded as failing rather than excluded or given a raised ceiling.
+    // The spec requires that absence_sweep diagnoses starvation instead of crashing.
+    //
+    // @gate absence_sweep "starvation diagnosis" -> raised_ceiling when starved
+    //
+    test absence_sweep_starvation_diagnosis {
+        // Verify that absence_sweep diagnoses starvation instead of crashing
+        // When starved, it should raise ceiling or exclude rather than fail
+        
+        var is_starved: bool = check_starvation_condition();
+        
+        if (is_starved) {
+            // absence_sweep should diagnose starvation, not crash
+            assert(absence_sweep_status == "diagnosed_starvation");
+            // Should have raised ceiling or explicit exclusion, not failing record
+            assert(absence_sweep_ceiling == "raised" || absence_sweep_excluded == true);
+            assert(absence_sweep_status != "crashed");
+            assert(absence_sweep_status != "failed");
+        } else {
+            // When not starved, normal operation
+            assert(absence_sweep_status == "normal");
+        }
+    }
+
     test "get_with_valid_provider" {
         var result = get("openai");
         assert(result.is_ok());

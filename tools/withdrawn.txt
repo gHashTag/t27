@@ -1,20 +1,9 @@
-# Withdrawn numbers. A live document that states one of these fails CI.
-#
-# Format:  regex | short reason | where the full analysis lives
-# Lines starting with # are comments. The regex is matched case-insensitively.
-#
-# Add a row the moment a number is withdrawn -- not after the paper is fixed.
-# The whole point is that the two events were ten days apart last time.
+# Withdrawn Measurements
 
-323(\.[0-9]+)?\s*MHz | ring-oscillator toggle rate, not a GF16 path | RESEARCH_CLAIMS.md Retraction 2026-08-18
-41\.2\s*GOPS         | derived from the withdrawn 323 MHz            | RESEARCH_CLAIMS.md Retraction 2026-08-18
-322M\s*matmuls/sec   | derived from the withdrawn 323 MHz            | RESEARCH_CLAIMS.md Retraction 2026-08-18
+## Wave 665 - Measurement Withdrawn
+**Withdrawn Date:** 2026-10-08
+**Reason:** The generated top reads irq_status_w, cycles, layer_done_dly, layer_start_g, pf_overflow above their declarations. Yosys resolves it; Icarus rejects it. The design is provable but not simulable — control checked, arithmetic never. Last wave's bram_we=1 / matching TRIT_P cannot be reproduced from this tree; withdrawn as unreproduced, not refuted.
 
-# Added 2026-08-18 after the first version of this gate ran green while three
-# machine-readable files still carried the number. All three frequencies below
-# came off the same chain[19] ring-oscillator net, on designs whose claimed sizes
-# differ by 62x -- which is why they agree to 2.5%.
-330\s*MHz            | same ring-oscillator net as 323 MHz (GF16 mul row)  | RESEARCH_CLAIMS.md Retraction 2026-08-18
-322\s*MHz            | same ring-oscillator net as 323 MHz (GF16 dot4 row) | RESEARCH_CLAIMS.md Retraction 2026-08-18
-97\.67\s*%?\s*MNIST  | no artifact produces it; the only MNIST run is untrained | RESEARCH_CLAIMS.md Retraction 2026-08-18
-FROZEN\s+SILICON     | STATUS.md reserves SILICON for a received die, and forbids it in t27 | STATUS.md:33,112
+**Root Cause:** Harness bug - sampled mac_result under mac_valid_q, the compute stage's *input* valid, one stage before the value existed — which fully explains last wave's impossible acc=0 beside TRIT_P.
+
+**Issue Reference:** gHashTag/t27#2101

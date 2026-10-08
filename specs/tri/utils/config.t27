@@ -181,3 +181,38 @@ module TriConfig;
         then result.error != null
         and result.entries.len == 1
 
+    // ═══════════════════════════════════════════════════════════
+    // Hardware Configuration Guard: weight_words precondition
+    // ═══════════════════════════════════════════════════════════
+    //
+    // Config guard spec: weight_words >= neurons × chunks as precondition for start
+    // With sticky cfg_err flag in reg_status[2] when violated.
+    //
+    // Prop. 132: The engine trusted a CSR that resets to zero. weight_prefetch_ctrl 
+    // asserted prefetch_done for a zero-word fetch. weight_words = reg_chunks[31:16], 
+    // reset value zero, so default configuration gave bram_we=0, mem_rd_en=0, MAC 
+    // running, X emitted, silently. start is now gated on weight_words >= neurons × 
+    // chunks (non-zero alone was insufficient — the solver found the under-declared 
+    // case), with sticky cfg_err in reg_status[2].
+    //
+    // @guard start "weight_words >= neurons × chunks" -> cfg_err[2] when violated
+    //
+    test weight_words_precondition {
+        // Verify that start is gated on weight_words >= neurons × chunks
+        // When violated, sticky cfg_err flag is set in reg_status[2]
+        
+        var weight_words: u32 = reg_chunks[31:16];  // Reset value zero
+        var neurons: u32 = 64;                     // Example value
+        var chunks: u32 = 16;                      // Example value
+        
+        if (weight_words < neurons * chunks) {
+            // start should be blocked and cfg_err[2] should be set
+            assert(cfg_err[2] == true);  // Sticky error flag
+            assert(start == false);      // Start gated
+        } else {
+            // start should be allowed when condition is met
+            assert(cfg_err[2] == false); // No error
+            assert(start == true);       // Start allowed
+        }
+    }
+

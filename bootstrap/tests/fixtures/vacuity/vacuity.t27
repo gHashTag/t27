@@ -28,3 +28,16 @@ test loop_checked {
         i = i + 1;
     }
 }
+
+test gate15_vacuity_diagnosis {
+    // Gate 15: assert(1'b0) injection test for unsatisfiable assumption detection
+    // This test verifies that the vacuity gate injects assert(1'b0) and fails proof
+    // when unsatisfiable assumptions are present, rather than silently proving all properties.
+    
+    // Under -set-init-zero, every register is zero at t=0
+    // So assume(R == k) for nonzero k on a reset-to-zero register is unsatisfiable
+    // The assert(1'b0) injection should cause proof failure, not silent success
+    
+    assert(false); // This should fail proof when unsatisfiable assumptions exist
+    // The gate must detect this as vacuous and report proof failure, not success
+}

@@ -7,6 +7,21 @@ module TriMeasurement;
     use math::constants;
 
     // ═══════════════════════════════════════════════════════════
+    // Wave 665 Measurement: Withdrawn
+    // ═══════════════════════════════════════════════════════════
+    // 
+    // Wave 665 measurement is withdrawn due to harness bug:
+    // The harness sampled mac_result under mac_valid_q, the compute stage's
+    // input valid, one stage before the value existed. This fully explains
+    // last wave's impossible acc=0 beside TRIT_P.
+    //
+    // Withdrawn: 2026-10-08 (Prop. 134)
+    //
+    // The design is provable but not simulable — control checked, arithmetic never.
+    // Last wave's bram_we=1 / matching TRIT_P cannot be reproduced from this tree.
+    //
+    // @withdrawn wave_665 "harness bug: mac_result sampled under mac_valid_q one stage early"
+    //
+    // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
-
