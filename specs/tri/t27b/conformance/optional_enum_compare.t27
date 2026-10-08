@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/optional_enum_compare.t27 -- `x == v` and `x != v` with x a `?E` and v an `E`, as the
+; reference runs it (t27b coverage epic #6063). Every test here passes `t27c test-report`; t27b must give the
+; same verdict on each, or refuse the file.
+; What t27c's Zig backend prints: the comparison as written. Zig compares an optional with a value of its payload
+; type: `==` holds only when the optional holds a value and that value is v; `!=` is its negation, so a null
+; optional is `!=` every value. Either side may be the optional.
+; The shape is specs/port/trios/crates/trios-store/rings/ST-00/src/lib.t27's own: `assert(Adapter_parse("claude")
+; == Adapter.Claude)`, a fn returning `?Adapter` compared with a variant. Every test reads its results at run time.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceOptionalEnumCompare;
+
+var OE_CALLS: u32 = 0;
+
+pub enum OeKind {
+    Claude,
+    Codex,
+    Hermes,
+}
+
+pub const OeWide = enum(u16) {
+    Low = 1,
+    High = 300,
+};
+
+/// ST-00's Adapter_parse: a variant, or null.
+fn oe_parse(s: []const u8) -> ?OeKind {
+    OE_CALLS = OE_CALLS + 1;
+    if (std.mem.eql(u8, s, "claude")) {
+        return OeKind.Claude;
+    }
+    if (std.mem.eql(u8, s, "codex")) {
+        return OeKind.Codex;
+    }
+    if (std.mem.eql(u8, s, "hermes")) {
+        return OeKind.Hermes;
+    }
+    return null;
+}
+
+fn oe_wide(high: bool) -> ?OeWide {
+    if (high) {
+        return OeWide.High;
+    }
+    return OeWide.Low;
+}
+
+test a_parsed_variant_equals_itself {
+    assert(oe_parse("claude") == OeKind.Claude);
+    assert(oe_parse("codex") == OeKind.Codex);
+    assert(oe_parse("hermes") == OeKind.Hermes);
+    assert(oe_parse("unknown") == null);
+    assert(OE_CALLS == 4);
+}
+
+test a_parsed_variant_is_not_another {
+    const same = oe_parse("claude") == OeKind.Codex;
+    assert(!same);
+    assert(oe_parse("claude") != OeKind.Hermes);
+    const differs = oe_parse("codex") != OeKind.Codex;
+    assert(!differs);
+}
+
+test null_is_no_variant {
+    const same = oe_parse("unknown") == OeKind.Claude;
+    assert(!same);
+    assert(oe_parse("unknown") != OeKind.Claude);
+    assert(oe_parse("") != OeKind.Hermes);
+}
+
+test the_optional_may_be_on_the_right {
+    const k = OeKind.Codex;
+    assert(k == oe_parse("codex"));
+    assert(k != oe_parse("claude"));
+    assert(k != oe_parse("nothing"));
+}
+
+test a_local_optional_and_a_local_variant {
+    const got = oe_parse("hermes");
+    const want = OeKind.Hermes;
+    assert(got == want);
+    assert(got != OeKind.Claude);
+    assert(OE_CALLS == 1);
+}
+
+test an_enum_with_a_wide_tag {
+    assert(oe_wide(true) == OeWide.High);
+    assert(oe_wide(false) == OeWide.Low);
+    assert(oe_wide(false) != OeWide.High);
+}
