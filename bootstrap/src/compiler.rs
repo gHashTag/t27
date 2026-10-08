@@ -8652,6 +8652,50 @@ impl Codegen {
         }
     }
 
+    /// Quote expression names that are Zig keywords, segment by segment across dots.
+    /// Unlike `zig_ident`, this leaves primitive types and @-builtins unquoted.
+    /// `zig_expr_name("mod.union")` → `mod.@"union"`, `zig_expr_name("u8")` → `u8`,
+    /// `zig_expr_name("@as")` → `@as`.
+    fn zig_expr_name(name: &str) -> String {
+        // @-builtins are left unquoted entirely
+        if name.starts_with('@') {
+            return name.to_string();
+        }
+
+        // t27 spells scoped names Rust-style (`Severity::Error`,
+        // `base::types`). Zig has no `::`, and emitting it verbatim gave
+        // "expected ';' after statement" pointing at the second colon -- the
+        // whole remaining 'expected ';' class in W568. Each segment is
+        // escaped on its own so `Foo::error` still becomes `Foo.@"error"`.
+        if name.contains("::") {
+            return name
+                .split("::")
+                .map(Self::zig_expr_name)
+                .collect::<Vec<_>>()
+                .join(".");
+        }
+
+        // Only quote keywords, not primitive types. `@as(u8, x)` names `u8`
+        // as an ordinary identifier, and `@as(@"u8", x)` breaks a call.
+        let is_keyword = matches!(
+            name,
+            "align" | "allowzero" | "and" | "anyframe" | "anytype" | "asm" | "async"
+                | "await" | "break" | "callconv" | "catch" | "comptime" | "const"
+                | "continue" | "defer" | "else" | "enum" | "errdefer" | "error"
+                | "export" | "extern" | "fn" | "for" | "if" | "inline" | "linksection"
+                | "noalias" | "noinline" | "nosuspend" | "opaque" | "or" | "orelse"
+                | "packed" | "pub" | "resume" | "return" | "struct" | "suspend"
+                | "switch" | "test" | "threadlocal" | "try" | "union"
+                | "unreachable" | "usingnamespace" | "var" | "volatile" | "while"
+        );
+        
+        if is_keyword {
+            format!("@\"{}\"", name)
+        } else {
+            name.to_string()
+        }
+    }
+
     /// The t27 type of a declaration, when it names an integer Zig can pin a
     /// literal to. Anything else -- a float, a struct, a slice, an alias this
     /// function cannot resolve -- returns None, so the caller falls back to the
@@ -10295,7 +10339,7 @@ impl Codegen {
             self.write("..");
             self.gen_expr(&node.children[1]);
             self.write(") |");
-            self.write(&Self::zig_ident(&node.name));
+            self.write(&Self::zig_expr_name(&node.name));
             self.write("|");
         }
         self.write_line(" {");
@@ -10363,7 +10407,7 @@ impl Codegen {
                         self.write(".len");
                         return;
                     }
-                    self.write(&format!(".{}(", Self::zig_ident(&node.name)));
+                    self.write(&format!(".{}(", Self::zig_expr_name(&node.name)));
                     for (i, arg) in node.children.iter().skip(1).enumerate() {
                         if i > 0 {
                             self.write(", ");
@@ -10379,7 +10423,7 @@ impl Codegen {
                 // failed. 1,356 method calls and 318 free calls across 51
                 // specs.
                 if node.children.is_empty() && node.name.ends_with(".len") {
-                    self.write(&Self::zig_ident(&node.name));
+                    self.write(&Self::zig_expr_name(&node.name));
                     return;
                 }
                 if node.name == "len"
@@ -10558,7 +10602,7 @@ impl Codegen {
                 } else {
                     // A scoped callee (`TernaryWeight::minus()`) needs the same
                     // `::` -> `.` rewrite the identifier path gets.
-                    self.write(&Self::zig_ident(&node.name));
+                    self.write(&Self::zig_expr_name(&node.name));
                     self.write("(");
                     // W571: an array-literal argument where the callee declares
                     // a SLICE. `.{ 0, 0, 0, 0 }` coerces to `[4]i32` but not to
@@ -10766,7 +10810,7 @@ impl Codegen {
                     // declared escaped (`@"error": T`) and must be read the
                     // same way, or Zig stops at "expected pointer dereference,
                     // optional unwrap, or field access, found 'error'".
-                    self.write(&Self::zig_ident(&node.name));
+                    self.write(&Self::zig_expr_name(&node.name));
                 } else {
                     self.write(&node.name);
                 }
