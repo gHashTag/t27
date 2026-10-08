@@ -50,8 +50,8 @@ module mvp_ternary_classifier_jtag_noport {
     //   [0]    = ok (1 = all inputs classified correctly since power-up)
     // On SHIFT: walks out LSB first (tdo = sr[0], sr = {tdi, sr[31:1]})
 
-    pub const MAGIC_28BIT : u32 = 0xA5A5A5Au32;
-    pub const INITIAL_SR : u32 = 0xA5A5A5A4u32;  // {MAGIC_28BIT, 4'b0100}
+    pub const MAGIC_28BIT : u32 = 0xA5A5A5A;
+    pub const INITIAL_SR : u32 = 0xA5A5A5A4;  // {MAGIC_28BIT, 4'b0100}
 
     pub struct ClassifierShiftRegister {
         data : u32,

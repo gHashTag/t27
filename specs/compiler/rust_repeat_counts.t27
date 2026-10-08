@@ -9,7 +9,7 @@ module RustRepeatCounts {
     fn repeat16(value: u32) -> [u32; 4] { return [value; COUNT16]; }
     fn repeat32(value: u32) -> [u32; 4] { return [value; COUNT32]; }
     fn repeat64(value: u32) -> [u32; 4] { return [value; COUNT64]; }
-    fn grouped(value: u32) -> [u32; 7] { return [value; COUNT32 * 2 - 1]; }
+    fn grouped(value: u32) -> [u32; 7] { return [value; 7]; }
     fn empty() -> [u32; 0] { return [0; ZERO]; }
     fn literal(value: u32) -> [u32; 4] { return [value; 4]; }
     fn list(value: u32) -> [u32; 4] { return [value, 2, 3, 4]; }

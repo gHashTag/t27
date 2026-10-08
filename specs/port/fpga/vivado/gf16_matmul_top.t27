@@ -15,7 +15,7 @@ module gf16_matmul_top {
     // Output led_r23 = ~counter[20]
     fn led_r23() -> bool {
         // Extract bit 20 (0-indexed from LSB) and invert
-        let bit = (counter >> 20) & 1;
+        let bit = (counter >> 20) & 1u32;
         return bit == 0;
     }
 
@@ -24,8 +24,8 @@ module gf16_matmul_top {
     // If this assumption is wrong, the tests may fail and we can adjust.
     fn led_t23() -> bool {
         let dot_ok: bool = true;
-        let bit = (counter >> 19) & 1;
-        return !(dot_ok ^ bit);
+        let bit = (counter >> 19) & 1u32;
+        return !(dot_ok ^ (bit != 0));
     }
 }
 

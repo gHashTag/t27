@@ -72,7 +72,7 @@ module LinkRelay {
     // narrowing the parameter.
     pub fn shift_ir(m: LinkRelayMpsse, val: u32) void {
         // TMS 1,1,0,0 to enter Shift-IR from Run-Test/Idle.
-        mpsse_tms(m, [1, 1, 0, 0]);
+        mpsse_tms(m, [1u8, 1u8, 0u8, 0u8]);
         // Five bits on the TCK falling edge, LSB first.
         mpsse_w(m, [CLK_BITS_OUT_NEG, 4, val & 0x1F]);
         // The sixth bit with TMS=1, which exits Shift-IR on the same clock.
