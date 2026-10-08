@@ -106,7 +106,7 @@ fn int_cast_traps_outside_its_result_type() {
         let at = o.err().map(|(k, l)| (k, src.lines().nth(l as usize - 1).is_some_and(|s| s.contains("@intCast"))));
         assert_eq!(at, name.ends_with("_expect_trap").then_some((TrapKind::Cast, true)), "{}", name);
     }
-    assert_eq!(r.iter().filter(|t| t.2.is_err()).count(), 7);
+    assert_eq!(r.iter().filter(|t| t.2.is_err()).count(), 8);
     let lit = "module a;\n\nfn id(x: u64) -> u64 {\n    return x;\n}\n\ntest t {\n    const b: u8 = @intCast(300);\n    assert(b == 44);\n}\n";
     assert!(rejected(lit).contains("ExprCall(@intCast) at line 8 (`@intCast` of 300 to u8: the literal does not fit"));
     assert!(rejected(&lit.replace("b: u8 = @intCast(300)", "b = @intCast(id(3))")).contains("ExprCall(@intCast) at line 8"));
