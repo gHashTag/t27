@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/any_param_plan.t27 -- how t27b handles anytype parameters that function bodies never reference,
+; enabling a single function body to cover all argument types (issue #7876, t27b coverage epic #6063; 
+; written in t27 under the port epic #6198).
+; Everything t27b decides about these shapes is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/any_param_plan.rs). The Rust glue in cli/t27b/src/lower.rs only reads the shape, asks
+; `accept` or `reject`, and builds the answer: accept the call without ExprCall(rejected fn) errors,
+; or reject by name as ExprCall(anytype argument).
+; --
+; What the reference does (zig 0.16.0, the default x86_64 Debug backend `t27c test-report` builds with;
+; measured on the t27c lab and pinned by specs/tri/t27b/conformance/any_param.t27):
+;   - t27c's Zig backend prints the fn with `_ = err; // unused by the spec body` and prints each call as written.
+;     Zig 0.16 instantiates the fn once per argument type: `*const [6:0]u8` for `"ENOENT"`, `@TypeOf(null)` 
+;     for `null`. The body never reads the parameter, so every instance computes the same thing from the other 
+;     parameters.
+; --
+; What t27b does. A function with an anytype parameter that the body never references (ANYTYPE_VOID):
+; the parameter is treated as void, so one body covers all argument types. Arguments for such parameters 
+; are accepted when they are null, integer literals, or string literals that t27b's lowering accepts 
+; (ACCEPT_LITERAL). Any other argument expression is refused by name as ExprCall(anytype argument) 
+; (REJECT_ARG). Functions that reference their anytype parameter keep type anytype and dispatch per 
+; argument type (NOT_MINE).
+; --
+; Not taken (NOT_MINE): a function that names its anytype parameter in the body, which may dispatch on 
+; @TypeOf(value) as queen-public-agents.t27's heartbeatTime does. Those keep their refusals.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bAnyParamPlan;
+
+// The answers.
+pub const NOT_MINE : u8 = 0;
+pub const ANYTYPE_VOID : u8 = 1;
+pub const ACCEPT_LITERAL : u8 = 2;
+pub const REJECT_ARG : u8 = 3;
+
+/// A function parameter. anytype: the parameter is anytype. never_referenced: the body never names it.
+/// ANYTYPE_VOID: the parameter is treated as void, one body covers all types.
+pub fn param(anytype: bool, never_referenced: bool) -> u8 {
+    if (!anytype) { return NOT_MINE; }
+    if (!never_referenced) { return NOT_MINE; }
+    return ANYTYPE_VOID;
+}
+
+/// An argument expression for an anytype_void parameter. null: the argument is null.
+/// int_literal: the argument is an integer literal. string_literal: the argument is a string literal 
+/// that t27b's lowering accepts. ACCEPT_LITERAL: the argument is accepted without errors.
+/// REJECT_ARG: the argument is refused by name as ExprCall(anytype argument).
+pub fn arg(null: bool, int_literal: bool, string_literal: bool) -> u8 {
+    if (null) { return ACCEPT_LITERAL; }
+    if (int_literal) { return ACCEPT_LITERAL; }
+    if (string_literal) { return ACCEPT_LITERAL; }
+    return REJECT_ARG;
+}
+
+/// Is the argument accepted?
+pub fn accepted(act: u8) -> bool {
+    return (act == ACCEPT_LITERAL);
+}
+
+/// Is the argument rejected?
+pub fn rejected(act: u8) -> bool {
+    return (act == REJECT_ARG);
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: verify the plan matches the reference behavior.
+// ----------------------------------------------------------------------------------------------------------
+
+test anytype_param_never_referenced_is_treated_as_void {
+    // specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27's isNotFoundError
+    assert(param(true, true) == ANYTYPE_VOID);
+}
+
+test anytype_param_referenced_is_left_alone {
+    // Functions that reference their anytype parameter keep type anytype
+    assert(param(true, false) == NOT_MINE);
+}
+
+test null_argument_is_accepted {
+    // null is accepted for anytype_void parameters
+    assert(arg(true, false, false) == ACCEPT_LITERAL);
+}
+
+test int_literal_argument_is_accepted {
+    // Integer literals are accepted for anytype_void parameters  
+    assert(arg(false, true, false) == ACCEPT_LITERAL);
+}
+
+test string_literal_argument_is_accepted {
+    // String literals that t27b's lowering accepts are accepted for anytype_void parameters
+    assert(arg(false, false, true) == ACCEPT_LITERAL);
+}
+
+test other_arguments_are_rejected {
+    // Any other argument expression is refused by name as ExprCall(anytype argument)
+    assert(arg(false, false, false) == REJECT_ARG);
+}
+
+test accepted_arguments_return_true {
+    assert(accepted(ACCEPT_LITERAL));
+    assert(!accepted(REJECT_ARG));
+    assert(!accepted(ANYTYPE_VOID));
+    assert(!accepted(NOT_MINE));
+}
+
+test rejected_arguments_return_true {
+    assert(rejected(REJECT_ARG));
+    assert(!rejected(ACCEPT_LITERAL));
+    assert(!rejected(ANYTYPE_VOID));
+    assert(!rejected(NOT_MINE));
+}
