@@ -217,7 +217,7 @@ fn decl_name(line: &str) -> Option<String> {
     if let Some(r) = t.strip_prefix("pub ") {
         t = r.trim_start();
     }
-    for kw in ["fn ", "struct ", "enum ", "const ", "type "] {
+    for kw in ["fn ", "struct ", "enum ", "const ", "type ", "var ", "let "] {
         if let Some(rest) = t.strip_prefix(kw) {
             let name: String = rest
                 .chars()
