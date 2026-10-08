@@ -1,6 +1,8 @@
 module port::browseros::trios::agent_server::apps::server::lib::identity;
 
-pub struct IdentityConfig {
+// Not named IdentityConfig: specs/sacred/sacred_identity.t27 owns
+// IdentityConfig, a different record (tri types ratchet, #7437).
+pub struct IdentityServiceConfig {
     installId: ?[]const u8,
     statePath: ?[]const u8,
 }
@@ -13,7 +15,7 @@ pub struct IdentityService {
     browserOSId: ?[]const u8,
 }
 
-pub fn IdentityService_initialize(self: *IdentityService, config: IdentityConfig) void {
+pub fn IdentityService_initialize(self: *IdentityService, config: IdentityServiceConfig) void {
     const installIdResult = normalizeInstallId(config.installId);
     if (installIdResult != null) {
         self.browserOSId = installIdResult;
