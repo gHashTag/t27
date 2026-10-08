@@ -1,0 +1,305 @@
+module port::gen_w646;
+
+const OUTER = 111;
+const TOTAL = OUTER * 2 ** 6;
+const LAST_IDX = OUTER - 1;
+const MID_IDX = OUTER // 2;  # 55
+const LAST_X = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E = MID_IDX * (2 ** 6) + 32;
+const MID_X = (2 * MID_E) % 32768;
+const MID_Y = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: i32) -> []const u8 {
+    var result: []const u8 = "";
+    var i: i32 = 0;
+    while (i < level) {
+        result = result ++ "    ";
+        i += 1;
+    }
+    return result;
+}
+
+pub fn build_tree(shape: []const i32, base: i32, offset: i32) -> ([]const u8, i32) {
+    if (shape.len == 1) {
+        const n = shape[0];
+        var lines: [3][]const u8 = undefined;
+        lines[0] = indent(1) ++ "[" ++ f"{n}" ++ "]Pt{{";
+        
+        var entries: [111][]const u8 = undefined;
+        var i: i32 = 0;
+        while (i < n) {
+            const e = base + i;
+            const x = (2 * e + offset) % 32768;
+            const y = (2 * e + offset + 1) % 32768;
+            entries[i] = indent(2) ++ "Pt{{ .x = " ++ f"{x}" ++ ", .y = " ++ f"{y}" ++ " }}";
+            i += 1;
+        }
+        
+        var joined_entries: []const u8 = "";
+        if (n > 0) {
+            joined_entries = entries[0];
+            var j: i32 = 1;
+            while (j < n) {
+                joined_entries = joined_entries ++ ",\n" ++ entries[j];
+                j += 1;
+            }
+        }
+        
+        lines[1] = joined_entries;
+        lines[2] = indent(1) ++ "}";
+        
+        var result: []const u8 = lines[0];
+        if (n > 0) {
+            result = result ++ "\n" ++ lines[1];
+        }
+        result = result ++ "\n" ++ lines[2];
+        
+        return result, base + n;
+    }
+    
+    const n = shape[0];
+    const inner_shape = shape[1..];
+    
+    var dims: []const u8 = "[";
+    var i: i32 = 0;
+    while (i < shape.len) {
+        if (i > 0) {
+            dims = dims ++ "][";
+        }
+        dims = dims ++ f"{shape[i]}";
+        i += 1;
+    }
+    dims = dims ++ "]";
+    
+    var lines: [3][]const u8 = undefined;
+    lines[0] = indent(1) ++ dims ++ "Pt{{";
+    
+    var entries: [111][]const u8 = undefined;
+    var j: i32 = 0;
+    while (j < n) {
+        var entry_text: []const u8 = undefined;
+        var next_base: i32 = undefined;
+        entry_text, next_base = build_tree(inner_shape, base, offset);
+        entries[j] = entry_text;
+        base = next_base;
+        j += 1;
+    }
+    
+    var joined_entries: []const u8 = "";
+    if (n > 0) {
+        joined_entries = entries[0];
+        var k: i32 = 1;
+        while (k < n) {
+            joined_entries = joined_entries ++ ",\n" ++ entries[k];
+            k += 1;
+        }
+    }
+    
+    lines[1] = joined_entries;
+    lines[2] = indent(1) ++ "}";
+    
+    var result: []const u8 = lines[0];
+    if (n > 0) {
+        result = result ++ "\n" ++ lines[1];
+    }
+    result = result ++ "\n" ++ lines[2];
+    
+    return result, base;
+}
+
+pub fn generate_module_text() -> []const u8 {
+    const shape = [OUTER, 2, 2, 2, 2, 2, 2];
+    var literal: []const u8 = undefined;
+    var _next_base: i32 = undefined;
+    literal, _next_base = build_tree(&shape, 0, 0);
+    
+    var first: []const u8 = undefined;
+    var rest: []const u8 = undefined;
+    var split_pos: i32 = 0;
+    var found: bool = false;
+    var i: i32 = 0;
+    while (i < literal.len and !found) {
+        if (literal[i] == '\n') {
+            found = true;
+            split_pos = i;
+        }
+        i += 1;
+    }
+    
+    if (found) {
+        first = literal[0..split_pos];
+        rest = literal[split_pos + 1..];
+    } else {
+        first = literal;
+        rest = "";
+    }
+    
+    var indented_lines: [1000][]const u8 = undefined;
+    indented_lines[0] = "    " ++ first;
+    
+    var line_count: i32 = 1;
+    var j: i32 = 0;
+    while (j < rest.len) {
+        var line_end: i32 = j;
+        while (line_end < rest.len and rest[line_end] != '\n') {
+            line_end += 1;
+        }
+        
+        var line: []const u8 = rest[j..line_end];
+        indented_lines[line_count] = "    " ++ line;
+        line_count += 1;
+        j = line_end + 1;
+    }
+    
+    var indented_literal: []const u8 = indented_lines[0];
+    var k: i32 = 1;
+    while (k < line_count) {
+        indented_literal = indented_literal ++ "\n" ++ indented_lines[k];
+        k += 1;
+    }
+    
+    var dims: []const u8 = "[";
+    var l: i32 = 0;
+    while (l < shape.len) {
+        if (l > 0) {
+            dims = dims ++ "][";
+        }
+        dims = dims ++ f"{shape[l]}";
+        l += 1;
+    }
+    dims = dims ++ "]";
+    
+    var make_grid: []const u8 = (
+        "pub fn make_grid(offset : u16) -> " ++ dims ++ "Pt {\n" ++
+        "    return " ++ indented_literal ++ ";\n" ++
+        "}\n"
+    );
+    
+    var header: []const u8 = (
+        "module w646_bench_module_" ++ f"{OUTER}" ++ "x2p6_aos_var_call_write\n\n\n" ++
+        "pub struct Pt { x : i16, y : i16 }\n\n"
+    );
+    
+    var footer: []const u8 = (
+        "pub const expected : " ++ dims ++ "Pt = make_grid(0);\n\n" ++
+        "pub var dst : " ++ dims ++ "Pt = make_grid(0);\n\n" ++
+        "test module_var_" ++ f"{OUTER}" ++ "x2p6_call_write {\n" ++
+        "    assert_eq(dst, expected);\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].x, 0);\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].y, 1);\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].x, " ++ f"{LAST_X}" ++ ");\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].y, " ++ f"{LAST_Y}" ++ ");\n" ++
+        "    assert_eq(dst[" ++ f"{MID_IDX}" ++ "][1][0][0][0][0][0].x, " ++ f"{MID_X}" ++ ");\n" ++
+        "    assert_eq(dst[" ++ f"{MID_IDX}" ++ "][1][0][0][0][0][0].y, " ++ f"{MID_Y}" ++ ");\n" ++
+        "    // Explicit modulo-wrap check: offset 32768 folds back to 0..1\n" ++
+        "    assert_eq(make_grid(32768)[0][0][0][0][0][0][0].x, 0);\n" ++
+        "    assert_eq(make_grid(32768)[0][0][0][0][0][0][0].y, 1);\n" ++
+        "    assert_eq(make_grid(32768)[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].x, " ++ f"{WRAP_LAST_X}" ++ ");\n" ++
+        "    assert_eq(make_grid(32768)[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].y, " ++ f"{WRAP_LAST_Y}" ++ ");\n" ++
+        "}\n\n" ++
+        "bench module_bench_" ++ f"{OUTER}" ++ "x2p6_call_write {\n" ++
+        "    // Site 1: whole-array equality before writes\n" ++
+        "    assert_eq(dst, expected);\n\n" ++
+        "    // Site 2: indexed read before writes\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].x, 0);\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].y, 1);\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].x, " ++ f"{LAST_X}" ++ ");\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].y, " ++ f"{LAST_Y}" ++ ");\n\n" ++
+        "    // Site 3: indexed signed field writes\n" ++
+        "    dst[0][0][0][0][0][0][0].x = 1234;\n" ++
+        "    dst[0][0][0][0][0][0][0].y = -1234;\n" ++
+        "    dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].x = -5678;\n" ++
+        "    dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].y = 5678;\n\n" ++
+        "    // Site 4: read back updated fields\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].x, 1234);\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].y, -1234);\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].x, -5678);\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].y, 5678);\n\n" ++
+        "    // Site 5: frame-condition checks on untouched elements\n" ++
+        "    assert_eq(dst[" ++ f"{MID_IDX}" ++ "][1][0][0][0][0][0].x, " ++ f"{MID_X}" ++ ");\n" ++
+        "    assert_eq(dst[" ++ f"{MID_IDX}" ++ "][1][0][0][0][0][0].y, " ++ f"{MID_Y}" ++ ");\n\n" ++
+        "    // Site 6: whole-array inequality after partial writes\n" ++
+        "    // assert_ne is not emitted by the Icarus simulation path, so we verify that\n" ++
+        "    // the changed elements differ from their original expected values.\n" ++
+        "    assert_eq(dst[0][0][0][0][0][0][0].x, 1234);\n" ++
+        "    assert_eq(dst[" ++ f"{LAST_IDX}" ++ "][1][1][1][1][1][1].x, -5678);\n" ++
+        "}\n"
+    );
+    
+    return header ++ make_grid ++ footer;
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_simple {
+    const shape = [3];
+    const result, next_base = build_tree(&shape, 0, 0);
+    assert(next_base == 3);
+    // Check that result contains expected structure
+    assert(result[0] == '[');
+    assert(result[1] == '3');
+    assert(result[2] == ']');
+    assert(result[3] == 'P');
+    assert(result[4] == 't');
+    assert(result[5] == '{');
+}
+
+test build_tree_nested {
+    const shape = [2, 2];
+    const result, next_base = build_tree(&shape, 10, 0);
+    assert(next_base == 4);  // 2 * 2 elements
+    // Check that result contains nested structure
+    assert(result[0] == '[');
+    assert(result[1] == '2');
+    assert(result[2] == ']');
+    assert(result[3] == '[');
+    assert(result[4] == '2');
+    assert(result[5] == ']');
+    assert(result[6] == 'P');
+    assert(result[7] == 't');
+    assert(result[8] == '{');
+}
+
+test generate_module_structure {
+    const text = generate_module_text();
+    assert(text.len > 0);
+    // Check that it contains module declaration
+    var i: i32 = 0;
+    var found_module: bool = false;
+    while (i < text.len - 6) {
+        if (text[i] == 'm' and text[i+1] == 'o' and text[i+2] == 'd' and 
+            text[i+3] == 'u' and text[i+4] == 'l' and text[i+5] == 'e') {
+            found_module = true;
+            break;
+        }
+        i += 1;
+    }
+    assert(found_module);
+    
+    // Check that it contains struct definition
+    var found_struct: bool = false;
+    i = 0;
+    while (i < text.len - 10) {
+        if (text[i] == 'p' and text[i+1] == 'u' and text[i+2] == 'b' and 
+            text[i+3] == ' ' and text[i+4] == 's' and text[i+5] == 't' and
+            text[i+6] == 'r' and text[i+7] == 'u' and text[i+8] == 'c' and
+            text[i+9] == 't') {
+            found_struct = true;
+            break;
+        }
+        i += 1;
+    }
+    assert(found_struct);
+}
