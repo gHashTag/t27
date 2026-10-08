@@ -483,43 +483,42 @@ pub fn constant(init: WideFold, t: []const u8) -> WideFold {
     return r;
 }
 
-fn same(a: []const u8, b: []const u8) -> bool {
-    if (a.len != b.len) { return false; }
+/// `text` spells `word`, byte for byte.
+fn spells(text: []const u8, word: []const u8) -> bool {
     var i : usize = 0;
-    while (i < a.len) {
-        if (a[i] != b[i]) { return false; }
+    while (i < text.len and i < word.len and text[i] == word[i]) {
         i = i + 1;
     }
-    return true;
+    return i == text.len and i == word.len;
 }
 
 /// The operator `op` of `arity` operands, as the t27c parser spells it.
 fn op_code(op: []const u8, arity: usize) -> u8 {
     if (arity == 1) {
-        if (same(op, "-")) { return OP_NEG; }
-        if (same(op, "~")) { return OP_NOT; }
+        if (spells(op, "-")) { return OP_NEG; }
+        if (spells(op, "~")) { return OP_NOT; }
         return OP_NONE;
     }
     if (arity != 2) { return OP_NONE; }
-    if (same(op, "+")) { return OP_ADD; }
-    if (same(op, "-")) { return OP_SUB; }
-    if (same(op, "*")) { return OP_MUL; }
-    if (same(op, "+%")) { return OP_ADDW; }
-    if (same(op, "-%")) { return OP_SUBW; }
-    if (same(op, "*%")) { return OP_MULW; }
-    if (same(op, "/")) { return OP_DIV; }
-    if (same(op, "%")) { return OP_REM; }
-    if (same(op, "<<")) { return OP_SHL; }
-    if (same(op, ">>")) { return OP_SHR; }
-    if (same(op, "&")) { return OP_AND; }
-    if (same(op, "|")) { return OP_OR; }
-    if (same(op, "^")) { return OP_XOR; }
-    if (same(op, "==")) { return OP_EQ; }
-    if (same(op, "!=")) { return OP_NE; }
-    if (same(op, "<")) { return OP_LT; }
-    if (same(op, "<=")) { return OP_LE; }
-    if (same(op, ">")) { return OP_GT; }
-    if (same(op, ">=")) { return OP_GE; }
+    if (spells(op, "+")) { return OP_ADD; }
+    if (spells(op, "-")) { return OP_SUB; }
+    if (spells(op, "*")) { return OP_MUL; }
+    if (spells(op, "+%")) { return OP_ADDW; }
+    if (spells(op, "-%")) { return OP_SUBW; }
+    if (spells(op, "*%")) { return OP_MULW; }
+    if (spells(op, "/")) { return OP_DIV; }
+    if (spells(op, "%")) { return OP_REM; }
+    if (spells(op, "<<")) { return OP_SHL; }
+    if (spells(op, ">>")) { return OP_SHR; }
+    if (spells(op, "&")) { return OP_AND; }
+    if (spells(op, "|")) { return OP_OR; }
+    if (spells(op, "^")) { return OP_XOR; }
+    if (spells(op, "==")) { return OP_EQ; }
+    if (spells(op, "!=")) { return OP_NE; }
+    if (spells(op, "<")) { return OP_LT; }
+    if (spells(op, "<=")) { return OP_LE; }
+    if (spells(op, ">")) { return OP_GT; }
+    if (spells(op, ">=")) { return OP_GE; }
     return OP_NONE;
 }
 
@@ -952,8 +951,8 @@ test refusals_carry_the_first_wide_type_named {
     assert a.state == OTHER;
     assert a.named == 128;
     assert a.named_signed;
-    assert same(letter(a), "i");
-    assert same(letter(wp_bin("+", wp_u128("1"), wp_i128("1"))), "u");
+    assert spells(letter(a), "i");
+    assert spells(letter(wp_bin("+", wp_u128("1"), wp_i128("1"))), "u");
     assert wp_bin("+", wp_u128("1"), wp_i128("1")).named == 128;
     assert wp_bin("+", wp_bin("/", wp_u128("1"), wp_lit("0")), o).state == DIV_ZERO;
     assert wp_bin("+", o, wp_bin("/", wp_u128("1"), wp_lit("0"))).state == OTHER;
@@ -966,7 +965,7 @@ test every_refusal_has_its_own_words {
         assert why(s).len > 10;
         var t : u8 = OTHER;
         while (t < s) {
-            assert same(why(s), why(t)) == false;
+            assert spells(why(s), why(t)) == false;
             t = t + 1;
         }
         s = s + 1;

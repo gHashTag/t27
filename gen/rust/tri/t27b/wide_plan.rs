@@ -527,26 +527,20 @@ pub fn constant(init: WideFold, t: &[u8]) -> WideFold {
     return r;
 }
 
-pub fn same(a: &[u8], b: &[u8]) -> bool {
-    if (a.len() != b.len()) {
-        return false;
-    }
+pub fn spells(text: &[u8], word: &[u8]) -> bool {
     let mut i: usize = 0;
-    while (i < a.len()) {
-        if (a[(i) as usize] != b[(i) as usize]) {
-            return false;
-        }
+    while (((i < text.len()) && (i < word.len())) && (text[(i) as usize] == word[(i) as usize])) {
         i = (i + 1);
     }
-    return true;
+    return ((i == text.len()) && (i == word.len()));
 }
 
 pub fn op_code(op: &[u8], arity: usize) -> u8 {
     if (arity == 1) {
-        if same(op, b"-") {
+        if spells(op, b"-") {
             return OP_NEG;
         }
-        if same(op, b"~") {
+        if spells(op, b"~") {
             return OP_NOT;
         }
         return OP_NONE;
@@ -554,61 +548,61 @@ pub fn op_code(op: &[u8], arity: usize) -> u8 {
     if (arity != 2) {
         return OP_NONE;
     }
-    if same(op, b"+") {
+    if spells(op, b"+") {
         return OP_ADD;
     }
-    if same(op, b"-") {
+    if spells(op, b"-") {
         return OP_SUB;
     }
-    if same(op, b"*") {
+    if spells(op, b"*") {
         return OP_MUL;
     }
-    if same(op, b"+%") {
+    if spells(op, b"+%") {
         return OP_ADDW;
     }
-    if same(op, b"-%") {
+    if spells(op, b"-%") {
         return OP_SUBW;
     }
-    if same(op, b"*%") {
+    if spells(op, b"*%") {
         return OP_MULW;
     }
-    if same(op, b"/") {
+    if spells(op, b"/") {
         return OP_DIV;
     }
-    if same(op, b"%") {
+    if spells(op, b"%") {
         return OP_REM;
     }
-    if same(op, b"<<") {
+    if spells(op, b"<<") {
         return OP_SHL;
     }
-    if same(op, b">>") {
+    if spells(op, b">>") {
         return OP_SHR;
     }
-    if same(op, b"&") {
+    if spells(op, b"&") {
         return OP_AND;
     }
-    if same(op, b"|") {
+    if spells(op, b"|") {
         return OP_OR;
     }
-    if same(op, b"^") {
+    if spells(op, b"^") {
         return OP_XOR;
     }
-    if same(op, b"==") {
+    if spells(op, b"==") {
         return OP_EQ;
     }
-    if same(op, b"!=") {
+    if spells(op, b"!=") {
         return OP_NE;
     }
-    if same(op, b"<") {
+    if spells(op, b"<") {
         return OP_LT;
     }
-    if same(op, b"<=") {
+    if spells(op, b"<=") {
         return OP_LE;
     }
-    if same(op, b">") {
+    if spells(op, b">") {
         return OP_GT;
     }
-    if same(op, b">=") {
+    if spells(op, b">=") {
         return OP_GE;
     }
     return OP_NONE;
