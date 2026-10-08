@@ -288,6 +288,11 @@ struct Lower<'a> {
     globals_init: Vec<Vec<u8>>,
     /// The global of each array type and value a `slice_lit` interned.
     statics: HashMap<(String, Vec<u8>), u32>,
+    /// Set while `lvalue` builds a place to store to or take the address
+    /// of: a slice element it reaches is a write (`slice_write`, #7765).
+    writing: bool,
+    /// The write check's log: (STATIC or WRITE, element type, line).
+    lit_log: Vec<(u8, String, u32)>,
     /// Lowering what t27c's Zig backend evaluates at compile time (an
     /// `invariant`, which it emits as a `comptime` block, or a module-level
     /// initializer): a module-level `var` is not visible there.
@@ -464,6 +469,8 @@ fn lower_mode<'a>(
         mod_vars: HashMap::new(),
         globals_init: Vec::new(),
         statics: HashMap::new(),
+        writing: false,
+        lit_log: Vec::new(),
         comptime: false,
         struct_nodes: HashMap::new(),
         structs: Vec::new(),
@@ -758,6 +765,7 @@ fn lower_mode<'a>(
             _ => {}
         }
     }
+    l.literal_writes();
     if !l.errors.is_empty() {
         return Err(l.errors);
     }
@@ -6205,6 +6213,14 @@ impl<'a> Lower<'a> {
     /// The memory an expression names: a variable in memory, a field, or
     /// `p.*`.
     fn lvalue(&mut self, n: &Node) -> R<Place> {
+        let was = std::mem::replace(&mut self.writing, true);
+        let p = self.place_at(n);
+        self.writing = was;
+        p
+    }
+
+    /// `lvalue` once `writing` is set.
+    fn place_at(&mut self, n: &Node) -> R<Place> {
         self.see(n);
         match n.kind {
             NodeKind::ExprIdentifier => match self.lookup(&n.name) {
@@ -6355,6 +6371,7 @@ impl<'a> Lower<'a> {
     /// checked against its length when evaluated, and traps out of range.
     fn slice_index(&mut self, p: Place, idx: Val) -> R<Place> {
         let (elem, m) = Self::slice_elem(&p.ty);
+        self.slice_write(&elem, m);
         let (esize, _) = self.size_align(&elem)?;
         let mut pin = Vec::new();
         let (hdr, off) = self.pin_header(&p, &mut pin)?;
