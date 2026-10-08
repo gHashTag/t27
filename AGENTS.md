@@ -235,10 +235,16 @@ measure it are written in **t27**, not in Rust or Python by hand.
   master f53a734b7's 15064 plus 1202 and 8043; 15145 plus 1202, 16347 in all,
   and `cli/t27b/tests/*.rs` 8094, after #7790's glue for `@divTrunc` and a
   `@panic` statement (`specs/tri/t27b/builtin_plan.t27`), +16 and +19 on
-  master 14e1c7be9's 15129 plus 1202 and 8075; 15174 plus 1202, 16376 in all,
-  and tests 8109, after #7810's glue for `_ = e;` with e not a bare name, whose
-  plan is `specs/tri/t27b/discard_plan.t27`, +29 and +15 on master 81da89413's
-  15145 plus 1202 and 8094),
+  master 14e1c7be9's 15129 plus 1202 and 8075; 15183 plus 1202, 16385 in all,
+  and tests 8105, after #7737's glue for `?*anyopaque` and `@ptrFromInt` to an
+  optional pointer, whose plan is `specs/tri/t27b/opaque_plan.t27`, +38, 0 and
+  +11 on master 81da89413's 15145 plus 1202 and 8094; 15191 plus 1202, 16393
+  in all, and tests 8119, after #7819's glue for `@floor`, `@ceil`, `@round`,
+  `@trunc` and `@rem` of an f32 from `libm_plan.t27`, +8 and +14 on master
+  bbb77f0c3's 15183 plus 1202 and 8105; 15220 plus 1202, 16422 in all, and
+  tests 8134, after #7810's glue for `_ = e;` with e not a bare name, whose plan
+  is `specs/tri/t27b/discard_plan.t27`, +29 and +15 on master 10831352c's 15191
+  plus 1202 and 8119),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
@@ -261,6 +267,39 @@ with two signed corpus receipts, not a pasted table of lab numbers.
 - Exit 3 IMPROVED_ONLY, 0 EQUIVALENT or 4 NEUTRAL may merge. Exit 1 REGRESSED
   blocks the merge; exit 2 REFUSED means the evidence did not authenticate, so
   it proves nothing. The rules are `specs/verified/corpus_receipt.t27`.
+
+## Actors, not threads (owner rule, 2026-10-08)
+
+Owner's rule, 2026-10-08: the Queen and the swarm move to the actor model.
+Tracking: #7851.
+
+- **Everything that runs at the same time is an actor.** That covers a round,
+  a reviewer, a poller and a runner lane. Each one has a pid and a bounded
+  mailbox, and a supervisor restarts it. The rules are one spec,
+  `specs/queen/actors.t27`, built on BEAM/OTP: links, monitors, a control lane,
+  one_for_one / one_for_all / rest_for_one, restart intensity and backoff. A
+  runtime reaches those rules only through the spec's generated card.
+- **No new loops.** Queen or swarm work gets no new `setInterval` timer, thread
+  pool, worker counter or ad-hoc promise fan-out. A new concurrent piece is a
+  new actor under a supervisor.
+- **Replace in this order, never another:**
+  1. An MVP of the actor runtime runs the same workload.
+  2. Its tests pass.
+  3. A benchmark runs the current loop and the actor runtime on the same input,
+     measuring throughput, latency, recovery from a crashed worker, and work
+     lost.
+  4. The numbers are posted on #7851.
+  5. Only then does the swap happen, and only if the actors are at least as good
+     on every measure.
+
+  Never swap first and measure later.
+- **Where the code lives.** The Queen server lives in `gHashTag/trios`, on
+  branches `queen` and `queen-runners`. `gHashTag/BrowserOS` is a fork of
+  someone else's project. It holds the browser extension and nothing else: no
+  Queen code, no server code, no specs, no plans.
+
+This section is the rule's one full home. The AGENTS.md of our other
+repositories point here; they do not copy it.
 
 ## Own language first
 

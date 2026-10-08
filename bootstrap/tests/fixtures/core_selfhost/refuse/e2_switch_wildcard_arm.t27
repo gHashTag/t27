@@ -1,0 +1,5 @@
+// #7419: gen-c writes a `_` arm as `(x == _)`.
+module switch_wildcard_arm;
+fn k(x: i64) -> i64 {
+    return switch (x) { 1 => 10, _ => 0 };
+}
