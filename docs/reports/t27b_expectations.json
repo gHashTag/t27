@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 31,
+ "max_not_pass": 30,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
   {"path": "specs/a_b/c.t27", "t27b": "pass_vacuous"},
@@ -422,7 +422,7 @@
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/history.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27", "t27b": "blocked", "blocker": "VarDecl(module, pointer/slice)", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/db/retry.t27", "t27b": "pass"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27", "t27b": "blocked", "blocker": "type anytype", "reason": "unimplemented"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/port-binding.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/provider-error-classifier.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/monitoring/envelope.t27", "t27b": "pass"},
@@ -972,6 +972,7 @@
   {"path": "specs/tri/sort/merge_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/sort/selection_sort.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/a64.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/any_param_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/bit_cast_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/builtin_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/check_budget.t27", "t27b": "pass"},
@@ -1025,6 +1026,7 @@
   {"path": "specs/tri/t27b/conformance/type_void.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/undefined_arg.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/undefined_module_var.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/unread_anytype.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/unresolved_signature.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local_uses.t27", "t27b": "pass"},

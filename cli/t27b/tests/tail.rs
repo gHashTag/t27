@@ -346,3 +346,19 @@ fn a_signature_zig_never_resolves() {
     let m = common::lower_src(&src.replace("f.write_num", "undeclared_thing")).unwrap_err().join("\n");
     assert!(m.contains("ExprIdentifier(undeclared) at line 23 (`undeclared_thing` in `format_into`"), "{}", m);
 }
+
+// ------------------------------------------------ an anytype parameter nobody reads
+
+/// identity.t27's `isNotFoundError(err: anytype) bool`, never naming `err` (#7876): one body stands for every
+/// instance, and a compile-time or `null` argument runs nothing (specs/tri/t27b/any_param_plan.t27; `t27c test-report`
+/// passes the conformance spec 4/4, none vacuous). An argument that may run code is refused by name, and a body
+/// that names the parameter keeps `type anytype`.
+#[test]
+fn an_anytype_parameter_nobody_reads() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/unread_anytype.t27");
+    let r = run(src);
+    assert!(r.len() == 4 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    assert_eq!(names_ok(&run(&src.replace("== 15", "== 16"))).iter().filter(|t| !t.2).count(), 1);
+    assert!(rejected(&src.replace("scaled(7, n)", "scaled(n, n)")).contains("ExprCall(anytype argument) at line 45"));
+    assert!(rejected(&src.replace("return n * 3;", "return n * 3 + tag;")).contains("type anytype"));
+}
