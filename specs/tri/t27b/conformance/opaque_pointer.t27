@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/opaque_pointer.t27 -- `?*anyopaque` and `@ptrFromInt` to an optional pointer
+; (gHashTag/t27#7737), in the shapes of specs/port/trinity/src/tri/gen_assertion.t27 (`assertNotNull(@ptrFromInt(0))`
+; into a `?*anyopaque` parameter, a `?*anyopaque` local set to null) and
+; specs/port/trinity/src/tri/gen_hazard_pointers.t27 (`?*anyopaque` fields, `HazardRegistry_init(null)`).
+; gen-zig prints all of it as written. In Zig 0.16 `anyopaque` has no size and alignment 1: only a pointer to it is
+; named, passed, stored and compared with null. `@ptrFromInt(x)` takes its type from the result location and x as a
+; usize; for an optional pointer, address 0 is null.
+; `t27c test-report` (zig 0.16.0, t27c lab): 3/3 pass, 0 vacuous, 10 runtime asserts.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceOpaquePointer;
+
+pub const OpaqueSlot = struct {
+    owner: ?*anyopaque,
+    used: bool,
+};
+
+pub const OpaqueBoard = struct {
+    slots: [4]OpaqueSlot,
+    tag: ?*anyopaque,
+};
+
+fn is_set(p: ?*anyopaque) -> bool {
+    return p != null;
+}
+
+fn tag_set(n: usize) -> bool {
+    return is_set(@ptrFromInt(n));
+}
+
+pub fn board_init(tag: ?*anyopaque) -> OpaqueBoard {
+    var slots: [4]OpaqueSlot = undefined;
+    var i: usize = 0;
+    while (i < 4) {
+        slots[i] = OpaqueSlot { owner = null, used = false };
+        i += 1;
+    }
+    return OpaqueBoard { slots = slots, tag = tag };
+}
+
+test from_int_zero_is_null {
+    assert(!is_set(@ptrFromInt(0)));
+    assert(is_set(@ptrFromInt(8)));
+    assert(!tag_set(0));
+    assert(tag_set(24));
+}
+
+test null_opaque_local {
+    const p: ?*anyopaque = null;
+    assert(!is_set(p));
+}
+
+test opaque_fields_keep_their_values {
+    var b = board_init(null);
+    assert(b.tag == null);
+    assert(b.slots[3].owner == null);
+    assert(!b.slots[0].used);
+    var c = board_init(@ptrFromInt(16));
+    assert(c.tag != null);
+    assert(is_set(c.tag));
+}
