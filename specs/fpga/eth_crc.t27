@@ -51,15 +51,18 @@ pub fn crc_bit(bit : u32, crc : u32) u32 {
     return crc >> 1;
 }
 
-; Feed the low n bits of x, LSB first -- Ethernet order.
-pub fn crc_bits(x : u32, n : u32, prev : u32) u32 {
-    var crc : u32 = prev;
-    var i : u32 = 0;
-    while i < n {
-        crc = crc_bit(x >> i, crc);
-        i = i + 1;
+; One octet, bit-serially: XOR the whole octet into the register, then clock
+; eight zero bits through crc_bit. The CRC is linear, so this equals feeding
+; the octet's bits one at a time, LSB first (Ethernet order) -- and it is the
+; bit-level definition the table below is checked against.
+pub fn crc_octet_serial(b : u32, crc : u32) u32 {
+    var c : u32 = crc ^ (b & 0xFF);
+    var k : u32 = 0;
+    while k < 8 {
+        c = crc_bit(0, c);
+        k = k + 1;
     }
-    return crc;
+    return c;
 }
 
 ; Table form: feeding 8 bits b into c equals (c >> 8) ^ T[(c ^ b) & 0xFF].
@@ -128,7 +131,7 @@ test table_is_derived {
     var bad : u32 = 0;
     var i : u32 = 0;
     while i < 256 {
-        if (ETH_CRC_TABLE[i] != crc_bits(i, 8, 0)) {
+        if (ETH_CRC_TABLE[i] != crc_octet_serial(i, 0)) {
             bad = bad + 1;
         }
         i = i + 1;

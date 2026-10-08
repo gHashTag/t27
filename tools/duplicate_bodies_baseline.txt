@@ -17,7 +17,6 @@ clear 6
 match_at 6
 quantize 6,5
 relu_prime 6
-build_tree 5
 count 5
 exp_approx 5
 floor 5,4
@@ -90,7 +89,6 @@ cordic_z_next 2
 cos_approx 2
 count_keyword_diffs 2
 counter_24bit 2
-crc_bits 2
 declare_module_ports 2
 declare_top_ports 2
 decode_logits 2
