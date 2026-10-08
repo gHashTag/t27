@@ -26,6 +26,8 @@
 #                      against the base ref (variant U).
 #   5. reseal-prev  -- ties the seal state to the current PR diff: warns only if
 #                      this PR edits the sealed compiler.rs (variant W).
+#   6. ddc-receipt  -- verify DDC receipt for the current commit (reads
+#                      /ddc/<sha>.receipt.json instead of /ddc/latest.receipt.json).
 #
 # Usage:
 #   scripts/verify.sh            # run all sub-checks, print summary, exit 0
@@ -245,6 +247,41 @@ else
     fi
 fi
 add_summary "$RESEAL_VERDICT"
+
+# ----------------------------------------------------------------------------
+# 6. DDC receipt verification (read-only; verifies the per-commit receipt).
+#    Checks that the current commit has a valid DDC receipt at /ddc/<sha>.receipt.json
+#    and runs the t27c ddc-receipt verify command on it.
+# ----------------------------------------------------------------------------
+DDC_ROOT="${T27_DDC_ROOT:-./ddc}"
+if [ ! -d "$DDC_ROOT" ]; then
+    DDC_VERDICT="ddc-receipt:SKIP (ddc directory not found)"
+    log " [6/6] ddc-receipt -> SKIP ($DDC_ROOT not found)"
+else
+    # Get current commit SHA
+    CURRENT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "unknown")"
+    if [ "$CURRENT_SHA" = "unknown" ]; then
+        DDC_VERDICT="ddc-receipt:SKIP (not in git work tree)"
+        log " [6/6] ddc-receipt -> SKIP (not in git work tree)"
+    else
+        # Check for per-commit receipt
+        PER_COMMITReceipt="$DDC_ROOT/${CURRENT_SHA}.receipt.json"
+        if [ ! -f "$PER_COMMITReceipt" ]; then
+            DDC_VERDICT="ddc-receipt:SKIP (no receipt for $CURRENT_SHA)"
+            log " [6/6] ddc-receipt -> SKIP ($PER_COMMITReceipt not found)"
+        else
+            # Try to verify the receipt
+            if "$CARGO_BIN" run --bin t27c -- ddc-receipt verify "$PER_COMMITReceipt" >/dev/null 2>&1; then
+                DDC_VERDICT="ddc-receipt:PASS (receipt verified for $CURRENT_SHA)"
+                log " [6/6] ddc-receipt -> PASS (receipt verified for $CURRENT_SHA)"
+            else
+                DDC_VERDICT="ddc-receipt:FAIL (receipt verification failed for $CURRENT_SHA) -- advisory"
+                log " [6/6] ddc-receipt -> FAIL (receipt verification failed for $CURRENT_SHA) (advisory; inspect with 'cargo run --bin t27c -- ddc-receipt verify $PER_COMMITReceipt')"
+            fi
+        fi
+    fi
+fi
+add_summary "$DDC_VERDICT"
 
 log "----------------------------------------------------------------"
 log " advisory only: never edits code, never reseals, never gates CI."

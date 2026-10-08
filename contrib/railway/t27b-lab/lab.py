@@ -599,7 +599,7 @@ def parse_cargo_test(lines):
 # ------------------------------------------------------------ one run
 
 
-def lab_run(sha, log, challenge=SRV / "challenge"):
+def lab_run(sha, log, challenge=SRV / "challenge", is_master_run=False):
     doc = {
         "lab": "t27b-lab",
         "issue": "https://github.com/gHashTag/t27/issues/6071",
@@ -831,11 +831,11 @@ def lab_run(sha, log, challenge=SRV / "challenge"):
         doc["results"] = [
             {"file": f, "reference": v, "reference_detail": w, "t27b": "not run"} for f, (v, w) in sorted(reference.items())
         ]
-    step("ddc", lambda: ddc_receipt(sha, log, challenge)) if have_t27c and have_t27b and SEED else None  # #7699
+    step("ddc", lambda: ddc_receipt(sha, log, challenge, is_master_run)) if have_t27c and have_t27b and SEED else None  # #7699
     return doc
 
 
-def ddc_receipt(sha, log, challenge):
+def ddc_receipt(sha, log, challenge, is_master_run=False):
     """#7699 (specs/verified/ddc_receipt.t27): build t27core on routes A, B, C and sign the run when `ddc-receipt due` says so."""
     core, w, DDC, sh = CLONE / "specs" / "compiler" / "core", WORK / "ddc", SRV / "ddc", lambda b: hashlib.sha256(b).hexdigest()  # noqa: E731
     shutil.rmtree(w, ignore_errors=True), w.mkdir(parents=True), DDC.mkdir(exist_ok=True)
@@ -866,8 +866,13 @@ def ddc_receipt(sha, log, challenge):
         key.unlink()
     if p.returncode != 0:
         raise RuntimeError("t27c ddc-receipt sign exited %s: %s" % (p.returncode, p.stderr.strip()[-300:]))
-    [write_json(DDC / n, json.loads(p.stdout)) for n in ("%s.receipt.json" % sha, "latest.receipt.json")]
-    v = subprocess.run([str(T27C), "ddc-receipt", "verify", str(DDC / "latest.receipt.json")] + nonce, cwd=CLONE, capture_output=True, text=True, timeout=60)
+    # Always write the per-commit receipt, but only write latest.receipt.json for master runs
+    write_json(DDC / ("%s.receipt.json" % sha), json.loads(p.stdout))
+    if is_master_run:
+        write_json(DDC / "latest.receipt.json", json.loads(p.stdout))
+    # For verification, always verify against the per-commit receipt
+    receipt_path = DDC / ("%s.receipt.json" % sha)
+    v = subprocess.run([str(T27C), "ddc-receipt", "verify", str(receipt_path)] + nonce, cwd=CLONE, capture_output=True, text=True, timeout=60)
     return {"json": "/ddc/%s.receipt.json" % sha, "routes": [r[3] for r in routes], "verify": v.stdout.strip().splitlines()[-1:]}
 
 def ratchet(doc, log):
@@ -963,7 +968,7 @@ def lane_request(master):
     r = next((r for code, r in waiting if code == 0), None)
     if r:
         log = Log(SRV / "runs" / ("%s.log" % r.name))
-        write_json(SRV / "runs" / ("%s.json" % r.name), dict(lab_run(r.name, log, r), finished=now(), ref="request"))
+        write_json(SRV / "runs" / ("%s.json" % r.name), dict(lab_run(r.name, log, r, is_master_run=False), finished=now(), ref="request"))
         log.close()
         r.unlink()
     return r is not None
@@ -1002,7 +1007,7 @@ def main():
                 log("image: lab.py %s Dockerfile %s built %s deployment %s" % (
                     IMAGE["lab_py_sha"], IMAGE["dockerfile_sha"], IMAGE["image_built"], IMAGE["railway_deployment"]))
                 set_status(phase="running", commit=sha, started=now(), progress=None)
-                doc = lab_run(sha, log)
+                doc = lab_run(sha, log, is_master_run=True)
                 if doc["steps"].get("build_t27c", {}).get("ok"):
                     shutil.copy2(T27C, JUDGE)
                 publish(doc, sha)
