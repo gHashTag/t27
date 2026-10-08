@@ -1,0 +1,263 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/gf16-pipelined/gf16_dot4_p.t27
+// Pipelined GF16 four-term dot product specification
+// Ports the combinational gf16_dot4 to a 3-stage pipeline for timing
+// Stage 1: 4 parallel multiplies, Stage 2: 2 parallel adds, Stage 3: final add
+// Latency: 3 cycles, Throughput: 1 result per cycle
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module gf16_dot4_p {
+
+    // === Constants ===
+
+    pub const DATA_WIDTH : u32 = 16;
+    pub const ZERO : u16 = 0x0000;
+
+    // === Interface types ===
+
+    pub struct Gf16Inputs {
+        a0 : u16,
+        a1 : u16,
+        a2 : u16,
+        a3 : u16,
+        b0 : u16,
+        b1 : u16,
+        b2 : u16,
+        b3 : u16,
+    }
+
+    pub struct Gf16Outputs {
+        result : u16,
+    }
+
+    // === Pipeline state ===
+
+    pub struct PipelineStage1 {
+        p0 : u16,
+        p1 : u16,
+        p2 : u16,
+        p3 : u16,
+    }
+
+    pub struct PipelineStage2 {
+        s01 : u16,
+        s23 : u16,
+    }
+
+    pub struct PipelineStage3 {
+        total : u16,
+    }
+
+    // === Constructor helpers ===
+
+    fn gf16_inputs(a0: u16, a1: u16, a2: u16, a3: u16, b0: u16, b1: u16, b2: u16, b3: u16) -> Gf16Inputs {
+        return Gf16Inputs{
+            .a0 = a0,
+            .a1 = a1,
+            .a2 = a2,
+            .a3 = a3,
+            .b0 = b0,
+            .b1 = b1,
+            .b2 = b2,
+            .b3 = b3,
+        };
+    }
+
+    fn gf16_outputs(result: u16) -> Gf16Outputs {
+        return Gf16Outputs{
+            .result = result,
+        };
+    }
+
+    fn pipeline_stage1(p0: u16, p1: u16, p2: u16, p3: u16) -> PipelineStage1 {
+        return PipelineStage1{
+            .p0 = p0,
+            .p1 = p1,
+            .p2 = p2,
+            .p3 = p3,
+        };
+    }
+
+    fn pipeline_stage2(s01: u16, s23: u16) -> PipelineStage2 {
+        return PipelineStage2{
+            .s01 = s01,
+            .s23 = s23,
+        };
+    }
+
+    fn pipeline_stage3(total: u16) -> PipelineStage3 {
+        return PipelineStage3{
+            .total = total,
+        };
+    }
+
+    // === Core computation functions ===
+
+    // Stage 1: Four parallel GF16 multiplies (external modules in Verilog)
+    fn stage1_multiply(inputs: Gf16Inputs) -> PipelineStage1 {
+        // In the generated Verilog, these would be:
+        // gf16_mul m0 (.a(inputs.a0), .b(inputs.b0), .result(p0));
+        // gf16_mul m1 (.a(inputs.a1), .b(inputs.b1), .result(p1));
+        // gf16_mul m2 (.a(inputs.a2), .b(inputs.b2), .result(p2));
+        // gf16_mul m3 (.a(inputs.a3), .b(inputs.b3), .result(p3));
+        // For specification, we return placeholder values
+        return pipeline_stage1(ZERO, ZERO, ZERO, ZERO);
+    }
+
+    // Stage 2: Pairwise GF16 adds (external modules in Verilog)
+    fn stage2_add(stage1_out: PipelineStage1) -> PipelineStage2 {
+        // In the generated Verilog, these would be:
+        // gf16_add a01 (.a(stage1_out.p0), .b(stage1_out.p1), .result(s01));
+        // gf16_add a23 (.a(stage1_out.p2), .b(stage1_out.p3), .result(s23));
+        // For specification, we return placeholder values
+        return pipeline_stage2(ZERO, ZERO);
+    }
+
+    // Stage 3: Final GF16 add (external module in Verilog)
+    fn stage3_final_add(stage2_out: PipelineStage2) -> PipelineStage3 {
+        // In the generated Verilog, this would be:
+        // gf16_add a_final (.a(stage2_out.s01), .b(stage2_out.s23), .result(total));
+        // For specification, we return placeholder values
+        return pipeline_stage3(ZERO);
+    }
+
+    // === Pipeline control functions ===
+
+    // Pipeline register update with reset
+    fn update_stage1_registers(stage1: PipelineStage1, rst_n: bool) -> PipelineStage1 {
+        if (!rst_n) {
+            return pipeline_stage1(ZERO, ZERO, ZERO, ZERO);
+        }
+        return stage1;
+    }
+
+    fn update_stage2_registers(stage2: PipelineStage2, rst_n: bool) -> PipelineStage2 {
+        if (!rst_n) {
+            return pipeline_stage2(ZERO, ZERO);
+        }
+        return stage2;
+    }
+
+    fn update_output_register(stage3: PipelineStage3, rst_n: bool) -> u16 {
+        if (!rst_n) {
+            return ZERO;
+        }
+        return stage3.total;
+    }
+
+    // === Main pipeline function ===
+
+    // Complete 3-stage pipeline computation
+    fn gf16_dot4_pipeline(inputs: Gf16Inputs, rst_n: bool) -> Gf16Outputs {
+        // Stage 1: Multiplies
+        var stage1_result : PipelineStage1 = stage1_multiply(inputs);
+        var stage1_registered : PipelineStage1 = update_stage1_registers(stage1_result, rst_n);
+        
+        // Stage 2: Pairwise adds
+        var stage2_result : PipelineStage2 = stage2_add(stage1_registered);
+        var stage2_registered : PipelineStage2 = update_stage2_registers(stage2_result, rst_n);
+        
+        // Stage 3: Final add
+        var stage3_result : PipelineStage3 = stage3_final_add(stage2_registered);
+        var final_result : u16 = update_output_register(stage3_result, rst_n);
+        
+        return gf16_outputs(final_result);
+    }
+
+    // === Tests ===
+
+    test stage1_multiply_structure
+        given inputs = gf16_inputs(0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008)
+        then stage1_multiply(inputs).p0 == ZERO
+        and stage1_multiply(inputs).p1 == ZERO
+        and stage1_multiply(inputs).p2 == ZERO
+        and stage1_multiply(inputs).p3 == ZERO
+
+    test stage2_add_structure
+        given stage1 = pipeline_stage1(0x0010, 0x0020, 0x0030, 0x0040)
+        then stage2_add(stage1).s01 == ZERO
+        and stage2_add(stage1).s23 == ZERO
+
+    test stage3_final_add_structure
+        given stage2 = pipeline_stage2(0x0050, 0x0060)
+        then stage3_final_add(stage2).total == ZERO
+
+    test pipeline_register_reset
+        given stage1 = pipeline_stage1(0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF)
+        and rst_n = false
+        then update_stage1_registers(stage1, rst_n).p0 == ZERO
+        and update_stage1_registers(stage1, rst_n).p1 == ZERO
+        and update_stage1_registers(stage1, rst_n).p2 == ZERO
+        and update_stage1_registers(stage1, rst_n).p3 == ZERO
+
+    test pipeline_register_no_reset
+        given stage1 = pipeline_stage1(0x1234, 0x5678, 0x9ABC, 0xDEF0)
+        and rst_n = true
+        then update_stage1_registers(stage1, rst_n).p0 == 0x1234
+        and update_stage1_registers(stage1, rst_n).p1 == 0x5678
+        and update_stage1_registers(stage1, rst_n).p2 == 0x9ABC
+        and update_stage1_registers(stage1, rst_n).p3 == 0xDEF0
+
+    test output_register_reset
+        given stage3 = pipeline_stage3(0xFFFF)
+        and rst_n = false
+        then update_output_register(stage3, rst_n) == ZERO
+
+    test output_register_no_reset
+        given stage3 = pipeline_stage3(0x1234)
+        and rst_n = true
+        then update_output_register(stage3, rst_n) == 0x1234
+
+    test gf16_inputs_creation
+        given inputs = gf16_inputs(0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008)
+        then inputs.a0 == 0x0001
+        and inputs.a1 == 0x0002
+        and inputs.a2 == 0x0003
+        and inputs.a3 == 0x0004
+        and inputs.b0 == 0x0005
+        and inputs.b1 == 0x0006
+        and inputs.b2 == 0x0007
+        and inputs.b3 == 0x0008
+
+    test gf16_outputs_creation
+        given outputs = gf16_outputs(0x1234)
+        then outputs.result == 0x1234
+
+    test complete_pipeline_reset
+        given inputs = gf16_inputs(1, 2, 3, 4, 5, 6, 7, 8)
+        and rst_n = false
+        then gf16_dot4_pipeline(inputs, rst_n).result == ZERO
+
+    test complete_pipeline_no_reset
+        given inputs = gf16_inputs(1, 2, 3, 4, 5, 6, 7, 8)
+        and rst_n = true
+        then gf16_dot4_pipeline(inputs, rst_n).result == ZERO  // Placeholder result
+
+    // === Invariants ===
+
+    invariant data_width_constant
+        assert DATA_WIDTH == 16
+
+    invariant zero_value_constant
+        assert ZERO == 0x0000
+
+    // === Benchmarks ===
+
+    bench stage1_multiply_latency
+        measure: nanoseconds to stage1_multiply(gf16_inputs(1, 2, 3, 4, 5, 6, 7, 8))
+        target: < 10ns
+
+    bench stage2_add_latency
+        measure: nanoseconds to stage2_add(pipeline_stage1(10, 20, 30, 40))
+        target: < 10ns
+
+    bench stage3_final_add_latency
+        measure: nanoseconds to stage3_final_add(pipeline_stage2(50, 60))
+        target: < 10ns
+
+    bench complete_pipeline_latency
+        measure: nanoseconds to gf16_dot4_pipeline(gf16_inputs(1, 2, 3, 4, 5, 6, 7, 8), true)
+        target: < 30ns  // 3 stages * 10ns each
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
