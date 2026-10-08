@@ -12,6 +12,7 @@ module HSLM {
     use math::sacred_physics;
     use numeric::gf16;
     use nn::attention;
+    use port::trinity::src::tri::gen_tanh;
 
     // ═════════════════════════════════════════════════════════════════
     // 1. HSLM Configuration
@@ -363,47 +364,40 @@ module HSLM {
         // Implementation: accumulate gradients in weight structure
         var layer_grads = &grads.layers[layer_idx];
         
-        // For now, initialize gradients to zero (placeholder for actual gradient computation)
-        // In a full implementation, this would compute dL/dW2 from upstream gradients
-        // and stored intermediate activations from the forward pass
-        var i : usize = 0;
-        while (i < FF_DIM * EMBED_DIM) {
-            // Initialize gradient to zero - actual computation would use stored activations
-            layer_grads.w2[i] = 0.0;  // Placeholder for gradient computation
-            i = i + 1;
-        }
+        // Note: Without stored activations from forward pass, we cannot compute actual gradients
+        // This function signature matches the contract but requires stored intermediate
+        // values from the forward pass for meaningful gradient computation
+        // In a full implementation, this would use stored FFN intermediate activations
+    }
+
+    // gelu_derivative(x) → f64
+    // GELU derivative: dGELU/dx = Φ(x) + x * φ(x)
+    // where Φ is standard normal CDF and φ is standard normal PDF
+    // Using the same approximation as gelu_activation
+    fn gelu_derivative(x: f64) -> f64 {
+        const sqrt_2_over_pi = sqrt(2.0 / 3.141592653589793);
+        const cube = x * x * x;
+        const inner = sqrt_2_over_pi * (x + 0.044715 * cube);
+        const tanh_val = gen_tanh::tanh(inner);
+        // Derivative: 0.5*(1+tanh) + 0.5*x*(1-tanh²)*sqrt(2/π)*(1+0.134145*x²)
+        const sech_sq = 1.0 - tanh_val * tanh_val;  // 1 - tanh² = sech²
+        const derivative = 0.5 * (1.0 + tanh_val) + 0.5 * x * sech_sq * sqrt_2_over_pi * (1.0 + 0.134145 * cube);
+        return derivative;
     }
 
     // gelu_backward(layer_idx) → void
     // Gradient through GELU activation
     fn gelu_backward(layer_idx: usize) -> void {
-        // GELU derivative: dGELU/dx = Φ(x) + x * φ(x)
-        // where φ is standard normal PDF
-        // Implementation: compute derivative using the same approximation as forward pass
-        const sqrt_2_over_pi = sqrt(2.0 / 3.141592653589793);
-        const sqrt_2_pi = sqrt(2.0 * 3.141592653589793);
-        
-        // For now, this is a placeholder implementation
+        // GELU backward pass: compute gradients through activation
         // In a full implementation, this would:
         // 1. Access stored intermediate activations from forward pass
-        // 2. Compute dGELU/dx for each activation
+        // 2. Compute dGELU/dx for each activation using gelu_derivative
         // 3. Multiply by upstream gradients
         // 4. Pass gradients backward to previous layer
         
-        // Placeholder: compute derivative values (would use stored activations in real implementation)
-        var i : usize = 0;
-        while (i < FF_DIM) {
-            // This would access stored intermediate values and compute gradients
-            // For now, just a placeholder computation
-            const x = 0.0;  // Would be stored intermediate activation
-            const cube = x * x * x;
-            const inner = sqrt_2_over_pi * (x + 0.044715 * cube);
-            const tanh_val = tanh(inner);
-            const gelu_derivative = 0.5 * (1.0 + tanh_val) + 0.5 * x * (1.0 - tanh_val * tanh_val) * sqrt_2_over_pi * (1.0 + 0.134145 * cube);
-            
-            // Store or apply gradient (placeholder)
-            i = i + 1;
-        }
+        // Note: Without stored activations, we cannot compute actual gradients
+        // This function signature matches the contract but requires stored state
+        // for meaningful gradient computation
     }
 
     // ffn_backward_w1(grads, layer_idx) → void
@@ -414,18 +408,11 @@ module HSLM {
         // Implementation: accumulate gradients in weight structure
         var layer_grads = &grads.layers[layer_idx];
         
-        // For now, initialize gradients to zero (placeholder for actual gradient computation)
-        // In a full implementation, this would:
-        // 1. Access downstream gradients (dL/dmid from gelu_backward)
-        // 2. Access original input activations from forward pass
-        // 3. Compute dL/dW1 = dL/dmid * x^T using ternary matrix multiplication pattern
-        var i : usize = 0;
-        while (i < EMBED_DIM * FF_DIM) {
-            // Initialize gradient to zero - actual computation would use downstream gradients
-            // and stored input activations from forward pass
-            layer_grads.w1[i] = 0.0;  // Placeholder for gradient computation
-            i = i + 1;
-        }
+        // Note: Without stored activations from forward pass and downstream gradients,
+        // we cannot compute actual gradients. This function signature matches the contract
+        // but requires stored intermediate values and downstream gradients for meaningful
+        // gradient computation. In a full implementation, this would use stored input
+        // activations and gradients from the GELU backward pass.
     }
 
     // attention_backward(grads, layer_idx) → void
@@ -435,28 +422,11 @@ module HSLM {
         // Implementation: compute gradients for attention weights and projections
         var layer_grads = &grads.layers[layer_idx];
         
-        // For now, initialize gradients to zero (placeholder for actual gradient computation)
-        // In a full implementation, this would:
-        // 1. Access downstream gradients from output projection
-        // 2. Compute gradients for attention weights (softmax derivatives)
-        // 3. Compute gradients for Q, K, V projections
-        // 4. Pass gradients backward to input embeddings
-        
-        // Initialize output projection gradients
-        var i : usize = 0;
-        while (i < EMBED_DIM * EMBED_DIM) {
-            layer_grads.w_o[i] = 0.0;  // Placeholder for output projection gradients
-            i = i + 1;
-        }
-        
-        // Initialize attention projection gradients
-        i = 0;
-        while (i < EMBED_DIM * EMBED_DIM) {
-            layer_grads.w_q[i] = 0.0;  // Placeholder for query projection gradients
-            layer_grads.w_k[i] = 0.0;  // Placeholder for key projection gradients  
-            layer_grads.w_v[i] = 0.0;  // Placeholder for value projection gradients
-            i = i + 1;
-        }
+        // Note: Without stored activations, attention cache, and downstream gradients,
+        // we cannot compute actual gradients. This function signature matches the contract
+        // but requires stored K/V cache, attention outputs, and downstream gradients for
+        // meaningful gradient computation. In a full implementation, this would compute
+        // softmax gradients and propagate gradients through Q/K/V projections.
     }
 
     // ═════════════════════════════════════════════════════════════════
@@ -711,10 +681,23 @@ module HSLM {
         when ffn_backward_w2(&grads, layer_idx)
         then grads.layers[layer_idx].w2[0] == 0.0  // Should initialize gradients
 
-    test hslm_gelu_backward_no_crash
-        given layer_idx = 0
-        when gelu_backward(layer_idx)
-        then true  // Should not crash
+    test hslm_gelu_derivative_negative_two
+        given x = -2.0
+        and expected_derivative = gelu_derivative(x)
+        and finite_diff = (gelu_activation(x + 0.001) - gelu_activation(x - 0.001)) / 0.002
+        then abs(expected_derivative - finite_diff) < 0.01
+
+    test hslm_gelu_derivative_zero
+        given x = 0.0
+        and expected_derivative = gelu_derivative(x)
+        and finite_diff = (gelu_activation(x + 0.001) - gelu_activation(x - 0.001)) / 0.002
+        then abs(expected_derivative - finite_diff) < 0.01
+
+    test hslm_gelu_derivative_positive_one_point_five
+        given x = 1.5
+        and expected_derivative = gelu_derivative(x)
+        and finite_diff = (gelu_activation(x + 0.001) - gelu_activation(x - 0.001)) / 0.002
+        then abs(expected_derivative - finite_diff) < 0.01
 
     test hslm_ffn_backward_w1_initializes_grads
         given grads = zero_weight_gradients()
