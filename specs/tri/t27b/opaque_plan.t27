@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/opaque_plan.t27 -- how t27b lowers `anyopaque` and `@ptrFromInt` to an optional pointer (issue #7737,
+; t27b coverage epic #6063; written in t27 under the port epic #6198). Everything t27b decides about them is in this
+; file and reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/opaque_plan.rs): which shapes it takes, and the
+; names and words of each refusal. The Rust glue in cli/t27b/src/lower.rs (`lty_in`, `expr_as`, `ptr_from_int`) reads
+; what the context wants, asks, and builds the answer.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/opaque_pointer.t27). gen-zig prints all of it as written.
+;   - `anyopaque` has no size and alignment 1. Only a pointer to it can be named, passed, stored and compared with
+;     null; by value it is a compile error. t27b gives it a struct with no layout: a pointer to it is an ordinary
+;     pointer, and anything that needs its size (a dereference) is refused as `type anyopaque`, the name t27b gave
+;     every use of it before.
+;   - `@ptrFromInt(x)` takes its pointer type from the result location and x as a usize. For an optional pointer,
+;     address 0 is `null`. Any other address must be aligned for the pointee, or a Debug build panics, and a
+;     non-optional pointer panics on 0. t27b takes an optional pointer to an alignment-1 pointee (anyopaque, u8, bool),
+;     where no address traps, and refuses a non-optional pointer and a wider alignment by name: t27b has no such
+;     check yet. Any other result type, or any other number of operands, is NOT_MINE: the call stays
+;     `ExprCall(@ptrFromInt)`, as before.
+; The corpus cases: gen_assertion.t27 (`?*anyopaque` parameters and local, `assertNotNull(@ptrFromInt(0))`) and
+; gen_hazard_pointers.t27 (`?*anyopaque` fields and parameter).
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bOpaquePlan;
+
+// The answers.
+pub const OPAQUE : u8 = 0;
+pub const REFUSE_BY_VALUE : u8 = 1;
+pub const NOT_MINE : u8 = 2;
+pub const FROM_INT : u8 = 3;
+pub const REFUSE_PLAIN : u8 = 4;
+pub const REFUSE_ALIGNED : u8 = 5;
+
+// What `@ptrFromInt` is wanted as.
+pub const W_OPT_PTR : u8 = 0;
+pub const W_PTR : u8 = 1;
+pub const W_OTHER : u8 = 2;
+
+/// `anyopaque` where a type is read. by_value: its size is needed there (a field, a parameter, a local, an array
+/// element), as opposed to the pointee of a pointer or a slice.
+pub fn opaque_type(by_value: bool) -> u8 {
+    if (by_value) { return REFUSE_BY_VALUE; }
+    return OPAQUE;
+}
+
+/// `@ptrFromInt(...)`. want: W_OPT_PTR, W_PTR or W_OTHER. align: the pointee's alignment in bytes. args: how many
+/// operands the call has.
+pub fn from_int(want: u8, align: u32, args: usize) -> u8 {
+    if (want == W_OTHER or args != 1) { return NOT_MINE; }
+    if (want == W_PTR) { return REFUSE_PLAIN; }
+    if (align > 1) { return REFUSE_ALIGNED; }
+    return FROM_INT;
+}
+
+/// Is the answer a refusal? Its construct is `what`, its words `why`.
+pub fn refuses(act: u8) -> bool {
+    return act == REFUSE_BY_VALUE or act == REFUSE_PLAIN or act == REFUSE_ALIGNED;
+}
+
+/// The construct a refusal names.
+pub fn what(act: u8) -> str {
+    if (act == REFUSE_BY_VALUE) { return "type anyopaque"; }
+    if (act == REFUSE_PLAIN or act == REFUSE_ALIGNED) { return "ExprCall(@ptrFromInt)"; }
+    return "";
+}
+
+/// The words of a refusal.
+pub fn why(act: u8) -> str {
+    if (act == REFUSE_BY_VALUE) { return "`anyopaque` has no size: only a pointer to it can be used"; }
+    if (act == REFUSE_PLAIN) {
+        return "to a pointer that is not optional (Zig panics on address 0, which t27b does not check yet)";
+    }
+    if (act == REFUSE_ALIGNED) {
+        return "to a pointer whose pointee is aligned to more than 1 byte (Zig panics on a misaligned address, which t27b does not check yet)";
+    }
+    return "";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then each refusal and what stays with the other paths.
+// ----------------------------------------------------------------------------------------------------------
+
+test anyopaque_is_a_pointee_only {
+    // gen_hazard_pointers.t27's `pointer: ?*anyopaque`; a field of type `anyopaque` is a compile error.
+    assert(opaque_type(false) == OPAQUE);
+    assert(opaque_type(true) == REFUSE_BY_VALUE);
+    assert(!refuses(OPAQUE) and refuses(REFUSE_BY_VALUE));
+}
+
+test from_int_to_an_optional_opaque_pointer {
+    // gen_assertion.t27's `assertNotNull(@ptrFromInt(1))` into `ptr: ?*anyopaque`.
+    assert(from_int(W_OPT_PTR, 1, 1) == FROM_INT);
+    assert(!refuses(FROM_INT));
+}
+
+test from_int_refusals {
+    assert(from_int(W_PTR, 1, 1) == REFUSE_PLAIN);
+    assert(from_int(W_PTR, 8, 1) == REFUSE_PLAIN);
+    assert(from_int(W_OPT_PTR, 2, 1) == REFUSE_ALIGNED);
+    assert(from_int(W_OPT_PTR, 8, 1) == REFUSE_ALIGNED);
+    assert(refuses(REFUSE_PLAIN) and refuses(REFUSE_ALIGNED));
+}
+
+test from_int_not_mine {
+    // No pointer wanted, or not exactly one operand: the call stays ExprCall(@ptrFromInt).
+    assert(from_int(W_OTHER, 1, 1) == NOT_MINE);
+    assert(from_int(W_OPT_PTR, 1, 0) == NOT_MINE);
+    assert(from_int(W_OPT_PTR, 1, 2) == NOT_MINE);
+    assert(from_int(W_PTR, 8, 2) == NOT_MINE);
+    assert(!refuses(NOT_MINE));
+}
+
+test refusal_names_and_words {
+    assert(std.mem.eql(u8, what(REFUSE_BY_VALUE), "type anyopaque"));
+    assert(std.mem.eql(u8, what(REFUSE_PLAIN), "ExprCall(@ptrFromInt)"));
+    assert(std.mem.eql(u8, what(REFUSE_ALIGNED), "ExprCall(@ptrFromInt)"));
+    assert(std.mem.eql(u8, what(FROM_INT), "") and std.mem.eql(u8, what(OPAQUE), ""));
+    assert(why(REFUSE_BY_VALUE).len > 0);
+    assert(!std.mem.eql(u8, why(REFUSE_PLAIN), why(REFUSE_ALIGNED)));
+    assert(std.mem.eql(u8, why(NOT_MINE), ""));
+}
