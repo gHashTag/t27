@@ -55,8 +55,8 @@ pub const WITNESS_SOURCE : str = ".trinity/registry.json at 976df5174 (version 1
 pub const ENABLED : bool = true;
 
 test test_constants {
-    assert KIND == "tool";
-    assert FAMILY == "tri-cli";
+    assert std.mem.eql(u8, KIND, "tool");
+    assert std.mem.eql(u8, FAMILY, "tri-cli");
     assert SCHEMA == 2;
     assert ROUTED == true;
     assert ENABLED == true;

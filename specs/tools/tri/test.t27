@@ -36,8 +36,8 @@ pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
 test verify_tool_constants {
-  assert KIND == "tool";
-  assert FAMILY == "tri-cli";
+  assert std.mem.eql(u8, KIND, "tool");
+  assert std.mem.eql(u8, FAMILY, "tri-cli");
   assert SCHEMA == 2;
   assert ENABLED == true;
 }
