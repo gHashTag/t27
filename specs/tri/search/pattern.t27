@@ -153,6 +153,38 @@ module TriPattern;
         return p >= pattern.len and t >= text.len;
     }
 
+        // ═══════════════════════════════════════════════════════════
+    // 4. Corpus Repair Functions
+    // ═══════════════════════════════════════════════════════════
+
+    // is_primitive_type(type_name: []const u8) -> bool
+    fn is_primitive_type(type_name: []const u8) -> bool {
+        // Check if the type is a primitive that should be lower-cased
+        return std.mem.eql(u8, type_name, "U32") or
+               std.mem.eql(u8, type_name, "F32") or
+               std.mem.eql(u8, type_name, "Bool");
+    }
+
+    // repair_balanced_type(identifier: []const u8) -> []const u8
+    fn repair_balanced_type(identifier: []const u8) -> []const u8 {
+        // Transform [[]Identifier] to []Identifier with correct casing
+        // User types preserve case, primitives are lower-cased
+        if (is_primitive_type(identifier)) {
+            // Lower-case primitives
+            var lower_cased: [100]u8 = undefined;
+            var i: usize = 0;
+            while (i < identifier.len) {
+                lower_cased[i] = std.ascii.toLower(identifier[i]);
+                i = i + 1;
+            }
+            lower_cased[identifier.len] = 0;
+            return lower_cased[0..identifier.len];
+        } else {
+            // Preserve case for user types
+            return identifier;
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
