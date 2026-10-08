@@ -34,3 +34,16 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WHEN_TO_USE : str = "Generates backends from a .t27 spec file using t27c.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_tool_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ID == "tri/gen";
+  assert REPO == "gHashTag/t27";
+  assert QUALIFIED_ID == "gHashTag/t27:tri/gen";
+  assert SCHEMA == 2;
+  assert COMMAND == "tri gen";
+  assert VARIANT == "Commands::Gen";
+  assert AGENTS.len == 2;
+  assert ENABLED == true;
+}

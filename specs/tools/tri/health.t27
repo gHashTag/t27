@@ -34,3 +34,17 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WHEN_TO_USE : str = "Returns queen and swarm health status from .trinity state.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_tool_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ID == "tri/health";
+  assert REPO == "gHashTag/t27";
+  assert QUALIFIED_ID == "gHashTag/t27:tri/health";
+  assert SCHEMA == 2;
+  assert COMMAND == "tri health";
+  assert VARIANT == "Commands::Health";
+  assert ARGS.len == 1;
+  assert AGENTS.len == 2;
+  assert ENABLED == true;
+}
