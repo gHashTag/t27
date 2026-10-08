@@ -90,6 +90,8 @@ mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, s
 mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
 #[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
 mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
+#[path = "../../../gen/rust/tri/t27b/wide_plan.rs"] #[allow(dead_code, unused_parens, unexpected_cfgs)]
+mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wider than 64 bits, folded
 mod refvars;
 mod tuple;
 
@@ -672,7 +674,7 @@ fn lower_mode<'a>(
     let mut const_names: Vec<String> = l.const_nodes.keys().cloned().collect();
     const_names.sort();
     for name in const_names {
-        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() {
+        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() || wp::is_wide(l.const_nodes[&name].extra_type.trim().as_bytes()) {
             continue;
         }
         let _ = l.global(&name);
@@ -3262,6 +3264,7 @@ impl<'a> Lower<'a> {
                 if (op == "==" || op == "!=") && (self.is_null(&n.children[0]) || self.is_null(&n.children[1])) {
                     return self.null_compare(&op, n);
                 }
+                if let Some(v) = self.wide_fold(n, None)? { return Ok(v); }
                 let (x, y) = (&n.children[0], &n.children[1]);
                 let lit = |n: &Node| n.kind == NodeKind::ExprEnumValue;
                 let ordered = (self.names_variant(x) || self.names_variant(y)) && !lit(x) && !lit(y);
@@ -3379,6 +3382,7 @@ impl<'a> Lower<'a> {
                 if n.children.len() != 1 {
                     return self.reject("ExprCast", "unexpected shape".into());
                 }
+                if let Some(v) = self.wide_fold(&n.children[0], Some(n.extra_type.trim()))? { return Ok(v); }
                 // The operand first, so that in recovery mode an unsupported
                 // operand and an unsupported target type are both named.
                 let v = self.expr(&n.children[0])?;
@@ -3548,6 +3552,37 @@ impl<'a> Lower<'a> {
             }
         };
         Ok(Val::E(Expr { ty, kind }))
+    }
+
+    /// `n` folded as Zig folds an expression that names a module constant of an integer type wider than 64 bits:
+    /// integer literals, such constants and the operators between them (specs/tri/t27b/wide_plan.t27).
+    fn wide(&mut self, n: &Node) -> wp::WideFold {
+        let k: Vec<wp::WideFold> = n.children.iter().map(|c| self.wide(c)).collect();
+        let c = self.const_nodes.get(n.name.as_str()).copied().filter(|c| wp::is_wide(c.extra_type.trim().as_bytes()));
+        match (&n.kind, c) {
+            (NodeKind::ExprLiteral, _) => wp::literal(n.value.trim().as_bytes(), n.extra_type.trim().as_bytes(), n.extra_kind == "string"),
+            (NodeKind::ExprIdentifier, Some(c)) if self.lookup(&n.name).is_none() && self.resolving.insert(n.name.clone()) => {
+                let v = c.children.first().map_or_else(wp::other, |i| self.wide(i));
+                self.resolving.remove(&n.name);
+                wp::constant(v, c.extra_type.trim().as_bytes())
+            }
+            (NodeKind::ExprBinary | NodeKind::ExprUnary, _) if !k.is_empty() => wp::apply(n.extra_op.trim().as_bytes(), k[0], k[k.len() - 1], k.len()),
+            _ => wp::other(),
+        }
+    }
+
+    /// A comparison (`to` None), or an `as` to `to`, of an expression that names a wide constant: the constant `wide`
+    /// folds it to, or the plan's refusal under that constant's type. None when it names none.
+    fn wide_fold(&mut self, n: &Node, to: Option<&str>) -> R<Option<Val>> {
+        let v = self.wide(n);
+        if !wp::folds(v) {
+            return Ok(None);
+        }
+        let ty = match to { Some(t) => self.ty(t)?, None => Ty::Bool };
+        match wp::verdict(v, to.is_some(), ty.is_int(), ty.bits(), ty.signed()) {
+            wp::OK => Ok(Some(Val::E(Expr { ty, kind: ExprKind::Const(ty.wrap(wp::low64(v) as i128)) }))),
+            r => self.reject(&format!("type {}{}", wp::letter(v), v.named), wp::why(r).into()),
+        }
     }
 
     /// A builtin of libm_plan.t27 (`@exp`, `@log`): a call of its routine from specs/tri/t27b/libm.t27, compiler_rt's
@@ -4249,6 +4284,7 @@ impl<'a> Lower<'a> {
                 return Ok(LTy::Arr(Box::new(inner), n));
             }
         }
+        self.layout_err |= wp::is_wide(t.as_bytes()); // Zig resolves a wide type only where it is used (`unresolved_sig`)
         let (construct, detail) = self.type_construct(t);
         self.reject(&construct, detail)
     }
