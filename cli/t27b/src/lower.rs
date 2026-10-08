@@ -413,6 +413,8 @@ struct Lower<'a> {
     /// `*` expressions (by address) that t27c's strength reduction may rewrite
     /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
     shifted_muls: HashSet<usize>,
+    /// The statement being lowered is the last of its block (`stmts`): a `@panic` must be (builtin_plan.t27).
+    last_stmt: bool,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -520,6 +522,7 @@ fn lower_mode<'a>(
         tail_returns: HashSet::new(),
         misprinted_if: HashSet::new(),
         shifted_muls: HashSet::new(),
+        last_stmt: false,
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -1842,7 +1845,8 @@ impl<'a> Lower<'a> {
 
     fn stmts(&mut self, ns: &[Node]) -> R<Vec<Stmt>> {
         let mut out = Vec::new();
-        for n in ns {
+        for (i, n) in ns.iter().enumerate() {
+            self.last_stmt = i + 1 == ns.len();
             if self.stmt(n, &mut out).is_err() {
                 if !self.recover {
                     return Err(());
@@ -2964,6 +2968,17 @@ impl<'a> Lower<'a> {
                     }
                 }
             }
+            // `@panic("m");` the reference does not return (builtin_plan.t27): a trap that always fires.
+            "@panic" => {
+                let lit = c.children.first().is_some_and(|m| m.kind == NodeKind::ExprLiteral && m.extra_kind == "string");
+                let act = bp::panic_stmt(c.children.len(), lit, self.last_stmt);
+                if act != bp::P_TRAP {
+                    return self.reject(bp::panic_what(act), format!("`@panic`: {}", bp::panic_why(act)));
+                }
+                let site = self.site(TrapKind::Assert, "@panic".into(), Ty::Bool);
+                out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
+                Ok(())
+            }
             "assert_eq" => {
                 if c.children.len() != 2 {
                     return self.reject(
@@ -3438,7 +3453,7 @@ impl<'a> Lower<'a> {
                     self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
                 }
             },
-            NodeKind::ExprCall if matches!(n.name.as_str(), "@abs" | "@max" | "@min") => self.builtin_plan(n),
+            NodeKind::ExprCall if matches!(n.name.as_str(), "@abs" | "@max" | "@min" | "@divTrunc") => self.builtin_plan(n),
             NodeKind::ExprCall if xp::BUILTINS.split(' ').any(|b| b == n.name) => self.libm_call(n),
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
