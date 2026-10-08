@@ -1,0 +1,9 @@
+// A qualified name pulls even from a `//` comment: gen-c's splice finds
+// the module name followed by `::` anywhere in the text, so the comment below
+// splices ud_unused, UD_LIMIT and ud_step, which no code names (#7379).
+module use_qualified_comment;
+use selfhost_use::use_dep;
+// unlike use_dep::ud_unused, this calls ud_twice
+fn uq_two(a: i64) -> i64 {
+    return ud_twice(a);
+}
