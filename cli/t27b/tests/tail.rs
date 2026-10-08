@@ -215,6 +215,25 @@ fn a_scaffold_local_is_never_called() {
     }
 }
 
+// ------------------------------------------------ @divTrunc and a @panic statement
+
+/// #7790: `@divTrunc` of two integers is t27b's `/` (gen-zig prints a signed `/` as `@divTrunc`), and a
+/// `@panic("m");` last in its block is a trap that always fires (specs/tri/t27b/builtin_plan.t27; `t27c
+/// test-report` passes the conformance spec 8/8, none vacuous, and fails each trapping test below).
+#[test]
+fn div_trunc_and_a_panic_statement() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/div_trunc_panic.t27"));
+    assert!(r.len() == 8 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn d(a: i32, b: i32) -> i32 {\n    return @divTrunc(a, b);\n}\n\nfn c(x: u32) -> u32 {\n    if (x > 3) {\n        @panic(\"big\");\n    }\n    return x;\n}\n\ntest z {\n    assert(d(1, 0) == 0);\n}\n\ntest m {\n    assert(d(-2147483647 - 1, -1) == 0);\n}\n\ntest p {\n    assert(c(5) == 5);\n}\n\ntest q {\n    assert(c(2) == 2);\n}\n";
+    let r = run(src);
+    let o: Vec<_> = r.iter().map(|x| x.2).collect();
+    assert_eq!(o, vec![Err((TrapKind::DivZero, 4)), Err((TrapKind::Overflow, 4)), Err((TrapKind::Assert, 9)), Ok(())]);
+    for (from, to, what) in [("\"big\");", "\"big\");\n        x = 1;", "@panic before more statements"), ("@panic(\"big\")", "@panic(\"b\", \"c\")", "@panic"), ("x > 3", "@divTrunc(1.5, 2.0) > 3", "@divTrunc of a non-integer")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(&format!("construct ExprCall({})", what)), "{}", m);
+    }
+}
+
 // ------------------------------------------------ `undefined` as an argument
 
 /// `f(undefined)` for a parameter the callee never names (gen_temp_file.t27, funnel_client.t27): the call runs and

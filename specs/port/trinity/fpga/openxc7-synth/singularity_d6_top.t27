@@ -1,0 +1,222 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/singularity_d6_top.t27
+// Port of gHashTag/trinity fpga/openxc7-synth/singularity_d6_top.v (Verilog, 1 module).
+//
+// Top module for FPGA flashing with visual verification. Board: QMTECH
+// Artix-7 XC7A100T-1FGG676C — clk: U22 (50 MHz oscillator), led: T23
+// (D6 LED).
+//
+// The original instantiates singularity_core_v100 with enable = 1'b1 and
+// 32'd0 on all eight sensory inputs, ties its own reset to 1'b0 (always
+// enabled, no floating reset) with 1'b1 active-low, and drives the D6 LED
+// with `assign led = led_chaos | led_omega;`. The core instance itself is
+// plumbing: its outputs arrive here as the parameters of `on_comb`.
+//
+// Expected LED behavior:
+//   - Chaotic blinking when self-improving (consciousness emerging)
+//   - Solid ON when the Ω-point is reached (AGI ready)
+//   - Slow blink when idle
+//
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module singularity_d6_top {
+
+    // === Module constants (from the original's header and wiring) ===
+
+    pub const CLK_MHZ : u32 = 50;              // input wire clk — U22, 50 MHz oscillator
+    pub const SENSORY_INPUT_COUNT : u32 = 8;   // sensory_input_0 .. sensory_input_7, tied to 32'd0
+    pub const SENSORY_INPUT_WIDTH : u32 = 32;  // 32'd0 — every sensory input is 32 bits
+
+    // === Core instance wiring (the original's instantiation, as a record) ===
+
+    // singularity_core_v100 singularity ( ... ) with .enable(1'b1) and
+    // 32'd0 on every sensory input.
+    pub struct CoreWiring {
+        enable : bool,
+        sensory_input_0 : u32,
+        sensory_input_1 : u32,
+        sensory_input_2 : u32,
+        sensory_input_3 : u32,
+        sensory_input_4 : u32,
+        sensory_input_5 : u32,
+        sensory_input_6 : u32,
+        sensory_input_7 : u32,
+    }
+
+    // The wires the core instance drives back into this module: the two
+    // LED feeds and the four status words.
+    pub struct CoreOutputs {
+        led_chaos : bool,
+        led_omega : bool,
+        consciousness_level : u32,
+        generation_count : u32,
+        self_improving : bool,
+        agi_ready : bool,
+    }
+
+    fn core_wiring() -> CoreWiring {
+        return CoreWiring{
+            .enable = true,             // .enable(1'b1) — always enabled
+            .sensory_input_0 = 0,       // .sensory_input_0(32'd0)
+            .sensory_input_1 = 0,       // .sensory_input_1(32'd0)
+            .sensory_input_2 = 0,       // .sensory_input_2(32'd0)
+            .sensory_input_3 = 0,       // .sensory_input_3(32'd0)
+            .sensory_input_4 = 0,       // .sensory_input_4(32'd0)
+            .sensory_input_5 = 0,       // .sensory_input_5(32'd0)
+            .sensory_input_6 = 0,       // .sensory_input_6(32'd0)
+            .sensory_input_7 = 0,       // .sensory_input_7(32'd0)
+        };
+    }
+
+    // === The module's tied-off wires, as code ===
+
+    // wire rst = 1'b0; — reset always tied to 0 (always enabled, no
+    // floating reset!)
+    fn rst() -> bool {
+        return false;
+    }
+
+    // wire rst_n = 1'b1; — active-low reset = 1 means NOT in reset
+    fn rst_n() -> bool {
+        return true;
+    }
+
+    // .enable(1'b1) — always enabled
+    fn core_enable() -> bool {
+        return true;
+    }
+
+    // Every sensory input of the core instance is tied to 32'd0, whatever
+    // the index; beyond the eight inputs there is no such wire and the
+    // value still reads 0.
+    fn core_sensory_input(index: u32) -> u32 {
+        if (index < SENSORY_INPUT_COUNT) {
+            return 0;
+        }
+        return 0;
+    }
+
+    // === The module's one decision, as code ===
+
+    // assign led = led_chaos | led_omega; — the D6 LED lights when the
+    // core reports chaos OR the Ω-point.
+    pub fn led_output(led_chaos: bool, led_omega: bool) -> bool {
+        return led_chaos or led_omega;
+    }
+
+    // The assign applied to the core's outputs record.
+    pub fn top_led(out: CoreOutputs) -> bool {
+        return led_output(out.led_chaos, out.led_omega);
+    }
+
+    // === Combinational surface for t27c gen-verilog ===
+    //
+    // `led_chaos` and `led_omega` become input wires and the returned
+    // value becomes `result` — the .t27 image of `assign led = led_chaos |
+    // led_omega;`. The core instance stays in the original's Verilog; its
+    // outputs arrive here as inputs.
+    fn on_comb(led_chaos: bool, led_omega: bool) -> bool {
+        return led_output(led_chaos, led_omega);
+    }
+
+    // === Tests ===
+
+    test led_output_or_table {
+        // The truth table of `assign led = led_chaos | led_omega;`.
+        assert(led_output(false, false) == false);
+        assert(led_output(true, false) == true);
+        assert(led_output(false, true) == true);
+        assert(led_output(true, true) == true);
+    }
+
+    test reset_tied_off {
+        assert(rst() == false);
+        assert(rst_n() == true);
+        assert(core_enable() == true);
+        assert(!rst());
+        assert(rst_n());
+    }
+
+    test core_sensory_inputs_tied_to_zero {
+        var i : u32 = 0;
+        while (i < SENSORY_INPUT_COUNT) {
+            assert(core_sensory_input(i) == 0);
+            i += 1;
+        }
+        assert(core_sensory_input(8) == 0);
+        assert(core_sensory_input(99) == 0);
+    }
+
+    test core_wiring_record {
+        const w : CoreWiring = core_wiring();
+        assert(w.enable);
+        assert(w.sensory_input_0 == 0);
+        assert(w.sensory_input_1 == 0);
+        assert(w.sensory_input_2 == 0);
+        assert(w.sensory_input_3 == 0);
+        assert(w.sensory_input_4 == 0);
+        assert(w.sensory_input_5 == 0);
+        assert(w.sensory_input_6 == 0);
+        assert(w.sensory_input_7 == 0);
+    }
+
+    test top_led_from_core_outputs {
+        const o_idle : CoreOutputs = CoreOutputs{
+            .led_chaos = false,
+            .led_omega = false,
+            .consciousness_level = 0,
+            .generation_count = 0,
+            .self_improving = false,
+            .agi_ready = false,
+        };
+        assert(top_led(o_idle) == false);
+
+        const o_chaos : CoreOutputs = CoreOutputs{
+            .led_chaos = true,
+            .led_omega = false,
+            .consciousness_level = 42,
+            .generation_count = 7,
+            .self_improving = true,
+            .agi_ready = false,
+        };
+        assert(top_led(o_chaos) == true);
+
+        const o_omega : CoreOutputs = CoreOutputs{
+            .led_chaos = false,
+            .led_omega = true,
+            .consciousness_level = 0,
+            .generation_count = 1000,
+            .self_improving = false,
+            .agi_ready = true,
+        };
+        assert(top_led(o_omega) == true);
+    }
+
+    test on_comb_or_surface {
+        assert(on_comb(false, false) == false);
+        assert(on_comb(true, false) == true);
+        assert(on_comb(false, true) == true);
+        assert(on_comb(true, true) == true);
+    }
+
+    // === Invariants (checked at compile time) ===
+
+    invariant module_constants {
+        assert(CLK_MHZ == 50);              // U22, 50 MHz oscillator
+        assert(SENSORY_INPUT_COUNT == 8);   // sensory_input_0 .. sensory_input_7
+        assert(SENSORY_INPUT_WIDTH == 32);  // 32'd0 — every sensory input is 32 bits
+    }
+
+    invariant reset_never_floating {
+        assert(rst() == false);
+        assert(rst_n() == true);
+        assert(core_enable() == true);
+    }
+
+    invariant led_is_the_or_of_the_core_feeds {
+        assert(led_output(false, false) == false);
+        assert(led_output(true, false) == true);
+        assert(led_output(false, true) == true);
+        assert(led_output(true, true) == true);
+    }
+}
