@@ -192,3 +192,25 @@ fn a_void_fn_s_result_bound_by_a_local() {
         assert!(m.contains(why), "{}", m);
     }
 }
+
+// ------------------------------------------------ the W585 scaffold the reference never calls
+
+/// #7691: `given x = default_input()` passed bare to a declared fn is `const x = undefined;` in the reference,
+/// which never calls the helper; nor does t27b, and x holds a value of the consumer's parameter type that
+/// nobody reads (specs/tri/t27b/scaffold_plan.t27; `t27c test-report` passes the conformance spec 8/8, none
+/// vacuous). A local the reference would read is refused: by a callee (where the reference reads dead memory),
+/// elsewhere, as a `var` or with a type. A helper no declared fn is passed, or one given arguments, is called.
+#[test]
+fn a_scaffold_local_is_never_called() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/scaffold_local.t27"));
+    assert!(r.len() == 8 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nvar CALLS: u32 = 0;\n\nfn default_input() -> u32 {\n    CALLS = CALLS + 1;\n    return 7;\n}\n\nfn is_seven(x: u32) -> bool {\n    return true;\n}\n\ntest t {\n    const input = default_input();\n    assert(is_seven(input));\n    assert(CALLS == 0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("    assert(is_seven(input));\n", ""))), vec![("t", false, false)]);
+    let args = src.replace("default_input() -> u32 {\n    CALLS = CALLS + 1;", "default_input(k: u32) -> u32 {\n    CALLS = CALLS + k;");
+    assert_eq!(names_ok(&run(&args.replace("default_input();", "default_input(1);"))), vec![("t", false, false)]);
+    for (from, to, what) in [("return true", "return x == 7", "read by callee"), ("(CALLS == 0)", "(input == 7)", "read"), ("const input", "var input", "var"), ("input = ", "input: u32 = ", "typed")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains(&format!("construct StmtLocal(scaffold {}) at line 15", what)), "{}", m);
+    }
+}
