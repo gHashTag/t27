@@ -144,13 +144,13 @@ fn log_calls_compiler_rt_s_log_written_in_t27() {
 /// needs a wide value at run time, is refused under the wide type's name.
 #[test]
 fn wide_integer_constants_fold_or_are_refused() {
-    let head = "module a;\n\nconst A: u128 = 340282366920938463463374607431768211455;\nconst B: u256 = 18446744073709551616;\nconst C: i128 = 5;\nconst D: u128 = 0 - 1;\n\nfn g(x: u128) -> u256 {\n    return x;\n}\n\n";
+    let head = "module a;\n\nconst A: u128 = 340282366920938463463374607431768211455;\nconst B: u256 = 18446744073709551616;\nconst C: i128 = 5;\nconst D: u128 = 0 - 1;\nconst E: u128 = E + 1;\n\nfn g(x: u128) -> u256 {\n    return x;\n}\n\n";
     let t = |body: &str| format!("{}test t {{\n    assert({});\n}}\n", head, body);
     assert_eq!(names_ok(&run(&t("B < A and (A >> 64) as u64 == 18446744073709551615 and (0 - C) as i8 == -5"))), vec![("t", false, true)]);
     let h = format!("{}fn h(x: u64) -> bool {{\n    return A > x;\n}}\n", head);
     for (src, ty, why) in [(t("A + 1 > 0"), "u128", "overflows"), (t("B as u64 == 0"), "u256", "does not fit"), (t("A << 128 == 0"), "u128", "shift amount"),
         (t("C / 0 == 1"), "i128", "by zero"), (t("A + B > 0"), "u128", "two different"), (t("(0 - C) / 2 < 0"), "i128", "negative"),
-        (t("D > 0"), "u128", "does not fit"), (h, "u128", "beside a value"), (t("g(1) == 0"), "u128", "")] {
+        (t("D > 0"), "u128", "does not fit"), (h, "u128", "beside a value"), (t("E > 0"), "u128", "beside a value"), (t("g(1) == 0"), "u128", "")] {
         let m = rejected(&src);
         assert!(m.contains(&format!("type {} at line", ty)) && m.contains(why), "{}: {}", src, m);
     }
