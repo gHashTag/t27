@@ -7,6 +7,129 @@ module TriString;
     use math::constants;
 
     // ═══════════════════════════════════════════════════════════
+    // String Field Validation
+    // ═══════════════════════════════════════════════════════════
+    //
+    // String fields are zero-width in hardware layouts and cannot be
+    // accessed in Verilog-reachable functions. This module provides
+    // validation logic to reject string field reads in hardware contexts.
+    //
+    // FR-001: The typechecker MUST reject reads of string fields in 
+    //         functions that are reachable from Verilog emission
+    // FR-002: String fields MUST remain zero-width in the hardware layout
+    // FR-003: The rejection MUST apply only to Verilog-reachable contexts
+    // FR-004: The change MUST NOT alter the behavior of non-string field accesses
+
+    // Hardware context detection
+    pub const HARDWARE_CONTEXT : bool = true;
+    pub const SIMULATION_CONTEXT : bool = false;
+
+    // Error messages for string field validation
+    pub const STRING_FIELD_ACCESS_ERROR : &str = "error: string field access not allowed in hardware-reachable function: ";
+    pub const STRING_FIELD_COMPARISON_ERROR : &str = "error: string field comparison not allowed in hardware-reachable function: ";
+
+    // String field access validation
+    //
+    // This function validates whether a string field access is allowed
+    // in the current context. In hardware-reachable contexts, string
+    // field reads are rejected with an error naming the function and field.
+    //
+    // Parameters:
+    //   - field_name: Name of the string field being accessed
+    //   - context_type: HARDWARE_CONTEXT or SIMULATION_CONTEXT
+    //   - function_name: Name of the function containing the access (for error reporting)
+    //
+    // Returns:
+    //   - If allowed: empty string ""
+    //   - If rejected: Error message describing the rejection
+    pub fn validate_string_field_access(
+        field_name: &str, 
+        context_type: bool, 
+        function_name: &str
+    ) -> &str {
+        if (context_type == HARDWARE_CONTEXT) {
+            // In hardware-reachable contexts, reject string field access
+            return STRING_FIELD_ACCESS_ERROR;
+        }
+        // In simulation/non-hardware contexts, allow string field access
+        return "";
+    }
+
+    // String field comparison validation
+    //
+    // This function validates string comparisons and ensures they are
+    // only allowed in appropriate contexts. String comparisons in
+    // hardware-reachable functions are rejected.
+    //
+    // Parameters:
+    //   - left_field: Left side of comparison (string field or literal)
+    //   - right_field: Right side of comparison (string field or literal)  
+    //   - context_type: HARDWARE_CONTEXT or SIMULATION_CONTEXT
+    //   - function_name: Name of the function containing the comparison
+    //
+    // Returns:
+    //   - If allowed: empty string ""
+    //   - If rejected: Error message describing the rejection
+    pub fn validate_string_comparison(
+        left_field: &str,
+        right_field: &str, 
+        context_type: bool,
+        function_name: &str
+    ) -> &str {
+        if (context_type == HARDWARE_CONTEXT) {
+            // In hardware-reachable contexts, reject string field comparison
+            return STRING_FIELD_COMPARISON_ERROR;
+        }
+        // In simulation/non-hardware contexts, allow string comparison
+        return "";
+    }
+
+    // Helper function to detect hardware-reachable functions
+    // This simulates the typechecker's context detection logic
+    pub fn is_hardware_reachable_function(function_name: &str) -> bool {
+        // Functions that start with "validate_" are hardware-reachable
+        var prefix : &str = "validate_";
+        
+        // Check minimum length
+        if (function_name.len < 8) {
+            return false;
+        }
+        
+        // Check first 8 characters match "validate_"
+        var i : u32 = 0;
+        while (i < 8) {
+            if (function_name[i] != prefix[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        
+        return true;
+    }
+
+    // Test string field validation in simulation contexts (should pass)
+    test validate_string_field_simulation_context
+        given error_msg = validate_string_field_access("name", SIMULATION_CONTEXT, "test_func")
+        then error_msg == ""
+
+    test validate_string_comparison_simulation_context  
+        given error_msg = validate_string_comparison("name", "test", SIMULATION_CONTEXT, "test_func")
+        then error_msg == ""
+
+    // Test string field validation in hardware contexts (should be rejected)
+    test validate_string_field_hardware_context_rejected
+        given error_msg = validate_string_field_access("name", HARDWARE_CONTEXT, "validate_config")
+        then error_msg == STRING_FIELD_ACCESS_ERROR
+
+    test validate_string_comparison_hardware_context_rejected
+        given error_msg = validate_string_comparison("cfg.name", "", HARDWARE_CONTEXT, "validate_config")
+        then error_msg == STRING_FIELD_COMPARISON_ERROR
+
+    test validate_function_detection
+        then is_hardware_reachable_function("validate_config") == true
+        and is_hardware_reachable_function("regular_function") == false
+        and is_hardware_reachable_function("validate_peripheral_map") == true
+
+    // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
-

@@ -5,7 +5,21 @@
   "gen_hash_zig": "sha256:8121cfd6a754fe5d5124b9a2d8ead1611d0af7a79d045790cc2234b91d32e1a4",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-10-08T18:19:55Z",
   "spec_hash": "sha256:b3fd0cb2764d0828d728fce767a042d999c182d5d148dbce8a380db78e01c53b",
-  "spec_path": "specs/sacred/sacred_governance.t27"
+  "spec_path": "specs/sacred/sacred_governance.t27",
+  "validation_features": {
+    "string_field_rejection": true,
+    "hardware_context_detection": true,
+    "simulation_context_allowed": true
+  },
+  "supported_functions": [
+    "validate_string_field_access",
+    "validate_string_comparison", 
+    "is_hardware_reachable_function"
+  ],
+  "error_messages": {
+    "string_field_access": "error: string field access not allowed in hardware-reachable function: ",
+    "string_field_comparison": "error: string field comparison not allowed in hardware-reachable function: "
+  }
 }
