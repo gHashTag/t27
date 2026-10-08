@@ -111,8 +111,14 @@ mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its resu
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
 #[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
+#[path = "../../../gen/rust/tri/t27b/optional_compare_plan.rs"] #[allow(dead_code, unused_parens)]
+mod oc; // t27c gen-rust of specs/tri/t27b/optional_compare_plan.t27: `?T == v`, by value or by tag
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
+mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
+#[path = "../../../gen/rust/tri/t27b/lazy_sig_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ls; // t27c gen-rust of specs/tri/t27b/lazy_sig_plan.t27: `anytype`, `[*]T` on a fn nothing analyzed reaches
 mod refvars;
 mod tuple;
 
@@ -1176,11 +1182,13 @@ impl<'a> Lower<'a> {
             } else {
                 self.lty(pty)
             };
+            self.layout_err |= r.is_err() && self.lazy_sig(pty, true);
             self.sig_layout_only &= r.is_ok() || self.layout_err;
             match r {
                 Ok(t) => params.push(t),
-                // Recovery mode reports every parameter and the return type.
-                Err(()) if self.recover => bad = true,
+                // Recovery mode reports every parameter and the return type, and so does an unreached fn
+                // until a refusal `unresolved_sig` cannot withdraw.
+                Err(()) if self.recover || (self.layout_err && !self.analyzed.contains(&n.name)) => bad = true,
                 Err(()) => return Err(()),
             }
         }
@@ -1192,6 +1200,7 @@ impl<'a> Lower<'a> {
         } else {
             self.layout_err = false;
             let r = self.ret_lty(rt);
+            self.layout_err |= r.is_err() && self.lazy_sig(rt, false);
             self.sig_layout_only &= r.is_ok() || self.layout_err;
             Some(r?)
         };
@@ -2562,6 +2571,16 @@ impl<'a> Lower<'a> {
                 return Ok(());
             }
         }
+        // `_ = e;`, e not a bare name (specs/tri/t27b/discard_plan.t27): deleted where the reference deletes it, else e runs.
+        if name == "_" && (op.is_empty() || op == "=") {
+            let (mut calls, top) = (Vec::new(), self.scopes.len() == 1);
+            calls_in(std::slice::from_ref(rhs), &mut calls);
+            match dp::plan(rhs.kind == NodeKind::ExprIdentifier, self.in_test && top, !self.in_test && top, !calls.is_empty()) {
+                dp::DELETED => return Ok(()),
+                dp::EVALUATE => return self.discard_value(rhs, out),
+                _ => {}
+            }
+        }
         // A module-level var written at the top of a test is a write to
         // module state, as in a fn body: since #6295 the reference no longer
         // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
@@ -2648,6 +2667,23 @@ impl<'a> Lower<'a> {
             }
             None => self.reject("StmtAssign(undeclared)", format!("assignment to undeclared `{}`", name)),
         }
+    }
+
+    /// `_ = e;` that runs (discard_plan.t27's EVALUATE): e is evaluated for its effects and traps, its value dropped.
+    fn discard_value(&mut self, e: &Node, out: &mut Vec<Stmt>) -> R<()> {
+        self.see(e);
+        if e.kind == NodeKind::ExprCall && self.sigs.contains_key(&e.name) {
+            let (call, _, _) = self.call(e, None)?;
+            out.push(Stmt::Eval(call));
+            return Ok(());
+        }
+        match self.expr(e)? {
+            Val::Poison => return Err(()),
+            Val::E(x) | Val::P(x, _) => out.push(Stmt::Eval(x)),
+            Val::M(p) if !pure_addr(&p.addr) => out.push(Stmt::Eval(p.addr)),
+            _ => {}
+        }
+        Ok(())
     }
 
     /// `undefined;`, the body stub a port leaves where plumbing was. t27c's
@@ -5744,6 +5780,10 @@ impl<'a> Lower<'a> {
     fn int_to_float(&mut self, v: Val, to: Ty, what: &str) -> R<Val> {
         let e = match v {
             Val::Poison => return Err(()),
+            // A comptime_int rounds as below, inside 64 bits (coerce_plan.t27 `float_from_int_literal`).
+            Val::Ct(c) if cp::float_from_int_literal(i64::try_from(c).is_ok() || u64::try_from(c).is_ok(), to.bits()) == cp::ROUND => {
+                Expr { ty: Ty::I64, kind: ExprKind::Const(c) }
+            }
             Val::Ct(c) => return Ok(Val::E(self.coerce(Val::Ct(c), to)?)),
             Val::E(e) if e.ty.is_int() => e,
             v => {
@@ -5881,7 +5921,7 @@ impl<'a> Lower<'a> {
         Ok(Val::E(e))
     }
 
-    /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar) and `v` a `T`,
+    /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar or an enum: optional_compare_plan.t27) and `v` a `T`,
     /// either way round: Zig's comparison of an optional with a payload,
     /// equal only when `x` holds a value equal to `v`. None when neither
     /// operand is an optional.
@@ -5909,7 +5949,8 @@ impl<'a> Lower<'a> {
             _ => return self.reject(what, "an optional compared with a value that has effects".into()),
         }
         let LTy::Opt(inner) = p.ty.clone() else { unreachable!() };
-        if !matches!(*inner, LTy::S(_)) {
+        let by = oc::payload(match *inner { LTy::S(_) => oc::K_SCALAR, LTy::Enum(..) => oc::K_ENUM, _ => oc::K_OTHER });
+        if oc::refuses(by) {
             let t = self.type_name(&p.ty);
             return self.reject(what, format!("`{}` on {}", op, t));
         }
@@ -5925,7 +5966,7 @@ impl<'a> Lower<'a> {
         let flag = Expr { ty: Ty::Bool, kind: ExprKind::Load { addr: Box::new(addr.clone()), off: off + s } };
         let payload = self.place_value(Place { addr, off, ty: *inner, mutable: false, temp: None })?;
         let (l, r) = if left { (payload, other) } else { (other, payload) };
-        let cmp = self.binary(op, l, r)?;
+        let cmp = if by == oc::BY_TAG { self.enum_compare(op, &l, &r, false)?.ok_or(())? } else { self.binary(op, l, r)? };
         let cmp = self.coerce(cmp, Ty::Bool)?;
         let els = Expr { ty: Ty::Bool, kind: ExprKind::Const((op == "!=") as i128) };
         let e = Expr { ty: Ty::Bool, kind: ExprKind::Select { cond: Box::new(flag), then: Box::new(cmp), els: Box::new(els) } };

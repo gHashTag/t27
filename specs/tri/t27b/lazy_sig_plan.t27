@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/lazy_sig_plan.t27 -- which signature types t27b refuses only where the reference would resolve
+; them: `anytype` and the many-item pointer `[*]T` on a fn nothing analyzed reaches (t27b coverage epic #6063;
+; written in t27 under the port epic #6198). The decision reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/lazy_sig_plan.rs); the Rust glue in cli/t27b/src/lower.rs (`signature`) asks it about each
+; parameter or result type it refused, and a yes counts like a struct that failed its layout (`unresolved_sig`):
+; on a fn no test, invariant or constant reaches, the refusal is withdrawn and the fn has no body.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/lazy_signature.t27): t27c's Zig backend prints `f: anytype` and `?[*]Issue` as
+; written. Zig analyzes a fn lazily, so a fn nothing analyzed names is parsed and checked by AstGen but its
+; parameter and result types are never resolved, and a fn with an `anytype` parameter is never instantiated. Its
+; body may call a method no type has (`f.write_str(s)`): Sema never sees it. The corpus has this shape in
+; trios-scarab-types SR-00 and SR-02 (`Term_fmt(self, f: anytype)`), trios-cli gh.t27
+; (`GhClient_list_agent_issues(..) -> ?[*]AgentIssue`) and the route stubs of queen-public-agents.t27.
+; What AstGen still refuses in every fn, analyzed or not, keeps its refusal: an undeclared name, so the element
+; type of `[*]T` must be one Zig reads here (elem_spelled) and every name a withdrawn body uses must be declared in
+; the fn or the file or be one `zig_knows`; and `anytype` anywhere but a parameter, which does not parse. The
+; name check reads expressions only (names, calls, struct literals), not the type text of a local's annotation.
+; Not covered: a fn a test reaches. There Zig instantiates `anytype` per call (the parameter no instance reads is
+; another lane) and lays out `[*]T`; both keep their refusals here.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bLazySigPlan;
+
+// The answer.
+pub const KEEP : u8 = 0;
+pub const UNRESOLVED : u8 = 1;
+
+// Bytes the glue's type text is read by.
+const QUESTION : u8 = 63;
+const OPEN : u8 = 91;
+const STAR : u8 = 42;
+const CLOSE : u8 = 93;
+const SPACE : u8 = 32;
+const AT : u8 = 64;
+const LOWER_U : u8 = 117;
+const LOWER_I : u8 = 105;
+const DIGIT_0 : u8 = 48;
+const DIGIT_9 : u8 = 57;
+
+/// Does `t` begin with `word`?
+fn begins(t: []const u8, word: []const u8) -> bool {
+    if (word.len > t.len) { return false; }
+    var k : usize = 0;
+    while (k < word.len) {
+        if (t[k] != word[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Where the element type of a many-item pointer begins in `t`: after any leading `?`, `[*]`, and an optional
+/// `const ` qualifier. 0 when `t` is not a many-item pointer or has no element.
+pub fn many_item_elem(t: []const u8) -> usize {
+    var at : usize = 0;
+    while (at < t.len and t[at] == QUESTION) {
+        at = at + 1;
+    }
+    if (t.len < at + 4) { return 0; }
+    if (t[at] != OPEN or t[at + 1] != STAR or t[at + 2] != CLOSE) { return 0; }
+    at = at + 3;
+    while (at < t.len and t[at] == SPACE) {
+        at = at + 1;
+    }
+    if (begins(t[at .. t.len], "const ")) { at = at + 6; }
+    if (at == t.len) { return 0; }
+    return at;
+}
+
+/// `t` is exactly the keyword `anytype`.
+pub fn is_anytype(t: []const u8) -> bool {
+    return t.len == 7 and begins(t, "anytype");
+}
+
+/// The decision for one signature type t27b refused. param: it is a parameter's type, the only place `anytype`
+/// parses. elem_spelled: for `[*]T`, T is a type Zig reads in this file. UNRESOLVED: Zig resolves the type only
+/// when the fn is analyzed.
+pub fn plan(t: []const u8, param: bool, elem_spelled: bool) -> u8 {
+    if (is_anytype(t)) {
+        if (param) { return UNRESOLVED; }
+        return KEEP;
+    }
+    if (many_item_elem(t) != 0 and elem_spelled) { return UNRESOLVED; }
+    return KEEP;
+}
+
+/// `t` is a Zig integer type `uN` or `iN`, N from 0 to 65535 with no leading zero.
+fn int_type(t: []const u8) -> bool {
+    if (t.len < 2 or t.len > 6) { return false; }
+    if (t[0] != LOWER_U and t[0] != LOWER_I) { return false; }
+    if (t.len > 2 and t[1] == DIGIT_0) { return false; }
+    var bits : u32 = 0;
+    var i : usize = 1;
+    while (i < t.len) {
+        if (t[i] < DIGIT_0 or t[i] > DIGIT_9) { return false; }
+        bits = bits * 10 + ((t[i] - DIGIT_0) as u32);
+        i = i + 1;
+    }
+    return bits <= 65535;
+}
+
+/// `name` is one of the space-separated words of `list`.
+fn listed(name: []const u8, list: []const u8) -> bool {
+    var start : usize = 0;
+    var i : usize = 0;
+    while (i <= list.len) {
+        if (i == list.len or list[i] == SPACE) {
+            if (i - start == name.len and begins(list[start .. i], name)) { return true; }
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// `name` is one Zig resolves with no declaration in this file: a builtin (`@name`), a primitive type or value,
+/// `_`, `std` (t27c's prelude imports it), and `assert` / `assert_eq` (t27c prints both through its prelude).
+/// The glue asks this about every name the body of a withdrawn fn uses that the fn and the file do not declare:
+/// AstGen resolves those in every fn, so a body naming anything else keeps its fn's refusal.
+pub fn zig_knows(name: []const u8) -> bool {
+    if (name.len == 0) { return false; }
+    if (name[0] == AT) { return true; }
+    if (int_type(name)) { return true; }
+    return listed(name, "_ std assert assert_eq true false null undefined void bool noreturn type anyerror anyopaque anytype comptime_int comptime_float usize isize f16 f32 f64 f80 f128");
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then what keeps its refusal.
+// ----------------------------------------------------------------------------------------------------------
+
+test anytype_parameters_are_resolved_lazily {
+    // SR-00's `Term_fmt(self: Term, f: anytype)`, identity.t27's `isNotFoundError(err: anytype)`.
+    assert(is_anytype("anytype"));
+    assert(plan("anytype", true, false) == UNRESOLVED);
+    assert(plan("anytype", true, true) == UNRESOLVED);
+}
+
+test anytype_outside_a_parameter_keeps_its_refusal {
+    // `fn f() anytype` does not parse in Zig, so the reference refuses the file.
+    assert(plan("anytype", false, false) == KEEP);
+    assert(plan("anytype", false, true) == KEEP);
+    assert(!is_anytype("anytypes"));
+    assert(!is_anytype("anytyp"));
+    assert(!is_anytype("?anytype"));
+    assert(!is_anytype(""));
+}
+
+test many_item_pointers_find_their_element {
+    // gh.t27's `?[*]AgentIssue`: the element starts after `?[*]`.
+    assert(many_item_elem("?[*]AgentIssue") == 4);
+    assert(many_item_elem("[*]u8") == 3);
+    assert(many_item_elem("[*]const u8") == 9);
+    assert(many_item_elem("??[*] const Issue") == 12);
+    assert(many_item_elem("[*]T") == 3);
+    assert(many_item_elem("?[*]T") == 4);
+    assert(many_item_elem("[*]") == 0);
+    assert(many_item_elem("?[*]") == 0);
+    assert(many_item_elem("[*]con") == 3);
+    assert(many_item_elem("[*] ") == 0);
+    assert(many_item_elem("[*]const ") == 0);
+    assert(many_item_elem("[]u8") == 0);
+    assert(many_item_elem("[4]u8") == 0);
+    assert(many_item_elem("*u8") == 0);
+    assert(many_item_elem("") == 0);
+}
+
+test a_many_item_pointer_to_a_type_zig_reads_is_resolved_lazily {
+    assert(plan("?[*]AgentIssue", false, true) == UNRESOLVED);
+    assert(plan("[*]const u8", true, true) == UNRESOLVED);
+}
+
+test an_element_zig_cannot_name_keeps_its_refusal {
+    // AstGen resolves every name in the file, analyzed or not: `[*]Missing` fails there.
+    assert(plan("?[*]Missing", false, false) == KEEP);
+    assert(plan("[*]Missing", true, false) == KEEP);
+}
+
+test every_other_type_keeps_its_refusal {
+    assert(plan("?void", true, true) == KEEP);
+    assert(plan("std.StringHashMap(Entry)", false, true) == KEEP);
+    assert(plan("[K:V]", true, true) == KEEP);
+    assert(plan("", true, true) == KEEP);
+    assert(KEEP != UNRESOLVED);
+}
+
+test names_zig_resolves_without_a_declaration {
+    // SR-00's withdrawn `Term_fmt` uses `_`; ports call `std.mem.eql`, `@intCast` and `assert`.
+    assert(zig_knows("_"));
+    assert(zig_knows("std"));
+    assert(zig_knows("@intCast"));
+    assert(zig_knows("assert"));
+    assert(zig_knows("null"));
+    assert(zig_knows("f128"));
+    assert(zig_knows("u8"));
+    assert(zig_knows("u9"));
+    assert(zig_knows("i65535"));
+    assert(zig_knows("u0"));
+}
+
+test any_other_name_needs_a_declaration {
+    // `undeclared_thing()` in a withdrawn body: Zig's AstGen refuses the file.
+    assert(!zig_knows("undeclared_thing"));
+    assert(!zig_knows(""));
+    assert(!zig_knows("u65536"));
+    assert(!zig_knows("u08"));
+    assert(!zig_knows("u"));
+    assert(!zig_knows("x8"));
+    assert(!zig_knows("u8x"));
+    assert(!zig_knows("std2"));
+    assert(!zig_knows("st"));
+    assert(!zig_knows("print"));
+}
