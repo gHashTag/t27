@@ -2643,13 +2643,7 @@ fn optionals_the_reference_does_not_match_are_refused() {
 /// BLOCKED under `t27c test-report`, so t27b must not pass it either.
 #[test]
 fn shapes_the_reference_cannot_compile_are_refused() {
-    let cases: [(&str, &str); 5] = [
-        // `var w = 1; w = 9;` at the top of a test: the reference emits the
-        // assignment as `const w = 9;`, a redeclaration.
-        (
-            "module a;\n\ntest t {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 9);\n}\n",
-            "StmtAssign(reference redeclares)",
-        ),
+    let cases: [(&str, &str); 4] = [
         // A pointer param written only through `p.*`: the reference rebinds
         // it `var p = p_arg;`, which Zig rejects as never mutated.
         (
@@ -2676,6 +2670,9 @@ fn shapes_the_reference_cannot_compile_are_refused() {
         let m = rejected(src);
         assert!(m.starts_with(&format!("t27b: unsupported construct {}", want)), "{}", m);
     }
+    // Since #6295 the reference writes a test's own local in place (#7422).
+    let r = run("module w;\n\ntest t {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 9);\n}\n\ntest u {\n    var w: u32 = 1;\n    w += 2;\n    assert(w == 3);\n}\n\ntest v {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 1);\n}\n");
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, true), ("v", false, false)]);
     // The near misses still run: a param the body assigns directly (the
     // reference's `var n = n_arg;` is then mutated) and a mapped field type.
     let r = run("module h;\n\nconst S = struct { name: str, xs: [u32; 2] };\n\nfn inc(n: u32) -> u32 {\n    n = n + 1;\n    return n;\n}\n\ntest t {\n    assert(inc(1) == 2);\n}\n");
