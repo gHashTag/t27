@@ -264,6 +264,40 @@ module Parsing {
     // 5. Type Annotation Parser
     // ════════════════════════════════════════════════════════════════════
 
+    // Parse brace body as text (for anonymous structs/enums in type annotations)
+    fn parse_brace_body_as_text(self: *Parser) -> str {
+        var body: str = "";
+        var depth: i32 = 1;
+
+        // Add the opening brace
+        body = body ++ self.current.lexeme;
+        self.advance();
+
+        while (depth > 0) {
+            if (self.current.kind == lexer::TokenKind::Eof) {
+                self.error("Unexpected EOF inside brace body");
+                return body;
+            }
+            
+            if (self.current.kind == lexer::TokenKind::LBrace) {
+                depth = depth + 1;
+            } else if (self.current.kind == lexer::TokenKind::RBrace) {
+                depth = depth - 1;
+                if (depth == 0) {
+                    // Add the closing brace and return
+                    body = body ++ self.current.lexeme;
+                    self.advance();
+                    return body;
+                }
+            }
+            
+            body = body ++ self.current.lexeme;
+            self.advance();
+        }
+        
+        return body;
+    }
+
     fn parse_type_annotation(self: *Parser) -> str {
         var ty: str = "";
 
@@ -313,7 +347,18 @@ module Parsing {
             }
         }
 
-        if (self.check(lexer::TokenKind::Ident)) {
+        // Handle anonymous struct and enum types in type annotations
+        if (self.check(lexer::TokenKind::KwStruct)) {
+            ty = ty ++ "struct";
+            self.advance();
+            // Parse the struct body as text
+            ty = ty ++ self.parse_brace_body_as_text();
+        } else if (self.check(lexer::TokenKind::KwEnum)) {
+            ty = ty ++ "enum";
+            self.advance();
+            // Parse the enum body as text
+            ty = ty ++ self.parse_brace_body_as_text();
+        } else if (self.check(lexer::TokenKind::Ident)) {
             ty = ty ++ self.current.lexeme;
             self.advance();
         } else if (self.check(lexer::TokenKind::KwVoid)) {
