@@ -272,13 +272,29 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
 // ------------------------------------------------ f32 @floor, @ceil, @round, @trunc and @rem
 
 /// #7819: of an f32 they call libm.t27's ports of compiler_rt (`roundf` half away from zero, `fmodf` signed as the
-/// dividend), and `@rem`'s second operand takes the first one's type (specs/tri/t27b/libm_plan.t27). An f64 is refused.
+/// dividend), and `@rem`'s second operand takes the first one's type (specs/tri/t27b/libm_plan.t27). An f64 is refused
+/// but by `@round` (#7923), so the first refusal there is `@floor`'s.
 #[test]
 fn f32_rounding_and_rem_call_their_ports() {
     let src = "module a;\n\nfn f(x: f32) -> f32 {\n    return @round(x) + @floor(x) + @ceil(x) + @trunc(x) + @rem(x, 2.0);\n}\n\ntest t {\n    assert(f(-2.5) == -10.5);\n}\n";
     assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
-    for (from, to, what, why) in [("x: f32) -> f32", "x: f64) -> f64", "@round", "no f64 routine"), ("@rem(x, 2.0)", "@rem(x)", "@rem", "`@rem` two")] {
+    for (from, to, what, why) in [("x: f32) -> f32", "x: f64) -> f64", "@floor", "no f64 routine"), ("@rem(x, 2.0)", "@rem(x)", "@rem", "`@rem` two")] {
         let m = rejected(&src.replace(from, to));
         assert!(m.contains(&format!("construct ExprCall({}) at line 4", what)) && m.contains(why), "{}", m);
+    }
+}
+
+/// #7923: `std.math.inf`, `std.math.log(f64, std.math.e, x)`, `std.math.log1p` and an f64 `@round` call libm.t27 (`t27c
+/// test-report` passes the conformance spec 4/4, none vacuous). Another base, a type that is not the value's and an
+/// f32 `std.math.log` are refused by name (specs/tri/t27b/libm_plan.t27).
+#[test]
+fn log_base_e_log1p_inf_and_an_f64_round() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/libm_std_math.t27"));
+    assert!(r.len() == 4 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn f(x: f64) -> f64 {\n    return std.math.log(f64, std.math.e, x) + std.math.log1p(x);\n}\n\ntest t {\n    assert(f(1.0) > 0.69);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    for (from, to, why) in [("std.math.e, x)", "2.0, x)", "not std.math.e"), ("log(f64,", "log(f32,", "not its value's type"), ("x: f64) -> f64", "x: f32) -> f32", "no f32 routine")] {
+        let m = rejected(&src.replace(from, to));
+        assert!(m.contains("construct ExprCall(std.math.log) at line 4") && m.contains(why), "{}", m);
     }
 }

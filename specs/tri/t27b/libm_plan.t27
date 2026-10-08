@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/libm_plan.t27 -- when t27b lowers a Zig math builtin, or a `std.math` fn, to a call of its
-; routine in specs/tri/t27b/libm.t27, and what it refuses instead (issues #7391, #7217, #7791 and #7819, t27b
+; routine in specs/tri/t27b/libm.t27, and what it refuses instead (issues #7391, #7217, #7791, #7819 and #7923, t27b
 ; coverage epic #6063; written in t27 under the port epic #6198).
 ; gen-zig prints `@exp(x)` and `@log(x)` as written. `t27c test-report` runs `zig test` without libc, so
 ; a run-time `@exp` is a call into Zig's compiler_rt (`exp` for an f64, `expf` for an f32), and so is a
@@ -17,6 +17,13 @@
 ; `@trunc` are the `roundss` instruction, which the ports match bit for bit (a NaN quieted, as it does);
 ; `@round` and `@rem` are those compiler_rt calls. `@rem` takes two operands: the second takes the first
 ; one's type, as a literal beside it does in Zig. Their f64 routines are not ported: an f64 is refused.
+; #7923 (specs/port/trinity/src/brain/weber_tuning.t27, specs/numeric/formats.t27): `std.math.inf(T)` names its
+; type as `nan` does, and its routine is the bit pattern with every exponent bit set and a zero fraction.
+; `std.math.log(T, base, x)` is `@log(x)` when the base is `std.math.e` (std/math/log.zig), so it calls `log`;
+; it takes three operands, the value is the third, and T must be the value's own type. Any other base goes
+; to `log2`, `log10` or a quotient there, which libm.t27 does not hold, so it is refused by name.
+; `std.math.log1p` of an f64 calls std/math/log1p.zig's `log1p_64` (musl's log1p.c), and `@round` of an f64
+; calls compiler_rt's `round`; an f32 `log1p`, a different routine, and an f32 `std.math.log` are refused.
 ; Everything t27b decides about these calls is in this file and reaches cli/t27b through `t27c gen-rust`
 ; (gen/rust/tri/t27b/libm_plan.rs): which builtins go to libm.t27, under which names its routines join a
 ; program, which operand calls which routine, which are refused, and the words of each refusal. The Rust
@@ -39,7 +46,8 @@
 ;   its type from the result location, or folds it as a comptime_float at 128-bit precision, which t27b
 ;   does not model); any other operand (an integer, which Zig refuses, a bool, an aggregate, a type
 ;   other than f64 and f32); an f32 `@log`, whose routine (compiler_rt `logf`, a different
-;   algorithm) libm.t27 does not hold yet; and an f64 `@floor`, `@ceil`, `@round`, `@trunc` or `@rem`.
+;   algorithm) libm.t27 does not hold yet; an f64 `@floor`, `@ceil`, `@trunc` or `@rem`; an f32 `log1p` or
+;   `std.math.log`; and a `std.math.log` whose base is not `std.math.e` or whose type is not its value's.
 ; --
 ; The oracle is draft PR #7426 (branch claude/t27b-lane1-exp, 3f403d6c8): its hand-written lowering passed
 ; libm.t27 and the t27b lab corpus with mismatch 0. Its prelude and its `exp_call` are the decisions here.
@@ -54,7 +62,7 @@ module T27bLibmPlan;
 
 /// The builtins and `std.math` fns whose routines libm.t27 holds, separated by one space. A builtin's code is
 /// its position.
-pub const BUILTINS : str = "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem";
+pub const BUILTINS : str = "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem std.math.inf std.math.log1p std.math.log";
 pub const EXP : u8 = 0;
 pub const LOG : u8 = 1;
 pub const NAN : u8 = 2;
@@ -66,6 +74,10 @@ pub const CEIL : u8 = 7;
 pub const ROUND : u8 = 8;
 pub const TRUNC : u8 = 9;
 pub const REM : u8 = 10;
+pub const INF : u8 = 11;
+pub const LOG1P : u8 = 12;
+/// `std.math.log(T, std.math.e, x)`.
+pub const LOG_E : u8 = 13;
 
 /// The prefix of every routine in libm.t27, and the one its copies take in a program.
 pub const PORT : str = "t27b_libm_";
@@ -86,26 +98,44 @@ pub const REFUSE_LITERAL : u8 = 3;
 pub const REFUSE_OPERAND : u8 = 4;
 pub const REFUSE_NO_ROUTINE : u8 = 5;
 pub const REFUSE_NO_F64 : u8 = 6;
+pub const REFUSE_BASE : u8 = 7;
+pub const REFUSE_TYPE : u8 = 8;
 
 /// Does libm.t27 hold builtin b's routine for an f32?
 pub fn has_f32(b: u8) -> bool {
-    return b != LOG;
+    return b != LOG and b != LOG1P and b != LOG_E;
 }
 
-/// Does libm.t27 hold builtin b's routine for an f64? The rounding builtins and `@rem` have only their f32 one.
+/// Does libm.t27 hold builtin b's routine for an f64? `@floor`, `@ceil`, `@trunc` and `@rem` have only their f32 one.
 pub fn has_f64(b: u8) -> bool {
-    return b < FLOOR;
+    return b < FLOOR or b == ROUND or b >= INF;
 }
 
 /// How many operands builtin b takes.
 pub fn arity(b: u8) -> usize {
     if (b == REM) { return 2; }
+    if (b == LOG_E) { return 3; }
     return 1;
+}
+
+/// Which operand is the value the routine takes (`std.math.log`'s third); the ones after it are passed too.
+pub fn operand(b: u8) -> usize {
+    if (b == LOG_E) { return 2; }
+    return 0;
 }
 
 /// Is builtin b's one operand its float type (`std.math.nan(f32)`)? Its routine then takes no argument.
 pub fn takes_type(b: u8) -> bool {
-    return b == NAN;
+    return b == NAN or b == INF;
+}
+
+/// `std.math.log`'s answer once its base and type are known: a call stands only when the base is
+/// `std.math.e` and the type operand names the value's own type. Every other builtin keeps `act`.
+pub fn with_base(b: u8, act: u8, base_is_e: bool, type_is_value_s: bool) -> u8 {
+    if (b != LOG_E or (act != CALL_F64 and act != CALL_F32)) { return act; }
+    if (!type_is_value_s) { return REFUSE_TYPE; }
+    if (!base_is_e) { return REFUSE_BASE; }
+    return act;
 }
 
 /// The decision. b: the builtin. operands: how many the call has. k: the operand's kind.
@@ -137,6 +167,11 @@ pub fn routine(b: u8, act: u8) -> str {
     if (b == ROUND and act == CALL_F32) { return "__t27b_libm_roundf"; }
     if (b == TRUNC and act == CALL_F32) { return "__t27b_libm_truncf"; }
     if (b == REM and act == CALL_F32) { return "__t27b_libm_fmodf"; }
+    if (b == ROUND and act == CALL_F64) { return "__t27b_libm_round"; }
+    if (b == INF and act == CALL_F64) { return "__t27b_libm_inf"; }
+    if (b == INF and act == CALL_F32) { return "__t27b_libm_inff"; }
+    if (b == LOG1P and act == CALL_F64) { return "__t27b_libm_log1p"; }
+    if (b == LOG_E and act == CALL_F64) { return "__t27b_libm_log"; }
     return "";
 }
 
@@ -153,16 +188,21 @@ pub fn what(b: u8) -> str {
     if (b == ROUND) { return "ExprCall(@round)"; }
     if (b == TRUNC) { return "ExprCall(@trunc)"; }
     if (b == REM) { return "ExprCall(@rem)"; }
+    if (b == INF) { return "ExprCall(std.math.inf)"; }
+    if (b == LOG1P) { return "ExprCall(std.math.log1p)"; }
+    if (b == LOG_E) { return "ExprCall(std.math.log)"; }
     return "ExprCall(libm)";
 }
 
 /// Why: the words after the builtin's name.
 pub fn why(act: u8) -> str {
-    if (act == REFUSE_ARITY) { return "it takes one operand (`@rem` two)"; }
+    if (act == REFUSE_ARITY) { return "it takes one operand (`@rem` two, `std.math.log` three)"; }
     if (act == REFUSE_LITERAL) { return "the operand is a literal, which Zig types from the result location or folds at 128-bit precision"; }
     if (act == REFUSE_OPERAND) { return "the operand is not an f64 or an f32"; }
-    if (act == REFUSE_NO_ROUTINE) { return "libm.t27 has no f32 routine for it (compiler_rt logf is not ported)"; }
+    if (act == REFUSE_NO_ROUTINE) { return "libm.t27 has no f32 routine for it (compiler_rt logf and std.math's log1p_32 are not ported)"; }
     if (act == REFUSE_NO_F64) { return "libm.t27 has no f64 routine for it (compiler_rt's is not ported)"; }
+    if (act == REFUSE_BASE) { return "its base is not std.math.e, and log2, log10 and the general quotient are not ported"; }
+    if (act == REFUSE_TYPE) { return "its type operand is not its value's type"; }
     return "its routine in specs/tri/t27b/libm.t27 did not lower";
 }
 
@@ -271,13 +311,14 @@ test the_arity_is_asked_first {
     assert plan(LOG, 2, K_F32) == REFUSE_ARITY;
 }
 
-// Over the eleven builtins, 0..3 operands and the four kinds: 16 of the 176 cases call a routine (an f64
-// for each of the first six, an f32 for each but `@log`), all with the builtin's own number of operands.
+// Over the fourteen builtins, 0..3 operands and the four kinds: 21 of the 224 cases call a routine (an f64
+// for each of the first six, `@round`, `inf`, `log1p` and `std.math.log`; an f32 for each but `@log`,
+// `log1p` and `std.math.log`), all with the builtin's own number of operands.
 // Every other case is a refusal, which names no routine and says why.
 test only_a_typed_float_with_a_routine_calls {
     var calls : u32 = 0;
     var b : u8 = 0;
-    while (b < 11) {
+    while (b < 14) {
         var ops : usize = 0;
         while (ops < 4) {
             var i : u32 = 0;
@@ -302,11 +343,11 @@ test only_a_typed_float_with_a_routine_calls {
         }
         b = b + 1;
     }
-    assert calls == 16;
+    assert calls == 21;
 }
 
 test the_routines_are_renamed_into_the_reserved_prefix {
-    assert std.mem.eql(u8, BUILTINS, "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem");
+    assert std.mem.eql(u8, BUILTINS, "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem std.math.inf std.math.log1p std.math.log");
     assert EXP == 0;
     assert LOG == 1;
     assert NAN == 2;
@@ -323,8 +364,8 @@ test the_routines_are_renamed_into_the_reserved_prefix {
     assert !std.mem.eql(u8, routine(EXP, CALL_F64), routine(EXP, CALL_F32));
     assert !std.mem.eql(u8, routine(EXP, CALL_F64), routine(LOG, CALL_F64));
     assert !std.mem.eql(u8, routine(IS_POS_INF, CALL_F32), routine(IS_NEG_INF, CALL_F32));
-    assert routine(REM + 1, CALL_F64).len == 0;
-    assert routine(REM + 1, CALL_F32).len == 0;
+    assert routine(LOG_E + 1, CALL_F64).len == 0;
+    assert routine(LOG_E + 1, CALL_F32).len == 0;
     assert std.mem.indexOf(u8, routine(REM, CALL_F32), PORT) != null;
 }
 
@@ -340,7 +381,12 @@ test the_refusals_name_the_call_and_say_why {
     assert std.mem.eql(u8, what(ROUND), "ExprCall(@round)");
     assert std.mem.eql(u8, what(TRUNC), "ExprCall(@trunc)");
     assert std.mem.eql(u8, what(REM), "ExprCall(@rem)");
-    assert std.mem.eql(u8, what(REM + 1), "ExprCall(libm)");
+    assert std.mem.eql(u8, what(INF), "ExprCall(std.math.inf)");
+    assert std.mem.eql(u8, what(LOG1P), "ExprCall(std.math.log1p)");
+    assert std.mem.eql(u8, what(LOG_E), "ExprCall(std.math.log)");
+    assert std.mem.eql(u8, what(LOG_E + 1), "ExprCall(libm)");
+    assert std.mem.indexOf(u8, why(REFUSE_BASE), "std.math.e") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_ARITY), "three") != null;
     assert std.mem.indexOf(u8, why(REFUSE_ARITY), "one operand") != null;
     assert std.mem.indexOf(u8, why(REFUSE_NO_F64), "no f64 routine") != null;
     assert std.mem.eql(u8, why(REFUSE_OPERAND), "the operand is not an f64 or an f32");
@@ -350,4 +396,51 @@ test the_refusals_name_the_call_and_say_why {
     assert std.mem.indexOf(u8, why(CALL_F32), "did not lower") != null;
     assert !std.mem.eql(u8, why(REFUSE_ARITY), why(REFUSE_LITERAL));
     assert !std.mem.eql(u8, why(REFUSE_OPERAND), why(REFUSE_NO_ROUTINE));
+}
+
+// #7923: weber_tuning's `std.math.log(f64, std.math.e, x)`, `std.math.log1p(x)` and `@round(x)` of an f64, and
+// formats' `std.math.inf(f32)`.
+test inf_log1p_log_e_and_an_f64_round_call_their_routines {
+    assert plan(INF, 1, K_F32) == CALL_F32;
+    assert plan(INF, 1, K_F64) == CALL_F64;
+    assert takes_type(INF);
+    assert !takes_type(LOG_E);
+    assert !takes_type(LOG1P);
+    assert std.mem.eql(u8, routine(INF, CALL_F64), "__t27b_libm_inf");
+    assert std.mem.eql(u8, routine(INF, CALL_F32), "__t27b_libm_inff");
+    assert plan(LOG1P, 1, K_F64) == CALL_F64;
+    assert std.mem.eql(u8, routine(LOG1P, CALL_F64), "__t27b_libm_log1p");
+    assert plan(LOG1P, 1, K_F32) == REFUSE_NO_ROUTINE;
+    assert plan(LOG1P, 1, K_LITERAL) == REFUSE_LITERAL;
+    assert plan(ROUND, 1, K_F64) == CALL_F64;
+    assert std.mem.eql(u8, routine(ROUND, CALL_F64), "__t27b_libm_round");
+    assert has_f64(ROUND);
+    assert !has_f64(TRUNC);
+    assert !has_f64(CEIL);
+    // std.math.log(T, base, x): three operands, the value third, `log`'s routine.
+    assert arity(LOG_E) == 3;
+    assert operand(LOG_E) == 2;
+    assert operand(EXP) == 0;
+    assert operand(REM) == 0;
+    assert plan(LOG_E, 3, K_F64) == CALL_F64;
+    assert plan(LOG_E, 1, K_F64) == REFUSE_ARITY;
+    assert plan(LOG_E, 3, K_F32) == REFUSE_NO_ROUTINE;
+    assert std.mem.eql(u8, routine(LOG_E, CALL_F64), routine(LOG, CALL_F64));
+}
+
+test std_math_log_needs_base_e_and_its_value_s_type {
+    assert with_base(LOG_E, CALL_F64, true, true) == CALL_F64;
+    assert with_base(LOG_E, CALL_F64, false, true) == REFUSE_BASE;
+    assert with_base(LOG_E, CALL_F64, true, false) == REFUSE_TYPE;
+    assert with_base(LOG_E, CALL_F64, false, false) == REFUSE_TYPE;
+    assert with_base(LOG_E, REFUSE_LITERAL, false, false) == REFUSE_LITERAL;
+    assert with_base(LOG_E, REFUSE_NO_ROUTINE, true, true) == REFUSE_NO_ROUTINE;
+    // Every other builtin keeps its answer, base or not.
+    assert with_base(LOG, CALL_F64, false, false) == CALL_F64;
+    assert with_base(EXP, CALL_F32, false, false) == CALL_F32;
+    assert with_base(INF, REFUSE_OPERAND, true, true) == REFUSE_OPERAND;
+    assert routine(LOG_E, REFUSE_BASE).len == 0;
+    assert !std.mem.eql(u8, why(REFUSE_BASE), why(REFUSE_OPERAND));
+    assert !std.mem.eql(u8, why(REFUSE_TYPE), why(REFUSE_OPERAND));
+    assert routine(LOG_E, REFUSE_TYPE).len == 0;
 }

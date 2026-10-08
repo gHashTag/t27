@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/libm_std_math.t27 -- `std.math.inf`, `std.math.log(T, std.math.e, x)`,
+; `std.math.log1p` and `@round` of an f64, as the reference runs them (issue #7923, t27b coverage epic #6063:
+; ExprCall(std.*) in specs/port/trinity/src/brain/weber_tuning.t27 and specs/numeric/formats.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints the calls as written. Zig 0.16's `std.math.log` with base `std.math.e` is `@log(x)`, compiler_rt
+; `log`; `std.math.log1p` of an f64 is std/math/log1p.zig's `log1p_64`; `@round` of an f64 is compiler_rt `round`;
+; `std.math.inf(T)` is +inf by its bits. The expected values were printed by Zig 0.16 on the t27c lab; log(3.0)
+; and log1p(2.0) differ in the last bit, so a lowering that swapped the two routines fails here.
+; What t27b decides is specs/tri/t27b/libm_plan.t27; the routines are specs/tri/t27b/libm.t27.
+; Not here: another base (`log2`, `log10`, a quotient), an f32 `log1p` or `std.math.log`, and a literal operand,
+; which t27b refuses.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceLibmStdMath;
+
+// weber_tuning's shapes.
+fn lsm_ln1p_by_log(x: f64) -> f64 {
+    return std.math.log(f64, std.math.e, x + 1.0);
+}
+
+fn lsm_ln1p(x: f64) -> f64 {
+    return std.math.log1p(x);
+}
+
+fn lsm_quantize(value: f64, levels: i64) -> i64 {
+    const abs_v = @abs(value);
+    const log_val = std.math.log(f64, std.math.e, abs_v + 1.0);
+    const quantized = @round(log_val * @as(f64, @floatFromInt(levels)) / 5.0);
+    return @as(i64, @intFromFloat(quantized));
+}
+
+fn lsm_adaptive(base_jnd: f64, magnitude: f64) -> f64 {
+    return base_jnd * (1.0 + std.math.log1p(@abs(magnitude)));
+}
+
+fn lsm_round(x: f64) -> f64 {
+    return @round(x);
+}
+
+// formats' shapes.
+fn lsm_saturate(x: f32) -> f32 {
+    if (x > 65504.0) {
+        return std.math.inf(f32);
+    }
+    if (x < -65504.0) {
+        return -std.math.inf(f32);
+    }
+    return x;
+}
+
+fn lsm_inf64() -> f64 {
+    return std.math.inf(f64);
+}
+
+test lsm_log_with_base_e_is_log {
+    assert(lsm_ln1p_by_log(0.25) == 0.22314355131420976);
+    assert(lsm_ln1p_by_log(2.0) == 1.0986122886681098);
+    assert(lsm_ln1p_by_log(100.0) == 4.61512051684126);
+    assert(lsm_ln1p_by_log(0.001) == 0.0009995003330834232);
+}
+
+test lsm_log1p_is_zig_s_log1p_64 {
+    assert(lsm_ln1p(0.25) == 0.22314355131420976);
+    assert(lsm_ln1p(2.0) == 1.0986122886681096);
+    assert(lsm_ln1p(2.0) != lsm_ln1p_by_log(2.0));
+    assert(lsm_ln1p(0.001) == 0.0009995003330835331);
+    assert(lsm_ln1p(0.000000003) == 0.0000000029999999955);
+    assert(lsm_adaptive(0.05, -0.7) == 0.07653141255310852);
+}
+
+test lsm_round_halves_away_from_zero {
+    assert(lsm_round(2.5) == 3.0);
+    assert(lsm_round(-2.5) == -3.0);
+    assert(lsm_round(0.25) == 0.0);
+    assert(lsm_round(25.0 - 0.0000001) == 25.0);
+    assert(lsm_round(-1000000.5) == -1000001.0);
+    assert(lsm_quantize(0.7, 8) == 1);
+    assert(lsm_quantize(-100.0, 50) == 46);
+    assert(lsm_quantize(0.0, 50) == 0);
+}
+
+test lsm_inf_saturates {
+    const inf: f32 = std.math.inf(f32);
+    assert(lsm_saturate(1.0e9) == inf);
+    assert(lsm_saturate(-1.0e9) == -inf);
+    assert(lsm_saturate(2.0) == 2.0);
+    assert(inf > 3.4028234663852886e38);
+    assert(lsm_inf64() > 1.7976931348623157e308);
+    assert(lsm_inf64() - lsm_inf64() != lsm_inf64() - lsm_inf64());
+}

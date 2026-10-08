@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin or a `std.math` fn,
-; written in t27 (issues #7391, #7217, #7791 and #7819, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log),
-; std.math.nan, isNan, isPositiveInf, isNegativeInf, and @floor, @ceil, @round, @trunc and @rem of an f32).
+; written in t27 (issues #7391, #7217, #7791, #7819 and #7923, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log),
+; std.math.nan, isNan, isPositiveInf, isNegativeInf, @floor, @ceil, @round, @trunc and @rem of an f32, and
+; std.math.inf, std.math.log1p and @round of an f64).
 ; `t27c test-report` runs `zig test` without libc, so a run-time `@exp(x)` is a call into Zig's
 ; compiler_rt: `exp` for an f64 and `expf` for an f32, both ports of the FreeBSD/musl fdlibm code.
 ; A run-time `@log(x)` of an f64 is compiler_rt's `log`, a port of musl's table-driven log.c.
@@ -22,6 +23,9 @@
 ;   (bits 45..51 of that difference) is the same affine function of z, computed exactly.
 ; `std.math.nan`, `isNan`, `isPositiveInf` and `isNegativeInf` (#7791) are Zig 0.16's std/math/float.zig,
 ; isnan.zig and isinf.zig, a line each: the canonical quiet NaN by its bits, `x != x`, `x == inf`, `x == -inf`.
+; `std.math.inf` (#7923) is +inf by its bits; `std.math.log1p` of an f64 is std/math/log1p.zig's `log1p_64`
+; (musl's log1p.c) and `@round` of an f64 compiler_rt's `round`, both step for step; `std.math.log(T, std.math.e,
+; x)` is `@log(x)` in std/math/log.zig and calls `log` above.
 ; A `@exp` or `@log` of a literal (a comptime_float) is refused: Zig may fold it at 128-bit precision.
 ; The tests check the routines against Zig's `@exp` and `@log` on run-time operands: equal on every
 ; point of each sweep, under the reference; and against fixed values for both. A call Zig folds at
@@ -642,6 +646,103 @@ fn t27b_libm_fmodf(t27b_x: f32, t27b_y: f32) -> f32 {
     return @bitCast(t27b_ux | t27b_sx);
 }
 
+// std.math.inf(f64) and std.math.inf(f32) (std/math/float.zig): every exponent bit set, a zero fraction.
+fn t27b_libm_inf() -> f64 {
+    return @bitCast(t27b_libm_inf64);
+}
+
+fn t27b_libm_inff() -> f32 {
+    return @bitCast(t27b_libm_inf32);
+}
+
+// compiler_rt `round` (f64): half away from zero. `f64_toint` is 1 / floatEps(f64) = 2^52.
+fn t27b_libm_round(t27b_x0: f64) -> f64 {
+    var t27b_x: f64 = t27b_x0;
+    const t27b_u: u64 = @bitCast(t27b_x0);
+    const t27b_e: u64 = (t27b_u >> 52) & 0x7FF;
+    if (t27b_e >= 1075) {
+        return t27b_x;
+    }
+    if ((t27b_u >> 63) != 0) {
+        t27b_x = -t27b_x;
+    }
+    if (t27b_e < 1022) {
+        return 0.0 * t27b_x0;
+    }
+    var t27b_y: f64 = t27b_x + 4503599627370496.0 - 4503599627370496.0 - t27b_x;
+    if (t27b_y > 0.5) {
+        t27b_y = t27b_y + t27b_x - 1.0;
+    } else if (t27b_y <= -0.5) {
+        t27b_y = t27b_y + t27b_x + 1.0;
+    } else {
+        t27b_y = t27b_y + t27b_x;
+    }
+    if ((t27b_u >> 63) != 0) {
+        return -t27b_y;
+    }
+    return t27b_y;
+}
+
+// std.math.log1p (f64): Zig's std/math/log1p.zig `log1p_64` (musl's log1p.c), step for step.
+fn t27b_libm_log1p(t27b_x: f64) -> f64 {
+    const t27b_ix: u64 = @bitCast(t27b_x);
+    const t27b_hx: u32 = @intCast(t27b_ix >> 32);
+    var t27b_k: i32 = 1;
+    var t27b_c: f64 = 0.0;
+    var t27b_f: f64 = 0.0;
+    if (t27b_hx < 0x3FDA827A or (t27b_hx >> 31) != 0) {
+        if (t27b_hx >= 0xBFF00000) {
+            if (t27b_x == -1.0) {
+                const t27b_inf: f64 = @bitCast(t27b_libm_inf64);
+                return -t27b_inf;
+            }
+            const t27b_nan: f64 = @bitCast(t27b_libm_qnan64);
+            return t27b_nan;
+        }
+        if ((t27b_hx << 1) < 0x79400000) {
+            return t27b_x;
+        }
+        if (t27b_hx <= 0xBFD2BEC4) {
+            t27b_k = 0;
+            t27b_c = 0.0;
+            t27b_f = t27b_x;
+        }
+    } else if (t27b_hx >= 0x7FF00000) {
+        return t27b_x;
+    }
+    if (t27b_k != 0) {
+        const t27b_uf: f64 = 1.0 + t27b_x;
+        const t27b_hu: u64 = @bitCast(t27b_uf);
+        var t27b_iu: u32 = @intCast(t27b_hu >> 32);
+        t27b_iu = t27b_iu + 0x95F62;
+        const t27b_e: i32 = @intCast(t27b_iu >> 20);
+        t27b_k = t27b_e - 0x3FF;
+        if (t27b_k < 54) {
+            if (t27b_k >= 2) {
+                t27b_c = 1.0 - (t27b_uf - t27b_x);
+            } else {
+                t27b_c = t27b_x - (t27b_uf - 1.0);
+            }
+            t27b_c = t27b_c / t27b_uf;
+        } else {
+            t27b_c = 0.0;
+        }
+        t27b_iu = (t27b_iu & 0x000FFFFF) + 0x3FE6A09E;
+        const t27b_iq: u64 = (@as(u64, t27b_iu) << 32) | (t27b_hu & 0xFFFFFFFF);
+        const t27b_fq: f64 = @bitCast(t27b_iq);
+        t27b_f = t27b_fq - 1.0;
+    }
+    const t27b_hfsq: f64 = 0.5 * t27b_f * t27b_f;
+    const t27b_s: f64 = t27b_f / (2.0 + t27b_f);
+    const t27b_z: f64 = t27b_s * t27b_s;
+    const t27b_w: f64 = t27b_z * t27b_z;
+    const t27b_t1: f64 = t27b_w * (0.3999999999940942 + t27b_w * (0.22222198432149784 + t27b_w * 0.15313837699209373));
+    const t27b_t2: f64 = t27b_z * (0.6666666666666735 + t27b_w * (0.2857142874366239 + t27b_w * (0.1818357216161805 + t27b_w * 0.14798198605116586)));
+    const t27b_r: f64 = t27b_t2 + t27b_t1;
+    const t27b_dk: f64 = @floatFromInt(t27b_k);
+    return t27b_s * (t27b_hfsq + t27b_r) + (t27b_dk * 1.9082149292705877e-10 + t27b_c) - t27b_hfsq + t27b_f + t27b_dk * 0.6931471803691238;
+}
+
 // ---------------------------------------------------------------- tests
 
 fn exp_of(x: f64) -> f64 {
@@ -1004,4 +1105,97 @@ test the_nan_and_inf_predicates_are_zig_s {
     assert(t27b_libm_isneginff(f32_of(0xFF800000)));
     assert(t27b_libm_isposinf(f64_of(0x7FF0000000000000)));
     assert(!t27b_libm_isnan(f64_of(0x8000000000000000)));
+}
+
+// #7923: `round` and `log1p` against Zig's `@round` and `std.math.log1p` of a run-time f64, bit for bit, under
+// the reference; `std.math.inf` by its bits; `std.math.log(f64, std.math.e, x)` against `@log(x)`.
+fn round_lin_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f64 = start + @as(f64, @floatFromInt(i)) * step;
+        if (bits_of_f64(t27b_libm_round(x)) != bits_of_f64(@round(x))) {
+            misses = misses + 1;
+        }
+        i = i + 1;
+    }
+    return misses;
+}
+
+fn log1p_lin_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f64 = start + @as(f64, @floatFromInt(i)) * step;
+        if (bits_of_f64(t27b_libm_log1p(x)) != bits_of_f64(std.math.log1p(x))) {
+            misses = misses + 1;
+        }
+        i = i + 1;
+    }
+    return misses;
+}
+
+// x and -x for `x = start * step^i`, from the least subnormal up.
+fn log1p_geo_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var x: f64 = start;
+    var i: u32 = 0;
+    while (i < n) {
+        if (bits_of_f64(t27b_libm_log1p(x)) != bits_of_f64(std.math.log1p(x))) {
+            misses = misses + 1;
+        }
+        if (bits_of_f64(t27b_libm_log1p(-x)) != bits_of_f64(std.math.log1p(-x))) {
+            misses = misses + 1;
+        }
+        x = x * step;
+        i = i + 1;
+    }
+    return misses;
+}
+
+test round_agrees_with_compiler_rt {
+    assert(round_lin_misses(-1000.0, 0.0997, 20000) == 0);
+    assert(round_lin_misses(-3.0, 0.00025, 24000) == 0);
+    assert(round_lin_misses(4503599627370000.0, 0.25, 4000) == 0);
+    assert(round_lin_misses(-0.75, 0.0000625, 24000) == 0);
+}
+
+test round_halves_away_from_zero {
+    assert(t27b_libm_round(2.5) == 3.0);
+    assert(t27b_libm_round(-2.5) == -3.0);
+    assert(t27b_libm_round(0.49999999999999994) == 0.0);
+    assert(bits_of_f64(t27b_libm_round(-0.2)) == 0x8000000000000000);
+    assert(t27b_libm_round(t27b_libm_inf()) == t27b_libm_inf());
+    const n: f64 = t27b_libm_round(t27b_libm_nan());
+    assert(n != n);
+}
+
+test log1p_agrees_with_zig_s_std_math {
+    assert(log1p_lin_misses(-0.999, 0.0001, 30000) == 0);
+    assert(log1p_lin_misses(-0.3, 0.00001, 60000) == 0);
+    assert(log1p_lin_misses(0.0, 0.37, 30000) == 0);
+    assert(log1p_geo_misses(5.0e-324, 1.37, 2400) == 0);
+}
+
+test log1p_at_minus_one_infinity_zero_and_below {
+    assert(t27b_libm_log1p(-1.0) == -t27b_libm_inf());
+    assert(t27b_libm_log1p(t27b_libm_inf()) == t27b_libm_inf());
+    const n: f64 = t27b_libm_log1p(-2.0);
+    assert(n != n);
+    assert(bits_of_f64(t27b_libm_log1p(0.0)) == 0);
+    assert(bits_of_f64(t27b_libm_log1p(-0.0)) == 0x8000000000000000);
+    const one: f64 = 1.0;
+    assert(t27b_libm_log1p(one) == std.math.log1p(one));
+    assert(t27b_libm_log1p(one) == 0.6931471805599453);
+}
+
+test inf_and_log_base_e_are_zig_s {
+    assert(bits_of_f32(t27b_libm_inff()) == 0x7F800000);
+    assert(bits_of_f64(t27b_libm_inf()) == 0x7FF0000000000000);
+    assert(bits_of_f32(std.math.inf(f32)) == 0x7F800000);
+    assert(bits_of_f64(std.math.inf(f64)) == 0x7FF0000000000000);
+    assert(bits_of_f32(-std.math.inf(f32)) == 0xFF800000);
+    const x: f64 = 7.5;
+    assert(std.math.log(f64, std.math.e, x) == @log(x));
+    assert(std.math.log(f64, std.math.e, x) == t27b_libm_log(x));
 }
