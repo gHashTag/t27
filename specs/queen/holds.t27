@@ -38,8 +38,9 @@ pub const AWAITING_HOLD_MINUTES : u32 = 30;
 /// A send-back is usually taken again within a round; past this, it waits like any finished work.
 pub const SEND_BACK_HOLD_MINUTES : u32 = 120;
 
-/// Whether the task's files still shut other bees out, `minutes` after it finished (or after its
-/// verdict, for a send-back). A stage this card does not know holds nothing.
+/// Whether the task's files still shut other bees out, `minutes` after it finished (the bee's own
+/// end, written once; a verdict's time is re-written every round a wait is re-read, so it cannot be
+/// the clock). A stage this card does not know holds nothing.
 pub fn holds_files(stage: u8, minutes: u32) -> bool {
     if (stage == HS_WORKING) { return true; }
     if (stage == HS_SEND_BACK) { return minutes < SEND_BACK_HOLD_MINUTES; }
