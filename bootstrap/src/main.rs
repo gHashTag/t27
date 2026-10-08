@@ -102,6 +102,12 @@ mod run_record;
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod independence;
 mod phi_f64_literals;
+// Tooling gates (#2905): run_lint_docs (Cyrillic-in-Markdown doc gate),
+// run_validate_phi, validate_phi_identity, validate_schema, validate_instance,
+// check_claim_tiers, brain_seal_refresh. Compiled in but not wired to the
+// dispatch: wiring is a policy decision (the doc gate would inspect Russian
+// first-party docs), not a repair.
+mod tooling;
 mod weight_bram;
 mod bitnet_pipeline;
 mod bitnet_buffers;
@@ -12039,10 +12045,12 @@ async fn main() -> anyhow::Result<()> {
              phi_f64_literals::run(path.as_deref())?;
          }
          Commands::CheckClaimTiers => {
-             eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+             eprintln!("Error: 'check-claim-tiers' is not wired to the dispatch; tooling::check_claim_tiers in bootstrap/src/tooling.rs is compiled in but unreachable");
+             std::process::exit(1);
          }
          Commands::BrainSealRefresh => {
-             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+             eprintln!("Error: 'brain-seal-refresh' is not wired to the dispatch; tooling::brain_seal_refresh in bootstrap/src/tooling.rs is compiled in but unreachable");
+             std::process::exit(1);
          }
          Commands::Formula { cmd } => {
              let repo_root = std::env::current_dir()?;
@@ -12474,10 +12482,12 @@ fn main() -> anyhow::Result<()> {
              phi_f64_literals::run(path.as_deref())?;
          }
          Commands::CheckClaimTiers => {
-             eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+             eprintln!("Error: 'check-claim-tiers' is not wired to the dispatch; tooling::check_claim_tiers in bootstrap/src/tooling.rs is compiled in but unreachable");
+             std::process::exit(1);
          }
          Commands::BrainSealRefresh => {
-             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+             eprintln!("Error: 'brain-seal-refresh' is not wired to the dispatch; tooling::brain_seal_refresh in bootstrap/src/tooling.rs is compiled in but unreachable");
+             std::process::exit(1);
          }
          Commands::Formula { cmd } => {
              let repo_root = std::env::current_dir()?;
