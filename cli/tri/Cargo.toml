@@ -24,3 +24,4 @@ tower = "0.5"
 http-body-util = "0.1"
 dlc10 = { path = "../dlc10" }
 regex = "1"
+walkdir = "2.3"

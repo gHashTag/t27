@@ -1,52 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0
-; specs/tools/tri/doctor.t27 -- tool tri/doctor, the `tri doctor` command of the tri CLI
-; Source of truth for the tool card on t27.ai (#/tools?tool=tri/doctor).
+; specs/tools/tri/reap.t27 -- tool tri/reap, the `tri reap` command of the tri CLI
+; Source of truth for the tool card on t27.ai (#/tools?tool=tri/reap).
 ; Extracted from the clap #[derive(Subcommand)] enums in cli/tri/src (witness source-parse:
 ; cargo was not run, the enum and its /// docs were read at commit 3cb7a4352492).
 ; Layer 5 of the ladder Specs -> Skills -> Crons -> Agents -> Tools. ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
-module tool_tri_doctor;
+module tool_tri_reap;
 
 pub const KIND : str = "tool";
 pub const FAMILY : str = "tri-cli";
-pub const ID : str = "tri/doctor";
+pub const ID : str = "tri/reap";
 pub const REPO : str = "gHashTag/t27";
-pub const QUALIFIED_ID : str = "gHashTag/t27:tri/doctor";
+pub const QUALIFIED_ID : str = "gHashTag/t27:tri/reap";
 pub const SCHEMA : u32 = 2;
-pub const COMMAND : str = "tri doctor";
+pub const COMMAND : str = "tri reap";
 ; clap enum variant and where the dispatch lands
-pub const VARIANT : str = "Commands::Doctor";
+pub const VARIANT : str = "Commands::Reap";
 pub const SOURCE : str = "cli/tri/src/main.rs";
 pub const ENTRY : str = "cli/tri/src/main.rs";
 ; This variant carries no /// doc; ABOUT quotes the source named in ABOUT_SOURCE instead.
-pub const ABOUT : str = "Start, stop or show the doctor state kept in .trinity/state/doctor.json, or show lab disk usage (actions: start | stop | status | df).";
-pub const ABOUT_SOURCE : str = "handler cmd_doctor match arms start/stop/status/df and its error text unknown doctor action (start|stop|status|df) (cli/tri/src/main.rs:934)";
+pub const ABOUT : str = "Remove old target directories from /data that haven't been written to in 48h (action: run).";
+pub const ABOUT_SOURCE : str = "handler cmd_reap match arm run and its /// docstring (cli/tri/src/reap.rs:18)";
 ; Nested subcommands (kebab-case as clap derives them) and their first /// paragraph ("" when none).
-pub const ACTIONS : [1]str = ["df"];
-pub const ACTIONS_ABOUT : [1]str = ["Show lab /data disk usage and warn at 90%"];
+pub const ACTIONS : [1]str = ["run"];
+pub const ACTIONS_ABOUT : [1]str = ["Remove old target directories from /data that haven't been written to in 48h"];
 ; Top-level arguments/flags of the command itself, "<name>: doc".
-pub const ARGS : [1]str = ["<action>"];
+pub const ARGS : [2]str = ["<action>", "[--data-path <data-path>]", "[--age-hours <age-hours>]"];
 ; Agent letters that own this command, only where a source line names it (AGENTS_NOTE cites it).
 pub const AGENTS : [1]str = ["T"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). No card states what this tool is for in this project, so no bee is named a domain lead.";
 ; From the about text (long about when the doc has more than one paragraph); no marketing.
-pub const WHEN_TO_USE : str = "Start, stop or show the doctor state kept in .trinity/state/doctor.json, or show lab /data disk usage and warn at 90% (actions: start | stop | status | df).";
+pub const WHEN_TO_USE : str = "Remove old target directories from /data that haven't been written to in 48h (action: run).";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
 test verify_constants {
     assert KIND == "tool";
     assert FAMILY == "tri-cli";
-    assert ID == "tri/doctor";
+    assert ID == "tri/reap";
     assert REPO == "gHashTag/t27";
-    assert QUALIFIED_ID == "gHashTag/t27:tri/doctor";
+    assert QUALIFIED_ID == "gHashTag/t27:tri/reap";
     assert SCHEMA == 2;
-    assert COMMAND == "tri doctor";
-    assert VARIANT == "Commands::Doctor";
+    assert COMMAND == "tri reap";
+    assert VARIANT == "Commands::Reap";
     assert ENABLED == true;
     assert AGENTS[0] == "T";
     assert ARGS[0] == "<action>";
-    assert ACTIONS[0] == "df";
-    assert ACTIONS_ABOUT[0] == "Show lab /data disk usage and warn at 90%";
+    assert ARGS[1] == "[--data-path <data-path>]";
+    assert ARGS[2] == "[--age-hours <age-hours>]";
+    assert ACTIONS[0] == "run";
+    assert ACTIONS_ABOUT[0] == "Remove old target directories from /data that haven't been written to in 48h";
 }

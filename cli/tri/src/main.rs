@@ -31,6 +31,7 @@ mod loopclaim;
 mod misread;
 mod night;
 mod oneaway;
+mod reap;
 mod window;
 mod modreach;
 mod mutate;
@@ -143,6 +144,11 @@ enum Commands {
     Mutate {
         #[command(subcommand)]
         action: mutate::MutateCmd,
+    },
+    /// Remove old target directories from /data that haven't been written to in 48h
+    Reap {
+        #[command(subcommand)]
+        action: reap::ReapCmd,
     },
     /// Recompute the FROZEN_HASH seal from the file it seals.
     Reseal {
@@ -973,9 +979,82 @@ fn cmd_doctor(root: &Path, action: &str) -> Result<()> {
                 println!("doctor: not started");
             }
         }
-        _ => bail!("unknown doctor action: {} (start|stop|status)", action),
+        "df" => {
+            cmd_lab_df()?;
+        }
+        _ => bail!("unknown doctor action: {} (start|stop|status|df)", action),
     }
     Ok(())
+}
+
+fn cmd_lab_df() -> Result<()> {
+    use std::process::Command;
+    
+    let output = Command::new("df")
+        .arg("-h")
+        .arg("/data")
+        .output()
+        .context("failed to execute df command")?;
+    
+    if !output.status.success() {
+        bail!("df command failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = output_str.lines().collect();
+    
+    if lines.len() < 2 {
+        bail!("unexpected df output format");
+    }
+    
+    // Parse the header line to find column positions
+    let header_line = lines[0];
+    let data_line = lines[1];
+    
+    // Find the columns we need: Use%, Size, Avail
+    let use_percent = extract_df_column(header_line, data_line, "Use%")?;
+    let size = extract_df_column(header_line, data_line, "Size")?;
+    let avail = extract_df_column(header_line, data_line, "Avail")?;
+    
+    let use_percent_num = parse_percentage(use_percent)?;
+    
+    println!("📊 Lab /data Usage:");
+    println!("==================");
+    println!("Size: {}", size);
+    println!("Used: {}", use_percent);
+    println!("Available: {}", avail);
+    
+    if use_percent_num >= 90.0 {
+        println!("\n⚠️  WARNING: /data usage is at {}% - approaching critical levels!", use_percent_num);
+        println!("Consider running `tri reap` to clean up old target directories.");
+    } else if use_percent_num >= 80.0 {
+        println!("\n⚠️  WARNING: /data usage is at {}% - monitor closely", use_percent_num);
+    } else {
+        println!("\n✅ /data usage is normal at {}", use_percent);
+    }
+    
+    println!("==================");
+    Ok(())
+}
+
+fn extract_df_column(header: &str, data: &str, column_name: &str) -> Result<&str> {
+    let header_parts: Vec<&str> = header.split_whitespace().collect();
+    let data_parts: Vec<&str> = data.split_whitespace().collect();
+    
+    let col_index = header_parts.iter()
+        .position(|h| h == column_name)
+        .ok_or_else(|| anyhow::anyhow!("column '{}' not found in df output", column_name))?;
+    
+    if col_index >= data_parts.len() {
+        bail!("data line too short for column '{}'", column_name);
+    }
+    
+    Ok(data_parts[col_index])
+}
+
+fn parse_percentage(percent_str: &str) -> Result<f64> {
+    percent_str.trim_end_matches('%').parse()
+        .context("failed to parse percentage")
 }
 
 fn cmd_health(root: &Path, target: Option<&str>) -> Result<()> {
@@ -1075,6 +1154,7 @@ fn main() -> Result<()> {
         Commands::Serve { addr } => cmd_serve(addr)?,
         Commands::Fpga { action } => fpga::run(action)?,
         Commands::Mutate { action } => mutate::run(action)?,
+        Commands::Reap { action } => reap::run(action)?,
         Commands::Reseal { action } => reseal::run(action)?,
         Commands::Now { action } => nownote::run(action)?,
         Commands::Ci { action } => cibase::run(action)?,
