@@ -1,0 +1,113 @@
+module port::gen_w318;
+
+pub fn get_last_block(lines: []const []const u8) -> ?[]const []const u8 {
+    var test_count: usize = 0;
+    var test_indices: [10]usize = undefined;
+    var inv_count: usize = 0;
+    var inv_indices: [10]usize = undefined;
+    
+    for (lines) |line, i| {
+        if (std.mem.startsWith(u8, line, "test ")) {
+            if (test_count < test_indices.len) {
+                test_indices[test_count] = i;
+                test_count += 1;
+            }
+        }
+        if (std.mem.startsWith(u8, line, "invariant ")) {
+            if (inv_count < inv_indices.len) {
+                inv_indices[inv_count] = i;
+                inv_count += 1;
+            }
+        }
+    }
+    
+    if (test_count < 2 or inv_count < 1) {
+        return null;
+    }
+    
+    const last_inv = inv_indices[inv_count - 1];
+    var tests_before_count: usize = 0;
+    var tests_before: [10]usize = undefined;
+    
+    for (test_indices[0..test_count]) |t| {
+        if (t < last_inv) {
+            if (tests_before_count < tests_before.len) {
+                tests_before[tests_before_count] = t;
+                tests_before_count += 1;
+            }
+        }
+    }
+    
+    if (tests_before_count < 2) {
+        return null;
+    }
+    
+    const start = tests_before[tests_before_count - 2];
+    var end: usize = lines.len;
+    
+    var i: usize = last_inv + 1;
+    while (i < lines.len) {
+        const line = lines[i];
+        if (std.mem.startsWith(u8, line, "test ") or 
+            std.mem.startsWith(u8, line, "invariant ") or 
+            std.mem.startsWith(u8, line, "fn ") or 
+            std.mem.startsWith(u8, line, "pub ") or 
+            std.mem.startsWith(u8, line, "//") or 
+            std.mem.startsWith(u8, line, "type ") or 
+            std.mem.startsWith(u8, line, "struct ")) {
+            end = i;
+            break;
+        }
+        i += 1;
+    }
+    
+    return lines[start..end];
+}
+
+pub fn transform_block(block: []const []const u8) -> []const u8 {
+    var result: [1000]u8 = undefined;
+    var result_len: usize = 0;
+    
+    for (block) |line| {
+        for (line) |char| {
+            result[result_len] = char;
+            result_len += 1;
+        }
+        result[result_len] = '\n';
+        result_len += 1;
+    }
+    
+    return result[0..result_len];
+}
+
+pub fn process_specs() -> undefined; {
+    undefined;
+}
+
+test get_last_block_basic {
+    var lines: [5][]const u8 = ["test basic {", "  assert(true);", "}", "invariant check {", "  assert(false); }"];
+    
+    const result = get_last_block(&lines);
+    assert(result != null);
+    const block = result.?;
+    assert(block.len == 3);
+    assert(std.mem.eql(u8, block[0], "test basic {"));
+    assert(std.mem.eql(u8, block[1], "  assert(true);"));
+    assert(std.mem.eql(u8, block[2], "},"));
+}
+
+test get_last_block_insufficient {
+    var lines: [2][]const u8 = ["test only {", "invariant check {"];
+    
+    const result = get_last_block(&lines);
+    assert(result == null);
+}
+
+test transform_block_basic {
+    var lines: [3][]const u8 = ["test case {", "  var x = 5;", "}"];
+    
+    const result = transform_block(&lines);
+    assert(std.mem.indexOf(u8, result, "test case {") != null);
+    assert(std.mem.indexOf(u8, result, "  var x = 5;") != null);
+    assert(std.mem.indexOf(u8, result, "},") != null);
+}
