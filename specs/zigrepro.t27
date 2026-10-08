@@ -1,0 +1,20 @@
+module ZigRepro;
+
+const T : [4]i64 = [1, 2, 4, 8];
+const K : i64 = 4;
+
+fn pick(k: i64) -> i64 {
+    return T[k];
+}
+
+fn ratio(k: i64) -> i64 {
+    return (K * T[@intCast(k)] + 1) * 100 / K;
+}
+
+fn twice(x: i64) -> i64 {
+    return x * 2;
+}
+
+test pick_runs { assert pick(3) == 8; }
+test ratio_runs { assert ratio(1) == 225; }
+test call_div { assert twice(4) / 4 == 2; }
