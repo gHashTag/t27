@@ -269,6 +269,21 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
     }
 }
 
+// ------------------------------------------------ @floatFromInt of a comptime_int
+
+/// #7803: `c as f32` is `@as(f32, @floatFromInt(c))` in the reference, and Zig rounds a comptime_int c there,
+/// ties to even (specs/tri/t27b/coerce_plan.t27; `t27c test-report` passes the conformance spec 5/5, none
+/// vacuous). A coercion of an inexact c does not compile, and a c wider than 64 bits keeps that rule.
+#[test]
+fn a_comptime_int_rounds_in_float_from_int() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/float_from_int_literal.t27"));
+    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    for src in ["fn f() -> f32 {\n    const a: f32 = 16777217;\n    return a;\n}\n", "fn f() -> f32 {\n    return 0x1FFFFFFFFFFFFFFFF as f32;\n}\n"] {
+        let m = rejected(&format!("module a;\n\n{}\ntest t {{\n    assert(f() > 0.0);\n}}\n", src));
+        assert!(m.contains("construct literal out of range at line"), "{}", m);
+    }
+}
+
 // ------------------------------------------------ f32 @floor, @ceil, @round, @trunc and @rem
 
 /// #7819: of an f32 they call libm.t27's ports of compiler_rt (`roundf` half away from zero, `fmodf` signed as the
