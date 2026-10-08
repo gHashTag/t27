@@ -1,0 +1,120 @@
+// Port of gHashTag/trinity:src/tri/gen_geo_hash2d.zig -- 2D Geohashing
+// (TTT Dogfood v0.2 Stage 197), original at 0bbe6a0a411a, 59 lines.
+//
+// What could not be carried across from the original:
+// - the std.mem.Allocator parameter of `neighbors`: no .t27 spelling. The
+//   allocator is plumbing the caller owns, so the decision inside
+//   `neighbors` (eight cells, each zeroed, each carrying the cell's level)
+//   is ported as the pure helper `neighbors_cells` over a fixed-capacity
+//   GeoCellList; the named function keeps its place with an `undefined;`
+//   body that no test calls.
+// - the ![]GeoCell error union of `neighbors`: no error unions in .t27; the
+//   helper returns the list directly and allocation failure is the caller's
+//   concern.
+// - the `for (0..8) |i|` range loop of `neighbors`: range loops do not
+//   compile; the fill is an eight-element array literal instead.
+// - the `defer` free of the returned slice in the neighbors test: memory
+//   management is the caller's; not ported.
+
+module port::trinity::src::tri::gen_geo_hash2d;
+
+pub const GeoCell = struct {
+    x: i64,
+    y: i64,
+    z: i64,
+    level: usize,
+};
+
+pub const LatLon = struct {
+    lat: f64,
+    lon: f64,
+};
+
+pub const GeoCellList = struct {
+    items: [8]GeoCell,
+    len: usize,
+};
+
+// Original encode: lat and lon are unused at this stage; the cell is zeroed
+// and carries only the level.
+pub fn encode(lat: f64, lon: f64, level: usize) GeoCell {
+    return .{ .x = 0, .y = 0, .z = 0, .level = level };
+}
+
+// Original decode: the cell is unused at this stage; lat and lon are zero.
+pub fn decode(cell: GeoCell) LatLon {
+    return .{ .lat = 0.0, .lon = 0.0 };
+}
+
+// Original neighbor: direction is unused at this stage; the cell is returned
+// unchanged whatever the direction byte says.
+pub fn neighbor(cell: GeoCell, direction: u8) GeoCell {
+    return cell;
+}
+
+// The decision inside the original `neighbors`: eight cells, each zeroed,
+// each carrying the input cell's level. Pure -- no allocator, no result
+// union; a caller with a real allocator fills its own buffer from this.
+pub fn neighbors_cells(cell: GeoCell) GeoCellList {
+    const items: [8]GeoCell = [encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level), encode(0.0, 0.0, cell.level)];
+    return .{ .items = items, .len = 8 };
+}
+
+// The named function keeps its place: the allocator is plumbing the caller
+// owns, so the body stays undefined and no test calls it.
+pub fn neighbors(cell: GeoCell, allocator: usize) GeoCellList {
+    undefined;
+}
+
+// Original test "geohash encode": the level survives the encode.
+test geohash_encode {
+    const cell = encode(37.77, -122.42, 5);
+    assert(cell.level == 5);
+    assert(cell.x == 0);
+    assert(cell.y == 0);
+    assert(cell.z == 0);
+}
+
+// The original zeroes the cell whatever the coordinates are.
+test geohash_encode_ignores_coordinates {
+    const a = encode(0.0, 0.0, 0);
+    const b = encode(-89.5, 179.9, 0);
+    assert(a.level == 0 and a.x == 0 and a.y == 0 and a.z == 0);
+    assert(b.level == 0 and b.x == 0 and b.y == 0 and b.z == 0);
+}
+
+// Original test "geohash decode": lat and lon come back zero.
+test geohash_decode {
+    const cell = GeoCell{ .x = 0, .y = 0, .z = 0, .level = 5 };
+    const ll = decode(cell);
+    assert(ll.lat == 0.0);
+    assert(ll.lon == 0.0);
+}
+
+// Original neighbor: the cell passes through unchanged for any direction.
+test geohash_neighbor_unchanged {
+    const cell = GeoCell{ .x = 3, .y = -4, .z = 7, .level = 2 };
+    const n0 = neighbor(cell, 0);
+    assert(n0.x == 3 and n0.y == -4 and n0.z == 7 and n0.level == 2);
+    const n7 = neighbor(cell, 7);
+    assert(n7.x == 3 and n7.y == -4 and n7.z == 7 and n7.level == 2);
+}
+
+// Original test "geohash neighbors": eight cells come back.
+test geohash_neighbors {
+    const cell = GeoCell{ .x = 0, .y = 0, .z = 0, .level = 3 };
+    const out = neighbors_cells(cell);
+    assert(out.len == 8);
+}
+
+// The eight cells are zeroed and each carries the input cell's level.
+test geohash_neighbors_carry_level {
+    const cell = GeoCell{ .x = 9, .y = 8, .z = 7, .level = 4 };
+    const out = neighbors_cells(cell);
+    var i: usize = 0;
+    while (i < out.len) {
+        assert(out.items[i].level == 4);
+        assert(out.items[i].x == 0 and out.items[i].y == 0 and out.items[i].z == 0);
+        i += 1;
+    }
+}

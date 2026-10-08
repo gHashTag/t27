@@ -29,12 +29,21 @@ pub const GE_PR_CLOSED : u8 = 7;
 pub const GE_COMMENT : u8 = 8;
 pub const GE_OTHER : u8 = 9;
 pub const APP_EVENTS : u8 = 10;
+/// The CI/CD events (#7834), appended after APP_EVENTS so that no earlier code moves: a supervisor
+/// built before them reads them as codes app_reaction ignores. ci_reaction is what answers them.
+///   CHECK_RERUN  a person pressed Re-run on the t27-bees check (check_run.rerequested)
+///   CI_DONE      a workflow run on a pull request finished (workflow_run.completed)
+///   MERGE_GROUP  a merge queue asks for the checks of its group (merge_group.checks_requested)
+pub const GE_CHECK_RERUN : u8 = 10;
+pub const GE_CI_DONE : u8 = 11;
+pub const GE_MERGE_GROUP : u8 = 12;
+pub const APP_EVENTS_CI : u8 = 13;
 
 /// The webhook as the supervisor hands it over: "<X-GitHub-Event>.<action>". Entry n of EVENT_PAIRS
 /// is GE code EVENT_CODES[n]. A reopened pull request is an opened one; a suspended installation is
 /// an uninstalled one until it is unsuspended. Anything not listed is GE_OTHER.
-pub const EVENT_PAIRS : str = "installation.created,installation.unsuspend,installation.deleted,installation.suspend,installation_repositories.added,installation_repositories.removed,pull_request.opened,pull_request.reopened,pull_request.synchronize,pull_request.ready_for_review,pull_request.closed,issue_comment.created,$";
-pub const EVENT_CODES : [12]u8 = [0, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8];
+pub const EVENT_PAIRS : str = "installation.created,installation.unsuspend,installation.deleted,installation.suspend,installation_repositories.added,installation_repositories.removed,pull_request.opened,pull_request.reopened,pull_request.synchronize,pull_request.ready_for_review,pull_request.closed,issue_comment.created,check_run.rerequested,workflow_run.completed,merge_group.checks_requested,$";
+pub const EVENT_CODES : [15]u8 = [0, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 10, 11, 12];
 
 /// What the Queen does about it.
 ///   REGISTER    remember the installation's repositories (they may now be served)
@@ -268,6 +277,77 @@ pub fn is_t27_path(path: []const u8, len: usize) -> bool {
     return true;
 }
 
+/// CI/CD (#7834). The review becomes a check run named CHECK_NAME on the pull request's head, so a
+/// branch rule can require it, GitHub's Re-run button asks for it again, and a merge queue gets it.
+/// What a supervisor of t27-bees subscribes to and asks for once it acts on ci_reaction. Until then
+/// tools/bees/manifest.json subscribes only pull_request and issue_comment: a workflow_run webhook from
+/// every CI run of every installed repository, read by a supervisor that ignores it, is load for nothing.
+pub const CHECK_NAME : str = "t27-bees review$";
+pub const APP_SUBSCRIBED_EVENTS : str = "pull_request,issue_comment,check_run,workflow_run,merge_group,$";
+pub const APP_PERMISSIONS : str = "pull_requests:write,issues:write,checks:write,actions:read,contents:read,metadata:read,$";
+
+/// What the Queen does about a CI/CD event.
+///   CHECK        review the head and post the result as the check run (a Re-run is asking again)
+///   TRIAGE       a CI run failed: read the failed jobs' logs and say whose failure it is
+///   MERGE_CHECK  post the check on the merge group from the verdict its heads already have
+///   QUOTA        the free tier is spent: say so on the check, review nothing
+///   IGNORE       nothing to do
+pub const CR_IGNORE : u8 = 0;
+pub const CR_CHECK : u8 = 1;
+pub const CR_TRIAGE : u8 = 2;
+pub const CR_MERGE_CHECK : u8 = 3;
+pub const CR_QUOTA : u8 = 4;
+
+/// The reaction to a CI/CD event; the arguments mean what they mean for app_reaction, and `ci_failed`
+/// is the workflow run's conclusion being failure. A triage is a model call, so it spends the free tier
+/// like a review, but a spent tier stays silent on it: a red run needs no second notice. A merge group
+/// check calls no model, so it is never bounded by the tier. A Re-run from a bot is ignored, as a
+/// comment from one is.
+pub fn ci_reaction(event: u8, from_a_bot: bool, served: bool, paused: bool, ci_failed: bool, reviews_left: u32) -> u8 {
+    if (served == false) { return CR_IGNORE; }
+    if (event == GE_MERGE_GROUP) { return CR_MERGE_CHECK; }
+    if (event == GE_CHECK_RERUN) {
+        if (from_a_bot) { return CR_IGNORE; }
+        if (paused) { return CR_IGNORE; }
+        if (reviews_left == 0) { return CR_QUOTA; }
+        return CR_CHECK;
+    }
+    if (event == GE_CI_DONE) {
+        if (ci_failed == false) { return CR_IGNORE; }
+        if (reviews_left == 0) { return CR_IGNORE; }
+        return CR_TRIAGE;
+    }
+    return CR_IGNORE;
+}
+
+/// The gate. What is checked decides it; what is opined never does. A changed .t27 file the compiler
+/// calls broken (compiler_verdict), or a spec whose tests passed without one runtime assert (a vacuous
+/// pass, read from the CI run's t27c test-report artifact, not run here), fails the check. The model's
+/// findings are annotations on a neutral check: an opinion that could block a merge is an opinion
+/// nobody can appeal. A diff too big to review (DEPTH_SUMMARY) is neutral too: unread is not passed.
+pub const CC_SUCCESS : u8 = 0;
+pub const CC_FAILURE : u8 = 1;
+pub const CC_NEUTRAL : u8 = 2;
+
+pub fn check_conclusion(broken_specs: u32, vacuous_specs: u32, findings: u32, depth: u8) -> u8 {
+    if (broken_specs > 0) { return CC_FAILURE; }
+    if (vacuous_specs > 0) { return CC_FAILURE; }
+    if (depth == DEPTH_SUMMARY) { return CC_NEUTRAL; }
+    if (findings > 0) { return CC_NEUTRAL; }
+    return CC_SUCCESS;
+}
+
+/// Whose failure a red CI run is. A job that is red on the base branch's head too did not fail because
+/// of this pull request: the triage says so and names the base run, instead of sending the author after
+/// someone else's bug (2026-10-08, t27b-native-ratchet: red on master, read as the PR's by hand).
+pub const TO_BASE : u8 = 0;
+pub const TO_PULL_REQUEST : u8 = 1;
+
+pub fn triage_owner(red_on_base_too: bool) -> u8 {
+    if (red_on_base_too) { return TO_BASE; }
+    return TO_PULL_REQUEST;
+}
+
 /// What `@t27-bees help` answers, one line per command, in C_REVIEW .. C_RESUME order.
 pub const COMMAND_HELP : [5]str = [
     "review -- review this pull request's head again, even if it was reviewed",
@@ -400,6 +480,77 @@ test only_a_t27_file_goes_to_the_compiler {
     assert is_t27_path("README.md", 9) == false;
     // the length bounds the read: the first 19 bytes of a longer name are the path
     assert is_t27_path("specs/queen/app.t27.md", 19) == true;
+}
+
+test the_ci_events_are_read_by_their_event_and_action {
+    assert app_event_of("check_run.rerequested", 21, false) == GE_CHECK_RERUN;
+    assert app_event_of("workflow_run.completed", 22, false) == GE_CI_DONE;
+    assert app_event_of("merge_group.checks_requested", 28, false) == GE_MERGE_GROUP;
+    // the actions the Queen does not act on are other
+    assert app_event_of("check_run.created", 17, false) == GE_OTHER;
+    assert app_event_of("workflow_run.requested", 22, false) == GE_OTHER;
+    assert app_event_of("merge_group.destroyed", 21, false) == GE_OTHER;
+}
+
+test a_supervisor_from_before_ci_ignores_the_ci_events {
+    assert app_reaction(GE_CHECK_RERUN, false, true, false, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_CI_DONE, false, true, false, false, 5) == AR_IGNORE;
+    assert app_reaction(GE_MERGE_GROUP, false, true, false, false, 5) == AR_IGNORE;
+}
+
+test a_rerun_is_a_review_asked_again {
+    assert ci_reaction(GE_CHECK_RERUN, false, true, false, false, 5) == CR_CHECK;
+    assert ci_reaction(GE_CHECK_RERUN, false, true, false, false, 0) == CR_QUOTA;
+    assert ci_reaction(GE_CHECK_RERUN, false, true, true, false, 5) == CR_IGNORE;
+    assert ci_reaction(GE_CHECK_RERUN, true, true, false, false, 5) == CR_IGNORE;
+    assert ci_reaction(GE_CHECK_RERUN, false, false, false, false, 5) == CR_IGNORE;
+    // a re-run is the same review: review_wanted lets a head be reviewed again when asked
+    assert review_wanted(true, true) == true;
+}
+
+test a_red_run_is_triaged_and_a_green_one_is_not {
+    assert ci_reaction(GE_CI_DONE, false, true, false, true, 5) == CR_TRIAGE;
+    assert ci_reaction(GE_CI_DONE, true, true, false, true, 5) == CR_TRIAGE;
+    assert ci_reaction(GE_CI_DONE, false, true, false, false, 5) == CR_IGNORE;
+    // a spent tier stays silent on a red run, and a stranger repository is never read
+    assert ci_reaction(GE_CI_DONE, false, true, false, true, 0) == CR_IGNORE;
+    assert ci_reaction(GE_CI_DONE, false, false, false, true, 5) == CR_IGNORE;
+}
+
+test a_merge_group_is_checked_without_a_model_call {
+    assert ci_reaction(GE_MERGE_GROUP, false, true, false, false, 0) == CR_MERGE_CHECK;
+    assert ci_reaction(GE_MERGE_GROUP, true, true, true, false, 0) == CR_MERGE_CHECK;
+    assert ci_reaction(GE_MERGE_GROUP, false, false, false, false, 5) == CR_IGNORE;
+    // events that are not CI/CD events have no CI reaction
+    assert ci_reaction(GE_PR_OPENED, false, true, false, false, 5) == CR_IGNORE;
+    assert ci_reaction(GE_OTHER, false, true, false, true, 5) == CR_IGNORE;
+}
+
+test checked_facts_gate_and_opinions_annotate {
+    assert check_conclusion(0, 0, 0, DEPTH_FULL) == CC_SUCCESS;
+    assert check_conclusion(1, 0, 0, DEPTH_FULL) == CC_FAILURE;
+    assert check_conclusion(0, 2, 0, DEPTH_FULL) == CC_FAILURE;
+    // the model's findings never fail the gate
+    assert check_conclusion(0, 0, 7, DEPTH_FULL) == CC_NEUTRAL;
+    // unread is not passed, but a broken spec still fails a diff too big to read
+    assert check_conclusion(0, 0, 0, DEPTH_SUMMARY) == CC_NEUTRAL;
+    assert check_conclusion(1, 0, 0, DEPTH_SUMMARY) == CC_FAILURE;
+    // the compiler verdict is what counts a spec as broken
+    assert compiler_verdict(true, 0, 3) == V_BROKEN;
+}
+
+test a_failure_red_on_the_base_is_not_the_pull_requests {
+    assert triage_owner(true) == TO_BASE;
+    assert triage_owner(false) == TO_PULL_REQUEST;
+}
+
+invariant the_ci_codes_never_move_either {
+    assert GE_CHECK_RERUN == APP_EVENTS and GE_CI_DONE == 11 and GE_MERGE_GROUP == 12;
+    assert APP_EVENTS_CI == 13;
+    assert EVENT_CODES[12] == GE_CHECK_RERUN and EVENT_CODES[14] == GE_MERGE_GROUP;
+    assert CR_IGNORE == 0 and CR_CHECK == 1 and CR_TRIAGE == 2 and CR_MERGE_CHECK == 3 and CR_QUOTA == 4;
+    assert CC_SUCCESS == 0 and CC_FAILURE == 1 and CC_NEUTRAL == 2;
+    assert TO_BASE == 0 and TO_PULL_REQUEST == 1;
 }
 
 invariant every_event_pair_has_a_code {
