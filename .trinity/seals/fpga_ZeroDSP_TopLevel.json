@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:4936f6b2f6fdf2869e8d428ab6c9c2a9e0aba9137076e526910a84ee5f1bc81f",
+  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "gen_hash_c": "sha256:1ef3a3a46c18846c0b7726f5c66e21c2a142acf6de2e3a04b470b412623b7f59",
   "gen_hash_rust": "sha256:8dabd086482b3326b2f5818978e19bb0fb466baa086451c261206c50e257399f",
   "gen_hash_verilog": "sha256:22682a83cac468e6535808fb5b50057a6d36de661d3c0e634e6cf4598f733abf",
-  "gen_hash_zig": "sha256:195a1adfef5838aa619f67c492c41d46f9d86463a426b84cdc1e36d2aa848db8",
+  "gen_hash_zig": "sha256:fbbe179dc53dcacc9033e7f9bc7c309c4cf8edaf877605022cfe4625dcd32f65",
   "module": "ZeroDSP_TopLevel",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:53:16Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:9b1669a9fbbab754801ecbb2df762d8e02f5ea56e874faa03ef5092f24f45941",
+  "sealed_at": "2026-10-08T12:31:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:e4f761f7f844035f09927d70e0c77f09ce539102e94ce2d50ebcea0a07776ce8",
   "spec_path": "specs/fpga/top_level.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-top_level-3574/spec.zig:46:35: error: unable to resolve comptime value"
+    "blocked": "does not compile: spec.zig:46:35: error: unable to resolve comptime value"
   }
 }
