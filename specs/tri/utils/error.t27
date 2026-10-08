@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
-// Convert error to exit code (1-9) | φ² + 1/φ² = 3 | TRINITY
+// | | φ² + 1/φ² = 3 | TRINITY
 
-module TriError;
+module TriUtilsError;
     use base::types;
     use math::constants;
 
@@ -10,11 +10,62 @@ module TriError;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const TriError = struct {
-        enum : ,
+    // Exit codes 1-9 for the TRI CLI's error domain. The field names below
+    // are Zig keywords on purpose: gHashTag/t27#2631 — the Zig codegen must
+    // quote keyword-shaped identifiers with @"keyword" so the generated
+    // module compiles. The backing type u8 stays unquoted.
+    pub const Code = enum(u8) {
+        error = 1,
+        fn = 2,
+        union = 3,
+        type = 4,
     };
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Helpers
+    // ═══════════════════════════════════════════════════════════
+
+    // Clamp a raw error number onto the 1-9 exit-code range. The parameter
+    // is named after the Zig keyword `error` to exercise the binding-position
+    // quoting path; the locals reuse keyword spellings across assignments.
+    fn to_exit_code(error: u8) -> u8 {
+        const union = error;
+        if (union > 9) {
+            return 9;
+        }
+        return union;
+    }
+
+    // Range check for a raw error value. `union` is unused on purpose: the
+    // codegen discards unused parameters with the same spelling as the
+    // parameter name (gHashTag/t27#2631).
+    fn in_range(error: u8, union: u8) -> u8 {
+        if (error > 9) {
+            return 0;
+        }
+        return 1;
+    }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test "clamps_to_nine" {
+        assert(to_exit_code(50) == 9);
+    }
+
+    test "in_range_low" {
+        assert(in_range(1, 9) == 1);
+    }
+
+    test "in_range_high" {
+        assert(in_range(10, 9) == 0);
+    }
+
+    test "code_error_is_one" {
+        assert(to_exit_code(@intFromEnum(Code.error)) == 1);
+    }
+
+    test "code_union_is_three" {
+        assert(to_exit_code(@intFromEnum(Code.union)) == 3);
+    }
