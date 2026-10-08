@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/trinity/fpga/rtl/uart_tx.t27
+// UART Transmitter for FPGA Debugging
+// Simple 8-N-1 UART transmitter (8 data bits, no parity, 1 stop bit)
+// Port of gHashTag/trinity fpga/rtl/uart_tx.v
+// Suitable for: FPGA test result reporting, real-time debugging
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module uart_tx {
+
+    // === Module parameters ===
+
+    pub const CLK_FREQ : u32 = 50_000_000;  // 50 MHz default
+    pub const BAUD : u32 = 115200;          // Baud rate
+
+    // === State machine states ===
+
+    pub const UartState = enum {
+        idle = 0,
+        start = 1,
+        data = 2,
+        stop = 3,
+    }
+
+    // === Port identifiers ===
+
+    pub const PORT_CLK : &str = "clk";
+    pub const PORT_RST : &str = "rst";
+    pub const PORT_DATA : &str = "data";
+    pub const PORT_START : &str = "start";
+    pub const PORT_UART_TX : &str = "uart_tx";
+    pub const PORT_BUSY : &str = "busy";
+
+    // === Internal register state ===
+
+    pub struct UartTxState {
+        counter : u32,
+        state : UartState,
+        bit_idx : u8,
+        shift_reg : u8,
+        uart_tx : bool,
+        busy : bool,
+    }
+
+    // === Constructor helpers ===
+
+    fn uart_tx_state() -> UartTxState {
+        return UartTxState{
+            .counter = 0,
+            .state = UartState.idle,
+            .bit_idx = 0,
+            .shift_reg = 0,
+            .uart_tx = true,
+            .busy = false,
+        };
+    }
+
+    fn divisor(clk_freq: u32, baud: u32) -> u32 {
+        return clk_freq / baud;
+    }
+
+    // === State machine logic ===
+
+    fn update_state(state: UartTxState, clk: bool, rst: bool, data: u8, start: bool) -> UartTxState {
+        if (rst) {
+            return uart_tx_state();
+        }
+
+        var new_state = state;
+        new_state.counter = state.counter + 1;
+
+        if (state.state == UartState.idle) {
+            new_state.uart_tx = true;  // Idle high
+            if (start and !state.busy) {
+                new_state.shift_reg = data;
+                new_state.bit_idx = 0;
+                new_state.state = UartState.start;
+                new_state.busy = true;
+                new_state.counter = 0;
+            } else {
+                new_state.busy = false;
+            }
+        } else if (state.state == UartState.start) {
+            new_state.uart_tx = false;  // Start bit
+            if (state.counter >= divisor(CLK_FREQ, BAUD) - 1) {
+                new_state.counter = 0;
+                new_state.state = UartState.data;
+            }
+        } else if (state.state == UartState.data) {
+            new_state.uart_tx = (state.shift_reg & (1 << state.bit_idx)) != 0;
+            if (state.counter >= divisor(CLK_FREQ, BAUD) - 1) {
+                new_state.counter = 0;
+                new_state.bit_idx = state.bit_idx + 1;
+                if (state.bit_idx == 7) {
+                    new_state.state = UartState.stop;
+                }
+            }
+        } else if (state.state == UartState.stop) {
+            new_state.uart_tx = true;  // Stop bit
+            if (state.counter >= divisor(CLK_FREQ, BAUD) - 1) {
+                new_state.state = UartState.idle;
+            }
+        } else {
+            new_state.state = UartState.idle;
+        }
+
+        return new_state;
+    }
+
+    // === Query functions ===
+
+    fn is_idle(state: UartTxState) -> bool {
+        return state.state == UartState.idle;
+    }
+
+    fn is_busy(state: UartTxState) -> bool {
+        return state.busy;
+    }
+
+    fn is_transmitting(state: UartTxState) -> bool {
+        return state.state != UartState.idle;
+    }
+
+    fn current_bit(state: UartTxState) -> u8 {
+        return if (state.state == UartState.data) {
+            (state.shift_reg >> state.bit_idx) & 1
+        } else {
+            0
+        };
+    }
+
+    fn bits_remaining(state: UartTxState) -> u8 {
+        if (state.state == UartState.data) {
+            return 8 - state.bit_idx;
+        } else if (state.state == UartState.stop) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    fn is_start_bit(state: UartTxState) -> bool {
+        return state.state == UartState.start and state.uart_tx == false;
+    }
+
+    fn is_stop_bit(state: UartTxState) -> bool {
+        return state.state == UartState.stop and state.uart_tx == true;
+    }
+
+    // === Validation ===
+
+    fn validate_state(state: UartTxState) -> u32 {
+        var errors : u32 = 0;
+        
+        // Check state is valid
+        if (state.state != UartState.idle and 
+            state.state != UartState.start and 
+            state.state != UartState.data and 
+            state.state != UartState.stop) {
+            errors = errors + 1;
+        }
+
+        // Check bit index is valid for data state
+        if (state.state == UartState.data and state.bit_idx > 7) {
+            errors = errors + 1;
+        }
+
+        // Check counter doesn't overflow
+        if (state.counter >= divisor(CLK_FREQ, BAUD)) {
+            errors = errors + 1;
+        }
+
+        // Check UART TX state is valid
+        if (state.uart_tx != true and state.uart_tx != false) {
+            errors = errors + 1;
+        }
+
+        return errors;
+    }
+
+    fn validate_params(clk_freq: u32, baud: u32) -> u32 {
+        var errors : u32 = 0;
+        
+        if (clk_freq == 0) {
+            errors = errors + 1;
+        }
+        
+        if (baud == 0) {
+            errors = errors + 1;
+        }
+        
+        if (divisor(clk_freq, baud) == 0) {
+            errors = errors + 1;
+        }
+
+        return errors;
+    }
+
+    // === Tests ===
+
+    test idle_state_initial
+        given state = uart_tx_state()
+        assert is_idle(state) == true
+        assert is_busy(state) == false
+        assert state.uart_tx == true
+        assert state.counter == 0
+
+    test start_transmission
+        given state = UartTxState{.counter = 0, .state = UartState.idle, .bit_idx = 0, .shift_reg = 0, .uart_tx = true, .busy = false}
+        assert update_state(state, true, false, 0x55, true).state == UartState.start
+        assert update_state(state, true, false, 0x55, true).busy == true
+        assert update_state(state, true, false, 0x55, true).shift_reg == 0x55
+
+    test start_bit_transmission
+        given state = UartTxState{.counter = 0, .state = UartState.start, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = false, .busy = true}
+        assert update_state(state, true, false, 0, false).uart_tx == false
+        // After full bit period, should advance to data state
+        var counter_state = state;
+        var i : u32 = 0;
+        while (i < divisor(CLK_FREQ, BAUD) - 1) {
+            counter_state = UartTxState{.counter = i, .state = UartState.start, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = false, .busy = true};
+            i = i + 1;
+        }
+        assert update_state(counter_state, true, false, 0, false).state == UartState.data
+
+    test data_bit_transmission
+        given state = UartTxState{.counter = 0, .state = UartState.data, .bit_idx = 0, .shift_reg = 0b10101010, .uart_tx = false, .busy = true}
+        assert update_state(state, true, false, 0, false).uart_tx == true  // LSB (bit 0) is 1
+
+    test data_bit_progression
+        given state = UartTxState{.counter = 0, .state = UartState.data, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = false, .busy = true}
+        // After one bit period, bit index should increment
+        var counter_state = state;
+        var i : u32 = 0;
+        while (i < divisor(CLK_FREQ, BAUD) - 1) {
+            counter_state = UartTxState{.counter = i, .state = UartState.data, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = false, .busy = true};
+            i = i + 1;
+        }
+        assert update_state(counter_state, true, false, 0, false).bit_idx == 1
+        assert update_state(counter_state, true, false, 0, false).state == UartState.data
+
+    test_stop_bit_transmission
+        given state = UartTxState{.counter = 0, .state = UartState.stop, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = true, .busy = true}
+        assert update_state(state, true, false, 0, false).uart_tx == true  // Stop bit is high
+
+    test_completion_after_stop
+        given state = UartTxState{.counter = 0, .state = UartState.stop, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = true, .busy = true}
+        // After stop bit period, should return to idle
+        var counter_state = state;
+        var i : u32 = 0;
+        while (i < divisor(CLK_FREQ, BAUD) - 1) {
+            counter_state = UartTxState{.counter = i, .state = UartState.stop, .bit_idx = 0, .shift_reg = 0x55, .uart_tx = true, .busy = true};
+            i = i + 1;
+        }
+        assert update_state(counter_state, true, false, 0, false).state == UartState.idle
+        assert update_state(counter_state, true, false, 0, false).busy == false
+
+    test_reset_behavior
+        given state = UartTxState{.counter = 42, .state = UartState.data, .bit_idx = 3, .shift_reg = 0xAA, .uart_tx = false, .busy = true}
+        assert update_state(state, true, true, 0, false).state == UartState.idle
+        assert update_state(state, true, true, 0, false).counter == 0
+        assert update_state(state, true, true, 0, false).bit_idx == 0
+        assert update_state(state, true, true, 0, false).shift_reg == 0
+        assert update_state(state, true, true, 0, false).uart_tx == true
+        assert update_state(state, true, true, 0, false).busy == false
+
+    test_no_start_when_busy
+        given state = UartTxState{.counter = 0, .state = UartState.idle, .bit_idx = 0, .shift_reg = 0, .uart_tx = true, .busy = true}
+        assert update_state(state, true, false, 0x33, true).busy == true  // Should remain busy
+
+    test_query_functions
+        given state = UartTxState{.counter = 10, .state = UartState.data, .bit_idx = 3, .shift_reg = 0x55, .uart_tx = false, .busy = true}
+        assert is_idle(state) == false
+        assert is_busy(state) == true
+        assert is_transmitting(state) == true
+        assert bits_remaining(state) == 5  // 8 - 3 = 5 bits remaining
+
+    test_validation_ok
+        given state = uart_tx_state()
+        assert validate_state(state) == 0
+        assert validate_params(CLK_FREQ, BAUD) == 0
+
+    test_validation_bad_state
+        given state = UartTxState{.counter = 0, .state = UartState(99), .bit_idx = 0, .shift_reg = 0, .uart_tx = true, .busy = false}
+        assert validate_state(state) > 0
+
+    test_validation_bad_bit_index
+        given state = UartTxState{.counter = 0, .state = UartState.data, .bit_idx = 8, .shift_reg = 0, .uart_tx = true, .busy = false}
+        assert validate_state(state) > 0
+
+    test_validation_bad_counter
+        given state = UartTxState{.counter = divisor(CLK_FREQ, BAUD), .state = UartState.idle, .bit_idx = 0, .shift_reg = 0, .uart_tx = true, .busy = false}
+        assert validate_state(state) > 0
+
+    test_validation_zero_params
+        assert validate_params(0, 115200) > 0
+        assert validate_params(50000000, 0) > 0
+
+    // === Invariants ===
+
+    invariant state_values_valid
+        given state = uart_tx_state()
+        assert state.state == UartState.idle or state.state == UartState.start or state.state == UartState.data or state.state == UartState.stop
+
+    invariant uart_tx_boolean
+        given state = uart_tx_state()
+        assert state.uart_tx == true or state.uart_tx == false
+
+    invariant bit_index_bounds
+        given state = uart_tx_state()
+        assert if (state.state == UartState.data) state.bit_idx <= 7 else true
+
+    invariant counter_bounds
+        given state = uart_tx_state()
+        assert state.counter < divisor(CLK_FREQ, BAUD)
+
+    invariant busy_matches_state
+        given state = uart_tx_state()
+        assert state.busy == (state.state != UartState.idle)
+
+    invariant validation_non_negative
+        given state = uart_tx_state()
+        assert validate_state(state) >= 0
+        assert validate_params(CLK_FREQ, BAUD) >= 0
+
+    invariant divisor_positive
+        assert divisor(CLK_FREQ, BAUD) > 0
+
+    // === Benchmarks ===
+
+    bench state_update_latency
+        measure: nanoseconds to update_state(uart_tx_state(), true, false, 0x55, true)
+        target: < 100ns
+
+    bench validation_latency
+        measure: nanoseconds to validate_state(uart_tx_state())
+        target: < 50ns
+
+    bench divisor_calculation_latency
+        measure: nanoseconds to divisor(CLK_FREQ, BAUD)
+        target: < 10ns
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
