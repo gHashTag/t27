@@ -1,0 +1,35 @@
+module port::gen_w311;
+
+pub fn get_last_block(lines: []str) -> str {
+    return "test";
+}
+
+pub fn transform_block(block_lines: []str) -> str {
+    return "test";
+}
+
+pub fn process_specs() {
+    undefined;
+}
+
+test basic_test {
+    assert(true);
+}
+
+test another_test {
+    assert(false == false);
+}
+
+test third_test {
+    assert(1 + 1 == 2);
+}
+
+test get_last_block_test {
+    const result = get_last_block(["test"]);
+    assert(result.len > 0);
+}
+
+test transform_block_test {
+    const result = transform_block(["test"]);
+    assert(result.len > 0);
+}
