@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+e54d02d08",
-  "gen_hash_c": "sha256:5ccd5e9f224d814965bc2b01b00f814972e3d6b1070d51d4bda1ddea53be3072",
-  "gen_hash_rust": "sha256:a4fada255a13eac800e2095caf0f56b64e3e5c1cfeb642b4a30fbb63a0abd598",
-  "gen_hash_verilog": "sha256:cf039bfdf4cee6f3bf15df58db1cd194349e219fda3ce8bb16e1def303c6652a",
-  "gen_hash_zig": "sha256:030a662c025e622eaa97820fb8e477c6784177677d80415e6a84cdd7619c5d3a",
+  "built_by": "t27c-bootstrap@0.5.1+5263bba",
+  "gen_hash_c": "sha256:db362c746537e9624a5ca42738c2b78e2f051ccd40b3a15675b7a082ecf87d07",
+  "gen_hash_rust": "sha256:f774d15ca565893fb8f5278ab3f807299c163ea522f493e13de32635f6d310dd",
+  "gen_hash_verilog": "sha256:70bb792bd84a5a444733950019d85352c275e3080e3e1a360e11714a4dade250",
+  "gen_hash_zig": "sha256:fe845dcd92b49abf907f01ea863cbcfa7b45ccda626983fcdb4d2a2196d2600e",
   "module": "automation::bot_topic_tabs",
   "ring": 12,
-  "sealed_at": "2026-10-07T09:59:30Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:a268a7499959425937f9f3afa6848cc855493332bb281a31c2db0f10a0a7c14b",
+  "sealed_at": "2026-10-08T16:06:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:bc4cc9e8d1eafec45e8397c55a42c39cdfc91f07920d6f4e77364152f65948b4",
   "spec_path": "specs/automation/bot-topic-tabs.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 12,
-    "total": 12
+    "passed": 14,
+    "total": 14
   }
 }

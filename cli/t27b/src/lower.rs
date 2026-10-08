@@ -105,6 +105,14 @@ mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numer
 mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
 #[path = "../../../gen/rust/tri/t27b/scaffold_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input()`, which the reference never calls
+#[path = "../../../gen/rust/tri/t27b/empty_lit_plan.rs"] #[allow(dead_code, unused_parens)]
+mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its result type
+#[path = "../../../gen/rust/tri/t27b/frame_store_plan.rs"] #[allow(dead_code, unused_parens)]
+mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
+#[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
+#[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
+mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
 mod refvars;
 mod tuple;
 
@@ -291,6 +299,8 @@ struct Lower<'a> {
     leaky: HashMap<usize, String>,
     /// Each module-level `var` that lowered: its writable place.
     mod_vars: HashMap<String, Place>,
+    /// Module `var` names a top-level local of this body may take (`shadow_names`).
+    shadow_ok: HashSet<String>,
     /// Initial bytes of each module-level `var` (`Program::globals`).
     globals_init: Vec<Vec<u8>>,
     /// The global of each array type and value a `slice_lit` interned.
@@ -301,6 +311,11 @@ struct Lower<'a> {
     /// Module memory whose initial value holds a string's address, which has no image before the
     /// program is loaded: every test, invariant and bench starts by writing it (`block_body`).
     str_globals: Vec<(Place, Val)>,
+    /// Set while `lvalue` builds a place to store to or take the address
+    /// of: a slice element it reaches is a write (`slice_write`, #7765).
+    writing: bool,
+    /// The write check's log: (STATIC or WRITE, element type, line).
+    lit_log: Vec<(u8, String, u32)>,
     /// Lowering what t27c's Zig backend evaluates at compile time (an
     /// `invariant`, which it emits as a `comptime` block, or a module-level
     /// initializer): a module-level `var` is not visible there.
@@ -421,6 +436,7 @@ struct Lower<'a> {
     /// `*` expressions (by address) that t27c's strength reduction may rewrite
     /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
     shifted_muls: HashSet<usize>,
+    lit_consts: HashSet<String>, // this fn's locals t27c's optimizer replaces by their literal (bit_cast_plan.t27)
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -475,10 +491,13 @@ fn lower_mode<'a>(
         var_nodes: Vec::new(),
         leaky: HashMap::new(),
         mod_vars: HashMap::new(),
+        shadow_ok: HashSet::new(),
         globals_init: Vec::new(),
         statics: HashMap::new(),
         fns: HashMap::new(), scaffold: HashMap::new(),
         str_globals: Vec::new(),
+        writing: false,
+        lit_log: Vec::new(),
         comptime: false,
         struct_nodes: HashMap::new(),
         structs: Vec::new(),
@@ -529,6 +548,7 @@ fn lower_mode<'a>(
         tail_returns: HashSet::new(),
         misprinted_if: HashSet::new(),
         shifted_muls: HashSet::new(),
+        lit_consts: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -774,6 +794,7 @@ fn lower_mode<'a>(
             _ => {}
         }
     }
+    l.literal_writes();
     if !l.errors.is_empty() {
         return Err(l.errors);
     }
@@ -1375,10 +1396,10 @@ impl<'a> Lower<'a> {
     }
 
     /// A local, assigned parameter or capture with the name of a module-level
-    /// var. In a test the reference's Zig refuses it ("local variable shadows
-    /// declaration"); in a fn it renames the local to `<name>_lv` for every
-    /// mention in the fn, including the ones meant for the module var. Either
-    /// way there is no reference verdict to match, so t27b refuses it.
+    /// var. The reference renames it to `<name>_lv` in every mention in the
+    /// body (W736, #6295); `local` lets through the cases where that agrees
+    /// with t27 scoping (`shadow_names`). Otherwise there is no reference
+    /// verdict to match, so t27b refuses it.
     fn no_var_shadow(&mut self, name: &str) -> R<()> {
         if self.mod_vars.contains_key(name) {
             return self.reject(
@@ -1529,6 +1550,7 @@ impl<'a> Lower<'a> {
         self.tuple_locals.clear();
         self.dead_lits.clear();
         self.discards.clear();
+        self.shadow_ok = shadow_names(body, &self.mod_vars);
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -1626,6 +1648,8 @@ impl<'a> Lower<'a> {
         self.enter_float_names(n);
         self.in_test = false;
         self.unanalyzed_fn = !self.analyzed.contains(&n.name);
+        let lits = n.children.iter().filter(|s| s.kind == NodeKind::StmtLocal && !s.extra_mutable && s.children.len() == 1);
+        self.lit_consts = lits.filter(|s| s.children[0].kind == NodeKind::ExprLiteral && bc::reads_as_int(s.children[0].value.trim().as_bytes())).map(|s| s.name.clone()).collect();
         let (params, ret, poisoned) = {
             let s = &self.sigs[&n.name];
             (s.params.clone(), s.ret.clone(), s.poisoned)
@@ -1650,6 +1674,7 @@ impl<'a> Lower<'a> {
         }
         let nparams = self.vars.len();
         let mut body = Vec::new();
+        n.params.iter().for_each(|(p, _)| { self.shadow_ok.remove(p); });
         for (pname, _) in n.params.iter() {
             // The reference renames a parameter that shadows a module-level
             // declaration (`x_arg`), except one the body assigns: that one
@@ -2237,7 +2262,9 @@ impl<'a> Lower<'a> {
         if name.is_empty() || name.contains(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
             return self.reject("StmtLocal", format!("binding `{}`", name));
         }
-        self.no_var_shadow(&name)?;
+        if !(self.scopes.len() == 1 && !self.comptime && self.shadow_ok.contains(&name)) {
+            self.no_var_shadow(&name)?;
+        }
         let ann = n.extra_type.trim().to_string();
         // The Zig backend's `zig_declared_int_type`: only these spellings
         // pin `1 << n` in the initializer (not an alias that resolves to one).
@@ -2491,6 +2518,11 @@ impl<'a> Lower<'a> {
         let target = &n.children[0];
         let op = n.extra_op.as_str();
         if matches!(target.kind, NodeKind::ExprFieldAccess | NodeKind::ExprIndex) {
+            // #7735: this frame's address, stored where the caller reads it after the return.
+            let x = self.frame_addr(&n.children[1]);
+            if fsp::refuses(self.in_test, !self.unanalyzed_fn, x.is_some(), self.param_root(target)) {
+                return self.reject(fsp::what(), format!("the address of `{}`, {}", x.unwrap_or_default(), fsp::why()));
+            }
             let dst = self.lvalue(target)?;
             return self.store(dst, op, &n.children[1], out);
         }
@@ -2890,6 +2922,18 @@ impl<'a> Lower<'a> {
         (held && matches!(p.addr.kind, ExprKind::Slot(_))).then(|| b.name.clone())
     }
 
+    /// Whether assignment target `t` is reached through a parameter of pointer or slice type (#7735).
+    fn param_root(&self, mut t: &Node) -> bool {
+        while matches!(t.kind, NodeKind::ExprFieldAccess | NodeKind::ExprIndex) && !t.children.is_empty() {
+            t = &t.children[0];
+        }
+        t.kind == NodeKind::ExprIdentifier && self.discards.contains_key(&t.name) && match self.lookup(&t.name) {
+            Some(Binding::Var { id, .. }) => matches!(self.ltys[id as usize], LTy::Ptr(..)),
+            Some(Binding::Mem(p)) => matches!(p.ty, LTy::Ptr(..) | LTy::Slice(..)),
+            _ => false,
+        }
+    }
+
     /// An expression statement whose value nothing uses, and which is
     /// neither a tail the reference returns (`tail_returns`) nor a brace
     /// invariant's predicate (`invariant_preds`): a bare comparison, a value
@@ -3121,7 +3165,7 @@ impl<'a> Lower<'a> {
         }
         let mut args = Vec::new();
         for (i, a) in c.children.iter().enumerate() {
-            let v = self.arg_as(a, &params[i])?;
+            let v = if is_undefined(a) && !self.is_void(&params[i]) { self.undefined_arg(c, i, a, &params[i])? } else { self.arg_as(a, &params[i])? };
             args.push(match v {
                 // By reference; the callee never writes it.
                 Val::M(p) => addr_of(&p),
@@ -3146,6 +3190,25 @@ impl<'a> Lower<'a> {
             Some(t) => reg_ty(t).unwrap(),
         };
         Ok((Expr { ty, kind: ExprKind::Call { func: id, args } }, ret, temp))
+    }
+
+    /// `f(undefined)` for a parameter that is not `void` (specs/tri/t27b/undefined_arg_plan.t27): the call runs and
+    /// the argument is a value of the parameter's type that nobody reads, or the plan's refusal.
+    fn undefined_arg(&mut self, c: &Node, i: usize, a: &Node, t: &LTy) -> R<Val> {
+        let p = self.fns.get(&c.name).and_then(|f| f.params.get(i).map(|(p, _)| (p.clone(), name_mentions(&f.children, p) > 0)));
+        let act = ua::plan(p.is_some(), p.as_ref().is_some_and(|p| p.1), is_agg(t));
+        if !ua::takes(act) && !ua::refuses(act) {
+            return self.arg_as(a, t);
+        }
+        self.see(a);
+        if ua::refuses(act) {
+            return self.reject(ua::what(act), format!("`{}` of `{}`: {}", p.map_or(String::new(), |p| p.0), c.name, ua::why(act)));
+        }
+        if act == ua::UNREAD_MEMORY {
+            let k = self.new_slot(t)?;
+            return Ok(Val::M(Place { addr: slot_expr(k), off: 0, ty: t.clone(), mutable: false, temp: None }));
+        }
+        Ok(val_of(Expr { ty: reg_ty(t).unwrap_or(Ty::Ptr), kind: ExprKind::Const(0) }, t))
     }
 
     // ----------------------------------------------------------- expressions
@@ -3447,6 +3510,7 @@ impl<'a> Lower<'a> {
                 self.unary(&op, v)
             }
             NodeKind::ExprCall if n.name == "@intFromEnum" => self.int_from_enum(n, TagUse::Value),
+            NodeKind::ExprCall if n.name == "@intFromBool" => self.bit_cast(n, Ty::UN(1)),
             NodeKind::ExprCall if n.name == "@floatFromInt" || n.name == "@intFromFloat" || n.name == "@floatCast" => {
                 self.reject(&format!("ExprCall({})", n.name), "with no result type".into())
             }
@@ -3711,8 +3775,10 @@ impl<'a> Lower<'a> {
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
         let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
-        let v = if n.children.len() == 1 { self.expr(&n.children[0])? } else { Val::Poison };
+        let t = xp::takes_type(b) && n.children.len() == 1; // `std.math.nan(f32)`: its routine takes no argument
+        let v = if n.children.len() == 1 && !t { self.expr(&n.children[0])? } else { Val::Poison };
         let k = match &v {
+            _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
             Val::Poison if n.children.len() == 1 => return Err(()),
             Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
             Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
@@ -3720,10 +3786,36 @@ impl<'a> Lower<'a> {
             _ => xp::K_OTHER,
         };
         let a = xp::plan(b, n.children.len(), k);
-        match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| s.id)) {
-            (Val::E(e), Some(func)) => Ok(Val::E(Expr { ty: e.ty, kind: ExprKind::Call { func, args: vec![self.reg(Val::E(e))?] } })),
+        match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
+            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args: if t { vec![] } else { vec![self.reg(v)?] } } })),
             _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),
         }
+    }
+
+    /// `@bitCast(x)` with scalar result type `ty`, and `@intFromBool(x)` (`ty` u1), as specs/tri/t27b/bit_cast_plan.t27 says.
+    fn bit_cast(&mut self, n: &Node, ty: Ty) -> R<Val> {
+        self.see(n);
+        let v = if n.children.len() == 1 { self.expr(&n.children[0])? } else { Val::Poison };
+        let code = |t: Ty| bc::code(t == Ty::Bool, t.is_float(), t.signed());
+        let (from, bits, c) = match &v {
+            Val::Poison if n.children.len() == 1 => return Err(()),
+            Val::E(e) => (code(e.ty), e.ty.bits(), if let ExprKind::Const(c) = e.kind { Some(c) } else { None }),
+            v => (if matches!(v, Val::Ct(_) | Val::Cf(..)) { bc::T_LITERAL } else { bc::T_OTHER }, 0, None),
+        };
+        let inl = !self.in_test && n.children.first().is_some_and(|c| c.kind == NodeKind::ExprIdentifier && self.lit_consts.contains(&c.name));
+        let a = bc::plan(n.name == "@intFromBool", n.children.len(), from, bits, code(ty), ty.bits(), c.is_some(), inl);
+        let slot = if a == bc::VIA_SLOT { self.new_slot(&LTy::S(ty))? } else { 0 };
+        let d = if let Val::E(e) = &v { e.ty.name().to_string() } else { self.val_desc(&v) };
+        let kind = match (a, v) {
+            (bc::KEEP, v) => return Ok(v),
+            (bc::FOLD, _) => ExprKind::Const(ty.wrap(c.unwrap_or(0))),
+            (bc::WIDEN, Val::E(e)) => ExprKind::Widen(Box::new(e)),
+            (bc::WRAP, Val::E(e)) => ExprKind::Cast { arg: Box::new(e), site: 0 },
+            (bc::VIA_SLOT, Val::E(e)) => ExprKind::Seq { stmts: vec![Stmt::Store { addr: slot_expr(slot), off: 0, value: e }],
+                value: Box::new(Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(slot)), off: 0 } }) },
+            (a, _) => return self.reject(bc::what(n.name == "@intFromBool"), format!("`{}` of {} to {}: {}", n.name, d, ty.name(), bc::why(a))),
+        };
+        Ok(Val::E(Expr { ty, kind }))
     }
 
     /// A module-level `var` named where t27c's Zig backend needs a
@@ -5096,6 +5188,7 @@ impl<'a> Lower<'a> {
         if let (NodeKind::ExprCall, "@intCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             return self.int_cast(n, *ty);
         }
+        if let (NodeKind::ExprCall, "@bitCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) { return self.bit_cast(n, *ty); }
         if let (NodeKind::ExprCall, "@intFromEnum", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             let v = self.int_from_enum(n, TagUse::Want(*ty))?;
             return self.coerce_to(v, want);
@@ -5132,6 +5225,16 @@ impl<'a> Lower<'a> {
                     return Err(());
                 };
                 return self.slice_of(addr_of(&arr), len, want.clone());
+            }
+        }
+        // `&.{}` where a slice is wanted: a zero-length one (plan `empty_lit_plan.t27`, #7735).
+        if let (NodeKind::ExprUnary, "&", [c]) = (&n.kind, n.extra_op.as_str(), &n.children[..]) {
+            let w = if matches!(want, LTy::Slice(..) | LTy::Str) { el::WANT_SLICE } else { el::WANT_OTHER };
+            if c.kind == NodeKind::ExprTuple && el::plan(w, true, c.children.len()) == el::EMPTY_SLICE {
+                self.see(n);
+                let elem = if let LTy::Slice(e, _) = want { (**e).clone() } else { LTy::S(Ty::U8) };
+                let Val::M(arr) = self.struct_temp(c, LTy::Arr(Box::new(elem), 0))? else { return Err(()) };
+                return self.slice_of(addr_of(&arr), 0, want.clone());
             }
         }
         // `&[_]T{ ... } ** n` where a slice is wanted: t27c prints
@@ -6309,6 +6412,14 @@ impl<'a> Lower<'a> {
     /// The memory an expression names: a variable in memory, a field, or
     /// `p.*`.
     fn lvalue(&mut self, n: &Node) -> R<Place> {
+        let was = std::mem::replace(&mut self.writing, true);
+        let p = self.place_at(n);
+        self.writing = was;
+        p
+    }
+
+    /// `lvalue` once `writing` is set.
+    fn place_at(&mut self, n: &Node) -> R<Place> {
         self.see(n);
         match n.kind {
             NodeKind::ExprIdentifier => match self.lookup(&n.name) {
@@ -6459,6 +6570,7 @@ impl<'a> Lower<'a> {
     /// checked against its length when evaluated, and traps out of range.
     fn slice_index(&mut self, p: Place, idx: Val) -> R<Place> {
         let (elem, m) = Self::slice_elem(&p.ty);
+        self.slice_write(&elem, m);
         let (esize, _) = self.size_align(&elem)?;
         let mut pin = Vec::new();
         let (hdr, off) = self.pin_header(&p, &mut pin)?;
@@ -7685,6 +7797,28 @@ fn is_value_stmt(c: &Node) -> bool {
 
 fn mentions(ns: &[Node], name: &str) -> bool {
     ns.iter().any(|n| (n.kind == NodeKind::ExprIdentifier && n.name == name) || mentions(&n.children, name))
+}
+
+/// The module `var`s a top-level local of `body` may shadow: the reference's
+/// `<name>_lv` rename of every mention in the body agrees with t27 scoping
+/// when the declaration is top-level, the body's only one of the name, and
+/// nothing before it (its own initializer included) mentions the name.
+fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<String> {
+    fn decls(ns: &[Node], name: &str) -> usize {
+        ns.iter().map(|n| usize::from(n.kind == NodeKind::StmtLocal && n.name == name) + decls(&n.children, name)).sum()
+    }
+    let mut ok = HashSet::new();
+    for (i, s) in body.iter().enumerate() {
+        if s.kind == NodeKind::StmtLocal
+            && mod_vars.contains_key(&s.name)
+            && !mentions(&body[..i], &s.name)
+            && !mentions(&s.children, &s.name)
+            && decls(body, &s.name) == 1
+        {
+            ok.insert(s.name.clone());
+        }
+    }
+    ok
 }
 
 /// The reference's `collect_mutable_names`: is `name` the target (or the base

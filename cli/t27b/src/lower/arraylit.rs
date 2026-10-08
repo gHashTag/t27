@@ -21,6 +21,8 @@
 //!
 //! `return [ ... ];` in a fn returning a slice, or a slice field's literal, is
 //! `@constCast(&[_]E{ ... })` (`slice_lit`, plan `specs/tri/t27b/slice_lit_plan.t27`).
+//! A write through it is undefined behaviour in Zig, so it is refused
+//! (`slice_write`, `literal_writes`, #7765).
 
 use super::*;
 
@@ -137,8 +139,8 @@ impl<'a> Lower<'a> {
     /// element type of slice `dst`: a field's value or a return's
     /// (`return [ ... ];`, `[_]T{ ... }`, `[]T{}`). As
     /// `specs/tri/t27b/slice_lit_plan.t27` decides: a zero-length slice, or a
-    /// slice of the one writable static of its type and value (Zig interns
-    /// it), reset on every host entry like a module var. False for NOT_MINE.
+    /// slice of the one static of its type and value (Zig interns it), which
+    /// only reads (`literal_writes`). False for NOT_MINE.
     pub(super) fn slice_lit(&mut self, at: u8, named: bool, c: &Node, dst: &Place, out: &mut Vec<Stmt>) -> R<bool> {
         if c.kind != NodeKind::ExprArrayLiteral || !matches!(dst.ty, LTy::Slice(..) | LTy::Str) {
             return Ok(false);
@@ -161,6 +163,9 @@ impl<'a> Lower<'a> {
         }
         let lit = text.as_ref().unwrap_or(c);
         let len = lit.children.len() as u32;
+        if sl::logs(act, matches!(dst.ty, LTy::Slice(_, true)), !self.unanalyzed_fn) {
+            self.lit_log.push((act, format!("{:?}", elem), self.line));
+        }
         let t = LTy::Arr(Box::new(elem), len);
         let arr = if sl::is_static(act) {
             let (size, _) = self.size_align(&t)?;
@@ -187,6 +192,26 @@ impl<'a> Lower<'a> {
         };
         self.copy(dst, src, out)?;
         Ok(true)
+    }
+
+    /// `slice_index` of a slice of `elem`: a WRITE of the write check when
+    /// `lvalue` builds the place (a store, or `&xs[i]`).
+    pub(super) fn slice_write(&mut self, elem: &LTy, mutable: bool) {
+        if self.writing && sl::logs(sl::WRITE, mutable, !self.unanalyzed_fn) {
+            self.lit_log.push((sl::WRITE, format!("{:?}", elem), self.line));
+        }
+    }
+
+    /// After every body: each WRITE whose element type a STATIC literal
+    /// backs is refused at the write, as the plan's `refuses_write` decides.
+    pub(super) fn literal_writes(&mut self) {
+        let log = std::mem::take(&mut self.lit_log);
+        for (act, elem, line) in &log {
+            if sl::refuses_write(*act, log.iter().any(|(a, e, _)| *a == sl::STATIC && e == elem)) {
+                self.line = *line;
+                let _: R<()> = self.reject(sl::what(sl::AT_WRITE, sl::REFUSE_WRITE), sl::why(sl::AT_WRITE, sl::REFUSE_WRITE).into());
+            }
+        }
     }
 }
 
