@@ -216,11 +216,16 @@ measure it are written in **t27**, not in Rust or Python by hand.
   hold a string or start undefined, +23 and +23 on master 579bc55aa's 14944
   plus 7964; `cli/t27b/src/*/*.rs`, which the glob above never counted, is
   1222 more on master 1f2448e98, 16189 in all; 14995 plus 1166, 16161 in
-  all, after #7524's `.len` call port, +28 glue and -56;
-  15016 plus 1166, 16182 in all, and `cli/t27b/tests/*.rs` 8003, after
+  all, after #7524's `.len` call port, +28 glue and -56; 15026 plus 1177,
+  16203 in all, and `cli/t27b/tests/*.rs` 8005, after #7735's glue for `.{}`
+  by its result type and the refusal of a store of the fn's own frame address,
+  whose plans are `specs/tri/t27b/empty_lit_plan.t27` and
+  `specs/tri/t27b/frame_store_plan.t27`, +31, +11 and +18 on master
+  4d7d2d3bd's 14995 plus 1166 and 7987;
+  15047 plus 1177, 16224 in all, and `cli/t27b/tests/*.rs` 8021, after
   #7796's glue for `undefined` as an argument the callee never reads, whose
   plan is `specs/tri/t27b/undefined_arg_plan.t27`, +21 and +16 in the tests
-  on master 4d7d2d3bd's 14995 plus 1166 and 7987),
+  on master 0c729d928's 15026 plus 1177 and 8005),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

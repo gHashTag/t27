@@ -79,3 +79,21 @@ fn static_conformance_spec_passes() {
     assert_eq!(got.len(), 8);
     assert!(got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
 }
+
+/// `.{}` by its result type: struct defaults, and `&.{}` as an empty slice
+/// (#7735; `t27c test-report`: 4 pass, none vacuous).
+#[test]
+fn empty_anon_literal_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/empty_anon_literal.t27"));
+    let got = names_ok(&ran);
+    assert_eq!(got.len(), 4);
+    assert!(got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+}
+
+/// This frame's address stored through a parameter: the reference passes it
+/// only by reading a dead frame, so it is refused by name (#7735).
+#[test]
+fn frame_address_store_is_refused() {
+    let r = rejected(include_str!("../../../specs/tri/t27b/conformance/frame_address_store.t27"));
+    assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
+}
