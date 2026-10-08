@@ -89,7 +89,7 @@ mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, s
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
 #[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
-mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp calls compiler_rt's exp in specs/tri/t27b/libm.t27
+mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
 mod refvars;
 mod tuple;
 
@@ -3550,7 +3550,7 @@ impl<'a> Lower<'a> {
         Ok(Val::E(Expr { ty, kind }))
     }
 
-    /// A builtin of libm_plan.t27 (`@exp`): a call of its routine from specs/tri/t27b/libm.t27, compiler_rt's
+    /// A builtin of libm_plan.t27 (`@exp`, `@log`): a call of its routine from specs/tri/t27b/libm.t27, compiler_rt's
     /// algorithm, so the bits are the reference's, folded or not. What is refused instead is the plan's.
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
@@ -3563,7 +3563,7 @@ impl<'a> Lower<'a> {
             Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
             _ => xp::K_OTHER,
         };
-        let a = xp::plan(n.children.len(), k);
+        let a = xp::plan(b, n.children.len(), k);
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| s.id)) {
             (Val::E(e), Some(func)) => Ok(Val::E(Expr { ty: e.ty, kind: ExprKind::Call { func, args: vec![self.reg(Val::E(e))?] } })),
             _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),

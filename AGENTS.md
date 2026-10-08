@@ -189,7 +189,8 @@ measure it are written in **t27**, not in Rust or Python by hand.
   plus 7814; 14881 plus 7848 after #7391's glue for `@exp`, whose plan is
   `specs/tri/t27b/libm_plan.t27` and whose routines are
   `specs/tri/t27b/libm.t27`, +33 and +15 on master 6fba037d1's 14848 plus
-  7833),
+  7833; 14881 plus 7858 after #7217's `@log` from the same plan, 0 and +10
+  on master 8c7b2ccff's 14881 plus 7848),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab). Update these numbers in the PR that moves them.

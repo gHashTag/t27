@@ -126,3 +126,13 @@ fn exp_calls_compiler_rt_s_exp_written_in_t27() {
         assert!(m.starts_with("t27b: unsupported construct ExprCall(@exp) at line 8") && m.contains(why), "{}", m);
     }
 }
+
+/// #7217: `@log` of an f64 calls libm.t27's log, compiler_rt's table-driven routine, bit for bit; of an f32 it is
+/// refused, libm.t27 holding no logf yet (specs/tri/t27b/libm_plan.t27).
+#[test]
+fn log_calls_compiler_rt_s_log_written_in_t27() {
+    let src = "module a;\n\nfn l(x: f64) -> f64 {\n    return @log(x);\n}\n\ntest t {\n    assert(l(2.0) == 0.6931471805599453);\n    assert(l(5.0e-324) == -744.4400719213812);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    let m = rejected(&src.replace("x: f64) -> f64", "x: f32) -> f32"));
+    assert!(m.starts_with("t27b: unsupported construct ExprCall(@log) at line 4") && m.contains("no f32 routine"), "{}", m);
+}
