@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:0d1bb35d6086f8aa2e41d3178aa5b7af64cbe0a87005294d29cb6a9c046c2367",
+  "gen_hash_c": "sha256:dff3b7d8364935d178505b64b319fdfe2bbdae06214e3b3a3d8596adf125564e",
   "gen_hash_rust": "sha256:48ca59da9077cd249a6d8256b6fcfddb3e2a61368c67a43b853b0df6bcf4412c",
   "gen_hash_verilog": "sha256:1bb36c06921de71ffa3f05dfefb13f946d7c6c53dd445702c5ca31003644fe63",
   "gen_hash_zig": "sha256:1fefc6d024f6855e2b79053cac6c2a55665565e1ce866ce1ad9f4a5c10964bd1",
   "module": "TernaryArithmetic",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:26Z",
+  "sealed_at": "2026-10-07T07:08:59Z",
   "spec_hash": "sha256:1044d178fb800ee5aedbcc28ffb09b84ce0b85c8eb8982827c0073c523d23a84",
   "spec_path": "specs/isa/ternary_arithmetic.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-ternary_arithmetic-3665179/spec.zig:123:24: error: division with 'i64' and 'comptime_int': signed integers must use @divTrunc, @divFloor, or @divExact"
+    "blocked": "does not compile: spec.zig:123:24: error: division with 'i64' and 'comptime_int': signed integers must use @divTrunc, @divFloor, or @divExact"
   }
 }
