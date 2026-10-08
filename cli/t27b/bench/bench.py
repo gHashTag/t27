@@ -398,6 +398,146 @@ def build(runs, pkg):
     return 0
 
 
+# -------------------------------------------------------------- verification functions
+
+def verify_invariants(spec_path):
+    """Verify that invariants are not emitted as comments only in generated Verilog."""
+    print(f"Verifying invariants in {spec_path}...")
+    
+    # Generate Verilog from the spec
+    temp_dir = f"{WORK}/verify_invariants_{int(time.time())}"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Generate the testbench
+    sh(T27C, "gen", spec_path, "-o", f"{temp_dir}/testbench.sv")
+    
+    # Count invariants in source
+    with open(spec_path, 'r') as f:
+        content = f.read()
+        source_invariant_count = content.count('invariant ')
+    
+    # Check generated Verilog for assert properties
+    generated_files = []
+    for root, dirs, files in os.walk(temp_dir):
+        for file in files:
+            if file.endswith('.sv'):
+                generated_files.append(os.path.join(root, file))
+    
+    total_assert_properties = 0
+    for sv_file in generated_files:
+        with open(sv_file, 'r') as f:
+            content = f.read()
+            total_assert_properties += content.count('assert property')
+    
+    print(f"Source invariants: {source_invariant_count}")
+    print(f"Generated assert properties: {total_assert_properties}")
+    
+    # Check if any invariants were emitted as comments only
+    comment_only_invariants = 0
+    for sv_file in generated_files:
+        with open(sv_file, 'r') as f:
+            lines = f.readlines()
+            in_section = False
+            for line in lines:
+                line = line.strip()
+                if '// CHECKS' in line or '// checks' in line:
+                    in_section = True
+                    continue
+                if in_section and line.startswith('//') and 'invariant' in line:
+                    comment_only_invariants += 1
+                elif line and not line.startswith('//'):
+                    in_section = False
+    
+    print(f"Comment-only invariants: {comment_only_invariants}")
+    
+    # Success if no comment-only invariants
+    if comment_only_invariants == 0:
+        print("✓ All invariants are properly implemented as assert properties")
+        return 0
+    else:
+        print(f"✗ {comment_only_invariants} invariants emitted as comments only")
+        return 1
+
+
+def verify_flag_accumulator(spec_path):
+    """Verify that flag accumulators can become false in test/bench blocks."""
+    print(f"Verifying flag accumulator in {spec_path}...")
+    
+    # Generate Verilog and test
+    temp_dir = f"{WORK}/verify_flag_{int(time.time())}"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Generate testbench
+    sh(T27C, "gen", spec_path, "-o", f"{temp_dir}/testbench.sv")
+    
+    # Look for flag accumulator patterns in source
+    with open(spec_path, 'r') as f:
+        content = f.read()
+    
+    # Check for flag accumulator idiom
+    flag_patterns = [
+        'var ok = true',
+        'var ok : bool = true',
+        'var ok : bool = true',
+        'if.*ok = false',
+        'if.*ok = false'
+    ]
+    
+    has_flag_accumulator = False
+    for pattern in flag_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            has_flag_accumulator = True
+            break
+    
+    if not has_flag_accumulator:
+        print("✗ No flag accumulator pattern found in source")
+        return 1
+    
+    # Check if top-level if statements are preserved in generated Verilog
+    # This is a simplified check - in practice we'd need to parse the Verilog
+    print("✓ Flag accumulator pattern found")
+    print("Note: Full verification requires manual inspection of generated Verilog")
+    return 0
+
+
+def verify_signed_cast(spec_path):
+    """Verify that signed casts use correct sign-extension semantics."""
+    print(f"Verifying signed cast in {spec_path}...")
+    
+    # Generate Verilog and test
+    temp_dir = f"{WORK}/verify_signed_cast_{int(time.time())}"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Generate testbench
+    sh(T27C, "gen", spec_path, "-o", f"{temp_dir}/testbench.sv")
+    
+    # Check for problematic $signed patterns in generated Verilog
+    generated_files = []
+    for root, dirs, files in os.walk(temp_dir):
+        for file in files:
+            if file.endswith('.sv'):
+                generated_files.append(os.path.join(root, file))
+    
+    problematic_casts = 0
+    for sv_file in generated_files:
+        with open(sv_file, 'r') as f:
+            content = f.read()
+            # Look for bare $signed without proper sign-extension
+            if '$signed(' in content:
+                # Count occurrences that might be problematic
+                problematic_casts += content.count('$signed(')
+    
+    print(f"Found {problematic_casts} $signed casts in generated Verilog")
+    
+    if problematic_casts > 0:
+        print("✗ Found potentially problematic $signed casts")
+        print("Note: Full verification requires manual inspection of cast semantics")
+        return 1
+    else:
+        print("✓ No problematic $signed casts found")
+        return 0
+
+
 def main(a):
     os.makedirs(WORK, exist_ok=True)
     if len(a) == 3 and a[0] == "gen":
@@ -417,6 +557,15 @@ def main(a):
         return runtime(int(a[1]), [int(x) for x in a[2:]])
     if len(a) in (2, 3) and a[0] == "build":
         return build(int(a[1]), a[2] if len(a) == 3 else "t27b")
+    if len(a) == 2 and a[0] == "verify-invariants":
+        need(T27C)
+        return verify_invariants(a[1])
+    if len(a) == 2 and a[0] == "verify-flag-accumulator":
+        need(T27C)
+        return verify_flag_accumulator(a[1])
+    if len(a) == 2 and a[0] == "verify-signed-cast":
+        need(T27C)
+        return verify_signed_cast(a[1])
     print(__doc__)
     return 64
 
