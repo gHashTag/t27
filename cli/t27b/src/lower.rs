@@ -98,6 +98,8 @@ mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals pr
 mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numeric type where Zig takes another
 #[path = "../../../gen/rust/tri/t27b/void_bind_plan.rs"] #[allow(dead_code, unused_parens)]
 mod vb; // t27c gen-rust of specs/tri/t27b/void_bind_plan.t27: a local bound to a void fn's result
+#[path = "../../../gen/rust/tri/t27b/scaffold_plan.rs"] #[allow(dead_code, unused_parens)]
+mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input()`, which the reference never calls
 mod refvars;
 mod tuple;
 
@@ -288,6 +290,9 @@ struct Lower<'a> {
     globals_init: Vec<Vec<u8>>,
     /// The global of each array type and value a `slice_lit` interned.
     statics: HashMap<(String, Vec<u8>), u32>,
+    /// Fn declarations by name; this body's W585 locals (`sc`): consumer's type, read elsewhere, read by a callee.
+    fns: HashMap<String, &'a Node>,
+    scaffold: HashMap<String, (LTy, bool, bool)>,
     /// Set while `lvalue` builds a place to store to or take the address
     /// of: a slice element it reaches is a write (`slice_write`, #7765).
     writing: bool,
@@ -469,6 +474,7 @@ fn lower_mode<'a>(
         mod_vars: HashMap::new(),
         globals_init: Vec::new(),
         statics: HashMap::new(),
+        fns: HashMap::new(), scaffold: HashMap::new(),
         writing: false,
         lit_log: Vec::new(),
         comptime: false,
@@ -551,6 +557,7 @@ fn lower_mode<'a>(
         if item.kind == NodeKind::EnumDecl && !item.name.is_empty() {
             l.enum_nodes.insert(item.name.clone(), item);
         }
+        if item.kind == NodeKind::FnDecl { l.fns.entry(item.name.clone()).or_insert(item); }
         // Constants too, before any signature: a top-level Zig declaration
         // is visible above its own line, and a length like `[N]T` in a
         // signature may name a constant `use` spliced in after it.
@@ -1578,6 +1585,25 @@ impl<'a> Lower<'a> {
                 }
             }
         }
+        // W585: a name bound to a helper with no arguments and passed bare to a declared fn.
+        self.scaffold.clear();
+        let helper = |d: &&Node| d.children.first().is_some_and(|x| x.kind == NodeKind::ExprCall && x.children.is_empty() && sc::HELPERS.split(' ').any(|h| h == x.name));
+        let decls = |n: &str| { let mut d = Vec::new(); decls_of(body, n, &mut d); d };
+        let (mut calls, mut found) = (Vec::new(), Vec::new());
+        calls_in(body, &mut calls);
+        for c in &calls {
+            let (Some(sig), Some(f)) = (self.sigs.get(&c.name), self.fns.get(&c.name)) else { continue };
+            for ((a, t), (p, _)) in c.children.iter().zip(&sig.params).zip(&f.params) {
+                if a.kind == NodeKind::ExprIdentifier && decls(&a.name).iter().any(helper) {
+                    found.push((a.name.clone(), t.clone(), name_mentions(&f.children, p) > 0));
+                }
+            }
+        }
+        for (name, t, read) in &found {
+            let uses = decls(name).len() + found.iter().filter(|f| f.0 == *name).count();
+            let e = self.scaffold.entry(name.clone()).or_insert((t.clone(), name_mentions(body, name) > uses, false));
+            e.2 |= *read;
+        }
         self.addr_lit_locals(body);
         self.scopes.clear();
         self.scopes.push(HashMap::new());
@@ -2250,6 +2276,19 @@ impl<'a> Lower<'a> {
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
         let init = n.children.first().filter(|i| !is_undefined(i));
+        let helper = init.is_some_and(|i| i.kind == NodeKind::ExprCall && sc::HELPERS.split(' ').any(|h| h == i.name));
+        let s = self.scaffold.get(&name).cloned();
+        let act = sc::plan(helper, s.is_some(), mutable, !ann.is_empty(), s.as_ref().is_some_and(|s| s.1), s.as_ref().is_some_and(|s| s.2));
+        if sc::refuses(act) {
+            self.see(init.unwrap());
+            return self.reject(sc::what(act), format!("`{}`: {}", name, sc::why(act)));
+        }
+        if let Some((t, ..)) = s.filter(|_| act == sc::SCAFFOLD) {
+            let k = self.new_slot(&t)?;
+            if let Some(ty) = reg_ty(&t) { out.push(Stmt::Store { addr: slot_expr(k), off: 0, value: Expr { ty, kind: ExprKind::Const(0) } }); }
+            self.bind(&name, Binding::Mem(Place { addr: slot_expr(k), off: 0, ty: t, mutable: false, temp: None }));
+            return Ok(());
+        }
         // `const r = f(x);` with `f` void (specs/tri/t27b/void_bind_plan.t27): the call, then void's value.
         let void_call = init.is_some_and(|i| i.kind == NodeKind::ExprCall && self.sigs.get(&i.name).is_some_and(|s| s.ret.is_none() && !s.poisoned));
         if vb::bind(void_call, !ann.is_empty()) == vb::BIND {

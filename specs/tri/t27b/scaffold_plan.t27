@@ -1,0 +1,150 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/scaffold_plan.t27 -- how t27b lowers a local bound to the template scaffold `default_input()` or
+; `valid_input()` that the reference never calls (issue #7691, t27b coverage epic #6063; written in t27 under the
+; port epic #6198). Everything t27b decides about such a local is in this file and reaches cli/t27b through
+; `t27c gen-rust` (gen/rust/tri/t27b/scaffold_plan.rs): which locals are the reference's scaffold, which are
+; taken, and the names and words of each refusal. The Rust glue in cli/t27b/src/lower.rs only collects the
+; facts below over a body, asks `plan`, and builds the answer.
+; --
+; What the reference does (W585, `collect_scaffold_locals` in bootstrap/src/compiler.rs; zig 0.16.0, the
+; default x86_64 Debug backend `t27c test-report` builds with, measured on the t27c lab):
+;   - In each fn or test body, a local bound to a call of a helper named in HELPERS with no arguments, whose
+;     name is then passed as a bare argument to a declared fn, is printed `const x = undefined;`. The helper
+;     is never called, whether or not the spec declares it, and the type is not printed.
+;   - Zig coerces that `undefined` to each parameter it is passed to. A callee that never reads its parameter
+;     sees nothing (specs/tri/graph/topological_sort.t27's `sort(graph)`); one that reads it reads dead memory
+;     (0xAA bytes in this build), and a test can pass on that value. With `default_input()` declared to return 7
+;     and `is_seven(x) -> bool { return x == 7; }`, the reference passes `then is_seven(input) == false`.
+;   - `var x = default_input();` is printed `var x = undefined;`, which Zig refuses ("variable of type
+;     '@TypeOf(undefined)' must be const or comptime"); any other read of x (`x == 7`, `x.len`) is refused
+;     too ("use of undefined value here causes illegal behavior"). A typed local is printed
+;     `const x: T = undefined;`; no corpus spec writes one.
+; --
+; What t27b does. SCAFFOLD: it agrees with the reference, so a scaffold with an effect, or one that traps,
+; no longer splits the two: the helper is not called, and x holds a value of the first consumer's parameter
+; type (zero for a register, unwritten memory for an aggregate) that nobody reads. Every local the reference
+; prints `undefined` and that is read is refused here by name, so t27b never passes a spec on a value the
+; reference never had: a callee whose body names that parameter at all (READ_BY_CALLEE), any other mention
+; of x in the body (READ_ELSEWHERE), a `var` (REFUSE_VAR) and a typed local (REFUSE_TYPED). A local that is
+; not the reference's scaffold (no declared fn is passed it, or not a helper) is NOT_MINE: lowered as written.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bScaffoldPlan;
+
+/// The helpers the reference never calls, separated by one space.
+pub const HELPERS : str = "default_input valid_input";
+
+// The answer.
+pub const NOT_MINE : u8 = 0;
+pub const SCAFFOLD : u8 = 1;
+pub const REFUSE_VAR : u8 = 2;
+pub const REFUSE_TYPED : u8 = 3;
+pub const READ_ELSEWHERE : u8 = 4;
+pub const READ_BY_CALLEE : u8 = 5;
+
+/// The decision for one local. helper: its initializer is a call of a name in HELPERS. scaffold: the body binds
+/// the name to such a call with no arguments and passes the name as a bare argument to a declared fn (the
+/// reference's own test). mutable: `var`. typed: it names its type. elsewhere: the body mentions the name other
+/// than in its declarations and those arguments. callee: some such fn names that parameter in its body.
+pub fn plan(helper: bool, scaffold: bool, mutable: bool, typed: bool, elsewhere: bool, callee: bool) -> u8 {
+    if (!helper or !scaffold) { return NOT_MINE; }
+    if (mutable) { return REFUSE_VAR; }
+    if (typed) { return REFUSE_TYPED; }
+    if (elsewhere) { return READ_ELSEWHERE; }
+    if (callee) { return READ_BY_CALLEE; }
+    return SCAFFOLD;
+}
+
+/// Is the answer a refusal? Its construct is `what`, its words `why`.
+pub fn refuses(act: u8) -> bool {
+    return act >= REFUSE_VAR and act <= READ_BY_CALLEE;
+}
+
+/// The construct a refusal names.
+pub fn what(act: u8) -> str {
+    if (act == REFUSE_VAR) { return "StmtLocal(scaffold var)"; }
+    if (act == REFUSE_TYPED) { return "StmtLocal(scaffold typed)"; }
+    if (act == READ_ELSEWHERE) { return "StmtLocal(scaffold read)"; }
+    if (act == READ_BY_CALLEE) { return "StmtLocal(scaffold read by callee)"; }
+    return "";
+}
+
+/// The words of a refusal.
+pub fn why(act: u8) -> str {
+    if (act == REFUSE_VAR) {
+        return "the reference prints `var x = undefined;` for a scaffold helper it never calls, which Zig refuses";
+    }
+    if (act == REFUSE_TYPED) {
+        return "a typed local bound to a scaffold helper the reference never calls (not taken)";
+    }
+    if (act == READ_ELSEWHERE) {
+        return "the reference prints this local `undefined` and never calls the helper, and it is read other than as an argument";
+    }
+    if (act == READ_BY_CALLEE) {
+        return "the reference passes `undefined` for this local, never calling the helper, to a parameter its callee reads";
+    }
+    return "";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the shapes the corpus has, then the order of the questions.
+// ----------------------------------------------------------------------------------------------------------
+
+test a_scaffold_nobody_reads_is_not_called {
+    // topological_sort.t27's `given graph = default_input()` then `sort(graph)`, and bellman_ford.t27's
+    // `given input = default_input()` then `shortest_path(input)`: neither callee reads its parameter.
+    assert(plan(true, true, false, false, false, false) == SCAFFOLD);
+    assert(!refuses(SCAFFOLD));
+    assert(std.mem.eql(u8, what(SCAFFOLD), ""));
+}
+
+test what_the_reference_does_not_treat_as_scaffold_is_lowered_as_written {
+    // A helper whose name reaches no declared fn, and any other initializer.
+    assert(plan(true, false, false, false, false, false) == NOT_MINE);
+    assert(plan(false, true, false, false, false, false) == NOT_MINE);
+    assert(plan(false, false, true, true, true, true) == NOT_MINE);
+    assert(plan(true, false, true, true, true, true) == NOT_MINE);
+    assert(!refuses(NOT_MINE));
+}
+
+test a_callee_that_reads_the_value_is_refused {
+    // `is_seven(input)` with `default_input()` declared to return 7: the reference reads dead memory.
+    assert(plan(true, true, false, false, false, true) == READ_BY_CALLEE);
+    assert(refuses(READ_BY_CALLEE));
+    assert(std.mem.eql(u8, what(READ_BY_CALLEE), "StmtLocal(scaffold read by callee)"));
+    assert(std.mem.indexOf(u8, why(READ_BY_CALLEE), "callee reads") != null);
+}
+
+test any_other_read_is_refused_first {
+    assert(plan(true, true, false, false, true, false) == READ_ELSEWHERE);
+    assert(plan(true, true, false, false, true, true) == READ_ELSEWHERE);
+    assert(std.mem.eql(u8, what(READ_ELSEWHERE), "StmtLocal(scaffold read)"));
+    assert(std.mem.indexOf(u8, why(READ_ELSEWHERE), "other than as an argument") != null);
+}
+
+test a_var_is_refused_before_anything_else {
+    // csv.t27's and statistics.t27's `var input = default_input();`: Zig refuses `var input = undefined;`.
+    assert(plan(true, true, true, false, false, false) == REFUSE_VAR);
+    assert(plan(true, true, true, true, true, true) == REFUSE_VAR);
+    assert(std.mem.eql(u8, what(REFUSE_VAR), "StmtLocal(scaffold var)"));
+    assert(std.mem.indexOf(u8, why(REFUSE_VAR), "var x = undefined;") != null);
+}
+
+test a_typed_local_is_not_taken {
+    assert(plan(true, true, false, true, false, false) == REFUSE_TYPED);
+    assert(plan(true, true, false, true, true, true) == REFUSE_TYPED);
+    assert(std.mem.eql(u8, what(REFUSE_TYPED), "StmtLocal(scaffold typed)"));
+    assert(std.mem.indexOf(u8, why(REFUSE_TYPED), "not taken") != null);
+}
+
+test refusals_and_their_words_are_distinct {
+    assert(refuses(REFUSE_VAR) and refuses(REFUSE_TYPED) and refuses(READ_ELSEWHERE));
+    assert(!std.mem.eql(u8, why(READ_ELSEWHERE), why(READ_BY_CALLEE)));
+    assert(!std.mem.eql(u8, what(READ_ELSEWHERE), what(READ_BY_CALLEE)));
+    assert(!std.mem.eql(u8, why(REFUSE_VAR), why(REFUSE_TYPED)));
+    assert(std.mem.eql(u8, why(SCAFFOLD), ""));
+    assert(std.mem.eql(u8, why(NOT_MINE), ""));
+    assert(std.mem.indexOf(u8, HELPERS, "default_input") != null);
+    assert(std.mem.indexOf(u8, HELPERS, "valid_input") != null);
+}
