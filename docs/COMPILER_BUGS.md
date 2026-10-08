@@ -20,7 +20,7 @@ The fix prevents copy propagation of variables that are both initialized and mut
 
 ### Six-Pass Sweep Verification Method
 
-To ensure this bug does not regress, implement a six-pass verification method:
+To ensure this bug does not regress, implement a six-pass sweep verification method:
 
 1. **Pass 1**: Identify all loops with local variables that are both initialized and mutated
 2. **Pass 2**: Check copy propagation behavior on these variables
