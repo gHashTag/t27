@@ -2328,6 +2328,10 @@ fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
 /// The same message read back from a stored receipt: an absent field is null,
 /// exactly as the writer stores an absent fact.
 fn receipt_message_of_json(v: &serde_json::Value) -> Vec<u8> {
+    if v["kind"] == dr::DDC_DOMAIN { // #7699: a DDC receipt signs its own domain (specs/verified/ddc_receipt.t27)
+        let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..dr::ddc_domain_line_len()).map(|k| dr::ddc_domain_line_char(k) as u8).collect::<Vec<u8>>());
+        return { dr::DDC_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
+    }
     if v.get("kind").and_then(|k| k.as_str()) == Some(cr::CORPUS_DOMAIN) { // #7576: a corpus receipt signs its own domain
         let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..cr::corpus_domain_line_len()).map(|k| cr::corpus_domain_line_char(k) as u8).collect::<Vec<u8>>());
         return { cr::CORPUS_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
@@ -2546,6 +2550,11 @@ use crate::{corpus_receipt as cr, cr_leaves as leaves, cr_pair as pair, cr_root,
 pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Option<String>, head_challenge: Option<String>, runner: Option<String>) -> anyhow::Result<()> {
     let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
     let (hx, hexarg) = (|p: &Path| std::fs::read(p).map(|d| hex_lower(&cr_sha(&[&d]))), |f, s: Option<String>| s.map(|s| parse_challenge_hex(f, &s)).transpose().map_err(anyhow::Error::msg));
+    if action == "admit" { // #7672: does the lab run request `a`? b is "age_s,index,on_origin"
+        let f = |k: usize| b.split(',').nth(k).and_then(|s| s.parse().ok()).unwrap_or(u32::MAX);
+        let r = cr::request_verdict(spec_str(a), f(0), f(1), f(2) == 1);
+        println!("{}", cr::REQUEST_NAMES[r as usize]); std::process::exit(cr::request_exit(r) as i32)
+    }
     if action == "sign" {
         let (run, mut l, argv) = (read(a)?, [vec![], vec![], vec![]], runner.unwrap_or_default());
         for r in run["results"].as_array().into_iter().flatten() {
@@ -2567,15 +2576,43 @@ pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Op
     let bound = |v: &serde_json::Value| cr::LEAF_LISTS.iter().all(|n| v[format!("{n}_root")].as_str() == Some(&hex_lower(&cr_root(&leaves(v, n)))));
     let (problem, same) = (cr::compare_first_problem(ba, ha, bound(&x), bound(&y)), |k: &str| x[k] == y[k]);
     println!("base {} {} {} leaves-bound {}\nhead {} {} {} leaves-bound {}", x["commit"], auth_name(ba), level_name(bl), bound(&x), y["commit"], auth_name(ha), level_name(hl), bound(&y));
+    let m = |v: &serde_json::Value, n: &str| leaves(v, n).into_iter().filter_map(|s| s.split_once(cr::CH_TAB as u8 as char).map(|(p, q)| (p.to_string(), q.to_string()))).collect::<std::collections::BTreeMap<_, _>>();
     for n in cr::LEAF_LISTS.iter().filter(|_| problem == cr::CMP_OK) {
-        let m = |v| leaves(v, n).into_iter().filter_map(|s| s.split_once(cr::CH_TAB as u8 as char).map(|(p, q)| (p.to_string(), q.to_string()))).collect::<std::collections::BTreeMap<_, _>>();
-        let (p, q) = (m(&x), m(&y));
+        let (p, q) = (m(&x, *n), m(&y, *n));
         let changes = p.keys().chain(q.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().map(|f| (f, cr::leaf_change(p.contains_key(f), q.contains_key(f), p.get(f) == q.get(f))));
         changes.filter(|c| c.1 != cr::LEAF_SAME).for_each(|(f, c)| println!("  {n} {} {f}", ["same", "only-head", "only-base", "changed"][c as usize]));
     }
-    let code = cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root"));
-    println!("{}", if code == cr::EXIT_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), ["EQUIVALENT", "DIFFERENT"][code as usize]) });
+    let ((vb, vh), (ob, oh), s) = ((m(&x, "verdict"), m(&y, "verdict")), (m(&x, "output"), m(&y, "output")), |o: Option<&String>| spec_str(o.map_or("", |v| v)));
+    let worst = vb.keys().chain(vh.keys()).filter(|_| problem == cr::CMP_OK).collect::<std::collections::BTreeSet<_>>().into_iter() // #7672, a lane's judgment
+        .map(|f| (f, cr::lane_file(vb.contains_key(f), vh.contains_key(f), s(vb.get(f)), s(vh.get(f)), s(ob.get(f)), s(oh.get(f))))).filter(|c| c.1 != cr::FILE_SAME)
+        .inspect(|(f, c)| println!("  lane {} {f}", cr::FILE_NAMES[*c as usize])).fold(cr::FILE_SAME, |a, c| cr::lane_worst(a, c.1));
+    let d = |v: &serde_json::Value, k: usize| v["totals"][cr::DISAGREE_TOTALS[k]].as_u64().unwrap_or(0) as u32;
+    let code = cr::lane_verdict(problem, cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root")), worst, d(&x, 0), d(&y, 0), d(&x, 1), d(&y, 1));
+    println!("{}", if code == cr::LANE_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), cr::LANE_NAMES[code as usize]) });
     std::process::exit(code as i32)
+}
+
+use crate::ddc_receipt as dr; // #7699, rules: specs/verified/ddc_receipt.t27; the run's facts come from the t27b lab's DDC step
+pub fn run_ddc_receipt(root: &Path, action: &str, a: &str, b: Option<String>, nonce: Option<String>) -> anyhow::Result<()> {
+    let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
+    let (mut v, s, hexarg) = (read(a)?, |v: &serde_json::Value, k: &str| spec_str(v[k].as_str().unwrap_or("")), |f, n: Option<String>| n.map(|n| parse_challenge_hex(f, &n)).transpose().map_err(anyhow::Error::msg));
+    if action == "due" { // b: the last signed DDC receipt, if there is one
+        let l = b.and_then(|p| read(&p).ok()).unwrap_or_default();
+        std::process::exit(dr::due_exit(dr::ddc_due(l.is_object(), dr::DDC_INPUT_FIELDS.iter().filter(|k| l[**k] != v[**k]).count() as u32)) as i32)
+    }
+    if action == "sign" {
+        let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
+        v["kind"] = dr::DDC_DOMAIN.into(); v["nonce"] = hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)).into(); v["key_id"] = receipt_key_id(&crate::ed25519::public_key(key)).into();
+        v["signature"] = hex_lower(&crate::ed25519::sign(key, &receipt_message_of_json(&v))).into();
+        return Ok(println!("{}", serde_json::to_string_pretty(&v)?));
+    }
+    let ((auth, level), e, r) = (receipt_auth(root, &v, hexarg("--challenge", nonce)?.as_deref()), s(&v, "e_sha256"), |i: usize, k: &str| s(&v["routes"][i], k));
+    let (st, n) = (|i: usize| dr::route_state(i as u32, r(i, "route"), r(i, "outcome"), r(i, "stage2_sha256"), e), v["routes"].as_array().map_or(0, |x| x.len()));
+    let verdict = dr::ddc_receipt_verdict(n as u32, s(&v, "s_sha256"), s(&v, "harness_s_sha256"), e, st(0), st(1), st(2), r(0, "front_end"), r(1, "front_end"), r(2, "front_end"));
+    let problem = dr::ddc_first_problem(s(&v, "kind"), auth);
+    (0..n).for_each(|i| println!("  route {} {} {} stage 2 {}", r(i, "route"), r(i, "outcome"), r(i, "front_end"), ["not run", "is not E", "is E"][st(i).min(2) as usize]));
+    println!("ddc {} {} {}: {}; C4 holds: {}", v["commit"], auth_name(auth), level_name(level), if problem == dr::DDC_OK { dr::DDC_NAMES[verdict as usize] } else { "REFUSED: not an authenticated DDC receipt" }, dr::c4_holds(problem, verdict));
+    std::process::exit(dr::ddc_exit(problem, verdict) as i32)
 }
 
 /// `t27c receipt-key init|show`: create this host's receipt key, or say which
@@ -3815,6 +3852,8 @@ pub fn run_run_record(
     spec: &str,
     challenge: Option<String>,
     require_level: String,
+    receipts: &str,
+    json_out: Option<String>,
 ) -> anyhow::Result<()> {
     use crate::run_record as rr;
     use std::path::Component;
@@ -3910,10 +3949,11 @@ pub fn run_run_record(
         die: u8,
         dna_n: u64,
         key_n: u64,
+        rec: serde_json::Value,
     }
 
     let mut rows: Vec<Row> = Vec::new();
-    for (file, v) in read_dir_json(&repo_root.join(".trinity/receipts")) {
+    for (file, v) in read_dir_json(&repo_root.join(receipts)) {
         if !get_str(&v, "spec").map(|p| tail_match(&p, spec)).unwrap_or(false) {
             continue;
         }
@@ -3953,7 +3993,7 @@ pub fn run_run_record(
         // the level and die checks it judges first have already refused such a receipt.
         let num = |k: &str| get_str(&v, k).and_then(|t| u64::from_str_radix(&t, 16).ok()).unwrap_or(0);
         let (dna_n, key_n) = (num(DEVICE_DNA_FIELD), num("key_id"));
-        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die, dna_n, key_n });
+        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die, dna_n, key_n, rec: v });
     }
 
     let count = rows.len().min(255) as u8;
@@ -4012,7 +4052,7 @@ pub fn run_run_record(
     // independence.t27 (R3-3, #7497): are three placements independent evidence? This verifier
     // has no roster, so every key is ROSTER_NONE and INDEP_DIES is the most a run can reach.
     use crate::independence as ind;
-    if let [a, b, c] = rows.as_slice() {
+    let indep = if let [a, b, c] = rows.as_slice() {
         let first = ind::indep_first_missing(code, run_level, die_lvl, a.dna_n, b.dna_n, c.dna_n, a.key_n, b.key_n, c.key_n);
         let why = match first {
             ind::INDEP_MISSING_NONE => "NONE",
@@ -4028,10 +4068,11 @@ pub fn run_run_record(
             _ => "INDEP_NONE",
         };
         let dies = ind::distinct_dies3(a.dna_n, b.dna_n, c.dna_n);
-        println!("Independence: {level} (independence.t27; first missing {why} ({first}); {dies} distinct dies; no roster)");
+        format!("{level} (independence.t27; first missing {why} ({first}); {dies} distinct dies; no roster)")
     } else {
-        println!("Independence: not judged -- independence.t27 takes exactly {} placements", ind::placements_needed());
-    }
+        format!("not judged -- independence.t27 takes exactly {} placements", ind::placements_needed())
+    };
+    println!("Independence: {indep}");
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
     // citable_at: completeness first, then the level the citation requires.
@@ -4046,6 +4087,26 @@ pub fn run_run_record(
         );
     } else {
         println!("Verdict run reference: INVALID_NO_RUN -- an incomplete run is no run reference");
+    }
+    // --json: the same judgment, machine-readable, for readers that cannot run t27c (the Spec
+    // Explorer's Chip tab). Every value is one computed above; nothing is re-judged here.
+    if let Some(path) = json_out {
+        let field = |r: &Row, k: &str| r.rec.get(k).cloned().unwrap_or(serde_json::Value::Null);
+        let keys = ["device_dna", "key_id", "seeds", "verdict_word", "toolchain", "seal_hash", "utc_unix", "nonce"];
+        let rs: Vec<serde_json::Value> = rows.iter().map(|r| {
+            let mut o: serde_json::Map<String, serde_json::Value> = keys.iter().map(|k| (k.to_string(), field(r, k))).collect();
+            o.insert("file".into(), r.file.clone().into());
+            o.insert("auth".into(), level_name(r.level).into());
+            o.insert("complete".into(), (r.missing == 0 && r.producer_ok).into());
+            o.into()
+        }).collect();
+        let doc = serde_json::json!({
+            "spec": spec, "receipts_dir": receipts, "judged_by": crate::producer_identity(),
+            "challenge": challenge.as_deref().map(hex_lower), "receipts": rs,
+            "first_missing": name(code), "run_complete": code == 0, "authentication": level_name(run_level),
+            "die": die, "independence": indep, "citable": citable, "required_level": level_name(required),
+        });
+        std::fs::write(&path, serde_json::to_string_pretty(&doc)? + "\n")?;
     }
     std::process::exit(if citable { 0 } else { 1 });
 }
