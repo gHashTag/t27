@@ -57,6 +57,9 @@ trit2gft 3
 trit_negate 3
 wait_cycles 3
 HirCoverPoint_validate 2
+LinkSection_bss 2
+LinkSection_data 2
+LinkSection_text 2
 adaptive_temperature_by_sacred_score 2
 add 2
 asr9 2
