@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "gen_hash_c": "sha256:a316eeaa85239e45b385e8276bcae871ca54d4157fbf1ac4c8e09fe84b3ecbb4",
+  "gen_hash_rust": "sha256:adff480cd17ecf24ec1d15f81d1c578d52ebce517814f5582504a504f5823eef",
+  "gen_hash_verilog": "sha256:966f3eac20001906b0c9580aa6830701ffdc523b9ea0946bb5cfd69ab52aa913",
+  "gen_hash_zig": "sha256:6cfe1e257266b2cfe773b9374de1814297f135b95d70e79d2f954cd6a697ba9c",
+  "module": "T27bConformanceArrayLenExpr",
+  "ring": 12,
+  "sealed_at": "2026-10-08T18:26:20Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:a998a9359755d50ae3398650553b963b9a57b1d739619ce3bbb6d27fe648703f",
+  "spec_path": "specs/tri/t27b/conformance/array_len_expr.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

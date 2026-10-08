@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "gen_hash_c": "sha256:0d36a21afc404a19477f9dd7d7b89f67ea9dd63afd0592b62d15cf342d735541",
+  "gen_hash_rust": "sha256:5fff311ea34d71b436f3222a8af96d631748e84ad3f1c845460bb8445e27de6b",
+  "gen_hash_verilog": "sha256:b6b97822b1235ac3ddedf3830d10f63aecc7866faf91f2b7e10987effccf4a2e",
+  "gen_hash_zig": "sha256:4811fd95ec075fb956841a4003b75964af5e795c57b4e1293ba1528f5f2aea46",
+  "module": "T27bLenExprPlan",
+  "ring": 12,
+  "sealed_at": "2026-10-08T18:26:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:036038d9ba67a432d2af25f3f397a2bce5b9d08b87f44cedda5eebfab7873fbc",
+  "spec_path": "specs/tri/t27b/len_expr_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

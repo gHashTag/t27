@@ -282,3 +282,21 @@ fn f32_rounding_and_rem_call_their_ports() {
         assert!(m.contains(&format!("construct ExprCall({}) at line 4", what)) && m.contains(why), "{}", m);
     }
 }
+
+// ------------------------------------------------ an array length written as an expression
+
+/// `[MAX_CONTENT_LENGTH + 1]u8` (routes/memory.t27, #7347): the reference prints the length text unchanged and Zig
+/// folds it (specs/tri/t27b/len_expr_plan.t27; `t27c test-report` passes the conformance spec 5/5, none vacuous).
+/// A division, a call, a typed overflow and a name that is no module constant keep `type [N]T`.
+#[test]
+fn an_array_length_written_as_an_expression() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/array_len_expr.t27");
+    let r = run(src);
+    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    assert_eq!(names_ok(&run(&src.replace("== 501", "== 500"))).iter().filter(|t| !t.2).count(), 1);
+    for to in ["[LIMIT / 1]u8", "[too_long(1)]u8", "[LIM8 + 1]u8", "[limit + 1]u8"] {
+        let from = "[LIMIT + 1]u8";
+        let m = rejected(&src.replace(from, to).replace("const W = 4;", "const W = 4;\nconst LIM8: u8 = 255;"));
+        assert!(m.contains("type [N]T at line 48 "), "{}: {}", to, m);
+    }
+}

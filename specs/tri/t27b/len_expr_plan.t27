@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/len_expr_plan.t27 -- which array lengths written as an expression t27b folds, `[N + 1]T` (issue
+; #7347, t27b coverage epic #6063; written in t27 under the port epic #6198). The decision reaches cli/t27b
+; through `t27c gen-rust` (gen/rust/tri/t27b/len_expr_plan.rs); the Rust glue in cli/t27b/src/lower.rs
+; (`array_len`) parses the length text back, asks `node` about every node of it, and on a yes folds it with
+; t27b's own constant evaluator at module scope, as a module constant's initializer is folded.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/array_len_expr.t27): the t27c parser keeps an array type's length as text
+; (`[MAX_CONTENT_LENGTH+1]u8`) and its Zig backend prints it unchanged, so Zig folds it at compile time:
+; integer literals, module constants, `+`, `-`, `*`, parentheses and a unary minus. A typed constant keeps its
+; type (`H * 2` with `H: u32` is a u32 and must fit it), a negative length is refused. The corpus has the shape in
+; the agent-server's routes/memory.t27 (`[MAX_CONTENT_LENGTH + 1]u8`).
+; --
+; What t27b does. A length text that parses as an expression whose every node is one `node` takes (FOLD) is folded
+; by t27b's constant evaluator with no local in scope (t27c renames a local named like a module constant and
+; prints the length text as written, so the text reads the constant); a result that is a compile-time integer
+; in 0 .. 2^32-1 is the length. Anything else keeps the refusal `type [N]T`: a call (Zig would evaluate it at
+; compile time, t27b does not), a division or a remainder (whose signed rules this plan does not model), a
+; wrapping or bitwise operator, a field access, a local or run-time name, or a fold t27b's evaluator refuses by
+; its own name.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bLenExprPlan;
+
+// Operator bytes.
+const PLUS : u8 = 43;
+const MINUS : u8 = 45;
+const TIMES : u8 = 42;
+
+/// One node of a length parsed back from its text. literal: an integer literal (not a string). name: a bare
+/// identifier that names a module constant. binary / unary: an operator node whose operator, as the t27c parser spells it, is `op_len` bytes
+/// long and starts with `op0`.
+pub fn node(literal: bool, name: bool, binary: bool, unary: bool, op_len: usize, op0: u8) -> bool {
+    if (literal or name) { return true; }
+    if (op_len != 1) { return false; }
+    if (binary) { return op0 == PLUS or op0 == MINUS or op0 == TIMES; }
+    if (unary) { return op0 == MINUS; }
+    return false;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shape, then what keeps its refusal.
+// ----------------------------------------------------------------------------------------------------------
+
+test names_literals_and_plus_minus_times_fold {
+    // routes/memory.t27's `[MAX_CONTENT_LENGTH + 1]u8`: a name, a literal and `+` (43); `-` is 45, `*` 42.
+    assert(node(false, true, false, false, 0, 0));
+    assert(node(true, false, false, false, 0, 0));
+    assert(node(false, false, true, false, 1, 43));
+    assert(node(false, false, true, false, 1, 45));
+    assert(node(false, false, true, false, 1, 42));
+    assert(node(false, false, false, true, 1, 45));
+}
+
+test other_operators_keep_the_refusal {
+    // `/` 47, `%` 37, `+%` and `*%` and `<<` (two bytes), `&` 38, no operator; unary `~` 126, `!` 33, `+` 43.
+    assert(!node(false, false, true, false, 1, 47));
+    assert(!node(false, false, true, false, 1, 37));
+    assert(!node(false, false, true, false, 2, 43));
+    assert(!node(false, false, true, false, 2, 42));
+    assert(!node(false, false, true, false, 2, 60));
+    assert(!node(false, false, true, false, 1, 38));
+    assert(!node(false, false, true, false, 0, 0));
+    assert(!node(false, false, false, true, 1, 126));
+    assert(!node(false, false, false, true, 1, 33));
+    assert(!node(false, false, false, true, 1, 43));
+}
+
+test any_other_node_keeps_the_refusal {
+    // A call, a field access, a string: none of the four kinds.
+    assert(!node(false, false, false, false, 0, 0));
+    assert(!node(false, false, false, false, 1, 43));
+}

@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/array_len_expr.t27 -- an array type whose length is written as an expression,
+; `[N + 1]T`, as the reference runs it (issue #7347, t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. The plan is
+; specs/tri/t27b/len_expr_plan.t27.
+; The t27c parser keeps the length as text and its Zig backend prints it unchanged, so Zig folds it: module
+; constants, literals, `+ - *`, parentheses. The port this mirrors is the agent-server's routes/memory.t27
+; (`var long_content: [MAX_CONTENT_LENGTH + 1]u8`, passed where `[]const u8` is declared).
+; Not here: a length that calls a fn, divides, or reads a run-time value; t27b keeps `type [N]T` for those.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceArrayLenExpr;
+
+const LIMIT = 500;
+const W = 4;
+const H = 3;
+const AREA = W * H;
+
+struct Grid {
+    cells: [W * H]u32,
+    pad: [W + 2]u8,
+}
+
+fn too_long(content: []const u8) -> bool {
+    return content.len > LIMIT;
+}
+
+fn ramp() -> [W * H]u32 {
+    var a: [W * H]u32 = undefined;
+    var i: u32 = 0;
+    while (i < AREA) {
+        a[i] = i * 2;
+        i = i + 1;
+    }
+    return a;
+}
+
+fn total(xs: [AREA]u32) -> u32 {
+    var s: u32 = 0;
+    for (xs) |x| {
+        s = s + x;
+    }
+    return s;
+}
+
+test one_past_the_limit_is_too_long {
+    var long_content: [LIMIT + 1]u8 = undefined;
+    for (0..long_content.len) |i| {
+        long_content[i] = 120;
+    }
+    assert(long_content.len == 501);
+    assert(too_long(&long_content));
+}
+
+test exactly_the_limit_is_not {
+    var max_content: [LIMIT]u8 = undefined;
+    for (0..max_content.len) |i| {
+        max_content[i] = 121;
+    }
+    assert(!too_long(&max_content));
+    var short: [LIMIT - 499]u8 = undefined;
+    short[0] = 1;
+    assert(!too_long(&short));
+}
+
+test a_local_named_like_the_limit_does_not_change_it {
+    // t27c renames this local and prints `[LIMIT+1]u8` and `[LIMIT]u8` as written: both read the constant.
+    const LIMIT = 7;
+    var long_content: [LIMIT + 1]u8 = undefined;
+    var exact: [LIMIT]u8 = undefined;
+    long_content[500] = 1;
+    exact[499] = 2;
+    assert(long_content[500] == 1);
+    assert(exact[499] == 2);
+    assert(too_long(&long_content));
+}
+
+test a_product_as_a_result_and_a_parameter {
+    const r = ramp();
+    assert(r.len == 12);
+    assert(r[11] == 22);
+    assert(total(r) == 132);
+}
+
+test parentheses_and_a_struct_field {
+    var c: [(W + 1) * 2]u16 = undefined;
+    c[9] = 8;
+    assert(c.len == 10);
+    assert(c[9] == 8);
+    var g: Grid = undefined;
+    g.cells = ramp();
+    g.pad[5] = 2;
+    assert(g.pad.len == 6);
+    assert(g.cells[3] == 6);
+    assert(g.pad[5] == 2);
+}

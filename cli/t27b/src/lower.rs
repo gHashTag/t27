@@ -109,6 +109,8 @@ mod sc; // t27c gen-rust of specs/tri/t27b/scaffold_plan.t27: `x = default_input
 mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its result type
 #[path = "../../../gen/rust/tri/t27b/frame_store_plan.rs"] #[allow(dead_code, unused_parens)]
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
+#[path = "../../../gen/rust/tri/t27b/len_expr_plan.rs"] #[allow(dead_code, unused_parens)]
+mod lx; // t27c gen-rust of specs/tri/t27b/len_expr_plan.t27: an array length written as an expression
 #[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -4579,7 +4581,8 @@ impl<'a> Lower<'a> {
         let v = if let Some(c) = parse_int(len) {
             Some(c)
         } else if len.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && !len.starts_with(|c: char| c.is_ascii_digit()) && len != "_" {
-            let v = match self.lookup(len) {
+            // t27c renames a local named like a module constant but prints the length text as written.
+            let v = match self.lookup(len).filter(|_| !self.const_nodes.contains_key(len)) {
                 Some(Binding::Const(v)) => Some(v),
                 Some(_) => None,
                 None => self.global(len)?,
@@ -4591,13 +4594,35 @@ impl<'a> Lower<'a> {
                 _ => None,
             }
         } else {
-            None
+            self.len_expr(len)?
         };
         match v {
             Some(c) if (0..=u32::MAX as i128).contains(&c) => Ok(c as u32),
             Some(c) => self.reject("type [N]T", format!("`{}`: length {} out of range", t, c)),
             None => self.reject("type [N]T", format!("`{}`: length `{}` is not a compile-time integer", t, len)),
         }
+    }
+
+    /// A length written as an expression, `[N + 1]T` (specs/tri/t27b/len_expr_plan.t27): parsed back from the text
+    /// t27c prints unchanged, then folded with no local in scope, as a module constant's initializer is. Its names
+    /// are module constants: a local named like one is renamed by t27c, and the text still reads the constant.
+    fn len_expr(&mut self, len: &str) -> R<Option<i128>> {
+        fn shape(n: &Node, consts: &HashMap<String, &Node>) -> bool {
+            let (k, op) = (&n.kind, n.extra_op.trim().as_bytes());
+            let (lit, name) = (*k == NodeKind::ExprLiteral && n.extra_kind != "string", *k == NodeKind::ExprIdentifier && consts.contains_key(&n.name));
+            lx::node(lit, name, *k == NodeKind::ExprBinary, *k == NodeKind::ExprUnary, op.len(), op.first().copied().unwrap_or(0))
+                && n.children.iter().all(|c| shape(c, consts))
+        }
+        let parsed = crate::compiler::Compiler::parse_ast_strict(&format!("module r {{ const r = {}; }}", len)).ok();
+        let Some(e) = parsed.as_ref().and_then(|a| find_const(a, "r")).filter(|e| shape(e, &self.const_nodes)).cloned() else { return Ok(None) };
+        let saved = (std::mem::take(&mut self.scopes), std::mem::replace(&mut self.comptime, true));
+        let v = self.expr(&e);
+        (self.scopes, self.comptime) = saved;
+        Ok(match v? {
+            Val::Ct(c) => Some(c),
+            Val::E(Expr { kind: ExprKind::Const(c), ty }) if ty.is_int() => Some(c),
+            _ => None,
+        })
     }
 
     /// The fieldless, zero-size struct that stands for `void`. Its key is
