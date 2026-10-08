@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:8789b25438add91da06a44c35330e999236adc8777c684c01061eef157a57d82",
+  "gen_hash_c": "sha256:699d9c4808b2222133ef4d89bbc79c6db05672aa4ecc08dc7364605247447e44",
   "gen_hash_rust": "sha256:decb69b2ce3cd57fb67ee849d20a59e42b95976e9f38b228a32705c97de0efc6",
   "gen_hash_verilog": "sha256:12a3726f48d2b15ad7c832e8224d04911133581edc066f84efd1573723ac2f4b",
-  "gen_hash_zig": "sha256:190530bd5da111e231801d92b14d1174037577a667ae7b346471d5e18255c2f4",
+  "gen_hash_zig": "sha256:48608c226a3044507d4d23fcc39dcd7670fee40059bf3b183d3faf3dcab8e229",
   "module": "ZeroDSP_UART",
   "ring": 12,
-  "sealed_at": "2026-10-06T06:57:53Z",
-  "spec_hash": "sha256:aee273202b68a8f32761fcc7d0d399a5f76b81909353011038fa168ff3d30e87",
+  "sealed_at": "2026-10-08T12:31:43Z",
+  "spec_hash": "sha256:fe0d857d25e5dd7668b5a2ee59ea39ee5369a7ed269ae56d6634bac4a341936a",
   "spec_path": "specs/fpga/uart.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-uart-2420573/spec.zig:69:22: error: unable to resolve comptime value"
+    "blocked": "does not compile: spec.zig:69:22: error: unable to resolve comptime value"
   }
 }
