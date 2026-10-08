@@ -1,4 +1,4 @@
-// The module the `use` refusal fixtures in ../../refuse import (#7378).
+// The module the `use` fixtures in ../../accept and ../../refuse import (#7378).
 // gen-c looks for `specs/` from the importer's directory upward, so for a
 // fixture under bootstrap/tests/fixtures/core_selfhost it finds this tree
 // first, and `use selfhost_use::use_dep;` names this file.

@@ -1,0 +1,18 @@
+// #7378: `use` names a module in a specs/ tree above the importer. gen-c
+// splices in the `fn`s and `const`s the importer's words name, here ud_twice
+// and UD_LIMIT, after the importer's own, sorted by module path and name.
+// The core reads the module from its input after a NUL (E_NEED asks for
+// it), and writes the same bytes.
+module use_whole;
+use selfhost_use::use_dep;
+fn uw_sum(a: i64) -> i64 {
+    return ud_twice(a) + UD_LIMIT;
+}
+fn uw_cells() -> i64 {
+    var cells: [UD_LIMIT]u8 = [_]u8{1} ** UD_LIMIT;
+    return (cells[6] as i64) + ud_twice(UD_LIMIT);
+}
+test uw_reads_the_splice {
+    assert(uw_sum(3) == 13);
+    assert(uw_cells() == 15);
+}

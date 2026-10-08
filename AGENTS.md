@@ -253,7 +253,7 @@ measure it are written in **t27**, not in Rust or Python by hand.
   824c82d78's 15224 plus 1202 and 8149; 15227 plus 1208, 16435 in all, and
   `cli/t27b/tests/*.rs` 8178, after #7805's glue for a call of a fn returning
   a float in `x as T` (`specs/tri/t27b/float_as_plan.t27`), +6 and +14 on
-  master 408d740d9's 15227 plus 1202 and 8164),
+  master 4daabae70's 15227 plus 1202 and 8164),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
