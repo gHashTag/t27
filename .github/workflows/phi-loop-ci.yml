@@ -13,6 +13,11 @@ on:
   # out. `tri gates unmeasured` reports the gap; this is what closes it.
   workflow_dispatch:
 
+# A newer push or PR edit makes this run's verdict stale: cancel it (queue jam 2026-10-09).
+concurrency:
+  group: phi-loop-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   phi-loop-check:
     runs-on: ubuntu-latest
