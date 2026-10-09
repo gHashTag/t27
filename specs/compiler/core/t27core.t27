@@ -99,9 +99,12 @@
 ;         ! and or assert, that is not a bool; arithmetic over mixed signs or a
 ;         bool; unary - on an unsigned; a signed index; an assignment to a
 ;         module const; a comparison C converts the signed side of (a signed
-;         value against an unsigned one of 32 bits or more, #8076). An integer
-;         Zig knows at compile time (a number, a module const, a local const
-;         of such) coerces to any integer type, never to a bool
+;         value against an unsigned one of 32 bits or more, #8076). A value
+;         Zig knows whole at compile time (numbers, module consts, local
+;         consts of such) coerces to any integer type, never to a bool; where
+;         it meets a runtime operand, only a number, a char and a local const
+;         whose value is one number (gen-zig inlines it) take that operand's
+;         type, and a module const or a cast keeps its own
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
 ; With no string literals, fixed text is packed 64-bit words: w(word, n) emits
@@ -2541,8 +2544,9 @@ fn check_expr(e: i64) -> void {
         var depth: i64 = 0;
         while (nkind(b) == N_INDEX) {
             check_expr(nb(b));
-            // Zig indexes with a usize: a signed index is refused there.
-            if (!failed and !idx_ok(tz_expr(nb(b)))) {
+            // Zig indexes with a usize: a signed index is refused there; one
+            // it knows at compile time coerces by its value.
+            if (!failed and !tz_ct(nb(b)) and !idx_ok(tz_expr(nb(b)))) {
                 fail(E_UNSOUND, tpos(ntok(e)));
                 return;
             }
@@ -2698,10 +2702,10 @@ fn check_stmts(head: i64, test_body: i64) -> void {
         }
         // typecheck registers a local after its initializer, an array too.
         if (k == S_LOCAL) {
-            push_sym(ntok(s), tc_of(naux(s)), nd(s) == 1 and tz_ct(na(s)));
+            push_sym(ntok(s), tc_of(naux(s)), local_ct(s));
         }
         if (k == D_ARRAY) {
-            push_sym(ntok(s), TC_ARRAY, false);
+            push_sym(ntok(s), TC_ARRAY, 0);
         }
         s = nnext(s);
     }
@@ -3582,16 +3586,12 @@ fn tc_promote(a: i64, b: i64) -> i64 {
     return b;
 }
 
-fn push_sym(t: i64, ty: i64, ct: bool) -> void {
-    var c: i64 = 0;
+fn push_sym(t: i64, ty: i64, ct: i64) -> void {
     if (sym_len >= SCOPE_MAX) {
         fail(E_LIMIT, tpos(t));
         return;
     }
-    if (ct) {
-        c = 1;
-    }
-    syms[sym_len as usize] = Sym{ .tok = t, .ty = ty, .ct = c };
+    syms[sym_len as usize] = Sym{ .tok = t, .ty = ty, .ct = ct };
     sym_len = sym_len + 1;
 }
 
@@ -3800,7 +3800,7 @@ fn ct_name(t: i64) -> bool {
     var i: i64 = sym_len - 1;
     while (i >= 0) {
         if (tok_eq(syms[i as usize].tok, t)) {
-            return syms[i as usize].ct == 1 and z_int(syms[i as usize].ty);
+            return (syms[i as usize].ct == 1 or syms[i as usize].ct == 3) and z_int(syms[i as usize].ty);
         }
         i = i - 1;
     }
@@ -3845,6 +3845,57 @@ fn tz_ct(e: i64) -> bool {
     return false;
 }
 
+; How Zig sees local s (Sym.ct): 3 for a const whose value is one number,
+; which gen-zig inlines as an untyped comptime_int; 1 for another const Zig
+; knows at compile time, typed; else 0.
+fn local_ct(s: i64) -> i64 {
+    if (nd(s) != 1 or !tz_ct(na(s))) {
+        return 0;
+    }
+    if (nkind(na(s)) == N_NUM) {
+        return 3;
+    }
+    return 1;
+}
+
+; An integer with no type yet in Zig (comptime_int): a number, a char, an
+; inlined local const, and operators over them. It takes the type of the
+; operand it meets, where a module const or a cast, known at compile time
+; too, keeps its own.
+fn tz_untyped(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM or k == N_CHAR or k == N_NEGLIT) {
+        return true;
+    }
+    if (k == N_IDENT) {
+        var i: i64 = sym_len - 1;
+        while (i >= 0) {
+            if (tok_eq(syms[i as usize].tok, ntok(e))) {
+                return syms[i as usize].ct == 3;
+            }
+            i = i - 1;
+        }
+        return false;
+    }
+    if (k == N_UN and kind(ntok(e)) != '!') {
+        return tz_untyped(na(e));
+    }
+    if (k == N_BIN and op_level(kind(ntok(e))) > 2) {
+        return tz_untyped(na(e)) and tz_untyped(nb(e));
+    }
+    return false;
+}
+
+; e's type where it meets a comparison: none for a value known at compile
+; time, which C and Zig compare alike unless it is negative (a literal
+; width rule).
+fn tz_cmp(e: i64) -> i64 {
+    if (tz_ct(e)) {
+        return 0;
+    }
+    return tz_expr(e);
+}
+
 ; The one enum a `.M` names, as member_owner finds it, else 0, silently.
 fn owner_of(t: i64) -> i64 {
     var owner: i64 = 0;
@@ -3865,10 +3916,10 @@ fn owner_of(t: i64) -> i64 {
 
 ; e's type in Zig's eyes, as a TypeInfo: typecheck's inference where it
 ; types e, and the cast's, field's, element's, struct's or enum's type where
-; it does not; 0 for a comptime integer or a value not followed.
+; it does not; 0 for an untyped comptime integer or a value not followed.
 fn tz_expr(e: i64) -> i64 {
     var k: i64 = nkind(e);
-    if (tz_ct(e)) {
+    if (tz_untyped(e)) {
         return 0;
     }
     if (k == N_CAST) {
@@ -3906,7 +3957,20 @@ fn tz_expr(e: i64) -> i64 {
     if (op == T_SHL or op == T_SHR) {
         return tz_expr(na(e));
     }
-    return tc_promote(tz_expr(na(e)), tz_expr(nb(e)));
+    return tz_promote(tz_expr(na(e)), tz_expr(nb(e)));
+}
+
+; Zig's peer type of two operands check_bin_types lets meet: typecheck's
+; promotion, except that usize, a rank-0 name there, holds every unsigned
+; integer up to 64 bits.
+fn tz_promote(a: i64, b: i64) -> i64 {
+    if (is_usize_tc(a) and z_int(b)) {
+        return a;
+    }
+    if (is_usize_tc(b) and z_int(a)) {
+        return b;
+    }
+    return tc_promote(a, b);
 }
 
 ; A comptime integer where a bool, a struct or an enum is declared: Zig
@@ -3920,8 +3984,18 @@ fn ct_misfit(t: i64, e: i64) -> bool {
 
 ; A value e meets declared TypeInfo t (an initializer, an assignment, a
 ; return, an argument, a field, an item).
+; One Zig knows at compile time coerces by its value, as a whole.
 fn coerce(t: i64, e: i64) -> void {
-    if (!failed and (!z_coerce(t, tz_expr(e)) or ct_misfit(t, e))) {
+    if (failed) {
+        return;
+    }
+    if (tz_ct(e)) {
+        if (ct_misfit(t, e)) {
+            fail(E_UNSOUND, tpos(ntok(e)));
+        }
+        return;
+    }
+    if (!z_coerce(t, tz_expr(e))) {
         fail(E_UNSOUND, tpos(ntok(e)));
     }
 }
@@ -3955,8 +4029,8 @@ fn cmp_diverges(l: i64, r: i64) -> bool {
 ; struct or enum, integers C compares as Zig does; a comptime integer with
 ; an integer only.
 fn check_eq_types(a: i64, b: i64, at_tok: i64) -> void {
-    var l: i64 = tz_expr(a);
-    var r: i64 = tz_expr(b);
+    var l: i64 = tz_cmp(a);
+    var r: i64 = tz_cmp(b);
     if (failed) {
         return;
     }
@@ -3997,7 +4071,9 @@ fn check_bin_types(e: i64) -> void {
         return;
     }
     if (op == '<' or op == '>' or op == T_LE or op == T_GE) {
-        if (z_int(l) and z_int(r) and !cmp_diverges(l, r)) {
+        l = tz_cmp(na(e));
+        r = tz_cmp(nb(e));
+        if (l == 0 or r == 0 or (z_int(l) and z_int(r) and !cmp_diverges(l, r))) {
             return;
         }
         fail(E_UNSOUND, tpos(ntok(e)));
@@ -7049,6 +7125,38 @@ test signed_index_is_unsound {
     var n9: i64 = feed(0x7d3b5d695b, 5, n8);
     assert(compile(n9) == -1);
     assert(err_code == E_UNSOUND);
+}
+; "module m;const G: i64 = 5;fn f(x: i16) -> i16 {return G & x;}": a module
+; const keeps its type against a runtime operand, so the result is an i64 in
+; Zig (#8075).
+test typed_module_const_keeps_its_type {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x472074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x782866206e663b35, 8, n3);
+    var n5: i64 = feed(0x2d2029363169203a, 8, n4);
+    var n6: i64 = feed(0x727b20363169203e, 8, n5);
+    var n7: i64 = feed(0x2047206e72757465, 8, n6);
+    var n8: i64 = feed(0x7d3b782026, 5, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn f(x: i16) -> i16 {const L: i64 = 5;return L & x;}": gen-zig
+; inlines L as 5, which takes x's type; 755 bytes.
+test inlined_local_const_takes_the_operand_type {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202936316920, 8, n2);
+    var n4: i64 = feed(0x6f637b2036316920, 8, n3);
+    var n5: i64 = feed(0x69203a4c2074736e, 8, n4);
+    var n6: i64 = feed(0x723b35203d203436, 8, n5);
+    var n7: i64 = feed(0x204c206e72757465, 8, n6);
+    var n8: i64 = feed(0x7d3b782026, 5, n7);
+    assert(compile(n8) == 755);
+    assert(out_at(708) == 'L');
+    assert(out_at(727) == 'L');
+    assert(out_at(731) == 'x');
 }
 test put_int_writes_decimal {
     reset_out();
