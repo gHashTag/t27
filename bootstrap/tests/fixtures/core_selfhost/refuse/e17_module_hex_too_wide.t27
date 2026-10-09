@@ -1,0 +1,3 @@
+// typecheck reads a decimal module const only (#8035); 0x1FF is 511 (#8098).
+module module_hex_too_wide;
+const MHT_X: u8 = 0x1FF;

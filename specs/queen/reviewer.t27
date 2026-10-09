@@ -19,20 +19,78 @@ module QueenReviewer;
 /// costs one query.
 pub const REVIEWER_EVERY_SECONDS : u32 = 10;
 
-/// Rows reviewed at once. Each takes its own lane (a key no bee and no other review holds), so this is
-/// bounded by keys as well as by this number.
+/// Rows reviewed at once by a host that has not measured its lanes and memory: the fixed bound the
+/// reviewer started with. Each row takes its own lane (a key no bee and no other review holds).
+/// A host that knows its keys, lanes and free memory uses `reviewer_concurrency` instead; this stays
+/// as the bound behind `review_slots` so callers that pass no measurement keep their behaviour.
 pub const REVIEWER_CONCURRENCY : u32 = 4;
+
+/// The most rows reviewed at once, whatever the lanes and memory allow: four times the fixed 4, and
+/// three times the 5 the measured load of 2026-10-09 needs (see `slots_needed`).
+pub const REVIEWER_CEILING : u32 = 16;
+
+/// Seconds in an hour; finish rates are measured per hour.
+pub const SECONDS_PER_HOUR : u32 = 3600;
 
 /// One row's wall clock: the witness, the criteria measurement and the model call. It no longer
 /// shares a 45 s budget with the round, because it no longer holds the round up.
 pub const REVIEW_ROW_SECONDS : u32 = 300;
 
-/// How many rows a pass starts: the free slots, but no more than the rows waiting.
-pub fn review_slots(in_flight: u32, waiting: u32) -> u32 {
-    if (in_flight >= REVIEWER_CONCURRENCY) { return 0; }
-    let room : u32 = REVIEWER_CONCURRENCY - in_flight;
+/// Measured 2026-10-09 on the live Queen (`/queen/status`, `/queen/public-activity`): about 58
+/// dispatches finished an hour against about 11 reviewed, with 111 rows waiting. At REVIEW_ROW_SECONDS
+/// a slot reviews at most 3600 / 300 = 12 rows an hour, so the fixed 4 tops out at 48 an hour: below
+/// the finish rate even if every review used its whole budget, and the backlog only grows.
+/// How many rows the reviewer may take at once, from what the host measures:
+/// - `keys` model keys, each with `lanes_per_key` lanes free for review;
+/// - `free_mb` megabytes free, each review costing `mb_per_review` (0 = not measured: one review);
+/// - never above REVIEWER_CEILING, never above the rows `waiting`;
+/// - 0 only when nothing waits, and at least 1 while anything waits, so the backlog always drains.
+pub fn reviewer_concurrency(keys: u32, lanes_per_key: u32, free_mb: u32, mb_per_review: u32, waiting: u32) -> u32 {
+    if (waiting == 0) { return 0; }
+    var k : u32 = keys;
+    if (k > REVIEWER_CEILING) { k = REVIEWER_CEILING; }
+    var l : u32 = lanes_per_key;
+    if (l > REVIEWER_CEILING) { l = REVIEWER_CEILING; }
+    var bound : u32 = k * l;
+    if (bound > REVIEWER_CEILING) { bound = REVIEWER_CEILING; }
+    var by_memory : u32 = 1;
+    if (mb_per_review > 0) { by_memory = free_mb / mb_per_review; }
+    if (by_memory < bound) { bound = by_memory; }
+    if (waiting < bound) { bound = waiting; }
+    if (bound < 1) { return 1; }
+    return bound;
+}
+
+/// Rows at once needed so the reviewer finishes at least `finished_per_hour` rows an hour when every
+/// row uses its whole REVIEW_ROW_SECONDS: ceil(finished_per_hour * REVIEW_ROW_SECONDS / 3600).
+/// Split by the hour so no u32 product overflows.
+pub fn slots_needed(finished_per_hour: u32) -> u32 {
+    let whole : u32 = finished_per_hour / SECONDS_PER_HOUR;
+    let part : u32 = finished_per_hour % SECONDS_PER_HOUR;
+    let part_seconds : u32 = part * REVIEW_ROW_SECONDS;
+    var extra : u32 = part_seconds / SECONDS_PER_HOUR;
+    if (part_seconds % SECONDS_PER_HOUR > 0) { extra = extra + 1; }
+    return whole * REVIEW_ROW_SECONDS + extra;
+}
+
+/// Whether `slots` reviews at once keep up with `finished_per_hour` finished rows.
+pub fn keeps_up(slots: u32, finished_per_hour: u32) -> bool {
+    return slots >= slots_needed(finished_per_hour);
+}
+
+/// How many rows a pass starts against a bound (normally `reviewer_concurrency`): the free slots, but
+/// no more than the rows waiting.
+pub fn review_slots_within(bound: u32, in_flight: u32, waiting: u32) -> u32 {
+    if (in_flight >= bound) { return 0; }
+    let room : u32 = bound - in_flight;
     if (waiting < room) { return waiting; }
     return room;
+}
+
+/// How many rows a pass starts on a host that measured nothing: the same rule against the fixed
+/// REVIEWER_CONCURRENCY, unchanged for its existing callers.
+pub fn review_slots(in_flight: u32, waiting: u32) -> u32 {
+    return review_slots_within(REVIEWER_CONCURRENCY, in_flight, waiting);
 }
 
 /// The order rows are taken in: the one this reviewer visited longest ago first, a row it never
@@ -89,6 +147,53 @@ test a_pass_fills_the_free_slots_with_waiting_rows {
     assert review_slots(REVIEWER_CONCURRENCY + 1, 100) == 0;
 }
 
+test the_bound_follows_lanes_memory_and_backlog {
+    // nothing waits: no slot, whatever the host has
+    assert reviewer_concurrency(10, 10, 100000, 100, 0) == 0;
+    // lanes bound: 2 keys x 3 lanes
+    assert reviewer_concurrency(2, 3, 100000, 100, 111) == 6;
+    // memory bound: 1000 MB at 300 MB a review
+    assert reviewer_concurrency(10, 10, 1000, 300, 111) == 3;
+    // the hard ceiling: 16, though 10 x 10 lanes and 1000 reviews' worth of memory are free
+    assert reviewer_concurrency(10, 10, 100000, 100, 111) == 16;
+    assert reviewer_concurrency(4294967295, 4294967295, 4294967295, 1, 4294967295) == REVIEWER_CEILING;
+    // never above the backlog
+    assert reviewer_concurrency(10, 10, 100000, 100, 2) == 2;
+    // at least one while anything waits, even with no lane or memory measured
+    assert reviewer_concurrency(0, 0, 0, 0, 1) == 1;
+    assert reviewer_concurrency(10, 10, 100, 300, 111) == 1;
+    assert reviewer_concurrency(10, 10, 100000, 0, 111) == 1;
+    assert reviewer_concurrency(10, 0, 100000, 100, 111) == 1;
+}
+
+test the_measured_load_needs_five_and_the_bound_admits_them {
+    // 58 finished an hour at 300 s a row: ceil(58 * 300 / 3600) = ceil(4.83) = 5
+    assert slots_needed(58) == 5;
+    assert slots_needed(0) == 0;
+    assert slots_needed(12) == 1;
+    assert slots_needed(13) == 2;
+    assert slots_needed(3600) == REVIEW_ROW_SECONDS;
+    assert slots_needed(3601) == REVIEW_ROW_SECONDS + 1;
+    assert slots_needed(4294967295) == 357913942;
+    // the fixed 4 cannot keep up; 70 lanes (measured 2026-10-09) and 8 GB at 512 MB a review can
+    assert keeps_up(REVIEWER_CONCURRENCY, 58) == false;
+    assert keeps_up(reviewer_concurrency(7, 10, 8192, 512, 111), 58) == true;
+    assert reviewer_concurrency(7, 10, 8192, 512, 111) == 16;
+    assert keeps_up(4, 48) == true;
+    assert keeps_up(4, 49) == false;
+}
+
+test a_pass_fills_the_free_slots_against_the_computed_bound {
+    let bound : u32 = reviewer_concurrency(7, 10, 8192, 512, 111);
+    assert review_slots_within(bound, 0, 111) == 16;
+    assert review_slots_within(bound, 11, 111) == 5;
+    assert review_slots_within(bound, 15, 3) == 1;
+    assert review_slots_within(bound, 16, 111) == 0;
+    assert review_slots_within(bound, 17, 111) == 0;
+    assert review_slots_within(bound, 0, 3) == 3;
+    assert review_slots_within(0, 0, 111) == 0;
+}
+
 test every_row_is_visited_in_turn {
     // never visited goes first
     assert visit_first(true, 0, false, 9999) == true;
@@ -129,4 +234,19 @@ invariant the_reviewer_is_quicker_than_the_round {
     // a stuck row is still seen several times an hour, so one that starts to read is not lost for long
     assert WAIT_REVISIT_CAP_SECONDS <= 3600;
     assert WAIT_REVISIT_BASE_SECONDS >= REVIEWER_EVERY_SECONDS;
+}
+
+invariant the_reviewer_can_outrun_the_measured_finish_rate {
+    // FR-002: at 58 finished an hour and REVIEW_ROW_SECONDS, a host with the lanes and memory gets
+    // at least the slots that load needs, and the ceiling is not what stops it
+    assert keeps_up(reviewer_concurrency(REVIEWER_CEILING, REVIEWER_CEILING, 4294967295, 1, 111), 58);
+    assert REVIEWER_CEILING >= slots_needed(58);
+    assert REVIEWER_CEILING >= REVIEWER_CONCURRENCY;
+    // the fixed bound alone could not, which is why it is only the fallback
+    assert keeps_up(REVIEWER_CONCURRENCY, 58) == false;
+    // one hour holds a whole number of review budgets, so slots_needed is exact at whole hours
+    assert SECONDS_PER_HOUR % REVIEW_ROW_SECONDS == 0;
+    // FR-001: 0 only when nothing waits
+    assert reviewer_concurrency(0, 0, 0, 0, 0) == 0;
+    assert reviewer_concurrency(0, 0, 0, 0, 1) >= 1;
 }

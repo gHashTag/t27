@@ -1391,7 +1391,8 @@ impl LabEnv {
 /// One `--lab` request, its files already read.
 struct LabRun {
     rel: String,
-    spec: Vec<u8>,
+    /// What goes up: each file's path in the repo and its bytes (for `mutate spec`, `rel` alone).
+    files: Vec<(String, Vec<u8>)>,
     func: Option<String>,
     accepted: Option<Vec<u8>>,
     max: usize,
@@ -1593,7 +1594,8 @@ fn lab_run_name(env: &LabEnv, run: &LabRun) -> String {
         env.src
     );
     let mut h = Sha256::new();
-    for part in [run.rel.as_bytes(), &run.spec, run.accepted.as_deref().unwrap_or(b""), args.as_bytes()] {
+    let files = run.files.iter().flat_map(|(r, b)| [r.as_bytes(), b.as_slice()]);
+    for part in [run.rel.as_bytes(), run.accepted.as_deref().unwrap_or(b""), args.as_bytes()].into_iter().chain(files) {
         h.update((part.len() as u64).to_le_bytes());
         h.update(part);
     }
@@ -1651,9 +1653,9 @@ fn lab_run_sh(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Str
 fn lab_launch(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Result<LabAnswer> {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|t| t.subsec_nanos()).unwrap_or(0);
     let stage = format!("{d}.up.{}.{nanos}", std::process::id());
-    let mut files: Vec<(&str, &[u8])> = vec![("spec.b64", &run.spec)];
+    let mut files: Vec<(String, &[u8])> = run.files.iter().enumerate().map(|(i, (_, b))| (format!("f{i}.b64"), b.as_slice())).collect();
     if let Some(a) = &run.accepted {
-        files.push(("acc.b64", a));
+        files.push(("acc.b64".into(), a));
     }
     for (name, bytes) in &files {
         let b64 = base64_encode(bytes);
@@ -1670,13 +1672,17 @@ fn lab_launch(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Res
     }
     let q = sh_quote;
     let (s, dq, src, tri) = (q(&stage), q(d), q(&env.src), q(&env.tri));
-    let parent = Path::new(&run.rel).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
-    let acc = if run.accepted.is_some() { " && base64 -d \"$S/acc.b64\" > \"$D/accepted\"" } else { "" };
+    let mut up = String::new();
+    for (i, (rel, _)) in run.files.iter().enumerate() {
+        let parent = Path::new(rel).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+        up += &format!("mkdir -p \"$D/w/\"{} && base64 -d \"$S/f{i}.b64\" > \"$D/w/\"{} && ", q(&parent), q(rel));
+    }
+    let acc = if run.accepted.is_some() { "base64 -d \"$S/acc.b64\" > \"$D/accepted\" && " } else { "" };
     let script = format!(
         "S={s}; D={dq}; trap 'rm -rf \"$S\"' EXIT; \
          if mkdir \"$D\" 2>/dev/null; then echo $$ > \"$D/pid\"; \
-         if {{ mkdir \"$D/w\" && cp -r {src}/specs \"$D/w/specs\" && mkdir -p \"$D/w/\"{parent} && \
-         base64 -d \"$S/spec.b64\" > \"$D/w/\"{rel}{acc} && printf %s {runsh} | base64 -d > \"$D/run.sh\"; }} 2> \"$D/out\"; then \
+         if {{ mkdir \"$D/w\" && cp -r {src}/specs \"$D/w/specs\" && \
+         {up}{acc}printf %s {runsh} | base64 -d > \"$D/run.sh\"; }} 2> \"$D/out\"; then \
          if command -v setsid >/dev/null 2>&1; then nohup setsid sh \"$D/run.sh\" >/dev/null 2>&1 & \
          else nohup sh \"$D/run.sh\" >/dev/null 2>&1 & fi; \
          i=0; while [ \"$(cat \"$D/pid\")\" = \"$$\" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done; \
@@ -1685,8 +1691,6 @@ fn lab_launch(env: &LabEnv, run: &LabRun, d: &str, jobs: u32, zig_j: u32) -> Res
          echo \"tool {tri_shown} built $(date -u -r {tri} +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)\"; \
          else echo 1 > \"$D/exit\"; echo 'setup failed on the lab; its errors are the run output'; fi; \
          else echo 'the run directory was already taken'; fi",
-        parent = q(&parent),
-        rel = q(&run.rel),
         runsh = q(&base64_encode(lab_run_sh(env, run, d, jobs, zig_j).as_bytes())),
         src_shown = env.src.replace('"', ""),
         tri_shown = env.tri.replace('"', ""),
@@ -1843,7 +1847,7 @@ fn lab_request(
         }
         None => None,
     };
-    Ok(LabRun { rel, spec, func: func.map(str::to_string), accepted, max, jobs, zig_threads, secs, fail_on_survived: gate, wait })
+    Ok(LabRun { files: vec![(rel.clone(), spec)], rel, func: func.map(str::to_string), accepted, max, jobs, zig_threads, secs, fail_on_survived: gate, wait })
 }
 
 /// `--fail-on-survived` and `--accepted`, as given.
@@ -3296,7 +3300,7 @@ mod tests {
     fn lab_run_of(spec: &str, max: usize, wait: u64) -> LabRun {
         LabRun {
             rel: "specs/x/a.t27".into(),
-            spec: spec.as_bytes().to_vec(),
+            files: vec![("specs/x/a.t27".into(), spec.as_bytes().to_vec())],
             func: None,
             accepted: None,
             max,
@@ -3390,7 +3394,7 @@ mod tests {
              case \"$*\" in *--help*) echo '{help}'; exit 0;; esac\n\
              echo \"$*\" >> {r}/calls\n\
              test -f specs/x/dep.t27 || {{ echo 'no copy of specs/'; exit 9; }}\n\
-             cat specs/x/a.t27\n\
+             cat specs/x/a.t27 specs/y/b.t27 2>/dev/null\n\
              while [ -f {r}/hold ]; do sleep 0.05; done\n\
              if [ -f {r}/orphan ]; then sleep 30 & echo $! > {r}/orphan.pid; fi\n\
              echo '4 of 4 killed'\n\
@@ -3448,6 +3452,19 @@ mod tests {
             assert_eq!(code, want, "tool rc {rc}: {out}");
         }
         assert_eq!(std::fs::read_dir(&env.runs).unwrap().count(), 0, "every run removed, no staging left");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Every file of a request goes up to its own path (#7471: a census sends a directory's specs).
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn every_file_of_a_lab_run_goes_up() {
+        let (root, env) = lab_fixture("files", LAB_HELP);
+        let mut run = lab_run_of("A\n", 5, 3600);
+        run.files.push(("specs/y/b.t27".into(), b"B\n".to_vec()));
+        let (code, out) = lab_go(&env, &run);
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(out.contains("\nA\nB\n4 of 4 killed\n"), "each file went up to its own path: {out}");
         let _ = std::fs::remove_dir_all(&root);
     }
 

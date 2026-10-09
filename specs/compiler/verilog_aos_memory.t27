@@ -1,0 +1,98 @@
+; specs/compiler/verilog_aos_memory.t27 -- how gen-verilog holds an array of structs that a module-level
+; `var` declares (issue #8151, see #2566).
+; --
+; The decision lives here. `t27c gen-rust` lowers it to bootstrap/gen/rust/compiler/verilog_aos_memory.rs,
+; which bootstrap/src/compiler.rs mounts by #[path] and only prints. Never hand-edit the generated copy.
+; --
+; Two layouts:
+; - AOS_PACKED: one vector of words * word_bits bits; element k is [k*word_bits +: word_bits].
+; - AOS_MEMORY: `reg [word_bits-1:0] name[0:words-1]`; element k is name[k], a field is
+;   name[k][offset +: width]. This is the form gen-verilog already gives a module-level array of
+;   primitives (W531), and the form synthesis maps to RAM.
+; --
+; Why (#8020, #8024): t27core's tables were parallel i64 arrays, held as memories. Rewritten as arrays of
+; structs, each became one vector: `nodes` was 262144 * 512 = 134,217,728 bits in a single register, which
+; no hardware carries and tools/check_verilog_widths.py calls absurd. A source refactor changed the
+; hardware form. As memories, the widest range t27core declares for a table is a 512-bit word.
+; --
+; The rule, for a module-level `var` whose type is an array of structs:
+; 1. initialized by a function call: AOS_PACKED. The value arrives packed and is assigned whole (W589),
+;    as an array of primitives initialized by a call stays packed (W545).
+; 2. no elements: AOS_PACKED. `[0:-1]` declares nothing; the one-bit placeholder stays (#2566).
+; 3. otherwise: AOS_MEMORY.
+; --
+; What this does NOT do, stated where the rule is read:
+; - Function locals, parameters and returns stay packed: a Verilog-2001 function takes and returns
+;   vectors, not memories.
+; - A memory has no whole value in Verilog-2001, so assigning or passing the whole array is not lowered
+;   for a memory-held var -- the limit an array of primitives held by W531 already has.
+; - One element that is itself absurd (2^20 bits or more, e.g. specs/compiler/stdlib.t27's Map) is not
+;   made smaller: a memory splits elements, not words. tools/check_verilog_widths.py still reports it.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerilogAosMemory;
+
+/// One vector holding every element.
+pub const AOS_PACKED : u8 = 0;
+/// One memory word per element.
+pub const AOS_MEMORY : u8 = 1;
+
+/// The width tools/check_verilog_widths.py calls absurd (its ABSURD_BITS, 2^20).
+pub const ABSURD_BITS : u64 = 1048576;
+
+/// The layout of a module-level `var` whose type is an array of `words` structs.
+pub fn aos_var_layout(init_is_call: bool, words: u64) -> u8 {
+    if (init_is_call) {
+        return AOS_PACKED;
+    }
+    if (words == 0) {
+        return AOS_PACKED;
+    }
+    return AOS_MEMORY;
+}
+
+/// The widest range a layout declares for the var, in bits.
+pub fn aos_widest_bits(layout: u8, words: u64, word_bits: u64) -> u64 {
+    if (layout == AOS_MEMORY) {
+        return word_bits;
+    }
+    return words * word_bits;
+}
+
+test t27core_nodes_become_a_memory_of_512_bit_words {
+    // nodes: [NODE_MAX]Node, NODE_MAX = 262144, Node = 8 * i64 = 512 bits.
+    assert(aos_var_layout(false, 262144) == 1);
+    assert(aos_widest_bits(0, 262144, 512) == 134217728);
+    assert(aos_widest_bits(1, 262144, 512) == 512);
+    assert(aos_widest_bits(0, 262144, 512) >= ABSURD_BITS);
+    assert(aos_widest_bits(1, 262144, 512) < ABSURD_BITS);
+}
+
+test t27core_toks_become_a_memory_of_192_bit_words {
+    // toks: [TOK_MAX]Tok, TOK_MAX = 262144, Tok = 3 * i64 = 192 bits.
+    assert(aos_var_layout(false, 262144) == 1);
+    assert(aos_widest_bits(0, 262144, 192) == 50331648);
+    assert(aos_widest_bits(1, 262144, 192) == 192);
+}
+
+test a_call_initializer_stays_packed {
+    assert(aos_var_layout(true, 4) == 0);
+    assert(aos_var_layout(true, 262144) == 0);
+    assert(aos_widest_bits(0, 4, 32) == 128);
+}
+
+test an_empty_list_stays_packed {
+    assert(aos_var_layout(false, 0) == 0);
+    assert(aos_var_layout(true, 0) == 0);
+}
+
+test one_element_is_already_a_memory {
+    assert(aos_var_layout(false, 1) == 1);
+    assert(aos_widest_bits(1, 1, 24) == 24);
+}
+
+test an_absurd_word_stays_absurd {
+    // stdlib.t27's Map is 4,198,432 bits per element; a memory of them keeps that word width.
+    assert(aos_widest_bits(1, 2, 4198432) == 4198432);
+    assert(aos_widest_bits(1, 2, 4198432) >= ABSURD_BITS);
+}
