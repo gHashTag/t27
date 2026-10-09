@@ -15,11 +15,14 @@
 ; records, beside today's fields:
 ;   closure    the spec_hash of every seal in the `use` closure, in a fixed order (hashed by the
 ;              existing sha256 tooling; this file compares, it hashes nothing);
-;   toolchain  built_by, plus each backend tool the seal's gens actually used (zig, yosys,
-;              nextpnr-xilinx, the prjxray database, the chipdb). A tool the artifact never used is
-;              not part of its identity;
-;   config     the target set and flags; for a silicon verdict also the part, the pnr seed and the
-;              chipdb;
+;   toolchain  the t27c compiler core, plus each backend tool the seal's gens and tests actually used
+;              (zig; for a silicon verdict yosys, nextpnr-xilinx, the prjxray database, the chipdb). A
+;              tool the artifact never used is not part of its identity. The t27c part is the core hash
+;              in bootstrap/stage0/FROZEN_HASH (all four gen backends live in compiler.rs), NOT built_by's
+;              git commit: every merge changes the commit, so a commit-keyed toolchain would rebuild
+;              every spec on every merge and nothing would ever be reused;
+;   config     SEAL_CONFIG for a software seal (the four gens and zig tests); for a silicon verdict
+;              also the part, the pnr seed and the chipdb;
 ;   silicon    optional: a run reference (the run record a verdict may cite) and the independence it
 ;              reached.
 ; --
@@ -42,6 +45,9 @@ use verified::independence;
 /// The independence a silicon run must reach before its verdict is reused: three distinct dies. A
 /// one-die PASS might be a lucky board or a bench quirk (die B found a per-die constant die A hid).
 pub const SILICON_REQUIRED_LEVEL : u8 = 1;
+
+/// The configuration a software seal is minted under: all four gens, tests run by zig.
+pub const SEAL_CONFIG : str = "gen=c,rust,verilog,zig;tests=zig";
 
 /// One recorded part against the current state. Not recorded is MISSING, never SAME.
 pub fn recorded_part(recorded: bool, equal: bool) -> u8 {
@@ -82,6 +88,13 @@ pub fn verdict_pass(tests_pass: bool, needs_silicon: bool, hw: u8) -> bool {
 /// The seal v2 decision: reuse.t27's rule with the verdict part above.
 pub fn seal_decision(spec: u8, closure: u8, toolchain: u8, config: u8, tests_pass: bool, needs_silicon: bool, hw: u8) -> u8 {
     return reuse_decision(spec, closure, toolchain, config, verdict_pass(tests_pass, needs_silicon, hw));
+}
+
+/// One node of the frontier walk: the closure part comes from the imports' decisions (reuse.t27
+/// closure_part), the rest as in seal_decision. frontier.t27 is the walk; until gen-rust lowers a
+/// read-only slice (#8102), the caller walks the `use` graph and feeds each node here.
+pub fn node_decision(spec: u8, any_import_rebuilt: bool, any_import_missing: bool, toolchain: u8, config: u8, tests_pass: bool, needs_silicon: bool, hw: u8) -> u8 {
+    return seal_decision(spec, closure_part(any_import_rebuilt, any_import_missing), toolchain, config, tests_pass, needs_silicon, hw);
 }
 
 /// The share of artifacts reused, in permille, rounded half up. Nothing to judge is 0, not 1000.
@@ -146,6 +159,16 @@ test a_run_that_does_not_prove_this_seal_leaves_the_step_unproven {
 test a_changed_spec_is_rebuilt_even_with_a_cited_run {
     var hw : u8 = silicon_state(true, true, true, true, true, INDEP_DIES);
     assert seal_decision(PART_DIFF, PART_SAME, PART_SAME, PART_SAME, true, true, hw) == REBUILD_SPEC;
+}
+
+test a_node_follows_its_imports {
+    assert node_decision(PART_SAME, false, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REUSE;
+    // an import that was rebuilt rebuilds its importer; an import nobody could judge is missing
+    assert node_decision(PART_SAME, true, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_CLOSURE;
+    assert node_decision(PART_SAME, false, true, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_MISSING;
+    assert node_decision(PART_SAME, true, true, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_MISSING;
+    // the node's own spec is judged before its closure
+    assert node_decision(PART_DIFF, true, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_SPEC;
 }
 
 test the_reused_share_is_a_number {
