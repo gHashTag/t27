@@ -5779,16 +5779,12 @@ fn producer_identity() -> String {
     )
 }
 
-/// Seal v2 toolchain (seal_identity.t27): one sha256 over the t27c source (not the build's commit), plus zig.
+/// Seal v2 toolchain (seal_identity.t27): the tools that turn generated code into a verdict -- test runner, zig.
 fn seal_toolchain() -> serde_json::Value {
-    let (mut files, mut stack) = (["bootstrap/build.rs", "bootstrap/Cargo.toml", "Cargo.lock"].map(PathBuf::from).to_vec(), vec![PathBuf::from("bootstrap/src"), PathBuf::from("bootstrap/gen")]);
-    while let Some(d) = stack.pop() { for e in fs::read_dir(&d).into_iter().flatten().flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else { files.push(p) } } }
-    files.sort();
-    let src: Vec<u8> = files.iter().flat_map(|p| [p.to_string_lossy().as_bytes(), &fs::read(p).unwrap_or_default()[..]].concat()).collect();
-    let core = if files.len() > 3 && Path::new("Cargo.lock").exists() { format!("sha256:{}", sha256_hex(&src)) } else { "missing".into() };
+    let runner = fs::read("bootstrap/src/test_report.rs").map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into());
     let zig = std::process::Command::new("zig").arg("version").output().ok()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|z| !z.is_empty()).unwrap_or_else(|| "missing".into());
-    serde_json::json!({ "t27c_source": core, "zig": zig })
+    serde_json::json!({ "test_runner": runner, "zig": zig })
 }
 
 /// Seal v2 closure (seal_identity.t27): every `use` import and its spec hash, sorted; unreadable is "missing".

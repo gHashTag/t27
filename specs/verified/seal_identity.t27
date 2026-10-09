@@ -15,15 +15,15 @@
 ; records, beside today's fields:
 ;   closure    the spec_hash of every seal in the `use` closure, in a fixed order (hashed by the
 ;              existing sha256 tooling; this file compares, it hashes nothing);
-;   toolchain  the t27c source, plus each backend tool the seal's gens and tests actually used (zig;
-;              for a silicon verdict yosys, nextpnr-xilinx, the prjxray database, the chipdb). A tool
-;              the artifact never used is not part of its identity. The t27c part is one sha256 over
-;              bootstrap/src, bootstrap/gen, bootstrap/build.rs, bootstrap/Cargo.toml and Cargo.lock
-;              (each path and its bytes, sorted by path). Not built_by's git commit: every merge changes
-;              the commit, so nothing would ever be reused. Not bootstrap/stage0/FROZEN_HASH either: it
-;              covers compiler.rs only, while the typecheck that can refuse a spec (main.rs), the test
-;              runner (test_report.rs) and the generated modules decide what a seal records too. Any
-;              change to the t27c source rebuilds everything; a merge that touches none reuses;
+;   toolchain  judged by OUTPUT, not by producer. Part one: the four generated outputs the current
+;              t27c emits for the spec (gen_hash_zig/verilog/c/rust, typecheck refusal included) equal
+;              the ones the seal recorded -- a test verdict is a fact about the generated code, so a
+;              compiler change that leaves this spec's code byte-identical leaves its verdict standing.
+;              Part two: the tools that turned that code into the verdict, recorded and equal: the test
+;              runner (sha256 of bootstrap/src/test_report.rs) and zig; for a silicon verdict also
+;              yosys, nextpnr-xilinx, the prjxray database and the chipdb. Measured 2026-10-09: 23 of
+;              263 master commits in 48 h touched the t27c source, so keying on the compiler source (or
+;              on built_by's commit, which every merge changes) would void every verdict every two hours;
 ;   config     SEAL_CONFIG for a software seal (the four gens and zig tests); for a silicon verdict
 ;              also the part, the pnr seed and the chipdb;
 ;   silicon    optional: a run reference (the run record a verdict may cite) and the independence it
@@ -59,13 +59,13 @@ pub fn recorded_part(recorded: bool, equal: bool) -> u8 {
     return PART_DIFF;
 }
 
-/// The toolchain part: t27c and the backend tools the gens used. Any of them unrecorded is MISSING;
-/// otherwise any of them changed is DIFF.
-pub fn toolchain_part(t27c_recorded: bool, t27c_equal: bool, backends_recorded: bool, backends_equal: bool) -> u8 {
-    if (t27c_recorded == false) { return PART_MISSING; }
-    if (backends_recorded == false) { return PART_MISSING; }
-    if (t27c_equal == false) { return PART_DIFF; }
-    if (backends_equal == false) { return PART_DIFF; }
+/// The toolchain part: the generated outputs, then the tools that turned them into the verdict. Any of
+/// them unrecorded is MISSING; otherwise any of them changed is DIFF.
+pub fn toolchain_part(output_recorded: bool, output_equal: bool, tools_recorded: bool, tools_equal: bool) -> u8 {
+    if (output_recorded == false) { return PART_MISSING; }
+    if (tools_recorded == false) { return PART_MISSING; }
+    if (output_equal == false) { return PART_DIFF; }
+    if (tools_equal == false) { return PART_DIFF; }
     return PART_SAME;
 }
 
@@ -128,10 +128,10 @@ test the_first_differing_part_is_the_reason {
 
 test the_toolchain_part_covers_the_backend_tools {
     assert toolchain_part(true, true, true, true) == PART_SAME;
-    // a new t27c, or a new nextpnr under the same t27c, is a different toolchain
+    // a compiler change that alters this spec's generated code, or a new test runner or zig
     assert toolchain_part(true, false, true, true) == PART_DIFF;
     assert toolchain_part(true, true, true, false) == PART_DIFF;
-    // a seal that never recorded its backend tools cannot be judged
+    // a seal that never recorded its tools, or its outputs, cannot be judged
     assert toolchain_part(true, true, false, true) == PART_MISSING;
     assert toolchain_part(false, true, true, true) == PART_MISSING;
 }
