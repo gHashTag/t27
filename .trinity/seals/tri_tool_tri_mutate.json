@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:676361a189ed2fd5ce33d7881275953ac023b844927ce135b6b41d57cab8be4a",
+  "gen_hash_rust": "sha256:6902973acdd641d0e561e3313f66c1a4cfbfaa26a3cd36a01563d0f0c2ac3a6d",
+  "gen_hash_verilog": "sha256:6bbc1330fe5a3c0ebae24dc9960cbc20ea5180c7dbb4f44ab22361f57a18421d",
+  "gen_hash_zig": "sha256:4d8de6cb7c8f8e8d163c9fd192983c92d6dd8b8eea944d5d5b9a862fb923d9e4",
+  "module": "tool_tri_mutate",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:24:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:2cdb91d73a7613e2081474820fc1737c8c9b21d0bf299f8b24930b99d866531b",
+  "spec_path": "specs/tools/tri/mutate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

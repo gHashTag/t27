@@ -1,0 +1,10 @@
+// A name whose struct holds a string is bound once, so the core follows its
+// fields through one type only (#8013).
+module string_struct_name_rebound;
+struct SsnUser {
+    name: str,
+}
+fn ssn_f(u: SsnUser, i: i64) -> i64 {
+    var u: i64 = i;
+    return u;
+}
