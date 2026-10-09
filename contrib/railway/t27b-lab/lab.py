@@ -767,10 +767,23 @@ def lab_run(sha, log, challenge=SRV / "challenge", master=True):
         write_json(SRV / "runs" / ("%s.receipt.json" % sha), json.loads(p.stdout))
         return {"json": "/runs/%s.receipt.json" % sha, "nonce": nonce[1:]}
 
+    keys = {}
+
+    def ledger_keys():  # #8186: the host-free ledger key per row, so `tri t27b ratchet --bless` can take this run
+        p = subprocess.run(QEMU + [str(T27B), "keys", CORPUS_DIR, "--reference", str(T27C)],
+                           cwd=CLONE, capture_output=True, text=True, timeout=3600)
+        keys.update(l.split("\t") for l in p.stdout.splitlines() if l.count("\t") == 1)
+        return {"exit": p.returncode, "keys": len(keys)}
+
+    if have_t27b and have_t27c:
+        step("ledger_keys", ledger_keys)
+
     # Per-file merge and the honest ratio: t27b passes over reference passes.
     results = []
     for r in corpus.get("results", []):
         rec = dict(r)
+        if r["file"] in keys:
+            rec["key"] = keys[r["file"]]
         if r["file"] in reference:
             rec["reference"], why = reference[r["file"]]
             if why:

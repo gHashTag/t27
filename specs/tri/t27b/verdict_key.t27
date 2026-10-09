@@ -27,6 +27,14 @@
 ; reference timeout, a t27c that did not exit normally, a test the runner stopped at its timeout ("timed out
 ; after N s, not counted"), and zig running out of threads, processes or memory in the container.
 ; A cached pass or fail without per-test verdicts (a row from before #6441) is a miss.
+; --
+; The ledger key (#8186). A row of docs/reports/t27b_expectations.json stores the key of the reference
+; verdict it was blessed against, so `tri t27b ratchet --bless` can tell a row whose inputs moved from one
+; that did not (steward.t27 `bless_writes`). The ledger is shared by every host, so its key is the cache key
+; WITHOUT the host: LEDGER_SCHEMA, spec, output, runner, zig. Where `t27c gen` could not generate the spec,
+; the output part is the tag PART_NOT_GENERATED, not the binary's hash: that hash differs between the lab's
+; x86_64 t27c and CI's aarch64 one, and would move the row on every rebuild. The host stays in the cache key
+; only, where a host-dependent verdict (#8051) must not cross.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -37,6 +45,12 @@ use tri::t27b::blockers;
 /// The version of the key layout. 1 was the binary stamp (#6332, #6443); a row of another layout never
 /// matches, because the schema is the first word hashed.
 pub const KEY_SCHEMA : u64 = 2;
+
+/// The version of the ledger key layout (#8186). Not KEY_SCHEMA, so a ledger key is never a cache key.
+pub const LEDGER_SCHEMA : u64 = 3;
+
+/// The output part of a ledger key when `t27c gen` could not generate the spec.
+pub const PART_NOT_GENERATED : u64 = 3;
 
 /// The tags part_or hashes first, so a part computed from its source never equals the fallback.
 pub const PART_FROM_SOURCE : u64 = 1;
@@ -71,6 +85,20 @@ pub fn verdict_key(spec: u64, output: u64, runner: u64, zig: u64, host: u64) -> 
     h = fnv_u64(h, runner);
     h = fnv_u64(h, zig);
     h = fnv_u64(h, host);
+    return h;
+}
+
+/// The key a ledger row stores: the cache key without the host.
+pub fn ledger_key(spec: u64, generated: bool, output: u64, runner: u64, zig: u64) -> u64 {
+    var h : u64 = fnv_u64(FNV_OFFSET, LEDGER_SCHEMA);
+    h = fnv_u64(h, spec);
+    if (generated) {
+        h = fnv_u64(h, fnv_u64(fnv_u64(FNV_OFFSET, PART_FROM_SOURCE), output));
+    } else {
+        h = fnv_u64(h, fnv_u64(FNV_OFFSET, PART_NOT_GENERATED));
+    }
+    h = fnv_u64(h, runner);
+    h = fnv_u64(h, zig);
     return h;
 }
 
@@ -150,7 +178,32 @@ test a_row_without_per_test_verdicts_is_a_miss {
     assert served(false, true, true) == false;
 }
 
+test the_ledger_key_has_every_part_but_the_host {
+    const base : u64 = ledger_key(1, true, 2, 3, 4);
+    assert base == 0xce3ec8ea91d26a56;
+    assert ledger_key(9, true, 2, 3, 4) != base;
+    assert ledger_key(1, true, 9, 3, 4) != base;
+    assert ledger_key(1, true, 2, 9, 4) != base;
+    assert ledger_key(1, true, 2, 3, 9) != base;
+    assert ledger_key(1, false, 2, 3, 4) != base;
+    assert ledger_key(1, true, 3, 2, 4) != base;
+}
+
+test the_ledger_key_is_not_a_cache_key {
+    const out : u64 = part_or(true, 2, 0);
+    assert ledger_key(1, true, 2, 3, 4) != verdict_key(1, out, 3, 4, fnv64("x86_64-linux"));
+    assert ledger_key(1, true, 2, 3, 4) != verdict_key(1, out, 3, 4, fnv64("aarch64-linux"));
+    assert ledger_key(0, false, 0, 0, 0) == 0x2ef1dc2ae71fb2f4;
+}
+
+test a_spec_t27c_cannot_generate_is_keyed_without_the_binary {
+    // no binary hash in it: the lab's x86_64 t27c and CI's aarch64 t27c give the same key
+    assert ledger_key(1, false, 2, 3, 4) == 0x8435815bb6973172;
+    assert ledger_key(1, false, 7, 3, 4) == ledger_key(1, false, 8, 3, 4);
+}
+
 invariant the_schema_moved_past_the_binary_stamp {
     assert KEY_SCHEMA == 2;
+    assert LEDGER_SCHEMA != KEY_SCHEMA;
     assert PART_FROM_SOURCE != PART_FROM_BINARY;
 }
