@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin or a `std.math` fn,
-; written in t27 (issues #7391, #7217, #7791 and #7819, t27b coverage epic #6063: ExprCall(@exp), ExprCall(@log),
-; std.math.nan, isNan, isPositiveInf, isNegativeInf, and @floor, @ceil, @round, @trunc and @rem of an f32).
+; written in t27 (issues #7391, #7217, #7791, #7819 and #7822, t27b coverage epic #6063: ExprCall(@exp),
+; ExprCall(@log), std.math.nan, isNan, isPositiveInf, isNegativeInf, and @floor, @ceil, @round, @trunc, @rem,
+; @log, @log2 and @log10 of an f32).
 ; `t27c test-report` runs `zig test` without libc, so a run-time `@exp(x)` is a call into Zig's
 ; compiler_rt: `exp` for an f64 and `expf` for an f32, both ports of the FreeBSD/musl fdlibm code.
 ; A run-time `@log(x)` of an f64 is compiler_rt's `log`, a port of musl's table-driven log.c.
@@ -640,6 +641,129 @@ fn t27b_libm_fmodf(t27b_x: f32, t27b_y: f32) -> f32 {
         t27b_ux = t27b_ux >> (1 - t27b_ex);
     }
     return @bitCast(t27b_ux | t27b_sx);
+}
+
+// compiler_rt `logf`, `log2f` and `log10f` (log.zig, log2.zig, log10.zig; musl's logf.c, log2f.c, log10f.c, the
+// fdlibm ones, not the table-driven f64 `log` above), for `@log`, `@log2` and `@log10` of an f32 (#7822). Step for
+// step on the bits: x = (1 + f) * 2^k with 1 + f in [sqrt(2)/2, sqrt(2)), s = f / (2 + f), and a polynomial in s^2.
+// The constants are their f32 values written as exact decimals (Lg1 = 0xaaaaaa.0p-24 and so on), so Zig and t27b
+// read the same bits. compiler_rt's `want_float_exceptions` is true on x86_64 and aarch64: a zero gives
+// `-1 / (x * x)`, a negative `(x - x) / 0.0`, and +inf or a NaN comes back as it is. `ix << 1 == 0` is read through
+// a mask here.
+fn t27b_libm_logf(t27b_x0: f32) -> f32 {
+    var t27b_x: f32 = t27b_x0;
+    var t27b_ix: u32 = @bitCast(t27b_x0);
+    var t27b_k: i32 = 0;
+    if (t27b_ix < 0x00800000 or (t27b_ix >> 31) != 0) {
+        if ((t27b_ix & 0x7FFFFFFF) == 0) {
+            return -1.0 / (t27b_x * t27b_x);
+        }
+        if ((t27b_ix >> 31) != 0) {
+            return (t27b_x - t27b_x) / 0.0;
+        }
+        t27b_k = t27b_k - 25;
+        t27b_x = t27b_x * 33554432.0;
+        t27b_ix = @bitCast(t27b_x);
+    } else if (t27b_ix >= 0x7F800000) {
+        return t27b_x;
+    } else if (t27b_ix == 0x3F800000) {
+        return 0.0;
+    }
+    t27b_ix = t27b_ix + (0x3F800000 - 0x3F3504F3);
+    const t27b_kx: i32 = @intCast(t27b_ix >> 23);
+    t27b_k = t27b_k + t27b_kx - 127;
+    t27b_ix = (t27b_ix & 0x007FFFFF) + 0x3F3504F3;
+    t27b_x = @bitCast(t27b_ix);
+    const t27b_f: f32 = t27b_x - 1.0;
+    const t27b_s: f32 = t27b_f / (2.0 + t27b_f);
+    const t27b_z: f32 = t27b_s * t27b_s;
+    const t27b_w: f32 = t27b_z * t27b_z;
+    const t27b_t1: f32 = t27b_w * (0.4000097215175628662109375 + t27b_w * 0.2427907884120941162109375);
+    const t27b_t2: f32 = t27b_z * (0.66666662693023681640625 + t27b_w * 0.284987866878509521484375);
+    const t27b_r: f32 = t27b_t2 + t27b_t1;
+    const t27b_hfsq: f32 = 0.5 * t27b_f * t27b_f;
+    const t27b_dk: f32 = @floatFromInt(t27b_k);
+    return t27b_s * (t27b_hfsq + t27b_r) + t27b_dk * 0.0000090580006144591607153415679931640625 - t27b_hfsq + t27b_f + t27b_dk * 0.69313812255859375;
+}
+
+// compiler_rt `log2f`: hi is f - hfsq with its low 12 bits cleared, lo the rest, each times 1/ln2 split in two.
+fn t27b_libm_log2f(t27b_x0: f32) -> f32 {
+    var t27b_x: f32 = t27b_x0;
+    var t27b_ix: u32 = @bitCast(t27b_x0);
+    var t27b_k: i32 = 0;
+    if (t27b_ix < 0x00800000 or (t27b_ix >> 31) != 0) {
+        if ((t27b_ix & 0x7FFFFFFF) == 0) {
+            return -1.0 / (t27b_x * t27b_x);
+        }
+        if ((t27b_ix >> 31) != 0) {
+            return (t27b_x - t27b_x) / 0.0;
+        }
+        t27b_k = t27b_k - 25;
+        t27b_x = t27b_x * 33554432.0;
+        t27b_ix = @bitCast(t27b_x);
+    } else if (t27b_ix >= 0x7F800000) {
+        return t27b_x;
+    } else if (t27b_ix == 0x3F800000) {
+        return 0.0;
+    }
+    t27b_ix = t27b_ix + (0x3F800000 - 0x3F3504F3);
+    const t27b_kx: i32 = @intCast(t27b_ix >> 23);
+    t27b_k = t27b_k + t27b_kx - 127;
+    t27b_ix = (t27b_ix & 0x007FFFFF) + 0x3F3504F3;
+    t27b_x = @bitCast(t27b_ix);
+    const t27b_f: f32 = t27b_x - 1.0;
+    const t27b_s: f32 = t27b_f / (2.0 + t27b_f);
+    const t27b_z: f32 = t27b_s * t27b_s;
+    const t27b_w: f32 = t27b_z * t27b_z;
+    const t27b_t1: f32 = t27b_w * (0.4000097215175628662109375 + t27b_w * 0.2427907884120941162109375);
+    const t27b_t2: f32 = t27b_z * (0.66666662693023681640625 + t27b_w * 0.284987866878509521484375);
+    const t27b_r: f32 = t27b_t2 + t27b_t1;
+    const t27b_hfsq: f32 = 0.5 * t27b_f * t27b_f;
+    const t27b_hu: u32 = @bitCast(t27b_f - t27b_hfsq);
+    const t27b_hi: f32 = @bitCast(t27b_hu & 0xFFFFF000);
+    const t27b_lo: f32 = t27b_f - t27b_hi - t27b_hfsq + t27b_s * (t27b_hfsq + t27b_r);
+    const t27b_dk: f32 = @floatFromInt(t27b_k);
+    return (t27b_lo + t27b_hi) * -0.0001760528539307415485382080078125 + t27b_lo * 1.44287109375 + t27b_hi * 1.44287109375 + t27b_dk;
+}
+
+// compiler_rt `log10f`: the same hi and lo, times 1/ln10 split in two, plus k * log10(2) split in two.
+fn t27b_libm_log10f(t27b_x0: f32) -> f32 {
+    var t27b_x: f32 = t27b_x0;
+    var t27b_ix: u32 = @bitCast(t27b_x0);
+    var t27b_k: i32 = 0;
+    if (t27b_ix < 0x00800000 or (t27b_ix >> 31) != 0) {
+        if ((t27b_ix & 0x7FFFFFFF) == 0) {
+            return -1.0 / (t27b_x * t27b_x);
+        }
+        if ((t27b_ix >> 31) != 0) {
+            return (t27b_x - t27b_x) / 0.0;
+        }
+        t27b_k = t27b_k - 25;
+        t27b_x = t27b_x * 33554432.0;
+        t27b_ix = @bitCast(t27b_x);
+    } else if (t27b_ix >= 0x7F800000) {
+        return t27b_x;
+    } else if (t27b_ix == 0x3F800000) {
+        return 0.0;
+    }
+    t27b_ix = t27b_ix + (0x3F800000 - 0x3F3504F3);
+    const t27b_kx: i32 = @intCast(t27b_ix >> 23);
+    t27b_k = t27b_k + t27b_kx - 127;
+    t27b_ix = (t27b_ix & 0x007FFFFF) + 0x3F3504F3;
+    t27b_x = @bitCast(t27b_ix);
+    const t27b_f: f32 = t27b_x - 1.0;
+    const t27b_s: f32 = t27b_f / (2.0 + t27b_f);
+    const t27b_z: f32 = t27b_s * t27b_s;
+    const t27b_w: f32 = t27b_z * t27b_z;
+    const t27b_t1: f32 = t27b_w * (0.4000097215175628662109375 + t27b_w * 0.2427907884120941162109375);
+    const t27b_t2: f32 = t27b_z * (0.66666662693023681640625 + t27b_w * 0.284987866878509521484375);
+    const t27b_r: f32 = t27b_t2 + t27b_t1;
+    const t27b_hfsq: f32 = 0.5 * t27b_f * t27b_f;
+    const t27b_hu: u32 = @bitCast(t27b_f - t27b_hfsq);
+    const t27b_hi: f32 = @bitCast(t27b_hu & 0xFFFFF000);
+    const t27b_lo: f32 = t27b_f - t27b_hi - t27b_hfsq + t27b_s * (t27b_hfsq + t27b_r);
+    const t27b_dk: f32 = @floatFromInt(t27b_k);
+    return t27b_dk * 0.00000079034151667656260542571544647216796875 + (t27b_lo + t27b_hi) * -0.00003168997136526741087436676025390625 + t27b_lo * 0.434326171875 + t27b_hi * 0.434326171875 + t27b_dk * 0.301029205322265625;
 }
 
 // ---------------------------------------------------------------- tests
