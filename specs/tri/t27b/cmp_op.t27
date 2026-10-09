@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/cmp_op.t27 -- the six comparisons of t27b's IR, by number (port epic #6198, under #6063 and
+; #5980; it lands with #7876's PR so that its hand-written Rust shrinks). Until this file they were the
+; hand-written Rust methods `CmpOp::symbol`, `negate`, `swap` and `holds_f64` in cli/t27b/src/ir.rs. Now they
+; reach cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/cmp_op.rs); each method is one line that calls
+; this file, and a compile-time assert pins CmpOp's discriminants to the numbers here.
+; --
+; An operator is its CmpOp number, in the order ir.rs declares them: EQ 0, NE 1, LT 2, LE 3, GT 4, GE 5.
+;   - `symbol` is the operator's Zig spelling, which refusals and the assembly listing print.
+;   - `negate` is the comparison that holds exactly when the operator does not: `!(a < b)` is `a >= b` on
+;     integers. (On floats a NaN breaks that identity; ir.rs negates only integer comparisons.)
+;   - `swap` is the operator with its operands exchanged: `a < b` is `b > a`.
+;   - `holds_f64` is IEEE 754 on two binary64 values: every comparison with a NaN is false except `!=`.
+; --
+; The oracle is the hand-written Rust this file replaces (cli/t27b/src/ir.rs on master f21a0b39c). Its four
+; methods were match tables; the tests below are those tables row by row, and the identities they keep.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bCmpOp;
+
+pub const EQ : u8 = 0;
+pub const NE : u8 = 1;
+pub const LT : u8 = 2;
+pub const LE : u8 = 3;
+pub const GT : u8 = 4;
+pub const GE : u8 = 5;
+
+/// The Zig spelling of comparison `op`.
+pub fn symbol(op: u8) -> str {
+    if (op == EQ) { return "=="; }
+    if (op == NE) { return "!="; }
+    if (op == LT) { return "<"; }
+    if (op == LE) { return "<="; }
+    if (op == GT) { return ">"; }
+    return ">=";
+}
+
+/// The comparison that holds exactly when `op` does not, on integers.
+pub fn negate(op: u8) -> u8 {
+    if (op == EQ) { return NE; }
+    if (op == NE) { return EQ; }
+    if (op == LT) { return GE; }
+    if (op == LE) { return GT; }
+    if (op == GT) { return LE; }
+    return LT;
+}
+
+/// The comparison with its operands exchanged: `a op b` is `b swap(op) a`.
+pub fn swap(op: u8) -> u8 {
+    if (op == LT) { return GT; }
+    if (op == LE) { return GE; }
+    if (op == GT) { return LT; }
+    if (op == GE) { return LE; }
+    return op;
+}
+
+/// `a op b` on two binary64 values: false for every op but `!=` when either is NaN.
+pub fn holds_f64(op: u8, a: f64, b: f64) -> bool {
+    if (op == EQ) { return a == b; }
+    if (op == NE) { return a != b; }
+    if (op == LT) { return a < b; }
+    if (op == LE) { return a <= b; }
+    if (op == GT) { return a > b; }
+    return a >= b;
+}
+
+test the_symbols_are_zig_s {
+    assert std.mem.eql(u8, symbol(EQ), "==");
+    assert std.mem.eql(u8, symbol(NE), "!=");
+    assert std.mem.eql(u8, symbol(LT), "<");
+    assert std.mem.eql(u8, symbol(LE), "<=");
+    assert std.mem.eql(u8, symbol(GT), ">");
+    assert std.mem.eql(u8, symbol(GE), ">=");
+}
+
+test negate_is_the_complement {
+    assert negate(EQ) == NE;
+    assert negate(NE) == EQ;
+    assert negate(LT) == GE;
+    assert negate(LE) == GT;
+    assert negate(GT) == LE;
+    assert negate(GE) == LT;
+}
+
+test swap_exchanges_the_operands {
+    assert swap(EQ) == EQ;
+    assert swap(NE) == NE;
+    assert swap(LT) == GT;
+    assert swap(LE) == GE;
+    assert swap(GT) == LT;
+    assert swap(GE) == LE;
+}
+
+// Over the six operators: negate and swap are involutions, they commute, and every result is an operator.
+test negate_and_swap_are_involutions_that_commute {
+    var op : u8 = 0;
+    var fixed : u32 = 0;
+    while (op < 6) {
+        assert negate(negate(op)) == op;
+        assert swap(swap(op)) == op;
+        assert negate(swap(op)) == swap(negate(op));
+        assert negate(op) < 6;
+        assert swap(op) < 6;
+        assert negate(op) != op;
+        if (swap(op) == op) { fixed = fixed + 1; }
+        op = op + 1;
+    }
+    assert fixed == 2;
+}
+
+// On ordered values each comparison and its negation disagree, and swapping the operands keeps the answer.
+test holds_f64_on_ordered_values {
+    var op : u8 = 0;
+    while (op < 6) {
+        assert holds_f64(op, 1.5, 2.5) != holds_f64(negate(op), 1.5, 2.5);
+        assert holds_f64(op, 2.5, 2.5) != holds_f64(negate(op), 2.5, 2.5);
+        assert holds_f64(op, 1.5, 2.5) == holds_f64(swap(op), 2.5, 1.5);
+        op = op + 1;
+    }
+    assert holds_f64(LT, 1.5, 2.5);
+    assert !holds_f64(GT, 1.5, 2.5);
+    assert holds_f64(LE, 2.5, 2.5);
+    assert holds_f64(GE, 2.5, 2.5);
+    assert !holds_f64(NE, 2.5, 2.5);
+    assert holds_f64(EQ, -0.0, 0.0);
+}
+
+test a_nan_compares_unequal_and_unordered {
+    const nan : f64 = std.math.nan(f64);
+    var op : u8 = 0;
+    while (op < 6) {
+        assert holds_f64(op, nan, 1.0) == (op == NE);
+        assert holds_f64(op, 1.0, nan) == (op == NE);
+        assert holds_f64(op, nan, nan) == (op == NE);
+        op = op + 1;
+    }
+}
