@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+88813772c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ccc12988424da207012584b285c16890b2626bf3fc131c038843065fd0debd39",
+  "gen_hash_rust": "sha256:24dc2c5e3518b6533a9ba4ca7ec885cbc5c229d3480714ffe181f3dc4f1d72f8",
+  "gen_hash_verilog": "sha256:fbc153e6d6e8234a3454e59e2360acb9369c92d83f02a09fee1bfc560abf448d",
+  "gen_hash_zig": "sha256:78982e098a2e9b0ba11daed5cb93f1b10c3e63fa489f634becf9e1f5d0403d3a",
+  "module": "TrinetNode",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:41:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:0e70f6e42a7946603449a066c4bfe2d85b4b0c0e3d2d89367df38a255d8cbee4",
+  "spec_path": "specs/fpga/trinet_node.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

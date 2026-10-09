@@ -1,0 +1,700 @@
+// SPDX-License-Identifier: Apache-2.0
+module TrinetNode;
+// specs/fpga/trinet_node.t27 -- E2b of the Ethernet job link (#8356, part of #8327): the TRI-NET MAC32
+// node core, written in t27. It takes the UDP payload that EthRx (specs/fpga/eth_rx.t27) hands
+// out one byte per clock, runs one job per datagram and produces the 19-byte v2 receipt.
+//
+// The wire format is not changed. It is the one gHashTag/trinity-fpga src/trinet/protocol.zig
+// defines and fpga/portable/trinet_node_core.v implements over UART:
+//   request  (24 bytes)  AA 55 OP NONCE[4] W[8] X[8] TRIG
+//   response (19 bytes)  A5 Y STATUS NONCE[4] NODE_ID[4] TAG[8]        (little-endian fields)
+//   OP 0x01  MAC32: Y = sum over 32 trit pairs of w*x, trit code 01 = +1, 10 = -1, 00/11 = 0
+//   OP 0x02  set the receipt key: W||X are the 16 key bytes, first byte first; write-once
+//   STATUS   0x01 ok, 0x02 key set, 0x03 key locked, 0x04 no key (y is real, tag is not)
+//   TAG      SipHash-2-4 over the 26-byte preimage OP NONCE W X Y NODE_ID, keyed with the node
+//            key, or with the zero key while none is set, or with the new key in the very
+//            request that sets it (the acknowledgement proves the board took the key)
+//   Y        0 for a key request, by protocol: its operands are key bytes, not work.
+//
+// Reference values in the tests come from protocol.zig itself (std.hash.SipHash64(2, 4),
+// protocol.dot, protocol.Job.setKey), run as a separate Zig program before this spec was
+// written; the SipHash-2-4 paper vector (key 00..0f, message 00..0e -> a129ca6149be45e5) checks
+// the round functions on their own.
+//
+// Clocking: one 125 MHz domain. A SipRound is two dependent 64-bit additions, so the engine
+// runs half a round in two clocks (a sum, then rotate/XOR/write; 59 clocks per tag), so no clock
+// carries an adder and the logic after it.
+// 64-bit sums wrap, as SipHash's do (add64 below).
+//
+// Interface, per clock:
+//   on_clock(pv, pb, pi, dn, okf)   EthRx's pay_v, pay_b, pay_i, done and ok.
+//   resp_v                          1 for one clock when a receipt is ready in r_y, r_st,
+//                                   r_n and r_tag (NODE_ID is the constant below).
+//   n_req, n_busy, n_bad            jobs started; valid requests dropped because a job was
+//                                   still running; accepted datagrams that were not a request.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+const NODE_ID : u32 = 1414678862
+const OP_SETKEY : u8 = 2
+const ST_OK : u8 = 1
+const ST_KEY_SET : u8 = 2
+const ST_KEY_LOCKED : u8 = 3
+const ST_NO_KEY : u8 = 4
+const REQ_BYTES : u16 = 24
+const MASK32 : u64 = 4294967295
+const SIP_C0 : u64 = 8317987319222330741
+const SIP_C1 : u64 = 7237128888997146477
+const SIP_C2 : u64 = 7816392313619706465
+const SIP_C3 : u64 = 8387220255154660723
+const PRE_LEN_TOP : u64 = 1873497444986126336
+const EVEN : u64 = 6148914691236517205
+const M2 : u64 = 3689348814741910323
+const M4 : u64 = 1085102592571150095
+const M8 : u64 = 71777214294589695
+const M16 : u64 = 281470681808895
+
+var c_a : u8 = 0
+var c_5 : u8 = 0
+var c_op : u8 = 0
+var c_n : u32 = 0
+var c_w : u64 = 0
+var c_x : u64 = 0
+var c_len : u16 = 0
+var j_op : u8 = 0
+var j_n : u32 = 0
+var j_w : u64 = 0
+var j_x : u64 = 0
+var key0 : u64 = 0
+var key1 : u64 = 0
+var locked : u8 = 0
+var ms : u16 = 0
+var ph : u8 = 0
+var y : u8 = 0
+var dpos : u64 = 0
+var dneg : u64 = 0
+var stv : u8 = 0
+var v0 : u64 = 0
+var v1 : u64 = 0
+var v2 : u64 = 0
+var v3 : u64 = 0
+var q0 : u64 = 0
+var q1 : u64 = 0
+var q2 : u64 = 0
+var q3 : u64 = 0
+var tq : u8 = 0
+var sum0 : u64 = 0
+var sum1 : u64 = 0
+var resp_v : u8 = 0
+var r_y : u8 = 0
+var r_st : u8 = 0
+var r_n : u32 = 0
+var r_tag : u64 = 0
+var n_req : u32 = 0
+var n_busy : u32 = 0
+var n_bad : u32 = 0
+
+fn eqb(a: u8, b: u8) -> u8 {
+    if (a == b) { return 1; }
+    return 0;
+}
+
+// a + b modulo 2^64 as one carry chain. Two 32-bit halves in series held the clock at 92 MHz,
+// and a carry-select form was merged back into a chained pair by synthesis.
+fn add64(a: u64, b: u64) -> u64 {
+    return a +% b;
+}
+
+fn rotl(x: u64, r: u64) -> u64 {
+    return (x << r) | (x >> (64 - r));
+}
+
+// One SipRound = half A then half B (Aumasson, Bernstein 2012).
+fn ha0(a0: u64, a1: u64) -> u64 { return rotl(add64(a0, a1), 32); }
+fn ha1(a0: u64, a1: u64) -> u64 { return rotl(a1, 13) ^ add64(a0, a1); }
+fn ha2(a2: u64, a3: u64) -> u64 { return add64(a2, a3); }
+fn ha3(a2: u64, a3: u64) -> u64 { return rotl(a3, 16) ^ add64(a2, a3); }
+fn hb0(a0: u64, a3: u64) -> u64 { return add64(a0, a3); }
+fn hb1(a1: u64, a2: u64) -> u64 { return rotl(a1, 17) ^ add64(a2, a1); }
+fn hb2(a1: u64, a2: u64) -> u64 { return rotl(add64(a2, a1), 32); }
+fn hb3(a0: u64, a3: u64) -> u64 { return rotl(a3, 21) ^ add64(a0, a3); }
+
+// The ternary dot product: +1 where the codes agree, -1 where they are opposite, as a byte.
+fn dot(w: u64, x: u64) -> u8 {
+    var pos : u32 = 0;
+    var neg : u32 = 0;
+    var k : u64 = 0;
+    while (k < 32) {
+        const a : u64 = (w >> (2 * k)) & 3;
+        const b : u64 = (x >> (2 * k)) & 3;
+        if (a == 1) {
+            if (b == 1) { pos = pos + 1; }
+            if (b == 2) { neg = neg + 1; }
+        }
+        if (a == 2) {
+            if (b == 2) { pos = pos + 1; }
+            if (b == 1) { neg = neg + 1; }
+        }
+        k = k + 1;
+    }
+    return ((pos + 256 - neg) & 255) as u8;
+}
+
+// The 26-byte preimage OP NONCE[4] W[8] X[8] Y NODE_ID[4] as SipHash's little-endian words;
+// the last word carries the length 26 in its top byte.
+fn msg(b: u8, op: u8, n: u32, w: u64, x: u64, yv: u8) -> u64 {
+    if (b == 0) { return (op as u64) | ((n as u64) << 8) | ((w & 16777215) << 40); }
+    if (b == 1) { return (w >> 24) | ((x & 16777215) << 40); }
+    if (b == 2) { return (x >> 24) | ((yv as u64) << 40) | (((NODE_ID as u64) & 65535) << 48); }
+    return ((NODE_ID as u64) >> 16) | PRE_LEN_TOP;
+}
+
+// Capture of the request bytes, one byte per clock; cleared when the frame ends.
+fn cap8(pv: u8, pi: u16, at: u16, nv: u8, dn: u8, v: u8) -> u8 {
+    if (dn == 1) { return 0; }
+    if (pv == 1) {
+        if (pi == at) { return nv; }
+    }
+    return v;
+}
+
+fn cap_n(pv: u8, pi: u16, pb: u8, v: u32) -> u32 {
+    if (pv == 1) {
+        if (pi >= 3) {
+            if (pi < 7) { return (v >> 8) | ((pb as u32) << 24); }
+        }
+    }
+    return v;
+}
+
+fn cap64(pv: u8, pi: u16, at: u16, pb: u8, v: u64) -> u64 {
+    if (pv == 1) {
+        if (pi >= at) {
+            if (pi < at + 8) { return (v >> 8) | ((pb as u64) << 56); }
+        }
+    }
+    return v;
+}
+
+fn cap_len(pv: u8, pi: u16, dn: u8, v: u16) -> u16 {
+    if (dn == 1) { return 0; }
+    if (pv == 1) { return pi + 1; }
+    return v;
+}
+
+fn is_req(a: u8, b5: u8, len: u16) -> u8 {
+    if (a == 1) {
+        if (b5 == 1) {
+            if (len >= REQ_BYTES) { return 1; }
+        }
+    }
+    return 0;
+}
+
+// A job starts when an accepted frame ends with a request and the engine is idle.
+fn start(dn: u8, okf: u8, a: u8, b5: u8, len: u16, m: u8) -> u8 {
+    if (dn == 1) {
+        if (okf == 1) {
+            if (m == 0) { return is_req(a, b5, len); }
+        }
+    }
+    return 0;
+}
+
+fn busy_drop(dn: u8, okf: u8, a: u8, b5: u8, len: u16, m: u8) -> u8 {
+    if (dn == 1) {
+        if (okf == 1) {
+            if (m != 0) { return is_req(a, b5, len); }
+        }
+    }
+    return 0;
+}
+
+fn not_req(dn: u8, okf: u8, a: u8, b5: u8, len: u16) -> u8 {
+    if (dn == 1) {
+        if (okf == 1) { return 1 - is_req(a, b5, len); }
+    }
+    return 0;
+}
+
+fn sel64(s: u8, nv: u64, v: u64) -> u64 {
+    if (s == 1) { return nv; }
+    return v;
+}
+
+fn sel32(s: u8, nv: u32, v: u32) -> u32 {
+    if (s == 1) { return nv; }
+    return v;
+}
+
+fn sel8(s: u8, nv: u8, v: u8) -> u8 {
+    if (s == 1) { return nv; }
+    return v;
+}
+
+// md == 1 decides the key: a key request on an unkeyed node installs W||X.
+fn setting(m: u8, op: u8, lk: u8) -> u8 {
+    if (m == 1) {
+        if (op == OP_SETKEY) {
+            if (lk == 0) { return 1; }
+        }
+    }
+    return 0;
+}
+
+fn status_of(op: u8, lk: u8) -> u8 {
+    if (op == OP_SETKEY) {
+        if (lk == 1) { return ST_KEY_LOCKED; }
+        return ST_KEY_SET;
+    }
+    if (lk == 1) { return ST_OK; }
+    return ST_NO_KEY;
+}
+
+// The same dot product as five clocks of logic instead of one chain of 32 adders: md 1 marks
+// the agreeing and the opposite trit pairs, one bit each at the even positions, and the first
+// five steps of message block 0 add neighbouring fields (2, 4, 8, 16, 32 bits wide). y is read
+// first in block 2, so it is ready at block 1, step 0, with clocks to spare.
+fn plus_of(w: u64) -> u64 { return (w & EVEN) & (((w >> 1) & EVEN) ^ EVEN); }
+fn minus_of(w: u64) -> u64 { return ((w >> 1) & EVEN) & ((w & EVEN) ^ EVEN); }
+
+fn agree(w: u64, x: u64) -> u64 { return (plus_of(w) & plus_of(x)) | (minus_of(w) & minus_of(x)); }
+fn oppose(w: u64, x: u64) -> u64 { return (plus_of(w) & minus_of(x)) | (minus_of(w) & plus_of(x)); }
+
+fn fold(s: u8, v: u64) -> u64 {
+    if (s == 0) { return (v & M2) + ((v >> 2) & M2); }
+    if (s == 1) { return (v & M4) + ((v >> 4) & M4); }
+    if (s == 2) { return (v & M8) + ((v >> 8) & M8); }
+    if (s == 3) { return (v & M16) + ((v >> 16) & M16); }
+    if (s == 4) { return (v & MASK32) + (v >> 32); }
+    return v;
+}
+
+fn next_count(m: u16, mark: u64, v: u64) -> u64 {
+    if (md_of(m) == 1) { return mark; }
+    if (md_of(m) == 2) {
+        if (blk_of(m) == 0) {
+            if (sub_of(m) < 5) { return fold(sub_of(m), v); }
+        }
+    }
+    return v;
+}
+
+fn y_ready(m: u16) -> u8 {
+    if (m == 2080) { return 1; }
+    return 0;
+}
+
+fn y_of(op: u8, p: u64, n: u64) -> u8 {
+    if (op == OP_SETKEY) { return 0; }
+    return (((p & 255) + 256 - (n & 255)) & 255) as u8;
+}
+
+// A half round takes two clocks, so no clock carries an adder and the logic after it: a sum
+// step adds two pairs of the current bank into sum0/sum1, and the next step rotates, XORs and
+// writes the other bank. Inside each round of four steps: sum A, apply A, sum B, apply B.
+fn half_step(r: u8) -> u8 {
+    if (r == 0) { return 8; }
+    if (r == 1) { return 3; }
+    if (r == 2) { return 9; }
+    return 4;
+}
+
+// The step the engine takes this clock, from (md, sub): 0 none, 1 init, 2 v3 ^= m, 3 apply
+// half A, 4 apply half B, 5 v0 ^= m, 6 v2 ^= 0xff, 7 tag, 8 sum for A, 9 sum for B.
+fn step(m: u8, s: u8) -> u8 {
+    if (m == 1) { return 1; }
+    if (m == 2) {
+        if (s == 0) { return 2; }
+        if (s == 9) { return 5; }
+        return half_step((s - 1) & 3);
+    }
+    if (m == 3) {
+        if (s == 0) { return 6; }
+        if (s == 17) { return 7; }
+        return half_step((s - 1) & 3);
+    }
+    return 0;
+}
+
+// Half A: v0 = rotl(v0+v1, 32), v1 = rotl(v1, 13) ^ (v0+v1), v2 = v2+v3, v3 = rotl(v3, 16) ^ (v2+v3).
+// Half B: v0 = v0+v3, v1 = rotl(v1, 17) ^ (v2+v1), v2 = rotl(v2+v1, 32), v3 = rotl(v3, 21) ^ (v0+v3).
+// sum0 holds v0+v1 (A) or v0+v3 (B); sum1 holds v2+v3 (A) or v2+v1 (B).
+fn nv0(t: u8, a0: u64, s0: u64, mw: u64, ke0: u64) -> u64 {
+    if (t == 1) { return ke0 ^ SIP_C0; }
+    if (t == 3) { return rotl(s0, 32); }
+    if (t == 4) { return s0; }
+    if (t == 5) { return a0 ^ mw; }
+    return a0;
+}
+
+fn nv1(t: u8, a1: u64, s0: u64, s1: u64, ke1: u64) -> u64 {
+    if (t == 1) { return ke1 ^ SIP_C1; }
+    if (t == 3) { return rotl(a1, 13) ^ s0; }
+    if (t == 4) { return rotl(a1, 17) ^ s1; }
+    return a1;
+}
+
+fn nv2(t: u8, a2: u64, s1: u64, ke0: u64) -> u64 {
+    if (t == 1) { return ke0 ^ SIP_C2; }
+    if (t == 3) { return s1; }
+    if (t == 4) { return rotl(s1, 32); }
+    if (t == 6) { return a2 ^ 255; }
+    return a2;
+}
+
+fn nv3(t: u8, a3: u64, s0: u64, s1: u64, mw: u64, ke1: u64) -> u64 {
+    if (t == 1) { return ke1 ^ SIP_C3; }
+    if (t == 2) { return a3 ^ mw; }
+    if (t == 3) { return rotl(a3, 16) ^ s1; }
+    if (t == 4) { return rotl(a3, 21) ^ s0; }
+    return a3;
+}
+
+// The sum steps: one adder each, its second operand chosen before it.
+fn is_sum(t: u8) -> u8 {
+    if (t == 8) { return 1; }
+    if (t == 9) { return 1; }
+    return 0;
+}
+
+fn cur(p: u8, a: u64, b: u64) -> u64 {
+    if (p == 0) { return a; }
+    return b;
+}
+
+fn pair(t: u8, c: u64, for_a: u64, for_b: u64) -> u64 {
+    return add64(c, sel64(eqb(t, 8), for_a, for_b));
+}
+
+// The engine state packs (md, blk, sub) into one var, ms = md*1024 + blk*32 + sub, so a single
+// assignment advances it and no field is read after another was written in the same clock.
+// md: 0 idle, 1 dot product and key, 2 message blocks (sub 0..9), 3 finalisation (sub 0..17).
+fn md_of(m: u16) -> u8 { return ((m >> 10) & 255) as u8; }
+fn blk_of(m: u16) -> u8 { return ((m >> 5) & 31) as u8; }
+fn sub_of(m: u16) -> u8 { return (m & 31) as u8; }
+fn t_of(m: u16) -> u8 { return step(md_of(m), sub_of(m)); }
+
+fn next_ms(m: u16, st: u8) -> u16 {
+    if (md_of(m) == 0) {
+        if (st == 1) { return 1024; }
+        return 0;
+    }
+    if (md_of(m) == 1) { return 2048; }
+    if (md_of(m) == 2) {
+        if (sub_of(m) == 9) {
+            if (blk_of(m) == 3) { return 3072; }
+            return 2048 + (((blk_of(m) + 1) as u16) << 5);
+        }
+        return m + 1;
+    }
+    if (sub_of(m) == 17) { return 0; }
+    return m + 1;
+}
+
+// Two banks hold the SipHash state. Init writes bank v; every later step reads the current
+// bank (ph 0: v, ph 1: u) and writes the other, so no word is read after it was written.
+fn wv(t: u8, p: u8) -> u8 {
+    if (t == 1) { return 1; }
+    if (t >= 2) {
+        if (t <= 6) {
+            if (p == 1) { return 1; }
+        }
+    }
+    return 0;
+}
+
+fn wu(t: u8, p: u8) -> u8 {
+    if (t >= 2) {
+        if (t <= 6) {
+            if (p == 0) { return 1; }
+        }
+    }
+    return 0;
+}
+
+fn next_ph(t: u8, p: u8) -> u8 {
+    if (t == 1) { return 0; }
+    if (t >= 2) {
+        if (t <= 6) { return 1 - p; }
+    }
+    return p;
+}
+
+fn bank_xor(p: u8, a0: u64, a1: u64, a2: u64, a3: u64, b0: u64, b1: u64, b2: u64, b3: u64) -> u64 {
+    if (p == 0) { return a0 ^ a1 ^ a2 ^ a3; }
+    return b0 ^ b1 ^ b2 ^ b3;
+}
+
+fn ke0_of(m: u16, op: u8, lk: u8, w: u64, k: u64) -> u64 { return sel64(setting(md_of(m), op, lk), w, k); }
+
+fn on_clock(pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) {
+    // Order matters only for the sequential test runner: each var is written after every
+    // statement that reads it, so the tests see what the nonblocking RTL sees.
+    resp_v = eqb(tq, 7);
+    r_y = sel8(eqb(tq, 7), y, r_y);
+    r_st = sel8(eqb(tq, 7), stv, r_st);
+    r_n = sel32(eqb(tq, 7), j_n, r_n);
+    r_tag = sel64(eqb(tq, 7), bank_xor(ph, v0, v1, v2, v3, q0, q1, q2, q3), r_tag);
+    v0 = sel64(wv(tq, ph), nv0(tq, q0, sum0, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), ke0_of(ms, j_op, locked, j_w, key0)), v0);
+    v1 = sel64(wv(tq, ph), nv1(tq, q1, sum0, sum1, ke0_of(ms, j_op, locked, j_x, key1)), v1);
+    v2 = sel64(wv(tq, ph), nv2(tq, q2, sum1, ke0_of(ms, j_op, locked, j_w, key0)), v2);
+    v3 = sel64(wv(tq, ph), nv3(tq, q3, sum0, sum1, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), ke0_of(ms, j_op, locked, j_x, key1)), v3);
+    q0 = sel64(wu(tq, ph), nv0(tq, v0, sum0, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), 0), q0);
+    q1 = sel64(wu(tq, ph), nv1(tq, v1, sum0, sum1, 0), q1);
+    q2 = sel64(wu(tq, ph), nv2(tq, v2, sum1, 0), q2);
+    q3 = sel64(wu(tq, ph), nv3(tq, v3, sum0, sum1, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), 0), q3);
+    // A sum step writes no bank and an apply step writes no sum, so the banks read here hold
+    // their pre-edge values whenever the sums change.
+    sum0 = sel64(is_sum(tq), pair(tq, cur(ph, v0, q0), cur(ph, v1, q1), cur(ph, v3, q3)), sum0);
+    sum1 = sel64(is_sum(tq), pair(tq, cur(ph, v2, q2), cur(ph, v3, q3), cur(ph, v1, q1)), sum1);
+    ph = next_ph(tq, ph);
+    y = sel8(y_ready(ms), y_of(j_op, dpos, dneg), y);
+    dpos = next_count(ms, agree(j_w, j_x), dpos);
+    dneg = next_count(ms, oppose(j_w, j_x), dneg);
+    stv = sel8(eqb(md_of(ms), 1), status_of(j_op, locked), stv);
+    key0 = sel64(setting(md_of(ms), j_op, locked), j_w, key0);
+    key1 = sel64(setting(md_of(ms), j_op, locked), j_x, key1);
+    locked = locked | setting(md_of(ms), j_op, locked);
+    n_req = n_req + (start(dn, okf, c_a, c_5, c_len, md_of(ms)) as u32);
+    n_busy = n_busy + (busy_drop(dn, okf, c_a, c_5, c_len, md_of(ms)) as u32);
+    n_bad = n_bad + (not_req(dn, okf, c_a, c_5, c_len) as u32);
+    j_op = sel8(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_op, j_op);
+    j_n = sel32(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_n, j_n);
+    j_w = sel64(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_w, j_w);
+    j_x = sel64(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_x, j_x);
+    // The step code is decoded one clock early and held in tq, so the operand selects in front
+    // of the sum adder read a register instead of the decode of ms.
+    tq = t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms))));
+    ms = next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)));
+    c_a = cap8(pv, pi, 0, eqb(pb, 170), dn, c_a);
+    c_5 = cap8(pv, pi, 1, eqb(pb, 85), dn, c_5);
+    c_op = cap8(pv, pi, 2, pb, 0, c_op);
+    c_n = cap_n(pv, pi, pb, c_n);
+    c_w = cap64(pv, pi, 7, pb, c_w);
+    c_x = cap64(pv, pi, 15, pb, c_x);
+    c_len = cap_len(pv, pi, dn, c_len);
+}
+
+// ---------------------------------------------------------------------------
+// Test-only helpers. The golden SipHash below uses the same half rounds, so it checks the
+// round functions against the published paper vector; the job vectors come from protocol.zig.
+
+fn sip_rounds(n: u8, a0: u64, a1: u64, a2: u64, a3: u64, which: u8) -> u64 {
+    var x0 : u64 = a0;
+    var x1 : u64 = a1;
+    var x2 : u64 = a2;
+    var x3 : u64 = a3;
+    var t0 : u64 = 0;
+    var t1 : u64 = 0;
+    var t2 : u64 = 0;
+    var t3 : u64 = 0;
+    var i : u8 = 0;
+    while (i < n) {
+        t0 = ha0(x0, x1); t1 = ha1(x0, x1); t2 = ha2(x2, x3); t3 = ha3(x2, x3);
+        x0 = hb0(t0, t3); x1 = hb1(t1, t2); x2 = hb2(t1, t2); x3 = hb3(t0, t3);
+        i = i + 1;
+    }
+    if (which == 0) { return x0; }
+    if (which == 1) { return x1; }
+    if (which == 2) { return x2; }
+    return x3;
+}
+
+// The paper vector: key 00..0f, message 00..0e, two words.
+fn paper_tag() -> u64 {
+    const k0 : u64 = 506097522914230528;
+    const k1 : u64 = 1084818905618843912;
+    const m0 : u64 = 506097522914230528;
+    const m1 : u64 = 1084818905618843912;
+    var a0 : u64 = k0 ^ SIP_C0;
+    var a1 : u64 = k1 ^ SIP_C1;
+    var a2 : u64 = k0 ^ SIP_C2;
+    var a3 : u64 = (k1 ^ SIP_C3) ^ m0;
+    var b0 : u64 = sip_rounds(2, a0, a1, a2, a3, 0) ^ m0;
+    var b1 : u64 = sip_rounds(2, a0, a1, a2, a3, 1);
+    var b2 : u64 = sip_rounds(2, a0, a1, a2, a3, 2);
+    var b3 : u64 = sip_rounds(2, a0, a1, a2, a3, 3) ^ m1;
+    a0 = sip_rounds(2, b0, b1, b2, b3, 0) ^ m1;
+    a1 = sip_rounds(2, b0, b1, b2, b3, 1);
+    a2 = sip_rounds(2, b0, b1, b2, b3, 2) ^ 255;
+    a3 = sip_rounds(2, b0, b1, b2, b3, 3);
+    return sip_rounds(4, a0, a1, a2, a3, 0) ^ sip_rounds(4, a0, a1, a2, a3, 1) ^ sip_rounds(4, a0, a1, a2, a3, 2) ^ sip_rounds(4, a0, a1, a2, a3, 3);
+}
+
+// Job vectors from protocol.zig, in the order the test sends them to one node:
+// 0 MAC32 unkeyed, 1 set key 00..0f, 2 MAC32 keyed, 3 second key request (locked),
+// 4 all +1 times all +1, 5 all +1 times all -1, 6 reserved code 11 in every W trit.
+fn v_op(i: u8) -> u8 {
+    if (i == 1) { return 2; }
+    if (i == 3) { return 2; }
+    return 1;
+}
+
+fn v_nonce(i: u8) -> u32 {
+    if (i == 1) { return 9; }
+    if (i == 3) { return 10; }
+    if (i == 4) { return 11; }
+    if (i == 5) { return 12; }
+    if (i == 6) { return 13; }
+    return 7;
+}
+
+fn v_w(i: u8) -> u64 {
+    if (i == 1) { return 506097522914230528; }
+    if (i == 3) { return 17867739004052632048; }
+    if (i == 4) { return 6148914691236517205; }
+    if (i == 5) { return 6148914691236517205; }
+    if (i == 6) { return 18446744073709551615; }
+    return 10962150345037927465;
+}
+
+fn v_x(i: u8) -> u64 {
+    if (i == 1) { return 1084818905618843912; }
+    if (i == 3) { return 18446460386757245432; }
+    if (i == 4) { return 6148914691236517205; }
+    if (i == 5) { return 12297829382473034410; }
+    if (i == 6) { return 6148914691236517205; }
+    return 3045603821190537510;
+}
+
+fn v_y(i: u8) -> u8 {
+    if (i == 0) { return 1; }
+    if (i == 2) { return 1; }
+    if (i == 4) { return 32; }
+    if (i == 5) { return 224; }
+    return 0;
+}
+
+fn v_st(i: u8) -> u8 {
+    if (i == 0) { return 4; }
+    if (i == 1) { return 2; }
+    if (i == 3) { return 3; }
+    return 1;
+}
+
+fn v_tag(i: u8) -> u64 {
+    if (i == 0) { return 10857296945483703224; }
+    if (i == 1) { return 1179077985573122448; }
+    if (i == 2) { return 9706109019689513616; }
+    if (i == 3) { return 16305927567686250340; }
+    if (i == 4) { return 4846275756476677020; }
+    if (i == 5) { return 13200515888575913244; }
+    return 5274369515243469847;
+}
+
+// Request byte k of vector i.
+fn v_byte(i: u8, k: u16) -> u8 {
+    if (k == 0) { return 170; }
+    if (k == 1) { return 85; }
+    if (k == 2) { return v_op(i); }
+    if (k < 7) { return ((v_nonce(i) >> ((8 * (k - 3)) as u32)) & 255) as u8; }
+    if (k < 15) { return ((v_w(i) >> ((8 * (k - 7)) as u64)) & 255) as u8; }
+    if (k < 23) { return ((v_x(i) >> ((8 * (k - 15)) as u64)) & 255) as u8; }
+    return 0;
+}
+
+invariant the_request_is_24_bytes_and_the_preimage_length_tops_the_last_word {
+    assert_eq(REQ_BYTES, 24);
+    assert_eq(PRE_LEN_TOP, 26 << 56);
+}
+
+test the_round_functions_reproduce_the_siphash_paper_vector {
+    assert_eq(paper_tag(), 11613035633349379557);
+    assert_eq(add64(18446744073709551615, 2), 1);
+    assert_eq(rotl(1, 13), 8192);
+}
+
+test the_dot_product_matches_protocol_zig {
+    assert_eq(dot(v_w(0), v_x(0)), 1);
+    assert_eq(dot(v_w(4), v_x(4)), 32);
+    assert_eq(dot(v_w(5), v_x(5)), 224);
+    assert_eq(dot(v_w(6), v_x(6)), 0);
+}
+
+test seven_jobs_give_the_receipts_protocol_zig_gives {
+    ms = 0; tq = 0; ph = 0; locked = 0; key0 = 0; key1 = 0; resp_v = 0;
+    c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    var i : u8 = 0;
+    var k : u16 = 0;
+    var t : u32 = 0;
+    var seen : u8 = 0;
+    while (i < 7) {
+        k = 0;
+        while (k < 24) {
+            on_clock(1, v_byte(i, k), k, 0, 0);
+            k = k + 1;
+        }
+        on_clock(0, 0, 0, 1, 1);
+        t = 0;
+        seen = 0;
+        while (t < 100) {
+            on_clock(0, 0, 0, 0, 0);
+            if (resp_v == 1) {
+                seen = seen + 1;
+                assert_eq(r_y, v_y(i));
+                assert_eq(r_st, v_st(i));
+                assert_eq(r_n, v_nonce(i));
+                assert_eq(r_tag, v_tag(i));
+            }
+            t = t + 1;
+        }
+        assert_eq(seen, 1);
+        i = i + 1;
+    }
+    assert_eq(n_req, 7);
+    assert_eq(locked, 1);
+    assert_eq(key0, 506097522914230528);
+    assert_eq(key1, 1084818905618843912);
+}
+
+test a_request_while_busy_is_dropped_and_counted {
+    ms = 0; tq = 0; ph = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    var k : u16 = 0;
+    while (k < 24) {
+        on_clock(1, v_byte(2, k), k, 0, 0);
+        k = k + 1;
+    }
+    on_clock(0, 0, 0, 1, 1);
+    k = 0;
+    while (k < 24) {
+        on_clock(1, v_byte(2, k), k, 0, 0);
+        k = k + 1;
+    }
+    on_clock(0, 0, 0, 1, 1);
+    assert_eq(n_req, 1);
+    assert_eq(n_busy, 1);
+}
+
+test a_datagram_without_magic_or_too_short_is_not_a_request {
+    ms = 0; tq = 0; ph = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    var k : u16 = 0;
+    while (k < 24) {
+        on_clock(1, 1, k, 0, 0);
+        k = k + 1;
+    }
+    on_clock(0, 0, 0, 1, 1);
+    assert_eq(n_bad, 1);
+    k = 0;
+    while (k < 10) {
+        on_clock(1, v_byte(2, k), k, 0, 0);
+        k = k + 1;
+    }
+    on_clock(0, 0, 0, 1, 1);
+    assert_eq(n_bad, 2);
+    assert_eq(n_req, 0);
+    assert_eq(ms, 0);
+}
+
+test a_frame_that_eth_rx_rejected_starts_nothing {
+    ms = 0; tq = 0; ph = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    var k : u16 = 0;
+    while (k < 24) {
+        on_clock(1, v_byte(2, k), k, 0, 0);
+        k = k + 1;
+    }
+    on_clock(0, 0, 0, 1, 0);
+    assert_eq(n_req, 0);
+    assert_eq(n_bad, 0);
+    assert_eq(ms, 0);
+    assert_eq(c_len, 0);
+}
