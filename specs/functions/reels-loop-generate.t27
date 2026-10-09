@@ -16,7 +16,7 @@ pub const LEGACY_ID : str = "generate-advanced-looping-video";
 pub const NAME : str = "Advanced looping video";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
-pub const SERVICE : str = "src/inngest_app/functions/existing/generateAdvancedLoopingVideoFunction.ts:77";
+pub const SERVICE : str = "src/inngest_app/functions/existing/generateAdvancedLoopingVideoFunction.ts:106";
 pub const DOMAIN : str = "reels";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "event";
@@ -39,4 +39,4 @@ pub const GUARD : str = "min-images";
 pub const SAFE_PROBE : str = "{\"telegram_id\": \"0\", \"image_urls\": [], \"bot_token\": \"\", \"prompt\": \"safe-mode probe\"}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
-pub const NOTE : str = "Guard is min-images: fewer images than the minimum stops the run before any clip is generated.";
+pub const NOTE : str = "Guard is min-images: fewer images than the minimum stops the run before any clip is generated. 2026-10-09 (plan: secrets in events): send-to-telegram resolves the bot from event.data.bot_name through the bot registry (resolveBotForDelivery), so the token stays in env and is never carried by the event, which Inngest stores and shows in its UI and traces. event.data.bot_token is honoured only as a deprecated fallback with a warning that does not print it; a payload with neither is NonRetriableError. Not verified: the sender of reels/loop.generate is outside the repo (orphan-events baseline), so whether it already sends bot_name was not established; the generate-morphing-clips step still runs N paid predictions in one step (open plan item). Test: 999-multibots-telegraf src/__tests__/inngest/secretsOutOfPayloads.test.ts.";
