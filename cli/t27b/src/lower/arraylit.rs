@@ -136,10 +136,7 @@ impl<'a> Lower<'a> {
         Ok(Some(()))
     }
 
-    /// `const x = [_]T{ ... }` with no annotation, which the reference prints
-    /// `.{ ... }`: a tuple whose fields have type T, read at constant indices
-    /// outside an invariant (plan `specs/tri/t27b/tuple_local_plan.t27`,
-    /// #8050). None leaves it to the old refusal.
+    /// An untyped list local, which the reference prints as a tuple (plan `tl`, #8050); None leaves it as it was.
     pub(super) fn tuple_array_local(&mut self, init: &Node, name: &str) -> R<Option<()>> {
         let tt = init.extra_type.trim();
         let same = init.children.iter().all(|c| match c.kind {

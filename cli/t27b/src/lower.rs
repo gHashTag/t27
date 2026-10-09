@@ -102,7 +102,7 @@ mod oq; // t27c gen-rust of specs/tri/t27b/opaque_plan.t27: `anyopaque`, `@ptrFr
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
 #[path = "../../../gen/rust/tri/t27b/tuple_local_plan.rs"] #[allow(dead_code, unused_parens)]
-mod tl; // t27c gen-rust of specs/tri/t27b/tuple_local_plan.t27: an untyped list local printed as a tuple
+mod tl; // t27c gen-rust of specs/tri/t27b/tuple_local_plan.t27: tuples, and an untyped list local printed as one
 #[path = "../../../gen/rust/tri/t27b/coerce_plan.rs"] #[allow(dead_code, unused_parens)]
 mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numeric type where Zig takes another
 #[path = "../../../gen/rust/tri/t27b/void_bind_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -6601,10 +6601,9 @@ impl<'a> Lower<'a> {
         if base.is_poison() || idx.is_poison() {
             return Err(());
         }
-        // #8050: a tuple takes a run-time index only where Zig runs the code at compile time.
         if let (NodeKind::ExprIdentifier, true) = (&n.children[0].kind, self.tuple_names.contains(&n.children[0].name)) {
             let constant = matches!(&idx, Val::Ct(_) | Val::E(Expr { kind: ExprKind::Const(_), .. }));
-            if tl::refuses_index(constant, self.comptime, self.unanalyzed_fn) { return self.reject(tl::what(), tl::why().into()); }
+            if tl::refuses_index(constant, self.comptime, self.unanalyzed_fn) { return self.tuple_refuse(tl::R_LOCAL_INDEX, &[]); }
         }
         // A string literal at a constant index is a constant.
         if let Val::S(k, len) = base {

@@ -133,19 +133,12 @@ fn string_slice_literal_spec_passes() {
     assert!(rejected(&src.replace("fn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };", "fn s(c: str) -> S {\n    return S{ .xs = [\"ab\", c] };").replace("s();", "s(\"c\");")).contains("ExprArrayLiteral(to slice field)"));
 }
 
-/// An untyped list local is a Zig tuple (#8050): read at constant indices,
-/// and at run-time ones inside an invariant (`t27c test-report`: 2 pass).
+/// An untyped list local is a Zig tuple (#8050): read at constant indices, and at run-time ones only in an
+/// invariant (`t27c test-report`: 2 pass); a run-time index in a test is refused, as Zig refuses it.
 #[test]
 fn tuple_local_index_spec_passes() {
     let ran = run(include_str!("../../../specs/tri/t27b/conformance/tuple_local_index.t27"));
-    let got = names_ok(&ran);
-    assert_eq!(got.len(), 3);
-    assert!(got.iter().all(|(_, _, ok)| *ok), "{:?}", got);
-}
-
-/// A run-time index into one in a test: Zig refuses it, so t27b does too.
-#[test]
-fn tuple_local_run_time_index_is_refused() {
+    assert!(ran.len() == 3 && names_ok(&ran).iter().all(|(_, _, ok)| *ok), "{:?}", names_ok(&ran));
     let r = rejected("module a;\n\nconst A : i32 = 4;\n\ntest t {\n    const v = [_]i32{A, A};\n    var i: usize = 1;\n    assert(v[i] == 4);\n}\n");
     assert!(r.contains("ExprIndex(tuple)"), "{}", r);
 }
