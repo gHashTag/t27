@@ -194,7 +194,7 @@ const T_BENCH: i64 = 296;
 const T_STR: i64 = 297;
 const K_DOT: i64 = 46;
 
-; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
+; Node kinds. Node 0 is the null node; a list is a chain through `.next`.
 const N_NUM: i64 = 1;
 const N_CHAR: i64 = 2;
 const N_TRUE: i64 = 3;
@@ -209,15 +209,15 @@ const N_NEGLIT: i64 = 11;
 const N_LIST: i64 = 12;
 const N_SWITCH: i64 = 13;
 const N_ARM: i64 = 14;
-; X.F: nd_tok is F, nd_a is X. S{ .F = V }: nd_tok is S, nd_a the first
-; N_INIT (nd_tok F, nd_a V), nd_b how many.
+; X.F: .tok is F, .a is X. S{ .F = V }: .tok is S, .a the first
+; N_INIT (.tok F, .a V), .b how many.
 const N_FIELD: i64 = 15;
 const N_STRUCT: i64 = 16;
 const N_INIT: i64 = 17;
-; .M, a member whose enum is inferred: nd_tok M. `check` sets nd_d to the enum
-; of it, of an N_FIELD that is E.M (nd_aux 1 for E::M), and of a `.M` arm.
+; .M, a member whose enum is inferred: .tok M. `check` sets .d to the enum
+; of it, of an N_FIELD that is E.M (.aux 1 for E::M), and of a `.M` arm.
 const N_EVAL: i64 = 18;
-; "...": nd_tok the literal, quotes included. An N_FIELD with nd_aux 2 is
+; "...": .tok the literal, quotes included. An N_FIELD with .aux 2 is
 ; `s.len` on a `string`, gen-c's `strlen(s)`.
 const N_STR: i64 = 19;
 const S_LOCAL: i64 = 20;
@@ -236,17 +236,17 @@ const D_FN: i64 = 43;
 const D_PARAM: i64 = 44;
 const D_TEST: i64 = 45;
 const D_USE: i64 = 46;
-; A struct: nd_tok its name, nd_a the first D_FIELD (nd_tok the field, nd_aux
-; its type token), nd_c its last token; nd_b marks it written (emit_structs).
+; A struct: .tok its name, .a the first D_FIELD (.tok the field, .aux
+; its type token), .c its last token; .b marks it written (emit_structs).
 const D_STRUCT: i64 = 47;
 const D_FIELD: i64 = 48;
-; An enum: nd_tok its name, nd_a the first D_MEMBER (nd_tok the member, nd_aux
-; its value's number token or 0, nd_b 1 for a negated value), nd_c its last
+; An enum: .tok its name, .a the first D_MEMBER (.tok the member, .aux
+; its value's number token or 0, .b 1 for a negated value), .c its last
 ; token.
 const D_ENUM: i64 = 49;
 const D_MEMBER: i64 = 50;
-; invariant NAME: nd_tok the name, nd_a the first check (an S_EXPR whose nd_a
-; is the predicate). bench NAME: nd_tok the name, nd_b the body, as a test.
+; invariant NAME: .tok the name, .a the first check (an S_EXPR whose .a
+; is the predicate). bench NAME: .tok the name, .b the body, as a test.
 const D_INV: i64 = 51;
 const D_BENCH: i64 = 52;
 
@@ -302,27 +302,55 @@ const W_ENDMODUL: i64 = 0x6c75646f6d646e65;
 
 var src: [SRC_MAX]u8 = [_]u8{0} ** SRC_MAX;
 var out: [OUT_MAX]u8 = [_]u8{0} ** OUT_MAX;
-var tk_kind: [TOK_MAX]i64 = [_]i64{0} ** TOK_MAX;
-var tk_pos: [TOK_MAX]i64 = [_]i64{0} ** TOK_MAX;
-var tk_len: [TOK_MAX]i64 = [_]i64{0} ** TOK_MAX;
-var nd_kind: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_tok: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_a: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_b: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_c: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_next: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_aux: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_d: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var scope_arr: [SCOPE_MAX]i64 = [_]i64{0} ** SCOPE_MAX;
-var mod_from: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var mod_to: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var mod_head: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var mod_tok0: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var mod_decls: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var mod_hit: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var mod_text: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
-var pulled: [PULL_MAX]i64 = [_]i64{0} ** PULL_MAX;
-var pulled_mod: [PULL_MAX]i64 = [_]i64{0} ** PULL_MAX;
+
+; The tables are arrays of structs, which this core compiles since P2 (#5980):
+; the fixpoint then runs through struct declarations, literals, repeats of a
+; zero struct and field reads and writes.
+
+; A token: its kind, the byte it starts at, and its length.
+struct Tok {
+    kind: i64,
+    pos: i64,
+    len: i64,
+}
+
+; A node: its kind, a token, and the links its kind gives meaning to (see
+; the node kinds); `next` chains a list. Node 0 is the null node.
+struct Node {
+    kind: i64,
+    tok: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+    next: i64,
+    aux: i64,
+    d: i64,
+}
+
+; A module in the input: its text [from, to), the path after its NUL (head),
+; its first token, its declaration chain, whether a `use` reached it, and
+; whether it is kept as text.
+struct Mod {
+    from: i64,
+    to: i64,
+    head: i64,
+    tok0: i64,
+    decls: i64,
+    hit: i64,
+    text: i64,
+}
+
+; A spliced declaration and the module it comes from.
+struct Pull {
+    decl: i64,
+    mod: i64,
+}
+
+var toks: [TOK_MAX]Tok = [_]Tok{Tok{ .kind = 0, .pos = 0, .len = 0 }} ** TOK_MAX;
+var nodes: [NODE_MAX]Node = [_]Node{Node{ .kind = 0, .tok = 0, .a = 0, .b = 0, .c = 0, .next = 0, .aux = 0, .d = 0 }} ** NODE_MAX;
+var mods: [MOD_MAX]Mod = [_]Mod{Mod{ .from = 0, .to = 0, .head = 0, .tok0 = 0, .decls = 0, .hit = 0, .text = 0 }} ** MOD_MAX;
+var pulls: [PULL_MAX]Pull = [_]Pull{Pull{ .decl = 0, .mod = 0 }} ** PULL_MAX;
 
 var src_len: i64 = 0;
 var out_len: i64 = 0;
@@ -398,9 +426,9 @@ fn put_int(n: i64) -> void {
 
 ; A number is written without its `_` separators, as gen-c writes it.
 fn put_tok(t: i64) -> void {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
-    var num: bool = tk_kind[t as usize] == T_NUM;
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
+    var num: bool = toks[t as usize].kind == T_NUM;
     while (i < e) {
         if (!num or src[i as usize] != '_') {
             put(src[i as usize] as i64);
@@ -410,8 +438,8 @@ fn put_tok(t: i64) -> void {
 }
 
 fn put_upper(t: i64) -> void {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
     while (i < e) {
         var c: i64 = src[i as usize] as i64;
         if (c >= 'a' and c <= 'z') {
@@ -447,42 +475,42 @@ fn kind(t: i64) -> i64 {
     if (t >= tok_count) {
         return T_EOF;
     }
-    return tk_kind[t as usize];
+    return toks[t as usize].kind;
 }
 
 fn tpos(t: i64) -> i64 {
     if (t >= tok_count) {
         return src_len;
     }
-    return tk_pos[t as usize];
+    return toks[t as usize].pos;
 }
 
 ; Up to eight bytes of token `t`, starting `off` bytes in, first byte lowest.
 fn tok_word(t: i64, off: i64) -> i64 {
-    var n: i64 = tk_len[t as usize] - off;
+    var n: i64 = toks[t as usize].len - off;
     if (n > 8) {
         n = 8;
     }
     var v: i64 = 0;
     var i: i64 = n - 1;
     while (i >= 0) {
-        v = (v << 8) | (src[(tk_pos[t as usize] + off + i) as usize] as i64);
+        v = (v << 8) | (src[(toks[t as usize].pos + off + i) as usize] as i64);
         i = i - 1;
     }
     return v;
 }
 
 fn tok_is(t: i64, lo: i64, hi: i64, n: i64) -> bool {
-    return tk_len[t as usize] == n and tok_word(t, 0) == lo and tok_word(t, 8) == hi;
+    return toks[t as usize].len == n and tok_word(t, 0) == lo and tok_word(t, 8) == hi;
 }
 
 fn tok_eq(a: i64, b: i64) -> bool {
-    if (tk_len[a as usize] != tk_len[b as usize]) {
+    if (toks[a as usize].len != toks[b as usize].len) {
         return false;
     }
     var i: i64 = 0;
-    while (i < tk_len[a as usize]) {
-        if (src[(tk_pos[a as usize] + i) as usize] != src[(tk_pos[b as usize] + i) as usize]) {
+    while (i < toks[a as usize].len) {
+        if (src[(toks[a as usize].pos + i) as usize] != src[(toks[b as usize].pos + i) as usize]) {
             return false;
         }
         i = i + 1;
@@ -495,9 +523,7 @@ fn add_tok(k: i64, start: i64, len: i64) -> void {
         fail(E_LIMIT, start);
         return;
     }
-    tk_kind[tok_count as usize] = k;
-    tk_pos[tok_count as usize] = start;
-    tk_len[tok_count as usize] = len;
+    toks[tok_count as usize] = Tok{ .kind = k, .pos = start, .len = len };
     tok_count = tok_count + 1;
 }
 
@@ -705,7 +731,7 @@ fn lex_ident(i: i64) -> i64 {
         fail(E_LEX, i);
         return j;
     }
-    tk_kind[(tok_count - 1) as usize] = k;
+    toks[(tok_count - 1) as usize].kind = k;
     return j;
 }
 
@@ -761,8 +787,8 @@ fn lex_num(i: i64) -> i64 {
 
 ; True when a number token carries a `_` separator.
 fn has_sep(t: i64) -> bool {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
     while (i < e) {
         if (src[i as usize] == '_') {
             return true;
@@ -882,9 +908,9 @@ fn lex_one(i: i64) -> i64 {
 
 ; Lexes module m's text, then a T_EOF token at its end.
 fn lex_module(m: i64) -> void {
-    var i: i64 = mod_from[m as usize];
-    src_len = mod_to[m as usize];
-    mod_tok0[m as usize] = tok_count;
+    var i: i64 = mods[m as usize].from;
+    src_len = mods[m as usize].to;
+    mods[m as usize].tok0 = tok_count;
     while (!failed and i < src_len) {
         i = lex_one(i);
     }
@@ -895,35 +921,35 @@ fn lex_module(m: i64) -> void {
 
 ; Reads of the node arrays.
 fn nkind(n: i64) -> i64 {
-    return nd_kind[n as usize];
+    return nodes[n as usize].kind;
 }
 
 fn ntok(n: i64) -> i64 {
-    return nd_tok[n as usize];
+    return nodes[n as usize].tok;
 }
 
 fn na(n: i64) -> i64 {
-    return nd_a[n as usize];
+    return nodes[n as usize].a;
 }
 
 fn nb(n: i64) -> i64 {
-    return nd_b[n as usize];
+    return nodes[n as usize].b;
 }
 
 fn nc(n: i64) -> i64 {
-    return nd_c[n as usize];
+    return nodes[n as usize].c;
 }
 
 fn nnext(n: i64) -> i64 {
-    return nd_next[n as usize];
+    return nodes[n as usize].next;
 }
 
 fn naux(n: i64) -> i64 {
-    return nd_aux[n as usize];
+    return nodes[n as usize].aux;
 }
 
 fn nd(n: i64) -> i64 {
-    return nd_d[n as usize];
+    return nodes[n as usize].d;
 }
 
 fn mk(k: i64, t: i64, a: i64, b: i64) -> i64 {
@@ -933,14 +959,7 @@ fn mk(k: i64, t: i64, a: i64, b: i64) -> i64 {
     }
     var n: i64 = node_count;
     node_count = node_count + 1;
-    nd_kind[n as usize] = k;
-    nd_tok[n as usize] = t;
-    nd_a[n as usize] = a;
-    nd_b[n as usize] = b;
-    nd_c[n as usize] = 0;
-    nd_next[n as usize] = 0;
-    nd_aux[n as usize] = 0;
-    nd_d[n as usize] = 0;
+    nodes[n as usize] = Node{ .kind = k, .tok = t, .a = a, .b = b, .c = 0, .next = 0, .aux = 0, .d = 0 };
     return n;
 }
 
@@ -1060,7 +1079,7 @@ fn parse_args() -> i64 {
         if (head == 0) {
             head = e;
         } else {
-            nd_next[tail as usize] = e;
+            nodes[tail as usize].next = e;
         }
         tail = e;
         if (cur() == ',') {
@@ -1100,7 +1119,7 @@ fn parse_struct_lit(t: i64) -> i64 {
         if (head == 0) {
             head = it;
         } else {
-            nd_next[tail as usize] = it;
+            nodes[tail as usize].next = it;
         }
         tail = it;
         n = n + 1;
@@ -1135,7 +1154,7 @@ fn parse_primary() -> i64 {
             var pm: i64 = p;
             expect(T_IDENT);
             var pe: i64 = mk(N_FIELD, pm, mk(N_IDENT, t, 0, 0), 0);
-            nd_aux[pe as usize] = 1;
+            nodes[pe as usize].aux = 1;
             return pe;
         }
         var e: i64 = mk(N_IDENT, t, 0, 0);
@@ -1255,7 +1274,7 @@ fn parse_block() -> i64 {
         if (head == 0) {
             head = s;
         } else {
-            nd_next[tail as usize] = s;
+            nodes[tail as usize].next = s;
         }
         tail = s;
     }
@@ -1272,11 +1291,11 @@ fn parse_if() -> i64 {
     var n: i64 = mk(S_IF, 0, c, body);
     if (!failed and cur() == T_ELSE) {
         advance();
-        nd_aux[n as usize] = 1;
+        nodes[n as usize].aux = 1;
         if (cur() == T_IF) {
-            nd_c[n as usize] = parse_if();
+            nodes[n as usize].c = parse_if();
         } else {
-            nd_c[n as usize] = parse_block();
+            nodes[n as usize].c = parse_block();
         }
     }
     return n;
@@ -1297,12 +1316,12 @@ fn parse_for() -> i64 {
     expect(T_IDENT);
     expect('|');
     var n: i64 = mk(S_FOR, t, lo, parse_block());
-    nd_c[n as usize] = hi;
-    nd_aux[n as usize] = cap;
+    nodes[n as usize].c = hi;
+    nodes[n as usize].aux = cap;
     return n;
 }
 
-; One arm: nd_aux 0 for a number label, 1 for -number, 2 for `else`. gen-c
+; One arm: .aux 0 for a number label, 1 for -number, 2 for `else`. gen-c
 ; upper-cases a char or name label and keeps a `_` in a number (#7419).
 fn parse_arm() -> i64 {
     var t: i64 = p;
@@ -1330,7 +1349,7 @@ fn parse_arm() -> i64 {
     }
     expect(T_ARM);
     var arm: i64 = mk(N_ARM, t, parse_value(), 0);
-    nd_aux[arm as usize] = how;
+    nodes[arm as usize].aux = how;
     return arm;
 }
 
@@ -1357,7 +1376,7 @@ fn parse_switch() -> i64 {
         if (head == 0) {
             head = arm;
         } else {
-            nd_next[tail as usize] = arm;
+            nodes[tail as usize].next = arm;
         }
         tail = arm;
         if (cur() == ',') {
@@ -1436,7 +1455,7 @@ fn parse_stmt() -> i64 {
         var init: i64 = parse_value();
         expect(';');
         var n: i64 = mk(S_LOCAL, name, init, 0);
-        nd_aux[n as usize] = ty;
+        nodes[n as usize].aux = ty;
         return n;
     }
     if (k == T_IF) {
@@ -1482,7 +1501,7 @@ fn parse_stmt() -> i64 {
                 fail(E_SYNTAX, tpos(p));
                 return 0;
             }
-            // A compound `op=` keeps its token in nd_c; a plain `=` leaves 0.
+            // A compound `op=` keeps its token in .c; a plain `=` leaves 0.
             var op: i64 = 0;
             if (cur() == T_OPEQ) {
                 op = p;
@@ -1491,7 +1510,7 @@ fn parse_stmt() -> i64 {
             var rhs: i64 = parse_value();
             expect(';');
             var asg: i64 = mk(S_ASSIGN, t, lhs, rhs);
-            nd_c[asg as usize] = op;
+            nodes[asg as usize].c = op;
             return asg;
         }
         if (nkind(lhs) != N_CALL) {
@@ -1566,7 +1585,7 @@ fn parse_size() -> i64 {
 
 ; Token t is `_`.
 fn is_hole(t: i64) -> bool {
-    return kind(t) == T_IDENT and tk_len[t as usize] == 1 and src[(tk_pos[t as usize]) as usize] == '_';
+    return kind(t) == T_IDENT and toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_';
 }
 
 ; `[_]`, then `[M]` if `inner` is set, then the element type, which is `ty`.
@@ -1598,12 +1617,12 @@ fn parse_elem(ty: i64, inner: i64) -> void {
 ; A plain decimal's value, `_` skipped, else -1; past NODE_MAX, more than a
 ; list holds.
 fn num_val(t: i64) -> i64 {
-    var i: i64 = tk_pos[t as usize];
+    var i: i64 = toks[t as usize].pos;
     var v: i64 = 0;
     if (kind(t) != T_NUM) {
         return -1;
     }
-    while (i < tk_pos[t as usize] + tk_len[t as usize]) {
+    while (i < toks[t as usize].pos + toks[t as usize].len) {
         var d: i64 = (src[i as usize] as i64) - '0';
         if (src[i as usize] != '_') {
             if (d < 0 or d > 9 or v > NODE_MAX) {
@@ -1617,7 +1636,7 @@ fn num_val(t: i64) -> i64 {
 }
 
 ; gen-c pads a short list, drops the excess of a long one and loses a
-; repeated list (#7353). nd_b of an N_LIST is its item count.
+; repeated list (#7353). .b of an N_LIST is its item count.
 fn bad_count(l: i64, dim: i64) -> bool {
     return nb(l) != num_val(dim) or nb(l) == 0 or cur() == T_POW;
 }
@@ -1641,7 +1660,7 @@ fn parse_list(dim: i64, row: i64, ty: i64) -> i64 {
         if (head == 0) {
             head = e;
         } else {
-            nd_next[tail as usize] = e;
+            nodes[tail as usize].next = e;
         }
         tail = e;
         n = n + 1;
@@ -1659,7 +1678,7 @@ fn parse_list(dim: i64, row: i64, ty: i64) -> i64 {
 
 ; var NAME : [SIZE]T = [_]T{VALUE} ** COUNT ;  -- `name` is already consumed.
 ; VALUE is a number; emit_array finds it three tokens before COUNT. A list
-; initializer sets nd_c instead, and nd_b to the inner dimension, if any.
+; initializer sets .c instead, and .b to the inner dimension, if any.
 ; gen-c drops a dimension's `_` separators since #7318.
 fn parse_array(name: i64) -> i64 {
     expect(K_LBRACKET);
@@ -1675,29 +1694,29 @@ fn parse_array(name: i64) -> i64 {
     expect('=');
     parse_elem(ty, inner);
     var n: i64 = mk(D_ARRAY, name, size, 0);
-    nd_aux[n as usize] = ty;
+    nodes[n as usize].aux = ty;
     if (inner != 0) {
-        nd_b[n as usize] = inner;
-        nd_c[n as usize] = parse_list(size, inner, ty);
+        nodes[n as usize].b = inner;
+        nodes[n as usize].c = parse_list(size, inner, ty);
     } else {
         var l: i64 = parse_list(0, 0, ty);
         var it: i64 = na(l);
         if (cur() == T_POW) {
-            // A struct value is kept in nd_d; `check` holds it to zero.
+            // A struct value is kept in .d; `check` holds it to zero.
             var ik: i64 = nkind(it);
             if (!failed and nb(l) == 1 and (ik == N_STRUCT or ik == N_FIELD or ik == N_EVAL)) {
-                nd_d[n as usize] = it;
+                nodes[n as usize].d = it;
             } else if (!failed and (nb(l) != 1 or nkind(it) != N_NUM or ntok(it) != p - 2)) {
                 fail(E_ARRAY, tpos(p));
                 return 0;
             }
             advance();
-            nd_b[n as usize] = parse_size();
+            nodes[n as usize].b = parse_size();
         } else {
             if (!failed and bad_count(l, size)) {
                 fail(E_ARRAY, tpos(size));
             }
-            nd_c[n as usize] = l;
+            nodes[n as usize].c = l;
         }
     }
     expect(';');
@@ -1718,11 +1737,11 @@ fn parse_params() -> i64 {
         expect(':');
         var ty: i64 = expect_type();
         var n: i64 = mk(D_PARAM, name, 0, 0);
-        nd_aux[n as usize] = ty;
+        nodes[n as usize].aux = ty;
         if (head == 0) {
             head = n;
         } else {
-            nd_next[tail as usize] = n;
+            nodes[tail as usize].next = n;
         }
         tail = n;
         if (cur() == ',') {
@@ -1751,12 +1770,12 @@ fn parse_fn() -> i64 {
     }
     var body: i64 = parse_block();
     var n: i64 = mk(D_FN, name, params, body);
-    nd_aux[n as usize] = ret;
-    nd_c[n as usize] = p - 1;
+    nodes[n as usize].aux = ret;
+    nodes[n as usize].c = p - 1;
     return n;
 }
 
-; use A :: B ... ;  -- nd_tok is the first segment, nd_a the last.
+; use A :: B ... ;  -- .tok is the first segment, .a the last.
 fn parse_use() -> i64 {
     advance();
     var first: i64 = p;
@@ -1811,7 +1830,7 @@ fn parse_decl() -> i64 {
             sd = parse_struct(cname);
         }
         expect(';');
-        nd_c[sd as usize] = p - 1;
+        nodes[sd as usize].c = p - 1;
         return sd;
     }
     if (k == T_USE) {
@@ -1852,10 +1871,10 @@ fn parse_decl() -> i64 {
         expect(';');
         var n: i64 = mk(D_VAR, name, v, 0);
         if (k == T_CONST) {
-            nd_kind[n as usize] = D_CONST;
+            nodes[n as usize].kind = D_CONST;
         }
-        nd_aux[n as usize] = ty;
-        nd_c[n as usize] = p - 1;
+        nodes[n as usize].aux = ty;
+        nodes[n as usize].c = p - 1;
         return n;
     }
     fail(E_SYNTAX, tpos(t));
@@ -1873,11 +1892,11 @@ fn parse_struct(name: i64) -> i64 {
         expect(T_IDENT);
         expect(':');
         var fd: i64 = mk(D_FIELD, f, 0, 0);
-        nd_aux[fd as usize] = expect_type();
+        nodes[fd as usize].aux = expect_type();
         if (head == 0) {
             head = fd;
         } else {
-            nd_next[tail as usize] = fd;
+            nodes[tail as usize].next = fd;
         }
         tail = fd;
         if (!failed and cur() == '=') {
@@ -1893,7 +1912,7 @@ fn parse_struct(name: i64) -> i64 {
     }
     expect(K_RBRACE);
     var n: i64 = mk(D_STRUCT, name, head, 0);
-    nd_c[n as usize] = p - 1;
+    nodes[n as usize].c = p - 1;
     return n;
 }
 
@@ -1917,20 +1936,20 @@ fn parse_enum(name: i64) -> i64 {
         if (!failed and cur() == '=') {
             advance();
             if (cur() == '-') {
-                nd_b[m as usize] = 1;
+                nodes[m as usize].b = 1;
                 advance();
             }
             if (cur() != T_NUM or has_sep(p)) {
                 fail(E_ENUM, tpos(p));
                 return 0;
             }
-            nd_aux[m as usize] = p;
+            nodes[m as usize].aux = p;
             advance();
         }
         if (head == 0) {
             head = m;
         } else {
-            nd_next[tail as usize] = m;
+            nodes[tail as usize].next = m;
         }
         tail = m;
         if (cur() == ',') {
@@ -1942,7 +1961,7 @@ fn parse_enum(name: i64) -> i64 {
     }
     expect(K_RBRACE);
     var n: i64 = mk(D_ENUM, name, head, 0);
-    nd_c[n as usize] = p - 1;
+    nodes[n as usize].c = p - 1;
     return n;
 }
 
@@ -1977,7 +1996,7 @@ fn parse_invariant() -> i64 {
         if (head == 0) {
             head = c;
         } else {
-            nd_next[tail as usize] = c;
+            nodes[tail as usize].next = c;
         }
         tail = c;
         if (clause) {
@@ -2017,7 +2036,7 @@ fn parse_module() -> void {
         if (decls == 0) {
             decls = d;
         } else {
-            nd_next[tail as usize] = d;
+            nodes[tail as usize].next = d;
         }
         tail = d;
     }
@@ -2029,19 +2048,19 @@ fn parse_module() -> void {
 fn split_modules(n: i64) -> void {
     var i: i64 = 0;
     mod_count = 1;
-    mod_from[0] = 0;
+    mods[0].from = 0;
     while (i < n and src[i as usize] != 0) {
         i = i + 1;
     }
-    mod_to[0] = i;
+    mods[0].to = i;
     while (!failed and i < n) {
         if (mod_count >= MOD_MAX) {
             fail(E_LIMIT, i);
             return;
         }
         var j: i64 = i + 1;
-        mod_head[mod_count as usize] = j;
-        mod_hit[mod_count as usize] = 0;
+        mods[mod_count as usize].head = j;
+        mods[mod_count as usize].hit = 0;
         while (j < n and src[j as usize] != '\n' and src[j as usize] != 0) {
             j = j + 1;
         }
@@ -2049,12 +2068,12 @@ fn split_modules(n: i64) -> void {
             fail(E_USE, i);
             return;
         }
-        mod_from[mod_count as usize] = j + 1;
+        mods[mod_count as usize].from = j + 1;
         j = j + 1;
         while (j < n and src[j as usize] != 0) {
             j = j + 1;
         }
-        mod_to[mod_count as usize] = j;
+        mods[mod_count as usize].to = j;
         mod_count = mod_count + 1;
         i = j;
     }
@@ -2062,7 +2081,7 @@ fn split_modules(n: i64) -> void {
 
 ; A module the importer reaches gets its own declaration chain; the
 ; importer's name, tests and `decls` stay. One this core cannot read is kept
-; as text (mod_text): no word of the importer may name what it declares.
+; as text (`.text`): no word of the importer may name what it declares.
 fn load_module(m: i64, n: i64) -> void {
     var t0: i64 = tok_count;
     var n0: i64 = node_count;
@@ -2074,11 +2093,11 @@ fn load_module(m: i64, n: i64) -> void {
     src_len = n;
     decls = 0;
     if (!failed) {
-        p = mod_tok0[m as usize];
+        p = mods[m as usize].tok0;
         parse_module();
     }
-    mod_decls[m as usize] = decls;
-    mod_text[m as usize] = 0;
+    mods[m as usize].decls = decls;
+    mods[m as usize].text = 0;
     mod_tok = keep_tok;
     has_tests = keep_tests;
     decls = keep_decls;
@@ -2089,10 +2108,10 @@ fn load_module(m: i64, n: i64) -> void {
         tok_count = t0;
         node_count = n0;
         open_comments = c0;
-        mod_decls[m as usize] = 0;
-        mod_text[m as usize] = 1;
-        mod_tok0[m as usize] = tok_count;
-        add_tok(T_EOF, mod_to[m as usize], 0);
+        mods[m as usize].decls = 0;
+        mods[m as usize].text = 1;
+        mods[m as usize].tok0 = tok_count;
+        add_tok(T_EOF, mods[m as usize].to, 0);
     }
 }
 
@@ -2272,7 +2291,7 @@ fn calls_in(head: i64) -> bool {
     var s: i64 = head;
     while (s != 0) {
         var k: i64 = nkind(s);
-        // A local array's nd_a is its size token; its list is nd_c.
+        // A local array's .a is its size token; its list is .c.
         if (k == D_ARRAY) {
             if (mentions_call(nc(s))) {
                 return true;
@@ -2438,7 +2457,7 @@ fn check_expr(e: i64) -> void {
         return;
     }
     if (k == N_EVAL) {
-        nd_d[e as usize] = member_owner(ntok(e));
+        nodes[e as usize].d = member_owner(ntok(e));
         return;
     }
     if (k == N_STRUCT) {
@@ -2536,7 +2555,7 @@ fn check_stmts(head: i64, test_body: i64) -> void {
             var lhs: i64 = na(s);
             if (nkind(lhs) == N_IDENT) {
                 var t: i64 = ntok(lhs);
-                if (tk_len[t as usize] == 1 and src[(tk_pos[t as usize]) as usize] == '_') {
+                if (toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_') {
                     fail(E_NAME, tpos(t));
                     return;
                 }
@@ -2636,18 +2655,18 @@ fn upper(c: i64) -> i64 {
 ; Byte i of gen-c's constant for member token m of enum token en: `EN_M`,
 ; upper-cased.
 fn const_len(en: i64, m: i64) -> i64 {
-    return tk_len[en as usize] + 1 + tk_len[m as usize];
+    return toks[en as usize].len + 1 + toks[m as usize].len;
 }
 
 fn const_byte(en: i64, m: i64, i: i64) -> i64 {
-    var n: i64 = tk_len[en as usize];
+    var n: i64 = toks[en as usize].len;
     if (i < n) {
-        return upper(src[(tk_pos[en as usize] + i) as usize] as i64);
+        return upper(src[(toks[en as usize].pos + i) as usize] as i64);
     }
     if (i == n) {
         return '_';
     }
-    return upper(src[(tk_pos[m as usize] + i - n - 1) as usize] as i64);
+    return upper(src[(toks[m as usize].pos + i - n - 1) as usize] as i64);
 }
 
 ; Constants a and b (enum token, member token each) are one C name.
@@ -2668,11 +2687,11 @@ fn const_eq(ea: i64, ma: i64, eb: i64, mb: i64) -> bool {
 ; Token t spells the constant of member m of enum en.
 fn spells_const(t: i64, en: i64, m: i64) -> bool {
     var i: i64 = 0;
-    if (tk_len[t as usize] != const_len(en, m)) {
+    if (toks[t as usize].len != const_len(en, m)) {
         return false;
     }
-    while (i < tk_len[t as usize]) {
-        if ((src[(tk_pos[t as usize] + i) as usize] as i64) != const_byte(en, m, i)) {
+    while (i < toks[t as usize].len) {
+        if ((src[(toks[t as usize].pos + i) as usize] as i64) != const_byte(en, m, i)) {
             return false;
         }
         i = i + 1;
@@ -2683,11 +2702,11 @@ fn spells_const(t: i64, en: i64, m: i64) -> bool {
 ; Tokens a and b spell one word once upper-cased.
 fn upper_eq(a: i64, b: i64) -> bool {
     var i: i64 = 0;
-    if (tk_len[a as usize] != tk_len[b as usize]) {
+    if (toks[a as usize].len != toks[b as usize].len) {
         return false;
     }
-    while (i < tk_len[a as usize]) {
-        if (upper(src[(tk_pos[a as usize] + i) as usize] as i64) != upper(src[(tk_pos[b as usize] + i) as usize] as i64)) {
+    while (i < toks[a as usize].len) {
+        if (upper(src[(toks[a as usize].pos + i) as usize] as i64) != upper(src[(toks[b as usize].pos + i) as usize] as i64)) {
             return false;
         }
         i = i + 1;
@@ -2726,7 +2745,7 @@ fn check_enum(d: i64) -> void {
             }
             o = nnext(o);
         }
-        var x: i64 = mod_tok0[0];
+        var x: i64 = mods[0].tok0;
         while (kind(x) != T_EOF) {
             if (kind(x) == T_IDENT and spells_const(x, t, ntok(m))) {
                 fail(E_NAME, tpos(x));
@@ -2795,7 +2814,7 @@ fn check_labels(e: i64) -> void {
     while (!failed and arm != 0) {
         if (naux(arm) == 3) {
             var en: i64 = member_owner(ntok(arm));
-            nd_d[arm as usize] = en;
+            nodes[arm as usize].d = en;
             if (owner != 0 and en != owner) {
                 full = false;
             }
@@ -2902,7 +2921,7 @@ fn check_struct(d: i64) -> void {
     }
 }
 
-; Every struct a field of d holds by value is written already (nd_b).
+; Every struct a field of d holds by value is written already (.b).
 fn deps_done(d: i64) -> bool {
     var f: i64 = na(d);
     while (f != 0) {
@@ -2923,7 +2942,7 @@ fn walk_structs(emit: bool) -> bool {
     var more: bool = true;
     while (d != 0) {
         if (nkind(d) == D_STRUCT) {
-            nd_b[d as usize] = 0;
+            nodes[d as usize].b = 0;
         }
         d = nnext(d);
     }
@@ -2932,7 +2951,7 @@ fn walk_structs(emit: bool) -> bool {
         d = decls;
         while (d != 0) {
             if (nkind(d) == D_STRUCT and nb(d) == 0 and deps_done(d)) {
-                nd_b[d as usize] = 1;
+                nodes[d as usize].b = 1;
                 more = true;
                 if (emit) {
                     emit_struct(d);
@@ -3059,7 +3078,7 @@ fn check_field(e: i64) -> void {
     // on a `str` it stays `s.len`, which is not C (#8013).
     if (nkind(b) == N_IDENT and is_str_type(name_type(ntok(b)))) {
         if (tok_is(ntok(e), 0x6e656c, 0, 3) and tok_is(local_type(ntok(b)), 0x676e69727473, 0, 6)) {
-            nd_aux[e as usize] = 2;
+            nodes[e as usize].aux = 2;
             uses_strlen = true;
             return;
         }
@@ -3081,7 +3100,7 @@ fn check_field(e: i64) -> void {
         fail(E_ENUM, tpos(ntok(e)));
         return;
     }
-    nd_d[e as usize] = en;
+    nodes[e as usize].d = en;
 }
 
 ; ---------------------------------------------------------------- strings
@@ -3257,7 +3276,7 @@ fn check_str_name(t: i64) -> void {
 fn static_check(e: i64) -> bool {
     var k: i64 = nkind(e);
     if (k == N_NUM) {
-        return tk_len[ntok(e) as usize] == 1 or src[(tk_pos[ntok(e) as usize]) as usize] != '0';
+        return toks[ntok(e) as usize].len == 1 or src[(toks[ntok(e) as usize].pos) as usize] != '0';
     }
     if (k == N_TRUE or k == N_FALSE) {
         return true;
@@ -3282,7 +3301,7 @@ fn static_check(e: i64) -> bool {
     return false;
 }
 
-; Each check is one gen-c keeps as `_Static_assert`; nd_b of its S_EXPR is
+; Each check is one gen-c keeps as `_Static_assert`; .b of its S_EXPR is
 ; the predicate, `assert` unwrapped.
 fn check_invariant(d: i64) -> void {
     var c: i64 = na(d);
@@ -3295,7 +3314,7 @@ fn check_invariant(d: i64) -> void {
             fail(E_INVARIANT, tpos(ntok(c)));
             return;
         }
-        nd_b[c as usize] = e;
+        nodes[c as usize].b = e;
         c = nnext(c);
     }
 }
@@ -3414,11 +3433,11 @@ fn word_at(j: i64, x: i64, n: i64) -> bool {
 ; Bytes [s, s + n) spell token t.
 fn word_is(s: i64, n: i64, t: i64) -> bool {
     var i: i64 = 0;
-    if (tk_len[t as usize] != n) {
+    if (toks[t as usize].len != n) {
         return false;
     }
     while (i < n) {
-        if (at(s + i) != src[(tk_pos[t as usize] + i) as usize] as i64) {
+        if (at(s + i) != src[(toks[t as usize].pos + i) as usize] as i64) {
             return false;
         }
         i = i + 1;
@@ -3591,7 +3610,7 @@ fn decl_first(d: i64) -> i64 {
 ; The `fn` or `const` of module m whose name starts at byte nm, alone on
 ; the lines from its keyword's (ls) to its last token's (le), else 0.
 fn decl_on(m: i64, ls: i64, le: i64, nm: i64) -> i64 {
-    var d: i64 = mod_decls[m as usize];
+    var d: i64 = mods[m as usize].decls;
     while (d != 0) {
         if (splice_kind(d) and tpos(ntok(d)) == nm and line_from(tpos(ntok(d) - 1)) == ls) {
             var last: i64 = nc(d);
@@ -3609,7 +3628,7 @@ fn decl_on(m: i64, ls: i64, le: i64, nm: i64) -> i64 {
 
 fn splicable(m: i64) -> i64 {
     var n: i64 = 0;
-    var d: i64 = mod_decls[m as usize];
+    var d: i64 = mods[m as usize].decls;
     while (d != 0) {
         if (splice_kind(d)) {
             n = n + 1;
@@ -3623,10 +3642,10 @@ fn splicable(m: i64) -> i64 {
 ; `const`s, each on its own lines: else what gen-c splices, or skips as the
 ; importer's own, is other text than this core read (#7937).
 fn check_split(m: i64) -> void {
-    var b: i64 = mod_to[m as usize];
-    var top: i64 = top_indent(mod_from[m as usize], b);
+    var b: i64 = mods[m as usize].to;
+    var top: i64 = top_indent(mods[m as usize].from, b);
     var found: i64 = 0;
-    var ls: i64 = mod_from[m as usize];
+    var ls: i64 = mods[m as usize].from;
     while (!failed and ls < b) {
         var nm: i64 = line_decl(ls);
         if (nm >= 0 and indent_at(ls) == top) {
@@ -3641,7 +3660,7 @@ fn check_split(m: i64) -> void {
         ls = line_to(ls) + 1;
     }
     if (!failed and found != splicable(m)) {
-        fail(E_USE, mod_from[m as usize]);
+        fail(E_USE, mods[m as usize].from);
     }
 }
 
@@ -3649,8 +3668,8 @@ fn check_split(m: i64) -> void {
 ; importer names one of its own, which is never spliced. It must be one.
 fn check_local_names() -> void {
     var depth: i64 = 0;
-    var ls: i64 = mod_from[0];
-    while (!failed and ls < mod_to[0]) {
+    var ls: i64 = mods[0].from;
+    while (!failed and ls < mods[0].to) {
         var nm: i64 = line_decl(ls);
         if (depth == 0 and nm >= 0 and name_decl(nm) == 0) {
             fail(E_USE, ls);
@@ -3689,7 +3708,7 @@ fn use_canonical(d: i64) -> bool {
         return false;
     }
     while (t < na(d)) {
-        if (tk_pos[t as usize] + tk_len[t as usize] != tk_pos[(t + 1) as usize]) {
+        if (toks[t as usize].pos + toks[t as usize].len != toks[(t + 1) as usize].pos) {
             return false;
         }
         t = t + 1;
@@ -3703,7 +3722,7 @@ fn use_canonical(d: i64) -> bool {
 
 ; The `use` of module m whose keyword is at byte j, else 0.
 fn use_at(m: i64, j: i64) -> i64 {
-    var d: i64 = mod_decls[m as usize];
+    var d: i64 = mods[m as usize].decls;
     while (d != 0) {
         if (nkind(d) == D_USE and tpos(ntok(d) - 1) == j) {
             return d;
@@ -3728,8 +3747,8 @@ fn code_end(ls: i64) -> i64 {
 ; words), with no control byte anywhere, and gen-c's `use` lines are this
 ; core's.
 fn check_module_text(m: i64) -> void {
-    var ls: i64 = mod_from[m as usize];
-    while (ls < mod_to[m as usize]) {
+    var ls: i64 = mods[m as usize].from;
+    while (ls < mods[m as usize].to) {
         var c: i64 = code_end(ls);
         var i: i64 = ls;
         while (i < line_to(ls)) {
@@ -3742,8 +3761,8 @@ fn check_module_text(m: i64) -> void {
         }
         ls = line_to(ls) + 1;
     }
-    ls = mod_from[m as usize];
-    while (ls < mod_to[m as usize]) {
+    ls = mods[m as usize].from;
+    while (ls < mods[m as usize].to) {
         var j: i64 = ls + indent_at(ls);
         if (word_at(j, W_USE, 3) and at(j + 3) == ' ') {
             var u: i64 = use_at(m, j);
@@ -3754,7 +3773,7 @@ fn check_module_text(m: i64) -> void {
         }
         ls = line_to(ls) + 1;
     }
-    var d: i64 = mod_decls[m as usize];
+    var d: i64 = mods[m as usize].decls;
     while (d != 0) {
         if (nkind(d) == D_USE and !use_canonical(d)) {
             fail(E_USE, tpos(ntok(d)));
@@ -3785,8 +3804,8 @@ fn path_end(j: i64) -> i64 {
 
 ; Whether path bytes [j, e), `a::b`, name module k: its header is `a/b.t27`.
 fn path_is(j: i64, e: i64, k: i64) -> bool {
-    var h: i64 = mod_head[k as usize];
-    var he: i64 = mod_from[k as usize] - 1;
+    var h: i64 = mods[k as usize].head;
+    var he: i64 = mods[k as usize].from - 1;
     var i: i64 = j;
     while (i < e) {
         if (h >= he) {
@@ -3865,14 +3884,14 @@ fn reach(j: i64, e: i64) -> void {
         fail(E_NEED, j);
         return;
     }
-    mod_hit[k as usize] = 1;
+    mods[k as usize].hit = 1;
 }
 
 ; A line of a module kept as text opens, past its indent and an optional
 ; `pub `, with a printable ASCII byte: gen-c trims Unicode blanks there.
 fn check_text_module(m: i64) -> void {
-    var ls: i64 = mod_from[m as usize];
-    while (!failed and ls < mod_to[m as usize]) {
+    var ls: i64 = mods[m as usize].from;
+    while (!failed and ls < mods[m as usize].to) {
         var j: i64 = ls + indent_at(ls);
         if (word_at(j, W_PUB, 3) and at(j + 3) == ' ') {
             j = j + 4 + indent_at(j + 4);
@@ -3891,15 +3910,15 @@ fn check_text_module(m: i64) -> void {
 fn request_missing() -> void {
     var m: i64 = 0;
     while (!failed and m < mod_count) {
-        var d: i64 = mod_decls[m as usize];
+        var d: i64 = mods[m as usize].decls;
         while (!failed and d != 0) {
             if (nkind(d) == D_USE) {
-                reach(tpos(ntok(d)), tpos(na(d)) + tk_len[na(d) as usize]);
+                reach(tpos(ntok(d)), tpos(na(d)) + toks[na(d) as usize].len);
             }
             d = nnext(d);
         }
-        var ls: i64 = mod_from[m as usize];
-        while (!failed and mod_text[m as usize] == 1 and ls < mod_to[m as usize]) {
+        var ls: i64 = mods[m as usize].from;
+        while (!failed and mods[m as usize].text == 1 and ls < mods[m as usize].to) {
             var j: i64 = text_use(ls);
             if (j >= 0) {
                 reach(j, path_end(j));
@@ -3913,8 +3932,8 @@ fn request_missing() -> void {
         return;
     }
     while (m < mod_count) {
-        if (mod_hit[m as usize] == 0) {
-            fail(E_USE, mod_head[m as usize]);
+        if (mods[m as usize].hit == 0) {
+            fail(E_USE, mods[m as usize].head);
             return;
         }
         m = m + 1;
@@ -3927,7 +3946,7 @@ fn dep_count(t: i64) -> i64 {
     var n: i64 = 0;
     var m: i64 = 1;
     while (m < mod_count) {
-        var d: i64 = mod_decls[m as usize];
+        var d: i64 = mods[m as usize].decls;
         while (d != 0) {
             if (named_decl(d) and tok_eq(ntok(d), t)) {
                 n = n + 1;
@@ -3942,7 +3961,7 @@ fn dep_count(t: i64) -> i64 {
 fn dep_find(t: i64) -> i64 {
     var m: i64 = 1;
     while (m < mod_count) {
-        var d: i64 = mod_decls[m as usize];
+        var d: i64 = mods[m as usize].decls;
         while (d != 0) {
             if (named_decl(d) and tok_eq(ntok(d), t)) {
                 return d;
@@ -3959,8 +3978,8 @@ fn dep_find(t: i64) -> i64 {
 fn text_word(s: i64, n: i64) -> bool {
     var m: i64 = 1;
     while (m < mod_count) {
-        var ls: i64 = mod_from[m as usize];
-        while (mod_text[m as usize] == 1 and ls < mod_to[m as usize]) {
+        var ls: i64 = mods[m as usize].from;
+        while (mods[m as usize].text == 1 and ls < mods[m as usize].to) {
             var nm: i64 = line_decl(ls);
             if (nm >= 0 and !is_alnum(at(nm + n)) and cmp_bytes(nm, n, s, n) == 0) {
                 return true;
@@ -3979,7 +3998,7 @@ fn dep_word(s: i64, n: i64) -> bool {
         return true;
     }
     while (m < mod_count) {
-        var d: i64 = mod_decls[m as usize];
+        var d: i64 = mods[m as usize].decls;
         while (d != 0) {
             if (named_decl(d) and word_is(s, n, ntok(d))) {
                 return true;
@@ -3994,7 +4013,7 @@ fn dep_word(s: i64, n: i64) -> bool {
 fn pulled_word(s: i64, n: i64) -> bool {
     var i: i64 = 0;
     while (i < pull_count) {
-        if (word_is(s, n, ntok(pulled[i as usize]))) {
+        if (word_is(s, n, ntok(pulls[i as usize].decl))) {
             return true;
         }
         i = i + 1;
@@ -4005,7 +4024,7 @@ fn pulled_word(s: i64, n: i64) -> bool {
 fn is_pulled(t: i64) -> bool {
     var i: i64 = 0;
     while (i < pull_count) {
-        if (tok_eq(ntok(pulled[i as usize]), t)) {
+        if (tok_eq(ntok(pulls[i as usize].decl), t)) {
             return true;
         }
         i = i + 1;
@@ -4029,7 +4048,7 @@ fn importer_decl(t: i64) -> bool {
 fn check_collisions() -> void {
     var d: i64 = decls;
     while (!failed and d != 0) {
-        if (named_decl(d) and dep_word(tpos(ntok(d)), tk_len[ntok(d) as usize])) {
+        if (named_decl(d) and dep_word(tpos(ntok(d)), toks[ntok(d) as usize].len)) {
             fail(E_USE, tpos(ntok(d)));
         }
         d = nnext(d);
@@ -4038,7 +4057,7 @@ fn check_collisions() -> void {
 
 fn module_of(t: i64) -> i64 {
     var m: i64 = mod_count - 1;
-    while (m > 0 and mod_tok0[m as usize] > t) {
+    while (m > 0 and mods[m as usize].tok0 > t) {
         m = m - 1;
     }
     return m;
@@ -4055,7 +4074,7 @@ fn pull_tokens(t0: i64, t1: i64, from: i64) -> void {
     while (!failed and t <= t1) {
         if (kind(t) == T_IDENT and !is_pulled(t)) {
             var n: i64 = dep_count(t);
-            var bad: bool = n > 1 or text_word(tpos(t), tk_len[t as usize]);
+            var bad: bool = n > 1 or text_word(tpos(t), toks[t as usize].len);
             if (from != 0 and (importer_decl(t) or (n > 0 and nkind(from) == D_CONST))) {
                 bad = true;
             }
@@ -4071,8 +4090,8 @@ fn pull_tokens(t0: i64, t1: i64, from: i64) -> void {
                     fail(E_LIMIT, tpos(t));
                     return;
                 }
-                pulled[pull_count as usize] = dep_find(t);
-                pulled_mod[pull_count as usize] = module_of(ntok(dep_find(t)));
+                pulls[pull_count as usize].decl = dep_find(t);
+                pulls[pull_count as usize].mod = module_of(ntok(dep_find(t)));
                 pull_count = pull_count + 1;
             }
         }
@@ -4082,9 +4101,9 @@ fn pull_tokens(t0: i64, t1: i64, from: i64) -> void {
 
 fn pull_closure() -> void {
     var i: i64 = 0;
-    pull_tokens(mod_tok0[0], mod_tok0[1] - 2, 0);
+    pull_tokens(mods[0].tok0, mods[1].tok0 - 2, 0);
     while (!failed and i < pull_count) {
-        var d: i64 = pulled[i as usize];
+        var d: i64 = pulls[i as usize].decl;
         pull_tokens(ntok(d) - 1, nc(d), d);
         i = i + 1;
     }
@@ -4126,9 +4145,9 @@ fn check_qualified() -> void {
     while (!failed and d != 0) {
         if (nkind(d) == D_USE) {
             var t: i64 = na(d);
-            var n: i64 = tk_len[t as usize];
-            var s: i64 = mod_from[0];
-            while (s + n < mod_to[0]) {
+            var n: i64 = toks[t as usize].len;
+            var s: i64 = mods[0].from;
+            while (s + n < mods[0].to) {
                 var c: i64 = at(s + n);
                 var sep: bool = (c == ':' and at(s + n + 1) == ':' and is_alnum(at(s + n + 2))) or (c == '.' and is_alnum(at(s + n + 1)));
                 if (sep and word_is(s, n, t) and (s == 0 or !is_alnum(at(s - 1)))) {
@@ -4170,7 +4189,7 @@ fn check_shadow(pd: i64) -> void {
         d = nnext(d);
     }
     while (i < pull_count) {
-        if (binds(pulled[i as usize], ntok(pd))) {
+        if (binds(pulls[i as usize].decl, ntok(pd))) {
             fail(E_USE, tpos(ntok(pd)));
             return;
         }
@@ -4200,24 +4219,21 @@ fn check_globals() -> void {
 
 ; Spliced declaration i sorts before j: by its module's path, then by name.
 fn pull_before(i: i64, j: i64) -> bool {
-    var mi: i64 = pulled_mod[i as usize];
-    var mj: i64 = pulled_mod[j as usize];
-    var c: i64 = cmp_bytes(mod_head[mi as usize], mod_from[mi as usize] - 1 - mod_head[mi as usize], mod_head[mj as usize], mod_from[mj as usize] - 1 - mod_head[mj as usize]);
-    var ti: i64 = ntok(pulled[i as usize]);
-    var tj: i64 = ntok(pulled[j as usize]);
+    var mi: i64 = pulls[i as usize].mod;
+    var mj: i64 = pulls[j as usize].mod;
+    var c: i64 = cmp_bytes(mods[mi as usize].head, mods[mi as usize].from - 1 - mods[mi as usize].head, mods[mj as usize].head, mods[mj as usize].from - 1 - mods[mj as usize].head);
+    var ti: i64 = ntok(pulls[i as usize].decl);
+    var tj: i64 = ntok(pulls[j as usize].decl);
     if (c == 0) {
-        c = cmp_bytes(tk_pos[ti as usize], tk_len[ti as usize], tk_pos[tj as usize], tk_len[tj as usize]);
+        c = cmp_bytes(toks[ti as usize].pos, toks[ti as usize].len, toks[tj as usize].pos, toks[tj as usize].len);
     }
     return c < 0;
 }
 
 fn swap_pulled(i: i64) -> void {
-    var d: i64 = pulled[i as usize];
-    var m: i64 = pulled_mod[i as usize];
-    pulled[i as usize] = pulled[(i - 1) as usize];
-    pulled_mod[i as usize] = pulled_mod[(i - 1) as usize];
-    pulled[(i - 1) as usize] = d;
-    pulled_mod[(i - 1) as usize] = m;
+    var x: Pull = pulls[i as usize];
+    pulls[i as usize] = pulls[(i - 1) as usize];
+    pulls[(i - 1) as usize] = x;
 }
 
 ; The spliced declarations, in gen-c's order, follow the importer's.
@@ -4237,15 +4253,15 @@ fn splice_pulled() -> void {
     }
     i = 0;
     while (i < pull_count) {
-        nd_next[tail as usize] = pulled[i as usize];
-        tail = pulled[i as usize];
+        nodes[tail as usize].next = pulls[i as usize].decl;
+        tail = pulls[i as usize].decl;
         i = i + 1;
     }
-    nd_next[tail as usize] = 0;
+    nodes[tail as usize].next = 0;
 }
 
 fn has_endmodule() -> bool {
-    var t: i64 = mod_tok0[0];
+    var t: i64 = mods[0].tok0;
     while (kind(t) != T_EOF) {
         if (kind(t) == T_IDENT and tok_is(t, W_ENDMODUL, 'e', 9)) {
             return true;
@@ -4263,7 +4279,7 @@ fn resolve_uses() -> void {
         fail(E_USE, 0);
     }
     while (!failed and m < mod_count) {
-        if (mod_text[m as usize] == 1) {
+        if (mods[m as usize].text == 1) {
             check_text_module(m);
         } else {
             check_module_text(m);
@@ -4276,8 +4292,8 @@ fn resolve_uses() -> void {
                 failed = false;
                 err_code = 0;
                 err_pos = 0;
-                mod_decls[m as usize] = 0;
-                mod_text[m as usize] = 1;
+                mods[m as usize].decls = 0;
+                mods[m as usize].text = 1;
                 check_text_module(m);
             }
         }
@@ -4296,11 +4312,11 @@ fn resolve_uses() -> void {
         pull_closure();
     }
     if (!failed) {
-        check_words(mod_from[0], mod_to[0]);
+        check_words(mods[0].from, mods[0].to);
     }
     m = 0;
     while (!failed and m < pull_count) {
-        var d: i64 = pulled[m as usize];
+        var d: i64 = pulls[m as usize].decl;
         check_words(line_from(tpos(ntok(d) - 1)), line_to(tpos(nc(d))));
         if (!failed) {
             check_shadow(d);
@@ -4321,7 +4337,7 @@ fn resolve_uses() -> void {
 ; ---------------------------------------------------------------- C output
 
 fn emit_ctype(t: i64) -> void {
-    var c: i64 = src[(tk_pos[t as usize]) as usize] as i64;
+    var c: i64 = src[(toks[t as usize].pos) as usize] as i64;
     if (is_str_type(t)) {
         w(0x68632074736e6f63, 8);
         w(0x2a7261, 3);
@@ -4335,7 +4351,7 @@ fn emit_ctype(t: i64) -> void {
         t_ty_bool();
         return;
     }
-    if (tk_len[t as usize] == 5) {
+    if (toks[t as usize].len == 5) {
         t_ty_size();
         return;
     }
@@ -4344,8 +4360,8 @@ fn emit_ctype(t: i64) -> void {
     }
     t_ty_int();
     var i: i64 = 1;
-    while (i < tk_len[t as usize]) {
-        put(src[(tk_pos[t as usize] + i) as usize] as i64);
+    while (i < toks[t as usize].len) {
+        put(src[(toks[t as usize].pos + i) as usize] as i64);
         i = i + 1;
     }
     t_ty_t();
@@ -4413,7 +4429,7 @@ fn emit_switch(e: i64) -> void {
 ; A `_` capture names nothing, so gen-c names the counter `__t27_i`.
 fn emit_counter(s: i64) -> void {
     var t: i64 = naux(s);
-    if (tk_len[t as usize] == 1 and src[(tk_pos[t as usize]) as usize] == '_') {
+    if (toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_') {
         t_hidden_i();
     } else {
         put_tok(t);
@@ -4611,9 +4627,9 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
 
 ; A number token whose value is zero, in any radix the lexer takes.
 fn num_is_zero(t: i64) -> bool {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
-    if (tk_len[t as usize] > 2 and src[i as usize] == '0') {
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
+    if (toks[t as usize].len > 2 and src[i as usize] == '0') {
         var c: i64 = src[(i + 1) as usize] as i64;
         if (c == 'x' or c == 'X' or c == 'b' or c == 'B') {
             i = i + 2;
@@ -4883,7 +4899,7 @@ fn emit_invariant(d: i64) -> void {
 
 ; Token t opens with `bench_`.
 fn bench_named(t: i64) -> bool {
-    return tk_len[t as usize] >= 6 and (tok_word(t, 0) & 0xffffffffffff) == 0x5f68636e6562;
+    return toks[t as usize].len >= 6 and (tok_word(t, 0) & 0xffffffffffff) == 0x5f68636e6562;
 }
 
 ; gen-c's `gen_c_bench`: `bench_` before a name that lacks it.
@@ -5114,9 +5130,9 @@ pub fn compile(n: i64) -> i64 {
         src_len = n;
     }
     if (!failed) {
-        p = mod_tok0[0];
+        p = mods[0].tok0;
         parse_module();
-        mod_decls[0] = decls;
+        mods[0].decls = decls;
     }
     var m: i64 = 1;
     while (!failed and m < mod_count) {
