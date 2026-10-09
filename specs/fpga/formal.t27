@@ -6,6 +6,32 @@
 // Uses flat arrays + count fields (parser-compatible)
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
+// === Module Property Count Documentation ===
+//
+// Total module properties: 43 (as documented in README)
+//
+// Breakdown:
+// - 37 properties in formal/*.sv files
+// - 6 properties for activation_requant (emitted inline in build/rtl/*.sv)
+//
+// Properties by module in formal/*.sv:
+// - interrupt_controller_props: 6 properties
+// - axi_lite_slave_props: 6 properties  
+// - dma_controller_props: 7 properties
+// - layer_sequencer_props: 3 properties
+// - weight_prefetch_props: 3 properties
+// - zero_size_props: 8 properties
+// - max_size_props: 4 properties
+//
+// Non-module properties in formal/ (excluded from count):
+// - assume_liveness_check.sv: checks prover (-set-assumes), not module properties
+// - axi4_read_slave_model.sv: asserts environment precondition, not module properties
+//
+// orphan_scan.py limitation:
+// - Only scans formal/ for workflow coverage
+// - Cannot detect properties with no formal/ file (like activation_requant)
+// - Documented as a stated boundary, not a bug to fix
+
 module Formal {
 
     // === Assertion kind ===
