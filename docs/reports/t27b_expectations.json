@@ -360,6 +360,7 @@
   {"path": "specs/ml/loss/kl_divergence.t27", "t27b": "pass"},
   {"path": "specs/ml/loss/mse_loss.t27", "t27b": "pass"},
   {"path": "specs/ml/optimizer/rmsprop.t27", "t27b": "pass"},
+  {"path": "specs/ml/recurrent/self_attention.t27", "t27b": "pass"},
   {"path": "specs/ml/rl/dqn.t27", "t27b": "pass"},
   {"path": "specs/ml/transformer/multi_head_attention.t27", "t27b": "pass"},
   {"path": "specs/multipath_router.t27", "t27b": "pass_vacuous"},
