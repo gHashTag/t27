@@ -409,6 +409,37 @@ def check_stash():
         return False, ""
 
 
+def self_test():
+    """Self-test for bench.py that checks system load.
+    
+    Refuses to run under contention (load > 6.0 on 8 cores) and passes at load ≤ 5.3.
+    This ensures bench.py's verdict is not a pure function of the repository.
+    """
+    try:
+        load_avg = os.getloadavg()[0]
+        print(f"System load average: {load_avg:.2f}")
+        
+        # Thresholds documented in the issue
+        contention_threshold = 6.0
+        safe_threshold = 5.3
+        
+        if load_avg > contention_threshold:
+            print(f"FAIL: Machine was contended (load > {contention_threshold} on 8 cores)")
+            print(f"Load {load_avg:.2f} exceeds threshold {contention_threshold}")
+            return 1
+        elif load_avg <= safe_threshold:
+            print(f"PASS: Machine load {load_avg:.2f} is within safe threshold (≤ {safe_threshold})")
+            return 0
+        else:
+            # Load is between 5.3 and 6.0 - this is a gray area
+            print(f"WARNING: Load {load_avg:.2f} is above safe threshold {safe_threshold} but below contention threshold {contention_threshold}")
+            print("Proceeding with caution - results may be affected by system load")
+            return 0
+    except Exception as e:
+        print(f"ERROR: Could not check system load: {e}")
+        return 1
+
+
 def gate_31_check():
     """Gate 31: placed FIRST, fails if the stash exists.
     
@@ -471,6 +502,8 @@ def main(a):
     if len(a) >= 2 and a[0] == "gate":
         gate_name = a[1] if len(a) > 1 else "default"
         return run_gate(gate_name, *a[2:])
+    if len(a) == 1 and a[0] == "self-test":
+        return self_test()
     print(__doc__)
     return 64
 
