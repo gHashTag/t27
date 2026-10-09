@@ -1,0 +1,11 @@
+// A local in an inner block shadowing an outer one: C takes it, Zig
+// refuses the shadow (#8087).
+module local_shadows_local;
+fn lsl_g(c: bool) -> i64 {
+    var a: i64 = 1;
+    if (c) {
+        var a: i64 = 2;
+        return a;
+    }
+    return a;
+}
