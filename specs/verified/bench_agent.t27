@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/bench_agent.t27 -- what the agent next to a board does with a job. Issue gHashTag/t27#8153,
+; epic #8095.
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/silicon_queue.t27 (#8121): which specs go to the boards, and bench_may_run() -- a run
+;   starts only on the owner's word and never writes flash, eFUSE or BBRAM.
+; - specs/verified/run_record.t27: whether the receipts a run left are one citable run.
+; - `t27c silicon`: the build, the control bitstream, the load into SRAM, the readback and the signed receipt.
+; --
+; Why an agent. R3-3 (#7669), measured: die C was driven from operator B's lab over USB/IP through Tailscale
+; at a 410 ms round trip. The bitstream load took about 70 minutes instead of about one, and the run about
+; 2.5 hours. The first attempt found an empty JTAG chain because the board had no 12 V, and nobody local
+; could see it. Starting the run took a chain of chat messages. The agent runs on the host the board is
+; plugged into, so JTAG stays on local USB. Only the job and the receipt cross the network, outbound
+; from the agent: a job is an open issue labelled JOB_LABEL, the answer is a comment carrying the receipt.
+; The receipt is signed, so the comment needs no trust of its own.
+; --
+; The owner's word. A job runs only when the owner opened it and also commented APPROVE_WORD on it. GitHub
+; authenticates the account, not the person: agents on the owner's Mac use the same account, so they must
+; never post APPROVE_WORD without the owner's word in chat. A signed approval is the follow-up.
+; The operator's word. A paused agent takes nothing: the board is the operator's, and so is its window.
+; --
+; Not a decision here: whether JTAG crosses a network. A USB/IP cable looks local from inside the host,
+; so the agent cannot measure it. Installing one agent per board, on that board's own host, is the rule.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedBenchAgent;
+
+use verified::silicon_queue;
+
+/// Where jobs come from, and whose word starts one.
+pub const JOB_REPO : str = "gHashTag/t27";
+pub const JOB_LABEL : str = "bench-job";
+pub const OWNER_LOGIN : str = "gHashTag";
+pub const APPROVE_WORD : str = "/bench approve";
+
+/// The part on the cable: XC7A200T, as `openFPGALoader --detect` prints it. Any other part refuses the job;
+/// a run on the wrong part proves nothing about this one.
+pub const BOARD_IDCODE : str = "0x3636093";
+
+/// How often the agent asks for jobs, in seconds.
+pub const POLL_SECONDS : u32 = 60;
+
+/// What the agent does with one job.
+///   RUN      approved, the board is there and free, the window is open: run it now
+///   WAIT     approved, but the window is closed or the board is absent or busy: ask again later
+///   REFUSE   not the owner's word, a write to non-volatile memory, or the wrong part on the cable
+pub const JOB_RUN : u8 = 0;
+pub const JOB_WAIT : u8 = 1;
+pub const JOB_REFUSE : u8 = 2;
+
+pub fn job_action(window_open: bool, job_approved: bool, board_present: bool, idcode_ok: bool, busy: bool, writes_nonvolatile: bool) -> u8 {
+    if (bench_may_run(job_approved, writes_nonvolatile) == false) { return JOB_REFUSE; }
+    if (window_open == false) { return JOB_WAIT; }
+    if (board_present == false) { return JOB_WAIT; }
+    if (idcode_ok == false) { return JOB_REFUSE; }
+    if (busy) { return JOB_WAIT; }
+    return JOB_RUN;
+}
+
+/// A receipt proves something about a seal only when the image the agent loaded was built from that seal's
+/// own Verilog (gen_hash_verilog) by that seal's producer (run_record.t27, RUN_PRODUCER_MISMATCH).
+pub fn image_matches(built_verilog_equal: bool, toolchain_equal: bool) -> bool {
+    return built_verilog_equal and toolchain_equal;
+}
+
+/// What one finished run says, and to whom.
+///   RECEIPT  the control refused, our bitstream loaded, the readback said yes: the spec passed
+///   FAIL     the bench was sound and the readback said no: the spec's failure, and its receipt is evidence
+///   BENCH    the control did not refuse, our bitstream did not load, or the DNA changed during the run:
+///            the bench's failure. It goes to the operator, never to the spec.
+pub const OUT_RECEIPT : u8 = 0;
+pub const OUT_FAIL : u8 = 1;
+pub const OUT_BENCH : u8 = 2;
+
+pub fn run_outcome(control_done_zero: bool, our_done_one: bool, readback_ok: bool, dna_stable: bool) -> u8 {
+    if (control_done_zero == false) { return OUT_BENCH; }
+    if (our_done_one == false) { return OUT_BENCH; }
+    if (dna_stable == false) { return OUT_BENCH; }
+    if (readback_ok == false) { return OUT_FAIL; }
+    return OUT_RECEIPT;
+}
+
+/// Is the agent alive? A local run takes minutes (nextpnr alone 60.75 s on die A), so one missed poll is
+/// not a dead agent; a quarter of an hour of silence is stale, an hour is offline.
+pub const AG_ONLINE : u8 = 0;
+pub const AG_STALE : u8 = 1;
+pub const AG_OFFLINE : u8 = 2;
+pub const AG_STALE_AFTER_S : u32 = 900;
+pub const AG_OFFLINE_AFTER_S : u32 = 3600;
+
+pub fn agent_health(seconds_since_heartbeat: u32) -> u8 {
+    if (seconds_since_heartbeat <= AG_STALE_AFTER_S) { return AG_ONLINE; }
+    if (seconds_since_heartbeat <= AG_OFFLINE_AFTER_S) { return AG_STALE; }
+    return AG_OFFLINE;
+}
+
+test job_action_refuses_without_the_owners_word_or_on_nonvolatile_memory {
+    // a job that writes flash, eFUSE or BBRAM is refused even when approved
+    assert job_action(true, true, true, true, false, true) == JOB_REFUSE;
+    assert job_action(true, false, true, true, false, false) == JOB_REFUSE;
+    // refused before the board is even looked at
+    assert job_action(false, false, false, false, true, false) == JOB_REFUSE;
+}
+
+test job_action_waits_for_the_window_and_the_board {
+    assert job_action(false, true, true, true, false, false) == JOB_WAIT;
+    assert job_action(true, true, true, true, true, false) == JOB_WAIT;
+    assert job_action(true, true, false, false, false, false) == JOB_WAIT;
+    assert job_action(true, true, true, true, false, false) == JOB_RUN;
+}
+
+test job_action_refuses_the_wrong_part {
+    assert job_action(true, true, true, false, false, false) == JOB_REFUSE;
+}
+
+test image_matches_needs_both_the_verilog_and_the_producer {
+    assert image_matches(true, true) == true;
+    assert image_matches(true, false) == false;
+    assert image_matches(false, true) == false;
+    assert image_matches(false, false) == false;
+}
+
+test run_outcome_tells_the_bench_from_the_spec {
+    assert run_outcome(true, true, true, true) == OUT_RECEIPT;
+    // the control did not refuse: a board that says yes to everything
+    assert run_outcome(false, true, true, true) == OUT_BENCH;
+    // our bitstream did not load: cable or power, as die C's missing 12 V
+    assert run_outcome(true, false, false, true) == OUT_BENCH;
+    assert run_outcome(true, true, false, true) == OUT_FAIL;
+    // the DNA changed during the run
+    assert run_outcome(true, true, true, false) == OUT_BENCH;
+}
+
+test agent_health_goes_stale_then_offline {
+    assert agent_health(0) == AG_ONLINE;
+    assert agent_health(AG_STALE_AFTER_S) == AG_ONLINE;
+    assert agent_health(AG_STALE_AFTER_S + 1) == AG_STALE;
+    assert agent_health(AG_OFFLINE_AFTER_S) == AG_STALE;
+    assert agent_health(AG_OFFLINE_AFTER_S + 1) == AG_OFFLINE;
+}
+
+invariant a_run_is_never_mistaken_for_a_poll {
+    assert POLL_SECONDS < AG_STALE_AFTER_S and AG_STALE_AFTER_S < AG_OFFLINE_AFTER_S;
+    assert JOB_RUN == 0 and JOB_WAIT == 1 and JOB_REFUSE == 2;
+    assert OUT_RECEIPT == 0 and OUT_FAIL == 1 and OUT_BENCH == 2;
+}
