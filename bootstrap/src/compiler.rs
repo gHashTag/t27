@@ -24656,8 +24656,79 @@ fn collect_type_params(node: &Node, out: &mut std::collections::HashSet<String>)
             }
         }
     }
+    
+    // Extended to collect single-uppercase type parameters in type applications
+    // This handles cases like `BTree(T)` where `T` is a type parameter
+    if node.kind == NodeKind::FnDecl {
+        // Collect type parameters from function parameter types and return types
+        for (_, ptype) in &node.params {
+            if let Some(base) = type_base_name(ptype) {
+                // Check if the base type mentions single-uppercase type parameters
+                extract_single_uppercase_type_params(&base, out);
+            }
+        }
+        
+        // Check return type for single-uppercase type parameters
+        if !node.extra_return_type.is_empty() {
+            if let Some(base) = type_base_name(&node.extra_return_type) {
+                extract_single_uppercase_type_params(&base, out);
+            }
+        }
+    }
+    
+    // Also check struct field types for type parameters
+    if node.kind == NodeKind::StructDecl {
+        for field in &node.children {
+            if !field.extra_type.is_empty() {
+                if let Some(base) = type_base_name(&field.extra_type) {
+                    extract_single_uppercase_type_params(&base, out);
+                }
+            }
+        }
+    }
+    
     for child in &node.children {
         collect_type_params(child, out);
+    }
+}
+
+/// Extract single-uppercase type parameters from a type string
+/// For example, from "BTree(T)" it would extract "T"
+fn extract_single_uppercase_type_params(type_str: &str, out: &mut std::collections::HashSet<String>) {
+    // Look for patterns like Type(Param) where Param is a single uppercase letter
+    let mut chars = type_str.chars().peekable();
+    let mut i = 0;
+    
+    while let Some(c) = chars.next() {
+        if c == '(' {
+            // Found an opening parenthesis, look for a single uppercase letter inside
+            let mut param_chars = Vec::new();
+            let mut depth = 1;
+            
+            while let Some(next_c) = chars.next() {
+                match next_c {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    },
+                    _ => {
+                        if depth == 1 {
+                            param_chars.push(next_c);
+                        }
+                    }
+                }
+            }
+            
+            // Check if we have exactly one character that is an uppercase letter
+            if param_chars.len() == 1 && param_chars[0].is_ascii_uppercase() {
+                let param = param_chars[0].to_string();
+                out.insert(param);
+            }
+        }
+        i += 1;
     }
 }
 
