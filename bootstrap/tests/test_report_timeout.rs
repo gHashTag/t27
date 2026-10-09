@@ -42,6 +42,10 @@ fn leftover_work_dirs() -> Vec<String> {
 }
 
 #[cfg(unix)]
+fn scratch(tag: &str) -> String { // pid: one run; counter: one test of that run
+    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    format!("t27-test-{tag}-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
 #[test]
 fn a_looping_test_fails_at_the_limit_the_environment_sets() {
     use std::os::unix::process::CommandExt;
@@ -49,9 +53,7 @@ fn a_looping_test_fails_at_the_limit_the_environment_sets() {
         eprintln!("skipped: zig not on PATH");
         return;
     }
-    let dir = fs::canonicalize(std::env::temp_dir())
-        .unwrap()
-        .join(format!("t27-test-timeout-{}", std::process::id()));
+    let dir = fs::canonicalize(std::env::temp_dir()).unwrap().join(scratch("timeout"));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("specs/probe")).expect("specs dir");
     fs::write(dir.join("specs/probe/cli_loop_probe.t27"), LOOP_PROBE).expect("write spec");
@@ -92,10 +94,44 @@ fn a_looping_test_fails_at_the_limit_the_environment_sets() {
     assert!(!fired, "test-report still ran after {OUTER:?}: the per-test limit was not applied");
 
     let text = String::from_utf8_lossy(&out.stdout);
-    assert!(out.status.success(), "{text}\n{}", String::from_utf8_lossy(&out.stderr));
+    // #7370: a timed-out test is a FAIL, and a FAIL exits 1.
+    assert_eq!(out.status.code(), Some(1), "{text}\n{}", String::from_utf8_lossy(&out.stderr));
     assert!(text.contains("  FAIL  spins_forever\n"), "{text}");
     assert!(text.contains("spins_forever   (timed out after 2 s, not counted)"), "{text}");
     assert!(text.contains("  pass        1\n"), "{text}");
     assert!(took < Duration::from_secs(30), "took {took:?}");
     assert_eq!(leftover_work_dirs(), Vec::<String>::new());
+}
+
+/// #7370: one spec exits as its report reads (specs/compiler/test_report_exit.t27): 0 green, 1 a FAIL,
+/// 2 BLOCKED (every spec is BLOCKED without zig); T27C_TEST_REPORT_EXIT_ZERO=1 gives 0 on every report,
+/// and an error that prints no report (a missing file) exits 1 either way.
+#[test]
+fn the_exit_code_says_what_the_report_says() {
+    let dir = std::env::temp_dir().join(scratch("exit"));
+    fs::create_dir_all(&dir).unwrap();
+    let rc = |name: &str, body: Option<&str>, opt: &str| {
+        let p = dir.join(format!("{name}.t27"));
+        if let Some(b) = body {
+            fs::write(&p, format!("module {name};\npub fn one() -> u32 {{ return {b}; }}\ntest one_is_one {{ assert one() == 1; }}\n")).unwrap();
+        }
+        let out = Command::new(env!("CARGO_BIN_EXE_t27c")).env("T27C_TEST_REPORT_EXIT_ZERO", opt).arg("test-report").arg(&p).output().unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout).starts_with("--- test report: "), body.is_some(), "{out:?}");
+        out.status.code()
+    };
+    let three = |opt| [rc("exit_green", Some("1"), opt), rc("exit_red", Some("2"), opt), rc("exit_blocked", Some("nosuch()"), opt)];
+    let rule = if zig_on_path() { [Some(0), Some(1), Some(2)] } else { [Some(2); 3] };
+    assert_eq!([three(""), three("0"), three("1")], [rule, rule, [Some(0); 3]]);
+    assert_eq!([rc("exit_missing", None, ""), rc("exit_missing", None, "1")], [Some(1); 2]);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// The checked-in copy is exactly what gen-rust writes from specs/compiler/test_report_exit.t27.
+#[test]
+fn the_exit_rule_copy_is_what_gen_rust_writes() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let fresh = Command::new(env!("CARGO_BIN_EXE_t27c")).args(["gen-rust", "specs/compiler/test_report_exit.t27"]).current_dir(&root).output().unwrap();
+    assert!(fresh.status.success(), "{}", String::from_utf8_lossy(&fresh.stderr));
+    let copy = fs::read(root.join("bootstrap/gen/rust/compiler/test_report_exit.rs")).unwrap();
+    assert!(fresh.stdout == copy, "bootstrap/gen/rust/compiler/test_report_exit.rs drifted from its spec: regenerate it");
 }

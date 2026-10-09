@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f8a0ffc605bc856951c7ad0c5007f1ea7054858294204319100f5cf10231a5ee",
+  "gen_hash_rust": "sha256:83edbfe5df802c698dfec8828509756125042075eae68176c5dedf79684cc6db",
+  "gen_hash_verilog": "sha256:75ff506cdd22ecdc1aa68ceda7cd4dc6a30addd39a44a4664570e3d6b76c625b",
+  "gen_hash_zig": "sha256:6c07cef8c86806f6288f064c5485380cfffe5f1f08184c3fe2319a5337231027",
+  "module": "cron_999_multibots_telegraf_check_stuck_trainings",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:40Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:800a0d46f855360e9b7e1769cd26ef1c88a7e14953d55898a50629e800666516",
+  "spec_path": "specs/crons/999-multibots-telegraf-check-stuck-trainings.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

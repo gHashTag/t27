@@ -1,0 +1,388 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/netlink.t27 -- the link between nodes, made safe before it gets its first caller
+; actors.t27 section 9 sends mail between nodes over the store: a row per message, a lease per node.
+; Its Postgres link (gHashTag/trios queen-actors-pg.ts, createPgLink) has no caller yet. Reading it
+; found six defects (gHashTag/trios#1712, item 6); each was reproduced by a failing test before the
+; rules below were written:
+; 1. a row was deleted before it was handled, so a lost answer or a bad row lost the whole batch;
+; 2. pid generations restarted with the process, so a restarted node handed out the pids of its last
+;    incarnation, and mail written for the old processes reached the new ones;
+; 3. the lease was renewed on the event loop the actors run on, so a turn that held the loop looked
+;    like a dead node;
+; 4. a node its peers saw down kept running and writing, and came back up when its lease did;
+; 5. any node-down ended every pending remote start, whichever node it waited on;
+; 6. mail to a node that died was kept for ever.
+; What the others do, and what is taken here:
+; - Erlang distribution: a node's "creation" changes at every start and is part of every pid, so a pid
+;   of a dead node never reaches a process of its successor. The tick runs apart from the data, so a
+;   busy node still ticks. Taken: the incarnation (section 1), and the beat on its own thread
+;   (section 3).
+; - Restate: every write carries the leader's epoch; a write with an older epoch is refused. Taken:
+;   the lease epoch on every write (section 2). The epoch is the incarnation: a node takes its lease
+;   once per process start and never takes a lapsed one back, so two numbers would always be equal.
+; - Orleans: a silo declared dead kills itself, even when the failure was brief; strong single
+;   activation since 9.0. Akka split brain resolver: "unreachable" is an observation, "down" is a
+;   decision, and a lease strategy downs the side that cannot hold the lease. Taken: the self-fence
+;   (section 3) and "a down incarnation never comes back" (section 5).
+; - DBOS: NOTIFY is a hint and a poll is the truth. Kept as it was: LISTEN plus a poll.
+; - Not taken: general at-least-once for `send`. Akka Reliable Delivery is not recommended for
+;   production yet and Orleans ships ResendOnTimeout off. A send stays unacknowledged (actors.t27
+;   SEND_ACKNOWLEDGED); what is at-least-once here is the step from the store to the receiving
+;   runtime, which is where rows were lost.
+; Section 9's numbers are kept: heartbeat 5 s, TTL 20 s, NODE_BITS 12, LOCAL_SLOT_BITS 20. They are
+; literals here (a card imports nothing), and the trios test checks that both generated files agree.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenNetlink;
+
+; --- 0. Section 9's numbers, kept --------------------------------------------------------------------
+
+/// = actors.t27 NODE_HEARTBEAT_SECONDS and NODE_TTL_SECONDS.
+pub const NODE_HEARTBEAT_SECONDS : u32 = 5;
+pub const NODE_TTL_SECONDS : u32 = 20;
+/// = actors.t27 NODE_BITS and LOCAL_SLOT_BITS: a pid's 32-bit slot is a node and a local slot.
+pub const NODE_BITS : u64 = 12;
+pub const LOCAL_SLOT_BITS : u64 = 20;
+/// = actors.t27 GEN_MASK: the low 32 bits of a pid are its generation.
+pub const GEN_MASK : u64 = 4294967295;
+
+/// = actors.t27 node_up: a node is up while its lease is younger than the TTL.
+pub fn lease_up(lease_age_seconds: u32) -> bool {
+    return lease_age_seconds < NODE_TTL_SECONDS;
+}
+
+; --- 1. Incarnation: a new number at every start, inside every pid ----------------------------------
+; A node takes its incarnation from the store when its process starts: the number after the one its
+; row holds (next_incarnation), written in the same transaction that reads it. Incarnation 0 is a node
+; with no store (node 0 alone, section 1 unchanged).
+; The incarnation is the high INC_BITS of every pid's generation, so the pids of two incarnations of
+; one node never meet, whatever their slots and counters (reaches is exact equality). A slot's own
+; restarts count in the low LOCAL_GEN_BITS; they wrap inside the incarnation and never touch it.
+; Into the mail it goes twice: `to_inc`, the receiver's incarnation the row was written for (from the
+; pid it is addressed to, or for a remote start from the lease the sender read), and `from_inc`, the
+; writer's own, which the store checks (section 2).
+
+pub const INC_BITS : u64 = 12;
+pub const LOCAL_GEN_BITS : u64 = 20;
+pub const LOCAL_GEN_MASK : u64 = 1048575;
+pub const MAX_INCARNATION : u64 = 4095;
+pub const NO_INCARNATION : u64 = 0;
+
+/// The incarnation a starting process takes: the next after `prev`, 1 after MAX_INCARNATION, and never
+/// NO_INCARNATION. A row that does not exist yet reads as 0, so a node's first start is 1.
+pub fn next_incarnation(prev: u64) -> u64 {
+    if (prev >= MAX_INCARNATION) { return 1; }
+    return prev + 1;
+}
+
+/// The generation of a slot's next process in incarnation `inc`, after `prev_gen`. With no
+/// incarnation it is section 1's next_gen.
+pub fn inc_next_gen(inc: u64, prev_gen: u64) -> u64 {
+    if (inc == NO_INCARNATION) { return (prev_gen + 1) & GEN_MASK; }
+    return ((inc & MAX_INCARNATION) << LOCAL_GEN_BITS) | ((prev_gen + 1) & LOCAL_GEN_MASK);
+}
+
+/// The incarnation a pid was born in.
+pub fn inc_of(pid: u64) -> u64 {
+    return (pid & GEN_MASK) >> LOCAL_GEN_BITS;
+}
+
+; --- 2. The lease epoch on every write ----------------------------------------------------------------
+; A start claims the node's lease row with its new incarnation and wins over any holder, live or not:
+; a deploy starts the new build while the old one drains, and the new one must take over. The old
+; holder is fenced by its next write.
+; Every write a node makes carries its incarnation: the renewal of its lease, each mail row, each
+; acknowledgement. The store admits it only while the lease row still holds that incarnation and is
+; still up, so a superseded or lapsed holder writes nothing that a peer could act on. The store applies
+; write_admitted inside the statement (a compare-and-set in the WHERE clause); t27c has no SQL backend,
+; so the statement mirrors this function and a live test checks the two agree at its boundaries.
+
+pub const TAKEOVER_WINS : bool = true;
+
+pub fn write_admitted(lease_inc: u64, writer_inc: u64, lease_age_seconds: u32) -> bool {
+    if (writer_inc == NO_INCARNATION) { return false; }
+    if (lease_inc != writer_inc) { return false; }
+    return lease_up(lease_age_seconds);
+}
+
+; --- 3. The beat on its own thread, and the self-fence ------------------------------------------------
+; The lease is renewed from a thread of its own with its own connection, so no turn and no slice can
+; hold it up. A renewal that has not answered within NODE_HEARTBEAT_SECONDS failed (its statement times
+; out), so renewals never queue behind each other. The beat renews only while the actors' loop still
+; turns: the loop marks each pass, and a loop that has not turned for LOOP_STALL_MAX_SECONDS is a hung
+; node, not a busy one, so its lease is left to lapse and its children move.
+; A node that has not had a renewal confirmed for SELF_FENCE_SECONDS fences itself: it stops every
+; actor quietly (no supervisor restarts them), every send it makes is a dead letter, it starts nothing,
+; and it never takes that lease back -- a new process start takes a new incarnation. So does a node
+; whose renewal or write the store refused. The age is counted from when the confirmed renewal was
+; SENT, never from when its answer came, so the node's count runs ahead of every peer's.
+; The node stops at least one heartbeat before any peer can see it down (invariant below), so no child
+; ever runs on two nodes at once.
+
+pub const SELF_FENCE_SECONDS : u32 = 15;
+pub const LOOP_STALL_MAX_SECONDS : u32 = 60;
+pub const FENCE_REJOINS : bool = false;
+
+/// Whether the beat renews, `loop_stall_seconds` after the actors' loop last turned.
+pub fn beat_renews(loop_stall_seconds: u32) -> bool {
+    return loop_stall_seconds < LOOP_STALL_MAX_SECONDS;
+}
+
+/// Whether the node must fence itself now: the store refused one of its writes, or no renewal has been
+/// confirmed for SELF_FENCE_SECONDS.
+pub fn must_fence(refused: bool, seconds_since_renewed: u32) -> bool {
+    if (refused) { return true; }
+    return seconds_since_renewed >= SELF_FENCE_SECONDS;
+}
+
+; --- 4. Mail: acknowledged after it is handled, handled once ------------------------------------------
+; The receiver reads its rows in id order, MAIL_BATCH_ROWS at a time, without taking them. It handles
+; each, then acknowledges the batch (deletes the rows, fenced as any write). An answer lost on the way
+; costs a second read, never a row: at least once from the store to the runtime. The receiver keeps
+; the id of every row it handled until it knows the row cannot come back -- its acknowledgement was
+; confirmed, or a complete read no longer lists it -- and a row read again is acknowledged without
+; being handled: once.
+; Handled means the runtime applied actors.t27 `deliver` to it; what the actor does with it is the
+; actor's. A row for another incarnation of this node is never handled: it is expired. A row that does
+; not decode is acknowledged and counted, so one bad row never blocks the rows behind it.
+; Ids are not a high-water mark: two senders' rows commit out of id order, so a mark would skip one.
+
+pub const MAIL_BATCH_ROWS : u32 = 500;
+pub const MAIL_POLL_MS : u32 = 1000;
+
+pub const MA_DELIVER : u8 = 0;
+pub const MA_DUPLICATE : u8 = 1;
+pub const MA_EXPIRE : u8 = 2;
+pub const MA_POISON : u8 = 3;
+
+/// What the receiver does with one row it read. Every action acknowledges the row.
+pub fn mail_action(to_inc: u64, my_inc: u64, handled_before: bool, decodes: bool) -> u8 {
+    if (to_inc != my_inc) { return MA_EXPIRE; }
+    if (handled_before) { return MA_DUPLICATE; }
+    if (decodes == false) { return MA_POISON; }
+    return MA_DELIVER;
+}
+
+/// Whether the receiver may forget a handled id: its acknowledgement was confirmed, or a complete read
+/// (fewer than MAIL_BATCH_ROWS rows) no longer lists it. Before that, the row may be read again.
+pub fn forget_handled(acked: bool, read_complete: bool, still_listed: bool) -> bool {
+    if (acked) { return true; }
+    return read_complete and still_listed == false;
+}
+
+; --- 5. Peers: down is a decision, and a down incarnation never comes back ----------------------------
+; Each node reads every lease each heartbeat: the incarnation the row holds and its age. A peer's
+; incarnation is down once its lease lapsed or a newer incarnation took the row, and stays down: its
+; lease cannot be renewed (section 2), and a peer that saw it down does not take it back, whatever the
+; row says later. A new incarnation is a new peer.
+; The same read shows a node its own row. If write_admitted refuses it there (a newer start took the
+; row), that counts as a refused write: the node fences at once, without waiting for its next renewal.
+
+pub const PC_NONE : u8 = 0;
+pub const PC_DOWN : u8 = 1;
+pub const PC_UP : u8 = 2;
+
+/// What changed for a peer this node knew as (known_inc, known_up), now that its row reads
+/// (inc_now, age_now). PC_DOWN: the known incarnation went down. PC_UP: inc_now is up and new here.
+pub fn peer_change(known_inc: u64, known_up: bool, inc_now: u64, age_now: u32) -> u8 {
+    var change : u8 = PC_NONE;
+    if (inc_now != known_inc) {
+        if (known_up) { change = change | PC_DOWN; }
+        if (lease_up(age_now)) { change = change | PC_UP; }
+        return change;
+    }
+    if (known_up and lease_up(age_now) == false) { return PC_DOWN; }
+    return PC_NONE;
+}
+
+/// Whether the peer is up as this node sees it after the read.
+pub fn peer_up(known_inc: u64, known_up: bool, inc_now: u64, age_now: u32) -> bool {
+    if (inc_now != known_inc) { return lease_up(age_now); }
+    return known_up and lease_up(age_now);
+}
+
+; --- 6. What a node-down ends, and the mail it leaves ------------------------------------------------
+; A node-down names the node and the incarnation that went down. It ends what waited on that
+; incarnation and nothing else: each remote start sent to it resolves to no pid, each monitor of a pid
+; born in it hears noconnection. A start waiting on another node, or on the same node's next
+; incarnation, keeps waiting.
+; Mail written for an incarnation that is over is expired by whichever node reads the leases next: its
+; incarnation was superseded, its lease lapsed, or its node has no lease at all. It is never delivered
+; and never kept; it is counted as dead letters.
+
+pub fn lost_with(node: u64, inc: u64, down_node: u64, down_inc: u64) -> bool {
+    return node == down_node and inc == down_inc;
+}
+
+pub fn mail_expired(node_known: bool, to_inc: u64, node_inc: u64, lease_age_seconds: u32) -> bool {
+    if (node_known == false) { return true; }
+    if (to_inc != node_inc) { return true; }
+    return lease_up(lease_age_seconds) == false;
+}
+
+; --- tests ---------------------------------------------------------------------------------------------
+
+test an_incarnation_is_new_at_every_start_and_never_zero {
+    assert next_incarnation(0) == 1;
+    assert next_incarnation(1) == 2;
+    assert next_incarnation(41) == 42;
+    assert next_incarnation(MAX_INCARNATION - 1) == MAX_INCARNATION;
+    // the 4096th start wraps to 1, never to NO_INCARNATION
+    assert next_incarnation(MAX_INCARNATION) == 1;
+    assert next_incarnation(MAX_INCARNATION + 7) == 1;
+    assert next_incarnation(next_incarnation(0)) != next_incarnation(0);
+}
+
+test a_restart_never_reuses_a_pid_of_the_last_incarnation {
+    // the same slot, the same counter, two incarnations: two different pids
+    var slot : u64 = (2 << LOCAL_SLOT_BITS) | 5;
+    var g3 : u64 = inc_next_gen(3, 0);
+    var g4 : u64 = inc_next_gen(4, 0);
+    assert g3 != g4;
+    assert ((slot << 32) | g3) != ((slot << 32) | g4);
+    assert inc_of((slot << 32) | g3) == 3;
+    assert inc_of((slot << 32) | g4) == 4;
+    // a slot's restarts count below the incarnation and wrap there
+    assert inc_next_gen(3, g3) == g3 + 1;
+    assert inc_of((slot << 32) | inc_next_gen(3, g3)) == 3;
+    var top : u64 = (3 << LOCAL_GEN_BITS) | LOCAL_GEN_MASK;
+    assert inc_next_gen(3, top) == 3 << LOCAL_GEN_BITS;
+    assert inc_of((slot << 32) | inc_next_gen(3, top)) == 3;
+    // the largest incarnation still fits in the generation
+    assert inc_of((slot << 32) | inc_next_gen(MAX_INCARNATION, 0)) == MAX_INCARNATION;
+    assert ((slot << 32) | inc_next_gen(MAX_INCARNATION, 0)) >> 32 == slot;
+    // no incarnation is section 1's next_gen, wrapping at 32 bits
+    assert inc_next_gen(NO_INCARNATION, 0) == 1;
+    assert inc_next_gen(NO_INCARNATION, 7) == 8;
+    assert inc_next_gen(NO_INCARNATION, 1048575) == 1048576;
+    assert inc_next_gen(NO_INCARNATION, GEN_MASK) == 0;
+    assert inc_of((slot << 32) | 8) == NO_INCARNATION;
+}
+
+test a_stale_write_is_refused {
+    assert write_admitted(4, 4, 0) == true;
+    assert write_admitted(4, 4, NODE_TTL_SECONDS - 1) == true;
+    // the lease lapsed: any peer may already see the node down
+    assert write_admitted(4, 4, NODE_TTL_SECONDS) == false;
+    // a newer start took the row
+    assert write_admitted(5, 4, 0) == false;
+    // an older holder's number is refused as well, whichever way it differs
+    assert write_admitted(3, 4, 0) == false;
+    assert write_admitted(NO_INCARNATION, NO_INCARNATION, 0) == false;
+    assert TAKEOVER_WINS == true;
+}
+
+test a_node_stops_before_any_peer_can_see_it_down {
+    assert must_fence(false, 0) == false;
+    assert must_fence(false, SELF_FENCE_SECONDS - 1) == false;
+    assert must_fence(false, SELF_FENCE_SECONDS) == true;
+    assert must_fence(true, 0) == true;
+    // when the node fences, every peer still sees it up
+    assert lease_up(SELF_FENCE_SECONDS) == true;
+    assert lease_up(SELF_FENCE_SECONDS + NODE_HEARTBEAT_SECONDS - 1) == true;
+    // two late renewals in a row do not fence it
+    assert must_fence(false, 2 * NODE_HEARTBEAT_SECONDS) == false;
+    assert FENCE_REJOINS == false;
+}
+
+test a_held_loop_keeps_its_lease_and_a_hung_one_does_not {
+    assert beat_renews(0) == true;
+    // a turn that holds the loop for 15 s, or for a whole lease, keeps the node up
+    assert beat_renews(15) == true;
+    assert beat_renews(NODE_TTL_SECONDS + 5) == true;
+    assert beat_renews(LOOP_STALL_MAX_SECONDS - 1) == true;
+    assert beat_renews(LOOP_STALL_MAX_SECONDS) == false;
+}
+
+test mail_is_handled_once_and_every_row_is_acknowledged {
+    assert mail_action(4, 4, false, true) == MA_DELIVER;
+    // read again after a lost acknowledgement: acknowledged, not handled
+    assert mail_action(4, 4, true, true) == MA_DUPLICATE;
+    // written for the last incarnation, or for one this node never was
+    assert mail_action(3, 4, false, true) == MA_EXPIRE;
+    assert mail_action(5, 4, false, true) == MA_EXPIRE;
+    assert mail_action(3, 4, true, false) == MA_EXPIRE;
+    // a row that does not decode is acknowledged and counted
+    assert mail_action(4, 4, false, false) == MA_POISON;
+    assert mail_action(4, 4, true, false) == MA_DUPLICATE;
+    // a handled id is kept until it cannot come back
+    assert forget_handled(true, false, true) == true;
+    assert forget_handled(false, true, false) == true;
+    assert forget_handled(false, true, true) == false;
+    assert forget_handled(false, false, false) == false;
+    assert MAIL_BATCH_ROWS == 500;
+    assert MAIL_POLL_MS == 1000;
+}
+
+test a_down_incarnation_never_comes_back {
+    // first sight of a live peer
+    assert peer_change(0, false, 3, 0) == PC_UP;
+    assert peer_up(0, false, 3, 0) == true;
+    // still renewing
+    assert peer_change(3, true, 3, NODE_TTL_SECONDS - 1) == PC_NONE;
+    assert peer_up(3, true, 3, NODE_TTL_SECONDS - 1) == true;
+    // the lease lapsed
+    assert peer_change(3, true, 3, NODE_TTL_SECONDS) == PC_DOWN;
+    assert peer_up(3, true, 3, NODE_TTL_SECONDS) == false;
+    // the same incarnation renews again later: it stays down
+    assert peer_change(3, false, 3, 0) == PC_NONE;
+    assert peer_up(3, false, 3, 0) == false;
+    // a restart inside the TTL: the old incarnation is down and the new one up, in one read
+    assert peer_change(3, true, 4, 0) == PC_DOWN | PC_UP;
+    assert peer_up(3, true, 4, 0) == true;
+    // a new incarnation first seen lapsed: never up
+    assert peer_change(3, false, 4, NODE_TTL_SECONDS) == PC_NONE;
+    assert peer_up(3, false, 4, NODE_TTL_SECONDS) == false;
+    assert peer_change(3, true, 4, NODE_TTL_SECONDS) == PC_DOWN;
+    assert peer_change(0, false, 3, NODE_TTL_SECONDS) == PC_NONE;
+}
+
+test a_node_down_ends_only_what_waited_on_that_incarnation {
+    assert lost_with(2, 3, 2, 3) == true;
+    // another node
+    assert lost_with(1, 3, 2, 3) == false;
+    // the same node's next incarnation
+    assert lost_with(2, 4, 2, 3) == false;
+    assert lost_with(2, 3, 2, 4) == false;
+}
+
+test mail_for_an_incarnation_that_is_over_expires {
+    assert mail_expired(true, 4, 4, 0) == false;
+    assert mail_expired(true, 4, 4, NODE_TTL_SECONDS - 1) == false;
+    // the node died
+    assert mail_expired(true, 4, 4, NODE_TTL_SECONDS) == true;
+    // the node restarted
+    assert mail_expired(true, 3, 4, 0) == true;
+    // no node holds that id
+    assert mail_expired(false, 4, 4, 0) == true;
+}
+
+invariant section_9_numbers_are_kept {
+    assert NODE_HEARTBEAT_SECONDS == 5 and NODE_TTL_SECONDS == 20 and NODE_BITS == 12 and LOCAL_SLOT_BITS == 20;
+    assert NODE_TTL_SECONDS >= 3 * NODE_HEARTBEAT_SECONDS;
+    assert NODE_BITS + LOCAL_SLOT_BITS == 32;
+}
+/// The incarnation and a slot's own count share the 32-bit generation, exactly.
+invariant an_incarnation_fits_the_generation {
+    assert INC_BITS + LOCAL_GEN_BITS == 32;
+    assert LOCAL_GEN_MASK + 1 == 1 << LOCAL_GEN_BITS;
+    assert MAX_INCARNATION + 1 == 1 << INC_BITS;
+    assert GEN_MASK >> LOCAL_GEN_BITS == MAX_INCARNATION;
+    assert (GEN_MASK & LOCAL_GEN_MASK) == LOCAL_GEN_MASK;
+}
+/// The node stops at least one heartbeat before any peer can see it down, and two late renewals in a
+/// row never stop it.
+invariant a_node_fences_before_its_peers_decide {
+    assert SELF_FENCE_SECONDS + NODE_HEARTBEAT_SECONDS <= NODE_TTL_SECONDS;
+    assert SELF_FENCE_SECONDS > 2 * NODE_HEARTBEAT_SECONDS;
+}
+/// A loop held for a whole lease is still a live node.
+invariant a_held_loop_is_not_a_dead_node {
+    assert LOOP_STALL_MAX_SECONDS > NODE_TTL_SECONDS;
+}
+/// The four mail actions and the two peer changes are distinct, and both changes fit one read.
+invariant the_codes_are_distinct {
+    assert MA_DELIVER == 0 and MA_DUPLICATE == 1 and MA_EXPIRE == 2 and MA_POISON == 3;
+    assert PC_NONE == 0 and PC_DOWN == 1 and PC_UP == 2 and (PC_DOWN & PC_UP) == 0;
+}

@@ -1,0 +1,6 @@
+// 1 << 40 is an int shift in C (#8099).
+module literal_shift_in_c_int;
+fn lsc_g() -> u64 {
+    var x: u64 = 1 << 40;
+    return x;
+}

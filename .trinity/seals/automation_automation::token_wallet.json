@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+848490e59",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:ac73b73d19877244c5b588c5b503e77156aae2954767883036e1b0806460f4ab",
   "gen_hash_rust": "sha256:a21949adadfac1cb2c3298030efce3f01a06a43381bd0f94a5890566d72b71b0",
   "gen_hash_verilog": "sha256:6130ec9f1543f83db5afcf7f4aa6740149704d8efd64ac45c4da4bb1ce8c1f0a",
   "gen_hash_zig": "sha256:db6e76913bcc684b064ab4babc47a959ed4db751474c6d8f038c1cbfdaee7417",
   "module": "automation::token_wallet",
   "ring": 12,
-  "sealed_at": "2026-10-07T10:30:58Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:46:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:425a06b53a9250178536c29d0dac0081f36be8f05199bf622f747f96e040fc11",
   "spec_path": "specs/automation/token-wallet.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+5263bba",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d9fc5a674f96ba944deb6ce1a486f2cdb460f846763e28087bd571a1e26a1808",
   "gen_hash_rust": "sha256:6b915ba426219e95e0d0027e2aa8aef6d1f0f536aca226d214af424cd3138442",
   "gen_hash_verilog": "sha256:307d77670d937ae56a6c39f1737d244d2dc6b64b7f675f9cc91ad5cc09647864",
   "gen_hash_zig": "sha256:10df1f2627c2b5782bbb61113d91ee09b45adb7b16618b84008c32b33f04d5c1",
   "module": "automation::bot_menu_press",
   "ring": 12,
-  "sealed_at": "2026-10-08T13:21:23Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:46:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4c2d333c859c75eb146e5d9be008921fdc89051f7476662da03d22f8ee8ad4e7",
   "spec_path": "specs/automation/bot-menu-press.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

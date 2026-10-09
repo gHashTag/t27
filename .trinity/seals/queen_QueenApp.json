@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6826f83e8df029b2611772eb05ae83f6f74f2753878234aecadde730f25d3aea",
   "gen_hash_rust": "sha256:91b045e38be0a12119fb2eb0d06a7dbc2223546bde6c4b74e142a20c3ea51ba0",
   "gen_hash_verilog": "sha256:ac673fb18c41bc3710d4cf89d2de9274aad10daa109765ed9350bada4d61e883",
   "gen_hash_zig": "sha256:b7164f9a42b17ff9f13866b5c46281d6d2f5584a69dae33c70ce3f2ec507c23f",
   "module": "QueenApp",
   "ring": 12,
-  "sealed_at": "2026-10-08T15:20:24Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:52:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:854770015052ccdf70a7e8b7b831ed878a3100b028e2b3ff39010c3cbf8eccbe",
   "spec_path": "specs/queen/app.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 19,
     "total": 19
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+848490e59",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:16f7ec044e8113180e86888d09119653db14871689a48b587de0abba80a1b932",
   "gen_hash_rust": "sha256:91175cc25ba4160954376f3d34db148095c895b5b8a61807dd62e6751f914e87",
   "gen_hash_verilog": "sha256:6218354fd0e3dfa4d0986bb62670a712574eca726df02b00b2fe95df30c38632",
   "gen_hash_zig": "sha256:39c5d25f751602072ad0a5f297d7ae4ad1994bf0d0ed86775cf8f4a23ab28d5a",
   "module": "automation::browser_tab_strip",
   "ring": 12,
-  "sealed_at": "2026-10-07T10:29:43Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:46:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:87637d875682bf2b536a58198ae41332356d44c6fc52fc3bed8b710c18ed7db1",
   "spec_path": "specs/automation/browser-tab-strip.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 10,
     "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/verified/device_dna.t27",
+      "spec_hash": "sha256:04b88f6195af63fa1bc343ab0d874b5e5444d1b3c770990894ba4a747c4182e5"
+    },
+    {
+      "spec": "specs/verified/signed_receipt.t27",
+      "spec_hash": "sha256:20728477c97dc10f66c47391e1418aff63769660c180b3912765a86f322fdb61"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:3b1fc8a8248cbb420589994e7df00560288fbf630111def8d7474e050164b82b",
   "gen_hash_rust": "sha256:7a4ee81361f1368520def1d916a7ef8ec577a9cd9bf0317614988c7fbfd4492a",
   "gen_hash_verilog": "sha256:18c940e18623a0f133d0c3f11b21cf6fa33c1c101a202f4edccc13ee87364e24",
   "gen_hash_zig": "sha256:de3a0e1b9cf7c38648d656f445f8e05a3b459c05b91694956cebe45105e83504",
   "module": "VerifiedDieBinding",
   "ring": 12,
-  "sealed_at": "2026-10-08T11:45:21Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:00:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5bc5c583cde121ae64a03b975aacce29dafcff2206cef394a3dc76a464846f9c",
   "spec_path": "specs/verified/die_binding.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 22,
     "total": 22
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

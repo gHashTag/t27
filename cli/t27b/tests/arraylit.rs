@@ -119,3 +119,26 @@ fn frame_address_store_is_refused() {
     let r = rejected(include_str!("../../../specs/tri/t27b/conformance/frame_address_store.t27"));
     assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
 }
+
+/// Strings behind a slice field or a returned slice (wrapup-auto.t27's `files_modified: ["..."]`): a static
+/// written at every entry, as a module var holding a string is (#7470, #7833; `t27c test-report`: 6 pass,
+/// none vacuous). A write through such a slice and run-time elements stay refused.
+#[test]
+fn string_slice_literal_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/string_slice_literal.t27"));
+    assert!(ran.len() == 6 && names_ok(&ran).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&ran));
+    let src = "module a;\n\npub const S = struct {\n    xs: [str],\n};\n\nfn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };\n}\n\ntest t {\n    var v = s();\n    assert(v.xs[1].len == 1);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert!(rejected(&src.replace("    assert(v.xs", "    v.xs[0] = \"z\";\n    assert(v.xs")).contains("StmtAssign(write through an array literal)"));
+    assert!(rejected(&src.replace("fn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };", "fn s(c: str) -> S {\n    return S{ .xs = [\"ab\", c] };").replace("s();", "s(\"c\");")).contains("ExprArrayLiteral(to slice field)"));
+}
+
+/// An untyped list local is a Zig tuple (#8050): read at constant indices, and at run-time ones only in an
+/// invariant (`t27c test-report`: 2 pass); a run-time index in a test is refused, as Zig refuses it.
+#[test]
+fn tuple_local_index_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/tuple_local_index.t27"));
+    assert!(ran.len() == 3 && names_ok(&ran).iter().all(|(_, _, ok)| *ok), "{:?}", names_ok(&ran));
+    let r = rejected("module a;\n\nconst A : i32 = 4;\n\ntest t {\n    const v = [_]i32{A, A};\n    var i: usize = 1;\n    assert(v[i] == 4);\n}\n");
+    assert!(r.contains("ExprIndex(tuple)"), "{}", r);
+}

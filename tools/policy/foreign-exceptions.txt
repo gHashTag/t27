@@ -459,3 +459,10 @@ tools/jtag/mpsse_jtag.py
 .github/workflows/spec-guards.yml
 .github/workflows/corpus-ratchet.yml
 bootstrap/src/suite.rs
+
+# owner standing rule ("add the label yourself and do the foreign part", translated), issue #8171, epic #8095:
+# the t27b reference cache keys verdicts by specs/tri/t27b/verdict_key.t27 (gen-rust), so a t27c rebuild that
+# leaves a spec's generated code unchanged reuses its verdict; ledger rows carry the key (steward.t27, gen-c).
+# blockers.rs and t27b_rules.py only call the generated functions. Budget 40 per file, 80 per PR applies.
+cli/t27b/src/blockers.rs
+scripts/tri_loop/t27b_rules.py

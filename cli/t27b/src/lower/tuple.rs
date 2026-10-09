@@ -1,77 +1,33 @@
-//! Tuples, the way t27c's Zig backend writes them.
-//!
-//! The reference turns a tuple type into Zig only where it is a function's
-//! return type: `-> (u32, bool)` is `struct { u32, bool }`, and the named form
-//! `-> (lo: u32, hi: u32)` is `struct { lo: u32, hi: u32 }`. Anywhere else
-//! (a parameter, a local's annotation, a field) it prints the t27 spelling
-//! verbatim, which Zig cannot parse, so those stay `type (tuple)`.
-//!
-//! Here a tuple type is a struct whose fields are named `0`, `1`, ... (or by
-//! the names the type gives), interned by its spelling, so every function
-//! returning `(u32, u32)` returns the same type. Values of it come from:
-//!
-//! - `return (a, b)` (Zig `.{ a, b }`; for a named tuple `.{ .lo = a, .hi = b }`),
-//!   and a tuple-returning call;
-//! - `t.0`, `t.lo`: an ordinary field access;
-//! - `let (a, b) = f()` / `var (a, b) = f()`: Zig's `const a, const b = f()`.
-//!   A named tuple is read field by field (the reference's `__tN.lo`), always
-//!   as constants, and only from a direct call, as the reference does;
-//! - `(a, b) = f()` at the top of a test: fresh constants, like the
-//!   reference's `const a, const b = f()` there. In a function body the
-//!   reference writes `.{ a, b } = f()`, which Zig refuses.
-//!
-//! A `(a, b)` / `.{ a, b }` literal also initialises an array (`[N]T`) where one
-//! is the result type, which is what Zig's anonymous list literal does.
-//! Without a result type (`const t = (a, 2)`) it is still `ExprTuple`.
+//! Tuples, the way t27c's Zig backend writes them: what the reference does, the spelling of a tuple type and
+//! every refusal here are `specs/tri/t27b/tuple_local_plan.t27` (module `tl`); this glue walks the nodes.
 
 use super::*;
 
 impl<'a> Lower<'a> {
+    /// Refusal `r` of the plan, the `{}` holes in its words filled from `args` in order.
+    pub(super) fn tuple_refuse<T>(&mut self, r: u8, args: &[&str]) -> R<T> {
+        let mut words = tl::why(r).split("{}");
+        let mut s = words.next().unwrap_or("").to_string();
+        s.extend(args.iter().zip(words).flat_map(|(a, w)| [*a, w]));
+        self.reject(tl::what(r), s)
+    }
+
     /// A function's return type: a tuple is taken here, everything else is
     /// `lty`.
     pub(super) fn ret_lty(&mut self, rt: &str) -> R<LTy> {
         let t = rt.trim();
-        if !(t.starts_with('(') && t.ends_with(')') && t.contains(',')) {
+        if !tl::is_tuple(t.as_bytes()) {
             return self.lty(t);
         }
-        let inner = &t[1..t.len() - 1];
-        let mut elems: Vec<(Option<String>, String)> = Vec::new();
-        for e in inner.split(',') {
-            let e = e.trim();
-            // The reference splits on every comma, so a nested tuple or a
-            // generic argument list is torn apart there.
-            if e.is_empty() || e.contains('(') || e.contains(')') {
-                return self.reject("type (tuple)", format!("`{}`: element `{}`", t, e));
-            }
-            match e.split_once(':') {
-                Some((n, ty))
-                    if !n.trim().is_empty()
-                        && n.trim().chars().all(|c| c.is_alphanumeric() || c == '_')
-                        && !n.trim().starts_with(|c: char| c.is_ascii_digit())
-                        && !ty.trim().is_empty() =>
-                {
-                    elems.push((Some(n.trim().to_string()), ty.trim().to_string()))
-                }
-                _ => elems.push((None, e.to_string())),
-            }
+        // Each element's name and type as byte ranges of `t`, and the key the type is interned by.
+        let (mut at, mut kb) = (vec![0usize; 4 * t.len()], vec![0u8; 3 * t.len()]);
+        let n = tl::split(t.as_bytes(), &mut at);
+        if n < 2 {
+            return self.tuple_refuse(n as u8, &[t, &t[at[0]..at[1]]]);
         }
-        let named = elems.iter().filter(|(n, _)| n.is_some()).count();
-        if named != 0 && named != elems.len() {
-            // `tuple_field_names` takes all names or none; the rest is
-            // printed as a type.
-            return self.reject("type (tuple)", format!("`{}`: some elements named, some not", t));
-        }
-        let key = format!(
-            "({})",
-            elems
-                .iter()
-                .map(|(n, ty)| match n {
-                    Some(n) => format!("{}: {}", n, ty),
-                    None => ty.clone(),
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        let k = tl::key(t.as_bytes(), at.clone(), n, &mut kb);
+        let key = String::from_utf8_lossy(&kb[..k]).into_owned();
+        let elems: Vec<_> = at.chunks(4).take(n).map(|r| ((r[0] < r[1]).then(|| t[r[0]..r[1]].to_string()), &t[r[2]..r[3]])).collect();
         if let Some(&id) = self.struct_ids.get(&key) {
             self.layout(id)?;
             return Ok(LTy::Struct(id));
@@ -121,10 +77,7 @@ impl<'a> Lower<'a> {
                 Val::Poison => return Err(()),
                 v => {
                     let d = self.val_desc(&v);
-                    return self.reject(
-                        "ExprTuple",
-                        format!("`{}` = a tuple holding {} (only run-time scalars are laid out)", name, d),
-                    );
+                    return self.tuple_refuse(tl::R_HOLDING, &[name, &d]);
                 }
             }
         }
@@ -195,10 +148,7 @@ impl<'a> Lower<'a> {
                 self.init_struct(n, id, &tmp, out)?;
                 self.copy(&dst, tmp, out)
             }
-            _ => {
-                let tn = self.type_name(&t);
-                self.reject("ExprTuple", format!("a tuple literal where `{}` is expected", tn))
-            }
+            _ => self.tuple_refuse(tl::R_EXPECTED, &[&self.type_name(&t)]),
         }
     }
 
@@ -220,12 +170,8 @@ impl<'a> Lower<'a> {
     /// declares fresh constants only at the top of a test.
     pub(super) fn tuple_assign(&mut self, n: &Node, out: &mut Vec<Stmt>) -> R<()> {
         let target = &n.children[0];
-        let top_of_test = self.in_test && self.scopes.len() == 1;
-        if !top_of_test || !(n.extra_op.is_empty() || n.extra_op == "=") {
-            return self.reject(
-                "StmtAssign(tuple)",
-                "a tuple assignment outside the top of a test (the reference writes `.{ a, b } = ..`, which Zig refuses)".into(),
-            );
+        if !tl::assigns(self.in_test && self.scopes.len() == 1, n.extra_op.as_bytes()) {
+            return self.tuple_refuse(tl::R_OUTSIDE, &[]);
         }
         let mut names = Vec::new();
         for e in &target.children {
@@ -234,10 +180,7 @@ impl<'a> Lower<'a> {
                 return self.reject("StmtAssign(tuple)", format!("{} in a tuple target", k));
             }
             if e.name != "_" && self.lookup(&e.name).is_some() {
-                return self.reject(
-                    "StmtAssign(tuple)",
-                    format!("`{}` is already bound (the reference declares it again)", e.name),
-                );
+                return self.tuple_refuse(tl::R_BOUND, &[&e.name]);
             }
             names.push(e.name.clone());
         }
@@ -269,10 +212,7 @@ impl<'a> Lower<'a> {
                 let fields = self.fields(id)?;
                 let named = fields.first().is_some_and(|f| f.name != "0");
                 if named && init.kind != NodeKind::ExprCall {
-                    return self.reject(
-                        "StmtLocal(destructure)",
-                        "a named tuple not returned by a direct call (Zig cannot destructure a struct)".into(),
-                    );
+                    return self.tuple_refuse(tl::R_NAMED_CALL, &[]);
                 }
                 (fields.iter().map(|f| (f.off, f.ty.clone())).collect(), named)
             }
@@ -280,16 +220,10 @@ impl<'a> Lower<'a> {
                 let (esize, _) = self.size_align(&elem)?;
                 ((0..len).map(|i| (i * esize, (*elem).clone())).collect(), false)
             }
-            other => {
-                let tn = self.type_name(&other);
-                return self.reject("StmtLocal(destructure)", format!("`{}` is not a tuple or an array", tn));
-            }
+            other => return self.tuple_refuse(tl::R_NOT_TUPLE, &[&self.type_name(&other)]),
         };
         if elems.len() != names.len() {
-            return self.reject(
-                "StmtLocal(destructure)",
-                format!("{} names for {} elements", names.len(), elems.len()),
-            );
+            return self.tuple_refuse(tl::R_NAMES, &[&names.len().to_string(), &elems.len().to_string()]);
         }
         // The elements live in memory no other name sees: a temporary (a
         // call's result) as it is, anything else copied out once, since the
@@ -327,10 +261,7 @@ impl<'a> Lower<'a> {
     fn destructure_lit(&mut self, names: &[String], init: &Node, mutable: bool, out: &mut Vec<Stmt>) -> R<()> {
         self.see(init);
         if init.children.len() != names.len() {
-            return self.reject(
-                "StmtLocal(destructure)",
-                format!("{} names for {} elements", names.len(), init.children.len()),
-            );
+            return self.tuple_refuse(tl::R_NAMES, &[&names.len().to_string(), &init.children.len().to_string()]);
         }
         let mut vals = Vec::new();
         for c in &init.children {

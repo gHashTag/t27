@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a7ef0059350dd4e2a581ae30a9a8b941bdb053183759079c03ab1ce77a99afd9",
   "gen_hash_rust": "sha256:5cd9b148d8b3ed117ba5aecc006d185cea13c7e9927c55fa54a75c0a3a6f40c6",
   "gen_hash_verilog": "sha256:a312d6bda1c65957ad55320361e9ceb822655581061417101fb32004f8f8f293",
   "gen_hash_zig": "sha256:589a647f85b57fed37c98f95099b3a4ee1251036799ba6d801573bea528e1df0",
   "module": "tool_tri_abandoned",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:11:29Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:fd4f39092f0d0aaf76e7086b27e1d1a35cc78d08bfe382519dfb19563599a56d",
   "spec_path": "specs/tools/tri/abandoned.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

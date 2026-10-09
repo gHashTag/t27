@@ -1,12 +1,25 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:185286e4cb431247749efcc221dfb23e4bcead5c5fb10eac45e3053f9a6c35c1",
   "gen_hash_rust": "sha256:d6a379057d610a2e8014191895512bf8f8ac1cf49a9ff5c2f541883f0d339278",
   "gen_hash_verilog": "sha256:416a6a4eca46bd46816b553e941b8ff6ebf8019cb6964e19c6ee3a56f713221a",
   "gen_hash_zig": "sha256:36187a69b9ee1ab41535f58448b14d5113389b48e79595884b127ed58fcd5589",
   "module": "TriTopological",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:07:10Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:75c5079675b748946e05bc5cb9edd54e0604207ec12fa716e1d66abdf5f506d9",
   "spec_path": "specs/tri/graph/topological_sort.t27",
   "tests": {
@@ -15,5 +28,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

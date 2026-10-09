@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5de47e96c224f2e6d3032f38021ef6e96aa0f02a1c62eb0a91725b0213e86f99",
+  "gen_hash_rust": "sha256:33d9542567b1859b0e5739c9b0314b9a3e8452eccc85e92ae213b50932552d54",
+  "gen_hash_verilog": "sha256:ffa1ebe588e8551c49cc0c81cd700a3b2e8d3b098d3e330357a81d726f2cc0f9",
+  "gen_hash_zig": "sha256:2e35974d08408083458058694dff493bd1184fb4af346c4861a49cf94cb0c2ab",
+  "module": "fn_robokassa_unclaimed_watch",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b14495a374c10a08e631fff413d1d708b7eca55c34dc5ac089d040550e641b99",
+  "spec_path": "specs/functions/robokassa-unclaimed-watch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

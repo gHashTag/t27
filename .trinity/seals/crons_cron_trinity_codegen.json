@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:c456ee51741376c78e5cf2ea8f7ece48a308ed8e72a7b8c1600e701524dbba78",
+  "gen_hash_rust": "sha256:ec3ea31d2a9988a5ddb81aa8019274653baf381f926c28bd04d0e446b0886711",
+  "gen_hash_verilog": "sha256:c9fee4cdae17b6cfbeb8eb9067caf8409246de7105dc54222c4939cb9470db1b",
+  "gen_hash_zig": "sha256:0aa9627af472cc608e48f6968a00e92e2bdcdbdf602aef7823bbc523ea057009",
+  "module": "cron_trinity_codegen",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:bbf4aee519cff54a2a714dd5cc4dcbdb35133794484731c7c3852b18ef361826",
+  "spec_path": "specs/crons/trinity-codegen.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
