@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/tri/t27b/conformance/tuple_local_index.t27 -- conformance for tuple local indexing
+// Covers typed-const elements, struct elements with str field, constant-index calls, and loop-indexed invariants
+// Reference: gHashTag/t27#8050, FR-005 requirement
+
+module T27bConformanceTupleLocalIndex;
+
+use base::types;
+
+// Test structure with string field (for str handling requirement)
+struct TestStruct {
+    name: []const u8,
+    value: i32,
+}
+
+// Module const of declared type T (for FR-001 requirement)
+const MODULE_CONST: i32 = 42;
+
+// Ternary values for testing
+const TRIT_NEG: i32 = -1;
+const TRIT_ZERO: i32 = 0;
+const TRIT_POS: i32 = 1;
+
+// Test 1: Typed-const elements with constant-index reads in called functions
+fn test_typed_const_elements() -> i32 {
+    const vals = [_]i32{10, 20, 30, 40};
+    // Constant index reads - should work in called functions
+    const first = vals[0];  // 10
+    const last = vals[3];   // 40
+    return first + last;   // 50
+}
+
+// Test 2: Struct elements with str field, constant-index reads
+fn test_struct_elements_with_str() -> []const u8 {
+    const targets = []TestStruct{
+        TestStruct{ name: "first", value: 1 },
+        TestStruct{ name: "second", value: 2 },
+        TestStruct{ name: "third", value: 3 },
+    };
+    // Constant index reads of struct with str field
+    const first_name = targets[0].name;  // "first"
+    const second_name = targets[1].name; // "second"
+    return first_name;  // Return first name to test it
+}
+
+// Test 3: Mixed typed-const and struct elements (same declared type T)
+fn test_mixed_elements() -> i32 {
+    const mixed = [_]i32{MODULE_CONST, 100, MODULE_CONST + 1};
+    // All elements are i32 type - should work as tuple
+    const first = mixed[0];  // 42 (MODULE_CONST)
+    const second = mixed[1]; // 100
+    const third = mixed[2];  // 43
+    return first + second + third;  // 185
+}
+
+// Test 4: Loop-indexed invariant (comptime block requirement)
+invariant loop_indexed_invariant {
+    const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+    var i: usize = 0;
+    while (i < 3) {
+        // This should work in comptime block (invariant)
+        assert vals[i] >= -1 and vals[i] <= 1;
+        i = i + 1;
+    }
+}
+
+// Test 5: Constant-index read in function call
+fn function_with_tuple_access() -> i32 {
+    const data = [_]i32{5, 10, 15};
+    return data[1];  // 10
+}
+
+test typed_const_elements_test
+    assert test_typed_const_elements() == 50
+
+test struct_elements_with_str_test
+    const result = test_struct_elements_with_str();
+    assert result == "first"
+
+test mixed_elements_test
+    assert test_mixed_elements() == 185
+
+test function_with_tuple_access_test
+    assert function_with_tuple_access() == 10
