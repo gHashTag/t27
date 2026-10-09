@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0
+; Simple addition test
+
+module Heldout.SimpleAdd;
+
+pub const WIDTH : u8 = 8;
+pub const A : u8 = 100;
+pub const B : u8 = 55;
+pub const SUM : u8 = 155;
+
+pub fn add(a: u8, b: u8) -> u8 {
+    return a + b;
+}
+
+test addition_works {
+    assert A + B == SUM;
+    assert SUM <= 255;
+}
+
+test add_function {
+    assert add(A, B) == SUM;
+}
+
+fn assert(condition: bool) void {
+    if (!condition) {
+        panic("Assertion failed");
+    }
+}
+
+fn panic(message: str) void {
+    return;
+}

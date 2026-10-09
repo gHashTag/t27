@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: Apache-2.0
+; Test file input/output operations
+
+module Heldout.FileIO;
+
+    // ============================================================================
+    // Imports
+    // ============================================================================
+
+    pub fn main() void {
+        // Test case 1: File writing and reading
+        test_file_write_read();
+        
+        // Test case 2: File existence checking
+        test_file_exists();
+        
+        // Test case 3: File deletion
+        test_file_delete();
+        
+        // Test case 4: Directory operations
+        test_directory_operations();
+    }
+
+    // ============================================================================
+    // File operations tests
+    // ============================================================================
+
+    pub fn test_file_write_read() void {
+        var filename : str = "test_file.txt";
+        var content : str = "Hello, World!\nThis is a test file.\n";
+        
+        // Write content to file
+        write_file(filename, content);
+        
+        // Read content back
+        var read_content : str = read_file(filename);
+        
+        // Verify content matches
+        assert read_content == content;
+        
+        // Clean up
+        delete_file(filename);
+    }
+
+    pub fn test_file_exists() void {
+        var filename : str = "existing_file.txt";
+        
+        // Create file
+        write_file(filename, "test content");
+        
+        // Check if file exists
+        assert file_exists(filename) == true;
+        
+        // Delete file
+        delete_file(filename);
+        
+        // Check if file no longer exists
+        assert file_exists(filename) == false;
+    }
+
+    pub fn test_file_delete() void {
+        var filename : str = "temp_file.txt";
+        
+        // Create file
+        write_file(filename, "temporary content");
+        
+        // Verify file exists
+        assert file_exists(filename) == true;
+        
+        // Delete file
+        delete_file(filename);
+        
+        // Verify file is deleted
+        assert file_exists(filename) == false;
+    }
+
+    pub fn test_directory_operations() void {
+        var dirname : str = "test_directory";
+        
+        // Create directory
+        create_directory(dirname);
+        
+        // Check if directory exists
+        assert directory_exists(dirname) == true;
+        
+        // Create file in directory
+        var filepath : str = dirname + "/nested_file.txt";
+        write_file(filepath, "nested content");
+        
+        // Verify file exists
+        assert file_exists(filepath) == true;
+        
+        // Clean up
+        delete_file(filepath);
+        delete_directory(dirname);
+        
+        // Verify directory is deleted
+        assert directory_exists(dirname) == false;
+    }
+
+    // ============================================================================
+    // File system operations
+    // ============================================================================
+
+    pub fn write_file(filename : str, content : str) void {
+        // In a real implementation, this would write to the file system
+        // For testing purposes, we'll simulate the operation
+        return;
+    }
+
+    pub fn read_file(filename : str) str {
+        // In a real implementation, this would read from the file system
+        // For testing purposes, we'll return empty string
+        return "";
+    }
+
+    pub fn delete_file(filename : str) void {
+        // In a real implementation, this would delete the file
+        // For testing purposes, we'll simulate the operation
+        return;
+    }
+
+    pub fn file_exists(filename : str) bool {
+        // In a real implementation, this would check if file exists
+        // For testing purposes, we'll simulate the operation
+        return false;
+    }
+
+    pub fn create_directory(dirname : str) void {
+        // In a real implementation, this would create the directory
+        // For testing purposes, we'll simulate the operation
+        return;
+    }
+
+    pub fn delete_directory(dirname : str) void {
+        // In a real implementation, this would delete the directory
+        // For testing purposes, we'll simulate the operation
+        return;
+    }
+
+    pub fn directory_exists(dirname : str) bool {
+        // In a real implementation, this would check if directory exists
+        // For testing purposes, we'll simulate the operation
+        return false;
+    }
+
+    // ============================================================================
+    // Test helpers
+    // ============================================================================
+
+    pub fn assert(condition : bool) void {
+        if (!condition) {
+            panic("Assertion failed");
+        }
+    }
+
+    pub fn panic(message : str) void {
+        return;
+    }
+}

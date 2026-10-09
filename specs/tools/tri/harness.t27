@@ -23,15 +23,15 @@ pub const ENTRY : str = "cli/tri/src/main.rs";
 pub const ABOUT : str = "Source files no crate root reaches, and so nothing compiles. Test-harness hygiene.";
 pub const ABOUT_SOURCE : str = "clap /// doc on Commands::Harness (cli/tri/src/main.rs)";
 ; Nested subcommands (kebab-case as clap derives them) and their first /// paragraph ("" when none).
-pub const ACTIONS : [1]str = ["scratch"];
-pub const ACTIONS_ABOUT : [1]str = ["Test binaries whose tests share one scratch directory."];
+pub const ACTIONS : [3]str = ["scratch", "multilingual", "t27-native"];
+pub const ACTIONS_ABOUT : [3]str = ["Test binaries whose tests share one scratch directory.", "Run MultiPL-E evaluation across 18 languages", "Run t27-native evaluation on held-out .t27 specs"];
 ; Top-level arguments/flags of the command itself, "<name>: doc".
 pub const ARGS : [0]str = [];
 ; Agent letters that own this command, only where a source line names it (AGENTS_NOTE cites it).
 pub const AGENTS : [2]str = ["T", "B"];
-pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead B: The operative doc line is \"Test-harness hygiene\" and the one action is \"Test binaries whose tests share one scratch directory\" (the \"Source files no crate root reaches\" sentence is the stale-line artefact -- it is tri/mods' ABOUT); flaky-test wiring belongs to B's \"All tests pass in pipeline\".";
+pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead B: The operative doc line is \"Test-harness hygiene\" and the actions include \"Test binaries whose tests share one scratch directory\" and \"Run MultiPL-E evaluation across 18 languages\" and \"Run t27-native evaluation on held-out .t27 specs\" (the \"Source files no crate root reaches\" sentence is the stale-line artefact -- it is tri/mods' ABOUT); flaky-test wiring belongs to B's \"All tests pass in pipeline\".";
 ; From the about text (long about when the doc has more than one paragraph); no marketing.
-pub const WHEN_TO_USE : str = "Source files no crate root reaches, and so nothing compiles. Test-harness hygiene.";
+pub const WHEN_TO_USE : str = "Source files no crate root reaches, and so nothing compiles. Test-harness hygiene. Multi-language evaluation across 18 languages via MultiPL-E and t27-native code generation.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 

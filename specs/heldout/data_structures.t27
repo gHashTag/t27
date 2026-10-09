@@ -1,0 +1,224 @@
+// SPDX-License-Identifier: Apache-2.0
+; Test basic data structures: stack and queue
+
+module Heldout.DataStructures;
+
+    // ============================================================================
+    // Imports
+    // ============================================================================
+
+    pub fn main() void {
+        // Test case 1: Stack operations
+        test_stack();
+        
+        // Test case 2: Queue operations
+        test_queue();
+        
+        // Test case 3: Combined operations
+        test_combined();
+    }
+
+    // ============================================================================
+    // Stack implementation and tests
+    // ============================================================================
+
+    pub fn test_stack() void {
+        var stack : Stack = Stack.init();
+        
+        // Test empty stack
+        assert stack.is_empty() == true;
+        assert stack.size() == 0;
+        
+        // Push elements
+        stack.push(10);
+        stack.push(20);
+        stack.push(30);
+        
+        assert stack.is_empty() == false;
+        assert stack.size() == 3;
+        assert stack.peek() == 30;
+        
+        // Pop elements
+        assert stack.pop() == 30;
+        assert stack.pop() == 20;
+        assert stack.size() == 1;
+        assert stack.peek() == 10;
+        
+        // Last pop
+        assert stack.pop() == 10;
+        assert stack.is_empty() == true;
+        assert stack.size() == 0;
+    }
+
+    // ============================================================================
+    // Queue implementation and tests
+    // ============================================================================
+
+    pub fn test_queue() void {
+        var queue : Queue = Queue.init();
+        
+        // Test empty queue
+        assert queue.is_empty() == true;
+        assert queue.size() == 0;
+        
+        // Enqueue elements
+        queue.enqueue(10);
+        queue.enqueue(20);
+        queue.enqueue(30);
+        
+        assert queue.is_empty() == false;
+        assert queue.size() == 3;
+        assert queue.peek() == 10;
+        
+        // Dequeue elements
+        assert queue.dequeue() == 10;
+        assert queue.dequeue() == 20;
+        assert queue.size() == 1;
+        assert queue.peek() == 30;
+        
+        // Last dequeue
+        assert queue.dequeue() == 30;
+        assert queue.is_empty() == true;
+        assert queue.size() == 0;
+    }
+
+    // ============================================================================
+    // Combined operations test
+    // ============================================================================
+
+    pub fn test_combined() void {
+        var stack : Stack = Stack.init();
+        var queue : Queue = Queue.init();
+        
+        // Add same elements to both
+        for (var i : i32 = 1; i <= 5; i = i + 1) {
+            stack.push(i);
+            queue.enqueue(i);
+        }
+        
+        // Stack should reverse the order
+        assert stack.pop() == 5;
+        assert stack.pop() == 4;
+        
+        // Queue should maintain the order
+        assert queue.dequeue() == 1;
+        assert queue.dequeue() == 2;
+    }
+
+    // ============================================================================
+    // Stack implementation
+    // ============================================================================
+
+    pub struct Stack {
+        data : [10]i32,
+        top : i32,
+    }
+
+    pub impl Stack {
+        pub fn init() Stack {
+            return Stack { data: [0; 10], top: -1 };
+        }
+        
+        pub fn push(self, value : i32) void {
+            if (self.top >= 9) {
+                panic("Stack overflow");
+            }
+            self.top = self.top + 1;
+            self.data[self.top] = value;
+        }
+        
+        pub fn pop(self) i32 {
+            if (self.top < 0) {
+                panic("Stack underflow");
+            }
+            var value : i32 = self.data[self.top];
+            self.top = self.top - 1;
+            return value;
+        }
+        
+        pub fn peek(self) i32 {
+            if (self.top < 0) {
+                panic("Stack is empty");
+            }
+            return self.data[self.top];
+        }
+        
+        pub fn is_empty(self) bool {
+            return self.top < 0;
+        }
+        
+        pub fn size(self) i32 {
+            return self.top + 1;
+        }
+    }
+
+    // ============================================================================
+    // Queue implementation
+    // ============================================================================
+
+    pub struct Queue {
+        data : [10]i32,
+        front : i32,
+        rear : i32,
+        size : i32,
+    }
+
+    pub impl Queue {
+        pub fn init() Queue {
+            return Queue { 
+                data: [0; 10], 
+                front: 0, 
+                rear: -1, 
+                size: 0 
+            };
+        }
+        
+        pub fn enqueue(self, value : i32) void {
+            if (self.size >= 10) {
+                panic("Queue overflow");
+            }
+            self.rear = (self.rear + 1) % 10;
+            self.data[self.rear] = value;
+            self.size = self.size + 1;
+        }
+        
+        pub fn dequeue(self) i32 {
+            if (self.size == 0) {
+                panic("Queue underflow");
+            }
+            var value : i32 = self.data[self.front];
+            self.front = (self.front + 1) % 10;
+            self.size = self.size - 1;
+            return value;
+        }
+        
+        pub fn peek(self) i32 {
+            if (self.size == 0) {
+                panic("Queue is empty");
+            }
+            return self.data[self.front];
+        }
+        
+        pub fn is_empty(self) bool {
+            return self.size == 0;
+        }
+        
+        pub fn size(self) i32 {
+            return self.size;
+        }
+    }
+
+    // ============================================================================
+    // Test helpers
+    // ============================================================================
+
+    pub fn assert(condition : bool) void {
+        if (!condition) {
+            panic("Assertion failed");
+        }
+    }
+
+    pub fn panic(message : str) void {
+        return;
+    }
+}

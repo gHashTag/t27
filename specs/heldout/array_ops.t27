@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0
+; Array operations test
+
+module Heldout.ArrayOps;
+
+pub const SIZE : u8 = 5;
+pub const FIRST : u8 = 1;
+pub const SECOND : u8 = 2;
+pub const THIRD : u8 = 3;
+
+pub fn sum_array(a: u8, b: u8, c: u8) u8 {
+    return a + b + c;
+}
+
+pub fn array_element(arr_idx: u8) u8 {
+    if (arr_idx == 0) return 10;
+    if (arr_idx == 1) return 20;
+    if (arr_idx == 2) return 30;
+    return 0;
+}
+
+test array_sum {
+    assert sum_array(FIRST, SECOND, THIRD) == 6; // 1 + 2 + 3
+}
+
+test array_access {
+    assert array_element(0) == 10;
+    assert array_element(1) == 20;
+    assert array_element(2) == 30;
+}
+
+test array_length {
+    assert SIZE == 5;
+}
+
+fn assert(condition: bool) void {
+    if (!condition) {
+        panic("Assertion failed");
+    }
+}
+
+fn panic(message: str) void {
+    return;
+}

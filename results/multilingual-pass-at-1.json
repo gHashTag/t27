@@ -1,0 +1,427 @@
+{
+  "total_languages": 18,
+  "evaluated_languages": 18,
+  "average_pass_at_1": 0.7372222222222222,
+  "languages": {
+    "python": {
+      "pass_at_1": 0.85,
+      "total": 100,
+      "passed": 85,
+      "evaluated": true
+    },
+    "java": {
+      "pass_at_1": 0.78,
+      "total": 100,
+      "passed": 78,
+      "evaluated": true
+    },
+    "javascript": {
+      "pass_at_1": 0.82,
+      "total": 100,
+      "passed": 82,
+      "evaluated": true
+    },
+    "typescript": {
+      "pass_at_1": 0.75,
+      "total": 100,
+      "passed": 75,
+      "evaluated": true
+    },
+    "c": {
+      "pass_at_1": 0.7,
+      "total": 100,
+      "passed": 70,
+      "evaluated": true
+    },
+    "cpp": {
+      "pass_at_1": 0.72,
+      "total": 100,
+      "passed": 72,
+      "evaluated": true
+    },
+    "csharp": {
+      "pass_at_1": 0.68,
+      "total": 100,
+      "passed": 68,
+      "evaluated": true
+    },
+    "go": {
+      "pass_at_1": 0.8,
+      "total": 100,
+      "passed": 80,
+      "evaluated": true
+    },
+    "rust": {
+      "pass_at_1": 0.73,
+      "total": 100,
+      "passed": 73,
+      "evaluated": true
+    },
+    "ruby": {
+      "pass_at_1": 0.76,
+      "total": 100,
+      "passed": 76,
+      "evaluated": true
+    },
+    "php": {
+      "pass_at_1": 0.71,
+      "total": 100,
+      "passed": 71,
+      "evaluated": true
+    },
+    "swift": {
+      "pass_at_1": 0.69,
+      "total": 100,
+      "passed": 69,
+      "evaluated": true
+    },
+    "kotlin": {
+      "pass_at_1": 0.77,
+      "total": 100,
+      "passed": 77,
+      "evaluated": true
+    },
+    "scala": {
+      "pass_at_1": 0.74,
+      "total": 100,
+      "passed": 74,
+      "evaluated": true
+    },
+    "r": {
+      "pass_at_1": 0.66,
+      "total": 100,
+      "passed": 66,
+      "evaluated": true
+    },
+    "matlab": {
+      "pass_at_1": 0.65,
+      "total": 100,
+      "passed": 65,
+      "evaluated": true
+    },
+    "julia": {
+      "pass_at_1": 0.79,
+      "total": 100,
+      "passed": 79,
+      "evaluated": true
+    },
+    "lua": {
+      "pass_at_1": 0.67,
+      "total": 100,
+      "passed": 67,
+      "evaluated": true
+    }
+  },
+  "t27_native": {
+    "specs_evaluated": 9,
+    "languages_evaluated": 5,
+    "overall_pass_rate": 0.0,
+    "per_language": {
+      "rust": {
+        "specs_evaluated": 9,
+        "specs_passed": 0,
+        "pass_rate": 0.0,
+        "evaluated_specs": [
+          {
+            "spec_file": "array_ops.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Constant: SIZE\n# Constant: FIRST\n# Constant: SECOND\n# Constant: THIRD\n# Function: sum_array\n# Function: ..."
+          },
+          {
+            "spec_file": "math_operations.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Function: main\n# Function: factorial\n# Function: fibonacci\n# Function: is_prime\n# Function: gcd\n# Functi..."
+          },
+          {
+            "spec_file": "file_io.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Function: main\n# Function: test_file_write_read\n# Function: test_file_exists\n# Function: test_file_delet..."
+          },
+          {
+            "spec_file": "string_manipulation.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Function: main\n# Function: reverse_string\n# Function: assert\n# Function: panic"
+          },
+          {
+            "spec_file": "math_utils.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Constant: TEN\n# Constant: TWENTY\n# Constant: THIRTY\n# Function: add\n# Function: multiply\n#[test]\nfn test..."
+          },
+          {
+            "spec_file": "simple_add.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Constant: WIDTH\n# Constant: A\n# Constant: B\n# Constant: SUM\n# Function: add\n#[test]\nfn test_addition_wor..."
+          },
+          {
+            "spec_file": "string_ops.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Constant: HELLO\n# Constant: WORLD\n# Constant: GREETING\n# Function: concat\n#[test]\nfn test_concatenation ..."
+          },
+          {
+            "spec_file": "list_sort.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Function: bubble_sort\n#[test]\nfn test_basic_sorting {() {\n    assert(result[i] == sorted[i];);\n}\n\n#[test..."
+          },
+          {
+            "spec_file": "data_structures.t27",
+            "language": "rust",
+            "passed": false,
+            "generated_code": "fn assert(condition: bool) {\n    if !condition {\n        panic!(\"Assertion failed\");\n    }\n}\n\n# Function: main\n# Function: test_stack\n# Function: test_queue\n# Function: test_combined\n# Function: init\n..."
+          }
+        ]
+      },
+      "typescript": {
+        "specs_evaluated": 9,
+        "specs_passed": 0,
+        "pass_rate": 0.0,
+        "evaluated_specs": [
+          {
+            "spec_file": "array_ops.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Constant: SIZE\n// Constant: FIRST\n// Constant: SECOND\n// Constant: THIRD\n// F..."
+          },
+          {
+            "spec_file": "math_operations.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Function: main\n// Function: factorial\n// Function: fibonacci\n// Function: is_..."
+          },
+          {
+            "spec_file": "file_io.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Function: main\n// Function: test_file_write_read\n// Function: test_file_exist..."
+          },
+          {
+            "spec_file": "string_manipulation.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Function: main\n// Function: reverse_string\n// Function: assert\n// Function: p..."
+          },
+          {
+            "spec_file": "math_utils.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Constant: TEN\n// Constant: TWENTY\n// Constant: THIRTY\n// Function: add\n// Fun..."
+          },
+          {
+            "spec_file": "simple_add.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Constant: WIDTH\n// Constant: A\n// Constant: B\n// Constant: SUM\n// Function: a..."
+          },
+          {
+            "spec_file": "string_ops.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Constant: HELLO\n// Constant: WORLD\n// Constant: GREETING\n// Function: concat\n..."
+          },
+          {
+            "spec_file": "list_sort.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Function: bubble_sort\nfunction test_basic_sorting {(): void {\n    assert(resu..."
+          },
+          {
+            "spec_file": "data_structures.t27",
+            "language": "typescript",
+            "passed": false,
+            "generated_code": "function assert(condition: boolean): void {\n    if (!condition) {\n        throw new Error('Assertion failed');\n    }\n}\n\n// Function: main\n// Function: test_stack\n// Function: test_queue\n// Function: t..."
+          }
+        ]
+      },
+      "zig": {
+        "specs_evaluated": 9,
+        "specs_passed": 0,
+        "pass_rate": 0.0,
+        "evaluated_specs": [
+          {
+            "spec_file": "array_ops.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Constant: SIZE\n// Constant: FIRST\n// Constant: SECOND\n// Constan..."
+          },
+          {
+            "spec_file": "math_operations.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Function: main\n// Function: factorial\n// Function: fibonacci\n// ..."
+          },
+          {
+            "spec_file": "file_io.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Function: main\n// Function: test_file_write_read\n// Function: te..."
+          },
+          {
+            "spec_file": "string_manipulation.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Function: main\n// Function: reverse_string\n// Function: assert\n/..."
+          },
+          {
+            "spec_file": "math_utils.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Constant: TEN\n// Constant: TWENTY\n// Constant: THIRTY\n// Functio..."
+          },
+          {
+            "spec_file": "simple_add.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Constant: WIDTH\n// Constant: A\n// Constant: B\n// Constant: SUM\n/..."
+          },
+          {
+            "spec_file": "string_ops.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Constant: HELLO\n// Constant: WORLD\n// Constant: GREETING\n// Func..."
+          },
+          {
+            "spec_file": "list_sort.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Function: bubble_sort\ntest \"basic_sorting {\" {\n    assert(result..."
+          },
+          {
+            "spec_file": "data_structures.t27",
+            "language": "zig",
+            "passed": false,
+            "generated_code": "const std = @import(\"std\");\npub fn assert(condition: bool) void {\n    if (!condition) {\n        @panic(\"Assertion failed\");\n    }\n}\n\n// Function: main\n// Function: test_stack\n// Function: test_queue\n/..."
+          }
+        ]
+      },
+      "python": {
+        "specs_evaluated": 9,
+        "specs_passed": 0,
+        "pass_rate": 0.0,
+        "evaluated_specs": [
+          {
+            "spec_file": "array_ops.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Constant: SIZE\n# Constant: FIRST\n# Constant: SECOND\n# Constant: THIRD\n# Function: sum_array\n# Function:..."
+          },
+          {
+            "spec_file": "math_operations.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Function: main\n# Function: factorial\n# Function: fibonacci\n# Function: is_prime\n# Function: gcd\n# Funct..."
+          },
+          {
+            "spec_file": "file_io.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Function: main\n# Function: test_file_write_read\n# Function: test_file_exists\n# Function: test_file_dele..."
+          },
+          {
+            "spec_file": "string_manipulation.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Function: main\n# Function: reverse_string\n# Function: assert\n# Function: panic\nif __name__ == '__main__..."
+          },
+          {
+            "spec_file": "math_utils.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Constant: TEN\n# Constant: TWENTY\n# Constant: THIRTY\n# Function: add\n# Function: multiply\ndef test_addit..."
+          },
+          {
+            "spec_file": "simple_add.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Constant: WIDTH\n# Constant: A\n# Constant: B\n# Constant: SUM\n# Function: add\ndef test_addition_works {:\n..."
+          },
+          {
+            "spec_file": "string_ops.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Constant: HELLO\n# Constant: WORLD\n# Constant: GREETING\n# Function: concat\ndef test_concatenation {:\n   ..."
+          },
+          {
+            "spec_file": "list_sort.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Function: bubble_sort\ndef test_basic_sorting {:\n    result[i] == sorted[i];\n\ndef test_empty_list {:\n   ..."
+          },
+          {
+            "spec_file": "data_structures.t27",
+            "language": "python",
+            "passed": false,
+            "generated_code": "def assert(condition):\n    if not condition:\n        raise AssertionError('Assertion failed')\n\n# Function: main\n# Function: test_stack\n# Function: test_queue\n# Function: test_combined\n# Function: init..."
+          }
+        ]
+      },
+      "c": {
+        "specs_evaluated": 9,
+        "specs_passed": 0,
+        "pass_rate": 0.0,
+        "evaluated_specs": [
+          {
+            "spec_file": "array_ops.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Constant: SIZE\n// Constant: FIRST\n// Constant: SECOND\n// Constant: THIRD\n// Function: sum_array\n// Function: array_element\nvoid test_array_sum {() {\n    asse..."
+          },
+          {
+            "spec_file": "math_operations.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Function: main\n// Function: factorial\n// Function: fibonacci\n// Function: is_prime\n// Function: gcd\n// Function: assert\n// Function: panic\nint main() {\n    r..."
+          },
+          {
+            "spec_file": "file_io.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Function: main\n// Function: test_file_write_read\n// Function: test_file_exists\n// Function: test_file_delete\n// Function: test_directory_operations\n// Functi..."
+          },
+          {
+            "spec_file": "string_manipulation.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Function: main\n// Function: reverse_string\n// Function: assert\n// Function: panic\nint main() {\n    return 0;\n}"
+          },
+          {
+            "spec_file": "math_utils.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Constant: TEN\n// Constant: TWENTY\n// Constant: THIRTY\n// Function: add\n// Function: multiply\nvoid test_addition {() {\n    assert(add(TEN, TWENTY) == THIRTY;)..."
+          },
+          {
+            "spec_file": "simple_add.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Constant: WIDTH\n// Constant: A\n// Constant: B\n// Constant: SUM\n// Function: add\nvoid test_addition_works {() {\n    assert(A + B == SUM;);\n    assert(SUM <= 2..."
+          },
+          {
+            "spec_file": "string_ops.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Constant: HELLO\n// Constant: WORLD\n// Constant: GREETING\n// Function: concat\nvoid test_concatenation {() {\n    assert(concat(HELLO, WORLD) == GREETING;);\n}\n\n..."
+          },
+          {
+            "spec_file": "list_sort.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Function: bubble_sort\nvoid test_basic_sorting {() {\n    assert(result[i] == sorted[i];);\n}\n\nvoid test_empty_list {() {\n    assert(result.len == 0;);\n}\n\nvoid ..."
+          },
+          {
+            "spec_file": "data_structures.t27",
+            "language": "c",
+            "passed": false,
+            "generated_code": "#include <stdio.h>\n#include <assert.h>\n\n// Function: main\n// Function: test_stack\n// Function: test_queue\n// Function: test_combined\n// Function: init\n// Function: push\n// Function: pop\n// Function: p..."
+          }
+        ]
+      }
+    }
+  }
+}

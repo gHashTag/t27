@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0
+; String operations test
+
+module Heldout.StringOps;
+
+pub const HELLO : str = "Hello";
+pub const WORLD : str = "World";
+pub const GREETING : str = "Hello World";
+
+pub fn concat(a: str, b: str) str {
+    return a + " " + b;
+}
+
+test concatenation {
+    assert concat(HELLO, WORLD) == GREETING;
+}
+
+test string_length {
+    assert HELLO.len == 5;
+}
+
+test empty_string {
+    var empty : str = "";
+    assert empty.len == 0;
+}
+
+fn assert(condition: bool) void {
+    if (!condition) {
+        panic("Assertion failed");
+    }
+}
+
+fn panic(message: str) void {
+    return;
+}

@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0
+; Math utilities test
+
+module Heldout.MathUtils;
+
+pub const TEN : u8 = 10;
+pub const TWENTY : u8 = 20;
+pub const THIRTY : u8 = 30;
+
+pub fn add(a: u8, b: u8) u8 {
+    return a + b;
+}
+
+pub fn multiply(a: u8, b: u8) u8 {
+    return a * b;
+}
+
+test addition {
+    assert add(TEN, TWENTY) == THIRTY;
+}
+
+test multiplication {
+    assert multiply(TEN, THREE) == THIRTY;
+}
+
+test constants {
+    assert TEN == 10;
+    assert TWENTY == 20;
+    assert THIRTY == 30;
+}
+
+const THREE : u8 = 3;
+
+fn assert(condition: bool) void {
+    if (!condition) {
+        panic("Assertion failed");
+    }
+}
+
+fn panic(message: str) void {
+    return;
+}

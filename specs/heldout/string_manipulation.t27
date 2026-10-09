@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0
+; Test string manipulation functions
+
+module Heldout.StringManipulation;
+
+    // ============================================================================
+    // Imports
+    // ============================================================================
+
+    pub fn main() void {
+        // Test case 1: String concatenation
+        var hello : str = "Hello";
+        var world : str = "World";
+        var greeting : str = hello + " " + world + "!";
+        assert greeting == "Hello World!";
+        
+        // Test case 2: String length
+        var test_str : str = "Hello";
+        assert test_str.len == 5;
+        
+        // Test case 3: String indexing
+        var first_char : str = test_str[0:1];
+        assert first_char == "H";
+        
+        // Test case 4: String reversal
+        var reversed : str = reverse_string(test_str);
+        assert reversed == "olleH";
+        
+        // Test case 5: Substring extraction
+        var substr : str = test_str[1:4];
+        assert substr == "ell";
+    }
+
+    // ============================================================================
+    // Helper functions
+    // ============================================================================
+
+    pub fn reverse_string(input : str) str {
+        var result : str = "";
+        var i : usize = input.len;
+        while (i > 0) {
+            i = i - 1;
+            result = result + input[i:i+1];
+        }
+        return result;
+    }
+
+    pub fn assert(condition : bool) void {
+        if (!condition) {
+            panic("Assertion failed");
+        }
+    }
+
+    pub fn panic(message : str) void {
+        return;
+    }
+}
