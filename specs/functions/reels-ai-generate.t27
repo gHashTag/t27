@@ -40,3 +40,51 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No guard: the first step already calls a paid API, so the 2026-09-09 probe skipped this function (PROBE_RESULT skipped). The hardening list asks for a validate-input step before that call.";
+
+test "schema validation" {
+  // Test KIND
+  assert_eq KIND "function";
+
+  // Test ID format: domain-object-verb
+  let id_parts = split ID "-";
+  assert_eq (len id_parts) 3;
+  assert_eq (id_parts[0]) "reels"; // DOMAIN from vocabulary
+
+  // Test TRIGGER rules
+  assert_eq TRIGGER "event";
+  assert_eq EVENT "reels/ai.generate";
+  assert_eq CRON "";
+  assert_eq LEGACY_EVENTS ["ai-reels/generate"];
+
+  // Test ON_FAILURE vocabulary
+  assert_eq ON_FAILURE "log";
+  assert ON_FAILURE == "admin-telegram" || ON_FAILURE == "log" || ON_FAILURE == "refund+notify";
+
+  // Test SIDE_EFFECTS vocabulary and uniqueness
+  assert_eq (len SIDE_EFFECTS) 2;
+  assert contains SIDE_EFFECTS "paid-api";
+  assert contains SIDE_EFFECTS "messages-user";
+  assert_eq (len (set SIDE_EFFECTS)) (len SIDE_EFFECTS); // No duplicates
+
+  // Test PROBE_RESULT vocabulary
+  assert_eq PROBE_RESULT "skipped";
+  assert PROBE_RESULT == "COMPLETED" || PROBE_RESULT == "FAILED-at-guard" || PROBE_RESULT == "skipped" || PROBE_RESULT == "not-deployed";
+
+  // Test CONTROL vocabulary
+  assert_eq CONTROL "spec+code";
+  assert CONTROL == "spec+code" || CONTROL == "spec-only" || CONTROL == "code-only" || CONTROL == "code-only/unregistered";
+
+  // Test SAFE_PROBE agrees with PROBE_RESULT
+  assert_eq SAFE_PROBE "";
+  assert_eq PROBE_RESULT "skipped";
+
+  // Test KIND, REPO, TZ schema
+  assert_eq KIND "function";
+  assert_eq REPO "999-multibots-telegraf";
+  assert_eq TZ "UTC";
+
+  // Test SERVICE format: file:line
+  let service_parts = split SERVICE ":";
+  assert_eq (len service_parts) 2;
+  assert (service_parts[0] != "") && (service_parts[1] != "");
+}

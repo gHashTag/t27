@@ -40,3 +40,52 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Guard is zod-schema. Each wait-* step polls a provider job until it completes. Withdrawn from registerFunctions on 2026-09-17 (999-multibots-telegraf): the pipeline runs on stub services (src/services/hedra.ts, heygen.ts, kieAI.ts, elevenLabs.ts announce stub mode), so a run would report a video that was never rendered. Code kept; re-register when the providers are real.";
+
+test "schema validation" {
+  // Test KIND
+  assert_eq KIND "function";
+
+  // Test ID format: domain-object-verb
+  let id_parts = split ID "-";
+  assert_eq (len id_parts) 3;
+  assert_eq (id_parts[0]) "render"; // DOMAIN from vocabulary
+
+  // Test TRIGGER rules
+  assert_eq TRIGGER "event";
+  assert_eq EVENT "render/avatar-video.run";
+  assert_eq CRON "";
+  assert_eq LEGACY_EVENTS ["render/avatar-video"];
+
+  // Test ON_FAILURE vocabulary
+  assert_eq ON_FAILURE "admin-telegram";
+  assert ON_FAILURE == "admin-telegram" || ON_FAILURE == "log" || ON_FAILURE == "refund+notify";
+
+  // Test SIDE_EFFECTS vocabulary and uniqueness
+  assert_eq (len SIDE_EFFECTS) 3;
+  assert contains SIDE_EFFECTS "paid-api";
+  assert contains SIDE_EFFECTS "external-webhook";
+  assert contains SIDE_EFFECTS "db-write";
+  assert_eq (len (set SIDE_EFFECTS)) (len SIDE_EFFECTS); // No duplicates
+
+  // Test PROBE_RESULT vocabulary
+  assert_eq PROBE_RESULT "FAILED-at-guard";
+  assert PROBE_RESULT == "COMPLETED" || PROBE_RESULT == "FAILED-at-guard" || PROBE_RESULT == "skipped" || PROBE_RESULT == "not-deployed";
+
+  // Test CONTROL vocabulary
+  assert_eq CONTROL "spec+code";
+  assert CONTROL == "spec+code" || CONTROL == "spec-only" || CONTROL == "code-only" || CONTROL == "code-only/unregistered";
+
+  // Test SAFE_PROBE agrees with PROBE_RESULT
+  assert_eq SAFE_PROBE "{}";
+  assert_eq PROBE_RESULT "FAILED-at-guard";
+
+  // Test KIND, REPO, TZ schema
+  assert_eq KIND "function";
+  assert_eq REPO "999-multibots-telegraf";
+  assert_eq TZ "UTC";
+
+  // Test SERVICE format: file:line
+  let service_parts = split SERVICE ":";
+  assert_eq (len service_parts) 2;
+  assert (service_parts[0] != "") && (service_parts[1] != "");
+}

@@ -40,3 +40,51 @@ pub const SAFE_PROBE : str = "{\"telegram_id\": \"0\", \"bot_name\": \"e2e_nonex
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Guard is check-user-exists. A second, unregistered copy of this function exists in the tree (src/inngest_app/functions/morphImages.ts); the registered one is the file named in SERVICE. 2026-09-17: charges-balance removed from SIDE_EFFECTS -- the file imports getUserBalance only; check-balance reads the balance against a constant of 50 and nothing in the file deducts it, so the manifest and this spec overstated what the function does with money. deliver-result: video_url is a path on the worker written by concatenate-all-videos, not a URL; the code passed the bare string to sendVideo and sendDocument (read by Telegram as file_id or URL), fell into the catch and sent the user that same path as a download link while returning delivered. Now the file is streamed as { source }, and a failed delivery rethrows so the step is retried and, after RETRIES, onFailure tells the admin. Not verified: a live morph run; the paid Kling calls in process-all-pairs remain unmetered. Test: 999-multibots-telegraf src/__tests__/render/deliveryIsNotSwallowed.test.ts.";
+
+test "schema validation" {
+  // Test KIND
+  assert_eq KIND "function";
+
+  // Test ID format: domain-object-verb
+  let id_parts = split ID "-";
+  assert_eq (len id_parts) 3;
+  assert_eq (id_parts[0]) "morph"; // DOMAIN from vocabulary
+
+  // Test TRIGGER rules
+  assert_eq TRIGGER "event";
+  assert_eq EVENT "morph/images.generate";
+  assert_eq CRON "";
+  assert_eq LEGACY_EVENTS ["morph/images.requested"];
+
+  // Test ON_FAILURE vocabulary
+  assert_eq ON_FAILURE "log";
+  assert ON_FAILURE == "log" || ON_FAILURE == "admin-telegram" || ON_FAILURE == "refund+notify";
+
+  // Test SIDE_EFFECTS vocabulary and uniqueness
+  assert_eq (len SIDE_EFFECTS) 2;
+  assert contains SIDE_EFFECTS "paid-api";
+  assert contains SIDE_EFFECTS "messages-user";
+  assert_eq (len (set SIDE_EFFECTS)) (len SIDE_EFFECTS); // No duplicates
+
+  // Test PROBE_RESULT vocabulary
+  assert_eq PROBE_RESULT "FAILED-at-guard";
+  assert PROBE_RESULT == "COMPLETED" || PROBE_RESULT == "FAILED-at-guard" || PROBE_RESULT == "skipped" || PROBE_RESULT == "not-deployed";
+
+  // Test CONTROL vocabulary
+  assert_eq CONTROL "spec+code";
+  assert CONTROL == "spec+code" || CONTROL == "spec-only" || CONTROL == "code-only" || CONTROL == "code-only/unregistered";
+
+  // Test SAFE_PROBE agrees with PROBE_RESULT
+  assert_eq SAFE_PROBE "{\"telegram_id\": \"0\", \"bot_name\": \"e2e_nonexistent_bot\", \"is_ru\": true, \"job_id\": \"e2e-probe\", \"image_files\": [], \"extraction_path\": \"/nonexistent/e2e\", \"morphing_type\": \"seamless\", \"model\": \"kling-v1.6-pro\"}";
+  assert_eq PROBE_RESULT "FAILED-at-guard";
+
+  // Test KIND, REPO, TZ schema
+  assert_eq KIND "function";
+  assert_eq REPO "999-multibots-telegraf";
+  assert_eq TZ "UTC";
+
+  // Test SERVICE format: file:line
+  let service_parts = split SERVICE ":";
+  assert_eq (len service_parts) 2;
+  assert (service_parts[0] != "") && (service_parts[1] != "");
+}

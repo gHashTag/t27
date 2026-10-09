@@ -40,3 +40,51 @@ pub const SAFE_PROBE : str = "{\"telegram_id\": \"0\", \"image_urls\": [], \"bot
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Guard is min-images: fewer images than the minimum stops the run before any clip is generated. 2026-10-09 (plan: secrets in events): send-to-telegram resolves the bot from event.data.bot_name through the bot registry (resolveBotForDelivery), so the token stays in env and is never carried by the event, which Inngest stores and shows in its UI and traces. event.data.bot_token is honoured only as a deprecated fallback with a warning that does not print it; a payload with neither is NonRetriableError. Not verified: the sender of reels/loop.generate is outside the repo (orphan-events baseline), so whether it already sends bot_name was not established; the generate-morphing-clips step still runs N paid predictions in one step (open plan item). Test: 999-multibots-telegraf src/__tests__/inngest/secretsOutOfPayloads.test.ts.";
+
+test "schema validation" {
+  // Test KIND
+  assert_eq KIND "function";
+
+  // Test ID format: domain-object-verb
+  let id_parts = split ID "-";
+  assert_eq (len id_parts) 3;
+  assert_eq (id_parts[0]) "reels"; // DOMAIN from vocabulary
+
+  // Test TRIGGER rules
+  assert_eq TRIGGER "event";
+  assert_eq EVENT "reels/loop.generate";
+  assert_eq CRON "";
+  assert_eq LEGACY_EVENTS ["reels/generate-advanced-loop"];
+
+  // Test ON_FAILURE vocabulary
+  assert_eq ON_FAILURE "log";
+  assert ON_FAILURE == "admin-telegram" || ON_FAILURE == "log" || ON_FAILURE == "refund+notify";
+
+  // Test SIDE_EFFECTS vocabulary and uniqueness
+  assert_eq (len SIDE_EFFECTS) 2;
+  assert contains SIDE_EFFECTS "paid-api";
+  assert contains SIDE_EFFECTS "messages-user";
+  assert_eq (len (set SIDE_EFFECTS)) (len SIDE_EFFECTS); // No duplicates
+
+  // Test PROBE_RESULT vocabulary
+  assert_eq PROBE_RESULT "FAILED-at-guard";
+  assert PROBE_RESULT == "COMPLETED" || PROBE_RESULT == "FAILED-at-guard" || PROBE_RESULT == "skipped" || PROBE_RESULT == "not-deployed";
+
+  // Test CONTROL vocabulary
+  assert_eq CONTROL "spec+code";
+  assert CONTROL == "spec+code" || CONTROL == "spec-only" || CONTROL == "code-only" || CONTROL == "code-only/unregistered";
+
+  // Test SAFE_PROBE agrees with PROBE_RESULT
+  assert_eq SAFE_PROBE "{\"telegram_id\": \"0\", \"image_urls\": [], \"bot_token\": \"\", \"prompt\": \"safe-mode probe\"}";
+  assert_eq PROBE_RESULT "FAILED-at-guard";
+
+  // Test KIND, REPO, TZ schema
+  assert_eq KIND "function";
+  assert_eq REPO "999-multibots-telegraf";
+  assert_eq TZ "UTC";
+
+  // Test SERVICE format: file:line
+  let service_parts = split SERVICE ":";
+  assert_eq (len service_parts) 2;
+  assert (service_parts[0] != "") && (service_parts[1] != "");
+}

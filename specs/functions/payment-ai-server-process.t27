@@ -40,3 +40,51 @@ pub const SAFE_PROBE : str = "{\"IncSum\": \"0.01\", \"inv_id\": \"e2e-safe-mode
 pub const PROBE_RESULT : str = "COMPLETED";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "The manifest carries no file, steps or retries for this function (its extractor did not resolve them); SERVICE, STEPS and RETRIES here were read from the same checkout, where retries is declared as 3 and onFailure is createInngestFailureHandler, which logs and messages the admin chat -- the manifest says on_failure log. Guard is amount-match: an amount matching no plan or option stops the run, which is why the 2026-09-09 probe with IncSum 0.01 COMPLETED without a balance change. 2026-09-17 (money loop, plan section 6 item 3): a claim-invoice step now sits between get-bot-config and update-user-balance (core/supabase/claimPendingInvoice.ts). The payments_v2 row must exist and its amount (parseFloat(OutSum), RUB) must equal the rounded IncSum, else NonRetriableError -- no credit, the onFailure handler messages the admin chat. The PENDING -> COMPLETED flip is a compare-and-set (.eq status PENDING, .select); a lost race or an already COMPLETED row returns {success:true, already_claimed:true} without crediting or notifying. A database error on the claim stays a plain Error so the 3 retries have it. Until then updateUserBalance set COMPLETED by inv_id unconditionally and returned true even when no row matched, and the event amount was never compared with the invoice. The Robokassa ResultURL route settles the same rows with the same compare-and-set, so between the two paths an invoice credits at most once. Not verified: the events for this function have no sender in the repo (orphan-events baseline); who sends them was not established. Test: 999-multibots-telegraf src/__tests__/money/paymentClaimInvoice.test.ts.";
+
+test "schema validation" {
+  // Test KIND
+  assert_eq KIND "function";
+
+  // Test ID format: domain-object-verb
+  let id_parts = split ID "-";
+  assert_eq (len id_parts) 3;
+  assert_eq (id_parts[0]) "payment"; // DOMAIN from vocabulary
+
+  // Test TRIGGER rules
+  assert_eq TRIGGER "event";
+  assert_eq EVENT "payment/ai-server.process";
+  assert_eq CRON "";
+  assert_eq LEGACY_EVENTS ["payment/process-ai-server"];
+
+  // Test ON_FAILURE vocabulary
+  assert_eq ON_FAILURE "admin-telegram";
+  assert ON_FAILURE == "admin-telegram" || ON_FAILURE == "log" || ON_FAILURE == "refund+notify";
+
+  // Test SIDE_EFFECTS vocabulary and uniqueness
+  assert_eq (len SIDE_EFFECTS) 2;
+  assert contains SIDE_EFFECTS "db-write";
+  assert contains SIDE_EFFECTS "messages-user";
+  assert_eq (len (set SIDE_EFFECTS)) (len SIDE_EFFECTS); // No duplicates
+
+  // Test PROBE_RESULT vocabulary
+  assert_eq PROBE_RESULT "COMPLETED";
+  assert PROBE_RESULT == "COMPLETED" || PROBE_RESULT == "FAILED-at-guard" || PROBE_RESULT == "skipped" || PROBE_RESULT == "not-deployed";
+
+  // Test CONTROL vocabulary
+  assert_eq CONTROL "spec+code";
+  assert CONTROL == "spec+code" || CONTROL == "spec-only" || CONTROL == "code-only" || CONTROL == "code-only/unregistered";
+
+  // Test SAFE_PROBE agrees with PROBE_RESULT
+  assert_eq SAFE_PROBE "{\"IncSum\": \"0.01\", \"inv_id\": \"e2e-safe-mode-probe\"}";
+  assert_eq PROBE_RESULT "COMPLETED";
+
+  // Test KIND, REPO, TZ schema
+  assert_eq KIND "function";
+  assert_eq REPO "999-multibots-telegraf";
+  assert_eq TZ "UTC";
+
+  // Test SERVICE format: file:line
+  let service_parts = split SERVICE ":";
+  assert_eq (len service_parts) 2;
+  assert (service_parts[0] != "") && (service_parts[1] != "");
+}

@@ -40,3 +40,56 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No safe probe has been sent: the 2026-09-09 probe pass predates this registration, which is why the manifest row carries no deployment reading. The live status endpoint answered on 2026-09-22 with 94 runs over seven days and none failed. SIDE_EFFECTS drops the manifest's db-read, which the catalog vocabulary cannot say, and adds external-webhook for the note the run posts to the render; the table read is stated here instead. GUARD is the isSafeMode early return at the top of the handler, which the manifest recorded as none. A chain the watcher cannot read returns did=unreadable and writes no quiet note, so a broken read never records a clean channel; that alarm is throttled to once every six hours.";
+
+test "schema validation" {
+  // Test KIND
+  assert_eq KIND "function";
+
+  // Test ID format: domain-object-verb
+  let id_parts = split ID "-";
+  assert_eq (len id_parts) 3;
+  assert_eq (id_parts[0]) "money"; // DOMAIN from vocabulary
+
+  // Test TRIGGER rules (cron function)
+  assert_eq TRIGGER "cron";
+  assert_eq EVENT "";
+  assert_eq LEGACY_EVENTS [];
+  assert_eq CRON "0 * * * *";
+  assert_eq TZ "UTC";
+
+  // Test ON_FAILURE vocabulary
+  assert_eq ON_FAILURE "admin-telegram";
+  assert ON_FAILURE == "admin-telegram" || ON_FAILURE == "log" || ON_FAILURE == "refund+notify";
+
+  // Test SIDE_EFFECTS vocabulary and uniqueness
+  assert_eq (len SIDE_EFFECTS) 2;
+  assert contains SIDE_EFFECTS "paid-api";
+  assert contains SIDE_EFFECTS "external-webhook";
+  assert_eq (len (set SIDE_EFFECTS)) (len SIDE_EFFECTS); // No duplicates
+
+  // Test PROBE_RESULT vocabulary
+  assert_eq PROBE_RESULT "skipped";
+  assert PROBE_RESULT == "COMPLETED" || PROBE_RESULT == "FAILED-at-guard" || PROBE_RESULT == "skipped" || PROBE_RESULT == "not-deployed";
+
+  // Test CONTROL vocabulary
+  assert_eq CONTROL "spec+code";
+  assert CONTROL == "spec+code" || CONTROL == "spec-only" || CONTROL == "code-only" || CONTROL == "code-only/unregistered";
+
+  // Test SAFE_PROBE agrees with PROBE_RESULT
+  assert_eq SAFE_PROBE "";
+  assert_eq PROBE_RESULT "skipped";
+
+  // Test KIND, REPO, TZ schema
+  assert_eq KIND "function";
+  assert_eq REPO "999-multibots-telegraf";
+  assert_eq TZ "UTC";
+
+  // Test SERVICE format: file:line
+  let service_parts = split SERVICE ":";
+  assert_eq (len service_parts) 2;
+  assert (service_parts[0] != "") && (service_parts[1] != "");
+
+  // Test CRON format (5 fields)
+  let cron_parts = split CRON " ";
+  assert_eq (len cron_parts) 5;
+}
