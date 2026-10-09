@@ -175,6 +175,119 @@ jobs:
             fi
             echo "ok  PyPI has no golden-float $V"
           fi
+
+  # ========================================================================
+  # Rehearse: Run all release steps without publishing artifacts or creating tags
+  # ========================================================================
+  rehearse:
+    name: Rehearse release-t27c
+    needs: preflight
+    if: needs.preflight.outputs.product == 't27c'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Identify the product and version from the tag
+        id: identify
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          echo "tag: $TAG"
+          case "$TAG" in
+            t27c-v*)         PRODUCT=t27c;         VERSION="${TAG#t27c-v}" ;;
+            golden-float-v*) PRODUCT=golden-float; VERSION="${TAG#golden-float-v}" ;;
+            v*)              PRODUCT=golden-float; VERSION="${TAG#v}" ;;
+            *)
+              echo "::error::Tag '$TAG' names no product. Use t27c-v<version> or golden-float-v<version>."
+              exit 1 ;;
+          esac
+          echo "product=$PRODUCT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "product: $PRODUCT   version: $VERSION"
+
+      - name: Every manifest must already say what the tag says
+        run: |
+          set -euo pipefail
+          V="${{ steps.identify.outputs.version }}"
+          fail=0
+          check() {  # file, found, label
+            if [ "$2" != "$V" ]; then
+              echo "::error file=$1::$3 is '$2' but the tag says '$V' -- edit $1"
+              fail=1
+            else
+              echo "ok  $1 = $2"
+            fi
+          }
+          if [ "${{ steps.identify.outputs.product }}" = "t27c" ]; then
+            check bootstrap/Cargo.toml \
+              "$(grep -m1 '^version' bootstrap/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')" \
+              "crate t27c version"
+            # .zenodo.json describes T27, so it is checked against a T27 tag and
+            # not against golden-float's. A DOI is minted from it and is forever.
+            check .zenodo.json \
+              "$(python3 -c "import json;print(json.load(open('.zenodo.json')).get('version',''))")" \
+              ".zenodo.json version"
+          else
+            check ffi/Cargo.toml \
+              "$(grep -m1 '^version' ffi/Cargo.toml | sed 's/.*"\(.*\)".*/\1/')" \
+              "crate golden-float-ffi version"
+            check bindings/python/pyproject.toml \
+              "$(grep -m1 '^version' bindings/python/pyproject.toml | sed 's/.*"\(.*\)".*/\1/')" \
+              "PyPI golden-float version"
+            check bindings/javascript/package.json \
+              "$(python3 -c "import json;print(json.load(open('bindings/javascript/package.json'))['version'])")" \
+              "npm golden-float version"
+          fi
+          exit $fail
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rehearse the crates.io publish (dry run only)
+        run: |
+          set -euo pipefail
+          cargo publish --dry-run --manifest-path bootstrap/Cargo.toml
+
+      - name: Verify no tag was created
+        run: |
+          set -euo pipefail
+          V="${{ steps.identify.outputs.version }}"
+          if git tag -l "t27c-v$V"; then
+            echo "::error::Tag t27c-v$V was created during rehearsal (should not happen)"
+            exit 1
+          fi
+          echo "ok  No tag created during rehearsal"
+
+      - name: Record the release that would be made
+        run: |
+          set -euo pipefail
+          V="${{ steps.identify.outputs.version }}"
+          cat > release-record.json << EOF
+          {
+            "card": "release-t27c",
+            "version": "$V",
+            "timestamp": "$(date -Iseconds)",
+            "rehearsal": true,
+            "steps_completed": [
+              "preflight_checks",
+              "manifest_verification",
+              "rust_setup", 
+              "dry_run_publish",
+              "tag_check"
+            ]
+          }
+          EOF
+          echo "Release recorded: release-t27c v$V"
+
+      - name: Upload rehearsal log
+        uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-log
+          path: release-record.json
+          retention-days: 30
+
   # ========================================================================
   # Python: PyPI Publication via Maturin
   # ========================================================================
@@ -357,10 +470,12 @@ jobs:
   # "crates.io already has $CRATE $V" check is the one that keeps it honest:
   # a version this job publishes can be yanked, never replaced and never
   # reused. Bump, do not retry.
+  #
+  # This job now requires a successful rehearsal first.
   # ========================================================================
   t27c:
     name: Publish t27c to crates.io
-    needs: preflight
+    needs: [preflight, rehearse]
     if: needs.preflight.outputs.product == 't27c'
     runs-on: ubuntu-latest
     steps:
