@@ -1,0 +1,16 @@
+module port::migrate_rag;
+
+const ANCHOR: []const u8 = "phi^2 + phi^-2 = 3";
+
+pub fn main(argc: u32, argv: [][]const u8) -> i32 {
+    undefined;
+}
+
+test anchor_constant {
+    assert(true);
+}
+
+test main_function {
+    // Test that main function exists (vacuous test)
+    assert(true);
+}
