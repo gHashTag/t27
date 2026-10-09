@@ -1,0 +1,460 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/keyed.t27 -- one actor per key: the bee dispatcher addresses an issue, not a pid
+; Owner, 2026-10-09 (translated): "implement all the improvements" (gHashTag/trios#1712, item 7). The
+; actors rule (gHashTag/t27#7851): a loop is replaced only after an MVP, its tests and a benchmark
+; against the loop on the same input, with the numbers posted.
+; Measured 2026-10-09T06:38:23Z at the live Queen (/queen/status): 70 lanes, 23 active, 47 idle; the
+; last round skipped fileConflict 236 and missingBoundary 72 and claimed 61. The round asks queend for
+; one issue at a time and dispatches one bee after another, on a timer: an issue that becomes ready
+; waits for the next round, and so does a lane that frees.
+; What the others do:
+; - Orleans virtual actors (MSR-TR-2014-41): a grain always exists. Its first message activates it,
+;   and an idle period deactivates it. Nobody creates or destroys it.
+; - Akka Cluster Sharding: an entity is addressed by its id and started by its first message. It is
+;   passivated after 2 minutes idle (the default) or, at the active-entity limit, least recently used
+;   first. A message for an entity that is being passivated is buffered and starts it again.
+; - AutoGen Core: an agent is AgentId(type, key), created lazily by its factory on first use.
+; - Rivet: get-or-create by key.
+; - Cursor (2026, scaling agents): lock-based task claiming made 20 agents perform like 2-3, and
+;   optimistic claiming fixed it.
+; - MAST (arXiv 2503.13657): step repetition is the most common failure mode of multi-agent systems.
+; What is taken here, one section each:
+; 1. get or spawn: one live actor per key on a node; a send to a key reaches it, or starts it;
+; 2. passivation: an actor idle for PASSIVATE_IDLE_SECONDS stops normally, and at the active cap the
+;    longest idle one makes room;
+; 3. the directory forgets an incarnation only when that incarnation ends;
+; 4. a send to a passivated key starts a new incarnation, and one to a stopping key is held and starts
+;    it again;
+; 5. a claim is a compare-and-set taken after a lane and given back at once when it loses; nothing is
+;    held while waiting;
+; 6. the bee's key: a ready issue starts one bee, and a repeated ready starts none.
+; Not a global name registry (actors.t27 section 7, GLOBAL_NAME_REGISTRY = false). The directory is one
+; node's map from a key to the pid that serves it there. Which node's actor works an issue is the
+; store's claim (control.t27 section 2), the only directory of who holds what: two nodes that both
+; start an actor for one key meet at the claim, and one of them stands down.
+; Numbers owned by other files are literals here, because a card imports nothing (trap T7 of the actors
+; loop): actors.t27 NO_PID 0, X_NORMAL 0 and MAILBOX_CAP 256, control.t27 free_slots, and
+; dispatch_exit.t27 RD_NOW 1. The invariant the_literals_match_their_owners pins them. ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenKeyed;
+
+; --- 1. One actor per key: a send reaches it or starts it -------------------------------------------
+
+/// What a send to a key does.
+/// - `alive`: the directory names a live pid for the key, and no stop was asked of it.
+/// - `stopping`: a stop was asked (a passivation or a graceful stop) and its EXIT has not come.
+/// - `active`: the keyed actors of this node, the stopping ones included. actors.t27 start_answer
+///   counts a child that is being stopped until its EXIT, for the same reason: it still holds memory.
+/// - `idle`: how many of them are evictable now.
+/// KA_DELIVER: send to the live pid. KA_SPAWN: start an actor for the key; the send is its first
+/// message. KA_HOLD: hold the send until the stopping incarnation ends (section 4). KA_EVICT: passivate
+/// the longest idle actor first, then spawn. KA_REFUSE: the node is full of busy actors, and the send is
+/// a dead letter, counted.
+pub const KA_DELIVER : u8 = 0;
+pub const KA_SPAWN : u8 = 1;
+pub const KA_HOLD : u8 = 2;
+pub const KA_EVICT : u8 = 3;
+pub const KA_REFUSE : u8 = 4;
+
+/// Lanes measured at the live Queen on 2026-10-09 (/queen/status).
+pub const LANES_MEASURED : u32 = 70;
+
+/// Chosen, not measured: about seven times the measured lanes, so there is room for an actor per
+/// running bee, per issue waiting for a lane and per issue in review. A keyed actor is a closure and a
+/// mailbox, a few kilobytes at most, so the cap is memory nobody notices. It bounds a node that is
+/// asked about every open issue at once (751 were open on 2026-09-16).
+pub const KEYED_ACTIVE_CAP : u32 = 512;
+
+pub fn key_action(alive: bool, stopping: bool, active: u32, cap: u32, idle: u32) -> u8 {
+    if (stopping) { return KA_HOLD; }
+    if (alive) { return KA_DELIVER; }
+    if (active < cap) { return KA_SPAWN; }
+    if (idle > 0) { return KA_EVICT; }
+    return KA_REFUSE;
+}
+
+; --- 2. Passivation: an idle actor stops, the next send starts it again ------------------------------
+
+/// Akka Cluster Sharding's default idle timeout, taken as it is. Chosen, not measured here.
+pub const PASSIVATE_IDLE_SECONDS : u32 = 120;
+
+/// A passivated actor ends with actors.t27 X_NORMAL (0, a literal). A transient supervisor does not
+/// restart a normal end, and a non-trapping link ignores one (on_exit_signal), so a passivation kills
+/// nobody.
+pub const PASSIVATE_REASON : u8 = 0;
+
+/// Whether an actor can stop without losing anything: no turn running, nothing queued, and no work it
+/// watches (a bee it started, a retry it waits for). Everything else it knows is in the store.
+pub fn evictable(busy: bool, queued: u32, holds_work: bool) -> bool {
+    if (busy) { return false; }
+    if (queued > 0) { return false; }
+    return holds_work == false;
+}
+
+pub fn passivate_due(idle_seconds: u32, busy: bool, queued: u32, holds_work: bool) -> bool {
+    if (evictable(busy, queued, holds_work) == false) { return false; }
+    return idle_seconds >= PASSIVATE_IDLE_SECONDS;
+}
+
+/// At the cap, the evictable actor idle longest goes first: Akka's least-recently-used strategy. A tie
+/// goes to the lower slot, so two readers of one directory pick the same victim.
+pub fn evict_before(idle_a: u32, slot_a: u64, idle_b: u32, slot_b: u64) -> bool {
+    if (idle_a != idle_b) { return idle_a > idle_b; }
+    return slot_a < slot_b;
+}
+
+; --- 3. The directory forgets only the incarnation that ended ---------------------------------------
+
+/// actors.t27 NO_PID, a literal.
+pub const KEY_NO_PID : u64 = 0;
+
+/// The directory's entry for a key after a pid exits. An entry names one incarnation, since a pid
+/// carries its generation (actors.t27 section 1). The EXIT of the pid it names clears it. A late EXIT of
+/// an older incarnation, or of a pid that was never this key's, leaves a newer entry alone.
+pub fn entry_after_exit(entry: u64, exited: u64) -> u64 {
+    if (entry == exited) { return KEY_NO_PID; }
+    return entry;
+}
+
+; --- 4. A send to a passivated or stopping key -------------------------------------------------------
+
+/// A passivated key has no entry, so key_action answers KA_SPAWN: the send starts a new incarnation and
+/// is its first message. A key that is stopping holds the send (KA_HOLD), up to actors.t27 MAILBOX_CAP
+/// (256, a literal). Past it the send is a dead letter, counted, like a send into a full mailbox.
+pub const KEY_HOLD_CAP : u32 = 256;
+
+pub fn hold_admits(held: u32) -> bool {
+    return held < KEY_HOLD_CAP;
+}
+
+/// When the stopping incarnation's EXIT comes, the held sends start the next one at once and are its
+/// first messages, in the order they were sent. With nothing held, the key stays passivated.
+pub fn restart_after_exit(held: u32) -> bool {
+    return held > 0;
+}
+
+; --- 5. A claim is a compare-and-set, never a held lock --------------------------------------------
+
+/// Measured by Cursor (2026): with lock-based claiming, 20 agents performed like 2-3, because an agent
+/// waited while it held a lock; optimistic claiming fixed it. Here an actor takes a lane first. A lane
+/// is a count on its own node, so taking one needs no store round trip. Then it takes the issue's claim,
+/// which is control.t27 claim_lands: one INSERT ... ON CONFLICT DO UPDATE ... WHERE free OR expired, at
+/// the fence it read. A claim that lands starts the bee in the same turn. A claim that loses gives the
+/// lane back at once, and the actor waits for an event about its key. No actor holds a claim while it
+/// waits for a lane, and none holds a lane while it waits for a claim.
+pub const CL_START : u8 = 0;
+pub const CL_NO_LANE : u8 = 1;
+pub const CL_STAND_DOWN : u8 = 2;
+
+/// control.t27 free_slots(lanes, running) > 0, restated as one comparison because a card imports
+/// nothing.
+pub fn lane_free(running: u32, lanes: u32) -> bool {
+    return running < lanes;
+}
+
+pub fn claim_step(lane_taken: bool, claim_landed: bool) -> u8 {
+    if (lane_taken == false) { return CL_NO_LANE; }
+    if (claim_landed) { return CL_START; }
+    return CL_STAND_DOWN;
+}
+
+/// Whether the actor keeps its lane after a step: only to start a bee.
+pub fn keeps_lane(step: u8) -> bool {
+    return step == CL_START;
+}
+
+/// The holder is the actor's pid, not its process. control.t27's claim lands again for its own holder
+/// (a renewal), so with one holder for every actor of a process, a second actor for the key would
+/// "renew" the first one's claim and start a second bee. A pid names one incarnation, so a restarted
+/// actor is a new holder and claims at the fence like anyone else. NO_PID holds nothing.
+pub fn claim_is_mine(holder: u64, me: u64) -> bool {
+    if (me == KEY_NO_PID) { return false; }
+    return holder == me;
+}
+
+/// When a bee's work ends, its lane goes back, unless the restart decision is to start again at once
+/// (dispatch_exit.t27 RD_NOW, 1, a literal). Then the issue keeps the lane for the restart: it was
+/// admitted before every issue that waits now, and a crashed or killed bee's issue is not put behind
+/// them. A restart that waits out a backoff holds nothing while it waits; it asks for a lane again.
+pub const KEY_RD_NOW : u8 = 1;
+
+pub fn keeps_lane_after_end(decision: u8) -> bool {
+    return decision == KEY_RD_NOW;
+}
+
+/// After a lost claim the actor does not poll. It tries again when an event names its key (the
+/// holder's task ended, or its lease expired), and at the latest when the holder's lease can have
+/// lapsed: the rest of the TTL since the holder's last renewal.
+pub fn retry_after_lost_seconds(since_renewal: u32, ttl_seconds: u32) -> u32 {
+    if (since_renewal >= ttl_seconds) { return 0; }
+    return ttl_seconds - since_renewal;
+}
+
+; --- 6. The bee's key: a ready issue starts one bee, and a repeated ready starts none ----------------
+
+/// MAST (arXiv 2503.13657) measured step repetition as the most common failure mode of multi-agent
+/// systems. This Queen has done it: #1244 collected six verification records in one afternoon, each one
+/// a bee that redid finished work. The issue's actor is the one place where an issue's events meet. A
+/// ready that arrives while its bee runs, while it waits to retry, or while its finished work waits for
+/// review is read and changes nothing. Only the review (a send-back) or a restart decision moves it on.
+/// The host reads the restart decision from dispatch_exit.t27 restart_decision: RD_NOW, RD_LATER and
+/// RD_GIVE_UP arrive here as BE_RESTART_NOW, BE_RESTART_LATER and BE_GIVE_UP.
+/// A passivated key starts again at BK_IDLE. What it knew is in the store (queen_dispatch), and the
+/// admission reads it there: queend's claimOnIssue counts an issue that waits for review as a live
+/// claim, so a ready for it is refused (BE_REFUSED) and starts nothing.
+pub const BK_IDLE : u8 = 0;
+pub const BK_ADMITTING : u8 = 1;
+pub const BK_RUNNING : u8 = 2;
+pub const BK_RETRY : u8 = 3;
+pub const BK_DONE : u8 = 4;
+pub const BK_GAVE_UP : u8 = 5;
+
+pub const BE_READY : u8 = 0;
+pub const BE_STARTED : u8 = 1;
+pub const BE_REFUSED : u8 = 2;
+pub const BE_ENDED : u8 = 3;
+pub const BE_RESTART_NOW : u8 = 4;
+pub const BE_RESTART_LATER : u8 = 5;
+pub const BE_GIVE_UP : u8 = 6;
+pub const BE_RETRY_DUE : u8 = 7;
+pub const BE_SENT_BACK : u8 = 8;
+
+pub fn bee_key_next(state: u8, ev: u8) -> u8 {
+    if (state == BK_IDLE) {
+        if (ev == BE_READY) { return BK_ADMITTING; }
+        if (ev == BE_SENT_BACK) { return BK_ADMITTING; }
+        return state;
+    }
+    if (state == BK_ADMITTING) {
+        if (ev == BE_STARTED) { return BK_RUNNING; }
+        if (ev == BE_REFUSED) { return BK_IDLE; }
+        return state;
+    }
+    if (state == BK_RUNNING) {
+        if (ev == BE_ENDED) { return BK_DONE; }
+        if (ev == BE_RESTART_NOW) { return BK_ADMITTING; }
+        if (ev == BE_RESTART_LATER) { return BK_RETRY; }
+        if (ev == BE_GIVE_UP) { return BK_GAVE_UP; }
+        return state;
+    }
+    if (state == BK_RETRY) {
+        if (ev == BE_RETRY_DUE) { return BK_ADMITTING; }
+        return state;
+    }
+    if (state == BK_DONE) {
+        if (ev == BE_SENT_BACK) { return BK_ADMITTING; }
+        return state;
+    }
+    if (state == BK_GAVE_UP) {
+        if (ev == BE_SENT_BACK) { return BK_ADMITTING; }
+        return state;
+    }
+    return state;
+}
+
+/// Whether this event in this state asks the host to act (admit, start, or wait for a retry). A
+/// repeated ready asks nothing.
+pub fn bee_key_acts(state: u8, ev: u8) -> bool {
+    return bee_key_next(state, ev) != state;
+}
+
+/// Whether the key watches work, so it may not be passivated: an admission in flight, a bee that runs,
+/// or a retry it waits for. An idle, done or given-up key holds nothing that is not in the store.
+pub fn key_holds_work(state: u8) -> bool {
+    if (state == BK_ADMITTING) { return true; }
+    if (state == BK_RUNNING) { return true; }
+    return state == BK_RETRY;
+}
+
+/// How many bees a scripted run of events starts: the events are 4 bits each in `events`, the first in
+/// the low bits, `count` of them, applied from BK_IDLE. A bee starts on every entry into BK_RUNNING.
+pub fn starts_in(events: u64, count: u32) -> u32 {
+    var state : u8 = BK_IDLE;
+    var starts : u32 = 0;
+    var i : u32 = 0;
+    while (i < count and i < 16) {
+        let ev : u8 = ((events >> ((i as u64) * 4)) & 15) as u8;
+        let next : u8 = bee_key_next(state, ev);
+        if (next == BK_RUNNING and state != BK_RUNNING) { starts = starts + 1; }
+        state = next;
+        i = i + 1;
+    }
+    return starts;
+}
+
+; --- 7. Tests -----------------------------------------------------------------------------------------
+
+test a_send_reaches_the_live_actor_or_starts_one {
+    // a live actor gets the send, whatever the count
+    assert key_action(true, false, 3, KEYED_ACTIVE_CAP, 0) == KA_DELIVER;
+    assert key_action(true, false, KEYED_ACTIVE_CAP, KEYED_ACTIVE_CAP, 0) == KA_DELIVER;
+    // no actor for the key: one is started while the node has room
+    assert key_action(false, false, 0, KEYED_ACTIVE_CAP, 0) == KA_SPAWN;
+    assert key_action(false, false, KEYED_ACTIVE_CAP - 1, KEYED_ACTIVE_CAP, 0) == KA_SPAWN;
+    // a stopping actor holds the send, even on a full node
+    assert key_action(false, true, KEYED_ACTIVE_CAP, KEYED_ACTIVE_CAP, 0) == KA_HOLD;
+    assert key_action(true, true, 1, KEYED_ACTIVE_CAP, 0) == KA_HOLD;
+}
+
+test at_the_cap_the_longest_idle_makes_room_and_a_busy_node_refuses {
+    assert key_action(false, false, KEYED_ACTIVE_CAP, KEYED_ACTIVE_CAP, 1) == KA_EVICT;
+    assert key_action(false, false, KEYED_ACTIVE_CAP + 5, KEYED_ACTIVE_CAP, 40) == KA_EVICT;
+    assert key_action(false, false, KEYED_ACTIVE_CAP, KEYED_ACTIVE_CAP, 0) == KA_REFUSE;
+    assert key_action(false, false, 2, 2, 0) == KA_REFUSE;
+    // the cap counts the stopping ones: a node at 512 with every actor busy refuses
+    assert key_action(false, false, 512, 512, 0) == KA_REFUSE;
+    // least recently used first; a tie goes to the lower slot, so every reader picks the same one
+    assert evict_before(600, 9, 30, 2) == true;
+    assert evict_before(30, 2, 600, 9) == false;
+    assert evict_before(120, 3, 120, 7) == true;
+    assert evict_before(120, 7, 120, 3) == false;
+    assert evict_before(120, 7, 120, 7) == false;
+}
+
+test an_idle_actor_passivates_and_a_busy_one_never_does {
+    assert passivate_due(PASSIVATE_IDLE_SECONDS, false, 0, false) == true;
+    assert passivate_due(120, false, 0, false) == true;
+    assert passivate_due(119, false, 0, false) == false;
+    assert passivate_due(0, false, 0, false) == false;
+    assert passivate_due(4294967295, false, 0, false) == true;
+    // a turn that runs, a message that waits, or a bee it watches keeps it, however long it idled
+    assert passivate_due(86400, true, 0, false) == false;
+    assert passivate_due(86400, false, 1, false) == false;
+    assert passivate_due(86400, false, 0, true) == false;
+    assert evictable(false, 0, false) == true;
+    assert evictable(true, 0, false) == false;
+    assert evictable(false, 3, false) == false;
+    assert evictable(false, 0, true) == false;
+    // a passivation is a normal end: actors.t27 X_NORMAL
+    assert PASSIVATE_REASON == 0;
+}
+
+test the_directory_forgets_only_the_incarnation_that_ended {
+    // pid = slot << 32 | generation (actors.t27 pid_of): slot 5, generations 1 and 2
+    let old : u64 = 21474836481;
+    let new : u64 = 21474836482;
+    assert entry_after_exit(new, new) == KEY_NO_PID;
+    assert entry_after_exit(old, old) == KEY_NO_PID;
+    // the old incarnation's late EXIT leaves the new entry alone
+    assert entry_after_exit(new, old) == new;
+    // so does a pid that was never this key's
+    assert entry_after_exit(new, 4294967297) == new;
+    // an empty entry stays empty
+    assert entry_after_exit(KEY_NO_PID, old) == KEY_NO_PID;
+}
+
+test a_send_to_a_passivated_key_starts_it_and_one_to_a_stopping_key_is_held {
+    // passivated: no entry, not stopping -> a new incarnation, and the send is its first message
+    assert key_action(false, false, 10, KEYED_ACTIVE_CAP, 0) == KA_SPAWN;
+    // stopping: held up to the mailbox cap
+    assert hold_admits(0) == true;
+    assert hold_admits(KEY_HOLD_CAP - 1) == true;
+    assert hold_admits(KEY_HOLD_CAP) == false;
+    assert hold_admits(4294967295) == false;
+    // the EXIT starts it again only when something was held
+    assert restart_after_exit(0) == false;
+    assert restart_after_exit(1) == true;
+    assert restart_after_exit(KEY_HOLD_CAP) == true;
+}
+
+test a_claim_follows_a_lane_and_a_lost_one_holds_nothing {
+    assert lane_free(0, LANES_MEASURED) == true;
+    assert lane_free(69, 70) == true;
+    assert lane_free(70, 70) == false;
+    assert lane_free(71, 70) == false;
+    assert lane_free(0, 0) == false;
+    // no lane: no claim is even tried, so none is held while it waits
+    assert claim_step(false, false) == CL_NO_LANE;
+    assert claim_step(false, true) == CL_NO_LANE;
+    // a lane and a landed claim: start, keep the lane
+    assert claim_step(true, true) == CL_START;
+    assert keeps_lane(CL_START) == true;
+    // a lane and a lost claim: stand down, give the lane back
+    assert claim_step(true, false) == CL_STAND_DOWN;
+    assert keeps_lane(CL_STAND_DOWN) == false;
+    assert keeps_lane(CL_NO_LANE) == false;
+    // the holder is the incarnation: generation 1 is not generation 2 of one slot
+    assert claim_is_mine(21474836482, 21474836482) == true;
+    assert claim_is_mine(21474836481, 21474836482) == false;
+    assert claim_is_mine(KEY_NO_PID, KEY_NO_PID) == false;
+    // a bee that ends keeps its lane only to start again at once (dispatch_exit RD_NOW 1);
+    // RD_NONE 0, RD_LATER 2 and RD_GIVE_UP 3 give it back
+    assert keeps_lane_after_end(KEY_RD_NOW) == true;
+    assert keeps_lane_after_end(0) == false;
+    assert keeps_lane_after_end(2) == false;
+    assert keeps_lane_after_end(3) == false;
+    // after a lost claim: the rest of the holder's lease, never a poll
+    assert retry_after_lost_seconds(0, 180) == 180;
+    assert retry_after_lost_seconds(60, 180) == 120;
+    assert retry_after_lost_seconds(180, 180) == 0;
+    assert retry_after_lost_seconds(4294967295, 180) == 0;
+}
+
+test a_repeated_ready_starts_no_second_bee {
+    assert bee_key_next(BK_IDLE, BE_READY) == BK_ADMITTING;
+    assert bee_key_next(BK_ADMITTING, BE_STARTED) == BK_RUNNING;
+    assert bee_key_next(BK_ADMITTING, BE_REFUSED) == BK_IDLE;
+    // a ready while the bee runs, waits to retry, or its work waits for review changes nothing
+    assert bee_key_next(BK_RUNNING, BE_READY) == BK_RUNNING;
+    assert bee_key_next(BK_RETRY, BE_READY) == BK_RETRY;
+    assert bee_key_next(BK_DONE, BE_READY) == BK_DONE;
+    assert bee_key_next(BK_ADMITTING, BE_READY) == BK_ADMITTING;
+    assert bee_key_next(BK_GAVE_UP, BE_READY) == BK_GAVE_UP;
+    assert bee_key_acts(BK_RUNNING, BE_READY) == false;
+    assert bee_key_acts(BK_DONE, BE_READY) == false;
+    assert bee_key_acts(BK_IDLE, BE_READY) == true;
+    // 4 bits an event, the first lowest. 0x10: READY, STARTED, then READY five times: one bee
+    assert starts_in(16, 7) == 1;
+    // 0x00310: READY, STARTED, ENDED, READY, READY: still one, the work waits for review
+    assert starts_in(784, 5) == 1;
+    // 0x18310: READY, STARTED, ENDED, SENT_BACK, STARTED: the review asked again, a second bee
+    assert starts_in(99088, 5) == 2;
+    // 0x20: READY, REFUSED: an admission that is refused starts nothing
+    assert starts_in(32, 2) == 0;
+}
+
+test a_bee_end_moves_the_key_by_the_restart_decision {
+    assert bee_key_next(BK_RUNNING, BE_ENDED) == BK_DONE;
+    assert bee_key_next(BK_RUNNING, BE_RESTART_NOW) == BK_ADMITTING;
+    assert bee_key_next(BK_RUNNING, BE_RESTART_LATER) == BK_RETRY;
+    assert bee_key_next(BK_RUNNING, BE_GIVE_UP) == BK_GAVE_UP;
+    assert bee_key_next(BK_RETRY, BE_RETRY_DUE) == BK_ADMITTING;
+    assert bee_key_next(BK_DONE, BE_SENT_BACK) == BK_ADMITTING;
+    assert bee_key_next(BK_GAVE_UP, BE_SENT_BACK) == BK_ADMITTING;
+    assert bee_key_next(BK_IDLE, BE_SENT_BACK) == BK_ADMITTING;
+    // an end that does not belong to the state changes nothing
+    assert bee_key_next(BK_IDLE, BE_ENDED) == BK_IDLE;
+    assert bee_key_next(BK_DONE, BE_RETRY_DUE) == BK_DONE;
+    assert bee_key_next(BK_RETRY, BE_STARTED) == BK_RETRY;
+    assert bee_key_next(9, BE_READY) == 9;
+    // only a key that watches work is kept from passivation
+    assert key_holds_work(BK_ADMITTING) == true;
+    assert key_holds_work(BK_RUNNING) == true;
+    assert key_holds_work(BK_RETRY) == true;
+    assert key_holds_work(BK_IDLE) == false;
+    assert key_holds_work(BK_DONE) == false;
+    assert key_holds_work(BK_GAVE_UP) == false;
+}
+
+invariant the_answers_never_move {
+    assert KA_DELIVER == 0 and KA_SPAWN == 1 and KA_HOLD == 2 and KA_EVICT == 3 and KA_REFUSE == 4;
+    assert CL_START == 0 and CL_NO_LANE == 1 and CL_STAND_DOWN == 2;
+    assert BK_IDLE == 0 and BK_ADMITTING == 1 and BK_RUNNING == 2 and BK_RETRY == 3 and BK_DONE == 4 and BK_GAVE_UP == 5;
+    assert BE_READY == 0 and BE_STARTED == 1 and BE_REFUSED == 2 and BE_ENDED == 3 and BE_RESTART_NOW == 4;
+    assert BE_RESTART_LATER == 5 and BE_GIVE_UP == 6 and BE_RETRY_DUE == 7 and BE_SENT_BACK == 8;
+}
+
+invariant a_key_is_cheap_and_bounded {
+    // the cap holds several actors per measured lane
+    assert KEYED_ACTIVE_CAP >= 4 * LANES_MEASURED;
+    // a passivation is never instant
+    assert PASSIVATE_IDLE_SECONDS >= 60;
+    // a scripted run's events fit their 4 bits
+    assert BE_SENT_BACK < 16;
+}
+
+invariant the_literals_match_their_owners {
+    // actors.t27 NO_PID, X_NORMAL and MAILBOX_CAP; dispatch_exit.t27 RD_NOW
+    assert KEY_NO_PID == 0 and PASSIVATE_REASON == 0 and KEY_HOLD_CAP == 256 and KEY_RD_NOW == 1;
+}
