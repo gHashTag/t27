@@ -2,22 +2,31 @@
 module Optimization {
     use compiler::parser;
 
+    enum Expr {
+        Call(String, Vec<Expr>),
+        Identifier(String),
+        Literal(String),
+    }
+
     enum OptPass {
-        ConstantFolding,
-        DeadCodeElimination,
-        CopyPropagation,
-        StrengthReduction,
-        Inlining,
-        LoopInvariantCodeMotion,
+        OptimizeStmts,
+        CopyPropagate,
+        ConstPropagate,
+        StrengthReduce,
+        CommonSubexprElim,
+        DeadStoreElim,
+        LoopUnroll,
     }
 
     struct OptConfig {
-        enable_folding: bool;
-        enable_dce: bool;
-        enable_copy_prop: bool;
-        enable_strength: bool;
-        enable_inline: bool;
-        enable_licm: bool;
+        enable_optimize_stmts: bool;
+        enable_copy_propagate: bool;
+        enable_const_propagate: bool;
+        enable_strength_reduce: bool;
+        enable_common_subexpr_elim: bool;
+        enable_dead_store_elim: bool;
+        enable_loop_unroll: bool;
+        precondition: string;
         max_inline_depth: u32;
         opt_level: u32;
     }
@@ -34,15 +43,29 @@ module Optimization {
 
     fn default_config() -> OptConfig {
         return OptConfig{
-            enable_folding = true,
-            enable_dce = true,
-            enable_copy_prop = true,
-            enable_strength = true,
-            enable_inline = false,
-            enable_licm = false,
+            enable_optimize_stmts = true,
+            enable_copy_propagate = true,
+            enable_const_propagate = true,
+            enable_strength_reduce = true,
+            enable_common_subexpr_elim = true,
+            enable_dead_store_elim = true,
+            enable_loop_unroll = true,
+            precondition = "no_precondition",
             max_inline_depth = 3,
             opt_level = 1,
         };
+    }
+
+    fn get_precondition(pass: OptPass) -> Option<Expr> {
+        match pass {
+            OptimizeStmts => None, // driver pass
+            CopyPropagate => Some(Expr::Call("has_no_reassignment", [])),
+            ConstPropagate => Some(Expr::Call("has_no_reassignment", [])),
+            StrengthReduce => Some(Expr::Call("no_semantics_changing_transformations", [])),
+            CommonSubexprElim => Some(Expr::Call("no_hoisting_across_mutation", [])),
+            DeadStoreElim => Some(Expr::Call("no_side_effecting_calls", [])),
+            LoopUnroll => Some(Expr::Call("preserves_observable_behavior", [])),
+        }
     }
 
     fn opt_stats_init() -> OptStats {
@@ -260,13 +283,45 @@ module Optimization {
         given c = default_config()
         then c.opt_level == 1
 
-    test default_config_folding
+    test default_config_optimize_stmts
         given c = default_config()
-        then c.enable_folding == true
+        then c.enable_optimize_stmts == true
 
-    test default_config_inline
+    test default_config_copy_propagate
         given c = default_config()
-        then c.enable_inline == false
+        then c.enable_copy_propagate == true
+
+    test default_config_precondition
+        given c = default_config()
+        then c.precondition == "no_precondition"
+
+    test optimize_stmts_has_no_precondition
+        given result = get_precondition(OptimizeStmts)
+        then result == None
+
+    test copy_propagate_has_precondition
+        given result = get_precondition(CopyPropagate)
+        then result != None
+
+    test const_propagate_has_precondition
+        given result = get_precondition(ConstPropagate)
+        then result != None
+
+    test strength_reduce_has_precondition
+        given result = get_precondition(StrengthReduce)
+        then result != None
+
+    test common_subexpr_elim_has_precondition
+        given result = get_precondition(CommonSubexprElim)
+        then result != None
+
+    test dead_store_elim_has_precondition
+        given result = get_precondition(DeadStoreElim)
+        then result != None
+
+    test loop_unroll_has_precondition
+        given result = get_precondition(LoopUnroll)
+        then result != None
 
     invariant pure_ops_are_not_assignment
         assert is_pure_op("=") == false
