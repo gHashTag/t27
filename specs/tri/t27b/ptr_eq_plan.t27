@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/ptr_eq_plan.t27 -- when t27b lowers `==` / `!=` as a comparison of addresses: between pointers and
+; optional pointers (issue #7742, t27b coverage epic #6063; written in t27 under the port epic #6198). The decision
+; reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/ptr_eq_plan.rs); the Rust glue in cli/t27b/src/lower.rs
+; (`ptr_compare`, called from the binary operator before the optional and enum comparisons) reads what each lowered
+; operand is, asks, and builds the comparison.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/pointer_equality.t27). gen-zig prints the comparison as written. In Zig, `==` and `!=`
+; between two pointers, two optional pointers, or one of each, to one pointee type, compare the addresses, null being 0.
+; Both operands are evaluated, left first. t27b reads an optional pointer's address as its payload when its flag is
+; set and 0 when not, pins each operand in a frame slot in source order, and compares the two words.
+; Before this plan t27b refused all of it: two optionals (`ExprBinary(?T)`, "of two optionals"), an optional against a
+; pointer with a bounds check (`ExprBinary(?T)`, "a value that has effects"), and two pointers (`type mismatch`,
+; "`==` on a pointer").
+; Everything else keeps its path: other operators, an operand that is neither (an optional of a scalar, an integer,
+; `null` itself, which `null_compare` reads), and pointee types that differ (Zig refuses most of those).
+; The corpus case: gen_hazard_pointers.t27's `hazard1 != hazard2` and `&registry.hazards[i] == hazard`.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bPtrEqPlan;
+
+// What a lowered operand is.
+pub const K_PTR : u8 = 0;
+pub const K_OPT_PTR : u8 = 1;
+pub const K_OTHER : u8 = 2;
+
+/// Whether `a OP b` compares addresses. equality: OP is `==` or `!=`. a, b: K_PTR, K_OPT_PTR or K_OTHER.
+/// same: both point to one pointee type.
+pub fn compares(equality: bool, a: u8, b: u8, same: bool) -> bool {
+    if (!equality or !same) { return false; }
+    return a != K_OTHER and b != K_OTHER;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then what keeps its path.
+// ----------------------------------------------------------------------------------------------------------
+
+test two_optional_pointers {
+    // gen_hazard_pointers.t27's `hazard1 != hazard2`.
+    assert(compares(true, K_OPT_PTR, K_OPT_PTR, true));
+}
+
+test a_pointer_and_an_optional_pointer_either_way {
+    // gen_hazard_pointers.t27's `&registry.hazards[i] == hazard`.
+    assert(compares(true, K_PTR, K_OPT_PTR, true));
+    assert(compares(true, K_OPT_PTR, K_PTR, true));
+}
+
+test two_pointers {
+    assert(compares(true, K_PTR, K_PTR, true));
+}
+
+test other_operators_keep_their_path {
+    assert(!compares(false, K_PTR, K_PTR, true));
+    assert(!compares(false, K_OPT_PTR, K_OPT_PTR, true));
+}
+
+test other_operands_keep_their_path {
+    assert(!compares(true, K_OTHER, K_OPT_PTR, true));
+    assert(!compares(true, K_OPT_PTR, K_OTHER, true));
+    assert(!compares(true, K_PTR, K_OTHER, true));
+    assert(!compares(true, K_OTHER, K_OTHER, true));
+}
+
+test different_pointees_keep_their_path {
+    assert(!compares(true, K_PTR, K_PTR, false));
+    assert(!compares(true, K_OPT_PTR, K_PTR, false));
+}
