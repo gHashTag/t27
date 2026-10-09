@@ -136,6 +136,34 @@ impl<'a> Lower<'a> {
         Ok(Some(()))
     }
 
+    /// An untyped list local, which the reference prints as a tuple (plan `tl`, #8050); None leaves it as it was.
+    pub(super) fn tuple_array_local(&mut self, init: &Node, name: &str) -> R<Option<()>> {
+        let tt = init.extra_type.trim();
+        let same = init.children.iter().all(|c| match c.kind {
+            NodeKind::ExprStructLit => c.name == tt,
+            NodeKind::ExprIdentifier => self.const_nodes.get(c.name.as_str()).is_some_and(|d| d.extra_type.trim() == tt),
+            _ => false,
+        });
+        let n = init.children.len();
+        if tl::storage(!tt.is_empty(), same, n, false) == tl::NOT_MINE {
+            return Ok(None);
+        }
+        let t = LTy::Arr(Box::new(self.lty(tt)?), n as u32);
+        let seen = self.errors.len();
+        let agg = tl::storage(true, true, n, self.holds_str(&t)?) == tl::CONST_AGG;
+        match if agg { self.const_agg(init, &t) } else { self.rodata(init, t) } {
+            Ok(Val::M(p)) => self.bind(name, Binding::Mem(p)),
+            Ok(v @ Val::A(..)) => self.bind(name, Binding::Const(v)),
+            _ => {
+                self.errors.truncate(seen);
+                return Ok(None);
+            }
+        }
+        self.see(init);
+        self.tuple_names.insert(name.to_string());
+        Ok(Some(()))
+    }
+
     /// An array literal the reference prints `@constCast(&[_]E{ ... })`, E the
     /// element type of slice `dst`: a field's value or a return's
     /// (`return [ ... ];`, `[_]T{ ... }`, `[]T{}`). As

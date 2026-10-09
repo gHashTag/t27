@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:53e0346eda1d21ce509297c58accca72d8424448e8c14dc9917ad0e2688ebda9",
+  "gen_hash_rust": "sha256:d015bb3dc6831137bec6333e520159a8e0bba0226d27fbf9ff1f6d5a2d086e56",
+  "gen_hash_verilog": "sha256:194434cff596634662310245817ccd4dbe11fca7e0064e393564c1c3f2a07191",
+  "gen_hash_zig": "sha256:59619ec3e51978f29516561ce5b0a3c322782bae8a596e06f9c0b8a68ff854cb",
+  "module": "fn_analytics_sales_advise",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T16:57:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c408b2ab00f540e289fe5572c0c768f4c8d0c8ef4ac17b5466acb9c088e70416",
+  "spec_path": "specs/functions/analytics-sales-advise.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

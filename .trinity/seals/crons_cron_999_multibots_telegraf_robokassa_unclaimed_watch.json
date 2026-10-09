@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e2a54eda0a2e49da1e9b1226f62f7e4f29bd32b3db894f8bda42217b7f51f3d0",
   "gen_hash_rust": "sha256:03aded8d70613042ccb2481d76c97da01db9c4b49206825b664b52030ce63782",
   "gen_hash_verilog": "sha256:0ee15452068544f30262e9f010732a05166d33d6fcca90a7c93816a2bbeab425",
   "gen_hash_zig": "sha256:cbcdd61b5ed281abf8087b5a813d43253b6d73537a2c0e7e97d93f1df92c41af",
   "module": "cron_999_multibots_telegraf_robokassa_unclaimed_watch",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:25:24Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0ce9fad108ec7e5e08c07020a23de67f17a3cd0c649eede37de6bf9883a98fbf",
   "spec_path": "specs/crons/999-multibots-telegraf-robokassa-unclaimed-watch.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

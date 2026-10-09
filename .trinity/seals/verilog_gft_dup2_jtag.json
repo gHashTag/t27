@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:fb55a5a1cc48a06976e990499e89dad50c23fdadf2e6f86b4d08b29583f45d2a",
   "gen_hash_rust": "sha256:13a97f99364d88d6d9b0af9d3282d54091ca023d75948b1479f0fcbd2495c5f9",
   "gen_hash_verilog": "sha256:a04d06660abb33983f3889d18479023b908f158e0e1a803370631b8d8b7440ce",
   "gen_hash_zig": "sha256:c8129437927de0fd72b9a6da991b6cc40dfc4f9b391c5866b8d2e6c74dfc8df3",
   "module": "gft_dup2_jtag",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:48Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:50:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:d81baa016d854f19e9cf6efeaf6113178ce4115aee928fbe415e959a391fcc7d",
   "spec_path": "specs/port/fpga/verilog/gft_dup2_jtag.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

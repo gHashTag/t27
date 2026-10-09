@@ -1,12 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+be9757784",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:f21076c85124ef341f5e9e9f12f374ea78853a9f937bf29021dd953ad480dac0",
   "gen_hash_rust": "sha256:bcc9e9d63b98aad8ff26923665cc2b747552f9e9eae372105f1afbf0762c990e",
   "gen_hash_verilog": "sha256:e480085ef76e61d6b070861e3e153716bec1df52dfc2036db1a02d29275cd423",
   "gen_hash_zig": "sha256:b56b7908401ff186f758bdd3ceaa1ed2f013d530939c4d9028b4d01567857683",
   "module": "VSASimilaritySearch",
   "ring": 12,
-  "sealed_at": "2026-10-09T10:44:54Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:01:34Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9eae72389dda714fd40f81833ebc4ec3119bcdb1933ec9b359ed5a75547a58b2",
   "spec_path": "specs/vsa/similarity_search.t27",
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:37e89ffd41e092e98734d9fbbc4cb5b1071ebe8904d18ae0747f6d68021be4c2",
+  "gen_hash_rust": "sha256:8995d0f6a0b7cb97a6935cb220dbfa2e2c84ee22e4035dd872e90a6180ab0f8e",
+  "gen_hash_verilog": "sha256:96236dc669917e3c1d7d377542c6e0e24470b7277721040439b25f26efcefdac",
+  "gen_hash_zig": "sha256:c52f276247cac42384f9d59c497a1857b850956b4a69772ff92269040cfc2401",
+  "module": "QueenWaits",
+  "ring": 12,
+  "sealed_at": "2026-10-09T17:45:03Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:59facd9a1583f1d859d76816a4dcffa23bc19a4b2d85c849454c0f0129877def",
+  "spec_path": "specs/queen/waits.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
+}

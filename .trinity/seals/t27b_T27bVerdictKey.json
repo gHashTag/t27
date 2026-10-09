@@ -1,12 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+65e6b67bf",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/blockers.t27",
+      "spec_hash": "sha256:747102f3d4ce187453e0c1ac568e1716431b207a2473c264613538686d3c4395"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c617712e580adc596edaa23697766a551d94c10123b6aba72930f488b0dd8227",
   "gen_hash_rust": "sha256:4504ba530c1a070df840c245430cecc651a4a72933a2282ba09dbbf345f1aedd",
   "gen_hash_verilog": "sha256:37ed2ec9951a060f4f5c2ca3c8ed2b324437b935a568324e22f349d955c84899",
   "gen_hash_zig": "sha256:0febc8dbafd3eda8e8606ba1e53cdb335608027c918d9423d4c5b6f307fb2040",
   "module": "T27bVerdictKey",
   "ring": 12,
-  "sealed_at": "2026-10-09T11:30:51Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:09Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3a28f8ef1ab9721822de99b74ab218c43335b3f091d968cc7be5c7c3fdd29e80",
   "spec_path": "specs/tri/t27b/verdict_key.t27",
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 7,
     "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

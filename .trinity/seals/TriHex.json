@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:62fa1edbeb10b82bc3c36bda0ed26b4e9d5ede797ecb3c9aa5525968cd7f4387",
   "module": "TriHex",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:33:41Z",
+  "sealed_at": "2026-10-09T14:57:55Z",
   "spec_hash": "sha256:1a6d03971b52e254ef4e6dbae12c66e8550bf64cdcc6ada179fbcd2ad6933883",
   "spec_path": "specs/tri/crypto/hex.t27",
   "tests": {

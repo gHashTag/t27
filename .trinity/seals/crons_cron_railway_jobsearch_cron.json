@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6ff98b6652fc28b4e4f101d603fbc5259c34810f763f9bbd48ed67cb71ecda9e",
   "gen_hash_rust": "sha256:032add0ac76f00fed2738a761d6e35b57ff2760cd695bb39510ef52727ff84f8",
   "gen_hash_verilog": "sha256:b7a407258e056a0da0804da2d98a3e851ab34f1e9d51d3c14c93c425a878cd5c",
   "gen_hash_zig": "sha256:87c2c648bc7ff1bc5b3e0a8b688d54771e34481cb8ccfbf244fe5e2521582b62",
   "module": "cron_railway_jobsearch_cron",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:25:25Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:48:01Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:37b8aa6427e89cc8ab375da39604d2fc409fbb5ecb8799677859325e8c544365",
   "spec_path": "specs/crons/railway-jobsearch-cron.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

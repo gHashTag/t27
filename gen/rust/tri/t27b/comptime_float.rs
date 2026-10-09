@@ -618,8 +618,8 @@ pub fn q_exact_f64(q: Q128) -> F64Bits {
     return f;
 }
 
-pub fn text_of(s: &[u8]) -> Text {
-    let mut t: Text = Text { b: [0; 2048], n: 0 };
+pub fn text_of(s: &[u8]) -> LiteralText {
+    let mut t: LiteralText = LiteralText { b: [0; 2048], n: 0 };
     let mut i: u32 = 0;
     while (i < (s.len() as u32)) {
         if (s[((i as usize)) as usize] != 95) {
@@ -641,7 +641,7 @@ pub fn is_digit(c: u8) -> bool {
 
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Text {
+pub struct LiteralText {
     pub b: [u8; 2048],
     pub n: u32,
 }
@@ -661,7 +661,7 @@ pub struct Exp {
     pub fits: bool,
 }
 
-pub fn exp_of(t: Text, from: u32, to: u32) -> Exp {
+pub fn exp_of(t: LiteralText, from: u32, to: u32) -> Exp {
     let mut i: u32 = from;
     let mut neg: bool = false;
     if ((i < to) && ((t.b[((i as usize)) as usize] == 43) || (t.b[((i as usize)) as usize] == 45))) {
@@ -688,7 +688,7 @@ pub fn exp_of(t: Text, from: u32, to: u32) -> Exp {
     return Exp { value: v, fits: fits };
 }
 
-pub fn all_digits(t: Text, from: u32, to: u32) -> bool {
+pub fn all_digits(t: LiteralText, from: u32, to: u32) -> bool {
     let mut i: u32 = from;
     while (i < to) {
         if !(is_digit(t.b[((i as usize)) as usize])) {
@@ -703,7 +703,7 @@ pub fn f64_overflow_bound() -> Big {
     return big_shl(big_sub(big_shl(big_u64(1), 54), big_u64(1)), 970);
 }
 
-pub fn digits_of(t: Text, from: u32, to: u32, dot: u32) -> Big {
+pub fn digits_of(t: LiteralText, from: u32, to: u32, dot: u32) -> Big {
     let mut d: Big = big_zero();
     let mut i: u32 = from;
     while (i < to) {
@@ -727,7 +727,7 @@ pub fn parsed_opt(r: QOpt, err: u8) -> QParse {
 }
 
 pub fn q_parse(s: &[u8]) -> QParse {
-    let t: Text = text_of(&s[(0) as usize..(s.len()) as usize]);
+    let t: LiteralText = text_of(&s[(0) as usize..(s.len()) as usize]);
     if (t.n > 2048) {
         return parsed(TOO_LONG, q_zero());
     }
@@ -772,7 +772,7 @@ pub fn q_parse(s: &[u8]) -> QParse {
     return parse_value(t, ip_end, fp_from, p.mant, exp_from, no_exp);
 }
 
-pub fn parse_value(t: Text, ip_end: u32, fp_from: u32, mant: u32, exp_from: u32, no_exp: bool) -> QParse {
+pub fn parse_value(t: LiteralText, ip_end: u32, fp_from: u32, mant: u32, exp_from: u32, no_exp: bool) -> QParse {
     let mut first: u32 = 0;
     while ((first < mant) && ((t.b[((first as usize)) as usize] == 48) || (first == ip_end))) {
         first = (first + 1);
