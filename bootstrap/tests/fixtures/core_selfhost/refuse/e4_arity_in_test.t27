@@ -1,0 +1,8 @@
+// typecheck checks functions only, not tests (#8033).
+module arity_in_test;
+fn ait_f(a: i64) -> i64 {
+    return a;
+}
+test ait_calls {
+    assert(ait_f(1, 2) == 1);
+}

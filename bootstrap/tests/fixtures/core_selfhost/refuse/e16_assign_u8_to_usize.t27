@@ -1,0 +1,9 @@
+// typecheck refuses it, wrongly: `usize` is `Custom("usize")` of rank 0 in
+// its table, so a u8 widening into it is refused (#8034). gen-c writes
+// nothing, so the core refuses it too.
+module assign_u8_to_usize;
+fn au_g(v: u8) -> usize {
+    var x: usize = 0;
+    x = v;
+    return x;
+}
