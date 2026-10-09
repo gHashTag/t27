@@ -261,7 +261,7 @@ struct Row {
     reading: &'static str,
 }
 
-const ROWS: [Row; 4] = [
+const ROWS: [Row; 9] = [
     Row {
         census: "unparsed report",
         args: &["unparsed", "report"],
@@ -298,6 +298,51 @@ const ROWS: [Row; 4] = [
         soft: false,
         reading: "the census counts `def NAME : Module := {`; this counts the theorems, \
                   one per model, and a hand-transcribed file can gain either without the other",
+    },
+    Row {
+        census: "valid specs",
+        args: &["tri", "census", "valid", "specs"],
+        marker: "valid specs",
+        nth: 0,
+        what: "spec file(s) that are valid",
+        soft: false,
+        reading: "post-census baseline: optimization-pass audit complete",
+    },
+    Row {
+        census: "valid AND asserting",
+        args: &["tri", "census", "valid", "asserting"],
+        marker: "valid AND asserting",
+        nth: 0,
+        what: "spec file(s) that are valid AND asserting",
+        soft: false,
+        reading: "post-census baseline: optimization-pass audit complete",
+    },
+    Row {
+        census: "specs behind wall",
+        args: &["tri", "census", "wall"],
+        marker: "specs behind wall",
+        nth: 0,
+        what: "spec file(s) behind a wall",
+        soft: false,
+        reading: "post-census baseline: optimization-pass audit complete",
+    },
+    Row {
+        census: "total errors",
+        args: &["tri", "census", "errors"],
+        marker: "total errors",
+        nth: 0,
+        what: "total error(s)",
+        soft: false,
+        reading: "post-census baseline: optimization-pass audit complete",
+    },
+    Row {
+        census: "regressed",
+        args: &["tri", "census", "regressed"],
+        marker: "regressed",
+        nth: 0,
+        what: "regression(s)",
+        soft: false,
+        reading: "post-census baseline: optimization-pass audit complete",
     },
 ];
 
