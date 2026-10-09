@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trios/crates/trios-ipc/src/validate.t27
+//
+// Port of the trios Rust source crates/trios-ipc/src/validate.rs (166 lines
+// at 8b229e9489ee) to t27, so the code is generated from this spec instead
+// of hand-written Rust. The original file is quoted in issue #8380 and is
+// not on disk. Three decisions are ported:
+//
+//   IpcError::fmt             -> IpcError_fmt
+//   MessageEnvelope::validate -> MessageEnvelope_validate
+//   validate_route            -> validate_route
+//
+// WHAT IS CARRIED AS CODE
+//
+// The order of MessageEnvelope::validate's checks (version, then id, then
+// route), the four allowed RingId edges of validate_route's matches! table,
+// which IpcError variant each rejected input produces, and the message text
+// each variant's Display impl renders.
+//
+// WHAT IS DELIBERATELY LEFT OUT
+//
+// The fmt::Formatter writes themselves: the formatter is the I/O boundary,
+// and the text a variant renders is returned by IpcError_fmt here and
+// asserted by a test. Each {} slot is filled with the variant's data by the
+// caller, which is plumbing, because t27 has no string concatenation to
+// build the filled-in message. The serde derive with its JSON round trip
+// (exercised by the original's #[cfg(test)] block) is wire I/O with no
+// decision inside; the SR-01 lib port set the precedent of standing in with
+// the closest pure behaviour, which the route-table test does here.
+//
+// RingId and MessageEnvelope live in crate::envelope, not in validate.rs;
+// only what this file reads is declared here, with the RingId variants the
+// file and its tests exercise. The Display templates are reconstructed from
+// the variant shapes, since the source itself is only quoted in the issue.
+
+module port::trios::crates::trios_ipc::src::validate;
+
+// RingId is one end of an IPC message edge: the Ur API client, the
+// extension's background/dom/browser scripts, or the Ur state store.
+pub enum RingId {
+    UrApiClient,
+    ExtBackground,
+    ExtDom,
+    SvBrowser,
+    UrState,
+}
+
+// IpcErrorKind is the variant tag of IpcError: a protocol version mismatch,
+// a missing message id, an undecodable payload, or a route no table allows.
+pub enum IpcErrorKind {
+    VersionMismatch,
+    MissingId,
+    InvalidPayload,
+    UnauthorizedRoute,
+}
+
+// IpcError is the Rust enum whose variants carry data (VersionMismatch
+// carries expected/got, InvalidPayload a message, UnauthorizedRoute the
+// from/to pair), ported as a struct with a kind tag plus one field per
+// payload; only the fields the active kind names are meant.
+pub struct IpcError {
+    kind: IpcErrorKind,
+    expected: u8,
+    got: u8,
+    payload_msg: str,
+    from: RingId,
+    to: RingId,
+}
+
+// The facts of MessageEnvelope that validate reads: the protocol version it
+// claims, its message id, and the edge it travels.
+pub struct MessageEnvelope {
+    version: u8,
+    id: str,
+    from: RingId,
+    to: RingId,
+}
+
+// Result<(), IpcError> becomes Verdict: ok is the original's Ok(()), and err
+// is the IpcError it returns otherwise (meaningless when ok is true).
+pub struct Verdict {
+    ok: bool,
+    err: IpcError,
+}
+
+// PROTOCOL_VERSION is re-declared locally because cross-module use does not
+// resolve yet; the value (1) is assumed, and the ported logic only ever
+// needs expected != got.
+const PROTOCOL_VERSION: u8 = 1;
+
+// The err value of an ok Verdict: no variant is meant, every field zeroed.
+const NO_ERROR: IpcError = IpcError { kind: .MissingId, expected: 0, got: 0, payload_msg: "", from: .UrApiClient, to: .UrApiClient };
+
+// IpcError_fmt ports the Display impl for IpcError: one message per variant,
+// written into the formatter. The write is the I/O boundary; the decision is
+// which template a variant renders, so each arm returns the original's
+// format! text with one {} slot per piece of variant data, and the caller
+// substitutes the values.
+pub fn IpcError_fmt(self: IpcError) -> str {
+    return switch (self.kind) {
+        .VersionMismatch => "version mismatch: expected {}, got {}",
+        .MissingId => "missing message id",
+        .InvalidPayload => "invalid payload: {}",
+        .UnauthorizedRoute => "unauthorized route: {} -> {}",
+    };
+}
+
+// MessageEnvelope_validate ports MessageEnvelope::validate: a valid envelope
+// carries PROTOCOL_VERSION, a non-empty id, and an allowed from/to edge,
+// checked in that order so the first refusal wins exactly as in the
+// original.
+pub fn MessageEnvelope_validate(self: MessageEnvelope) -> Verdict {
+    if (self.version != PROTOCOL_VERSION) {
+        const err = IpcError { kind: .VersionMismatch, expected: PROTOCOL_VERSION, got: self.version, payload_msg: "", from: self.from, to: self.to };
+        return Verdict { ok: false, err: err };
+    }
+    if (self.id.len == 0) {
+        const err = IpcError { kind: .MissingId, expected: 0, got: 0, payload_msg: "", from: self.from, to: self.to };
+        return Verdict { ok: false, err: err };
+    }
+    const route = validate_route(self.from, self.to);
+    if (!route.ok) {
+        return route;
+    }
+    return Verdict { ok: true, err: NO_ERROR };
+}
+
+// validate_route ports validate_route: the only ring-to-ring edges the
+// protocol allows. The matches! table is unfolded into route_allowed, a
+// pure boolean; validate_route wraps a refused edge in the UnauthorizedRoute
+// error, carrying the offending pair in from/to.
+pub fn validate_route(from: RingId, to: RingId) -> Verdict {
+    const allowed = route_allowed(from, to);
+    if (!allowed) {
+        const err = IpcError { kind: .UnauthorizedRoute, expected: 0, got: 0, payload_msg: "", from: from, to: to };
+        return Verdict { ok: false, err: err };
+    }
+    return Verdict { ok: true, err: NO_ERROR };
+}
+
+// route_allowed is the matches! table itself as a pure boolean: UrApiClient
+// <-> ExtBackground in both directions, ExtBackground -> ExtDom, and
+// ExtBackground -> SvBrowser; every other pair is refused. Kept separate so
+// the table can be asserted on its own.
+fn route_allowed(from: RingId, to: RingId) -> bool {
+    if (from == .UrApiClient and to == .ExtBackground) { return true; }
+    if (from == .ExtBackground and to == .UrApiClient) { return true; }
+    if (from == .ExtBackground and to == .ExtDom) { return true; }
+    if (from == .ExtBackground and to == .SvBrowser) { return true; }
+    return false;
+}
+
+// ---- tests ---------------------------------------------------------------
+
+// The four edges of the original's route table all pass, end to end through
+// the envelope check.
+test validate_accepts_allowed_routes {
+    const r1 = MessageEnvelope_validate(MessageEnvelope { version: PROTOCOL_VERSION, id: "a3f1", from: .UrApiClient, to: .ExtBackground });
+    assert(r1.ok);
+    const r2 = MessageEnvelope_validate(MessageEnvelope { version: PROTOCOL_VERSION, id: "b7c2", from: .ExtBackground, to: .UrApiClient });
+    assert(r2.ok);
+    const r3 = MessageEnvelope_validate(MessageEnvelope { version: PROTOCOL_VERSION, id: "c9d3", from: .ExtBackground, to: .ExtDom });
+    assert(r3.ok);
+    const r4 = MessageEnvelope_validate(MessageEnvelope { version: PROTOCOL_VERSION, id: "e1f4", from: .ExtBackground, to: .SvBrowser });
+    assert(r4.ok);
+}
+
+// A stale version is refused with VersionMismatch carrying the expected and
+// got bytes.
+test validate_reports_version_mismatch {
+    const env = MessageEnvelope { version: 0, id: "a3f1", from: .UrApiClient, to: .ExtBackground };
+    const v = MessageEnvelope_validate(env);
+    assert(!v.ok);
+    assert(v.err.kind == .VersionMismatch);
+    assert(v.err.expected == PROTOCOL_VERSION);
+    assert(v.err.got == 0);
+}
+
+// An envelope without an id is refused with MissingId.
+test validate_reports_missing_id {
+    const env = MessageEnvelope { version: PROTOCOL_VERSION, id: "", from: .UrApiClient, to: .ExtBackground };
+    const v = MessageEnvelope_validate(env);
+    assert(!v.ok);
+    assert(v.err.kind == .MissingId);
+}
+
+// UrState never sends anywhere: the refusal carries the offending pair.
+test validate_reports_unauthorized_route {
+    const env = MessageEnvelope { version: PROTOCOL_VERSION, id: "a3f1", from: .UrState, to: .ExtDom };
+    const v = MessageEnvelope_validate(env);
+    assert(!v.ok);
+    assert(v.err.kind == .UnauthorizedRoute);
+    assert(v.err.from == .UrState);
+    assert(v.err.to == .ExtDom);
+}
+
+// The matches! table on its own: all four allowed pairs pass, and refused
+// pairs fail from every direction -- nothing calls the background but the
+// API client, the client never dials ExtDom or itself, and UrState sends
+// nowhere.
+test route_allowed_table {
+    assert(route_allowed(.UrApiClient, .ExtBackground));
+    assert(route_allowed(.ExtBackground, .UrApiClient));
+    assert(route_allowed(.ExtBackground, .ExtDom));
+    assert(route_allowed(.ExtBackground, .SvBrowser));
+    assert(!route_allowed(.ExtDom, .SvBrowser));
+    assert(!route_allowed(.SvBrowser, .UrApiClient));
+    assert(!route_allowed(.UrApiClient, .ExtDom));
+    assert(!route_allowed(.UrApiClient, .UrApiClient));
+    assert(!route_allowed(.UrState, .UrState));
+}
+
+// IpcError_fmt renders one template per variant, the text the original's
+// Display impl writes, with {} slots for the variant's data.
+test ipc_error_messages {
+    const mismatch = IpcError { kind: .VersionMismatch, expected: 1, got: 2, payload_msg: "", from: .UrApiClient, to: .ExtBackground };
+    assert(IpcError_fmt(mismatch) == "version mismatch: expected {}, got {}");
+    const missing = IpcError { kind: .MissingId, expected: 0, got: 0, payload_msg: "", from: .UrApiClient, to: .ExtBackground };
+    assert(IpcError_fmt(missing) == "missing message id");
+    const payload = IpcError { kind: .InvalidPayload, expected: 0, got: 0, payload_msg: "unexpected end of JSON", from: .UrApiClient, to: .ExtBackground };
+    assert(IpcError_fmt(payload) == "invalid payload: {}");
+    const refused = IpcError { kind: .UnauthorizedRoute, expected: 0, got: 0, payload_msg: "", from: .UrState, to: .ExtDom };
+    assert(IpcError_fmt(refused) == "unauthorized route: {} -> {}");
+}
+
+// The checks run in the original's order: version, then id, then route -- a
+// bad version over an unauthorized route reports the version, a missing id
+// over an unauthorized route reports the id.
+test validate_checks_in_order {
+    const bad_version = MessageEnvelope { version: 0, id: "", from: .UrState, to: .ExtDom };
+    const v1 = MessageEnvelope_validate(bad_version);
+    assert(!v1.ok);
+    assert(v1.err.kind == .VersionMismatch);
+    const bad_id = MessageEnvelope { version: PROTOCOL_VERSION, id: "", from: .UrState, to: .ExtDom };
+    const v2 = MessageEnvelope_validate(bad_id);
+    assert(!v2.ok);
+    assert(v2.err.kind == .MissingId);
+}
