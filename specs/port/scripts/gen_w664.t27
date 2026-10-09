@@ -1,0 +1,43 @@
+module port::gen_w664;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level <= 0) {
+        return "";
+    }
+    return "        ";
+}
+
+pub fn build_tree(n: i32, base: i32, offset: i32) -> []const u8 {
+    const x = (2 * base + offset) % 32768;
+    const y = (2 * base + offset + 1) % 32768;
+    
+    // Use all variables in the logic
+    const total = n + x + y;
+    if (total > 100) {
+        return "    [3]Pt{ Pt{ .x = 0, .y = 0 } }";
+    } else {
+        return "    [2]Pt{ Pt{ .x = 0, .y = 0 } }";
+    }
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_level_zero {
+    assert(indent(0) == "");
+}
+
+test indent_level_two {
+    assert(indent(2) == "        ");
+}
+
+test build_tree_simple {
+    const result = build_tree(3, 0, 0);
+    assert(result == "    [2]Pt{ Pt{ .x = 0, .y = 0 } }");
+}
+
+test build_tree_with_offset {
+    const result = build_tree(3, 100, 50);
+    assert(result == "    [3]Pt{ Pt{ .x = 0, .y = 0 } }");
+}
