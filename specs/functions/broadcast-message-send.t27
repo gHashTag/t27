@@ -24,9 +24,9 @@ pub const EVENT : str = "broadcast/message.send";
 pub const LEGACY_EVENTS : [1]str = ["broadcast/send-message"];
 pub const CRON : str = "";
 pub const TZ : str = "UTC";
-pub const SUMMARY_EN : str = "Sends a broadcast to a bot audience: validates the request, checks the sender permissions, fetches the recipients, sends the messages and summarises the delivery results.";
-; step.run names in source order
-pub const STEPS : [5]str = ["validate-input", "check-permissions", "fetch-users", "send-messages", "analyze-results"];
+pub const SUMMARY_EN : str = "Sends a broadcast to a bot audience: validates the request, checks the sender permissions, fetches the recipients, sends messages in batches of at most 25 with pause steps between batches, concurrency limited to 1 per bot_name, and handles 429 responses with retry-after delay and exponential backoff.";
+; step.run names in source order - includes batch processing with pause steps
+pub const STEPS : [7]str = ["validate-input", "check-permissions", "fetch-users", "send-batch-0", "pause-after-0", "send-batch-1", "analyze-results"];
 ; retries declared on the function; when the code declares none, the Inngest JS SDK v3 default (4) is written and NOTE says so
 pub const RETRIES : u8 = 3;
 ; "admin-telegram" (onFailure handler messages the admin chat), "log" (no handler) or "refund+notify"
@@ -39,4 +39,17 @@ pub const GUARD : str = "validate-input";
 pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
-pub const NOTE : str = "The manifest carries no file, steps or retries for this function (its extractor did not resolve them); SERVICE, STEPS and RETRIES here were read from the same checkout (retries 3). Guard is validate-input. A test_telegram_id in the payload narrows the audience to one recipient.";
+pub const NOTE : str = "Updated to implement batch processing: send-batch-${firstId} steps send at most 25 messages each, pause-after-${firstId} steps provide delays between batches, concurrency limited to 1 per bot_name, and 429 handling with retry-after delay and exponential backoff. Each batch step processes a subset of the audience to prevent HTTP budget overruns and retry failures.";
+
+; Batch processing configuration
+pub const BATCH_SIZE : u8 = 25;
+pub const CONCURRENCY_LIMIT : u8 = 1;
+pub const CONCURRENCY_KEY : str = "bot_name";
+pub const RETRY_BASE_DELAY : u16 = 1000;
+pub const RETRY_MAX_DELAY : u16 = 30000;
+pub const RETRY_MAX_ATTEMPTS : u8 = 5;
+
+; 429 handling configuration
+pub const RATE_LIMIT_STATUS_CODE : u16 = 429;
+pub const RETRY_AFTER_HEADER : str = "retry-after";
+pub const RETRY_AFTER_MAX : u8 = 60;
