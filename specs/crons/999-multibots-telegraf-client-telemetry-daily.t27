@@ -23,3 +23,11 @@ pub const ENABLED : bool = true;
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "inngest-dashboard";
 pub const NOTE : str = "This job is not in public/crons/manifest.json, which is produced by scripts/sync-crons.mjs from on-disk checkouts, so the card reads spec-only until that sync runs again. A failure does not open an issue; the Inngest registration carries a failure handler that messages the admin channel, which the function card states as ON_FAILURE admin-telegram.";
+
+test telegraf_client_telemetry_daily_constants {
+  assert KIND == "cron";
+  assert ENABLED == true;
+  assert TZ == "UTC";
+  assert HOST == "inngest";
+  assert ON_FAILURE == "log";
+}
