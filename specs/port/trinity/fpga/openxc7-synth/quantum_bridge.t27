@@ -1,0 +1,150 @@
+// Strand III: Language & Hardware Bridge — port of gHashTag/trinity
+// fpga/openxc7-synth/quantum_bridge.v (88 lines, 1 module) at ce7aef7770fb.
+//
+// QUANTUM BRIDGE v1.0 — LED displays quantum state from CGLMP violation
+// phi^2 + 1/phi^2 = 3 = TRINITY | LED shows quantum entanglement in real-time
+//
+// The original drives LED D5 (J19, active low) on a QMTECH Artix-7 XC7A100T
+// from a 50 MHz clock: a free-running 26-bit counter taps one bit per quantum
+// state, and a mux picks the tapped wire for the current 2-bit quantum_state
+// input. Everything below is the decision the original makes; t27c gen-verilog
+// turns it into `module quantum_bridge (` with counter and quantum_state as
+// data ports and the LED level as result. The clock/reset plumbing stays in
+// the caller: counter_next() is the counter's next state for one 50 MHz tick.
+
+module quantum_bridge {
+
+    // 2-bit quantum_state input, widened to u8: a u2 breaks the generated
+    // Zig (the sibling tops' convention, tri types ratchet, #7437).
+    //   00 = SEPARABLE   -> medium blink (~1.49 Hz) - classical physics
+    //   01 = VIOLATION   -> fast chaos (~6 Hz)     - CGLMP > 2.0
+    //   10 = ZERO        -> slow blink (~0.37 Hz)  - orthogonal
+    //   11 = NEGATIVE    -> steady ON              - anti-correlated
+    pub const STATE_SEPARABLE : u8 = 0b00;
+    pub const STATE_VIOLATION : u8 = 0b01;
+    pub const STATE_ZERO : u8 = 0b10;
+    pub const STATE_NEGATIVE : u8 = 0b11;
+
+    // 26-bit counter for precise timing at 50 MHz.
+    pub const COUNTER_BITS : u32 = 26;
+    pub const COUNTER_MAX : u32 = 0x03FFFFFF; // (1 << 26) - 1
+
+    // Which counter bit each blink wire taps:
+    //   counter[24] = 50MHz / 2^25 / 2 = 1.49 Hz  (SEPARABLE)
+    //   counter[22] = 50MHz / 2^23 / 2 = 5.96 Hz  (VIOLATION)
+    //   counter[25] = 50MHz / 2^26 / 2 = 0.37 Hz  (ZERO, phi-based)
+    pub const BLINK_BIT_SEPARABLE : u32 = 24;
+    pub const BLINK_BIT_VIOLATION : u32 = 22;
+    pub const BLINK_BIT_ZERO : u32 = 25;
+
+    // The free-running counter (reg [25:0]): cleared while rst_n is low
+    // (active low, reset button SW1), else incremented by one, wrapping
+    // at 2^26.
+    pub fn counter_next(counter: u32, rst_n: bool) -> u32 {
+        if (!rst_n) {
+            return 0;
+        }
+        return (counter + 1) & COUNTER_MAX;
+    }
+
+    // One bit of the counter, LSB numbered 0.
+    pub fn counter_bit(counter: u32, idx: u32) -> bool {
+        return ((counter >> idx) & 1) == 1;
+    }
+
+    // BLINK RATE GENERATORS (all active-low logic).
+
+    // SEPARABLE (classical): ~1.49 Hz - medium steady blink.
+    pub fn blink_separable(counter: u32) -> bool {
+        return counter_bit(counter, BLINK_BIT_SEPARABLE);
+    }
+
+    // VIOLATION (quantum!): ~5.96 Hz - fast chaotic blink.
+    pub fn blink_violation(counter: u32) -> bool {
+        return counter_bit(counter, BLINK_BIT_VIOLATION);
+    }
+
+    // ZERO (orthogonal): ~0.37 Hz - very slow blink (phi-based).
+    pub fn blink_zero(counter: u32) -> bool {
+        return counter_bit(counter, BLINK_BIT_ZERO);
+    }
+
+    // NEGATIVE (anti-correlated): steady ON. The original drives a constant
+    // 1'b0 - active-low means the LED is lit.
+    pub fn blink_negative() -> bool {
+        return false;
+    }
+
+    // QUANTUM STATE MULTIPLEXER: the level driven on the active-low LED
+    // (true = 1'b1 = LED off, false = 1'b0 = LED lit). Any state above
+    // 2'b11 falls to the original's default: OFF (1'b1, active-low).
+    pub fn led_reg(counter: u32, state: u8) -> bool {
+        if (state == STATE_SEPARABLE) {
+            return blink_separable(counter);
+        }
+        if (state == STATE_VIOLATION) {
+            return blink_violation(counter);
+        }
+        if (state == STATE_ZERO) {
+            return blink_zero(counter);
+        }
+        if (state == STATE_NEGATIVE) {
+            return blink_negative();
+        }
+        return true;
+    }
+
+    // OUTPUT (active-low LED): assign led = led_reg. The combinational
+    // surface gen-verilog lowers into the module.
+    pub fn on_comb(counter: u32, quantum_state: u8) -> bool {
+        return led_reg(counter, quantum_state);
+    }
+
+    test counter_wrap {
+        assert(counter_next(0, false) == 0);
+        assert(counter_next(0, true) == 1);
+        assert(counter_next(5, true) == 6);
+        assert(counter_next(COUNTER_MAX, true) == 0);
+        assert(counter_next(0x03FFFFFE, true) == COUNTER_MAX);
+    }
+
+    test blink_taps {
+        assert(!counter_bit(0, BLINK_BIT_SEPARABLE));
+        assert(counter_bit(0x01000000, BLINK_BIT_SEPARABLE));
+        assert(!counter_bit(0x02000000, BLINK_BIT_SEPARABLE));
+        assert(counter_bit(0x00400000, BLINK_BIT_VIOLATION));
+        assert(!counter_bit(0x00800000, BLINK_BIT_VIOLATION));
+        assert(counter_bit(0x02000000, BLINK_BIT_ZERO));
+        assert(!counter_bit(0x01000000, BLINK_BIT_ZERO));
+    }
+
+    test blink_wires {
+        assert(blink_separable(0x01000000));
+        assert(!blink_separable(0));
+        assert(blink_violation(0x00400000));
+        assert(!blink_violation(0));
+        assert(blink_zero(0x02000000));
+        assert(!blink_zero(0));
+        assert(blink_negative() == false);
+    }
+
+    test state_mux {
+        assert(led_reg(0x01000000, STATE_SEPARABLE));
+        assert(!led_reg(0, STATE_SEPARABLE));
+        assert(led_reg(0x00400000, STATE_VIOLATION));
+        assert(!led_reg(0, STATE_VIOLATION));
+        assert(led_reg(0x02000000, STATE_ZERO));
+        assert(!led_reg(0, STATE_ZERO));
+        assert(led_reg(0, STATE_NEGATIVE) == false);
+        assert(led_reg(0, 7));
+    }
+
+    test led_output {
+        assert(on_comb(0x01000000, STATE_SEPARABLE));
+        assert(!on_comb(0, STATE_SEPARABLE));
+        assert(on_comb(0x00400000, STATE_VIOLATION));
+        assert(on_comb(0x02000000, STATE_ZERO));
+        assert(!on_comb(0, STATE_NEGATIVE));
+        assert(on_comb(0, 7));
+    }
+}
