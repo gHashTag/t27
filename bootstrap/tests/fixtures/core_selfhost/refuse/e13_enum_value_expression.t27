@@ -1,0 +1,7 @@
+// #8002: gen-c reads `1` as the value and makes `2` a member, so `q` is 3
+// in C and 4 in Zig.
+module enum_value_expression;
+enum EvxG {
+    p = 1 + 2,
+    q,
+}

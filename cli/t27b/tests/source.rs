@@ -879,7 +879,7 @@ test text_repeat_fails {
 fn t27_array_spelling_rejections_are_precise() {
     let head = "module a;\n\nconst ONE: u32 = 1;\n\nfn total(xs: [u32]) u32 {\n    return 0;\n}\n\nfn nested(xs: [[2]u32]) u32 {\n    return 0;\n}\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("fn f(p: [*]u8) u32 { return 0; }", "type [*]T", "a many-item pointer"),
+        ("fn f(p: [*]u8) u32 { return 0; }\ntest t { assert(f(undefined) == 0); }", "type [*]T", "a many-item pointer"),
         ("fn f(m: [str:u32]) u32 { return 0; }", "type [K:V]", "a map"),
         ("test t { assert(total([1; 2]) == 2); }", "ExprArrayLiteral(repeat to slice)", "where a slice is declared"),
         (

@@ -1,0 +1,8 @@
+// #8013: a string passed where `i64` is declared; C converts the address.
+module string_passed_as_integer;
+fn sp_f(n: i64) -> i64 {
+    return n;
+}
+fn sp_g() -> i64 {
+    return sp_f("x");
+}

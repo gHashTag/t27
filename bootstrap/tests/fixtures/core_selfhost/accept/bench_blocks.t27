@@ -1,0 +1,35 @@
+// P2 slice 3 (#5980): bench blocks. gen-c writes each as a function nothing
+// calls, `bench_` before a name that lacks it, after the tests; so does Zig.
+module bench_blocks;
+
+var bb_sink: i64 = 0;
+
+fn bb_work(n: i64) -> i64 {
+    return n * 2 + 1;
+}
+
+bench bb_work_loop {
+    var total: i64 = 0;
+    var i: i64 = 0;
+    while (i < 100) {
+        total += bb_work(i);
+        i += 1;
+    }
+    for (0..4) |k| {
+        total = total + k as i64;
+    }
+    bb_sink = total;
+}
+
+bench bench_bb_named {
+    var one: [2]i64 = [_]i64{ 1, 2 };
+    bb_sink = bb_work(one[1]);
+}
+
+bench bb_empty {
+}
+
+test bb_work_is_odd {
+    assert(bb_work(3) == 7);
+    assert(bb_sink == 0);
+}

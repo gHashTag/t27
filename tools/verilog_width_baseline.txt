@@ -38,3 +38,19 @@ specs/compiler/stdlib.t27
 # spec asked for something with no hardware form. TRIT_CAPACITY is 27, which
 # is 3^3 -- the size is deliberate, not a slip.
 specs/base/ternary_memory.t27
+#
+# specs/compiler/core/t27core.t27 -- the THIRD line, same class, exact (#8024).
+# #8020 moved the self-hosted core's tables from parallel i64 arrays, which
+# gen-verilog lowers as memories, into arrays of structs, which it packs:
+#
+#   Tok  { kind, pos, len: i64 }            = 3*64          =         192
+#   toks: [TOK_MAX]Tok,  TOK_MAX = 262144   = 262144*192    =  50,331,648
+#   Node { kind, tok, a, b, c, next, aux, d: i64 }
+#                                           = 8*64          =         512
+#   nodes: [NODE_MAX]Node, NODE_MAX = 262144 = 262144*512   = 134,217,728
+#
+# `[50331647:0]` and `[134217727:0]`. The core is a compiler written to be
+# compiled to C, Zig and AArch64, not a hardware design; its tables are this
+# size because it compiles its own source. Whether such a type should lower
+# to Verilog at all is the question #2566 already holds.
+specs/compiler/core/t27core.t27

@@ -1,0 +1,6 @@
+// `a` and `A` are one C constant, ECG_A, once gen-c upper-cases them.
+module enum_constants_collide;
+enum Ecg {
+    a,
+    A,
+}
