@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+c0b721c83",
+  "gen_hash_c": "sha256:74674d3e38f3f62b92020f64892cf374e8def374e40e3c0089015b554f12fd8b",
+  "gen_hash_rust": "sha256:1de6c6f3a0ed67d11ff54d090d90429164ffa82c95756dc19c2286c8f6060697",
+  "gen_hash_verilog": "sha256:06d3c6e9febf8fd3f6c0cbe5a7a1fa71d9cac27dec668e4c85dc3d3c1beda9bc",
+  "gen_hash_zig": "sha256:a3ee9cd2ebbd6997c908463e3f3f2cda151186b679f4e78941f3c9770523d053",
+  "module": "TriTestReport",
+  "ring": 12,
+  "sealed_at": "2026-10-09T09:43:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:2e781b2dc9d841f0c6482e06a328ac2c27a1c74bad71d847c283cf9111c62bd0",
+  "spec_path": "specs/tri/test/report.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
+}

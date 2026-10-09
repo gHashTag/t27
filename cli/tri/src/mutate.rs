@@ -34,6 +34,8 @@ use survivors::{gate_on, mutate_exit, not_killed, survivor_exit, EXIT_OK, EXIT_S
 #[path = "../../../gen/rust/tri/mutate/lab.rs"]
 #[allow(dead_code, unused_parens)]
 mod lab; // of specs/tri/mutate/lab.t27 (#7050): what `mutate spec --lab` decides about a lab run
+#[path = "../../../gen/rust/tri/mutate/plant.rs"] #[allow(dead_code, unused_parens)]
+mod plant; // of specs/tri/mutate/plant.t27 (#7369): every decision of `mutate plant`
 
 #[derive(Subcommand)]
 pub enum MutateCmd {
@@ -106,6 +108,8 @@ pub enum MutateCmd {
         #[arg(long)]
         lab_wait: Option<u64>,
     },
+    /// Plant one hand-written mutant in a .t27 spec (--from becomes --to on --line) and name the spec's tests that go red on it (rules: specs/tri/mutate/plant.t27).
+    Plant { #[arg(long)] file: String, #[arg(long)] line: usize, #[arg(long, allow_hyphen_values = true)] from: String, #[arg(long, allow_hyphen_values = true)] to: String, #[arg(long)] expect: Vec<String>, #[arg(long)] t27c: Option<String> },
     /// `mutate spec` on each .t27 in --dir by name, then one exit and killed share (rules: specs/tri/mutate/census.t27); every arg after --dir goes to each run.
     Census {
         #[arg(long)]
@@ -191,6 +195,7 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
                 },
             )
         }
+        MutateCmd::Plant { file, line, from, to, expect, t27c } => plant(Path::new(file), *line, from, to, expect, t27c.as_deref()),
         MutateCmd::Census { dir, pass } => {
             let mut specs: Vec<PathBuf> = std::fs::read_dir(dir)?.filter_map(|e| Some(e.ok()?.path())).collect();
             specs.retain(|p| p.extension().is_some_and(|x| x == "t27"));
@@ -1987,7 +1992,7 @@ fn gate_report(file: &Path, from: Option<&str>, c: &GateCounts) -> (String, u8) 
     (out, code)
 }
 
-fn resolve_t27c(explicit: Option<&str>) -> String {
+pub(crate) fn resolve_t27c(explicit: Option<&str>) -> String {
     if let Some(p) = explicit {
         return p.to_string();
     }
@@ -2042,6 +2047,40 @@ fn spec_work_dir(file: &Path, pid: u32) -> PathBuf {
         Some(top) => top.join("target").join(name),
         None => std::env::temp_dir().join(name),
     }
+}
+
+/// `tri mutate plant`: the copies, the two t27c runs and the hashes; what they mean is plant.t27's and report.t27's.
+fn plant(file: &Path, n: usize, from: &str, to: &str, expect: &[String], t27c: Option<&str>) -> Result<()> {
+    use crate::report::{self, LINE_FAIL_NAME as FAILS};
+    let (leak, sha) = (|s: String| -> &'static str { s.leak() }, |b: &[u8]| format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(b)));
+    let t = leak(std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?);
+    let (from, to, want, k) = (leak(from.into()), leak(to.into()), leak(expect.join("\n")), expect.len() as u64);
+    let code = plant::plant_check(t, n, from, to);
+    anyhow::ensure!(code == plant::PLANT_OK, "{}:{n}: {}", file.display(), plant::why(code));
+    let (a, b, at, before) = (plant::line_start(t, n), plant::line_stop(t, n), plant::plant_at(t, n, from), sha(t.as_bytes()));
+    let mutant = format!("{}{to}{}", &t[..at], &t[at + from.len()..]);
+    println!("{}:{n}\n- {}\n+ {}", file.display(), &t[a..b], &mutant[a..b - from.len() + to.len()]);
+    let (dir, name, t27c) = (spec_work_dir(file, std::process::id()), file.file_name().context("--file has no file name")?, resolve_t27c(t27c));
+    let run = |p: &Path, s: &str, verbose: bool, label: &str| -> Result<(&'static str, u8)> {
+        std::fs::create_dir_all(p.parent().unwrap())?;
+        std::fs::write(p, s)?;
+        let (r, v) = crate::test_report(&t27c, p, verbose)?;
+        println!("{label}{} -- {}", crate::report_summary(r), report::why(v));
+        Ok((r, v))
+    };
+    let runs = run(&dir.join("base").join(name), t, true, "baseline: ").and_then(|(bt, bv)| match report::passes(bv) {
+        true => Ok((bt, bv, run(&dir.join("mutant").join(name), &mutant, false, "mutant:   ")?)),
+        false => Ok((bt, bv, ("", report::V_NO_TOTALS))),
+    });
+    let _ = std::fs::remove_dir_all(&dir);
+    let (bt, bv, (mt, mv)) = runs?;
+    let o = plant::plant_outcome(report::passes(bv), report::all_named(bt, report::LINE_PASS_NAME, want, k), report::is_verdict(mv), mv != report::V_BLOCKED, report::count(mt, FAILS), k, report::same_names(mt, FAILS, want, k));
+    let after = std::fs::read(file).map(|b| sha(&b)).unwrap_or_else(|e| format!("unreadable ({e})"));
+    let o = plant::plant_result(after == before, o);
+    println!("original: {} sha256 {before} before the run, {after} after it", file.display());
+    anyhow::ensure!(plant::plant_passes(o), "{}", plant::why(o));
+    println!("{} {}", plant::why(o), crate::report_names(mt, FAILS));
+    Ok(())
 }
 
 fn mutate_spec(

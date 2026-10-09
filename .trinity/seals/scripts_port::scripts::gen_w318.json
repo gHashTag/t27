@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "gen_hash_c": "sha256:dab8da134b1a5c6878a302efce8ca8f2522ae2aa4b5cbae770e71bbe3704d80d",
+  "gen_hash_rust": "sha256:6f78589fe9db69cb7d2733cc4685027f0abceab6453ef5c5104c7ef791d7422b",
+  "gen_hash_verilog": "sha256:e78a1cbb60bd6a4b7e612f731f1ba19e25b113089151e90a63cba35fb3898490",
+  "gen_hash_zig": "sha256:25b92c4d1c7bf3f9b4b867bf3d089055962e4ce25332f12740dd3607fbc7649b",
+  "module": "port::scripts::gen_w318",
+  "ring": 12,
+  "sealed_at": "2026-10-09T10:05:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:f0e30eecb548d8a9d093402afd2c2c800b46cc9d1a81199853d4d0a18e714ce7",
+  "spec_path": "specs/port/scripts/gen_w318.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
+}
