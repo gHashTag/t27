@@ -1,0 +1,9 @@
+// #8009: a call is no C constant, so gen-c writes the check as a comment;
+// Zig checks it at compile time.
+module invariant_call;
+fn icl_f(n: i64) -> i64 {
+    return n + 1;
+}
+invariant icl_calls {
+    icl_f(1) == 2;
+}

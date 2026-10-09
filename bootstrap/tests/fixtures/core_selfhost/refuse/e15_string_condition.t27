@@ -1,0 +1,8 @@
+// #8013: C tests the address; Zig refuses a slice as a condition.
+module string_condition;
+fn scn_f(s: str) -> bool {
+    if (s) {
+        return true;
+    }
+    return false;
+}

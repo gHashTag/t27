@@ -1,0 +1,10 @@
+// #7960: gen-c writes `{0}` for any repeated struct, so every x reads 0 in
+// C and 7 in Zig.
+module struct_repeat_nonzero;
+struct SnCell {
+    x: i64,
+}
+var sn_cells: [2]SnCell = [_]SnCell{SnCell{ .x = 7 }} ** 2;
+fn sn_x() -> i64 {
+    return sn_cells[1].x;
+}

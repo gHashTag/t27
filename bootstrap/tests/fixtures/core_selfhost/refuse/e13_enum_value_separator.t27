@@ -1,0 +1,6 @@
+// #8002: gen-c writes the value as spelled, `EVSG_A = 1_000`, which cc refuses.
+module enum_value_separator;
+enum EvsG {
+    a = 1_000,
+    b,
+}

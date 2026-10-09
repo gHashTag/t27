@@ -1,0 +1,5 @@
+// #8013: gen-c lowers a slice to a bare pointer, and its length is gone.
+module slice_parameter;
+fn slp_f(xs: []const u8, i: usize) -> u8 {
+    return xs[i];
+}

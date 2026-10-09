@@ -1,0 +1,9 @@
+// A literal naming a field its struct does not declare: C refuses it.
+module struct_unknown_field;
+struct SkPair {
+    x: i64,
+}
+fn sk_x() -> i64 {
+    var p: SkPair = SkPair{ .z = 1 };
+    return p.x;
+}

@@ -1,0 +1,9 @@
+// #7961: two structs holding each other by value; gen-c's order leaves the
+// cycle in place.
+module struct_cycle;
+struct ScA {
+    b: ScB,
+}
+struct ScB {
+    a: ScA,
+}
