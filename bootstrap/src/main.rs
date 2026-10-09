@@ -117,6 +117,10 @@ mod silicon_queue;
 #[path = "../gen/rust/verified/bench_agent.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod bench_agent;
+// specs/verified/bitstream_reuse.t27 (#8095): when `t27c silicon` loads a bitstream it built before.
+#[path = "../gen/rust/verified/bitstream_reuse.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bitstream_reuse;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
