@@ -71,6 +71,7 @@
   {"path": "specs/automation/card-chat-night-watch.t27", "t27b": "pass"},
   {"path": "specs/automation/claim-guard-bar.t27", "t27b": "pass"},
   {"path": "specs/automation/connect-card.t27", "t27b": "pass"},
+  {"path": "specs/automation/course-outreach.t27", "t27b": "pass"},
   {"path": "specs/automation/crm-client-ownership.t27", "t27b": "pass"},
   {"path": "specs/automation/crm-client-workspace.t27", "t27b": "pass"},
   {"path": "specs/automation/crm-duet.t27", "t27b": "pass"},
