@@ -278,6 +278,10 @@ measure it are written in **t27**, not in Rust or Python by hand.
   15261 plus 1263, 16524 in all, and tests 8274, after #8057 moved
   `eval::arith`, the reference interpreter's exact arithmetic, to
   `specs/tri/t27b/eval_arith.t27`, -47, 0 and 0 on master a561d6d13's 15308
+  plus 1263 and 8274; 15131 plus 1263, 16394 in all, and tests 8274, after
+  #8229 moved the type-text rules of `lower.rs` (`type_base`,
+  `close_of_open`, `type_construct`'s shape and four more) to
+  `specs/tri/t27b/type_text.t27`, -130, 0 and 0 on master 8415b2c0d's 15261
   plus 1263 and 8274),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
