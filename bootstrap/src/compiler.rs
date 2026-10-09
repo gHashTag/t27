@@ -9082,7 +9082,11 @@ impl Codegen {
         // T27 methods: return type after ) without arrow. Zig REQUIRES a
         // return type on every fn -- a bare `) {` does not parse -- so a
         // spec fn with no declared return emits `void`.
-        self.write(&format!(" {}", return_type));
+        if is_method {
+            self.write(&format!(" {}", return_type));
+        } else {
+            self.write(&format!(" {}", return_type));
+        }
 
         self.write_line(" {");
 
