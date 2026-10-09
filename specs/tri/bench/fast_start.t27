@@ -1,0 +1,901 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/bench/fast_start.t27 -- `tri fast-start`: the fast-start compiler race, ranked from a data spec
+; A fast-start compiler is judged on how soon a program gives its answer: the compile time alone, and the
+; compile time plus one run. The measurements live in one data spec, tool-written in the shape of
+; specs/compiler/theory/speed_quality.t27 (#8182). This spec reads that spec's TEXT, so the numbers keep
+; one home and nothing here copies them; it holds the ranking rule and the printed tables. The command
+; (cli/tri/src/fast_start.rs, through `t27c gen-rust` in gen/rust/tri/bench/fast_start.rs) is glue: it
+; reads the file, calls `status` and `render`, and prints.
+; The data spec, as read here:
+;   pub const KERNELS : usize = K;      pub const REPS : usize = R;
+;   the first K other usize constants name the kernels, numbered 0..K-1 in file order (FIB = 0, ...);
+;   pub const C_<X>: [K*R]u32 = [_]u32{ ... };   compile samples of racer X, us, kernel-major
+;   pub const <X>: [K*R]u32 = [_]u32{ ... };     one run of the compiled program, us (optional)
+;   pub const WRONG_<X>: [K]u32 = [_]u32{ ... }; wrong answers per kernel (optional: absent = unchecked)
+; A racer is a compile row. Its time on a kernel is the median of the R samples (the middle one after
+; sorting; the upper middle when R is even).
+; The ranking rule, the one place it is written:
+;   key       compile median, or compile + run median for the total table; over all kernels, the sum of
+;             the per-kernel keys.
+;   never     a racer with a wrong answer on the kernel (any kernel, for the all-kernel table), or with a
+;             time that was not measured (a 0 sample median, or no run row for the total table), is never
+;             ranked; it is printed last with "-".
+;   rank      1 + the number of ranked racers with a strictly smaller key, so equal keys share a rank
+;             (competition ranking: 1, 2, 2, 4).
+;   order     by rank, then file order; the unranked follow in file order.
+;   unchecked a racer with no WRONG_ row is ranked and printed as unchecked, never as right.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriBenchFastStart;
+
+// Names the data spec uses. Adapt here if the data spec names its rows differently.
+pub const COMPILE_PREFIX : string = "C_";
+pub const WRONG_PREFIX : string = "WRONG_";
+pub const KERNELS_NAME : string = "KERNELS";
+pub const REPS_NAME : string = "REPS";
+
+// Bounds of what is read: more is not a race this command was written for.
+pub const MAX_RACERS : usize = 64;
+pub const MAX_KERNELS : usize = 16;
+pub const MAX_REPS : usize = 16;
+
+// Kernel index meaning "every kernel", and what `status` returns.
+pub const ALL : usize = 16;
+pub const S_OK : u8 = 0;
+pub const S_NOT_A_RACE : u8 = 1;
+pub const S_NO_KERNEL : u8 = 2;
+
+// The words the tables print.
+pub const SAY_TITLE : string = "fast-start race -- ";
+pub const SAY_KERNELS : string = " kernels, median of ";
+pub const SAY_REPS : string = " runs each, ms; a racer with a wrong answer is never ranked";
+pub const SAY_COMPILE : string = "compile time";
+pub const SAY_TOTAL : string = "total time = compile + one run";
+pub const SAY_EVERY : string = ", all kernels (sum of the per-kernel medians)";
+pub const SAY_ONE : string = ", kernel ";
+pub const SAY_HEAD_RANK : string = "rank  compiler";
+pub const SAY_HEAD_COMPILE : string = "compile ms";
+pub const SAY_HEAD_RUN : string = "run ms";
+pub const SAY_HEAD_TOTAL : string = "total ms";
+pub const SAY_HEAD_ANSWERS : string = "answers";
+pub const SAY_RIGHT : string = "right";
+pub const SAY_OF : string = " of ";
+pub const SAY_WRONG : string = "WRONG";
+pub const SAY_UNCHECKED : string = "unchecked";
+pub const SAY_UNMEASURED : string = "-";
+
+// Column widths of the text tables.
+pub const NAME_COL : usize = 20;
+pub const NUM_COL : usize = 12;
+
+/// The codes are numbered as the glue and the tests below name them.
+invariant the_codes_are_numbered { assert S_OK == 0 and S_NOT_A_RACE == 1 and S_NO_KERNEL == 2 and ALL == MAX_KERNELS and MAX_RACERS == 64; }
+
+// -- The ranking rule --
+
+/// The key of one racer on one kernel: 0 means never ranked (wrong, or not measured).
+pub fn race_key(compile_us: u64, run_us: u64, wrong: u64, total: bool) -> u64 {
+    if (wrong > 0) { return 0; }
+    if (compile_us == 0) { return 0; }
+    if (total == false) { return compile_us; }
+    if (run_us == 0) { return 0; }
+    return compile_us + run_us;
+}
+
+/// The rank of racer i among n keys: 0 when it is not ranked, else 1 + the ranked keys strictly smaller.
+pub fn rank_of(keys: []u64, n: usize, i: usize) -> u64 {
+    if (keys[i] == 0) { return 0; }
+    var r : u64 = 1;
+    var j : usize = 0;
+    while (j < n) {
+        if (keys[j] != 0 and keys[j] < keys[i]) { r = r + 1; }
+        j = j + 1;
+    }
+    return r;
+}
+
+/// Where racer i is printed: by key, then file order; the unranked last, in file order.
+pub fn place_of(keys: []u64, n: usize, i: usize) -> usize {
+    var p : usize = 0;
+    var j : usize = 0;
+    while (j < n) {
+        if (keys[i] != 0) {
+            if (keys[j] != 0 and (keys[j] < keys[i] or (keys[j] == keys[i] and j < i))) { p = p + 1; }
+        } else {
+            if (keys[j] != 0 or j < i) { p = p + 1; }
+        }
+        j = j + 1;
+    }
+    return p;
+}
+
+/// The racer printed at place p.
+pub fn at_place(keys: []u64, n: usize, p: usize) -> usize {
+    var i : usize = 0;
+    while (i < n) {
+        if (place_of(keys, n, i) == p) { return i; }
+        i = i + 1;
+    }
+    return n;
+}
+
+// -- Reading the data spec's text --
+
+pub fn line_end(t: string, at: usize) -> usize {
+    var k : usize = at;
+    while (k < t.len and t[k] != 10) {
+        k = k + 1;
+    }
+    return k;
+}
+
+pub fn next_line(t: string, at: usize) -> usize {
+    const e : usize = line_end(t, at);
+    if (e < t.len) { return e + 1; }
+    return e;
+}
+
+pub fn is_ident(c: u8) -> bool {
+    return (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or (c >= 48 and c <= 57) or c == 95;
+}
+
+pub fn skip_sp(t: string, at: usize, end: usize) -> usize {
+    var k : usize = at;
+    while (k < end and (t[k] == 32 or t[k] == 9)) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// Does t[at..end] start with lit?
+pub fn opens_with(t: string, at: usize, end: usize, lit: string) -> bool {
+    if (at > end or lit.len > end - at) { return false; }
+    var k : usize = 0;
+    while (k < lit.len) {
+        if (t[at + k] != lit[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+pub fn ident_stop(t: string, at: usize, end: usize) -> usize {
+    var k : usize = at;
+    while (k < end and is_ident(t[k])) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// The name of a `pub const NAME` line: where it starts, or end + 1 when the line is not one.
+pub fn name_from(t: string, at: usize) -> usize {
+    const end : usize = line_end(t, at);
+    const k : usize = skip_sp(t, at, end);
+    if (opens_with(t, k, end, "pub const ") == false) { return end + 1; }
+    const n : usize = skip_sp(t, k + 10, end);
+    if (ident_stop(t, n, end) == n) { return end + 1; }
+    return n;
+}
+
+/// The type of a `pub const NAME :` line: the offset just past the colon and its blanks, or end + 1.
+pub fn type_from(t: string, at: usize) -> usize {
+    const end : usize = line_end(t, at);
+    const n : usize = name_from(t, at);
+    if (n > end) { return end + 1; }
+    const k : usize = skip_sp(t, ident_stop(t, n, end), end);
+    if (k >= end or t[k] != 58) { return end + 1; }
+    return skip_sp(t, k + 1, end);
+}
+
+/// Is the line a `pub const NAME : usize = V;`?
+pub fn is_usize(t: string, at: usize) -> bool {
+    const end : usize = line_end(t, at);
+    const k : usize = type_from(t, at);
+    if (k > end or opens_with(t, k, end, "usize") == false) { return false; }
+    const e : usize = skip_sp(t, k + 5, end);
+    if (e >= end or t[e] != 61) { return false; }
+    const d : usize = skip_sp(t, e + 1, end);
+    return d < end and t[d] >= 48 and t[d] <= 57;
+}
+
+/// The value of a `pub const NAME : usize = V;` line.
+pub fn usize_value(t: string, at: usize) -> usize {
+    const end : usize = line_end(t, at);
+    var k : usize = skip_sp(t, skip_sp(t, type_from(t, at) + 5, end) + 1, end);
+    var v : usize = 0;
+    while (k < end and t[k] >= 48 and t[k] <= 57 and v < 100000000) {
+        v = v * 10 + (t[k] - 48) as usize;
+        k = k + 1;
+    }
+    return v;
+}
+
+/// Is the line a `pub const NAME: [N]u32 = ...` sample row?
+pub fn is_row(t: string, at: usize) -> bool {
+    const end : usize = line_end(t, at);
+    var k : usize = type_from(t, at);
+    if (k >= end or t[k] != 91) { return false; }
+    k = k + 1;
+    const d : usize = k;
+    while (k < end and t[k] >= 48 and t[k] <= 57) {
+        k = k + 1;
+    }
+    if (k == d or k >= end or t[k] != 93) { return false; }
+    return opens_with(t, k + 1, end, "u32");
+}
+
+/// Is the name of the line at `at` exactly prefix followed by t[b0..b1]?
+pub fn named_as(t: string, at: usize, prefix: string, b0: usize, b1: usize) -> bool {
+    const end : usize = line_end(t, at);
+    const n : usize = name_from(t, at);
+    if (n > end) { return false; }
+    const s : usize = ident_stop(t, n, end);
+    if (s - n != prefix.len + (b1 - b0)) { return false; }
+    if (opens_with(t, n, end, prefix) == false) { return false; }
+    var k : usize = 0;
+    while (k < b1 - b0) {
+        if (t[n + prefix.len + k] != t[b0 + k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Is the name of the line at `at` exactly lit?
+pub fn named_lit(t: string, at: usize, lit: string) -> bool {
+    const end : usize = line_end(t, at);
+    const n : usize = name_from(t, at);
+    if (n > end) { return false; }
+    return ident_stop(t, n, end) - n == lit.len and opens_with(t, n, end, lit);
+}
+
+/// The value of the usize constant named lit, or 0 when there is none.
+pub fn usize_named(t: string, lit: string) -> usize {
+    var at : usize = 0;
+    while (at < t.len) {
+        if (is_usize(t, at) and named_lit(t, at, lit)) { return usize_value(t, at); }
+        at = next_line(t, at);
+    }
+    return 0;
+}
+
+pub fn kernels(t: string) -> usize {
+    return usize_named(t, KERNELS_NAME);
+}
+
+pub fn reps(t: string) -> usize {
+    return usize_named(t, REPS_NAME);
+}
+
+/// The line of kernel k: the k-th usize constant that is not KERNELS or REPS; t.len when there is none.
+pub fn kernel_line(t: string, k: usize) -> usize {
+    var seen : usize = 0;
+    var at : usize = 0;
+    while (at < t.len) {
+        if (is_usize(t, at) and named_lit(t, at, KERNELS_NAME) == false and named_lit(t, at, REPS_NAME) == false) {
+            if (seen == k) { return at; }
+            seen = seen + 1;
+        }
+        at = next_line(t, at);
+    }
+    return t.len;
+}
+
+/// The line of a sample row named prefix ++ t[b0..b1]; t.len when there is none.
+pub fn row_named(t: string, prefix: string, b0: usize, b1: usize) -> usize {
+    var at : usize = 0;
+    while (at < t.len) {
+        if (is_row(t, at) and named_as(t, at, prefix, b0, b1)) { return at; }
+        at = next_line(t, at);
+    }
+    return t.len;
+}
+
+/// Is the line at `at` a compile row: a sample row named COMPILE_PREFIX and at least one more character?
+pub fn is_compile_row(t: string, at: usize) -> bool {
+    if (is_row(t, at) == false) { return false; }
+    const end : usize = line_end(t, at);
+    const n : usize = name_from(t, at);
+    return opens_with(t, n, end, COMPILE_PREFIX) and ident_stop(t, n, end) > n + COMPILE_PREFIX.len;
+}
+
+/// The line of racer r (the r-th compile row); t.len when there is none.
+pub fn racer_line(t: string, r: usize) -> usize {
+    var seen : usize = 0;
+    var at : usize = 0;
+    while (at < t.len) {
+        if (is_compile_row(t, at)) {
+            if (seen == r) { return at; }
+            seen = seen + 1;
+        }
+        at = next_line(t, at);
+    }
+    return t.len;
+}
+
+pub fn racers(t: string) -> usize {
+    var n : usize = 0;
+    var at : usize = 0;
+    while (at < t.len) {
+        if (is_compile_row(t, at)) { n = n + 1; }
+        at = next_line(t, at);
+    }
+    return n;
+}
+
+/// Where racer r's own name starts (after COMPILE_PREFIX) and stops.
+pub fn racer_from(t: string, r: usize) -> usize {
+    return name_from(t, racer_line(t, r)) + COMPILE_PREFIX.len;
+}
+
+pub fn racer_to(t: string, r: usize) -> usize {
+    const at : usize = racer_line(t, r);
+    return ident_stop(t, name_from(t, at), line_end(t, at));
+}
+
+pub fn run_line(t: string, r: usize) -> usize {
+    return row_named(t, "", racer_from(t, r), racer_to(t, r));
+}
+
+pub fn wrong_line(t: string, r: usize) -> usize {
+    return row_named(t, WRONG_PREFIX, racer_from(t, r), racer_to(t, r));
+}
+
+/// Where the numbers of the row at `at` start: just past its first '{'; t.len when there is none.
+pub fn body_from(t: string, at: usize) -> usize {
+    var k : usize = at;
+    while (k < t.len and t[k] != 123) {
+        k = k + 1;
+    }
+    if (k < t.len) { return k + 1; }
+    return k;
+}
+
+/// The offset of the i-th number of the row at `at`, counting from 0; t.len when the row has fewer.
+/// A `;` or `//` comment inside the braces is skipped to the end of its line.
+pub fn number_at(t: string, at: usize, i: usize) -> usize {
+    var k : usize = body_from(t, at);
+    var seen : usize = 0;
+    while (k < t.len and t[k] != 125) {
+        if (t[k] == 59 or (t[k] == 47 and k + 1 < t.len and t[k + 1] == 47)) {
+            k = line_end(t, k);
+        } else {
+            if (t[k] >= 48 and t[k] <= 57) {
+                if (seen == i) { return k; }
+                seen = seen + 1;
+                while (k < t.len and t[k] >= 48 and t[k] <= 57) {
+                    k = k + 1;
+                }
+            } else {
+                k = k + 1;
+            }
+        }
+    }
+    return t.len;
+}
+
+/// How many numbers the row at `at` holds.
+pub fn numbers(t: string, at: usize) -> usize {
+    var n : usize = 0;
+    while (number_at(t, at, n) < t.len) {
+        n = n + 1;
+    }
+    return n;
+}
+
+/// The i-th number of the row at `at`; 0 when there is none.
+pub fn value(t: string, at: usize, i: usize) -> u64 {
+    var k : usize = number_at(t, at, i);
+    var v : u64 = 0;
+    while (k < t.len and t[k] >= 48 and t[k] <= 57 and v < 100000000000) {
+        v = v * 10 + (t[k] - 48) as u64;
+        k = k + 1;
+    }
+    return v;
+}
+
+/// The median of kernel k's REPS samples in the row at `at`; 0 when the row is missing.
+pub fn median(t: string, at: usize, k: usize) -> u64 {
+    if (at >= t.len) { return 0; }
+    const n : usize = reps(t);
+    var s : [16]u64 = [_]u64{0} ** 16;
+    var i : usize = 0;
+    while (i < n and i < MAX_REPS) {
+        const v : u64 = value(t, at, k * n + i);
+        var j : usize = i;
+        while (j > 0 and s[j - 1] > v) {
+            s[j] = s[j - 1];
+            j = j - 1;
+        }
+        s[j] = v;
+        i = i + 1;
+    }
+    return s[n / 2];
+}
+
+pub fn compile_us(t: string, r: usize, k: usize) -> u64 {
+    return median(t, racer_line(t, r), k);
+}
+
+pub fn run_us(t: string, r: usize, k: usize) -> u64 {
+    return median(t, run_line(t, r), k);
+}
+
+pub fn checked(t: string, r: usize) -> bool {
+    return wrong_line(t, r) < t.len;
+}
+
+/// Wrong answers of racer r on kernel k; 0 when unchecked.
+pub fn wrong_on(t: string, r: usize, k: usize) -> u64 {
+    const w : usize = wrong_line(t, r);
+    if (w >= t.len) { return 0; }
+    return value(t, w, k);
+}
+
+/// The key of racer r on kernel k (ALL: the sum over kernels, 0 when any kernel is 0).
+pub fn racer_key(t: string, r: usize, k: usize, total: bool) -> u64 {
+    if (k != ALL) { return race_key(compile_us(t, r, k), run_us(t, r, k), wrong_on(t, r, k), total); }
+    var sum : u64 = 0;
+    var i : usize = 0;
+    while (i < kernels(t)) {
+        const c : u64 = race_key(compile_us(t, r, i), run_us(t, r, i), wrong_on(t, r, i), total);
+        if (c == 0) { return 0; }
+        sum = sum + c;
+        i = i + 1;
+    }
+    return sum;
+}
+
+/// Every racer's key on kernel k, into keys; returns how many racers.
+pub fn fill(t: string, k: usize, total: bool, keys: []u64) -> usize {
+    const n : usize = racers(t);
+    var r : usize = 0;
+    while (r < n and r < MAX_RACERS) {
+        keys[r] = racer_key(t, r, k, total);
+        r = r + 1;
+    }
+    return r;
+}
+
+/// Is kernel k's name the word w, ignoring case?
+pub fn kernel_is(t: string, k: usize, w: string) -> bool {
+    const at : usize = kernel_line(t, k);
+    if (at >= t.len) { return false; }
+    const end : usize = line_end(t, at);
+    const n : usize = name_from(t, at);
+    if (ident_stop(t, n, end) - n != w.len) { return false; }
+    var i : usize = 0;
+    while (i < w.len) {
+        if (lower(t[n + i]) != lower(w[i])) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn lower(c: u8) -> u8 {
+    if (c >= 65 and c <= 90) { return c + 32; }
+    return c;
+}
+
+/// The kernel the word w names: ALL for the empty word, MAX_KERNELS + 1 when no kernel has that name.
+pub fn kernel_of(t: string, w: string) -> usize {
+    if (w.len == 0) { return ALL; }
+    var k : usize = 0;
+    while (k < kernels(t)) {
+        if (kernel_is(t, k, w)) { return k; }
+        k = k + 1;
+    }
+    return MAX_KERNELS + 1;
+}
+
+/// Does the text read as a race: KERNELS and REPS in bounds, the kernels named and numbered 0..K-1, at
+/// least one racer and at most MAX_RACERS, and every row of a racer of the right length?
+pub fn is_race(t: string) -> bool {
+    const nk : usize = kernels(t);
+    const nr : usize = reps(t);
+    if (nk == 0 or nk > MAX_KERNELS or nr == 0 or nr > MAX_REPS) { return false; }
+    var k : usize = 0;
+    while (k < nk) {
+        const at : usize = kernel_line(t, k);
+        if (at >= t.len or usize_value(t, at) != k) { return false; }
+        k = k + 1;
+    }
+    const n : usize = racers(t);
+    if (n == 0 or n > MAX_RACERS) { return false; }
+    var r : usize = 0;
+    while (r < n) {
+        if (numbers(t, racer_line(t, r)) != nk * nr) { return false; }
+        const ru : usize = run_line(t, r);
+        if (ru < t.len and numbers(t, ru) != nk * nr) { return false; }
+        const w : usize = wrong_line(t, r);
+        if (w < t.len and numbers(t, w) != nk) { return false; }
+        r = r + 1;
+    }
+    return true;
+}
+
+/// What the command may do with this text and this kernel word.
+pub fn status(t: string, w: string) -> u8 {
+    if (is_race(t) == false) { return S_NOT_A_RACE; }
+    if (kernel_of(t, w) > ALL) { return S_NO_KERNEL; }
+    return S_OK;
+}
+
+/// What a status means, for the line the glue prints.
+pub fn why(s: u8) -> string {
+    if (s == S_OK) { return "a race"; }
+    if (s == S_NOT_A_RACE) { return "not a race: needs KERNELS and REPS, the kernels numbered 0..KERNELS-1, and C_<X> rows of KERNELS*REPS samples"; }
+    return "no kernel by that name";
+}
+
+// -- Writing the tables --
+
+pub fn put(out: []u8, w: usize, cap: usize, c: u8) -> usize {
+    if (w < cap) { out[w] = c; }
+    return w + 1;
+}
+
+pub fn put_str(out: []u8, w: usize, cap: usize, s: string) -> usize {
+    var x : usize = w;
+    var i : usize = 0;
+    while (i < s.len) {
+        x = put(out, x, cap, s[i]);
+        i = i + 1;
+    }
+    return x;
+}
+
+/// t[a..b], lower-cased when low.
+pub fn put_span(out: []u8, w: usize, cap: usize, t: string, a: usize, b: usize, low: bool) -> usize {
+    var x : usize = w;
+    var i : usize = a;
+    while (i < b) {
+        if (low) { x = put(out, x, cap, lower(t[i])); } else { x = put(out, x, cap, t[i]); }
+        i = i + 1;
+    }
+    return x;
+}
+
+pub fn put_spaces(out: []u8, w: usize, cap: usize, n: usize) -> usize {
+    var x : usize = w;
+    var i : usize = 0;
+    while (i < n) {
+        x = put(out, x, cap, 32);
+        i = i + 1;
+    }
+    return x;
+}
+
+pub fn digits(v: u64) -> usize {
+    var n : usize = 1;
+    var x : u64 = v / 10;
+    while (x > 0) {
+        n = n + 1;
+        x = x / 10;
+    }
+    return n;
+}
+
+pub fn put_num(out: []u8, w: usize, cap: usize, v: u64) -> usize {
+    var x : usize = w;
+    var p : u64 = 1;
+    var i : usize = 1;
+    while (i < digits(v)) {
+        p = p * 10;
+        i = i + 1;
+    }
+    while (p > 0) {
+        x = put(out, x, cap, (48 + (v / p) % 10) as u8);
+        p = p / 10;
+    }
+    return x;
+}
+
+/// Microseconds as milliseconds with one decimal, rounded half up: 32683 -> "32.7".
+pub fn put_ms(out: []u8, w: usize, cap: usize, us: u64) -> usize {
+    const tenths : u64 = (us + 50) / 100;
+    const x : usize = put_num(out, w, cap, tenths / 10);
+    return put_num(out, put(out, x, cap, 46), cap, tenths % 10);
+}
+
+pub fn ms_width(us: u64) -> usize {
+    return digits((us + 50) / 1000) + 2;
+}
+
+/// A number column: right-aligned in NUM_COL, "-" when not measured.
+pub fn put_col(out: []u8, w: usize, cap: usize, us: u64) -> usize {
+    if (us == 0) { return put_str(out, put_spaces(out, w, cap, NUM_COL - 1), cap, SAY_UNMEASURED); }
+    var pad : usize = 0;
+    if (ms_width(us) < NUM_COL) { pad = NUM_COL - ms_width(us); }
+    return put_ms(out, put_spaces(out, w, cap, pad), cap, us);
+}
+
+pub fn put_head(out: []u8, w: usize, cap: usize, lit: string) -> usize {
+    return put_str(out, put_spaces(out, w, cap, NUM_COL - lit.len), cap, lit);
+}
+
+/// Racer r's answers on kernel k (ALL: how many kernels right of how many).
+pub fn put_answers(t: string, out: []u8, w: usize, cap: usize, r: usize, k: usize) -> usize {
+    if (checked(t, r) == false) { return put_str(out, w, cap, SAY_UNCHECKED); }
+    if (k != ALL) {
+        if (wrong_on(t, r, k) > 0) { return put_str(out, w, cap, SAY_WRONG); }
+        return put_str(out, w, cap, SAY_RIGHT);
+    }
+    var right : u64 = 0;
+    var i : usize = 0;
+    while (i < kernels(t)) {
+        if (wrong_on(t, r, i) == 0) { right = right + 1; }
+        i = i + 1;
+    }
+    var x : usize = w;
+    if (right < kernels(t) as u64) { x = put_str(out, put(out, x, cap, 32), cap, SAY_WRONG); x = put(out, x, cap, 32); x = put(out, x, cap, 32); }
+    x = put_num(out, x, cap, right);
+    x = put_str(out, x, cap, SAY_OF);
+    x = put_num(out, x, cap, kernels(t) as u64);
+    return put_str(out, put(out, x, cap, 32), cap, SAY_RIGHT);
+}
+
+pub fn sum_us(t: string, r: usize, k: usize, run: bool) -> u64 {
+    if (k != ALL) {
+        if (run) { return run_us(t, r, k); }
+        return compile_us(t, r, k);
+    }
+    var s : u64 = 0;
+    var i : usize = 0;
+    while (i < kernels(t)) {
+        var v : u64 = compile_us(t, r, i);
+        if (run) { v = run_us(t, r, i); }
+        if (v == 0) { return 0; }
+        s = s + v;
+        i = i + 1;
+    }
+    return s;
+}
+
+/// One table: its title line, its head and one line per racer, in place order.
+pub fn put_table(t: string, out: []u8, w: usize, cap: usize, k: usize, total: bool) -> usize {
+    var keys : [64]u64 = [_]u64{0} ** 64;
+    const n : usize = fill(t, k, total, &keys);
+    var x : usize = w;
+    if (total) { x = put_str(out, x, cap, SAY_TOTAL); } else { x = put_str(out, x, cap, SAY_COMPILE); }
+    if (k == ALL) {
+        x = put_str(out, x, cap, SAY_EVERY);
+    } else {
+        const at : usize = kernel_line(t, k);
+        const nf : usize = name_from(t, at);
+        x = put_span(out, put_str(out, x, cap, SAY_ONE), cap, t, nf, ident_stop(t, nf, line_end(t, at)), true);
+    }
+    x = put(out, x, cap, 10);
+    x = put_str(out, x, cap, SAY_HEAD_RANK);
+    x = put_spaces(out, x, cap, NAME_COL - 8);
+    x = put_head(out, x, cap, SAY_HEAD_COMPILE);
+    if (total) {
+        x = put_head(out, x, cap, SAY_HEAD_RUN);
+        x = put_head(out, x, cap, SAY_HEAD_TOTAL);
+    }
+    x = put_str(out, put_spaces(out, x, cap, 2), cap, SAY_HEAD_ANSWERS);
+    x = put(out, x, cap, 10);
+    var p : usize = 0;
+    while (p < n) {
+        const r : usize = at_place(&keys, n, p);
+        const rank : u64 = rank_of(&keys, n, r);
+        if (rank == 0) {
+            x = put_str(out, put_spaces(out, x, cap, 3), cap, SAY_UNMEASURED);
+        } else {
+            x = put_num(out, put_spaces(out, x, cap, 4 - digits(rank)), cap, rank);
+        }
+        x = put_spaces(out, x, cap, 2);
+        const a : usize = racer_from(t, r);
+        const b : usize = racer_to(t, r);
+        x = put_span(out, x, cap, t, a, b, false);
+        if (b - a < NAME_COL) { x = put_spaces(out, x, cap, NAME_COL - (b - a)); }
+        const c : u64 = sum_us(t, r, k, false);
+        x = put_col(out, x, cap, c);
+        if (total) {
+            const ru : u64 = sum_us(t, r, k, true);
+            x = put_col(out, x, cap, ru);
+            if (c == 0 or ru == 0) { x = put_col(out, x, cap, 0); } else { x = put_col(out, x, cap, c + ru); }
+        }
+        x = put_answers(t, out, put_spaces(out, x, cap, 2), cap, r, k);
+        x = put(out, x, cap, 10);
+        p = p + 1;
+    }
+    return x;
+}
+
+/// The text report: a title, then the compile table and the total table.
+pub fn put_text(t: string, path: string, out: []u8, cap: usize, k: usize) -> usize {
+    var x : usize = put_str(out, 0, cap, SAY_TITLE);
+    x = put(out, put_str(out, x, cap, path), cap, 10);
+    x = put_num(out, x, cap, kernels(t) as u64);
+    x = put_num(out, put_str(out, x, cap, SAY_KERNELS), cap, reps(t) as u64);
+    x = put(out, put(out, put_str(out, x, cap, SAY_REPS), cap, 10), cap, 10);
+    x = put(out, put_table(t, out, x, cap, k, false), cap, 10);
+    return put_table(t, out, x, cap, k, true);
+}
+
+// -- JSON, for the widget: every number and every rank, so nothing ranks in JS --
+
+/// A JSON string of t[a..b] (lower-cased when low), escaping '"' and '\'.
+pub fn put_jstr(out: []u8, w: usize, cap: usize, t: string, a: usize, b: usize, low: bool) -> usize {
+    var x : usize = put(out, w, cap, 34);
+    var i : usize = a;
+    while (i < b) {
+        if (t[i] == 34 or t[i] == 92) { x = put(out, x, cap, 92); }
+        if (low) { x = put(out, x, cap, lower(t[i])); } else { x = put(out, x, cap, t[i]); }
+        i = i + 1;
+    }
+    return put(out, x, cap, 34);
+}
+
+/// A number, or null for 0 (not measured, not ranked).
+pub fn put_jnum(out: []u8, w: usize, cap: usize, v: u64) -> usize {
+    if (v == 0) { return put_str(out, w, cap, "null"); }
+    return put_num(out, w, cap, v);
+}
+
+/// `"name":[v0,...]` over the kernels. what: 0 compile us, 1 run us, 2 wrong, 3 compile rank, 4 total rank.
+pub fn put_jarr(t: string, out: []u8, w: usize, cap: usize, r: usize, name: string, what: u8) -> usize {
+    var x : usize = put_str(out, put(out, w, cap, 44), cap, name);
+    x = put(out, x, cap, 91);
+    var k : usize = 0;
+    while (k < kernels(t)) {
+        if (k > 0) { x = put(out, x, cap, 44); }
+        if (what == 0) { x = put_jnum(out, x, cap, compile_us(t, r, k)); }
+        if (what == 1) { x = put_jnum(out, x, cap, run_us(t, r, k)); }
+        if (what == 2) { x = put_num(out, x, cap, wrong_on(t, r, k)); }
+        if (what == 3 or what == 4) {
+            var keys : [64]u64 = [_]u64{0} ** 64;
+            const n : usize = fill(t, k, what == 4, &keys);
+            x = put_jnum(out, x, cap, rank_of(&keys, n, r));
+        }
+        k = k + 1;
+    }
+    return put(out, x, cap, 93);
+}
+
+pub fn put_json(t: string, path: string, out: []u8, cap: usize) -> usize {
+    var x : usize = put_str(out, 0, cap, "{\"source\":");
+    x = put_jstr(out, x, cap, path, 0, path.len, false);
+    x = put_str(out, x, cap, ",\"unit\":\"us\",\"reps\":");
+    x = put_num(out, x, cap, reps(t) as u64);
+    x = put_str(out, x, cap, ",\"kernels\":[");
+    var k : usize = 0;
+    while (k < kernels(t)) {
+        if (k > 0) { x = put(out, x, cap, 44); }
+        const at : usize = kernel_line(t, k);
+        const nf : usize = name_from(t, at);
+        x = put_jstr(out, x, cap, t, nf, ident_stop(t, nf, line_end(t, at)), true);
+        k = k + 1;
+    }
+    x = put_str(out, x, cap, "],\"racers\":[");
+    var ck : [64]u64 = [_]u64{0} ** 64;
+    var tk : [64]u64 = [_]u64{0} ** 64;
+    const n : usize = fill(t, ALL, false, &ck);
+    const m : usize = fill(t, ALL, true, &tk);
+    var r : usize = 0;
+    while (r < n) {
+        if (r > 0) { x = put(out, x, cap, 44); }
+        x = put_str(out, x, cap, "\n{\"name\":");
+        x = put_jstr(out, x, cap, t, racer_from(t, r), racer_to(t, r), false);
+        x = put_str(out, x, cap, ",\"checked\":");
+        if (checked(t, r)) { x = put_str(out, x, cap, "true"); } else { x = put_str(out, x, cap, "false"); }
+        x = put_jarr(t, out, x, cap, r, "\"compile_us\":", 0);
+        x = put_jarr(t, out, x, cap, r, "\"run_us\":", 1);
+        x = put_jarr(t, out, x, cap, r, "\"wrong\":", 2);
+        x = put_jarr(t, out, x, cap, r, "\"compile_rank\":", 3);
+        x = put_jarr(t, out, x, cap, r, "\"total_rank\":", 4);
+        x = put_jnum(out, put_str(out, x, cap, ",\"compile_rank_all\":"), cap, rank_of(&ck, n, r));
+        x = put_jnum(out, put_str(out, x, cap, ",\"total_rank_all\":"), cap, rank_of(&tk, m, r));
+        x = put(out, x, cap, 125);
+        r = r + 1;
+    }
+    return put_str(out, x, cap, "]}\n");
+}
+
+/// The command's output for the kernel word w: the text tables, or JSON (always every kernel). Returns
+/// the length written; the glue gives a larger buffer when it exceeds cap. Call only on status S_OK.
+pub fn render(t: string, path: string, w: string, json: bool, out: []u8, cap: usize) -> usize {
+    if (json) { return put_json(t, path, out, cap); }
+    return put_text(t, path, out, cap, kernel_of(t, w));
+}
+
+// -- Tests: a small race in the data spec's shape --
+// Two kernels, three samples each. FAST and TIE compile equally fast; SLOW compiles slowly and runs
+// fast; BAD compiles fastest but gives a wrong sieve answer; LONE has no run row and no WRONG_ row.
+
+pub const FIB_K : usize = 0;
+pub const SIEVE_K : usize = 1;
+pub const RACE : string = "; header comment\nmodule Fixture;\npub const KERNELS : usize = 2;\npub const REPS : usize = 3;\npub const FIB : usize = 0;\npub const SIEVE : usize = 1;\n\npub const C_FAST: [6]u32 = [_]u32{\n    1000, 3000, 2000,\n    5000, 4000, 6000,\n};\npub const FAST: [6]u32 = [_]u32{ 90000, 70000, 80000, 50000, 50000, 50000 };\npub const WRONG_FAST: [2]u32 = [_]u32{ 0, 0 };\npub const C_TIE: [6]u32 = [_]u32{ 2000, 2000, 2000, 5000, 5000, 5000 };\npub const TIE: [6]u32 = [_]u32{ 10000, 10000, 10000, 10000, 10000, 10000 };\npub const WRONG_TIE: [2]u32 = [_]u32{ 0, 0 };\npub const C_SLOW: [6]u32 = [_]u32{ 30000, 30000, 30000, 30000, 30000, 30000 };\npub const SLOW: [6]u32 = [_]u32{ 1000, 1000, 1000, 1000, 1000, 1000 };\npub const WRONG_SLOW: [2]u32 = [_]u32{ 0, 0 };\npub const C_BAD: [6]u32 = [_]u32{ 500, 500, 500, 500, 500, 500 };\npub const BAD: [6]u32 = [_]u32{ 500, 500, 500, 500, 500, 500 };\npub const WRONG_BAD: [2]u32 = [_]u32{ 0, 1 };\npub const C_LONE: [6]u32 = [_]u32{ 9000, 9000, 9000, 9000, 9000, 9000 };\n";
+
+test the_race_is_read {
+    assert status(RACE, "") == S_OK;
+    assert kernels(RACE) == 2 and reps(RACE) == 3;
+    assert racers(RACE) == 5;
+    assert compile_us(RACE, 0, 0) == 2000;
+    assert compile_us(RACE, 0, 1) == 5000;
+    assert run_us(RACE, 0, 0) == 80000;
+    assert run_us(RACE, 4, 0) == 0;
+    assert checked(RACE, 4) == false;
+    assert wrong_on(RACE, 3, 1) == 1 and wrong_on(RACE, 3, 0) == 0;
+    assert kernel_of(RACE, "sieve") == 1 and kernel_of(RACE, "FIB") == 0 and kernel_of(RACE, "") == ALL;
+    assert status(RACE, "matmul") == S_NO_KERNEL;
+}
+
+test equal_keys_share_a_rank {
+    var keys : [64]u64 = [_]u64{0} ** 64;
+    const n : usize = fill(RACE, FIB_K, false, &keys);
+    assert n == 5;
+    assert rank_of(&keys, n, 3) == 1;
+    assert rank_of(&keys, n, 0) == 2 and rank_of(&keys, n, 1) == 2;
+    assert rank_of(&keys, n, 4) == 4;
+    assert rank_of(&keys, n, 2) == 5;
+}
+
+test a_wrong_answer_is_never_ranked {
+    var keys : [64]u64 = [_]u64{0} ** 64;
+    const n : usize = fill(RACE, SIEVE_K, false, &keys);
+    assert rank_of(&keys, n, 3) == 0;
+    assert rank_of(&keys, n, 0) == 1 and rank_of(&keys, n, 1) == 1;
+    var all : [64]u64 = [_]u64{0} ** 64;
+    const m : usize = fill(RACE, ALL, false, &all);
+    assert rank_of(&all, m, 3) == 0;
+    assert all[0] == 7000 and all[1] == 7000;
+    assert at_place(&all, m, 4) == 3;
+}
+
+test a_racer_without_a_run_is_not_ranked_on_total {
+    var keys : [64]u64 = [_]u64{0} ** 64;
+    const n : usize = fill(RACE, ALL, true, &keys);
+    assert rank_of(&keys, n, 4) == 0;
+    assert rank_of(&keys, n, 1) == 1;
+    assert rank_of(&keys, n, 2) == 2;
+    assert rank_of(&keys, n, 0) == 3;
+    assert at_place(&keys, n, 0) == 1 and at_place(&keys, n, 3) == 3 and at_place(&keys, n, 4) == 4;
+}
+
+test the_rule_on_plain_keys {
+    assert race_key(5, 7, 0, false) == 5;
+    assert race_key(5, 7, 0, true) == 12;
+    assert race_key(5, 7, 1, false) == 0;
+    assert race_key(0, 7, 0, false) == 0;
+    assert race_key(5, 0, 0, true) == 0;
+    var keys : [64]u64 = [_]u64{0} ** 64;
+    keys[0] = 30;
+    keys[1] = 0;
+    keys[2] = 10;
+    keys[3] = 30;
+    keys[4] = 20;
+    assert rank_of(&keys, 5, 2) == 1 and rank_of(&keys, 5, 4) == 2 and rank_of(&keys, 5, 0) == 3 and rank_of(&keys, 5, 3) == 3;
+    assert rank_of(&keys, 5, 1) == 0;
+    assert place_of(&keys, 5, 0) == 2 and place_of(&keys, 5, 3) == 3 and place_of(&keys, 5, 1) == 4;
+}
+
+test the_text_table_names_the_winner_first {
+    var out : [4096]u8 = [_]u8{0} ** 4096;
+    const len : usize = render(RACE, "race.t27", "", false, &out, 4096);
+    assert len > 200 and len < 4096;
+    // the first racer line of the compile table is "   1  FAST": FAST and TIE tie, FAST comes first in the file
+    var at : usize = 0;
+    var lines : usize = 0;
+    while (at < len and lines < 5) {
+        if (out[at] == 10) { lines = lines + 1; }
+        at = at + 1;
+    }
+    assert out[at + 3] == 49 and out[at + 6] == 70 and out[at + 7] == 65 and out[at + 8] == 83 and out[at + 9] == 84;
+}
+
+test the_json_says_null_for_an_unranked_racer {
+    var out : [4096]u8 = [_]u8{0} ** 4096;
+    const len : usize = render(RACE, "race.t27", "", true, &out, 4096);
+    assert len > 300 and len < 4096;
+    assert out[0] == 123 and out[len - 2] == 125;
+}
+
+test a_text_that_is_not_a_race_is_refused {
+    assert status("pub const KERNELS : usize = 2;\n", "") == S_NOT_A_RACE;
+    assert status("pub const KERNELS : usize = 1;\npub const REPS : usize = 3;\npub const FIB : usize = 0;\npub const C_X: [3]u32 = [_]u32{ 1, 2 };\n", "") == S_NOT_A_RACE;
+    assert status("pub const KERNELS : usize = 1;\npub const REPS : usize = 3;\npub const FIB : usize = 1;\npub const C_X: [3]u32 = [_]u32{ 1, 2, 3 };\n", "") == S_NOT_A_RACE;
+    assert status("pub const KERNELS : usize = 1;\npub const REPS : usize = 3;\npub const FIB : usize = 0;\npub const C_X: [3]u32 = [_]u32{ 1, 2, 3 };\n", "") == S_OK;
+    assert value("pub const C_X: [3]u32 = [_]u32{ 7, ; 99\n 8 };\n", 0, 1) == 8;
+}
+
