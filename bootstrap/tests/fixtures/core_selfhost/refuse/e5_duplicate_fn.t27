@@ -1,0 +1,8 @@
+// A function declared twice: typecheck only warns (#8087).
+module duplicate_fn;
+fn df_g() -> i64 {
+    return 1;
+}
+fn df_g() -> i64 {
+    return 2;
+}

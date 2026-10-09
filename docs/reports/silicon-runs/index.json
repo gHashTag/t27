@@ -62,31 +62,61 @@
   {
     "authentication": "FRESH",
     "challenge": "e61798b78cbb6b287b8ff8523cea71a6",
-    "citable": false,
+    "citable": true,
     "die": "NAMED",
-    "first_missing": "RUN_TOO_FEW_RECEIPTS",
-    "independence": "not judged -- independence.t27 takes exactly 3 placements",
-    "judged_by": "t27c-bootstrap@0.5.0+12c41a42b",
+    "first_missing": "NONE",
+    "independence": "INDEP_DIES (independence.t27; first missing NONE (0); 3 distinct dies; no roster)",
+    "judged_by": "t27c-bootstrap@0.5.1+579bc55aa",
     "receipts": [
       {
         "auth": "FRESH",
         "complete": true,
+        "device_dna": "0389c0c2d85e85c",
+        "file": "ternary_link-1791459867-46698.json",
+        "key_id": "71c5670c1011b42c",
+        "nonce": "e61798b78cbb6b287b8ff8523cea71a6",
+        "seal_hash": "sha256:a769f41ecf2da17a27d68cabd5f0a132f010b89a3d08eade51a454ba8064e7fa",
+        "seeds": [
+          7
+        ],
+        "toolchain": "t27c-bootstrap@0.5.1+579bc55aa",
+        "utc_unix": 1791459867,
+        "verdict_word": 0
+      },
+      {
+        "auth": "FRESH",
+        "complete": true,
         "device_dna": "050d58218fd9854",
-        "file": "ternary_link-1791436040-10722.json",
+        "file": "ternary_link-1791462519-54060.json",
         "key_id": "4d2ffce012238bd4",
         "nonce": "e61798b78cbb6b287b8ff8523cea71a6",
         "seal_hash": "sha256:a769f41ecf2da17a27d68cabd5f0a132f010b89a3d08eade51a454ba8064e7fa",
         "seeds": [
           1
         ],
-        "toolchain": "t27c-bootstrap@0.5.0+cb9df57c5",
-        "utc_unix": 1791436040,
+        "toolchain": "t27c-bootstrap@0.5.1+579bc55aa",
+        "utc_unix": 1791462519,
+        "verdict_word": 0
+      },
+      {
+        "auth": "FRESH",
+        "complete": true,
+        "device_dna": "050a5824d85e85c",
+        "file": "ternary_link-1791486475-27018.json",
+        "key_id": "3d7ba020ec48adc6",
+        "nonce": "e61798b78cbb6b287b8ff8523cea71a6",
+        "seal_hash": "sha256:a769f41ecf2da17a27d68cabd5f0a132f010b89a3d08eade51a454ba8064e7fa",
+        "seeds": [
+          42
+        ],
+        "toolchain": "t27c-bootstrap@0.5.1+579bc55aa",
+        "utc_unix": 1791486475,
         "verdict_word": 0
       }
     ],
     "receipts_dir": ".trinity/receipts",
     "required_level": "NONE",
-    "run_complete": false,
+    "run_complete": true,
     "spec": "specs/fpga/ternary_link.t27"
   }
 ]

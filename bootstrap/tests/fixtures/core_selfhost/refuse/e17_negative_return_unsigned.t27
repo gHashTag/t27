@@ -1,0 +1,5 @@
+// -1 returned where a u32 is declared (#8098).
+module negative_return_unsigned;
+fn nru_g() -> u32 {
+    return -1;
+}

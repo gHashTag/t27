@@ -1,0 +1,6 @@
+// typecheck resolves no name: an undeclared one reaches C, which cc refuses
+// (#8087).
+module undeclared_in_return;
+fn uir_g() -> i64 {
+    return uir_nope;
+}

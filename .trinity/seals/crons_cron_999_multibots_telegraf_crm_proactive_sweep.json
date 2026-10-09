@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:d0964aafb09661c9852c45f610698d3a9e4dbb06992e5ad27383a6e5682702fd",
+  "gen_hash_rust": "sha256:56833928a22dfd2aea4310563481b762e76b6e8df60148b78b5f992f1e7fa8b1",
+  "gen_hash_verilog": "sha256:570c585305c766537e1df228c4838b52d8ddb7036849d02adeff4435554ddab6",
+  "gen_hash_zig": "sha256:88fe1e75216ebfe1f164860c929ea86250d3a3654ed69f2770d313552c22cbb2",
+  "module": "cron_999_multibots_telegraf_crm_proactive_sweep",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:b61b5151f71ef3646e646fbd174c1481cad31400a5957008742f9456229857d2",
+  "spec_path": "specs/crons/999-multibots-telegraf-crm-proactive-sweep.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}
