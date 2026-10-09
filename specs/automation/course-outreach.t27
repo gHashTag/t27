@@ -40,6 +40,16 @@
 //       sends it in his browser. Replies on LinkedIn and X are not read, so a person
 //       messaged there is not messaged again by the agent (no second message without
 //       a reply, read fail-closed).
+// v3 (2026-10-09): a daily and a weekly press brake per network. Until now the owner's
+//       presses were the only brake on how much goes out on LinkedIn and X, and a long
+//       evening of presses could push his account past what the network tolerates. The
+//       host (999) counts what the agent sent per network today (UTC) and in the last
+//       7 days and refuses at the cap (scripts/t27-logic.mjs, wasm): linkedin 20 a day
+//       and 90 in the last 7 days, x 25 a day and 100 in the last 7 days, every other
+//       network 0 and never. Numbers: community guidance for LinkedIn automation
+//       collected in gHashTag/999-multibots-telegraf#3954 (10 to 20 connection requests
+//       or messages a day, roughly 90 to 100 a week). An unknown network has cap 0 and
+//       never sends: if we do not know its rules, we do not write there.
 // The course's own words, from its page: 27 lessons, one working widget in each, then a
 //       lab of 3. A draft may carry no other number about the course. The link is the
 //       static page https://t27.ai/learn/course/ -- the #/course route previews as the
@@ -49,6 +59,8 @@
 // Claim status: written before any live run; nobody has been written to through it yet.
 //       v2: the bio read, the LinkedIn and X readers and the send in the browser were
 //       written against no live pod and no live Telegram session (none was reachable).
+//       v3: the caps are the guidance numbers from gHashTag/999-multibots-telegraf#3954,
+//       written before any live send.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::course_outreach {
@@ -56,7 +68,7 @@ module automation::course_outreach {
     pub const KIND : str = "automation";
     pub const ID : str = "course-outreach";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 2;
+    pub const VERSION : u8 = 3;
 
     // ---- The course, as its page says it --------------------------------------------
     pub const COURSE_URL : str = "https://t27.ai/learn/course/";
@@ -99,6 +111,15 @@ module automation::course_outreach {
     pub const NETWORK_CARD_MAX : u8 = 1;  // one message per card on LinkedIn and X
     pub const NETWORK_REPLIES_READ : bool = false;  // so a messaged person is not messaged again
     pub const TYPES_PASSWORDS : bool = false;  // the round never asks for or types a password
+
+    // ---- The daily and weekly press brake (v3) ----------------------------------------
+    // The owner's press is the only brake on how much goes out on one network; these
+    // caps are the second. A week is the last 7 days, counted UTC.
+    pub const WEEK_DAYS : u8 = 7;  // the week the week cap counts
+    pub const LINKEDIN_DAY_CAP : u8 = 20;  // messages a day on LinkedIn, at most
+    pub const LINKEDIN_WEEK_CAP : u8 = 90;  // messages in the last 7 days on LinkedIn
+    pub const X_DAY_CAP : u8 = 25;  // messages a day on X, at most
+    pub const X_WEEK_CAP : u8 = 100;  // messages in the last 7 days on X
 
     // ---- Not claimed ------------------------------------------------------------------
     pub const RUN_LIVE : bool = false;  // flips when the owner's press sent a real batch
@@ -262,6 +283,36 @@ module automation::course_outreach {
 
     fn card_ok(channel: str, n: u8) -> bool {
         return n >= 1 && n <= card_max(channel);
+    }
+
+    // How many messages may go out on this network in one day (UTC). An unknown
+    // network has cap 0: if we do not know its rules, we do not write there.
+    fn network_day_cap(network: str) -> u8 {
+        if network == "linkedin" {
+            return LINKEDIN_DAY_CAP;
+        }
+        if network == "x" {
+            return X_DAY_CAP;
+        }
+        return 0;
+    }
+
+    // How many messages may go out on this network in the last 7 days (WEEK_DAYS).
+    fn network_week_cap(network: str) -> u8 {
+        if network == "linkedin" {
+            return LINKEDIN_WEEK_CAP;
+        }
+        if network == "x" {
+            return X_WEEK_CAP;
+        }
+        return 0;
+    }
+
+    // May one more message go out on this network: both counts strictly below their
+    // caps. A cap of 0 (an unknown network) never lets the first message through,
+    // whatever was counted.
+    fn network_may_send(network: str, sent_day: u16, sent_week: u16) -> bool {
+        return sent_day < network_day_cap(network) && sent_week < network_week_cap(network);
     }
 
     test "two different groups of signs make a programmer" {
@@ -434,10 +485,62 @@ module automation::course_outreach {
         assert(pitch_state(true, true, false, false, false, false, NETWORK_REPLIES_READ) == "ok");
     }
 
+    test "the day and week caps are the numbers the guidance gives" {
+        assert(network_day_cap("linkedin") == 20);
+        assert(network_day_cap("x") == 25);
+        assert(network_week_cap("linkedin") == 90);
+        assert(network_week_cap("x") == 100);
+        assert(LINKEDIN_DAY_CAP == 20);
+        assert(LINKEDIN_WEEK_CAP == 90);
+        assert(X_DAY_CAP == 25);
+        assert(X_WEEK_CAP == 100);
+        assert(WEEK_DAYS == 7);
+    }
+
+    test "an unknown network has cap 0 and never sends" {
+        assert(network_day_cap("instagram") == 0);
+        assert(network_week_cap("instagram") == 0);
+        assert(network_day_cap("facebook") == 0);
+        assert(network_week_cap("facebook") == 0);
+        assert(network_day_cap("telegram") == 0);
+        assert(network_week_cap("telegram") == 0);
+        assert(network_day_cap("") == 0);
+        assert(network_week_cap("") == 0);
+        assert(!network_may_send("instagram", 0, 0));
+        assert(!network_may_send("", 0, 0));
+    }
+
+    test "the day cap stops at cap and above" {
+        assert(network_may_send("linkedin", 19, 0));
+        assert(!network_may_send("linkedin", 20, 0));
+        assert(!network_may_send("linkedin", 21, 0));
+        assert(network_may_send("x", 24, 0));
+        assert(!network_may_send("x", 25, 0));
+        assert(!network_may_send("x", 26, 0));
+    }
+
+    test "the week cap stops at cap and above" {
+        assert(network_may_send("linkedin", 0, 89));
+        assert(!network_may_send("linkedin", 0, 90));
+        assert(!network_may_send("linkedin", 0, 91));
+        assert(network_may_send("x", 0, 99));
+        assert(!network_may_send("x", 0, 100));
+        assert(!network_may_send("x", 0, 101));
+    }
+
+    test "both counts must be below their caps, cap-1 goes" {
+        assert(network_may_send("linkedin", 19, 89));
+        assert(network_may_send("x", 24, 99));
+        assert(!network_may_send("linkedin", 20, 89));
+        assert(!network_may_send("linkedin", 19, 90));
+        assert(!network_may_send("x", 25, 99));
+        assert(!network_may_send("x", 24, 100));
+    }
+
     test "nobody has been written to through it yet" {
         assert(!RUN_LIVE);
         assert(!may_send("pending"));
-        assert(VERSION == 2);
+        assert(VERSION == 3);
         assert(HISTORY_ROWS == 5000);
         assert(EVIDENCE_QUOTES == 3);
         assert(EVIDENCE_CHARS == 80);
