@@ -1,0 +1,6 @@
+// An untyped constant takes the type of the runtime operand it meets: 300
+// is no u8 (#8098).
+module operand_too_wide;
+fn otw_g(x: u8) -> u8 {
+    return x + 300;
+}

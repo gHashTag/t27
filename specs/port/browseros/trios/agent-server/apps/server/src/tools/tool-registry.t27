@@ -43,28 +43,28 @@ pub fn ToolRegistry_get(self: BrowserToolRegistry, name: []const u8) -> ?Browser
     return null;
 }
 
-// ToolRegistry_names - port the decision logic of returning all tool names
-pub fn ToolRegistry_names(self: BrowserToolRegistry) -> [][]const u8 {
+// ToolRegistry_names - port the decision logic of returning all tool names.
+// The original allocates the result. Here the caller owns the storage and gets
+// back the part of it that was filled (#7736): this fn used to return a slice
+// of its own local array, which every caller then read from a dead frame.
+pub fn ToolRegistry_names(self: BrowserToolRegistry, storage: [][]const u8) -> [][]const u8 {
     // Handle empty case first
     if (self.tools.len == 0) {
         return &.{};
     }
     
-    // Create a fixed-size array with a known size at compile time
-    // We'll use a reasonable maximum size and handle smaller cases
-    const MAX_SIZE = 100;
-    var names: [MAX_SIZE]str = undefined;
+    // At most as many names as the caller's storage holds
     var count: usize = 0;
     
     var i: usize = 0;
-    while (i < self.tools.len and i < MAX_SIZE) {
-        names[count] = self.tools[i].name;
+    while (i < self.tools.len and i < storage.len) {
+        storage[count] = self.tools[i].name;
         count += 1;
         i += 1;
     }
     
-    // Return a slice of the actual names we collected
-    return names[0..count];
+    // Return the part of the caller's storage we filled
+    return storage[0..count];
 }
 
 // createRegistry - port the decision logic of creating a registry with validation
@@ -157,7 +157,8 @@ test "ToolRegistry_names_returns_all_names" {
         BrowserToolDefinition { name = "tool3" }
     ];
     var registry = BrowserToolRegistry { tools = &tools };
-    var result = ToolRegistry_names(registry);
+    var names: [100]str = undefined;
+    var result = ToolRegistry_names(registry, &names);
     assert(result.len == 3);
     assert(result[0] == "tool1");
     assert(result[1] == "tool2");
@@ -167,7 +168,8 @@ test "ToolRegistry_names_returns_all_names" {
 test "ToolRegistry_names_returns_empty_for_empty_registry" {
     var tools: [0]BrowserToolDefinition = [];
     var registry = BrowserToolRegistry { tools = &tools };
-    var result = ToolRegistry_names(registry);
+    var names: [100]str = undefined;
+    var result = ToolRegistry_names(registry, &names);
     assert(result.len == 0);
 }
 

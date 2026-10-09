@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+c0b721c83",
+  "gen_hash_c": "sha256:479a9162fcf9c62f5e4783b828c3a130394e803df8fdd298729914cd0b4efa5d",
+  "gen_hash_rust": "sha256:089e787b9c9e09dba36a67064d2fadbc221bed4ebd917fdfb98a66db14fc42f5",
+  "gen_hash_verilog": "sha256:f75f945662fb2f4b9a8984a400e24a8a5fa6fb2fe8a76c9b73ab9311b973e22a",
+  "gen_hash_zig": "sha256:50201a55310aec35d00f79e704678bbefc62b8a03db23360636ba3c3f420780d",
+  "module": "TriMutatePlant",
+  "ring": 12,
+  "sealed_at": "2026-10-09T09:16:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:792b96b8997c508ae143e62a51d6383dff5fa57ea2dd3ece6c1f8a56ea2e6ddf",
+  "spec_path": "specs/tri/mutate/plant.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}

@@ -1,12 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/verified/reuse.t27",
+      "spec_hash": "sha256:79af2725711852461d2d71c0ad089fb55130199e320abed77f11e915cf9d970b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9fbd4897824c3082e47cce86dd280d2134f298fa8f25b86bb7a441c4d407b9d5",
   "gen_hash_rust": "sha256:da050e6b931ed103c32eff5817441c3be8cff2cc0b5e76fd66c673ea6d663f53",
   "gen_hash_verilog": "sha256:c869c8753c9d82a7452aa0ff4c0dda65138bdf1ce635ca2f7a4ecc6a177ceb84",
   "gen_hash_zig": "sha256:8e4558b8d69c80dec8329029c81a5a1eef3b1f697117fb2147008fe4a2df9f5e",
   "module": "VerifiedFrontier",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:34Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:29:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f895c25dda34fad5e0c282327022a6412702cb1ef19a4f0f75333685f3da9990",
   "spec_path": "specs/verified/frontier.t27",
   "tests": {
@@ -15,5 +24,9 @@
     "forced": false,
     "passed": 9,
     "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

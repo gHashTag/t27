@@ -284,6 +284,20 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
     }
 }
 
+// ------------------------------------------------ a minus the parser folds into a float literal
+
+/// #7809: `const NEG_PI: f64 = -3.141592653589793;` reaches t27b as the literal "-3.141592653589793", which
+/// gen-zig prints as written and Zig negates (specs/tri/t27b/literal_plan.t27; `t27c test-report` passes the
+/// conformance spec 7/7, none vacuous), a zero to a negative zero.
+#[test]
+fn a_folded_minus_negates_a_float_literal() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/negative_float_literal.t27"));
+    assert!(r.len() == 7 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nconst Z: f64 = -0.0;\n\nfn id(x: f64) -> f64 {\n    return x;\n}\n\ntest t {\n    assert(1.0 / id(Z) < 0.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("-0.0", "0.0"))), vec![("t", false, false)]);
+}
+
 // ------------------------------------------------ a call returning a float, in `x as T`
 
 /// #7805: since #6941 gen-zig spells a call of a fn declared `-> f64` as a float, so `f() as f32` is
