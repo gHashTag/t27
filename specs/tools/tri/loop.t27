@@ -142,3 +142,85 @@ test the_queen_holds_every_tool_beside_its_lead {
         i = i + 1;
     }
 }
+
+// Wave Loop 891 pattern: packed-vector array-of-struct with outer dimension 601
+// Outer dimension: 601 (non-power-of-two)
+// Inner struct: [2]^6 Pt (384 bits per element)
+// Total elements: 601 × 64 = 38,464
+// Packed vector width: 38,464 × 32 = 1,230,848 bits (~1.174 MiBit)
+
+// Pt struct definition for Wave Loop 891
+struct Pt {
+    x : u32,
+    y : u32,
+    z : u32,
+    w : u32,
+    v : u32,
+    u : u32,
+}
+
+// Module-scope variable for Wave Loop 891 pattern
+pub const WAVE_LOOP_891_ARRAY : [601][64]Pt;
+
+// Pure function to initialize the Wave Loop 891 array
+fn init_wave_loop_891() -> [601][64]Pt {
+    var result : [601][64]Pt;
+    var outer_idx : i32 = -1;
+    
+    // Initialize with pattern data
+    for (0..601) |i| {
+        for (0..64) |j| {
+            result[i][j] = Pt {
+                x: (i * 64 + j) as u32,
+                y: ((i * 64 + j) * 2) as u32,
+                z: ((i * 64 + j) * 3) as u32,
+                w: ((i * 64 + j) * 4) as u32,
+                v: ((i * 64 + j) * 5) as u32,
+                u: ((i * 64 + j) * 6) as u32,
+            };
+        }
+    }
+    
+    return result;
+}
+
+// Initialize the module-scope variable
+const WAVE_LOOP_891_ARRAY : [601][64]Pt = init_wave_loop_891();
+
+// Wave Loop 891 bench test
+bench wave_loop_891_pattern {
+    // Test: module-scope variable initialized from a pure function call
+    // mutated via signed-index field writes
+    // read back with assert_eq inside a bench block
+    
+    var test_array : [601][64]Pt = WAVE_LOOP_891_ARRAY;
+    
+    // Mutate via signed-index field writes
+    // Positive indices
+    test_array[10][20].x = 12345;
+    test_array[10][20].y = 67890;
+    test_array[100][50].z = 11111;
+    test_array[200][30].w = 22222;
+    
+    // Negative indices (wrapping)
+    test_array[-1][0].x = 33333;  // Should wrap to 600
+    test_array[0][-1].y = 44444;  // Should wrap to 63
+    test_array[-10][-20].z = 55555; // Should wrap to 591, 44
+    
+    // Read back with assert_eq
+    assert test_array[10][20].x == 12345;
+    assert test_array[10][20].y == 67890;
+    assert test_array[100][50].z == 11111;
+    assert test_array[200][30].w == 22222;
+    
+    // Verify wrapping behavior
+    assert test_array[600][63].x == 33333;  // -1 wraps to 600
+    assert test_array[0][63].y == 44444;   // -1 wraps to 63
+    assert test_array[591][44].z == 55555;  // -10 wraps to 591, -20 wraps to 44
+    
+    // Verify other fields unchanged
+    assert test_array[10][20].z == (10 * 64 + 20) * 3;
+    assert test_array[10][20].w == (10 * 64 + 20) * 4;
+    assert test_array[10][20].v == (10 * 64 + 20) * 5;
+    assert test_array[10][20].u == (10 * 64 + 20) * 6;
+}
