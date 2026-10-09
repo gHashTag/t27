@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:20c38cab3dd9df06eb4d2468d0b48d3f3893c6abe10a3e00b8c58b6efd73eb3e",
+  "gen_hash_rust": "sha256:fecdde04e2ae6193348e752177d2063cccde7ae984d6dbca8c9681d81f029cb6",
+  "gen_hash_verilog": "sha256:642eaec14ad1173fd4951610454697ced894788004d4592ae8553f5691787cd0",
+  "gen_hash_zig": "sha256:35b6fb9da565b45375cafe5d33ff2a3008d4fb0586a04c1ebe2e1972d08b0457",
+  "module": "fn_neuro_image_generate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6caf670f4f9f95931f506ff09fab88b77058126fbb284c3c0301bdc8c0e53b03",
+  "spec_path": "specs/functions/neuro-image-generate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

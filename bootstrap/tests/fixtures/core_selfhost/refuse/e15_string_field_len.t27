@@ -1,0 +1,9 @@
+// #8013: gen-c lowers `.len` only on a string name, so `u.name.len` stays as
+// written, which is not C.
+module string_field_len;
+struct SflUser {
+    name: str,
+}
+fn sfl_f(u: SflUser) -> usize {
+    return u.name.len;
+}

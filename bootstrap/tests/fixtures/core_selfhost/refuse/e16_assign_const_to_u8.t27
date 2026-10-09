@@ -1,0 +1,8 @@
+// typecheck types a module const by its declaration: an i64 const into a u8.
+module assign_const_to_u8;
+const AK_K: i64 = 5;
+fn ak_g() -> u8 {
+    var x: u8 = 0;
+    x = AK_K;
+    return x;
+}

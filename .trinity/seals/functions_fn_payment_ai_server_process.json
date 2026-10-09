@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:787732b2a1daf582b185ec234140a250cfdb7697fe909fab2bf48da751c3ea6b",
+  "gen_hash_rust": "sha256:ed1fb8dd231e791d0708f14866d94b3a16562832605c031c6c871c40579061b4",
+  "gen_hash_verilog": "sha256:112267f087db07458b52eb88970baffd16901748c1f4bf4972ed7737ddc63c83",
+  "gen_hash_zig": "sha256:53b0b052da56a364fbf03e8c4ef07555ea64ee2e16675888cd325fd2d305f8bf",
+  "module": "fn_payment_ai_server_process",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:59a9ce04cb514731b7cb28775de030510eb4f9f6bcaee2891f66c9854ef85f74",
+  "spec_path": "specs/functions/payment-ai-server-process.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

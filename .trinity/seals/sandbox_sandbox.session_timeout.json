@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+223c28c71",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:75bdd8eb4079e6603140c6d6361f73bb5eaf93260b7a3df141c3a2bbb12880aa",
   "gen_hash_rust": "sha256:25bff9774a5e9052101ee8609ac02efba732588f416e973ac562d9588018743b",
   "gen_hash_verilog": "sha256:f62cd9c434e102b1f0978a57e709249e45e521190a231a9208b6cc2b77277b13",
   "gen_hash_zig": "sha256:2a2b348e31ca7d62e1dbfb090b0b53672b1bb196a16181ea997d31f6b17c2d49",
   "module": "sandbox.session_timeout",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:01:23Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:53:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7ab55f580f15c804877bed2e62215c6b665c3a9eb3825b4b91c1daffba34a0d6",
   "spec_path": "specs/sandbox/session_timeout.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

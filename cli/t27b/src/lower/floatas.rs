@@ -2,12 +2,13 @@
 //!
 //! gen-zig picks the cast builtin from the operand's spelling, not its type
 //! (`is_float_expr`): a literal with a decimal point, a name in
-//! `float_names`, or a binary expression with such a side is a float, and
-//! anything else is taken for an integer. So `y as i64` is
+//! `float_names`, a binary expression with such a side, or a call of a fn
+//! the file declares returning one (#6941) is a float, and anything else is
+//! taken for an integer (specs/tri/t27b/float_as_plan.t27). So `y as i64` is
 //! `@as(i64, @intFromFloat(y))` when `y` is a parameter or local declared
 //! f64, and `@as(i64, @intCast(y))` -- which Zig refuses -- when `y` is, say,
-//! a call returning f64. Only the first shape is lowered here; a float the
-//! backend would not recognize stays refused as `ExprCast(f64)`.
+//! an element of an f64 array. Only the first shape is lowered here; a float
+//! the backend would not recognize stays refused as `ExprCast(f64)`.
 //!
 //! `float_names`, as gen-zig keeps it:
 //! - every struct field declared f16 / f32 / f64 / float / double, for the
@@ -26,11 +27,16 @@ use crate::compiler::{Node, NodeKind};
 use crate::ir::Ty;
 use std::collections::HashSet;
 
-const FLOAT_TYPES: [&str; 5] = ["f16", "f32", "f64", "float", "double"];
+#[path = "../../../../gen/rust/tri/t27b/float_as_plan.rs"] #[allow(dead_code, unused_parens)]
+mod fa; // t27c gen-rust of specs/tri/t27b/float_as_plan.t27: which operands gen-zig spells as floats
+
+fn is_float_type(t: &str) -> bool {
+    fa::FLOAT_TYPES.split(' ').any(|f| f == t.trim())
+}
 
 fn float_locals(stmts: &[Node], out: &mut HashSet<String>) {
     for s in stmts {
-        if s.kind == NodeKind::StmtLocal && !s.name.is_empty() && FLOAT_TYPES.contains(&s.extra_type.trim()) {
+        if s.kind == NodeKind::StmtLocal && !s.name.is_empty() && is_float_type(&s.extra_type) {
             out.insert(s.name.clone());
         }
         float_locals(&s.children, out);
@@ -48,7 +54,7 @@ impl<'a> Lower<'a> {
             }
             if item.kind == NodeKind::StructDecl {
                 for f in &item.children {
-                    if !f.name.is_empty() && FLOAT_TYPES.contains(&f.extra_type.trim()) {
+                    if !f.name.is_empty() && is_float_type(&f.extra_type) {
                         self.float_fields.insert(f.name.clone());
                     }
                 }
@@ -60,7 +66,7 @@ impl<'a> Lower<'a> {
     /// The fn half of `float_names` while fn `n`'s body is lowered.
     pub(super) fn enter_float_names(&mut self, n: &Node) {
         for (p, t) in &n.params {
-            if FLOAT_TYPES.contains(&t.trim()) {
+            if is_float_type(t) {
                 self.float_locals.insert(p.trim().to_string());
             }
         }
@@ -69,21 +75,21 @@ impl<'a> Lower<'a> {
         self.float_locals.extend(locals);
     }
 
-    /// gen-zig's `is_float_expr`.
+    /// gen-zig's `is_float_expr`: float_as_plan.t27 `spelled_float` of the node's kind and its fact.
     fn spelled_float(&self, n: &Node) -> bool {
-        match n.kind {
-            NodeKind::ExprLiteral => n.extra_kind != "string" && n.value.contains('.'),
-            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => {
-                let last = if n.kind == NodeKind::ExprIdentifier {
-                    n.name.rsplit(['.', ':']).next().unwrap_or("")
-                } else {
-                    n.name.as_str()
-                };
-                !last.is_empty() && (self.float_locals.contains(last) || self.float_fields.contains(last))
-            }
-            NodeKind::ExprBinary => n.children.iter().any(|c| self.spelled_float(c)),
-            _ => false,
-        }
+        let last = if n.kind == NodeKind::ExprIdentifier { n.name.rsplit(['.', ':']).next().unwrap_or("") } else { n.name.as_str() };
+        let kind = match n.kind {
+            NodeKind::ExprLiteral => fa::N_LITERAL,
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => fa::N_NAME,
+            NodeKind::ExprBinary => fa::N_BINARY,
+            NodeKind::ExprCall => fa::N_CALL,
+            _ => fa::N_OTHER,
+        };
+        let point = n.extra_kind != "string" && n.value.contains('.');
+        let name = !last.is_empty() && (self.float_locals.contains(last) || self.float_fields.contains(last));
+        let operand = kind == fa::N_BINARY && n.children.iter().any(|c| self.spelled_float(c));
+        let ret = kind == fa::N_CALL && self.fns.get(&n.name).is_some_and(|f| is_float_type(&f.extra_return_type));
+        fa::spelled_float(kind, point, name, operand, ret)
     }
 
     /// `operand as to` where `v`, the lowered operand, is a typed f32 / f64

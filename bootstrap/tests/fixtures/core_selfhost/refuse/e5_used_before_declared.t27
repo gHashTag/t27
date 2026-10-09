@@ -1,0 +1,7 @@
+// A local read before its declaration (#8087).
+module used_before_declared;
+fn ubd_g() -> i64 {
+    var b: i64 = ubd_a;
+    var ubd_a: i64 = 2;
+    return b;
+}

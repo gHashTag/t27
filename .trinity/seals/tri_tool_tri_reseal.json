@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:43ae928a38dd6b2020fe82de53cca3112e0ab78a1b47f59f8048926ab9eedc4a",
+  "gen_hash_rust": "sha256:5c8de9e3341d6a2fa5f0b9aa74dd6581a5447c488d3cacd219302ec754b5f65e",
+  "gen_hash_verilog": "sha256:ef1c78778236acf9f4562956d30d4971864f63f800711dc0534d2936362257ab",
+  "gen_hash_zig": "sha256:fd4bde777999e6052952ec5e3a691606b1a6e419cb2b93525417a10adb345415",
+  "module": "tool_tri_reseal",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:55:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6bfbcba49f26a6a5cbbf4e375f6da9a745791f8eb4d9fcaae4a3092ff95feaa7",
+  "spec_path": "specs/tools/tri/reseal.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

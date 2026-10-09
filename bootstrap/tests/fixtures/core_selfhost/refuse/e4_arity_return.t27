@@ -1,0 +1,8 @@
+// typecheck refuses a call with the wrong number of arguments in a return.
+module arity_return;
+fn ar_f(a: i64) -> i64 {
+    return a;
+}
+fn ar_g() -> i64 {
+    return ar_f(1, 2);
+}

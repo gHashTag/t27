@@ -1,0 +1,1082 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/comptime_float.t27 -- Zig's comptime_float as t27b folds it: an IEEE binary128 value, its
+; decimal literals, its four operations, its order, and its rounding to f64 and f32 (issue #8244, port epic
+; #6198, under #6063 and #5980). Until this file it was the hand-written Rust `Big`, `round_bits` and `Q` in
+; cli/t27b/src/lower_float.rs. Now it reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/comptime_float.rs); lower_float.rs keeps `Q` as a one-field wrapper around `Q128`.
+; --
+; Zig keeps a comptime_float as an IEEE binary128 value: a decimal literal is parsed to the nearest binary128,
+; each compile-time `+ - * /` of two of them is rounded to binary128 (ties to even), two of them compare as
+; binary128 values, and the result is rounded once to f64 or f32 where a typed float is needed. A Q128 is that
+; value, (-1)^neg * m * 2^e with m = hi * 2^64 + lo below 2^113, computed exactly in integers (`Big`) and
+; rounded the same way, so `0.1 * 3.0` folds to the f64 0.3 while the same product at run time is
+; 0.30000000000000004. It is never infinite or NaN: an operation that would make one is refused instead.
+; --
+; Big is an unsigned integer of up to 640 32-bit limbs (20480 bits), `n` of them in use, no zero limb on top.
+; The Rust Vec<u64> had no bound; the bounds below are where a fixed size changes nothing:
+;   - A division is one compare-and-subtract per quotient bit, about 118 of them for a rounding.
+;   - An addition whose two tops lie more than 230 bits apart rounds the smaller operand away: it is only a
+;     sticky bit below the kept 113 (and one taken from the larger when the signs differ). That is the same
+;     correctly rounded result the Rust got by aligning the two exactly.
+;   - Two values compare by their top bits first, so no alignment is wider than 113 bits.
+;   - A literal's finiteness is decided exactly against 2^1024 - 2^970, the least value an f64 parse takes to
+;     infinity; the Rust asked `str::parse::<f64>`.
+;   - A literal whose digits or exponent would need more than the 20480 bits is refused (TOO_LONG). It takes
+;     some 750 digits next to the 10^-5000 cut-off below, or 2048 characters anywhere; no spec has one.
+; --
+; The oracle. The Rust's two tests become `ops_then_f64_match_hardware` and `literals_round_once`: binary128
+; keeps 113 >= 2 * 53 + 2 bits, so rounding an exact sum, difference, product or quotient to binary128 and then
+; to f64 is the f64 rounding of it, and the hardware result is an exact oracle. Before the Rust was deleted,
+; the generated module and the hand-written one were run side by side on the t27c lab over the same inputs.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bComptimeFloat;
+
+const LIMBS : u32 = 640;
+const BITS : u32 = 20480;
+const LOW32 : u64 = 4294967295;
+const TOP64 : u64 = 9223372036854775808;
+
+/// The binary128 format: 113 significant bits, the least subnormal 2^-16494, the largest exponent 16383.
+pub const Q_P : u32 = 113;
+pub const Q_LSB_MIN : i64 = -16494;
+pub const Q_TOP_MAX : i64 = 16383;
+
+/// The operations, in the order of FOp in cli/t27b/src/ir.rs.
+pub const OP_ADD : u8 = 0;
+pub const OP_SUB : u8 = 1;
+pub const OP_MUL : u8 = 2;
+pub const OP_DIV : u8 = 3;
+
+/// Why a literal gives no value.
+pub const OK : u8 = 0;
+pub const HEX : u8 = 1;
+pub const MALFORMED : u8 = 2;
+pub const OVERFLOW_F64 : u8 = 3;
+pub const OVERFLOW_F128 : u8 = 4;
+pub const TOO_LONG : u8 = 5;
+
+pub const Big = struct {
+    w : [640]u32,
+    n : u32,
+};
+
+/// (-1)^neg * (hi * 2^64 + lo) * 2^e.
+pub const Q128 = struct {
+    neg : bool,
+    hi : u64,
+    lo : u64,
+    e : i64,
+};
+
+/// A value, or none (`ok` false): division by zero, or a result past the binary128 range.
+pub const QOpt = struct {
+    ok : bool,
+    q : Q128,
+};
+
+/// A literal's value, or why there is none.
+pub const QParse = struct {
+    err : u8,
+    q : Q128,
+};
+
+/// The bits of an f64, or none (`ok` false) past the f64 range.
+pub const F64Bits = struct {
+    ok : bool,
+    bits : u64,
+};
+
+/// `m * 2^lsb`, or none (`ok` false).
+pub const Rounded = struct {
+    ok : bool,
+    m : Big,
+    lsb : i64,
+};
+
+/// floor(num / den), and whether a remainder is left.
+pub const Quot = struct {
+    q : Big,
+    rem : bool,
+};
+
+// ---------------------------------------------------------------- Big
+
+fn big_zero() -> Big {
+    return Big{ .w = [0] ** 640, .n = 0 };
+}
+
+fn big_trim(b: Big) -> Big {
+    var r : Big = b;
+    while (r.n > 0 and r.w[(r.n - 1) as usize] == 0) {
+        r.n = r.n - 1;
+    }
+    return r;
+}
+
+fn big_u64(x: u64) -> Big {
+    var r : Big = big_zero();
+    r.w[0] = (x & LOW32) as u32;
+    r.w[1] = (x >> 32) as u32;
+    r.n = 2;
+    return big_trim(r);
+}
+
+/// hi * 2^64 + lo.
+fn big_u128(hi: u64, lo: u64) -> Big {
+    var r : Big = big_zero();
+    r.w[0] = (lo & LOW32) as u32;
+    r.w[1] = (lo >> 32) as u32;
+    r.w[2] = (hi & LOW32) as u32;
+    r.w[3] = (hi >> 32) as u32;
+    r.n = 4;
+    return big_trim(r);
+}
+
+/// Limb i, 0 past the top.
+fn big_limb(b: Big, i: u32) -> u64 {
+    if (i >= b.n) {
+        return 0;
+    }
+    return b.w[i as usize] as u64;
+}
+
+/// The low 64 bits.
+fn big_lo64(b: Big) -> u64 {
+    return big_limb(b, 0) | (big_limb(b, 1) << 32);
+}
+
+/// Bits 64..127.
+fn big_hi64(b: Big) -> u64 {
+    return big_limb(b, 2) | (big_limb(b, 3) << 32);
+}
+
+fn bits_of_u32(x: u32) -> u32 {
+    var top : u32 = x;
+    var k : u32 = 0;
+    while (top != 0) {
+        k = k + 1;
+        top = top >> 1;
+    }
+    return k;
+}
+
+/// The number of bits: 0 for zero.
+fn big_bitlen(b: Big) -> u32 {
+    if (b.n == 0) {
+        return 0;
+    }
+    return (b.n - 1) * 32 + bits_of_u32(b.w[(b.n - 1) as usize]);
+}
+
+fn big_bit(b: Big, i: u32) -> bool {
+    return ((big_limb(b, i / 32) >> (i % 32)) & 1) == 1;
+}
+
+/// Whether any of bits 0..i is set.
+fn big_any_below(b: Big, i: u32) -> bool {
+    const k : u32 = i / 32;
+    var j : u32 = 0;
+    while (j < k and j < b.n) {
+        if (b.w[j as usize] != 0) {
+            return true;
+        }
+        j = j + 1;
+    }
+    const r : u32 = i % 32;
+    if (r == 0) {
+        return false;
+    }
+    return (big_limb(b, k) & ((1 << r) - 1)) != 0;
+}
+
+/// b * 2^s; the caller keeps big_bitlen(b) + s within BITS.
+fn big_shl(b: Big, s: u32) -> Big {
+    if (b.n == 0) {
+        return b;
+    }
+    var r : Big = big_zero();
+    const ls : u32 = s / 32;
+    const bs : u32 = s % 32;
+    var i : u32 = 0;
+    var carry : u64 = 0;
+    while (i < b.n) {
+        const x : u64 = b.w[i as usize] as u64;
+        r.w[(i + ls) as usize] = (((x << bs) & LOW32) | carry) as u32;
+        carry = 0;
+        if (bs > 0) {
+            carry = x >> (32 - bs);
+        }
+        i = i + 1;
+    }
+    r.n = b.n + ls;
+    if (carry != 0) {
+        r.w[r.n as usize] = carry as u32;
+        r.n = r.n + 1;
+    }
+    return r;
+}
+
+/// floor(b / 2^s).
+fn big_shr(b: Big, s: u32) -> Big {
+    const ls : u32 = s / 32;
+    const bs : u32 = s % 32;
+    var r : Big = big_zero();
+    if (ls >= b.n) {
+        return r;
+    }
+    var i : u32 = 0;
+    while (i + ls < b.n) {
+        const lo : u64 = b.w[(i + ls) as usize] as u64;
+        const above : u64 = big_limb(b, i + ls + 1);
+        r.w[i as usize] = ((lo >> bs) | ((above << (32 - bs)) & LOW32)) as u32;
+        i = i + 1;
+    }
+    r.n = b.n - ls;
+    return big_trim(r);
+}
+
+fn big_add(a: Big, b: Big) -> Big {
+    var r : Big = big_zero();
+    var top : u32 = a.n;
+    if (b.n > top) {
+        top = b.n;
+    }
+    var carry : u64 = 0;
+    var i : u32 = 0;
+    while (i < top) {
+        const s : u64 = big_limb(a, i) + big_limb(b, i) + carry;
+        r.w[i as usize] = (s & LOW32) as u32;
+        carry = s >> 32;
+        i = i + 1;
+    }
+    r.n = top;
+    if (carry != 0) {
+        r.w[top as usize] = carry as u32;
+        r.n = top + 1;
+    }
+    return r;
+}
+
+/// a - b, for a >= b.
+fn big_sub(a: Big, b: Big) -> Big {
+    var r : Big = big_zero();
+    var borrow : u64 = 0;
+    var i : u32 = 0;
+    while (i < a.n) {
+        const x : u64 = a.w[i as usize] as u64;
+        const y : u64 = big_limb(b, i) + borrow;
+        if (x >= y) {
+            r.w[i as usize] = (x - y) as u32;
+            borrow = 0;
+        } else {
+            r.w[i as usize] = (x + 4294967296 - y) as u32;
+            borrow = 1;
+        }
+        i = i + 1;
+    }
+    r.n = a.n;
+    return big_trim(r);
+}
+
+/// -1, 0 or 1 as a is below, equal to or above b.
+fn big_cmp(a: Big, b: Big) -> i8 {
+    if (a.n != b.n) {
+        if (a.n < b.n) {
+            return -1;
+        }
+        return 1;
+    }
+    var i : u32 = a.n;
+    while (i > 0) {
+        i = i - 1;
+        if (a.w[i as usize] != b.w[i as usize]) {
+            if (a.w[i as usize] < b.w[i as usize]) {
+                return -1;
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/// a * b; the caller keeps a.n + b.n within LIMBS.
+fn big_mul(a: Big, b: Big) -> Big {
+    var r : Big = big_zero();
+    var i : u32 = 0;
+    while (i < a.n) {
+        var carry : u64 = 0;
+        var j : u32 = 0;
+        while (j < b.n) {
+            const t : u64 = (r.w[(i + j) as usize] as u64) + (a.w[i as usize] as u64) * (b.w[j as usize] as u64) + carry;
+            r.w[(i + j) as usize] = (t & LOW32) as u32;
+            carry = t >> 32;
+            j = j + 1;
+        }
+        r.w[(i + b.n) as usize] = carry as u32;
+        i = i + 1;
+    }
+    r.n = a.n + b.n;
+    return big_trim(r);
+}
+
+/// a * k + add, k and add below 2^32; the caller keeps a.n + 1 within LIMBS.
+fn big_mul_small(a: Big, k: u32, add: u32) -> Big {
+    var r : Big = big_zero();
+    var carry : u64 = add as u64;
+    var i : u32 = 0;
+    while (i < a.n) {
+        const t : u64 = (a.w[i as usize] as u64) * (k as u64) + carry;
+        r.w[i as usize] = (t & LOW32) as u32;
+        carry = t >> 32;
+        i = i + 1;
+    }
+    r.n = a.n;
+    if (carry != 0) {
+        r.w[i as usize] = carry as u32;
+        r.n = a.n + 1;
+    }
+    return big_trim(r);
+}
+
+/// b * 10^k; the caller keeps the product within BITS.
+fn big_mul_pow10(b: Big, k: u32) -> Big {
+    var r : Big = b;
+    var left : u32 = k;
+    while (left >= 9) {
+        r = big_mul_small(r, 1000000000, 0);
+        left = left - 9;
+    }
+    var p : u32 = 1;
+    while (left > 0) {
+        p = p * 10;
+        left = left - 1;
+    }
+    return big_mul_small(r, p, 0);
+}
+
+/// floor(num / den) and whether a remainder is left, for den not zero: one compare-and-subtract per quotient
+/// bit (at most 118 of them for a binary128 rounding, more for a literal with far more digits than places).
+fn big_div(num: Big, den: Big) -> Quot {
+    var q : Big = big_zero();
+    var rest : Big = num;
+    const ln : u32 = big_bitlen(num);
+    const ld : u32 = big_bitlen(den);
+    if (ln >= ld) {
+        var i : u32 = ln - ld + 1;
+        while (i > 0) {
+            i = i - 1;
+            const t : Big = big_shl(den, i);
+            if (big_cmp(rest, t) >= 0) {
+                rest = big_sub(rest, t);
+                q.w[(i / 32) as usize] = q.w[(i / 32) as usize] | ((1 << (i % 32)) as u32);
+                if (q.n <= i / 32) {
+                    q.n = i / 32 + 1;
+                }
+            }
+        }
+    }
+    return Quot{ .q = big_trim(q), .rem = rest.n != 0 };
+}
+
+// ---------------------------------------------------------------- rounding
+
+/// `n * 2^e`, plus a positive amount below 2^e when `sticky`, rounded to p significant bits, ties to even,
+/// with no bit below 2^lsb_min (the subnormal range). None when the top bit would land above 2^top_max, or
+/// when `sticky` sits at or above the last kept bit (the caller gave too few bits to decide).
+fn round_bits(n: Big, e: i64, sticky: bool, p: u32, lsb_min: i64, top_max: i64) -> Rounded {
+    if (n.n == 0) {
+        return Rounded{ .ok = !sticky, .m = big_zero(), .lsb = lsb_min };
+    }
+    const top : i64 = e + (big_bitlen(n) as i64) - 1;
+    var lsb : i64 = top - ((p as i64) - 1);
+    if (lsb < lsb_min) {
+        lsb = lsb_min;
+    }
+    const shift : i64 = lsb - e;
+    if (shift <= 0) {
+        if (sticky) {
+            return Rounded{ .ok = false, .m = big_zero(), .lsb = 0 };
+        }
+        return in_range(big_shl(n, (0 - shift) as u32), lsb, top_max);
+    }
+    const s : u32 = shift as u32;
+    var m : Big = big_shr(n, s);
+    const half : bool = big_bit(n, s - 1);
+    const low : bool = sticky or big_any_below(n, s - 1);
+    if (half and (low or (big_limb(m, 0) & 1) == 1)) {
+        m = big_add(m, big_u64(1));
+        if (big_bitlen(m) > p) {
+            m = big_shr(m, 1);
+            lsb = lsb + 1;
+        }
+    }
+    return in_range(m, lsb, top_max);
+}
+
+/// m * 2^lsb, or none when its top bit lands above 2^top_max.
+fn in_range(m: Big, lsb: i64, top_max: i64) -> Rounded {
+    if (m.n != 0 and lsb + (big_bitlen(m) as i64) - 1 > top_max) {
+        return Rounded{ .ok = false, .m = big_zero(), .lsb = 0 };
+    }
+    return Rounded{ .ok = true, .m = m, .lsb = lsb };
+}
+
+// ---------------------------------------------------------------- Q128
+
+pub fn q_zero() -> Q128 {
+    return Q128{ .neg = false, .hi = 0, .lo = 0, .e = Q_LSB_MIN };
+}
+
+fn q_none() -> QOpt {
+    return QOpt{ .ok = false, .q = q_zero() };
+}
+
+fn q_some(q: Q128) -> QOpt {
+    return QOpt{ .ok = true, .q = q };
+}
+
+fn q_mag(q: Q128) -> Big {
+    return big_u128(q.hi, q.lo);
+}
+
+/// n * 2^e (plus a sticky amount below 2^e) rounded once to binary128.
+fn q_round(neg: bool, n: Big, e: i64, sticky: bool) -> QOpt {
+    const r : Rounded = round_bits(n, e, sticky, Q_P, Q_LSB_MIN, Q_TOP_MAX);
+    if (!r.ok) {
+        return q_none();
+    }
+    return q_some(Q128{ .neg = neg, .hi = big_hi64(r.m), .lo = big_lo64(r.m), .e = r.lsb });
+}
+
+pub fn q_is_zero(q: Q128) -> bool {
+    return q.hi == 0 and q.lo == 0;
+}
+
+pub fn q_neg(q: Q128) -> Q128 {
+    return Q128{ .neg = !q.neg, .hi = q.hi, .lo = q.lo, .e = q.e };
+}
+
+/// Zig's `@abs` of a comptime_float: the sign cleared.
+pub fn q_abs(q: Q128) -> Q128 {
+    return Q128{ .neg = false, .hi = q.hi, .lo = q.lo, .e = q.e };
+}
+
+pub fn q_is_neg(q: Q128) -> bool {
+    return q.neg;
+}
+
+/// A finite f64, exactly, from its bits.
+pub fn q_from_f64(bits: u64) -> Q128 {
+    const be : u64 = (bits >> 52) & 2047;
+    const bf : u64 = bits & 4503599627370495;
+    if (be == 0) {
+        return Q128{ .neg = (bits >> 63) == 1, .hi = 0, .lo = bf, .e = -1074 };
+    }
+    return Q128{ .neg = (bits >> 63) == 1, .hi = 0, .lo = bf | 4503599627370496, .e = (be as i64) - 1075 };
+}
+
+/// A comptime_int (sign, and magnitude hi * 2^64 + lo) as a comptime_float, when that is exact: when its
+/// odd part has at most 113 bits.
+pub fn q_from_int(neg: bool, hi: u64, lo: u64) -> QOpt {
+    const a : Big = big_u128(hi, lo);
+    if (a.n != 0) {
+        var odd : Big = a;
+        while (!big_bit(odd, 0)) {
+            odd = big_shr(odd, 1);
+        }
+        if (big_bitlen(odd) > Q_P) {
+            return q_none();
+        }
+    }
+    return q_round(neg, a, 0, false);
+}
+
+/// The top bit's position: e + bits - 1.
+fn q_top(q: Q128) -> i64 {
+    return q.e + (big_bitlen(q_mag(q)) as i64) - 1;
+}
+
+/// a + b rounded once to binary128.
+fn q_add(a: Q128, b: Q128) -> QOpt {
+    if (q_is_zero(a) and q_is_zero(b)) {
+        return q_some(Q128{ .neg = a.neg and b.neg, .hi = 0, .lo = 0, .e = Q_LSB_MIN });
+    }
+    if (q_is_zero(a)) {
+        return q_some(b);
+    }
+    if (q_is_zero(b)) {
+        return q_some(a);
+    }
+    const ta : i64 = q_top(a);
+    const tb : i64 = q_top(b);
+    if (ta - tb > 230) {
+        return q_add_tiny(a, ta, a.neg == b.neg);
+    }
+    if (tb - ta > 230) {
+        return q_add_tiny(b, tb, a.neg == b.neg);
+    }
+    var e : i64 = a.e;
+    if (b.e < e) {
+        e = b.e;
+    }
+    const x : Big = big_shl(q_mag(a), (a.e - e) as u32);
+    const y : Big = big_shl(q_mag(b), (b.e - e) as u32);
+    if (a.neg == b.neg) {
+        return q_round(a.neg, big_add(x, y), e, false);
+    }
+    const c : i8 = big_cmp(x, y);
+    if (c == 0) {
+        return q_some(q_zero());
+    }
+    if (c > 0) {
+        return q_round(a.neg, big_sub(x, y), e, false);
+    }
+    return q_round(b.neg, big_sub(y, x), e, false);
+}
+
+/// big + or - an operand whose top lies more than 230 bits below `top`, its top: at e = top - 116 the larger
+/// is n * 2^e exactly and the smaller is below 2^e, so it is a sticky amount (taken from n when it is
+/// subtracted).
+fn q_add_tiny(big: Q128, top: i64, same_sign: bool) -> QOpt {
+    const e : i64 = top - 116;
+    const n : Big = big_shl(q_mag(big), (big.e - e) as u32);
+    if (same_sign) {
+        return q_round(big.neg, n, e, true);
+    }
+    return q_round(big.neg, big_sub(n, big_u64(1)), e, true);
+}
+
+/// a op b rounded once to binary128, ties to even. None on division by zero and when the result leaves the
+/// binary128 range.
+pub fn q_op(op: u8, a: Q128, b: Q128) -> QOpt {
+    const neg : bool = a.neg != b.neg;
+    if (op == OP_ADD) {
+        return q_add(a, b);
+    }
+    if (op == OP_SUB) {
+        return q_add(a, q_neg(b));
+    }
+    if (op == OP_MUL) {
+        return q_round(neg, big_mul(q_mag(a), q_mag(b)), a.e + b.e, false);
+    }
+    if (q_is_zero(b)) {
+        return q_none();
+    }
+    if (q_is_zero(a)) {
+        return q_some(Q128{ .neg = neg, .hi = 0, .lo = 0, .e = Q_LSB_MIN });
+    }
+    const x : Big = q_mag(a);
+    const y : Big = q_mag(b);
+    var s : i64 = (big_bitlen(y) as i64) - (big_bitlen(x) as i64) + 116;
+    if (s < 0) {
+        s = 0;
+    }
+    const d : Quot = big_div(big_shl(x, s as u32), y);
+    return q_round(neg, d.q, a.e - s - b.e, d.rem);
+}
+
+/// -1, 0 or 1 as a is below, equal to or above b; the zeros are equal.
+pub fn q_cmp(a: Q128, b: Q128) -> i8 {
+    var sa : i8 = 1;
+    if (q_is_zero(a)) {
+        sa = 0;
+    } else if (a.neg) {
+        sa = -1;
+    }
+    var sb : i8 = 1;
+    if (q_is_zero(b)) {
+        sb = 0;
+    } else if (b.neg) {
+        sb = -1;
+    }
+    if (sa != sb or sa == 0) {
+        if (sa < sb) {
+            return -1;
+        }
+        if (sa > sb) {
+            return 1;
+        }
+        return 0;
+    }
+    const mag : i8 = mag_cmp(a, b);
+    if (sa < 0) {
+        return 0 - mag;
+    }
+    return mag;
+}
+
+/// The order of the two magnitudes: by the top bits, then aligned (no more than 112 bits apart).
+fn mag_cmp(a: Q128, b: Q128) -> i8 {
+    const ta : i64 = q_top(a);
+    const tb : i64 = q_top(b);
+    if (ta < tb) {
+        return -1;
+    }
+    if (ta > tb) {
+        return 1;
+    }
+    var e : i64 = a.e;
+    if (b.e < e) {
+        e = b.e;
+    }
+    return big_cmp(big_shl(q_mag(a), (a.e - e) as u32), big_shl(q_mag(b), (b.e - e) as u32));
+}
+
+/// Rounded once to f64, ties to even; none past the f64 range.
+pub fn q_to_f64(q: Q128) -> F64Bits {
+    const r : Rounded = round_bits(q_mag(q), q.e, false, 53, -1074, 1023);
+    if (!r.ok) {
+        return F64Bits{ .ok = false, .bits = 0 };
+    }
+    const m : u64 = big_lo64(r.m);
+    var bits : u64 = m;
+    if ((m >> 52) != 0) {
+        bits = (((r.lsb + 52 + 1023) as u64) << 52) | (m & 4503599627370495);
+    }
+    if (q.neg) {
+        bits = bits | TOP64;
+    }
+    return F64Bits{ .ok = true, .bits = bits };
+}
+
+/// Rounded once to f32, ties to even; past the f32 range, infinity.
+pub fn q_to_f32(q: Q128) -> u32 {
+    const r : Rounded = round_bits(q_mag(q), q.e, false, 24, -149, 127);
+    var bits : u32 = 2139095040;
+    if (r.ok) {
+        const m : u32 = big_lo64(r.m) as u32;
+        bits = m;
+        if ((m >> 23) != 0) {
+            bits = (((r.lsb + 23 + 127) as u32) << 23) | (m & 8388607);
+        }
+    }
+    if (q.neg) {
+        bits = bits | 2147483648;
+    }
+    return bits;
+}
+
+/// The value's f64 when it is one exactly.
+pub fn q_exact_f64(q: Q128) -> F64Bits {
+    const f : F64Bits = q_to_f64(q);
+    if (!f.ok or q_cmp(q_from_f64(f.bits), q) != 0) {
+        return F64Bits{ .ok = false, .bits = 0 };
+    }
+    return f;
+}
+
+// ---------------------------------------------------------------- literals
+
+/// The literal without its `_` separators; n past 2048 when it does not fit.
+fn text_of(s: []const u8) -> LiteralText {
+    var t : LiteralText = LiteralText{ .b = [0] ** 2048, .n = 0 };
+    var i : u32 = 0;
+    while (i < (s.len as u32)) {
+        if (s[i as usize] != 95) {
+            if (t.n >= 2048) {
+                t.n = 2049;
+                return t;
+            }
+            t.b[t.n as usize] = s[i as usize];
+            t.n = t.n + 1;
+        }
+        i = i + 1;
+    }
+    return t;
+}
+
+fn is_digit(c: u8) -> bool {
+    return c >= 48 and c <= 57;
+}
+
+/// The literal with its `_` separators taken out, and its length.
+pub const LiteralText = struct {
+    b : [2048]u8,
+    n : u32,
+};
+
+/// The places in a literal: [0, dot) the integer digits, (dot, mant) the fraction, (mant, end) the exponent.
+const Parts = struct {
+    dot : u32,
+    mant : u32,
+    end : u32,
+};
+
+/// The exponent: its value (saturated at +-2^62) and whether it fit in an i64.
+const Exp = struct {
+    value : i64,
+    fits : bool,
+};
+
+fn exp_of(t: LiteralText, from: u32, to: u32) -> Exp {
+    var i : u32 = from;
+    var neg : bool = false;
+    if (i < to and (t.b[i as usize] == 43 or t.b[i as usize] == 45)) {
+        neg = t.b[i as usize] == 45;
+        i = i + 1;
+    }
+    var v : i64 = 0;
+    var fits : bool = true;
+    while (i < to) {
+        const d : i64 = (t.b[i as usize] - 48) as i64;
+        if (v > 922337203685477580 or (v == 922337203685477580 and d > 7)) {
+            fits = false;
+            v = 4611686018427387904;
+        } else if (fits) {
+            v = v * 10 + d;
+        }
+        i = i + 1;
+    }
+    if (neg) {
+        return Exp{ .value = 0 - v, .fits = fits };
+    }
+    return Exp{ .value = v, .fits = fits };
+}
+
+fn all_digits(t: LiteralText, from: u32, to: u32) -> bool {
+    var i : u32 = from;
+    while (i < to) {
+        if (!is_digit(t.b[i as usize])) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// 2^1024 - 2^970, the least value an f64 parse takes to infinity (half an ulp above the largest f64; the
+/// tie goes to the even infinity).
+fn f64_overflow_bound() -> Big {
+    return big_shl(big_sub(big_shl(big_u64(1), 54), big_u64(1)), 970);
+}
+
+/// The literal's significant digits as an integer, from `from` (the first nonzero digit) to `to`, `dot` the
+/// place of the point.
+fn digits_of(t: LiteralText, from: u32, to: u32, dot: u32) -> Big {
+    var d : Big = big_zero();
+    var i : u32 = from;
+    while (i < to) {
+        if (i != dot) {
+            d = big_mul_small(d, 10, (t.b[i as usize] - 48) as u32);
+        }
+        i = i + 1;
+    }
+    return d;
+}
+
+fn parsed(err: u8, q: Q128) -> QParse {
+    return QParse{ .err = err, .q = q };
+}
+
+fn parsed_opt(r: QOpt, err: u8) -> QParse {
+    if (!r.ok) {
+        return parsed(err, q_zero());
+    }
+    return parsed(OK, r.q);
+}
+
+/// A decimal float literal (digits, an optional fraction, an optional exponent, `_` separators) rounded once
+/// to binary128, ties to even.
+pub fn q_parse(s: []const u8) -> QParse {
+    const t : LiteralText = text_of(s[0..s.len]);
+    if (t.n > 2048) {
+        return parsed(TOO_LONG, q_zero());
+    }
+    if (t.n >= 2 and t.b[0] == 48 and (t.b[1] == 120 or t.b[1] == 88)) {
+        return parsed(HEX, q_zero());
+    }
+    var p : Parts = Parts{ .dot = t.n, .mant = t.n, .end = t.n };
+    var i : u32 = 0;
+    while (i < t.n) {
+        if (p.mant == t.n and (t.b[i as usize] == 101 or t.b[i as usize] == 69)) {
+            p.mant = i;
+        }
+        i = i + 1;
+    }
+    i = 0;
+    while (i < p.mant) {
+        if (p.dot == t.n and t.b[i as usize] == 46) {
+            p.dot = i;
+        }
+        i = i + 1;
+    }
+    var ip_end : u32 = p.dot;
+    if (p.dot > p.mant) {
+        ip_end = p.mant;
+    }
+    var fp_from : u32 = p.mant;
+    if (p.dot < p.mant) {
+        fp_from = p.dot + 1;
+    }
+    var exp_from : u32 = p.mant;
+    if (p.mant < t.n) {
+        exp_from = p.mant + 1;
+    }
+    var exp_digits : u32 = exp_from;
+    if (exp_digits < t.n and (t.b[exp_digits as usize] == 43 or t.b[exp_digits as usize] == 45)) {
+        exp_digits = exp_digits + 1;
+    }
+    const no_exp : bool = p.mant == t.n;
+    if (ip_end == 0 or !all_digits(t, 0, ip_end) or !all_digits(t, fp_from, p.mant)
+        or (!no_exp and exp_digits == t.n) or !all_digits(t, exp_digits, t.n)) {
+        return parsed(MALFORMED, q_zero());
+    }
+    return parse_value(t, ip_end, fp_from, p.mant, exp_from, no_exp);
+}
+
+/// The value of a well-formed literal: integer digits [0, ip_end), fraction [fp_from, mant), exponent
+/// [exp_from, t.n) (none when `no_exp`).
+fn parse_value(t: LiteralText, ip_end: u32, fp_from: u32, mant: u32, exp_from: u32, no_exp: bool) -> QParse {
+    var first : u32 = 0;
+    while (first < mant and (t.b[first as usize] == 48 or first == ip_end)) {
+        first = first + 1;
+    }
+    var x : Exp = Exp{ .value = 0, .fits = true };
+    if (!no_exp) {
+        x = exp_of(t, exp_from, t.n);
+    }
+    if (first == mant) {
+        return parsed(OK, q_zero());
+    }
+    var fp_len : i64 = 0;
+    if (fp_from < mant) {
+        fp_len = (mant - fp_from) as i64;
+    }
+    var len : i64 = (mant - first) as i64;
+    if (first < ip_end and ip_end < mant) {
+        len = len - 1;
+    }
+    // A finite f64 bounds the value: at or past 10^310 it overflows, below 10^308 it does not. An exponent
+    // past i64 (or within 2^60 of its ends) is far outside both bounds.
+    if ((!x.fits and x.value > 0) or x.value > 1152921504606846976) {
+        return parsed(OVERFLOW_F64, q_zero());
+    }
+    if (len * 4 > (BITS as i64)) {
+        return parsed(TOO_LONG, q_zero());
+    }
+    const d : Big = digits_of(t, first, mant, ip_end);
+    if (!x.fits or x.value < -1152921504606846976) {
+        return parsed(OK, q_zero());
+    }
+    const e10 : i64 = x.value - fp_len;
+    if (e10 + len > 310) {
+        return parsed(OVERFLOW_F64, q_zero());
+    }
+    if (e10 >= 0) {
+        const n : Big = big_mul_pow10(d, e10 as u32);
+        if (big_cmp(n, f64_overflow_bound()) >= 0) {
+            return parsed(OVERFLOW_F64, q_zero());
+        }
+        return parsed_opt(q_round(false, n, 0, false), OVERFLOW_F128);
+    }
+    return parse_fraction(d, len, e10);
+}
+
+/// d * 10^e10 for e10 < 0: zero below 10^-5000, then one division with at least 116 quotient bits.
+fn parse_fraction(d: Big, len: i64, e10: i64) -> QParse {
+    const k : i64 = 0 - e10;
+    if (e10 + len > 308) {
+        if ((k * 10 / 3) + 1100 > (BITS as i64)) {
+            return parsed(TOO_LONG, q_zero());
+        }
+        if (big_cmp(d, big_mul_pow10(f64_overflow_bound(), k as u32)) >= 0) {
+            return parsed(OVERFLOW_F64, q_zero());
+        }
+    }
+    // Below 10^-5000, under half the smallest binary128 subnormal.
+    if (e10 + len < -5000) {
+        return parsed(OK, q_zero());
+    }
+    if ((k * 10 / 3) + 160 > (BITS as i64)) {
+        return parsed(TOO_LONG, q_zero());
+    }
+    const den : Big = big_mul_pow10(big_u64(1), k as u32);
+    var s : i64 = (big_bitlen(den) as i64) - (big_bitlen(d) as i64) + 116;
+    if (s < 0) {
+        s = 0;
+    }
+    const q : Quot = big_div(big_shl(d, s as u32), den);
+    return parsed_opt(q_round(false, q.q, 0 - s, q.rem), OVERFLOW_F128);
+}
+
+/// The words of a refusal.
+pub fn why(err: u8) -> str {
+    if (err == HEX) { return "hexadecimal float literal"; }
+    if (err == MALFORMED) { return "malformed float literal"; }
+    if (err == OVERFLOW_F64) { return "float literal overflows f64"; }
+    if (err == OVERFLOW_F128) { return "float literal overflows f128"; }
+    if (err == TOO_LONG) { return "float literal too long for t27b to fold"; }
+    return "";
+}
+
+// ---------------------------------------------------------------- tests
+
+fn lit(s: []const u8) -> u64 {
+    const r : QParse = q_parse(s);
+    assert(r.err == OK);
+    const f : F64Bits = q_to_f64(r.q);
+    assert(f.ok);
+    return f.bits;
+}
+
+fn lit_q(s: []const u8) -> Q128 {
+    const r : QParse = q_parse(s);
+    assert(r.err == OK);
+    return r.q;
+}
+
+/// The next xorshift64 state.
+fn next(seed: u64) -> u64 {
+    var x : u64 = seed;
+    x = x ^ (x << 13);
+    x = x ^ (x >> 7);
+    x = x ^ (x << 17);
+    return x;
+}
+
+/// A finite f64 bit pattern from a state, a fifth of them subnormal or tiny; 0 marks a NaN or an infinity.
+fn finite_of(x: u64) -> u64 {
+    var bits : u64 = x;
+    if (x % 5 == 0) {
+        bits = x & 9232379236109516799;
+    }
+    if (((bits >> 52) & 2047) == 2047) {
+        return 0;
+    }
+    return bits;
+}
+
+fn hw(op: u8, a: f64, b: f64) -> f64 {
+    if (op == OP_ADD) { return a + b; }
+    if (op == OP_SUB) { return a - b; }
+    if (op == OP_MUL) { return a * b; }
+    return a / b;
+}
+
+/// binary128 keeps 113 >= 2 * 53 + 2 bits, so rounding an exact sum, difference, product or quotient to
+/// binary128 and then to f64 is the f64 rounding of it: the hardware result is an exact oracle.
+test ops_then_f64_match_hardware {
+    var seed : u64 = 11400714819323198485;
+    var done : u32 = 0;
+    while (done < 120) {
+        seed = next(seed);
+        const ab : u64 = finite_of(seed);
+        seed = next(seed);
+        const bb : u64 = finite_of(seed);
+        const a : f64 = @bitCast(ab);
+        const b : f64 = @bitCast(bb);
+        var op : u8 = 0;
+        while (op < 4) {
+            const want : f64 = hw(op, a, b);
+            const wb : u64 = @bitCast(want);
+            const finite : bool = ((wb >> 52) & 2047) != 2047;
+            if (finite and !(op == OP_DIV and b == 0.0)) {
+                const got : QOpt = q_op(op, q_from_f64(ab), q_from_f64(bb));
+                assert(got.ok);
+                const f : F64Bits = q_to_f64(got.q);
+                assert(f.ok);
+                assert(f.bits == wb);
+            }
+            op = op + 1;
+        }
+        var order : i8 = 0;
+        if (a < b) { order = -1; }
+        if (a > b) { order = 1; }
+        assert(q_cmp(q_from_f64(ab), q_from_f64(bb)) == order);
+        const af : f32 = @floatCast(a);
+        const afb : u32 = @bitCast(af);
+        assert(q_to_f32(q_from_f64(ab)) == afb);
+        done = done + 1;
+    }
+}
+
+/// A literal rounds once from its exact decimal value, ties to even.
+test literals_round_once {
+    assert(lit("0.1") == 4591870180066957722);
+    assert(lit("1e23") == 4950912855330343670);
+    assert(lit("5e-324") == 1);
+    assert(lit("0.0") == 0);
+    assert(lit("1_000.5") == 4652011706887700480);
+    assert(lit("2.5e-1") == 4598175219545276416);
+    assert(lit("1.7976931348623157e308") == 9218868437227405311);
+    assert(lit("2.2250738585072014e-308") == 4503599627370496);
+    assert(lit("4.9406564584124654e-324") == 1);
+    assert(lit("123456789012345678901234567890") == 5042042089369253694);
+    // The exact decimal expansion of 0.1's f64 parses back to that f64.
+    assert(lit("0.1000000000000000055511151231257827021181583404541015625") == 4591870180066957722);
+    // 0.1 is not an f64; 0.1 + 0.2 folds to the f64 0.3 but stays above the binary128 0.3.
+    assert(!q_exact_f64(lit_q("0.1")).ok);
+    const s : QOpt = q_op(OP_ADD, lit_q("0.1"), lit_q("0.2"));
+    assert(s.ok);
+    assert(q_to_f64(s.q).bits == 4599075939470750515);
+    assert(q_cmp(s.q, lit_q("0.3")) == 1);
+    assert(q_exact_f64(lit_q("0.5")).ok);
+}
+
+test literals_at_the_edges {
+    assert(q_parse("0x1.8p3").err == HEX);
+    assert(q_parse(".5").err == MALFORMED);
+    assert(q_parse("1.5e").err == MALFORMED);
+    assert(q_parse("1.5e+").err == MALFORMED);
+    assert(q_parse("1.2.3").err == MALFORMED);
+    assert(q_parse("1e5e3").err == MALFORMED);
+    assert(q_parse("1.").err == OK);
+    assert(q_parse("1.e5").err == OK);
+    assert(q_parse("2e308").err == OVERFLOW_F64);
+    assert(q_parse("1.8e308").err == OVERFLOW_F64);
+    assert(q_parse("1.7976931348623159e308").err == OVERFLOW_F64);
+    assert(q_parse("1.7976931348623158e308").err == OK);
+    assert(q_parse("1.7976931348623157e308").err == OK);
+    assert(q_parse("1e99999999999999999999").err == OVERFLOW_F64);
+    assert(q_is_zero(lit_q("1e-99999999999999999999")));
+    assert(q_is_zero(lit_q("0e99999999999999999999")));
+    assert(q_is_zero(lit_q("1e-6000")));
+    assert(q_is_zero(lit_q("000.000")));
+    // Just under 2^1024 - 2^970 the literal is finite, as an f64 parse says, but its binary128 is that bound,
+    // which rounds past the f64 range: the double rounding the reference does too.
+    const edge : QParse = q_parse("179769313486231580793728971405303415079934132710037826936173778980444968292764750946649017977587207096330286416692887910946555547851940402630657488671505820681908902000708383676273854845817711531764475730270069855571366959622842914819860834936475292719074168444365510704342711559699508093042880177904174497791.9");
+    assert(edge.err == OK);
+    assert(!q_to_f64(edge.q).ok);
+    // 1e-4960 is a binary128 subnormal (the least is 2^-16494, about 6.5e-4966), and its f64 is 0; 1e-4999 is
+    // below half of it, and is 0 after the long division.
+    assert(q_is_zero(lit_q("1e-4999")));
+    const tiny : Q128 = lit_q("1e-4960");
+    assert(!q_is_zero(tiny));
+    assert(q_to_f64(tiny).bits == 0);
+}
+
+test operations_at_the_edges {
+    const one : Q128 = lit_q("1.0");
+    const zero : Q128 = q_zero();
+    assert(!q_op(OP_DIV, one, zero).ok);
+    assert(q_is_zero(q_op(OP_DIV, zero, one).q));
+    assert(q_op(OP_DIV, q_neg(zero), one).q.neg);
+    assert(q_op(OP_SUB, one, one).ok);
+    assert(!q_op(OP_SUB, one, one).q.neg);
+    // Far apart: 2^13000 + 2^-13000 is 2^13000, and 1 - 2^-200 is 1 at binary128. (A literal past the f64
+    // range is refused, so these are built.)
+    const big : Q128 = Q128{ .neg = false, .hi = 0, .lo = 3, .e = 13000 };
+    const small : Q128 = Q128{ .neg = false, .hi = 0, .lo = 5, .e = -13000 };
+    assert(q_cmp(q_op(OP_ADD, big, small).q, big) == 0);
+    assert(q_cmp(q_op(OP_SUB, small, big).q, q_neg(big)) == 0);
+    const t : Q128 = Q128{ .neg = false, .hi = 0, .lo = 1, .e = -200 };
+    assert(q_cmp(q_op(OP_SUB, one, t).q, one) == 0);
+    assert(q_cmp(q_op(OP_ADD, one, t).q, one) == 0);
+    // Past the binary128 range: none.
+    assert(!q_op(OP_MUL, big, big).ok);
+    assert(q_cmp(big, small) == 1);
+    assert(q_cmp(q_neg(big), small) == -1);
+    assert(q_cmp(q_neg(zero), zero) == 0);
+    // A comptime_int is exact when its odd part has at most 113 bits.
+    assert(q_from_int(false, 0, 7).ok);
+    assert(q_from_int(true, 9223372036854775808, 0).ok);
+    assert(!q_from_int(false, 18446744073709551615, 18446744073709551615).ok);
+    assert(q_to_f64(q_from_int(true, 0, 3).q).bits == 13837309855095848960);
+    // f32: rounded once, past the range infinity.
+    assert(q_to_f32(lit_q("0.1")) == 1036831949);
+    assert(q_to_f32(lit_q("1e39")) == 2139095040);
+    assert(q_to_f32(q_neg(lit_q("1e39"))) == 4286578688);
+    assert(q_to_f32(lit_q("1e-46")) == 0);
+}

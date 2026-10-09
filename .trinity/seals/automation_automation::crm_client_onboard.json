@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "gen_hash_c": "sha256:42ea28887786c65c5cca29885988a37bcc06461e7bcdc9836154af14f08d2cfa",
+  "gen_hash_rust": "sha256:c788e58559c2510a1daade12794d3a348b04ef1c3f5a2fa31dd09d65ab19c50d",
+  "gen_hash_verilog": "sha256:5d85c9d494618e55a1911729e20bfb5d35c0311b60a395da6c6c978c692be963",
+  "gen_hash_zig": "sha256:202fdc5912320622451c02e724a6c98d8ab79da5017bc8dae11859bd2182830c",
+  "module": "automation::crm_client_onboard",
+  "ring": 12,
+  "sealed_at": "2026-10-09T15:11:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:8a61e31ad1b5878c5b55dd9c3f1dcc7a6176184d7e4d21c5b93ee4cb1888f868",
+  "spec_path": "specs/automation/crm-client-onboard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

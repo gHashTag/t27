@@ -1,0 +1,8 @@
+// A field the struct does not have (#8087).
+module unknown_field;
+struct UfP {
+    x: i64,
+}
+fn uf_g(p: UfP) -> i64 {
+    return p.nope;
+}

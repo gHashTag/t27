@@ -1,0 +1,381 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/compiler/theory/warmup.t27 -- does a JIT reach a steady state, and how: the classification of
+; E. Barrett, C. F. Bolz-Tereick, R. Killick, S. Mount, L. Tratt, "Virtual Machine Warmup Blows Hot and
+; Cold", OOPSLA 2017, DOI 10.1145/3133876 (arXiv 1602.00602), written as t27 so the sieve's filter C6
+; (specs/compiler/theory/sieve.t27) is decided by a spec and not by a script (gHashTag/t27#7596).
+; ASCII only (L3).
+
+; ---- The method, as the paper states it (section 4) and as this spec runs it ---------------------
+; One series is the time of each in-process iteration of one process execution. Per series:
+; 1. Outliers (Tukey). An iteration is an outlier when, within a sliding window, it lies outside
+;    median +- 3 * (90th percentile - 10th percentile). The first iterations, as many as the window
+;    is long, are never outliers, so slow warmup iterations are not thrown away. The paper does not
+;    say where the window sits; here it is the WINDOW iterations just before the one judged, which is
+;    the reading under which "ignore the first 200" is exactly what the window needs.
+; 2. Changepoints. Outliers are dropped and the rest is cut into segments by the normal mean-and-
+;    variance cost (R changepoint's cpt.meanvar: a segment of m points with variance v costs
+;    m * ln v, constants dropped) plus a penalty of 15 * ln n per changepoint, n = series length
+;    minus outliers. The paper runs PELT; this spec runs optimal partitioning, which PELT only
+;    speeds up: both return the partition of least penalised cost (Killick, Fearnhead, Eckley, JASA
+;    107(500):1590-1598, 2012, DOI 10.1080/01621459.2012.737745). Minimum segment length 2, the
+;    package's default. A variance below VAR_FLOOR is read as VAR_FLOOR, so a constant segment has
+;    a finite cost.
+; 3. Classification, Listing 3 of the paper. With L the last segment, lower = mean(L) -
+;    max(var(L), DELTA) and upper = mean(L) + max(var(L), DELTA). Walk the other segments from the
+;    last but one to the first: a segment whose [mean - var, mean + var] meets [lower, upper] is
+;    equivalent and skipped; else, if it ends inside the last STEADY iterations, the series has NO
+;    STEADY STATE; else, if its mean is below lower, the series is a SLOWDOWN (an earlier segment was
+;    faster than the steady state); else WARMUP. If every segment is equivalent, FLAT.
+;    The paper reads a variance "as having units in seconds rather than seconds squared". Times here
+;    are microseconds, so a variance v in us^2 is v * 1e-12 s^2, read as v * 1e-12 s = v / 1e6 us
+;    (var_read below).
+; 4. Per benchmark: if every process execution has the same class, that class; otherwise GOOD
+;    INCONSISTENT when every execution is flat or warmup, BAD INCONSISTENT when any is slowdown or no
+;    steady state.
+; --
+; Scaling. The paper ran 2000 iterations per execution, with a window of 200 and a steady-state
+; length of 500. The t27b run (specs/compiler/theory/warmup_t27b.t27) has 500, so both are scaled by
+; 500/2000: WINDOW 50, STEADY 125. DELTA stays 1 ms: it is an absolute noise floor of the machine, not
+; a fraction of the run.
+; --
+; The tests below are negative controls: a series built to be flat, warmup, slowdown, no steady
+; state, a sub-DELTA shift and a lone spike, each with deterministic noise, must come out as built.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module CompilerTheoryWarmup;
+
+pub const FLAT : u8 = 0;
+pub const WARMUP : u8 = 1;
+pub const SLOWDOWN : u8 = 2;
+pub const NO_STEADY : u8 = 3;
+pub const GOOD_INCONSISTENT : u8 = 4;
+pub const BAD_INCONSISTENT : u8 = 5;
+
+pub const ITERS : usize = 500;
+pub const WINDOW : usize = 50;
+pub const STEADY : usize = 125;
+pub const DELTA_US : f64 = 1000.0;
+pub const PENALTY_K : f64 = 15.0;
+pub const MIN_SEG : usize = 2;
+pub const VAR_FLOOR : f64 = 0.000001;
+pub const NO_COST : f64 = 1.0e300;
+
+; What one series comes to. Everything is computed in fn-local buffers, so a spec that `use`s this one
+; gets every name it needs spliced in (the resolver splices fns and consts, not module vars).
+pub const WarmupVerdict = struct {
+    cls: u8,
+    segments: usize,
+    steady_iter: usize,
+    steady_mean_us: u32,
+    outliers: u32,
+};
+
+; The window of WINDOW iterations before iteration i of the series at xs[base..], sorted into win.
+fn sort_window(xs: []const u32, base: usize, i: usize, win: []u32) -> void {
+    var k: usize = 0;
+    while (k < WINDOW) {
+        var v: u32 = xs[base + i - WINDOW + k];
+        var j: usize = k;
+        while (j > 0 and win[j - 1] > v) {
+            win[j] = win[j - 1];
+            j = j - 1;
+        }
+        win[j] = v;
+        k = k + 1;
+    }
+}
+
+; Tukey's rule: is iteration i of the series at xs[base..] an outlier? Percentiles by nearest rank
+; below: p10 = sorted[(W-1)/10], p90 = sorted[9(W-1)/10]; the median averages the two middle values.
+pub fn is_outlier(xs: []const u32, base: usize, i: usize) -> bool {
+    if (i < WINDOW) { return false; }
+    var win: [64]u32 = [_]u32{0} ** 64;
+    sort_window(xs, base, i, &win);
+    var lo: u32 = win[WINDOW / 2 - 1];
+    var hi: u32 = win[WINDOW / 2];
+    var med: f64 = ((lo as f64) + (hi as f64)) / 2.0;
+    var q10: u32 = win[(WINDOW - 1) / 10];
+    var q90: u32 = win[(9 * (WINDOW - 1)) / 10];
+    var spread: f64 = 3.0 * ((q90 as f64) - (q10 as f64));
+    var x: f64 = xs[base + i] as f64;
+    return x < med - spread or x > med + spread;
+}
+
+pub fn outliers(xs: []const u32, base: usize, n: usize) -> u32 {
+    var c: u32 = 0;
+    var i: usize = 0;
+    while (i < n) {
+        if (is_outlier(xs, base, i)) { c = c + 1; }
+        i = i + 1;
+    }
+    return c;
+}
+
+; Cost of the kept points [a, b), from prefix sums s1 (values) and s2 (squares): m * ln(variance),
+; the variance floored at VAR_FLOOR.
+fn seg_cost(s1: []const f64, s2: []const f64, a: usize, b: usize) -> f64 {
+    var m: f64 = (b - a) as f64;
+    var mean: f64 = (s1[b] - s1[a]) / m;
+    var v: f64 = (s2[b] - s2[a]) / m - mean * mean;
+    if (v < VAR_FLOOR) { v = VAR_FLOOR; }
+    return m * @log(v);
+}
+
+pub fn penalty(m: usize) -> f64 {
+    return PENALTY_K * @log(m as f64);
+}
+
+; A variance in us^2 read "in seconds": v * 1e-12 s^2 taken as v * 1e-12 s, i.e. v / 1e6 us.
+pub fn var_read(v: f64) -> f64 {
+    return v / 1000000.0;
+}
+
+pub fn tolerance(v: f64) -> f64 {
+    var r: f64 = var_read(v);
+    if (r > DELTA_US) { return r; }
+    return DELTA_US;
+}
+
+; Steps 1-3 for the n iterations at xs[base..].
+pub fn judge(xs: []const u32, base: usize, n: usize) -> WarmupVerdict {
+    var keep: [512]f64 = [_]f64{0.0} ** 512;
+    var keep_at: [512]usize = [_]usize{0} ** 512;
+    var s1: [513]f64 = [_]f64{0.0} ** 513;
+    var s2: [513]f64 = [_]f64{0.0} ** 513;
+    var best: [513]f64 = [_]f64{0.0} ** 513;
+    var prev: [513]usize = [_]usize{0} ** 513;
+    var seg_lo: [512]usize = [_]usize{0} ** 512;
+    var seg_hi: [512]usize = [_]usize{0} ** 512;
+    // Step 1: drop outliers.
+    var kept: usize = 0;
+    var dropped: u32 = 0;
+    var i: usize = 0;
+    while (i < n) {
+        if (is_outlier(xs, base, i)) {
+            dropped = dropped + 1;
+        } else {
+            keep[kept] = xs[base + i] as f64;
+            keep_at[kept] = i;
+            kept = kept + 1;
+        }
+        i = i + 1;
+    }
+    i = 0;
+    while (i < kept) {
+        s1[i + 1] = s1[i] + keep[i];
+        s2[i + 1] = s2[i] + keep[i] * keep[i];
+        i = i + 1;
+    }
+    // Step 2: optimal partitioning. best[t] is the least penalised cost of the first t kept points.
+    var pen: f64 = penalty(kept);
+    best[0] = 0.0 - pen;
+    var t: usize = 1;
+    while (t <= kept) {
+        best[t] = NO_COST;
+        var s: usize = 0;
+        while (s + MIN_SEG <= t) {
+            if (s == 0 or s >= MIN_SEG) {
+                var c: f64 = best[s] + seg_cost(&s1, &s2, s, t) + pen;
+                if (c < best[t]) {
+                    best[t] = c;
+                    prev[t] = s;
+                }
+            }
+            s = s + 1;
+        }
+        t = t + 1;
+    }
+    // Walk the cuts back from the end; segment 0 is then the LAST segment of the series.
+    var cnt: usize = 0;
+    var e: usize = kept;
+    while (e > 0) {
+        seg_hi[cnt] = e;
+        seg_lo[cnt] = prev[e];
+        e = prev[e];
+        cnt = cnt + 1;
+    }
+    // Step 3: Listing 3, walking from the last but one segment towards the first.
+    var lm: f64 = (seg_hi[0] - seg_lo[0]) as f64;
+    var last_mean: f64 = (s1[seg_hi[0]] - s1[seg_lo[0]]) / lm;
+    var last_var: f64 = (s2[seg_hi[0]] - s2[seg_lo[0]]) / lm - last_mean * last_mean;
+    var lower: f64 = last_mean - tolerance(last_var);
+    var upper: f64 = last_mean + tolerance(last_var);
+    var steady: usize = keep_at[seg_lo[0]];
+    var cls: u8 = FLAT;
+    var k: usize = 1;
+    while (k < cnt) {
+        var m: f64 = (seg_hi[k] - seg_lo[k]) as f64;
+        var mean: f64 = (s1[seg_hi[k]] - s1[seg_lo[k]]) / m;
+        var v: f64 = (s2[seg_hi[k]] - s2[seg_lo[k]]) / m - mean * mean;
+        var r: f64 = var_read(v);
+        if (mean + r >= lower and mean - r <= upper) {
+            steady = keep_at[seg_lo[k]];
+            k = k + 1;
+        } else {
+            var end: usize = keep_at[seg_hi[k] - 1];
+            if (end + STEADY >= n) {
+                cls = NO_STEADY;
+            } else {
+                if (mean < lower) {
+                    cls = SLOWDOWN;
+                } else {
+                    cls = WARMUP;
+                }
+            }
+            k = cnt;
+        }
+    }
+    return WarmupVerdict{ .cls = cls, .segments = cnt, .steady_iter = steady,
+        .steady_mean_us = last_mean as u32, .outliers = dropped };
+}
+
+pub fn classify(xs: []const u32, base: usize, n: usize) -> u8 {
+    var v: WarmupVerdict = judge(xs, base, n);
+    return v.cls;
+}
+
+; Step 4: the benchmark's class from how many executions fell in each class.
+pub fn combine(flat: u32, warm: u32, slow: u32, none: u32) -> u8 {
+    var kinds: u32 = 0;
+    if (flat > 0) { kinds = kinds + 1; }
+    if (warm > 0) { kinds = kinds + 1; }
+    if (slow > 0) { kinds = kinds + 1; }
+    if (none > 0) { kinds = kinds + 1; }
+    if (kinds == 1) {
+        if (flat > 0) { return FLAT; }
+        if (warm > 0) { return WARMUP; }
+        if (slow > 0) { return SLOWDOWN; }
+        return NO_STEADY;
+    }
+    if (slow > 0 or none > 0) { return BAD_INCONSISTENT; }
+    return GOOD_INCONSISTENT;
+}
+
+; How many of `runs` executions, stored one after another (n iterations each) in xs, fall in class
+; cls; and the benchmark's class from those counts.
+pub fn count_class(xs: []const u32, runs: usize, n: usize, cls: u8) -> u32 {
+    var c: u32 = 0;
+    var r: usize = 0;
+    while (r < runs) {
+        if (classify(xs, r * n, n) == cls) { c = c + 1; }
+        r = r + 1;
+    }
+    return c;
+}
+
+pub fn benchmark_class(xs: []const u32, runs: usize, n: usize) -> u8 {
+    return combine(count_class(xs, runs, n, FLAT), count_class(xs, runs, n, WARMUP),
+        count_class(xs, runs, n, SLOWDOWN), count_class(xs, runs, n, NO_STEADY));
+}
+
+; ---- Negative controls ---------------------------------------------------------------------------
+; Synthetic series: a level per stretch plus uniform noise in [-amp, amp] from a fixed LCG, so every
+; run of the tests sees the same numbers.
+var syn: [500]u32 = [_]u32{0} ** 500;
+var seed: u32 = 1;
+
+fn noise(amp: u32) -> u32 {
+    seed = seed *% 1103515245 +% 12345;
+    return (seed >> 8) % (2 * amp + 1);
+}
+
+; Iterations [0, cut) at level a, [cut, ITERS) at level b, noise +-amp.
+fn two_levels(a: u32, b: u32, cut: usize, amp: u32) -> void {
+    seed = 7;
+    var i: usize = 0;
+    while (i < ITERS) {
+        var level: u32 = b;
+        if (i < cut) { level = a; }
+        syn[i] = level - amp + noise(amp);
+        i = i + 1;
+    }
+}
+
+test t750_flat_series_is_flat {
+    two_levels(30000, 30000, 0, 2000);
+    var v: WarmupVerdict = judge(&syn, 0, ITERS);
+    assert v.cls == FLAT;
+    assert v.segments == 1;
+    assert v.steady_iter == 0;
+}
+
+test t750_warmup_series_is_warmup {
+    two_levels(45000, 30000, 100, 2000);
+    var v: WarmupVerdict = judge(&syn, 0, ITERS);
+    assert v.cls == WARMUP;
+    assert v.segments == 2;
+    // Tukey drops the first few iterations after the step, until the window's p10 moves.
+    assert v.steady_iter >= 100;
+    assert v.steady_iter <= 110;
+    assert v.outliers > 0;
+    assert v.steady_mean_us > 29000;
+    assert v.steady_mean_us < 31000;
+}
+
+test t750_slowdown_series_is_slowdown {
+    two_levels(30000, 40000, 200, 2000);
+    var v: WarmupVerdict = judge(&syn, 0, ITERS);
+    assert v.cls == SLOWDOWN;
+    assert v.steady_iter >= 200;
+    assert v.steady_iter <= 210;
+}
+
+test t750_a_late_change_is_no_steady_state {
+    // The change at 440 is inside the last STEADY = 125 iterations.
+    two_levels(30000, 45000, 440, 2000);
+    assert classify(&syn, 0, ITERS) == NO_STEADY;
+    // The same change at 300 leaves a steady state of 200 iterations: a slowdown.
+    two_levels(30000, 45000, 300, 2000);
+    assert classify(&syn, 0, ITERS) == SLOWDOWN;
+}
+
+test t750_a_shift_below_delta_is_flat {
+    // No noise, so the 500 us step is certainly a changepoint; DELTA (1 ms) makes it equivalent.
+    two_levels(30500, 30000, 250, 0);
+    var v: WarmupVerdict = judge(&syn, 0, ITERS);
+    assert v.cls == FLAT;
+    assert v.segments == 2;
+    // A 2 ms step is not equivalent: warmup.
+    two_levels(32000, 30000, 250, 0);
+    assert classify(&syn, 0, ITERS) == WARMUP;
+}
+
+test t750_a_lone_spike_is_an_outlier_not_a_segment {
+    two_levels(30000, 30000, 0, 2000);
+    syn[300] = 300000;
+    assert is_outlier(&syn, 0, 300);
+    assert outliers(&syn, 0, ITERS) == 1;
+    var v: WarmupVerdict = judge(&syn, 0, ITERS);
+    assert v.cls == FLAT;
+    assert v.outliers == 1;
+    assert v.segments == 1;
+    // Inside the first WINDOW iterations nothing is an outlier: a slow first iteration is warmup data.
+    syn[300] = 30000;
+    syn[10] = 300000;
+    assert is_outlier(&syn, 0, 10) == false;
+}
+
+test t750_penalty_and_tolerance {
+    // 15 * ln 500 = 93.2...
+    assert penalty(500) > 93.2;
+    assert penalty(500) < 93.3;
+    // A variance of 4e6 us^2 (sd 2 ms) reads as 4 us: DELTA wins. 4e9 us^2 reads as 4000 us.
+    assert tolerance(4000000.0) == DELTA_US;
+    assert tolerance(4000000000.0) == 4000.0;
+}
+
+test t750_per_benchmark_class {
+    assert combine(10, 0, 0, 0) == FLAT;
+    assert combine(0, 10, 0, 0) == WARMUP;
+    assert combine(0, 0, 0, 10) == NO_STEADY;
+    assert combine(7, 3, 0, 0) == GOOD_INCONSISTENT;
+    assert combine(7, 2, 1, 0) == BAD_INCONSISTENT;
+    assert combine(9, 0, 0, 1) == BAD_INCONSISTENT;
+    // One execution of a built warmup series is a consistent warmup benchmark.
+    two_levels(45000, 30000, 100, 2000);
+    assert count_class(&syn, 1, ITERS, WARMUP) == 1;
+    assert count_class(&syn, 1, ITERS, FLAT) == 0;
+    assert benchmark_class(&syn, 1, ITERS) == WARMUP;
+}
+
+endmodule

@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    },
+    {
+      "spec": "specs/math/sacred_physics.t27",
+      "spec_hash": "sha256:6f0c02de93fc908bcae88bd48037b8b06c54efe3fc0105ab09288fb2102e74d9"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:da941a1307ed3bec2251c780f8dcafca9dc68aac3c9df055e41cc5b628b7486c",
   "gen_hash_rust": "sha256:88005772e07d069bdd19156acbeb5a4de954ffab1df5d34329acfb7ee0090dd2",
   "gen_hash_verilog": "sha256:40115f72387265dc53f0e609f1fae23042408946b9487072850d888cfaa57bea",
   "gen_hash_zig": "sha256:48fe7717531e3a17c1a0c066aada8b0b141eac0d458b20888c6dcd10c779c771",
   "module": "GFCompetitive",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:03Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0c7ab6d6bceb875e70487a3f11a726a6f66d3c14cb227dce17cf99a5d41e85fe",
   "spec_path": "specs/math/gf_competitive.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
