@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b9d22d0f4",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f9628be29de1429acb027fdadab6575994f432e695cce6c6d8eb475000a26527",
+  "gen_hash_rust": "sha256:25f635e25d25690ee23d1b11f5e00df7e52c40f1541cefb682e0bbd39b82f018",
+  "gen_hash_verilog": "sha256:bd6a75033c710940baf43e3fbd0d35fbb9f1fdcdbb2a7967330ea60c4f10c973",
+  "gen_hash_zig": "sha256:c672c3e7810d62f93ffc444a5bb065cdc3dd977fbfbacee54832a69714f5b697",
+  "module": "trinet::tri_bridge",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T19:40:20Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:34e80b8fa71c90fdf2bd0ff26b9f40823d85a92ff44f1c1c14053b1331dc79ef",
+  "spec_path": "specs/trinet/tri-bridge.t27",
+  "tests": {
+    "blocked": "does not compile: runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.15.2"
+  }
+}
