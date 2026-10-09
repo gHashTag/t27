@@ -1,0 +1,6 @@
+// #8013: a switch whose arms mix a string and an integer, where an `i64`
+// is declared.
+module string_switch_arm_integer;
+fn ss_f(x: i64) -> i64 {
+    return switch (x) { 1 => "a", else => 2 };
+}

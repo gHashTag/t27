@@ -1,0 +1,14 @@
+// #8001: gen-c reads `EsMode.on` as the member whatever binds EsMode; Zig
+// reads the local.
+module enum_shadowed_by_local;
+enum EsMode {
+    off,
+    on,
+}
+struct EsBox {
+    on: EsMode,
+}
+fn es_g() -> EsMode {
+    var EsMode: EsBox = EsBox{ .on = .off };
+    return EsMode.on;
+}

@@ -1,0 +1,14 @@
+// P2 slice 1 (#5980): a field read of a struct literal, with and without
+// parentheses. gen-c writes `(S){ ... }.f` and C runs it; the Zig route
+// cannot parse what `t27c gen` writes for it (#7997).
+module struct_literal_field;
+struct SfPair {
+    a: i64,
+    b: i64,
+}
+fn sf_b() -> i64 {
+    return SfPair{ .a = 1, .b = 2 }.b + (SfPair{ .b = 30, .a = 40 }).a;
+}
+test sf_literal_fields {
+    assert(sf_b() == 42);
+}

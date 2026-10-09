@@ -1,0 +1,8 @@
+// #8009: IS_S is a `static const`, not a C constant, so the check becomes a
+// comment; Zig checks it.
+module invariant_static_const;
+const IS_A: i64 = 5;
+const IS_S: i64 = IS_A + 1;
+invariant is_static {
+    IS_S == 6;
+}

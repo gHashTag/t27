@@ -1,0 +1,7 @@
+// #8013: gen-c lowers `.len` only on a parameter or local; the const is a
+// `#define` and `"abc".len` is not C.
+module string_len_on_module_const;
+const SM_N: string = "abc";
+fn sm_f() -> usize {
+    return SM_N.len;
+}

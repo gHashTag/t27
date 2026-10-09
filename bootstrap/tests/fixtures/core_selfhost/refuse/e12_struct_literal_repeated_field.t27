@@ -1,0 +1,10 @@
+// #7959: C keeps the last `.x`; Zig refuses a field named twice.
+module struct_repeated_field;
+struct SrPair {
+    x: i64,
+    y: i64,
+}
+fn sr_x() -> i64 {
+    var p: SrPair = SrPair{ .x = 1, .y = 2, .x = 3 };
+    return p.x;
+}
