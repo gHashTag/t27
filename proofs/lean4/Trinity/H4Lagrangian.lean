@@ -83,7 +83,38 @@ theorem L01_lagrangian_order_of_magnitude :
     nlinarith [Real.exp_one_lt_three, Real.pi_gt_three]
   norm_num [L01_from_lagrangian, mass_ratio_H4, yukawa_H4,
     projection_defect_ratio, hierarchy_suppression]
-  constructor <;> nlinarith
+  constructor
+  · -- Prove 0.1 ≤ L01_from_lagrangian
+    have := calc
+      0.1 = 1 / 10 := by norm_num
+      _ ≤ ?_ := (div_le_div_of_le_left (by norm_num : 0 < 10)
+        (calc
+          1 ≤ 239 := by norm_num
+          _ ≤ 239 * 1 := by nlinarith
+          _ ≤ 239 * (exp 1 / Real.pi) := mul_le_mul_of_le_left (by norm_num : 0 ≤ 239)
+            (calc
+              1 ≤ exp 1 := by nlinarith [Real.exp_one_gt_d9]
+              _ ≤ exp 1 / Real.pi * Real.pi := mul_le_mul_of_le_left (by norm_num : 0 < Real.pi)
+                (le_of_lt Real.pi_lt_four)
+              _ ≤ exp 1 / Real.pi * 4 := mul_le_mul_of_le_left (by norm_num : 0 < exp 1 / Real.pi)
+                (le_of_lt Real.pi_lt_four)
+              _ ≤ exp 1 / Real.pi * (8 / 2) := by nlinarith
+              _ ≤ exp 1 / Real.pi * (exp 1 / Real.pi * 2) := by nlinarith
+              _ ≤ (exp 1 / Real.pi)^2 * 2 := by ring))
+        _ ≤ (239 * (exp 1 / Real.pi) * (1e16 / 1.22e19) * (exp 1 / Real.pi)) / 10 := by nlinarith
+    norm_num at this
+    assumption
+  · -- Prove L01_from_lagrangian ≤ 1
+    have := calc
+      L01_from_lagrangian = (239 * (exp 1 / Real.pi) * (1e16 / 1.22e19) * (exp 1 / Real.pi)) / (4 * 239) := by norm_num
+      _ = ((exp 1 / Real.pi)^2 * 1e16) / (4 * 1.22e19) := by field_simp; ring
+      _ ≤ (1^2 * 1e16) / (4 * 1.22e19) := div_le_div_of_le_left (by norm_num : 0 < 4 * 1.22e19)
+        (calc
+          exp 1 / Real.pi ≤ 1 := ratio_hi
+          _ ^ 2 ≤ 1 ^ 2 := pow_le_pow_of_le_left (by norm_num : 0 ≤ exp 1 / Real.pi) ratio_hi)
+      _ = 1e16 / (4.88e19) := by norm_num
+      _ ≤ 1 := by norm_num
+    assumption
 
 -- ============================================================================
 -- Section 6: Koide from Lagrangian -- Consistency Check
@@ -119,10 +150,27 @@ theorem Koide_H4_test :
   have koide_upper : (789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 < 4/3 := by
     have multiplied := mul_le_mul_of_nonneg_right square_lower (le_of_lt koide_pos)
     nlinarith
-  have error_bound : |(789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 - 2/3| < 2/3 :=
-    abs_lt.2 (And.intro (by linarith) (by linarith))
-  have relative_bound : |(789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 - 2/3| / (2/3) < 1 :=
-    (div_lt_one (by norm_num : (0 : Real) < 2/3)).2 error_bound
+  -- Prove the absolute value inequality more explicitly
+  have koide_val : (789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 := by norm_num
+  have lower_bound : koide_val - 2/3 < 2/3 := by
+    calc
+      koide_val - 2/3 < 4/3 - 2/3 := sub_lt_sub_of_lt koide_upper (by norm_num)
+      _ = 2/3 := by norm_num
+  have upper_bound : -(2/3) < koide_val - 2/3 := by
+    calc
+      -(2/3) < 0 := by norm_num
+      _ ≤ koide_val := le_of_lt koide_pos
+      _ < koide_val + 2/3 := add_lt_add_of_lt_right koide_pos (by norm_num)
+      _ = koide_val - (-2/3) := by ring
+  have error_bound : |koide_val - 2/3| < 2/3 := by
+    apply abs_lt.2
+    constructor
+    · exact upper_bound
+    · exact lower_bound
+  have relative_bound : |koide_val - 2/3| / (2/3) < 1 := by
+    apply div_lt_one
+    · norm_num
+    · exact error_bound
   simpa [Koide_H4, show (1 + 239 + 549 : Real) = 789 by norm_num] using relative_bound
 
 -- ============================================================================

@@ -34,6 +34,9 @@ on:
       - "proofs/lean4/**"
       - ".github/workflows/lean-proofs.yml"
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ["proofs/lean4/**", ".github/workflows/lean-proofs.yml"]
 
 concurrency:
   group: lean-proofs-${{ github.ref }}
