@@ -9,6 +9,108 @@ use base::types;
 use igla::race::bram_weights;
 
 // ============================================================================
+// Multilayer Sequencer with Layer-0 Weight Prefetch
+// ============================================================================
+
+/// State machine states for multilayer sequencer
+pub enum SequencerState {
+    IDLE,
+    PREFETCH,
+    WAIT_PF,
+    RUN,
+    WAIT_LAYER,
+    FINISH
+}
+
+/// Multilayer sequencer that ensures layer 0 weight prefetch before computation
+pub fn multilayer_sequencer(
+    clk: clock,
+    rst_n: reset,
+    start: bool,
+    num_layers: u6,
+    layer_done: bool,
+    prefetch_done: bool,
+    current_layer: u6,
+    layer_start: bool,
+    start_prefetch: bool,
+    inference_done: bool
+) -> (SequencerState, u6, bool, bool, bool) {
+    var state: SequencerState = SequencerState::IDLE;
+    var next_layer: u6 = current_layer;
+    var next_layer_start: bool = false;
+    var next_start_prefetch: bool = false;
+    var next_inference_done: bool = false;
+    
+    // State machine logic
+    if (!rst_n) {
+        state = SequencerState::IDLE;
+        next_layer = 0;
+        next_layer_start = false;
+        next_start_prefetch = false;
+        next_inference_done = false;
+    } else {
+        // Default: all strobes low unless a state asserts them
+        next_layer_start = false;
+        next_start_prefetch = false;
+        next_inference_done = false;
+        
+        match (state) {
+            SequencerState::IDLE => {
+                if (start) {
+                    next_layer = 0;
+                    state = SequencerState::PREFETCH;
+                }
+            },
+            SequencerState::PREFETCH => {
+                next_start_prefetch = true;  // Assert start_prefetch for layer 0
+                state = SequencerState::WAIT_PF;
+            },
+            SequencerState::WAIT_PF => {
+                if (prefetch_done) {
+                    state = SequencerState::RUN;
+                }
+            },
+            SequencerState::RUN => {
+                next_layer_start = true;
+                state = SequencerState::WAIT_LAYER;
+            },
+            SequencerState::WAIT_LAYER => {
+                if (layer_done) {
+                    if (current_layer == num_layers - 1) {
+                        state = SequencerState::FINISH;
+                    } else {
+                        next_layer = current_layer + 1;
+                        state = SequencerState::PREFETCH;
+                    }
+                }
+            },
+            SequencerState::FINISH => {
+                next_inference_done = true;
+                state = SequencerState::IDLE;
+            }
+        }
+    }
+    
+    return (state, next_layer, next_layer_start, next_start_prefetch, next_inference_done);
+}
+
+/// Property: start_prefetch is asserted during initial IDLE→PREFETCH transition for layer 0
+fn layer_0_prefetch_before_computation(
+    state: SequencerState,
+    start: bool,
+    start_prefetch: bool,
+    current_layer: u6
+) -> bool {
+    // When transitioning from IDLE to PREFETCH (start signal), start_prefetch should be asserted
+    if (state == SequencerState::IDLE && start) {
+        return start_prefetch && current_layer == 0;
+    }
+    return true;
+}
+
+// ============================================================================
+
+// ============================================================================
 // 1. Types
 // ============================================================================
 
