@@ -165,7 +165,8 @@ pub fn pack_trit(trit: Trit, position: u8, packed: PackedTrit) PackedTrit {
     const bit_pos = position * PACKED_BITS_PER_TRIT;
 
     // Clear 2 bits at position
-    const mask: u8 = ~(TRIT_MASK << bit_pos);
+    const field: u8 = TRIT_MASK << bit_pos;  // named first: the codegen drops the parens of ~(x << n) (#6549)
+    const mask: u8 = ~field;
     var result = packed & mask;
 
     // Set new value (OR with encoding shifted)
@@ -289,11 +290,8 @@ pub fn trit_from_i8(value: i8) Trit {
 //   .zero & .pos = .zero
 //   .pos & .pos = .pos
 pub fn trit_and(a: Trit, b: Trit) Trit {
-    return switch (a) {
-        .pos => b,
-        .zero => if (b == .zero) .zero else .neg,
-        .neg => .neg,
-    };
+    // Kleene AND: the smaller trit (#4817)
+    return trit_min(a, b);
 }
 
 // trit_or(a: Trit, b: Trit) → Trit
@@ -306,11 +304,8 @@ pub fn trit_and(a: Trit, b: Trit) Trit {
 //   .zero | .pos = .pos
 //   .pos | .pos = .pos
 pub fn trit_or(a: Trit, b: Trit) Trit {
-    return switch (a) {
-        .pos => .pos,
-        .zero => if (b == .zero) .zero else .pos,
-        .neg => if (b == .neg) .neg else b,
-    };
+    // Kleene OR: the larger trit (#4817)
+    return trit_max(a, b);
 }
 
 // trit_xor(a: Trit, b: Trit) → Trit
@@ -323,7 +318,8 @@ pub fn trit_or(a: Trit, b: Trit) Trit {
 //   .zero ^ .pos = .pos
 //   .pos ^ .pos = .zero
 pub fn trit_xor(a: Trit, b: Trit) Trit {
-    return if (a == b) if (a == .neg) .neg else .zero else .pos;
+    // balanced XOR: -(a * b) (#4817)
+    return trit_negate(trit_multiply(a, b));
 }
 
 // trit_not(a: Trit) → Trit
@@ -412,7 +408,7 @@ pub fn packed_trit_xnor(a: PackedTrit, b: PackedTrit) PackedTrit {
         const a_trit = unpack_trit(@intCast(i), a).value;
         const b_trit = unpack_trit(@intCast(i), b).value;
         const xor_result = trit_xor(a_trit, b_trit);
-        const xnor_result = trit_not(xor_result);
+        const xnor_result = trit_negate(xor_result);  // balanced NOT (#4817)
         result = pack_trit(xnor_result, @intCast(i), result);
     }
     return result;
@@ -453,9 +449,10 @@ pub fn packed_trit_shift_right(packed: PackedTrit, shift: u8) PackedTrit {
     }
 
     var result: PackedTrit = 0;
+    // right moves position i to i - shift, as packed_trit_rotate_right does (#4817)
     for (0..TRITS_PER_BYTE) |i| {
-        const dst_pos: u8 = @intCast(i + shift);
-        if (dst_pos < TRITS_PER_BYTE) {
+        if (i >= shift) {
+            const dst_pos: u8 = @intCast(i - shift);
             const src_trit = unpack_trit(@intCast(i), packed).value;
             result = pack_trit(src_trit, dst_pos, result);
         }
@@ -548,6 +545,7 @@ pub fn ternary_word_eq(a: TernaryWord, b: TernaryWord) bool {
 // Negate all trits in TernaryWord
 pub fn ternary_word_negate(word: TernaryWord) TernaryWord {
     var result: TernaryWord = undefined;
+    for (0..WORD_BYTES) |j| { result[j] = 0; }  // the old form read undefined bytes (#4817)
     for (0..TRITS_PER_WORD) |i| {
         const byte_idx = i / TRITS_PER_BYTE;
         const trit_pos: u8 = @intCast(i % TRITS_PER_BYTE);
@@ -779,10 +777,10 @@ test "test_trit_xor_truth_table" {
     try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.neg, .pos));
     try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.zero, .neg));
     try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.zero, .zero));
-    try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.zero, .pos));
     try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.pos, .neg));
-    try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.pos, .zero));
-    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.pos, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.pos, .zero));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_xor(.pos, .pos));
 }
 
 test "test_trit_not_truth_table" {
@@ -871,7 +869,7 @@ test "test_packed_trit_count_neg" {
 
 test "test_packed_trit_all_equal_true" {
     var packed: PackedTrit = 0;
-    for (0..8) |i| {
+    for (0..4) |i| {
         packed = pack_trit(.pos, @intCast(i), packed);
     }
     try std.testing.expect(packed_trit_all_equal(packed, .pos));
@@ -950,7 +948,7 @@ test "test_packed_trit_xnor_equal_returns_pos" {
     const result = packed_trit_xnor(packed, packed);
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(2, result).value);  // balanced XNOR is a * b: zero with zero is zero
 }
 
 test "test_packed_trit_xnor_different_returns_neg" {
@@ -970,8 +968,8 @@ test "test_packed_trit_shift_left_basic" {
     packed = pack_trit(.neg, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     const result = packed_trit_shift_left(packed, 1);
-    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(1, result).value);
-    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(2, result).value);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);  // pos moved from 0 to 1
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(2, result).value);
     try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // Filled with zero
 }
 
@@ -1007,7 +1005,7 @@ test "test_packed_trit_shift_right_by_eight_returns_zero" {
 test "test_packed_trit_rotate_left_basic" {
     // Verify: rotate left by 1 is circular
     var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 7, packed);  // Last position
+    packed = pack_trit(.pos, 3, packed);  // Last position
     packed = pack_trit(.neg, 0, packed);  // First position
     const result = packed_trit_rotate_left(packed, 1);
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);  // Wrapped to front
@@ -1017,18 +1015,18 @@ test "test_packed_trit_rotate_left_basic" {
 test "test_packed_trit_rotate_left_by_three" {
     // Verify: rotate left by 3 positions
     var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 5, packed);
+    packed = pack_trit(.pos, 1, packed);
     const result = packed_trit_rotate_left(packed, 3);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);  // 5+3=8, wraps to 2
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);  // 1+3=4, wraps to 0
 }
 
 test "test_packed_trit_rotate_right_basic" {
     // Verify: rotate right by 1 is circular
     var packed: PackedTrit = 0;
     packed = pack_trit(.pos, 0, packed);  // First position
-    packed = pack_trit(.neg, 7, packed);  // Last position
+    packed = pack_trit(.neg, 3, packed);  // Last position
     const result = packed_trit_rotate_right(packed, 1);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(7, result).value);  // Wrapped to back
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(3, result).value);  // Wrapped to back
     try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // Last position wrapped here
 }
 
@@ -1036,14 +1034,14 @@ test "test_packed_trit_rotate_right_by_four" {
     // Verify: rotate right by 4 positions
     var packed: PackedTrit = 0;
     packed = pack_trit(.pos, 2, packed);
-    const result = packed_trit_rotate_right(packed, 4);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(6, result).value);  // (2+4) % 8 = 6
+    const result = packed_trit_rotate_right(packed, 3);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(3, result).value);  // (2-3) mod 4 = 3; by 4 is the identity at 4 trits per byte
 }
 
 test "test_packed_trit_shift_rotate_are_different" {
     // Verify: shift fills with zeros, rotate is circular
     var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 7, packed);
+    packed = pack_trit(.pos, 3, packed);
     const shift_result = packed_trit_shift_left(packed, 1);
     const rotate_result = packed_trit_rotate_left(packed, 1);
     try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, shift_result).value);  // Shift fills with zero
@@ -1069,7 +1067,7 @@ test "test_ternary_word_count_zeros" {
     word[0] = pack_trit(.zero, 0, word[0]);
     word[0] = pack_trit(.zero, 1, word[0]);
     word[0] = pack_trit(.pos, 2, word[0]);
-    try std.testing.expectEqual(@as(u8, 2), ternary_word_count(word, .zero));
+    try std.testing.expectEqual(@as(u8, 26), ternary_word_count(word, .zero));  // the other 24 trits of the word are zero too
     try std.testing.expectEqual(@as(u8, 1), ternary_word_count(word, .pos));
 }
 
