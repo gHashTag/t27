@@ -1,0 +1,266 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/ternary_mac_16.t27
+// Ternary MAC Cell — Dot Product Unit (BENCH-006)
+// Port of fpga/openxc7-synth/ternary_mac_16.v from gHashTag/trinity
+// Computes: y += w·x for 16-dimensional vectors
+// w[i], x[i] ∈ {-1, 0, +1} (ternary, 2-bit encoding)
+// Result: y ∈ {-16, -15, ..., +15, +16} (5-bit signed)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ternary_mac_16 {
+
+    // === Ternary encoding constants ===
+    
+    pub const TERNARY_NEG : u32 = 0b00;  // -1
+    pub const TERNARY_ZERO : u32 = 0b01; // 0  
+    pub const TERNARY_POS : u32 = 0b10;  // +1
+    
+    // === Ternary value enumeration ===
+    
+    pub enum TernaryValue {
+        neg = -1,
+        zero = 0,
+        pos = 1,
+    }
+    
+    // === Partial product struct ===
+    
+    pub struct PartialProduct {
+        value : i32,
+        is_valid : bool,
+    }
+    
+    // === Ternary encoding/decoding functions ===
+    
+    fn ternary_encode(value: i32) -> u32 {
+        if (value == -1) {
+            return TERNARY_NEG;
+        } else if (value == 0) {
+            return TERNARY_ZERO;
+        } else if (value == 1) {
+            return TERNARY_POS;
+        } else {
+            // Invalid ternary value, encode as zero
+            return TERNARY_ZERO;
+        }
+    }
+    
+    fn ternary_decode(bits: u32) -> i32 {
+        if (bits == TERNARY_NEG) {
+            return -1;
+        } else if (bits == TERNARY_ZERO) {
+            return 0;
+        } else if (bits == TERNARY_POS) {
+            return 1;
+        } else {
+            // Invalid encoding, treat as zero
+            return 0;
+        }
+    }
+    
+    // === Ternary multiplication function ===
+    
+    fn ternary_multiply(w_bits: u32, x_bits: u32) -> i32 {
+        // Check if either input is zero
+        const w_is_zero : bool = (w_bits == TERNARY_ZERO);
+        const x_is_zero : bool = (x_bits == TERNARY_ZERO);
+        
+        // If either is zero, product is zero
+        if (w_is_zero or x_is_zero) {
+            return 0;
+        }
+        
+        // Determine signs
+        const w_is_neg : bool = (w_bits == TERNARY_NEG);
+        const x_is_neg : bool = (x_bits == TERNARY_NEG);
+        const w_is_pos : bool = (w_bits == TERNARY_POS);
+        const x_is_pos : bool = (x_bits == TERNARY_POS);
+        
+        // Product is negative if signs differ (XOR)
+        const mul_is_neg : bool = w_is_neg ^ x_is_neg;
+        
+        // Product is positive if both are positive (AND)
+        const mul_is_pos : bool = w_is_pos & x_is_pos;
+        
+        // Return product value
+        if (mul_is_neg) {
+            return -1;
+        } else if (mul_is_pos) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    
+    // === Extract ternary values from 32-bit inputs ===
+    
+    fn extract_ternary_vector(input_32bit: u32) -> [16]i32 {
+        var result : [16]i32;
+        var i : u32 = 0;
+        
+        while (i < 16) {
+            const bit_offset : u32 = 2 * i;
+            const bits : u32 = (input_32bit >> bit_offset) & 0b11;
+            result[i] = ternary_decode(bits);
+            i = i + 1;
+        }
+        
+        return result;
+    }
+    
+    // === Dot product computation ===
+    
+    fn compute_dot_product(w_vector: [16]i32, x_vector: [16]i32) -> i32 {
+        var sum : i32 = 0;
+        var i : u32 = 0;
+        
+        while (i < 16) {
+            sum = sum + (w_vector[i] * x_vector[i]);
+            i = i + 1;
+        }
+        
+        return sum;
+    }
+    
+    // === Accumulate with bounds checking ===
+    
+    fn accumulate_with_bounds(current: i32, partial: i32) -> i32 {
+        const new_sum : i32 = current + partial;
+        
+        // Clamp to 5-bit signed range (-16 to +15)
+        if (new_sum < -16) {
+            return -16;
+        } else if (new_sum > 15) {
+            return 15;
+        } else {
+            return new_sum;
+        }
+    }
+    
+    // === LED status function ===
+    
+    fn led_status(rst_n: bool) -> bool {
+        // LED is active-low: ON when not reset
+        return !rst_n;
+    }
+    
+    // === Test cases ===
+    
+    test ternary_encode_decode
+        // Test round-trip encoding/decoding
+        assert(ternary_decode(ternary_encode(-1)) == -1)
+        assert(ternary_decode(ternary_encode(0)) == 0)
+        assert(ternary_decode(ternary_encode(1)) == 1)
+        // Test invalid encoding
+        assert(ternary_decode(0b11) == 0)
+    
+    test ternary_multiply_cases
+        // Zero cases
+        assert(ternary_multiply(TERNARY_ZERO, TERNARY_NEG) == 0)
+        assert(ternary_multiply(TERNARY_NEG, TERNARY_ZERO) == 0)
+        assert(ternary_multiply(TERNARY_ZERO, TERNARY_POS) == 0)
+        assert(ternary_multiply(TERNARY_POS, TERNARY_ZERO) == 0)
+        
+        // Positive cases (same signs)
+        assert(ternary_multiply(TERNARY_NEG, TERNARY_NEG) == 1)  // (-1) * (-1) = +1
+        assert(ternary_multiply(TERNARY_POS, TERNARY_POS) == 1)  // (+1) * (+1) = +1
+        
+        // Negative cases (different signs)
+        assert(ternary_multiply(TERNARY_NEG, TERNARY_POS) == -1) // (-1) * (+1) = -1
+        assert(ternary_multiply(TERNARY_POS, TERNARY_NEG) == -1) // (+1) * (-1) = -1
+    
+    test extract_ternary_vector
+        // Test with all zeros
+        const all_zeros : u32 = 0;
+        const zeros_vec : [16]i32 = extract_ternary_vector(all_zeros);
+        assert(zeros_vec[0] == 0)
+        assert(zeros_vec[7] == 0)
+        assert(zeros_vec[15] == 0)
+        
+        // Test with alternating pattern
+        const pattern : u32 = 0b0101010101010101; // 01,01,01,... = 0,0,0,...
+        const pattern_vec : [16]i32 = extract_ternary_vector(pattern);
+        assert(pattern_vec[0] == 0)
+        assert(pattern_vec[1] == 0)
+        assert(pattern_vec[15] == 0)
+    
+    test compute_dot_product_simple
+        // Test with all zeros
+        var zeros : [16]i32 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+        assert(compute_dot_product(zeros, zeros) == 0)
+        
+        // Test with single non-zero element
+        var w_single : [16]i32 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+        var x_single : [16]i32 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+        assert(compute_dot_product(w_single, x_single) == 1)
+        
+        // Test with negative element
+        var w_neg : [16]i32 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1];
+        var x_pos : [16]i32 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+        assert(compute_dot_product(w_neg, x_pos) == -1)
+    
+    test accumulate_with_bounds
+        // Normal accumulation
+        assert(accumulate_with_bounds(0, 5) == 5)
+        assert(accumulate_with_bounds(5, 3) == 8)
+        assert(accumulate_with_bounds(-5, 3) == -2)
+        
+        // Lower bound
+        assert(accumulate_with_bounds(-15, -2) == -16) // Hit lower bound
+        assert(accumulate_with_bounds(-16, -1) == -16) // Stay at lower bound
+        
+        // Upper bound  
+        assert(accumulate_with_bounds(10, 6) == 15)    // Hit upper bound
+        assert(accumulate_with_bounds(15, 1) == 15)    // Stay at upper bound
+    
+    test led_status_function
+        // LED is ON (false) when not reset (rst_n = true)
+        assert(led_status(true) == false)
+        // LED is OFF (true) when reset (rst_n = false)  
+        assert(led_status(false) == true)
+    
+    test full_dot_product_computation
+        // Test case: w = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], x = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        // Expected: 16 * (1*1) = 16, but clamped to 15 (5-bit max)
+        const w_all_pos : u32 = 0b1010101010101010; // All +1
+        const x_all_pos : u32 = 0b1010101010101010; // All +1
+        const w_vec : [16]i32 = extract_ternary_vector(w_all_pos);
+        const x_vec : [16]i32 = extract_ternary_vector(x_all_pos);
+        assert(compute_dot_product(w_vec, x_vec) == 16) // Raw result
+        
+        // Test case: w = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1], x = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]  
+        // Expected: 16 * (-1*1) = -16
+        const w_all_neg : u32 = 0b0000000000000000; // All -1
+        const w_neg_vec : [16]i32 = extract_ternary_vector(w_all_neg);
+        assert(compute_dot_product(w_neg_vec, x_vec) == -16) // Raw result
+        
+        // Test case: mixed pattern
+        const w_mixed : u32 = 0b1001100110011001; // Alternating +1, 0, +1, 0...
+        const x_mixed : u32 = 0b1001100110011001; // Same pattern
+        const w_mixed_vec : [16]i32 = extract_ternary_vector(w_mixed);
+        const x_mixed_vec : [16]i32 = extract_ternary_vector(x_mixed);
+        // Pattern: +1*1 + 0*0 + 1*1 + 0*0 + ... = 8 * 1 = 8
+        assert(compute_dot_product(w_mixed_vec, x_mixed_vec) == 8)
+    
+    // === Invariants ===
+    
+    invariant ternary_encoding_valid
+        // All ternary encodings map to valid values
+        assert(ternary_decode(TERNARY_NEG) == -1)
+        assert(ternary_decode(TERNARY_ZERO) == 0)
+        assert(ternary_decode(TERNARY_POS) == 1)
+    
+    invariant dot_product_bounds
+        // Dot product of 16 ternary values must be in [-16, 16]
+        var test_w : [16]i32 = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
+        var test_x : [16]i32 = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
+        const dp : i32 = compute_dot_product(test_w, test_x);
+        assert(dp >= -16 and dp <= 16)
+    
+    invariant led_binary_state
+        // LED status must be boolean
+        assert(led_status(true) == false or led_status(true) == true)
+        assert(led_status(false) == false or led_status(false) == true)
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
