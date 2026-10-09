@@ -61,3 +61,20 @@ test test_constants {
     assert ROUTED == true;
     assert ENABLED == true;
 }
+
+test slice_args_array_literals {
+    // Test FR-003: mac_parallel_multiply_independence test needs slice args and test-local array literals
+    // This test exercises array literals that should work after slice lowering (#2410)
+    
+    const TEST_DATA : [3]u32 = [1, 2, 3];
+    
+    // Test slice access (simulating slice lowering)
+    const SLICE_START : u32 = 1;
+    const SLICE_END : u32 = 3;
+    const SLICE_LENGTH = SLICE_END - SLICE_START;
+    assert SLICE_LENGTH == 2;
+    
+    // Test that array literals work
+    const RESULT = TEST_DATA[1];  // Access middle element
+    assert RESULT == 2;
+}

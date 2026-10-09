@@ -19,3 +19,18 @@ test codes_name_each_outcome {
     assert check_digit(0) == ERR_EMPTY;
     assert check_digit(65) == ERR_RANGE;
 }
+
+test const_array_length_folding_fix {
+    // Test FR-01: .len() on const arrays should fold to array length in test context
+    // This test verifies the fix for MAC_LUT.len() emitting as method call instead of constant
+    const ERROR_CODES : [3]u8 = [OK, ERR_RANGE, ERR_EMPTY];
+    const ERROR_COUNT = ERROR_CODES.len();
+    assert ERROR_COUNT == 3;
+    
+    // Test multiple array length accesses
+    const SINGLE_ERROR : [1]u8 = [OK];
+    assert SINGLE_ERROR.len() == 1;
+    
+    const NO_ERRORS : [0]u8 = [];
+    assert NO_ERRORS.len() == 0;
+}
