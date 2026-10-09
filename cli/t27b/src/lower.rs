@@ -125,6 +125,8 @@ mod lp; // t27c gen-rust of specs/tri/t27b/literal_plan.t27: a literal's text as
 mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
 #[path = "../../../gen/rust/tri/t27b/lazy_sig_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ls; // t27c gen-rust of specs/tri/t27b/lazy_sig_plan.t27: `anytype`, `[*]T` on a fn nothing analyzed reaches
+#[path = "../../../gen/rust/tri/t27b/any_param_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ap; // t27c gen-rust of specs/tri/t27b/any_param_plan.t27: an `anytype` parameter the body never names
 #[path = "../../../gen/rust/tri/t27b/type_text.rs"] #[allow(dead_code, unused_parens)]
 mod tt; // t27c gen-rust of specs/tri/t27b/type_text.t27: a type's text, read without the file's declarations
 #[path = "../../../gen/rust/tri/t27b/source_text.rs"] #[allow(dead_code, unused_parens)]
@@ -1118,6 +1120,8 @@ impl<'a> Lower<'a> {
                 self.reject("FnDecl(comptime param)", format!("parameter `{}` of `{}`", pname, n.name))
             } else if pty.is_empty() {
                 self.reject("FnDecl(untyped param)", format!("parameter `{}` of `{}`", pname, n.name))
+            } else if unread_any(n, pname, pty) {
+                Ok(LTy::Struct(self.void_struct()))
             } else {
                 self.lty(pty)
             };
@@ -3161,7 +3165,9 @@ impl<'a> Lower<'a> {
         }
         let mut args = Vec::new();
         for (i, a) in c.children.iter().enumerate() {
-            let v = if is_undefined(a) && !self.is_void(&params[i]) { self.undefined_arg(c, i, a, &params[i])? } else { self.arg_as(a, &params[i])? };
+            let v = if self.fns.get(&c.name).and_then(|f| f.params.get(i).map(|p| unread_any(f, &p.0, &p.1))) == Some(true) {
+                self.any_arg(c, a, &params[i])?
+            } else if is_undefined(a) && !self.is_void(&params[i]) { self.undefined_arg(c, i, a, &params[i])? } else { self.arg_as(a, &params[i])? };
             args.push(match v {
                 // By reference; the callee never writes it.
                 Val::M(p) => addr_of(&p),
@@ -3205,6 +3211,18 @@ impl<'a> Lower<'a> {
             return Ok(Val::M(Place { addr: slot_expr(k), off: 0, ty: t.clone(), mutable: false, temp: None }));
         }
         Ok(val_of(Expr { ty: reg_ty(t).unwrap_or(Ty::Ptr), kind: ExprKind::Const(0) }, t))
+    }
+
+    /// The argument for an `anytype` parameter the body never names (specs/tri/t27b/any_param_plan.t27): void's value
+    /// when evaluating it runs nothing, else the plan's refusal.
+    fn any_arg(&mut self, c: &Node, a: &Node, t: &LTy) -> R<Val> {
+        let pure = self.is_null(a) || matches!(self.expr(a)?, Val::S(..) | Val::Ct(_));
+        if ap::arg(pure) == ap::REFUSE {
+            self.see(a);
+            return self.reject(ap::what(), format!("call to `{}`: {}", c.name, ap::why()));
+        }
+        let k = self.new_slot(t)?;
+        Ok(Val::M(Place { addr: slot_expr(k), off: 0, ty: t.clone(), mutable: false, temp: None }))
     }
 
     // ----------------------------------------------------------- expressions
@@ -7796,6 +7814,11 @@ fn is_value_stmt(c: &Node) -> bool {
         NodeKind::ExprIdentifier => c.name != "undefined",
         _ => false,
     }
+}
+
+/// Parameter `p: t` of fn `f` is `anytype` and `f`'s body never names it (specs/tri/t27b/any_param_plan.t27).
+fn unread_any(f: &Node, p: &str, t: &str) -> bool {
+    ap::param(ls::is_anytype(t.trim().as_bytes()), name_mentions(&f.children, p.trim()) > 0) == ap::VOID_PARAM
 }
 
 fn mentions(ns: &[Node], name: &str) -> bool {
