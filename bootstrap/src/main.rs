@@ -1808,11 +1808,27 @@ enum Commands {
     },
 
     /// Check claim tiers consistency between EXPERIENCE_SCHEMA and RESEARCH_CLAIMS.md
-    CheckClaimTiers,
+    CheckClaimTiers {
+        /// Repository root (default: current directory)
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
 
     /// Refresh brain seals from experience aggregation (Ring 059 - Crown automation)
     #[command(name = "brain-seal-refresh")]
-    BrainSealRefresh,
+    BrainSealRefresh {
+        /// Repository root (default: current directory)
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Lint first-party Markdown for Cyrillic characters (with allowlist)
+    #[command(name = "lint-docs")]
+    LintDocs {
+        /// Repository root (default: current directory)
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
 
     /// Validate seals for PR-scoped spec files
     #[command(name = "validate-seals")]
@@ -12031,28 +12047,29 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
          }
-         Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
-         Commands::TriStatus => {
-             println!("TRI PHI LOOP: status pending implementation");
-         }
-          Commands::ValidateSeals { pr_files } => {
-             run_validate_seals(&pr_files)?;
-         }
-         Commands::ValidatePhiIdentity => {
-             run_validate_phi_identity()?;
-         }
-         Commands::ValidatePhiF64Literals { path } => {
-             phi_f64_literals::run(path.as_deref())?;
-         }
-         Commands::CheckClaimTiers => {
-             eprintln!("Error: 'check-claim-tiers' is not wired to the dispatch; tooling::check_claim_tiers in bootstrap/src/tooling.rs is compiled in but unreachable");
-             std::process::exit(1);
-         }
-         Commands::BrainSealRefresh => {
-             eprintln!("Error: 'brain-seal-refresh' is not wired to the dispatch; tooling::brain_seal_refresh in bootstrap/src/tooling.rs is compiled in but unreachable");
-             std::process::exit(1);
-         }
-         Commands::Formula { cmd } => {
+Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+          Commands::TriStatus => {
+              println!("TRI PHI LOOP: status pending implementation");
+          }
+           Commands::ValidateSeals { pr_files } => {
+              run_validate_seals(&pr_files)?;
+          }
+          Commands::ValidatePhiIdentity => {
+              run_validate_phi_identity()?;
+          }
+          Commands::ValidatePhiF64Literals { path } => {
+              phi_f64_literals::run(path.as_deref())?;
+          }
+          Commands::CheckClaimTiers { repo_root } => {
+              tooling::check_claim_tiers(&repo_root)?;
+          }
+          Commands::BrainSealRefresh { repo_root } => {
+              tooling::brain_seal_refresh(&repo_root)?;
+          }
+          Commands::LintDocs { repo_root } => {
+              tooling::run_lint_docs(&repo_root)?;
+          }
+          Commands::Formula { cmd } => {
              let repo_root = std::env::current_dir()?;
              formula_eval::run_formula_command(cmd, &repo_root)?;
          }
@@ -12455,40 +12472,41 @@ fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_validate_vacuity(&repo_root, &specs_dir, max_ratio, top)?;
          }
-         Commands::FrozenDigest { path } => {
-             run_frozen_digest(path.as_deref())?;
-         }
-         Commands::Asm { input } => {
-             run_asm(input.as_deref())?;
-         }
-         Commands::Disasm { words } => {
-             run_disasm(&words)?;
-         }
-         Commands::FpgaChipdb { device, image, work, force } => {
-             let repo_root = std::env::current_dir()?;
-             run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
-         }
-         Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
-             let repo_root = std::env::current_dir()?;
-             run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
-         }
-         Commands::ValidateSeals { pr_files } => {
-             run_validate_seals(&pr_files)?;
-         }
-         Commands::ValidatePhiIdentity => {
-             run_validate_phi_identity()?;
-         }
-         Commands::ValidatePhiF64Literals { path } => {
-             phi_f64_literals::run(path.as_deref())?;
-         }
-         Commands::CheckClaimTiers => {
-             eprintln!("Error: 'check-claim-tiers' is not wired to the dispatch; tooling::check_claim_tiers in bootstrap/src/tooling.rs is compiled in but unreachable");
-             std::process::exit(1);
-         }
-         Commands::BrainSealRefresh => {
-             eprintln!("Error: 'brain-seal-refresh' is not wired to the dispatch; tooling::brain_seal_refresh in bootstrap/src/tooling.rs is compiled in but unreachable");
-             std::process::exit(1);
-         }
+Commands::FrozenDigest { path } => {
+              run_frozen_digest(path.as_deref())?;
+          }
+          Commands::Asm { input } => {
+              run_asm(input.as_deref())?;
+          }
+          Commands::Disasm { words } => {
+              run_disasm(&words)?;
+          }
+          Commands::FpgaChipdb { device, image, work, force } => {
+              let repo_root = std::env::current_dir()?;
+              run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
+          }
+          Commands::FpgaFlash { bitstream, board, cable, mode, dry_run, loader } => {
+              let repo_root = std::env::current_dir()?;
+              run_fpga_flash(&repo_root, bitstream.as_deref(), &board, cable.as_deref(), &mode, dry_run, &loader)?;
+          }
+          Commands::ValidateSeals { pr_files } => {
+              run_validate_seals(&pr_files)?;
+          }
+          Commands::ValidatePhiIdentity => {
+              run_validate_phi_identity()?;
+          }
+          Commands::ValidatePhiF64Literals { path } => {
+              phi_f64_literals::run(path.as_deref())?;
+          }
+          Commands::CheckClaimTiers { repo_root } => {
+              tooling::check_claim_tiers(&repo_root)?;
+          }
+          Commands::BrainSealRefresh { repo_root } => {
+              tooling::brain_seal_refresh(&repo_root)?;
+          }
+          Commands::LintDocs { repo_root } => {
+              tooling::run_lint_docs(&repo_root)?;
+          }
          Commands::Formula { cmd } => {
              let repo_root = std::env::current_dir()?;
              formula_eval::run_formula_command(cmd, &repo_root)?;
