@@ -708,6 +708,7 @@ def lab_run(sha, log, challenge=SRV / "challenge", master=True):
             % (CORPUS_DIR, REF_JOBS, REF_TIMEOUT_S),
             "totals": tot,
             "cache": cache,
+            "reused": "%d of %d" % (cache["hits"], sum(cache.values())),  # #8095
         }
 
     if have_t27c:
