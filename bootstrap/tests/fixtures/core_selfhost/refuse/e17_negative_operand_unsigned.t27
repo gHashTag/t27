@@ -1,0 +1,5 @@
+// -1 meets a u32 operand (#8098).
+module negative_operand_unsigned;
+fn nou_g(x: u32) -> u32 {
+    return x & -1;
+}

@@ -1,0 +1,5 @@
+// A u32 shifted by 40: undefined in C, refused in Zig (#8098).
+module shift_past_width;
+fn spw_g(x: u32) -> u32 {
+    return x << 40;
+}

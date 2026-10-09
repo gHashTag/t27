@@ -1,0 +1,65 @@
+// P3 slice 4 (#5980): the constants both backends compute alike, which the
+// core accepts (#8098). A constant fits the type it meets, and an operand's
+// type; an index is the array's last; a shift stays below the width; an int
+// product stays an int, and a long one is a long in C; -1 is compared with
+// a signed value, or with a u8, which C promotes to int; a typed const
+// stays inside its type; two typed constants meet by their values.
+module widths_accepts;
+
+const WA_INT: i64 = 100000 * 10000;
+const WA_STEP: u32 = 10;
+const WA_ZERO: u32 = 0;
+var wa_xs: [4]u8 = [_]u8{ 1, 2, 3, 4 };
+
+fn wa_fits(x: u8) -> u8 {
+    var y: u8 = 255;
+    return (x + 255) & y;
+}
+
+fn wa_last() -> u8 {
+    return wa_xs[3];
+}
+
+fn wa_shift(x: u32) -> u32 {
+    return x << 31;
+}
+
+fn wa_long() -> u64 {
+    var y: u64 = 4294967296 * 2;
+    return y;
+}
+
+fn wa_signed(x: i32) -> bool {
+    return -1 < x;
+}
+
+fn wa_narrow(x: u8) -> bool {
+    return x < -1;
+}
+
+fn wa_typed() -> i64 {
+    var y: i64 = WA_STEP - 9;
+    return y;
+}
+
+fn wa_values() -> i32 {
+    return (WA_ZERO ^ WA_ZERO) | (WA_ZERO as i32);
+}
+
+fn wa_int() -> i64 {
+    return WA_INT;
+}
+
+test wa_constants_agree {
+    assert(wa_fits(0) == 255);
+    assert(wa_last() == 4);
+    assert(wa_shift(1) == 2147483648);
+    assert(wa_long() == 8589934592);
+    var s: i32 = 0;
+    assert(wa_signed(s));
+    var n: u8 = 0;
+    assert(!wa_narrow(n));
+    assert(wa_typed() == 1);
+    assert(wa_values() == 0);
+    assert(wa_int() == 1000000000);
+}

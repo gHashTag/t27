@@ -5609,3 +5609,40 @@ mod unresolved_is_not_a_rejection {
         );
     }
 }
+
+/// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
+/// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
+pub fn run_frontier(list: bool) -> anyhow::Result<()> {
+    use crate::seal_identity as si;
+    let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
+    while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
+    fn decide(p: &str, tc: &serde_json::Value, memo: &mut std::collections::HashMap<String, u8>, depth: u32) -> Option<u8> {
+        if let Some(d) = memo.get(p) { return Some(*d); }
+        let src = std::fs::read_to_string(p).ok().filter(|_| depth < 64)?;
+        let module = crate::extract_module_name(&src).unwrap_or_default();
+        let seal: serde_json::Value = [crate::seal_file_path(&module, p), std::path::Path::new(".trinity/seals").join(format!("{module}.json"))].iter()
+            .find_map(|f| std::fs::read_to_string(f).ok().and_then(|s| serde_json::from_str(&s).ok())).unwrap_or_default();
+        let g = |k: &str| seal.pointer(k).and_then(|v| v.as_str()).map(String::from);
+        let t = |k: &str| tc.get(k).and_then(|v| v.as_str()).map(String::from);
+        let (mut rebuilt, mut missing) = (false, false);
+        for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")) {
+            match decide(&format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
+        }
+        let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
+        let cur = crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]);
+        let out = ["/gen_hash_zig", "/gen_hash_verilog", "/gen_hash_c", "/gen_hash_rust"].map(|k| g(k));
+        let tools = ["test_runner", "zig"].map(|k| (g(&format!("/toolchain/{k}")), t(k)));
+        let tool = si::toolchain_part(out.iter().all(|o| o.is_some()), cur.map_or(false, |c| out.iter().zip(c.iter()).all(|(o, c)| o.as_deref() == Some(c.as_str()))), tools.iter().all(|(r, _)| r.is_some()), tools.iter().all(|(r, c)| r == c));
+        let config = si::recorded_part(g("/config").is_some(), g("/config").as_deref() == Some(si::SEAL_CONFIG));
+        let tests = seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0) && seal.pointer("/tests/forced").and_then(|v| v.as_bool()) != Some(true);
+        let d = si::node_decision(spec, rebuilt, missing, tool, config, tests, false, si::HW_UNPROVEN);
+        memo.insert(p.to_string(), d);
+        Some(d)
+    }
+    let mut counts = [0u32; 7];
+    specs.sort();
+    for p in &specs { let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); counts[d as usize] += 1; if list && d != si::REUSE { println!("{d} {p}") } }
+    let total = specs.len() as u32;
+    println!("frontier: reused {} of {} ({} permille); rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
+    Ok(())
+}

@@ -1,0 +1,5 @@
+// A constant divisor of 0 (#8098).
+module division_by_zero;
+fn dbz_g(x: u32) -> u32 {
+    return x / 0;
+}
