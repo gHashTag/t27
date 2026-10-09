@@ -9,18 +9,29 @@ module port::scripts::gen_w311;
 
 const NONE: i64 = -1;
 
-// Python `line.strip().startswith(prefix)`: leading whitespace is skipped first.
-fn line_starts_with(line: str, prefix: str) -> bool {
-    var i: usize = 0;
-    while (i < line.len and (line[i] == ' ' or line[i] == '\t' or line[i] == '\r' or line[i] == '\n')) {
+// End of the line that starts at pos: the index of the next '\n', or the text length.
+fn line_end(text: str, pos: usize) -> usize {
+    var i: usize = pos;
+    while (i < text.len and text[i] != '\n') {
         i += 1;
     }
-    if (i + prefix.len > line.len) {
+    return i;
+}
+
+// Python `line.strip().startswith(prefix)` for the line that starts at pos: leading
+// whitespace is skipped first (a line holds no '\n').
+fn line_starts_with(text: str, pos: usize, prefix: str) -> bool {
+    const le: usize = line_end(text, pos);
+    var i: usize = pos;
+    while (i < le and (text[i] == ' ' or text[i] == '\t' or text[i] == '\r')) {
+        i += 1;
+    }
+    if (i + prefix.len > le) {
         return false;
     }
     var j: usize = 0;
     while (j < prefix.len) {
-        if (line[i + j] != prefix[j]) {
+        if (text[i + j] != prefix[j]) {
             return false;
         }
         j += 1;
@@ -28,72 +39,87 @@ fn line_starts_with(line: str, prefix: str) -> bool {
     return true;
 }
 
-// True when every character is whitespace (Python: `not line.strip()`).
-fn is_blank(line: str) -> bool {
-    for c in line {
-        if (c != ' ' and c != '\t' and c != '\r' and c != '\n') {
+// True when the line that starts at pos is only whitespace (Python: `not line.strip()`).
+fn is_blank(text: str, pos: usize) -> bool {
+    const le: usize = line_end(text, pos);
+    var i: usize = pos;
+    while (i < le) {
+        if (text[i] != ' ' and text[i] != '\t' and text[i] != '\r') {
             return false;
         }
+        i += 1;
     }
     return true;
 }
 
 // The keywords that end the block in get_last_block.
-fn ends_block(line: str) -> bool {
-    if (is_blank(line)) {
+fn ends_block(text: str, pos: usize) -> bool {
+    if (is_blank(text, pos)) {
         return false;
     }
-    return line_starts_with(line, "test ") or
-        line_starts_with(line, "invariant ") or
-        line_starts_with(line, "fn ") or
-        line_starts_with(line, "pub ") or
-        line_starts_with(line, "//") or
-        line_starts_with(line, "type ") or
-        line_starts_with(line, "struct ");
+    return line_starts_with(text, pos, "test ") or
+        line_starts_with(text, pos, "invariant ") or
+        line_starts_with(text, pos, "fn ") or
+        line_starts_with(text, pos, "pub ") or
+        line_starts_with(text, pos, "//") or
+        line_starts_with(text, pos, "type ") or
+        line_starts_with(text, pos, "struct ");
 }
 
-// get_last_block(lines): the original returns lines[start:end], or None. Here the answer is
-// the pair (start, end); start == -1 means None (fewer than 2 tests before the last
-// invariant, or no invariant at all).
-fn get_last_block(lines: []str) -> (i64, i64) {
-    var n_tests: usize = 0;
+// get_last_block(lines): the original takes the lines of a file (text.split('\n')) and
+// returns lines[start:end], or None. Here the file text is the parameter and the answer
+// is the pair of line numbers (start, end); start == -1 means None (fewer than 2 tests
+// before the last invariant, or no invariant at all).
+fn get_last_block(text: str) -> (i64, i64) {
+    // Pass 1: the number of lines and the last invariant.
     var last_inv: i64 = NONE;
-    var second_last_before: i64 = NONE;
-    var last_before: i64 = NONE;
-    var i: usize = 0;
-    // First pass: the last invariant.
-    var k: usize = 0;
-    var n_inv: usize = 0;
-    while (k < lines.len) {
-        if (line_starts_with(lines[k], "invariant ")) {
-            last_inv = k as i64;
-            n_inv += 1;
+    var n_lines: i64 = 0;
+    var pos: usize = 0;
+    var done: bool = false;
+    while (!done) {
+        if (line_starts_with(text, pos, "invariant ")) {
+            last_inv = n_lines;
         }
-        k += 1;
+        n_lines += 1;
+        const le: usize = line_end(text, pos);
+        if (le >= text.len) {
+            done = true;
+        } else {
+            pos = le + 1;
+        }
     }
-    if (n_inv < 1) {
+    if (last_inv == NONE) {
         return (NONE, NONE);
     }
-    // Second pass: the two last tests before that invariant.
-    while (i < lines.len) {
-        if (line_starts_with(lines[i], "test ") and (i as i64) < last_inv) {
+    // Pass 2: the two last tests before that invariant, and the first keyword line after it.
+    var n_tests: usize = 0;
+    var last_before: i64 = NONE;
+    var second_last_before: i64 = NONE;
+    var end: i64 = n_lines;
+    var found_end: bool = false;
+    var ln: i64 = 0;
+    pos = 0;
+    done = false;
+    while (!done) {
+        if (ln < last_inv and line_starts_with(text, pos, "test ")) {
             second_last_before = last_before;
-            last_before = i as i64;
+            last_before = ln;
             n_tests += 1;
         }
-        i += 1;
+        if (ln > last_inv and !found_end and ends_block(text, pos)) {
+            end = ln;
+            found_end = true;
+        }
+        ln += 1;
+        const le: usize = line_end(text, pos);
+        if (le >= text.len) {
+            done = true;
+        } else {
+            pos = le + 1;
+        }
     }
     if (n_tests < 2) {
         return (NONE, NONE);
-    }
-    var end: i64 = lines.len as i64;
-    var m: usize = (last_inv + 1) as usize;
-    while (m < lines.len) {
-        if (ends_block(lines[m])) {
-            end = m as i64;
-            break;
-        }
-        m += 1;
     }
     return (second_last_before, end);
 }
@@ -140,42 +166,51 @@ fn process_specs() -> u32 {
 }
 
 test line_starts_with_skips_leading_whitespace {
-    assert(line_starts_with("  test foo", "test "));
-    assert(line_starts_with("\tinvariant x", "invariant "));
-    assert(!line_starts_with("xtest foo", "test "));
-    assert(!line_starts_with("te", "test "));
+    assert(line_starts_with("  test foo", 0, "test "));
+    assert(line_starts_with("a\n\tinvariant x", 2, "invariant "));
+    assert(!line_starts_with("xtest foo", 0, "test "));
+    assert(!line_starts_with("te\nst ", 0, "test "));
 }
 
 test block_ends_at_the_next_keyword {
-    var lines: [8][]const u8 = ["test a", "x", "test b", "y", "invariant i", "z", "test c", "fn q"];
-    const (s, e) = get_last_block(&lines);
+    const (s, e) = get_last_block("test a\nx\ntest b\ny\ninvariant i\nz\ntest c\nfn q");
     assert(s == 0);
     assert(e == 6);
 }
 
 test block_runs_to_the_end_without_a_keyword {
-    var lines: [6][]const u8 = ["test a", "test b", "invariant i", "z", "", "w"];
-    const (s, e) = get_last_block(&lines);
+    // 6 lines: the end is the line count
+    const (s, e) = get_last_block("test a\ntest b\ninvariant i\nz\n\nw");
     assert(s == 0);
     assert(e == 6);
 }
 
+test trailing_newline_counts_one_more_line {
+    const (s, e) = get_last_block("test a\ntest b\ninvariant i\nz\n");
+    assert(s == 0);
+    assert(e == 5);
+}
+
 test no_block_with_one_test_or_no_invariant {
-    var one: [3][]const u8 = ["test a", "invariant i", "z"];
-    const (s1, e1) = get_last_block(&one);
+    const (s1, e1) = get_last_block("test a\ninvariant i\nz");
     assert(s1 == -1);
     assert(e1 == -1);
-    var none: [3][]const u8 = ["test a", "test b", "z"];
-    const (s2, e2) = get_last_block(&none);
+    const (s2, e2) = get_last_block("test a\ntest b\nz");
     assert(s2 == -1);
     assert(e2 == -1);
 }
 
 test blank_lines_do_not_end_the_block {
-    var lines: [5][]const u8 = ["test a", "test b", "invariant i", "   ", "z"];
-    const (s, e) = get_last_block(&lines);
+    const (s, e) = get_last_block("test a\ntest b\ninvariant i\n   \nz");
     assert(s == 0);
     assert(e == 5);
+}
+
+test only_tests_before_the_last_invariant_count {
+    // the last invariant is j (line 5): the two last tests before it are c and d (lines 3, 4)
+    const (s, e) = get_last_block("test a\ntest b\ninvariant i\ntest c\ntest d\ninvariant j\nz");
+    assert(s == 3);
+    assert(e == 7);
 }
 
 test old_wave_suffixes_are_recognised {
