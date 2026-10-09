@@ -466,3 +466,8 @@ bootstrap/src/suite.rs
 # blockers.rs and t27b_rules.py only call the generated functions. Budget 40 per file, 80 per PR applies.
 cli/t27b/src/blockers.rs
 scripts/tri_loop/t27b_rules.py
+
+# issue #8214, epic #8095 step 3 (#8186): bless refuses a source without a ledger key (steward.t27
+# bless_source_ok, gen-c) and keeps unmoved rows byte for byte (bless_writes). The test drives those
+# generated rules through tri t27b ratchet --bless; it decides nothing itself. Budget 40/80 applies.
+scripts/ci/test_a_t27b_spec_cannot_move_silently.py
