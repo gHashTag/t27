@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/tuple_local_plan.t27 -- how t27b lowers an untyped list local that the code indexes, which t27c's Zig
+; backend prints as a Zig tuple (issue #8050, t27b coverage epic #6063; written in t27 under the port epic #6198).
+; Everything t27b decides about it is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/tuple_local_plan.rs). The Rust glue (cli/t27b/src/lower/arraylit.rs for the local,
+; cli/t27b/src/lower.rs for the index) reads the shape of the literal and of the index, asks, and builds the answer.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/tuple_local_index.t27):
+;   - `const vals = [_]i32{ ... };` with no annotation is printed `const vals = .{ ... };`: the literal's type is dropped,
+;     and the tuple's fields have the element values' types. Elements that are compile-time values give comptime
+;     fields, so an assert on one alone is folded.
+;   - A compile-time index works anywhere. A run-time index works only where the code runs at compile time: an
+;     invariant (a `comptime {}` block). In run-time code it does not compile ("unable to resolve comptime value"),
+;     and a bench or a fn no test reaches is never analyzed by Zig at all.
+; --
+; What t27b does. It takes a local whose literal names its element type T and whose every element is a value of
+; type T (a struct literal of T, or a module const declared as T), so that T is the type of each field:
+;   - RODATA: an array [N]T in read-only data, where every element is a compile-time value with no str in it. A read
+;     at a constant index folds to the constant, as a comptime field does.
+;   - CONST_AGG: a constant aggregate, where T holds a str (a string's address is not known when read-only data is
+;     written); a constant index folds to the element, and memory is made only where it is needed.
+;   - NOT_MINE: anything else (no element type text, a bare literal element of type comptime_int or comptime_float,
+;     elements of another type, no elements), which keeps the old refusal, "array literal with no result type".
+; An index into such a local is refused as ExprIndex(tuple) when it is not a compile-time constant and the code is
+; neither an invariant nor a body Zig never analyzes (a bench, a fn no test reaches).
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bTupleLocalPlan;
+
+// The answers.
+pub const NOT_MINE : u8 = 0;
+pub const RODATA : u8 = 1;
+pub const CONST_AGG : u8 = 2;
+
+/// Where the local lives. typed: the literal names its element type. same_type: every element is a value of that
+/// type. elements: how many. strings: the element type holds a `str`.
+pub fn storage(typed: bool, same_type: bool, elements: usize, strings: bool) -> u8 {
+    if (!typed or !same_type or elements == 0) { return NOT_MINE; }
+    if (strings) { return CONST_AGG; }
+    return RODATA;
+}
+
+/// Whether an index into such a local is refused. constant_index: the index is a compile-time constant.
+/// comptime: the code is an invariant, which Zig runs at compile time. never_run: Zig never analyzes the body.
+pub fn refuses_index(constant_index: bool, comptime: bool, never_run: bool) -> bool {
+    return !constant_index and !comptime and !never_run;
+}
+
+/// The construct a refusal names.
+pub fn what() -> str {
+    return "ExprIndex(tuple)";
+}
+
+/// The words of a refusal.
+pub fn why() -> str {
+    return "a run-time index into an untyped list local, which the reference prints as a tuple (Zig: unable to resolve comptime value)";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then what stays with the other paths.
+// ----------------------------------------------------------------------------------------------------------
+
+test typed_consts_go_to_read_only_data {
+    // ternary_gates.t27's `[_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS}`.
+    assert(storage(true, true, 3, false) == RODATA);
+}
+
+test elements_with_a_string_are_a_constant_aggregate {
+    // ultra_engine_v70_ultimate.t27's `[]PDGTarget{ PDGTarget{ name: "W_mass", ... }, ... }`.
+    assert(storage(true, true, 2, true) == CONST_AGG);
+}
+
+test anything_else_keeps_the_old_refusal {
+    assert(storage(false, true, 3, false) == NOT_MINE);
+    assert(storage(true, false, 3, false) == NOT_MINE);
+    assert(storage(true, true, 0, false) == NOT_MINE);
+    assert(storage(false, false, 2, true) == NOT_MINE);
+}
+
+test a_constant_index_is_taken_everywhere {
+    assert(!refuses_index(true, false, false));
+    assert(!refuses_index(true, true, false));
+    assert(!refuses_index(true, false, true));
+}
+
+test a_run_time_index_only_at_compile_time_or_never_run {
+    assert(refuses_index(false, false, false));
+    assert(!refuses_index(false, true, false));
+    assert(!refuses_index(false, false, true));
+}
+
+test the_refusal_names {
+    assert(std.mem.eql(u8, what(), "ExprIndex(tuple)"));
+    assert(why().len > 0);
+    assert(!std.mem.eql(u8, why(), what()));
+}

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+2dfe9786f",
+  "gen_hash_c": "sha256:56fb0be49f7ffb52380711702d3eec9d68dae3baee6011612a838d3ad348fac6",
+  "gen_hash_rust": "sha256:8318395911a7d62a303bfdded81ddd05c1f86b83b2d0b6d834dfadf96d6423dc",
+  "gen_hash_verilog": "sha256:5116992506a962f96d6bb78208d104643aa073681f17656821f47f5725037322",
+  "gen_hash_zig": "sha256:74c1d5bb01b28c21a230bae8b5e0381de9dd04ad37f71cbf46d2b429d9b83536",
+  "module": "T27bTupleLocalPlan",
+  "ring": 12,
+  "sealed_at": "2026-10-09T07:18:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:567c493a4ac61ecc154f1b292297c28af51edbd9258063e5e9939d8d27a3001e",
+  "spec_path": "specs/tri/t27b/tuple_local_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

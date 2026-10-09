@@ -119,3 +119,20 @@ fn frame_address_store_is_refused() {
     let r = rejected(include_str!("../../../specs/tri/t27b/conformance/frame_address_store.t27"));
     assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
 }
+
+/// An untyped list local is a Zig tuple (#8050): read at constant indices,
+/// and at run-time ones inside an invariant (`t27c test-report`: 2 pass).
+#[test]
+fn tuple_local_index_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/tuple_local_index.t27"));
+    let got = names_ok(&ran);
+    assert_eq!(got.len(), 3);
+    assert!(got.iter().all(|(_, _, ok)| *ok), "{:?}", got);
+}
+
+/// A run-time index into one in a test: Zig refuses it, so t27b does too.
+#[test]
+fn tuple_local_run_time_index_is_refused() {
+    let r = rejected("module a;\n\nconst A : i32 = 4;\n\ntest t {\n    const v = [_]i32{A, A};\n    var i: usize = 1;\n    assert(v[i] == 4);\n}\n");
+    assert!(r.contains("ExprIndex(tuple)"), "{}", r);
+}
