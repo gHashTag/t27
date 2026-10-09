@@ -561,6 +561,7 @@
   {"path": "specs/port/scripts/gen_w655.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w656.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/gen_w657.t27", "t27b": "pass"},
+  {"path": "specs/port/scripts/gen_w_blocks.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/generate_episodes.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/git_commands_tasks_1_4.t27", "t27b": "pass"},
   {"path": "specs/port/scripts/install-constitutional-hook.t27", "t27b": "pass"},
