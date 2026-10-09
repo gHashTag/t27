@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:43354639d183a2fa14de2d12f06f8b124006e378e5744955a0c03c3cbc8129ea",
+  "gen_hash_rust": "sha256:f5dab4b627cdd44cf8b12bf507f35e6c4edfd28df4e4482146d69981d3542c7a",
+  "gen_hash_verilog": "sha256:29fc6aee66f56a2a4ae987d576307d176c971c73eee00bbd954a18f0d84ae056",
+  "gen_hash_zig": "sha256:c3d5dde2870ee49193dfad744c9c6618c2851d7571c7b8b2ba0fb9f2f8c0fe2f",
+  "module": "tool_tri_one_away",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:24:09Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:c2f5b7cbfd37b99f19c29b67bb0b52751e4830e45e89331f2c8630b600b6ef2d",
+  "spec_path": "specs/tools/tri/one-away.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

@@ -2246,8 +2246,8 @@ test nan_to_int {
 
 /// What stays refused, each named: `@sqrt` of a literal, `std.math.*`, a
 /// conversion with no result type, f16, `as` from an f64 t27c gen does not
-/// spell as a float (here a call; a spelled one is lowered, see
-/// `float_as.t27`) or from a bool to f64 (an integer `as f64` is
+/// spell as a float (here an array element; a spelled one, a call of a fn
+/// declared `-> f64` included, is lowered, see `float_as_plan.t27`) or from a bool to f64 (an integer `as f64` is
 /// `@floatFromInt`, see `source.rs`), a folded value
 /// past the f64 range, and `x * 2^k` on f64 (t27c gen rewrites it into a
 /// shift that cannot compile).
@@ -2265,8 +2265,8 @@ fn f64_refusals_name_the_construct() {
         ("return std.math.sqrt(x);", "ExprCall(std.*)"),
         ("return @floatFromInt(n) + x;", "ExprCall(@floatFromInt)"),
         ("const y: f16 = 1.0;\nreturn x;", "type f16"),
-        ("return f(x, n) as f64;", "ExprCast(f64)"),
-        ("const k: i32 = f(x, n) as i32;\nreturn x;", "ExprCast(f64)"),
+        ("const a: [1]f64 = [x];\nreturn a[0] as f64;", "ExprCast(f64)"),
+        ("const a: [1]f64 = [x];\nconst k: i32 = a[0] as i32;\nreturn x;", "ExprCast(f64)"),
         ("return (n > 0) as f64;", "ExprCast(f64)"),
         ("return x + 1e308 * 10.0;", "literal out of range"),
         ("return x + 1.0 / 0.0;", "ExprBinary"),
@@ -2574,7 +2574,7 @@ test f32_out_of_range {
 
 /// What stays refused for f32, each named: an integer literal that is not
 /// exactly an f32 (a Zig compile error), `as` from a float t27c gen does
-/// not spell as one (a call), and
+/// not spell as one (an array element), and
 /// `@floatCast` of a literal or with no result type. (A literal one f64
 /// apart from an f32 midpoint rounds from its binary128 value, see
 /// `comptime_floats_fold_in_binary128`.)
@@ -2589,8 +2589,8 @@ fn f32_refusals_name_the_construct() {
     };
     for (body, want) in [
         ("return 16777217;", "literal out of range"),
-        ("return f(x, n) as f32;", "ExprCast(f32)"),
-        ("const k: i32 = f(x, n) as i32;\nreturn x;", "ExprCast(f32)"),
+        ("const a: [1]f32 = [x];\nreturn a[0] as f32;", "ExprCast(f32)"),
+        ("const a: [1]f32 = [x];\nconst k: i32 = a[0] as i32;\nreturn x;", "ExprCast(f32)"),
         ("return @floatCast(0.5);", "ExprCall(@floatCast)"),
         ("return @floatCast(x) + x;", "ExprCall(@floatCast)"),
         ("return x * 4;", "ExprBinary(f64 * 2^k)"),

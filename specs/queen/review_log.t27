@@ -46,6 +46,57 @@ fn str_starts_with(haystack: string, needle: string) -> bool {
     return true;
 }
 
+/// Does haystack hold needle at offset at? False when needle runs past the end.
+fn starts_with_at(haystack: string, at: usize, needle: string) -> bool {
+    if (at > haystack.len) {
+        return false;
+    }
+    if (needle.len > haystack.len - at) {
+        return false;
+    }
+    var k : usize = 0;
+    while (k < needle.len) {
+        if (haystack[at + k] != needle[k]) {
+            return false;
+        }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The offset of the first byte at or after from that is not an ASCII digit
+/// ('0' is 48, '9' is 57); text.len when every byte from there on is one.
+fn digits_end(text: string, from: usize) -> usize {
+    var k : usize = from;
+    while (k < text.len) {
+        if (text[k] < 48 or text[k] > 57) {
+            return k;
+        }
+        k = k + 1;
+    }
+    return k;
+}
+
+/// A queue read, as the health-card tool's QUEUE_READ_RE has it (#7407):
+/// `^\d+ to review, \d+ approved but unlabelled`, a prefix with any count on
+/// either side. Before #7407 this was the one fixture line, so a real log,
+/// whose counts are not 3 and 1, held no queue read at all.
+pub fn is_queue_read(text: string) -> bool {
+    const first : usize = digits_end(text, 0);
+    if (first == 0) {
+        return false;
+    }
+    if (starts_with_at(text, first, " to review, ") == false) {
+        return false;
+    }
+    const second_from : usize = first + 12;
+    const second : usize = digits_end(text, second_from);
+    if (second == second_from) {
+        return false;
+    }
+    return starts_with_at(text, second, " approved but unlabelled");
+}
+
 // Classification constants
 pub const QUEUE_READ : u8 = 0;
 pub const LISTING_ERROR_504 : u8 = 1;
@@ -64,7 +115,7 @@ pub const OTHER : u8 = 255;
 /// Classify a review log line based on its text content.
 /// Returns one of the classification constants above.
 pub fn classify_review_line(text: string) -> u8 {
-    if (text == "3 to review, 1 approved but unlabelled") {
+    if (is_queue_read(text)) {
         return QUEUE_READ;
     }
     
@@ -108,7 +159,7 @@ pub fn classify_review_line(text: string) -> u8 {
         return AGENT_FAILURE;
     }
     
-    if (text == "Traceback (most recent call last):") {
+    if (str_starts_with(text, "Traceback (most recent call last):")) {
         return TRACEBACK;
     }
     
@@ -138,6 +189,50 @@ pub fn review_window_exit(timestamped_lines: u32, errors_since_last_read: u32) -
 
 test classify_queue_read {
     assert classify_review_line("3 to review, 1 approved but unlabelled") == QUEUE_READ;
+}
+
+// A queue read is any count, not the fixture's 3 and 1 (#7407). Before #7407
+// the rule was the fixture line itself, so every line below that is not it read
+// as OTHER, and a real log held no queue read at all.
+
+test classify_queue_read_any_count {
+    assert classify_review_line("5 to review, 0 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("0 to review, 0 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("9 to review, 9 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("12 to review, 3 approved but unlabelled (2 held)") == QUEUE_READ;
+}
+
+test classify_queue_read_needs_both_counts {
+    assert classify_review_line(" to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review,  approved but unlabelled") == OTHER;
+    assert classify_review_line("x to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("/ to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line(": to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review, : approved but unlabelled") == OTHER;
+}
+
+test classify_queue_read_is_a_prefix {
+    assert classify_review_line("#1: 3 to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review, 1 approved but") == OTHER;
+    assert classify_review_line("3 to reviews, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review, 1 approved but unlabelle") == OTHER;
+}
+
+test digits_end_stops_at_the_first_non_digit {
+    assert digits_end("12x", 0) == 2;
+    assert digits_end("abc", 0) == 0;
+    assert digits_end("123", 0) == 3;
+    assert digits_end("a12", 1) == 3;
+    assert digits_end("09/", 0) == 2;
+    assert digits_end("9:", 0) == 1;
+}
+
+test starts_with_at_reads_at_the_offset {
+    assert starts_with_at("abc", 1, "bc") == true;
+    assert starts_with_at("ab", 1, "bc") == false;
+    assert starts_with_at("abc", 3, "") == true;
+    assert starts_with_at("ab", 5, "") == false;
+    assert starts_with_at("abd", 1, "bc") == false;
 }
 
 test classify_listing_errors {
@@ -194,6 +289,8 @@ test classify_agent_failure {
 
 test classify_traceback {
     assert classify_review_line("Traceback (most recent call last):") == TRACEBACK;
+    assert classify_review_line("Traceback (most recent call last): extra") == TRACEBACK;
+    assert classify_review_line("x Traceback (most recent call last):") == OTHER;
 }
 
 test classify_other {
