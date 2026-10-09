@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/mutate/plant.t27 -- one hand-written mutation experiment: `tri mutate plant` (#7369)
+; `tri mutate spec` plants mutants by kind; `tri mutate plant --file F --line N --from OLD --to NEW
+; [--expect TEST]...` plants ONE named mutant and says which tests of the spec go red on it. Before it,
+; such an experiment was a sed on a scratch copy and a reading of the report by eye (the acceptance demo
+; of gHashTag/t27#7400). This spec holds every decision of the command; the command
+; (cli/tri/src/mutate.rs, through `t27c gen-rust` in gen/rust/tri/mutate/plant.rs) is glue: it reads
+; the file, writes the copies into the work dir `tri mutate spec` uses, runs `t27c test-report` on a
+; clean copy and on the mutant, reads both through specs/tri/test/report.t27, hashes the original
+; before and after, and prints.
+; Four rules:
+;   the plant is the one named -- --from occurs EXACTLY once on --line (overlapping occurrences
+;     count), --from is not empty, --to is not --from and holds no line break, and --line is a line of
+;     the file (from 1). Anything else is refused before t27c runs. A line ends at its '\n'; a '\r'
+;     is an ordinary byte here: gen (Zig) and gen-rust lower a '\r' escape differently, so no test could hold one.
+;   a red baseline means nothing -- against a spec that is not green before the plant every mutant
+;     "is killed"; the run is refused, and so is an --expect that names no test of the spec.
+;   the verdict -- a mutant that does not build is unviable, not killed. Without --expect the plant
+;     passes when a test FAILs; with it, only when the failing tests are exactly the --expect set.
+;   the original is never written -- its sha256 is taken before and after the run, and a changed
+;     original fails the command whatever the tests said.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriMutatePlant;
+
+// Refusals of the plant itself; 0 means the plant is the one named.
+pub const PLANT_OK : u8 = 0;
+pub const REFUSE_EMPTY_FROM : u8 = 1;
+pub const REFUSE_SAME_TEXT : u8 = 2;
+pub const REFUSE_LINE_BREAK : u8 = 3;
+pub const REFUSE_NO_SUCH_LINE : u8 = 4;
+pub const REFUSE_NOT_ONCE : u8 = 5;
+
+// Outcomes of a run. Only KILLED and KILLED_AS_EXPECTED pass.
+pub const KILLED : u8 = 10;
+pub const KILLED_AS_EXPECTED : u8 = 11;
+pub const SURVIVED : u8 = 12;
+pub const NOT_AS_EXPECTED : u8 = 13;
+pub const UNVIABLE : u8 = 14;
+pub const BASELINE_RED : u8 = 15;
+pub const NO_SUCH_TEST : u8 = 16;
+pub const MUTANT_UNREAD : u8 = 17;
+pub const ORIGINAL_CHANGED : u8 = 18;
+
+/// Refusals sit below the outcomes, so one `why` names both.
+invariant refusals_and_outcomes_do_not_overlap { assert PLANT_OK == 0 and REFUSE_NOT_ONCE == 5 and KILLED == 10 and ORIGINAL_CHANGED == 18; }
+
+/// How many lines the text has: one per '\n', and one more for a last line with no '\n'.
+pub fn line_count(text: string) -> usize {
+    var lines : usize = 0;
+    var k : usize = 0;
+    while (k < text.len) {
+        if (text[k] == 10) { lines = lines + 1; }
+        k = k + 1;
+    }
+    if (text.len > 0 and text[text.len - 1] != 10) { lines = lines + 1; }
+    return lines;
+}
+
+/// Where line n (from 1) starts, or text.len + 1 when the text has no line n.
+pub fn line_start(text: string, n: usize) -> usize {
+    if (n == 0 or n > line_count(text)) { return text.len + 1; }
+    var seen : usize = 1;
+    var k : usize = 0;
+    while (seen < n) {
+        if (text[k] == 10) { seen = seen + 1; }
+        k = k + 1;
+    }
+    return k;
+}
+
+/// Where line n ends: its '\n', or the end of the text.
+pub fn line_stop(text: string, n: usize) -> usize {
+    const start : usize = line_start(text, n);
+    if (start > text.len) { return start; }
+    var k : usize = start;
+    while (k < text.len and text[k] != 10) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// Does lit sit in text at offset at, wholly before stop?
+pub fn sits_at(text: string, at: usize, stop: usize, lit: string) -> bool {
+    if (at > stop or lit.len > stop - at) { return false; }
+    var i : usize = 0;
+    while (i < lit.len) {
+        if (text[at + i] != lit[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// How many times lit occurs in text[from..stop], overlapping ones counted: `aa` sits twice in `aaa`.
+pub fn occurrences(text: string, from: usize, stop: usize, lit: string) -> u64 {
+    var hits : u64 = 0;
+    var at : usize = from;
+    while (at < stop) {
+        if (sits_at(text, at, stop, lit)) { hits = hits + 1; }
+        at = at + 1;
+    }
+    return hits;
+}
+
+/// Where --from sits on line n: the offset the glue splices --to into. text.len + 1 when it does not.
+pub fn plant_at(text: string, n: usize, from: string) -> usize {
+    const stop : usize = line_stop(text, n);
+    var at : usize = line_start(text, n);
+    while (at < stop) {
+        if (sits_at(text, at, stop, from)) { return at; }
+        at = at + 1;
+    }
+    return text.len + 1;
+}
+
+/// Are a and b the same bytes?
+pub fn same_text(a: string, b: string) -> bool {
+    if (a.len != b.len) { return false; }
+    return sits_at(a, 0, a.len, b);
+}
+
+/// Does s hold a '\n'?
+pub fn breaks_line(s: string) -> bool {
+    var k : usize = 0;
+    while (k < s.len) {
+        if (s[k] == 10) { return true; }
+        k = k + 1;
+    }
+    return false;
+}
+
+/// Is `--line n --from from --to to` on text the one named plant? PLANT_OK, or why not.
+pub fn plant_check(text: string, n: usize, from: string, to: string) -> u8 {
+    if (from.len == 0) { return REFUSE_EMPTY_FROM; }
+    if (same_text(from, to)) { return REFUSE_SAME_TEXT; }
+    if (breaks_line(to)) { return REFUSE_LINE_BREAK; }
+    if (line_start(text, n) > text.len) { return REFUSE_NO_SUCH_LINE; }
+    if (occurrences(text, line_start(text, n), line_stop(text, n), from) != 1) { return REFUSE_NOT_ONCE; }
+    return PLANT_OK;
+}
+
+/// The outcome of a run, from what the two reports said (specs/tri/test/report.t27): base_green, the
+/// clean copy's verdict is GREEN; expects_known, every --expect is a test the baseline named;
+/// mutant_read, the mutant's report is a verdict; mutant_built, that verdict is not BLOCKED; fails, the
+/// tests that FAIL on the mutant; expects, how many --expect; as_expected, the FAIL names are exactly
+/// the --expect set. The checks go in the order the run meets them.
+pub fn plant_outcome(base_green: bool, expects_known: bool, mutant_read: bool, mutant_built: bool, fails: u64, expects: u64, as_expected: bool) -> u8 {
+    if (base_green == false) { return BASELINE_RED; }
+    if (expects_known == false) { return NO_SUCH_TEST; }
+    if (mutant_read == false) { return MUTANT_UNREAD; }
+    if (mutant_built == false) { return UNVIABLE; }
+    if (expects == 0) {
+        if (fails > 0) { return KILLED; }
+        return SURVIVED;
+    }
+    if (as_expected and fails > 0) { return KILLED_AS_EXPECTED; }
+    return NOT_AS_EXPECTED;
+}
+
+/// The original's sha256 after the run is compared with the one before it: a changed original fails
+/// the command whatever the outcome was.
+pub fn plant_result(original_same: bool, outcome: u8) -> u8 {
+    if (original_same == false) { return ORIGINAL_CHANGED; }
+    return outcome;
+}
+
+/// The command exits 0 only on a kill: any, without --expect; exactly the expected ones, with it.
+pub fn plant_passes(code: u8) -> bool {
+    return code == KILLED or code == KILLED_AS_EXPECTED;
+}
+
+/// What a refusal or an outcome means. The two kills are followed by the FAIL names.
+pub fn why(code: u8) -> string {
+    if (code == PLANT_OK) { return "the plant is one line and one occurrence"; }
+    if (code == REFUSE_EMPTY_FROM) { return "--from is empty"; }
+    if (code == REFUSE_SAME_TEXT) { return "--from and --to are the same text, so nothing would change"; }
+    if (code == REFUSE_LINE_BREAK) { return "--to holds a line break: a planted mutant changes one line into one line"; }
+    if (code == REFUSE_NO_SUCH_LINE) { return "--line is not a line of the file (lines are numbered from 1)"; }
+    if (code == REFUSE_NOT_ONCE) { return "--from must occur exactly once on --line"; }
+    if (code == KILLED) { return "KILLED by:"; }
+    if (code == KILLED_AS_EXPECTED) { return "KILLED as expected by:"; }
+    if (code == SURVIVED) { return "SURVIVED: no test failed on the mutant"; }
+    if (code == NOT_AS_EXPECTED) { return "NOT as expected: the tests that FAIL on the mutant (above) are not exactly the --expect set"; }
+    if (code == UNVIABLE) { return "the mutant does not build, so no test judged it (unviable, not killed)"; }
+    if (code == BASELINE_RED) { return "the unmutated spec is not green, so the mutant would mean nothing"; }
+    if (code == NO_SUCH_TEST) { return "an --expect names no test of the spec (its tests are the baseline's `pass` names)"; }
+    if (code == MUTANT_UNREAD) { return "the mutant's report could not be read, so it is no verdict"; }
+    return "ORIGINAL CHANGED: the spec's sha256 after the run is not the one before it; restore it from git before anything else";
+}
+
+// Scenario: the acceptance demo of #7400 -- line 12 of specs/ternary/gft_relu.t27, `return 0;` for a
+// negative input becomes `return x;`. Lines 10 to 13 of that spec, as they stand.
+test the_gft_relu_plant_is_one_line_and_one_occurrence {
+    const t : string = "fn on_comb(x: u32) -> u32 {\n    if (x == 0) { return 0; }\n    if ((x >> 16) == 1) { return 0; }   // negative -> 0\n    return x;                           // positive -> identity\n}\n";
+    assert line_count(t) == 5;
+    assert line_start(t, 3) == 58;
+    assert line_stop(t, 3) == 114;
+    assert plant_check(t, 3, "return 0; }   // negative", "return x; }   // negative") == PLANT_OK;
+    assert plant_at(t, 3, "return 0; }   // negative") == 84;
+    assert plant_check(t, 3, "return 0;", "return x;") == PLANT_OK;
+    assert plant_check(t, 2, "return 0;", "return x;") == PLANT_OK;
+    assert plant_at(t, 2, "return 0;") == 46;
+}
+
+// Scenario: --from absent from the line, twice on it, or overlapping itself is not the plant named.
+test from_must_occur_exactly_once_on_the_line {
+    const t : string = "module m;\nfn f(x: i32) -> i32 {\n    if (x < 0) { return 0; }   // negative -> 0\n    return x;\n}\n";
+    assert plant_check(t, 4, "{ return 0; }", "x") == REFUSE_NOT_ONCE;
+    assert plant_check(t, 2, "i32", "u32") == REFUSE_NOT_ONCE;
+    assert occurrences(t, line_start(t, 2), line_stop(t, 2), "i32") == 2;
+    assert plant_check(t, 3, "00", "1") == REFUSE_NOT_ONCE;
+    assert plant_check("aaa\n", 1, "aa", "b") == REFUSE_NOT_ONCE;
+    assert occurrences("aaa\n", 0, 3, "aa") == 2;
+    assert plant_check("aab\n", 1, "aa", "b") == PLANT_OK;
+    assert plant_check("ab\nab\n", 2, "ab", "x") == PLANT_OK;
+    assert plant_at("ab\nab\n", 2, "ab") == 3;
+    assert plant_at("ab\nab\n", 2, "zz") == 7;
+}
+
+// Scenario: the other refusals, each before t27c runs.
+test the_plant_refuses_what_is_not_one_line_into_one_line {
+    const t : string = "module m;\nfn f() {}\n";
+    assert plant_check(t, 1, "", "x") == REFUSE_EMPTY_FROM;
+    assert plant_check(t, 1, "m;", "m;") == REFUSE_SAME_TEXT;
+    assert plant_check(t, 1, "m;", "a\nb") == REFUSE_LINE_BREAK;
+    assert plant_check(t, 0, "m;", "n;") == REFUSE_NO_SUCH_LINE;
+    assert plant_check(t, 3, "m;", "n;") == REFUSE_NO_SUCH_LINE;
+    assert plant_check(t, 2, "f()", "g()") == PLANT_OK;
+    assert plant_check(t, 1, "m;", "M;") == PLANT_OK;
+    assert breaks_line("a\tb") == false;
+    assert breaks_line("") == false;
+    assert same_text("ab", "abc") == false;
+    assert same_text("", "") == true;
+}
+
+// Scenario: lines are counted as an editor numbers them, with or without a last '\n'.
+test lines_are_numbered_from_1 {
+    assert line_count("") == 0;
+    assert line_count("a") == 1;
+    assert line_count("a\n") == 1;
+    assert line_count("a\nb") == 2;
+    assert line_count("\n\n") == 2;
+    assert line_start("a\nb", 2) == 2;
+    assert line_stop("a\nb", 2) == 3;
+    assert line_start("a\nb", 3) == 4;
+    assert line_stop("a\nb", 3) == 4;
+    assert line_start("a\n\nc\n", 2) == 2;
+    assert line_stop("a\n\nc\n", 2) == 2;
+    assert sits_at("ab", 1, 2, "b") == true;
+    assert sits_at("ab", 1, 2, "bc") == false;
+    assert sits_at("ab", 3, 2, "") == false;
+}
+
+// Scenario: the #7400 demo -- --expect negz, the mutant FAILs negz only: KILLED as expected; with
+// --expect pos the same mutant is NOT as expected; without --expect it is KILLED.
+test the_verdict_follows_expect {
+    assert plant_outcome(true, true, true, true, 1, 1, true) == KILLED_AS_EXPECTED;
+    assert plant_outcome(true, true, true, true, 1, 1, false) == NOT_AS_EXPECTED;
+    assert plant_outcome(true, true, true, true, 2, 1, false) == NOT_AS_EXPECTED;
+    assert plant_outcome(true, true, true, true, 1, 0, false) == KILLED;
+    assert plant_outcome(true, true, true, true, 0, 0, false) == SURVIVED;
+    assert plant_outcome(true, true, true, true, 0, 1, false) == NOT_AS_EXPECTED;
+    assert plant_outcome(true, true, true, true, 0, 1, true) == NOT_AS_EXPECTED;
+    assert plant_passes(KILLED_AS_EXPECTED) == true;
+    assert plant_passes(KILLED) == true;
+    assert plant_passes(SURVIVED) == false;
+    assert plant_passes(NOT_AS_EXPECTED) == false;
+}
+
+// Scenario: a red baseline is refused before anything else, an unknown --expect next; a mutant that
+// does not build is unviable, and one whose report cannot be read is no verdict -- never a kill.
+test what_the_run_meets_first_decides {
+    assert plant_outcome(false, true, true, true, 1, 0, false) == BASELINE_RED;
+    assert plant_outcome(false, false, false, false, 1, 1, true) == BASELINE_RED;
+    assert plant_outcome(true, false, true, true, 1, 1, true) == NO_SUCH_TEST;
+    assert plant_outcome(true, true, false, false, 1, 0, false) == MUTANT_UNREAD;
+    assert plant_outcome(true, true, true, false, 0, 0, false) == UNVIABLE;
+    assert plant_outcome(true, true, true, false, 0, 1, true) == UNVIABLE;
+    assert plant_passes(BASELINE_RED) == false;
+    assert plant_passes(NO_SUCH_TEST) == false;
+    assert plant_passes(UNVIABLE) == false;
+    assert plant_passes(MUTANT_UNREAD) == false;
+}
+
+// Scenario: a run that wrote to the original fails even when its tests said exactly what was
+// expected; an untouched original keeps the outcome, whatever it is.
+test a_changed_original_fails_whatever_the_tests_said {
+    assert plant_result(false, KILLED_AS_EXPECTED) == ORIGINAL_CHANGED;
+    assert plant_result(false, SURVIVED) == ORIGINAL_CHANGED;
+    assert plant_result(true, KILLED_AS_EXPECTED) == KILLED_AS_EXPECTED;
+    assert plant_result(true, BASELINE_RED) == BASELINE_RED;
+    assert plant_passes(plant_result(false, KILLED)) == false;
+    assert plant_passes(ORIGINAL_CHANGED) == false;
+    assert plant_passes(PLANT_OK) == false;
+}
+
+// Scenario: every code has its own words; the two kills are the ones the FAIL names follow.
+test each_code_says_what_it_means {
+    assert why(PLANT_OK)[4] == 112;
+    assert why(REFUSE_EMPTY_FROM)[7] == 105;
+    assert why(REFUSE_SAME_TEXT)[7] == 97;
+    assert why(REFUSE_LINE_BREAK)[2] == 116;
+    assert why(REFUSE_NO_SUCH_LINE)[2] == 108;
+    assert why(REFUSE_NOT_ONCE)[7] == 109;
+    assert why(KILLED).len == 10;
+    assert why(KILLED_AS_EXPECTED).len == 22;
+    assert why(SURVIVED)[0] == 83;
+    assert why(NOT_AS_EXPECTED)[0] == 78;
+    assert why(UNVIABLE)[10] == 32;
+    assert why(BASELINE_RED)[4] == 117;
+    assert why(NO_SUCH_TEST)[3] == 45;
+    assert why(MUTANT_UNREAD)[10] == 39;
+    assert why(ORIGINAL_CHANGED)[0] == 79;
+}
