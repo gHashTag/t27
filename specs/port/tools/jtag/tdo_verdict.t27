@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/port/tools/jtag/tdo_verdict.t27 -- what a raw JTAG shift says when no chain was found
+; The rule behind `tri fpga-jtag`: read the IR capture and the DR word of one raw shift, and
+; name which of five things happened. The question that made this spec: an even DR word is
+; not an IDCODE, but is it BYPASS or a broken shift? IEEE 1149.1 answers it. Capture-IR
+; loads 01 into the two low bits of every TAP's instruction register (bit 0 = 1, bit 1 = 0),
+; and the device nearest TDO shifts its bits out first. So:
+;   IR ends in 01 and DR bit 0 = 1  -> a real IDCODE
+;   IR ends in 01 and DR bit 0 = 0  -> the TAP is alive and BYPASS is selected
+;   IR does not end in 01           -> the shift itself is broken (TCK, TMS order, TDO path)
+; and the two stuck lines are named before any of that, because they explain everything.
+; A Xilinx 7-series part has a 6-bit IR; its capture reads 0x35 (0b110101) after power-up.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module jtag_tdo_verdict;
+
+pub const IR_CAPTURE_MASK : u32 = 0x3;
+pub const IR_CAPTURE_LOW : u32 = 0x1;
+
+pub const V_STUCK_HIGH : u8 = 1;
+pub const V_STUCK_LOW : u8 = 2;
+pub const V_BROKEN_SHIFT : u8 = 3;
+pub const V_BYPASS : u8 = 4;
+pub const V_IDCODE : u8 = 5;
+
+pub const ALL_ONES : u32 = 0xFFFFFFFF;
+
+; 1149.1: the two least significant IR cells capture 01.
+pub fn ir_capture_ok(ir: u32) bool {
+    return (ir & IR_CAPTURE_MASK) == IR_CAPTURE_LOW;
+}
+
+; 1149.1: an IDCODE's bit 0 is always 1; BYPASS captures 0.
+pub fn idcode_bit0(dr: u32) bool {
+    return (dr & 1) == 1;
+}
+
+pub fn verdict(ir: u32, dr: u32) u8 {
+    if (dr == ALL_ONES) {
+        return V_STUCK_HIGH;
+    }
+    if (dr == 0 and ir == 0) {
+        return V_STUCK_LOW;
+    }
+    if (!ir_capture_ok(ir)) {
+        return V_BROKEN_SHIFT;
+    }
+    if (!idcode_bit0(dr)) {
+        return V_BYPASS;
+    }
+    return V_IDCODE;
+}
+
+test "the XC7A200T on the Wukong answers with a real IDCODE" {
+    assert verdict(0x35, 0x13636093) == V_IDCODE;
+}
+
+test "IR capture 0x35 of a 7-series part ends in 01" {
+    assert ir_capture_ok(0x35);
+}
+
+test "an even word with a good IR capture is BYPASS, not a broken shift" {
+    assert verdict(0x35, 0x13636092) == V_BYPASS;
+}
+
+test "an even word with a bad IR capture is a broken shift" {
+    assert verdict(0x34, 0x13636092) == V_BROKEN_SHIFT;
+}
+
+test "a real-looking IDCODE behind a bad IR capture is still a broken shift" {
+    assert verdict(0x36, 0x13636093) == V_BROKEN_SHIFT;
+}
+
+test "nothing drives TDO: every bit reads 1" {
+    assert verdict(0x3F, ALL_ONES) == V_STUCK_HIGH;
+}
+
+test "TDO held low: every bit reads 0" {
+    assert verdict(0, 0) == V_STUCK_LOW;
+}
+
+test "IR all ones fails the 01 check" {
+    assert !ir_capture_ok(0x3F);
+}

@@ -1,0 +1,3 @@
+// #8013: gen-c writes a repeated string as `{0}`: null pointers.
+module string_repeat;
+var sr_names: [2]str = [_]str{"a"} ** 2;

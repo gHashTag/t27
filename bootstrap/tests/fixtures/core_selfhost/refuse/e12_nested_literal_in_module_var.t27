@@ -1,0 +1,11 @@
+// #8036: gen-c writes `(O){ .in_ = (I){ ... } }` as a static
+// initializer, and cc refuses a compound literal nested there.
+module nested_literal_in_module_var;
+struct NlI {
+    v: i64,
+}
+struct NlO {
+    in_: NlI,
+    k: i64,
+}
+var nl_o: NlO = NlO{ .in_ = NlI{ .v = 1 }, .k = 2 };
