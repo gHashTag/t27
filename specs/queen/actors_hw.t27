@@ -1,0 +1,11 @@
+; probe for issue #8346 -- reproducer from the issue body
+module ClockLocal;
+
+var count : u8 = 0;
+
+fn on_clock(k: u8) {
+    var up : bool = (k & 1) == 1;
+    if (up) { count = count + 1; }
+}
+
+test counts { on_clock(1); on_clock(0); assert count == 1; }
