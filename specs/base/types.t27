@@ -193,14 +193,17 @@ pub fn unpack_trit(position: u8, packed: PackedTrit) UnpackResult {
 // Returns error sentinel ([0xFF]*5) for count > 27
 pub fn ternary_word_pack(src: []Trit, count: u8) TernaryWord {
     if (count > TRITS_PER_WORD) {
-        return [_]u8{0xFF} ** WORD_BYTES;
+        var err: TernaryWord = undefined;
+        for (0..WORD_BYTES) |j| { err[j] = 0xFF; }
+        return err;
     }
 
-    var result = [_]u8{0} ** WORD_BYTES;
+    var result: TernaryWord = undefined;
+    for (0..WORD_BYTES) |j| { result[j] = 0; }
 
     for (0..@min(count, TRITS_PER_WORD)) |i| {
         const byte_index = i / TRITS_PER_BYTE;
-        const trit_in_byte = i % TRITS_PER_BYTE;
+        const trit_in_byte: u8 = @intCast(i % TRITS_PER_BYTE);
         const old = result[byte_index];
         const packed = pack_trit(src[i], trit_in_byte, old);
         result[byte_index] = packed;
@@ -209,27 +212,29 @@ pub fn ternary_word_pack(src: []Trit, count: u8) TernaryWord {
     return result;
 }
 
-// ternary_word_unpack(word: TernaryWord, count: u8) -> []Trit
-// Unpack count trits from TernaryWord
-// Returns array of Trit values (error for invalid count)
-pub fn ternary_word_unpack(word: TernaryWord, count: u8) []Trit {
-    if (count > TRITS_PER_WORD) {
-        return &[_]Trit{.zero};
+// ternary_word_unpack(word: TernaryWord, count: u8, dst: []Trit) -> u8
+// Unpack count trits from TernaryWord into the caller's buffer dst.
+// Returns how many trits were written; 0 when count > 27 or dst is too short.
+// (#4817: the old form returned a slice of a local array, and indexed the
+// trit inside its byte with i instead of i % TRITS_PER_BYTE.)
+pub fn ternary_word_unpack(word: TernaryWord, count: u8, dst: []Trit) u8 {
+    if (count > TRITS_PER_WORD or dst.len < count) {
+        return 0;
     }
 
-    var result: [TRITS_PER_WORD]Trit = undefined;
     var valid_count: u8 = 0;
 
     for (0..count) |i| {
-        const unpacked = unpack_trit(@intCast(i), word[i / TRITS_PER_BYTE]);
+        const pos: u8 = @intCast(i % TRITS_PER_BYTE);
+        const unpacked = unpack_trit(pos, word[i / TRITS_PER_BYTE]);
         if (!unpacked.valid) {
             break;
         }
-        result[i] = unpacked.value;
+        dst[i] = unpacked.value;
         valid_count += 1;
     }
 
-    return result[0..valid_count];
+    return valid_count;
 }
 
 // trit_compare(a: Trit, b: Trit) → i8
@@ -461,7 +466,7 @@ pub fn packed_trit_shift_right(packed: PackedTrit, shift: u8) PackedTrit {
 
 // packed_trit_rotate_left(packed: PackedTrit, rotate: u8) → PackedTrit
 // Left rotate packed trits by rotate positions (circular shift)
-// rotate must be in [0, 7]
+// rotate must be in [0, 3]
 pub fn packed_trit_rotate_left(packed: PackedTrit, rotate: u8) PackedTrit {
     if (rotate == 0) {
         return packed;
@@ -481,7 +486,7 @@ pub fn packed_trit_rotate_left(packed: PackedTrit, rotate: u8) PackedTrit {
 
 // packed_trit_rotate_right(packed: PackedTrit, rotate: u8) → PackedTrit
 // Right rotate packed trits by rotate positions (circular shift)
-// rotate must be in [0, 7]
+// rotate must be in [0, 3]
 pub fn packed_trit_rotate_right(packed: PackedTrit, rotate: u8) PackedTrit {
     if (rotate == 0) {
         return packed;
@@ -590,8 +595,8 @@ test "test_trit_mul_zero_annihilates" {
 
 test "test_pack_unpack_roundtrip" {
     // Verify: pack_trit then unpack_trit returns original value
-    const trits = [_]Trit{ .neg, .zero, .pos };
-    for (trits) |trit| {
+    for (0..3) |k| {
+        const trit = trit_from_i8(@as(i8, @intCast(k)) - 1);
         const packed = pack_trit(trit, 3, 0);
         const unpacked = unpack_trit(3, packed);
         try std.testing.expectEqual(trit, unpacked.value);
@@ -600,8 +605,9 @@ test "test_pack_unpack_roundtrip" {
 }
 
 test "test_pack_trit_all_positions" {
-    // Verify: pack_trit works for all valid positions (0-7)
-    for (0..8) |pos| {
+    // Verify: pack_trit works for all valid positions (0-3)
+    for (0..4) |i_pos| {
+        const pos: u8 = @intCast(i_pos);
         const packed = pack_trit(.pos, pos, 0);
         const unpacked = unpack_trit(pos, packed);
         try std.testing.expectEqual(@as(Trit, .pos), unpacked.value);
@@ -617,14 +623,16 @@ test "test_pack_trit_invalid_position_rejected" {
 
 test "test_ternary_word_pack_max_trits" {
     // Verify: ternary_word_pack accepts exactly 27 trits
-    const src = [_]Trit{.pos} ** TRITS_PER_WORD;
+    var src: [TRITS_PER_WORD]Trit = undefined;
+    for (0..TRITS_PER_WORD) |i| { src[i] = .pos; }
     const result = ternary_word_pack(&src, TRITS_PER_WORD);
     try std.testing.expect(result[0] != 0xFF);  // Not error sentinel
 }
 
 test "test_ternary_word_pack_exceeds_max" {
     // Verify: ternary_word_pack rejects count > 27
-    const src = [_]Trit{.pos} ** (TRITS_PER_WORD + 1);
+    var src: [TRITS_PER_WORD + 1]Trit = undefined;
+    for (0..TRITS_PER_WORD + 1) |i| { src[i] = .pos; }
     const result = ternary_word_pack(&src, TRITS_PER_WORD + 1);
     try std.testing.expectEqual(@as(u8, 0xFF), result[0]);  // Error sentinel
 }
@@ -646,17 +654,18 @@ test "test_trit_negate_pos_to_neg" {
 
 test "test_trit_negate_double_negate_identity" {
     // Verify: trit_negate(trit_negate(x)) = x
-    const trits = [_]Trit{ .neg, .zero, .pos };
-    for (trits) |trit| {
+    for (0..3) |k| {
+        const trit = trit_from_i8(@as(i8, @intCast(k)) - 1);
         try std.testing.expectEqual(trit, trit_negate(trit_negate(trit)));
     }
 }
 
 test "test_trit_multiply_commutative" {
     // Verify: trit_multiply(a, b) == trit_multiply(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
-    for (trits) |a| {
-        for (trits) |b| {
+    for (0..3) |i_a| {
+        const a = trit_from_i8(@as(i8, @intCast(i_a)) - 1);
+        for (0..3) |i_b| {
+            const b = trit_from_i8(@as(i8, @intCast(i_b)) - 1);
             try std.testing.expectEqual(trit_multiply(a, b), trit_multiply(b, a));
         }
     }
@@ -711,12 +720,14 @@ test "test_packed_to_trit_conversion" {
 }
 
 test "test_ternary_word_pack_unpack_roundtrip" {
-    const src = [_]Trit{ .neg, .zero, .pos, .neg, .zero, .pos };
+    var src: [6]Trit = undefined;
+    for (0..6) |i| { src[i] = trit_from_i8(@as(i8, @intCast(i % 3)) - 1); }
     const packed = ternary_word_pack(&src, 6);
-    const unpacked = ternary_word_unpack(packed, 6);
-    try std.testing.expectEqual(src.len, unpacked.len);
-    for (unpacked, src) |u, s| {
-        try std.testing.expectEqual(s, u);
+    var out: [6]Trit = undefined;
+    const n = ternary_word_unpack(packed, 6, &out);
+    try std.testing.expectEqual(@as(u8, 6), n);
+    for (0..6) |i| {
+        try std.testing.expectEqual(src[i], out[i]);
     }
 }
 
@@ -800,9 +811,10 @@ test "test_trit_select_condition_false" {
 
 test "test_trit_and_commutative" {
     // Verify: trit_and(a, b) == trit_and(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
-    for (trits) |a| {
-        for (trits) |b| {
+    for (0..3) |i_a| {
+        const a = trit_from_i8(@as(i8, @intCast(i_a)) - 1);
+        for (0..3) |i_b| {
+            const b = trit_from_i8(@as(i8, @intCast(i_b)) - 1);
             try std.testing.expectEqual(trit_and(a, b), trit_and(b, a));
         }
     }
@@ -810,9 +822,10 @@ test "test_trit_and_commutative" {
 
 test "test_trit_or_commutative" {
     // Verify: trit_or(a, b) == trit_or(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
-    for (trits) |a| {
-        for (trits) |b| {
+    for (0..3) |i_a| {
+        const a = trit_from_i8(@as(i8, @intCast(i_a)) - 1);
+        for (0..3) |i_b| {
+            const b = trit_from_i8(@as(i8, @intCast(i_b)) - 1);
             try std.testing.expectEqual(trit_or(a, b), trit_or(b, a));
         }
     }
@@ -820,9 +833,10 @@ test "test_trit_or_commutative" {
 
 test "test_trit_xor_commutative" {
     // Verify: trit_xor(a, b) == trit_xor(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
-    for (trits) |a| {
-        for (trits) |b| {
+    for (0..3) |i_a| {
+        const a = trit_from_i8(@as(i8, @intCast(i_a)) - 1);
+        for (0..3) |i_b| {
+            const b = trit_from_i8(@as(i8, @intCast(i_b)) - 1);
             try std.testing.expectEqual(trit_xor(a, b), trit_xor(b, a));
         }
     }
@@ -1156,8 +1170,8 @@ invariant trit_mul_result_in_range {
 }
 
 invariant pack_position_bounds {
-    // pack_trit position must be in [0, 7]
-    @compileAssert(TRITS_PER_BYTE == 8);
+    // pack_trit position must be in [0, 3]: 2 bits per trit, 4 trits per byte (#4817)
+    @compileAssert(TRITS_PER_BYTE == 4);
 }
 
 invariant ternary_word_max_trits {
