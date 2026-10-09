@@ -24,6 +24,7 @@ Exit status:
     0  no damaged lines found
     1  damaged lines found
 """
+import hashlib
 import json
 import os
 import re
@@ -44,6 +45,25 @@ def shape(rhs):
     s = DIGITS.sub("9", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
+
+
+def class_id(sh):
+    """Content-addressed class id: `DC-` + 8 hex of sha256(shape).
+
+    Deliberately not a frequency rank. Ranking by count means adding one
+    damaged line silently renumbers every class, so a citation to
+    `damage_class_07` points at different damage after the corpus moves;
+    the hash of the shape moves only when the shape itself moves
+    (sha256('[[]?X",')[:8] == 06dafedd, the id under which this shape was
+    already circulated). This is the same id `tri damage-freeze` writes
+    into its snapshot rows and the name the repair fixtures carry. The
+    formula lives here and in damage_freeze.py's own class_id -- that file
+    imports scan and shape from this one, so a third copy would have to be
+    imported through it; with two copies in writing the pairing is at
+    least greppable. If they ever disagree, the fixture names and the
+    snapshot rows will disagree with them, and that is observable.
+    """
+    return "DC-" + hashlib.sha256(sh.encode()).hexdigest()[:8]
 
 
 def is_damaged(rhs):
@@ -94,8 +114,16 @@ def scan(corpus):
 
     That matters most where it is used as a negative control. A fixture set
     saying "tri damage must report zero here" passes vacuously if the path is
-    wrong, misspelled, or never merged -- and the fixtures for this tool were
-    in fact never merged (#2161), so the control has never run.
+    wrong, misspelled, or never merged. The six negative fixtures for this
+    tool were merged under `bootstrap/tests/fixtures/damage_negative/`, and
+    the control that runs them exists: `tools/check_damage_negatives.py`,
+    wired into CI by `.github/workflows/damage-negatives.yml` -- it passes
+    only if the six files are found AND this tool reports zero damage over
+    them. The positive class fixtures under `bootstrap/tests/fixtures/damage/`
+    have no runner; they are citations only. (--emit-fixtures now writes
+    content-addressed `DC-<sha8>` names; the `damage_class_NN` files on disk
+    were emitted before that and are the renumbering hazard this convention
+    exists to kill.)
     """
     rows = []
     scanned = 0
@@ -189,7 +217,8 @@ def main(argv):
         reasons = sorted({x for r in rs for x in r["reasons"]})
         print(f"  {len(rs):5d}  {sh!r:28s} {','.join(reasons)}")
         print(f"         e.g. {rs[0]['file']}:{rs[0]['line']}  "
-              f"{rs[0]['field']} : {rs[0]['rhs']}")
+              f"{rs[0]['field']} : {rs[0]['rhs']}  "
+              f"[fixture {class_id(sh)}.t27]")
     print("\nby directory (top 12):")
     for fam, n in sorted(fams.items(), key=lambda kv: -kv[1])[:12]:
         print(f"  {n:5d}  {fam}")
@@ -204,11 +233,21 @@ def main(argv):
     if emit:
         os.makedirs(emit, exist_ok=True)
         made = []
-        for idx, (sh, rs) in enumerate(
-                sorted(shapes.items(), key=lambda kv: -len(kv[1])), 1):
+        # Fixture names are content addresses (class_id), not frequency
+        # ranks. `damage_class_01` is a position in a count-descending sort:
+        # adding one damaged line renumbers every later fixture, so a
+        # citation to `damage_class_07` in a review silently points at
+        # different damage once the corpus moves. `DC-<8 hex of
+        # sha256(shape)>` moves only when the shape itself moves. This is
+        # the same id `tri damage-freeze` writes into its snapshot rows; the
+        # formula lives in both files (damage_freeze imports scan/shape from
+        # this one, so the copies cannot be unified without a circular
+        # import) -- if they ever disagree, the fixture names and the
+        # snapshot rows disagree with them, and that is observable.
+        for sh, rs in sorted(shapes.items(), key=lambda kv: class_id(kv[0])):
             r = rs[0]
-            name = f"damage_class_{idx:02d}"
-            body = (f"module {name}\n\n"
+            name = class_id(sh)
+            body = (f"module {name.replace('-', '_')}\n\n"
                     f"// shape: {sh}\n"
                     f"// {len(rs)} line(s) in the corpus share this shape\n"
                     f"// first seen: {r['file']}:{r['line']}\n"
