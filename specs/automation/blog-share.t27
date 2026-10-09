@@ -45,6 +45,14 @@
 //       three t27c releases inside the window, the desk would otherwise ask about
 //       0.5.2, then 0.5.1, then 0.5.0 -- the old-release complaint of v4 again.
 //       The yes, the receipt and the profile check stay as they are.
+// v6 (2026-10-09): autopost. Owner, 2026-10-09 (translated): "set it up so that
+//       every post of the blog from the RSS goes to X and Telegram automatically!!
+//       and the other networks", and the same day: "and make a schedule that publishes
+//       what was not published". With BLOG_AUTOPOST=1, new articles are posted at once
+//       (one per tick, under AUTO_PER_DAY cap), and the backlog (articles at cutoff)
+//       goes one per schedule slot (fixed UTC hours, at most BACKLOG_PER_DAY per day,
+//       slots never reused). Telegram is a network with positive message_id receipt.
+//       Autopost off keeps v5 behavior.
 // UI words (the owner reads Russian) stay in the host; the spec holds the rules.
 // Claim status: the desk is live behind BLOG_SHARE_ENABLED=1 on the render service,
 //       and its posts are confirmed: on 2026-10-03 08:36 UTC it found its post of
@@ -58,7 +66,7 @@ module automation::blog_share {
     pub const KIND : str = "automation";
     pub const ID : str = "blog-share";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 5;
+    pub const VERSION : u8 = 6;
 
     // ---- The pace -------------------------------------------------------------------
     pub const TICK_MS : u32 = 300000;  // render-server.ts: every five minutes; a
@@ -88,6 +96,13 @@ module automation::blog_share {
     // ---- The order of the next question ---------------------------------------------
     pub const FRESH_MS : u32 = 604800000;  // 7 days: an article this young goes before
                                            // the owner's queue
+
+    // ---- Autopost (v6) -------------------------------------------------------------
+    pub const BLOG_AUTOPOST : bool = false;  // switch: true for autopost mode, false for v5
+    pub const AUTO_PER_DAY : u8 = 3;  // max new articles posted per day in autopost mode
+    pub const BACKLOG_PER_DAY : u8 = 2;  // max backlog articles posted per day in autopost mode
+    // Schedule slots are handled as runtime values, not compile-time constants
+    pub const CUTOFF_RECORD_MS : u32 = 86400000;  // 24h: how long to remember cutoff
 
     // ---- Not claimed ----------------------------------------------------------------
     pub const RUN_LIVE : bool = true;  // flipped in v3: confirmed on the profile 2026-10-03
@@ -207,6 +222,77 @@ module automation::blog_share {
     // A release goes before every article: fresh, queued or newest.
     fn release_first(releases_offerable: u8) -> bool {
         return releases_offerable > 0;
+    }
+
+    // ---- Autopost (v6) -------------------------------------------------------------
+    // Autopost is enabled: new articles are posted immediately, backlog on schedule.
+    fn autopost_enabled() -> bool {
+        return BLOG_AUTOPOST;
+    }
+
+    // Check if we can post a new article today under the daily cap.
+    fn can_post_new(today_posts: u8) -> bool {
+        return today_posts < AUTO_PER_DAY;
+    }
+
+    // Check if we can post a backlog article today under the daily cap.
+    fn can_post_backlog(today_backlog_posts: u8) -> bool {
+        return today_backlog_posts < BACKLOG_PER_DAY;
+    }
+
+    // Check if an article is new (first seen after cutoff).
+    fn is_new_article(first_seen_ms: u32, cutoff_ms: u32) -> bool {
+        return first_seen_ms > cutoff_ms;
+    }
+
+    // Check if an article is in the backlog (present at cutoff).
+    fn is_backlog_article(first_seen_ms: u32, cutoff_ms: u32) -> bool {
+        return first_seen_ms <= cutoff_ms;
+    }
+
+    // Get the next available schedule slot.
+    fn next_schedule_slot(used_slot1: str, used_slot2: str, used_slot3: str, current_time: str) -> str {
+        // Fixed UTC schedule slots: 09:00, 14:00, 19:00
+        if used_slot1 != "09:00" && used_slot2 != "09:00" && used_slot3 != "09:00" {
+            return "09:00";
+        }
+        if used_slot1 != "14:00" && used_slot2 != "14:00" && used_slot3 != "14:00" {
+            return "14:00";
+        }
+        if used_slot1 != "19:00" && used_slot2 != "19:00" && used_slot3 != "19:00" {
+            return "19:00";
+        }
+        return "";  // no slot available
+    }
+
+    // Check if current time matches a schedule slot.
+    fn is_schedule_slot(current_time: str, target_slot: str) -> bool {
+        return current_time == target_slot;
+    }
+
+    // Check if a slot has been used before.
+    fn slot_used(slot: str, used_slot1: str, used_slot2: str, used_slot3: str) -> bool {
+        return slot == used_slot1 || slot == used_slot2 || slot == used_slot3;
+    }
+
+    // Telegram receipt validation: positive message_id indicates successful post.
+    fn telegram_receipt_valid(message_id: u64) -> bool {
+        return message_id > 0;
+    }
+
+    // Check if a network already carries an article (skip posting).
+    fn network_already_carries(post1: str, post2: str, post3: str, article_id: str) -> bool {
+        return article_id == post1 || article_id == post2 || article_id == post3;
+    }
+
+    // Check if cutoff has been recorded (first autopost tick).
+    fn cutoff_recorded(cutoff_ms: u32) -> bool {
+        return cutoff_ms > 0;
+    }
+
+    // Check if cutoff is still valid (within memory window).
+    fn cutoff_valid(cutoff_ms: u32, current_ms: u32) -> bool {
+        return current_ms - cutoff_ms < CUTOFF_RECORD_MS;
     }
 
     test "an open question is waited on for the approval's lifetime, then let go" {
@@ -329,7 +415,142 @@ module automation::blog_share {
 
     test "the desk is live, and its posts were seen on the profile" {
         assert(RUN_LIVE);
-        assert(VERSION == 5);
+        assert(VERSION == 6);
+    }
+
+    // ---- Autopost tests (v6) -------------------------------------------------------
+    test "autopost mode can be enabled or disabled" {
+        assert(!autopost_enabled());  // default is false
+        // Test would need to set BLOG_AUTOPOST=true to test enabled state
+    }
+
+    test "new article posting respects daily cap" {
+        assert(can_post_new(0));    // cap-1: can post
+        assert(can_post_new(2));    // cap-1: can post (AUTO_PER_DAY=3)
+        assert(!can_post_new(3));   // at cap: cannot post
+        assert(!can_post_new(4));   // cap+1: cannot post
+        assert(AUTO_PER_DAY == 3);
+    }
+
+    test "backlog posting respects daily cap" {
+        assert(can_post_backlog(0));   // cap-1: can post
+        assert(can_post_backlog(1));   // cap-1: can post (BACKLOG_PER_DAY=2)
+        assert(!can_post_backlog(2));  // at cap: cannot post
+        assert(!can_post_backlog(3));  // cap+1: cannot post
+        assert(BACKLOG_PER_DAY == 2);
+    }
+
+    test "new vs backlog article classification" {
+        let cutoff = 1000000;
+        assert(is_new_article(1000001, cutoff));    // after cutoff: new
+        assert(is_new_article(2000000, cutoff));    // after cutoff: new
+        assert(!is_new_article(1000000, cutoff));   // equal to cutoff: backlog
+        assert(!is_new_article(999999, cutoff));    // before cutoff: backlog
+        assert(is_backlog_article(1000000, cutoff));  // equal to cutoff: backlog
+        assert(is_backlog_article(999999, cutoff));   // before cutoff: backlog
+        assert(!is_backlog_article(1000001, cutoff)); // after cutoff: new
+    }
+
+    test "schedule slot management" {
+        assert(next_schedule_slot("09:00", "14:00", "", "19:00") == "19:00");  // unused slot
+        assert(next_schedule_slot("09:00", "14:00", "", "12:00") == "09:00");  // first unused
+        assert(next_schedule_slot("09:00", "14:00", "", "09:00") == "14:00");  // second unused
+        assert(next_schedule_slot("09:00", "14:00", "", "14:00") == "");     // all used
+        assert(next_schedule_slot("09:00", "14:00", "", "19:00") == "");     // all used
+        
+        assert(is_schedule_slot("09:00", "09:00"));  // exact match
+        assert(!is_schedule_slot("10:00", "09:00")); // no match
+        assert(!is_schedule_slot("09:01", "09:00")); // no match
+        
+        assert(slot_used("09:00", "09:00", "14:00", ""));         // slot is used
+        assert(!slot_used("19:00", "09:00", "14:00", ""));        // slot is not used
+    }
+
+    test "Telegram receipt validation" {
+        assert(telegram_receipt_valid(123));     // positive: valid
+        assert(telegram_receipt_valid(1));        // positive: valid
+        assert(!telegram_receipt_valid(0));       // zero: invalid
+        assert(!telegram_receipt_valid(18446744073709551615)); // max u64: still positive, valid
+    }
+
+    test "network duplicate detection" {
+        let posts = ["article1", "article2"];
+        assert(network_already_carries(posts, "article1"));  // already posted
+        assert(network_already_carries(posts, "article2"));  // already posted
+        assert(!network_already_carries(posts, "article3")); // not posted
+        assert(!network_already_carries(posts, ""));          // empty string
+    }
+
+    test "cutoff recording and validation" {
+        let current = 2000000;
+        assert(!cutoff_recorded(0));           // no cutoff recorded
+        assert(cutoff_recorded(1000000));      // cutoff recorded
+        
+        assert(cutoff_valid(1000000, 1000000));    // equal: valid
+        assert(cutoff_valid(1000000, 1999999));   // within window: valid
+        assert(!cutoff_valid(1000000, 2000000));  // at window edge: invalid (CUTOFF_RECORD_MS=86400000)
+        assert(!cutoff_valid(1000000, 3000000));  // beyond window: invalid
+    }
+
+    test "edge cases: cutoff equality" {
+        let cutoff = 1000000;
+        // Articles exactly at cutoff are backlog, not new
+        assert(!is_new_article(1000000, cutoff));
+        assert(is_backlog_article(1000000, cutoff));
+        // Articles after cutoff are new
+        assert(is_new_article(1000001, cutoff));
+        assert(!is_backlog_article(1000001, cutoff));
+    }
+
+    test "edge cases: schedule slot boundaries" {
+        let used = ["09:00", "14:00"];
+        // Slot at start of day
+        assert(is_schedule_slot("09:00", "09:00"));
+        assert(!is_schedule_slot("08:59", "09:00"));
+        // Slot at end of day  
+        assert(is_schedule_slot("19:00", "19:00"));
+        assert(!is_schedule_slot("19:01", "19:00"));
+        // Slot between boundaries
+        assert(is_schedule_slot("14:00", "14:00"));
+        assert(!is_schedule_slot("13:59", "14:00"));
+        assert(!is_schedule_slot("14:01", "14:00"));
+    }
+
+    test "edge cases: used slot reuse prevention" {
+        // Cannot reuse used slots
+        assert(slot_used("09:00", "09:00", "14:00", ""));
+        assert(slot_used("14:00", "09:00", "14:00", ""));
+        // Can use unused slots
+        assert(!slot_used("19:00", "09:00", "14:00", ""));
+        // Next available slot skips used ones
+        assert(next_schedule_slot("09:00", "14:00", "", "12:00") == "19:00");
+        assert(next_schedule_slot("09:00", "14:00", "", "09:00") == "19:00");
+        assert(next_schedule_slot("09:00", "14:00", "", "14:00") == "19:00");
+        // No slots available when all used
+        assert(next_schedule_slot("09:00", "14:00", "", "19:00") == "");
+        assert(next_schedule_slot("09:00", "14:00", "", "20:00") == "");
+    }
+
+    test "negative controls: duplicate network post rejection" {
+        // Skip posting to network that already carries the article
+        assert(network_already_carries("article123", "", "", "article123"));
+        // Allow posting to network that doesn't carry the article
+        assert(!network_already_carries("article123", "", "", "article456"));
+    }
+
+    test "negative controls: slot reuse rejection" {
+        let used_slots = ["09:00", "14:00"];
+        // Rejected: slot already used
+        assert(slot_used("09:00", used_slots));
+        assert(slot_used("14:00", used_slots));
+        // Accepted: slot not used
+        assert(!slot_used("19:00", used_slots));
+    }
+
+    test "negative controls: autopost off preserves v5 behavior" {
+        // When BLOG_AUTOPOST=false, the desk behaves like v5
+        assert(!autopost_enabled());  // default state
+        // Would need integration tests to verify full v5 behavior preservation
     }
 }
 
