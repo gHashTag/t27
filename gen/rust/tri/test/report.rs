@@ -110,13 +110,13 @@ pub fn line_kind(text: &'static str, at: usize, end: usize) -> u8 {
     if opens_with(text, at, end, "  BLOCKED  ") {
         return LINE_BLOCKED;
     }
-    if (total_digits(text, at, end, "  tests") <= end) {
+    if (total_digits(text, at, end, "  tests") != (end + 1)) {
         return LINE_TESTS;
     }
-    if (total_digits(text, at, end, "  pass") <= end) {
+    if (total_digits(text, at, end, "  pass") != (end + 1)) {
         return LINE_PASS;
     }
-    if (total_digits(text, at, end, "  FAIL") <= end) {
+    if (total_digits(text, at, end, "  FAIL") != (end + 1)) {
         return LINE_FAIL;
     }
     if names_after(text, at, end, "  FAIL  ") {
@@ -159,9 +159,6 @@ pub fn count(text: &'static str, kind: u8) -> u64 {
 
 pub fn total(text: &'static str, kind: u8) -> u64 {
     let at: usize = line_of(text, kind, 0);
-    if (at > text.len()) {
-        return 0;
-    }
     let mut word: &'static str = "  tests";
     if (kind == LINE_PASS) {
         word = "  pass";
@@ -181,7 +178,7 @@ pub fn total(text: &'static str, kind: u8) -> u64 {
 
 pub fn name_from(text: &'static str, kind: u8, n: u64) -> usize {
     let at: usize = line_of(text, kind, n);
-    if (at > text.len()) {
+    if (at == (text.len() + 1)) {
         return text.len();
     }
     if (kind == LINE_BLOCKED) {
@@ -192,9 +189,6 @@ pub fn name_from(text: &'static str, kind: u8, n: u64) -> usize {
 
 pub fn name_to(text: &'static str, kind: u8, n: u64) -> usize {
     let from: usize = name_from(text, kind, n);
-    if (from >= text.len()) {
-        return text.len();
-    }
     return trimmed_end(text, from, line_end(text, from));
 }
 

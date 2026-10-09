@@ -72,9 +72,7 @@ pub fn line_start(text: string, n: usize) -> usize {
 
 /// Where line n ends: its '\n', or the end of the text.
 pub fn line_stop(text: string, n: usize) -> usize {
-    const start : usize = line_start(text, n);
-    if (start > text.len) { return start; }
-    var k : usize = start;
+    var k : usize = line_start(text, n);
     while (k < text.len and text[k] != 10) {
         k = k + 1;
     }
@@ -135,7 +133,7 @@ pub fn plant_check(text: string, n: usize, from: string, to: string) -> u8 {
     if (from.len == 0) { return REFUSE_EMPTY_FROM; }
     if (same_text(from, to)) { return REFUSE_SAME_TEXT; }
     if (breaks_line(to)) { return REFUSE_LINE_BREAK; }
-    if (line_start(text, n) > text.len) { return REFUSE_NO_SUCH_LINE; }
+    if (n == 0 or n > line_count(text)) { return REFUSE_NO_SUCH_LINE; }
     if (occurrences(text, line_start(text, n), line_stop(text, n), from) != 1) { return REFUSE_NOT_ONCE; }
     return PLANT_OK;
 }
@@ -216,6 +214,9 @@ test from_must_occur_exactly_once_on_the_line {
     assert plant_check("ab\nab\n", 2, "ab", "x") == PLANT_OK;
     assert plant_at("ab\nab\n", 2, "ab") == 3;
     assert plant_at("ab\nab\n", 2, "zz") == 7;
+    assert plant_check("a\n\nc\n", 2, "x", "y") == REFUSE_NOT_ONCE;
+    assert plant_at("a\n\nc\n", 2, "") == 6;
+    assert occurrences("ab", 0, 2, "") == 2;
 }
 
 // Scenario: the other refusals, each before t27c runs.
@@ -231,6 +232,7 @@ test the_plant_refuses_what_is_not_one_line_into_one_line {
     assert breaks_line("a\tb") == false;
     assert breaks_line("") == false;
     assert same_text("ab", "abc") == false;
+    assert same_text("abc", "ab") == false;
     assert same_text("", "") == true;
 }
 

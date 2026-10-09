@@ -65,11 +65,7 @@ pub fn line_start(text: &'static str, n: usize) -> usize {
 }
 
 pub fn line_stop(text: &'static str, n: usize) -> usize {
-    let start: usize = line_start(text, n);
-    if (start > text.len()) {
-        return start;
-    }
-    let mut k: usize = start;
+    let mut k: usize = line_start(text, n);
     while ((k < text.len()) && (text.as_bytes()[(k) as usize] != 10)) {
         k = (k + 1);
     }
@@ -142,7 +138,7 @@ pub fn plant_check(text: &'static str, n: usize, from: &'static str, to: &'stati
     if breaks_line(to) {
         return REFUSE_LINE_BREAK;
     }
-    if (line_start(text, n) > text.len()) {
+    if ((n == 0) || (n > line_count(text))) {
         return REFUSE_NO_SUCH_LINE;
     }
     if (occurrences(text, line_start(text, n), line_stop(text, n), from) != 1) {
