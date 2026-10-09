@@ -6,6 +6,7 @@
   "ceilings": {
     "bootstrap": 7,
     "cli/tri": 0,
+    "cli/tri-mcp": 0,
     "cli/trios-bridge": 0,
     "cli/flash-spi": 0,
     "cli/dlc10": 0,

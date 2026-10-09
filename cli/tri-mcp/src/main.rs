@@ -10,6 +10,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+#[path = "../../../gen/rust/tri/test/report.rs"] #[allow(dead_code, unused_parens)]
+mod report; // t27c gen-rust of specs/tri/test/report.t27 (#7369): the same reading of `t27c test-report` that `tri test` uses
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ActiveSkill {
     skill_id: String,
@@ -226,14 +229,15 @@ fn build_tools_list() -> Vec<Value> {
         }),
         serde_json::json!({
             "name": "tri_test",
-            "description": "Runs tests for a .t27 spec file using t27c.",
+            "description": "Runs a .t27 spec's tests with `t27c test-report`; isError unless every test passed and at least one ran (rules: specs/tri/test/report.t27).",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "spec_path": {
                         "type": "string",
                         "description": "Path to the .t27 spec file"
-                    }
+                    },
+                    "t27c": {"type": "string", "description": "The t27c binary; default target/release/t27c, then target/debug/t27c, then t27c on PATH"}
                 },
                 "required": ["spec_path"]
             }
@@ -722,58 +726,28 @@ fn cmd_gen(root: &Path, args: &Value) -> Result<Value> {
     }
 }
 
+/// `t27c test` only lists the tests (#8140); they run in `t27c test-report`, and the verdict is report.t27's, as in `tri test`.
 fn cmd_test(root: &Path, args: &Value) -> Result<Value> {
-    let spec_path = args
-        .get("spec_path")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("missing 'spec_path' parameter"))?;
-
-    let spec = Path::new(spec_path);
-    if !spec.exists() {
-        return Ok(tool_error_text(&format!(
-            "Spec file not found: {}",
-            spec_path
-        )));
+    let spec = args.get("spec_path").and_then(|v| v.as_str()).ok_or_else(|| anyhow::anyhow!("missing 'spec_path' parameter"))?;
+    if !root.join(spec).exists() {
+        return Ok(tool_error_text(&format!("Spec file not found: {}", spec)));
     }
-
-    let output = Command::new("t27c")
-        .args(["test", spec_path])
-        .current_dir(root)
-        .output();
-
-    match output {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-            let success = out.status.success();
-
-            append_akashic(
-                root,
-                &make_akashic_event(
-                    "tri.test",
-                    if success { "success" } else { "failure" },
-                    serde_json::json!({
-                        "spec_path": spec_path,
-                        "exit_code": out.status.code()
-                    }),
-                ),
-            )?;
-
-            let result = serde_json::json!({
-                "success": success,
-                "exit_code": out.status.code(),
-                "stdout": stdout,
-                "stderr": stderr,
-                "spec_path": spec_path
-            });
-
-            Ok(tool_result_text(&serde_json::to_string_pretty(&result)?))
-        }
-        Err(e) => {
-            let msg = format!("Failed to execute t27c: {}. Is t27c on PATH?", e);
-            Ok(tool_error_text(&msg))
-        }
-    }
+    let built = ["target/release/t27c", "target/debug/t27c"].iter().map(|p| root.join(p)).find(|p| p.exists());
+    let t27c = args.get("t27c").and_then(|v| v.as_str()).map(PathBuf::from).or(built).unwrap_or_else(|| "t27c".into());
+    let out = Command::new(&t27c).args(["test-report", spec]).current_dir(root).output().map_err(|e| anyhow::anyhow!("cannot start `{} test-report`: {}", t27c.display(), e))?;
+    let text: &'static str = String::from_utf8_lossy(&out.stdout).into_owned().leak(); // gen-rust's `string` is `&'static str` (#7449)
+    let (v, total) = (report::verdict(text, out.status.success()), |k| report::total(text, k));
+    let names = |k| (0..report::count(text, k)).map(|n| &text[report::name_from(text, k, n)..report::name_to(text, k, n)]).collect::<Vec<_>>();
+    let outcome = if report::passes(v) { "success" } else { "failure" };
+    append_akashic(root, &make_akashic_event("tri.test", outcome, serde_json::json!({"spec_path": spec, "verdict": v, "exit_code": out.status.code()})))?;
+    let result = serde_json::json!({
+        "spec_path": spec, "passes": report::passes(v), "verdict": v, "why": report::why(v),
+        "tests": total(report::LINE_TESTS), "pass": total(report::LINE_PASS), "fail": total(report::LINE_FAIL),
+        "failed": names(report::LINE_FAIL_NAME), "blocked": names(report::LINE_BLOCKED),
+        "exit_code": out.status.code(), "report": text, "stderr": String::from_utf8_lossy(&out.stderr)
+    });
+    let shown = serde_json::to_string_pretty(&result)?;
+    Ok(if report::passes(v) { tool_result_text(&shown) } else { tool_error_text(&shown) })
 }
 
 fn cmd_verdict(root: &Path) -> Result<Value> {

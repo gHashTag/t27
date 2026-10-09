@@ -2591,6 +2591,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tri-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "trios-bridge"
 version = "0.1.0"
 dependencies = [
