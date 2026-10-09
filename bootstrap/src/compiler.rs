@@ -7601,22 +7601,27 @@ impl Codegen {
     /// Only bindings whose consumer is known are resolved; anything else is
     /// left alone and still fails loudly.
     fn collect_scaffold_locals(&mut self, stmts: &[Node]) {
+        eprintln!("DEBUG: collect_scaffold_locals called with {} statements", stmts.len());
         let mut scaffold: std::collections::HashSet<String> = std::collections::HashSet::new();
         Self::collect_scaffold_names(stmts, &mut scaffold);
+        eprintln!("DEBUG: collect_scaffold_names found scaffold candidates: {:?}", scaffold);
         if scaffold.is_empty() {
             return;
         }
         let params = self.declared_fn_params.clone();
         let mut found: Vec<(String, String)> = Vec::new();
         Self::visit_calls(stmts, &mut |call: &Node| {
+            eprintln!("DEBUG: visit_calls found call: {}", call.name);
             let sig = match params.get(&call.name) {
                 Some(s) => s,
                 None => return,
             };
+            eprintln!("DEBUG: call {} has signature: {:?}", call.name, sig);
             for (i, arg) in call.children.iter().enumerate() {
                 if arg.kind != NodeKind::ExprIdentifier || !scaffold.contains(&arg.name) {
                     continue;
                 }
+                eprintln!("DEBUG: call {} uses scaffold local {} at position {}", call.name, arg.name, i);
                 if let Some(ty) = sig.get(i) {
                     let zig = Self::t27_array_type_to_zig(ty);
                     if !zig.is_empty() {
@@ -7628,6 +7633,9 @@ impl Codegen {
         for (name, ty) in found {
             self.scaffold_locals.insert(name, ty);
         }
+        
+        // Debug output
+        eprintln!("DEBUG: collect_scaffold_locals found scaffold locals: {:?}", self.scaffold_locals);
     }
 
     fn collect_scaffold_names(stmts: &[Node], out: &mut std::collections::HashSet<String>) {
@@ -9295,6 +9303,7 @@ impl Codegen {
     }
 
     fn gen_test_block(&mut self, node: &Node) {
+        eprintln!("DEBUG: gen_test_block called for test: {}", node.name);
         self.prepare_zig_value_scope(node);
         // Zig rejects a file that declares the same test name twice. Repeats
         // get a deterministic `__dupN` suffix so the duplication stays VISIBLE
@@ -9389,6 +9398,23 @@ impl Codegen {
                 } else {
                     "const"
                 };
+                
+                // FR-001: Check if this is a scaffold local that is read by a callee
+                if let Some(_ty) = self.scaffold_locals.get(name) {
+                    // The local is a scaffold that is passed to a callee - refuse to generate test
+                    self.write_line("// t27: StmtLocal(scaffold read by callee) - test refused");
+                    self.write_line("// t27: Test case reads undefined scaffold value");
+                    self.write_line("// t27: Refusing to generate test due to undefined behavior");
+                    self.write_line("comptime {");
+                    self.write_line("    @compileError(\"t27: test refused - StmtLocal(scaffold read by callee)\");");
+                    self.write_line("}");
+                    self.write_line("");
+                    // Skip generating the rest of the test
+                    self.dedent();
+                    self.write_line("}");
+                    return;
+                }
+                
                 self.write_indent();
                 self.write(&format!("{} {} = ", kw, Self::zig_binding_ident(&self.renamed(name))));
                 self.gen_expr(&stmt.children[1]);
