@@ -83,3 +83,54 @@ test getCurrentTime_minutes {
     assert(time[3] >= '0' and time[3] <= '9');
     assert(time[4] >= '0' and time[4] <= '9');
 }
+
+    // Test for copy_propagate bug: variable initialized to undefined then written in loop
+    test "copy_propagate_loop_write_preserved" {
+        var buffer : [10]u8 = undefined;
+        var index : usize = 0;
+        
+        // Initialize buffer in a loop
+        while (index < 5) {
+            buffer[index] = 'A' + @as(u8, @intCast(index));
+            index = index + 1;
+        }
+        
+        // Verify that the loop writes are preserved, not replaced with undefined
+        assert(buffer[0] == 'A');
+        assert(buffer[1] == 'B');
+        assert(buffer[2] == 'C');
+        assert(buffer[3] == 'D');
+        assert(buffer[4] == 'E');
+    }
+
+    // Test for copy_propagate bug: undefined should not be propagated as a source value
+    test "copy_propagate_undefined_not_as_source" {
+        var result_value : u32 = undefined;
+        var processed : bool = false;
+        
+        // Initialize result to undefined, then set it in a conditional
+        if (true) {
+            result_value = 42;  // Write to result in conditional block
+            processed = true;
+        }
+        
+        // This should return 42, not undefined (copy_propagate bug might propagate undefined)
+        assert(result_value == 42);
+        assert(processed == true);
+    }
+
+    // Test for copy_propagate bug: nested block assignments should be detected
+    test "copy_propagate_nested_block_assignments" {
+        var output : i32 = undefined;
+        var flag : bool = false;
+        
+        // Nested conditional where variable is assigned
+        if (true) {
+            output = 100;
+            flag = true;
+        }
+        
+        // This should return 100, not undefined (copy_propagate bug might not see nested writes)
+        assert(output == 100);
+        assert(flag == true);
+    }

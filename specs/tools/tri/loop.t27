@@ -142,3 +142,27 @@ test the_queen_holds_every_tool_beside_its_lead {
         i = i + 1;
     }
 }
+
+// Test for copy_propagate bug: variable initialized to undefined then written in loop
+test copy_propagate_loop_write_not_undefined {
+    var result : i32 = undefined;
+    var i : usize = 0;
+    while (i < 3) {
+        result = i + 1;  // Write to result in loop body
+        i = i + 1;
+    }
+    // This should return 3, not undefined (copy_propagate bug would return undefined)
+    assert result == 3;
+}
+
+// Test for copy_propagate bug: variable written in for loop
+test copy_propagate_for_loop_write_not_undefined {
+    var sum : i32 = 0;
+    var j : usize = 0;
+    while (j < 5) {
+        sum = sum + 1;  // Accumulate in loop
+        j = j + 1;
+    }
+    // This should return 5, not 0 (copy_propagate bug might not see the writes)
+    assert sum == 5;
+}

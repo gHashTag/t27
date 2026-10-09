@@ -100,9 +100,61 @@ module TriResult;
         assert(unwrap_or(r, 200) != 200);
     }
 
-    test "unwrap_or_error_payload_never_returned" {
+test "unwrap_or_error_payload_never_returned" {
         var r = err("error");
         assert(unwrap_or(r, "fallback") == "fallback");
         assert(unwrap_or(r, "fallback") != "error");
     }
 
+    // Test for copy_propagate bug: undefined should not be propagated as a source value
+    test "copy_propagate_undefined_not_propagated" {
+        var result_value : i32 = undefined;
+        var error_flag : bool = false;
+        
+        // Initialize result to undefined, then set it in a conditional
+        if (true) {
+            result_value = 42;  // Write to result in conditional block
+            error_flag = false;
+        }
+        
+        // This should return 42, not undefined (copy_propagate bug might propagate undefined)
+        assert(result_value == 42);
+        assert(error_flag == false);
+    }
+
+    // Test for copy_propagate bug: variable initialized to undefined then written in nested block
+    test "copy_propagate_nested_block_write_not_undefined" {
+        var output : i32 = undefined;
+        var counter : usize = 0;
+        
+        while (counter < 2) {
+            // Nested block where variable is assigned
+            if (counter == 0) {
+                output = 10;
+            } else {
+                output = 20;
+            }
+            counter = counter + 1;
+        }
+        
+        // This should return 20, not undefined (copy_propagate bug might not see nested writes)
+        assert(output == 20);
+    }
+
+    // Test for copy_propagate bug: Result with undefined values should not be incorrectly propagated
+    test "copy_propagate_result_undefined_handling" {
+        var test_result : Result(i32, str) = err("test error");
+        
+        // This should return the fallback, not propagate undefined from the error case
+        var fallback_value = unwrap_or(test_result, 99);
+        assert(fallback_value == 99);
+        
+        // Create a valid result and test that undefined fields are handled correctly
+        var valid_result = ok(123);
+        assert(valid_result.is_ok == true);
+        assert(valid_result.value == 123);
+        // error field should be undefined, but copy_propagate shouldn't propagate it as a source
+        assert(valid_result.error == undefined);
+    }
+
+    
