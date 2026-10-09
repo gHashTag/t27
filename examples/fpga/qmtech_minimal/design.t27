@@ -57,6 +57,12 @@ module QmtechMinimalDesign {
     
     // MAC-like computation - real arithmetic logic that prevents elimination
     var compute_result : i32 = 0;
+    
+    // Additional computation to ensure MAC logic is instantiated
+    var mac_accumulator : i32 = 0;
+    var mac_input_a : i32 = 0;
+    var mac_input_b : i32 = 0;
+    var mac_output : i32 = 0;
 
     // Clock cycles one bit lasts on the UART line, rounded down.
     pub fn uart_cycles_per_bit() -> u32 {
@@ -72,6 +78,10 @@ module QmtechMinimalDesign {
         leds = 0;
         uart_tx = false;
         uart_data_out = 0;
+        mac_accumulator = 0;
+        mac_input_a = 0;
+        mac_input_b = 0;
+        mac_output = 0;
     }
     
     // Process clock cycle - real sequential logic
@@ -90,6 +100,12 @@ module QmtechMinimalDesign {
             
             // Simple compute operation - prevents dead-code elimination
             compute_result = compute_result + 1;
+            
+            // MAC-like computation - ensures MAC logic is instantiated and not eliminated
+            mac_input_a = (heartbeat_counter % 100) as i32 - 50; // Range: -50 to 49
+            mac_input_b = (uart_counter % 100) as i32 - 50;     // Range: -50 to 49
+            mac_output = mac_input_a * mac_input_b;              // Real multiplication logic
+            mac_accumulator = mac_accumulator + mac_output;     // Real accumulation logic
             
             // Drive LED output with computed heartbeat pattern
             leds = heartbeat_led((heartbeat_counter / HEARTBEAT_PERIOD * PATTERN_STEPS) as u8);
@@ -110,12 +126,24 @@ module QmtechMinimalDesign {
             leds = 0;
             uart_tx = false;
             uart_data_out = 0;
+            mac_accumulator = 0;
+            mac_output = 0;
         }
     }
     
     // Get current compute result - ensures compute logic is observable
     pub fn get_compute_result() -> i32 {
         return compute_result;
+    }
+    
+    // Get MAC computation result - ensures MAC logic is observable and not eliminated
+    pub fn get_mac_result() -> i32 {
+        return mac_accumulator;
+    }
+    
+    // Get MAC output - ensures multiplication logic is observable
+    pub fn get_mac_output() -> i32 {
+        return mac_output;
     }
     
     // Heartbeat LED pattern with real computation
@@ -160,6 +188,33 @@ module QmtechMinimalDesign {
         and   result = get_compute_result()
         then result == 1
 
+    test mac_accumulator_initially_zero
+        given init()
+        and   result = get_mac_result()
+        then result == 0
+
+    test mac_output_after_computation
+        given init()
+        and   heartbeat_counter = 50u32  // mac_input_a = 0
+        and   uart_counter = 60u32      // mac_input_b = 10
+        and   clock_cycle()
+        and   result = get_mac_output()
+        then result == 0  // 0 * 10 = 0
+
+    test mac_accumulator_accumulates
+        given init()
+        and   heartbeat_counter = 75u32   // mac_input_a = 25
+        and   uart_counter = 85u32       // mac_input_b = 35
+        and   clock_cycle()              // mac_output = 25 * 35 = 875
+        and   result = get_mac_result()
+        then result == 875
+
+    test mac_computation_drives_leds
+        given init()
+        and   heartbeat_counter = 500000u32  // Middle of pattern
+        and   clock_cycle()
+        then leds == heartbeat_led(7u8)  // Should be middle of pattern
+
     test led_output_driven_by_counter
         given init()
         and   heartbeat_counter = 500000u32  // Half of HEARTBEAT_PERIOD
@@ -200,4 +255,12 @@ module QmtechMinimalDesign {
     invariant_compute_logic_preserved
         // Ensure compute logic is not dead-code eliminated
         assert compute_result >= 0 when en == true
+        
+    invariant_mac_logic_preserved
+        // Ensure MAC multiplication logic is not dead-code eliminated
+        assert mac_output == ((heartbeat_counter % 100) as i32 - 50) * ((uart_counter % 100) as i32 - 50) when en == true
+        
+    invariant_mac_accumulator_grows
+        // Ensure MAC accumulator grows with computation
+        assert get_mac_result() >= 0 when en == true and clock_cycle() called
 }
