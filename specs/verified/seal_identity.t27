@@ -15,12 +15,15 @@
 ; records, beside today's fields:
 ;   closure    the spec_hash of every seal in the `use` closure, in a fixed order (hashed by the
 ;              existing sha256 tooling; this file compares, it hashes nothing);
-;   toolchain  the t27c compiler core, plus each backend tool the seal's gens and tests actually used
-;              (zig; for a silicon verdict yosys, nextpnr-xilinx, the prjxray database, the chipdb). A
-;              tool the artifact never used is not part of its identity. The t27c part is the core hash
-;              in bootstrap/stage0/FROZEN_HASH (all four gen backends live in compiler.rs), NOT built_by's
-;              git commit: every merge changes the commit, so a commit-keyed toolchain would rebuild
-;              every spec on every merge and nothing would ever be reused;
+;   toolchain  the t27c source, plus each backend tool the seal's gens and tests actually used (zig;
+;              for a silicon verdict yosys, nextpnr-xilinx, the prjxray database, the chipdb). A tool
+;              the artifact never used is not part of its identity. The t27c part is one sha256 over
+;              bootstrap/src, bootstrap/gen, bootstrap/build.rs, bootstrap/Cargo.toml and Cargo.lock
+;              (each path and its bytes, sorted by path). Not built_by's git commit: every merge changes
+;              the commit, so nothing would ever be reused. Not bootstrap/stage0/FROZEN_HASH either: it
+;              covers compiler.rs only, while the typecheck that can refuse a spec (main.rs), the test
+;              runner (test_report.rs) and the generated modules decide what a seal records too. Any
+;              change to the t27c source rebuilds everything; a merge that touches none reuses;
 ;   config     SEAL_CONFIG for a software seal (the four gens and zig tests); for a silicon verdict
 ;              also the part, the pnr seed and the chipdb;
 ;   silicon    optional: a run reference (the run record a verdict may cite) and the independence it

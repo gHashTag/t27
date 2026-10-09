@@ -6,9 +6,9 @@
   "gen_hash_zig": "sha256:9220c0258958431e84870b9ba59135df089b32f552954d6faeaec8e2e56396c4",
   "module": "VerifiedSealIdentity",
   "ring": 12,
-  "sealed_at": "2026-10-09T09:14:58Z",
+  "sealed_at": "2026-10-09T09:25:06Z",
   "sealed_by": "t27c-bootstrap@0.5.1",
-  "spec_hash": "sha256:b405605adcc7313f36f3fbfdae2797b0eb3191a02c91a310041b3bd8d9f00ed6",
+  "spec_hash": "sha256:9f61cae2bc4eabf449cfba457d0cdc83a6c7507fbd679b6bba5cf70e1a828ff6",
   "spec_path": "specs/verified/seal_identity.t27",
   "tests": {
     "failed": 0,
