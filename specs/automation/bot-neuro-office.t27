@@ -39,7 +39,7 @@ module automation::bot_neuro_office {
     pub const KIND : str = "automation";
     pub const ID : str = "bot-neuro-office";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 6;
+    pub const VERSION : u8 = 7;
 
     // ---- opening an office ----
 
@@ -192,6 +192,36 @@ module automation::bot_neuro_office {
         return CATCHUP_SHOWS_TASKS && open_tasks > 0;
     }
 
+    // ---- task proposal (v7) ----
+
+    // The agent may propose tasks in an office only.
+    pub const may_propose : bool = true;
+    
+    // A proposal is kept until confirmed or times out.
+    pub const proposal_ok : bool = true;
+    
+    // Proposals are kept for this many hours before expiring.
+    pub const PROPOSAL_TTL_HOURS : u32 = 24;
+    
+    // The agent may take proposed tasks for execution.
+    pub const may_take : bool = true;
+    
+    // A task proposal requires a person's press to confirm.
+    pub const AGENT_TASK_NEEDS_PRESS : bool = true;
+    
+    // Maximum number of proposals per answer.
+    pub const PROPOSALS_PER_ANSWER_MAX : u32 = 3;
+    
+    // Whether proposals are currently kept (not expired).
+    fn proposals_kept(current_hour: u32, proposal_hour: u32) -> bool {
+        return (current_hour - proposal_hour) < PROPOSAL_TTL_HOURS;
+    }
+    
+    // Whether the agent may propose tasks in the current context.
+    fn may_propose_in_context(office: bool, proposals_count: u32) -> bool {
+        return may_propose && office && proposals_count < PROPOSALS_PER_ANSWER_MAX;
+    }
+
     // ---- tests ----
 
     test "an office opens only in a forum, with the bot managing topics, at an admin's word" {
@@ -291,7 +321,29 @@ module automation::bot_neuro_office {
     }
 
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 6);
+        assert(VERSION == 7);
+    }
+
+    test "task proposal functionality" {
+        assert(may_propose);
+        assert(proposal_ok);
+        assert(PROPOSAL_TTL_HOURS == 24);
+        assert(may_take);
+        assert(AGENT_TASK_NEEDS_PRESS);
+        assert(PROPOSALS_PER_ANSWER_MAX == 3);
+        
+        // Test proposals_kept function
+        assert(proposals_kept(10, 5));  // 5 hours apart, within 24h TTL
+        assert(proposals_kept(25, 1));  // 24 hours apart, still within TTL
+        assert(!proposals_kept(26, 1)); // 25 hours apart, beyond TTL
+        assert(!proposals_kept(10, 10)); // same hour, expired
+        
+        // Test may_propose_in_context function
+        assert(may_propose_in_context(true, 0));  // office, 0 proposals
+        assert(may_propose_in_context(true, 2));  // office, 2 proposals (<3)
+        assert(!may_propose_in_context(true, 3));  // office, 3 proposals (=3, not <)
+        assert(!may_propose_in_context(false, 0)); // not office
+        assert(!may_propose_in_context(true, 5));  // office, too many proposals
     }
 }
 

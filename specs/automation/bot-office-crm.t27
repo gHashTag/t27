@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/automation/bot-office-crm.t27 -- the office CRM: client cards and task management.
+// Host: 999-multibots-telegraf render host (client card rendering).
+// Trace: owner 2026-10-09 "the client's card lists the open tasks of the client's office".
+// v1 (2026-10-09): initial render host spec for client cards with office tasks.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module automation::bot_office_crm {
+    pub const KIND : str = "automation";
+    pub const ID : str = "bot-office-crm";
+    pub const REPO : str = "999-multibots-telegraf";
+    pub const VERSION : u8 = 1;
+
+    // ---- client card rendering ----
+
+    // A client card is rendered only for clients that belong to an office.
+    fn renders_client_card(client_has_office: bool) -> bool {
+        return client_has_office;
+    }
+
+    // The client's card lists the open tasks of the client's office, limited to this many.
+    pub const OFFICE_TASKS_SHOWN_MAX : u32 = 5;
+
+    // How many tasks to show from the client's office.
+    fn office_tasks_shown_count(open_tasks: u32) -> u32 {
+        if open_tasks > OFFICE_TASKS_SHOWN_MAX {
+            return OFFICE_TASKS_SHOWN_MAX;
+        }
+        return open_tasks;
+    }
+
+    // ---- room turn handling ----
+
+    // A room turn never gets a client's card - this is always false.
+    pub const ROOM_TURN_GETS_CLIENT_CARD : bool = false;
+
+    // Whether to show a client's card in a room turn.
+    fn shows_client_card_in_room(room_turn: bool) -> bool {
+        return !room_turn && ROOM_TURN_GETS_CLIENT_CARD;
+    }
+
+    // ---- task marker learning ----
+
+    // The agent learns the task marker only within an office context.
+    pub const TASK_MARKER_LEARNED_IN_OFFICE_ONLY : bool = true;
+
+    // Whether the task marker is learned in the current context.
+    fn learns_task_marker_in_context(office: bool) -> bool {
+        return TASK_MARKER_LEARNED_IN_OFFICE_ONLY && office;
+    }
+
+    // ---- tests ----
+
+    test "client card renders only for clients with offices" {
+        assert(renders_client_card(true));
+        assert(!renders_client_card(false));
+    }
+
+    test "office tasks are limited to 5 shown" {
+        assert(OFFICE_TASKS_SHOWN_MAX == 5);
+        assert(office_tasks_shown_count(0) == 0);
+        assert(office_tasks_shown_count(3) == 3);
+        assert(office_tasks_shown_count(5) == 5);
+        assert(office_tasks_shown_count(7) == 5);
+        assert(office_tasks_shown_count(10) == 5);
+    }
+
+    test "room turn never gets a client's card" {
+        assert(!ROOM_TURN_GETS_CLIENT_CARD);
+        assert(!shows_client_card_in_room(true));
+        assert(!shows_client_card_in_room(false));
+    }
+
+    test "task marker is learned only in office context" {
+        assert(TASK_MARKER_LEARNED_IN_OFFICE_ONLY);
+        assert(learns_task_marker_in_context(true));
+        assert(!learns_task_marker_in_context(false));
+    }
+
+    test "VERSION says what the header's last note says" {
+        assert(VERSION == 1);
+    }
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
