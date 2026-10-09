@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2668b3371d4e897bac33bc8c6413f0f87685ac7b8002f8e43b71cd74c83d1db0",
+  "gen_hash_rust": "sha256:c4405ae2b97b99eb40b8c24162bdc321aaac6fb0d6cacf60ebf11fde2feb4d4b",
+  "gen_hash_verilog": "sha256:ee9cbc1eb2bf4f89f40bc4b7f921b25a26aa9e24529f5c411be0e85b72e0f5f7",
+  "gen_hash_zig": "sha256:0e58b0362b1b7d12d893a85d0acd0bcb6385e9871a469c3e3bca20c8a364dee8",
+  "module": "fn_reels_ai_callback",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6f2a968d6f5df4140589505d7ddcee474ccd4bf28b3a0e0955cba72178106dc7",
+  "spec_path": "specs/functions/reels-ai-callback.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

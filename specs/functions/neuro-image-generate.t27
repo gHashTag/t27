@@ -40,3 +40,105 @@ pub const SAFE_PROBE : str = "{\"telegram_id\": \"0\", \"bot_name\": \"e2e_nonex
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Guard is check-user: an unknown telegram_id stops the run before any payment or paid API call. The step names generate-image-${i} and notify-image-${i} are templates the code expands once per requested image. Withdrawn from registerFunctions on 2026-09-17 (999-multibots-telegraf): no producer in the repo sends neuro/image.generate or neuro/photo.generate, the balance is charged before generation with no refund in onFailure, and processBalanceOperation carries no inv_id, so a retried step would charge twice. Code kept; re-register as reserve -> generate -> commit with inv_id = event.id and a real producer.";
+
+; The card held to the schema of specs/functions/README.md: the vocabularies of its fields,
+; what TRIGGER decides about EVENT, LEGACY_EVENTS and CRON, SERVICE as `file:line`, and a
+; SAFE_PROBE that agrees with its PROBE_RESULT.
+test id_is_domain_object_verb {
+    // ID is `<domain>-<object>-<verb>` with DOMAIN from the vocabulary of the README.
+    assert DOMAIN == "neuro" or DOMAIN == "reels" or DOMAIN == "training" or DOMAIN == "morph" or DOMAIN == "render" or DOMAIN == "payment" or DOMAIN == "broadcast" or DOMAIN == "instagram" or DOMAIN == "content" or DOMAIN == "monitoring" or DOMAIN == "analytics" or DOMAIN == "webhook" or DOMAIN == "welcome" or DOMAIN == "crm";
+    var i : usize = 0;
+    while (i < DOMAIN.len) {
+        assert ID[i] == DOMAIN[i];
+        i = i + 1;
+    }
+    assert ID[DOMAIN.len] == '-';
+    var dashes : u32 = 0;
+    var k : usize = DOMAIN.len + 1;
+    while (k < ID.len) {
+        assert (ID[k] >= 'a' and ID[k] <= 'z') or (ID[k] >= '0' and ID[k] <= '9') or ID[k] == '-';
+        if (ID[k] == '-') {
+            dashes = dashes + 1;
+        }
+        k = k + 1;
+    }
+    assert dashes >= 1;
+    assert ID[ID.len - 1] != '-';
+}
+test an_event_function_has_an_event_and_no_cron {
+    // TRIGGER `event`: EVENT is set and CRON is `""` (README; the generator fails otherwise).
+    assert TRIGGER == "event";
+    assert EVENT.len > 0;
+    assert CRON.len == 0;
+    // The canonical EVENT names the same three parts as ID: `<domain>/<object>.<verb>` against
+    // `<domain>-<object>-<verb>`, so one `/` and the last `.` stand where ID has a `-`.
+    assert EVENT.len == ID.len;
+    var last_dot : usize = 0;
+    var p : usize = 0;
+    while (p < EVENT.len) {
+        if (EVENT[p] == '.') {
+            last_dot = p;
+        }
+        p = p + 1;
+    }
+    assert EVENT[DOMAIN.len] == '/';
+    assert last_dot > DOMAIN.len;
+    var i : usize = 0;
+    while (i < EVENT.len) {
+        if (i == DOMAIN.len or i == last_dot) {
+            assert ID[i] == '-';
+        } else {
+            assert EVENT[i] == ID[i];
+        }
+        i = i + 1;
+    }
+}
+test fields_come_from_their_vocabularies {
+    assert KIND == "function";
+    assert REPO == "999-multibots-telegraf";
+    assert TZ == "UTC";
+    assert ON_FAILURE == "admin-telegram" or ON_FAILURE == "log" or ON_FAILURE == "refund+notify";
+    assert PROBE_RESULT == "COMPLETED" or PROBE_RESULT == "FAILED-at-guard" or PROBE_RESULT == "skipped" or PROBE_RESULT == "not-deployed";
+    assert CONTROL == "spec+code" or CONTROL == "spec-only" or CONTROL == "code-only" or CONTROL == "code-only/unregistered";
+    assert SIDE_EFFECTS.len > 0;
+    var i : usize = 0;
+    while (i < SIDE_EFFECTS.len) {
+        const e : str = SIDE_EFFECTS[i];
+        assert e == "charges-balance" or e == "paid-api" or e == "messages-user" or e == "messages-owners" or e == "messages-admin" or e == "db-write" or e == "external-webhook" or e == "none";
+        var j : usize = i + 1;
+        while (j < SIDE_EFFECTS.len) {
+            assert SIDE_EFFECTS[j] != e;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}
+test the_probe_sent_is_json_and_was_answered {
+    // SAFE_PROBE is the JSON object sent in the 2026-09-09 probe, so it reached the function:
+    // PROBE_RESULT is COMPLETED or FAILED-at-guard.
+    assert SAFE_PROBE[0] == '{';
+    assert SAFE_PROBE[SAFE_PROBE.len - 1] == '}';
+    assert PROBE_RESULT == "COMPLETED" or PROBE_RESULT == "FAILED-at-guard";
+    // A probe stopped at a guard names that guard: GUARD is neither `none` (the first step
+    // already acts) nor `unknown` (not probed).
+    assert GUARD != "none";
+    assert GUARD != "unknown";
+}
+test service_is_file_and_line {
+    // SERVICE is `file:line` of inngest.createFunction( in REPO.
+    var colon : usize = 0;
+    var i : usize = 0;
+    while (i < SERVICE.len) {
+        if (SERVICE[i] == ':') {
+            colon = i;
+        }
+        i = i + 1;
+    }
+    assert colon > 0;
+    assert colon + 1 < SERVICE.len;
+    var d : usize = colon + 1;
+    while (d < SERVICE.len) {
+        assert SERVICE[d] >= '0' and SERVICE[d] <= '9';
+        d = d + 1;
+    }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:717dcf2dcced4cb9fe0b57c96f2a058e59363140af6c90a12c24eb81b33a9652",
+  "gen_hash_rust": "sha256:f52352d7f1d9ece11325bc5d30e54a1009f7278fe77ebd1bb77dae1e45ff7676",
+  "gen_hash_verilog": "sha256:a6d3012f1971c56992e9f181f9218d7ff8c34306e587ef02d11a51855be46436",
+  "gen_hash_zig": "sha256:41d4496146df6595fe8b9f6dc118cc8ba7fe7d282b47fa6f16d47065d793cbeb",
+  "module": "fn_morph_images_generate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1cdbcfadbaf89864962f2f8f99227be1a440a7151937515ed14c785de937fb8b",
+  "spec_path": "specs/functions/morph-images-generate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
