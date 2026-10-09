@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7c5cd415e2013822ee196b81f265e610e4ed61271032074e8717bdfce26e9e13",
@@ -9,7 +9,7 @@
   "module": "server_main",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:19:45Z",
+  "sealed_at": "2026-10-09T22:20:11Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e7c9061dfe6894e09569f0752a1ca1f26772ef5e4c5c8467e2f0f0d02ff034af",
   "spec_path": "specs/port/trinity/src/server_main.t27",

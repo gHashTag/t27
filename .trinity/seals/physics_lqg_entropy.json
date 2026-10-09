@@ -9,7 +9,7 @@
   "module": "lqg_entropy",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:12:03Z",
+  "sealed_at": "2026-10-09T22:19:48Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:11055f7681ca0d5588ee71899ff6cfc2d374a4564f01d03669ff54f579d1777d",
   "spec_path": "specs/physics/lqg_entropy.t27",

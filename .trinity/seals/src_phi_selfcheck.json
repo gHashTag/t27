@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:043b4f1ee79ade569d1429461fd3508df91cc8a61abfc67d172f9fe85258e1b3",
@@ -9,7 +9,7 @@
   "module": "phi_selfcheck",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:13:14Z",
+  "sealed_at": "2026-10-09T22:19:59Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:c5ead99b48f243dbe22dfb9e97723caac312cd6f03a201259d0b9a255add074c",
   "spec_path": "specs/port/bootstrap/src/phi_selfcheck.t27",

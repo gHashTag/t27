@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:35ca76dff03a04e6d7fefbd7c7832aae6779c98bf7e870b43f93f0347d190d1b",
@@ -9,7 +9,7 @@
   "module": "gen_epoch_reclamation",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:20:15Z",
+  "sealed_at": "2026-10-09T22:20:19Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3d965d3953455901afdb6bd36491fbb59bc9be0ee9e8a31bb3056bc2b311a8ee",
   "spec_path": "specs/port/trinity/src/tri/gen_epoch_reclamation.t27",

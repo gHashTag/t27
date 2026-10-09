@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:27b542c692e51afa0fc97662e2475aa371457867c347ca43eced96304f258a44",
@@ -9,7 +9,7 @@
   "module": "gen_barrier",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:19:57Z",
+  "sealed_at": "2026-10-09T22:20:15Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2582a33bbeab3be728c4a8cb02d0df7619d95d41bd2c0292d20a72af701c307f",
   "spec_path": "specs/port/trinity/src/tri/gen_barrier.t27",

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:dbb8af0fd1a0ebce81fb0184ab02907d031a36282a621a46d36e0c8fb7fddf9a",
@@ -9,7 +9,7 @@
   "module": "gen_relu",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:21:16Z",
+  "sealed_at": "2026-10-09T22:20:33Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a06b6e53c24d279cf21502dfa863a5bcb4f8703fd7160784b3266e22a18704ae",
   "spec_path": "specs/port/trinity/src/tri/gen_relu.t27",

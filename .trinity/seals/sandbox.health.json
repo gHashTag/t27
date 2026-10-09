@@ -14,7 +14,7 @@
   "module": "sandbox.health",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:27:14Z",
+  "sealed_at": "2026-10-09T22:21:22Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1a832446122255af70521cd21a53b319f06a965a4e4524d821d470fa1830ffed",
   "spec_path": "specs/sandbox/health.t27",

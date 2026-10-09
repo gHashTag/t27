@@ -14,7 +14,7 @@
   "module": "VCD_Trace_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:06:09Z",
+  "sealed_at": "2026-10-09T22:19:18Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8e061a203c363816c24f9af64de062de917ac7a8ed0dd90748f65cf842bd254c",
   "spec_path": "specs/fpga/testbench/vcd_trace_tb.t27",

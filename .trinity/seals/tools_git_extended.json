@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:072dc1dfdc3438525ffbcd9ba441a0f5cf670f0bf8ea2ffe560bb99f8390964a",
@@ -9,7 +9,7 @@
   "module": "git_extended",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:25:06Z",
+  "sealed_at": "2026-10-09T22:21:10Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ee488ec226d4e63d8c8e517b67c78220177cf1ee4452bbf3b051c39b5f1949ba",
   "spec_path": "specs/port/trios/crates/trios-server/src/tools/git_extended.t27",

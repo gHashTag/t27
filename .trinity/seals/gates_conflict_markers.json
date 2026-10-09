@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:1e787e3dafce836366208d6b45cab134c153819e92a3a1ea9225904132bcdfcb",
@@ -9,7 +9,7 @@
   "module": "conflict_markers",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:28:00Z",
+  "sealed_at": "2026-10-09T22:18:42Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ba0cfeb5e336287015b7ef7465fa35969351801f265199e7b9a110b0dbba8c5d",
   "spec_path": "specs/ci/gates/conflict_markers.t27",

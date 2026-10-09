@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e2e0b157ba4413ed03c65570c256a529eb2df9052f27dab7b77acb5d6a995346",
@@ -9,7 +9,7 @@
   "module": "main",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:22:32Z",
+  "sealed_at": "2026-10-09T22:20:48Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:df3f9359c74696ebe220c43b1c2144f362f4720a6d43df887822de778025d5f8",
   "spec_path": "specs/port/trios/crates/trios-bridge/src/main.t27",

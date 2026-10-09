@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:daf956087d73be342904266392efb1aa809d66a5a494159d3c3fe9cdb02b3ede",
@@ -9,7 +9,7 @@
   "module": "documented_commands",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:28:07Z",
+  "sealed_at": "2026-10-09T22:18:44Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:736c6fd0cb493336625f927995b3c48c1c2859b68776286f148dee8c58bdc55b",
   "spec_path": "specs/ci/gates/documented_commands.t27",

@@ -14,7 +14,7 @@
   "module": "base-debounce",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:22:56Z",
+  "sealed_at": "2026-10-09T22:18:34Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5327811d6750849976773faf4abbe18bd6c06f3a49799ffc4ca850c88581abb9",
   "spec_path": "specs/base/debounce.t27",

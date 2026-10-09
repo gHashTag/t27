@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:69086d36c79a7be340a1f8271a654c30e9aff68df37104abf6c1346474746cce",
@@ -9,7 +9,7 @@
   "module": "gen_semaphore",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:21:31Z",
+  "sealed_at": "2026-10-09T22:20:39Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ca6e4827cedc796f23701fef2ab9913e249422d2c3263d298c9db20590da6e29",
   "spec_path": "specs/port/trinity/src/tri/gen_semaphore.t27",

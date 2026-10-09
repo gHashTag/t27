@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:4d9c2ecee8563a4e8a6867d5d346985c12ef9f0c683c5a7def14fe0a917bce9e",
@@ -9,7 +9,7 @@
   "module": "verilog_widths",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:28:14Z",
+  "sealed_at": "2026-10-09T22:18:46Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e850b4a24f7bca6b005807cd48e3efcaa8a23ccf5c56a01081db5f3c9e9c4b66",
   "spec_path": "specs/ci/gates/verilog_widths.t27",

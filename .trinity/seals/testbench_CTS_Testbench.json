@@ -14,7 +14,7 @@
   "module": "CTS_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:57:21Z",
+  "sealed_at": "2026-10-09T22:18:54Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:29c22a22710c6a70cf3d3a51de84528976f50cdd92c8400af5933eb2c04b41c7",
   "spec_path": "specs/fpga/testbench/cts_tb.t27",

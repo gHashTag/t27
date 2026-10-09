@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:74dcb5850e1e4ca4d03b5f8fe123581e2d9a263a759066849adcae627fa07c71",
@@ -9,7 +9,7 @@
   "module": "gen_rwlock",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:21:29Z",
+  "sealed_at": "2026-10-09T22:20:36Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9b8d4277d59f276ccd7bba552efcc744ce70bfbad623a321de42b2183e48db1c",
   "spec_path": "specs/port/trinity/src/tri/gen_rwlock.t27",

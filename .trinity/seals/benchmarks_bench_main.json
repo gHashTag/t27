@@ -9,7 +9,7 @@
   "module": "bench_main",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:25:36Z",
+  "sealed_at": "2026-10-09T22:18:38Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1097cfd770915f5519ab1c5575670fa94b50ad0af6661741879c10bd7bef9e26",
   "spec_path": "specs/benchmarks/bench_main.t27",

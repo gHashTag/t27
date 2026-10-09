@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d9a21bd31cefd73ae0275aecd5d392c08f6f3e25efc3cbe8406788ee96a81ac8",
@@ -9,7 +9,7 @@
   "module": "gen_radix_tree",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:21:07Z",
+  "sealed_at": "2026-10-09T22:20:29Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:043655b7a12d62883acaa87002230bb6f45813f676805eb6b0ba2ca4e104e8f4",
   "spec_path": "specs/port/trinity/src/tri/gen_radix_tree.t27",

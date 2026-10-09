@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:248335d9436fd940c1aa3e8b621a5efc218757818531aaddc61f10f1ffbb7e82",
@@ -9,7 +9,7 @@
   "module": "required_contexts",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:12:21Z",
+  "sealed_at": "2026-10-09T22:19:51Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8869571cfedc83fc948fddad3d592817a5efbb20f6cf6370780b0c6b81ace2c0",
   "spec_path": "specs/policy/required_contexts.t27",

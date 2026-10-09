@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:069082dca048276580d5967ba5a59a0ee30235ba427bb3afb853abb2c929b39c",
@@ -9,7 +9,7 @@
   "module": "ternary_model",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:18:18Z",
+  "sealed_at": "2026-10-09T22:20:08Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:53579e65931a4f58052cc1b30717b13b9d803afc7935e24461d1527c8f063c6c",
   "spec_path": "specs/port/tools/ternary_model.t27",

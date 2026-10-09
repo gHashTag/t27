@@ -14,7 +14,7 @@
   "module": "Power_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:05:32Z",
+  "sealed_at": "2026-10-09T22:19:05Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:d9f8564784c91385026526b8bc1fa19900b604b87f0c126add8cd33eb8214373",
   "spec_path": "specs/fpga/testbench/power_tb.t27",

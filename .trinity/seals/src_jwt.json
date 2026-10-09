@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:4e6ff926a9076bbffc6404fd1688871c3486d576c11ad75f3e8bd197f5ae8245",
@@ -9,7 +9,7 @@
   "module": "jwt",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:13:07Z",
+  "sealed_at": "2026-10-09T22:19:57Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cf67e865a301ad560090c276b42eaefd1edb998723ad26e33ec845709abca0a4",
   "spec_path": "specs/port/bootstrap/src/jwt.t27",

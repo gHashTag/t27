@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:82940ed4609dfa575508b3496659fef3076fc7d2d967f4525e285999a2d2e1c2",
@@ -9,7 +9,7 @@
   "module": "ternary_vs_binary",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:26:27Z",
+  "sealed_at": "2026-10-09T22:18:40Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5f79143e4cf0f389ef7a03a3834a044e243fd3ca3cb04e06529a73690ecb4ca3",
   "spec_path": "specs/benchmarks/ternary_vs_binary.t27",

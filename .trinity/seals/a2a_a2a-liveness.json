@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:53f7484853720f2029b05c407b7bc44715928475b2807a596a51442086e94978",
@@ -9,7 +9,7 @@
   "module": "a2a-liveness",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:13:39Z",
+  "sealed_at": "2026-10-09T22:20:05Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e592fc70fc43e754c693d6d4e5167a7c0d3f042ab1b67f8f71f8d91341529fdb",
   "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/a2a/a2a-liveness.t27",

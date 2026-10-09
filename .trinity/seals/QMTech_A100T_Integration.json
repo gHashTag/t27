@@ -26,7 +26,7 @@
   "module": "QMTech_A100T_Integration",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:40:59Z",
+  "sealed_at": "2026-10-09T22:18:50Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:922b98757698945a22512a2a26efe01abb5e6d698fe4ce233ed60af9f8231c4a",
   "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27",

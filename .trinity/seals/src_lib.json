@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:001e97092e6089f96157164cf9724a2d59a6cb308fb28ab95070a12b9adde03c",
@@ -9,7 +9,7 @@
   "module": "lib",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:25:19Z",
+  "sealed_at": "2026-10-09T22:21:12Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9c2d461fa5458c0e28ec82a145717b3c4cf9736dbccb604fbc9e2a0947e7b2cc",
   "spec_path": "specs/port/trios/crates/trios-store/rings/ST-00/src/lib.t27",

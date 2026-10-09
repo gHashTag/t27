@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [
     {
       "spec": "specs/queen/reviewer/keeps_up.t27",
@@ -22,7 +22,7 @@
   "module": "QueenReviewerSizing",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:26:51Z",
+  "sealed_at": "2026-10-09T22:21:20Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7a37c374021c2143bcccfa22c9e6e6d69bb25d21a06ef33442a26902a51d0a8e",
   "spec_path": "specs/queen/reviewer_sizing.t27",

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:b8ba3059dd01ceaaac0ed628d632637de27898010894ae40f66e7cd1a4bfc617",
@@ -9,7 +9,7 @@
   "module": "lighthouse",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:23:56Z",
+  "sealed_at": "2026-10-09T22:21:00Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:63c5d29fa6f454801bfee6068307ae7e8b53000d57dc0df07281f6a8fa7bb749",
   "spec_path": "specs/port/trios/crates/trios-mcp/rings/SR-01/src/lighthouse.t27",

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:4d54dff6f1e4d23721cf702c7e0ba63d0f84ea38be8596f81d5eddc5dea5ceb6",
@@ -9,7 +9,7 @@
   "module": "smoke_m1",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:22:23Z",
+  "sealed_at": "2026-10-09T22:20:45Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4924de5a52344857b038eeb87f7b6ab4efd0747ed608e1e2518394112ed3fd38",
   "spec_path": "specs/port/trios/apps/trios-macos/rings/RUST-13/trios-mesh/src/bin/smoke_m1.t27",

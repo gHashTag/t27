@@ -14,7 +14,7 @@
   "module": "Formal_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:57:42Z",
+  "sealed_at": "2026-10-09T22:18:56Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e9a001b46f6e06019d8d58fe8d1336cddf2a4eed6adfde30ec98f7cc4815e13d",
   "spec_path": "specs/fpga/testbench/formal_tb.t27",

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:508505554f200e92c5158b5a5312d46a2af2fb96d1aa6464de6395c9c0e20dd5",
@@ -9,7 +9,7 @@
   "module": "gen_linear_regression",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:20:44Z",
+  "sealed_at": "2026-10-09T22:20:25Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3059f756ea7e2859a73637fb4db366275a7e5a9ab88ccf0d39cf2a62dee0de69",
   "spec_path": "specs/port/trinity/src/tri/gen_linear_regression.t27",
