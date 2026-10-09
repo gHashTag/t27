@@ -1,0 +1,79 @@
+// P3 slice 2 (#5980): what the Zig route and gen-c's C both take, and agree
+// on, which the core accepts (#8075): a value that widens into its declared
+// type at every typed position, a comptime integer by its value, a
+// comparison C makes by value, a bool wherever Zig wants one.
+module coercion_accepts;
+
+struct CaBox {
+    small: u16,
+    wide: i64,
+}
+
+enum CaMode {
+    off,
+    on,
+}
+
+const CA_LIMIT: i64 = 200;
+const CA_STEP: u8 = 3;
+const CA_IDX: i64 = 2;
+var ca_seen: u64 = 0;
+var ca_xs: [3]u16 = [_]u16{ 1, 2, CA_STEP };
+
+fn ca_ret(n: u8) -> u64 {
+    return n;
+}
+
+fn ca_widen(a: u8, b: i16, c: u32) -> i64 {
+    var x: i64 = a;
+    var y: i32 = b;
+    var z: u64 = c;
+    var w: usize = a;
+    var s: i16 = a + b;
+    return x + y + (z as i64) + (w as i64) + s;
+}
+
+fn ca_box(n: u8, c: i32) -> CaBox {
+    return CaBox{ .small = n, .wide = c };
+}
+
+fn ca_read(b: CaBox, i: usize, k: u8) -> i64 {
+    var ys: [2]u16 = [_]u16{ k, 9 };
+    return b.wide + b.small + ca_xs[i] + ca_xs[k] + ys[0];
+}
+
+// A module const by its value; a local const too in Zig, not yet in t27b
+// (#8079), so that form is a core test.
+fn ca_comptime() -> u8 {
+    var a: u8 = CA_LIMIT;
+    var b: u8 = 7;
+    a = a - CA_STEP;
+    return a + b;
+}
+
+fn ca_compare(a: i8, b: u8, c: i32, d: u16, e: i64, f: u32) -> bool {
+    var eq: bool = a == b;
+    return a < b and c < d and e < f and !eq;
+}
+
+// A module const known at compile time indexes by its value, and compares
+// with an unsigned by its value in both C and Zig.
+fn ca_const_uses(x: u64) -> bool {
+    return CA_LIMIT < x and ca_xs[CA_IDX] == 3;
+}
+
+fn ca_flags(m: CaMode, n: u8) -> bool {
+    var on: bool = m == CaMode.on;
+    return on or n > CA_STEP;
+}
+
+test ca_coercions_agree {
+    assert(ca_widen(1, 2, 3) == 10);
+    assert(ca_read(ca_box(4, 5), 1, 2) == 16);
+    assert(ca_comptime() == 204);
+    assert(ca_compare(0 - 1, 0, 0 - 5, 3, 0 - 1, 0));
+    assert(ca_flags(CaMode.off, 4));
+    assert(ca_const_uses(201));
+    ca_seen = ca_ret(CA_STEP);
+    assert(ca_seen == 3);
+}
