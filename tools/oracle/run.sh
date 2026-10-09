@@ -32,6 +32,10 @@ LEDGER="$ROOT/tools/oracle/baseline.tsv"
 # slowest spec that does terminate.
 ORACLE_TIMEOUT="${ORACLE_TIMEOUT:-120}"
 
+# FR-001: Isolate Zig cache inside per-run temporary directory
+ZIG_GLOBAL_CACHE_DIR="$OUT/zig-global"
+ZIG_LOCAL_CACHE_DIR="$OUT/zig-local"
+
 [ -x "$T27C" ] || { echo "oracle: no t27c at $T27C (set T27C_BIN)" >&2; exit 2; }
 [ -n "$ZIG" ]  || { echo "oracle: no zig on PATH (set ZIG_BIN)" >&2; exit 2; }
 

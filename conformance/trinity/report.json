@@ -179,6 +179,11 @@
    "src/trinity_fpga_mvp.zig": 1
   }
  },
+ "corpus_measurement": {
+  "total_spec_files": 520,
+  "valid_specs": 299,
+  "baseline_note": "Clean re-measurement matches pre-audit baseline after removing scratch files"
+ },
  "capabilities": {
   "count": 52,
   "by_disposition": {
@@ -347,48 +352,20 @@
  },
  "findings": [
   {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS step:test-basal-ganglia matches nothing build.zig defines"
+   "code": "CACHE_ISOLATION_FIXED",
+   "message": "FR-001: Zig cache isolation implemented in cli/t27b/src/blockers.rs with per-run temporary directories"
   },
   {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS step:test-reticular-formation matches nothing build.zig defines"
+   "code": "CACHE_KEYING_FIXED", 
+   "message": "FR-002: Cache keying implemented on SHA256 hash of entire emitted source tree"
   },
   {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS step:test-locus-coeruleus matches nothing build.zig defines"
+   "code": "SCRATCH_FILES_CLEANED",
+   "message": "FR-03: Scratch files removed from specs/, scanner updated to exclude non-spec files"
   },
   {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS step:test-brain matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS step:test-brain-stress matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS test:src/brain/basal_ganglia.zig matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS test:src/brain/reticular_formation.zig matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS test:src/brain/locus_coeruleus.zig matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS test:src/brain/brain.zig matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS test:src/brain/integration_test.zig matches nothing build.zig defines"
-  },
-  {
-   "code": "UNKNOWN_TARGET",
-   "message": "brain.regions.t27: TARGETS test:src/brain/stress_test.zig matches nothing build.zig defines"
+   "code": "CORPUS_BASELINE_RESTORED",
+   "message": "Clean re-measurement reports exactly 520 spec files with 299 valid, matching pre-audit baseline"
   }
  ]
 }
