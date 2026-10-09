@@ -297,11 +297,15 @@ measure it are written in **t27**, not in Rust or Python by hand.
   (`specs/tri/t27b/any_param_plan.t27`), +23, with `CmpOp`'s `symbol`,
   `negate`, `swap` and `holds_f64` moved from `ir.rs` to
   `specs/tri/t27b/cmp_op.t27`, -30, net -7, 0 and 0 on master 3ac8bef87's
-  14694 plus 1222 and 8284; 14682 plus 1222, 15904 in all, and tests 8284,
-  after #7902's glue for `@intCast` as an index or a slice bound
+  14694 plus 1222 and 8284; 14622 plus 1222, 15844 in all, and tests 8284,
+  after #8249 moved the body walks of `lower.rs` (`name_count`, `mutated`,
+  `zig_mutates` and six more, over the body's bytes) to
+  `specs/tri/t27b/ast_walk.t27`, -65, 0 and 0 on master 95ae4bcd6's 14687
+  plus 1222 and 8284; 14617 plus 1222, 15839 in all, and tests 8284, after
+  #7902's glue for `@intCast` as an index or a slice bound
   (`specs/tri/t27b/int_cast_plan.t27`), with `Ty::can_widen_from` in `ir.rs`
-  now `int_cast_plan.t27`'s `widens`, -5 net, 0 and 0 on master 325b0b18a's
-  14687 plus 1222 and 8284),
+  now `int_cast_plan.t27`'s `widens`, -5 net, 0 and 0 on master ab5b3b7e1's
+  14622 plus 1222 and 8284),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

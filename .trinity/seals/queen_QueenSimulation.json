@@ -1,20 +1,20 @@
 {
   "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
-  "gen_hash_c": "sha256:5a452da60e25296455c28b274f106d8c5929189113005fad9b479aa3abbbc46c",
-  "gen_hash_rust": "sha256:901a22b958b3a680fe6dccb203fd93126b6b10ec6aae47eef3d888f390d73bed",
-  "gen_hash_verilog": "sha256:44c7a3f53435c3c4089a38255b17f4a763a7bd16c32b0f70b64245d92e026ecc",
-  "gen_hash_zig": "sha256:ab0226fe8958988148ca96ef0f45f7de6683c4bf2ae776dfce6d9ce199b15353",
+  "gen_hash_c": "sha256:84f58d9316537654979181fec02770b5475366286822c167f60bff5fc18af49a",
+  "gen_hash_rust": "sha256:fb6b52e1019453643b4b45f63798b18ceb9415035f15321e8403dcad4680e1e8",
+  "gen_hash_verilog": "sha256:c5b8da4adf3bc68b3e2d57d4276b06b3ca1a4e623a5721a9e81b80445a69b20a",
+  "gen_hash_zig": "sha256:5528034e9a4cad12051e73a607aea20e01f1e751c9c63e6325bfe842ecd635d8",
   "module": "QueenSimulation",
   "ring": 12,
-  "sealed_at": "2026-10-09T18:08:57Z",
+  "sealed_at": "2026-10-09T19:43:32Z",
   "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:6c894ac9c403a5e1050f306fbc17c627c6a327ea7dbf75e99969e6e22500a69c",
+  "spec_hash": "sha256:1accadfb74aacfb8b05fc14842ec62ca1c2c52ab28a6f05bf307f4593fdaefe1",
   "spec_path": "specs/queen/simulation.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 10,
-    "total": 10
+    "passed": 12,
+    "total": 12
   }
 }
