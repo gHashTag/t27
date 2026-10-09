@@ -326,7 +326,12 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
     let mut fuel_left = check_budget::FILE_FUEL;
     let t0 = Instant::now();
     for (id, f) in prog.tests() {
+        let t1 = Instant::now();
         let r = jit.call(id as u32, &[]);
+        if o.time {
+            // One in-process iteration per test, for the warmup series (#7596).
+            lines.push(format!("TIME {} {}", f.name, t1.elapsed().as_nanos()));
+        }
         // An invariant runs exactly like a test and is reported apart from
         // the tests, prefixed `INVARIANT`.
         let tag = if f.is_invariant { "INVARIANT " } else { "" };
