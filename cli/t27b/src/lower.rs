@@ -288,6 +288,296 @@ struct Sig {
     poisoned: bool,
 }
 
+/// An axiom or assumption in a theorem's dependency graph.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AxiomInfo {
+    name: String,
+    /// The source location where this axiom was declared.
+    declared_at: Option<usize>,
+    /// Whether this is an `Admitted` lemma (incomplete proof) vs declared axiom.
+    is_admitted: bool,
+}
+
+/// A theorem and its transitive axiom dependencies.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TheoremInfo {
+    name: String,
+    /// All axioms this theorem depends on, transitively.
+    axioms: Vec<AxiomInfo>,
+    /// The source location where this theorem was declared.
+    declared_at: Option<usize>,
+}
+
+/// The ratchet baseline for (theorem, axiom) pairs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RatchetBaseline {
+    /// Baseline dependency pairs for each theorem.
+    theorem_axioms: HashMap<String, Vec<AxiomInfo>>,
+    /// Alternative representation for specific theorem tracking.
+    pub theorem_name: String,
+    pub axiom_count: usize,
+    pub admitted_count: usize,
+    pub axiom_names: Vec<String>,
+}
+
+impl RatchetBaseline {
+    /// Create a new empty baseline.
+    fn new() -> Self {
+        Self {
+            theorem_axioms: HashMap::new(),
+            theorem_name: String::new(),
+            axiom_count: 0,
+            admitted_count: 0,
+            axiom_names: Vec::new(),
+        }
+    }
+
+    /// Add a theorem to the baseline with its axioms.
+    fn add_theorem(&mut self, theorem: &TheoremInfo) {
+        self.theorem_axioms.insert(theorem.name.clone(), theorem.axioms.clone());
+        self.theorem_name = theorem.name.clone();
+        self.axiom_count = theorem.axioms.len();
+        self.admitted_count = theorem.axioms.iter().filter(|ax| ax.is_admitted).count();
+        self.axiom_names = theorem.axioms.iter().map(|ax| ax.name.clone()).collect();
+    }
+
+    /// Check if a theorem's axioms strictly expand beyond the baseline.
+    fn check_expansion(&self, theorem: &TheoremInfo) -> Result<(), String> {
+        if let Some(baseline_axioms) = self.theorem_axioms.get(&theorem.name) {
+            // Convert baseline axioms to a set for comparison
+            let baseline_set: HashSet<&str> = baseline_axioms.iter()
+                .map(|ax| ax.name.as_str())
+                .collect();
+            
+            let current_set: HashSet<&str> = theorem.axioms.iter()
+                .map(|ax| ax.name.as_str())
+                .collect();
+
+            // Check if current axioms are a superset of baseline axioms
+            for ax in &theorem.axioms {
+                if !baseline_set.contains(ax.name.as_str()) {
+                    return Err(format!(
+                        "Theorem '{}' acquired new axiom '{}' not present in baseline",
+                        theorem.name, ax.name
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A machine-readable assumption report for a theorem.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AssumptionReport {
+    theorem_name: String,
+    axioms: Vec<AxiomInfo>,
+    dependencies: Vec<AxiomInfo>,
+    /// Whether this theorem rests on domain axioms (vs being unconditional).
+    is_conditional: bool,
+}
+
+/// Transitive closure distinguishing axioms from admitted lemmas.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TransitiveClosure {
+    /// Declared axioms, parameters, and hypotheses.
+    axioms: Vec<AxiomInfo>,
+    /// Admitted lemmas (incomplete proofs).
+    admitted: Vec<AxiomInfo>,
+}
+
+impl AssumptionReport {
+    fn new(theorem: &TheoremInfo) -> Self {
+        let is_conditional = !theorem.axioms.is_empty();
+        Self {
+            theorem_name: theorem.name.clone(),
+            axioms: theorem.axioms.clone(),
+            dependencies: Vec::new(), // Will be set by the caller
+            is_conditional,
+        }
+    }
+
+    /// Generate a machine-readable JSON representation.
+    fn to_json(&self) -> String {
+        use serde::json::{self, Value};
+        
+        let axioms_json: Vec<Value> = self.axioms.iter().map(|ax| {
+            json::object! {
+                name: ax.name.clone(),
+                is_admitted: ax.is_admitted,
+                declared_at: ax.declared_at
+            }
+        }).collect();
+
+        json::to_string_pretty(&json::object! {
+            theorem: self.theorem_name.clone(),
+            is_conditional: self.is_conditional,
+            axioms: axioms_json,
+            total_axioms: self.axioms.len(),
+            admitted_axioms: self.axioms.iter().filter(|ax| ax.is_admitted).count(),
+        }).unwrap_or_else(|_| String::new())
+    }
+}
+
+/// Tracks theorems and their axiom dependencies during lowering.
+struct AxiomTracker {
+    /// All theorems found during lowering.
+    theorems: Vec<TheoremInfo>,
+    /// Current theorem being processed (for dependency tracking).
+    current_theorem: Option<String>,
+    /// Stack of axioms in the current scope.
+    scope_axioms: Vec<AxiomInfo>,
+    /// The ratchet baseline for dependency checking.
+    ratchet_baseline: Option<RatchetBaseline>,
+}
+
+impl AxiomTracker {
+    fn new() -> Self {
+        Self {
+            theorems: Vec::new(),
+            current_theorem: None,
+            scope_axioms: Vec::new(),
+            ratchet_baseline: None,
+        }
+    }
+
+    /// Start tracking a new theorem.
+    fn start_theorem(&mut self, name: String, location: Option<usize>) {
+        self.current_theorem = Some(name.clone());
+        // Push any current axioms to the theorem's dependencies
+        if let Some(ref mut current) = self.current_theorem {
+            if let theorem = self.theorems.iter_mut().find(|t| t.name == *current) {
+                theorem.axioms.extend(self.scope_axioms.clone());
+            }
+        }
+    }
+
+    /// Finish tracking the current theorem.
+    fn finish_theorem(&mut self) {
+        if let Some(name) = self.current_theorem.take() {
+            // Remove duplicates while preserving order
+            let mut seen = HashSet::new();
+            let unique_axioms: Vec<AxiomInfo> = self.scope_axioms.iter()
+                .filter(|ax| seen.insert(ax.name.clone()))
+                .cloned()
+                .collect();
+            
+            if let Some(theorem) = self.theorems.iter_mut().find(|t| t.name == name) {
+                theorem.axioms = unique_axioms;
+            }
+        }
+    }
+
+    /// Add an axiom to the current scope.
+    fn add_axiom(&mut self, name: String, location: Option<usize>, is_admitted: bool) {
+        let axiom = AxiomInfo {
+            name,
+            declared_at: location,
+            is_admitted,
+        };
+        self.scope_axioms.push(axiom);
+    }
+
+    /// Get the current theorem's dependencies.
+    fn current_theorem_deps(&self) -> Option<&[AxiomInfo]> {
+        if let Some(ref name) = self.current_theorem {
+            self.theorems.iter()
+                .find(|t| t.name == *name)
+                .map(|t| &t.axioms[..])
+        } else {
+            None
+        }
+    }
+
+    /// Generate assumption reports for all theorems.
+    fn generate_reports(&self) -> Vec<AssumptionReport> {
+        self.theorems.iter()
+            .map(|theorem| AssumptionReport {
+                theorem_name: theorem.name.clone(),
+                axioms: theorem.axioms.clone(),
+                dependencies: self.track_transitive_deps(&theorem.name),
+                is_conditional: !theorem.axioms.is_empty(),
+            })
+            .collect()
+    }
+
+    /// Set the ratchet baseline for dependency checking.
+    fn set_ratchet_baseline(&mut self, baseline: RatchetBaseline) {
+        self.ratchet_baseline = Some(baseline);
+    }
+
+    /// Check if the current theorem violates the ratchet.
+    fn check_ratchet(&self, theorem: &TheoremInfo) -> Result<(), String> {
+        if let Some(ref baseline) = self.ratchet_baseline {
+            baseline.check_expansion(theorem)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Track transitive dependencies for a theorem.
+    fn track_transitive_deps(&mut self, theorem_name: &str) -> Vec<AxiomInfo> {
+        let mut dependencies = Vec::new();
+        let mut visited = HashSet::new();
+        
+        // Simple transitive dependency tracking - in a real implementation,
+        // this would traverse the dependency graph more sophisticatedly
+        if let Some(theorem) = self.theorems.iter().find(|t| t.name == theorem_name) {
+            for axiom in &theorem.axioms {
+                if !visited.contains(&axiom.name) {
+                    dependencies.push(axiom.clone());
+                    visited.insert(axiom.name.clone());
+                }
+            }
+        }
+        
+        dependencies
+    }
+
+    /// Distinguish admitted lemmas from declared axioms in transitive closure.
+    fn get_transitive_closure(&mut self, theorem_name: &str) -> TransitiveClosure {
+        let mut axioms = Vec::new();
+        let mut admitted = Vec::new();
+        
+        for dep in self.track_transitive_deps(theorem_name) {
+            if dep.is_admitted {
+                admitted.push(dep);
+            } else {
+                axioms.push(dep);
+            }
+        }
+        
+        TransitiveClosure { axioms, admitted }
+    }
+
+    /// Generate machine-readable assumption report for a specific theorem.
+    fn generate_theorem_report(&self, theorem_name: &str) -> Option<AssumptionReport> {
+        self.theorems.iter()
+            .find(|t| t.name == theorem_name)
+            .map(|theorem| AssumptionReport {
+                theorem_name: theorem.name.clone(),
+                axioms: theorem.axioms.clone(),
+                dependencies: self.track_transitive_deps(&theorem.name),
+            })
+    }
+
+    /// Update ratchet baseline with current theorem dependencies.
+    fn update_ratchet_baseline(&mut self, theorem_name: &str) -> Result<(), String> {
+        if let Some(theorem) = self.theorems.iter().find(|t| t.name == theorem_name) {
+            let baseline = RatchetBaseline {
+                theorem_name: theorem.name.clone(),
+                axiom_count: theorem.axioms.len(),
+                admitted_count: theorem.axioms.iter().filter(|a| a.is_admitted).count(),
+                axiom_names: theorem.axioms.iter().map(|a| a.name.clone()).collect(),
+            };
+            self.set_ratchet_baseline(baseline);
+            Ok(())
+        } else {
+            Err(format!("Theorem {} not found", theorem_name))
+        }
+    }
+}
+
 struct Lower<'a> {
     mode: OverflowMode,
     sites: Vec<Site>,
@@ -445,6 +735,8 @@ struct Lower<'a> {
     /// The statement being lowered is the last of its block (`stmts`): a `@panic` must be (builtin_plan.t27).
     last_stmt: bool,
     lit_consts: HashSet<String>, // this fn's locals t27c's optimizer replaces by their literal (bit_cast_plan.t27)
+    /// Tracks theorems and their axiom dependencies during lowering.
+    axiom_tracker: AxiomTracker,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -558,6 +850,7 @@ fn lower_mode<'a>(
         shifted_muls: HashSet::new(),
         last_stmt: false,
         lit_consts: HashSet::new(),
+        axiom_tracker: AxiomTracker::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
