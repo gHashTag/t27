@@ -172,6 +172,7 @@
   {"path": "specs/compiler/theory/sieve.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/toolchain.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/vacuity_census.t27", "t27b": "pass"},
+  {"path": "specs/compiler/verilog_aos_memory.t27", "t27b": "pass"},
   {"path": "specs/compiler/verilog_branch_context.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_field_syntax.t27", "t27b": "blocked", "blocker": "ExprLiteral(literal)", "reason": "unimplemented"},
   {"path": "specs/compiler/zig_float_call_cast.t27", "t27b": "pass"},
