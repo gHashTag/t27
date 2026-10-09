@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/frame_address_caller_owned.t27 -- tests that slice of slice parameters and pointer
+; parameters stored through other pointer parameters survive a call that clobbers 4 KiB of stack, in both the
+; reference and t27b. This spec validates the caller-owned memory pattern that fixes the issues in
+; specs/port/trinity/src/tri/gen_lockfree_stack.t27 and specs/port/browseros/trios/agent-server/apps/server/src/tools/tool-registry.t27.
+; 
+; The test creates a caller-owned buffer, passes it to a function that writes into it, then calls another function
+; that clobbers 4 KiB of stack, and finally verifies the data is still valid. This pattern should work in both
+; the reference implementation and t27b.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceFrameAddressCallerOwned;
+
+pub const TestData = struct {
+    values: []i64,
+    count: usize,
+};
+
+// Fill a caller-owned buffer with test data
+pub fn fill_buffer(buffer: *TestData, values: []i64) void {
+    buffer.* = .{ .values = values, .count = values.len };
+}
+
+// Clobber 4 KiB of stack with zeros to test that caller-owned data survives
+pub fn clobber_stack() void {
+    var big_stack: [4096]u8 = undefined;
+    var i: usize = 0;
+    while (i < big_stack.len) {
+        big_stack[i] = 0;
+        i += 1;
+    }
+}
+
+// Test that caller-owned slice data survives stack clobbering
+test caller_owned_slice_survives_clobber {
+    var buffer: TestData = undefined;
+    var test_values: [3]i64 = [3]i64{ 1, 2, 3 };
+    
+    // Fill the caller-owned buffer
+    fill_buffer(&buffer, &test_values);
+    
+    // Clobber 4 KiB of stack
+    clobber_stack();
+    
+    // Verify the data is still valid (caller-owned memory should survive)
+    assert(buffer.count == 3);
+    assert(buffer.values[0] == 1);
+    assert(buffer.values[1] == 2);
+    assert(buffer.values[2] == 3);
+}
+
+// Test that caller-owned pointer data survives stack clobbering  
+pub const Node = struct {
+    value: i64,
+    next: ?*Node,
+};
+
+pub const List = struct {
+    head: ?*Node,
+};
+
+// Add a caller-owned node to the list
+pub fn add_node(list: *List, node: *Node, value: i64) void {
+    node.* = .{ .value = value, .next = list.head };
+    list.head = node;
+}
+
+test caller_owned_pointer_survives_clobber {
+    var list: List = .{ .head = null };
+    var node: Node = undefined;
+    
+    // Add the caller-owned node to the list
+    add_node(&list, &node, 42);
+    
+    // Clobber 4 KiB of stack
+    clobber_stack();
+    
+    // Verify the data is still valid (caller-owned memory should survive)
+    assert(list.head != null);
+    assert(list.head.?.value == 42);
+}

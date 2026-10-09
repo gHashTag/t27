@@ -44,27 +44,22 @@ pub fn ToolRegistry_get(self: BrowserToolRegistry, name: []const u8) -> ?Browser
 }
 
 // ToolRegistry_names - port the decision logic of returning all tool names
-pub fn ToolRegistry_names(self: BrowserToolRegistry) -> [][]const u8 {
+// Now writes into a caller-owned buffer and returns a slice of it
+pub fn ToolRegistry_names(self: BrowserToolRegistry, out_buffer: [][]const u8) -> usize {
     // Handle empty case first
     if (self.tools.len == 0) {
-        return &.{};
+        return 0;
     }
     
-    // Create a fixed-size array with a known size at compile time
-    // We'll use a reasonable maximum size and handle smaller cases
-    const MAX_SIZE = 100;
-    var names: [MAX_SIZE]str = undefined;
     var count: usize = 0;
-    
     var i: usize = 0;
-    while (i < self.tools.len and i < MAX_SIZE) {
-        names[count] = self.tools[i].name;
+    while (i < self.tools.len and count < out_buffer.len) {
+        out_buffer[count] = self.tools[i].name;
         count += 1;
         i += 1;
     }
     
-    // Return a slice of the actual names we collected
-    return names[0..count];
+    return count;
 }
 
 // createRegistry - port the decision logic of creating a registry with validation
@@ -157,18 +152,20 @@ test "ToolRegistry_names_returns_all_names" {
         BrowserToolDefinition { name = "tool3" }
     ];
     var registry = BrowserToolRegistry { tools = &tools };
-    var result = ToolRegistry_names(registry);
-    assert(result.len == 3);
-    assert(result[0] == "tool1");
-    assert(result[1] == "tool2");
-    assert(result[2] == "tool3");
+    var buffer: [3][]const u8 = undefined;
+    var count = ToolRegistry_names(registry, &buffer);
+    assert(count == 3);
+    assert(buffer[0] == "tool1");
+    assert(buffer[1] == "tool2");
+    assert(buffer[2] == "tool3");
 }
 
 test "ToolRegistry_names_returns_empty_for_empty_registry" {
     var tools: [0]BrowserToolDefinition = [];
     var registry = BrowserToolRegistry { tools = &tools };
-    var result = ToolRegistry_names(registry);
-    assert(result.len == 0);
+    var buffer: [1][]const u8 = undefined;
+    var count = ToolRegistry_names(registry, &buffer);
+    assert(count == 0);
 }
 
 // Tests for createRegistry

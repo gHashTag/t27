@@ -15,13 +15,14 @@ pub fn LockFreeStack_init() GenLockFreeStack {
     return .{};
 }
 
-pub fn LockFreeStack_push(stack: *GenLockFreeStack, value: i64) !void {
-    // Port the decision logic: create node and set next to current head
-    var node: Node = .{ .value = value, .next = stack.head };
+pub fn LockFreeStack_push(stack: *GenLockFreeStack, node: *Node, value: i64) !void {
+    // Port the decision logic: set node value and next to current head
+    // The node is caller-owned, so we don't create it locally
+    node.* = .{ .value = value, .next = stack.head };
 
     // The decision: simulate atomic swap by directly setting head
     // In the real implementation, this would be an atomic compare-and-swap
-    stack.head = &node;
+    stack.head = node;
 }
 
 pub fn LockFreeStack_pop(stack: *GenLockFreeStack) ?i64 {
@@ -53,17 +54,19 @@ test "lockfree stack basic" {
 
 test "lockfree stack push" {
     var stack = LockFreeStack_init();
+    var node: Node = undefined;
     
     // Test push and check not empty
-    LockFreeStack_push(&stack, 42);
+    LockFreeStack_push(&stack, &node, 42);
     assert(!LockFreeStack_isEmpty(&stack));
 }
 
 test "lockfree stack pop" {
     var stack = LockFreeStack_init();
+    var node: Node = undefined;
     
     // Test push and pop
-    LockFreeStack_push(&stack, 10);
+    LockFreeStack_push(&stack, &node, 10);
     const value = LockFreeStack_pop(&stack);
     assert(value.? == 10);
     assert(LockFreeStack_isEmpty(&stack));
@@ -71,17 +74,19 @@ test "lockfree stack pop" {
 
 test "lockfree stack lifo" {
     var stack = LockFreeStack_init();
+    var node1: Node = undefined;
+    var node2: Node = undefined;
+    var node3: Node = undefined;
     
     // Test LIFO order: last in, first out
-    // Note: Each push creates a new node, so we can't test multiple pops
-    // in the same way as the original. This tests the basic LIFO behavior.
-    LockFreeStack_push(&stack, 1);
+    // Now we can test multiple pushes and pops with caller-owned nodes
+    LockFreeStack_push(&stack, &node1, 1);
     assert(LockFreeStack_pop(&stack).? == 1);
     
-    LockFreeStack_push(&stack, 2);
+    LockFreeStack_push(&stack, &node2, 2);
     assert(LockFreeStack_pop(&stack).? == 2);
     
-    LockFreeStack_push(&stack, 3);
+    LockFreeStack_push(&stack, &node3, 3);
     assert(LockFreeStack_pop(&stack).? == 3);
     
     assert(LockFreeStack_pop(&stack) == null);
