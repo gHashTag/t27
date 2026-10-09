@@ -77,16 +77,7 @@ pub const K_STMT_EXPR : u8 = 34;
 
 pub const B_DOT : u8 = 46;
 
-/// Does s[lo .. hi] start with the bytes of `w`?
-pub fn has_at(s: []const u8, lo: usize, hi: usize, w: []const u8) -> bool {
-    if (hi - lo < w.len) { return false; }
-    var k : usize = 0;
-    while (k < w.len) {
-        if (s[lo + k] != w[k]) { return false; }
-        k = k + 1;
-    }
-    return true;
-}
+
 
 /// Do the bytes around s[i .. e] end a word: no ASCII letter, digit or `_` just before i or at e?
 pub fn bounded(s: []const u8, i: usize, e: usize) -> bool {
@@ -106,7 +97,7 @@ pub fn word_in(text: []const u8, name: []const u8) -> bool {
         if (name.len == 0) {
             if ((i == text.len or char_start(text[i])) and bounded(text, i, i)) { return true; }
             i = i + 1;
-        } else if (has_at(text, i, text.len, name)) {
+        } else if (st::starts_with(text, i, text.len, name)) {
             if (bounded(text, i, i + name.len)) { return true; }
             i = i + name.len;
         } else {
@@ -154,7 +145,7 @@ pub fn hi(nodes: []const u8, i: usize, f: usize) -> usize {
 pub fn field_is(nodes: []const u8, text: []const u8, i: usize, f: usize, w: []const u8) -> bool {
     const a : usize = lo(nodes, i, f);
     const b : usize = hi(nodes, i, f);
-    return b - a == w.len and has_at(text, a, b, w);
+    return b - a == w.len and st::starts_with(text, a, b, w);
 }
 
 /// Is field f of node i exactly the constant `w`?
@@ -188,7 +179,7 @@ pub fn ident_is(nodes: []const u8, text: []const u8, i: usize, name: []const u8)
 pub fn names(nodes: []const u8, text: []const u8, i: usize, name: []const u8) -> bool {
     const a : usize = lo(nodes, i, F_NAME);
     const b : usize = hi(nodes, i, F_NAME);
-    if (!has_at(text, a, b, name)) { return false; }
+    if (!st::starts_with(text, a, b, name)) { return false; }
     return b - a == name.len or text[a + name.len] == B_DOT;
 }
 
@@ -303,7 +294,7 @@ pub fn method_of(nodes: []const u8, text: []const u8, i: usize, name: []const u8
     const b : usize = hi(nodes, i, F_NAME);
     var dot : usize = a;
     while (dot < b and text[dot] != B_DOT) { dot = dot + 1; }
-    return dot < b and dot - a == name.len and has_at(text, a, dot, name);
+    return dot < b and dot - a == name.len and st::starts_with(text, a, dot, name);
 }
 
 /// Does Zig count `var name` as mutated anywhere in the nodes (`zig_mutates`)? An assignment whose target
@@ -377,12 +368,12 @@ fn set(nodes: []u8, i: usize, f: usize, a: usize, b: usize) -> void {
 }
 
 test prefix_bytes_match {
-    assert has_at("const X", 0, 7, "const");
-    assert has_at("const X", 0, 7, "");
-    assert !has_at("con", 0, 3, "const");
-    assert !has_at("Const X", 0, 7, "const");
-    assert has_at("a const", 2, 7, "const");
-    assert !has_at("a const", 2, 6, "const");
+    assert st::starts_with("const X", 0, 7, "const");
+    assert st::starts_with("const X", 0, 7, "");
+    assert !st::starts_with("con", 0, 3, "const");
+    assert !st::starts_with("Const X", 0, 7, "const");
+    assert st::starts_with("a const", 2, 7, "const");
+    assert !st::starts_with("a const", 2, 6, "const");
 }
 
 test a_word_is_bounded_by_non_word_bytes {
