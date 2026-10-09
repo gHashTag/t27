@@ -1,0 +1,57 @@
+# Keep the swarm's queue full from GitHub's cron, not from a laptop.
+#
+# Why this exists: the feeder ran on a local scheduled task every 20 minutes and
+# fired TWICE between 18:03 and 05:43 on 2026-09-16/17 instead of 36 times - the
+# machine was asleep. The swarm burns ~10 issues in 7 minutes across 10 lanes,
+# so a night of that is a night of idle bees regardless of how much fuel exists.
+#
+# This job needs no compiler: the port feeder only walks the checkout and reads
+# the issue list, so a plain runner with python3 and gh is enough.
+name: queen-feed
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'      # GitHub's floor is 5 minutes and it may run late
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Backlog depth to maintain'
+        default: '60'
+      limit:
+        description: 'Max issues to create in one run'
+        default: '10'
+
+# Least privilege: this job creates issues and reads the repository. Nothing else.
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: queen-feed
+  cancel-in-progress: false   # two feeders racing would double-create
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Feed the swarm up to the backlog target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QUEEN_WORK: ${{ github.workspace }}
+          QUEEN_NO_SYNC: '1'
+          QUEEN_LOG: ${{ runner.temp }}/feed.log
+        run: |
+          python3 tools/queen/queen_feed_port.py \
+            --top-up "${{ github.event.inputs.target || 60 }}" \
+            --limit  "${{ github.event.inputs.limit  || 10 }}"
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feed-log
+          path: ${{ runner.temp }}/feed.log
+          if-no-files-found: ignore
