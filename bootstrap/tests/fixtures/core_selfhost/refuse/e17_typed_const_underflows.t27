@@ -1,0 +1,7 @@
+// TCU_G is a u32 in Zig, so TCU_G - 9 overflows it; C computes -8 (#8098).
+module typed_const_underflows;
+const TCU_G: u32 = 1;
+fn tcu_g() -> i64 {
+    var y: i64 = TCU_G - 9;
+    return y;
+}
