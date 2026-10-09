@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f21a0b39c",
+  "built_by": "t27c-bootstrap@0.5.2+cde548ecd",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:07bd464dd52fc850e08816bc546d57ac2a0fe1236719b6e4ee4e8233f0564399",
@@ -9,7 +9,7 @@
   "module": "T27bCmpOp",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T16:49:27Z",
+  "sealed_at": "2026-10-09T18:37:51Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:dbb081a5c891fac1a6fe2ba6a4643eea2bd13c7c348559874ac4879ff07e9ff9",
   "spec_path": "specs/tri/t27b/cmp_op.t27",

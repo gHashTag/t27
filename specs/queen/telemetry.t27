@@ -1,0 +1,668 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/telemetry.t27 -- what the Queen's actor runtime counts, when a count becomes an event,
+; which messages and card calls it records, and when a replay of those records passes
+; Owner, 2026-10-09 (translated): "implement all the improvements" (epic gHashTag/trios#1712, item 1:
+; telemetry and a log of card decisions). Production could not answer the basic questions: how deep a
+; mailbox is, how long a turn takes, how often a supervisor restarts, how many letters are dead. Two
+; production readings of the reviewer disagree and nothing reconciles them:
+; - 2026-10-08, after the wait backoff: 584 of 2520 worker-seconds busy (23%), "not the bottleneck";
+; - 2026-10-09 (reviewer.t27): about 11 reviewed an hour against about 58 finished, 111 rows waiting.
+; actors.t27 section 2 promises that a dead letter is counted where the reconciler reads it; the runtime
+; counted it and nobody read it.
+; What mature runtimes count, and what this file takes from each:
+;   Akka Insights  sampled mailbox size, time in mailbox, processing time, dead letters, and threshold
+;                  events mailbox-size-limit, mailbox-time-limit, processing-time-limit
+;   Orleans        long-running turns, expired and dropped messages, load shedding
+;   OTP 27         the long_message_queue monitor {Disable, Enable}: one event on the way up at Enable,
+;                  one on the way down at Disable, none in between
+;   recon          proc_window: the top N processes by a count, never what their mailboxes hold
+;   Discord        sampled trace envelopes: a bounded share of messages carries a record
+; Labels are by actor kind, never by pid, as Akka groups them. The runtime counts and keeps the records;
+; every threshold, sample and verdict below is this file's. A telemetry rule reads and never schedules:
+; with it on or off, the runtime takes the same turns in the same order.
+; Not here: actors.t27's numbers. MAILBOX_CAP and the turn bound arrive as arguments, so this file
+; restates none of them; the tests use today's values (MAILBOX_CAP 256, the reviewer's 300 s).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenTelemetry;
+
+; --- 1. Names: one per count, the same in the endpoint, the log line and any exporter ---------------
+
+/// Counts, per actor kind.
+pub const MT_SENT : str = "queen.actor.sent";
+pub const MT_DEAD_LETTERS : str = "queen.actor.dead_letters";
+pub const MT_DROPPED_FULL : str = "queen.actor.dropped_full";
+pub const MT_CONTROL : str = "queen.actor.control";
+pub const MT_TURNS : str = "queen.actor.turns";
+pub const MT_CRASHES : str = "queen.actor.crashes";
+pub const MT_KILLS : str = "queen.actor.kills";
+pub const MT_KILLS_STOPPED : str = "queen.actor.kills_stopped";
+pub const MT_RESTARTS : str = "queen.actor.restarts";
+pub const MT_GIVE_UPS : str = "queen.actor.give_ups";
+/// Gauges, read when asked.
+pub const MT_LIVE : str = "queen.actor.live";
+pub const MT_MAILBOX_DEPTH : str = "queen.actor.mailbox_depth";
+pub const MT_BUSY : str = "queen.actor.busy_permille";
+/// Histograms, in milliseconds. Turn time takes every turn; mailbox time takes the sampled messages.
+pub const MT_TURN_TIME : str = "queen.actor.turn_time_ms";
+pub const MT_MAILBOX_TIME : str = "queen.actor.mailbox_time_ms";
+/// The whole system: times a scheduler spent its slice and yielded (actors.t27 section 8).
+pub const MT_YIELDS : str = "queen.actor.yields";
+
+/// The kind of a call made outside any actor's turn, and of a letter to a pid that no longer lives.
+pub const NO_KIND : str = "-";
+
+/// Threshold events. Index == event kind, as control.t27's EVENT_NAMES.
+pub const EV_NONE : u8 = 0;
+pub const EV_DEPTH_HIGH : u8 = 1;
+pub const EV_DEPTH_OK : u8 = 2;
+pub const EV_TURN_LONG : u8 = 3;
+pub const EV_WAIT_LONG : u8 = 4;
+pub const EV_STORM : u8 = 5;
+pub const EV_STORM_OVER : u8 = 6;
+pub const EVENT_KINDS : u8 = 7;
+pub const TEL_EVENT_NAMES : [7]str = [
+    "none", "queen.actor.mailbox_depth_limit", "queen.actor.mailbox_depth_ok",
+    "queen.actor.turn_time_limit", "queen.actor.mailbox_time_limit",
+    "queen.actor.restart_storm", "queen.actor.restart_storm_over"
+];
+
+; --- 2. Mailbox depth: one event up, one event down, none in between --------------------------------
+
+/// A mailbox raises its event at DEPTH_ON_PERCENT of its cap and clears it at DEPTH_OFF_PERCENT, the
+/// pair OTP 27 calls {Disable, Enable}. With MAILBOX_CAP 256: on at 192, off at 64. The raise comes a
+/// quarter of the cap before actors.t27 `deliver` starts dropping for space, so a filling mailbox is
+/// seen before it loses a letter. Chosen, not measured: no production mailbox has been read yet.
+pub const DEPTH_ON_PERCENT : u32 = 75;
+pub const DEPTH_OFF_PERCENT : u32 = 25;
+
+/// percent of cap, in u64 so no product overflows; floor.
+pub fn percent_of(cap: u32, percent: u32) -> u32 {
+    return (((cap as u64) * (percent as u64)) / 100) as u32;
+}
+
+/// The raise threshold; at least 1, so an empty mailbox never raises.
+pub fn depth_on_at(cap: u32) -> u32 {
+    var at : u32 = percent_of(cap, DEPTH_ON_PERCENT);
+    if (at < 1) { at = 1; }
+    return at;
+}
+
+pub fn depth_off_at(cap: u32) -> u32 {
+    return percent_of(cap, DEPTH_OFF_PERCENT);
+}
+
+/// Whether the alarm is on after a mailbox reads `depth`: an off alarm comes on at the raise
+/// threshold, an on alarm goes off only at or below the clear threshold.
+pub fn depth_alarm(was_on: bool, depth: u32, cap: u32) -> bool {
+    if (was_on) { return depth > depth_off_at(cap); }
+    return depth >= depth_on_at(cap);
+}
+
+/// The event one reading makes: EV_DEPTH_HIGH on the way up, EV_DEPTH_OK on the way down, else none.
+pub fn depth_event(was_on: bool, depth: u32, cap: u32) -> u8 {
+    let now_on : bool = depth_alarm(was_on, depth, cap);
+    if (now_on and was_on == false) { return EV_DEPTH_HIGH; }
+    if (was_on and now_on == false) { return EV_DEPTH_OK; }
+    return EV_NONE;
+}
+
+; --- 3. Time: a turn or a wait is long at half its bound --------------------------------------------
+
+/// A turn, or a message's time in its mailbox, counts as long once it has used LONG_PERCENT of the
+/// turn bound its actor kind runs under (actors.t27 turn_signal: the domain's own bound, or
+/// TURN_MAX_SECONDS; the host passes the bound the kill timer uses). The kill comes at the whole bound
+/// and the event at half, so a turn that comes near its kill is counted even when it ends just before.
+/// For the reviewer's 300 s: 150 s. Measured 2026-10-08 on the live Queen: sendBack p95 77 s, escalate
+/// p95 99 s, so a normal review is not long. Akka's processing-time-limit and Orleans' long-running
+/// turn are the same event with a fixed bound. A bound of 0 is no bound: nothing is long against it.
+pub const LONG_PERCENT : u32 = 50;
+
+pub fn long_at_ms(bound_seconds: u32) -> u64 {
+    return ((bound_seconds as u64) * 1000 * (LONG_PERCENT as u64)) / 100;
+}
+
+pub fn turn_event(turn_ms: u32, bound_seconds: u32) -> u8 {
+    if (bound_seconds == 0) { return EV_NONE; }
+    if ((turn_ms as u64) >= long_at_ms(bound_seconds)) { return EV_TURN_LONG; }
+    return EV_NONE;
+}
+
+pub fn wait_event(wait_ms: u32, bound_seconds: u32) -> u8 {
+    if (bound_seconds == 0) { return EV_NONE; }
+    if ((wait_ms as u64) >= long_at_ms(bound_seconds)) { return EV_WAIT_LONG; }
+    return EV_NONE;
+}
+
+; --- 4. Restart storm: one restart from giving up ---------------------------------------------------
+
+/// actors.t27 on_child_exit gives up when the restarts in the period, the new one included, exceed the
+/// maximum. A storm is the count that leaves room for exactly one more: the next crash ends the
+/// supervisor. It is raised when the restarts in the period reach the maximum and clears only when the
+/// period holds none, so a supervisor restarting on the edge of its intensity raises one event, not
+/// one per restart. For the reviewer domain (DOMAIN_MAX_RESTARTS 3 in DOMAIN_PERIOD_SECONDS 300): the
+/// third restart inside five minutes. A maximum of 0 allows no restart at all; the first is a storm.
+pub fn storm_at(max_restarts: u32) -> u32 {
+    if (max_restarts < 1) { return 1; }
+    return max_restarts;
+}
+
+pub fn storm_alarm(was_on: bool, restarts_in_period: u32, max_restarts: u32) -> bool {
+    if (was_on) { return restarts_in_period > 0; }
+    return restarts_in_period >= storm_at(max_restarts);
+}
+
+pub fn storm_event(was_on: bool, restarts_in_period: u32, max_restarts: u32) -> u8 {
+    let now_on : bool = storm_alarm(was_on, restarts_in_period, max_restarts);
+    if (now_on and was_on == false) { return EV_STORM; }
+    if (was_on and now_on == false) { return EV_STORM_OVER; }
+    return EV_NONE;
+}
+
+; --- 5. Histograms: buckets that double ------------------------------------------------------------
+
+/// Bucket 0 holds 0 ms; bucket k, for 1 <= k < HIST_BUCKETS - 1, holds [2^(k-1), 2^k) ms; the last
+/// holds everything from 2^(HIST_BUCKETS - 2) ms up. 24 buckets put the last floor at 2^22 ms (about
+/// 70 min), above actors.t27 TURN_MAX_SECONDS (an hour), so every turn that is not killed lands in a
+/// bucket of its own size.
+pub const HIST_BUCKETS : u32 = 24;
+
+pub fn bucket_of(ms: u32) -> u32 {
+    var b : u32 = 0;
+    var v : u32 = ms;
+    while (v > 0 and b < HIST_BUCKETS - 1) {
+        v = v >> 1;
+        b = b + 1;
+    }
+    return b;
+}
+
+pub fn bucket_floor_ms(k: u32) -> u32 {
+    if (k == 0) { return 0; }
+    var top : u32 = k;
+    if (top > HIST_BUCKETS - 1) { top = HIST_BUCKETS - 1; }
+    var floor : u32 = 1;
+    var n : u32 = 1;
+    while (n < top) {
+        floor = floor * 2;
+        n = n + 1;
+    }
+    return floor;
+}
+
+/// Which observation, counted from 1 in ascending order, is the `percent` percentile of `count`:
+/// ceil(count * percent / 100), at least 1 and at most count. 0 only for an empty histogram.
+pub fn rank_of(count: u32, percent: u32) -> u32 {
+    if (count == 0) { return 0; }
+    var p : u64 = percent as u64;
+    if (p > 100) { p = 100; }
+    var r : u64 = ((count as u64) * p + 99) / 100;
+    if (r < 1) { r = 1; }
+    return r as u32;
+}
+
+; --- 6. Busy share: the number the two readings disagree on -----------------------------------------
+
+/// Per mille of a kind's actor time spent in turns over a window: busy_ms / (actors * window_ms).
+/// 2026-10-08's 23% is busy_permille(584 000, 4, 630 000) = 231: four workers over 10.5 minutes. A
+/// turn is added when it ends, whole, so a window can be handed more than it holds; the share stops
+/// at 1000. No actors or no window: 0.
+pub fn busy_permille(busy_ms: u32, actors: u32, window_ms: u32) -> u32 {
+    if (actors == 0 or window_ms == 0) { return 0; }
+    let room : u64 = (actors as u64) * (window_ms as u64);
+    var share : u64 = ((busy_ms as u64) * 1000) / room;
+    if (share > 1000) { share = 1000; }
+    return share as u32;
+}
+
+; --- 7. Sampling: every turn is counted, a bounded share is recorded -------------------------------
+
+/// Time runs in windows of SAMPLE_WINDOW_MS. In each window:
+/// - per actor kind, the first MSG_SAMPLES_PER_WINDOW messages sent carry a record (an envelope: the
+///   kind, its time in the mailbox, its time in its turn, how the turn ended);
+/// - per card function, the first DLOG_PER_FN_PER_WINDOW calls go to the decision log (section 9).
+/// Below those rates everything is recorded. The reviewer's busiest production hour was 941 visits in
+/// 44 minutes (trios#1702), about one message every 3 s, so all of its traffic is. Above them the cost
+/// is bounded whatever the load: a ring of 1000 actors passing 100 000 messages records a few hundred.
+/// Discord samples by fan-out (every send to one receiver, 10% to 100, 0.1% to 10 000); a send here
+/// always has one receiver, so the bound is per window instead. Counts and turn-time histograms are
+/// not sampled.
+pub const SAMPLE_WINDOW_MS : u32 = 1000;
+pub const MSG_SAMPLES_PER_WINDOW : u32 = 8;
+pub const DLOG_PER_FN_PER_WINDOW : u32 = 16;
+
+/// Whether a window that opened `elapsed_ms` ago is over.
+pub fn window_over(elapsed_ms: u32) -> bool {
+    return elapsed_ms >= SAMPLE_WINDOW_MS;
+}
+
+/// Whether the call or message numbered `n_in_window` (from 0) is recorded. Once false, false for
+/// every later n in the same window, so a host may stop asking until the window turns.
+pub fn kept(n_in_window: u32, per_window: u32) -> bool {
+    return n_in_window < per_window;
+}
+
+/// How a recorded turn ended.
+pub const END_OK : u8 = 0;
+pub const END_CRASH : u8 = 1;
+pub const END_KILL : u8 = 2;
+/// The most recent sampled message records kept, and their fields. No record holds what the message
+/// said: recon's rule, a mailbox's contents are not telemetry.
+pub const MSG_RING : u32 = 256;
+pub const MSG_FIELDS : [5]str = ["kind", "wait_ms", "turn_ms", "end", "at"];
+/// The most recent threshold events kept, and their fields.
+pub const EVENT_RING : u32 = 128;
+pub const EVENT_FIELDS : [4]str = ["event", "kind", "value", "at"];
+
+; --- 8. Top N: the deepest mailboxes, as recon's proc_window ----------------------------------------
+
+/// The endpoint lists at most TOP_N actors, deepest mailbox first; at equal depth the older slot
+/// first, so two reads of an unchanged system list the same actors in the same order. An empty
+/// mailbox is never listed. Pid, kind, depth and turn age only, never a message.
+pub const TOP_N : u32 = 10;
+
+pub fn ranked(depth: u32) -> bool {
+    return depth > 0;
+}
+
+pub fn deeper_first(depth_a: u32, slot_a: u32, depth_b: u32, slot_b: u32) -> bool {
+    if (depth_a != depth_b) { return depth_a > depth_b; }
+    return slot_a < slot_b;
+}
+
+; --- 9. The decision log, and its replay ------------------------------------------------------------
+
+/// Every decision in the runtime is a call into a compiled card (actors.t27, reviewer.t27, this file).
+/// A record of the call is enough to check it later: run the same card on the same arguments and
+/// compare. A record holds the card file, the function, its arguments, its result, the actor kind
+/// whose turn made the call (NO_KIND outside any turn), the time in milliseconds since the Unix epoch
+/// (UTC, never a local zone: the sources of 2026-10-08 mixed UTC and +07:00), and n, the call's number
+/// among that function's calls in its window, which `kept` must accept. The log is a ring of DLOG_RING
+/// records: the newest overwrite the oldest, so memory is bounded and nothing waits for a reader.
+/// It holds at least 16 s of every function at its sampled rate (DLOG_RING / DLOG_PER_FN_PER_WINDOW
+/// = 256 function-windows), and hours of the reviewer's production traffic.
+pub const DLOG_RING : u32 = 4096;
+pub const DLOG_FIELDS : [7]str = ["card", "fn", "args", "result", "kind", "at", "n"];
+
+/// A replay runs every record's function on the pinned card with the record's arguments, as Temporal
+/// replays a history through runReplayHistory. It passes only when it replayed at least one record,
+/// every function exists on the card, every result is identical, and every record is one the
+/// sampling rule keeps. An empty replay is not a pass, as a test with no runtime assert is vacuous.
+/// The first failing cause in that order names the verdict.
+pub const RV_PASS : u8 = 0;
+pub const RV_EMPTY : u8 = 1;
+pub const RV_UNKNOWN_FN : u8 = 2;
+pub const RV_MISMATCH : u8 = 3;
+pub const RV_UNSAMPLED : u8 = 4;
+
+pub fn replay_verdict(records: u32, unknown_fns: u32, mismatches: u32, unsampled: u32) -> u8 {
+    if (records == 0) { return RV_EMPTY; }
+    if (unknown_fns > 0) { return RV_UNKNOWN_FN; }
+    if (mismatches > 0) { return RV_MISMATCH; }
+    if (unsampled > 0) { return RV_UNSAMPLED; }
+    return RV_PASS;
+}
+
+; --- 10. The summary line ---------------------------------------------------------------------------
+
+/// One line in the server log ("Queen actors measured") every SUMMARY_EVERY_SECONDS, with each kind's
+/// turns, busy share, turn-time p50 and p95, deepest mailbox, dead letters, kills and restarts since
+/// the last line, so production numbers are read from the host's logs without a query. It is due at
+/// the first turn that starts after the period, so it never wakes the runtime: an actor system with no
+/// turns writes nothing, and the reviewer's own heartbeat turns every 10 s.
+pub const SUMMARY_EVERY_SECONDS : u32 = 300;
+
+pub fn summary_due(seconds_since_last: u32) -> bool {
+    return seconds_since_last >= SUMMARY_EVERY_SECONDS;
+}
+
+/// Telemetry reads; it never schedules a turn, a timer or a send.
+pub const TELEMETRY_SCHEDULES : bool = false;
+
+; --- Tests ------------------------------------------------------------------------------------------
+
+test one_rise_raises_one_event_and_one_fall_clears_it {
+    // MAILBOX_CAP 256: a mailbox filled to the cap and drained to empty, one letter at a time
+    var on : bool = false;
+    var raised : u32 = 0;
+    var cleared : u32 = 0;
+    var raised_at : u32 = 0;
+    var cleared_at : u32 = 0;
+    var d : u32 = 0;
+    while (d <= 256) {
+        let e : u8 = depth_event(on, d, 256);
+        if (e == EV_DEPTH_HIGH) { raised = raised + 1; raised_at = d; }
+        if (e == EV_DEPTH_OK) { cleared = cleared + 1; }
+        on = depth_alarm(on, d, 256);
+        d = d + 1;
+    }
+    assert raised == 1;
+    assert raised_at == 192;
+    assert cleared == 0;
+    assert on == true;
+    var u : u32 = 256;
+    while (u > 0) {
+        u = u - 1;
+        let e2 : u8 = depth_event(on, u, 256);
+        if (e2 == EV_DEPTH_HIGH) { raised = raised + 1; }
+        if (e2 == EV_DEPTH_OK) { cleared = cleared + 1; cleared_at = u; }
+        on = depth_alarm(on, u, 256);
+    }
+    assert raised == 1;
+    assert cleared == 1;
+    assert cleared_at == 64;
+    assert on == false;
+}
+
+test a_depth_that_swings_between_the_thresholds_raises_nothing {
+    // off, swinging 65..191 a hundred times: no event
+    var on : bool = false;
+    var events : u32 = 0;
+    var round : u32 = 0;
+    while (round < 100) {
+        var d : u32 = 65;
+        while (d < 192) {
+            if (depth_event(on, d, 256) != EV_NONE) { events = events + 1; }
+            on = depth_alarm(on, d, 256);
+            d = d + 7;
+        }
+        round = round + 1;
+    }
+    assert events == 0;
+    assert on == false;
+    // on, swinging over the same band: still none, and it stays on
+    on = true;
+    round = 0;
+    while (round < 100) {
+        var d2 : u32 = 191;
+        while (d2 > 64) {
+            if (depth_event(on, d2, 256) != EV_NONE) { events = events + 1; }
+            on = depth_alarm(on, d2, 256);
+            d2 = d2 - 7;
+        }
+        round = round + 1;
+    }
+    assert events == 0;
+    assert on == true;
+    // flapping across the raise threshold itself: one event, not one per crossing
+    on = false;
+    var flaps : u32 = 0;
+    while (flaps < 50) {
+        if (depth_event(on, 192, 256) != EV_NONE) { events = events + 1; }
+        on = depth_alarm(on, 192, 256);
+        if (depth_event(on, 191, 256) != EV_NONE) { events = events + 1; }
+        on = depth_alarm(on, 191, 256);
+        flaps = flaps + 1;
+    }
+    assert events == 1;
+}
+
+test a_falling_depth_never_raises_and_a_rising_one_never_clears {
+    // the runtime reads a depth after every send and, while the alarm is on, after every take: a take
+    // only lowers the depth, so an off alarm read there could never come on (it skips that read)
+    var d : u32 = 256;
+    var raises_falling : u32 = 0;
+    var clears_rising : u32 = 0;
+    while (d > 0) {
+        if (depth_alarm(false, d - 1, 256) and depth_alarm(false, d, 256) == false) {
+            raises_falling = raises_falling + 1;
+        }
+        if (depth_alarm(true, d, 256) == false and depth_alarm(true, d - 1, 256)) {
+            clears_rising = clears_rising + 1;
+        }
+        d = d - 1;
+    }
+    assert raises_falling == 0;
+    assert clears_rising == 0;
+    // the same at a cap of 1 and of 3, where the thresholds round
+    assert depth_alarm(false, 0, 1) == false and depth_alarm(false, 1, 1) == true;
+    assert depth_alarm(true, 0, 3) == false and depth_alarm(true, 1, 3) == true;
+}
+
+test the_depth_thresholds_follow_the_cap {
+    assert depth_on_at(256) == 192;
+    assert depth_off_at(256) == 64;
+    assert depth_on_at(256) < 256;
+    // a cap of 0 or 1 never raises on an empty mailbox
+    assert depth_on_at(0) == 1;
+    assert depth_on_at(1) == 1;
+    assert depth_alarm(false, 0, 0) == false;
+    assert depth_alarm(false, 0, 1) == false;
+    // no u32 overflow at the top
+    assert depth_on_at(4294967295) == 3221225471;
+    assert depth_off_at(4294967295) == 1073741823;
+    assert percent_of(4294967295, 100) == 4294967295;
+    // the thresholds themselves
+    assert depth_alarm(false, 191, 256) == false;
+    assert depth_alarm(false, 192, 256) == true;
+    assert depth_alarm(true, 65, 256) == true;
+    assert depth_alarm(true, 64, 256) == false;
+}
+
+test a_turn_or_a_wait_is_long_at_half_its_bound {
+    // the reviewer's 300 s
+    assert long_at_ms(300) == 150000;
+    assert turn_event(149999, 300) == EV_NONE;
+    assert turn_event(150000, 300) == EV_TURN_LONG;
+    assert turn_event(300000, 300) == EV_TURN_LONG;
+    assert wait_event(149999, 300) == EV_NONE;
+    assert wait_event(150000, 300) == EV_WAIT_LONG;
+    // the measured reviews of 2026-10-08 are not long: sendBack p95 77 s, escalate p95 99 s
+    assert turn_event(77000, 300) == EV_NONE;
+    assert turn_event(99000, 300) == EV_NONE;
+    // the hour every other actor runs under
+    assert long_at_ms(3600) == 1800000;
+    assert turn_event(1799999, 3600) == EV_NONE;
+    assert turn_event(1800000, 3600) == EV_TURN_LONG;
+    // no bound, nothing is long; no overflow at the top
+    assert turn_event(4294967295, 0) == EV_NONE;
+    assert wait_event(4294967295, 0) == EV_NONE;
+    assert long_at_ms(4294967295) == 2147483647500;
+    assert turn_event(4294967295, 4294967295) == EV_NONE;
+    assert turn_event(0, 1) == EV_NONE;
+    assert turn_event(500, 1) == EV_TURN_LONG;
+}
+
+test a_turn_is_long_exactly_from_its_threshold {
+    // the runtime asks turn_event only from long_at_ms on: below it the answer never changes
+    var i : u32 = 0;
+    while (i < 5) {
+        var bound : u32 = 1;
+        if (i == 1) { bound = 7; }
+        if (i == 2) { bound = 60; }
+        if (i == 3) { bound = 300; }
+        if (i == 4) { bound = 3600; }
+        let at : u32 = long_at_ms(bound) as u32;
+        assert turn_event(at, bound) == EV_TURN_LONG;
+        assert turn_event(at - 1, bound) == EV_NONE;
+        assert turn_event(0, bound) == EV_NONE;
+        assert turn_event(at / 2, bound) == EV_NONE;
+        assert turn_event(at + 1, bound) == EV_TURN_LONG;
+        assert wait_event(at, bound) == EV_WAIT_LONG;
+        assert wait_event(at - 1, bound) == EV_NONE;
+        i = i + 1;
+    }
+    // and below depth_on_at an off alarm never raises, at the cap of today and at the extremes
+    var d : u32 = 0;
+    var early : u32 = 0;
+    while (d < depth_on_at(256)) {
+        if (depth_event(false, d, 256) != EV_NONE) { early = early + 1; }
+        d = d + 1;
+    }
+    assert early == 0;
+    assert depth_event(false, depth_on_at(256), 256) == EV_DEPTH_HIGH;
+}
+
+test a_storm_is_one_restart_from_giving_up_and_ends_with_an_empty_period {
+    // DOMAIN_MAX_RESTARTS 3: restarts 1, 2, 3 in the period, then the period empties
+    var on : bool = false;
+    var storms : u32 = 0;
+    var overs : u32 = 0;
+    var r : u32 = 0;
+    while (r <= 3) {
+        let e : u8 = storm_event(on, r, 3);
+        if (e == EV_STORM) { storms = storms + 1; assert r == 3; }
+        if (e == EV_STORM_OVER) { overs = overs + 1; }
+        on = storm_alarm(on, r, 3);
+        r = r + 1;
+    }
+    assert storms == 1;
+    assert on == true;
+    // old restarts leave the period one by one: the storm holds until none is left
+    assert storm_event(on, 2, 3) == EV_NONE;
+    assert storm_alarm(on, 1, 3) == true;
+    assert storm_event(on, 0, 3) == EV_STORM_OVER;
+    // a restart that keeps the count at 3 while an old one leaves: still one storm
+    assert storm_event(true, 3, 3) == EV_NONE;
+    // ROOT_MAX_RESTARTS 2: the second; a supervisor allowed none storms at its first
+    assert storm_at(2) == 2;
+    assert storm_alarm(false, 1, 2) == false;
+    assert storm_alarm(false, 2, 2) == true;
+    assert storm_at(0) == 1;
+    assert storm_alarm(false, 1, 0) == true;
+    assert storm_alarm(false, 0, 0) == false;
+    assert overs == 0;
+}
+
+test buckets_double_and_every_turn_has_its_own {
+    assert bucket_of(0) == 0;
+    assert bucket_of(1) == 1;
+    assert bucket_of(2) == 2;
+    assert bucket_of(3) == 2;
+    assert bucket_of(4) == 3;
+    assert bucket_of(1023) == 10;
+    assert bucket_of(1024) == 11;
+    // the reviewer's half bound and whole bound, and the hour
+    assert bucket_of(150000) == 18;
+    assert bucket_of(300000) == 19;
+    assert bucket_of(3600000) == 22;
+    assert bucket_of(4294967295) == HIST_BUCKETS - 1;
+    assert bucket_floor_ms(0) == 0;
+    assert bucket_floor_ms(1) == 1;
+    assert bucket_floor_ms(11) == 1024;
+    assert bucket_floor_ms(HIST_BUCKETS - 1) == 4194304;
+    assert bucket_floor_ms(4294967295) == 4194304;
+    // each bucket's floor lands in it, and the ms just under the next floor too
+    var k : u32 = 1;
+    while (k < HIST_BUCKETS - 1) {
+        assert bucket_of(bucket_floor_ms(k)) == k;
+        assert bucket_of(bucket_floor_ms(k + 1) - 1) == k;
+        k = k + 1;
+    }
+}
+
+test a_percentile_is_a_rank_rounded_up {
+    assert rank_of(0, 95) == 0;
+    assert rank_of(1, 95) == 1;
+    assert rank_of(1, 0) == 1;
+    assert rank_of(100, 95) == 95;
+    assert rank_of(100, 50) == 50;
+    assert rank_of(20, 95) == 19;
+    assert rank_of(21, 95) == 20;
+    assert rank_of(21, 50) == 11;
+    assert rank_of(7, 200) == 7;
+    assert rank_of(4294967295, 100) == 4294967295;
+    assert rank_of(4294967295, 95) == 4080218931;
+}
+
+test the_busy_share_reads_the_reading_of_2026_10_08 {
+    // 584 of 2520 worker-seconds: four workers for 630 s
+    assert busy_permille(584000, 4, 630000) == 231;
+    assert busy_permille(0, 4, 630000) == 0;
+    assert busy_permille(2520000, 4, 630000) == 1000;
+    assert busy_permille(4294967295, 1, 1) == 1000;
+    assert busy_permille(1000, 0, 630000) == 0;
+    assert busy_permille(1000, 4, 0) == 0;
+    // 4 slots of 300 s each reviewing all hour: 48 rows, every slot busy
+    assert busy_permille(48 * 300 * 1000, 4, 3600000) == 1000;
+    // 11 rows an hour at the measured 49 s median: under 4 per cent
+    assert busy_permille(11 * 49 * 1000, 4, 3600000) == 37;
+}
+
+test sampling_keeps_all_below_the_rate_and_a_bound_above_it {
+    assert window_over(0) == false;
+    assert window_over(999) == false;
+    assert window_over(1000) == true;
+    assert kept(0, DLOG_PER_FN_PER_WINDOW) == true;
+    assert kept(15, DLOG_PER_FN_PER_WINDOW) == true;
+    assert kept(16, DLOG_PER_FN_PER_WINDOW) == false;
+    assert kept(0, 0) == false;
+    // a flood of 100 000 calls in one window keeps exactly the bound, and once a call is dropped
+    // no later one in the window is kept
+    var n : u32 = 0;
+    var keep : u32 = 0;
+    var closed : bool = false;
+    while (n < 100000) {
+        if (kept(n, DLOG_PER_FN_PER_WINDOW)) {
+            keep = keep + 1;
+            assert closed == false;
+        } else {
+            closed = true;
+        }
+        n = n + 1;
+    }
+    assert keep == DLOG_PER_FN_PER_WINDOW;
+    // the reviewer's busiest hour, about one message every 3 s: every one of them carries a record
+    assert kept(0, MSG_SAMPLES_PER_WINDOW) == true;
+    var m : u32 = 0;
+    var msgs : u32 = 0;
+    while (m < MSG_SAMPLES_PER_WINDOW + 5) {
+        if (kept(m, MSG_SAMPLES_PER_WINDOW)) { msgs = msgs + 1; }
+        m = m + 1;
+    }
+    assert msgs == 8;
+}
+
+test the_deepest_mailboxes_come_first_and_ties_keep_their_order {
+    assert ranked(0) == false;
+    assert ranked(1) == true;
+    assert deeper_first(5, 9, 3, 1) == true;
+    assert deeper_first(3, 1, 5, 9) == false;
+    assert deeper_first(4, 2, 4, 7) == true;
+    assert deeper_first(4, 7, 4, 2) == false;
+    // strict: an actor is never before itself, so a sort stays stable
+    assert deeper_first(4, 7, 4, 7) == false;
+    assert deeper_first(256, 4294967295, 255, 0) == true;
+}
+
+test a_replay_passes_only_when_every_record_replays {
+    assert replay_verdict(0, 0, 0, 0) == RV_EMPTY;
+    assert replay_verdict(1, 0, 0, 0) == RV_PASS;
+    assert replay_verdict(4096, 0, 0, 0) == RV_PASS;
+    assert replay_verdict(4096, 1, 0, 0) == RV_UNKNOWN_FN;
+    assert replay_verdict(4096, 0, 1, 0) == RV_MISMATCH;
+    assert replay_verdict(4096, 0, 0, 1) == RV_UNSAMPLED;
+    // the first cause names the verdict
+    assert replay_verdict(4096, 1, 1, 1) == RV_UNKNOWN_FN;
+    assert replay_verdict(4096, 0, 1, 1) == RV_MISMATCH;
+    // an empty replay is empty whatever else it says
+    assert replay_verdict(0, 1, 1, 1) == RV_EMPTY;
+}
+
+test the_summary_is_due_after_its_period {
+    assert summary_due(0) == false;
+    assert summary_due(299) == false;
+    assert summary_due(300) == true;
+    assert summary_due(4294967295) == true;
+}
+
+invariant the_thresholds_leave_a_gap_and_come_before_a_loss {
+    assert DEPTH_OFF_PERCENT < DEPTH_ON_PERCENT;
+    assert DEPTH_ON_PERCENT < 100;
+    assert LONG_PERCENT > 0 and LONG_PERCENT < 100;
+    // with MAILBOX_CAP 256 the alarm raises below the cap, where deliver still queues
+    assert depth_on_at(256) < 256 and depth_off_at(256) > 0;
+}
+
+invariant the_records_are_bounded_and_every_turn_fits_a_bucket {
+    assert MSG_SAMPLES_PER_WINDOW >= 1 and DLOG_PER_FN_PER_WINDOW >= 1;
+    assert DLOG_RING >= 256 * DLOG_PER_FN_PER_WINDOW;
+    assert MSG_RING >= MSG_SAMPLES_PER_WINDOW and EVENT_RING >= EVENT_KINDS;
+    // the last bucket's floor is above an hour (actors.t27 TURN_MAX_SECONDS 3600)
+    assert bucket_floor_ms(HIST_BUCKETS - 1) > 3600 * 1000;
+    assert SAMPLE_WINDOW_MS < SUMMARY_EVERY_SECONDS * 1000;
+    assert TOP_N >= 1;
+    assert TELEMETRY_SCHEDULES == false;
+    assert EV_STORM_OVER + 1 == EVENT_KINDS;
+}

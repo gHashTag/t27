@@ -1,13 +1,29 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+6dee30ce9",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/verified/die_binding.t27",
+      "spec_hash": "sha256:5bc5c583cde121ae64a03b975aacce29dafcff2206cef394a3dc76a464846f9c"
+    },
+    {
+      "spec": "specs/verified/run_record.t27",
+      "spec_hash": "sha256:7050d8c80907319db650cd6a910412e73962d6780effd4722ecf0822f8a56079"
+    },
+    {
+      "spec": "specs/verified/signed_receipt.t27",
+      "spec_hash": "sha256:20728477c97dc10f66c47391e1418aff63769660c180b3912765a86f322fdb61"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:193a20d48cae081be8fc188f09271b90e55594288294b8f608a0710753e96060",
   "gen_hash_rust": "sha256:e39f35400a7d0794e366d86c25b237050cb74faabbf08743bbf42bb5fc929f91",
   "gen_hash_verilog": "sha256:779fc3ec605691c3800814d292eb719d3261241e20a2fee3b75f980f331173cb",
   "gen_hash_zig": "sha256:0b294d33a4e319d258340475fccfdf756aadd4f619ac7f593169c54791d5577d",
   "module": "VerifiedIndependence",
   "ring": 12,
-  "sealed_at": "2026-10-07T12:32:32Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:00:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4759b1048736e47e8fce6fbf054cd44d5222d1f317d63d17a02f206c33a67bf5",
   "spec_path": "specs/verified/independence.t27",
   "tests": {
@@ -16,5 +32,9 @@
     "forced": false,
     "passed": 11,
     "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

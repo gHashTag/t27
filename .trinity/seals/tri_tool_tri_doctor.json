@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:8b1cb524dceeeb0245aab63565cdb770e218345678878efcf1cf453aeb264ce7",
   "gen_hash_rust": "sha256:5d0dd59fae063ef7bc047de1d50f9fd02a0513b483b47bd61eee4e0c70186f75",
   "gen_hash_verilog": "sha256:24d769a9a697ba98501d00654f8f62383dc76297f29db2269defb8dbe832ed28",
   "gen_hash_zig": "sha256:452ff45f6bc32e749550ce1ceb7d67601a9cc8439e784751a811f87222a35493",
   "module": "tool_tri_doctor",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:11:39Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:91601d599d59b34b4d23c700b00977073ec3eba085929fa0ae05400955401b74",
   "spec_path": "specs/tools/tri/doctor.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

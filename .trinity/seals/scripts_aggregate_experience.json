@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:be202f8e93cf7246967d0b690a59b65ada000779f8ba44a092d84dc6b7818b5b",
   "gen_hash_rust": "sha256:ff9a14eccb82a65b6b762d5323d2665c2bef285ef227f733e69a5e934a1ed378",
   "gen_hash_verilog": "sha256:dd4bbe063a5278d6f832586030d034d1d810968c26a1df51574e01122fdb730d",
   "gen_hash_zig": "sha256:8737b2015fa984beea11e15b5e15a4de7e9c44b0768d0a8e1f73e7f7f53d7fb9",
   "module": "aggregate_experience",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:58Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:50:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:50540201a8b37ca396e9f2eb429c9f2d297b368372f63e57b9d69107525ee0ba",
   "spec_path": "specs/port/scripts/aggregate-experience.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
