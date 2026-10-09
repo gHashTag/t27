@@ -105,12 +105,12 @@ module Power_Testbench {
     invariant max_power_positive : MAX_POWER_MW > 0;
     invariant leakage_percent_valid : LEAKAGE_PERCENT >= 0 && LEAKAGE_PERCENT <= 100;
 
-    bench bench_power_analysis {
-        reset();
-        var i : u32 = 0;
-        while i < 100 {
-            estimate_power(i, 10, 1000, 50);
-            i = i + 1;
-        }
+bench bench_power_analysis {
+    reset();
+    var i : u32 = 0;
+    while i < 100 {
+        _ = estimate_power(i, 10, 1000, 50);
+        i = i + 1;
     }
+}
 }
