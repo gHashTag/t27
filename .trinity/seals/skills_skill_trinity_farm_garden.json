@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3d00a1b4d146bc53b0b22ade379569cd183018553279af555586dbd425dea416",
+  "gen_hash_rust": "sha256:4417b6887cc2b9b2f8fbd37a6dc5f08338cfaa99950dc109b67c5821fe42dd71",
+  "gen_hash_verilog": "sha256:83ef0a1acb3fed9806d027c6bd751d86807c57d45af81f1255353d33a2728324",
+  "gen_hash_zig": "sha256:2e481929976f01d611646137453e74499394376db72ba88a37646ab9e5155a26",
+  "module": "skill_trinity_farm_garden",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:13e02e452a46857eea28405fe6edcdf0c66f8f6fcea4dd4b53185088e0e2cdad",
+  "spec_path": "specs/skills/trinity-farm-garden.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

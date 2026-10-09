@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:cd65a985c245427384d4622f7af84e6d449de2026c86f5bf95567df8537e4ac8",
+  "gen_hash_rust": "sha256:1b39991f4dbd9ee55af8fffdbdb218d53d69d02244db7a6620caf5272c8703c7",
+  "gen_hash_verilog": "sha256:2ec8fc7f63dd5ca6c08fe726322dd451991731e2dcce40d996c93be0c2952460",
+  "gen_hash_zig": "sha256:ac019e10a1b021f4027b2bccb77f82f75bbac4cfed641256148c53d2f29b88db",
+  "module": "port::bootstrap::src::compiler::hir_gf16_fft_config_fft_stages",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c0f5cd86ada973f485c688c54dd5ca43536bb497a281964dc6debd5fdff5ed8e",
+  "spec_path": "specs/port/bootstrap/src/compiler/HirGf16FftConfig_fft_stages.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

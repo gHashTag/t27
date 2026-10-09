@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6819ae103e49f40bcb880aadecece862acae98e6852b3baae0eeea0525029a1e",
+  "gen_hash_rust": "sha256:302a5eb1dc1b259e5bbc723d0eab1f6bbcffc5f929046ad9077d94f8fea44247",
+  "gen_hash_verilog": "sha256:8d44b9f00c53c9d8dc03f08d287feb850cda41f25f9ef9e6e935f95f18b25fa4",
+  "gen_hash_zig": "sha256:9e56e7293e8c94f2588b49962d35e9a7f2002ab9e2254abb5ea5d8dd2829c8a4",
+  "module": "port::trios::git::stash",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:9ce9b8431156b3f356622786b7c8c213163a2eba3a1ead3ef934232132e81cbd",
+  "spec_path": "specs/port/trios/crates/trios-git/src/stash.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -23,6 +23,9 @@
 ;   Refused: any number of operands but one, a result type that is not an integer, and an operand that is
 ;   not an integer (a float, a bool, a comptime_float, an aggregate). `@intCast` with no result type never
 ;   reaches this plan: Zig refuses it, and t27b keeps refusing it as an `ExprCall(@intCast)`.
+;   An index `a[i]` and each bound of a slice `a[i..j]` give their operand Zig's result type `usize` (#7902,
+;   specs/numeric/ocp_mx.t27): `a[@intCast(k)]` converts k as `@as(usize, @intCast(k))` would, by `plan`
+;   with INDEX_TYPE as the result type, and the index is then bounds-checked as any index is.
 ; --
 ; The oracle is the hand-written Rust of draft PR #7417 (branch claude/t27b-lane4-intcast, b8d6cc24d): its
 ; `int_cast` passed specs/tri/t27b/conformance/int_cast.t27 and the t27b lab corpus. Its branches are the
@@ -58,6 +61,12 @@ pub const TRUNCATE : u8 = 10;
 /// The construct every refusal names, and the word a checked Cast's trap site starts with.
 pub const WHAT : str = "ExprCall(@intCast)";
 pub const SITE : str = "@intCast";
+
+/// The result type an index or a slice bound gives `@intCast` (`POW2[@intCast(e - 1)]`): Zig's `usize`, which
+/// is 64 bits and unsigned on every target t27b runs on.
+pub const INDEX_TYPE : str = "usize";
+pub const INDEX_BITS : u32 = 64;
+pub const INDEX_SIGNED : bool = false;
 
 /// Can the call be lowered at all: one operand, an integer result type? The operand count is asked first.
 pub fn shape(operands: usize, result_is_int: bool) -> u8 {
@@ -251,6 +260,24 @@ test only_check_and_truncate_build_a_cast_and_only_check_traps {
     assert !refuses(GO);
     assert !refuses(FOLD);
     assert !refuses(TRUNCATE);
+}
+
+// ocp_mx.t27's indexes: an i64 or an i32 is checked and a negative one traps; a u8 or a u32 widens; a usize
+// is kept; a constant folds when it fits; a literal that does not fit (a negative one) is refused.
+test an_index_converts_its_cast_to_a_usize {
+    assert std.mem.eql(u8, INDEX_TYPE, "usize");
+    assert shape(1, true) == GO;
+    assert plan(K_INT, 64, true, INDEX_BITS, INDEX_SIGNED, false, false, false) == CHECK;
+    assert plan(K_INT, 32, true, INDEX_BITS, INDEX_SIGNED, false, false, false) == CHECK;
+    assert traps(plan(K_INT, 64, true, INDEX_BITS, INDEX_SIGNED, false, false, false));
+    assert plan(K_INT, 8, false, INDEX_BITS, INDEX_SIGNED, false, false, false) == WIDEN;
+    assert plan(K_INT, 32, false, INDEX_BITS, INDEX_SIGNED, false, false, false) == WIDEN;
+    assert plan(K_INT, 64, false, INDEX_BITS, INDEX_SIGNED, false, false, false) == KEEP;
+    assert plan(K_INT, 64, true, INDEX_BITS, INDEX_SIGNED, true, true, false) == FOLD;
+    assert plan(K_INT, 64, true, INDEX_BITS, INDEX_SIGNED, true, false, false) == CHECK;
+    assert plan(K_CT, INDEX_BITS, INDEX_SIGNED, INDEX_BITS, INDEX_SIGNED, true, true, false) == FOLD;
+    assert plan(K_CT, INDEX_BITS, INDEX_SIGNED, INDEX_BITS, INDEX_SIGNED, true, false, false) == REFUSE_LITERAL;
+    assert plan(K_INT, 64, true, INDEX_BITS, INDEX_SIGNED, false, false, true) == TRUNCATE;
 }
 
 test the_refusals_name_the_call_and_say_why {

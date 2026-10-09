@@ -5672,7 +5672,7 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
         let tools = ["test_runner", "zig"].map(|k| (g(&format!("/toolchain/{k}")), t(k)));
         let tool = si::toolchain_part(out.iter().all(|o| o.is_some()), cur.map_or(false, |c| out.iter().zip(c.iter()).all(|(o, c)| o.as_deref() == Some(c.as_str()))), tools.iter().all(|(r, _)| r.is_some()), tools.iter().all(|(r, c)| r == c));
         let config = si::recorded_part(g("/config").is_some(), g("/config").as_deref() == Some(si::SEAL_CONFIG));
-        let tests = seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0) && seal.pointer("/tests/forced").and_then(|v| v.as_bool()) != Some(true);
+        let tests = si::checks_pass(seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0), seal.pointer("/tests/forced").and_then(|v| v.as_bool()) == Some(true), seal.pointer("/tests/total").and_then(|v| v.as_u64()).unwrap_or(0) as u32, src.lines().filter(|l| l.trim_start().starts_with("invariant ")).count() as u32);
         let d = si::node_decision(spec, rebuilt, missing, tool, config, tests, false, si::HW_UNPROVEN);
         memo.insert(p.to_string(), d);
         Some(d)

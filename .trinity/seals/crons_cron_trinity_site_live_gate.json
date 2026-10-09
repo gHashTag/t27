@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e5c9c561b08b6d5e3a01b891ffc3b6e8602c8b2992da528fb607efb111202bc0",
+  "gen_hash_rust": "sha256:ef374ce42b1aa321d334864f4e48188b681fbfd0c767f17d6ed5db7e3a004db0",
+  "gen_hash_verilog": "sha256:c3a1f50df5c2650779003fe80de0f5d90ed6972b7be637986ee9f64843da15d8",
+  "gen_hash_zig": "sha256:2617964828507ec4fd7a053be0ad35706ab126708b34e060b0e742d6c4c63b06",
+  "module": "cron_trinity_site_live_gate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:38:37Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:9bb8cd89a547dcaa16c05efaaf44955af6386cae3fc561ec0685ec0235513909",
+  "spec_path": "specs/crons/trinity-site-live-gate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

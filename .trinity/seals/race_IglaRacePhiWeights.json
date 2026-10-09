@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:b45c5fcb9b1d135046fdabc16362114856c13385b914328b68a9efff89d3aa6e",
   "gen_hash_rust": "sha256:e07dd42dbddabb4fd3d1ea10d5d45118495274e0c0c6d1bd8b9a0c82a47938df",
   "gen_hash_verilog": "sha256:ab1efda142ee9f9f39fff0e0952f95afe2ba0c649b1b5dea8d1afcf31bbf9932",
   "gen_hash_zig": "sha256:9cd8314c6c03a102df48bb936c8159c630cc2abcf797a0746d1e42ffebd1f800",
   "module": "IglaRacePhiWeights",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:48Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:08:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ba9ef1c2084a71ad72f7b8c536de5669835bf957c4aec2bd54bc6b3496c2184c",
-  "spec_path": "specs/igla/race/phi_weights.t27"
+  "spec_path": "specs/igla/race/phi_weights.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 29,
+    "total": 29
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:325ef67ee6b489e79381c5e747e5060b7ffc36a0902f1c9a51ae7f805b73a74e",
   "gen_hash_rust": "sha256:346a01f45f0eac258162f1d81a37e149e123f02b3945d15bf1f5304535c583cd",
   "gen_hash_verilog": "sha256:9c1f84ee3d87a2e6019cd9306e22fd13d8331ab4945022a379a3b0d29c988e9a",
   "gen_hash_zig": "sha256:86ef705e33e0ac97a30dce28d90891491bf4214bb9750bd2d56576051e491104",
   "module": "automation::ball_grants",
   "ring": 12,
-  "sealed_at": "2026-10-01T08:11:25Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f7135c9e3fcaef1e11619c283fc01009c92b8bd7869761239008accd0aab801c",
-  "spec_path": "specs/automation/ball-grants.t27"
+  "spec_path": "specs/automation/ball-grants.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

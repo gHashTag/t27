@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f60c9bc2da97a89dc50661adbe649a0fe4e90ebde83e2c8a1a108e97bc4eae04",
+  "gen_hash_rust": "sha256:b7d404b1202b45932b30364d3ed85cae93b022d5f1b95540970dfecca82afa1d",
+  "gen_hash_verilog": "sha256:d93b2df4c2e26be01460cc65acf42d015bd25220aa032a6283c678cb8d78c5cb",
+  "gen_hash_zig": "sha256:9138b603db3e4252f3119aea8c9bd0448e7fa2bf6fb395fb4966d5734ec632b7",
+  "module": "port::verify_smoking_guns",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:148bf58c1ff9ef27fef80c4e82fea359b5219db27bc27bb2d35f7f645d263be0",
+  "spec_path": "specs/port/scripts/verify_smoking_guns.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

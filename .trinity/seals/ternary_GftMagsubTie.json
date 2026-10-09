@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:748a1c61c4d0f81c2f356cfe685feacd127e655d251bb2089303eb26fd628162",
+  "gen_hash_rust": "sha256:5b3070abb352940518388a2d515ce42d1cf3b9736b4166c4f27aff45075cc29d",
+  "gen_hash_verilog": "sha256:4511372349085ceb73ae35102c5cad8a4e4ffe6a849998a5e26d60184dbacb71",
+  "gen_hash_zig": "sha256:60761f68680a570f6ea45bccf625c7604299210dc1e653c1b4196f6e8b899948",
+  "module": "GftMagsubTie",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:29:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8938c71bac4a19a9e437f7996de78b6b9d9d847dfe77f9d54268386f445c97ef",
+  "spec_path": "specs/ternary/gft_magsub_tie.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

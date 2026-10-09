@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2d539fa2fff139fd18f774545ea4a6f9f5c7eeb8253e6d779c5b98186545f3d1",
+  "gen_hash_rust": "sha256:8d2546de4d8190f114e46cb2b78c765099d4897c9444a869f3ba2cae5f83a469",
+  "gen_hash_verilog": "sha256:03c858c7514c52866705b60b6ba8e04c85278db78c9b433c005090782c1f701d",
+  "gen_hash_zig": "sha256:9f6144ee28e9d4525305121a54a7c1cbec56e6504e016073569ac84bba592852",
+  "module": "port::trios::crates::trios-chat::rings::CR-CHAT-01::src::key_package_expiry_guard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cdcd49873c31dbb80cf372a4e680b413e2ce80ae46f80fd1b034264fff5502ee",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-01/src/key_package_expiry_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

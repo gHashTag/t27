@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f06d95b74307ac4e5b7143afed9e55828f685e27c92fac5ecf9b9f4823022b00",
+  "gen_hash_rust": "sha256:4e0c71943caa67db788a62b685140f347559ba7b542e574d9a7154ed0d62bc6b",
+  "gen_hash_verilog": "sha256:e506ca4a05eb11a44c54721abf43fbe6140f74f1da550a1f67b9f195938a2226",
+  "gen_hash_zig": "sha256:003fcccf0ffe71ff902fd8a946c918a412452f34ca7383f801aead4e456dfa95",
+  "module": "CardChatNightWatch",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5271bf813fbdc58e81e8aff115e75340fc6333d9dfa494ad10f7256ec1baeb68",
+  "spec_path": "specs/automation/card-chat-night-watch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 17,
+    "total": 17
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

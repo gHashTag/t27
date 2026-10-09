@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e55cf73ac2c300010ff9e34180eed8ef10f6fe600c10a46862e9a1c34f03eeeb",
   "gen_hash_rust": "sha256:2e08c3a85419b19f66f3f40f0ad2fca93ef1477b24d4cb701b62fda00dda28d8",
   "gen_hash_verilog": "sha256:83d45f53e3f4fe913b5bbc549faaf6ef8cb2a16f914f6e2c1d309f96f70fa626",
   "gen_hash_zig": "sha256:d17b32cd59e47a1dafe2b7411fe8afca1cd07b9b8fb58e38980f1c033a722eeb",
   "module": "trinity_capability_queen_lib",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:36:09Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5af910c32750799b0f5bd251befc045a318e743d5a868ef105e4d3058c6dce84",
-  "spec_path": "specs/trinity/capabilities/queen.lib.t27"
+  "spec_path": "specs/trinity/capabilities/queen.lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

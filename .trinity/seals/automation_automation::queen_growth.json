@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9a7ec3fe954698732b88f8d855c1228d997c57b8a9ba4d832d453981bfd957f7",
+  "gen_hash_rust": "sha256:256cc18800d68aa6d275f34bc45ee42e5f5933090aa714c7624558abc97dcea2",
+  "gen_hash_verilog": "sha256:07e13a3d3dee8505acb6032ccd4bd500acdf25de8ec1a72a8e43bdd0f9b9a787",
+  "gen_hash_zig": "sha256:25bc63519fb30bc6d0a1bdb2653f7aa7e8045f4208637b96342509bd53e391fd",
+  "module": "automation::queen_growth",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3438b28ed2adade9cc355f16f9787a6c3126950af4af866fd0c0044bb6bd3cb8",
+  "spec_path": "specs/automation/queen-growth.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

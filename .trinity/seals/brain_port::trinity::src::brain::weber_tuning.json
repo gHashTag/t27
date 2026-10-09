@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6e3d1ec7ca734a55905753b3001b51d102225d3f93d8dc40fb342409f5439cd2",
+  "gen_hash_rust": "sha256:defdd9cbc403c2ee5ffa4aa5efbcf588a27621c7c15d10156fe7c3da0fb14e29",
+  "gen_hash_verilog": "sha256:c28caa3e0a4f717f85c5bb464dcee187faa0cf21525657a589ba86f1f701d37b",
+  "gen_hash_zig": "sha256:e875e14a17d5a5da7098191111f6d016ff86d0c3f558f51d8e5582fd84259f21",
+  "module": "port::trinity::src::brain::weber_tuning",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:ad16a1afd250a935a2572c83dbb5ec2507d07683a7678b2387218c218d59fe4a",
+  "spec_path": "specs/port/trinity/src/brain/weber_tuning.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

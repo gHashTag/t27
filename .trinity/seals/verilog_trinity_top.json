@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:77308c0da6995822e16b4ea5e0af83045073d1f2f76e7f892e50fe976a9c7c5a",
+  "gen_hash_rust": "sha256:cb7f48b52e4c284aee0e180a3213fcaf317124189c30093cb482254fe983808c",
+  "gen_hash_verilog": "sha256:e1296408faf97b6a3f4c2e6530d80f2474ec6efed585a35712bb4fc497ab310c",
+  "gen_hash_zig": "sha256:ca457aa6f2d192254ea977684cdc0ef69c7e85d46f68501d37d501a350f38290",
+  "module": "trinity_top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:02d4c31a531dbe6b536501f50ff9b519425931cefddcb3459311ab39183a35eb",
+  "spec_path": "specs/port/trinity/fpga/fly-vivado/verilog/trinity_qmtech.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

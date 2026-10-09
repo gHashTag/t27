@@ -90,7 +90,7 @@ mod float;
 #[path = "../../../gen/rust/tri/t27b/builtin_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
-mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
+pub(crate) mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type; `widens` serves ir.rs
 #[path = "../../../gen/rust/tri/t27b/ptr_eq_plan.rs"] #[allow(dead_code, unused_parens)]
 mod pe; // t27c gen-rust of specs/tri/t27b/ptr_eq_plan.t27: `==` / `!=` of pointers and optional pointers
 #[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -2271,13 +2271,6 @@ impl<'a> Lower<'a> {
     /// is a `[N]T` built once, here.
     fn tuple_local(&mut self, init: &Node, name: String, t: LTy, out: &mut Vec<Stmt>) -> R<()> {
         self.see(init);
-        if init.children.is_empty() && init.extra_type.trim().is_empty() && init.extra_size.contains(';') {
-            // The reference pastes `v;n` between the braces of `.{ ... }`.
-            return self.reject(
-                "ExprArrayLiteral(repeat)",
-                format!("`{}` = `[{}]` is passed where an array is declared", name, init.extra_size.trim()),
-            );
-        }
         let k = self.new_slot(&t)?;
         let dst = Place { addr: slot_expr(k), off: 0, ty: t, mutable: false, temp: None };
         self.init(init, dst.clone(), true, out)?;
@@ -3780,6 +3773,11 @@ impl<'a> Lower<'a> {
             }
         };
         Ok(Val::E(Expr { ty, kind }))
+    }
+
+    /// An index or a slice bound, whose result type in Zig is `ic::INDEX_TYPE`: an `@intCast` there converts to it.
+    fn usize_operand(&mut self, n: &Node) -> R<Val> {
+        if n.kind == NodeKind::ExprCall && n.name == ic::SITE { self.int_cast(n, Ty::from_name(ic::INDEX_TYPE).unwrap_or(Ty::U64)) } else { self.expr(n) }
     }
 
     /// `n` folded as Zig folds an expression that names a module constant of an integer type wider than 64 bits:
@@ -6552,7 +6550,7 @@ impl<'a> Lower<'a> {
             (op, _) => return self.reject(&format!("ExprIndex({})", op), "unexpected shape".into()),
         }
         let base = self.expr(&n.children[0])?;
-        let idx = self.expr(&n.children[1])?;
+        let idx = self.usize_operand(&n.children[1])?;
         if base.is_poison() || idx.is_poison() {
             return Err(());
         }
@@ -6722,7 +6720,7 @@ impl<'a> Lower<'a> {
             None
         };
         // S1: the start.
-        let i = self.expr(start)?;
+        let i = self.usize_operand(start)?;
         let i = self.coerce(i, Ty::U64)?;
         let ci = if let ExprKind::Const(c) = i.kind { Some(c) } else { None };
         stmts.push(Stmt::Store { addr: slot_expr(scr), off: 0, value: i });
@@ -6734,7 +6732,7 @@ impl<'a> Lower<'a> {
         // S2: the end, checked against the length, becomes the length.
         let mut cj = alen.map(|l| l as i128);
         if let Some(end) = end {
-            let j = self.expr(end)?;
+            let j = self.usize_operand(end)?;
             let j = self.coerce(j, Ty::U64)?;
             cj = if let ExprKind::Const(c) = j.kind { Some(c) } else { None };
             if let (Some(c), Some(l)) = (cj, alen) {

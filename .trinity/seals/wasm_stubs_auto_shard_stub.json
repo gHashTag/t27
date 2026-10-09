@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:8714b782282b301603c86c3bbc23a3d0b04a448725255c37c4f44db2576f904d",
+  "gen_hash_rust": "sha256:f345b1f88dc3132b07d04979391f83ba60fccd6d31b0880ec89d3914545884ab",
+  "gen_hash_verilog": "sha256:022d2c3659306ea706c690c7b39a79646ff7ea63fc2ea12aeb117018d41ac906",
+  "gen_hash_zig": "sha256:bd53476d7bb5bd772be263bae493576257f5330dd6852875528085778666f2d0",
+  "module": "auto_shard_stub",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:62b884306f4f87e4e02692bdae717ae6131d8046c95cbb8d1c3a241a13316451",
+  "spec_path": "specs/port/trinity/src/wasm_stubs/auto_shard_stub.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

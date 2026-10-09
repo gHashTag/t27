@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d29ee042e058d1dc2f936c1a91fae9739988cd9c2f28194f9d728127269ee2b4",
+  "gen_hash_rust": "sha256:1f768cfc2de15c7dd7625e1745599039394ac1927ed7e606cbd78cba1f5ea604",
+  "gen_hash_verilog": "sha256:d3bfccb8f5eeaedbc10b9352130f2ec2d92cb950b5c76e0b50933bdd7b388bd5",
+  "gen_hash_zig": "sha256:2ee0953284dcd06891da681182a9ede6bf5a2d88c641d511df9686cddd49857a",
+  "module": "blinky",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:57c6fe4db72f11525a5564d8cb20219067010dbd92e43f7657c433b067c41346",
+  "spec_path": "specs/port/fpga/vivado/blinky.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

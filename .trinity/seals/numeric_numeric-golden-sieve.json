@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:fcf964291286c111054082b7e5a625e2d685107fc3a45ee3dcd2b1fad5950c81",
   "gen_hash_rust": "sha256:e63e450778db8e759e41cc52ea1ff997a8e26d5a7f487c6b55b50681faee7e0a",
   "gen_hash_verilog": "sha256:6563c06a7048cc510b1b136de6369f2eded89ccdc02592c0f514a8c519945627",
   "gen_hash_zig": "sha256:55076c026c496ac3ff5c8bb54fe765c62c43d74a865c2d17fc4ab0cdb0599b62",
   "module": "numeric-golden-sieve",
   "ring": 12,
-  "sealed_at": "2026-09-05T06:39:52Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:11:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:583b5c7479c239140733752a9ee2df7b82afca6af96e9861af1acd34eac13265",
-  "spec_path": "specs/numeric/golden_sieve.t27"
+  "spec_path": "specs/numeric/golden_sieve.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

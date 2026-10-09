@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:53f7484853720f2029b05c407b7bc44715928475b2807a596a51442086e94978",
+  "gen_hash_rust": "sha256:3298247e551f55556d766c2de7d5c5770972ed6be275a77a4155398c21d12119",
+  "gen_hash_verilog": "sha256:acd3fc1bcf117272fe1e48f78b63aeedb1b923803ae76613060c5b1096a81c7d",
+  "gen_hash_zig": "sha256:6314e690a9f49a761e1c61a75e24d2e9e9f96195c689003094a8983fba9792f8",
+  "module": "a2a-liveness",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e592fc70fc43e754c693d6d4e5167a7c0d3f042ab1b67f8f71f8d91341529fdb",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/a2a/a2a-liveness.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

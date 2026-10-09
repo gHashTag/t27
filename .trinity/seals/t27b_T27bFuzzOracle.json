@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:502b46bb1c4bafbb160e00929ebc82550a1e31ea0b98c3fadc70f6ce3f366b51",
+  "gen_hash_rust": "sha256:b8efe55d420f65a4c2bace632ab1811a6e1c2a724ee4627e341489ab4e29bf78",
+  "gen_hash_verilog": "sha256:5c77d3c6b7acfa61f5c6822572c269c523d48652a75b3d7a0cd7e6e034967ba1",
+  "gen_hash_zig": "sha256:09704bce998d880dae47cc289fbc325a373dfc57c19f1abebd72579934d4c0c4",
+  "module": "T27bFuzzOracle",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:34:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f655b051c11bb3c543eccf4df7eeeb1ff5b5c99e75308cbd0031b34efdcd0047",
+  "spec_path": "specs/tri/t27b/fuzz_oracle.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

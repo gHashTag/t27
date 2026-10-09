@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2a1bfc32fb204605c0adb3eceb11ec3f6bda239152b8b813d24741ebf4532e76",
+  "gen_hash_rust": "sha256:9fab303cedf05b67e5a7337df8884974f480d0d4c581c1a87bfe5f359d5d8556",
+  "gen_hash_verilog": "sha256:6bd549263d08d2a1c2dc763a3a2a1bfc96aa4288d01e3d924278af27411b53c6",
+  "gen_hash_zig": "sha256:05ca90c67faff2c363dda7b83853ac3238f13d43494af8c3dca672e9ad9e801f",
+  "module": "CatalogPaperCount",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:10:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:82cb1c8812aa15b8bc5c025d6e6ee6ef4e8c9925f39a29a99de01f4287b37fa6",
+  "spec_path": "specs/numeric/catalog_paper_count.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

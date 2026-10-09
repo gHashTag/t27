@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:49fa84ad2eb2eeb570fa98b616f4f641cdbdf4ff6fb0acfcfbefd03252761a84",
+  "gen_hash_rust": "sha256:8335acd74d151111e18fbf14611df9b9133a3ec4b7115848bf15ee3d4b93f07f",
+  "gen_hash_verilog": "sha256:6de50ce86ff62b1daaf869e62efd3236d40b4f8447f821aa1153cf46ef5db291",
+  "gen_hash_zig": "sha256:b1c3a1c232c24e3a8d16fb5214b1d30ca6696d387bef90fc3e151774b5bcf66d",
+  "module": "cron_mac_mail_bridge",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:35:09Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:260e0efdef781fae89514bc3e497ff6b506ea4f3935c87d4772b180684fbb068",
+  "spec_path": "specs/crons/mac-mail-bridge.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

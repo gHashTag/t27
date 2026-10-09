@@ -1,11 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/sandbox.session_timeout.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0ec0208d123a1066bd74cb195a3a06df09bc34b1568196900611783efbe262bd",
   "gen_hash_rust": "sha256:a2f6071b7bcc5b0bdc15c2d154820602c341231653533b8e5de19d82c8eb7004",
   "gen_hash_verilog": "sha256:63f4d698f6ea6af38c8831d3c4b30b3edf180f02a12358904ce38f26341e41d4",
   "gen_hash_zig": "sha256:67a46504d980604932ead97bcb340b2ee9349a70ab46a221365da8e26aa3c6eb",
   "module": "sandbox.health",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:49Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1a832446122255af70521cd21a53b319f06a965a4e4524d821d470fa1830ffed",
   "spec_path": "specs/sandbox/health.t27",
   "tests": {
@@ -14,5 +24,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

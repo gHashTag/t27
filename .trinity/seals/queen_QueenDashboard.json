@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:26151d6337793603507b97c8748e46b02a1d7707f40abff62d34a4a6175b9fe8",
+  "gen_hash_rust": "sha256:43c4beac63bc033b5913f2bc6947738aaead57d643b61f74a6e86f71f9799d06",
+  "gen_hash_verilog": "sha256:fa9007ad5b1b3efd3084edebb6b1f6e31453168f6271651c5c052ace5ae51134",
+  "gen_hash_zig": "sha256:1f723366972a24c78dd7a4d5141ed8ce880e54eaf69fe31a799a7e8e7cb944c6",
+  "module": "QueenDashboard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c97cea04ec3c86622f000d83098cdf5ae2d548ac36f10a48123506e6ac0d4e26",
+  "spec_path": "specs/queen/dashboard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

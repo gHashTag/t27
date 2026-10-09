@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a3e57907954110461683a37c3df7966c676f6c8d743eff4b3c99fb0a05c411f4",
+  "gen_hash_rust": "sha256:61c30cf0f9f41f681426159e10fef38a0ba7d0cb8ff2b6f23a28f47495241f73",
+  "gen_hash_verilog": "sha256:2ec528e713544ad246184ea0ef2733177dc8e9bc35ac49dd9ffbdc5c2c6227d6",
+  "gen_hash_zig": "sha256:e63d85e1e78e7ebf9521775acaff6b5d266c85382deb580a6fe32d17d2ee6b5e",
+  "module": "fn_instagram_top_content_extract",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:06:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1765fae47c809049dec1e44a6259c262da4c41ce75fa55507c2f3665debe7635",
+  "spec_path": "specs/functions/instagram-top-content-extract.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

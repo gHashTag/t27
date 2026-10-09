@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
   "closure": [
     {
       "spec": "specs/fpga/partition/Partition.t27",
@@ -14,7 +14,7 @@
   "module": "Partition_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:48:42Z",
+  "sealed_at": "2026-10-09T21:05:12Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2c695318d1b35ff95ab60fe184feb42080b8ac43263869e5f4cd778d01f60e13",
   "spec_path": "specs/fpga/testbench/partition_tb.t27",

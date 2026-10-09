@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d139987498ec5b29c0271ce6de828b8a59a055522351fc1cbb27430b2d348beb",
+  "gen_hash_rust": "sha256:e3444d3bf366f1f2a930b3de47e1f72d162c33bf02f01ddad2958e1bba29c50b",
+  "gen_hash_verilog": "sha256:258f2c33662f87e1929e52e09efac9a13d955e56c78f73ab718038837c92346c",
+  "gen_hash_zig": "sha256:5a6f7636c5d22be6d9568edd7477e9ffb03be4a4b87a3dac4e361a6a165dfd07",
+  "module": "T27bConformanceRepeatAddrUnreached",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e5a68c599a6493a076982dbf31c9f2ba569ae0a1602e77d245b1402045dd5e35",
+  "spec_path": "specs/tri/t27b/conformance/repeat_addr_unreached.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:51248d7ae010d4056f4b37c05a7e227f048c9e38ffd72b648a3f703d843cdd54",
+  "gen_hash_rust": "sha256:10c8a47904793d5d0e2a03fa8bd3f47d0ebba81d67affae123434bac726df32a",
+  "gen_hash_verilog": "sha256:68509fa25380c0a33b3ddb6b30f94428aac744f5f34710bed9f1cdd32f0c1322",
+  "gen_hash_zig": "sha256:8afd4bbd844e0e17e46238661db1fec41cf7f80185d8fcf09a339688b98e3514",
+  "module": "port::tri-pr-create",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:03Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e66d0b3a888eec15b0d7b52200c42dfb51e6ec86580a4f426870b38a3af991db",
+  "spec_path": "specs/port/scripts/tri-pr-create.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

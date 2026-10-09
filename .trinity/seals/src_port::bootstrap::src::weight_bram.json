@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:1f90ed97468e560ee8a83eb40f8128e6612a547584db012db092061b84fab115",
+  "gen_hash_rust": "sha256:abe125febf01fe1015fc85889fbe5d304f262641958475b4e9e5bccf5865d567",
+  "gen_hash_verilog": "sha256:dc36a3c34bc8d4bfcd3cf4ade19622b0a7a84cc5802ab6b839a8f55ad246f4a5",
+  "gen_hash_zig": "sha256:3f088aa9cef83e4c73efe0c834534ee37c4d882656d820561ba114daae0aad45",
+  "module": "port::bootstrap::src::weight_bram",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:19b1db238302d9c19ee260bb3cd3f88a8e2b243dc5949ed559b1a1e856069ae3",
+  "spec_path": "specs/port/bootstrap/src/weight_bram.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

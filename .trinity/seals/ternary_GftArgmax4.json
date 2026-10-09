@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a30fa3fcfe89f92a26709ad14af1eb57c52999e2b5eb7dfc2122a5b058c378a1",
   "gen_hash_rust": "sha256:eaf4a6799b3c4eda2f10ededf8f79a2b710360a0502a07e3e91fb744d85e5bd9",
   "gen_hash_verilog": "sha256:2ab0b61f9b3e8f6696512fac5808e05501e71475a9622f01ca8879844c7015ee",
   "gen_hash_zig": "sha256:5abc3562cef4fab30507811267d8927abb01fb4f9f40676c733e6feb59098009",
   "module": "GftArgmax4",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:29:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:c208991377d1523087aed04969aac10ad910ef317e8bdb67bf5d290d70a4fff8",
-  "spec_path": "specs/ternary/gft_argmax4.t27"
+  "spec_path": "specs/ternary/gft_argmax4.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }
