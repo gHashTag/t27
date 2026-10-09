@@ -40,3 +40,14 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No safe probe has been sent: the 2026-09-09 probe pass predates this registration, which is why the manifest row carries no deployment reading. The live status endpoint answered on 2026-09-22 with 2 runs over seven days and none failed. RETRIES is 0 on purpose: a retry after a partial send would deliver the owner the same report twice. 07:00 UTC is 10:00 in Moscow, which keeps no summer time. A read of the events table that fails is logged and does not become an empty report.";
+
+test test_client_telemetry_daily_constants {
+  assert KIND == "function";
+  assert TRIGGER == "cron";
+  assert CRON == "0 7 * * *";
+  assert TZ == "UTC";
+  assert ON_FAILURE == "admin-telegram";
+  assert GUARD == "safe-mode";
+  assert STEPS[0] == "build-report";
+  assert RETRIES == 0;
+}

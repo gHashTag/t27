@@ -40,3 +40,14 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No safe probe has been sent: the 2026-09-09 probe pass predates this registration, which is why the manifest row carries no deployment reading. The live status endpoint answered on 2026-09-22 with 4 runs over seven days and none failed. SIDE_EFFECTS drops the manifest's db-read, which the catalog vocabulary cannot say, and adds external-webhook for the note the run posts to the render; the table read is stated here instead. GUARD is the isSafeMode early return at the top of the handler, which the manifest recorded as none. Without merchant credentials the run returns did=cannot ask and says nothing about money, because reporting none unclaimed would be inventing reassurance; the invoices older than thirty days are known debt recorded elsewhere and are deliberately not re-alarmed every morning.";
+
+test test_robokassa_unclaimed_watch_constants {
+  assert KIND == "function";
+  assert TRIGGER == "cron";
+  assert CRON == "20 7 * * *";
+  assert TZ == "UTC";
+  assert ON_FAILURE == "admin-telegram";
+  assert GUARD == "safe-mode";
+  assert STEPS[0] == "ask the provider";
+  assert RETRIES == 0;
+}

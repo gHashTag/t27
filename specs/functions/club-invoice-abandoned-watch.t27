@@ -40,3 +40,14 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No safe probe has been sent: the 2026-09-09 probe pass predates this registration, which is why the manifest row carries no deployment reading. The live status endpoint answered on 2026-09-22 with 11 runs over seven days and none failed. SIDE_EFFECTS drops the manifest's db-read, which the catalog vocabulary cannot say; the run reads the invoices it marks. Abandonment is a conclusion, not a report: Telegram tells nobody when a person closes a payment window, so the rule is an invoice older than an hour with no charge after it, and it lives in services/trackEvent.ts where it is tested apart from the schedule. A unique index makes the row land once however often the job runs, and an unreadable table throws so that could not look reaches the failure handler instead of printing as nobody walked away.";
+
+test test_club_invoice_abandoned_watch_constants {
+  assert KIND == "function";
+  assert TRIGGER == "cron";
+  assert CRON == "20 * * * *";
+  assert TZ == "UTC";
+  assert ON_FAILURE == "admin-telegram";
+  assert GUARD == "safe-mode";
+  assert STEPS[0] == "mark";
+  assert RETRIES == 0;
+}
