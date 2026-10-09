@@ -1,0 +1,223 @@
+// Port of gHashTag/trinity src/phi-engine/vibeec_original/bogatyrs_yaml_syntax.zig
+// (VIBEE BOGATYR YAML Syntax Validator).
+//
+// Decision ported from validateYAMLSyntax: split the source into lines, trim
+// " \t\r" from each line, skip blank lines and lines whose first non-blank
+// character is '#', find the first ':' in the trimmed line, take the text
+// before it as the key (trimmed of spaces), and count one error when the
+// key's first character is a digit. After trimming, the key's first character
+// is the line's first non-" \t\r" character, and the key is non-empty exactly
+// when the first ':' is not that character. Verdict: Fail exactly when the
+// error count is above zero; the original stores the error count in
+// BogatyrMetrics.checks_performed.
+//
+// Plumbing left to the caller (world-touching, not decisions): the nanosecond
+// wall-clock timing that fills duration_ns, the allocator.dupe of the
+// always-empty ValidationError list, and the BogatyrPlugin registration
+// record that wires the function into the plugin table. ValidationContext
+// keeps only the field the logic reads: source.
+
+module port::bogatyrs_yaml_syntax;
+
+// The original phi constant test constant. .t27 has no sqrt, so PHI is
+// written out to double precision.
+const PHI: f64 = 1.618033988749895;
+
+// The original reads ctx.source; its other fields (allocator, spec_path,
+// config, ast, symbol_table) are plumbing this decision never touches.
+pub struct ValidationContext {
+    source: str,
+}
+
+// common.BogatyrVerdict, restricted to the two values the validator returns.
+pub enum BogatyrVerdict {
+    Pass,
+    Fail,
+}
+
+// common.BogatyrResult, keeping the fields the decision produces. The
+// original errors list is always empty (allocation plumbing) and duration_ns
+// is wall-clock plumbing; checks_performed carries the error count, exactly
+// as in the original.
+pub struct BogatyrResult {
+    verdict: BogatyrVerdict,
+    checks_performed: usize,
+}
+
+// Is this character in the original trim set " \t\r"?
+fn is_trim_char(c: u8) -> bool {
+    return c == ' ' or c == '\t' or c == '\r';
+}
+
+// Is this character a digit, as the original '0'..'9' range check asks?
+fn is_digit_char(c: u8) -> bool {
+    return c >= '0' and c <= '9';
+}
+
+// The per-line decision of the original loop body, on one line with no '\n':
+// true when the trimmed line has a key before its first ':' whose first
+// character is a digit. Blank lines, comment lines, and lines with an empty
+// key (first ':' at the very start) return false, as in the original.
+pub fn line_has_digit_key(line: []const u8) -> bool {
+    var first_char: u8 = 0;
+    var have_first = false;
+    for (line) |c| {
+        if (!have_first and is_trim_char(c)) {
+            continue;
+        }
+        if (!have_first) {
+            // First character of the trimmed line. A leading ':' means an
+            // empty key and the original skips the line; '#' means a comment.
+            first_char = c;
+            have_first = true;
+            continue;
+        }
+        if (c == ':') {
+            return is_digit_char(first_char);
+        }
+    }
+    return false;
+}
+
+// The whole scan of the original loop: line by line over '\n', one error per
+// line whose key starts with a digit, counted once per line even when the
+// line carries several colons. Line state resets at every '\n'.
+pub fn count_digit_key_errors(source: []const u8) -> usize {
+    var error_count: usize = 0;
+    var first_char: u8 = 0;
+    var have_first = false;
+    var line_decided = false;
+    for (source) |c| {
+        if (c == '\n') {
+            have_first = false;
+            line_decided = false;
+            continue;
+        }
+        if (!have_first and is_trim_char(c)) {
+            continue;
+        }
+        if (!have_first) {
+            first_char = c;
+            have_first = true;
+            continue;
+        }
+        if (!line_decided and c == ':') {
+            if (is_digit_char(first_char)) {
+                error_count += 1;
+            }
+            line_decided = true;
+        }
+    }
+    return error_count;
+}
+
+// validateYAMLSyntax, on the fields it actually reads. Fail verdict exactly
+// when at least one digit-led key was found; checks_performed stores the
+// error count, matching the original result record.
+pub fn validateYAMLSyntax(ctx: ValidationContext) -> BogatyrResult {
+    const error_count = count_digit_key_errors(ctx.source);
+    var verdict = BogatyrVerdict.Pass;
+    if (error_count > 0) {
+        verdict = BogatyrVerdict.Fail;
+    }
+    return BogatyrResult{ .verdict = verdict, .checks_performed = error_count };
+}
+
+test "valid yaml passes" {
+    const ctx = ValidationContext{ .source = "name: test_spec\nversion: \"1.0.0\"\nlanguage: zig" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.verdict == BogatyrVerdict.Pass);
+    assert(result.checks_performed == 0);
+}
+
+test "invalid key start fails" {
+    const ctx = ValidationContext{ .source = "1name: test_spec\nversion: \"1.0.0\"\nlanguage: zig" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.verdict == BogatyrVerdict.Fail);
+    assert(result.checks_performed == 1);
+}
+
+test "empty source passes" {
+    const ctx = ValidationContext{ .source = "" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.verdict == BogatyrVerdict.Pass);
+    assert(result.checks_performed == 0);
+}
+
+test "comments blank lines and whitespace skipped" {
+    const ctx = ValidationContext{ .source = "# 1bad: v\n   \n\t\r\nname: ok\n#2bad: v" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.checks_performed == 0);
+    assert(result.verdict == BogatyrVerdict.Pass);
+}
+
+test "empty key line starting with colon skipped" {
+    const ctx = ValidationContext{ .source = ": value\n  : other\n\t:third" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.checks_performed == 0);
+    assert(result.verdict == BogatyrVerdict.Pass);
+}
+
+test "digit key needs a colon" {
+    const ctx = ValidationContext{ .source = "1name\n2026\nok" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.checks_performed == 0);
+    assert(result.verdict == BogatyrVerdict.Pass);
+}
+
+test "key trimmed of spaces before colon" {
+    // "9 : v" gives key "9" and one error; "a 1 : v" gives key "a 1", no error.
+    const ctx = ValidationContext{ .source = "9 : v\na 1 : v" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.checks_performed == 1);
+    assert(result.verdict == BogatyrVerdict.Fail);
+}
+
+test "one error per line with several colons" {
+    const ctx = ValidationContext{ .source = "1a: x: y\n2b: z" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.checks_performed == 2);
+}
+
+test "crlf line endings handled" {
+    const ctx = ValidationContext{ .source = "9x: v\r\nok: w\r\n7z: q" };
+    const result = validateYAMLSyntax(ctx);
+    assert(result.checks_performed == 2);
+}
+
+test "count digit key errors line cases" {
+    assert_eq(count_digit_key_errors(""), 0);
+    assert_eq(count_digit_key_errors("a: 1"), 0);
+    assert_eq(count_digit_key_errors("1: a"), 1);
+    assert_eq(count_digit_key_errors("1: a\n2: b"), 2);
+    assert_eq(count_digit_key_errors("# 1: a\n9x: b"), 1);
+    assert_eq(count_digit_key_errors(": a\n  : b"), 0);
+    assert_eq(count_digit_key_errors("12\n9x"), 0);
+}
+
+test "line has digit key cases" {
+    assert(line_has_digit_key("9x: v"));
+    assert(line_has_digit_key("7:"));
+    assert(!line_has_digit_key("x9: v"));
+    assert(!line_has_digit_key(""));
+    assert(!line_has_digit_key("   \t "));
+    assert(!line_has_digit_key("# 9x: v"));
+    assert(!line_has_digit_key(": 9x"));
+    assert(!line_has_digit_key("9x"));
+    assert(line_has_digit_key("\t 7:v"));
+    assert(!line_has_digit_key("name: test_spec"));
+}
+
+// The original phi constant test: PHI^2 + 1/PHI^2 = 3. .t27 has no sqrt, so
+// PHI is written out to double precision. The identity is computed in a
+// function so the test asserts execute at runtime instead of const-folding
+// away (a pass with 0 runtime asserts is vacuous).
+fn phi_identity() -> f64 {
+    return PHI * PHI + 1.0 / (PHI * PHI);
+}
+
+test "phi constant" {
+    const result = phi_identity();
+    assert(result > 2.9999);
+    assert(result < 3.0001);
+}
