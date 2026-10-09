@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "built_by": "t27c-bootstrap@0.5.2+644556292",
+  "closure": [
+    {
+      "spec": "specs/verified/independence.t27",
+      "spec_hash": "sha256:4759b1048736e47e8fce6fbf054cd44d5222d1f317d63d17a02f206c33a67bf5"
+    },
+    {
+      "spec": "specs/verified/reuse.t27",
+      "spec_hash": "sha256:79af2725711852461d2d71c0ad089fb55130199e320abed77f11e915cf9d970b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:8d9d9b942b0891e9ea89a5afc7cddedfd1ddfb9a758455265fb62f0137e31bf3",
   "gen_hash_rust": "sha256:bd49ee528b51d87a90bbd92a4613d082c7397896b0358f6bd5c9a75df82633df",
   "gen_hash_verilog": "sha256:742b93be123494b2b8d1dc0658eff5cd66b4f4d03d9e8ca5ddf1ee3793c7161d",
   "gen_hash_zig": "sha256:9220c0258958431e84870b9ba59135df089b32f552954d6faeaec8e2e56396c4",
   "module": "VerifiedSealIdentity",
   "ring": 12,
-  "sealed_at": "2026-10-09T09:14:58Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:17:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b405605adcc7313f36f3fbfdae2797b0eb3191a02c91a310041b3bd8d9f00ed6",
   "spec_path": "specs/verified/seal_identity.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 9,
     "total": 9
+  },
+  "toolchain": {
+    "t27c_core": "3c0ade9e73e425d540b7bc28256a60fada6df29a266f4423ebc87837766e0faf",
+    "zig": "0.16.0"
   }
 }
