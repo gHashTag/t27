@@ -45,7 +45,7 @@ module JitSemantics {
     // Caches compiled functions by dimension to avoid redundant compilation
     // Maintains compiler instance for on-demand compilation
     pub struct JitCache {
-        bind_cache : map<usize, JitVsaFn>,       // Cached bind functions by dimension
+        bind_cache : map<usize, map<VsaOperation, JitVsaFn>>, // Cached functions by dimension and operation
         compiler : JitCompiler,                    // Compiler instance for compilation
         allocator_id : u16,                       // Allocator identifier
     }
@@ -165,11 +165,31 @@ module JitSemantics {
     // Returns function pointer or compiles new function if needed
     // Complexity: O(1) for cache hit, O(dimension) for compile
     pub fn getOrCompile(cache: &JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn {
-        // TODO: Implement actual cache lookup and compilation
-        _ = cache;
-        _ = op;
-        _ = dimension;
-        null
+        // Look in the cache for the given dimension and operation
+        let inner_map_opt = cache.bind_cache.get(dimension);
+        let inner_map = if let Some(inner_map) = inner_map_opt {
+            inner_map
+        } else {
+            let new_inner_map = map<VsaOperation, JitVsaFn>();
+            cache.bind_cache.insert(dimension, new_inner_map);
+            cache.bind_cache.get(dimension).unwrap()
+        };
+        if let Some(func) = inner_map.get(op) {
+            return func;
+        }
+        // Not found in cache, need to compile
+        // Reset the compiler to clear any previous state
+        resetCompiler(&cache.compiler);
+        // Compile the operation for the given dimension
+        _ = compileOperation(&cache.compiler, op, dimension);
+        // Finalize to get the function pointer
+        let func = finalizeCompiler(&cache.compiler);
+        if let None = func {
+            return null;
+        }
+        // Store the function in the cache
+        inner_map.insert(op, func.unwrap());
+        return func;
     }
 
     // ========================================================================
