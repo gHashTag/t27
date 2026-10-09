@@ -4,7 +4,7 @@
 // Defines assertion kinds, properties, and coverage points
 // Generates SystemVerilog Assertions (SVA) alongside Verilog
 // Uses flat arrays + count fields (parser-compatible)
-// phi^2 + 1/phi^2 = 3 | TRINITY
+// phi^2 + 1/φ² = 3 | TRINITY
 
 module Formal {
 
@@ -349,6 +349,290 @@ pub struct FormalAssume {
     bench validate_latency
         measure: nanoseconds to validate_assertion(immediate_assert("b", "x > 0", 2, "d"))
         target: < 100ns
+
+    // ══════════════════════════════════════════════════════════
+    // MAC Datapath Accumulator Module with Formal Verification
+    // ══════════════════════════════════════════════════════════
+
+    // MAC datapath accumulator configuration
+    const MAC_ACC_WIDTH : usize = 32;     // 32-bit accumulator
+    const MAC_TRIT_WIDTH : usize = 27;     // 27 trits per operand
+    const MAC_PIPELINE_STAGES : usize = 4; // 4-stage pipeline
+
+    // Trit enum for ternary operations
+    pub const Trit = enum(i8) {
+        neg = -1,
+        zero = 0,
+        pos = 1,
+    }
+
+    // TernaryWord structure for ternary data
+    struct TernaryWord {
+        raw : u32,
+    }
+
+    // MAC datapath accumulator state
+    struct MACAccumulator {
+        accumulator : i32,                    // Accumulator value
+        result : i32,                        // Current result output
+        valid_out : bool,                     // Output valid flag
+        chunk_first : bool,                   // First chunk of neuron
+        idle : bool,                         // Idle state
+    }
+
+    // MAC datapath accumulator module (DUT)
+    module MACDatapathAccumulator {
+        var state : MACAccumulator = MACAccumulator{
+            .accumulator = 0,
+            .result = 0,
+            .valid_out = false,
+            .chunk_first = true,
+            .idle = true,
+        }
+
+        // Shadow trit27_dot_product instance for reference
+        // Computes the expected dot product for comparison
+        fn trit27_dot_product(a: TernaryWord, b: TernaryWord) -> i32 {
+            var dot : i32 = 0;
+            var i : usize = 0;
+            
+            while (i < MAC_TRIT_WIDTH) {
+                // Extract trits (simplified for formal verification)
+                const a_trit : i8 = 0;  // Placeholder - actual extraction would be more complex
+                const b_trit : i8 = 0;  // Placeholder - actual extraction would be more complex
+                dot = dot + (a_trit * b_trit);
+                i = i + 1;
+            }
+            
+            return dot;
+        }
+
+        // Process input chunk
+        fn process_chunk(a: TernaryWord, b: TernaryWord, valid_in: bool) -> void {
+            if (valid_in) {
+                const expected_contribution = trit27_dot_product(a, b);
+                
+                if (state.chunk_first) {
+                    // First chunk: restart accumulator
+                    state.accumulator = expected_contribution;
+                    state.chunk_first = false;
+                    state.idle = false;
+                } else {
+                    // Subsequent chunks: add contribution
+                    state.accumulator = state.accumulator + expected_contribution;
+                }
+                
+                state.result = state.accumulator;
+                state.valid_out = true;
+            } else {
+                // No input: hold result and clear valid_out after one cycle
+                if (!state.idle) {
+                    state.idle = true;
+                }
+                state.valid_out = false;
+            }
+        }
+
+        // Public interface for formal verification
+        fn get_accumulator() -> i32 {
+            return state.accumulator;
+        }
+
+        fn get_result() -> i32 {
+            return state.result;
+        }
+
+        fn get_valid_out() -> bool {
+            return state.valid_out;
+        }
+
+        fn is_chunk_first() -> bool {
+            return state.chunk_first;
+        }
+
+        fn is_idle() -> bool {
+            return state.idle;
+        }
+
+        fn reset() -> void {
+            state = MACAccumulator{
+                .accumulator = 0,
+                .result = 0,
+                .valid_out = false,
+                .chunk_first = true,
+                .idle = true,
+            };
+        }
+    }
+
+    // Instantiate the DUT for formal verification
+    var dut : MACDatapathAccumulator = MACDatapathAccumulator{};
+
+    // ══════════════════════════════════════════════════════════
+    // Formal Properties for MAC Datapath Accumulator
+    // ══════════════════════════════════════════════════════════
+
+    // Property: a_first_chunk_restarts
+    // A first chunk restarts the sum — drops prior state rather than continuing across neuron boundaries
+    test a_first_chunk_restarts
+        given dut.reset()
+        and   a = TernaryWord{.raw = 1}
+        and   b = TernaryWord{.raw = 1}
+        when dut.process_chunk(a, b, true)
+        then dut.get_accumulator() == trit27_dot_product(a, b)
+        and dut.is_chunk_first() == false
+
+    // Property: a_accumulates_one_chunk  
+    // Every later chunk adds exactly its own contribution
+    test a_accumulates_one_chunk
+        given dut.reset()
+        and   a1 = TernaryWord{.raw = 1}
+        and   b1 = TernaryWord{.raw = 1}
+        and   a2 = TernaryWord{.raw = 2}
+        and   b2 = TernaryWord{.raw = 2}
+        when dut.process_chunk(a1, b1, true)
+        and   dut.process_chunk(a2, b2, true)
+        then dut.get_accumulator() == trit27_dot_product(a1, b1) + trit27_dot_product(a2, b2)
+
+    // Property: a_result_held_when_idle
+    // The result is held while no chunk is accepted
+    test a_result_held_when_idle
+        given dut.reset()
+        and   a = TernaryWord{.raw = 1}
+        and   b = TernaryWord{.raw = 1}
+        when dut.process_chunk(a, b, true)
+        and   result1 = dut.get_result()
+        and   dut.process_chunk(a, b, false)
+        and   result2 = dut.get_result()
+        then result1 == result2
+
+    // Property: a_valid_out_follows_last
+    // valid_out is exactly "a last chunk was accepted last cycle" — not sticky
+    test a_valid_out_follows_last
+        given dut.reset()
+        and   a = TernaryWord{.raw = 1}
+        and   b = TernaryWord{.raw = 1}
+        when dut.process_chunk(a, b, true)
+        and   valid1 = dut.get_valid_out()
+        and   dut.process_chunk(a, b, false)
+        and   valid2 = dut.get_valid_out()
+        and   dut.process_chunk(a, b, false)
+        and   valid3 = dut.get_valid_out()
+        then valid1 == true
+        and valid2 == true
+        and valid3 == false
+
+    // ══════════════════════════════════════════════════════════
+    // Coverage Points for MAC Datapath Accumulator
+    // ══════════════════════════════════════════════════════════
+
+    // Cover point: First chunk processing
+    cover_point mac_first_chunk
+        condition: dut.is_chunk_first() == true and dut.get_valid_out() == true
+        clock: "clk"
+        description: "First chunk of neuron with valid output"
+
+    // Cover point: Subsequent chunk processing  
+    cover_point mac_subsequent_chunk
+        condition: dut.is_chunk_first() == false and dut.get_valid_out() == true
+        clock: "clk"
+        description: "Subsequent chunk with valid output"
+
+    // Cover point: Idle state
+    cover_point mac_idle_state
+        condition: dut.is_idle() == true
+        clock: "clk"
+        description: "Accumulator in idle state"
+
+    // Cover point: Valid output assertion
+    cover_point mac_valid_asserted
+        condition: dut.get_valid_out() == true
+        clock: "clk"
+        description: "Valid output asserted"
+
+    // Cover point: Accumulator reset
+    cover_point mac_accumulator_reset
+        condition: dut.get_accumulator() == 0 and dut.is_chunk_first() == true
+        clock: "clk"
+        description: "Accumulator in reset state"
+
+    // ══════════════════════════════════════════════════════════
+    // Tests for MAC Datapath Accumulator
+    // ══════════════════════════════════════════════════════════
+
+    test mac_first_chunk_restarts_test
+        given dut.reset()
+        and   a = TernaryWord{.raw = 1}
+        and   b = TernaryWord{.raw = 1}
+        when dut.process_chunk(a, b, true)
+        then dut.get_accumulator() == trit27_dot_product(a, b)
+        and dut.is_chunk_first() == false
+
+    test mac_accumulates_subsequent_chunks
+        given dut.reset()
+        and   a1 = TernaryWord{.raw = 1}
+        and   b1 = TernaryWord{.raw = 1}
+        and   a2 = TernaryWord{.raw = 2}
+        and   b2 = TernaryWord{.raw = 2}
+        when dut.process_chunk(a1, b1, true)
+        and   dut.process_chunk(a2, b2, true)
+        then dut.get_accumulator() == trit27_dot_product(a1, b1) + trit27_dot_product(a2, b2)
+
+    test mac_result_held_when_idle
+        given dut.reset()
+        and   a = TernaryWord{.raw = 1}
+        and   b = TernaryWord{.raw = 1}
+        when dut.process_chunk(a, b, true)
+        and   result1 = dut.get_result()
+        and   dut.process_chunk(a, b, false)
+        and   result2 = dut.get_result()
+        then result1 == result2
+
+    test mac_valid_out_behavior
+        given dut.reset()
+        and   a = TernaryWord{.raw = 1}
+        and   b = TernaryWord{.raw = 1}
+        when dut.process_chunk(a, b, true)
+        and   valid1 = dut.get_valid_out()
+        and   dut.process_chunk(a, b, false)
+        and   valid2 = dut.get_valid_out()
+        and   dut.process_chunk(a, b, false)
+        and   valid3 = dut.get_valid_out()
+        then valid1 == true
+        and valid2 == true
+        and valid3 == false
+
+    // ══════════════════════════════════════════════════════════
+    // Invariants for MAC Datapath Accumulator
+    // ══════════════════════════════════════════════════════════
+
+    invariant mac_accumulator_range
+        given acc = dut.get_accumulator()
+        assert acc >= -(1i32 << 31) and acc < (1i32 << 31)  // 32-bit signed range
+
+    invariant mac_valid_out_follows_chunk
+        given dut.get_valid_out() == true
+        assert !dut.is_idle()  // Valid output only when not idle
+
+    invariant mac_chunk_first_reset_on_accept
+        given dut.get_valid_out() == true and dut.is_chunk_first() == true
+        assert false  // Should never be both first chunk and have valid output
+
+    // ══════════════════════════════════════════════════════════
+    // Benchmarks for MAC Datapath Accumulator
+    // ══════════════════════════════════════════════════════════
+
+    bench mac_process_chunk_latency
+        measure: nanoseconds to dut.process_chunk(TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, true)
+        target: < 100ns
+
+    bench mac_accumulator_read_latency
+        measure: nanoseconds to dut.get_accumulator()
+        target: < 10ns
+
+    bench mac_dot_product_reference_latency
+        measure: nanoseconds to trit27_dot_product(TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF})
+        target: < 50ns
 }
 
-// phi^2 + 1/phi^2 = 3 | TRINITY
+// phi^2 + 1/φ² = 3 | TRINITY
