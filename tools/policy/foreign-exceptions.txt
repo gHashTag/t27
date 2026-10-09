@@ -107,6 +107,11 @@ bootstrap/tests/genc_digit_separators.rs
 scripts/tri_loop/t27b_dogfood.py
 scripts/tri_loop/t27b.py
 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
+
+# owner 2026-10-10, issue #8186 (verdict reuse step 3): bless_source_ok test needs keys per record
+# plus two cases (keyless run refused; rekey rewrites only that row). The test only drives generated
+# steward.c rules; budget 40 lines per file, 80 per PR still apply.
+scripts/ci/test_a_t27b_spec_cannot_move_silently.py
 # owner-approved 2026-10-06, #6664: "write everything in .t27" -- the --check fuel policy is
 # specs/tri/t27b/check_budget.t27 (t27c gen-rust); the hand-written Rust is the call-site glue in
 # cmd_test only. Debt #6198/#5980.
