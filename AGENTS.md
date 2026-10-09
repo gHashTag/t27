@@ -301,6 +301,10 @@ measure it are written in **t27**, not in Rust or Python by hand.
   after #8249 moved the body walks of `lower.rs` (`name_count`, `mutated`,
   `zig_mutates` and six more, over the body's bytes) to
   `specs/tri/t27b/ast_walk.t27`, -65, 0 and 0 on master 95ae4bcd6's 14687
+  plus 1222 and 8284; 14531 plus 1222, 15753 in all, and tests 8284, after
+  #8347 moved the node scans of `lower.rs` (`calls_in`, `decls_of`,
+  `ref_mutable_names`, `misprinted_ifs`, `mark_tail_returns` and four more)
+  to `specs/tri/t27b/ast_scan.t27`, -91, 0 and 0 on master 272ae1759's 14622
   plus 1222 and 8284),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
