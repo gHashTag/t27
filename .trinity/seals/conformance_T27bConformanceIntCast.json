@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c471d2def47047caafd1822ab7bb90679227903b79e569067470764b308989b5",
   "gen_hash_rust": "sha256:14a2b868dbb3a413d44bd1540b7554a891c9483d4fb7c7ce1fe1388f4f2f6be3",
   "gen_hash_verilog": "sha256:c4f81da1eff0ed2a9029895ed80b4e40fb11473578a48c5466a95964819b7670",
   "gen_hash_zig": "sha256:b3e489c03f5f4a28b026cde1317b97d1bce25f090761ca09897ff177f7e9a193",
   "module": "T27bConformanceIntCast",
   "ring": 12,
-  "sealed_at": "2026-10-07T22:44:14Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7e5e846c5b3f1d6f7aa2045ea047c60ff53e7feef6f9f815af25e73af29ce114",
   "spec_path": "specs/tri/t27b/conformance/int_cast.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

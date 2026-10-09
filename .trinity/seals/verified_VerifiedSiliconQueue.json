@@ -1,13 +1,21 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/verified/reuse.t27",
+      "spec_hash": "sha256:79af2725711852461d2d71c0ad089fb55130199e320abed77f11e915cf9d970b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5001d29fe0d7247be4ddb2971c7f40ffac79a68fe7808dfa26e1e4de9e565eeb",
   "gen_hash_rust": "sha256:88dfbe5d5c178b1fd4369a7932c1c3308d61f1a764637332b81143f8d57b573a",
   "gen_hash_verilog": "sha256:d9d998df5144e489c807d455936c65fa107cbf2f4958f7e14d6f0d343b01f27a",
   "gen_hash_zig": "sha256:673482d900e156e14c2e23e4589c63e1834c875cb2537eb98536f42cd5e1ea88",
   "module": "VerifiedSiliconQueue",
   "ring": 12,
-  "sealed_at": "2026-10-09T09:48:48Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:01:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:23e98b43010b64eb6fcac83719303bb4e67ee5b360c64b70ec47761761c3af8f",
   "spec_path": "specs/verified/silicon_queue.t27",
   "tests": {
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

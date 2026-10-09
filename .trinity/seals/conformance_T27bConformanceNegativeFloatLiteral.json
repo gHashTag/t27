@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+2781ae37b",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:55f0ec1e6d10d20c8c56abc0f0b3d3eab63c0327a59352fed476657e316011c6",
   "gen_hash_rust": "sha256:96a7ef10fde2198158e850466e8941f983e0bee4eff7cb9bf8c2c77b9b00a3a0",
   "gen_hash_verilog": "sha256:703c90276fb0edbe22e909c1a98e703bc5769586147da94013f95e8b71716e4b",
   "gen_hash_zig": "sha256:18ba072d21a18074a0e6d7127887a409d4d2b700ae0f3410f2ae5c0efb02d375",
   "module": "T27bConformanceNegativeFloatLiteral",
   "ring": 12,
-  "sealed_at": "2026-10-08T13:20:29Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:85f39dda09e3ecc8ca2c893e6e25178ff54ccbc8f3d545d53c6cdcf04094ef89",
   "spec_path": "specs/tri/t27b/conformance/negative_float_literal.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 7,
     "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

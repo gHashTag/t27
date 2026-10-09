@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6d84e119fcebb51a595165ef662040f80252de65c48f90c779a73b18f747ac38",
   "gen_hash_rust": "sha256:304320ea8cd5a334112e2d52379af24e11e7f611a6b1520ab81df1c72facd114",
   "gen_hash_verilog": "sha256:9db344cecf559b5e1de3b0725a8796a19ee9a2883e3ceb3a31e8efa522f8cb9b",
   "gen_hash_zig": "sha256:5d7681f4cb1a5a9b635772c388b379c9011348e942da5c8fd22e9de833618dee",
   "module": "automation::bot_event_tabs",
   "ring": 12,
-  "sealed_at": "2026-10-09T10:13:01Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:46:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:c0cbfc3913873701d45a5702606b8b3e8eb660d627b5e514da8334b5311ef599",
   "spec_path": "specs/automation/bot-event-tabs.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

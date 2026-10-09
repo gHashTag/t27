@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:01063eeb85a76f1d2284a856f47948106c08dfacbf5a7fae8b3af58c96cc03bc",
   "gen_hash_rust": "sha256:7878334478bdb9aa071d0497688913d541a06ff4fef0144f5e4546fedafbb72b",
   "gen_hash_verilog": "sha256:69221a4aa7638f2d384db32bf47242e7e7cf71a59d7ac4be693c5dfa40f81574",
   "gen_hash_zig": "sha256:168258ee3d1a10c5615279f91bf391da8bc09b2354487c1a3169104255e76079",
   "module": "automation::agent_claims_honest",
   "ring": 12,
-  "sealed_at": "2026-10-09T07:59:23Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:45:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cef9ceb4727308ec95459fe26c6a8842d127ad30af5da4b08b44294c6e061c1b",
   "spec_path": "specs/automation/agent-claims-honest.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

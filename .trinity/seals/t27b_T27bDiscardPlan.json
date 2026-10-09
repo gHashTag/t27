@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:95bdef51d7d83ec98fd1df0adbb7dd26ba707b33e2bc13dcadbd7c75857ed19f",
   "gen_hash_rust": "sha256:1a068c18c77ef1bb3a34f116501b6c794ded4b50086c1d867f1c0e7f72ebf869",
   "gen_hash_verilog": "sha256:48ffbb7235fbdb556a2d06f9f9d920c88daa31b1087c956a4d933eeecbc7df97",
   "gen_hash_zig": "sha256:59c5b80da21ff3c327b46ee14bce77bb445604eae90e2362695b8058dc001a6a",
   "module": "T27bDiscardPlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:19:58Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f255459b0b4e1feb33373c09a9e1fb1c7368796cc261177db4dc6613b5c3881d",
   "spec_path": "specs/tri/t27b/discard_plan.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

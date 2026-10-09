@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a6cbd500e496d388b9ea28e2950808dd74e73634d1d7b6eef5d0056709748cf9",
   "gen_hash_rust": "sha256:0bb066b202e9b9a1be88e00ed2a918cd8747e6a69c4bda1ab510af5157646088",
   "gen_hash_verilog": "sha256:cbdd1b2a79e850374289602f06236cc904dbecc74c53a65540be8e0c2d008cce",
   "gen_hash_zig": "sha256:20afb76b3356628bb880f5b4eb0f5e90809aa110721d3120d591e74a02aa6353",
   "module": "sandbox.orphan_detection",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:50Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:53:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:93bafcfb9487b9a2ce12ea468454a6688b9650ec2c6fd1dc525da540fcd3e66c",
   "spec_path": "specs/sandbox/orphan_detection.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

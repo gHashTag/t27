@@ -1,12 +1,15 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+12ee225c5",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7afa42c94c1691da131b939fd1140c604db50fd05cf904731c6c67d0d52d40a8",
   "gen_hash_rust": "sha256:6758734e6d245cfdeca1f015c68cb7a13fa19447d6dc1f9c12e65b6a9f3a7421",
   "gen_hash_verilog": "sha256:389fe64f898b5dd3f2db71b4b12902513e118ddf2eccd511d0f83718a393b59e",
   "gen_hash_zig": "sha256:185c8832d7310dc088bc0e993748b1db136c3ae303ba4a3763d37b2325b5bbd0",
   "module": "T27bLibmPlan",
   "ring": 12,
-  "sealed_at": "2026-10-09T08:50:54Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:49Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9c458381499661ca72f4c2da02d382cc1a1fb475ccdacc2938eaa73284430784",
   "spec_path": "specs/tri/t27b/libm_plan.t27",
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 11,
     "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

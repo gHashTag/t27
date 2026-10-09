@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d8ef2e91862fdb2a4dc9c27c2b5cf2f18f098a54766410368b29e1a2543b0c6f",
   "gen_hash_rust": "sha256:93e650355b1d5f1e7937cd982881cd3c2b6040774d7e913ccc0820d7d95739eb",
   "gen_hash_verilog": "sha256:5299cd71fcf04e3795782fdb9fe9547bd259e05cd958f4d6c808a77dece1dc65",
   "gen_hash_zig": "sha256:5da59c6a828010794cc96e04cab82a28988af31930b11e20ee61468e13d6a56e",
   "module": "tool_tri_sweep",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:24:28Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:56:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e4bd8c6d4d13e1aed92bf16ec9359cb764756ba6f63975308eadb2c798223852",
   "spec_path": "specs/tools/tri/sweep.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
