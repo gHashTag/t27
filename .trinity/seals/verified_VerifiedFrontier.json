@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+644556292",
+  "built_by": "t27c-bootstrap@0.5.2+0922f4c3c",
   "closure": [
     {
       "spec": "specs/verified/reuse.t27",
@@ -14,7 +14,7 @@
   "module": "VerifiedFrontier",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T09:18:33Z",
+  "sealed_at": "2026-10-09T09:26:10Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f895c25dda34fad5e0c282327022a6412702cb1ef19a4f0f75333685f3da9990",
   "spec_path": "specs/verified/frontier.t27",
@@ -26,7 +26,7 @@
     "total": 9
   },
   "toolchain": {
-    "t27c_core": "3c0ade9e73e425d540b7bc28256a60fada6df29a266f4423ebc87837766e0faf",
+    "t27c_source": "sha256:da3a36cf70d3e487ae27247abc67d2c0f7a5213cfc2d7710eb23c73912534f18",
     "zig": "0.16.0"
   }
 }

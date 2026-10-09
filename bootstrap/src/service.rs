@@ -5629,7 +5629,7 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
             match decide(&format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
         }
         let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
-        let tool = si::toolchain_part(g("/toolchain/t27c_core").is_some(), g("/toolchain/t27c_core") == t("t27c_core"), g("/toolchain/zig").is_some(), g("/toolchain/zig") == t("zig"));
+        let tool = si::toolchain_part(g("/toolchain/t27c_source").is_some(), g("/toolchain/t27c_source") == t("t27c_source"), g("/toolchain/zig").is_some(), g("/toolchain/zig") == t("zig"));
         let config = si::recorded_part(g("/config").is_some(), g("/config").as_deref() == Some(si::SEAL_CONFIG));
         let tests = seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0) && seal.pointer("/tests/forced").and_then(|v| v.as_bool()) != Some(true);
         let d = si::node_decision(spec, rebuilt, missing, tool, config, tests, false, si::HW_UNPROVEN);

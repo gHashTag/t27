@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+644556292",
+  "built_by": "t27c-bootstrap@0.5.2+0922f4c3c",
   "closure": [
     {
       "spec": "specs/verified/independence.t27",
@@ -18,9 +18,9 @@
   "module": "VerifiedSealIdentity",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T09:17:06Z",
+  "sealed_at": "2026-10-09T09:26:12Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:b405605adcc7313f36f3fbfdae2797b0eb3191a02c91a310041b3bd8d9f00ed6",
+  "spec_hash": "sha256:9f61cae2bc4eabf449cfba457d0cdc83a6c7507fbd679b6bba5cf70e1a828ff6",
   "spec_path": "specs/verified/seal_identity.t27",
   "tests": {
     "failed": 0,
@@ -30,7 +30,7 @@
     "total": 9
   },
   "toolchain": {
-    "t27c_core": "3c0ade9e73e425d540b7bc28256a60fada6df29a266f4423ebc87837766e0faf",
+    "t27c_source": "sha256:da3a36cf70d3e487ae27247abc67d2c0f7a5213cfc2d7710eb23c73912534f18",
     "zig": "0.16.0"
   }
 }

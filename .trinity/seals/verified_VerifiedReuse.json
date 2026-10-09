@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+644556292",
+  "built_by": "t27c-bootstrap@0.5.2+0922f4c3c",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c851024631169f7721f69ccc30c3414764744d75f887d0fe747ce8bad45bc869",
@@ -9,7 +9,7 @@
   "module": "VerifiedReuse",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T09:18:20Z",
+  "sealed_at": "2026-10-09T09:26:08Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:79af2725711852461d2d71c0ad089fb55130199e320abed77f11e915cf9d970b",
   "spec_path": "specs/verified/reuse.t27",
@@ -21,7 +21,7 @@
     "total": 12
   },
   "toolchain": {
-    "t27c_core": "3c0ade9e73e425d540b7bc28256a60fada6df29a266f4423ebc87837766e0faf",
+    "t27c_source": "sha256:da3a36cf70d3e487ae27247abc67d2c0f7a5213cfc2d7710eb23c73912534f18",
     "zig": "0.16.0"
   }
 }
