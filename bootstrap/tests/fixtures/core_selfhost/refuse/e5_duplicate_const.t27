@@ -1,0 +1,5 @@
+// A module const declared twice: C redefines the macro, Zig refuses, and
+// typecheck says nothing (#8087).
+module duplicate_const;
+const DC_A: i64 = 1;
+const DC_A: i64 = 2;

@@ -1,0 +1,7 @@
+// A local declared twice in one block (#8087).
+module duplicate_local;
+fn dl_g() -> i64 {
+    var a: i64 = 1;
+    var a: i64 = 2;
+    return a;
+}

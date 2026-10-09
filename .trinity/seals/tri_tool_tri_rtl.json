@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:19faf1c72dff62c7163325eae3e58247a9aa6e651be157986daec72370437ae9",
+  "gen_hash_rust": "sha256:74f9914162809f1fc4e226cd527c9cc71d10402483d5dd85705a6bc8c1354751",
+  "gen_hash_verilog": "sha256:f2c9b43cf5c5ba69650504d7653c1e6ddea8b5a9308f93aff73f310943fd734b",
+  "gen_hash_zig": "sha256:26452ba89d10ca179704c2ddc77a32cadb5e259e8f392cc79ba799408189817f",
+  "module": "tool_tri_rtl",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:24:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:78c2c03a4dd5cdbd29b6b061cb6858ec9f06aac370295fa3bd942a1ac4be0fd6",
+  "spec_path": "specs/tools/tri/rtl.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

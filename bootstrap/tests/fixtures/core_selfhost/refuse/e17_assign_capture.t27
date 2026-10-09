@@ -1,0 +1,11 @@
+// An assignment to a `for` capture: Zig's capture is a constant, and C
+// changes its loop (#8087).
+module assign_capture;
+fn ac_g() -> u64 {
+    var s: u64 = 0;
+    for (0..3) |i| {
+        i = 2;
+        s = s + i;
+    }
+    return s;
+}
