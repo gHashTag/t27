@@ -135,6 +135,8 @@ mod tt; // t27c gen-rust of specs/tri/t27b/type_text.t27: a type's text, read wi
 mod st; // t27c gen-rust of specs/tri/t27b/source_text.t27: literal text, header lines, prose labels
 mod refvars;
 mod tuple;
+#[path = "../../../gen/rust/tri/t27b/ast_walk.rs"] #[allow(dead_code, unused_parens)]
+mod aw; // t27c gen-rust of specs/tri/t27b/ast_walk.t27: walks of a list of nodes, read from `flat`'s bytes
 
 /// A construct outside the supported subset (or a type error inside it).
 #[derive(Clone, Debug)]
@@ -7416,54 +7418,42 @@ fn decls_of<'n>(ns: &'n [Node], name: &str, out: &mut Vec<&'n Node>) {
     }
 }
 
+/// `ns` as specs/tri/t27b/ast_walk.t27 reads it: a record per node in preorder, then the fields' text.
+fn flat(ns: &[Node]) -> (Vec<u8>, Vec<u8>) {
+    fn put(n: &Node, a: &mut Vec<u8>, t: &mut Vec<u8>) {
+        let at = a.len();
+        a.extend_from_slice(&[n.kind.clone() as u8, 0, 0, 0, 0, 0, 0, 0]);
+        for f in [&n.name, &n.value, &n.extra_type, &n.extra_field, &n.extra_size, &n.extra_kind, &n.extra_op, &n.extra_return_type] {
+            a.extend_from_slice(&(t.len() as u32).to_le_bytes());
+            t.extend_from_slice(f.as_bytes());
+            a.extend_from_slice(&(t.len() as u32).to_le_bytes());
+        }
+        n.children.iter().for_each(|c| put(c, a, t));
+        let end = (a.len() / aw::REC) as u32;
+        a[at + 4..at + 8].copy_from_slice(&end.to_le_bytes());
+    }
+    let (mut a, mut t) = (Vec::new(), Vec::new());
+    ns.iter().for_each(|n| put(n, &mut a, &mut t));
+    (a, t)
+}
+const _: () = assert!(NodeKind::StmtExpr as u8 == aw::K_STMT_EXPR && NodeKind::ExprRange as u8 == aw::K_EXPR_RANGE);
+
 /// How many nodes under `ns` carry `name` (or a dotted path starting with
 /// it) as their name, of any kind: an over-count of its uses.
 fn name_count(ns: &[Node], name: &str) -> usize {
-    ns.iter()
-        .map(|n| {
-            let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
-            hit as usize + name_count(&n.children, name)
-        })
-        .sum()
+    let (a, t) = flat(ns); aw::name_count(&a, &t, name.as_bytes())
 }
 
 /// `name_count`, plus each node whose type or size text names `name` as a
 /// word (array literal elements and array sizes are kept as text): an
 /// over-count of its mentions.
 fn name_mentions(ns: &[Node], name: &str) -> usize {
-    fn word_in(text: &str, name: &str) -> bool {
-        let b = text.as_bytes();
-        let id = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
-        text.match_indices(name).any(|(i, _)| {
-            let e = i + name.len();
-            (i == 0 || !id(b[i - 1])) && (e >= b.len() || !id(b[e]))
-        })
-    }
-    ns.iter()
-        .map(|n| {
-            let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
-            let text = [&n.extra_size, &n.extra_type, &n.extra_field, &n.extra_return_type]
-                .iter()
-                .any(|t| word_in(t, name));
-            hit as usize + text as usize + name_mentions(&n.children, name)
-        })
-        .sum()
+    let (a, t) = flat(ns); aw::name_mentions(&a, &t, name.as_bytes())
 }
 
 /// How many `_ = name;` statements lie under `ns`, at any depth.
 fn discard_count(ns: &[Node], name: &str) -> usize {
-    ns.iter()
-        .map(|n| {
-            let hit = n.kind == NodeKind::StmtAssign
-                && matches!(n.extra_op.as_str(), "" | "=")
-                && n.children.len() == 2
-                && n.children[0].kind == NodeKind::ExprIdentifier
-                && n.children[0].name == "_"
-                && n.children[1].kind == NodeKind::ExprIdentifier
-                && n.children[1].name == name;
-            hit as usize + discard_count(&n.children, name)
-        })
-        .sum()
+    let (a, t) = flat(ns); aw::discard_count(&a, &t, name.as_bytes())
 }
 
 /// An array literal whose elements are all plain literals (a negated one
@@ -7692,23 +7682,7 @@ fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
 /// The node kinds t27c's `gen_expr` prints anything for; every other kind (a
 /// statement) renders as the empty string.
 fn zig_renders(k: &NodeKind) -> bool {
-    matches!(
-        k,
-        NodeKind::ExprLiteral
-            | NodeKind::ExprIdentifier
-            | NodeKind::ExprEnumValue
-            | NodeKind::ExprCall
-            | NodeKind::ExprBinary
-            | NodeKind::ExprUnary
-            | NodeKind::ExprFieldAccess
-            | NodeKind::ExprIndex
-            | NodeKind::ExprSwitch
-            | NodeKind::ExprIf
-            | NodeKind::ExprArrayLiteral
-            | NodeKind::ExprStructLit
-            | NodeKind::ExprCast
-            | NodeKind::ExprTuple
-    )
+    aw::renders(k.clone() as u8)
 }
 
 /// Collect the `*` expressions t27c's strength reduction rewrites as `<<`
@@ -7806,17 +7780,7 @@ fn mark_tail_returns(ns: &[Node], out: &mut HashSet<usize>) {
 /// (`value of type ... ignored`). Calls, `return`, `try`, `if`, `switch` and
 /// `undefined` have their own rules and are not in this set.
 fn is_value_stmt(c: &Node) -> bool {
-    match c.kind {
-        NodeKind::ExprBinary
-        | NodeKind::ExprLiteral
-        | NodeKind::ExprCast
-        | NodeKind::ExprFieldAccess
-        | NodeKind::ExprIndex
-        | NodeKind::ExprStructLit
-        | NodeKind::ExprArrayLiteral => true,
-        NodeKind::ExprIdentifier => c.name != "undefined",
-        _ => false,
-    }
+    aw::value_stmt(c.kind.clone() as u8, c.name.as_bytes())
 }
 
 /// Parameter `p: t` of fn `f` is `anytype` and `f`'s body never names it (specs/tri/t27b/any_param_plan.t27).
@@ -7825,7 +7789,7 @@ fn unread_any(f: &Node, p: &str, t: &str) -> bool {
 }
 
 fn mentions(ns: &[Node], name: &str) -> bool {
-    ns.iter().any(|n| (n.kind == NodeKind::ExprIdentifier && n.name == name) || mentions(&n.children, name))
+    let (a, t) = flat(ns); aw::mentions(&a, &t, name.as_bytes())
 }
 
 /// The module `var`s a top-level local of `body` may shadow: the reference's
@@ -7834,7 +7798,7 @@ fn mentions(ns: &[Node], name: &str) -> bool {
 /// nothing before it (its own initializer included) mentions the name.
 fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<String> {
     fn decls(ns: &[Node], name: &str) -> usize {
-        ns.iter().map(|n| usize::from(n.kind == NodeKind::StmtLocal && n.name == name) + decls(&n.children, name)).sum()
+        let (a, t) = flat(ns); aw::decl_count(&a, &t, name.as_bytes())
     }
     let mut ok = HashSet::new();
     for (i, s) in body.iter().enumerate() {
@@ -7853,20 +7817,7 @@ fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<Str
 /// The reference's `collect_mutable_names`: is `name` the target (or the base
 /// of an indexed or field target) of an assignment in `ns`?
 fn mutated(ns: &[Node], name: &str) -> bool {
-    ns.iter().any(|n| {
-        if n.kind == NodeKind::StmtAssign {
-            if let Some(t) = n.children.first() {
-                let base = match t.kind {
-                    NodeKind::ExprIndex | NodeKind::ExprFieldAccess => t.children.first(),
-                    _ => Some(t),
-                };
-                if base.is_some_and(|b| b.kind == NodeKind::ExprIdentifier && b.name == name) {
-                    return true;
-                }
-            }
-        }
-        mutated(&n.children, name)
-    })
+    let (a, t) = flat(ns); aw::mutated(&a, &t, name.as_bytes())
 }
 
 fn count_assigns(ns: &[Node], counts: &mut HashMap<String, u32>) {
@@ -7973,23 +7924,7 @@ fn ref_mutable_names(ns: &[Node], out: &mut HashSet<String>) {
 /// target reaches `name` through fields and indexes but no `.*`, `&` of such
 /// a path, or a method call on it. Errs toward yes: a yes refuses nothing.
 fn zig_mutates(ns: &[Node], name: &str) -> bool {
-    fn rooted(t: &Node, name: &str) -> bool {
-        match t.kind {
-            NodeKind::ExprIdentifier => t.name == name,
-            NodeKind::ExprFieldAccess if t.name == "*" => false,
-            NodeKind::ExprFieldAccess | NodeKind::ExprIndex => t.children.first().is_some_and(|b| rooted(b, name)),
-            _ => false,
-        }
-    }
-    ns.iter().any(|n| {
-        let hit = match n.kind {
-            NodeKind::StmtAssign => n.children.first().is_some_and(|t| rooted(t, name)),
-            NodeKind::ExprUnary if n.extra_op == "&" => n.children.first().is_some_and(|t| rooted(t, name)),
-            NodeKind::ExprCall => n.name.split('.').next() == Some(name) && n.name.contains('.'),
-            _ => false,
-        };
-        hit || zig_mutates(&n.children, name)
-    })
+    let (a, t) = flat(ns); aw::zig_mutates(&a, &t, name.as_bytes())
 }
 
 /// Syntax the reference prints that Zig cannot parse: a childless typed
