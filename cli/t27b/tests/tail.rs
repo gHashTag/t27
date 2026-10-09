@@ -284,6 +284,20 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
     }
 }
 
+// ------------------------------------------------ a call returning a float, in `x as T`
+
+/// #7805: since #6941 gen-zig spells a call of a fn declared `-> f64` as a float, so `f() as f32` is
+/// `@floatCast` and `f() as i32` is `@intFromFloat` (specs/tri/t27b/float_as_plan.t27; `t27c test-report`
+/// passes the conformance spec 7/7, none vacuous). An element of an f64 array is still printed
+/// `@floatFromInt`, which Zig refuses, and stays refused.
+#[test]
+fn a_call_returning_a_float_is_spelled_a_float() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/float_call_cast.t27"));
+    assert!(r.len() == 7 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let m = rejected("module a;\n\nfn g(xs: [2]f64) -> f32 {\n    return xs[0] as f32;\n}\n\ntest t {\n    assert(g([1.0, 2.0]) == 1.0);\n}\n");
+    assert!(m.contains("construct ExprCast(f32) at line 4"), "{}", m);
+}
+
 // ------------------------------------------------ @floatFromInt of a comptime_int
 
 /// #7803: `c as f32` is `@as(f32, @floatFromInt(c))` in the reference, and Zig rounds a comptime_int c there,
