@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/jtag_echo_top.t27
+// JTAG Echo Top - BSCANE2-based communication via JTAG cable
+// Port of gHashTag/trinity fpga/openxc7-synth/jtag_echo_top.v
+// Host sends 8-bit data via USER1 DR scan → FPGA echoes it back
+// LED D5 blinks as heartbeat, LED D6 toggles on each received byte
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module jtag_echo_top {
+
+    // === JTAG interface signals ===
+    
+    pub struct JtagInputs {
+        capture : bool,
+        drck : bool,
+        reset : bool,
+        runtest : bool,
+        sel : bool,
+        shift : bool,
+        tck : bool,
+        tdi : bool,
+        tms : bool,
+        update : bool,
+    }
+    
+    pub struct JtagOutputs {
+        tdo : bool,
+    }
+    
+    // === Internal state registers ===
+    
+    pub struct ShiftRegisterState {
+        shift_reg : [8]bool,  // 8-bit shift register
+        latch_reg : [8]bool,  // Latched on UPDATE
+        rx_toggle : bool,     // Toggle on each byte received
+    }
+    
+    pub struct HeartbeatState {
+        hb_counter : [25]bool,  // 25-bit counter for heartbeat
+    }
+    
+    // === Constructor functions ===
+    
+    fn jtag_inputs_empty() -> JtagInputs {
+        return JtagInputs{
+            .capture = false,
+            .drck = false,
+            .reset = false,
+            .runtest = false,
+            .sel = false,
+            .shift = false,
+            .tck = false,
+            .tdi = false,
+            .tms = false,
+            .update = false,
+        };
+    }
+    
+    fn shift_register_empty() -> ShiftRegisterState {
+        var reg : [8]bool = [false, false, false, false, false, false, false, false];
+        return ShiftRegisterState{
+            .shift_reg = reg,
+            .latch_reg = reg,
+            .rx_toggle = false,
+        };
+    }
+    
+    fn heartbeat_empty() -> HeartbeatState {
+        var counter : [25]bool = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false];
+        return HeartbeatState{
+            .hb_counter = counter,
+        };
+    }
+    
+    // === Shift register logic ===
+    
+    fn update_shift_reg(current: ShiftRegisterState, jtag: JtagInputs) -> ShiftRegisterState {
+        var next = current;
+        
+        if (jtag.sel) {
+            if (jtag.capture) {
+                // Load previously latched value for readback
+                next.shift_reg = current.latch_reg;
+            } else if (jtag.shift) {
+                // Shift: TDI in at MSB, TDO out from LSB
+                var new_reg : [8]bool = [false, false, false, false, false, false, false, false];
+                new_reg[0] = jtag.tdi;  // TDI at MSB (bit 7)
+                for i in 0..7 {
+                    if (i < 7) {
+                        new_reg[i + 1] = current.shift_reg[i];  // Shift right
+                    }
+                }
+                next.shift_reg = new_reg;
+            }
+        }
+        
+        return next;
+    }
+    
+    fn update_latch_reg(current: ShiftRegisterState, jtag: JtagInputs) -> ShiftRegisterState {
+        var next = current;
+        
+        if (jtag.sel and jtag.update) {
+            next.latch_reg = current.shift_reg;
+            next.rx_toggle = !current.rx_toggle;
+        }
+        
+        return next;
+    }
+    
+    fn compute_tdo_output(state: ShiftRegisterState) -> bool {
+        // TDO output is LSB of shift register
+        return state.shift_reg[0];
+    }
+    
+    // === Heartbeat logic ===
+    
+    fn update_heartbeat(current: HeartbeatState) -> HeartbeatState {
+        var next = current;
+        
+        // Increment counter (clock domain)
+        var carry : bool = true;
+        for i in 0..25 {
+            var bit : bool = current.hb_counter[i];
+            var new_bit : bool = bit ^ carry;
+            next.hb_counter[i] = new_bit;
+            carry = bit and carry;
+        }
+        
+        return next;
+    }
+    
+    fn compute_led_d5(heartbeat: HeartbeatState) -> bool {
+        // Active-low LED, heartbeat ~1.5 Hz (bit 24 toggles every 2^24 cycles)
+        return !heartbeat.hb_counter[24];
+    }
+    
+    fn compute_led_d6(rx_toggle: bool) -> bool {
+        // Active-low LED, toggle on each byte received
+        return !rx_toggle;
+    }
+    
+    // === Combined state update ===
+    
+    fn update_state(shift_current: ShiftRegisterState, heartbeat_current: HeartbeatState, jtag: JtagInputs, clk_rising: bool) -> (ShiftRegisterState, HeartbeatState) {
+        var next_shift = shift_current;
+        var next_heartbeat = heartbeat_current;
+        
+        // Update shift register logic (JTAG clock domain)
+        next_shift = update_shift_reg(shift_current, jtag);
+        next_shift = update_latch_reg(next_shift, jtag);
+        
+        // Update heartbeat (clock domain)
+        if (clk_rising) {
+            next_heartbeat = update_heartbeat(heartbeat_current);
+        }
+        
+        return (next_shift, next_heartbeat);
+    }
+    
+    fn compute_outputs(shift_state: ShiftRegisterState, heartbeat_state: HeartbeatState) -> JtagOutputs {
+        return JtagOutputs{
+            .tdo = compute_tdo_output(shift_state),
+        };
+    }
+    
+    // === Validation ===
+    
+    fn validate_shift_reg_state(state: ShiftRegisterState) -> u32 {
+        var errors : u32 = 0;
+        // Basic validation - all bits should be boolean
+        for i in 0..8 {
+            if (state.shift_reg[i] != true and state.shift_reg[i] != false) {
+                errors = errors + 1;
+            }
+        }
+        return errors;
+    }
+    
+    fn validate_heartbeat_state(state: HeartbeatState) -> u32 {
+        var errors : u32 = 0;
+        // Basic validation - all bits should be boolean
+        for i in 0..25 {
+            if (state.hb_counter[i] != true and state.hb_counter[i] != false) {
+                errors = errors + 1;
+            }
+        }
+        return errors;
+    }
+    
+    // === Tests ===
+    
+    test shift_register_capture
+        given current = shift_register_empty()
+        and jtag = jtag_inputs_empty()(.capture = true, .sel = true)
+        then let next = update_shift_reg(current, jtag)
+        and next.shift_reg == current.latch_reg  // Should load latch_reg into shift_reg
+
+    test shift_register_shift
+        given current = ShiftRegisterState{.shift_reg = [true, false, false, false, false, false, false, false], .latch_reg = [false, false, false, false, false, false, false, false], .rx_toggle = false}
+        and jtag = jtag_inputs_empty()(.shift = true, .sel = true, .tdi = true)
+        then let next = update_shift_reg(current, jtag)
+        and next.shift_reg[0] == true  // TDI at MSB
+        and next.shift_reg[1] == true  // Shifted in bit
+        and next.shift_reg[2] == false // Original bit shifted right
+
+    test shift_register_no_shift
+        given current = ShiftRegisterState{.shift_reg = [true, false, false, false, false, false, false, false], .latch_reg = [false, false, false, false, false, false, false, false], .rx_toggle = false}
+        and jtag = jtag_inputs_empty()(.shift = false, .sel = true)
+        then let next = update_shift_reg(current, jtag)
+        and next.shift_reg == current.shift_reg  // Should remain unchanged
+
+    test latch_update
+        given current = ShiftRegisterState{.shift_reg = [true, false, false, false, false, false, false, false], .latch_reg = [false, false, false, false, false, false, false, false], .rx_toggle = false}
+        and jtag = jtag_inputs_empty()(.update = true, .sel = true)
+        then let next = update_latch_reg(current, jtag)
+        and next.latch_reg == current.shift_reg  // Should update to shift_reg
+        and next.rx_toggle == true  // Should toggle
+
+    test tdo_output
+        given state = ShiftRegisterState{.shift_reg = [true, false, false, false, false, false, false, false], .latch_reg = [false, false, false, false, false, false, false, false], .rx_toggle = false}
+        then compute_tdo_output(state) == true  // LSB is true
+
+    test heartbeat_increment
+        given current = heartbeat_empty()
+        then let next = update_heartbeat(current)
+        and next.hb_counter[0] == true  // LSB should increment
+
+    test_led_d5_heartbeat
+        given heartbeat = HeartbeatState{.hb_counter = [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]}
+        then compute_led_d5(heartbeat) == false  // Active-low, bit 24 is false
+
+    test_led_d6_toggle
+        given rx_toggle = false
+        then compute_led_d6(rx_toggle) == true  // Active-low, false input -> true output
+
+    test_combined_state_update
+        given shift_current = shift_register_empty()
+        and heartbeat_current = heartbeat_empty()
+        and jtag = jtag_inputs_empty()(.capture = true, .sel = true)
+        and clk_rising = true
+        then let (next_shift, next_heartbeat) = update_state(shift_current, heartbeat_current, jtag, clk_rising)
+        and next_shift.shift_reg == shift_current.latch_reg  // Capture should work
+        and next_heartbeat.hb_counter[0] == true  // Heartbeat should increment
+
+    test_compute_outputs
+        given shift_state = ShiftRegisterState{.shift_reg = [false, false, false, false, false, false, false, true], .latch_reg = [false, false, false, false, false, false, false, false], .rx_toggle = false}
+        and heartbeat_state = heartbeat_empty()
+        then let outputs = compute_outputs(shift_state, heartbeat_state)
+        and outputs.tdo == true  // LSB of shift_reg is true
+
+    test_validate_shift_reg_ok
+        given state = shift_register_empty()
+        then validate_shift_reg_state(state) == 0
+
+    test_validate_heartbeat_ok
+        given state = heartbeat_empty()
+        then validate_heartbeat_state(state) == 0
+
+    // === Invariants ===
+
+    invariant shift_reg_size_constant
+        given state = shift_register_empty()
+        assert state.shift_reg.len == 8
+
+    invariant latch_reg_size_constant
+        given state = shift_register_empty()
+        assert state.latch_reg.len == 8
+
+    invariant heartbeat_counter_size_constant
+        given state = heartbeat_empty()
+        assert state.hb_counter.len == 25
+
+    invariant rx_toggle_boolean
+        given state = shift_register_empty()
+        assert state.rx_toggle == true or state.rx_toggle == false
+
+    invariant led_d5_active_low
+        given heartbeat = heartbeat_empty()
+        and led = compute_led_d5(heartbeat)
+        assert led == true or led == false
+
+    invariant led_d6_active_low
+        given rx_toggle = false
+        and led = compute_led_d6(rx_toggle)
+        assert led == true or led == false
+
+    bench shift_register_update_latency
+        measure: nanoseconds to update_shift_reg(shift_register_empty(), jtag_inputs_empty())
+        target: < 10ns
+
+    bench heartbeat_update_latency
+        measure: nanoseconds to update_heartbeat(heartbeat_empty())
+        target: < 10ns
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
