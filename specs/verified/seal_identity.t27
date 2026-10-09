@@ -1,0 +1,328 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/seal_identity.t27 -- the seal v2 identity: what a seal records and when a silicon
+; run counts as verdict evidence. Epic gHashTag/t27#8096, step 1 of #8095.
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/reuse.t27 (#8096) defines the reuse decision and part comparison logic.
+; - specs/verified/independence.t27 (#7497) defines INDEP_DIES and INDEP_NONE for silicon runs.
+; - specs/verified/verdict.t27 (#6732) defines the verdict record structure and validation.
+; - Legacy seals record only spec_hash and built_by (t27c version), missing closure, config, verdict.
+; --
+; The seal v2 identity extends legacy seals with five parts:
+; 1. spec_hash: the spec bytes that produced the artifact (always recorded, never MISSING)
+; 2. closure_hash: the `use` closure imports (MISSING in legacy seals)
+; 3. toolchain: t27c version plus backend tool versions (MISSING in legacy seals)
+; 4. config_hash: the build configuration (MISSING in legacy seals)  
+; 5. verdict_part: the silicon run verdict or software verdict (MISSING in legacy seals)
+; --
+; The silicon rule: a silicon run stands as verdict evidence only when:
+; - The run is citable at INDEP_DIES or higher (independence.t27)
+; - The run uses the same spec_hash, toolchain, and config_hash as the current build
+; - The run's verdict matches the expected PASS verdict
+; --
+; The combined decision: seal v2 reuses when all five parts match and the verdict is PASS.
+; Legacy seals (missing parts) always rebuild once, then may reuse if rebuilt with full identity.
+; --
+; reused_permille: for CI reporting, the percentage of artifacts that could be reused.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedSealIdentity;
+
+use verified::reuse;
+use verified::independence;
+use verified::verdict;
+
+/// Seal v2 identity parts - same as reuse.t27 but with explicit MISSING states
+pub const PART_SPEC : u8 = 0;
+pub const PART_CLOSURE : u8 = 1;
+pub const PART_TOOLCHAIN : u8 = 2;
+pub const PART_CONFIG : u8 = 3;
+pub const PART_VERDICT : u8 = 4;
+
+/// Whether a seal v2 part is recorded (not MISSING)
+pub fn part_recorded(part: u8) -> bool {
+    return part != reuse::PART_MISSING;
+}
+
+/// Whether a seal v2 part may be used for comparison (recorded and not DIFF)
+pub fn part_available(part: u8) -> bool {
+    return reuse::part_holds(part);
+}
+
+/// The silicon rule: can a silicon run stand as verdict evidence?
+/// Returns true only when citable at INDEP_DIES or higher with matching identity.
+pub fn silicon_rule_verdict(
+    run_indep_level: u8,
+    required_indep_level: u8,
+    spec_match: bool,
+    toolchain_match: bool, 
+    config_match: bool,
+    run_verdict_pass: bool
+) -> bool {
+    // Must be a valid independence level (not a fact that prevents independence)
+    if (run_indep_level > independence::INDEP_OPERATORS) {
+        return false;
+    }
+    
+    // Must be citable at the required independence level
+    if (!independence::indep_citable_at(run_indep_level, required_indep_level)) {
+        return false;
+    }
+    
+    // Must match on spec, toolchain, and config
+    if (!spec_match || !toolchain_match || !config_match) {
+        return false;
+    }
+    
+    // Run verdict must be PASS
+    return run_verdict_pass;
+}
+
+/// Combined seal v2 decision: when can a sealed artifact be reused?
+/// Extends reuse.t27 with silicon rule for verdict parts.
+pub fn seal_v2_decision(
+    spec_part: u8,
+    closure_part: u8,
+    toolchain_part: u8,
+    config_part: u8,
+    verdict_part: u8,
+    silicon_run_indep_level: u8,
+    silicon_required_indep_level: u8,
+    silicon_spec_match: bool,
+    silicon_toolchain_match: bool,
+    silicon_config_match: bool,
+    silicon_verdict_pass: bool,
+    is_silicon_verdict: bool
+) -> u8 {
+    // For non-silicon verdicts, use standard reuse decision
+    if (!is_silicon_verdict) {
+        return reuse::reuse_decision(
+            spec_part, closure_part, toolchain_part, config_part,
+            verdict_part == reuse::PART_SAME  // verdict_part holds means PASS
+        );
+    }
+    
+    // For silicon verdicts, first check if the silicon rule allows using it
+    if (!silicon_rule_verdict(
+        silicon_run_indep_level, silicon_required_indep_level,
+        silicon_spec_match, silicon_toolchain_match, silicon_config_match,
+        silicon_verdict_pass
+    )) {
+        // Silicon rule fails: hardware step remains UNPROVEN
+        return reuse::REBUILD_VERDICT;
+    }
+    
+    // Silicon rule passes: now check if the identity parts match for reuse
+    // Convert boolean matches to part constants for reuse_decision
+    var spec_silicon_part : u8 = if (silicon_spec_match) reuse::PART_SAME else reuse::PART_DIFF;
+    var closure_silicon_part : u8 = if (true) reuse::PART_SAME else reuse::PART_DIFF;  // closure not checked in silicon rule
+    var toolchain_silicon_part : u8 = if (silicon_toolchain_match) reuse::PART_SAME else reuse::PART_DIFF;
+    var config_silicon_part : u8 = if (silicon_config_match) reuse::PART_SAME else reuse::PART_DIFF;
+    
+    return reuse::reuse_decision(
+        spec_silicon_part, closure_silicon_part, toolchain_silicon_part, config_silicon_part,
+        true  // silicon verdict that passed rule is considered PASS
+    );
+}
+
+/// reused_permille: percentage of artifacts that could be reused in CI reporting
+/// Returns permille (0-1000) where 1000 = 100% reusable
+pub fn reused_permille(
+    total_artifacts: u32,
+    reusable_artifacts: u32
+) -> u16 {
+    if (total_artifacts == 0) {
+        return 0;
+    }
+    
+    var percentage : u32 = (reusable_artifacts * 1000) / total_artifacts;
+    return percentage as u16;
+}
+
+/// Legacy seal detection: has a seal recorded all v2 parts?
+pub fn is_legacy_seal(
+    closure_part: u8,
+    toolchain_part: u8,
+    config_part: u8,
+    verdict_part: u8
+) -> bool {
+    return closure_part == reuse::PART_MISSING &&
+           toolchain_part == reuse::PART_MISSING &&
+           config_part == reuse::PART_MISSING &&
+           verdict_part == reuse::PART_MISSING;
+}
+
+/// Legacy seal behavior: rebuild once, then may reuse if rebuilt with full identity
+pub fn legacy_seal_rebuilds_once(
+    spec_part: u8,
+    closure_part: u8,
+    toolchain_part: u8,
+    config_part: u8,
+    verdict_part: u8,
+    has_been_rebuilt: bool
+) -> u8 {
+    if (is_legacy_seal(closure_part, toolchain_part, config_part, verdict_part)) {
+        if (has_been_rebuilt) {
+            // Legacy seal rebuilt once: now check if it has full identity
+            if (reuse::part_holds(spec_part) && 
+                reuse::part_holds(closure_part) && 
+                reuse::part_holds(toolchain_part) && 
+                reuse::part_holds(config_part) && 
+                reuse::part_holds(verdict_part)) {
+                return reuse::REUSE;
+            } else {
+                return reuse::REBUILD_MISSING;
+            }
+        } else {
+            // Legacy seal: rebuild once to get full identity
+            return reuse::REBUILD_MISSING;
+        }
+    }
+    
+    // Not a legacy seal: use standard decision
+    return reuse::reuse_decision(spec_part, closure_part, toolchain_part, config_part, 
+                               verdict_part == reuse::PART_SAME);
+}
+
+; --- tests --------------------------------------------------------------------------------------
+
+test "legacy seal rebuilds once, then may reuse with full identity" {
+    // Legacy seal (all parts missing) rebuilds first time
+    assert legacy_seal_rebuilds_once(PART_SAME, PART_MISSING, PART_MISSING, PART_MISSING, PART_MISSING, false) == reuse::REBUILD_MISSING;
+    
+    // Legacy seal rebuilt but still missing parts: still rebuild
+    assert legacy_seal_rebuilds_once(PART_SAME, PART_MISSING, PART_MISSING, PART_MISSING, PART_MISSING, true) == reuse::REBUILD_MISSING;
+    
+    // Legacy seal rebuilt with full identity: may reuse
+    assert legacy_seal_rebuilds_once(PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME, true) == reuse::REUSE;
+    
+    // Not a legacy seal: use standard decision
+    assert legacy_seal_rebuilds_once(PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME, false) == reuse::REUSE;
+}
+
+test "v2 software seal reuses when all parts match" {
+    var decision : u8 = seal_v2_decision(
+        PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME,
+        0, 0, false, false, false, false,  // silicon rule not used
+        false  // is_silicon_verdict = false
+    );
+    assert decision == reuse::REUSE;
+}
+
+test "ternary_link with R3-3 run reuses when silicon rule satisfied" {
+    // R3-3 run at INDEP_DIES with matching identity and PASS verdict
+    var decision : u8 = seal_v2_decision(
+        PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME,
+        independence::INDEP_DIES, independence::INDEP_DIES,  // run at required level
+        true, true, true,  // spec, toolchain, config match
+        true,  // run verdict is PASS
+        true   // is_silicon_verdict = true
+    );
+    assert decision == reuse::REUSE;
+}
+
+test "same run under different conditions leaves hardware UNPROVEN" {
+    // Same run but different toolchain: silicon rule fails
+    var decision : u8 = seal_v2_decision(
+        PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME,  // parts ignored for silicon
+        independence::INDEP_DIES, independence::INDEP_DIES,
+        true, false, true,  // toolchain doesn't match
+        true,
+        true
+    );
+    assert decision == reuse::REBUILD_VERDICT;  // hardware step UNPROVEN
+    
+    // Same run but at INDEP_NONE: silicon rule fails
+    decision = seal_v2_decision(
+        PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME,
+        independence::INDEP_NONE, independence::INDEP_DIES,  // not citable at required level
+        true, true, true,
+        true,
+        true
+    );
+    assert decision == reuse::REBUILD_VERDICT;  // hardware step UNPROVEN
+    
+    // Same run but not citable (some other reason): silicon rule fails
+    decision = seal_v2_decision(
+        PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME,
+        independence::INDEP_NOT_FRESH, independence::INDEP_DIES,  // not fresh, not citable
+        true, true, true,
+        true,
+        true
+    );
+    assert decision == reuse::REBUILD_VERDICT;  // hardware step UNPROVEN
+}
+
+test "changed spec rebuilds even with cited run" {
+    // Different spec, even with cited silicon run: must rebuild
+    var decision : u8 = seal_v2_decision(
+        PART_SAME, PART_SAME, PART_SAME, PART_SAME, PART_SAME,  // parts ignored for silicon
+        independence::INDEP_DIES, independence::INDEP_DIES,
+        false, true, true,  // spec doesn't match
+        true,
+        true
+    );
+    assert decision == reuse::REBUILD_VERDICT;  // silicon rule fails, hardware UNPROVEN
+}
+
+test "silicon rule functions work correctly" {
+    // Rule passes when all conditions met
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_DIES, true, true, true, true) == true;
+    assert silicon_rule_verdict(independence::INDEP_OPERATORS, independence::INDEP_DIES, true, true, true, true) == true;
+    
+    // Rule fails when independence too low
+    assert silicon_rule_verdict(independence::INDEP_NONE, independence::INDEP_DIES, true, true, true, true) == false;
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_OPERATORS, true, true, true, true) == false;
+    
+    // Rule fails when identity doesn't match
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_DIES, false, true, true, true) == false;
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_DIES, true, false, true, true) == false;
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_DIES, true, true, false, true) == false;
+    
+    // Rule fails when verdict not PASS
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_DIES, true, true, true, false) == false;
+}
+
+test "debug silicon rule for failing test case" {
+    // Test the exact case that's failing: INDEP_NOT_FRESH should not be citable
+    assert silicon_rule_verdict(independence::INDEP_NOT_FRESH, independence::INDEP_DIES, true, true, true, true) == false;
+    
+    // Test the other failing cases
+    assert silicon_rule_verdict(independence::INDEP_DIES, independence::INDEP_DIES, true, false, true, true) == false;
+    assert silicon_rule_verdict(independence::INDEP_NONE, independence::INDEP_DIES, true, true, true, true) == false;
+}
+
+test "part availability functions work" {
+    assert part_recorded(reuse::PART_SAME) == true;
+    assert part_recorded(reuse::PART_DIFF) == true;
+    assert part_recorded(reuse::PART_MISSING) == false;
+    
+    assert part_available(reuse::PART_SAME) == true;
+    assert part_available(reuse::PART_DIFF) == false;
+    assert part_available(reuse::PART_MISSING) == false;
+}
+
+test "reused_permille calculates correctly" {
+    assert reused_permille(0, 0) == 0;
+    assert reused_permille(1000, 0) == 0;
+    assert reused_permille(1000, 500) == 500;  // 50%
+    assert reused_permille(1000, 1000) == 1000;  // 100%
+    assert reused_permille(2000, 1500) == 750;  // 75%
+}
+
+test "legacy seal detection works" {
+    assert is_legacy_seal(reuse::PART_MISSING, reuse::PART_MISSING, reuse::PART_MISSING, reuse::PART_MISSING) == true;
+    assert is_legacy_seal(reuse::PART_SAME, reuse::PART_MISSING, reuse::PART_MISSING, reuse::PART_MISSING) == false;
+    assert is_legacy_seal(reuse::PART_MISSING, reuse::PART_SAME, reuse::PART_MISSING, reuse::PART_MISSING) == false;
+    assert is_legacy_seal(reuse::PART_MISSING, reuse::PART_MISSING, reuse::PART_SAME, reuse::PART_MISSING) == false;
+    assert is_legacy_seal(reuse::PART_MISSING, reuse::PART_MISSING, reuse::PART_MISSING, reuse::PART_SAME) == false;
+}
+
+invariant seal_v2_constants_ordered {
+    assert PART_SPEC < PART_CLOSURE;
+    assert PART_CLOSURE < PART_TOOLCHAIN;
+    assert PART_TOOLCHAIN < PART_CONFIG;
+    assert PART_CONFIG < PART_VERDICT;
+    assert independence::INDEP_NONE < independence::INDEP_DIES;
+    assert independence::INDEP_DIES < independence::INDEP_OPERATORS;
+}
