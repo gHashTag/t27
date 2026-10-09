@@ -1,0 +1,381 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/dispatch_exit.t27 -- every end of a Queen dispatch names its exit reason (gHashTag/t27#7494).
+; Measured 2026-10-07 (#7494): 33 of 51 finished dispatches in /queen/public-activity said "ended
+; unexpectedly (cause undetermined)": queen-dispatch.ts saw the stream close without a completion frame
+; and wrote no reason. A reason nobody writes cannot be counted, and a retry rule that cannot tell an
+; outage from a hung turn from a dropped connection either retries all of them or none.
+; This file maps what the host can observe when a dispatch ends to one exit reason, and each reason to
+; one restart decision. The reasons are the exit reasons of specs/queen/actors.t27 section 3 where the
+; BEAM has one (normal, shutdown, killed, noconnection), with the same numbers, written as literals
+; because this file does not import actors.t27 (trap T7 of the actors loop): a drift there is the
+; reconciler's problem, and the invariant below pins the numbers so a drift fails here too. Three
+; reasons are dispatch-only: TIMEOUT, PROVIDER_ERROR and UNKNOWN; their numbers start after the last
+; actors.t27 reason (X_NOCONNECTION = 6) and stay below its X_NONE (99).
+; What the host observes at the end of a dispatch:
+;   completion    a completion frame arrived on the stream
+;   error frame   the kind of the last error frame: none, cancel (an operator or the Queen cancelled,
+;                 control.t27 CANCEL_RULE), kill (the supervisor killed a hung turn, actors.t27
+;                 turn_signal), provider (the model provider answered with an error)
+;   http class    the provider's last HTTP status, as a class: none, 2xx, 4xx, 429, 5xx
+;   elapsed       seconds since the dispatch started, against the dispatch's own timeout
+;   lease         whether the dispatch still holds its task lease (control.t27 section 2)
+;   heartbeat     seconds since the runtime's last heartbeat; HB_NEVER when none was seen
+; UNKNOWN is rare by construction: a stream that closes with no completion frame, no error frame and
+; no provider error is TIMEOUT past its timeout, NOCONNECTION while the runtime still beats, and KILLED
+; once its lease was taken from it. What is left -- a silent runtime that still holds its lease past
+; one TTL without a heartbeat -- contradicts the lease rule itself (a lease expires one TTL after the
+; last renewal), so UNKNOWN names an observation that is inconsistent, not a cause nobody looked for.
+; Not here: the wiring. The host is TypeScript in gHashTag/BrowserOS (queen-dispatch.ts); the test
+; `conformance_rows` is one assert per row, inputs to code, so the host can run the same rows. ASCII
+; only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenDispatchExit;
+
+; --- 1. Exit reasons -------------------------------------------------------------------------------
+
+/// The four reasons the BEAM has, with actors.t27's numbers (X_NORMAL, X_SHUTDOWN, X_KILLED,
+/// X_NOCONNECTION), as literals (T7).
+pub const DX_NORMAL : u8 = 0;
+pub const DX_SHUTDOWN : u8 = 1;
+pub const DX_KILLED : u8 = 3;
+pub const DX_NOCONNECTION : u8 = 6;
+/// The dispatch-only reasons.
+pub const DX_TIMEOUT : u8 = 7;
+pub const DX_PROVIDER_ERROR : u8 = 8;
+pub const DX_UNKNOWN : u8 = 9;
+
+/// The actors.t27 reasons the supervisor's rules read: X_CRASH = 4 is the abnormal end of section 3,
+/// and a dispatch-only reason reaches the supervisor as that crash.
+pub const ACTORS_X_CRASH : u8 = 4;
+
+; --- 2. What the host observes ---------------------------------------------------------------------
+
+/// The kind of the last error frame on the stream. A kind this file does not know reads as EF_NONE,
+/// so an unknown frame never hides a completion, a timeout or a dropped connection.
+pub const EF_NONE : u8 = 0;
+pub const EF_CANCEL : u8 = 1;
+pub const EF_KILL : u8 = 2;
+pub const EF_PROVIDER : u8 = 3;
+
+/// The provider's last HTTP status as a class. 429 is its own class: it is the one 4xx that passes.
+pub const HC_NONE : u8 = 0;
+pub const HC_2XX : u8 = 2;
+pub const HC_4XX : u8 = 4;
+pub const HC_5XX : u8 = 5;
+pub const HC_429 : u8 = 9;
+
+pub fn http_class(status: u32) -> u8 {
+    if (status == 429) { return HC_429; }
+    if (status >= 600) { return HC_NONE; }
+    if (status >= 500) { return HC_5XX; }
+    if (status >= 400) { return HC_4XX; }
+    if (status >= 200) { return HC_2XX; }
+    return HC_NONE;
+}
+
+/// No heartbeat was seen at all.
+pub const HB_NEVER : u32 = 4294967295;
+
+/// One task lease TTL (control.t27 TASK_LEASE_TTL_SECONDS, a literal, T7). A runtime whose last
+/// heartbeat is younger than this is alive as far as the lease rule can tell.
+pub const LEASE_TTL_SECONDS : u32 = 180;
+
+pub fn provider_failed(error_frame: u8, http: u8) -> bool {
+    if (error_frame == EF_PROVIDER) { return true; }
+    if (http == HC_4XX) { return true; }
+    if (http == HC_429) { return true; }
+    if (http == HC_5XX) { return true; }
+    return false;
+}
+
+pub fn runtime_alive(heartbeat_age: u32) -> bool {
+    return heartbeat_age < LEASE_TTL_SECONDS;
+}
+
+/// A timeout of 0 means the dispatch has none, so no elapsed time is past it.
+pub fn past_timeout(elapsed: u32, timeout: u32) -> bool {
+    if (timeout == 0) { return false; }
+    return elapsed >= timeout;
+}
+
+; --- 3. The reason -----------------------------------------------------------------------------------
+
+/// First match wins. An explicit cancel or kill frame names its own reason; a provider error beats a
+/// completion frame that followed it (the answer is the error); then the completion; then what the
+/// clock, the heartbeat and the lease say about a stream that simply closed.
+pub fn exit_reason(completion: bool, error_frame: u8, http: u8, elapsed: u32, timeout: u32, lease_held: bool, heartbeat_age: u32) -> u8 {
+    if (error_frame == EF_CANCEL) { return DX_SHUTDOWN; }
+    if (error_frame == EF_KILL) { return DX_KILLED; }
+    if (provider_failed(error_frame, http)) { return DX_PROVIDER_ERROR; }
+    if (completion) { return DX_NORMAL; }
+    if (past_timeout(elapsed, timeout)) { return DX_TIMEOUT; }
+    if (runtime_alive(heartbeat_age)) { return DX_NOCONNECTION; }
+    if (lease_held == false) { return DX_KILLED; }
+    return DX_UNKNOWN;
+}
+
+/// The reason actors.t27's supervisor reads (section 3 and should_restart). A dispatch-only reason is
+/// an abnormal end, X_CRASH.
+pub fn actors_reason(reason: u8) -> u8 {
+    if (reason == DX_NORMAL) { return DX_NORMAL; }
+    if (reason == DX_SHUTDOWN) { return DX_SHUTDOWN; }
+    if (reason == DX_KILLED) { return DX_KILLED; }
+    if (reason == DX_NOCONNECTION) { return DX_NOCONNECTION; }
+    return ACTORS_X_CRASH;
+}
+
+; --- 4. The restart decision -------------------------------------------------------------------------
+
+/// RD_NONE: nothing restarts. RD_NOW: restart at once. RD_LATER: restart after the wait of
+/// restart_wait_seconds. RD_GIVE_UP: the attempt ends as failed and counts against the issue
+/// (control.t27 give_up_counts_against_issue).
+pub const RD_NONE : u8 = 0;
+pub const RD_NOW : u8 = 1;
+pub const RD_LATER : u8 = 2;
+pub const RD_GIVE_UP : u8 = 3;
+
+/// control.t27 EFFECT_RUN_LIMIT and actors.t27 UNSTABLE_GIVE_UP, BACKOFF_BASE_SECONDS and
+/// BACKOFF_CAP_SECONDS, as literals (T7).
+pub const RUN_LIMIT : u32 = 3;
+pub const STREAK_LIMIT : u32 = 6;
+pub const BACKOFF_BASE : u32 = 10;
+pub const BACKOFF_CAP : u32 = 300;
+
+/// Whether this end is a counted run of the issue. An agent runtime is a transient child (actors.t27
+/// queen_restart_type): normal and shutdown end it for good and count nothing, a cancel is an
+/// interruption (control.t27 cancel_counts_against_issue). A dropped connection is an interruption
+/// too: the runtime was alive and the work did nothing wrong. Every other end is a failed run.
+pub fn counts_against_issue(reason: u8) -> bool {
+    if (reason == DX_NORMAL) { return false; }
+    if (reason == DX_SHUTDOWN) { return false; }
+    if (reason == DX_NOCONNECTION) { return false; }
+    return true;
+}
+
+/// `runs` is the counted runs of the issue before this one; `streak` is every restart of the issue
+/// before this one, counted or not, so an interruption that repeats also ends (actors.t27
+/// with_backoff). A provider's 4xx other than 429 is refused again the same way (auth, a bad request,
+/// a prompt too large) and gives up at once. A kill or a lost lease proves the runtime gone, so the
+/// task is taken again at once (actors.t27 reclaim_wait_seconds returns 0 for X_KILLED). A dropped
+/// connection proves nothing, a timeout and an outage meet the same wall if retried at once, and an
+/// unknown end is retried as carefully: those wait.
+pub fn restart_decision(reason: u8, http: u8, runs: u32, streak: u32) -> u8 {
+    if (reason == DX_NORMAL) { return RD_NONE; }
+    if (reason == DX_SHUTDOWN) { return RD_NONE; }
+    if (streak >= STREAK_LIMIT) { return RD_GIVE_UP; }
+    if (counts_against_issue(reason)) {
+        if (runs + 1 >= RUN_LIMIT) { return RD_GIVE_UP; }
+    }
+    if (reason == DX_PROVIDER_ERROR) {
+        if (http == HC_4XX) { return RD_GIVE_UP; }
+        return RD_LATER;
+    }
+    if (reason == DX_KILLED) { return RD_NOW; }
+    return RD_LATER;
+}
+
+/// The wait before a RD_LATER restart. A dropped connection waits out the rest of the lease, as
+/// actors.t27 reclaim_wait_seconds does for X_NOCONNECTION: the old runtime may still be at work.
+/// Everything else waits actors.t27's backoff for restart number streak + 1: BACKOFF_BASE doubled
+/// streak times, never more than BACKOFF_CAP.
+pub fn restart_wait_seconds(reason: u8, streak: u32, heartbeat_age: u32) -> u32 {
+    if (reason == DX_NOCONNECTION) {
+        if (heartbeat_age >= LEASE_TTL_SECONDS) { return 0; }
+        return LEASE_TTL_SECONDS - heartbeat_age;
+    }
+    var wait : u32 = BACKOFF_BASE;
+    var n : u32 = 0;
+    while (n < streak) {
+        if (wait >= BACKOFF_CAP) { return BACKOFF_CAP; }
+        wait = wait * 2;
+        n = n + 1;
+    }
+    if (wait > BACKOFF_CAP) { return BACKOFF_CAP; }
+    return wait;
+}
+
+; --- 5. Tests ----------------------------------------------------------------------------------------
+
+test a_status_falls_in_its_class {
+    assert http_class(0) == HC_NONE;
+    assert http_class(199) == HC_NONE;
+    assert http_class(200) == HC_2XX;
+    assert http_class(399) == HC_2XX;
+    assert http_class(400) == HC_4XX;
+    assert http_class(428) == HC_4XX;
+    assert http_class(429) == HC_429;
+    assert http_class(430) == HC_4XX;
+    assert http_class(499) == HC_4XX;
+    assert http_class(500) == HC_5XX;
+    assert http_class(599) == HC_5XX;
+    assert http_class(600) == HC_NONE;
+}
+
+test the_provider_failed_when_it_said_so_or_its_status_did {
+    assert provider_failed(EF_PROVIDER, HC_NONE) == true;
+    assert provider_failed(EF_NONE, HC_4XX) == true;
+    assert provider_failed(EF_NONE, HC_429) == true;
+    assert provider_failed(EF_NONE, HC_5XX) == true;
+    assert provider_failed(EF_NONE, HC_2XX) == false;
+    assert provider_failed(EF_NONE, HC_NONE) == false;
+    assert provider_failed(EF_CANCEL, HC_NONE) == false;
+    assert provider_failed(EF_KILL, HC_2XX) == false;
+}
+
+test a_runtime_is_alive_inside_one_ttl_and_a_timeout_of_zero_never_passes {
+    assert runtime_alive(0) == true;
+    assert runtime_alive(LEASE_TTL_SECONDS - 1) == true;
+    assert runtime_alive(LEASE_TTL_SECONDS) == false;
+    assert runtime_alive(HB_NEVER) == false;
+    assert past_timeout(4000000000, 0) == false;
+    assert past_timeout(599, 600) == false;
+    assert past_timeout(600, 600) == true;
+}
+
+test a_supervisor_reads_a_dispatch_only_reason_as_a_crash {
+    assert actors_reason(DX_NORMAL) == 0;
+    assert actors_reason(DX_SHUTDOWN) == 1;
+    assert actors_reason(DX_KILLED) == 3;
+    assert actors_reason(DX_NOCONNECTION) == 6;
+    assert actors_reason(DX_TIMEOUT) == ACTORS_X_CRASH;
+    assert actors_reason(DX_PROVIDER_ERROR) == ACTORS_X_CRASH;
+    assert actors_reason(DX_UNKNOWN) == ACTORS_X_CRASH;
+}
+
+/// actors.t27 should_restart for a transient child: everything but normal and shutdown restarts.
+/// The decision agrees with it on a first failure, for every reason.
+test the_decision_restarts_what_a_transient_child_restarts {
+    assert restart_decision(DX_NORMAL, HC_NONE, 0, 0) == RD_NONE;
+    assert restart_decision(DX_SHUTDOWN, HC_NONE, 0, 0) == RD_NONE;
+    assert restart_decision(DX_KILLED, HC_NONE, 0, 0) == RD_NOW;
+    assert restart_decision(DX_NOCONNECTION, HC_NONE, 0, 0) == RD_LATER;
+    assert restart_decision(DX_TIMEOUT, HC_NONE, 0, 0) == RD_LATER;
+    assert restart_decision(DX_PROVIDER_ERROR, HC_5XX, 0, 0) == RD_LATER;
+    assert restart_decision(DX_PROVIDER_ERROR, HC_429, 0, 0) == RD_LATER;
+    assert restart_decision(DX_PROVIDER_ERROR, HC_NONE, 0, 0) == RD_LATER;
+    assert restart_decision(DX_UNKNOWN, HC_NONE, 0, 0) == RD_LATER;
+}
+
+test a_refused_request_gives_up_at_once {
+    assert restart_decision(DX_PROVIDER_ERROR, HC_4XX, 0, 0) == RD_GIVE_UP;
+}
+
+test the_third_counted_run_gives_up_and_an_interruption_is_not_counted {
+    assert counts_against_issue(DX_NORMAL) == false;
+    assert counts_against_issue(DX_SHUTDOWN) == false;
+    assert counts_against_issue(DX_NOCONNECTION) == false;
+    assert counts_against_issue(DX_KILLED) == true;
+    assert counts_against_issue(DX_TIMEOUT) == true;
+    assert counts_against_issue(DX_PROVIDER_ERROR) == true;
+    assert counts_against_issue(DX_UNKNOWN) == true;
+    assert restart_decision(DX_TIMEOUT, HC_NONE, 1, 1) == RD_LATER;
+    assert restart_decision(DX_TIMEOUT, HC_NONE, 2, 2) == RD_GIVE_UP;
+    assert restart_decision(DX_KILLED, HC_NONE, 1, 1) == RD_NOW;
+    assert restart_decision(DX_KILLED, HC_NONE, 2, 2) == RD_GIVE_UP;
+    assert restart_decision(DX_NOCONNECTION, HC_NONE, 2, 2) == RD_LATER;
+    assert restart_decision(DX_NOCONNECTION, HC_NONE, 5, 5) == RD_LATER;
+    assert restart_decision(DX_NORMAL, HC_NONE, 9, 9) == RD_NONE;
+    assert restart_decision(DX_SHUTDOWN, HC_NONE, 9, 9) == RD_NONE;
+}
+
+test an_interruption_that_repeats_also_ends {
+    assert restart_decision(DX_NOCONNECTION, HC_NONE, 0, STREAK_LIMIT - 1) == RD_LATER;
+    assert restart_decision(DX_NOCONNECTION, HC_NONE, 0, STREAK_LIMIT) == RD_GIVE_UP;
+    assert restart_decision(DX_KILLED, HC_NONE, 0, STREAK_LIMIT) == RD_GIVE_UP;
+}
+
+test a_dropped_connection_waits_out_the_lease_and_the_rest_back_off {
+    assert restart_wait_seconds(DX_NOCONNECTION, 0, 0) == LEASE_TTL_SECONDS;
+    assert restart_wait_seconds(DX_NOCONNECTION, 3, 60) == 120;
+    assert restart_wait_seconds(DX_NOCONNECTION, 0, LEASE_TTL_SECONDS - 1) == 1;
+    assert restart_wait_seconds(DX_NOCONNECTION, 0, LEASE_TTL_SECONDS) == 0;
+    assert restart_wait_seconds(DX_NOCONNECTION, 0, HB_NEVER) == 0;
+    assert restart_wait_seconds(DX_TIMEOUT, 0, 0) == 10;
+    assert restart_wait_seconds(DX_TIMEOUT, 1, 0) == 20;
+    assert restart_wait_seconds(DX_PROVIDER_ERROR, 2, 0) == 40;
+    assert restart_wait_seconds(DX_UNKNOWN, 4, 0) == 160;
+    assert restart_wait_seconds(DX_UNKNOWN, 5, 0) == BACKOFF_CAP;
+    assert restart_wait_seconds(DX_TIMEOUT, 40, 0) == BACKOFF_CAP;
+}
+
+/// The conformance table: one assert per row, the observation in, the reason out. Columns:
+/// completion, error frame, http class, elapsed, timeout, lease held, heartbeat age. A host
+/// (BrowserOS queen-dispatch.ts) runs the same rows against its own classifier.
+test conformance_rows {
+    // r01 a completion frame, nothing else: normal
+    assert exit_reason(true, EF_NONE, HC_2XX, 120, 3600, true, 5) == DX_NORMAL;
+    // r02 a completion frame after the lease was lost still ends normally
+    assert exit_reason(true, EF_NONE, HC_NONE, 120, 3600, false, HB_NEVER) == DX_NORMAL;
+    // r03 a completion frame past the timeout still ends normally
+    assert exit_reason(true, EF_NONE, HC_2XX, 4000, 3600, true, 5) == DX_NORMAL;
+    // r04 an operator cancel: shutdown, whatever else is seen
+    assert exit_reason(false, EF_CANCEL, HC_NONE, 30, 3600, true, 5) == DX_SHUTDOWN;
+    // r05 a cancel frame beats a provider status
+    assert exit_reason(true, EF_CANCEL, HC_5XX, 30, 3600, true, 5) == DX_SHUTDOWN;
+    // r06 the supervisor killed a hung turn: killed
+    assert exit_reason(false, EF_KILL, HC_NONE, 3600, 3600, true, 5) == DX_KILLED;
+    // r07 a kill frame beats a provider status
+    assert exit_reason(false, EF_KILL, HC_4XX, 10, 3600, true, 5) == DX_KILLED;
+    // r08 a provider error frame
+    assert exit_reason(false, EF_PROVIDER, HC_NONE, 10, 3600, true, 5) == DX_PROVIDER_ERROR;
+    // r09 a 5xx with no frame
+    assert exit_reason(false, EF_NONE, HC_5XX, 10, 3600, true, 5) == DX_PROVIDER_ERROR;
+    // r10 a 429 with no frame
+    assert exit_reason(false, EF_NONE, HC_429, 10, 3600, true, 5) == DX_PROVIDER_ERROR;
+    // r11 a 4xx with no frame
+    assert exit_reason(false, EF_NONE, HC_4XX, 10, 3600, true, 5) == DX_PROVIDER_ERROR;
+    // r12 a provider error beats a completion frame that followed it
+    assert exit_reason(true, EF_PROVIDER, HC_5XX, 10, 3600, true, 5) == DX_PROVIDER_ERROR;
+    // r13 the stream closed past the timeout: timeout
+    assert exit_reason(false, EF_NONE, HC_2XX, 3600, 3600, true, 5) == DX_TIMEOUT;
+    // r14 past the timeout beats a live heartbeat and a lost lease
+    assert exit_reason(false, EF_NONE, HC_NONE, 9000, 3600, false, HB_NEVER) == DX_TIMEOUT;
+    // r15 the stream closed early, the runtime still beats: noconnection (the #7494 case)
+    assert exit_reason(false, EF_NONE, HC_2XX, 300, 3600, true, 30) == DX_NOCONNECTION;
+    // r16 the heartbeat one second inside the TTL is still alive
+    assert exit_reason(false, EF_NONE, HC_NONE, 300, 3600, true, 179) == DX_NOCONNECTION;
+    // r17 a live heartbeat with the lease already gone is still a dropped connection
+    assert exit_reason(false, EF_NONE, HC_NONE, 300, 3600, false, 0) == DX_NOCONNECTION;
+    // r18 no timeout set: a long dispatch never times out
+    assert exit_reason(false, EF_NONE, HC_NONE, 90000, 0, true, 10) == DX_NOCONNECTION;
+    // r19 silent runtime, lease taken from it: killed
+    assert exit_reason(false, EF_NONE, HC_NONE, 300, 3600, false, 180) == DX_KILLED;
+    // r20 no heartbeat ever, lease gone: killed
+    assert exit_reason(false, EF_NONE, HC_NONE, 300, 3600, false, HB_NEVER) == DX_KILLED;
+    // r21 an unknown error frame reads as none
+    assert exit_reason(false, 200, HC_NONE, 300, 3600, true, 30) == DX_NOCONNECTION;
+    // r22 silent past one TTL yet still holding the lease: inconsistent, unknown
+    assert exit_reason(false, EF_NONE, HC_NONE, 300, 3600, true, 180) == DX_UNKNOWN;
+    // r23 no heartbeat ever, lease still held: unknown
+    assert exit_reason(false, EF_NONE, HC_2XX, 300, 3600, true, HB_NEVER) == DX_UNKNOWN;
+    // r24 one second before the timeout is not a timeout
+    assert exit_reason(false, EF_NONE, HC_NONE, 3599, 3600, true, HB_NEVER) == DX_UNKNOWN;
+}
+
+; --- 6. Invariants -----------------------------------------------------------------------------------
+
+/// The BEAM reasons keep actors.t27's numbers; the dispatch-only ones sit after X_NOCONNECTION and
+/// below X_NONE; every reason is distinct.
+invariant the_codes_are_pinned {
+    assert DX_NORMAL == 0 and DX_SHUTDOWN == 1 and DX_KILLED == 3 and DX_NOCONNECTION == 6;
+    assert DX_TIMEOUT == 7 and DX_PROVIDER_ERROR == 8 and DX_UNKNOWN == 9;
+    assert ACTORS_X_CRASH == 4 and DX_UNKNOWN < 99;
+}
+
+invariant the_decisions_are_distinct {
+    assert RD_NONE == 0 and RD_NOW == 1 and RD_LATER == 2 and RD_GIVE_UP == 3;
+}
+
+/// The literals other specs own: control.t27 TASK_LEASE_TTL_SECONDS and EFFECT_RUN_LIMIT, actors.t27
+/// UNSTABLE_GIVE_UP, BACKOFF_BASE_SECONDS, BACKOFF_CAP_SECONDS.
+invariant the_borrowed_numbers_match_their_owners {
+    assert LEASE_TTL_SECONDS == 180 and RUN_LIMIT == 3 and STREAK_LIMIT == 6;
+    assert BACKOFF_BASE == 10 and BACKOFF_CAP == 300;
+}
+
+invariant the_observation_codes_are_distinct {
+    assert EF_NONE == 0 and EF_CANCEL == 1 and EF_KILL == 2 and EF_PROVIDER == 3;
+    assert HC_NONE == 0 and HC_2XX == 2 and HC_4XX == 4 and HC_5XX == 5 and HC_429 == 9;
+    assert HB_NEVER > LEASE_TTL_SECONDS;
+}
