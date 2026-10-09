@@ -5646,3 +5646,27 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
     println!("frontier: reused {} of {} ({} permille); rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
     Ok(())
 }
+
+/// #8095 step 5: every spec in the public silicon-runs index and what the bench does about it. A run stands
+/// for the current seal when it is citable at INDEP_DIES or higher and every receipt ran this seal's Verilog
+/// (seal_hash == gen_hash_verilog) built by this seal's producer -- run_record.t27's own rule.
+pub fn run_silicon_queue() -> anyhow::Result<()> {
+    use crate::{seal_identity as si, silicon_queue as sq};
+    let idx: Vec<serde_json::Value> = std::fs::read_to_string("docs/reports/silicon-runs/index.json").ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let mut specs: Vec<String> = idx.iter().filter_map(|e| e["spec"].as_str().map(String::from)).collect();
+    specs.sort();
+    specs.dedup();
+    for p in &specs {
+        let module = std::fs::read_to_string(p).ok().and_then(|s| crate::extract_module_name(&s)).unwrap_or_default();
+        let seal: serde_json::Value = std::fs::read_to_string(crate::seal_file_path(&module, p)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let ready = seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0);
+        let hw = idx.iter().filter(|e| e["spec"].as_str() == Some(p.as_str())).map(|e| {
+            let ind = e["independence"].as_str().unwrap_or("");
+            let level = if ind.starts_with("INDEP_OPERATORS") { si::INDEP_OPERATORS } else if ind.starts_with("INDEP_DIES") { si::INDEP_DIES } else { si::INDEP_NONE };
+            let same = |k: &str, f: &str| e["receipts"].as_array().map_or(false, |r| !r.is_empty() && r.iter().all(|x| x[k] == seal[f]));
+            si::silicon_state(true, e["citable"] == true, same("seal_hash", "gen_hash_verilog"), same("toolchain", "built_by"), true, level)
+        }).max().unwrap_or(si::HW_UNPROVEN);
+        println!("{} {p}", ["none", "wait-software", "queue", "bench-blocked"][sq::queue_state(true, ready, hw) as usize]);
+    }
+    Ok(())
+}
