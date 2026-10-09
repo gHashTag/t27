@@ -19,8 +19,9 @@
 ; runtime -- createActorSystem, the supervisor, createMemoryNet for nodes, the reviewer actors -- on
 ; the virtual clock. Each step it asks this card for the step's event and the virtual time that
 ; passes, applies the event, runs the clock, and checks every invariant below. Every random number
-; it uses is sim_roll(seed, stream, index); performance.now, the only wall clock the runtime reads (the
-; slice, actors.t27 section 8), is replaced for the run by a counter this card drives. Nothing here is
+; it uses is sim_roll(seed, stream, index); performance.now, the wall clock the runtime reads (the
+; slice, actors.t27 section 8; the store link's lease age), is replaced for the run by the virtual
+; clock plus work this card draws. Nothing here is
 ; a second runtime: this card decides what the simulation does and what fails the gate, and the
 ; runtime's own decisions stay in actors.t27 and reviewer.t27.
 ; ASCII only (L3).
@@ -30,10 +31,11 @@ module QueenSimulation;
 
 ; --- 1. The gate: how many seeds, how many steps, twice each ----------------------------------------
 
-/// Seeds one CI run tries. Measured 2026-10-10 on the Queen's Mac (Bun 1.3.11), 64 runs of
-/// STEPS_PER_RUN: 270 ms min, 420 ms p50, 721 ms max, 28.4 s in all. 16 seeds run twice are then about
-/// 15 s, inside the minute a check on every PR of the actor runtime may spend; on a host under load
-/// (load average 35, same day) one run took up to 21 s, so more seeds would not fit. A run with a
+/// Seeds one CI run tries. Measured 2026-10-10 on the Queen's Mac (Bun 1.3.11), 64 memory-net runs of
+/// STEPS_PER_RUN on a quiet host: 270 ms min, 420 ms p50, 721 ms max, 28.4 s in all. The whole gate --
+/// 16 seeds and STORE_SEEDS_PER_RUN store seeds, each run twice -- took 57.4 s with the host at a load
+/// average of 18 (memory runs 0.8-2.5 s, store runs 2.8-4.0 s), and one run took up to 21 s at a load
+/// of 35: more seeds would not fit the minute a check on every PR of the actor runtime may spend. A run with a
 /// seed of its own (SIM_SEED) or more seeds (SIM_SEEDS) is a replay or a soak, not the gate.
 pub const SEEDS_PER_RUN : u32 = 16;
 
@@ -48,8 +50,33 @@ pub const RUNS_PER_SEED : u32 = 2;
 /// is the epic's number.
 pub const GATE_BASE_SEED : u32 = 1712;
 
+/// Turns that really stop (turn_stop.t27, trios#1713) are behind a flag in production. Every second
+/// gate seed runs with it on, so the runtime that runs today and the one the flag turns on are both
+/// gated, at no extra run. A seed's features are a bit set.
+pub const FEATURE_TURN_STOP : u32 = 1;
+pub const TURN_STOP_EVERY : u32 = 2;
+
+pub fn seed_features(i: u32) -> u32 {
+    if (i % TURN_STOP_EVERY == 1) { return FEATURE_TURN_STOP; }
+    return 0;
+}
+
+pub fn has_feature(features: u32, feature: u32) -> bool {
+    return (features & feature) == feature and feature != 0;
+}
+
+/// Seeds that also run on the store model of the node link: the real createPgLink (netlink.t27,
+/// trios#1714) over a store that answers its statements on the virtual clock. A store run polls
+/// every node's mail each second and reads every lease every heartbeat, so it costs about three memory
+/// runs (measured: p50 3.7 s against 1.3 s, same host, same load); two seeds, run twice, keep the gate
+/// near its minute.
+pub const STORE_SEEDS_PER_RUN : u32 = 2;
+
 /// After the step loop, a quiet tail: no new event, the clock runs on, so every stall, window and
-/// restart that is under way ends inside the run and is checked.
+/// restart that is under way ends inside the run and is checked. It runs a minute at a time from a fixed
+/// start, one hash a minute, never "while the clock is short of the end": a run whose clock picked up a
+/// fraction would otherwise take one more, empty minute and log one more hash (seen once in about
+/// twenty gate runs before this, never replayed).
 pub const TAIL_SECONDS : u32 = 3600;
 
 /// Lines of the log printed with a failure: the last ones that name the pid or the row that failed.
@@ -184,13 +211,14 @@ pub fn step_ms(roll: u32) -> u32 {
 
 ; --- 4. What each fault does, and the world it hits --------------------------------------------------
 
-/// A pool node comes back this long after it was lost: past the lease TTL (actors.t27
-/// NODE_TTL_SECONDS, 20 s), so its peers have seen it down and its monitors have fired before it
-/// returns. On the memory net nothing of the old node is left by then. On the store (the PgLink model)
-/// its mail waits in the table, and the new incarnation reissues the old pids to whoever starts first:
-/// the pid-reuse defect of gHashTag/trios#1712 item 6, reproduced from a seed until node incarnations
-/// land.
-pub const NODE_RESTART_MIN_SECONDS : u32 = 25;
+/// A pool node comes back this long after it was lost: from a quick container restart, inside the
+/// lease TTL (actors.t27 NODE_TTL_SECONDS, 20 s), when its peers have not yet seen it down and its
+/// mail still waits in the store, to three minutes. Before node incarnations (netlink.t27,
+/// trios#1714) a new process reissued its last incarnation's pids, and mail written for the old ones
+/// reached the new: reproduced from seed 3600507402 at step 7015 with restarts past the TTL only, which
+/// is all the first draft of this card allowed. With incarnations a restart inside the TTL is the
+/// case to search, so the range now spans it.
+pub const NODE_RESTART_MIN_SECONDS : u32 = 2;
 pub const NODE_RESTART_MAX_SECONDS : u32 = 180;
 
 /// A hung review: as the reviewer benchmark's stall (trios#1698), no timeout of its own.
@@ -233,6 +261,19 @@ pub const NET_LATENCY_MS : u32 = 5;
 /// One job of the pool.
 pub const JOB_MAX_MS : u32 = 2000;
 
+/// One job in STALE_JOB_EVERY goes to a pid remembered from earlier -- as a pid kept in a row or in
+/// another actor's state is -- whatever became of its process since. A stale pid must reach nobody: a
+/// pid reused by a later process (a restarted node handing out its last life's pids) would deliver it
+/// there. Without stale references no one ever addresses an old pid after its DOWN, and that reuse
+/// went unseen (measured: a mutant whose pids drop the incarnation passed every invariant).
+pub const STALE_JOB_EVERY : u32 = 4;
+/// The pids remembered for stale jobs: the latest this many.
+pub const STALE_PIDS_KEPT : u32 = 64;
+
+pub fn stale_job(roll: u32) -> bool {
+    return roll % STALE_JOB_EVERY == 0;
+}
+
 /// Model keys a review may take a lane on. Above the reviewer's 4 workers, so a lane held by an
 /// abandoned review still leaves one for every live turn.
 pub const REVIEW_KEYS : u32 = 6;
@@ -248,21 +289,25 @@ pub const POOL_PERIOD_SECONDS : u32 = 300;
 /// statement takes effect and its answer is lost -- the connection resets after the commit. Per
 /// ROLL_SPAN answers, and drawn per answer, so it hits one statement, not a whole node: a node lost at a
 /// step boundary almost never falls inside the few milliseconds between a DELETE and its answer
-/// (measured: 0 of 16 PgLink seeds with node loss alone), and that window is the defect.
+/// (measured: 0 of 16 PgLink seeds with node loss alone), and that window is the defect. With it, the
+/// link that deleted rows before handling them lost mail from 6 seeds of 6 tried (seed 1188652385 at
+/// step 463); the fixed link reads, handles, then acknowledges.
 pub const W_ANSWER_LOST : u32 = 10;
 
 pub fn answer_lost(roll: u32) -> bool {
     return roll % ROLL_SPAN < W_ANSWER_LOST;
 }
 
-/// A reviewer whose root gave up is started again this long after, as the next deploy would.
+/// A reviewer whose root gave up is started again this long after, as the next deploy would: in a new
+/// process, so the reviews the old one abandoned die with it and hold no row or lane any more.
 pub const GIVE_UP_REARM_SECONDS : u32 = 600;
 
-/// What performance.now advances per call during a run, at most: the slice (actors.t27 section 8) reads
-/// it, so a seed, not the host, decides when a scheduler yields. Up to 2 ms a read, about one read a
-/// turn: a scheduler then spends its 5 ms slice after a handful of turns, as a host whose turns parse
-/// and sort a queue does. At 200 us a read no run of 64 seeds ever yielded (measured, first draft of
-/// this card), and the slice went unexercised.
+/// During a run performance.now reads the virtual clock plus the work done since, and each read
+/// adds up to this much work. The slice (actors.t27 section 8) and the store link's lease age
+/// (netlink.t27, monoNow) read it, so a seed, not the host, decides when a scheduler yields and when a
+/// lease looks old. Up to 2 ms a read, about one read a turn: a scheduler then spends its 5 ms slice
+/// after a handful of turns, as a host whose turns parse and sort a queue does. At 200 us a read no
+/// run of 64 seeds ever yielded (measured, first draft of this card), and the slice went unexercised.
 pub const CLOCK_TICK_MAX_MICROS : u32 = 2000;
 
 ; --- 5. The invariants, and which of them fail the gate --------------------------------------------
@@ -287,9 +332,9 @@ pub const INV_RUNS_DIFFER : u8 = 7;
 /// A gate run whose seeds together never reached one of the rare states below: the faults stopped
 /// biting, and a green run would prove nothing.
 pub const INV_RARE_STATE_MISSED : u8 = 8;
-/// A node took mail off the wire -- deleted it from the store -- and it never reached a runtime: lost,
-/// and counted nowhere. The PgLink defect of trios#1712 item 6 (DELETE ... RETURNING before the
-/// handlers run), reproduced from a seed with W_ANSWER_LOST until it is fixed.
+/// A node took mail off the wire -- deleted it from the store -- and it never reached a runtime, nor
+/// was it expired by the card for an incarnation that is over: lost, and counted nowhere. The PgLink
+/// defect of trios#1712 item 6 (DELETE ... RETURNING before the handlers run).
 pub const INV_TAKEN_NOT_HANDLED : u8 = 9;
 pub const INV_KINDS : u8 = 10;
 
@@ -348,7 +393,9 @@ pub const RARE_WAIT_BACKED_OFF : u8 = 4;
 pub const RARE_SLICE_YIELDED : u8 = 5;
 /// A child restarted on another node after its node was lost.
 pub const RARE_MOVED_NODE : u8 = 6;
-pub const RARE_KINDS : u8 = 7;
+/// A review stopped by its turn's abort (turn_stop.t27): only seeds with FEATURE_TURN_STOP reach it.
+pub const RARE_REVIEW_STOPPED : u8 = 7;
+pub const RARE_KINDS : u8 = 8;
 
 /// Every rare state above is required.
 pub fn must_reach(state: u8) -> bool {
@@ -430,12 +477,41 @@ test the_six_named_faults_and_the_crash_are_faults_and_work_is_not {
     assert is_fault(EVENT_KINDS) == false;
 }
 
+test every_second_seed_runs_with_turns_that_stop {
+    assert seed_features(0) == 0;
+    assert seed_features(1) == FEATURE_TURN_STOP;
+    assert seed_features(2) == 0;
+    assert seed_features(15) == FEATURE_TURN_STOP;
+    assert seed_features(4294967295) == FEATURE_TURN_STOP;
+    assert has_feature(seed_features(1), FEATURE_TURN_STOP) == true;
+    assert has_feature(seed_features(0), FEATURE_TURN_STOP) == false;
+    // no feature is not a feature every seed has
+    assert has_feature(3, 0) == false;
+    // half the gate's seeds, whatever SEEDS_PER_RUN is
+    var on : u32 = 0;
+    var i : u32 = 0;
+    while (i < SEEDS_PER_RUN) {
+        if (has_feature(seed_features(i), FEATURE_TURN_STOP)) { on = on + 1; }
+        i = i + 1;
+    }
+    assert on == SEEDS_PER_RUN / TURN_STOP_EVERY;
+}
+
 test a_store_answer_is_lost_in_its_band_only {
     assert answer_lost(0) == true;
     assert answer_lost(W_ANSWER_LOST - 1) == true;
     assert answer_lost(W_ANSWER_LOST) == false;
     assert answer_lost(ROLL_SPAN - 1) == false;
     assert answer_lost(ROLL_SPAN) == true;
+}
+
+test one_job_in_four_goes_to_a_remembered_pid {
+    assert stale_job(0) == true;
+    assert stale_job(4) == true;
+    assert stale_job(1) == false;
+    assert stale_job(3) == false;
+    assert stale_job(4294967295) == false;
+    assert stale_job(4294967292) == true;
 }
 
 test a_burst_always_overflows_the_mailbox {
@@ -489,14 +565,17 @@ test every_rare_state_is_required {
     assert must_reach(RARE_WAIT_BACKED_OFF);
     assert must_reach(RARE_SLICE_YIELDED);
     assert must_reach(RARE_MOVED_NODE);
+    assert must_reach(RARE_REVIEW_STOPPED);
     assert must_reach(RARE_KINDS) == false;
 }
 
 invariant the_gate_is_resonates_shape { assert STEPS_PER_RUN == 10000 and RUNS_PER_SEED == 2 and SEEDS_PER_RUN >= 8; }
+invariant some_jobs_are_stale_and_most_are_not { assert STALE_JOB_EVERY >= 2 and STALE_PIDS_KEPT >= POOL_WORKERS; }
+invariant the_store_runs_fewer_seeds_and_some { assert STORE_SEEDS_PER_RUN >= 1 and STORE_SEEDS_PER_RUN < SEEDS_PER_RUN and TURN_STOP_EVERY >= 2; }
 invariant the_mix_fits_its_span { assert W_ARRIVAL + W_JOB + W_NODE_LOSS + W_HUNG_TURN + W_MAILBOX_OVERFLOW + W_UNREADABLE_ROW + W_PROVIDER_429 + W_STALE_LEASE + W_CRASH < ROLL_SPAN; }
 invariant every_fault_happens_in_every_run { assert W_NODE_LOSS >= 1 and W_HUNG_TURN >= 1 and W_MAILBOX_OVERFLOW >= 1 and W_UNREADABLE_ROW >= 1 and W_PROVIDER_429 >= 1 and W_STALE_LEASE >= 1 and W_CRASH >= 1; }
-/// A node restart is past the lease TTL (actors.t27 NODE_TTL_SECONDS = 20).
-invariant a_restart_waits_out_the_lease { assert NODE_RESTART_MIN_SECONDS > 20 and NODE_RESTART_MIN_SECONDS <= NODE_RESTART_MAX_SECONDS; }
+/// Node restarts fall on both sides of the lease TTL (actors.t27 NODE_TTL_SECONDS = 20).
+invariant a_restart_spans_the_lease { assert NODE_RESTART_MIN_SECONDS < 20 and NODE_RESTART_MAX_SECONDS > 20 and NODE_RESTART_MIN_SECONDS >= 1; }
 /// A hung review outlives its turn (reviewer.t27 REVIEW_ROW_SECONDS = 300) and a readable one does not.
 invariant a_stall_outlives_its_turn_and_a_review_does_not { assert STALL_SECONDS > 300 and REVIEW_MAX_SECONDS < 300 and REVIEW_MIN_SECONDS >= 1; }
 invariant the_tail_outlives_every_window { assert TAIL_SECONDS >= STALL_SECONDS and TAIL_SECONDS >= PROVIDER_429_MAX_SECONDS and TAIL_SECONDS >= NODE_RESTART_MAX_SECONDS and TAIL_SECONDS >= GIVE_UP_REARM_SECONDS; }
