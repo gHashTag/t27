@@ -22,15 +22,67 @@
 ;   [pub] var NAME : [N]SCALAR = [_]SCALAR{ EXPR, ... } ;   (N items)
 ;   [pub] var NAME : [N][M]SCALAR = [_][M]SCALAR{ ROW, ... } ;   (N ROWs of
 ;         M items: [_]SCALAR{ EXPR, ... }; N, M decimals; used as a[i][j])
+;         (an array's `** COUNT` is its dimension: the same token or value)
 ;   [pub] fn NAME ( P : SCALAR , ... ) [-> SCALAR|void] { STMT* }
 ;   test NAME { STMT* }
-;   STMT: var|const|let NAME : SCALAR = EXPR ;   NAME = EXPR ;   A[I] = EXPR ;
-;         NAME OP= EXPR ;   A[I] OP= EXPR ;       (OP one of + - * / % | & ^)
+;   bench NAME { STMT* }   (a function nothing calls, in C as in Zig; a
+;         top-level assignment names a local or a scalar module var, as in
+;         a test: Zig binds any other, gen-c leaves it undeclared, #8010)
+;   invariant NAME { CHECK ; ... }   or   invariant NAME : CHECK ;
+;         (CHECK is EXPR or assert(EXPR) of decimal numbers, true, false and
+;         consts gen-c writes as `#define`, through operators and `as`: gen-c
+;         keeps such a check as `_Static_assert` and drops any other to a
+;         comment, or a body with a statement to a function nothing calls,
+;         where Zig checks it at compile time, #8009)
+;   use A :: B ... ;   (the input carries module A/B.t27 after a NUL; the
+;         `fn`s and `const`s gen-c splices from it follow the importer's, and
+;         every lossy splice is refused: see "imports" below)
+;   STMT: var|const|let NAME : SCALAR = VALUE ;   NAME = VALUE ;   A[I] = VALUE ;
+;         var NAME : [N]SCALAR = ... ;   var NAME : [N][M]SCALAR = ... ;
+;         (a local array, initialized as a module array is; N and COUNT are
+;         numbers or consts with a number value, and NAME is declared nowhere
+;         else in its function or module: gen-c writes C's shadowing array)
+;         NAME OP= VALUE ;   A[I] OP= VALUE ;     (OP one of + - * / % | & ^)
 ;         CALL ;   if ( EXPR ) { } [else if ... | else { }]
-;         while ( EXPR ) { }   break ;   continue ;   return [EXPR] ;
+;         while ( EXPR ) { }   break ;   continue ;   return [VALUE] ;
+;         for ( EXPR .. EXPR ) |NAME| { }   (one range, `_` allowed; the end
+;         calls nothing and the body cannot change it: gen-c reads it on every
+;         pass; no for-each, #7420)
+;   VALUE: EXPR, or switch ( EXPR ) { LABEL => VALUE , ... else => VALUE [,] }
+;         (LABEL a number or -number with no `_`; the subject calls nothing;
+;         `else` once and last; never an operand: gen-c's ternaries, #7419)
 ;   EXPR: or and == != < > <= >= | ^ & << >> + - * / % ; unary - ! ~ ;
 ;         X as SCALAR ; f(args) ; a[i] ; a[i][j] ; ( EXPR ) ; number ; 'c' ;
-;         true false                                (no `defer`: #7352)
+;         true false            (no `defer`: #7352; no numeric `**`: #7427)
+;         S{ .F = EXPR , ... }   (every field of struct S once, in any order:
+;         gen-c writes it as written, #7959)
+;         X.F                    (after a name, an index, a call, a literal,
+;         or parentheses around one of those, a binary or a cast: gen-c drops
+;         them, so `(-x).f` is `-x.f`, #7961; an index cannot follow it)
+;   [pub] struct S { F : TYPE , ... }   or   [pub] const|let S = struct { ... };
+;         (at least one field, no defaults: gen-c drops a default, #7959; a
+;         field's TYPE is a SCALAR or another struct, never S itself through
+;         any chain of fields, #7961; S no name gen-c maps to a C type)
+;   [pub] enum E [( SCALAR )] { M [= [-]NUMBER] , ... }   or
+;         [pub] const|let E = enum [( SCALAR )] { ... };   (one member or more;
+;         a value is one number with no `_`, #8002; no constant `E_M` that two
+;         members, or any name of the module, spell: gen-c's upper-cased
+;         constants share C's one namespace, #8001)
+;         E.M  E::M  .M   (M spelled as declared; `.M` names a member of one
+;         enum only, #8001; never a const value or a repeat, #8003)
+;         switch labels `.M`; with no `else`, every member of one enum once
+;   TYPE: a SCALAR, a STRING, or a struct or an enum declared in the module,
+;         wherever a SCALAR stands except after `as`; an array of structs repeats only an
+;         all-zero literal, which gen-c writes as `{0}` (#7960); an array of
+;         enums repeats a member written `E.M` or `E::M`
+;   STRING: str string   (`const char*` in C) for parameters, returns,
+;         locals, module vars and consts; never a field or an element, nor a
+;         slice `[]T` (#8013). A literal "..." is printable ASCII with the
+;         escapes \n \t \\ \" only and no `??`. A string value stands only
+;         where a string is declared, as an initializer, an argument, a return
+;         value, an assignment or a switch arm there; `s[i]` indexes one, and
+;         `s.len` on a `string` parameter or local is `strlen(s)`. A string
+;         name is bound once in its function and module (#8013).
 ;   SCALAR: bool u8 i8 u16 i16 u32 i32 u64 i64 usize
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
@@ -42,16 +94,22 @@
 
 ; Three compilers build this module, not one (#6508, T732 in
 ; specs/compiler/theory/toolchain.t27): gen-c + cc, t27b, and the Zig reference.
-; So every buffer holds 65536, the most a t27b repeat initializer expands to
-; (this file and its output must fit), every index is `as usize` as in Zig,
+; So every buffer holds 262144 (this file and its output must fit; t27b's
+; old 65536 repeat cap is gone, #7376), every index is `as usize` as in Zig,
 ; and `/` `%` are unsigned: Zig refuses them on signed operands.
 
 module t27core;
 
-const SRC_MAX: i64 = 65536;
-const OUT_MAX: i64 = 65536;
-const TOK_MAX: i64 = 65536;
-const NODE_MAX: i64 = 65536;
+const SRC_MAX: i64 = 262144;
+const OUT_MAX: i64 = 262144;
+const TOK_MAX: i64 = 262144;
+const NODE_MAX: i64 = 262144;
+; Local arrays in scope at once, while `check` walks a function.
+const SCOPE_MAX: i64 = 4096;
+; Modules in one input (the importer and those its `use` lines reach), and
+; declarations spliced into it.
+const MOD_MAX: i64 = 64;
+const PULL_MAX: i64 = 4096;
 
 ; Error codes. `err_pos` is the byte offset in `src`.
 const E_LEX: i64 = 1;
@@ -63,6 +121,23 @@ const E_TESTASSIGN: i64 = 6;
 const E_CONST: i64 = 7;
 const E_LIMIT: i64 = 8;
 const E_ARRAY: i64 = 9;
+; The input names a module it does not carry: `out` holds the path to append.
+const E_NEED: i64 = 10;
+; An import gen-c splices with loss (#7379, #7380, #7381, #7702).
+const E_USE: i64 = 11;
+; A struct gen-c lowers with loss, or one C and Zig read apart: a default,
+; a literal missing or repeating a field, an empty struct, a cycle.
+const E_STRUCT: i64 = 12;
+; An enum gen-c lowers with loss: a member matched only by case or with no
+; single owner (#8001), a value cut short (#8002), constants that collide.
+const E_ENUM: i64 = 13;
+; An invariant gen-c does not check: one it writes as a comment, or as a
+; function nothing calls (#8009).
+const E_INVARIANT: i64 = 14;
+; A string gen-c lowers as a bare pointer with loss: an operand of an operator,
+; one where no string is declared, `.len` on a `str`, an escape whose value
+; changes, a trigraph (#8013).
+const E_STRING: i64 = 15;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -107,8 +182,19 @@ const T_SHR: i64 = 284;
 const T_POW: i64 = 285;
 const T_BAD: i64 = 286;
 const T_OPEQ: i64 = 287;
+const T_FOR: i64 = 288;
+const T_SWITCH: i64 = 289;
+const T_DOTDOT: i64 = 290;
+const T_ARM: i64 = 291;
+const T_USE: i64 = 292;
+const T_STRUCT: i64 = 293;
+const T_ENUM: i64 = 294;
+const T_INVARIANT: i64 = 295;
+const T_BENCH: i64 = 296;
+const T_STR: i64 = 297;
+const K_DOT: i64 = 46;
 
-; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
+; Node kinds. Node 0 is the null node; a list is a chain through `.next`.
 const N_NUM: i64 = 1;
 const N_CHAR: i64 = 2;
 const N_TRUE: i64 = 3;
@@ -121,6 +207,19 @@ const N_INDEX: i64 = 9;
 const N_CALL: i64 = 10;
 const N_NEGLIT: i64 = 11;
 const N_LIST: i64 = 12;
+const N_SWITCH: i64 = 13;
+const N_ARM: i64 = 14;
+; X.F: .tok is F, .a is X. S{ .F = V }: .tok is S, .a the first
+; N_INIT (.tok F, .a V), .b how many.
+const N_FIELD: i64 = 15;
+const N_STRUCT: i64 = 16;
+const N_INIT: i64 = 17;
+; .M, a member whose enum is inferred: .tok M. `check` sets .d to the enum
+; of it, of an N_FIELD that is E.M (.aux 1 for E::M), and of a `.M` arm.
+const N_EVAL: i64 = 18;
+; "...": .tok the literal, quotes included. An N_FIELD with .aux 2 is
+; `s.len` on a `string`, gen-c's `strlen(s)`.
+const N_STR: i64 = 19;
 const S_LOCAL: i64 = 20;
 const S_ASSIGN: i64 = 21;
 const S_EXPR: i64 = 22;
@@ -129,12 +228,27 @@ const S_WHILE: i64 = 24;
 const S_BREAK: i64 = 25;
 const S_CONTINUE: i64 = 26;
 const S_RETURN: i64 = 27;
+const S_FOR: i64 = 28;
 const D_CONST: i64 = 40;
 const D_VAR: i64 = 41;
 const D_ARRAY: i64 = 42;
 const D_FN: i64 = 43;
 const D_PARAM: i64 = 44;
 const D_TEST: i64 = 45;
+const D_USE: i64 = 46;
+; A struct: .tok its name, .a the first D_FIELD (.tok the field, .aux
+; its type token), .c its last token; .b marks it written (emit_structs).
+const D_STRUCT: i64 = 47;
+const D_FIELD: i64 = 48;
+; An enum: .tok its name, .a the first D_MEMBER (.tok the member, .aux
+; its value's number token or 0, .b 1 for a negated value), .c its last
+; token.
+const D_ENUM: i64 = 49;
+const D_MEMBER: i64 = 50;
+; invariant NAME: .tok the name, .a the first check (an S_EXPR whose .a
+; is the predicate). bench NAME: .tok the name, .b the body, as a test.
+const D_INV: i64 = 51;
+const D_BENCH: i64 = 52;
 
 ; Packed spellings of the words the lexer and checker recognise.
 const W_MODULE: i64 = 0x656c75646f6d;
@@ -165,6 +279,7 @@ const W_TRY: i64 = 0x797274;
 const W_SWITCH: i64 = 0x686374697773;
 const W_USING: i64 = 0x676e697375;
 const W_USE: i64 = 0x657375;
+const W_TYPE: i64 = 0x65707974;
 const W_PRAGMA: i64 = 0x616d67617270;
 const W_IN: i64 = 0x6e69;
 const W_BOOL: i64 = 0x6c6f6f62;
@@ -187,16 +302,55 @@ const W_ENDMODUL: i64 = 0x6c75646f6d646e65;
 
 var src: [SRC_MAX]u8 = [_]u8{0} ** SRC_MAX;
 var out: [OUT_MAX]u8 = [_]u8{0} ** OUT_MAX;
-var tk_kind: [TOK_MAX]i64 = [_]i64{0} ** TOK_MAX;
-var tk_pos: [TOK_MAX]i64 = [_]i64{0} ** TOK_MAX;
-var tk_len: [TOK_MAX]i64 = [_]i64{0} ** TOK_MAX;
-var nd_kind: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_tok: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_a: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_b: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_c: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_next: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
-var nd_aux: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
+var scope_arr: [SCOPE_MAX]i64 = [_]i64{0} ** SCOPE_MAX;
+
+; The tables are arrays of structs, which this core compiles since P2 (#5980):
+; the fixpoint then runs through struct declarations, literals, repeats of a
+; zero struct and field reads and writes.
+
+; A token: its kind, the byte it starts at, and its length.
+struct Tok {
+    kind: i64,
+    pos: i64,
+    len: i64,
+}
+
+; A node: its kind, a token, and the links its kind gives meaning to (see
+; the node kinds); `next` chains a list. Node 0 is the null node.
+struct Node {
+    kind: i64,
+    tok: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+    next: i64,
+    aux: i64,
+    d: i64,
+}
+
+; A module in the input: its text [from, to), the path after its NUL (head),
+; its first token, its declaration chain, whether a `use` reached it, and
+; whether it is kept as text.
+struct Mod {
+    from: i64,
+    to: i64,
+    head: i64,
+    tok0: i64,
+    decls: i64,
+    hit: i64,
+    text: i64,
+}
+
+; A spliced declaration and the module it comes from.
+struct Pull {
+    decl: i64,
+    mod: i64,
+}
+
+var toks: [TOK_MAX]Tok = [_]Tok{Tok{ .kind = 0, .pos = 0, .len = 0 }} ** TOK_MAX;
+var nodes: [NODE_MAX]Node = [_]Node{Node{ .kind = 0, .tok = 0, .a = 0, .b = 0, .c = 0, .next = 0, .aux = 0, .d = 0 }} ** NODE_MAX;
+var mods: [MOD_MAX]Mod = [_]Mod{Mod{ .from = 0, .to = 0, .head = 0, .tok0 = 0, .decls = 0, .hit = 0, .text = 0 }} ** MOD_MAX;
+var pulls: [PULL_MAX]Pull = [_]Pull{Pull{ .decl = 0, .mod = 0 }} ** PULL_MAX;
 
 var src_len: i64 = 0;
 var out_len: i64 = 0;
@@ -210,6 +364,18 @@ var has_tests: bool = false;
 var uses_assert: bool = false;
 var mod_tok: i64 = 0;
 var decls: i64 = 0;
+var scope_len: i64 = 0;
+var cur_decl: i64 = 0;
+var mod_count: i64 = 0;
+var pull_count: i64 = 0;
+var open_comments: i64 = 0;
+var dep_b: i64 = 0;
+var dep_k: i64 = 0;
+var dep_p: i64 = 0;
+; Set while a `.len` on a `string` is written as `strlen`: gen-c includes
+; <string.h>. str_ctx lets check_expr take one string value (check_str_expr).
+var uses_strlen: bool = false;
+var str_ctx: bool = false;
 
 ; ---------------------------------------------------------------- output
 
@@ -260,9 +426,9 @@ fn put_int(n: i64) -> void {
 
 ; A number is written without its `_` separators, as gen-c writes it.
 fn put_tok(t: i64) -> void {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
-    var num: bool = tk_kind[t as usize] == T_NUM;
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
+    var num: bool = toks[t as usize].kind == T_NUM;
     while (i < e) {
         if (!num or src[i as usize] != '_') {
             put(src[i as usize] as i64);
@@ -272,8 +438,8 @@ fn put_tok(t: i64) -> void {
 }
 
 fn put_upper(t: i64) -> void {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
     while (i < e) {
         var c: i64 = src[i as usize] as i64;
         if (c >= 'a' and c <= 'z') {
@@ -309,42 +475,42 @@ fn kind(t: i64) -> i64 {
     if (t >= tok_count) {
         return T_EOF;
     }
-    return tk_kind[t as usize];
+    return toks[t as usize].kind;
 }
 
 fn tpos(t: i64) -> i64 {
     if (t >= tok_count) {
         return src_len;
     }
-    return tk_pos[t as usize];
+    return toks[t as usize].pos;
 }
 
 ; Up to eight bytes of token `t`, starting `off` bytes in, first byte lowest.
 fn tok_word(t: i64, off: i64) -> i64 {
-    var n: i64 = tk_len[t as usize] - off;
+    var n: i64 = toks[t as usize].len - off;
     if (n > 8) {
         n = 8;
     }
     var v: i64 = 0;
     var i: i64 = n - 1;
     while (i >= 0) {
-        v = (v << 8) | (src[(tk_pos[t as usize] + off + i) as usize] as i64);
+        v = (v << 8) | (src[(toks[t as usize].pos + off + i) as usize] as i64);
         i = i - 1;
     }
     return v;
 }
 
 fn tok_is(t: i64, lo: i64, hi: i64, n: i64) -> bool {
-    return tk_len[t as usize] == n and tok_word(t, 0) == lo and tok_word(t, 8) == hi;
+    return toks[t as usize].len == n and tok_word(t, 0) == lo and tok_word(t, 8) == hi;
 }
 
 fn tok_eq(a: i64, b: i64) -> bool {
-    if (tk_len[a as usize] != tk_len[b as usize]) {
+    if (toks[a as usize].len != toks[b as usize].len) {
         return false;
     }
     var i: i64 = 0;
-    while (i < tk_len[a as usize]) {
-        if (src[(tk_pos[a as usize] + i) as usize] != src[(tk_pos[b as usize] + i) as usize]) {
+    while (i < toks[a as usize].len) {
+        if (src[(toks[a as usize].pos + i) as usize] != src[(toks[b as usize].pos + i) as usize]) {
             return false;
         }
         i = i + 1;
@@ -357,9 +523,7 @@ fn add_tok(k: i64, start: i64, len: i64) -> void {
         fail(E_LIMIT, start);
         return;
     }
-    tk_kind[tok_count as usize] = k;
-    tk_pos[tok_count as usize] = start;
-    tk_len[tok_count as usize] = len;
+    toks[tok_count as usize] = Tok{ .kind = k, .pos = start, .len = len };
     tok_count = tok_count + 1;
 }
 
@@ -420,13 +584,31 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_AS, 0, 2)) {
         return T_AS;
     }
-    if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_STRUCT, 0, 6) or tok_is(t, W_INVARIA, 't', 9)) {
+    if (tok_is(t, W_STRUCT, 0, 6)) {
+        return T_STRUCT;
+    }
+    if (tok_is(t, W_ENUM, 0, 4)) {
+        return T_ENUM;
+    }
+    if (tok_is(t, W_INVARIA, 't', 9)) {
+        return T_INVARIANT;
+    }
+    if (tok_is(t, W_FOR, 0, 3)) {
+        return T_FOR;
+    }
+    if (tok_is(t, W_SWITCH, 0, 6)) {
+        return T_SWITCH;
+    }
+    if (tok_is(t, W_BENCH, 0, 5)) {
+        return T_BENCH;
+    }
+    if (tok_is(t, W_TRY, 0, 3)) {
         return T_BAD;
     }
-    if (tok_is(t, W_BENCH, 0, 5) or tok_is(t, W_FOR, 0, 3) or tok_is(t, W_TRY, 0, 3)) {
-        return T_BAD;
+    if (tok_is(t, W_USE, 0, 3)) {
+        return T_USE;
     }
-    if (tok_is(t, W_SWITCH, 0, 6) or tok_is(t, W_USING, 0, 5) or tok_is(t, W_USE, 0, 3)) {
+    if (tok_is(t, W_USING, 0, 5)) {
         return T_BAD;
     }
     if (tok_is(t, W_PRAGMA, 0, 6) or tok_is(t, W_IN, 0, 2)) {
@@ -469,13 +651,13 @@ fn pair_kind(c: i64, d: i64) -> i64 {
         return T_OR;
     }
     if (c == '=' and d == '>') {
-        return T_BAD;
+        return T_ARM;
     }
     if (c == '+' and d == '+') {
         return T_BAD;
     }
     if (c == '.' and d == '.') {
-        return T_BAD;
+        return T_DOTDOT;
     }
     if (d == '=' and (c == '+' or c == '-' or c == '*' or c == '/')) {
         return T_OPEQ;
@@ -499,7 +681,7 @@ fn is_single(c: i64) -> bool {
     if (c == '+' or c == '-' or c == '*' or c == '/' or c == '%' or c == '&') {
         return true;
     }
-    return c == '|' or c == '^' or c == '<' or c == '>';
+    return c == '|' or c == '^' or c == '<' or c == '>' or c == K_DOT;
 }
 
 fn skip_line(i: i64) -> i64 {
@@ -525,6 +707,9 @@ fn skip_block(i: i64) -> i64 {
             j = j + 1;
         }
     }
+    if (depth > 0) {
+        open_comments = open_comments + 1;
+    }
     return j;
 }
 
@@ -546,7 +731,7 @@ fn lex_ident(i: i64) -> i64 {
         fail(E_LEX, i);
         return j;
     }
-    tk_kind[(tok_count - 1) as usize] = k;
+    toks[(tok_count - 1) as usize].kind = k;
     return j;
 }
 
@@ -602,8 +787,8 @@ fn lex_num(i: i64) -> i64 {
 
 ; True when a number token carries a `_` separator.
 fn has_sep(t: i64) -> bool {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
     while (i < e) {
         if (src[i as usize] == '_') {
             return true;
@@ -645,6 +830,35 @@ fn lex_char(i: i64) -> i64 {
     return j + 1;
 }
 
+; "..." on one line, printable ASCII, the escapes \n \t \\ \" only: gen-c's
+; lexer keeps any other escape as a backslash and a letter, which zig_escape
+; doubles; and cc in -std=c99 reads `??=` as `#` (#8013).
+fn lex_str(i: i64) -> i64 {
+    var j: i64 = i + 1;
+    while (j < src_len and at(j) != '"') {
+        var c: i64 = at(j);
+        if (c < ' ' or c > '~' or (c == '?' and at(j + 1) == '?')) {
+            fail(E_STRING, j);
+            return j;
+        }
+        if (c == '\\') {
+            var d: i64 = at(j + 1);
+            if (d != 'n' and d != 't' and d != '\\' and d != '"') {
+                fail(E_STRING, j);
+                return j;
+            }
+            j = j + 1;
+        }
+        j = j + 1;
+    }
+    if (j >= src_len) {
+        fail(E_LEX, i);
+        return j;
+    }
+    add_tok(T_STR, i, j + 1 - i);
+    return j + 1;
+}
+
 fn lex_one(i: i64) -> i64 {
     var c: i64 = at(i);
     var d: i64 = at(i + 1);
@@ -672,6 +886,9 @@ fn lex_one(i: i64) -> i64 {
     if (c == '\'') {
         return lex_char(i);
     }
+    if (c == '"') {
+        return lex_str(i);
+    }
     var k: i64 = pair_kind(c, d);
     if (k == T_BAD) {
         fail(E_LEX, i);
@@ -689,42 +906,50 @@ fn lex_one(i: i64) -> i64 {
     return i;
 }
 
-fn lex() -> void {
-    var i: i64 = 0;
+; Lexes module m's text, then a T_EOF token at its end.
+fn lex_module(m: i64) -> void {
+    var i: i64 = mods[m as usize].from;
+    src_len = mods[m as usize].to;
+    mods[m as usize].tok0 = tok_count;
     while (!failed and i < src_len) {
         i = lex_one(i);
     }
+    add_tok(T_EOF, src_len, 0);
 }
 
 ; ---------------------------------------------------------------- tree
 
 ; Reads of the node arrays.
 fn nkind(n: i64) -> i64 {
-    return nd_kind[n as usize];
+    return nodes[n as usize].kind;
 }
 
 fn ntok(n: i64) -> i64 {
-    return nd_tok[n as usize];
+    return nodes[n as usize].tok;
 }
 
 fn na(n: i64) -> i64 {
-    return nd_a[n as usize];
+    return nodes[n as usize].a;
 }
 
 fn nb(n: i64) -> i64 {
-    return nd_b[n as usize];
+    return nodes[n as usize].b;
 }
 
 fn nc(n: i64) -> i64 {
-    return nd_c[n as usize];
+    return nodes[n as usize].c;
 }
 
 fn nnext(n: i64) -> i64 {
-    return nd_next[n as usize];
+    return nodes[n as usize].next;
 }
 
 fn naux(n: i64) -> i64 {
-    return nd_aux[n as usize];
+    return nodes[n as usize].aux;
+}
+
+fn nd(n: i64) -> i64 {
+    return nodes[n as usize].d;
 }
 
 fn mk(k: i64, t: i64, a: i64, b: i64) -> i64 {
@@ -734,13 +959,7 @@ fn mk(k: i64, t: i64, a: i64, b: i64) -> i64 {
     }
     var n: i64 = node_count;
     node_count = node_count + 1;
-    nd_kind[n as usize] = k;
-    nd_tok[n as usize] = t;
-    nd_a[n as usize] = a;
-    nd_b[n as usize] = b;
-    nd_c[n as usize] = 0;
-    nd_next[n as usize] = 0;
-    nd_aux[n as usize] = 0;
+    nodes[n as usize] = Node{ .kind = k, .tok = t, .a = a, .b = b, .c = 0, .next = 0, .aux = 0, .d = 0 };
     return n;
 }
 
@@ -797,6 +1016,20 @@ fn expect_scalar() -> i64 {
     return t;
 }
 
+; A SCALAR or a name; `check` holds the name to a struct of the module.
+fn expect_type() -> i64 {
+    var t: i64 = p;
+    if (failed) {
+        return 0;
+    }
+    if (kind(t) != T_IDENT) {
+        fail(E_TYPE, tpos(t));
+        return 0;
+    }
+    p = p + 1;
+    return t;
+}
+
 ; ---------------------------------------------------------------- expressions
 
 ; Binding level of a binary operator, lowest first; -1 if `k` is not one.
@@ -846,7 +1079,7 @@ fn parse_args() -> i64 {
         if (head == 0) {
             head = e;
         } else {
-            nd_next[tail as usize] = e;
+            nodes[tail as usize].next = e;
         }
         tail = e;
         if (cur() == ',') {
@@ -859,6 +1092,48 @@ fn parse_args() -> i64 {
     return head;
 }
 
+; `.F` after a primary, any number of times: gen-c writes `X.F`.
+fn parse_fields(base: i64) -> i64 {
+    var e: i64 = base;
+    while (!failed and cur() == K_DOT) {
+        advance();
+        var f: i64 = p;
+        expect(T_IDENT);
+        e = mk(N_FIELD, f, e, 0);
+    }
+    return e;
+}
+
+; S{ .F = EXPR , ... [,] }, p at the brace: gen-c writes `(S){ .F = e, ... }`.
+fn parse_struct_lit(t: i64) -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    var n: i64 = 0;
+    expect(K_LBRACE);
+    while (!failed and cur() != K_RBRACE) {
+        expect(K_DOT);
+        var f: i64 = p;
+        expect(T_IDENT);
+        expect('=');
+        var it: i64 = mk(N_INIT, f, parse_expr(), 0);
+        if (head == 0) {
+            head = it;
+        } else {
+            nodes[tail as usize].next = it;
+        }
+        tail = it;
+        n = n + 1;
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    return mk(N_STRUCT, t, head, n);
+}
+
 fn parse_primary() -> i64 {
     var k: i64 = cur();
     var t: i64 = p;
@@ -866,7 +1141,21 @@ fn parse_primary() -> i64 {
         p = p + 1;
         if (cur() == '(') {
             p = p + 1;
-            return mk(N_CALL, t, parse_args(), 0);
+            return parse_fields(mk(N_CALL, t, parse_args(), 0));
+        }
+        if (cur() == K_LBRACE) {
+            return parse_fields(parse_struct_lit(t));
+        }
+        // E::M, a member: gen-c reads `E::M` as one name (`check` holds E to
+        // an enum).
+        if (cur() == ':' and kind(p + 1) == ':') {
+            advance();
+            advance();
+            var pm: i64 = p;
+            expect(T_IDENT);
+            var pe: i64 = mk(N_FIELD, pm, mk(N_IDENT, t, 0, 0), 0);
+            nodes[pe as usize].aux = 1;
+            return pe;
         }
         var e: i64 = mk(N_IDENT, t, 0, 0);
         while (!failed and cur() == K_LBRACKET) {
@@ -875,15 +1164,25 @@ fn parse_primary() -> i64 {
             expect(K_RBRACKET);
             e = mk(N_INDEX, t, e, ix);
         }
-        return e;
+        return parse_fields(e);
     }
     if (k == T_NUM) {
         p = p + 1;
         return mk(N_NUM, t, 0, 0);
     }
+    if (k == K_DOT) {
+        advance();
+        var m: i64 = p;
+        expect(T_IDENT);
+        return mk(N_EVAL, m, 0, 0);
+    }
     if (k == T_CHAR) {
         p = p + 1;
         return mk(N_CHAR, t, 0, 0);
+    }
+    if (k == T_STR) {
+        advance();
+        return mk(N_STR, t, 0, 0);
     }
     if (k == T_TRUE) {
         p = p + 1;
@@ -897,10 +1196,25 @@ fn parse_primary() -> i64 {
         p = p + 1;
         var inner: i64 = parse_expr();
         expect(')');
-        return inner;
+        // gen-c drops the parentheses: `(-x).f` would reach C as `-x.f` (#7961).
+        if (!failed and cur() == K_DOT and !field_base(inner)) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+        return parse_fields(inner);
     }
     fail(E_SYNTAX, tpos(t));
     return 0;
+}
+
+; A node gen-c writes as one C postfix operand: its own parentheses, or none
+; needed.
+fn field_base(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_IDENT or k == N_INDEX or k == N_FIELD or k == N_CALL) {
+        return true;
+    }
+    return k == N_STRUCT or k == N_BIN or k == N_CAST;
 }
 
 ; Unary binds looser than `as`: `-x as T` is `-(x as T)`, as in gen-c.
@@ -960,7 +1274,7 @@ fn parse_block() -> i64 {
         if (head == 0) {
             head = s;
         } else {
-            nd_next[tail as usize] = s;
+            nodes[tail as usize].next = s;
         }
         tail = s;
     }
@@ -977,14 +1291,151 @@ fn parse_if() -> i64 {
     var n: i64 = mk(S_IF, 0, c, body);
     if (!failed and cur() == T_ELSE) {
         advance();
-        nd_aux[n as usize] = 1;
+        nodes[n as usize].aux = 1;
         if (cur() == T_IF) {
-            nd_c[n as usize] = parse_if();
+            nodes[n as usize].c = parse_if();
         } else {
-            nd_c[n as usize] = parse_block();
+            nodes[n as usize].c = parse_block();
         }
     }
     return n;
+}
+
+; for (A..B) |i| { }: gen-c writes `for (size_t i = A; i < B; i++)` and reads
+; B on every pass, so `check` holds B fixed (#7307, #7420).
+fn parse_for() -> i64 {
+    var t: i64 = p;
+    advance();
+    expect('(');
+    var lo: i64 = parse_expr();
+    expect(T_DOTDOT);
+    var hi: i64 = parse_expr();
+    expect(')');
+    expect('|');
+    var cap: i64 = p;
+    expect(T_IDENT);
+    expect('|');
+    var n: i64 = mk(S_FOR, t, lo, parse_block());
+    nodes[n as usize].c = hi;
+    nodes[n as usize].aux = cap;
+    return n;
+}
+
+; One arm: .aux 0 for a number label, 1 for -number, 2 for `else`. gen-c
+; upper-cases a char or name label and keeps a `_` in a number (#7419).
+fn parse_arm() -> i64 {
+    var t: i64 = p;
+    var how: i64 = 0;
+    if (cur() == T_ELSE) {
+        how = 2;
+        advance();
+    } else if (cur() == K_DOT) {
+        // `.M`, an enum member (#8001): `check` finds its enum.
+        how = 3;
+        advance();
+        t = p;
+        expect(T_IDENT);
+    } else {
+        if (cur() == '-') {
+            how = 1;
+            advance();
+            t = p;
+        }
+        if (cur() != T_NUM or has_sep(t)) {
+            fail(E_SYNTAX, tpos(t));
+            return 0;
+        }
+        advance();
+    }
+    expect(T_ARM);
+    var arm: i64 = mk(N_ARM, t, parse_value(), 0);
+    nodes[arm as usize].aux = how;
+    return arm;
+}
+
+; gen-c writes a switch as `(s == L) ? (v) : ... : e`, the subject once per
+; arm; `else` anywhere but last, or missing, does not survive (#7308, #7419).
+fn parse_switch() -> i64 {
+    var t: i64 = p;
+    advance();
+    expect('(');
+    var subj: i64 = parse_expr();
+    expect(')');
+    expect(K_LBRACE);
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    while (!failed and cur() != K_RBRACE) {
+        if (tail != 0 and naux(tail) == 2) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+        var arm: i64 = parse_arm();
+        if (failed) {
+            return 0;
+        }
+        if (head == 0) {
+            head = arm;
+        } else {
+            nodes[tail as usize].next = arm;
+        }
+        tail = arm;
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    if (!failed and tail == 0) {
+        fail(E_SYNTAX, tpos(t));
+        return 0;
+    }
+    // With no `else`, only `.M` labels: `check` holds them to every member
+    // of one enum, once, so gen-c's closing `: 0` is never reached (#8003).
+    if (!failed and naux(tail) != 2 and !all_members(head)) {
+        fail(E_SYNTAX, tpos(t));
+        return 0;
+    }
+    return mk(N_SWITCH, t, subj, head);
+}
+
+fn all_members(head: i64) -> bool {
+    var arm: i64 = head;
+    while (arm != 0) {
+        if (naux(arm) != 3) {
+            return false;
+        }
+        arm = nnext(arm);
+    }
+    return true;
+}
+
+; A whole value: C's `?:` binds looser than every operator gen-c writes
+; around it, so a switch is never an operand (#7419).
+fn parse_value() -> i64 {
+    if (cur() == T_SWITCH) {
+        return parse_switch();
+    }
+    return parse_expr();
+}
+
+; A name, an element, or a field of one: what an assignment may write.
+fn is_place(e: i64) -> bool {
+    var x: i64 = e;
+    while (nkind(x) == N_FIELD) {
+        x = na(x);
+    }
+    return nkind(x) == N_IDENT or nkind(x) == N_INDEX;
+}
+
+; The name token a place stands on: `a` in `a`, `a[i]`, `a[i].f.g`.
+fn root_tok(e: i64) -> i64 {
+    var x: i64 = e;
+    while (nkind(x) == N_FIELD) {
+        x = na(x);
+    }
+    return ntok(x);
 }
 
 fn parse_stmt() -> i64 {
@@ -995,16 +1446,23 @@ fn parse_stmt() -> i64 {
         var name: i64 = p;
         expect(T_IDENT);
         expect(':');
-        var ty: i64 = expect_scalar();
+        // gen-c writes a local array as a module one without `static`.
+        if (!failed and k == T_VAR and cur() == K_LBRACKET) {
+            return parse_array(name);
+        }
+        var ty: i64 = expect_type();
         expect('=');
-        var init: i64 = parse_expr();
+        var init: i64 = parse_value();
         expect(';');
         var n: i64 = mk(S_LOCAL, name, init, 0);
-        nd_aux[n as usize] = ty;
+        nodes[n as usize].aux = ty;
         return n;
     }
     if (k == T_IF) {
         return parse_if();
+    }
+    if (k == T_FOR) {
+        return parse_for();
     }
     if (k == T_WHILE) {
         p = p + 1;
@@ -1029,7 +1487,7 @@ fn parse_stmt() -> i64 {
             p = p + 1;
             return mk(S_RETURN, t, 0, 0);
         }
-        var v: i64 = parse_expr();
+        var v: i64 = parse_value();
         expect(';');
         return mk(S_RETURN, t, v, 0);
     }
@@ -1039,20 +1497,20 @@ fn parse_stmt() -> i64 {
             return 0;
         }
         if (cur() == '=' or cur() == T_OPEQ) {
-            if (nkind(lhs) != N_IDENT and nkind(lhs) != N_INDEX) {
+            if (!is_place(lhs)) {
                 fail(E_SYNTAX, tpos(p));
                 return 0;
             }
-            // A compound `op=` keeps its token in nd_c; a plain `=` leaves 0.
+            // A compound `op=` keeps its token in .c; a plain `=` leaves 0.
             var op: i64 = 0;
             if (cur() == T_OPEQ) {
                 op = p;
             }
             p = p + 1;
-            var rhs: i64 = parse_expr();
+            var rhs: i64 = parse_value();
             expect(';');
             var asg: i64 = mk(S_ASSIGN, t, lhs, rhs);
-            nd_c[asg as usize] = op;
+            nodes[asg as usize].c = op;
             return asg;
         }
         if (nkind(lhs) != N_CALL) {
@@ -1072,7 +1530,7 @@ fn parse_stmt() -> i64 {
 ; `as` included (#6048). Anything else after a leading literal or name is
 ; skipped by gen-c, so it is refused.
 fn continues(k: i64) -> bool {
-    return op_level(k) >= 0 or k == T_POW or k == T_AS;
+    return op_level(k) >= 0 or k == T_POW or k == T_AS or k == K_DOT;
 }
 
 ; The value of a top-level `const`, mirroring gen-c's literal shortcuts: only
@@ -1082,12 +1540,8 @@ fn parse_const_value() -> i64 {
     var k1: i64 = kind(p + 1);
     var t: i64 = p;
     if (k == '-' and k1 == T_NUM) {
+        // gen-c's `#define` for `-N` drops N's `_` separators since #7318.
         if (kind(p + 2) == ';') {
-            // gen-c's `#define` for `-N` keeps N's `_` separators (#7318).
-            if (has_sep(p + 1)) {
-                fail(E_CONST, tpos(t + 1));
-                return 0;
-            }
             p = p + 2;
             return mk(N_NEGLIT, t + 1, 0, 0);
         }
@@ -1105,10 +1559,14 @@ fn parse_const_value() -> i64 {
     if (k == T_NUM and (k1 == ';' or continues(k1))) {
         return parse_expr();
     }
-    if (k == T_IDENT and (k1 == ';' or k1 == '(' or continues(k1))) {
+    // `E::M` too: gen-c reads a qualified name whole (W651).
+    if (k == T_IDENT and (k1 == ';' or k1 == '(' or k1 == K_LBRACE or k1 == ':' or continues(k1))) {
         return parse_expr();
     }
     if ((k == T_TRUE or k == T_FALSE or k == T_CHAR) and (k1 == ';' or continues(k1))) {
+        return parse_expr();
+    }
+    if (k == T_STR and k1 == ';') {
         return parse_expr();
     }
     fail(E_CONST, tpos(t));
@@ -1125,10 +1583,17 @@ fn parse_size() -> i64 {
     return t;
 }
 
+; Token t is `_`.
+fn is_hole(t: i64) -> bool {
+    return kind(t) == T_IDENT and toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_';
+}
+
 ; `[_]`, then `[M]` if `inner` is set, then the element type, which is `ty`.
+; No `!( ... and ... )` in this file: the Zig backend writes it `!a and b`
+; (#7936).
 fn parse_elem(ty: i64, inner: i64) -> void {
     expect(K_LBRACKET);
-    if (!failed and !(cur() == T_IDENT and tk_len[p as usize] == 1 and src[(tk_pos[p as usize]) as usize] == '_')) {
+    if (!failed and !is_hole(p)) {
         fail(E_ARRAY, tpos(p));
         return;
     }
@@ -1143,29 +1608,35 @@ fn parse_elem(ty: i64, inner: i64) -> void {
         advance();
         expect(K_RBRACKET);
     }
-    var ety: i64 = expect_scalar();
+    var ety: i64 = expect_type();
     if (!failed and !tok_eq(ty, ety)) {
         fail(E_ARRAY, tpos(ety));
     }
 }
 
-; A plain decimal's value, else -1; past NODE_MAX, more than a list holds.
+; A plain decimal's value, `_` skipped, else -1; past NODE_MAX, more than a
+; list holds.
 fn num_val(t: i64) -> i64 {
-    var i: i64 = tk_pos[t as usize];
+    var i: i64 = toks[t as usize].pos;
     var v: i64 = 0;
-    while (i < tk_pos[t as usize] + tk_len[t as usize]) {
+    if (kind(t) != T_NUM) {
+        return -1;
+    }
+    while (i < toks[t as usize].pos + toks[t as usize].len) {
         var d: i64 = (src[i as usize] as i64) - '0';
-        if (d < 0 or d > 9 or v > NODE_MAX) {
-            return -1;
+        if (src[i as usize] != '_') {
+            if (d < 0 or d > 9 or v > NODE_MAX) {
+                return -1;
+            }
+            v = v * 10 + d;
         }
-        v = v * 10 + d;
         i = i + 1;
     }
     return v;
 }
 
 ; gen-c pads a short list, drops the excess of a long one and loses a
-; repeated list (#7353). nd_b of an N_LIST is its item count.
+; repeated list (#7353). .b of an N_LIST is its item count.
 fn bad_count(l: i64, dim: i64) -> bool {
     return nb(l) != num_val(dim) or nb(l) == 0 or cur() == T_POW;
 }
@@ -1189,7 +1660,7 @@ fn parse_list(dim: i64, row: i64, ty: i64) -> i64 {
         if (head == 0) {
             head = e;
         } else {
-            nd_next[tail as usize] = e;
+            nodes[tail as usize].next = e;
         }
         tail = e;
         n = n + 1;
@@ -1206,16 +1677,12 @@ fn parse_list(dim: i64, row: i64, ty: i64) -> i64 {
 }
 
 ; var NAME : [SIZE]T = [_]T{VALUE} ** COUNT ;  -- `name` is already consumed.
-; VALUE is a number; emit_global finds it three tokens before COUNT. A list
-; initializer sets nd_c instead, and nd_b to the inner dimension, if any.
+; VALUE is a number; emit_array finds it three tokens before COUNT. A list
+; initializer sets .c instead, and .b to the inner dimension, if any.
+; gen-c drops a dimension's `_` separators since #7318.
 fn parse_array(name: i64) -> i64 {
     expect(K_LBRACKET);
     var size: i64 = parse_size();
-    // gen-c writes a dimension with its `_` separators kept (#7318).
-    if (!failed and kind(size) == T_NUM and has_sep(size)) {
-        fail(E_ARRAY, tpos(size));
-        return 0;
-    }
     expect(K_RBRACKET);
     var inner: i64 = 0;
     if (!failed and cur() == K_LBRACKET) {
@@ -1223,29 +1690,33 @@ fn parse_array(name: i64) -> i64 {
         inner = parse_size();
         expect(K_RBRACKET);
     }
-    var ty: i64 = expect_scalar();
+    var ty: i64 = expect_type();
     expect('=');
     parse_elem(ty, inner);
     var n: i64 = mk(D_ARRAY, name, size, 0);
-    nd_aux[n as usize] = ty;
+    nodes[n as usize].aux = ty;
     if (inner != 0) {
-        nd_b[n as usize] = inner;
-        nd_c[n as usize] = parse_list(size, inner, ty);
+        nodes[n as usize].b = inner;
+        nodes[n as usize].c = parse_list(size, inner, ty);
     } else {
         var l: i64 = parse_list(0, 0, ty);
         var it: i64 = na(l);
         if (cur() == T_POW) {
-            if (!failed and (nb(l) != 1 or nkind(it) != N_NUM or ntok(it) != p - 2)) {
+            // A struct value is kept in .d; `check` holds it to zero.
+            var ik: i64 = nkind(it);
+            if (!failed and nb(l) == 1 and (ik == N_STRUCT or ik == N_FIELD or ik == N_EVAL)) {
+                nodes[n as usize].d = it;
+            } else if (!failed and (nb(l) != 1 or nkind(it) != N_NUM or ntok(it) != p - 2)) {
                 fail(E_ARRAY, tpos(p));
                 return 0;
             }
             advance();
-            nd_b[n as usize] = parse_size();
+            nodes[n as usize].b = parse_size();
         } else {
             if (!failed and bad_count(l, size)) {
                 fail(E_ARRAY, tpos(size));
             }
-            nd_c[n as usize] = l;
+            nodes[n as usize].c = l;
         }
     }
     expect(';');
@@ -1264,13 +1735,13 @@ fn parse_params() -> i64 {
         var name: i64 = p;
         expect(T_IDENT);
         expect(':');
-        var ty: i64 = expect_scalar();
+        var ty: i64 = expect_type();
         var n: i64 = mk(D_PARAM, name, 0, 0);
-        nd_aux[n as usize] = ty;
+        nodes[n as usize].aux = ty;
         if (head == 0) {
             head = n;
         } else {
-            nd_next[tail as usize] = n;
+            nodes[tail as usize].next = n;
         }
         tail = n;
         if (cur() == ',') {
@@ -1294,12 +1765,28 @@ fn parse_fn() -> i64 {
         if (cur() == T_VOID) {
             advance();
         } else {
-            ret = expect_scalar();
+            ret = expect_type();
         }
     }
     var body: i64 = parse_block();
     var n: i64 = mk(D_FN, name, params, body);
-    nd_aux[n as usize] = ret;
+    nodes[n as usize].aux = ret;
+    nodes[n as usize].c = p - 1;
+    return n;
+}
+
+; use A :: B ... ;  -- .tok is the first segment, .a the last.
+fn parse_use() -> i64 {
+    advance();
+    var first: i64 = p;
+    expect(T_IDENT);
+    while (!failed and cur() == ':' and kind(p + 1) == ':') {
+        advance();
+        advance();
+        expect(T_IDENT);
+    }
+    var n: i64 = mk(D_USE, first, p - 1, 0);
+    expect(';');
     return n;
 }
 
@@ -1310,7 +1797,7 @@ fn parse_decl() -> i64 {
         p = p + 1;
         k = cur();
         t = p;
-        if (k != T_FN and k != T_CONST and k != T_VAR) {
+        if (k != T_FN and k != T_CONST and k != T_VAR and k != T_STRUCT and k != T_ENUM) {
             fail(E_SYNTAX, tpos(p));
             return 0;
         }
@@ -1318,12 +1805,52 @@ fn parse_decl() -> i64 {
     if (k == T_FN) {
         return parse_fn();
     }
+    if (k == T_STRUCT) {
+        advance();
+        var sname: i64 = p;
+        expect(T_IDENT);
+        return parse_struct(sname);
+    }
+    if (k == T_ENUM) {
+        advance();
+        var ename: i64 = p;
+        expect(T_IDENT);
+        return parse_enum(ename);
+    }
+    // `const S = struct { ... };`, `let S = ...`, and the same for `enum`:
+    // gen-c's struct S and enum S.
+    var k3: i64 = kind(p + 3);
+    if (k == T_CONST and kind(p + 1) == T_IDENT and kind(p + 2) == '=' and (k3 == T_STRUCT or k3 == T_ENUM)) {
+        var cname: i64 = p + 1;
+        p = p + 4;
+        var sd: i64 = 0;
+        if (k3 == T_ENUM) {
+            sd = parse_enum(cname);
+        } else {
+            sd = parse_struct(cname);
+        }
+        expect(';');
+        nodes[sd as usize].c = p - 1;
+        return sd;
+    }
+    if (k == T_USE) {
+        return parse_use();
+    }
     if (k == T_TEST) {
         p = p + 1;
         var tname: i64 = p;
         expect(T_IDENT);
         has_tests = true;
         return mk(D_TEST, tname, 0, parse_block());
+    }
+    if (k == T_BENCH) {
+        advance();
+        var bname: i64 = p;
+        expect(T_IDENT);
+        return mk(D_BENCH, bname, 0, parse_block());
+    }
+    if (k == T_INVARIANT) {
+        return parse_invariant();
     }
     if (k == T_CONST or k == T_VAR) {
         p = p + 1;
@@ -1333,7 +1860,7 @@ fn parse_decl() -> i64 {
         if (!failed and k == T_VAR and cur() == K_LBRACKET) {
             return parse_array(name);
         }
-        var ty: i64 = expect_scalar();
+        var ty: i64 = expect_type();
         expect('=');
         var v: i64 = 0;
         if (k == T_CONST) {
@@ -1344,13 +1871,140 @@ fn parse_decl() -> i64 {
         expect(';');
         var n: i64 = mk(D_VAR, name, v, 0);
         if (k == T_CONST) {
-            nd_kind[n as usize] = D_CONST;
+            nodes[n as usize].kind = D_CONST;
         }
-        nd_aux[n as usize] = ty;
+        nodes[n as usize].aux = ty;
+        nodes[n as usize].c = p - 1;
         return n;
     }
     fail(E_SYNTAX, tpos(t));
     return 0;
+}
+
+; { F : TYPE , ... [,] }, p at the brace. A default is refused: gen-c drops
+; it, so a literal that leaves the field out reads 0 in C (#7959).
+fn parse_struct(name: i64) -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    expect(K_LBRACE);
+    while (!failed and cur() != K_RBRACE) {
+        var f: i64 = p;
+        expect(T_IDENT);
+        expect(':');
+        var fd: i64 = mk(D_FIELD, f, 0, 0);
+        nodes[fd as usize].aux = expect_type();
+        if (head == 0) {
+            head = fd;
+        } else {
+            nodes[tail as usize].next = fd;
+        }
+        tail = fd;
+        if (!failed and cur() == '=') {
+            fail(E_STRUCT, tpos(p));
+            return 0;
+        }
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    var n: i64 = mk(D_STRUCT, name, head, 0);
+    nodes[n as usize].c = p - 1;
+    return n;
+}
+
+; [( SCALAR )] { M [= [-]NUMBER] , ... [,] }, p after the name. gen-c drops
+; the tag type (C's enum is an int), reads a value as one token and makes a
+; member of what follows it (#8002), and writes a number as spelled.
+fn parse_enum(name: i64) -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    if (cur() == '(') {
+        advance();
+        if (expect_scalar() == 0) {
+            return 0;
+        }
+        expect(')');
+    }
+    expect(K_LBRACE);
+    while (!failed and cur() != K_RBRACE) {
+        var m: i64 = mk(D_MEMBER, p, 0, 0);
+        expect(T_IDENT);
+        if (!failed and cur() == '=') {
+            advance();
+            if (cur() == '-') {
+                nodes[m as usize].b = 1;
+                advance();
+            }
+            if (cur() != T_NUM or has_sep(p)) {
+                fail(E_ENUM, tpos(p));
+                return 0;
+            }
+            nodes[m as usize].aux = p;
+            advance();
+        }
+        if (head == 0) {
+            head = m;
+        } else {
+            nodes[tail as usize].next = m;
+        }
+        tail = m;
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_ENUM, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    var n: i64 = mk(D_ENUM, name, head, 0);
+    nodes[n as usize].c = p - 1;
+    return n;
+}
+
+; invariant NAME { CHECK ; ... }  or  invariant NAME : CHECK ;  -- p at the
+; keyword. A CHECK is an expression, or `assert(EXPR)`, whose `assert` gen-c
+; unwraps.
+fn parse_invariant() -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    var clause: bool = false;
+    advance();
+    var name: i64 = p;
+    expect(T_IDENT);
+    if (!failed and cur() == ':') {
+        clause = true;
+        advance();
+    } else {
+        expect(K_LBRACE);
+    }
+    while (!failed and (clause or cur() != K_RBRACE)) {
+        var k: i64 = cur();
+        if (k == T_VAR or k == T_CONST or k == T_IF or k == T_WHILE or k == T_FOR or k == T_RETURN) {
+            fail(E_INVARIANT, tpos(p));
+            return 0;
+        }
+        var c: i64 = mk(S_EXPR, p, parse_expr(), 0);
+        if (!failed and (cur() == '=' or cur() == T_OPEQ)) {
+            fail(E_INVARIANT, tpos(p));
+            return 0;
+        }
+        expect(';');
+        if (head == 0) {
+            head = c;
+        } else {
+            nodes[tail as usize].next = c;
+        }
+        tail = c;
+        if (clause) {
+            return mk(D_INV, name, head, 0);
+        }
+    }
+    expect(K_RBRACE);
+    return mk(D_INV, name, head, 0);
 }
 
 ; gen-c stops reading at `endmodule` and drops whatever follows it, so the
@@ -1382,9 +2036,82 @@ fn parse_module() -> void {
         if (decls == 0) {
             decls = d;
         } else {
-            nd_next[tail as usize] = d;
+            nodes[tail as usize].next = d;
         }
         tail = d;
+    }
+}
+
+; The input is the importer, then, for each module its `use` lines reach, a
+; NUL, the path the `use` names (`a/b.t27`), a newline and that module's
+; text. The harness appends a module when the core asks for it (E_NEED).
+fn split_modules(n: i64) -> void {
+    var i: i64 = 0;
+    mod_count = 1;
+    mods[0].from = 0;
+    while (i < n and src[i as usize] != 0) {
+        i = i + 1;
+    }
+    mods[0].to = i;
+    while (!failed and i < n) {
+        if (mod_count >= MOD_MAX) {
+            fail(E_LIMIT, i);
+            return;
+        }
+        var j: i64 = i + 1;
+        mods[mod_count as usize].head = j;
+        mods[mod_count as usize].hit = 0;
+        while (j < n and src[j as usize] != '\n' and src[j as usize] != 0) {
+            j = j + 1;
+        }
+        if (j >= n or src[j as usize] != '\n') {
+            fail(E_USE, i);
+            return;
+        }
+        mods[mod_count as usize].from = j + 1;
+        j = j + 1;
+        while (j < n and src[j as usize] != 0) {
+            j = j + 1;
+        }
+        mods[mod_count as usize].to = j;
+        mod_count = mod_count + 1;
+        i = j;
+    }
+}
+
+; A module the importer reaches gets its own declaration chain; the
+; importer's name, tests and `decls` stay. One this core cannot read is kept
+; as text (`.text`): no word of the importer may name what it declares.
+fn load_module(m: i64, n: i64) -> void {
+    var t0: i64 = tok_count;
+    var n0: i64 = node_count;
+    var c0: i64 = open_comments;
+    var keep_tok: i64 = mod_tok;
+    var keep_tests: bool = has_tests;
+    var keep_decls: i64 = decls;
+    lex_module(m);
+    src_len = n;
+    decls = 0;
+    if (!failed) {
+        p = mods[m as usize].tok0;
+        parse_module();
+    }
+    mods[m as usize].decls = decls;
+    mods[m as usize].text = 0;
+    mod_tok = keep_tok;
+    has_tests = keep_tests;
+    decls = keep_decls;
+    if (failed and err_code != E_LIMIT) {
+        failed = false;
+        err_code = 0;
+        err_pos = 0;
+        tok_count = t0;
+        node_count = n0;
+        open_comments = c0;
+        mods[m as usize].decls = 0;
+        mods[m as usize].text = 1;
+        mods[m as usize].tok0 = tok_count;
+        add_tok(T_EOF, mods[m as usize].to, 0);
     }
 }
 
@@ -1411,24 +2138,277 @@ fn list_len(head: i64) -> i64 {
     return n;
 }
 
-; How many indexes a name takes: 2 or 1 for an array global, else 0.
+fn arr_rank(d: i64) -> i64 {
+    if (nc(d) != 0 and nb(d) != 0) {
+        return 2;
+    }
+    return 1;
+}
+
+; How many indexes a name takes: 2 or 1 for an array in scope, local first,
+; else 0.
 fn rank(t: i64) -> i64 {
+    var i: i64 = scope_len - 1;
+    if (is_str_type(name_type(t))) {
+        return 1;
+    }
+    while (i >= 0) {
+        if (tok_eq(ntok(scope_arr[i as usize]), t)) {
+            return arr_rank(scope_arr[i as usize]);
+        }
+        i = i - 1;
+    }
     var d: i64 = decls;
     while (d != 0) {
         if (nkind(d) == D_ARRAY and tok_eq(ntok(d), t)) {
-            if (nc(d) != 0 and nb(d) != 0) {
-                return 2;
-            }
-            return 1;
+            return arr_rank(d);
         }
         d = nnext(d);
     }
     return 0;
 }
 
+; How many locals, local arrays and `for` captures a statement list names
+; `t`, at any depth.
+fn local_count(head: i64, t: i64) -> i64 {
+    var n: i64 = 0;
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        if ((k == S_LOCAL or k == D_ARRAY) and tok_eq(ntok(s), t)) {
+            n = n + 1;
+        }
+        if (k == S_FOR and tok_eq(naux(s), t)) {
+            n = n + 1;
+        }
+        if (k == S_IF) {
+            n = n + local_count(nb(s), t) + local_count(nc(s), t);
+        }
+        if (k == S_WHILE or k == S_FOR) {
+            n = n + local_count(nb(s), t);
+        }
+        s = nnext(s);
+    }
+    return n;
+}
+
+; A local array's name is declared nowhere else in its function or module:
+; gen-c writes C's shadowing array, which Zig refuses.
+fn arr_name_ok(s: i64) -> bool {
+    var t: i64 = ntok(s);
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            return false;
+        }
+        d = nnext(d);
+    }
+    var prm: i64 = na(cur_decl);
+    while (prm != 0) {
+        if (tok_eq(ntok(prm), t)) {
+            return false;
+        }
+        prm = nnext(prm);
+    }
+    return local_count(nb(cur_decl), t) == 1;
+}
+
+; The number token a size stands for: itself, or the value of the const it
+; names when that value is one number (gen-c's `#define`); else 0. A local
+; array sized otherwise is a C variable-length array, which C cannot
+; initialize.
+fn size_lit(t: i64) -> i64 {
+    if (kind(t) == T_NUM) {
+        return t;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_CONST and tok_eq(ntok(d), t)) {
+            if (nkind(na(d)) == N_NUM) {
+                return ntok(na(d));
+            }
+            return 0;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; A repeat's `** COUNT` is its dimension: the same token or the same decimal.
+; A short one leaves C zeros where Zig refuses the type.
+fn repeat_ok(d: i64) -> bool {
+    var a: i64 = size_lit(na(d));
+    var b: i64 = size_lit(nb(d));
+    if (nc(d) != 0 or tok_eq(na(d), nb(d))) {
+        return true;
+    }
+    return a != 0 and b != 0 and num_val(a) >= 0 and num_val(a) == num_val(b);
+}
+
+fn mentions_call(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (e == 0) {
+        return false;
+    }
+    if (k == N_CALL) {
+        return true;
+    }
+    if (k == N_BIN or k == N_INDEX) {
+        return mentions_call(na(e)) or mentions_call(nb(e));
+    }
+    if (k == N_UN or k == N_CAST or k == N_FIELD) {
+        return mentions_call(na(e));
+    }
+    if (k == N_LIST or k == N_STRUCT) {
+        var it: i64 = na(e);
+        while (it != 0) {
+            if (mentions_call(it)) {
+                return true;
+            }
+            it = nnext(it);
+        }
+    }
+    if (k == N_INIT) {
+        return mentions_call(na(e));
+    }
+    if (k == N_SWITCH) {
+        if (mentions_call(na(e))) {
+            return true;
+        }
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            if (mentions_call(na(arm))) {
+                return true;
+            }
+            arm = nnext(arm);
+        }
+    }
+    return false;
+}
+
+; Whether a statement list makes a call, at any depth.
+fn calls_in(head: i64) -> bool {
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        // A local array's .a is its size token; its list is .c.
+        if (k == D_ARRAY) {
+            if (mentions_call(nc(s))) {
+                return true;
+            }
+        } else if (k == S_EXPR or mentions_call(na(s))) {
+            return true;
+        }
+        if (k == S_ASSIGN and mentions_call(nb(s))) {
+            return true;
+        }
+        if (k == S_IF and (calls_in(nb(s)) or calls_in(nc(s)))) {
+            return true;
+        }
+        if ((k == S_WHILE or k == S_FOR) and calls_in(nb(s))) {
+            return true;
+        }
+        if (k == S_FOR and mentions_call(nc(s))) {
+            return true;
+        }
+        s = nnext(s);
+    }
+    return false;
+}
+
+; Whether a statement list assigns the name `t`, at any depth.
+fn assigns(head: i64, t: i64) -> bool {
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        if (k == S_ASSIGN and tok_eq(root_tok(na(s)), t)) {
+            return true;
+        }
+        if (k == S_IF and (assigns(nb(s), t) or assigns(nc(s), t))) {
+            return true;
+        }
+        if ((k == S_WHILE or k == S_FOR) and assigns(nb(s), t)) {
+            return true;
+        }
+        s = nnext(s);
+    }
+    return false;
+}
+
+fn is_module_var(t: i64) -> bool {
+    var d: i64 = decls;
+    while (d != 0) {
+        if ((nkind(d) == D_VAR or nkind(d) == D_ARRAY) and tok_eq(ntok(d), t)) {
+            return true;
+        }
+        d = nnext(d);
+    }
+    return false;
+}
+
+; Whether `e` may change while `body` runs: a call, a name the body assigns,
+; or a module var when the body calls anything.
+fn varies(e: i64, body: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (e == 0) {
+        return false;
+    }
+    if (k == N_CALL) {
+        return true;
+    }
+    if (is_place(e)) {
+        if (assigns(body, root_tok(e))) {
+            return true;
+        }
+        if (is_module_var(root_tok(e)) and calls_in(body)) {
+            return true;
+        }
+    }
+    if (k == N_BIN or k == N_INDEX) {
+        return varies(na(e), body) or varies(nb(e), body);
+    }
+    if (k == N_UN or k == N_CAST or k == N_FIELD or k == N_INIT) {
+        return varies(na(e), body);
+    }
+    if (k == N_STRUCT) {
+        var it: i64 = na(e);
+        while (it != 0) {
+            if (varies(it, body)) {
+                return true;
+            }
+            it = nnext(it);
+        }
+    }
+    return false;
+}
+
 fn check_expr(e: i64) -> void {
     var k: i64 = nkind(e);
+    var allowed: bool = str_ctx;
+    str_ctx = false;
     if (failed or e == 0) {
+        return;
+    }
+    // A string where none is declared: C converts or compares the address.
+    if (sv(e) and !allowed) {
+        fail(E_STRING, tpos(ntok(e)));
+        return;
+    }
+    if (k == N_STR or (allowed and k == N_IDENT)) {
+        return;
+    }
+    if (k == N_SWITCH) {
+        if (mentions_call(na(e))) {
+            fail(E_SYNTAX, tpos(ntok(e)));
+            return;
+        }
+        check_expr(na(e));
+        check_labels(e);
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            check_expr(na(arm));
+            arm = nnext(arm);
+        }
         return;
     }
     if (k == N_IDENT and tok_is(ntok(e), W_UNDEFINE, 'd', 9)) {
@@ -1456,11 +2436,32 @@ fn check_expr(e: i64) -> void {
         if (is_assert or is_eq) {
             uses_assert = true;
         }
+        // A string parameter takes a string, and only it one.
+        var prm: i64 = na(fn_named(t));
         var arg: i64 = na(e);
         while (arg != 0) {
-            check_expr(arg);
+            if (prm != 0 and is_str_type(naux(prm))) {
+                check_str_expr(arg);
+            } else {
+                check_expr(arg);
+            }
+            if (prm != 0) {
+                prm = nnext(prm);
+            }
             arg = nnext(arg);
         }
+        return;
+    }
+    if (k == N_FIELD) {
+        check_field(e);
+        return;
+    }
+    if (k == N_EVAL) {
+        nodes[e as usize].d = member_owner(ntok(e));
+        return;
+    }
+    if (k == N_STRUCT) {
+        check_lit(e);
         return;
     }
     // C reads a row or a whole array where a scalar goes, or will not compile
@@ -1517,15 +2518,44 @@ fn declared_in(head: i64, t: i64) -> bool {
     return false;
 }
 
+; A local array is in scope from its declaration to the end of its block.
+fn check_local_array(s: i64) -> void {
+    if (!arr_name_ok(s)) {
+        fail(E_NAME, tpos(ntok(s)));
+        return;
+    }
+    if (size_lit(na(s)) == 0 or (nc(s) == 0 and size_lit(nb(s)) == 0) or !repeat_ok(s)) {
+        fail(E_ARRAY, tpos(ntok(s)));
+        return;
+    }
+    check_elem(s);
+    check_expr(nc(s));
+    if (scope_len >= SCOPE_MAX) {
+        fail(E_LIMIT, tpos(ntok(s)));
+        return;
+    }
+    scope_arr[scope_len as usize] = s;
+    scope_len = scope_len + 1;
+}
+
 fn check_stmts(head: i64, test_body: i64) -> void {
     var s: i64 = head;
+    var mark: i64 = scope_len;
     while (!failed and s != 0) {
         var k: i64 = nkind(s);
-        if (k == S_ASSIGN) {
+        if (k == S_LOCAL or k == D_ARRAY) {
+            check_binding(ntok(s));
+        }
+        if (k == S_FOR) {
+            check_binding(naux(s));
+        }
+        if (k == D_ARRAY) {
+            check_local_array(s);
+        } else if (k == S_ASSIGN) {
             var lhs: i64 = na(s);
             if (nkind(lhs) == N_IDENT) {
                 var t: i64 = ntok(lhs);
-                if (tk_len[t as usize] == 1 and src[(tk_pos[t as usize]) as usize] == '_') {
+                if (toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_') {
                     fail(E_NAME, tpos(t));
                     return;
                 }
@@ -1534,8 +2564,14 @@ fn check_stmts(head: i64, test_body: i64) -> void {
                     return;
                 }
             }
-            check_expr(lhs);
-            check_expr(nb(s));
+            // A string name takes a string, by `=` only: `s += 1` would move
+            // the pointer.
+            if (sv(lhs) and nc(s) == 0) {
+                check_str_expr(nb(s));
+            } else {
+                check_expr(lhs);
+                check_expr(nb(s));
+            }
         } else if (k == S_IF) {
             check_expr(na(s));
             check_stmts(nb(s), 0);
@@ -1543,19 +2579,777 @@ fn check_stmts(head: i64, test_body: i64) -> void {
         } else if (k == S_WHILE) {
             check_expr(na(s));
             check_stmts(nb(s), 0);
-        } else {
+        } else if (k == S_FOR) {
             check_expr(na(s));
+            check_expr(nc(s));
+            if (!failed and varies(nc(s), nb(s))) {
+                fail(E_SYNTAX, tpos(ntok(s)));
+                return;
+            }
+            check_stmts(nb(s), 0);
+        } else {
+            if (k == S_LOCAL and !type_ok(naux(s))) {
+                fail(E_TYPE, tpos(naux(s)));
+                return;
+            }
+            var str_place: bool = k == S_LOCAL and is_str_type(naux(s));
+            if (k == S_RETURN and nkind(cur_decl) == D_FN and is_str_type(naux(cur_decl))) {
+                str_place = true;
+            }
+            if (k == S_LOCAL and str_place) {
+                check_str_name(ntok(s));
+            }
+            if (str_place) {
+                check_str_expr(na(s));
+            } else {
+                check_expr(na(s));
+            }
         }
         s = nnext(s);
+    }
+    scope_len = mark;
+}
+
+; ---------------------------------------------------------------- structs
+
+; The struct the module declares under token t's spelling, else 0.
+fn struct_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; The enum the module declares under token t's spelling, else 0.
+fn enum_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_ENUM and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; A type token is a SCALAR, a struct or an enum of the module; 0 is a `void`
+; return.
+fn type_ok(t: i64) -> bool {
+    if (t == 0 or is_scalar(t) or is_str_type(t)) {
+        return true;
+    }
+    return struct_named(t) != 0 or enum_named(t) != 0;
+}
+
+fn upper(c: i64) -> i64 {
+    if (c >= 'a' and c <= 'z') {
+        return c - 32;
+    }
+    return c;
+}
+
+; Byte i of gen-c's constant for member token m of enum token en: `EN_M`,
+; upper-cased.
+fn const_len(en: i64, m: i64) -> i64 {
+    return toks[en as usize].len + 1 + toks[m as usize].len;
+}
+
+fn const_byte(en: i64, m: i64, i: i64) -> i64 {
+    var n: i64 = toks[en as usize].len;
+    if (i < n) {
+        return upper(src[(toks[en as usize].pos + i) as usize] as i64);
+    }
+    if (i == n) {
+        return '_';
+    }
+    return upper(src[(toks[m as usize].pos + i - n - 1) as usize] as i64);
+}
+
+; Constants a and b (enum token, member token each) are one C name.
+fn const_eq(ea: i64, ma: i64, eb: i64, mb: i64) -> bool {
+    var i: i64 = 0;
+    if (const_len(ea, ma) != const_len(eb, mb)) {
+        return false;
+    }
+    while (i < const_len(ea, ma)) {
+        if (const_byte(ea, ma, i) != const_byte(eb, mb, i)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; Token t spells the constant of member m of enum en.
+fn spells_const(t: i64, en: i64, m: i64) -> bool {
+    var i: i64 = 0;
+    if (toks[t as usize].len != const_len(en, m)) {
+        return false;
+    }
+    while (i < toks[t as usize].len) {
+        if ((src[(toks[t as usize].pos + i) as usize] as i64) != const_byte(en, m, i)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; Tokens a and b spell one word once upper-cased.
+fn upper_eq(a: i64, b: i64) -> bool {
+    var i: i64 = 0;
+    if (toks[a as usize].len != toks[b as usize].len) {
+        return false;
+    }
+    while (i < toks[a as usize].len) {
+        if (upper(src[(toks[a as usize].pos + i) as usize] as i64) != upper(src[(toks[b as usize].pos + i) as usize] as i64)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; An enum is named once, after no type gen-c maps, and has one member or
+; more. Each member's constant `E_M` is spelled by no other member of any
+; enum (E_ENUM) and by no name of the module (E_NAME): C's enum constants
+; share one namespace with every other name, and a parameter so named hides
+; one (#8001).
+fn check_enum(d: i64) -> void {
+    var t: i64 = ntok(d);
+    var m: i64 = na(d);
+    if (mapped_name(t) or decl_count(t) != 1) {
+        fail(E_NAME, tpos(t));
+        return;
+    }
+    if (m == 0) {
+        fail(E_ENUM, tpos(t));
+        return;
+    }
+    while (m != 0) {
+        var o: i64 = decls;
+        while (o != 0) {
+            if (nkind(o) == D_ENUM) {
+                var om: i64 = na(o);
+                while (om != 0) {
+                    if (om != m and const_eq(ntok(o), ntok(om), t, ntok(m))) {
+                        fail(E_ENUM, tpos(ntok(m)));
+                        return;
+                    }
+                    om = nnext(om);
+                }
+            }
+            o = nnext(o);
+        }
+        var x: i64 = mods[0].tok0;
+        while (kind(x) != T_EOF) {
+            if (kind(x) == T_IDENT and spells_const(x, t, ntok(m))) {
+                fail(E_NAME, tpos(x));
+                return;
+            }
+            x = x + 1;
+        }
+        m = nnext(m);
+    }
+}
+
+; The member of enum en spelled like token t, else 0.
+fn member_of(en: i64, t: i64) -> i64 {
+    var m: i64 = na(en);
+    while (m != 0) {
+        if (tok_eq(ntok(m), t)) {
+            return m;
+        }
+        m = nnext(m);
+    }
+    return 0;
+}
+
+; The one enum gen-c's `c_unique_enum_owner` finds for `.M`, token t: it
+; matches upper-cased spellings, so exactly one enum may have a member that
+; spells M in any case, and that member must spell it as written (#8001).
+fn member_owner(t: i64) -> i64 {
+    var owner: i64 = 0;
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_ENUM) {
+            var m: i64 = na(d);
+            while (m != 0) {
+                if (upper_eq(ntok(m), t)) {
+                    n = n + 1;
+                    owner = d;
+                }
+                m = nnext(m);
+            }
+        }
+        d = nnext(d);
+    }
+    if (n != 1 or member_of(owner, t) == 0) {
+        fail(E_ENUM, tpos(t));
+        return 0;
+    }
+    return owner;
+}
+
+; A name bound in a function or a test is no enum's: gen-c reads `E.M` as the
+; member whatever binds E (#8001).
+fn check_binding(t: i64) -> void {
+    if (enum_named(t) != 0) {
+        fail(E_NAME, tpos(t));
+    }
+}
+
+; A switch's `.M` labels each name a member once; with no `else`, they name
+; every member of one enum (#8003).
+fn check_labels(e: i64) -> void {
+    var arm: i64 = nb(e);
+    var owner: i64 = 0;
+    var n: i64 = 0;
+    var full: bool = true;
+    while (!failed and arm != 0) {
+        if (naux(arm) == 3) {
+            var en: i64 = member_owner(ntok(arm));
+            nodes[arm as usize].d = en;
+            if (owner != 0 and en != owner) {
+                full = false;
+            }
+            owner = en;
+            n = n + 1;
+            var j: i64 = nb(e);
+            while (j != arm) {
+                if (naux(j) == 3 and tok_eq(ntok(j), ntok(arm))) {
+                    fail(E_SYNTAX, tpos(ntok(arm)));
+                    return;
+                }
+                j = nnext(j);
+            }
+        } else if (naux(arm) != 2) {
+            full = false;
+        }
+        arm = nnext(arm);
+    }
+    if (failed or all_members(nb(e)) == false) {
+        return;
+    }
+    if (full == false or n != list_len(na(owner))) {
+        fail(E_SYNTAX, tpos(ntok(e)));
+    }
+}
+
+; A name gen-c's `type_to_c` turns into another C type: a struct so named
+; would be written as that type in a signature (#7961).
+fn mapped_name(t: i64) -> bool {
+    if (is_scalar(t) or tok_is(t, 0x323366, 0, 3) or tok_is(t, 0x343666, 0, 3)) {
+        return true;
+    }
+    if (tok_is(t, 0x727473, 0, 3) or tok_is(t, 0x676e69727473, 0, 6) or tok_is(t, 0x657a697369, 0, 5)) {
+        return true;
+    }
+    if (tok_is(t, 0x36314647, 0, 4) or tok_is(t, 0x36316667, 0, 4) or tok_is(t, 0x72616863, 0, 4)) {
+        return true;
+    }
+    return tok_is(t, 0x38323175, 0, 4) or tok_is(t, 0x38323169, 0, 4);
+}
+
+; The field of struct s spelled like token t, else 0.
+fn field_of(s: i64, t: i64) -> i64 {
+    var f: i64 = na(s);
+    while (f != 0) {
+        if (tok_eq(ntok(f), t)) {
+            return f;
+        }
+        f = nnext(f);
+    }
+    return 0;
+}
+
+; How many of the module's named declarations are spelled like token t.
+fn decl_count(t: i64) -> i64 {
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            n = n + 1;
+        }
+        d = nnext(d);
+    }
+    return n;
+}
+
+; A struct is named once, after no type gen-c maps, and holds one or more
+; fields, each named once, of a SCALAR or of another struct: C has no empty
+; struct, and a struct holding itself has no size (#7961).
+fn check_struct(d: i64) -> void {
+    var t: i64 = ntok(d);
+    var f: i64 = na(d);
+    if (mapped_name(t) or decl_count(t) != 1) {
+        fail(E_NAME, tpos(t));
+        return;
+    }
+    if (f == 0) {
+        fail(E_STRUCT, tpos(t));
+        return;
+    }
+    while (f != 0) {
+        // A string field's type is out of the core's reach without P3.
+        if (!type_ok(naux(f)) or is_str_type(naux(f))) {
+            fail(E_TYPE, tpos(naux(f)));
+            return;
+        }
+        if (struct_named(naux(f)) == d) {
+            fail(E_STRUCT, tpos(naux(f)));
+            return;
+        }
+        var g: i64 = na(d);
+        var n: i64 = 0;
+        while (g != 0) {
+            if (tok_eq(ntok(g), ntok(f))) {
+                n = n + 1;
+            }
+            g = nnext(g);
+        }
+        if (n != 1) {
+            fail(E_NAME, tpos(ntok(f)));
+            return;
+        }
+        f = nnext(f);
+    }
+}
+
+; Every struct a field of d holds by value is written already (.b).
+fn deps_done(d: i64) -> bool {
+    var f: i64 = na(d);
+    while (f != 0) {
+        var s: i64 = struct_named(naux(f));
+        if (s != 0 and nb(s) == 0) {
+            return false;
+        }
+        f = nnext(f);
+    }
+    return true;
+}
+
+; gen-c's `structs_in_declaration_order`: pass after pass over the structs in
+; source order, each one whose fields' structs are written goes next. With
+; `emit` set it writes them; false when a cycle leaves one unwritten.
+fn walk_structs(emit: bool) -> bool {
+    var d: i64 = decls;
+    var more: bool = true;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT) {
+            nodes[d as usize].b = 0;
+        }
+        d = nnext(d);
+    }
+    while (more) {
+        more = false;
+        d = decls;
+        while (d != 0) {
+            if (nkind(d) == D_STRUCT and nb(d) == 0 and deps_done(d)) {
+                nodes[d as usize].b = 1;
+                more = true;
+                if (emit) {
+                    emit_struct(d);
+                }
+            }
+            d = nnext(d);
+        }
+    }
+    d = decls;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT and nb(d) == 0) {
+            return false;
+        }
+        d = nnext(d);
+    }
+    return true;
+}
+
+fn check_structs() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        if (nkind(d) == D_STRUCT) {
+            check_struct(d);
+        }
+        d = nnext(d);
+    }
+    if (!failed and !walk_structs(false)) {
+        fail(E_STRUCT, 0);
+    }
+}
+
+; S{ ... } names every field of struct S once: C zero-fills a field left
+; out and keeps the last of two, where Zig refuses both (#7959).
+fn check_lit(e: i64) -> void {
+    var s: i64 = struct_named(ntok(e));
+    var it: i64 = na(e);
+    if (s == 0) {
+        fail(E_TYPE, tpos(ntok(e)));
+        return;
+    }
+    while (!failed and it != 0) {
+        var n: i64 = 0;
+        var j: i64 = na(e);
+        if (field_of(s, ntok(it)) == 0) {
+            fail(E_NAME, tpos(ntok(it)));
+            return;
+        }
+        while (j != 0) {
+            if (tok_eq(ntok(j), ntok(it))) {
+                n = n + 1;
+            }
+            j = nnext(j);
+        }
+        if (n != 1) {
+            fail(E_STRUCT, tpos(ntok(it)));
+            return;
+        }
+        check_expr(na(it));
+        it = nnext(it);
+    }
+    if (!failed and nb(e) != list_len(na(s))) {
+        fail(E_STRUCT, tpos(ntok(e)));
+    }
+}
+
+; A value `{0}` initializes exactly: zero numbers and `false`, at any depth.
+fn all_zero(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM) {
+        return num_is_zero(ntok(e));
+    }
+    if (k == N_FALSE) {
+        return true;
+    }
+    if (k != N_STRUCT) {
+        return false;
+    }
+    var it: i64 = na(e);
+    while (it != 0) {
+        if (!all_zero(na(it))) {
+            return false;
+        }
+        it = nnext(it);
+    }
+    return true;
+}
+
+; An array's element type, and a repeated struct value: gen-c writes `{0}`
+; whatever it holds (#7960), so it must be all zeros.
+fn check_elem(d: i64) -> void {
+    if (!type_ok(naux(d)) or is_str_type(naux(d))) {
+        fail(E_TYPE, tpos(naux(d)));
+        return;
+    }
+    var v: i64 = nd(d);
+    if (v == 0) {
+        return;
+    }
+    // gen-c writes a repeated `.M` as `{0}`, the first member (#8003); E.M
+    // and E::M take a range, as a number does.
+    if (nkind(v) == N_EVAL) {
+        fail(E_ARRAY, tpos(ntok(v)));
+        return;
+    }
+    check_expr(v);
+    if (failed) {
+        return;
+    }
+    if (nkind(v) == N_STRUCT and !all_zero(v)) {
+        fail(E_ARRAY, tpos(ntok(v)));
+    }
+    if (nkind(v) == N_FIELD and nd(v) == 0) {
+        fail(E_ARRAY, tpos(ntok(v)));
+    }
+}
+
+; X.F: E.M or E::M names a member of enum E, spelled as declared (gen-c
+; matches it upper-cased, #8001); any other X.F is a field. E::M with E no
+; enum is a path gen-c writes as it stands.
+fn check_field(e: i64) -> void {
+    var b: i64 = na(e);
+    var en: i64 = 0;
+    // gen-c writes `.len` as `strlen` on a `string` parameter or local only;
+    // on a `str` it stays `s.len`, which is not C (#8013).
+    if (nkind(b) == N_IDENT and is_str_type(name_type(ntok(b)))) {
+        if (tok_is(ntok(e), 0x6e656c, 0, 3) and tok_is(local_type(ntok(b)), 0x676e69727473, 0, 6)) {
+            nodes[e as usize].aux = 2;
+            uses_strlen = true;
+            return;
+        }
+        fail(E_STRING, tpos(ntok(e)));
+        return;
+    }
+    if (nkind(b) == N_IDENT) {
+        en = enum_named(ntok(b));
+    }
+    if (en == 0) {
+        if (naux(e) == 1) {
+            fail(E_NAME, tpos(ntok(e)));
+            return;
+        }
+        check_expr(b);
+        return;
+    }
+    if (member_of(en, ntok(e)) == 0) {
+        fail(E_ENUM, tpos(ntok(e)));
+        return;
+    }
+    nodes[e as usize].d = en;
+}
+
+; ---------------------------------------------------------------- strings
+
+; Type token t is `str` or `string`, gen-c's `const char*`.
+fn is_str_type(t: i64) -> bool {
+    if (t <= 0) {
+        return false;
+    }
+    return tok_is(t, 0x727473, 0, 3) or tok_is(t, 0x676e69727473, 0, 6);
+}
+
+fn fn_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_FN and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; The type token a statement list declares name t with, at any depth; -1
+; for an array or a `for` capture, 0 if it binds no t.
+fn stmts_type(head: i64, t: i64) -> i64 {
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        var r: i64 = 0;
+        if (k == S_LOCAL and tok_eq(ntok(s), t)) {
+            return naux(s);
+        }
+        if (k == D_ARRAY and tok_eq(ntok(s), t)) {
+            return -1;
+        }
+        if (k == S_FOR and tok_eq(naux(s), t)) {
+            return -1;
+        }
+        if (k == S_IF) {
+            r = stmts_type(nb(s), t);
+            if (r == 0) {
+                r = stmts_type(nc(s), t);
+            }
+        }
+        if (k == S_WHILE or k == S_FOR) {
+            r = stmts_type(nb(s), t);
+        }
+        if (r != 0) {
+            return r;
+        }
+        s = nnext(s);
+    }
+    return 0;
+}
+
+; The type of name t as a parameter or local of the item being checked.
+fn local_type(t: i64) -> i64 {
+    var d: i64 = cur_decl;
+    var k: i64 = nkind(d);
+    if (k != D_FN and k != D_TEST and k != D_BENCH) {
+        return 0;
+    }
+    if (k == D_FN) {
+        var prm: i64 = na(d);
+        while (prm != 0) {
+            if (tok_eq(ntok(prm), t)) {
+                return naux(prm);
+            }
+            prm = nnext(prm);
+        }
+    }
+    return stmts_type(nb(d), t);
+}
+
+; The type name t is declared with where it is read: a parameter or local
+; first, else a module var or const; 0 if none.
+fn name_type(t: i64) -> i64 {
+    var lt: i64 = local_type(t);
+    if (lt != 0) {
+        return lt;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if ((nkind(d) == D_VAR or nkind(d) == D_CONST) and tok_eq(ntok(d), t)) {
+            return naux(d);
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; Expression e is a string value: a literal, a string name, a call of a
+; string function, or a switch with a string arm.
+fn sv(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_STR) {
+        return true;
+    }
+    if (k == N_IDENT) {
+        return is_str_type(name_type(ntok(e)));
+    }
+    if (k == N_CALL) {
+        return is_str_type(naux(fn_named(ntok(e))));
+    }
+    if (k == N_SWITCH) {
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            if (sv(na(arm))) {
+                return true;
+            }
+            arm = nnext(arm);
+        }
+    }
+    return false;
+}
+
+; A place that declares a string takes exactly a string value: a switch
+; there, every arm one.
+fn check_str_expr(e: i64) -> void {
+    if (failed) {
+        return;
+    }
+    if (!sv(e)) {
+        fail(E_STRING, tpos(ntok(e)));
+        return;
+    }
+    if (nkind(e) == N_SWITCH) {
+        if (mentions_call(na(e))) {
+            fail(E_SYNTAX, tpos(ntok(e)));
+            return;
+        }
+        check_expr(na(e));
+        check_labels(e);
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            check_str_expr(na(arm));
+            arm = nnext(arm);
+        }
+        return;
+    }
+    str_ctx = true;
+    check_expr(e);
+}
+
+; A string name is bound once in its item and its module, so its type is
+; never another binding's (#8013).
+fn check_str_name(t: i64) -> void {
+    var n: i64 = decl_count(t);
+    var d: i64 = cur_decl;
+    var k: i64 = nkind(d);
+    if (k == D_FN or k == D_TEST or k == D_BENCH) {
+        n = n + local_count(nb(d), t);
+        if (k == D_FN) {
+            var prm: i64 = na(d);
+            while (prm != 0) {
+                if (tok_eq(ntok(prm), t)) {
+                    n = n + 1;
+                }
+                prm = nnext(prm);
+            }
+        }
+    }
+    if (n != 1) {
+        fail(E_NAME, tpos(t));
+    }
+}
+
+; gen-c's `is_c_constant_expr` on its own rendering of a check: no call,
+; and every word C's or a `#define` of the file. A hex, binary or char
+; literal renders a word (`x1F`, `a`) that is neither, and so does an enum
+; member or any other const; each would be dropped to a comment (#8009).
+fn static_check(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM) {
+        return toks[ntok(e) as usize].len == 1 or src[(toks[ntok(e) as usize].pos) as usize] != '0';
+    }
+    if (k == N_TRUE or k == N_FALSE) {
+        return true;
+    }
+    if (k == N_UN or k == N_CAST) {
+        return static_check(na(e));
+    }
+    if (k == N_BIN) {
+        return static_check(na(e)) and static_check(nb(e));
+    }
+    if (k != N_IDENT) {
+        return false;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_CONST and tok_eq(ntok(d), ntok(e))) {
+            var v: i64 = nkind(na(d));
+            return v == N_NUM or v == N_TRUE or v == N_FALSE or v == N_CHAR or v == N_NEGLIT;
+        }
+        d = nnext(d);
+    }
+    return false;
+}
+
+; Each check is one gen-c keeps as `_Static_assert`; .b of its S_EXPR is
+; the predicate, `assert` unwrapped.
+fn check_invariant(d: i64) -> void {
+    var c: i64 = na(d);
+    while (!failed and c != 0) {
+        var e: i64 = na(c);
+        if (nkind(e) == N_CALL and tok_is(ntok(e), W_ASSERT, 0, 6) and list_len(na(e)) == 1) {
+            e = na(e);
+        }
+        if (!static_check(e)) {
+            fail(E_INVARIANT, tpos(ntok(c)));
+            return;
+        }
+        nodes[c as usize].b = e;
+        c = nnext(c);
     }
 }
 
 fn check() -> void {
     var d: i64 = decls;
+    check_structs();
+    while (!failed and d != 0) {
+        if (nkind(d) == D_ENUM) {
+            check_enum(d);
+        }
+        d = nnext(d);
+    }
+    d = decls;
     while (!failed and d != 0) {
         var k: i64 = nkind(d);
         var t: i64 = ntok(d);
+        cur_decl = d;
         if (k == D_FN) {
+            if (!type_ok(naux(d))) {
+                fail(E_TYPE, tpos(naux(d)));
+                return;
+            }
+            var prm: i64 = na(d);
+            while (prm != 0) {
+                if (!type_ok(naux(prm))) {
+                    fail(E_TYPE, tpos(naux(prm)));
+                    return;
+                }
+                check_binding(ntok(prm));
+                if (is_str_type(naux(prm))) {
+                    check_str_name(ntok(prm));
+                }
+                prm = nnext(prm);
+            }
             if (tok_is(t, W_ASSERT, 0, 6) or tok_is(t, W_DEFAULT_, 0x7475706e69, 13) or tok_is(t, W_VALID_IN, 0x747570, 11)) {
                 fail(E_NAME, tpos(t));
                 return;
@@ -1567,24 +3361,997 @@ fn check() -> void {
             check_stmts(nb(d), 0);
         } else if (k == D_TEST) {
             check_stmts(nb(d), nb(d));
+        } else if (k == D_BENCH) {
+            // A top-level `x = e` binds x in Zig's bench, as in a test, and
+            // gen-c leaves it undeclared (#8010): the test rule.
+            check_stmts(nb(d), nb(d));
+        } else if (k == D_INV) {
+            check_invariant(d);
         } else if (k == D_CONST or k == D_VAR) {
-            check_expr(na(d));
+            if (!type_ok(naux(d))) {
+                fail(E_TYPE, tpos(naux(d)));
+                return;
+            }
+            if (is_str_type(naux(d))) {
+                check_str_name(t);
+                check_str_expr(na(d));
+            } else {
+                check_expr(na(d));
+            }
         } else if (k == D_ARRAY) {
+            if (!repeat_ok(d)) {
+                fail(E_ARRAY, tpos(nb(d)));
+                return;
+            }
+            check_elem(d);
             check_expr(nc(d));
         }
         d = nnext(d);
     }
 }
 
+; ---------------------------------------------------------------- imports
+
+; gen-c resolves `use` as a source-to-source splice (bootstrap/src/
+; use_resolve.rs, #7378): it reads the modules the `use` lines reach, and
+; appends to the importer every `fn` and `const` a word of the importer names,
+; then every one a word of those names, sorted by module path, then by name.
+; It reads lines and words, not tokens, so this core mirrors its text rules
+; and takes the splice only where the text and the tokens agree. Every other
+; case is refused with E_USE: prose that pulls (#7379), a spliced `#define`
+; that captures a local (#7380), a var or let that is never spliced (#7381),
+; a global sized by an import (#7702), a declaration the line split cuts
+; short (#7937), a name the importer declares too (#7938), and one two
+; modules declare (#7939).
+
+fn named_decl(d: i64) -> bool {
+    var k: i64 = nkind(d);
+    return k != D_TEST and k != D_USE and k != D_INV and k != D_BENCH;
+}
+
+fn is_let(d: i64) -> bool {
+    return tok_is(ntok(d) - 1, W_LET, 0, 3);
+}
+
+; gen-c's `decl_name` takes `fn` and `const`, never `let` or `var`.
+fn splice_kind(d: i64) -> bool {
+    return nkind(d) == D_FN or (nkind(d) == D_CONST and !is_let(d));
+}
+
+; n bytes at j spell x, first byte lowest.
+fn word_at(j: i64, x: i64, n: i64) -> bool {
+    var i: i64 = 0;
+    while (i < n) {
+        if (at(j + i) != ((x >> (i * 8)) & 255)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; Bytes [s, s + n) spell token t.
+fn word_is(s: i64, n: i64, t: i64) -> bool {
+    var i: i64 = 0;
+    if (toks[t as usize].len != n) {
+        return false;
+    }
+    while (i < n) {
+        if (at(s + i) != src[(toks[t as usize].pos + i) as usize] as i64) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; -1, 0 or 1 as bytes [a, a + na) sort before, with or after [b, b + nb).
+fn cmp_bytes(a: i64, na_: i64, b: i64, nb_: i64) -> i64 {
+    var i: i64 = 0;
+    while (i < na_ and i < nb_) {
+        if (at(a + i) != at(b + i)) {
+            if (at(a + i) < at(b + i)) {
+                return -1;
+            }
+            return 1;
+        }
+        i = i + 1;
+    }
+    if (na_ == nb_) {
+        return 0;
+    }
+    if (na_ < nb_) {
+        return -1;
+    }
+    return 1;
+}
+
+; The first byte of the line holding byte i, and the newline (or module end)
+; that ends it.
+fn line_from(i: i64) -> i64 {
+    var j: i64 = i;
+    while (j > 0 and at(j - 1) != '\n') {
+        j = j - 1;
+    }
+    return j;
+}
+
+fn line_to(i: i64) -> i64 {
+    var j: i64 = i;
+    while (j < src_len and at(j) != '\n' and at(j) != 0) {
+        j = j + 1;
+    }
+    return j;
+}
+
+fn indent_at(ls: i64) -> i64 {
+    var j: i64 = ls;
+    while (at(j) == ' ' or at(j) == '\t') {
+        j = j + 1;
+    }
+    return j - ls;
+}
+
+; gen-c's `decl_name`: the first byte of the name a line declares, else -1.
+; The line opens, past its indent and an optional `pub `, with `fn `,
+; `const `, `struct `, `enum ` or `type ` and a name.
+fn line_decl(ls: i64) -> i64 {
+    var j: i64 = ls + indent_at(ls);
+    var k: i64 = 0;
+    if (word_at(j, W_PUB, 3) and at(j + 3) == ' ') {
+        j = j + 4;
+        j = j + indent_at(j);
+    }
+    if (word_at(j, W_FN, 2) and at(j + 2) == ' ') {
+        k = 3;
+    } else if (word_at(j, W_CONST, 5) and at(j + 5) == ' ') {
+        k = 6;
+    } else if (word_at(j, W_STRUCT, 6) and at(j + 6) == ' ') {
+        k = 7;
+    } else if ((word_at(j, W_ENUM, 4) or word_at(j, W_TYPE, 4)) and at(j + 4) == ' ') {
+        k = 5;
+    }
+    if (k == 0 or !is_alnum(at(j + k))) {
+        return -1;
+    }
+    return j + k;
+}
+
+; Byte j of a line ending at e, else 0: gen-c reads one line at a time.
+fn lat(j: i64, e: i64) -> i64 {
+    if (j >= e) {
+        return 0;
+    }
+    return at(j);
+}
+
+; gen-c's `depth_change`: adds to dep_b, dep_k and dep_p how far the line
+; at ls moves the brace, bracket and paren depth, outside strings, char
+; literals and `//`. A line opening with `;` moves nothing.
+fn depth_line(ls: i64) -> void {
+    var e: i64 = line_to(ls);
+    var j: i64 = ls;
+    var in_str: bool = false;
+    if (at(ls + indent_at(ls)) == ';') {
+        return;
+    }
+    while (j < e) {
+        var c: i64 = at(j);
+        if (in_str) {
+            if (c == '\\') {
+                j = j + 1;
+            } else if (c == '"') {
+                in_str = false;
+            }
+        } else if (c == '"') {
+            in_str = true;
+        } else if (c == '/' and lat(j + 1, e) == '/') {
+            j = e;
+        } else if (c == '\'' and lat(j + 1, e) == '\\' and lat(j + 3, e) == '\'') {
+            j = j + 3;
+        } else if (c == '\'' and lat(j + 2, e) == '\'') {
+            j = j + 2;
+        } else if (c == K_LBRACE) {
+            dep_b = dep_b + 1;
+        } else if (c == K_RBRACE) {
+            dep_b = dep_b - 1;
+        } else if (c == K_LBRACKET) {
+            dep_k = dep_k + 1;
+        } else if (c == K_RBRACKET) {
+            dep_k = dep_k - 1;
+        } else if (c == '(') {
+            dep_p = dep_p + 1;
+        } else if (c == ')') {
+            dep_p = dep_p - 1;
+        }
+        j = j + 1;
+    }
+}
+
+; gen-c's `top_level_indent`: the least indent of a declaring line, else 0.
+fn top_indent(a: i64, b: i64) -> i64 {
+    var top: i64 = -1;
+    var ls: i64 = a;
+    while (ls < b) {
+        if (line_decl(ls) >= 0 and (top < 0 or indent_at(ls) < top)) {
+            top = indent_at(ls);
+        }
+        ls = line_to(ls) + 1;
+    }
+    if (top < 0) {
+        return 0;
+    }
+    return top;
+}
+
+; The last line of the declaration gen-c's `split_decls` opens at ls: the
+; first line where the depth is closed, or the module's last line.
+fn split_end(ls: i64, b: i64) -> i64 {
+    var le: i64 = ls;
+    dep_b = 0;
+    dep_k = 0;
+    dep_p = 0;
+    depth_line(le);
+    while (line_to(le) + 1 < b and (dep_b > 0 or dep_k > 0 or dep_p > 0)) {
+        le = line_to(le) + 1;
+        depth_line(le);
+    }
+    return le;
+}
+
+; The token a declaration's text opens with: its `pub`, else its keyword.
+fn decl_first(d: i64) -> i64 {
+    if (kind(ntok(d) - 2) == T_PUB) {
+        return ntok(d) - 2;
+    }
+    return ntok(d) - 1;
+}
+
+; The `fn` or `const` of module m whose name starts at byte nm, alone on
+; the lines from its keyword's (ls) to its last token's (le), else 0.
+fn decl_on(m: i64, ls: i64, le: i64, nm: i64) -> i64 {
+    var d: i64 = mods[m as usize].decls;
+    while (d != 0) {
+        if (splice_kind(d) and tpos(ntok(d)) == nm and line_from(tpos(ntok(d) - 1)) == ls) {
+            var last: i64 = nc(d);
+            if (line_from(tpos(last)) == le and tpos(decl_first(d) - 1) < ls) {
+                if (kind(last + 1) == T_EOF or tpos(last + 1) > line_to(le)) {
+                    return d;
+                }
+            }
+            return 0;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+fn splicable(m: i64) -> i64 {
+    var n: i64 = 0;
+    var d: i64 = mods[m as usize].decls;
+    while (d != 0) {
+        if (splice_kind(d)) {
+            n = n + 1;
+        }
+        d = nnext(d);
+    }
+    return n;
+}
+
+; gen-c's `split_decls` over module m must find exactly its `fn`s and
+; `const`s, each on its own lines: else what gen-c splices, or skips as the
+; importer's own, is other text than this core read (#7937).
+fn check_split(m: i64) -> void {
+    var b: i64 = mods[m as usize].to;
+    var top: i64 = top_indent(mods[m as usize].from, b);
+    var found: i64 = 0;
+    var ls: i64 = mods[m as usize].from;
+    while (!failed and ls < b) {
+        var nm: i64 = line_decl(ls);
+        if (nm >= 0 and indent_at(ls) == top) {
+            var le: i64 = split_end(ls, b);
+            if (decl_on(m, ls, le, nm) == 0) {
+                fail(E_USE, ls);
+                return;
+            }
+            found = found + 1;
+            ls = le;
+        }
+        ls = line_to(ls) + 1;
+    }
+    if (!failed and found != splicable(m)) {
+        fail(E_USE, mods[m as usize].from);
+    }
+}
+
+; gen-c's `module_level_names`: a declaring line at brace depth 0 of the
+; importer names one of its own, which is never spliced. It must be one.
+fn check_local_names() -> void {
+    var depth: i64 = 0;
+    var ls: i64 = mods[0].from;
+    while (!failed and ls < mods[0].to) {
+        var nm: i64 = line_decl(ls);
+        if (depth == 0 and nm >= 0 and name_decl(nm) == 0) {
+            fail(E_USE, ls);
+            return;
+        }
+        dep_b = 0;
+        depth_line(ls);
+        depth = depth + dep_b;
+        if (depth < 0) {
+            depth = 0;
+        }
+        ls = line_to(ls) + 1;
+    }
+}
+
+; The importer's `fn` or `const` whose name starts at byte nm, else 0.
+fn name_decl(nm: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (splice_kind(d) and tpos(ntok(d)) == nm) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; gen-c reads a `use` line as `use ` at the line's start (past its indent),
+; the path with no blank inside it, then `;`, and blanks or `//` to the line
+; end.
+fn use_canonical(d: i64) -> bool {
+    var j: i64 = tpos(ntok(d) - 1);
+    var ls: i64 = line_from(j);
+    var t: i64 = ntok(d);
+    if (ls + indent_at(ls) != j or at(j + 3) != ' ') {
+        return false;
+    }
+    while (t < na(d)) {
+        if (toks[t as usize].pos + toks[t as usize].len != toks[(t + 1) as usize].pos) {
+            return false;
+        }
+        t = t + 1;
+    }
+    var i: i64 = tpos(na(d) + 1) + 1;
+    while (at(i) == ' ' or at(i) == '\t') {
+        i = i + 1;
+    }
+    return at(i) == '\n' or at(i) == 0 or (at(i) == '/' and at(i + 1) == '/');
+}
+
+; The `use` of module m whose keyword is at byte j, else 0.
+fn use_at(m: i64, j: i64) -> i64 {
+    var d: i64 = mods[m as usize].decls;
+    while (d != 0) {
+        if (nkind(d) == D_USE and tpos(ntok(d) - 1) == j) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; The first `//` of the line at ls, else its end: gen-c's word and depth
+; rules read a line up to there.
+fn code_end(ls: i64) -> i64 {
+    var e: i64 = line_to(ls);
+    var j: i64 = ls;
+    while (j < e and (at(j) != '/' or lat(j + 1, e) != '/')) {
+        j = j + 1;
+    }
+    return j;
+}
+
+; Module m's code is printable ASCII (gen-c reads Unicode letters into its
+; words), with no control byte anywhere, and gen-c's `use` lines are this
+; core's.
+fn check_module_text(m: i64) -> void {
+    var ls: i64 = mods[m as usize].from;
+    while (ls < mods[m as usize].to) {
+        var c: i64 = code_end(ls);
+        var i: i64 = ls;
+        while (i < line_to(ls)) {
+            var b: i64 = at(i);
+            if ((b < ' ' and b != '\t') or b == 127 or (b > '~' and i < c)) {
+                fail(E_USE, i);
+                return;
+            }
+            i = i + 1;
+        }
+        ls = line_to(ls) + 1;
+    }
+    ls = mods[m as usize].from;
+    while (ls < mods[m as usize].to) {
+        var j: i64 = ls + indent_at(ls);
+        if (word_at(j, W_USE, 3) and at(j + 3) == ' ') {
+            var u: i64 = use_at(m, j);
+            if (u == 0 or !use_canonical(u)) {
+                fail(E_USE, j);
+                return;
+            }
+        }
+        ls = line_to(ls) + 1;
+    }
+    var d: i64 = mods[m as usize].decls;
+    while (d != 0) {
+        if (nkind(d) == D_USE and !use_canonical(d)) {
+            fail(E_USE, tpos(ntok(d)));
+            return;
+        }
+        d = nnext(d);
+    }
+}
+
+; The end of a path `a::b` at byte j, names joined by `::`, else -1.
+fn path_end(j: i64) -> i64 {
+    var i: i64 = j;
+    var more: bool = is_alnum(at(i));
+    if (!more) {
+        return -1;
+    }
+    while (more) {
+        while (is_alnum(at(i))) {
+            i = i + 1;
+        }
+        more = at(i) == ':' and at(i + 1) == ':' and is_alnum(at(i + 2));
+        if (more) {
+            i = i + 2;
+        }
+    }
+    return i;
+}
+
+; Whether path bytes [j, e), `a::b`, name module k: its header is `a/b.t27`.
+fn path_is(j: i64, e: i64, k: i64) -> bool {
+    var h: i64 = mods[k as usize].head;
+    var he: i64 = mods[k as usize].from - 1;
+    var i: i64 = j;
+    while (i < e) {
+        if (h >= he) {
+            return false;
+        }
+        if (at(i) == ':') {
+            if (at(h) != '/') {
+                return false;
+            }
+            i = i + 2;
+        } else {
+            if (at(h) != at(i)) {
+                return false;
+            }
+            i = i + 1;
+        }
+        h = h + 1;
+    }
+    return h + 4 == he and word_at(h, 0x3732742e, 4);
+}
+
+fn put_path(j: i64, e: i64) -> void {
+    var i: i64 = j;
+    while (i < e) {
+        if (at(i) == ':') {
+            put('/');
+            i = i + 2;
+        } else {
+            put(at(i));
+            i = i + 1;
+        }
+    }
+    w(0x3732742e, 4);
+}
+
+; gen-c's `use_path_expr` on the line at ls of a module kept as text: the
+; first byte of the path to follow, or -1 for no `use`. A path other than
+; `a::b` (dotted, braced, `as`) is refused.
+fn text_use(ls: i64) -> i64 {
+    var j: i64 = ls + indent_at(ls);
+    if (!word_at(j, W_USE, 3) or at(j + 3) != ' ') {
+        return -1;
+    }
+    j = j + 4 + indent_at(j + 4);
+    var c: i64 = code_end(ls);
+    var e: i64 = path_end(j);
+    var i: i64 = e;
+    if (e < 0) {
+        i = j;
+    }
+    while (i < c and (at(i) == ' ' or at(i) == '\t')) {
+        i = i + 1;
+    }
+    while (i < c and at(i) == ';') {
+        i = i + 1;
+    }
+    while (i < c and (at(i) == ' ' or at(i) == '\t')) {
+        i = i + 1;
+    }
+    if (e >= 0 and i >= c) {
+        return j;
+    }
+    fail(E_USE, j);
+    return -1;
+}
+
+; Asks for the module path bytes [j, e) name unless the input carries it.
+fn reach(j: i64, e: i64) -> void {
+    var k: i64 = 1;
+    while (k < mod_count and !path_is(j, e, k)) {
+        k = k + 1;
+    }
+    if (k >= mod_count) {
+        out_len = 0;
+        put_path(j, e);
+        fail(E_NEED, j);
+        return;
+    }
+    mods[k as usize].hit = 1;
+}
+
+; A line of a module kept as text opens, past its indent and an optional
+; `pub `, with a printable ASCII byte: gen-c trims Unicode blanks there.
+fn check_text_module(m: i64) -> void {
+    var ls: i64 = mods[m as usize].from;
+    while (!failed and ls < mods[m as usize].to) {
+        var j: i64 = ls + indent_at(ls);
+        if (word_at(j, W_PUB, 3) and at(j + 3) == ' ') {
+            j = j + 4 + indent_at(j + 4);
+        }
+        if (j < line_to(ls) and (at(j) < ' ' or at(j) > '~')) {
+            fail(E_USE, j);
+            return;
+        }
+        ls = line_to(ls) + 1;
+    }
+}
+
+; Every `use` names a module the input carries, else the first one missing
+; is asked for: its path goes to `out` with E_NEED. Every module carried is
+; one a `use` names.
+fn request_missing() -> void {
+    var m: i64 = 0;
+    while (!failed and m < mod_count) {
+        var d: i64 = mods[m as usize].decls;
+        while (!failed and d != 0) {
+            if (nkind(d) == D_USE) {
+                reach(tpos(ntok(d)), tpos(na(d)) + toks[na(d) as usize].len);
+            }
+            d = nnext(d);
+        }
+        var ls: i64 = mods[m as usize].from;
+        while (!failed and mods[m as usize].text == 1 and ls < mods[m as usize].to) {
+            var j: i64 = text_use(ls);
+            if (j >= 0) {
+                reach(j, path_end(j));
+            }
+            ls = line_to(ls) + 1;
+        }
+        m = m + 1;
+    }
+    m = 1;
+    if (failed) {
+        return;
+    }
+    while (m < mod_count) {
+        if (mods[m as usize].hit == 0) {
+            fail(E_USE, mods[m as usize].head);
+            return;
+        }
+        m = m + 1;
+    }
+}
+
+; How many declarations (of any kind) the reached modules give name t, and
+; the last of them in dep_find.
+fn dep_count(t: i64) -> i64 {
+    var n: i64 = 0;
+    var m: i64 = 1;
+    while (m < mod_count) {
+        var d: i64 = mods[m as usize].decls;
+        while (d != 0) {
+            if (named_decl(d) and tok_eq(ntok(d), t)) {
+                n = n + 1;
+            }
+            d = nnext(d);
+        }
+        m = m + 1;
+    }
+    return n;
+}
+
+fn dep_find(t: i64) -> i64 {
+    var m: i64 = 1;
+    while (m < mod_count) {
+        var d: i64 = mods[m as usize].decls;
+        while (d != 0) {
+            if (named_decl(d) and tok_eq(ntok(d), t)) {
+                return d;
+            }
+            d = nnext(d);
+        }
+        m = m + 1;
+    }
+    return 0;
+}
+
+; Whether a module kept as text has a line gen-c reads as declaring the name
+; spelled by bytes [s, s + n), at any indent.
+fn text_word(s: i64, n: i64) -> bool {
+    var m: i64 = 1;
+    while (m < mod_count) {
+        var ls: i64 = mods[m as usize].from;
+        while (mods[m as usize].text == 1 and ls < mods[m as usize].to) {
+            var nm: i64 = line_decl(ls);
+            if (nm >= 0 and !is_alnum(at(nm + n)) and cmp_bytes(nm, n, s, n) == 0) {
+                return true;
+            }
+            ls = line_to(ls) + 1;
+        }
+        m = m + 1;
+    }
+    return false;
+}
+
+; Whether a reached module declares a name spelled by bytes [s, s + n).
+fn dep_word(s: i64, n: i64) -> bool {
+    var m: i64 = 1;
+    if (text_word(s, n)) {
+        return true;
+    }
+    while (m < mod_count) {
+        var d: i64 = mods[m as usize].decls;
+        while (d != 0) {
+            if (named_decl(d) and word_is(s, n, ntok(d))) {
+                return true;
+            }
+            d = nnext(d);
+        }
+        m = m + 1;
+    }
+    return false;
+}
+
+fn pulled_word(s: i64, n: i64) -> bool {
+    var i: i64 = 0;
+    while (i < pull_count) {
+        if (word_is(s, n, ntok(pulls[i as usize].decl))) {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn is_pulled(t: i64) -> bool {
+    var i: i64 = 0;
+    while (i < pull_count) {
+        if (tok_eq(ntok(pulls[i as usize].decl), t)) {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn importer_decl(t: i64) -> bool {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            return true;
+        }
+        d = nnext(d);
+    }
+    return false;
+}
+
+; A name the importer and a reached module both declare: gen-c skips or
+; doubles it by spelling, not by scope (#7938).
+fn check_collisions() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        if (named_decl(d) and dep_word(tpos(ntok(d)), toks[ntok(d) as usize].len)) {
+            fail(E_USE, tpos(ntok(d)));
+        }
+        d = nnext(d);
+    }
+}
+
+fn module_of(t: i64) -> i64 {
+    var m: i64 = mod_count - 1;
+    while (m > 0 and mods[m as usize].tok0 > t) {
+        m = m - 1;
+    }
+    return m;
+}
+
+; gen-c's fixpoint, on tokens: each name a token in [t0, t1] spells that a
+; reached module declares is spliced; one two modules declare is not
+; (#7939). `from` is the spliced declaration the
+; tokens are, 0 for the importer: one of its names that is the importer's
+; would bind to the importer, and a spliced const may name nothing, as
+; gen-c orders the spliced `#define`s by name.
+fn pull_tokens(t0: i64, t1: i64, from: i64) -> void {
+    var t: i64 = t0;
+    while (!failed and t <= t1) {
+        if (kind(t) == T_IDENT and !is_pulled(t)) {
+            var n: i64 = dep_count(t);
+            var bad: bool = n > 1 or text_word(tpos(t), toks[t as usize].len);
+            if (from != 0 and (importer_decl(t) or (n > 0 and nkind(from) == D_CONST))) {
+                bad = true;
+            }
+            if (n == 1 and !bad and !splice_kind(dep_find(t))) {
+                bad = true;
+            }
+            if (bad) {
+                fail(E_USE, tpos(t));
+                return;
+            }
+            if (n == 1) {
+                if (pull_count >= PULL_MAX) {
+                    fail(E_LIMIT, tpos(t));
+                    return;
+                }
+                pulls[pull_count as usize].decl = dep_find(t);
+                pulls[pull_count as usize].mod = module_of(ntok(dep_find(t)));
+                pull_count = pull_count + 1;
+            }
+        }
+        t = t + 1;
+    }
+}
+
+fn pull_closure() -> void {
+    var i: i64 = 0;
+    pull_tokens(mods[0].tok0, mods[1].tok0 - 2, 0);
+    while (!failed and i < pull_count) {
+        var d: i64 = pulls[i as usize].decl;
+        pull_tokens(ntok(d) - 1, nc(d), d);
+        i = i + 1;
+    }
+}
+
+; gen-c's `identifiers` over the lines [a, b): a word outside `//`, not
+; after `@`, not opening with a digit. Each one a reached module declares
+; must be spliced: else gen-c splices for prose (#7379), or leaves a var or
+; let undeclared (#7381).
+fn check_words(a: i64, b: i64) -> void {
+    var ls: i64 = a;
+    while (!failed and ls < b) {
+        var e: i64 = code_end(ls);
+        var j: i64 = ls;
+        while (j < e) {
+            if (is_alnum(at(j))) {
+                var s: i64 = j;
+                while (j < e and is_alnum(at(j))) {
+                    j = j + 1;
+                }
+                var word: bool = !is_digit(at(s)) and (s == ls or at(s - 1) != '@');
+                if (word and dep_word(s, j - s) and !pulled_word(s, j - s)) {
+                    fail(E_USE, s);
+                    return;
+                }
+            } else {
+                j = j + 1;
+            }
+        }
+        ls = line_to(ls) + 1;
+    }
+}
+
+; gen-c's `qualified_refs`: `M::x` or `M.x` anywhere in the importer, prose
+; and `//` included, for M a module it imports, pulls x and rewrites the
+; text. The core takes no qualified name.
+fn check_qualified() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        if (nkind(d) == D_USE) {
+            var t: i64 = na(d);
+            var n: i64 = toks[t as usize].len;
+            var s: i64 = mods[0].from;
+            while (s + n < mods[0].to) {
+                var c: i64 = at(s + n);
+                var sep: bool = (c == ':' and at(s + n + 1) == ':' and is_alnum(at(s + n + 2))) or (c == '.' and is_alnum(at(s + n + 1)));
+                if (sep and word_is(s, n, t) and (s == 0 or !is_alnum(at(s - 1)))) {
+                    fail(E_USE, s);
+                    return;
+                }
+                s = s + 1;
+            }
+        }
+        d = nnext(d);
+    }
+}
+
+; Whether function or test d binds a parameter or local named t.
+fn binds(d: i64, t: i64) -> bool {
+    var prm: i64 = na(d);
+    if (nkind(d) != D_FN and nkind(d) != D_TEST and nkind(d) != D_BENCH) {
+        return false;
+    }
+    while (prm != 0) {
+        if (tok_eq(ntok(prm), t)) {
+            return true;
+        }
+        prm = nnext(prm);
+    }
+    return local_count(nb(d), t) > 0;
+}
+
+; A spliced name bound as a parameter or local anywhere: a spliced const is a
+; `#define` that rewrites it (#7380), and Zig refuses the shadow.
+fn check_shadow(pd: i64) -> void {
+    var d: i64 = decls;
+    var i: i64 = 0;
+    while (d != 0) {
+        if (binds(d, ntok(pd))) {
+            fail(E_USE, tpos(ntok(pd)));
+            return;
+        }
+        d = nnext(d);
+    }
+    while (i < pull_count) {
+        if (binds(pulls[i as usize].decl, ntok(pd))) {
+            fail(E_USE, tpos(ntok(pd)));
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+; An importer global that names a spliced declaration: gen-c writes it
+; before the splice, so C reads it undeclared (#7702).
+fn check_globals() -> void {
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if (k == D_CONST or k == D_VAR or k == D_ARRAY) {
+            var t: i64 = ntok(d);
+            while (kind(t) != ';' and kind(t) != T_EOF) {
+                if (kind(t) == T_IDENT and is_pulled(t) and t != ntok(d)) {
+                    fail(E_USE, tpos(t));
+                    return;
+                }
+                t = t + 1;
+            }
+        }
+        d = nnext(d);
+    }
+}
+
+; Spliced declaration i sorts before j: by its module's path, then by name.
+fn pull_before(i: i64, j: i64) -> bool {
+    var mi: i64 = pulls[i as usize].mod;
+    var mj: i64 = pulls[j as usize].mod;
+    var c: i64 = cmp_bytes(mods[mi as usize].head, mods[mi as usize].from - 1 - mods[mi as usize].head, mods[mj as usize].head, mods[mj as usize].from - 1 - mods[mj as usize].head);
+    var ti: i64 = ntok(pulls[i as usize].decl);
+    var tj: i64 = ntok(pulls[j as usize].decl);
+    if (c == 0) {
+        c = cmp_bytes(toks[ti as usize].pos, toks[ti as usize].len, toks[tj as usize].pos, toks[tj as usize].len);
+    }
+    return c < 0;
+}
+
+fn swap_pulled(i: i64) -> void {
+    var x: Pull = pulls[i as usize];
+    pulls[i as usize] = pulls[(i - 1) as usize];
+    pulls[(i - 1) as usize] = x;
+}
+
+; The spliced declarations, in gen-c's order, follow the importer's.
+fn splice_pulled() -> void {
+    var i: i64 = 1;
+    while (i < pull_count) {
+        var j: i64 = i;
+        while (j > 0 and pull_before(j, j - 1)) {
+            swap_pulled(j);
+            j = j - 1;
+        }
+        i = i + 1;
+    }
+    var tail: i64 = decls;
+    while (nnext(tail) != 0) {
+        tail = nnext(tail);
+    }
+    i = 0;
+    while (i < pull_count) {
+        nodes[tail as usize].next = pulls[i as usize].decl;
+        tail = pulls[i as usize].decl;
+        i = i + 1;
+    }
+    nodes[tail as usize].next = 0;
+}
+
+fn has_endmodule() -> bool {
+    var t: i64 = mods[0].tok0;
+    while (kind(t) != T_EOF) {
+        if (kind(t) == T_IDENT and tok_is(t, W_ENDMODUL, 'e', 9)) {
+            return true;
+        }
+        t = t + 1;
+    }
+    return false;
+}
+
+; The importer with what gen-c splices into it, or a refusal. gen-c finds
+; no splice where a block comment hides a line, or text after `endmodule`.
+fn resolve_uses() -> void {
+    var m: i64 = 0;
+    if (open_comments > 0 or has_endmodule()) {
+        fail(E_USE, 0);
+    }
+    while (!failed and m < mod_count) {
+        if (mods[m as usize].text == 1) {
+            check_text_module(m);
+        } else {
+            check_module_text(m);
+            if (!failed) {
+                check_split(m);
+            }
+            // A reached module whose text this core does not read as gen-c
+            // does is kept as text instead.
+            if (failed and m > 0) {
+                failed = false;
+                err_code = 0;
+                err_pos = 0;
+                mods[m as usize].decls = 0;
+                mods[m as usize].text = 1;
+                check_text_module(m);
+            }
+        }
+        m = m + 1;
+    }
+    if (!failed) {
+        check_local_names();
+    }
+    if (!failed) {
+        request_missing();
+    }
+    if (!failed) {
+        check_collisions();
+    }
+    if (!failed) {
+        pull_closure();
+    }
+    if (!failed) {
+        check_words(mods[0].from, mods[0].to);
+    }
+    m = 0;
+    while (!failed and m < pull_count) {
+        var d: i64 = pulls[m as usize].decl;
+        check_words(line_from(tpos(ntok(d) - 1)), line_to(tpos(nc(d))));
+        if (!failed) {
+            check_shadow(d);
+        }
+        m = m + 1;
+    }
+    if (!failed) {
+        check_qualified();
+    }
+    if (!failed) {
+        check_globals();
+    }
+    if (!failed) {
+        splice_pulled();
+    }
+}
+
 ; ---------------------------------------------------------------- C output
 
 fn emit_ctype(t: i64) -> void {
-    var c: i64 = src[(tk_pos[t as usize]) as usize] as i64;
+    var c: i64 = src[(toks[t as usize].pos) as usize] as i64;
+    if (is_str_type(t)) {
+        w(0x68632074736e6f63, 8);
+        w(0x2a7261, 3);
+        return;
+    }
+    if (!is_scalar(t)) {
+        put_tok(t);
+        return;
+    }
     if (c == 'b') {
         t_ty_bool();
         return;
     }
-    if (tk_len[t as usize] == 5) {
+    if (toks[t as usize].len == 5) {
         t_ty_size();
         return;
     }
@@ -1593,8 +4360,8 @@ fn emit_ctype(t: i64) -> void {
     }
     t_ty_int();
     var i: i64 = 1;
-    while (i < tk_len[t as usize]) {
-        put(src[(tk_pos[t as usize] + i) as usize] as i64);
+    while (i < toks[t as usize].len) {
+        put(src[(toks[t as usize].pos + i) as usize] as i64);
         i = i + 1;
     }
     t_ty_t();
@@ -1616,6 +4383,56 @@ fn emit_items(head: i64) -> void {
         if (it != 0) {
             t_comma();
         }
+    }
+}
+
+; gen-c's constant for member token m of enum en: `EN_M`, upper-cased.
+fn emit_member(en: i64, m: i64) -> void {
+    put_upper(ntok(en));
+    put('_');
+    put_upper(m);
+}
+
+; The last arm is `else` (parse_switch): every other one is followed by ` : `.
+; A switch of `.M` arms with no `else` ends `: 0`, never reached (#8003).
+fn emit_switch(e: i64) -> void {
+    var arm: i64 = nb(e);
+    var last: i64 = 0;
+    while (arm != 0) {
+        if (naux(arm) == 2) {
+            emit_expr(na(arm));
+        } else {
+            put('(');
+            emit_expr(na(e));
+            t_eq();
+            if (naux(arm) == 1) {
+                put('-');
+            }
+            if (naux(arm) == 3) {
+                emit_member(nd(arm), ntok(arm));
+            } else {
+                put_tok(ntok(arm));
+            }
+            t_then();
+            emit_expr(na(arm));
+            put(')');
+            t_colon();
+        }
+        last = arm;
+        arm = nnext(arm);
+    }
+    if (naux(last) != 2) {
+        put('0');
+    }
+}
+
+; A `_` capture names nothing, so gen-c names the counter `__t27_i`.
+fn emit_counter(s: i64) -> void {
+    var t: i64 = naux(s);
+    if (toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_') {
+        t_hidden_i();
+    } else {
+        put_tok(t);
     }
 }
 
@@ -1667,9 +4484,47 @@ fn emit_expr(e: i64) -> void {
         emit_items(na(e));
         put(' ');
         put(K_RBRACE);
+    } else if (k == N_SWITCH) {
+        emit_switch(e);
+    } else if (k == N_FIELD and naux(e) == 2) {
+        w(0x286e656c727473, 7);
+        emit_expr(na(e));
+        put(')');
+    } else if (k == N_FIELD and nd(e) != 0) {
+        emit_member(nd(e), ntok(e));
+    } else if (k == N_FIELD) {
+        emit_expr(na(e));
+        put(K_DOT);
+        put_tok(ntok(e));
+    } else if (k == N_EVAL) {
+        emit_member(nd(e), ntok(e));
+    } else if (k == N_STRUCT) {
+        emit_lit(e);
     } else {
         put_tok(ntok(e));
     }
+}
+
+; `(S){ .F = e, ... }`, a C99 compound literal, fields as written.
+fn emit_lit(e: i64) -> void {
+    var it: i64 = na(e);
+    put('(');
+    put_tok(ntok(e));
+    put(')');
+    put(K_LBRACE);
+    put(' ');
+    while (it != 0) {
+        put(K_DOT);
+        put_tok(ntok(it));
+        t_assign();
+        emit_expr(na(it));
+        it = nnext(it);
+        if (it != 0) {
+            t_comma();
+        }
+    }
+    put(' ');
+    put(K_RBRACE);
 }
 
 fn emit_stmts(head: i64, lvl: i64) -> void {
@@ -1714,7 +4569,9 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
         return;
     }
     indent(lvl);
-    if (k == S_LOCAL) {
+    if (k == D_ARRAY) {
+        emit_array(s);
+    } else if (k == S_LOCAL) {
         emit_ctype(naux(s));
         put(' ');
         put_tok(ntok(s));
@@ -1750,14 +4607,29 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
         t_close_brace();
     } else if (k == S_IF) {
         emit_if_tail(s, lvl);
+    } else if (k == S_FOR) {
+        t_kw_for();
+        emit_counter(s);
+        t_assign();
+        emit_expr(na(s));
+        t_semi_sp();
+        emit_counter(s);
+        t_less();
+        emit_expr(nc(s));
+        t_semi_sp();
+        emit_counter(s);
+        t_for_body();
+        emit_stmts(nb(s), lvl + 1);
+        indent(lvl);
+        t_close_brace();
     }
 }
 
 ; A number token whose value is zero, in any radix the lexer takes.
 fn num_is_zero(t: i64) -> bool {
-    var i: i64 = tk_pos[t as usize];
-    var e: i64 = i + tk_len[t as usize];
-    if (tk_len[t as usize] > 2 and src[i as usize] == '0') {
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
+    if (toks[t as usize].len > 2 and src[i as usize] == '0') {
         var c: i64 = src[(i + 1) as usize] as i64;
         if (c == 'x' or c == 'X' or c == 'b' or c == 'B') {
             i = i + 2;
@@ -1772,44 +4644,68 @@ fn num_is_zero(t: i64) -> bool {
     return true;
 }
 
-fn emit_global(d: i64) -> void {
-    var k: i64 = nkind(d);
-    var v: i64 = na(d);
-    if (k == D_ARRAY) {
-        t_static();
-        emit_ctype(naux(d));
-        put(' ');
-        put_tok(ntok(d));
-        put(K_LBRACKET);
-        put_tok(na(d));
-        put(K_RBRACKET);
-        if (nc(d) != 0) {
-            if (nb(d) != 0) {
-                put(K_LBRACKET);
-                put_tok(nb(d));
-                put(K_RBRACKET);
-            }
-            t_assign();
-            emit_expr(nc(d));
-            t_semi_nl();
-            return;
+; `T NAME[N]` or `T NAME[N][M]` and its initializer: the bytes of a module
+; array after `static `, and of a local array after its indent.
+fn emit_array(d: i64) -> void {
+    emit_ctype(naux(d));
+    put(' ');
+    put_tok(ntok(d));
+    put(K_LBRACKET);
+    put_tok(na(d));
+    put(K_RBRACKET);
+    if (nc(d) != 0) {
+        if (nb(d) != 0) {
+            put(K_LBRACKET);
+            put_tok(nb(d));
+            put(K_RBRACKET);
         }
-        // gen-c keeps `{0}` for a zero value and writes a GNU range for any
-        // other (#6050): before, every repeat came out `{0}`.
-        var vt: i64 = nb(d) - 3;
+        t_assign();
+        emit_expr(nc(d));
+        t_semi_nl();
+        return;
+    }
+    // A repeated struct is `{0}` in gen-c whatever its value (check_elem); a
+    // repeated member takes the range a number does.
+    if (nd(d) != 0) {
         t_repeat();
-        put_tok(vt);
+        emit_expr(nd(d));
         t_repeat_mid();
         put_tok(nb(d));
-        if (num_is_zero(vt)) {
+        if (nkind(nd(d)) == N_STRUCT) {
             t_repeat_end();
         } else {
             t_range_open();
             put_tok(nb(d));
             t_range_mid();
-            put_tok(vt);
+            emit_expr(nd(d));
             t_range_end();
         }
+        return;
+    }
+    // gen-c keeps `{0}` for a zero value and writes a GNU range for any
+    // other (#6050): before, every repeat came out `{0}`.
+    var vt: i64 = nb(d) - 3;
+    t_repeat();
+    put_tok(vt);
+    t_repeat_mid();
+    put_tok(nb(d));
+    if (num_is_zero(vt)) {
+        t_repeat_end();
+    } else {
+        t_range_open();
+        put_tok(nb(d));
+        t_range_mid();
+        put_tok(vt);
+        t_range_end();
+    }
+}
+
+fn emit_global(d: i64) -> void {
+    var k: i64 = nkind(d);
+    var v: i64 = na(d);
+    if (k == D_ARRAY) {
+        t_static();
+        emit_array(d);
         return;
     }
     if (k == D_CONST and nkind(v) == N_NEGLIT) {
@@ -1821,7 +4717,7 @@ fn emit_global(d: i64) -> void {
         put('\n');
         return;
     }
-    var lit: bool = nkind(v) == N_NUM or nkind(v) == N_TRUE or nkind(v) == N_FALSE or nkind(v) == N_CHAR;
+    var lit: bool = nkind(v) == N_NUM or nkind(v) == N_TRUE or nkind(v) == N_FALSE or nkind(v) == N_CHAR or nkind(v) == N_STR;
     if (k == D_CONST and lit) {
         t_define();
         put_tok(ntok(d));
@@ -1863,6 +4759,175 @@ fn emit_sig(d: i64) -> void {
     }
 }
 
+; A global whose type, or element type, is a struct: gen-c writes it after
+; the structs, in its own section.
+fn is_typed(d: i64) -> bool {
+    var k: i64 = nkind(d);
+    if (k != D_CONST and k != D_VAR and k != D_ARRAY) {
+        return false;
+    }
+    return struct_named(naux(d)) != 0 or enum_named(naux(d)) != 0;
+}
+
+fn count_globals(typed: bool) -> i64 {
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if ((k == D_CONST or k == D_VAR or k == D_ARRAY) and is_typed(d) == typed) {
+            n = n + 1;
+        }
+        d = nnext(d);
+    }
+    return n;
+}
+
+fn emit_globals(typed: bool) -> void {
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if ((k == D_CONST or k == D_VAR or k == D_ARRAY) and is_typed(d) == typed) {
+            emit_global(d);
+        }
+        d = nnext(d);
+    }
+    put('\n');
+}
+
+; gen-c's `gen_c_enum`: `typedef enum {`, a member a line, `} E;`.
+fn emit_enum(d: i64) -> void {
+    var m: i64 = na(d);
+    t_typedef_enum();
+    while (m != 0) {
+        indent(1);
+        emit_member(d, ntok(m));
+        if (naux(m) != 0) {
+            t_assign();
+            if (nb(m) == 1) {
+                put('-');
+            }
+            put_tok(naux(m));
+        }
+        m = nnext(m);
+        if (m != 0) {
+            put(',');
+        }
+        put('\n');
+    }
+    w(0x207d, 2);
+    put_tok(ntok(d));
+    t_semi_nl();
+    put('\n');
+}
+
+fn emit_enums() -> void {
+    var d: i64 = decls;
+    t_banner_open();
+    w(0x736d756e45, 5);
+    t_banner_close();
+    while (d != 0) {
+        if (nkind(d) == D_ENUM) {
+            emit_enum(d);
+        }
+        d = nnext(d);
+    }
+    put('\n');
+}
+
+fn emit_struct(d: i64) -> void {
+    var f: i64 = na(d);
+    t_struct_kw();
+    put_tok(ntok(d));
+    t_open_brace_nl();
+    while (f != 0) {
+        indent(1);
+        emit_ctype(naux(f));
+        put(' ');
+        put_tok(ntok(f));
+        t_semi_nl();
+        f = nnext(f);
+    }
+    t_struct_end();
+}
+
+; gen-c's Structs section: a `typedef` per struct in source order, then the
+; bodies in walk_structs' order.
+fn emit_structs() -> void {
+    var d: i64 = decls;
+    t_banner_open();
+    t_structs();
+    t_banner_close();
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT) {
+            t_typedef_struct();
+            put_tok(ntok(d));
+            put(' ');
+            put_tok(ntok(d));
+            t_semi_nl();
+        }
+        d = nnext(d);
+    }
+    put('\n');
+    if (walk_structs(true)) {
+        put('\n');
+    }
+}
+
+; gen-c's `gen_c_invariant`, a check a line, at module scope.
+fn emit_invariant(d: i64) -> void {
+    var c: i64 = na(d);
+    t_inv_head();
+    put_tok(ntok(d));
+    w(0xa2f2a20, 4);
+    if (c == 0) {
+        t_inv_none();
+        put_tok(ntok(d));
+        w(0xa2f2a203b2922, 7);
+    }
+    while (c != 0) {
+        w(0x5f6369746174535f, 8);
+        w(0x28747265737361, 7);
+        emit_expr(nb(c));
+        w(0x7261766e6922202c, 8);
+        w(0x203a746e6169, 6);
+        put_tok(ntok(d));
+        w(0xa3b2922, 4);
+        c = nnext(c);
+    }
+    put('\n');
+}
+
+; Token t opens with `bench_`.
+fn bench_named(t: i64) -> bool {
+    return toks[t as usize].len >= 6 and (tok_word(t, 0) & 0xffffffffffff) == 0x5f68636e6562;
+}
+
+; gen-c's `gen_c_bench`: `bench_` before a name that lacks it.
+fn emit_bench(d: i64) -> void {
+    var t: i64 = ntok(d);
+    w(0x2064696f76, 5);
+    if (!bench_named(t)) {
+        w(0x5f68636e6562, 6);
+    }
+    put_tok(t);
+    w(0x7b202964696f7628, 8);
+    put('\n');
+    indent(1);
+    w(0x68636e6562202a2f, 8);
+    w(0x203a, 2);
+    put_tok(t);
+    w(0xa2f2a20, 4);
+    emit_stmts(nb(d), 1);
+    if (nb(d) == 0) {
+        indent(1);
+        w(0x3a4f444f54202a2f, 8);
+        w(0x656d656c706d6920, 8);
+        w(0x68636e656220746e, 8);
+        w(0xa2f2a206b72616d, 8);
+    }
+    t_close_fn();
+}
+
 fn count_kind(k1: i64, k2: i64, k3: i64) -> i64 {
     var n: i64 = 0;
     var d: i64 = decls;
@@ -1881,6 +4946,11 @@ fn emit_module() -> void {
     t_hdr_open();
     put_tok(mod_tok);
     t_hdr_close();
+    if (uses_strlen) {
+        w(0x6564756c636e6923, 8);
+        w(0x676e697274733c20, 8);
+        w(0xa3e682e, 4);
+    }
     if (has_tests or uses_assert) {
         t_hdr_tests();
     }
@@ -1889,19 +4959,23 @@ fn emit_module() -> void {
     t_define_guard();
     put_upper(mod_tok);
     t_guard_end();
-    if (count_kind(D_CONST, D_VAR, D_ARRAY) > 0) {
+    if (count_globals(false) > 0) {
         t_banner_open();
         t_constants();
         t_banner_close();
-        d = decls;
-        while (d != 0) {
-            var k: i64 = nkind(d);
-            if (k == D_CONST or k == D_VAR or k == D_ARRAY) {
-                emit_global(d);
-            }
-            d = nnext(d);
-        }
-        put('\n');
+        emit_globals(false);
+    }
+    if (count_kind(D_ENUM, D_ENUM, D_ENUM) > 0) {
+        emit_enums();
+    }
+    if (count_kind(D_STRUCT, D_STRUCT, D_STRUCT) > 0) {
+        emit_structs();
+    }
+    if (count_globals(true) > 0) {
+        t_banner_open();
+        t_typed_consts();
+        t_banner_close();
+        emit_globals(true);
     }
     if (count_kind(D_FN, D_FN, D_FN) > 0) {
         t_banner_open();
@@ -1934,9 +5008,26 @@ fn emit_module() -> void {
             d = nnext(d);
         }
     }
+    if (count_kind(D_INV, D_INV, D_INV) > 0) {
+        t_banner_open();
+        w(0x6e61697261766e49, 8);
+        w(0x706d6f6328207374, 8);
+        w(0x656d69742d656c69, 8);
+        w(0x6974726573736120, 8);
+        w(0x29736e6f, 4);
+        t_banner_close();
+        d = decls;
+        while (d != 0) {
+            if (nkind(d) == D_INV) {
+                emit_invariant(d);
+            }
+            d = nnext(d);
+        }
+        put('\n');
+    }
+    var checked: i64 = 0;
+    var empty: i64 = 0;
     if (has_tests) {
-        var checked: i64 = 0;
-        var empty: i64 = 0;
         t_banner_open();
         t_tests();
         t_banner_close();
@@ -1959,6 +5050,22 @@ fn emit_module() -> void {
             d = nnext(d);
         }
         put('\n');
+    }
+    if (count_kind(D_BENCH, D_BENCH, D_BENCH) > 0) {
+        t_banner_open();
+        w(0x72616d68636e6542, 8);
+        w(0x736b, 2);
+        t_banner_close();
+        d = decls;
+        while (d != 0) {
+            if (nkind(d) == D_BENCH) {
+                emit_bench(d);
+            }
+            d = nnext(d);
+        }
+        put('\n');
+    }
+    if (has_tests) {
         t_banner_open();
         t_runner();
         t_banner_close();
@@ -2006,13 +5113,34 @@ pub fn compile(n: i64) -> i64 {
     uses_assert = false;
     mod_tok = 0;
     decls = 0;
+    scope_len = 0;
+    cur_decl = 0;
+    mod_count = 0;
+    pull_count = 0;
+    open_comments = 0;
+    uses_strlen = false;
+    str_ctx = false;
     if (n < 0 or n > SRC_MAX) {
         fail(E_LIMIT, 0);
         return -1;
     }
-    lex();
+    split_modules(n);
     if (!failed) {
+        lex_module(0);
+        src_len = n;
+    }
+    if (!failed) {
+        p = mods[0].tok0;
         parse_module();
+        mods[0].decls = decls;
+    }
+    var m: i64 = 1;
+    while (!failed and m < mod_count) {
+        load_module(m, n);
+        m = m + 1;
+    }
+    if (!failed and mod_count + count_kind(D_USE, D_USE, D_USE) > 1) {
+        resolve_uses();
     }
     if (!failed) {
         check();
@@ -2159,15 +5287,79 @@ test leading_zero_is_refused {
     assert(err_code == E_LEX);
 }
 
-; "module m;var a: [1_0]u8 = [_]u8{0} ** 2;": gen-c writes `a[1_0]` (#7318).
-test separator_in_a_dimension_is_refused {
+; "module m;var a: [1_0]u8 = [_]u8{0} ** 1_0;": gen-c writes `a[10]` and
+; `** 10` since #7318, 562 bytes in all.
+test separator_in_a_dimension_is_dropped {
     var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
     var n2: i64 = feed(0x203a61207261763b, 8, n1);
     var n3: i64 = feed(0x2038755d305f315b, 8, n2);
     var n4: i64 = feed(0x7b38755d5f5b203d, 8, n3);
-    var n5: i64 = feed(0x3b32202a2a207d30, 8, n4);
+    var n5: i64 = feed(0x5f31202a2a207d30, 8, n4);
+    var n6: i64 = feed(0x3b30, 2, n5);
+    assert(compile(n6) == 562);
+    assert(out_at(505) == 'a');
+    assert(out_at(507) == '1');
+    assert(out_at(508) == '0');
+    assert(out_at(509) == K_RBRACKET);
+    assert(out_at(533) == '1');
+    assert(out_at(534) == '0');
+}
+
+; "module m;var a: [4]u8 = [_]u8{1} ** 2;": C fills two, Zig refuses.
+test short_repeat_count_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a61207261763b, 8, n1);
+    var n3: i64 = feed(0x203d2038755d345b, 8, n2);
+    var n4: i64 = feed(0x7d317b38755d5f5b, 8, n3);
+    var n5: i64 = feed(0x3b32202a2a20, 6, n4);
     assert(compile(n5) == -1);
     assert(err_code == E_ARRAY);
+}
+
+; "module m;fn f() -> u8 {var a: [2]u8 = [_]u8{7} ** 2;return a[1];}": a
+; local array is a module one without `static`, 792 bytes in all.
+test local_array_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292866206e663b, 8, n1);
+    var n3: i64 = feed(0x767b203875203e2d, 8, n2);
+    var n4: i64 = feed(0x325b203a61207261, 8, n3);
+    var n5: i64 = feed(0x5f5b203d2038755d, 8, n4);
+    var n6: i64 = feed(0x2a207d377b38755d, 8, n5);
+    var n7: i64 = feed(0x757465723b32202a, 8, n6);
+    var n8: i64 = feed(0x3b5d315b61206e72, 8, n7);
+    var n9: i64 = feed(0x7d, 1, n8);
+    assert(compile(n9) == 792);
+    assert(out_at(689) == ' ');
+    assert(out_at(690) == 'u');
+    assert(out_at(698) == 'a');
+    assert(out_at(750) == '7');
+}
+
+; "module m;var a: i64 = 0;fn f() -> void {var a: [1]u8 = [_]u8{0} ** 1;}":
+; C's shadowing array, which Zig refuses.
+test local_array_shadowing_a_global_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a61207261763b, 8, n1);
+    var n3: i64 = feed(0x3b30203d20343669, 8, n2);
+    var n4: i64 = feed(0x2d20292866206e66, 8, n3);
+    var n5: i64 = feed(0x7b2064696f76203e, 8, n4);
+    var n6: i64 = feed(0x5b203a6120726176, 8, n5);
+    var n7: i64 = feed(0x5b203d2038755d31, 8, n6);
+    var n8: i64 = feed(0x207d307b38755d5f, 8, n7);
+    var n9: i64 = feed(0x7d3b31202a2a, 6, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;const P: i64 = 2 ** 3;": gen-c writes `/* repeat: 2 ** 3 */ {0}`,
+; a zero (#7427).
+test numeric_power_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x502074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x3b33202a2a2032, 7, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_SYNTAX);
 }
 
 ; "module m;var a:[1][1]u8=[_][1]u8{[_]u8{7}};": `a[1][1] = { { 7 } };`.
@@ -2205,6 +5397,525 @@ test assert_outside_tests_takes_the_header {
     assert(!has_tests);
 }
 
+; "module m;fn f(n: usize) -> usize {var s: usize = 0;for (0..n) |_| {s += 1;}
+; return s;}": `for (size_t __t27_i = 0; ...`, 821 bytes in all (#7307).
+test for_writes_a_size_t_counter {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a6e2866206e663b, 8, n1);
+    var n3: i64 = feed(0x2029657a69737520, 8, n2);
+    var n4: i64 = feed(0x657a697375203e2d, 8, n3);
+    var n5: i64 = feed(0x3a73207261767b20, 8, n4);
+    var n6: i64 = feed(0x3d20657a69737520, 8, n5);
+    var n7: i64 = feed(0x2820726f663b3020, 8, n6);
+    var n8: i64 = feed(0x5f7c20296e2e2e30, 8, n7);
+    var n9: i64 = feed(0x203d2b20737b207c, 8, n8);
+    var n10: i64 = feed(0x72757465727d3b31, 8, n9);
+    var n11: i64 = feed(0x7d3b73206e, 5, n10);
+    assert(compile(n11) == 821);
+    assert(out_at(714) == 'f');
+    assert(out_at(719) == 's');
+    assert(out_at(726) == '_');
+    assert(out_at(732) == 'i');
+}
+
+; "module m;fn f(x: i64) -> i64 {return switch (x) {1 => 2, else => 3};}":
+; `return (x == 1) ? (2) : 3;`, 747 bytes in all (#7308).
+test switch_writes_a_ternary {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x697773206e727574, 8, n4);
+    var n6: i64 = feed(0x2029782820686374, 8, n5);
+    var n7: i64 = feed(0x2c32203e3d20317b, 8, n6);
+    var n8: i64 = feed(0x3e3d2065736c6520, 8, n7);
+    var n9: i64 = feed(0x7d3b7d3320, 5, n8);
+    assert(compile(n9) == 747);
+    assert(out_at(716) == '?');
+    assert(out_at(722) == ':');
+}
+
+; "module m;fn f(x: i64) -> i64 {return switch (x) {1 => 2};}": no `else`.
+test switch_without_else_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x697773206e727574, 8, n4);
+    var n6: i64 = feed(0x2029782820686374, 8, n5);
+    var n7: i64 = feed(0x7d32203e3d20317b, 8, n6);
+    var n8: i64 = feed(0x7d3b, 2, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;fn f(x: i64) -> i64 {return 1 + switch (x) {else => 3};}": C
+; would add before it compares (#7419).
+test switch_as_an_operand_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x2b2031206e727574, 8, n4);
+    var n6: i64 = feed(0x2068637469777320, 8, n5);
+    var n7: i64 = feed(0x736c657b20297828, 8, n6);
+    var n8: i64 = feed(0x3b7d33203e3d2065, 8, n7);
+    var n9: i64 = feed(0x7d, 1, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;fn f(n: usize) -> void {var e: usize = n;for (0..e) |i| {e = i;}}":
+; C reads the end on every pass, Zig once.
+test for_end_assigned_in_its_body_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a6e2866206e663b, 8, n1);
+    var n3: i64 = feed(0x2029657a69737520, 8, n2);
+    var n4: i64 = feed(0x2064696f76203e2d, 8, n3);
+    var n5: i64 = feed(0x203a65207261767b, 8, n4);
+    var n6: i64 = feed(0x203d20657a697375, 8, n5);
+    var n7: i64 = feed(0x302820726f663b6e, 8, n6);
+    var n8: i64 = feed(0x7c697c2029652e2e, 8, n7);
+    var n9: i64 = feed(0x3b69203d20657b20, 8, n8);
+    var n10: i64 = feed(0x7d7d, 2, n9);
+    assert(compile(n10) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;\nuse a;\nfn f() -> i64 { return g(); }\n", then a NUL and
+; "a.t27\nmodule a;\nfn g() -> i64 { return 7; }\n": gen-c splices g after
+; f, 774 bytes in all.
+test use_splices_after_the_importer {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3b61206573750a3b, 8, n1);
+    var n3: i64 = feed(0x20292866206e660a, 8, n2);
+    var n4: i64 = feed(0x7b20343669203e2d, 8, n3);
+    var n5: i64 = feed(0x206e727574657220, 8, n4);
+    var n6: i64 = feed(0xa7d203b292867, 8, n5);
+    var n7: i64 = feed(0x6f6d0a3732742e61, 8, n6);
+    var n8: i64 = feed(0xa3b6120656c7564, 8, n7);
+    var n9: i64 = feed(0x2d20292867206e66, 8, n8);
+    var n10: i64 = feed(0x207b20343669203e, 8, n9);
+    var n11: i64 = feed(0x37206e7275746572, 8, n10);
+    var n12: i64 = feed(0xa7d203b, 4, n11);
+    assert(compile(n12) == 774);
+    assert(out_at(508) == 'f');
+    assert(out_at(525) == 'g');
+    assert(out_at(751) == '7');
+}
+
+; "module m;\nuse a;\n" alone: the core asks for "a.t27" (E_NEED).
+test use_asks_for_its_module {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3b61206573750a3b, 8, n1);
+    var n3: i64 = feed(0xa, 1, n2);
+    assert(compile(n3) == -1);
+    assert(err_code == E_NEED);
+    assert(out_len == 5);
+    assert(out_at(0) == 'a');
+    assert(out_at(1) == '.');
+    assert(out_at(4) == '7');
+}
+
+; "module m;\nuse a;\n; g\n" with module a: prose names g, so gen-c would
+; splice it though no code calls it (#7379).
+test use_prose_pull_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3b61206573750a3b, 8, n1);
+    var n3: i64 = feed(0x2e61000a67203b0a, 8, n2);
+    var n4: i64 = feed(0x75646f6d0a373274, 8, n3);
+    var n5: i64 = feed(0x6e660a3b6120656c, 8, n4);
+    var n6: i64 = feed(0x203e2d2029286720, 8, n5);
+    var n7: i64 = feed(0x6572207b20343669, 8, n6);
+    var n8: i64 = feed(0x203b37206e727574, 8, n7);
+    var n9: i64 = feed(0xa7d, 2, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_USE);
+}
+
+; "module m;var a: [1]u8 = [x]u8{0};": the element type opens with `[_]`.
+; Built by the Zig backend before is_hole, this core took `[x]` (#7936).
+test element_type_needs_a_hole {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a61207261763b, 8, n1);
+    var n3: i64 = feed(0x203d2038755d315b, 8, n2);
+    var n4: i64 = feed(0x7d307b38755d785b, 8, n3);
+    var n5: i64 = feed(0x3b, 1, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_ARRAY);
+}
+
+; "module m;struct P{x: u8}fn f(p: P) -> u8 {return p.x;}": a typedef, the
+; body after it, and `p.x`, 905 bytes in all.
+test struct_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x203a702866206e66, 8, n3);
+    var n5: i64 = feed(0x3875203e2d202950, 8, n4);
+    var n6: i64 = feed(0x6e72757465727b20, 8, n5);
+    var n7: i64 = feed(0x7d3b782e7020, 6, n6);
+    assert(compile(n7) == 905);
+    assert(out_at(509) == 's');
+    assert(out_at(516) == 'P');
+    assert(out_at(880) == 'p');
+    assert(out_at(881) == K_DOT);
+    assert(out_at(882) == 'x');
+}
+
+; "module m;struct P{x: u8,y: u8}var g: P = P{.x = 1};": C would read y as 0
+; (#7959).
+test struct_literal_missing_a_field_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x2c3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x61767d3875203a79, 8, n3);
+    var n5: i64 = feed(0x3d2050203a672072, 8, n4);
+    var n6: i64 = feed(0x203d20782e7b5020, 8, n5);
+    var n7: i64 = feed(0x3b7d31, 3, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;struct P{x: u8 = 1}": gen-c drops the default (#7959).
+test struct_field_default_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x203875203a787b50, 8, n2);
+    var n4: i64 = feed(0x7d31203d, 4, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;struct P{x: u8}var a: [1]P = [_]P{P{.x = 1}} ** 1;": gen-c
+; writes `{0}`, a zero (#7960).
+test struct_repeat_of_a_nonzero_value_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x5b203a6120726176, 8, n3);
+    var n5: i64 = feed(0x5f5b203d20505d31, 8, n4);
+    var n6: i64 = feed(0x20782e7b507b505d, 8, n5);
+    var n7: i64 = feed(0x2a2a207d7d31203d, 8, n6);
+    var n8: i64 = feed(0x3b3120, 3, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_ARRAY);
+}
+
+; "module m;struct P{x: u8}var a: [2]P = [_]P{P{.x = 0}} ** 2;": an all-zero
+; repeat is the `{0}` gen-c writes, 769 bytes in all.
+test zero_struct_repeat_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x5b203a6120726176, 8, n3);
+    var n5: i64 = feed(0x5f5b203d20505d32, 8, n4);
+    var n6: i64 = feed(0x20782e7b507b505d, 8, n5);
+    var n7: i64 = feed(0x2a2a207d7d30203d, 8, n6);
+    var n8: i64 = feed(0x3b3220, 3, n7);
+    assert(compile(n8) == 769);
+    assert(out_at(488) == 't');
+    assert(out_at(746) == K_LBRACE);
+    assert(out_at(747) == '0');
+}
+
+; "module m;struct A{a: A}": a struct holding itself has no size (#7961).
+test struct_holding_itself_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d41203a617b41, 7, n2);
+    assert(compile(n3) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;struct P{n: usize}fn f(p: P) -> void {var q: P = p;for (0..q.n)
+; |i| {q.n = i;}}": the body writes a field of the bound, which C reads on
+; every pass.
+test for_end_field_written_in_its_body_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x697375203a6e7b50, 8, n2);
+    var n4: i64 = feed(0x2866206e667d657a, 8, n3);
+    var n5: i64 = feed(0x3e2d202950203a70, 8, n4);
+    var n6: i64 = feed(0x767b2064696f7620, 8, n5);
+    var n7: i64 = feed(0x2050203a71207261, 8, n6);
+    var n8: i64 = feed(0x20726f663b70203d, 8, n7);
+    var n9: i64 = feed(0x296e2e712e2e3028, 8, n8);
+    var n10: i64 = feed(0x2e717b207c697c20, 8, n9);
+    var n11: i64 = feed(0x7d7d3b69203d206e, 8, n10);
+    assert(compile(n11) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;enum E{a,b = 5}fn f() -> E {return E.b;}": `typedef enum`, and
+; E.b as `E_B` in the enum and the return, 884 bytes in all.
+test enum_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x7d35203d20622c61, 8, n2);
+    var n4: i64 = feed(0x2d20292866206e66, 8, n3);
+    var n5: i64 = feed(0x7465727b2045203e, 8, n4);
+    var n6: i64 = feed(0x3b622e45206e7275, 8, n5);
+    var n7: i64 = feed(0x7d, 1, n6);
+    assert(compile(n7) == 884);
+    assert(out_at(486) == 't');
+    assert(out_at(514) == 'E');
+    assert(out_at(516) == 'B');
+    assert(out_at(859) == 'E');
+    assert(out_at(861) == 'B');
+}
+
+; "module m;enum A{x}enum B{x}fn f() -> A {return .x;}": no one owner, so
+; gen-c writes a bare `X` (#8001).
+test inferred_member_without_one_owner_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b41206d756e653b, 8, n1);
+    var n3: i64 = feed(0x42206d756e657d78, 8, n2);
+    var n4: i64 = feed(0x2866206e667d787b, 8, n3);
+    var n5: i64 = feed(0x7b2041203e2d2029, 8, n4);
+    var n6: i64 = feed(0x2e206e7275746572, 8, n5);
+    var n7: i64 = feed(0x7d3b78, 3, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_ENUM);
+}
+
+; "module m;enum E{Red}fn f() -> E {return .red;}": gen-c matches `Red`
+; upper-cased; Zig has no `red` (#8001).
+test member_matched_only_by_case_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x66206e667d646552, 8, n2);
+    var n4: i64 = feed(0x2045203e2d202928, 8, n3);
+    var n5: i64 = feed(0x206e72757465727b, 8, n4);
+    var n6: i64 = feed(0x7d3b6465722e, 6, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_ENUM);
+}
+
+; "module m;enum G{p = 1 + 2,q}": gen-c makes `2` a member (#8002).
+test enum_value_expression_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b47206d756e653b, 8, n1);
+    var n3: i64 = feed(0x202b2031203d2070, 8, n2);
+    var n4: i64 = feed(0x7d712c32, 4, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_ENUM);
+}
+
+; "module m;enum E{a,b}fn f(e: E) -> i64 {return switch (e) {.a => 1, .b =>
+; 2};}": every member, so gen-c's closing `: 0` is never reached; 926 bytes.
+test exhaustive_enum_switch_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x66206e667d622c61, 8, n2);
+    var n4: i64 = feed(0x2d202945203a6528, 8, n3);
+    var n5: i64 = feed(0x727b20343669203e, 8, n4);
+    var n6: i64 = feed(0x7773206e72757465, 8, n5);
+    var n7: i64 = feed(0x2965282068637469, 8, n6);
+    var n8: i64 = feed(0x203e3d20612e7b20, 8, n7);
+    var n9: i64 = feed(0x3e3d20622e202c31, 8, n8);
+    var n10: i64 = feed(0x7d3b7d3220, 5, n9);
+    assert(compile(n10) == 926);
+    assert(out_at(899) == ')');
+    assert(out_at(901) == ':');
+    assert(out_at(903) == '0');
+}
+
+; "module m;enum E{a,b}fn f(e: E) -> i64 {return switch (e) {.a => 1};}":
+; gen-c reads `.b` as 0; Zig refuses the switch (#8003).
+test enum_switch_missing_a_member_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x66206e667d622c61, 8, n2);
+    var n4: i64 = feed(0x2d202945203a6528, 8, n3);
+    var n5: i64 = feed(0x727b20343669203e, 8, n4);
+    var n6: i64 = feed(0x7773206e72757465, 8, n5);
+    var n7: i64 = feed(0x2965282068637469, 8, n6);
+    var n8: i64 = feed(0x203e3d20612e7b20, 8, n7);
+    var n9: i64 = feed(0x7d3b7d31, 4, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;enum E{a,b}var r: [1]E = [_]E{.b} ** 1;": gen-c writes `{0}`,
+; the member `a` (#8003).
+test repeat_of_an_inferred_member_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x207261767d622c61, 8, n2);
+    var n4: i64 = feed(0x20455d315b203a72, 8, n3);
+    var n5: i64 = feed(0x2e7b455d5f5b203d, 8, n4);
+    var n6: i64 = feed(0x3b31202a2a207d62, 8, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_ARRAY);
+}
+
+; "module m;enum E{on}fn g(E_ON: i64) -> E {return E.on;}": the parameter
+; hides the constant, and C returns it (#8001).
+test name_spelling_an_enum_constant_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x2867206e667d6e6f, 8, n2);
+    var n4: i64 = feed(0x3669203a4e4f5f45, 8, n3);
+    var n5: i64 = feed(0x2045203e2d202934, 8, n4);
+    var n6: i64 = feed(0x206e72757465727b, 8, n5);
+    var n7: i64 = feed(0x7d3b6e6f2e45, 6, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;const A: i64 = 5;invariant i {A == 5;}": `_Static_assert` after
+; `/* invariant: i */`, 745 bytes in all.
+test invariant_is_a_static_assert {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x697261766e693b35, 8, n3);
+    var n5: i64 = feed(0x417b206920746e61, 8, n4);
+    var n6: i64 = feed(0x7d3b35203d3d20, 7, n5);
+    assert(compile(n6) == 745);
+    assert(out_at(668) == 'i');
+    assert(out_at(684) == '_');
+    assert(out_at(685) == 'S');
+}
+
+; "module m;fn f() -> i64 {return 1;}invariant i {f() == 1;}": gen-c writes
+; the check as a comment (#8009).
+test invariant_with_a_call_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292866206e663b, 8, n1);
+    var n3: i64 = feed(0x7b20343669203e2d, 8, n2);
+    var n4: i64 = feed(0x31206e7275746572, 8, n3);
+    var n5: i64 = feed(0x697261766e697d3b, 8, n4);
+    var n6: i64 = feed(0x667b206920746e61, 8, n5);
+    var n7: i64 = feed(0x3b31203d3d202928, 8, n6);
+    var n8: i64 = feed(0x7d, 1, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_INVARIANT);
+}
+
+; "module m;const A: i64 = 5;invariant i {A == 0x5;}": gen-c reads `x5` as
+; an undeclared name and drops the check (#8009).
+test invariant_with_a_hex_literal_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x697261766e693b35, 8, n3);
+    var n5: i64 = feed(0x417b206920746e61, 8, n4);
+    var n6: i64 = feed(0x3b357830203d3d20, 8, n5);
+    var n7: i64 = feed(0x7d, 1, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_INVARIANT);
+}
+
+; "module m;invariant i {var t: i64 = 1;}": a function nothing calls (#8009).
+test invariant_with_a_statement_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x61697261766e693b, 8, n1);
+    var n3: i64 = feed(0x61767b206920746e, 8, n2);
+    var n4: i64 = feed(0x343669203a742072, 8, n3);
+    var n5: i64 = feed(0x7d3b31203d20, 6, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_INVARIANT);
+}
+
+; "module m;bench b {}": `void bench_b(void)` and gen-c's TODO, 588 bytes.
+test bench_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x622068636e65623b, 8, n1);
+    var n3: i64 = feed(0x7d7b20, 3, n2);
+    assert(compile(n3) == 588);
+    assert(out_at(496) == 'b');
+    assert(out_at(502) == 'b');
+    assert(out_at(538) == 'T');
+}
+
+; "module m;bench b {x = 1;}": Zig binds x, gen-c leaves it undeclared
+; (#8010).
+test bench_unbound_assignment_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x622068636e65623b, 8, n1);
+    var n3: i64 = feed(0x3b31203d20787b20, 8, n2);
+    var n4: i64 = feed(0x7d, 1, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_TESTASSIGN);
+}
+
+; "module m;fn f(s: string) -> usize {return s.len;}": `strlen(s)` and
+; <string.h>, 764 bytes in all.
+test string_len_is_strlen {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a732866206e663b, 8, n1);
+    var n3: i64 = feed(0x29676e6972747320, 8, n2);
+    var n4: i64 = feed(0x7a697375203e2d20, 8, n3);
+    var n5: i64 = feed(0x72757465727b2065, 8, n4);
+    var n6: i64 = feed(0x3b6e656c2e73206e, 8, n5);
+    var n7: i64 = feed(0x7d, 1, n6);
+    assert(compile(n7) == 764);
+    assert(uses_strlen);
+    assert(out_at(339) == 's');
+    assert(out_at(733) == 's');
+    assert(out_at(739) == '(');
+}
+
+; "module m;fn f(a: str, b: str) -> bool {return a == b;}": C compares the
+; addresses (#8013).
+test strings_compared_are_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612866206e663b, 8, n1);
+    var n3: i64 = feed(0x3a62202c72747320, 8, n2);
+    var n4: i64 = feed(0x3e2d202972747320, 8, n3);
+    var n5: i64 = feed(0x727b206c6f6f6220, 8, n4);
+    var n6: i64 = feed(0x2061206e72757465, 8, n5);
+    var n7: i64 = feed(0x7d3b62203d3d, 6, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;fn f(s: str) -> usize {return s.len;}": gen-c writes `s.len`
+; on a `str` (#8013).
+test len_on_a_str_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a732866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202972747320, 8, n2);
+    var n4: i64 = feed(0x7b20657a69737520, 8, n3);
+    var n5: i64 = feed(0x73206e7275746572, 8, n4);
+    var n6: i64 = feed(0x7d3b6e656c2e, 6, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;fn f() -> u8 {return "s";}": C converts the address (#8013).
+test string_where_an_integer_goes_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292866206e663b, 8, n1);
+    var n3: i64 = feed(0x727b203875203e2d, 8, n2);
+    var n4: i64 = feed(0x7322206e72757465, 8, n3);
+    var n5: i64 = feed(0x7d3b22, 3, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;const C: str = "a\rb";": gen-c writes `\\r` (#8013).
+test escape_that_changes_value_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x432074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20727473203a, 8, n2);
+    var n4: i64 = feed(0x3b2262725c6122, 7, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;const T: str = "??=";": cc -std=c99 reads the trigraph as `#`.
+test trigraph_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x542074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20727473203a, 8, n2);
+    var n4: i64 = feed(0x3b223d3f3f22, 6, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_STRING);
+}
+
 test put_int_writes_decimal {
     reset_out();
     put_int(907);
@@ -2222,6 +5933,61 @@ test packed_words_match_their_spelling {
 }
 
 ; ---------------------------------------------------------------- fixed text
+
+; /* invariant: 
+fn t_inv_head() -> void {
+    w(0x7261766e69202a2f, 8);
+    w(0x203a746e6169, 6);
+}
+
+; /* _Static_assert(1, "invariant: 
+fn t_inv_none() -> void {
+    w(0x746174535f202a2f, 8);
+    w(0x72657373615f6369, 8);
+    w(0x6e6922202c312874, 8);
+    w(0x3a746e6169726176, 8);
+    w(0x20, 1);
+}
+
+; Structs
+fn t_structs() -> void {
+    w(0x73746375727453, 7);
+}
+
+; Constants of declared types
+fn t_typed_consts() -> void {
+    w(0x746e6174736e6f43, 8);
+    w(0x63656420666f2073, 8);
+    w(0x797420646572616c, 8);
+    w(0x736570, 3);
+}
+
+; typedef struct 
+fn t_typedef_struct() -> void {
+    w(0x2066656465707974, 8);
+    t_struct_kw();
+}
+
+; typedef enum {\n
+fn t_typedef_enum() -> void {
+    w(0x2066656465707974, 8);
+    w(0xa7b206d756e65, 7);
+}
+
+; struct 
+fn t_struct_kw() -> void {
+    w(0x20746375727473, 7);
+}
+
+;  {\n
+fn t_open_brace_nl() -> void {
+    w(0xa7b20, 3);
+}
+
+; };\n\n
+fn t_struct_end() -> void {
+    w(0xa0a3b7d, 4);
+}
 
 fn t_test_pfx() -> void {
     w(0x5f74736574, 5);
@@ -2601,5 +6367,46 @@ fn t_cast_close() -> void {
 ; , 
 fn t_comma() -> void {
     w(0x202c, 2);
+}
+
+; for (size_t 
+fn t_kw_for() -> void {
+    w(0x7a69732820726f66, 8);
+    w(0x20745f65, 4);
+}
+
+; __t27_i
+fn t_hidden_i() -> void {
+    w(0x695f3732745f5f, 7);
+}
+
+; ; 
+fn t_semi_sp() -> void {
+    w(0x203b, 2);
+}
+
+;  < 
+fn t_less() -> void {
+    w(0x203c20, 3);
+}
+
+; ++) {\n
+fn t_for_body() -> void {
+    w(0xa7b20292b2b, 6);
+}
+
+;  == 
+fn t_eq() -> void {
+    w(0x203d3d20, 4);
+}
+
+; ) ? (
+fn t_then() -> void {
+    w(0x28203f2029, 5);
+}
+
+;  : 
+fn t_colon() -> void {
+    w(0x203a20, 3);
 }
 

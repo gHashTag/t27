@@ -98,19 +98,19 @@ fn validate_args_only(args: []str) -> bool {
 
 test validate_args {
     // Test: Insufficient arguments should return error
-    var short_args: [3][]const u8 = ["prog", "name", "pid"];
+    var short_args: [3]str = ["prog", "name", "pid"];
     assert(validate_args_only(&short_args) == false);
     
     // Test: Exactly 5 args (minimum valid)
-    var min_args: [5][]const u8 = ["prog", "name", "pid", "env", "token"];
+    var min_args: [5]str = ["prog", "name", "pid", "env", "token"];
     assert(validate_args_only(&min_args) == true);
     
     // Test: More than minimum args should also be valid
-    var valid_args: [6][]const u8 = ["prog", "name", "pid", "env", "token", "extra"];
+    var valid_args: [6]str = ["prog", "name", "pid", "env", "token", "extra"];
     assert(validate_args_only(&valid_args) == true);
     
     // Test: Edge case - exactly 4 args (invalid)
-    var edge_args: [4][]const u8 = ["prog", "name", "pid", "token"];
+    var edge_args: [4]str = ["prog", "name", "pid", "token"];
     assert(validate_args_only(&edge_args) == false);
 }
 

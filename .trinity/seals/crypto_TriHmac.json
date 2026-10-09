@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:107e327a3ac1892d1020bd68e951a690d8fa54d07a0e8bc53f45dde3131c366a",
-  "gen_hash_rust": "sha256:69743fb733b470e24bffe12416176d1b560450fe6b526a613174e274d10925d4",
+  "gen_hash_rust": "sha256:99901a4f1b5a05dad24a769bfe3aad75a51d31fcb2e4bc39c02570a79155dcc2",
   "gen_hash_verilog": "sha256:e31b539f3188aa90c4b0f0cf5054236c665f7740a8ae5f424bedc0285eb85e95",
   "gen_hash_zig": "sha256:d8145ce11db1ff69ad3b6d16262c9247b83ce7cf5f1238054c2755bbd4a0e2ee",
   "module": "TriHmac",

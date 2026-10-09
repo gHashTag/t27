@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:7a1df8f32e1cb08146e1ce0edbf8d908a29455d66eb212325e7b3aa42206e553",
+  "gen_hash_c": "sha256:4f6147549fa0e2bf449397679e020485e2e6ab504dd24277a46ee577e77500a2",
   "gen_hash_rust": "sha256:c6fbe34a524418e43a2160dcc961b735e826a0594aee7b7ef76854877a1c8198",
   "gen_hash_verilog": "sha256:4538c5ac0f78e9170fb39c8236444bad007ab346438b9b7a010f9f6a6a1be8bf",
   "gen_hash_zig": "sha256:6761de8b71ef2571097084ee7fce89e9b39e8d3b88f9a6db93fcc7eb0a793e7d",
   "module": "provider-adapters",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:11:40Z",
+  "sealed_at": "2026-10-07T07:09:20Z",
   "spec_hash": "sha256:44cc915fdbf56b9983f59ea065cee449fef17492c798cfb29e804ed89dd4f74d",
   "spec_path": "specs/provider/adapters.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-adapters-2433212/spec.zig:109:70: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:109:70: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

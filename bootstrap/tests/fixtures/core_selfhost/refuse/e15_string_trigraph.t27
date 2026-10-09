@@ -1,0 +1,3 @@
+// #8013: cc in -std=c99 reads `??=` as `#`.
+module string_trigraph;
+const ST_TRI: str = "what??=";

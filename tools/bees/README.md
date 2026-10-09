@@ -12,7 +12,7 @@ SHA and **only** the bot's label.
 
 | File | What it is |
 |------|------------|
-| `manifest.json` | The app, as GitHub's manifest flow reads it: private, no webhook, five permissions (pull requests write, issues write for labels, contents/checks/metadata read). |
+| `manifest.json` | The app, as GitHub's manifest flow reads it: public since 2026-10-08, webhook to the supervisor (`https://api.t27.ai/queen/app/webhook`, BrowserOS#543) for `pull_request` and `issue_comment`, five permissions (pull requests write, issues write for labels, contents/checks/metadata read). The CI/CD gate's events and permissions are in `specs/queen/app.t27` (APP_SUBSCRIBED_EVENTS, APP_PERMISSIONS) and join this file when the supervisor acts on them (#7834). |
 | `bee-app` | Owner, once: `create` registers the app from the manifest and saves the key locally; `convert CODE` is the manual fallback. |
 | `bee-token` | A bee: prints a one-hour installation token scoped to one repository. |
 | `bees.py` | All of the above; `python3 tools/bees/bees.py self-test` needs no network and no real secret. |

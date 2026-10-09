@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/static_slice_literal.t27 -- array literals of compile-time elements that t27c's Zig
+; backend prints as `@constCast(&[_]E{ ... })`: a slice field of a named struct literal, and the value of a fn
+; that returns a slice, mutable or not (#7680, t27b coverage epic #6063; the shapes of specs/tri/graph/graph.t27,
+; topological_sort.t27 and bellman_ford.t27).
+; Every test here passes `t27c test-report` on every backend it builds with (x86_64 Debug on the t27c lab, LLVM on
+; the native aarch64 CI job); t27b must give the same verdict on each, or refuse the file.
+; What the reference does with them (zig 0.16.0):
+;   - E is the destination's element type. The literal's own type text is not printed, so `[]usize{ 0, 1 }`,
+;     `[0, 1]` and a bare `[]usize` (no elements) differ only in their elements.
+;   - The array is a comptime value, interned: one object per element type and value. Reading it is defined.
+;   - Writing it is undefined behaviour in Zig: x86_64 Debug keeps the write, LLVM faults (#7765). So no test
+;     here writes; t27b refuses a program that would, by name, and cli/t27b/tests/arraylit.rs checks that.
+; t27b's plan for these is specs/tri/t27b/slice_lit_plan.t27.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceStaticSliceLiteral;
+
+pub const StaticOrder = struct {
+    order: []usize,
+    has_cycle: bool,
+};
+
+pub const StaticBag = struct {
+    items: []usize,
+    count: usize,
+};
+
+pub const StaticHop = struct {
+    from: usize,
+    to: usize,
+    weight: i64,
+};
+
+// A typed literal of constants for a mutable slice field (topological_sort.t27's `sort`).
+fn static_order() -> StaticOrder {
+    return StaticOrder{ .order = []usize{ 0, 1, 2, 3 }, .has_cycle = false };
+}
+
+// A typed literal with no elements (graph.t27's `empty`): an empty slice.
+fn static_empty_bag(n: usize) -> StaticBag {
+    return StaticBag{ .items = []usize, .count = n };
+}
+
+// An untyped literal of the same value as `static_order`'s, at another site.
+fn static_same_bag() -> StaticBag {
+    return StaticBag{ .items = [0, 1, 2, 3], .count = 4 };
+}
+
+// A literal of struct constants returned as a mutable slice (bellman_ford.t27's `default_input`).
+fn static_hops() -> []StaticHop {
+    return []StaticHop{
+        .{ .from = 0, .to = 1, .weight = 4 },
+        .{ .from = 1, .to = 2, .weight = -2 },
+        .{ .from = 2, .to = 0, .weight = 5 },
+    };
+}
+
+// The same value again, returned as a slice of constants.
+fn static_order_view() -> []const usize {
+    return [0, 1, 2, 3];
+}
+
+// Another value, and the same numbers of another element type.
+fn static_prefix() -> []usize {
+    return [0, 1, 2];
+}
+
+fn static_narrow() -> []u32 {
+    return [0, 1, 2, 3];
+}
+
+// Two literals with the same bytes and different element types: [0, 1] as u32 is 2^32 as one usize.
+fn static_pair32() -> []const u32 {
+    return [0, 1];
+}
+
+fn static_wide() -> []usize {
+    return [4294967296];
+}
+
+fn static_sum(xs: []const usize) -> usize {
+    var s: usize = 0;
+    var i: usize = 0;
+    while (i < xs.len) {
+        s += xs[i];
+        i += 1;
+    }
+    return s;
+}
+
+test a_constant_slice_field_holds_its_elements {
+    const r = static_order();
+    assert(r.order.len == 4);
+    assert(r.order[3] == 3);
+    assert(static_sum(r.order) == 6);
+    assert(r.has_cycle == false);
+}
+
+test a_typed_literal_without_elements_is_an_empty_slice {
+    const b = static_empty_bag(5);
+    assert(b.items.len == 0);
+    assert(b.count == 5);
+}
+
+test a_constant_returned_as_a_mutable_slice {
+    const hs = static_hops();
+    assert(hs.len == 3);
+    assert(hs[0].weight + hs[1].weight + hs[2].weight == 7);
+    assert(hs[1].to == 2);
+    assert(hs[2].from == 2);
+}
+
+test another_value_or_element_type_reads_its_own_elements {
+    assert(static_prefix().len == 3);
+    assert(static_prefix()[2] == 2);
+    assert(static_narrow().len == 4);
+    assert(static_narrow()[3] == 3);
+    assert(static_pair32()[1] == 1);
+    assert(static_wide()[0] == 4294967296);
+    assert(static_order().order[1] == 1);
+}
+
+test equal_literals_at_three_sites_read_the_same_elements {
+    assert(static_order().order[0] == 0);
+    assert(static_same_bag().items[3] == 3);
+    assert(static_order_view()[2] == 2);
+    assert(static_sum(static_order_view()) == static_sum(static_same_bag().items));
+    assert(static_hops()[0].weight == 4);
+}

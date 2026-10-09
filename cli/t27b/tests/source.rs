@@ -525,6 +525,28 @@ test wrong_name_fails {
     assert_eq!(r[3].2, Err((TrapKind::Assert, 59)));
 }
 
+/// A module var with a string in it (#7448): every test starts from its
+/// initial value, which a fn may overwrite with another string.
+#[test]
+fn module_vars_hold_strings() {
+    let src = "module a;\n\nstruct Pin {\n    port: str,\n    bank: u8,\n}\n\nconst CLK: Pin = Pin{ .port = \"clk\", .bank = 14 };\n\nvar label: str = \"board\";\nvar pins: [2]Pin = [CLK, Pin{ .port = \"tx\", .bank = 34 }];\n\nfn rename() -> void {\n    pins[0].port = \"renamed\";\n    label = \"x\";\n}\n\ntest writes {\n    rename();\n    assert(pins[0].port == \"renamed\" and label == \"x\");\n}\n\ntest starts_fresh {\n    assert(pins[0].port == \"clk\" and pins[1].bank == 34 and label == \"board\");\n}\n\ntest wrong_fails {\n    assert(label == \"board\");\n    assert(pins[1].port == \"clk\");\n}\n";
+    let r = run(src);
+    let want = vec![("writes", false, true), ("starts_fresh", false, true), ("wrong_fails", false, false)];
+    assert_eq!(names_ok(&r), want);
+    assert_eq!(r[2].2, Err((TrapKind::Assert, line_of(src, "assert(pins[1].port == \"clk\")"))));
+}
+
+/// A module var declared `= undefined` starts as Zig's Debug build leaves it,
+/// 0xAA in every byte, in every test (#7448).
+#[test]
+fn undefined_module_vars_read_as_0xaa() {
+    let src = "module a;\n\nstruct C {\n    k: u32,\n    on: bool,\n}\n\nvar w: [3]u32 = undefined;\nvar b: u8 = undefined;\nvar c: C = undefined;\n\ntest fresh {\n    assert(w[0] == 0xAAAAAAAA and w[2] == 2863311530 and b == 170);\n}\n\ntest writes {\n    w[1] = 4;\n    c = C{ .k = 9, .on = true };\n    assert(w[1] == 4 and w[0] == 0xAAAAAAAA and c.k == 9 and c.on);\n}\n\ntest fresh_again {\n    assert(w[1] == 0xAAAAAAAA and c.k == 0xAAAAAAAA);\n}\n\ntest wrong_fails {\n    assert(b == 170);\n    assert(w[1] == 0);\n}\n";
+    let r = run(src);
+    let want = vec![("fresh", false, true), ("writes", false, true), ("fresh_again", false, true), ("wrong_fails", false, false)];
+    assert_eq!(names_ok(&r), want);
+    assert_eq!(r[3].2, Err((TrapKind::Assert, line_of(src, "assert(w[1] == 0)"))));
+}
+
 #[test]
 fn string_rejections_are_precise() {
     let head = "module s;\n\nconst S: str = \"ab\";\n\n";
@@ -534,7 +556,8 @@ fn string_rejections_are_precise() {
         ("test t { assert(S.ptr == 0); }", "ExprFieldAccess(str)", "`.ptr` of a str"),
         ("test t { var s: str = \"x\"; s.len = 2; }", "StmtAssign", "assignment through a constant"),
         ("test t { assert(S); }", "condition", "expected bool, found a string"),
-        ("const P = struct { s: str };\nvar Q: P = P{ .s = \"x\" };\ntest t { assert(Q.s.len == 1); }", "VarDecl(module, pointer/str/slice)", "module-level var `Q`"),
+        ("var Q: []i32 = [1];\ntest t { assert(Q.len == 1); }", "VarDecl(module, pointer/slice)", "module-level var `Q`"),
+        ("var Q: str = undefined;\ntest t { assert(Q.len == 1); }", "ConstDecl", "`undefined` in a constant with strings"),
         ("fn g() str { return \"x\"; }\nconst P = struct { s: str };\nconst Q = P{ .s = g() };\ntest t { assert(Q.s.len == 1); }", "ConstDecl", "not a string literal"),
         ("const P = struct { s: str, n: u8 };\nfn h() u8 { return 1; }\nconst Q = P{ .s = \"x\", .n = h() };\ntest t { assert(Q.n == 1); }", "ConstDecl", "not a compile-time value"),
         ("fn f() u32 { return 1; }\nconst T: str = f();\ntest t { assert(T.len == 0); }", "ConstDecl", "not a string literal"),
@@ -845,7 +868,7 @@ test text_repeat_fails {
 fn t27_array_spelling_rejections_are_precise() {
     let head = "module a;\n\nconst ONE: u32 = 1;\n\nfn total(xs: [u32]) u32 {\n    return 0;\n}\n\nfn nested(xs: [[2]u32]) u32 {\n    return 0;\n}\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("fn f(p: [*]u8) u32 { return 0; }", "type [*]T", "a many-item pointer"),
+        ("fn f(p: [*]u8) u32 { return 0; }\ntest t { assert(f(undefined) == 0); }", "type [*]T", "a many-item pointer"),
         ("fn f(m: [str:u32]) u32 { return 0; }", "type [K:V]", "a map"),
         ("test t { assert(total([1; 2]) == 2); }", "ExprArrayLiteral(repeat to slice)", "where a slice is declared"),
         (
@@ -1291,12 +1314,18 @@ test overflow_traps {
 fn module_var_rejections_are_precise() {
     let head = "module a;\n\nvar g: u32 = 0;\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("test t { var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        // The reference renames `g` to `g_lv` in the whole test: here that
+        // reaches a mention before the declaration, or one outside the
+        // block that declares it, and Zig refuses the file.
+        ("test t { assert(g == 0); var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        ("test t { if (true) { var g: u32 = 1; assert(g == 1); } assert(g == 0); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        ("test t { var g: u32 = g + 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
+        ("fn f() u32 { var g: u32 = 1; var g: u32 = 2; return g; }\ntest t { assert(f() == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { g = g + 1; return g; }\ntest t { assert(f(1) == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
         ("invariant i { assert(g == 0); }", "ExprIdentifier(var at comptime)", "module-level var `g`"),
         ("var h = 3;\ntest t { assert(h == 3); }", "VarDecl(module, untyped)", "`h` has no type"),
-        ("const B: u32 = 2;\nvar h: u32 = B * 2;\ntest t { assert(h == 4); }", "VarDecl(module)", "not a compile-time integer"),
+        ("const B: u32 = 2;\nvar h: u32 = B / 2;\ntest t { assert(h == 1); }", "VarDecl(module)", "not a compile-time integer"),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
@@ -1312,6 +1341,13 @@ fn module_var_rejections_are_precise() {
     // next test starts from the declared value again.
     let write = "module c;\n\nvar g: u32 = 0;\n\nfn read() u32 { return g; }\n\ntest w {\n    g = 5;\n    assert(read() == 5);\n    g += 1;\n    assert(g == 6);\n}\n\ntest fresh {\n    assert(g == 0);\n}\n";
     assert_eq!(names_ok(&run(write)), vec![("w", false, true), ("fresh", false, true)]);
+    // A top-level local declared before any mention of the name, in a test
+    // or a fn: the reference's `g_lv` reaches exactly the mentions that are
+    // the local's, and a fn the body calls still reads the module var.
+    let shadow = "module d;\n\nvar g: u32 = 7;\n\nfn read() u32 { return g; }\n\nfn f(x: u32) u32 {\n    var g: u32 = x * 3;\n    g = g + 1;\n    return g + read();\n}\n\ntest t {\n    var g: u32 = 100;\n    g = g + 5;\n    assert(g == 105);\n    assert(read() == 7);\n    assert(f(2) == 14);\n}\n\ntest u {\n    var g: u32 = 1;\n    assert(g == 7);\n}\n";
+    let r = run(shadow);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(shadow, "g == 7"))));
 }
 
 #[test]
@@ -2643,13 +2679,7 @@ fn optionals_the_reference_does_not_match_are_refused() {
 /// BLOCKED under `t27c test-report`, so t27b must not pass it either.
 #[test]
 fn shapes_the_reference_cannot_compile_are_refused() {
-    let cases: [(&str, &str); 5] = [
-        // `var w = 1; w = 9;` at the top of a test: the reference emits the
-        // assignment as `const w = 9;`, a redeclaration.
-        (
-            "module a;\n\ntest t {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 9);\n}\n",
-            "StmtAssign(reference redeclares)",
-        ),
+    let cases: [(&str, &str); 4] = [
         // A pointer param written only through `p.*`: the reference rebinds
         // it `var p = p_arg;`, which Zig rejects as never mutated.
         (
@@ -2676,6 +2706,9 @@ fn shapes_the_reference_cannot_compile_are_refused() {
         let m = rejected(src);
         assert!(m.starts_with(&format!("t27b: unsupported construct {}", want)), "{}", m);
     }
+    // Since #6295 the reference writes a test's own local in place (#7422).
+    let r = run("module w;\n\ntest t {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 9);\n}\n\ntest u {\n    var w: u32 = 1;\n    w += 2;\n    assert(w == 3);\n}\n\ntest v {\n    var w: u32 = 1;\n    w = 9;\n    assert(w == 1);\n}\n");
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, true), ("v", false, false)]);
     // The near misses still run: a param the body assigns directly (the
     // reference's `var n = n_arg;` is then mutated) and a mapped field type.
     let r = run("module h;\n\nconst S = struct { name: str, xs: [u32; 2] };\n\nfn inc(n: u32) -> u32 {\n    n = n + 1;\n    return n;\n}\n\ntest t {\n    assert(inc(1) == 2);\n}\n");
@@ -2732,7 +2765,7 @@ fn array_literals_typed_by_their_use() {
 
 /// The shapes next to those: the reference refuses the first three (`.{ ... }`
 /// of the wrong length, `.{ ... }` for a slice field of an anonymous literal)
-/// or points into a constant (a non-empty slice field); a local also read
+/// or builds it in the frame (run-time elements in a slice field); a local also read
 /// other than as an argument stays unsupported.
 #[test]
 fn array_literals_typed_by_their_use_rejections() {
@@ -2740,9 +2773,9 @@ fn array_literals_typed_by_their_use_rejections() {
     let cases: &[(&str, &str, &str)] = &[
         ("test t { const p = [1, 2, 3]; assert(first(p) == 1); }", "ExprArrayLiteral", "3 elements for `[2]u8`"),
         (
-            "test t { const c = Cur{ .pos = 0, .data = [1, 2] }; assert(c.data.len == 2); }",
+            "test t { var v: i32 = 3; v += 1; const c = Cur{ .pos = 0, .data = [v, 2] }; assert(c.data.len == 2); }",
             "ExprArrayLiteral(to slice field)",
-            "a non-empty array literal for a slice field",
+            "an array literal of run-time values for a slice field",
         ),
         (
             "test t { assert(take(.{ .pos = 0, .data = [] }) == 0); }",
@@ -3046,4 +3079,149 @@ fn bare_abs_rejections() {
         let m = rejected(&format!("module a;\n\n{}\n", body));
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
+}
+
+/// `return undefined;` in a void fn is a plain `return;`: the work before it
+/// is kept, the work after it skipped. In a test block it stays refused.
+#[test]
+fn return_undefined_in_a_void_fn() {
+    let src = "module a;
+
+const C = struct {
+    n: u32,
+};
+
+fn bump(c: *C, stop: bool) -> void {
+    c.n = c.n + 1;
+    if (stop) {
+        return undefined;
+    }
+    c.n = c.n + 10;
+}
+
+test kept {
+    var c = C{ .n = 0 };
+    bump(&c, true);
+    assert(c.n == 1);
+    bump(&c, false);
+    assert(c.n == 12);
+}
+
+test wrong {
+    var c = C{ .n = 0 };
+    bump(&c, true);
+    assert(c.n == 11);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("kept", false, true), ("wrong", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 11"))));
+    let m = rejected("module a;\n\ntest t {\n    return undefined;\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct "), "{}", m);
+}
+
+/// `@setEvalBranchQuota(n);` does nothing at run time; a run-time, negative
+/// or too-large operand is refused.
+#[test]
+fn eval_branch_quota_is_a_no_op() {
+    let src = "module a;
+
+const Q: u32 = 5000;
+
+fn f(x: u32) -> u32 {
+    var y: u32 = x;
+    @setEvalBranchQuota(Q);
+    y = y + 1;
+    @setEvalBranchQuota(10000);
+    return y;
+}
+
+test t {
+    @setEvalBranchQuota(1);
+    assert(f(1) == 2);
+}
+
+test wrong {
+    assert(f(1) == 1);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
+    let cases = [
+        "fn f() -> u32 {\n    var n: u32 = 3;\n    n = n + 1;\n    @setEvalBranchQuota(n);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(-1);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(4294967296);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(1, 2);\n    return 0;\n}",
+    ];
+    for body in cases {
+        let m = rejected(&format!("module a;\n\n{}\n\ntest t {{\n    assert(f() == 0);\n}}\n", body));
+        assert!(m.starts_with("t27b: unsupported construct ExprCall(@setEvalBranchQuota) at line"), "{}: {}", body, m);
+    }
+}
+
+/// #7415: a struct field's `T?` is `?T`, as t27c's type mapper writes it;
+/// `T??` and `?T?` are an optional of an optional and are refused.
+#[test]
+fn postfix_optional_is_prefix_optional() {
+    let src = "module a;
+
+const R = struct {
+    note: str?,
+    n: u32?,
+};
+
+fn mk(b: bool) -> R {
+    if (b) {
+        return R{ .note = \"hi\", .n = 3 };
+    }
+    return R{ .note = null, .n = null };
+}
+
+test t {
+    assert(mk(true).note.?.len == 2);
+    assert(mk(false).note == null);
+}
+
+test wrong {
+    assert(mk(false).n != null);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
+    for ty in ["u32??", "?u32?"] {
+        let m = rejected(&format!(
+            "module a;\n\nconst R = struct {{\n    a: {},\n}};\n\nfn f(r: R) -> u32 {{\n    return 1;\n}}\n\ntest t {{\n    assert(f(R{{ .a = null }}) == 1);\n}}\n",
+            ty
+        ));
+        assert!(m.contains("type ?T(??T)"), "{}: {}", ty, m);
+    }
+}
+
+/// A frame over 16 KiB is allocated a page at a time, touching each page
+/// (#7367): it runs, recursion included, no two frames overlap (each level
+/// checks every byte of its array after the deeper ones returned), and a trap
+/// inside one still names its line. A frame over 1 MiB is still refused.
+#[test]
+fn large_frames_are_probed() {
+    let src = "module a;\n\nfn deep(depth: u8) -> u32 {\n    var block: [20000]u8 = undefined;\n    var i: usize = 0;\n    while (i < 20000) {\n        block[i] = depth;\n        i = i + 1;\n    }\n    var below: u32 = 0;\n    if (depth > 0) {\n        below = deep(depth - 1);\n    }\n    i = 0;\n    while (i < 20000) {\n        if (block[i] != depth) {\n            return 0;\n        }\n        i = i + 1;\n    }\n    return below + 1;\n}\n\ntest ok {\n    var buf: [16448]u8 = undefined;\n    buf[0] = 7;\n    buf[16447] = 9;\n    assert(buf[0] + buf[16447] == 16);\n    assert(deep(5) == 6);\n}\n\ntest fails {\n    var big: [70000]u8 = undefined;\n    big[69999] = 3;\n    assert(big[69999] == 4);\n}\n";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 4"))));
+    if JIT_SUPPORTED {
+        let too_big = "module a;\n\ntest t {\n    var huge: [1048600]u8 = undefined;\n    huge[0] = 1;\n    assert(huge[0] == 1);\n}\n";
+        let prog = lower_src(too_big).expect("lowers");
+        let e = codegen::compile(&prog, TrapStyle::Jit, true).err().expect("refused");
+        assert_eq!(e.construct, "FnDecl(frame size)");
+    }
+}
+
+/// `?*anyopaque` and `@ptrFromInt` to an optional pointer (#7737): the
+/// conformance spec runs as `t27c test-report` does (3 pass, none vacuous),
+/// and a non-optional result is refused by name.
+#[test]
+fn opaque_pointers() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/opaque_pointer.t27"));
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let m = rejected("module a;\n\nfn f(p: *anyopaque) -> bool {\n    return true;\n}\n\ntest t {\n    assert(f(@ptrFromInt(8)));\n}\n");
+    assert!(m.contains("ExprCall(@ptrFromInt)") && m.contains("not optional"), "{}", m);
 }

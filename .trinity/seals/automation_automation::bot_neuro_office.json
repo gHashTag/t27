@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "gen_hash_c": "sha256:832d7a30405d00a5476b2ab35de6540baebd320d943d57cc89987674dc7d213a",
+  "gen_hash_rust": "sha256:000a7316b96436ead97464429381c9de754162b635dbef75458c27cba11136f6",
+  "gen_hash_verilog": "sha256:f6642903f7d54044ad405799e8b900ea6d370d0a161d384c6db960355b7f391d",
+  "gen_hash_zig": "sha256:b300a9cbc79bd2ee70936d5d25097f4ac2d282ad0d5052b377d2f2350dfe0f00",
+  "module": "automation::bot_neuro_office",
+  "ring": 12,
+  "sealed_at": "2026-10-09T05:12:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:cf12cc5aa5ab09611f322172cfa2a50e45f10ebcde4cd092f672741c0b294865",
+  "spec_path": "specs/automation/bot-neuro-office.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 16,
+    "total": 16
+  }
+}

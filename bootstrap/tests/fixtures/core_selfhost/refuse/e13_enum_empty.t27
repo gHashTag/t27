@@ -1,0 +1,4 @@
+// C has no empty enum; gen-c writes `typedef enum {\n} EeNone;`.
+module enum_empty;
+enum EeNone {
+}

@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:0402cb157c28bd48d7a8f549d6a7adc84977574164850ed8ccc9258d915c0867",
-  "gen_hash_rust": "sha256:b3587a6bf6e9290f4e961ca43c03cb08f1fa8e0c9bed91b11911da484d18b32b",
+  "gen_hash_rust": "sha256:df0b330911823a3103e994bbf0a46beb7ad8cfd23057a57f9d5db2bcac130181",
   "gen_hash_verilog": "sha256:7d94acfa7e8dad6e4dd8f8d497235633ec516bfd62f6cac9fdb82f9f96ebecc8",
   "gen_hash_zig": "sha256:0dc7c9fd8a8bb67532dcbf82116962de804828b652bb1c9d62d2057cd60be6ae",
   "module": "TriHttp",

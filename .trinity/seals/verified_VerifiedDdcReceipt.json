@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+81dc8b727",
+  "gen_hash_c": "sha256:1b066779f6db6fb0cd5fcffde5d9523049879a72f95f399a3ece9af93cbe55b5",
+  "gen_hash_rust": "sha256:6b37f6b7fd4721799e143a8ca4875c56b1441e819c6d4b290e7ad185c4f0d53f",
+  "gen_hash_verilog": "sha256:2456b41c13dd8b3d5f9c8e57b4c755957b6514fa787451a8d9faf157c3fb9489",
+  "gen_hash_zig": "sha256:52e5eb6e3700c22f5c063f0b8fb6c615bf55d6dfefa0e2257621185b1ca5e6f1",
+  "module": "VerifiedDdcReceipt",
+  "ring": 12,
+  "sealed_at": "2026-10-08T06:26:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:4e727dd606859cb24f425246ff3d7636881d2b5dd4994ecceb704025f5da9915",
+  "spec_path": "specs/verified/ddc_receipt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18
+  }
+}

@@ -218,6 +218,7 @@ executed 0 runtime asserts), or its first blocker with a reason
 Exit 0 green, 1 red (or a refused bless), 2 usage or an unreadable input.
 """
 import argparse
+import ctypes
 import datetime as dt
 import functools
 import glob
@@ -943,13 +944,8 @@ def bless(run, old, accept_new=False):
                            f"entry by hand with reason reference-bug or n/a")
             continue
         entries.append({"path": path, "t27b": got, "blocker": blocker, "reason": reason})
-    counts = {"pass": sum(1 for e in entries if e["t27b"] == "pass"),
-              "pass_vacuous": sum(1 for e in entries if e["t27b"] == "pass_vacuous")}
-    counts["not_pass"] = len(entries) - counts["pass"] - counts["pass_vacuous"]
     asserts_counted = any("asserts" in r for r in run["results"])
-    if not asserts_counted:
-        # The run's t27b did not count runtime asserts: 0 would be a claim.
-        counts["pass_vacuous"] = None
+    counts = ledger_counts(entries, asserts_counted)
     old_cap = (old or {}).get("max_not_pass")
     if r.cap_rises(counts["not_pass"], old_cap):
         # Accounting (#6237): specs the old ledger never named may raise the cap by exactly their
@@ -979,10 +975,36 @@ def bless(run, old, accept_new=False):
     return new, refused
 
 
+def ledger_counts(entries, asserts_counted=True):
+    """pass / pass_vacuous / not_pass over the entries. Never stored: a total
+    over the entries is derived where it is read (steward.t27 `header_stored`,
+    #7859). Without counted asserts pass_vacuous is None: 0 would be a claim."""
+    counts = {"pass": sum(1 for e in entries if e.get("t27b") == "pass"),
+              "pass_vacuous": sum(1 for e in entries if e.get("t27b") == "pass_vacuous")}
+    counts["not_pass"] = len(entries) - counts["pass"] - counts["pass_vacuous"]
+    if not asserts_counted:
+        counts["pass_vacuous"] = None
+    return counts
+
+
+# The ledger's header fields, in steward.t27's field codes (#7859).
+HEADER_FIELDS = ("schema_version", "generated_by", "source", "reasons", "max_not_pass", "counts")
+
+
+def header_stored(field):
+    """steward.t27 `header_stored`: does the ledger keep `field` on disk? An unknown field is an error."""
+    if field not in HEADER_FIELDS:
+        raise ValueError(f"unknown ledger header field {field!r}")
+    f = rules().lib().header_stored
+    f.argtypes, f.restype = [ctypes.c_uint8], ctypes.c_bool
+    return bool(f(HEADER_FIELDS.index(field)))
+
+
 def dump_ledger(doc):
     """The header indented, then one entry per line: a spec that moves is a
-    one-line diff in review."""
-    head = {k: v for k, v in doc.items() if k != "entries"}
+    one-line diff in review. Only the header fields steward.t27 stores are
+    written (#7859): a total over the entries would conflict on every spec PR."""
+    head = {k: v for k, v in doc.items() if k != "entries" and header_stored(k)}
     text = json.dumps(head, indent=1)[:-2]
     rows = ",\n".join("  " + json.dumps(e) for e in doc["entries"])
     return text + ',\n "entries": [\n' + rows + "\n ]\n}\n"

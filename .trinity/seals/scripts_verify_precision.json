@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:330c3249ca804c9e10718cbc5a7c21388f227d5f2bf452bda6a9d131caea0e28",
+  "gen_hash_rust": "sha256:4ec068f21f9111074b1ffa2abedbad7904702d4449fd0536fd2d583922256f71",
+  "gen_hash_verilog": "sha256:ccf1262c62c866ed680b4cce95132aae6bf212d16517d501f9d0ddfb3860e052",
+  "gen_hash_zig": "sha256:d8c87fe905f6d4940be4fa5dc31dc63226a337720ba71b43ee5e124619677786",
+  "module": "verify_precision",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:10:37Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:3ca5406cd93a82e04bd5c71e5dcaeaba5153d77d55560ad57034d9a715790102",
+  "spec_path": "specs/port/scripts/verify_precision.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
+}

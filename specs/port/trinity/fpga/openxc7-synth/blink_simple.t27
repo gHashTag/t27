@@ -12,8 +12,8 @@
 // Mapping from the original Verilog:
 //
 //   reg [25:0] counter = 26'h0;   ->  COUNTER_WIDTH, COUNTER_RESET,
-//                                     COUNTER_MAX, BlinkState.counter
-//   reg led_state = 1'b0;         ->  BlinkState.led_state
+//                                     COUNTER_MAX, SimpleBlinkState.counter
+//   reg led_state = 1'b0;         ->  SimpleBlinkState.led_state
 //   always @(posedge clk) ...     ->  init_state, next_counter,
 //                                     at_toggle_point, toggle_led, blink_step
 //   assign led = ~led_state;      ->  led_output (LED_ACTIVE_LOW)
@@ -25,7 +25,7 @@
 //   functions, no on_comb / on_clock.
 // - The 26-bit wrap is expressed as a comparison against COUNTER_MAX rather
 //   than an overflow add, because the counter is u32 in .t27.
-// - Struct returns lower to packed vectors (BlinkState is 33 bits), so
+// - Struct returns lower to packed vectors (SimpleBlinkState is 33 bits), so
 //   blink_step and led_output generate working RTL, not placeholders.
 // - Tests are simulation constructs carried by `gen-verilog-for-simulation`
 //   and executed by `t27c test-report`.
@@ -45,7 +45,10 @@ module trinity_top {
     // Structs
     // ---------------------------------------------------------------
 
-    pub struct BlinkState {
+    // Not named BlinkState: blink_correct and d6_blink use that name for
+    // {counter, led}, and this top keeps the Verilog's led_state (tri types
+    // ratchet, #7437).
+    pub struct SimpleBlinkState {
         counter : u32,
         led_state : bool,
     }
@@ -55,8 +58,8 @@ module trinity_top {
     // ---------------------------------------------------------------
 
     // Power-on state: counter = 26'h0, led_state = 1'b0 (LED ON, active-low)
-    fn init_state() -> BlinkState {
-        return BlinkState{ .counter = COUNTER_RESET, .led_state = false };
+    fn init_state() -> SimpleBlinkState {
+        return SimpleBlinkState{ .counter = COUNTER_RESET, .led_state = false };
     }
 
     // counter <= counter + 1'b1 -- a 26-bit reg wraps at 2^26 - 1
@@ -79,8 +82,8 @@ module trinity_top {
 
     // One posedge of clk: the counter increments; led_state toggles iff the
     // counter read 26'h0 before the edge
-    fn blink_step(state: BlinkState) -> BlinkState {
-        var next : BlinkState = init_state();
+    fn blink_step(state: SimpleBlinkState) -> SimpleBlinkState {
+        var next : SimpleBlinkState = init_state();
         next.counter = next_counter(state.counter);
         if (at_toggle_point(state.counter)) {
             next.led_state = !state.led_state;
@@ -91,7 +94,7 @@ module trinity_top {
     }
 
     // assign led = ~led_state -- invert for the active-low LED
-    fn led_output(state: BlinkState) -> bool {
+    fn led_output(state: SimpleBlinkState) -> bool {
         return !state.led_state;
     }
 
@@ -123,7 +126,7 @@ module trinity_top {
     test led_inverts_state
         given off = init_state()
         then led_output(off) == true
-        and led_output(BlinkState{ .counter = 3, .led_state = true }) == false
+        and led_output(SimpleBlinkState{ .counter = 3, .led_state = true }) == false
 
     test first_posedge_toggles
         given s2 = blink_step(init_state())
@@ -137,7 +140,7 @@ module trinity_top {
         and s2.led_state == true
 
     test wrap_then_toggle
-        given s1 = blink_step(BlinkState{ .counter = COUNTER_MAX, .led_state = false })
+        given s1 = blink_step(SimpleBlinkState{ .counter = COUNTER_MAX, .led_state = false })
         given s2 = blink_step(s1)
         then s1.counter == 0
         and s1.led_state == false

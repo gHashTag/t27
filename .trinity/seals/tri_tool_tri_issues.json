@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:6cc1c72b9fde0d130c0ee3f51341d8182327654a9ca301173a4b85db5b9a80ac",
+  "gen_hash_rust": "sha256:678061a61eca02f72283aa6a808203b22c920bc9d2e5caf9594b1a374c05bedd",
+  "gen_hash_verilog": "sha256:087a49f9e983cfde0bbf119c8fc73c592be1cbcacb9a072707bd844481509d2d",
+  "gen_hash_zig": "sha256:6b301631698b2e634cb885278803f439dd978e0411028d1aea979fe9491e8e63",
+  "module": "tool_tri_issues",
+  "ring": 12,
+  "sealed_at": "2026-10-08T18:56:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:8767ee3036c606db4c4e032a166f7ec2bc6fba3201c6e0c8d027a34ff14562e5",
+  "spec_path": "specs/tools/tri/issues.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
