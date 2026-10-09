@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "gen_hash_c": "sha256:31371bb94a4c7a2e5f706156bbaca618511cbb5a228a3f32768ea79f80768289",
+  "gen_hash_rust": "sha256:ab25255e737c88c9d53d431f4949203b3dd9a612b34bf5ae01425bd5122f2d47",
+  "gen_hash_verilog": "sha256:23d75f4ab924a2fc1136da49201538b198aef4c612ffd811e85bddad07cf8175",
+  "gen_hash_zig": "sha256:3465a8634fe37d4475a6467eeb3872cfd44c41ba5cada9be23648de3d0390360",
+  "module": "automation::ci_bridge",
+  "ring": 12,
+  "sealed_at": "2026-10-09T19:34:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:b47ba29dbc4fa04ce503f5bb2ec73c946a7d8469caade3aee16b1bf57802e9e7",
+  "spec_path": "specs/automation/ci-bridge.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

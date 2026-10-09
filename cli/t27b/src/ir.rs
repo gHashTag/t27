@@ -379,17 +379,14 @@ pub enum CmpOp {
     Ge,
 }
 
+#[path = "../../../gen/rust/tri/t27b/cmp_op.rs"]
+#[allow(dead_code, unused_parens)]
+mod co; // t27c gen-rust of specs/tri/t27b/cmp_op.t27: the comparisons by their CmpOp number
+const CMP_OPS: [CmpOp; 6] = [CmpOp::Eq, CmpOp::Ne, CmpOp::Lt, CmpOp::Le, CmpOp::Gt, CmpOp::Ge];
+const _: () = assert!(CmpOp::Eq as u8 == co::EQ && CmpOp::Lt as u8 == co::LT && CmpOp::Ge as u8 == co::GE);
+
 impl CmpOp {
-    pub fn symbol(self) -> &'static str {
-        match self {
-            CmpOp::Eq => "==",
-            CmpOp::Ne => "!=",
-            CmpOp::Lt => "<",
-            CmpOp::Le => "<=",
-            CmpOp::Gt => ">",
-            CmpOp::Ge => ">=",
-        }
-    }
+    pub fn symbol(self) -> &'static str { co::symbol(self as u8) }
 
     pub fn holds(self, a: i128, b: i128) -> bool {
         match self {
@@ -402,41 +399,14 @@ impl CmpOp {
         }
     }
 
-    pub fn negate(self) -> CmpOp {
-        match self {
-            CmpOp::Eq => CmpOp::Ne,
-            CmpOp::Ne => CmpOp::Eq,
-            CmpOp::Lt => CmpOp::Ge,
-            CmpOp::Le => CmpOp::Gt,
-            CmpOp::Gt => CmpOp::Le,
-            CmpOp::Ge => CmpOp::Lt,
-        }
-    }
+    pub fn negate(self) -> CmpOp { CMP_OPS[co::negate(self as u8) as usize] }
 
     /// The comparison on two binary64 values: false for every op but `!=`
     /// when either is NaN.
-    pub fn holds_f64(self, a: f64, b: f64) -> bool {
-        match self {
-            CmpOp::Eq => a == b,
-            CmpOp::Ne => a != b,
-            CmpOp::Lt => a < b,
-            CmpOp::Le => a <= b,
-            CmpOp::Gt => a > b,
-            CmpOp::Ge => a >= b,
-        }
-    }
+    pub fn holds_f64(self, a: f64, b: f64) -> bool { co::holds_f64(self as u8, a, b) }
 
     /// The comparison with operands exchanged: `a op b` == `b op.swap() a`.
-    pub fn swap(self) -> CmpOp {
-        match self {
-            CmpOp::Eq => CmpOp::Eq,
-            CmpOp::Ne => CmpOp::Ne,
-            CmpOp::Lt => CmpOp::Gt,
-            CmpOp::Le => CmpOp::Ge,
-            CmpOp::Gt => CmpOp::Lt,
-            CmpOp::Ge => CmpOp::Le,
-        }
-    }
+    pub fn swap(self) -> CmpOp { CMP_OPS[co::swap(self as u8) as usize] }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
