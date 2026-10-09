@@ -450,3 +450,12 @@ cli/t27b/src/lower.rs
 # path from $T27_LIBFTDI or the platform default, so stage B2 of t27c silicon reads on Linux (R3-3 die C, #7906).
 # A 5-line change; no Python back end exists, so no .t27 can generate this file.
 tools/jtag/mpsse_jtag.py
+
+# owner instruction 2026-10-09 (translated: "do this as a priority, yourself"), epic #8095 step 4, issue #8111:
+# CI applies the reuse rule of specs/verified/seal_identity.t27. spec-guards.yml prints "reused N of M"
+# from t27c frontier with the BASE revision's seals (a pull request cannot vouch for itself); suite.rs and
+# corpus-ratchet.yml skip specs the generated node_decision marks REUSE. Every decision is generated; these
+# files only call it. The foreign-line budget (40 per file, 80 per PR) applies to each change.
+.github/workflows/spec-guards.yml
+.github/workflows/corpus-ratchet.yml
+bootstrap/src/suite.rs

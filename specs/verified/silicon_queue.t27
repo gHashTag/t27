@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/silicon_queue.t27 -- which specs go to the three boards, who may start a run, and which
+; reseal would orphan a silicon run. Epic gHashTag/t27#8095, step 5.
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/reuse.t27: the hardware triad HW_UNPROVEN / HW_VERIFIED / HW_BLOCKED.
+; - specs/verified/seal_identity.t27 (#8096): silicon_state() -- when a run stands as a seal's verdict.
+; - specs/verified/run_record.t27: a run's receipts must name the producer the spec's seal names, or the
+;   run reads RUN_PRODUCER_MISMATCH and is no longer citable.
+; --
+; The queue. A spec that needs silicon is in one of four states. Its software comes first: a spec whose
+; own tests do not pass is not worth an hour on a board, so it waits for software. A spec whose hardware
+; step is UNPROVEN and whose software is ready is queued. A BLOCKED step is the bench's problem (the
+; adapter or the cable), not the spec's, and is reported apart so nobody re-queues a dead bench.
+; --
+; Who starts a run. The queue is computed automatically and anyone may read it. A run on the boards starts
+; only on the owner's word -- a command, or a window the owner approved -- and loads SRAM only. Flash,
+; eFUSE and BBRAM are never written by a queued run (an eFUSE write cannot be undone). Owner decision
+; 2026-10-09 (translated): "do what is best for us"; the bench host already takes FPGA work only on the
+; owner's word (t27#7996).
+; --
+; The reseal guard. Measured 2026-10-09: re-minting the seal of specs/fpga/ternary_link.t27 gave it a new
+; producer, and `t27c run-record` read R3-3 -- three dies, INDEP_DIES -- as RUN_PRODUCER_MISMATCH. A reseal
+; of a spec that has silicon receipts must keep the producer the receipts name, or be forced on purpose.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedSiliconQueue;
+
+use verified::reuse;
+
+/// What the bench does about one spec.
+///   NONE            needs no silicon, or its silicon verdict stands
+///   WAIT_SOFTWARE   needs silicon, but its own tests do not pass yet: fix the software first
+///   QUEUE           needs silicon, software ready, hardware step UNPROVEN: queue it for the boards
+///   BENCH_BLOCKED   the adapter or cable failed: a bench problem, not the spec's
+pub const SQ_NONE : u8 = 0;
+pub const SQ_WAIT_SOFTWARE : u8 = 1;
+pub const SQ_QUEUE : u8 = 2;
+pub const SQ_BENCH_BLOCKED : u8 = 3;
+
+pub fn queue_state(needs_silicon: bool, software_ready: bool, hw: u8) -> u8 {
+    if (needs_silicon == false) { return SQ_NONE; }
+    if (hw == HW_VERIFIED) { return SQ_NONE; }
+    if (hw == HW_BLOCKED) { return SQ_BENCH_BLOCKED; }
+    if (software_ready == false) { return SQ_WAIT_SOFTWARE; }
+    return SQ_QUEUE;
+}
+
+/// May a queued run start on the bench? Only on the owner's word, and never when it would write flash,
+/// eFUSE or BBRAM.
+pub fn bench_may_run(owner_approved: bool, writes_nonvolatile: bool) -> bool {
+    if (writes_nonvolatile) { return false; }
+    return owner_approved;
+}
+
+/// May `t27c seal --save` overwrite this seal? A spec with silicon receipts keeps the producer its receipts
+/// name; changing it orphans the run, so only a forced reseal may.
+pub fn reseal_allowed(has_receipts: bool, producer_unchanged: bool, forced: bool) -> bool {
+    if (has_receipts == false) { return true; }
+    if (producer_unchanged) { return true; }
+    return forced;
+}
+
+test a_verified_or_software_only_spec_never_queues {
+    assert queue_state(false, true, HW_UNPROVEN) == SQ_NONE;
+    assert queue_state(false, false, HW_BLOCKED) == SQ_NONE;
+    assert queue_state(true, true, HW_VERIFIED) == SQ_NONE;
+    // a standing silicon verdict is not re-run because the software around it is red
+    assert queue_state(true, false, HW_VERIFIED) == SQ_NONE;
+}
+
+test software_first_then_the_boards {
+    assert queue_state(true, false, HW_UNPROVEN) == SQ_WAIT_SOFTWARE;
+    assert queue_state(true, true, HW_UNPROVEN) == SQ_QUEUE;
+}
+
+test a_dead_bench_is_reported_apart {
+    assert queue_state(true, true, HW_BLOCKED) == SQ_BENCH_BLOCKED;
+    assert queue_state(true, false, HW_BLOCKED) == SQ_BENCH_BLOCKED;
+}
+
+test only_the_owner_starts_a_run_and_never_on_flash {
+    assert bench_may_run(true, false) == true;
+    assert bench_may_run(false, false) == false;
+    assert bench_may_run(true, true) == false;
+    assert bench_may_run(false, true) == false;
+}
+
+test a_reseal_never_silently_orphans_a_silicon_run {
+    // ternary_link, 2026-10-09: receipts exist and a re-mint changed the producer
+    assert reseal_allowed(true, false, false) == false;
+    assert reseal_allowed(true, false, true) == true;
+    assert reseal_allowed(true, true, false) == true;
+    assert reseal_allowed(false, false, false) == true;
+}
+
+invariant the_queue_codes_never_move {
+    assert SQ_NONE == 0 and SQ_WAIT_SOFTWARE == 1 and SQ_QUEUE == 2 and SQ_BENCH_BLOCKED == 3;
+}
