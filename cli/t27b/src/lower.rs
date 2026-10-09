@@ -91,6 +91,8 @@ mod float;
 mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
+#[path = "../../../gen/rust/tri/t27b/ptr_eq_plan.rs"] #[allow(dead_code, unused_parens)]
+mod pe; // t27c gen-rust of specs/tri/t27b/ptr_eq_plan.t27: `==` / `!=` of pointers and optional pointers
 #[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
 mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
 #[path = "../../../gen/rust/tri/t27b/wide_plan.rs"] #[allow(dead_code, unused_parens, unexpected_cfgs)]
@@ -3503,6 +3505,7 @@ impl<'a> Lower<'a> {
                 let lit = |n: &Node| n.kind == NodeKind::ExprEnumValue;
                 let ordered = (self.names_variant(x) || self.names_variant(y)) && !lit(x) && !lit(y);
                 let (a, b) = self.operands(x, y)?;
+                if let Some(v) = self.ptr_compare(&op, &a, &b)? { return Ok(v); }
                 if let Some(v) = self.opt_compare(&op, &a, &b)? {
                     return Ok(v);
                 }
@@ -5927,6 +5930,42 @@ impl<'a> Lower<'a> {
         let flag = Expr { ty: Ty::Bool, kind: ExprKind::Load { addr: Box::new(p.addr), off: p.off + s } };
         let e = if op == "==" { Expr { ty: Ty::Bool, kind: ExprKind::Not(Box::new(flag)) } } else { flag };
         Ok(Val::E(e))
+    }
+
+    /// `a == b` / `a != b` between pointers and optional pointers: their addresses, null being 0, each operand
+    /// pinned once in source order (plan `ptr_eq_plan.t27`, #7742). None where the plan leaves it alone.
+    fn ptr_compare(&mut self, op: &str, a: &Val, b: &Val) -> R<Option<Val>> {
+        let kind = |v: &Val| match v {
+            Val::P(_, LTy::Ptr(t, _)) => (pe::K_PTR, Some(t.clone())),
+            Val::M(Place { ty: LTy::Opt(o), .. }) => match &**o {
+                LTy::Ptr(t, _) => (pe::K_OPT_PTR, Some(t.clone())),
+                _ => (pe::K_OTHER, None),
+            },
+            _ => (pe::K_OTHER, None),
+        };
+        let ((ka, ta), (kb, tb)) = (kind(a), kind(b));
+        if !pe::compares(op == "==" || op == "!=", ka, kb, ta == tb) { return Ok(None); }
+        let mut stmts = Vec::new();
+        let (x, y) = (self.ptr_word(a, &mut stmts)?, self.ptr_word(b, &mut stmts)?);
+        let cmp = Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op: if op == "==" { CmpOp::Eq } else { CmpOp::Ne }, lhs: Box::new(x), rhs: Box::new(y) } };
+        Ok(Some(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Seq { stmts, value: Box::new(cmp) } })))
+    }
+
+    /// The address pointer or optional pointer `v` holds (0 for null), stored in a fresh slot by `stmts`.
+    fn ptr_word(&mut self, v: &Val, stmts: &mut Vec<Stmt>) -> R<Expr> {
+        let k = self.new_slot(&LTy::S(Ty::U64))?;
+        let load = |addr: Expr, ty, off| Expr { ty, kind: ExprKind::Load { addr: Box::new(addr), off } };
+        let value = match v {
+            Val::P(e, _) => e.clone(),
+            Val::M(p) => {
+                stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: addr_of(p) });
+                let (flag, word) = (load(load(slot_expr(k), Ty::Ptr, 0), Ty::Bool, 8), load(load(slot_expr(k), Ty::Ptr, 0), Ty::Ptr, 0));
+                Expr { ty: Ty::Ptr, kind: ExprKind::Select { cond: Box::new(flag), then: Box::new(word), els: Box::new(Expr { ty: Ty::Ptr, kind: ExprKind::Const(0) }) } }
+            }
+            _ => return Err(()),
+        };
+        stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value });
+        Ok(load(slot_expr(k), Ty::Ptr, 0))
     }
 
     /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar or an enum: optional_compare_plan.t27) and `v` a `T`,
