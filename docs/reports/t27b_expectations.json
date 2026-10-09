@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 30,
+ "max_not_pass": 28,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
   {"path": "specs/a_b/c.t27", "t27b": "pass_vacuous"},
@@ -429,7 +429,7 @@
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/skills/catalog.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/tools/filesystem/ls.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/tools/memory/write.t27", "t27b": "pass"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/tools/tool-registry.t27", "t27b": "blocked", "blocker": "ExprReturn(frame address)", "reason": "reference-bug"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/tools/tool-registry.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/openxc7-synth/phi_temporal/temporal_heartbeat.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/verilog/dsp_probe.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/verilog/dsp_probe_live.t27", "t27b": "pass"},
@@ -613,7 +613,7 @@
   {"path": "specs/port/trinity/src/tri/gen_kmeans.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_leb128.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_linear_regression.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_lockfree_stack.t27", "t27b": "blocked", "blocker": "StmtAssign(frame address)", "reason": "reference-bug"},
+  {"path": "specs/port/trinity/src/tri/gen_lockfree_stack.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_matrix3x3.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_mock.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_neuron.t27", "t27b": "pass"},
