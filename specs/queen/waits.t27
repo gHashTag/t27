@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/waits.t27 -- a long wait of the Queen becomes a row in the store, holding no process
+; A long wait survives a deploy and is resumed by the next process. The swarm's first release (job #3,
+; t27c 0.5.2, 2026-10-09) spent 90 of 92 minutes at step 3 waiting for a runner; that WAIT step asked
+; GitHub every 30 s and logged each time, so about 180 reads and 180 log entries for one wait. A Queen
+; deploy drains for 1800 s; one morning had five. The wait is a row, not a process, so it costs nothing
+; to hold and moves only when a process runs rounds. Owner, 2026-10-09 (translated): "then any long
+; wait is done by the swarm, and nobody needs an open laptop".
+; 
+; The row's states: waiting, resolved, expired, cancelled. Only waiting moves. Wake rule: due when
+; the wake time has passed or the key is resolved (or the expiry passed); a resolution beats a late
+; expiry. Expiry cap: one day, the job step's own limit. Check interval: 30 s doubling to 240 s, never
+; past its expiry. Claims and fencing: a claim bumps the row's epoch; a write with a stale epoch lands
+; nothing and wakes nobody. Poll: 15 s, NOTIFY as a hint only. A deploy writes nothing to waits; the
+; next process takes them up (a claimed row after at most the 60 s claim). A job parked on a waiting
+; row is not visited by the round.
+; 
+; Not here: the store implementation (gHashTag/trios, branch actors-next), the GitHub integration, or
+; the runtime that holds the rows and calls this card. Item 4 of gHashTag/trios#1712.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenWaits;
+
+/// Row states: only WAITING moves.
+pub const RW_WAITING : u8 = 0;
+pub const RW_RESOLVED : u8 = 1;
+pub const RW_EXPIRED : u8 = 2;
+pub const RW_CANCELLED : u8 = 3;
+
+/// Whether a state transition is allowed.
+///   WAITING -> RESOLVED (when the key is resolved)
+///   WAITING -> EXPIRED (when the expiry passes and no resolution)
+///   WAITING -> CANCELLED (when cancelled)
+///   RESOLVED, EXPIRED, CANCELLED -> none (terminal)
+pub fn transition_allowed(from: u8, to: u8) -> bool {
+    if (from == RW_WAITING) {
+        return (to == RW_RESOLVED) || (to == RW_EXPIRED) || (to == RW_CANCELLED);
+    }
+    return false; // terminal states don't move
+}
+
+/// Wake rule: due when wake time passed OR key resolved OR expiry passed.
+/// Resolution beats expiry: if key is resolved before expiry, wake for resolution.
+pub fn is_due(wake_time: u64, key_resolved: bool, expiry: u64, current_time: u64) -> bool {
+    if (key_resolved) { return true; }
+    if (current_time >= expiry) { return true; }
+    if (current_time >= wake_time) { return true; }
+    return false;
+}
+
+/// Expiry cap: one day (the job step's own limit).
+pub const EXPIRY_CAP_MINUTES : u32 = 1440;
+
+/// Check interval: 30 s doubling to 240 s, never past expiry.
+/// Returns the next check time for a keyed row.
+pub fn next_check_interval(checks: u32, last_check: u64, expiry: u64) -> u64 {
+    // Base interval: 30s, doubling each time, max 240s
+    var base_interval : u32 = 30;
+    var max_interval : u32 = 240;
+    
+    // Calculate the interval for this check (doubling, capped at max)
+    var interval : u32 = base_interval;
+    var i : u32 = 0;
+    while (i < checks && interval < max_interval) {
+        interval = interval * 2;
+        i = i + 1;
+    }
+    
+    // Never check past expiry
+    var next_check : u64 = last_check + interval;
+    if (next_check > expiry) {
+        next_check = expiry;
+    }
+    
+    return next_check;
+}
+
+/// Claims and fencing: a claim bumps the row's epoch.
+pub fn claim_epoch(current_epoch: u32) -> u32 {
+    return current_epoch + 1;
+}
+
+/// Whether a write with a given epoch is stale (would land nothing).
+pub fn is_stale_epoch(write_epoch: u32, current_epoch: u32) -> bool {
+    return write_epoch <= current_epoch;
+}
+
+/// Poll interval: 15 s, NOTIFY as a hint only.
+pub const POLL_INTERVAL_SECONDS : u32 = 15;
+
+/// Whether a deploy should write to waits (never).
+pub fn deploy_waits_to_store() -> bool {
+    return false;
+}
+
+/// Whether a job parked on a waiting row is visited by the round (no).
+pub fn job_visited_on_wait() -> bool {
+    return false;
+}
+
+/// Maximum claim duration: 60 s.
+pub const CLAIM_MAX_SECONDS : u32 = 60;
+
+/// Time a claimed row is available after claim expires.
+pub fn claimed_row_available_time(claim_time: u64, current_time: u64) -> bool {
+    return (current_time - claim_time) >= CLAIM_MAX_SECONDS;
+}
+
+/// Whether a wait is still active (not terminal).
+pub fn wait_active(state: u8) -> bool {
+    return state == RW_WAITING;
+}
+
+/// Whether a wait is terminal (resolved, expired, or cancelled).
+pub fn wait_terminal(state: u8) -> bool {
+    return state != RW_WAITING;
+}
+
+/// Whether a cancellation is allowed (only on waiting rows).
+pub fn cancellation_allowed(state: u8) -> bool {
+    return state == RW_WAITING;
+}
+
+test state_transitions {
+    // Only WAITING can transition to other states
+    assert transition_allowed(RW_WAITING, RW_RESOLVED) == true;
+    assert transition_allowed(RW_WAITING, RW_EXPIRED) == true;
+    assert transition_allowed(RW_WAITING, RW_CANCELLED) == true;
+    assert transition_allowed(RW_WAITING, RW_WAITING) == false; // no self-loop
+    
+    // Terminal states don't move
+    assert transition_allowed(RW_RESOLVED, RW_WAITING) == false;
+    assert transition_allowed(RW_EXPIRED, RW_RESOLVED) == false;
+    assert transition_allowed(RW_CANCELLED, RW_EXPIRED) == false;
+}
+
+test wake_rule {
+    // Key resolved always wakes
+    assert is_due(1000, true, 2000, 500) == true;
+    assert is_due(1000, true, 2000, 1500) == true;
+    assert is_due(1000, true, 2000, 2500) == true;
+    
+    // Wake time passed wakes
+    assert is_due(1000, false, 2000, 1500) == true;
+    assert is_due(1000, false, 2000, 500) == false;
+    
+    // Expiry passed wakes (if not resolved)
+    assert is_due(1000, false, 2000, 2500) == true;
+    assert is_due(1000, false, 2000, 1500) == false;
+    
+    // Resolution beats expiry
+    assert is_due(1000, true, 500, 1500) == true; // key resolved before expiry
+}
+
+test expiry_cap {
+    assert EXPIRY_CAP_MINUTES == 1440; // one day
+}
+
+test check_intervals {
+    // First check: 30s
+    assert next_check_interval(0, 0, 1000) == 30;
+    assert next_check_interval(0, 100, 1000) == 130;
+    
+    // Second check: 60s
+    assert next_check_interval(1, 0, 1000) == 60;
+    assert next_check_interval(1, 100, 1000) == 160;
+    
+    // Third check: 120s
+    assert next_check_interval(2, 0, 1000) == 120;
+    assert next_check_interval(2, 100, 1000) == 220;
+    
+    // Fourth check: 240s (max)
+    assert next_check_interval(3, 0, 1000) == 240;
+    assert next_check_interval(3, 100, 1000) == 340;
+    
+    // Fifth check: still 240s (max)
+    assert next_check_interval(4, 0, 1000) == 240;
+    assert next_check_interval(4, 100, 1000) == 340;
+    
+    // Never check past expiry
+    assert next_check_interval(0, 0, 50) == 50; // expiry before first check
+    assert next_check_interval(1, 30, 100) == 100; // expiry during doubling
+    assert next_check_interval(2, 90, 150) == 150; // expiry after doubling
+}
+
+test fencing {
+    // Claim bumps epoch
+    assert claim_epoch(0) == 1;
+    assert claim_epoch(5) == 6;
+    assert claim_epoch(100) == 101;
+    
+    // Stale epoch detection
+    assert is_stale_epoch(1, 2) == true;   // write epoch < current epoch
+    assert is_stale_epoch(2, 2) == true;   // write epoch == current epoch (stale)
+    assert is_stale_epoch(3, 2) == false;  // write epoch > current epoch (fresh)
+    assert is_stale_epoch(0, 1) == true;   // old epoch
+}
+
+test poll_interval {
+    assert POLL_INTERVAL_SECONDS == 15;
+}
+
+test deploy_behavior {
+    // Deploy never writes to waits
+    assert deploy_waits_to_store() == false;
+}
+
+test job_behavior {
+    // Job not visited on wait
+    assert job_visited_on_wait() == false;
+}
+
+test claim_duration {
+    // Claim expires after 60s
+    assert claimed_row_available_time(0, 59) == false;  // still claimed
+    assert claimed_row_available_time(0, 60) == true;   // available
+    assert claimed_row_available_time(0, 61) == true;   // still available
+    assert claimed_row_available_time(100, 159) == false; // still claimed
+    assert claimed_row_available_time(100, 160) == true;  // available
+}
+
+test wait_state_helpers {
+    // Active waits
+    assert wait_active(RW_WAITING) == true;
+    assert wait_active(RW_RESOLVED) == false;
+    assert wait_active(RW_EXPIRED) == false;
+    assert wait_active(RW_CANCELLED) == false;
+    
+    // Terminal waits
+    assert wait_terminal(RW_WAITING) == false;
+    assert wait_terminal(RW_RESOLVED) == true;
+    assert wait_terminal(RW_EXPIRED) == true;
+    assert wait_terminal(RW_CANCELLED) == true;
+    
+    // Cancellation
+    assert cancellation_allowed(RW_WAITING) == true;
+    assert cancellation_allowed(RW_RESOLVED) == false;
+    assert cancellation_allowed(RW_EXPIRED) == false;
+    assert cancellation_allowed(RW_CANCELLED) == false;
+}
+
+invariant the_state_codes_are_consistent {
+    assert RW_WAITING == 0;
+    assert RW_RESOLVED == 1;
+    assert RW_EXPIRED == 2;
+    assert RW_CANCELLED == 3;
+}
+
+invariant the_limits_are_bounded {
+    assert EXPIRY_CAP_MINUTES >= 1440 and EXPIRY_CAP_MINUTES <= 2880; // one day ± buffer
+    assert POLL_INTERVAL_SECONDS >= 10 and POLL_INTERVAL_SECONDS <= 30; // reasonable poll range
+    assert CLAIM_MAX_SECONDS >= 30 and CLAIM_MAX_SECONDS <= 120; // reasonable claim duration
+}
+
+invariant the_check_intervals_double_correctly {
+    // Verify doubling sequence: 30, 60, 120, 240, 240, 240, ...
+    assert next_check_interval(0, 0, 10000) == 30;
+    assert next_check_interval(1, 30, 10000) == 90;  // 30 + 60
+    assert next_check_interval(2, 90, 10000) == 210; // 90 + 120
+    assert next_check_interval(3, 210, 10000) == 450; // 210 + 240
+    assert next_check_interval(4, 450, 10000) == 690; // 450 + 240 (max)
+    assert next_check_interval(5, 690, 10000) == 930; // 690 + 240 (max)
+}
