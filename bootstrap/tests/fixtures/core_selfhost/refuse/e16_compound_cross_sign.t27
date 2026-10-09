@@ -1,0 +1,7 @@
+// typecheck reads `x += v` as an assignment of v: u32 into i32 is refused.
+module compound_cross_sign;
+fn cc_g(v: u32) -> i32 {
+    var x: i32 = 0;
+    x += v;
+    return x;
+}

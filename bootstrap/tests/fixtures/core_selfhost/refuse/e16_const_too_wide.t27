@@ -1,0 +1,4 @@
+// typecheck refuses a decimal constant its type cannot hold (`check_const_widths`).
+module const_too_wide;
+const CW_A: u8 = 255;
+const CW_B: u8 = 256;
