@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/float_call_cast.t27 -- `x as T` where x is a call of a fn returning a float, as
+; the reference runs it (gHashTag/t27#7805, t27b coverage epic #6063: ExprCast(f32) in
+; specs/compiler/zig_float_call_cast.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; Since #6941 gen-zig spells a call of a fn this file declares with a float return type as a float, alone or
+; as an operand of a binary expression: `f() as f32` is `@as(f32, @floatCast(f()))`, which rounds an f64 to
+; the nearest f32; `f() as i32` is `@as(i32, @intFromFloat(f()))`, which truncates toward zero. A call of a
+; fn returning an integer stays `@floatFromInt`. specs/tri/t27b/float_as_plan.t27 is the rule.
+; Not here: a call of a fn returning a float as an integer outside the result type (`@intFromFloat` traps).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceFloatCallCast;
+
+var FCC_CALLS: u32 = 0;
+
+fn fcc_third() -> f64 {
+    FCC_CALLS = FCC_CALLS + 1;
+    return 1.0 / 3.0;
+}
+
+fn fcc_half() -> f64 {
+    return 0.5;
+}
+
+fn fcc_neg_big() -> f64 {
+    return -2.75;
+}
+
+fn fcc_f32_quarter() -> f32 {
+    return 0.25;
+}
+
+fn fcc_seven() -> u32 {
+    return 7;
+}
+
+fn fcc_third_f32() -> f32 {
+    return fcc_third() as f32;
+}
+
+fn fcc_diff_f32() -> f32 {
+    return (fcc_half() - fcc_third()) as f32;
+}
+
+fn fcc_scaled_f32() -> f32 {
+    return (fcc_half() * 3.0) as f32;
+}
+
+fn fcc_widen() -> f64 {
+    return fcc_f32_quarter() as f64;
+}
+
+fn fcc_trunc() -> i32 {
+    return fcc_neg_big() as i32;
+}
+
+fn fcc_seven_f32() -> f32 {
+    return fcc_seven() as f32;
+}
+
+test a_call_returning_f64_rounds_to_f32 {
+    const t : f32 = fcc_third_f32();
+    assert(t == 0.33333334);
+    assert(t != 0.3333333);
+}
+
+test a_difference_of_calls_rounds_once {
+    assert(fcc_diff_f32() == 0.16666667);
+}
+
+test a_call_beside_a_literal_is_a_float {
+    assert(fcc_scaled_f32() == 1.5);
+}
+
+test an_f32_call_widens_exactly {
+    assert(fcc_widen() == 0.25);
+}
+
+test a_float_call_to_an_integer_truncates_toward_zero {
+    assert(fcc_trunc() == -2);
+}
+
+test an_integer_call_stays_float_from_int {
+    assert(fcc_seven_f32() == 7.0);
+}
+
+test the_call_runs_once {
+    FCC_CALLS = 0;
+    const t : f32 = fcc_third_f32();
+    assert(t > 0.3);
+    assert(FCC_CALLS == 1);
+}

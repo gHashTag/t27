@@ -1,0 +1,6 @@
+// C converts the i32 to unsigned, so -1 < 0 is false there and true in Zig
+// (#8076).
+module compare_signed_unsigned;
+fn csu_g(a: i32, b: u32) -> bool {
+    return a < b;
+}

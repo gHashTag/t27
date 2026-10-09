@@ -1,0 +1,8 @@
+// typecheck refuses it (compiler.rs `types_compatible`): an i64 assigned to a
+// u8 in a function. gen-c writes nothing for it, and neither does the core.
+module assign_narrowing;
+fn an_g(v: i64) -> u8 {
+    var x: u8 = 0;
+    x = v;
+    return x;
+}

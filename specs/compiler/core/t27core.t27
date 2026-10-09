@@ -76,14 +76,35 @@
 ;         all-zero literal, which gen-c writes as `{0}` (#7960); an array of
 ;         enums repeats a member written `E.M` or `E::M`
 ;   STRING: str string   (`const char*` in C) for parameters, returns,
-;         locals, module vars and consts; never a field or an element, nor a
-;         slice `[]T` (#8013). A literal "..." is printable ASCII with the
+;         locals, module vars and consts, struct fields and array elements;
+;         never a slice `[]T` (#8013). A literal "..." is printable ASCII with the
 ;         escapes \n \t \\ \" only and no `??`. A string value stands only
 ;         where a string is declared, as an initializer, an argument, a return
 ;         value, an assignment or a switch arm there; `s[i]` indexes one, and
 ;         `s.len` on a `string` parameter or local is `strlen(s)`. A string
 ;         name is bound once in its function and module (#8013).
 ;   SCALAR: bool u8 i8 u16 i16 u32 i32 u64 i64 usize
+;   TYPECHECK: what t27c's typecheck refuses before gen-c writes a byte is
+;         refused too (E_CHECK): an assignment, in a function, its type rule
+;         rejects (`x = v` with x u8 and v i64; x usize and v u8, #8034), a
+;         constant its type cannot hold. Where typecheck lets a defect
+;         through, the core refuses it all the same and names it: a
+;         wrong-arity call anywhere (E_CALL, #8033), a separated constant too
+;         wide (E_UNSOUND, #8035), a literal nested in a module initializer
+;         (E_STRUCT, #8036)
+;   COERCION: what typecheck lets through and the Zig route refuses (E_UNSOUND,
+;         #8075): an initializer, argument, return, field, item or assignment
+;         whose type the declared one cannot hold (narrower, other sign, bool
+;         and integer, another struct or enum); a condition, or an operand of
+;         ! and or assert, that is not a bool; arithmetic over mixed signs or a
+;         bool; unary - on an unsigned; a signed index; an assignment to a
+;         module const; a comparison C converts the signed side of (a signed
+;         value against an unsigned one of 32 bits or more, #8076). A value
+;         Zig knows whole at compile time (numbers, module consts, local
+;         consts of such) coerces to any integer type, never to a bool; where
+;         it meets a runtime operand, only a number, a char and a local const
+;         whose value is one number (gen-zig inlines it) take that operand's
+;         type, and a module const or a cast keeps its own
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
 ; With no string literals, fixed text is packed 64-bit words: w(word, n) emits
@@ -138,6 +159,28 @@ const E_INVARIANT: i64 = 14;
 ; one where no string is declared, `.len` on a `str`, an escape whose value
 ; changes, a trigraph (#8013).
 const E_STRING: i64 = 15;
+; What t27c's typecheck refuses before gen-c writes anything (#6446): an
+; assignment its type rule rejects, a constant its type cannot hold.
+const E_CHECK: i64 = 16;
+; What t27c's typecheck lets through and C reads otherwise than Zig; each
+; case names its typecheck defect.
+const E_UNSOUND: i64 = 17;
+
+; t27c's TypeInfo, as typecheck infers it (compiler.rs `infer_expr`): 0 is
+; Unknown, which every rule accepts; a type t27c spells as `Custom` (usize,
+; string, a struct, an enum) is TC_CUSTOM + its type token, equal by spelling.
+const TC_BOOL: i64 = 2;
+const TC_I8: i64 = 3;
+const TC_I16: i64 = 4;
+const TC_I32: i64 = 5;
+const TC_I64: i64 = 6;
+const TC_U8: i64 = 7;
+const TC_U16: i64 = 8;
+const TC_U32: i64 = 9;
+const TC_U64: i64 = 10;
+const TC_STR: i64 = 11;
+const TC_ARRAY: i64 = 12;
+const TC_CUSTOM: i64 = 1000;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -347,10 +390,20 @@ struct Pull {
     mod: i64,
 }
 
+; A name typecheck's scope holds while a function is checked: a local, as
+; t27c registers it (compiler.rs `check_stmt`), its TypeInfo, and 1 when it
+; is a `const` Zig knows at compile time.
+struct Sym {
+    tok: i64,
+    ty: i64,
+    ct: i64,
+}
+
 var toks: [TOK_MAX]Tok = [_]Tok{Tok{ .kind = 0, .pos = 0, .len = 0 }} ** TOK_MAX;
 var nodes: [NODE_MAX]Node = [_]Node{Node{ .kind = 0, .tok = 0, .a = 0, .b = 0, .c = 0, .next = 0, .aux = 0, .d = 0 }} ** NODE_MAX;
 var mods: [MOD_MAX]Mod = [_]Mod{Mod{ .from = 0, .to = 0, .head = 0, .tok0 = 0, .decls = 0, .hit = 0, .text = 0 }} ** MOD_MAX;
 var pulls: [PULL_MAX]Pull = [_]Pull{Pull{ .decl = 0, .mod = 0 }} ** PULL_MAX;
+var syms: [SCOPE_MAX]Sym = [_]Sym{Sym{ .tok = 0, .ty = 0, .ct = 0 }} ** SCOPE_MAX;
 
 var src_len: i64 = 0;
 var out_len: i64 = 0;
@@ -376,6 +429,7 @@ var dep_p: i64 = 0;
 ; <string.h>. str_ctx lets check_expr take one string value (check_str_expr).
 var uses_strlen: bool = false;
 var str_ctx: bool = false;
+var sym_len: i64 = 0;
 
 ; ---------------------------------------------------------------- output
 
@@ -1456,6 +1510,10 @@ fn parse_stmt() -> i64 {
         expect(';');
         var n: i64 = mk(S_LOCAL, name, init, 0);
         nodes[n as usize].aux = ty;
+        // A local `const` (or `let`): Zig may know it at compile time.
+        if (k == T_CONST) {
+            nodes[n as usize].d = 1;
+        }
         return n;
     }
     if (k == T_IF) {
@@ -2436,14 +2494,29 @@ fn check_expr(e: i64) -> void {
         if (is_assert or is_eq) {
             uses_assert = true;
         }
+        // Every call names as many arguments as its function has parameters:
+        // typecheck refuses a mismatch only where it looks (#8033).
+        if (!is_assert and !is_eq and list_len(na(e)) != list_len(na(fn_named(t)))) {
+            fail(E_CALL, tpos(t));
+            return;
+        }
         // A string parameter takes a string, and only it one.
         var prm: i64 = na(fn_named(t));
         var arg: i64 = na(e);
+        if (is_assert) {
+            want_bool(arg);
+        }
+        if (is_eq) {
+            check_eq_types(arg, nnext(arg), ntok(e));
+        }
         while (arg != 0) {
             if (prm != 0 and is_str_type(naux(prm))) {
                 check_str_expr(arg);
             } else {
                 check_expr(arg);
+            }
+            if (prm != 0) {
+                coerce(tc_of(naux(prm)), arg);
             }
             if (prm != 0) {
                 prm = nnext(prm);
@@ -2471,6 +2544,12 @@ fn check_expr(e: i64) -> void {
         var depth: i64 = 0;
         while (nkind(b) == N_INDEX) {
             check_expr(nb(b));
+            // Zig indexes with a usize: a signed index is refused there; one
+            // it knows at compile time coerces by its value.
+            if (!failed and !tz_ct(nb(b)) and !idx_ok(tz_expr(nb(b)))) {
+                fail(E_UNSOUND, tpos(ntok(e)));
+                return;
+            }
             b = na(b);
             depth = depth + 1;
         }
@@ -2490,10 +2569,14 @@ fn check_expr(e: i64) -> void {
     if (k == N_BIN) {
         check_expr(na(e));
         check_expr(nb(e));
+        check_bin_types(e);
         return;
     }
     if (k == N_UN or k == N_CAST) {
         check_expr(na(e));
+    }
+    if (k == N_UN) {
+        check_un_type(e);
     }
 }
 
@@ -2529,7 +2612,7 @@ fn check_local_array(s: i64) -> void {
         return;
     }
     check_elem(s);
-    check_expr(nc(s));
+    check_items_of(nc(s), is_str_type(naux(s)), naux(s));
     if (scope_len >= SCOPE_MAX) {
         fail(E_LIMIT, tpos(ntok(s)));
         return;
@@ -2541,6 +2624,7 @@ fn check_local_array(s: i64) -> void {
 fn check_stmts(head: i64, test_body: i64) -> void {
     var s: i64 = head;
     var mark: i64 = scope_len;
+    var sym_mark: i64 = sym_len;
     while (!failed and s != 0) {
         var k: i64 = nkind(s);
         if (k == S_LOCAL or k == D_ARRAY) {
@@ -2567,17 +2651,22 @@ fn check_stmts(head: i64, test_body: i64) -> void {
             // A string name takes a string, by `=` only: `s += 1` would move
             // the pointer.
             if (sv(lhs) and nc(s) == 0) {
+                str_ctx = true;
+                check_expr(lhs);
                 check_str_expr(nb(s));
             } else {
                 check_expr(lhs);
                 check_expr(nb(s));
             }
+            check_assign_type(s);
         } else if (k == S_IF) {
             check_expr(na(s));
+            want_bool(na(s));
             check_stmts(nb(s), 0);
             check_stmts(nc(s), 0);
         } else if (k == S_WHILE) {
             check_expr(na(s));
+            want_bool(na(s));
             check_stmts(nb(s), 0);
         } else if (k == S_FOR) {
             check_expr(na(s));
@@ -2596,7 +2685,7 @@ fn check_stmts(head: i64, test_body: i64) -> void {
             if (k == S_RETURN and nkind(cur_decl) == D_FN and is_str_type(naux(cur_decl))) {
                 str_place = true;
             }
-            if (k == S_LOCAL and str_place) {
+            if (k == S_LOCAL and holds_str(naux(s))) {
                 check_str_name(ntok(s));
             }
             if (str_place) {
@@ -2604,10 +2693,24 @@ fn check_stmts(head: i64, test_body: i64) -> void {
             } else {
                 check_expr(na(s));
             }
+            if (k == S_LOCAL) {
+                coerce(tc_of(naux(s)), na(s));
+            }
+            if (k == S_RETURN and nkind(cur_decl) == D_FN) {
+                coerce(tc_of(naux(cur_decl)), na(s));
+            }
+        }
+        // typecheck registers a local after its initializer, an array too.
+        if (k == S_LOCAL) {
+            push_sym(ntok(s), tc_of(naux(s)), local_ct(s));
+        }
+        if (k == D_ARRAY) {
+            push_sym(ntok(s), TC_ARRAY, 0);
         }
         s = nnext(s);
     }
     scope_len = mark;
+    sym_len = sym_mark;
 }
 
 ; ---------------------------------------------------------------- structs
@@ -2896,8 +2999,7 @@ fn check_struct(d: i64) -> void {
         return;
     }
     while (f != 0) {
-        // A string field's type is out of the core's reach without P3.
-        if (!type_ok(naux(f)) or is_str_type(naux(f))) {
+        if (!type_ok(naux(f))) {
             fail(E_TYPE, tpos(naux(f)));
             return;
         }
@@ -3009,7 +3111,12 @@ fn check_lit(e: i64) -> void {
             fail(E_STRUCT, tpos(ntok(it)));
             return;
         }
-        check_expr(na(it));
+        if (is_str_type(naux(field_of(s, ntok(it))))) {
+            check_str_expr(na(it));
+        } else {
+            check_expr(na(it));
+        }
+        coerce(tc_of(naux(field_of(s, ntok(it)))), na(it));
         it = nnext(it);
     }
     if (!failed and nb(e) != list_len(na(s))) {
@@ -3042,7 +3149,7 @@ fn all_zero(e: i64) -> bool {
 ; An array's element type, and a repeated struct value: gen-c writes `{0}`
 ; whatever it holds (#7960), so it must be all zeros.
 fn check_elem(d: i64) -> void {
-    if (!type_ok(naux(d)) or is_str_type(naux(d))) {
+    if (!type_ok(naux(d))) {
         fail(E_TYPE, tpos(naux(d)));
         return;
     }
@@ -3200,11 +3307,8 @@ fn sv(e: i64) -> bool {
     if (k == N_STR) {
         return true;
     }
-    if (k == N_IDENT) {
-        return is_str_type(name_type(ntok(e)));
-    }
-    if (k == N_CALL) {
-        return is_str_type(naux(fn_named(ntok(e))));
+    if (k != N_SWITCH) {
+        return is_str_type(ety(e));
     }
     if (k == N_SWITCH) {
         var arm: i64 = nb(e);
@@ -3246,8 +3350,9 @@ fn check_str_expr(e: i64) -> void {
     check_expr(e);
 }
 
-; A string name is bound once in its item and its module, so its type is
-; never another binding's (#8013).
+; A name whose type holds a string (a string, or a struct with a string field
+; at any depth) is bound once in its item and its module, so the type the core
+; follows its fields and values through is never another binding's (#8013).
 fn check_str_name(t: i64) -> void {
     var n: i64 = decl_count(t);
     var d: i64 = cur_decl;
@@ -3267,6 +3372,822 @@ fn check_str_name(t: i64) -> void {
     if (n != 1) {
         fail(E_NAME, tpos(t));
     }
+}
+
+; ---------------------------------------------------------------- types
+
+; The type token an expression has, as far as the core follows it: a name's
+; declared type, a call's return type, a field's, an array element's, a
+; literal's struct, a cast's target; 0 where it does not follow it.
+fn ety(e: i64) -> i64 {
+    var k: i64 = nkind(e);
+    if (k == N_IDENT) {
+        var t: i64 = name_type(ntok(e));
+        if (t > 0) {
+            return t;
+        }
+        return 0;
+    }
+    if (k == N_CALL) {
+        return naux(fn_named(ntok(e)));
+    }
+    if (k == N_STRUCT or k == N_CAST) {
+        return ntok(e);
+    }
+    if (k == N_FIELD and naux(e) == 0) {
+        var st: i64 = struct_named(ety(na(e)));
+        if (st == 0) {
+            return 0;
+        }
+        return naux(field_of(st, ntok(e)));
+    }
+    if (k == N_INDEX) {
+        var b: i64 = e;
+        var depth: i64 = 0;
+        while (nkind(b) == N_INDEX) {
+            b = na(b);
+            depth = depth + 1;
+        }
+        var a: i64 = array_decl(ntok(b));
+        if (a != 0 and depth == arr_rank(a)) {
+            return naux(a);
+        }
+    }
+    return 0;
+}
+
+; The array declaration name t stands for: a local array in scope, else a
+; module one; 0 for none.
+fn array_decl(t: i64) -> i64 {
+    var i: i64 = scope_len - 1;
+    while (i >= 0) {
+        if (tok_eq(ntok(scope_arr[i as usize]), t)) {
+            return scope_arr[i as usize];
+        }
+        i = i - 1;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_ARRAY and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; Type token t is a string, or a struct holding one at any depth.
+fn holds_str(t: i64) -> bool {
+    if (t <= 0) {
+        return false;
+    }
+    if (is_str_type(t)) {
+        return true;
+    }
+    var st: i64 = struct_named(t);
+    if (st == 0) {
+        return false;
+    }
+    var f: i64 = na(st);
+    while (f != 0) {
+        if (holds_str(naux(f))) {
+            return true;
+        }
+        f = nnext(f);
+    }
+    return false;
+}
+
+; An array's list: a string array's items are string places.
+fn check_items(l: i64, strs: bool) -> void {
+    check_items_of(l, strs, 0);
+}
+
+; An array's list, items held to element type token ety.
+fn check_items_of(l: i64, strs: bool, ety: i64) -> void {
+    if (l == 0) {
+        return;
+    }
+    var it: i64 = na(l);
+    while (!failed and it != 0) {
+        if (nkind(it) == N_LIST) {
+            check_items_of(it, strs, ety);
+        } else if (strs) {
+            check_str_expr(it);
+        } else {
+            check_expr(it);
+            coerce(tc_of(ety), it);
+        }
+        it = nnext(it);
+    }
+}
+
+; ---------------------------------------------------------------- typecheck
+
+; t27c's typecheck (compiler.rs `typecheck_ast`), which gen-c runs first
+; (#6446): what it refuses, gen-c does not compile, and neither does this
+; core. Its scope, its inference and its compatibility rule are mirrored
+; here as they are, quirks included; where they are wrong, an issue names
+; the defect (#8034).
+
+; t27c's TypeInfo for type token t (`resolve_type_str`): `usize` and
+; `string` are not in its table, so they are `Custom`, of rank 0.
+fn tc_of(t: i64) -> i64 {
+    if (t <= 0) {
+        return 0;
+    }
+    if (tok_is(t, W_BOOL, 0, 4)) {
+        return TC_BOOL;
+    }
+    if (tok_is(t, W_I8, 0, 2)) {
+        return TC_I8;
+    }
+    if (tok_is(t, W_I16, 0, 3)) {
+        return TC_I16;
+    }
+    if (tok_is(t, W_I32, 0, 3)) {
+        return TC_I32;
+    }
+    if (tok_is(t, W_I64, 0, 3)) {
+        return TC_I64;
+    }
+    if (tok_is(t, W_U8, 0, 2)) {
+        return TC_U8;
+    }
+    if (tok_is(t, W_U16, 0, 3)) {
+        return TC_U16;
+    }
+    if (tok_is(t, W_U32, 0, 3)) {
+        return TC_U32;
+    }
+    if (tok_is(t, W_U64, 0, 3)) {
+        return TC_U64;
+    }
+    if (tok_is(t, 0x727473, 0, 3)) {
+        return TC_STR;
+    }
+    return TC_CUSTOM + t;
+}
+
+fn tc_eq(a: i64, b: i64) -> bool {
+    if (a == b) {
+        return true;
+    }
+    return a >= TC_CUSTOM and b >= TC_CUSTOM and tok_eq(a - TC_CUSTOM, b - TC_CUSTOM);
+}
+
+; `type_rank`: bool and every Custom are 0.
+fn tc_rank(a: i64) -> i64 {
+    if (a == TC_I8 or a == TC_U8) {
+        return 1;
+    }
+    if (a == TC_I16 or a == TC_U16) {
+        return 2;
+    }
+    if (a == TC_I32 or a == TC_U32) {
+        return 3;
+    }
+    if (a == TC_I64 or a == TC_U64) {
+        return 4;
+    }
+    return 0;
+}
+
+fn tc_int(a: i64) -> bool {
+    return a >= TC_I8 and a <= TC_U64;
+}
+
+fn tc_signed(a: i64) -> bool {
+    return a >= TC_I8 and a <= TC_I64;
+}
+
+; `types_compatible(target, value)`.
+fn tc_compat(t: i64, v: i64) -> bool {
+    if (t == 0 or v == 0 or tc_eq(t, v)) {
+        return true;
+    }
+    if (tc_int(t) and tc_int(v) and tc_rank(t) == tc_rank(v) and tc_signed(t) != tc_signed(v)) {
+        return false;
+    }
+    return tc_rank(t) >= tc_rank(v);
+}
+
+; `promote_types`.
+fn tc_promote(a: i64, b: i64) -> i64 {
+    if (tc_eq(a, b) or b == 0) {
+        return a;
+    }
+    if (a == 0) {
+        return b;
+    }
+    if (tc_rank(a) >= tc_rank(b)) {
+        return a;
+    }
+    return b;
+}
+
+fn push_sym(t: i64, ty: i64, ct: i64) -> void {
+    if (sym_len >= SCOPE_MAX) {
+        fail(E_LIMIT, tpos(t));
+        return;
+    }
+    syms[sym_len as usize] = Sym{ .tok = t, .ty = ty, .ct = ct };
+    sym_len = sym_len + 1;
+}
+
+; The last function named t, as typecheck's `fns.iter().rev()` finds it.
+fn fn_last(t: i64) -> i64 {
+    var r: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_FN and tok_eq(ntok(d), t)) {
+            r = d;
+        }
+        d = nnext(d);
+    }
+    return r;
+}
+
+; The TypeInfo typecheck's scope gives name t: its locals, latest first (a
+; `for` capture is not one), then the parameters, then the module's consts,
+; vars, arrays, structs and enums, the last of a name winning.
+fn tc_name(t: i64) -> i64 {
+    var i: i64 = sym_len - 1;
+    var r: i64 = 0;
+    while (i >= 0) {
+        if (tok_eq(syms[i as usize].tok, t)) {
+            return syms[i as usize].ty;
+        }
+        i = i - 1;
+    }
+    if (nkind(cur_decl) == D_FN) {
+        var prm: i64 = na(cur_decl);
+        var found: bool = false;
+        while (prm != 0) {
+            if (tok_eq(ntok(prm), t)) {
+                r = tc_of(naux(prm));
+                found = true;
+            }
+            prm = nnext(prm);
+        }
+        if (found) {
+            return r;
+        }
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if (tok_eq(ntok(d), t)) {
+            if (k == D_CONST or k == D_VAR) {
+                r = tc_of(naux(d));
+            }
+            if (k == D_ARRAY) {
+                r = TC_ARRAY;
+            }
+            if (k == D_STRUCT or k == D_ENUM) {
+                r = TC_CUSTOM + ntok(d);
+            }
+        }
+        d = nnext(d);
+    }
+    return r;
+}
+
+; `infer_expr`: a literal is Unknown unless `true`, `false` or a string; a
+; comparison, `and` and `or` are Bool; a shift is its left side; any other
+; operator promotes; a field, an element, a cast, a switch are Unknown.
+fn tc_expr(e: i64) -> i64 {
+    var k: i64 = nkind(e);
+    if (k == N_TRUE or k == N_FALSE) {
+        return TC_BOOL;
+    }
+    if (k == N_STR) {
+        return TC_STR;
+    }
+    if (k == N_IDENT) {
+        return tc_name(ntok(e));
+    }
+    if (k == N_CALL) {
+        return tc_of(naux(fn_last(ntok(e))));
+    }
+    if (k == N_UN) {
+        return tc_expr(na(e));
+    }
+    if (k != N_BIN) {
+        return 0;
+    }
+    var op: i64 = kind(ntok(e));
+    var l: i64 = tc_expr(na(e));
+    var r: i64 = tc_expr(nb(e));
+    if (op == T_EQEQ or op == T_NE or op == '<' or op == '>' or op == T_LE or op == T_GE) {
+        return TC_BOOL;
+    }
+    if (op == T_AND or op == T_OR) {
+        return TC_BOOL;
+    }
+    if (op == '+' and (l == TC_STR or r == TC_STR)) {
+        return TC_STR;
+    }
+    if (op == T_SHL or op == T_SHR) {
+        return l;
+    }
+    return tc_promote(l, r);
+}
+
+; typecheck refuses an assignment to a name, in a function, whose value its
+; rule finds incompatible: `x = v` with x u8 and v i64, or x usize and v u8.
+fn check_assign_type(s: i64) -> void {
+    var lhs: i64 = na(s);
+    if (failed or nkind(lhs) != N_IDENT) {
+        return;
+    }
+    // A module const is a `#define` or a `static const` in C, and a
+    // constant in Zig: neither takes an assignment (#8075).
+    if (const_bound(ntok(lhs))) {
+        fail(E_UNSOUND, tpos(ntok(lhs)));
+        return;
+    }
+    if (nkind(cur_decl) == D_FN and !tc_compat(tc_name(ntok(lhs)), tc_expr(nb(s)))) {
+        fail(E_CHECK, tpos(ntok(lhs)));
+        return;
+    }
+    coerce(tc_name(ntok(lhs)), nb(s));
+}
+
+; ---------------------------------------------------------------- coercion
+
+; What typecheck lets through and the Zig route refuses, while gen-c's C
+; converts it without a word (#8075): Zig's coercion where a value meets a
+; declared type, a bool where a condition stands, operands Zig cannot
+; resolve to one type. Read on typecheck's own TypeInfo, so a value it
+; cannot type (a literal, a cast, a field) is left alone. All E_UNSOUND.
+
+fn is_usize_tc(a: i64) -> bool {
+    return a >= TC_CUSTOM and tok_is(a - TC_CUSTOM, W_USIZE, 0, 5);
+}
+
+; A string type: E_STRING decides where a string may stand.
+fn is_strish_tc(a: i64) -> bool {
+    return a == TC_STR or (a >= TC_CUSTOM and tok_is(a - TC_CUSTOM, 0x676e69727473, 0, 6));
+}
+
+fn z_int(a: i64) -> bool {
+    return tc_int(a) or is_usize_tc(a);
+}
+
+fn z_unsigned(a: i64) -> bool {
+    return (a >= TC_U8 and a <= TC_U64) or is_usize_tc(a);
+}
+
+fn z_bits(a: i64) -> i64 {
+    if (is_usize_tc(a)) {
+        return 64;
+    }
+    return 8 << (tc_rank(a) - 1);
+}
+
+; Zig coerces v to t: the same type, or an integer every value of which t
+; holds (usize is 64 bits); never bool to an integer, never a struct or an
+; enum to anything else.
+fn z_coerce(t: i64, v: i64) -> bool {
+    if (t == 0 or v == 0 or tc_eq(t, v) or is_strish_tc(t) or is_strish_tc(v)) {
+        return true;
+    }
+    if (z_int(t) and z_int(v)) {
+        if (z_unsigned(v) and z_unsigned(t)) {
+            return z_bits(t) >= z_bits(v);
+        }
+        if (z_unsigned(v)) {
+            return z_bits(t) > z_bits(v);
+        }
+        return !z_unsigned(t) and z_bits(t) >= z_bits(v);
+    }
+    return false;
+}
+
+; Whether name t, where it is read, is a module const.
+fn const_bound(t: i64) -> bool {
+    var i: i64 = sym_len - 1;
+    while (i >= 0) {
+        if (tok_eq(syms[i as usize].tok, t)) {
+            return false;
+        }
+        i = i - 1;
+    }
+    if (nkind(cur_decl) == D_FN) {
+        var prm: i64 = na(cur_decl);
+        while (prm != 0) {
+            if (tok_eq(ntok(prm), t)) {
+                return false;
+            }
+            prm = nnext(prm);
+        }
+    }
+    var r: bool = false;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            r = nkind(d) == D_CONST;
+        }
+        d = nnext(d);
+    }
+    return r;
+}
+
+; Whether name t is an integer Zig knows at compile time: a module const,
+; or a local const whose value it knows, not hidden by a runtime name.
+fn ct_name(t: i64) -> bool {
+    var i: i64 = sym_len - 1;
+    while (i >= 0) {
+        if (tok_eq(syms[i as usize].tok, t)) {
+            return (syms[i as usize].ct == 1 or syms[i as usize].ct == 3) and z_int(syms[i as usize].ty);
+        }
+        i = i - 1;
+    }
+    if (nkind(cur_decl) == D_FN) {
+        var prm: i64 = na(cur_decl);
+        while (prm != 0) {
+            if (tok_eq(ntok(prm), t)) {
+                return false;
+            }
+            prm = nnext(prm);
+        }
+    }
+    var r: bool = false;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            r = nkind(d) == D_CONST and z_int(tc_of(naux(d)));
+        }
+        d = nnext(d);
+    }
+    return r;
+}
+
+; An integer value Zig knows at compile time: a number, a char, a comptime
+; name, and operators and casts over them. Zig coerces one by its value, not
+; its type, so the rules below leave it alone.
+fn tz_ct(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM or k == N_CHAR or k == N_NEGLIT) {
+        return true;
+    }
+    if (k == N_IDENT) {
+        return ct_name(ntok(e));
+    }
+    if (k == N_CAST or (k == N_UN and kind(ntok(e)) != '!')) {
+        return tz_ct(na(e));
+    }
+    // A comparison, `and` and `or` are bools, not integers.
+    if (k == N_BIN and op_level(kind(ntok(e))) > 2) {
+        return tz_ct(na(e)) and tz_ct(nb(e));
+    }
+    return false;
+}
+
+; How Zig sees local s (Sym.ct): 3 for a const whose value is one number,
+; which gen-zig inlines as an untyped comptime_int; 1 for another const Zig
+; knows at compile time, typed; else 0.
+fn local_ct(s: i64) -> i64 {
+    if (nd(s) != 1 or !tz_ct(na(s))) {
+        return 0;
+    }
+    if (nkind(na(s)) == N_NUM) {
+        return 3;
+    }
+    return 1;
+}
+
+; An integer with no type yet in Zig (comptime_int): a number, a char, an
+; inlined local const, and operators over them. It takes the type of the
+; operand it meets, where a module const or a cast, known at compile time
+; too, keeps its own.
+fn tz_untyped(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM or k == N_CHAR or k == N_NEGLIT) {
+        return true;
+    }
+    if (k == N_IDENT) {
+        var i: i64 = sym_len - 1;
+        while (i >= 0) {
+            if (tok_eq(syms[i as usize].tok, ntok(e))) {
+                return syms[i as usize].ct == 3;
+            }
+            i = i - 1;
+        }
+        return false;
+    }
+    if (k == N_UN and kind(ntok(e)) != '!') {
+        return tz_untyped(na(e));
+    }
+    if (k == N_BIN and op_level(kind(ntok(e))) > 2) {
+        return tz_untyped(na(e)) and tz_untyped(nb(e));
+    }
+    return false;
+}
+
+; e's type where it meets a comparison: none for a value known at compile
+; time, which C and Zig compare alike unless it is negative (a literal
+; width rule).
+fn tz_cmp(e: i64) -> i64 {
+    if (tz_ct(e)) {
+        return 0;
+    }
+    return tz_expr(e);
+}
+
+; The one enum a `.M` names, as member_owner finds it, else 0, silently.
+fn owner_of(t: i64) -> i64 {
+    var owner: i64 = 0;
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_ENUM and member_of(d, t) != 0) {
+            n = n + 1;
+            owner = d;
+        }
+        d = nnext(d);
+    }
+    if (n != 1) {
+        return 0;
+    }
+    return owner;
+}
+
+; e's type in Zig's eyes, as a TypeInfo: typecheck's inference where it
+; types e, and the cast's, field's, element's, struct's or enum's type where
+; it does not; 0 for an untyped comptime integer or a value not followed.
+fn tz_expr(e: i64) -> i64 {
+    var k: i64 = nkind(e);
+    if (tz_untyped(e)) {
+        return 0;
+    }
+    if (k == N_CAST) {
+        return tc_of(ntok(e));
+    }
+    if (k == N_STRUCT) {
+        return TC_CUSTOM + ntok(e);
+    }
+    if (k == N_EVAL) {
+        var ow: i64 = owner_of(ntok(e));
+        if (ow == 0) {
+            return 0;
+        }
+        return TC_CUSTOM + ntok(ow);
+    }
+    if (k == N_FIELD and naux(e) != 2 and nkind(na(e)) == N_IDENT and enum_named(ntok(na(e))) != 0) {
+        return TC_CUSTOM + ntok(enum_named(ntok(na(e))));
+    }
+    if (k == N_FIELD or k == N_INDEX) {
+        return tc_of(ety(e));
+    }
+    if (k == N_UN) {
+        return tz_expr(na(e));
+    }
+    if (k != N_BIN) {
+        return tc_expr(e);
+    }
+    var op: i64 = kind(ntok(e));
+    if (op == T_EQEQ or op == T_NE or op == '<' or op == '>' or op == T_LE or op == T_GE) {
+        return TC_BOOL;
+    }
+    if (op == T_AND or op == T_OR) {
+        return TC_BOOL;
+    }
+    if (op == T_SHL or op == T_SHR) {
+        return tz_expr(na(e));
+    }
+    return tz_promote(tz_expr(na(e)), tz_expr(nb(e)));
+}
+
+; Zig's peer type of two operands check_bin_types lets meet: typecheck's
+; promotion, except that usize, a rank-0 name there, holds every unsigned
+; integer up to 64 bits.
+fn tz_promote(a: i64, b: i64) -> i64 {
+    if (is_usize_tc(a) and z_int(b)) {
+        return a;
+    }
+    if (is_usize_tc(b) and z_int(a)) {
+        return b;
+    }
+    return tc_promote(a, b);
+}
+
+; A comptime integer where a bool, a struct or an enum is declared: Zig
+; coerces an integer only to an integer.
+fn ct_misfit(t: i64, e: i64) -> bool {
+    if (t == 0 or z_int(t) or is_strish_tc(t)) {
+        return false;
+    }
+    return tz_ct(e);
+}
+
+; A value e meets declared TypeInfo t (an initializer, an assignment, a
+; return, an argument, a field, an item).
+; One Zig knows at compile time coerces by its value, as a whole.
+fn coerce(t: i64, e: i64) -> void {
+    if (failed) {
+        return;
+    }
+    if (tz_ct(e)) {
+        if (ct_misfit(t, e)) {
+            fail(E_UNSOUND, tpos(ntok(e)));
+        }
+        return;
+    }
+    if (!z_coerce(t, tz_expr(e))) {
+        fail(E_UNSOUND, tpos(ntok(e)));
+    }
+}
+
+; A condition, `!`'s operand, `and`/`or`'s and `assert`'s is a bool in Zig.
+fn want_bool(e: i64) -> void {
+    var t: i64 = tz_expr(e);
+    if (!failed and ((t != 0 and t != TC_BOOL) or tz_ct(e))) {
+        fail(E_UNSOUND, tpos(ntok(e)));
+    }
+}
+
+; An index Zig takes: an unsigned integer.
+fn idx_ok(t: i64) -> bool {
+    return t == 0 or z_unsigned(t);
+}
+
+; C converts the signed side of a comparison to unsigned when the unsigned
+; side is an int or wider, where Zig compares the values (#8076).
+fn cmp_diverges(l: i64, r: i64) -> bool {
+    if (z_int(l) and z_int(r) and z_unsigned(l) != z_unsigned(r)) {
+        if (z_unsigned(l)) {
+            return z_bits(l) >= 32 and z_bits(l) >= z_bits(r);
+        }
+        return z_bits(r) >= 32 and z_bits(r) >= z_bits(l);
+    }
+    return false;
+}
+
+; `==` and `!=`, and assert_eq's two values: bools with bools, the same
+; struct or enum, integers C compares as Zig does; a comptime integer with
+; an integer only.
+fn check_eq_types(a: i64, b: i64, at_tok: i64) -> void {
+    var l: i64 = tz_cmp(a);
+    var r: i64 = tz_cmp(b);
+    if (failed) {
+        return;
+    }
+    if (ct_misfit(r, a) or ct_misfit(l, b)) {
+        fail(E_UNSOUND, tpos(at_tok));
+        return;
+    }
+    if (l == 0 or r == 0 or tc_eq(l, r) or is_strish_tc(l) or is_strish_tc(r)) {
+        return;
+    }
+    if (z_int(l) and z_int(r) and !cmp_diverges(l, r)) {
+        return;
+    }
+    fail(E_UNSOUND, tpos(at_tok));
+}
+
+fn check_bin_types(e: i64) -> void {
+    var op: i64 = kind(ntok(e));
+    var l: i64 = tz_expr(na(e));
+    var r: i64 = tz_expr(nb(e));
+    if (failed) {
+        return;
+    }
+    if (op == T_AND or op == T_OR) {
+        want_bool(na(e));
+        want_bool(nb(e));
+        return;
+    }
+    if (op == T_EQEQ or op == T_NE) {
+        check_eq_types(na(e), nb(e), ntok(e));
+        return;
+    }
+    if (l == TC_BOOL or r == TC_BOOL) {
+        fail(E_UNSOUND, tpos(ntok(e)));
+        return;
+    }
+    if (op == T_SHL or op == T_SHR or l == 0 or r == 0 or is_strish_tc(l) or is_strish_tc(r)) {
+        return;
+    }
+    if (op == '<' or op == '>' or op == T_LE or op == T_GE) {
+        l = tz_cmp(na(e));
+        r = tz_cmp(nb(e));
+        if (l == 0 or r == 0 or (z_int(l) and z_int(r) and !cmp_diverges(l, r))) {
+            return;
+        }
+        fail(E_UNSOUND, tpos(ntok(e)));
+        return;
+    }
+    if (z_int(l) and z_int(r) and (z_coerce(l, r) or z_coerce(r, l))) {
+        return;
+    }
+    fail(E_UNSOUND, tpos(ntok(e)));
+}
+
+; `!` takes a bool, `-` a signed integer, `~` an integer or a bool.
+fn check_un_type(e: i64) -> void {
+    var op: i64 = kind(ntok(e));
+    var t: i64 = tz_expr(na(e));
+    if (failed or t == 0) {
+        return;
+    }
+    if (op == '!') {
+        want_bool(na(e));
+        return;
+    }
+    if (op == '-' and (z_unsigned(t) or z_int(t) == false)) {
+        fail(E_UNSOUND, tpos(ntok(e)));
+        return;
+    }
+    if (op == '~' and z_int(t) == false and t != TC_BOOL) {
+        fail(E_UNSOUND, tpos(ntok(e)));
+    }
+}
+
+; A literal nested in another, in a module initializer: gen-c writes a
+; compound literal inside one, which cc refuses in a static initializer
+; (#8036). `inside` is set below a literal.
+fn static_nest(e: i64, inside: bool) -> bool {
+    var k: i64 = nkind(e);
+    if (e == 0) {
+        return false;
+    }
+    if (k == N_STRUCT) {
+        if (inside) {
+            return true;
+        }
+        var it: i64 = na(e);
+        while (it != 0) {
+            if (static_nest(na(it), true)) {
+                return true;
+            }
+            it = nnext(it);
+        }
+        return false;
+    }
+    if (k == N_LIST) {
+        var li: i64 = na(e);
+        while (li != 0) {
+            if (static_nest(li, inside)) {
+                return true;
+            }
+            li = nnext(li);
+        }
+    }
+    return false;
+}
+
+; typecheck's `check_const_widths`: a module const or var whose value is a
+; decimal literal holds it in its integer type (a hex or binary one is not
+; read).
+fn const_fits(d: i64) -> bool {
+    var v: i64 = na(d);
+    var ty: i64 = naux(d);
+    if (nkind(v) != N_NUM) {
+        return true;
+    }
+    var t: i64 = ntok(v);
+    var i: i64 = toks[t as usize].pos;
+    var e: i64 = i + toks[t as usize].len;
+    var c1: i64 = at(i + 1);
+    if (toks[t as usize].len > 1 and (c1 == 'x' or c1 == 'X' or c1 == 'b' or c1 == 'B')) {
+        return true;
+    }
+    var n: u64 = 0;
+    while (i < e) {
+        var c: i64 = at(i);
+        if (c != '_') {
+            var dg: u64 = (c - '0') as u64;
+            if (n > 1844674407370955161 or (n == 1844674407370955161 and dg > 5)) {
+                return false;
+            }
+            n = n * 10 + dg;
+        }
+        i = i + 1;
+    }
+    if (tok_is(ty, W_U8, 0, 2)) {
+        return n < 256;
+    }
+    if (tok_is(ty, W_U16, 0, 3)) {
+        return n < 65536;
+    }
+    if (tok_is(ty, W_U32, 0, 3)) {
+        return n < 4294967296;
+    }
+    if (tok_is(ty, W_I8, 0, 2)) {
+        return n < 128;
+    }
+    if (tok_is(ty, W_I16, 0, 3)) {
+        return n < 32768;
+    }
+    if (tok_is(ty, W_I32, 0, 3)) {
+        return n < 2147483648;
+    }
+    if (tok_is(ty, W_I64, 0, 3)) {
+        return n <= 9223372036854775807;
+    }
+    return true;
 }
 
 ; gen-c's `is_c_constant_expr` on its own rendering of a check: no call,
@@ -3333,6 +4254,7 @@ fn check() -> void {
         var k: i64 = nkind(d);
         var t: i64 = ntok(d);
         cur_decl = d;
+        sym_len = 0;
         if (k == D_FN) {
             if (!type_ok(naux(d))) {
                 fail(E_TYPE, tpos(naux(d)));
@@ -3345,7 +4267,7 @@ fn check() -> void {
                     return;
                 }
                 check_binding(ntok(prm));
-                if (is_str_type(naux(prm))) {
+                if (holds_str(naux(prm))) {
                     check_str_name(ntok(prm));
                 }
                 prm = nnext(prm);
@@ -3372,19 +4294,39 @@ fn check() -> void {
                 fail(E_TYPE, tpos(naux(d)));
                 return;
             }
-            if (is_str_type(naux(d))) {
+            // typecheck reads a decimal without `_` only (#8035).
+            if (!const_fits(d) and has_sep(ntok(na(d)))) {
+                fail(E_UNSOUND, tpos(t));
+                return;
+            }
+            if (!const_fits(d)) {
+                fail(E_CHECK, tpos(t));
+                return;
+            }
+            if (static_nest(na(d), false)) {
+                fail(E_STRUCT, tpos(t));
+                return;
+            }
+            if (holds_str(naux(d))) {
                 check_str_name(t);
+            }
+            if (is_str_type(naux(d))) {
                 check_str_expr(na(d));
             } else {
                 check_expr(na(d));
             }
+            coerce(tc_of(naux(d)), na(d));
         } else if (k == D_ARRAY) {
             if (!repeat_ok(d)) {
                 fail(E_ARRAY, tpos(nb(d)));
                 return;
             }
             check_elem(d);
-            check_expr(nc(d));
+            check_items_of(nc(d), is_str_type(naux(d)), naux(d));
+            if (!failed and static_nest(nc(d), false)) {
+                fail(E_STRUCT, tpos(t));
+                return;
+            }
         }
         d = nnext(d);
     }
@@ -5916,6 +6858,306 @@ test trigraph_is_refused {
     assert(err_code == E_STRING);
 }
 
+; "module m;fn g(v: i64) -> u8 {var x: u8 = 0;x = v;return x;}": gen-c refuses
+; it after typecheck: an i64 into a u8.
+test assignment_typecheck_refuses_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a762867206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x7261767b20387520, 8, n3);
+    var n5: i64 = feed(0x3d203875203a7820, 8, n4);
+    var n6: i64 = feed(0x76203d20783b3020, 8, n5);
+    var n7: i64 = feed(0x206e72757465723b, 8, n6);
+    var n8: i64 = feed(0x7d3b78, 3, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_CHECK);
+}
+
+; "module m;fn g(v: u8) -> usize {var x: usize = 0;x = v;return x;}": typecheck
+; reads usize as a rank-0 Custom (#8034).
+test usize_from_u8_is_refused_as_typecheck_does {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a762867206e663b, 8, n1);
+    var n3: i64 = feed(0x203e2d2029387520, 8, n2);
+    var n4: i64 = feed(0x767b20657a697375, 8, n3);
+    var n5: i64 = feed(0x7375203a78207261, 8, n4);
+    var n6: i64 = feed(0x3b30203d20657a69, 8, n5);
+    var n7: i64 = feed(0x65723b76203d2078, 8, n6);
+    var n8: i64 = feed(0x7d3b78206e727574, 8, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_CHECK);
+}
+
+; "module m;const A: u8 = 256;": `check_const_widths`.
+test const_wider_than_its_type_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x32203d203875203a, 8, n2);
+    var n4: i64 = feed(0x3b3635, 3, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_CHECK);
+}
+
+; "module m;const A: u8 = 1_000;": typecheck skips a literal with `_` (#8035).
+test separated_const_too_wide_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x31203d203875203a, 8, n2);
+    var n4: i64 = feed(0x3b3030305f, 5, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn f(a: i64) -> i64 {return a;}fn g() -> i64 {if (f(1, 2) > 0)
+; {return 1;}return 0;}": typecheck does not look at a condition (#8033).
+test arity_mismatch_in_a_condition_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x65727b2034366920, 8, n3);
+    var n5: i64 = feed(0x7d3b61206e727574, 8, n4);
+    var n6: i64 = feed(0x2d20292867206e66, 8, n5);
+    var n7: i64 = feed(0x697b20343669203e, 8, n6);
+    var n8: i64 = feed(0x202c312866282066, 8, n7);
+    var n9: i64 = feed(0x202930203e202932, 8, n8);
+    var n10: i64 = feed(0x206e72757465727b, 8, n9);
+    var n11: i64 = feed(0x72757465727d3b31, 8, n10);
+    var n12: i64 = feed(0x7d3b30206e, 5, n11);
+    assert(compile(n12) == -1);
+    assert(err_code == E_CALL);
+}
+
+; "module m;struct U{n: str}fn f(u: U) -> str {return u.n;}": `const char* n;`
+; and `return u.n;`, 917 bytes in all.
+test string_field_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x727473203a6e7b55, 8, n2);
+    var n4: i64 = feed(0x3a752866206e667d, 8, n3);
+    var n5: i64 = feed(0x73203e2d20295520, 8, n4);
+    var n6: i64 = feed(0x757465727b207274, 8, n5);
+    var n7: i64 = feed(0x7d3b6e2e75206e72, 8, n6);
+    assert(compile(n7) == 917);
+    assert(out_at(524) == 'c');
+    assert(out_at(536) == 'n');
+    assert(out_at(885) == 'r');
+    assert(out_at(894) == 'n');
+}
+
+; "module m;struct U{n: str}fn f(a: U, b: U) -> bool {return a.n == b.n;}": C
+; compares the addresses (#8013).
+test string_field_compared_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x727473203a6e7b55, 8, n2);
+    var n4: i64 = feed(0x3a612866206e667d, 8, n3);
+    var n5: i64 = feed(0x55203a62202c5520, 8, n4);
+    var n6: i64 = feed(0x6f6f62203e2d2029, 8, n5);
+    var n7: i64 = feed(0x72757465727b206c, 8, n6);
+    var n8: i64 = feed(0x3d3d206e2e61206e, 8, n7);
+    var n9: i64 = feed(0x7d3b6e2e6220, 6, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;struct I{v: i64}struct O{i: I}var o: O = O{.i = I{.v = 1}};": cc
+; refuses the nested compound literal (#8036).
+test nested_literal_in_a_module_var_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x343669203a767b49, 8, n2);
+    var n4: i64 = feed(0x207463757274737d, 8, n3);
+    var n5: i64 = feed(0x767d49203a697b4f, 8, n4);
+    var n6: i64 = feed(0x204f203a6f207261, 8, n5);
+    var n7: i64 = feed(0x3d20692e7b4f203d, 8, n6);
+    var n8: i64 = feed(0x203d20762e7b4920, 8, n7);
+    var n9: i64 = feed(0x3b7d7d31, 4, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;fn g(v: u8) -> i64 {var x: i64 = 0;x = v;return x;}": typecheck
+; takes a u8 into an i64; 760 bytes.
+test widening_assignment_typechecks {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a762867206e663b, 8, n1);
+    var n3: i64 = feed(0x203e2d2029387520, 8, n2);
+    var n4: i64 = feed(0x7261767b20343669, 8, n3);
+    var n5: i64 = feed(0x20343669203a7820, 8, n4);
+    var n6: i64 = feed(0x203d20783b30203d, 8, n5);
+    var n7: i64 = feed(0x6e72757465723b76, 8, n6);
+    var n8: i64 = feed(0x7d3b7820, 4, n7);
+    assert(compile(n8) == 760);
+    assert(out_at(719) == 'x');
+    assert(out_at(723) == 'v');
+}
+
+; "module m;fn g(a: i64) -> u8 {var b: u8 = a;return b;}": typecheck only
+; warns; Zig refuses an i64 into a u8 (#8075).
+test narrowing_initializer_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612867206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202934366920, 8, n2);
+    var n4: i64 = feed(0x7261767b20387520, 8, n3);
+    var n5: i64 = feed(0x3d203875203a6220, 8, n4);
+    var n6: i64 = feed(0x72757465723b6120, 8, n5);
+    var n7: i64 = feed(0x7d3b62206e, 5, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn g() -> u8 {const L: i64 = 3;var b: u8 = L;return b;}": Zig
+; coerces a local const it knows at compile time by its value (#8079: t27b
+; does not yet); 758 bytes.
+test comptime_local_const_coerces_by_value {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292867206e663b, 8, n1);
+    var n3: i64 = feed(0x637b203875203e2d, 8, n2);
+    var n4: i64 = feed(0x203a4c2074736e6f, 8, n3);
+    var n5: i64 = feed(0x3b33203d20343669, 8, n4);
+    var n6: i64 = feed(0x75203a6220726176, 8, n5);
+    var n7: i64 = feed(0x65723b4c203d2038, 8, n6);
+    var n8: i64 = feed(0x7d3b62206e727574, 8, n7);
+    assert(compile(n8) == 758);
+    assert(out_at(698) == 'L');
+    assert(out_at(717) == 'b');
+    assert(out_at(721) == 'L');
+    assert(out_at(735) == 'b');
+}
+
+; "module m;fn g(n: u8) -> u8 {if (n) {return 1;}return 0;}": a condition is
+; a bool in Zig (#8075).
+test integer_condition_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a6e2867206e663b, 8, n1);
+    var n3: i64 = feed(0x203e2d2029387520, 8, n2);
+    var n4: i64 = feed(0x282066697b203875, 8, n3);
+    var n5: i64 = feed(0x757465727b20296e, 8, n4);
+    var n6: i64 = feed(0x65727d3b31206e72, 8, n5);
+    var n7: i64 = feed(0x7d3b30206e727574, 8, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn g() -> bool {var f: bool = 1;return f;}": a comptime integer
+; is never a bool (#8075).
+test integer_literal_into_bool_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292867206e663b, 8, n1);
+    var n3: i64 = feed(0x206c6f6f62203e2d, 8, n2);
+    var n4: i64 = feed(0x203a66207261767b, 8, n3);
+    var n5: i64 = feed(0x31203d206c6f6f62, 8, n4);
+    var n6: i64 = feed(0x206e72757465723b, 8, n5);
+    var n7: i64 = feed(0x7d3b66, 3, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn g(a: u64, b: i64) -> u64 {return a + b;}": Zig has no type
+; for the sum (#8075).
+test mixed_sign_arithmetic_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612867206e663b, 8, n1);
+    var n3: i64 = feed(0x3a62202c34367520, 8, n2);
+    var n4: i64 = feed(0x3e2d202934366920, 8, n3);
+    var n5: i64 = feed(0x65727b2034367520, 8, n4);
+    var n6: i64 = feed(0x2b2061206e727574, 8, n5);
+    var n7: i64 = feed(0x7d3b6220, 4, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn g(a: i32, b: u32) -> bool {return a < b;}": C converts a to
+; unsigned, Zig compares the values (#8076).
+test signed_against_u32_compare_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612867206e663b, 8, n1);
+    var n3: i64 = feed(0x3a62202c32336920, 8, n2);
+    var n4: i64 = feed(0x3e2d202932337520, 8, n3);
+    var n5: i64 = feed(0x727b206c6f6f6220, 8, n4);
+    var n6: i64 = feed(0x2061206e72757465, 8, n5);
+    var n7: i64 = feed(0x7d3b62203c, 5, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn g(a: i8, b: u8) -> bool {return a < b;}": C promotes both to
+; int and compares the values, as Zig does; 750 bytes.
+test signed_against_u8_compare_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612867206e663b, 8, n1);
+    var n3: i64 = feed(0x203a62202c386920, 8, n2);
+    var n4: i64 = feed(0x62203e2d20293875, 8, n3);
+    var n5: i64 = feed(0x7465727b206c6f6f, 8, n4);
+    var n6: i64 = feed(0x203c2061206e7275, 8, n5);
+    var n7: i64 = feed(0x7d3b62, 3, n6);
+    assert(compile(n7) == 750);
+    assert(out_at(722) == 'a');
+    assert(out_at(724) == '<');
+    assert(out_at(726) == 'b');
+}
+
+; "module m;const L: u8 = 3;fn g() -> u8 {L = 4;return L;}": typecheck only
+; warns about an assignment to a module const (#8075).
+test assignment_to_module_const_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x4c2074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x33203d203875203a, 8, n2);
+    var n4: i64 = feed(0x20292867206e663b, 8, n3);
+    var n5: i64 = feed(0x4c7b203875203e2d, 8, n4);
+    var n6: i64 = feed(0x7465723b34203d20, 8, n5);
+    var n7: i64 = feed(0x7d3b4c206e7275, 7, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;var t: [2]u8 = [_]u8{1, 2};fn g(i: i32) -> u8 {return t[i];}":
+; an index is unsigned in Zig (#8075).
+test signed_index_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a74207261763b, 8, n1);
+    var n3: i64 = feed(0x203d2038755d325b, 8, n2);
+    var n4: i64 = feed(0x2c317b38755d5f5b, 8, n3);
+    var n5: i64 = feed(0x67206e663b7d3220, 8, n4);
+    var n6: i64 = feed(0x29323369203a6928, 8, n5);
+    var n7: i64 = feed(0x7b203875203e2d20, 8, n6);
+    var n8: i64 = feed(0x74206e7275746572, 8, n7);
+    var n9: i64 = feed(0x7d3b5d695b, 5, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_UNSOUND);
+}
+; "module m;const G: i64 = 5;fn f(x: i16) -> i16 {return G & x;}": a module
+; const keeps its type against a runtime operand, so the result is an i64 in
+; Zig (#8075).
+test typed_module_const_keeps_its_type {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x472074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x782866206e663b35, 8, n3);
+    var n5: i64 = feed(0x2d2029363169203a, 8, n4);
+    var n6: i64 = feed(0x727b20363169203e, 8, n5);
+    var n7: i64 = feed(0x2047206e72757465, 8, n6);
+    var n8: i64 = feed(0x7d3b782026, 5, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
+; "module m;fn f(x: i16) -> i16 {const L: i64 = 5;return L & x;}": gen-zig
+; inlines L as 5, which takes x's type; 755 bytes.
+test inlined_local_const_takes_the_operand_type {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a782866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202936316920, 8, n2);
+    var n4: i64 = feed(0x6f637b2036316920, 8, n3);
+    var n5: i64 = feed(0x69203a4c2074736e, 8, n4);
+    var n6: i64 = feed(0x723b35203d203436, 8, n5);
+    var n7: i64 = feed(0x204c206e72757465, 8, n6);
+    var n8: i64 = feed(0x7d3b782026, 5, n7);
+    assert(compile(n8) == 755);
+    assert(out_at(708) == 'L');
+    assert(out_at(727) == 'L');
+    assert(out_at(731) == 'x');
+}
 test put_int_writes_decimal {
     reset_out();
     put_int(907);

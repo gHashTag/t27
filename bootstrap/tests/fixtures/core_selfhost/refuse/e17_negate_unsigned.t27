@@ -1,0 +1,5 @@
+// Unary minus on an unsigned integer: C wraps it, Zig refuses (#8075).
+module negate_unsigned;
+fn nu_g(a: u32) -> u32 {
+    return -a;
+}

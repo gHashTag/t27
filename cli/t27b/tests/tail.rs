@@ -127,14 +127,14 @@ fn exp_calls_compiler_rt_s_exp_written_in_t27() {
     }
 }
 
-/// #7217: `@log` of an f64 calls libm.t27's log, compiler_rt's table-driven routine, bit for bit; of an f32 it is
-/// refused, libm.t27 holding no logf yet (specs/tri/t27b/libm_plan.t27).
+/// #7217: `@log` of an f64 calls libm.t27's log, compiler_rt's table-driven routine, bit for bit; an f64 `@log2`
+/// is refused, libm.t27 holding no f64 log2 yet (specs/tri/t27b/libm_plan.t27).
 #[test]
 fn log_calls_compiler_rt_s_log_written_in_t27() {
     let src = "module a;\n\nfn l(x: f64) -> f64 {\n    return @log(x);\n}\n\ntest t {\n    assert(l(2.0) == 0.6931471805599453);\n    assert(l(5.0e-324) == -744.4400719213812);\n}\n";
     assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
-    let m = rejected(&src.replace("x: f64) -> f64", "x: f32) -> f32"));
-    assert!(m.starts_with("t27b: unsupported construct ExprCall(@log) at line 4") && m.contains("no f32 routine"), "{}", m);
+    let m = rejected(&src.replace("@log(x)", "@log2(x)"));
+    assert!(m.starts_with("t27b: unsupported construct ExprCall(@log2) at line 4") && m.contains("no f64 routine"), "{}", m);
 }
 
 // ------------------------------------------------ integer constants wider than 64 bits
@@ -284,6 +284,20 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
     }
 }
 
+// ------------------------------------------------ a call returning a float, in `x as T`
+
+/// #7805: since #6941 gen-zig spells a call of a fn declared `-> f64` as a float, so `f() as f32` is
+/// `@floatCast` and `f() as i32` is `@intFromFloat` (specs/tri/t27b/float_as_plan.t27; `t27c test-report`
+/// passes the conformance spec 7/7, none vacuous). An element of an f64 array is still printed
+/// `@floatFromInt`, which Zig refuses, and stays refused.
+#[test]
+fn a_call_returning_a_float_is_spelled_a_float() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/float_call_cast.t27"));
+    assert!(r.len() == 7 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let m = rejected("module a;\n\nfn g(xs: [2]f64) -> f32 {\n    return xs[0] as f32;\n}\n\ntest t {\n    assert(g([1.0, 2.0]) == 1.0);\n}\n");
+    assert!(m.contains("construct ExprCast(f32) at line 4"), "{}", m);
+}
+
 // ------------------------------------------------ @floatFromInt of a comptime_int
 
 /// #7803: `c as f32` is `@as(f32, @floatFromInt(c))` in the reference, and Zig rounds a comptime_int c there,
@@ -345,4 +359,14 @@ fn a_signature_zig_never_resolves() {
     assert!(rejected(&src.replace("all: [*]const Issue", "all: [*]const Issue, m: Missing")).contains("type [*]T"));
     let m = common::lower_src(&src.replace("f.write_num", "undeclared_thing")).unwrap_err().join("\n");
     assert!(m.contains("ExprIdentifier(undeclared) at line 23 (`undeclared_thing` in `format_into`"), "{}", m);
+}
+
+// ------------------------------------------------ f32 @log, @log2 and @log10
+
+/// #7822: of an f32 they call libm.t27's ports of compiler_rt `logf`, `log2f` and `log10f`, folded or not
+/// (specs/tri/t27b/conformance/libm_logf.t27 holds them to Zig's bits).
+#[test]
+fn f32_log_family_calls_compiler_rt_s_ports() {
+    let src = "module a;\n\nfn l(x: f32) -> f32 {\n    return @log2(x) + @log10(x) + @log(x);\n}\n\ntest t {\n    assert(l(1.0) == 0.0);\n    assert(@log2(@as(f32, 8.0)) == 3.0);\n    assert(l(0.0) < -3.4e38);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
 }
