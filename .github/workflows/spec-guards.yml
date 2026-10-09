@@ -134,7 +134,7 @@ jobs:
             echo --corpus; git ls-files 'specs/*.t27' 'specs/*.tri'; } | "$d/sel" > "$d/sel.txt"
           if grep -qx RUN_ALL "$d/sel.txt"; then echo "RUN_ALL: a change outside specs/; corpus-ratchet runs the corpus" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
           echo "affected: $(wc -l < "$d/sel.txt") of $(git ls-files 'specs/*.t27' 'specs/*.tri' | wc -l) specs" | tee -a "$GITHUB_STEP_SUMMARY"
-          score() { "$t" test-report "$1" --specs-dir specs | awk '/^  BLOCKED/{b=1} /^  FAIL +[0-9]+$/{f=$2} END{print (b ? 1000000 : f+0)}'; }
+          score() { T27C_TEST_REPORT_EXIT_ZERO=1 "$t" test-report "$1" --specs-dir specs | awk '/^  BLOCKED/{b=1} /^  FAIL +[0-9]+$/{f=$2} END{print (b ? 1000000 : f+0)}'; }
           bad=0
           while IFS= read -r f; do
             case $f in *.t27) ;; *) continue ;; esac

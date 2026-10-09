@@ -197,6 +197,9 @@ fn parse_args() -> Result<Opts, String> {
 }
 
 fn main() -> ExitCode {
+    // #7370: the reference runner (blockers.rs) reads `t27c test-report`'s words and takes any non-zero
+    // exit for a broken tool, so every test-report it spawns keeps the exit of before #7370.
+    std::env::set_var("T27C_TEST_REPORT_EXIT_ZERO", "1");
     let o = match parse_args() {
         Ok(o) => o,
         Err(e) => return usage(&e),

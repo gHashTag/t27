@@ -396,6 +396,7 @@ def reference_one(worker, file, tests=None):
     env["ZIG_GLOBAL_CACHE_DIR"] = str(scratch / "zig-global")
     env["ZIG_LOCAL_CACHE_DIR"] = str(scratch / "zig-local")
     env["TMPDIR"] = str(tmp)
+    env["T27C_TEST_REPORT_EXIT_ZERO"] = "1"  # #7370: the verdict is read from the words below
     for attempt in range(3):
         try:
             out = run_group(
