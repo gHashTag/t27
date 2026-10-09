@@ -1,16 +1,28 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+20d20c9d2",
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/config/schema.t27",
+      "spec_hash": "sha256:94ff9316988cd0e6912e7e39745c34b259b7d740ef462430f3c238b96ba86e6d"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6384d22857492ce04dcae4456355feb022a16a8f191f9d1ac1f767cfdef36e9b",
   "gen_hash_rust": "sha256:10ce7135ca83cb4dce0a4f2696c44a0d0f393f28c76db162eab5cd0ea60e5e78",
   "gen_hash_verilog": "sha256:5c7ee1e3b28d505af0f549832db88528e73d3cddd8cc1040fd1f8b467d6a02d5",
-  "gen_hash_zig": "sha256:f1aad5f3efae95740a853f03e16672922ab9d1ae831d97c1c491bae122e960f1",
+  "gen_hash_zig": "sha256:14fe4e47a65fe7ab045a12a8e08580836adfc5e20178391cecd8598ac7b7dc29",
   "module": "config-load",
   "ring": 12,
-  "sealed_at": "2026-10-08T06:15:17Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a8c4929b3738482119ef5a329921e3ea7e9c1ba98362ea6c918ca4697c1acd05",
   "spec_path": "specs/config/load.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:78:34: error: use of undeclared identifier 'config_schema'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

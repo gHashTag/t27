@@ -1,16 +1,36 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/base/math/cosine_sim.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:08f67ee9444d7fa2dd2631858d3628be3891bcc7178c63c0bf2f1a3eb17a2581",
   "gen_hash_rust": "sha256:2e3d94cf1126fb5d59218cbd18cc9518fb467f9c00e3b8032007b043db8cfe24",
   "gen_hash_verilog": "sha256:b61c003f24955daa6eda2f075c52c3f38a1ae9febcd0aec01a197ee30c6582a0",
-  "gen_hash_zig": "sha256:1d8bcfa598eda9e30f012649710e1fcb25a653397c08c609740baeed8dda68b9",
+  "gen_hash_zig": "sha256:c8ba00ba7cfc21ddb6d8558001ac6f89dcb38b4db30bf3559f873e949a035b32",
   "module": "SemanticSearch",
   "ring": 12,
-  "sealed_at": "2026-10-07T04:11:23Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:75a3230b378cda0ba4843a9bb1c6c8794602a31430633b68ac7f3b053991b7f6",
   "spec_path": "specs/memory/semantic_search.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-semantic_search-2835260/spec.zig:28:12: error: use of undeclared identifier 'Float'"
+    "blocked": "does not compile: spec.zig:27:12: error: use of undeclared identifier 'Float'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

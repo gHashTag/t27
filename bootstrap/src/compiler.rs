@@ -10003,7 +10003,7 @@ impl Codegen {
                                     if self.len_tainted_int_expr(&init) {
                                         self.len_locals.insert(node.name.clone());
                                     }
-                                    self.gen_expr(&node.children[0]);
+                                    let own = self.param_renames.remove(&node.name); self.gen_expr(&node.children[0]); if let Some(r) = own { self.param_renames.insert(node.name.clone(), r); } // #8416: an initializer never reads its own local (`const PI = constants::PI;` is the outer PI)
                                 }
                             }
                         }

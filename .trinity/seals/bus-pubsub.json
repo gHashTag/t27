@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:102f13a39782d4087a4604a4b8cbc0e460d8175925136d085dcdd4d351ae3b96",
   "gen_hash_rust": "sha256:a98b8cea1ba0a1043dcb173ef1a7cf87f19e21b2647c88601df70b6dfee2c71f",
   "gen_hash_verilog": "sha256:6e335f45fb2f1e959a071005d2dc0140ab7c87ce96756cff6b6da20712ff1f7d",
-  "gen_hash_zig": "sha256:1f3b10483efb965119113e09e9fb6254684366bcd535c7a5dbd20d1070fd2758",
+  "gen_hash_zig": "sha256:9ec4bdda91946e06ce08104ab7f731876373007810bfafad2bc32fc57b28b938",
   "module": "bus-pubsub",
   "ring": 12,
-  "sealed_at": "2026-10-08T06:15:16Z",
+  "sealed_at": "2026-10-09T23:18:01Z",
   "spec_hash": "sha256:382751dfba3a4c31595948fd481c50c2e383881399e6f3ce87516c03d33324e9",
   "spec_path": "specs/bus/pubsub.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:102:60: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:266:21: error: use of undeclared identifier 'bus'"
   }
 }

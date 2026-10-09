@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:a2af0ee8bbdd793211282a91050c62f2863ed6faae017f812c87b9b1e51117c4",
   "gen_hash_rust": "sha256:687d48006fa4d64284ece13b57ffebf8cd2ee931823afc0dbd1d4047c0cc13cb",
   "gen_hash_verilog": "sha256:c677e03a33e94e40d9f96151075a888d0503bb2459abe2d215f33a8fd5de2216",
-  "gen_hash_zig": "sha256:33c84b845bab19f7a1e84f251e09083cf6494c6e7d297707ad61020fb7d6d57c",
+  "gen_hash_zig": "sha256:d250881356cb7bfa0281eb8002085987e154a9611b23cb85f04b50021be71bac",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:54Z",
+  "sealed_at": "2026-10-09T23:18:21Z",
   "spec_hash": "sha256:faea17de48c90b6911a15e298de8f7b0ca956328ca81f36dd561efd4950b4929",
   "spec_path": "specs/tri/encoding/bson.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-bson-1848204/spec.zig:45:28: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:53:18: error: operator != not allowed for type 'spec.BsonDocument'"
   }
 }

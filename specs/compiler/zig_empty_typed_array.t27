@@ -13,17 +13,17 @@
 
 module ZigEmptyTypedArray;
 
-pub const Pair = struct { a: u8, b: u8 };
+pub const EmptyArrayElem = struct { a: u8, b: u8 };
 
-pub fn none() -> []const Pair {
-    return &[_]Pair{};
+pub fn none() -> []const EmptyArrayElem {
+    return &[_]EmptyArrayElem{};
 }
 
-pub fn one() -> []const Pair {
-    return &[_]Pair{ Pair{ .a = 1, .b = 2 } };
+pub fn one() -> []const EmptyArrayElem {
+    return &[_]EmptyArrayElem{ EmptyArrayElem{ .a = 1, .b = 2 } };
 }
 
-pub fn count_a(xs: []const Pair) -> u32 {
+pub fn count_a(xs: []const EmptyArrayElem) -> u32 {
     var n : u32 = 0;
     for (xs) |x| { n = n + x.a; }
     return n;

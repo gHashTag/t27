@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:d8282a4a0c861f10805eccdcc8246b1e818863974bd9bac9d8b1376e5d854705",
   "gen_hash_rust": "sha256:bf6171cb6fb4f74f759403e2c0bd2421b789abcea62604ebf6d3068e3a4ce467",
   "gen_hash_verilog": "sha256:46b8d88edadb36dd7cf91163bf639ffe1a0ab3e120f1dd313a82396682d41453",
-  "gen_hash_zig": "sha256:11b618ed1f4c5a857ca8a2fbd23da8f65d807e43db5dbf4d79156c31f9dfc6e1",
+  "gen_hash_zig": "sha256:87bec7b89e69ad0ce9ee857a1214e6e18cc648e4cb3c8ffca0a293f0706318ab",
   "module": "TriCsv",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-09T23:18:22Z",
   "spec_hash": "sha256:991d0eb4357368abb1d0f18b907f48e5f005f5343cb2785722020216e4306ef7",
-  "spec_path": "specs/tri/encoding/csv.t27"
+  "spec_path": "specs/tri/encoding/csv.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:67:9: error: variable of type '@TypeOf(undefined)' must be const or comptime"
+  }
 }

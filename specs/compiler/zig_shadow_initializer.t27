@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/compiler/zig_shadow_initializer.t27 -- a local that shadows a container declaration reads the OUTER
+; declaration in its own initializer (#8416).
+; --
+; gen-zig renames such a local to `<name>_lv` (W736) and applied the rename inside its own initializer too:
+; `const PI = constants::PI;` lowered to `const PI_lv = PI_lv;`. A local can never read itself before it
+; exists, so its name inside its initializer always means the outer declaration. On 2026-10-10 this kept
+; specs/math/sacred_physics.t27 from compiling, and 26 specs waited behind it in frontier.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ZigShadowInitializer;
+
+pub const K : f64 = 2.0;
+
+pub fn doubled() -> f64 {
+    const K = K * 2.0;
+    return K;
+}
+
+pub fn tripled() -> f64 {
+    const K = K;
+    return K * 3.0;
+}
+
+test a_shadowing_local_reads_the_outer_constant {
+    assert doubled() == 4.0;
+    assert tripled() == 6.0;
+}
+
+test the_outer_constant_is_untouched {
+    // read through a call, so the assert runs at runtime and is not folded away
+    assert doubled() - K == 2.0;
+    assert tripled() / K == 3.0;
+}

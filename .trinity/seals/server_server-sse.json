@@ -1,16 +1,23 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+20d20c9d2",
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0c49934f68efdb3265e792b16cc3ca48d6b0d2a6fd8d3b7fecd72922ad0bd73a",
   "gen_hash_rust": "sha256:5d61e214ec5097eee029e51ccd76e5bab511f52ebb947fd28de8d03083b0f0d2",
   "gen_hash_verilog": "sha256:83fbf6657e841f98023f34c94864b3e23894211f7634e6d342dcce2f9591d473",
-  "gen_hash_zig": "sha256:332be391ed5e9b3ab8c68a53af833bec740fccb539a7f8bc390f6bbfdd4e01ba",
+  "gen_hash_zig": "sha256:66613e42830076918f6e63a17e21cffd88a4c00fe8d8a19c9eebe2e45504b076",
   "module": "server-sse",
   "ring": 12,
-  "sealed_at": "2026-10-08T06:15:20Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4bb549ffa2396eb7446d5070e51e6c90932c9bf53e85696335c5ef5acec4a45b",
   "spec_path": "specs/server/sse.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:28:16: error: expected type expression, found 'invalid token'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

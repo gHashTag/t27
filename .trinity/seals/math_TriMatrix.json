@@ -1,16 +1,32 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:94b60edd328d7a036c73d8d560c96a7b7bf8ebbcf5d81e8ed43e6b7cacaa1f6d",
   "gen_hash_rust": "sha256:4233e73ad353a7f6e437bbf3f7ffffb9dca7261e2f3dc419dee6f37342de3242",
   "gen_hash_verilog": "sha256:c4604e68a8e271e2d7b65e9f482d78712a97ee4e3ff67ff39014de5a6724efad",
-  "gen_hash_zig": "sha256:b90b0273727f73b67d68b22b7f43b7b4ebee988b4b310b85dceaab51700dd9c9",
+  "gen_hash_zig": "sha256:7d4a34f51fbce7f035ae60800929b0eed0ad95f2b58afcf40cbaf8b278531716",
   "module": "TriMatrix",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:29Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:41589d136c0718726a4641215c4ce3c8f5aa8545f536932160c99212702c5ba2",
   "spec_path": "specs/tri/math/matrix.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:49:36: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:28:38: error: expected type '[]f64', found 'error{OutOfMemory}![]f64'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

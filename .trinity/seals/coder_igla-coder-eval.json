@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5568ec67c3d0d16612b0dd54bfc03232effb7cbdec992d75c633bfddcb0c48bd",
   "gen_hash_rust": "sha256:44467a74d91b7e87c8b70d8a08e530205a5d90307cf2db661b49ff0b1fd0bee7",
   "gen_hash_verilog": "sha256:a8b606f5eaf20caaf68306139b4b50009c29fd846c0a488869a52a3c7ec16946",
-  "gen_hash_zig": "sha256:3d5444545405304f63592c5928ccafa5345b27c61702bf058b26483eec266038",
+  "gen_hash_zig": "sha256:5277d9fcb09d289f448fb1f7c8ef9c096ff4c81eabed11fa418133f29c9dd8d6",
   "module": "igla-coder-eval",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:18Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:c79668668fd5c4248c5be928bfb4965bf3ae44158fbfc3c56d89f396d573172d",
   "spec_path": "specs/igla/coder/eval.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-eval-3532194/spec.zig:1977:23: error: expected expression, found ']'"
+    "blocked": "does not compile: spec.zig:2103:30: error: expected ';' after statement"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

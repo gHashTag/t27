@@ -1,16 +1,28 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/lsp/schema.t27",
+      "spec_hash": "sha256:073db3208df4c6b2d953b0e0b5d9cfa8d89825a65da23f06d512ec1e465fb811"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:de265ab80bd2802da383e21fa22a7e775506ca338f9285236e7727df8d83e1bf",
   "gen_hash_rust": "sha256:5d95c7a49f81395529ae4444903ab085640bf7085cff55ddbc2e545a8e8ef4ed",
   "gen_hash_verilog": "sha256:13821cd7a130a9612d04a2b0f4172e04c94ed8a4cee3ca6fd1142730076ba540",
-  "gen_hash_zig": "sha256:ea600ebd7e9079e0baea191ec7c679dd2b3ffb10d2ccaf472defc9a9aa943dc7",
+  "gen_hash_zig": "sha256:309d3ce9f1509259382612113f4675cbac74e648322443eb6771ce3f0dc110cb",
   "module": "lsp-client",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:11:38Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2af7e789086d43e3f424965b392e42bead315d36c3b77c78b7dfe342f4611de2",
   "spec_path": "specs/lsp/client.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-client-2432693/spec.zig:151:209: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:145:339: error: expected type '[]u8', found '*const [8:0]u8'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

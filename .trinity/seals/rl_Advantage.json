@@ -1,12 +1,23 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:1184c1221fe7c19f478e822180386120f594d1481cc47ef07d781dfbd3f8db93",
   "gen_hash_rust": "sha256:740e318496bec7bfdfb177b274d68b7b17952b89c23ec4f57d81c28cf5a3a257",
   "gen_hash_verilog": "sha256:49ff3f562c2fdb9446c32df428ea22de3c685d560fcec0914467daabe95b4c31",
-  "gen_hash_zig": "sha256:69c84952ebc82c976a6ade23577279a0276021739c00c80b5e6be80f3436622f",
+  "gen_hash_zig": "sha256:6933490c366ef3e0c5deaca5d1cc5231b5d107ca68d6d3a01eec626746334e96",
   "module": "Advantage",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:81a1023fcce3df3cccb4b65914fb74e6c8017320f74f01b5f11d44746fc1f37e",
-  "spec_path": "specs/ml/rl/advantage_estimator.t27"
+  "spec_path": "specs/ml/rl/advantage_estimator.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:64:28: error: expected type '[]f32', found '*const [3]f32'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

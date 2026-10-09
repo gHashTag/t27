@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:6481616798b18553b744a81df4ad5594cfef9b6c49b6323b4471a0688d1f2f5e",
   "gen_hash_rust": "sha256:468a478e7328435b5da8780b67de99e80047eff90def0f04bf8b6a2cb7726b65",
   "gen_hash_verilog": "sha256:9d396e744776551dc0d913df804f472da4522142c4de73533c4d8c455df19f84",
-  "gen_hash_zig": "sha256:dc09687e7a862dee1cb6acf8e3fa749014016139a4680cbae3b2a6409fe07d7c",
+  "gen_hash_zig": "sha256:e6d294ed7909424dd767dacd4d7dda8c60f9f4a4b3688bcfdadc7d1faa06be99",
   "module": "TriPrimsMst",
   "ring": 12,
-  "sealed_at": "2026-10-07T09:32:51Z",
+  "sealed_at": "2026-10-09T23:18:28Z",
   "spec_hash": "sha256:f5042eac060101897d18c995849ade745fde61ec6acde0b8e3f73d0bd1625fca",
   "spec_path": "specs/tri/graph/prims_mst.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:95:49: error: expected '}', found ']'"
+    "blocked": "does not compile: spec.zig:44:9: error: expected 2 arguments, found 3"
   }
 }

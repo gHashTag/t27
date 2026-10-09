@@ -20,10 +20,10 @@ TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
 TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
 TernaryShift.json | tests-fail | specs/isa/ternary_shift.t27 -- 2 of 9 tests fail on master too; the old seal predated test recording, the #6050 reseal records them
 Ternary_ISA_Testbench.json | tests-fail | specs/fpga/testbench/ternary_isa_tb.t27 -- compiles since #6295; 6 of 11 tests fail (#6560)
-TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
+TriHtml.json | tests-fail | specs/tri/encoding/html.t27: 2 of 3 test(s) fail (parse_basic_case, query_selector_basic_case) -- compiles since #8415; was stale (#5577, #5580)
 TriNetFormats.json | dangling | specs/numeric/tri_net_formats.t27
-TriTerminal.json | stale | specs/tri/utils/terminal.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
-TriXml.json | stale | specs/tri/encoding/xml.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
+TriTerminal.json | tests-fail | specs/tri/utils/terminal.t27: 1 of 3 test(s) fail (reset_returns_ansi_sequence) -- compiles since #8415; was stale (#5577, #5580)
+TriXml.json | tests-fail | specs/tri/encoding/xml.t27: 1 of 1 test(s) fail (parse_basic_case) -- compiles since #8415; was stale (#5577, #5580)
 avs-controller-48.json | dangling | specs/fpga/avs_controller_48.t27
 avs-controller-96.json | dangling | specs/fpga/avs_controller_96.t27
 avs-reconf.json | dangling | specs/fpga/avs_reconf.t27
@@ -35,8 +35,8 @@ brain_summary.json | no-spec-path | the seal does not say which spec it describe
 claims_claims-legend.json | phantom | specs/claims/claims_legend.t27
 claims_gf16-mx-alliance-anchoring.json | phantom | specs/claims/gf16_mx_alliance_anchoring.t27
 claims_gf16-nmse-comparison.json | phantom | specs/claims/gf16_nmse_comparison.t27
-encoding_TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
-encoding_TriXml.json | stale | specs/tri/encoding/xml.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
+encoding_TriHtml.json | tests-fail | specs/tri/encoding/html.t27: 2 of 3 test(s) fail (parse_basic_case, query_selector_basic_case) -- compiles since #8415; was stale (#5577, #5580)
+encoding_TriXml.json | tests-fail | specs/tri/encoding/xml.t27: 1 of 1 test(s) fail (parse_basic_case) -- compiles since #8415; was stale (#5577, #5580)
 experience_example.json | no-spec-path | the seal does not say which spec it describes
 fbb-active-path.json | dangling | specs/fpga/fbb_active_path.t27
 format_conversion.json | dangling | specs/numeric/format_conversion.t27
@@ -117,7 +117,7 @@ tri_tri::sync.json | dangling | specs/tri/sync.t27
 triformat-fp8_e4m3.json | dangling | specs/numeric/fp8_e4m3.t27
 triformat-fp8_e5m2.json | dangling | specs/numeric/fp8_e5m2.t27
 triformat-posit16.json | dangling | specs/numeric/posit16.t27
-utils_TriTerminal.json | stale | specs/tri/utils/terminal.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+utils_TriTerminal.json | tests-fail | specs/tri/utils/terminal.t27: 1 of 3 test(s) fail (reset_returns_ansi_sequence) -- compiles since #8415; was stale (#5577, #5580)
 verdict_example.json | no-spec-path | the seal does not say which spec it describes
 vsa_simple_port-trin-vsa-simple.json | tests-fail | specs/port/trinity/src/vsa_simple/vsa.t27 -- compiles since #6295; 1 of 7 tests fail (#6560)
 webassembly_GfCalculator.json | dangling | examples/webassembly/gf-calculator.t27

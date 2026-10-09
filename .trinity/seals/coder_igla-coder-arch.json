@@ -1,16 +1,36 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+8f4a24445",
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/igla/race/bram_weights.t27",
+      "spec_hash": "sha256:2e64758765a33902d746fd41a11372846b5aa2e7d2b027c25908bda679cb3a0c"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:107967f047f48eaf051f1254cf287bf308b0406a23a9c085d60510d50e8808f4",
   "gen_hash_rust": "sha256:63e1c8d3310c1c624f152d9ffc30ac244ffee3034de8d7e1a70b7948a9b2701c",
   "gen_hash_verilog": "sha256:5881f2981e7dce2f7411a665c5e9c8e0867fda12854c325626a21f97532385eb",
-  "gen_hash_zig": "sha256:971e119a44e4afe7d0a613269eda03997aff03a06b15e36608fc6d30e6e145a3",
+  "gen_hash_zig": "sha256:bc2e3dc17affd12d0227d63c28349aa64a31460ce57572e69e0623f6bbb7bda8",
   "module": "igla-coder-arch",
   "ring": 12,
-  "sealed_at": "2026-10-07T06:37:55Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a0eabcbb6c066c5974973c670405309c5c5ed4cfd20572986564a9c71ddbaf3b",
   "spec_path": "specs/igla/coder/arch.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:69:37: error: expected expression, found ']'"
+    "blocked": "does not compile: spec.zig:814:15: error: use of undeclared identifier 'forward_layers'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

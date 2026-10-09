@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:e4b34a3099fb96b03102cbd37832763a8f0eeed7d99c93db2016f16345e05098",
   "gen_hash_rust": "sha256:8482fa16b623860d24277c0b8480677cf5a23845321c8a036e717ad400772bfd",
   "gen_hash_verilog": "sha256:13ea818e724f76ac3ef3b457c21d71c31b7b264c3d6c2eee30dc61229eb1eb41",
-  "gen_hash_zig": "sha256:bdd1ec462b75bcb51ac79de0aefbf275aa1e9d13c755d5049dc418561c642d49",
+  "gen_hash_zig": "sha256:992ec74e76d66d610eb9690174e4ea5a5dcbe37e31f54105244ed6bcfe3e23a5",
   "module": "ast",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:23Z",
+  "sealed_at": "2026-10-09T23:17:56Z",
   "spec_hash": "sha256:28bfcdf211a0360991fe8d89dc376440d2144b936e030f81e0b5794a1c0eeb00",
   "spec_path": "compiler/ast.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-ast-60653/spec.zig:35:5: error: duplicate enum member name 'And'"
+    "blocked": "does not compile: spec.zig:35:5: error: duplicate enum member name 'And'"
   }
 }

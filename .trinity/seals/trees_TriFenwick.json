@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5f22a651bccc07de8d7c7a73c12e30d94a8bb1238b35f5c0021160b9c760f874",
   "gen_hash_rust": "sha256:75fac8b5bd7cae3111ee8ac972718a01338ea47c304c387d6860c9d0cf0bf5ce",
   "gen_hash_verilog": "sha256:9416c71e4397603359505e09940dace99dee9ecb6fcae394e8c74276988d817d",
-  "gen_hash_zig": "sha256:0eee9435c610103d1ca9df262c152f3fc94dee757d6499efbd3ee790c9ce8a1f",
+  "gen_hash_zig": "sha256:c43ba367af40bfcc13a26b323d3908eed8ed40f1f1112259790266482f1b6799",
   "module": "TriFenwick",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:18:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a6ba3762e874a6fb75e8d37f872a792dd0ed37ed27e1e5afb54335c79db4527e",
-  "spec_path": "specs/tri/trees/fenwick_tree.t27"
+  "spec_path": "specs/tri/trees/fenwick_tree.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:34:13: error: type 'error{OutOfMemory}![]i64' does not support indexing"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }
