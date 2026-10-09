@@ -1,0 +1,5 @@
+// typecheck only warns that an i64 is returned where a u8 is declared (#8075).
+module return_narrowing;
+fn rn_g(a: i64) -> u8 {
+    return a;
+}

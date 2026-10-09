@@ -1,0 +1,10 @@
+// A literal 1 as a `while` condition is an integer, not a bool (#8075).
+module while_comptime_int;
+fn wci_g() -> u8 {
+    var n: u8 = 0;
+    while (1) {
+        n = n + 1;
+        break;
+    }
+    return n;
+}
