@@ -1,0 +1,7 @@
+// usize & u32 is a usize in Zig, which a u32 does not hold; typecheck ranks
+// usize below u32 and calls the result a u32 (#8075).
+module usize_operand_widens;
+fn uow_f(a: usize, b: u32) -> u32 {
+    var r: u32 = a & b;
+    return r;
+}
