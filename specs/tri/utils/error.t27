@@ -10,11 +10,91 @@ module TriError;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const TriError = struct {
-        enum : ,
+    pub const TriError = enum {
+        none,
+        invalid_input,
+        not_found,
+        permission_denied,
+        timeout,
+        resource_exhausted,
+        internal_error,
+        .error,  // This should be treated as an enum literal, not a keyword
+        unknown,
     };
+
+    pub const ExitCode = struct {
+        code: u8,
+        description: []u8,
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Functions
+    // ═══════════════════════════════════════════════════════════
+
+    /// Convert TriError to exit code
+    pub fn to_exit_code(err: TriError) ExitCode {
+        return switch (err) {
+            .none => ExitCode{ .code = 0, .description = "Success" },
+            .invalid_input => ExitCode{ .code = 1, .description = "Invalid input" },
+            .not_found => ExitCode{ .code = 2, .description = "Not found" },
+            .permission_denied => ExitCode{ .code = 3, .description = "Permission denied" },
+            .timeout => ExitCode{ .code = 4, .description = "Timeout" },
+            .resource_exhausted => ExitCode{ .code = 5, .description = "Resource exhausted" },
+            .internal_error => ExitCode{ .code = 6, .description = "Internal error" },
+            .error => ExitCode{ .code = 7, .description = "Error" },  // This should work correctly
+            .unknown => ExitCode{ .code = 8, .description = "Unknown error" },
+        };
+    }
+
+    /// Get error message from TriError
+    pub fn to_message(err: TriError) []u8 {
+        return switch (err) {
+            .none => "No error",
+            .invalid_input => "Invalid input provided",
+            .not_found => "Resource not found",
+            .permission_denied => "Access denied",
+            .timeout => "Operation timed out",
+            .resource_exhausted => "Resources exhausted",
+            .internal_error => "Internal server error",
+            .error => "An error occurred",  // This should work correctly
+            .unknown => "Unknown error type",
+        };
+    }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    /// Test that .error is handled correctly in switch expressions
+    pub fn test_error_handling() bool {
+        const err = TriError.error;
+        const exit_code = to_exit_code(err);
+        const message = to_message(err);
+        
+        return exit_code.code == 7 and 
+               std.mem.eql(u8, exit_code.description, "Error") and
+               std.mem.eql(u8, message, "An error occurred");
+    }
+
+    /// Test all error types are handled
+    pub fn test_all_error_types() bool {
+        const all_errors = [_]TriError{
+            .none, .invalid_input, .not_found, .permission_denied, 
+            .timeout, .resource_exhausted, .internal_error, 
+            .error, .unknown
+        };
+        
+        var all_handled = true;
+        for (all_errors) |err| {
+            const exit_code = to_exit_code(err);
+            const message = to_message(err);
+            
+            if (exit_code.code == 0 or message.len == 0) {
+                all_handled = false;
+                break;
+            }
+        }
+        
+        return all_handled;
+    }
+}
