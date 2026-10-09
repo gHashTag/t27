@@ -6,32 +6,54 @@ module ShellEnvironment {
     use base::types;
     use shell::schema;
 
+// ════════════════════════════════════════════════════════════════════
+// Error Types
+
+enum ShellError {
+    NotFound
+    PermissionDenied
+    InvalidPath
+    UnknownError
+}
+    // ════════════════════════════════════════════════════════════════════
+
+    // ShellError represents shell-related errors
+    pub enum ShellError {
+        NotFound,           // Shell not found
+        PermissionDenied,   // Permission denied
+        Timeout,           // Operation timed out
+        Signal,            // Received signal
+        InvalidCommand,    // Invalid command
+        ProcessError,      // Process error
+        EnvironmentError,  // Environment variable error
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // Environment Operations
     // ════════════════════════════════════════════════════════════════════
 
     // get retrieves an environment variable
-    fn get(name: str) -> Result<str?, ShellError> {
+    fn get(name: str) -> Result(str?, ShellError) {
         // Implementation: Get environment variable value
     }
 
     // set sets an environment variable
-    fn set(name: str, value: str) -> Result<void, ShellError> {
+    fn set(name: str, value: str) -> Result(void, ShellError) {
         // Implementation: Set environment variable
     }
 
     // unset removes an environment variable
-    fn unset(name: str) -> Result<void, ShellError> {
+    fn unset(name: str) -> Result(void, ShellError) {
         // Implementation: Remove environment variable
     }
 
     // list returns all environment variables
-    fn list() -> Result<[EnvVar], ShellError> {
+    fn list() -> Result([EnvVar], ShellError) {
         // Implementation: Get all environment variables
     }
 
     // expand expands environment variables in a string
-    fn expand(input: str) -> Result<str, ShellError> {
+    fn expand(input: str) -> Result(str, ShellError) {
         // Implementation: Expand $VAR and ${VAR} patterns
     }
 
@@ -43,32 +65,32 @@ module ShellEnvironment {
     const PATH: str = "PATH";
 
     // get_path returns the PATH environment variable
-    fn get_path() -> Result<str, ShellError> {
+    fn get_path() -> Result(str, ShellError) {
         // Implementation: Get PATH value
     }
 
     // set_path sets the PATH environment variable
-    fn set_path(value: str) -> Result<void, ShellError> {
+    fn set_path(value: str) -> Result(void, ShellError) {
         // Implementation: Set PATH value
     }
 
     // path_append appends a directory to PATH
-    fn path_append(directory: str, position: str?) -> Result<void, ShellError> {
+    fn path_append(directory: str, position: str?) -> Result(void, ShellError) {
         // Implementation: Append to PATH (position: "front" or "back")
     }
 
     // path_remove removes a directory from PATH
-    fn path_remove(directory: str) -> Result<void, ShellError> {
+    fn path_remove(directory: str) -> Result(void, ShellError) {
         // Implementation: Remove from PATH
     }
 
     // path_list returns all directories in PATH
-    fn path_list() -> Result<[str], ShellError> {
+    fn path_list() -> Result([str], ShellError) {
         // Implementation: Split PATH into directories
     }
 
     // path_which finds the executable in PATH
-    fn path_which(executable: str) -> Result<str?, ShellError> {
+    fn path_which(executable: str) -> Result(str?, ShellError) {
         // Implementation: Find executable in PATH
     }
 
@@ -77,22 +99,22 @@ module ShellEnvironment {
     // ════════════════════════════════════════════════════════════════════
 
     // detect detects the current shell
-    fn detect() -> Result<ShellProperties, ShellError> {
+    fn detect() -> Result(ShellProperties, ShellError) {
         // Implementation: Detect current shell from env
     }
 
     // find finds a shell by name
-    fn find(name: str) -> Result<ShellProperties?, ShellError> {
+    fn find(name: str) -> Result(ShellProperties?, ShellError) {
         // Implementation: Search for shell in system
     }
 
     // select selects the best available shell
-    fn select(preferred: str?) -> Result<ShellProperties, ShellError> {
+    fn select(preferred: str?) -> Result(ShellProperties, ShellError) {
         // Implementation: Select shell, preferring preferred
     }
 
     // fallback returns the fallback shell for the platform
-    fn fallback(platform: Platform) -> Result<ShellProperties, ShellError> {
+    fn fallback(platform: Platform) -> Result(ShellProperties, ShellError) {
         // Implementation: Return platform-specific fallback
     }
 
@@ -104,7 +126,7 @@ module ShellEnvironment {
     const HOME: str = "HOME";
 
     // get_home returns the home directory
-    fn get_home() -> Result<str, ShellError> {
+    fn get_home() -> Result(str, ShellError) {
         // Implementation: Get HOME directory
     }
 
@@ -112,7 +134,7 @@ module ShellEnvironment {
     const USER: str = "USER";
 
     // get_user returns the current user
-    fn get_user() -> Result<str, ShellError> {
+    fn get_user() -> Result(str, ShellError) {
         // Implementation: Get current user name
     }
 
