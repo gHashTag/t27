@@ -255,7 +255,7 @@ pub fn cell_t27c(f: u32) -> u8 {
     if (f == C3) { return TRUE3; }
     if (f == C6) { return NA3; }
     if (f == C8) { return TRUE3; }
-    if (f == C9) { return UNKNOWN3; }
+    if (f == C9) { return TRUE3; }
     if (f == C10) { return TRUE3; }
     return FALSE3;
 }

@@ -60,6 +60,11 @@ http-body-util = { version = "0.1", optional = true }
 lazy_static = "1.5"
 regex = "1"
 
+[profile.release]
+# Make builds reproducible by normalizing CARGO_HOME paths in panic locations
+# See gHashTag/t27#8178
+build-override = { rustflags = ["--remap-path-prefix=$CARGO_HOME=/cargo"] }
+
 # `jwt.rs` and the token parsers in `proxy.rs` are `server` code, but their
 # unit tests run in a plain `cargo test` (#2301). These are the crates those
 # tests name; they are not linked into the default binary.

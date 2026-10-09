@@ -110,7 +110,7 @@ fn main() {
     // and the wrong one for "which t27c made this". Outside a git checkout the
     // identity is honestly "unknown" rather than absent.
     let git = std::process::Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
+        .args(["rev-parse", "HEAD"])
         .current_dir(&manifest_dir)
         .output()
         .ok()
