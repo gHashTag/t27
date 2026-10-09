@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/automation/agent-media-kie.t27 -- Agent media generation using Kie models with fallback chains and pricing
+// Host: gHashTag/999-multibots-telegraf (issue linked from the PR)
+// Trace: gHashTag/t27#8068 "Host: gHashTag/999-multibots-telegraf (issue linked from the PR). `specs/automation/agent-media-kie.t27` v1: the agent's video is ordered on Kie (default hailuo/02-text-to-video-pro, any Kie model whose bill is named before the press), the image chain runs Kie first with pollinations as the rescue, image_generate is priced to cover Kie, and a prompt with no named style asks for photorealistic footage."
+// Claim status: access contract. The spec defines media generation behavior for agents using Kie models.
+// v1 (2026-10-09): initial implementation with video default model, Kie model allowance, image chain fallback, pricing coverage, and photorealistic default
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module automation::agent_media_kie {
+
+    pub const KIND : str = "automation";
+    pub const ID : str = "agent-media-kie";
+    pub const REPO : str = "gHashTag/t27";
+    pub const VERSION : u8 = 1;
+
+    // ---- Video generation configuration ----
+    
+    // FR-001: The spec MUST define video generation on Kie with default model hailuo/02-text-to-video-pro
+    pub const VIDEO_DEFAULT_MODEL : str = "hailuo/02-text-to-video-pro";
+    
+    // FR-002: The spec MUST allow any Kie model whose bill is named before the press
+    pub fn is_kie_model_allowed(model: str) -> bool {
+        // Allow any Kie model (models whose bill is named before the press)
+        // In practice, this means any model starting with "kie/" or "hailuo/"
+        return model.contains("kie/") or model.contains("hailuo/");
+    }
+    
+    // ---- Image generation chain configuration ----
+    
+    // FR-003: The spec MUST define image generation chain that tries Kie first with pollinations as rescue
+    pub const IMAGE_PRIMARY_MODEL : str = "kie/";  // Kie model prefix
+    pub const IMAGE_FALLBACK_MODEL : str = "pollinations/";  // Pollinations as rescue
+    
+    pub fn get_image_generation_chain(_prompt: str) -> []str {
+        // Return static array: Kie first, then pollinations as rescue
+        return &.{ "kie/", "pollinations/" };
+    }
+    
+    // ---- Pricing configuration ----
+    
+    // FR-004: The spec MUST price image_generate to cover Kie model costs
+    pub const IMAGE_GENERATION_BASE_PRICE : u32 = 100;  // Base price in tokens
+    pub const KIE_MODEL_SURCHARGE : u32 = 50;  // Additional cost for Kie models
+    
+    pub fn calculate_image_generation_price(model: str, prompt: str) -> u32 {
+        var base_price = IMAGE_GENERATION_BASE_PRICE;
+        
+        // Add Kie model surcharge if using Kie
+        if model.contains("kie/") or model.contains("hailuo/") {
+            base_price += KIE_MODEL_SURCHARGE;
+        }
+        
+        return base_price;
+    }
+    
+    // ---- Prompt processing configuration ----
+    
+    // FR-005: The spec MUST require photorealistic footage when prompt has no named style
+    pub fn has_named_style(prompt: str) -> bool {
+        // Check for named styles in the prompt
+        const styles = ["anime", "cartoon", "painting", "sketch", "abstract", "watercolor", "oil", "digital art"];
+        
+        for style in styles {
+            if prompt.contains(style) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    pub fn process_image_prompt(prompt: str) -> str {
+        if !has_named_style(prompt) {
+            // No named style detected - request photorealistic footage
+            return prompt + ", photorealistic";
+        }
+        
+        return prompt;
+    }
+    
+    // ---- Media generation functions ----
+    
+    pub fn generate_video(prompt: str) -> str {
+        // FR-001: Use default Kie model for video generation
+        const model = VIDEO_DEFAULT_MODEL;
+        
+        // FR-002: Verify the model is allowed
+        if !is_kie_model_allowed(model) {
+            return "error: model not allowed";
+        }
+        
+        return "video_generated_with_" + model;
+    }
+    
+    pub fn generate_image(prompt: str) -> str {
+        // Process prompt for photorealistic requirement
+        const processed_prompt = process_image_prompt(prompt);
+        const chain = get_image_generation_chain(processed_prompt);
+        
+        // Try models in chain order
+        for model in chain {
+            // FR-03: Try Kie first, then pollinations as rescue
+            if model == "kie/" {
+                const result = try_kie_image_generation(processed_prompt);
+                if result != "error" {
+                    return result;
+                }
+            } else if model == "pollinations/" {
+                return try_pollinations_image_generation(processed_prompt);
+            }
+        }
+        
+        return "error: all generation methods failed";
+    }
+    
+    fn try_kie_image_generation(prompt: str) -> str {
+        // FR-02: Check if Kie model is allowed
+        if !is_kie_model_allowed("kie/") {
+            return "error";
+        }
+        
+        // FR-04: Calculate price covering Kie model costs
+        const price = calculate_image_generation_price("kie/", prompt);
+        
+        return "image_generated_with_kie_" + str(price);
+    }
+    
+    fn try_pollinations_image_generation(prompt: str) -> str {
+        return "image_generated_with_pollinations";
+    }
+    
+    // ---- Test functions ----
+    
+    test "video default model" {
+        const result = generate_video("test prompt");
+        assert(result.contains("hailuo/02-text-to-video-pro"));
+    }
+    
+    test "kie model allowance" {
+        assert(is_kie_model_allowed("kie/test-model"));
+        assert(is_kie_model_allowed("hailuo/02-text-to-video-pro"));
+        assert(!is_kie_model_allowed("openai/dall-e"));
+        assert(!is_kie_model_allowed("stable-diffusion"));
+    }
+    
+    test "image chain fallback" {
+        const chain = get_image_generation_chain("test prompt");
+        assert(chain[0] == "kie/");
+        assert(chain[1] == "pollinations/");
+    }
+    
+    test "pricing coverage" {
+        const price1 = calculate_image_generation_price("pollinations/", "test");
+        const price2 = calculate_image_generation_price("kie/", "test");
+        assert(price2 > price1);
+        assert(price2 == price1 + KIE_MODEL_SURCHARGE);
+    }
+    
+    test "photorealistic default" {
+        const prompt1 = "a landscape";
+        const prompt2 = "a landscape in anime style";
+        
+        assert(has_named_style(prompt2));
+        assert(!has_named_style(prompt1));
+        
+        const processed1 = process_image_prompt(prompt1);
+        const processed2 = process_image_prompt(prompt2);
+        
+        assert(processed1.contains("photorealistic"));
+        assert(!processed2.contains("photorealistic"));
+    }
+}
