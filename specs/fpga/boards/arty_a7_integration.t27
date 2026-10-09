@@ -128,9 +128,9 @@ module ArtyA7_Integration {
     invariant board_name_set : BOARD_NAME != "";
     invariant fpga_part_set : FPGA_PART != "";
 
-    bench bench_integration_config {
-        calc_baud_divisor(CLOCK_FREQ_HZ, UART_BAUD);
-        calc_spi_prescaler(CLOCK_FREQ_HZ, 25_000_000);
-        verify_pin_config(ARTY_A7_PINS);
-    }
+bench bench_integration_config {
+    _ = calc_baud_divisor(CLOCK_FREQ_HZ, UART_BAUD);
+    _ = calc_spi_prescaler(CLOCK_FREQ_HZ, 25_000_000);
+    _ = verify_pin_config(ARTY_A7_PINS);
+}
 }

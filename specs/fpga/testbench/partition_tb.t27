@@ -87,12 +87,12 @@ module Partition_Testbench {
     invariant max_partitions_positive : MAX_PARTITIONS > 0;
     invariant total_resources_positive : TOTAL_RESOURCES > 0;
 
-    bench bench_partition {
-        reset();
-        var i : u32 = 0;
-        while i < 16 {
-            budget_resources(TOTAL_RESOURCES, i + 1);
-            i = i + 1;
-        }
+bench bench_partition {
+    reset();
+    var i : u32 = 0;
+    while i < 16 {
+        _ = budget_resources(TOTAL_RESOURCES, i + 1);
+        i = i + 1;
     }
+}
 }

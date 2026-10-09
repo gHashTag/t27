@@ -84,8 +84,8 @@ module Simulator_Testbench {
 
     invariant max_cycles_positive : MAX_CYCLES > 0;
 
-    bench bench_simulation {
-        reset();
-        run_cycles(1000);
-    }
+bench bench_simulation {
+    reset();
+    _ = run_cycles(1000);
+}
 }
