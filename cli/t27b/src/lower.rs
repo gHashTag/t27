@@ -125,6 +125,8 @@ mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted w
 mod ls; // t27c gen-rust of specs/tri/t27b/lazy_sig_plan.t27: `anytype`, `[*]T` on a fn nothing analyzed reaches
 #[path = "../../../gen/rust/tri/t27b/type_text.rs"] #[allow(dead_code, unused_parens)]
 mod tt; // t27c gen-rust of specs/tri/t27b/type_text.t27: a type's text, read without the file's declarations
+#[path = "../../../gen/rust/tri/t27b/source_text.rs"] #[allow(dead_code, unused_parens)]
+mod st; // t27c gen-rust of specs/tri/t27b/source_text.t27: literal text, header lines, prose labels
 mod refvars;
 mod tuple;
 
@@ -859,18 +861,7 @@ fn lower_mode<'a>(
 /// Line (1-based) of the first `<keyword> <name>` header in `src`, the name
 /// optionally quoted.
 fn header_line(src: &str, keyword: &str, name: &str) -> Option<u32> {
-    for (i, line) in src.lines().enumerate() {
-        let Some(rest) = line.trim_start().strip_prefix(keyword) else { continue };
-        let Some(rest) = rest.strip_prefix(|c: char| c == ' ' || c == '\t') else { continue };
-        let rest = rest.trim_start();
-        let rest = rest.strip_prefix('"').unwrap_or(rest);
-        if let Some(after) = rest.strip_prefix(name) {
-            if !after.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_') {
-                return Some(i as u32 + 1);
-            }
-        }
-    }
-    None
+    Some(st::header_line(src.as_bytes(), keyword.as_bytes(), name.as_bytes())).filter(|l| *l != st::NO_LINE)
 }
 
 /// Line (1-based) of the declaration of `name`: `const`, `pub const`,
@@ -911,23 +902,8 @@ fn kind_name(n: &Node) -> String {
 /// ("invalid escape character") and a raw control byte, so neither has a
 /// reference result to agree with.
 fn char_literal(s: &str) -> Result<i128, &'static str> {
-    let inner = s
-        .strip_prefix('\'')
-        .and_then(|r| r.strip_suffix('\''))
-        .ok_or("ExprLiteral(char literal)")?;
-    let b = inner.as_bytes();
-    match b {
-        [b'\\', e] => match e {
-            b'n' => Ok(10),
-            b'r' => Ok(13),
-            b't' => Ok(9),
-            b'\\' | b'\'' | b'"' => Ok(*e as i128),
-            _ => Err("ExprLiteral(char escape)"),
-        },
-        [c] if (0x20..0x7f).contains(c) => Ok(*c as i128),
-        [_] => Err("ExprLiteral(char byte)"),
-        _ => Err("ExprLiteral(char literal)"),
-    }
+    let v = st::char_value(s.as_bytes());
+    if v >= 0 { Ok(v as i128) } else { Err(st::char_error(v)) }
 }
 
 /// `n` is a char literal (`'a'`, `'\n'`): an untyped comptime_int in Zig that
@@ -937,24 +913,7 @@ fn is_char_literal(n: &Node) -> bool {
 }
 
 fn parse_int(s: &str) -> Option<i128> {
-    let t: String = s.chars().filter(|c| *c != '_').collect();
-    let (digits, radix) = if let Some(r) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
-        (r.to_string(), 16)
-    } else if let Some(r) = t.strip_prefix("0o") {
-        (r.to_string(), 8)
-    } else if let Some(r) = t.strip_prefix("0b") {
-        (r.to_string(), 2)
-    } else {
-        (t.clone(), 10)
-    };
-    if digits.is_empty() {
-        return None;
-    }
-    let v = u128::from_str_radix(&digits, radix).ok()?;
-    if v > i128::MAX as u128 {
-        return None;
-    }
-    Some(v as i128)
+    Some(st::parse_int(s.as_bytes())).filter(|v| *v != st::NO_INT)
 }
 
 /// The width t27c's Zig backend pins on an untyped `var` set to a bare
@@ -967,19 +926,8 @@ fn int_lit_width(n: &Node) -> Option<&'static str> {
     if n.kind != NodeKind::ExprLiteral || n.extra_kind == "string" {
         return None;
     }
-    const SUFFIXES: [&str; 10] = ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
-    if let Some(s) = SUFFIXES.iter().find(|s| **s == n.extra_type) {
-        return Some(s);
-    }
-    let v = n.value.trim();
-    if v.starts_with("0o") {
-        return None;
-    }
-    match parse_int(v)? {
-        x if x <= u32::MAX as i128 => Some("u32"),
-        x if x <= u64::MAX as i128 => Some("u64"),
-        _ => None,
-    }
+    let k = st::lit_width(n.extra_type.as_bytes(), n.value.as_bytes());
+    (k != st::WIDTH_NONE).then(|| st::WIDTHS[k as usize])
 }
 
 /// `n` is an integer literal that is a power of two above 1: what t27c's
@@ -7131,28 +7079,13 @@ impl<'a> Lower<'a> {
         if txt.contains('{') || txt.contains("][") {
             return self.reject("ExprArrayLiteral(text form)", format!("`[{}]`: elements kept as text", txt));
         }
-        let mut parts = Vec::new();
-        let (mut depth, mut cur) = (0i32, String::new());
-        for ch in txt.chars() {
-            match ch {
-                '(' | '[' => depth += 1,
-                ')' | ']' => depth -= 1,
-                _ => {}
-            }
-            if ch == ',' && depth == 0 {
-                parts.push(std::mem::take(&mut cur));
-            } else {
-                cur.push(ch);
-            }
-        }
-        if !cur.trim().is_empty() {
-            parts.push(cur);
-        }
-        let mut lit = Node::new(NodeKind::ExprArrayLiteral);
+        let (mut lit, mut at) = (Node::new(NodeKind::ExprArrayLiteral), 0);
         lit.line = n.line;
-        for p in parts {
-            let e = self.text_elem(p.trim(), txt)?;
-            lit.children.push(e);
+        while at <= txt.len() {
+            let end = st::part_end(txt.as_bytes(), at);
+            let p = txt[at..end].trim();
+            if end < txt.len() || !p.is_empty() { lit.children.push(self.text_elem(p, txt)?); }
+            at = end + 1;
         }
         Ok(Some(lit))
     }
@@ -7915,9 +7848,7 @@ fn count_assigns(ns: &[Node], counts: &mut HashMap<String, u32>) {
 fn is_prose_clause(n: &Node) -> bool {
     n.kind == NodeKind::StmtExpr
         && n.children.is_empty()
-        && n.name.len() > 1
-        && n.name.ends_with(':')
-        && n.name[..n.name.len() - 1].chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && st::prose_label(n.name.as_bytes())
 }
 
 // ------------------------------------------------- reference-path defects
