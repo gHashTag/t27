@@ -1,13 +1,19 @@
 import math
 import json
 import sys
+import struct
 
+# Constants from GF16 spec
 BIAS = 31
 EXP_BITS = 6
 MANT_BITS = 9
 EXP_MAX = (1 << EXP_BITS) - 1
 MANT_MAX = (1 << MANT_BITS) - 1
+EXP_MASK = 0x7E00
+SIGN_MASK = 0x8000
+MANT_MASK = 0x01FF
 
+# GF16 special values per spec D3
 POS_ZERO = 0x0000
 NEG_ZERO = 0x8000
 POS_INF = 0x7E00
@@ -16,6 +22,12 @@ QUIET_NAN = 0xFE01
 
 
 def encode(v):
+    """Encode IEEE 754 float to GF16 following D1-D4:
+    D1: no subnormals; exponent-0 codes with non-zero mantissa are normal, (1+M/512)*2^-31; below 2^-31 encodes to signed zero.
+    D2: round to nearest, ties toward zero ("ties-to-zero (frozen)")
+    D3: canonical NaN is 0xFE01
+    D4: exponent extraction is (x & EXP_MASK) >> EXP_SHIFT
+    """
     if isinstance(v, str):
         if v == "Infinity":
             return POS_INF
@@ -24,52 +36,72 @@ def encode(v):
         if v == "NaN":
             return QUIET_NAN
         v = float(v)
+    
     if math.isnan(v):
         return QUIET_NAN
+    
     if v == 0.0:
         return NEG_ZERO if math.copysign(1.0, v) < 0 else POS_ZERO
+    
     if math.isinf(v):
         return NEG_INF if v < 0 else POS_INF
-
+    
+    # Extract f32 bits
     sign = 1 if v < 0 else 0
     abs_v = abs(v)
-
-    exp = BIAS
-    while abs_v >= 2.0 and exp < EXP_MAX - 1:
-        abs_v /= 2.0
-        exp += 1
-    while abs_v < 1.0 and exp > 1:
-        abs_v *= 2.0
-        exp -= 1
-
-    frac = abs_v - 1.0
-    shifted = int(frac * (1 << MANT_BITS) + 0.5)
-    if shifted >= (1 << MANT_BITS):
-        shifted = MANT_MAX
-    mant = shifted & MANT_MAX
-
-    return (sign << 15) | (exp << MANT_BITS) | mant
+    f32_bits = struct.unpack('I', struct.pack('f', abs_v))[0]
+    f32_exp = (f32_bits >> 23) & 0xFF
+    f32_mant = f32_bits & 0x7FFFFF
+    
+    # Handle values below 2^-31 (flush to signed zero per D1)
+    if f32_exp < 96:  # 127 - 31 = 96
+        return sign << 15
+    
+    # Handle overflow to infinity
+    if f32_exp > 158:  # 127 + 31 = 158
+        return (sign << 15) | POS_INF
+    
+    # Rebias exponent from 127 to 31
+    gf16_exp = f32_exp - 96
+    mant = f32_mant >> 14  # Keep top 9 bits of 23-bit mantissa
+    rem = f32_mant & 0x3FFF  # Remaining 14 bits
+    
+    # D2: ties toward zero - round up only strictly above half
+    if rem > 0x2000:
+        mant += 1
+        if mant > MANT_MAX:
+            mant = 0
+            gf16_exp += 1
+            if gf16_exp > EXP_MAX:
+                return (sign << 15) | POS_INF
+    
+    # D1: E = 0, M = 0 would be 2^-31, which has no code: flush to signed zero
+    if gf16_exp == 0 and mant == 0:
+        return sign << 15
+    
+    return (sign << 15) | (gf16_exp << 9) | mant
 
 
 def decode(raw):
+    """Decode GF16 to IEEE 754 float following D1-D4"""
     sign = (raw >> 15) & 1
-    exp = (raw >> MANT_BITS) & ((1 << EXP_BITS) - 1)
-    mant = raw & MANT_MAX
-
+    exp = (raw & EXP_MASK) >> 9  # D4: exponent extraction via mask/shift
+    mant = raw & MANT_MASK
+    
+    # Handle zero
+    if exp == 0 and mant == 0:
+        return -0.0 if sign else 0.0
+    
+    # Handle special values (Inf/NaN)
     if exp == EXP_MAX:
         if mant == 0:
-            v = float("inf")
+            return float("-inf") if sign else float("inf")
         else:
             return float("nan")
-    elif exp == 0:
-        if mant == 0:
-            v = 0.0
-        else:
-            v = mant / (1 << MANT_BITS) * (2.0 ** (1 - BIAS))
-    else:
-        v = (1.0 + mant / (1 << MANT_BITS)) * (2.0 ** (exp - BIAS))
-
-    return -v if sign else v
+    
+    # Normal number: D1 - no subnormals, E=0 with M!=0 is normal
+    value = (1.0 + mant / 512.0) * (2.0 ** (exp - BIAS))
+    return -value if sign else value
 
 
 def gf16_add(a_raw, b_raw):
