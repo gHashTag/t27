@@ -1,0 +1,8 @@
+// A module const keeps its type where it meets a runtime operand: G & x is
+// an i64 in Zig, which an i16 return refuses. Only a value Zig knows whole
+// at compile time coerces by its value (#8075).
+module typed_const_in_mixed_operation;
+const TCM_G: i64 = 5;
+fn tcm_f(x: i16) -> i16 {
+    return TCM_G & x;
+}

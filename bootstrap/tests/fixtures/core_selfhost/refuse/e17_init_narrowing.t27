@@ -1,0 +1,7 @@
+// typecheck only warns that a u8 is initialized from an i64; C truncates
+// it, Zig refuses it (#8075).
+module init_narrowing;
+fn in_g(a: i64) -> u8 {
+    var b: u8 = a;
+    return b;
+}
