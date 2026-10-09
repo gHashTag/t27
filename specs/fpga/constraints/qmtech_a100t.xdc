@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 ################################################################################
-# QMTECH XC7A200T (Wukong Board) XDC Constraints File
+# QMTECH Wukong V1 XDC Constraints File
 # For ZeroDSP FPGA Implementation
 # phi^2 + 1/phi^2 = 3 | TRINITY
 ################################################################################
-# Board: QMTECH XC7A200T-FGG676 Core Board + Wukong Expansion
+# Board: QMTech Wukong V1 / XC7A200T-FGG676
 # FPGA:  Xilinx Artix-7 XC7A200T-FGG676
 # Clock: 12 MHz input clock
+################################################################################
+# NOTE: This file was previously documented as targeting XC7A100T-FGG676, but the
+# actual hardware is XC7A200T-FGG676. The pin assignments below need to be
+# validated against the XC7A200T-FGG676 package user IO balls using the
+# pin-map validation tool.
 ################################################################################
 # Pin conflict fix: UART changed from 8-bit parallel to 1-bit serial.
 # All pins are now unique (no duplicates).
