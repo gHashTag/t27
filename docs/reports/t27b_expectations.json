@@ -1201,6 +1201,7 @@
   {"path": "specs/trinity/compiler_matrix.t27", "t27b": "pass_vacuous"},
   {"path": "specs/trinity/project.t27", "t27b": "pass"},
   {"path": "specs/ui/queen_evidence.t27", "t27b": "pass"},
+  {"path": "specs/verified/bench_agent.t27", "t27b": "pass"},
   {"path": "specs/verified/corpus_merkle.t27", "t27b": "pass"},
   {"path": "specs/verified/corpus_receipt.t27", "t27b": "pass"},
   {"path": "specs/verified/ddc_receipt.t27", "t27b": "pass"},
