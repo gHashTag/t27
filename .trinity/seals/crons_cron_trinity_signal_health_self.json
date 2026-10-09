@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:61db9011d8bbe4b8cc677bc3b8a99145edadd1ddb0423da729222a06182ec3f4",
+  "gen_hash_rust": "sha256:a3c9db12fc9eab954754c1e0c163064a0faff30820fbafe0439f1b540320a294",
+  "gen_hash_verilog": "sha256:e0db5f4bc840b94bf0ea6ba0eb96f97c4c09467efe45a4c43e5b2def65a9d243",
+  "gen_hash_zig": "sha256:31b50e4a428859067b752245cd50938714945761082cdd897a8cdd3b611ad819",
+  "module": "cron_trinity_signal_health_self",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:872f1454ba5ae7c23f6c8d0a4e0b3cdb7bacf3fdd52a0ad65225d06c92eccf1d",
+  "spec_path": "specs/crons/trinity-signal-health-self.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

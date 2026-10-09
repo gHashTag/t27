@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:91f23bde666a7d654d44e183d92d5e185c01b00530f1549e60046998bd273aad",
+  "gen_hash_rust": "sha256:667aaef3714cada8d77e85679e7e81a9b1a2e259131529df54bbab10a3296fbf",
+  "gen_hash_verilog": "sha256:27627cae7f5835aebdeff1e9dd0c5371788d0095267271fffce2e7c20b766c1b",
+  "gen_hash_zig": "sha256:619fae3ee378461d876cbe10fad79d58356581b6f2648bbdd1630961db7807c6",
+  "module": "cron_trinity_agent_cron_cleanup",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:42abbbe3df4c316a3fb17576ef13d5e6bd8c3d9b0338dad0164ef7933df0742f",
+  "spec_path": "specs/crons/trinity-agent-cron-cleanup.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

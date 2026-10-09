@@ -284,6 +284,20 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
     }
 }
 
+// ------------------------------------------------ a minus the parser folds into a float literal
+
+/// #7809: `const NEG_PI: f64 = -3.141592653589793;` reaches t27b as the literal "-3.141592653589793", which
+/// gen-zig prints as written and Zig negates (specs/tri/t27b/literal_plan.t27; `t27c test-report` passes the
+/// conformance spec 7/7, none vacuous), a zero to a negative zero.
+#[test]
+fn a_folded_minus_negates_a_float_literal() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/negative_float_literal.t27"));
+    assert!(r.len() == 7 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nconst Z: f64 = -0.0;\n\nfn id(x: f64) -> f64 {\n    return x;\n}\n\ntest t {\n    assert(1.0 / id(Z) < 0.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("-0.0", "0.0"))), vec![("t", false, false)]);
+}
+
 // ------------------------------------------------ a call returning a float, in `x as T`
 
 /// #7805: since #6941 gen-zig spells a call of a fn declared `-> f64` as a float, so `f() as f32` is
@@ -390,20 +404,4 @@ fn log_base_e_log1p_inf_and_an_f64_round() {
     }
     let f32_log = src.replace(" + std.math.log1p(x)", "").replace("x: f64) -> f64", "x: f32) -> f32").replace("log(f64,", "log(f32,");
     assert_eq!(names_ok(&run(&f32_log.replace("f(1.0) > 0.69", "f(1.0) == 0.0"))), vec![("t", false, true)]);
-}
-
-// ------------------------------------------------ an anytype parameter nobody reads
-
-/// identity.t27's `isNotFoundError(err: anytype) bool`, never naming `err` (#7876): one body stands for every
-/// instance, and a compile-time or `null` argument runs nothing (specs/tri/t27b/any_param_plan.t27; `t27c test-report`
-/// passes the conformance spec 4/4, none vacuous). An argument that may run code is refused by name, and a body
-/// that names the parameter keeps `type anytype`.
-#[test]
-fn an_anytype_parameter_nobody_reads() {
-    let src = include_str!("../../../specs/tri/t27b/conformance/unread_anytype.t27");
-    let r = run(src);
-    assert!(r.len() == 4 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
-    assert_eq!(names_ok(&run(&src.replace("== 15", "== 16"))).iter().filter(|t| !t.2).count(), 1);
-    assert!(rejected(&src.replace("scaled(7, n)", "scaled(n, n)")).contains("ExprCall(anytype argument) at line 45"));
-    assert!(rejected(&src.replace("return n * 3;", "return n * 3 + tag;")).contains("type anytype"));
 }

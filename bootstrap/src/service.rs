@@ -5609,3 +5609,104 @@ mod unresolved_is_not_a_rejection {
         );
     }
 }
+
+/// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
+/// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
+pub fn run_frontier(list: bool) -> anyhow::Result<()> {
+    use crate::seal_identity as si;
+    let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
+    while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
+    fn decide(p: &str, tc: &serde_json::Value, memo: &mut std::collections::HashMap<String, u8>, depth: u32) -> Option<u8> {
+        if let Some(d) = memo.get(p) { return Some(*d); }
+        let src = std::fs::read_to_string(p).ok().filter(|_| depth < 64)?;
+        let module = crate::extract_module_name(&src).unwrap_or_default();
+        let seal: serde_json::Value = [crate::seal_file_path(&module, p), std::path::Path::new(".trinity/seals").join(format!("{module}.json"))].iter()
+            .find_map(|f| std::fs::read_to_string(f).ok().and_then(|s| serde_json::from_str(&s).ok())).unwrap_or_default();
+        let g = |k: &str| seal.pointer(k).and_then(|v| v.as_str()).map(String::from);
+        let t = |k: &str| tc.get(k).and_then(|v| v.as_str()).map(String::from);
+        let (mut rebuilt, mut missing) = (false, false);
+        for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")) {
+            match decide(&format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
+        }
+        let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
+        let cur = crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]);
+        let out = ["/gen_hash_zig", "/gen_hash_verilog", "/gen_hash_c", "/gen_hash_rust"].map(|k| g(k));
+        let tools = ["test_runner", "zig"].map(|k| (g(&format!("/toolchain/{k}")), t(k)));
+        let tool = si::toolchain_part(out.iter().all(|o| o.is_some()), cur.map_or(false, |c| out.iter().zip(c.iter()).all(|(o, c)| o.as_deref() == Some(c.as_str()))), tools.iter().all(|(r, _)| r.is_some()), tools.iter().all(|(r, c)| r == c));
+        let config = si::recorded_part(g("/config").is_some(), g("/config").as_deref() == Some(si::SEAL_CONFIG));
+        let tests = seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0) && seal.pointer("/tests/forced").and_then(|v| v.as_bool()) != Some(true);
+        let d = si::node_decision(spec, rebuilt, missing, tool, config, tests, false, si::HW_UNPROVEN);
+        memo.insert(p.to_string(), d);
+        Some(d)
+    }
+    let mut counts = [0u32; 7];
+    specs.sort();
+    for p in &specs { let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); counts[d as usize] += 1; if list && d != si::REUSE { println!("{d} {p}") } }
+    let total = specs.len() as u32;
+    println!("frontier: reused {} of {} ({} permille); rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
+    Ok(())
+}
+
+/// #8095 step 5: every spec in the public silicon-runs index and what the bench does about it. A run stands
+/// for the current seal when it is citable at INDEP_DIES or higher and every receipt ran this seal's Verilog
+/// (seal_hash == gen_hash_verilog) built by this seal's producer -- run_record.t27's own rule.
+pub fn run_silicon_queue() -> anyhow::Result<()> {
+    use crate::{seal_identity as si, silicon_queue as sq};
+    let idx: Vec<serde_json::Value> = std::fs::read_to_string("docs/reports/silicon-runs/index.json").ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let mut specs: Vec<String> = idx.iter().filter_map(|e| e["spec"].as_str().map(String::from)).collect();
+    specs.sort();
+    specs.dedup();
+    for p in &specs {
+        let module = std::fs::read_to_string(p).ok().and_then(|s| crate::extract_module_name(&s)).unwrap_or_default();
+        let seal: serde_json::Value = std::fs::read_to_string(crate::seal_file_path(&module, p)).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let ready = seal.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0);
+        let hw = idx.iter().filter(|e| e["spec"].as_str() == Some(p.as_str())).map(|e| {
+            let ind = e["independence"].as_str().unwrap_or("");
+            let level = if ind.starts_with("INDEP_OPERATORS") { si::INDEP_OPERATORS } else if ind.starts_with("INDEP_DIES") { si::INDEP_DIES } else { si::INDEP_NONE };
+            let same = |k: &str, f: &str| e["receipts"].as_array().map_or(false, |r| !r.is_empty() && r.iter().all(|x| x[k] == seal[f]));
+            si::silicon_state(true, e["citable"] == true, same("seal_hash", "gen_hash_verilog"), same("toolchain", "built_by"), true, level)
+        }).max().unwrap_or(si::HW_UNPROVEN);
+        println!("{} {p}", ["none", "wait-software", "queue", "bench-blocked"][sq::queue_state(true, ready, hw) as usize]);
+    }
+    Ok(())
+}
+
+/// #8153: the agent next to a board. Every decision is specs/verified/bench_agent.t27; this is its I/O.
+/// Outbound only: jobs are open issues labelled bench-job, answers are comments carrying the receipt.
+pub fn run_bench_agent(repo_root: &Path, busdev: String, wrong_part: String, once: bool) -> anyhow::Result<()> {
+    use crate::bench_agent as ba;
+    let (_, who, _) = run(Command::new("gh").args(["api", "user", "-q", ".login"]));
+    let mark = format!("bench-agent {}/{busdev}:", who.trim());
+    loop {
+        let (_, out, _) = run(Command::new("gh").args(["issue", "list", "--repo", ba::JOB_REPO, "--label", ba::JOB_LABEL, "--state", "open", "--json", "number,author,body,comments"]));
+        for j in serde_json::from_str::<Vec<serde_json::Value>>(&out).unwrap_or_default() {
+            let n = j["number"].as_u64().unwrap_or(0).to_string();
+            let cs = j["comments"].as_array().cloned().unwrap_or_default();
+            let body = j["body"].as_str().unwrap_or("");
+            let field = |k: &str| body.lines().find_map(|l| l.trim().strip_prefix(k)).map(|v| v.trim().to_string());
+            let (Some(spec), Some(top)) = (field("spec:"), field("top:")) else { continue };
+            if cs.iter().any(|c| c["body"].as_str().unwrap_or("").starts_with(&mark)) { continue; }
+            let approved = j["author"]["login"] == ba::OWNER_LOGIN && cs.iter().any(|c| c["author"]["login"] == ba::OWNER_LOGIN && c["body"].as_str().map(str::trim) == Some(ba::APPROVE_WORD));
+            // the cable is not touched for a job the owner did not approve
+            let det = if approved { run(Command::new("openFPGALoader").args(["-c", "digilent_hs2", "--busdev-num", &busdev, "--detect"])).1 } else { String::new() };
+            let busy = run(Command::new("pgrep").args(["-f", &format!("(silicon|openFPGALoader).*--busdev-num {busdev}")])).0 == Some(0);
+            let paused = std::env::temp_dir().join("t27-bench-agent-paused").exists();
+            let act = ba::job_action(!paused, approved, det.contains("idcode"), det.contains(ba::BOARD_IDCODE), busy, field("flash:").is_some());
+            println!("bench-agent: #{n} on {busdev}: {}", ["run", "wait", "refuse"][act as usize]);
+            if act != ba::JOB_RUN { continue; }
+            let mut cmd = Command::new(std::env::current_exe()?);
+            cmd.current_dir(repo_root).args(["silicon", &spec, "--top", &top, "--busdev-num", &busdev, "--wrong-part", &wrong_part]);
+            cmd.args([("--nonce", field("nonce:")), ("--pnr-seed", field("seed:"))].into_iter().filter_map(|(f, v)| v.map(|v| [f.to_string(), v])).flatten());
+            let (_, sout, _) = run_bounded(&mut cmd, Duration::from_secs(3600));
+            print!("{sout}");
+            let has = |a: &str, b: &str| sout.lines().any(|l| l.contains(a) && l.contains(b));
+            let receipt = sout.lines().find_map(|l| l.trim().strip_prefix("receipt: ")).and_then(|p| std::fs::read_to_string(repo_root.join(p)).ok());
+            let dna = receipt.as_deref().map_or(false, |r| !r.contains("\"device_dna\":null"));
+            let o = ba::run_outcome(has("A1 wrong part", "Done Some(0)"), has("B1 our bitstream", "Done Some(1)"), sout.contains("\nPASS --"), dna);
+            let say = format!("{mark} {}\n\n```json\n{}```\n", ["receipt", "the spec FAILED", "BENCH problem, not the spec's"][o as usize], receipt.unwrap_or_else(|| format!("no receipt -- {}\n", sout.lines().last().unwrap_or(""))));
+            run(Command::new("gh").args(["issue", "comment", &n, "--repo", ba::JOB_REPO, "--body", &say]));
+        }
+        if once { return Ok(()); }
+        std::thread::sleep(Duration::from_secs(ba::POLL_SECONDS as u64));
+    }
+}

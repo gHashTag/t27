@@ -1,0 +1,172 @@
+// Port of gHashTag/trinity fpga/openxc7-synth/DSP48E1_mock.v at a0d149e71560.
+//
+// Mock DSP48E1 for iverilog simulation - the full parameter set of the
+// Xilinx DSP48E1 primitive, with a simplified behavioural model: a
+// registered 18x18 multiply, a two-stage pipeline (m_reg then p_reg),
+// P selected by the PREG parameter, and the unused outputs hardwired low.
+//
+// The module's decisions are pure functions below; t27c gen-verilog lowers
+// them into a Verilog function block per function, and the on_comb boundary
+// into the module's data port.
+
+module DSP48E1 {
+    // ------------------------------------------------------------------
+    // Full parameter set for Xilinx DSP48E1 primitive (original lines 9-51).
+    // The mock's behaviour reads only PREG; the rest document the interface.
+    // ------------------------------------------------------------------
+    const ACASCREG : u8 = 1;
+    const ADREG : u8 = 1;
+    const ALUMODEREG : u8 = 1;
+    const AREG : u8 = 1;
+    const AUTORESET_PATDET : str = "NO_RESET";
+    const A_INPUT : str = "DIRECT";
+    const BCASCREG : u8 = 1;
+    const BREG : u8 = 1;
+    const B_INPUT : str = "DIRECT";
+    const CARRYINREG : u8 = 0;
+    const CARRYINSELREG : u8 = 0;
+    const CARRYOUTREG : u8 = 0;
+    const CREG : u8 = 1;
+    const DREG : u8 = 1;
+    const INMODEREG : u8 = 1;
+    const IS_ALUMODE_INVERTED : bool = false;
+    const IS_CARRYIN_INVERTED : bool = false;
+    const IS_CLK_INVERTED : bool = false;
+    const IS_INMODE_INVERTED : bool = false;
+    const IS_OPMODE_INVERTED : bool = false;
+    const IS_RSTALLCARRYIN_INVERTED : bool = false;
+    const IS_RSTALUMODE_INVERTED : bool = false;
+    const IS_RSTA_INVERTED : bool = false;
+    const IS_RSTB_INVERTED : bool = false;
+    const IS_RSTCTRL_INVERTED : bool = false;
+    const IS_RSTC_INVERTED : bool = false;
+    const IS_RSTD_INVERTED : bool = false;
+    const IS_RSTIN_INVERTED : bool = false;
+    const IS_RSTM_INVERTED : bool = false;
+    const IS_RSTP_INVERTED : bool = false;
+    const MASK : u64 = 0x3FFFFFFF;
+    const MREG : u8 = 1;
+    const OPMODEREG : u8 = 1;
+    const PATTERN : u64 = 0;
+    const PREG : u8 = 1;
+    const SEL_MASK : str = "MASK";
+    const SEL_PATTERN : str = "PATTERN";
+    const USE_DPORT : bool = false;
+    const USE_MULT : str = "MULTIPLY";
+    const USE_PATTERN_DETECT : str = "NO_PATDET";
+    const USE_SIMD : str = "ONE48";
+
+    // ------------------------------------------------------------------
+    // The decision: the mock's compute, as pure functions.
+    // ------------------------------------------------------------------
+
+    // Simple multiplication (original line 102): the mock multiplies only
+    // the low 18 bits of each input; bits 17 and above are sliced off
+    // before the product is taken (A[17:0] * B[17:0]).
+    fn dsp_mult(a: u32, b: u32) -> u64 {
+        const a18 = (a & 0x3FFFF) as u64;
+        const b18 = (b & 0x3FFFF) as u64;
+        return a18 * b18;
+    }
+
+    // m_reg update (original lines 101-102): reset wins over enable, and
+    // the mock resets when RSTM is LOW (!RSTM in the original), loads
+    // A[17:0] * B[17:0] when CEM, holds otherwise.
+    fn m_reg_next(m_reg: u64, cem: bool, rst_m: bool, a: u32, b: u32) -> u64 {
+        if (!rst_m) {
+            return 0;
+        }
+        if (cem) {
+            return dsp_mult(a, b);
+        }
+        return m_reg;
+    }
+
+    // p_reg update (original lines 98-99): same polarity - reset when RSTP
+    // is LOW (!RSTP in the original), load m_reg when CEP, hold otherwise.
+    fn p_reg_next(p_reg: u64, cep: bool, rst_p: bool, m_reg: u64) -> u64 {
+        if (!rst_p) {
+            return 0;
+        }
+        if (cep) {
+            return m_reg;
+        }
+        return p_reg;
+    }
+
+    // P output (original line 105): with PREG == 1 (the mock's default) P
+    // is the registered product; otherwise the unregistered m_reg.
+    fn p_output(preg: u8, p_reg: u64, m_reg: u64) -> u64 {
+        if (preg == 1) {
+            return p_reg;
+        }
+        return m_reg;
+    }
+
+    // Unused outputs (original lines 108-112): hardwired low in the mock.
+    fn carryout() -> u8 { return 0; }
+    fn patterndetect() -> bool { return false; }
+    fn patterndetect_bus() -> u64 { return 0; }
+    fn underflow() -> u64 { return 0; }
+    fn overflow() -> u64 { return 0; }
+
+    // The combinational boundary: what moves into the DSP datapath per
+    // clock is the 18x18 product of the A and B input buses. The registered
+    // pipeline and the P selection are modelled by m_reg_next, p_reg_next
+    // and p_output above, exercised by the tests below.
+    fn on_comb(a: u32, b: u32) -> u64 {
+        return dsp_mult(a, b);
+    }
+
+    // ------------------------------------------------------------------
+    // Tests: the values the original produces for chosen inputs.
+    // ------------------------------------------------------------------
+
+    test dsp_mult_values {
+        assert(dsp_mult(5, 7) == 35);
+        assert(dsp_mult(0, 0xFFFFFFFF) == 0);
+        assert(dsp_mult(262143, 262143) == 68718952449);
+        // The combinational boundary computes the same 18x18 product.
+        assert(on_comb(5, 7) == 35);
+        assert(on_comb(0x40000 + 3, 0x40000 + 2) == 6);
+    }
+
+    test dsp_mult_slices_18_bits {
+        // Bits above bit 17 never reach the multiplier (A[17:0], B[17:0]).
+        assert(dsp_mult(0x40000 + 3, 0x40000 + 2) == 6);
+        assert(dsp_mult(0xFFFFFFFF, 1) == 262143);
+    }
+
+    test m_reg_semantics {
+        // RSTM low resets m_reg to zero (the mock's !RSTM polarity).
+        assert(m_reg_next(12345, true, false, 5, 7) == 0);
+        // RSTM high with CEM loads A[17:0] * B[17:0].
+        assert(m_reg_next(12345, true, true, 5, 7) == 35);
+        // RSTM high with CEM low holds the old value.
+        assert(m_reg_next(12345, false, true, 5, 7) == 12345);
+    }
+
+    test p_reg_semantics {
+        // RSTP low resets p_reg to zero (the mock's !RSTP polarity).
+        assert(p_reg_next(999, true, false, 35) == 0);
+        // RSTP high with CEP loads m_reg.
+        assert(p_reg_next(999, true, true, 35) == 35);
+        // RSTP high with CEP low holds the old value.
+        assert(p_reg_next(999, false, true, 35) == 999);
+    }
+
+    test p_output_selects_by_preg {
+        // PREG == 1, the mock's default: P is the registered product.
+        assert(p_output(1, 70, 35) == 70);
+        // PREG == 0: P is the unregistered m_reg.
+        assert(p_output(0, 70, 35) == 35);
+    }
+
+    test unused_outputs_low {
+        assert(carryout() == 0);
+        assert(!patterndetect());
+        assert(patterndetect_bus() == 0);
+        assert(underflow() == 0);
+        assert(overflow() == 0);
+    }
+}

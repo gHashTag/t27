@@ -26,7 +26,7 @@ pub const REFUSE_RUN_TIME: u8 = 7;
 
 pub const PARSE: u8 = 8;
 
-pub const REFUSE_STRINGS: u8 = 9;
+pub const STATIC_STRINGS: u8 = 9;
 
 pub const AT_WRITE: u8 = 2;
 
@@ -51,7 +51,7 @@ pub fn plan(at: u8, named: bool, flat: bool, repeat: bool, elements: usize, text
         return REFUSE_REPEAT;
     }
     if ((elements > 0) && strings) {
-        return REFUSE_STRINGS;
+        return STATIC_STRINGS;
     }
     if (elements > 0) {
         return STATIC;
@@ -69,7 +69,7 @@ pub fn plan(at: u8, named: bool, flat: bool, repeat: bool, elements: usize, text
 }
 
 pub fn refuses(act: u8) -> bool {
-    return ((((act >= REFUSE_ANONYMOUS) && (act <= REFUSE_RUN_TIME)) || (act == REFUSE_STRINGS)) || (act == REFUSE_WRITE));
+    return (((act >= REFUSE_ANONYMOUS) && (act <= REFUSE_RUN_TIME)) || (act == REFUSE_WRITE));
 }
 
 pub fn what(at: u8, act: u8) -> &'static str {
@@ -78,9 +78,6 @@ pub fn what(at: u8, act: u8) -> &'static str {
     }
     if ((act == REFUSE_RUN_TIME) && (at == AT_RETURN)) {
         return "ExprArrayLiteral(run-time slice return)";
-    }
-    if ((act == REFUSE_STRINGS) && (at == AT_RETURN)) {
-        return "ExprArrayLiteral(string slice return)";
     }
     if (act == REFUSE_WRITE) {
         return "StmtAssign(write through an array literal)";
@@ -110,9 +107,6 @@ pub fn why(at: u8, act: u8) -> &'static str {
     if (act == REFUSE_RUN_TIME) {
         return "an array literal of run-time values for a slice field (the reference builds it in the frame of the fn that writes it)";
     }
-    if (act == REFUSE_STRINGS) {
-        return "an array literal whose elements hold a str, for a slice (a t27b static cannot hold a string's address)";
-    }
     if (act == REFUSE_WRITE) {
         return "a write through a mutable slice whose element type an array literal of compile-time values backs (the reference's `@constCast(&[_]E{ ... })`): writing that comptime constant is undefined behaviour in Zig, kept by x86_64 Debug and a fault under LLVM";
     }
@@ -120,11 +114,15 @@ pub fn why(at: u8, act: u8) -> &'static str {
 }
 
 pub fn is_static(act: u8) -> bool {
-    return (act == STATIC);
+    return ((act == STATIC) || (act == STATIC_STRINGS));
+}
+
+pub fn at_entry(act: u8) -> bool {
+    return (act == STATIC_STRINGS);
 }
 
 pub fn logs(act: u8, mutable: bool, analyzed: bool) -> bool {
-    return ((((act == STATIC) || (act == WRITE)) && mutable) && analyzed);
+    return (((is_static(act) || (act == WRITE)) && mutable) && analyzed);
 }
 
 pub fn refuses_write(act: u8, backed: bool) -> bool {

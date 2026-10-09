@@ -1,0 +1,5 @@
+// `#define DPO_G 100000`, so C computes DPO_G * DPO_G in int; Zig in i64
+// (#8099).
+module define_product_overflows;
+const DPO_G: i64 = 100000;
+const DPO_H: i64 = DPO_G * DPO_G;

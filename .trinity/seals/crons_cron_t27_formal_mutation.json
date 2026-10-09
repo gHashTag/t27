@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:46fc06b82eaed96334a5e05136dc72977656639093c017a30dc016cc1954d4d2",
+  "gen_hash_rust": "sha256:7223268588f49ec4cae0ddbd145ccb3ed8b1df20d71aa37f3c06f26efdd9b357",
+  "gen_hash_verilog": "sha256:29be3eda6d49465a10909cf8e2b62bc5d23537750ba167ab6d078ca9ddc58db9",
+  "gen_hash_zig": "sha256:fb39701a8897bb08995b24db33c2c52b7cf4db24c41a9325e656f72a44e26813",
+  "module": "cron_t27_formal_mutation",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:ca31c344474b055dfd48105c4f22dea8f1c7a48961e6d5262bc207eb0b1a49a5",
+  "spec_path": "specs/crons/t27-formal-mutation.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
