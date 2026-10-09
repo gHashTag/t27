@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+e87e790ac",
-  "gen_hash_c": "sha256:c28e6376e7fa8ded6b180d8dec65b86a9d5bc370bcf2e7d55ba4d4006ab2ad54",
-  "gen_hash_rust": "sha256:22f8df90785c8d8ac46103eac9dd496b22ffb8b8c77bddb830bb51964020df74",
-  "gen_hash_verilog": "sha256:607c348b03c410b8cfbf3e766ca9ad636a65380c70add4df55ac7b5284e68a1c",
-  "gen_hash_zig": "sha256:dc78ff3c0d143d5c9db929c12bdc0652349d9d0247ad57893a0b70b0a3d4fe07",
+  "built_by": "t27c-bootstrap@0.5.2+12ee225c5",
+  "gen_hash_c": "sha256:d85b0b77abee5e0d9b1c4728b67fc48d754104ccc1856937013056eb05104f4c",
+  "gen_hash_rust": "sha256:d655191ba0610945b86f6334dd0333207f0be621fe47897a7a8c211665ad67f8",
+  "gen_hash_verilog": "sha256:b21a95fcf3d9d616c7821d48c307bb9ec7f5024e86059360134c9c8db62c76c7",
+  "gen_hash_zig": "sha256:16d284cd95175b22419e8dffa8588d3f5c2dafb90212f88a70254e487f4e25f9",
   "module": "T27bConformanceLibmStdMath",
   "ring": 12,
-  "sealed_at": "2026-10-08T20:26:23Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
-  "spec_hash": "sha256:8dbc2ca6aac35e6b51a4377eecf8edbf664bfc5713f3c2d5157477a812f8b47a",
+  "sealed_at": "2026-10-09T08:57:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:46d16893692257fab86e9688458ec165f34965c5642bb7271d6209bfb5d06180",
   "spec_path": "specs/tri/t27b/conformance/libm_std_math.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 4,
-    "total": 4
+    "passed": 7,
+    "total": 7
   }
 }
