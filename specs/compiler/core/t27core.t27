@@ -25,6 +25,15 @@
 ;         (an array's `** COUNT` is its dimension: the same token or value)
 ;   [pub] fn NAME ( P : SCALAR , ... ) [-> SCALAR|void] { STMT* }
 ;   test NAME { STMT* }
+;   bench NAME { STMT* }   (a function nothing calls, in C as in Zig; a
+;         top-level assignment names a local or a scalar module var, as in
+;         a test: Zig binds any other, gen-c leaves it undeclared, #8010)
+;   invariant NAME { CHECK ; ... }   or   invariant NAME : CHECK ;
+;         (CHECK is EXPR or assert(EXPR) of decimal numbers, true, false and
+;         consts gen-c writes as `#define`, through operators and `as`: gen-c
+;         keeps such a check as `_Static_assert` and drops any other to a
+;         comment, or a body with a statement to a function nothing calls,
+;         where Zig checks it at compile time, #8009)
 ;   use A :: B ... ;   (the input carries module A/B.t27 after a NUL; the
 ;         `fn`s and `const`s gen-c splices from it follow the importer's, and
 ;         every lossy splice is refused: see "imports" below)
@@ -114,6 +123,9 @@ const E_STRUCT: i64 = 12;
 ; An enum gen-c lowers with loss: a member matched only by case or with no
 ; single owner (#8001), a value cut short (#8002), constants that collide.
 const E_ENUM: i64 = 13;
+; An invariant gen-c does not check: one it writes as a comment, or as a
+; function nothing calls (#8009).
+const E_INVARIANT: i64 = 14;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -165,6 +177,8 @@ const T_ARM: i64 = 291;
 const T_USE: i64 = 292;
 const T_STRUCT: i64 = 293;
 const T_ENUM: i64 = 294;
+const T_INVARIANT: i64 = 295;
+const T_BENCH: i64 = 296;
 const K_DOT: i64 = 46;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
@@ -215,6 +229,10 @@ const D_FIELD: i64 = 48;
 ; token.
 const D_ENUM: i64 = 49;
 const D_MEMBER: i64 = 50;
+; invariant NAME: nd_tok the name, nd_a the first check (an S_EXPR whose nd_a
+; is the predicate). bench NAME: nd_tok the name, nd_b the body, as a test.
+const D_INV: i64 = 51;
+const D_BENCH: i64 = 52;
 
 ; Packed spellings of the words the lexer and checker recognise.
 const W_MODULE: i64 = 0x656c75646f6d;
@@ -527,7 +545,7 @@ fn word_kind(t: i64) -> i64 {
         return T_ENUM;
     }
     if (tok_is(t, W_INVARIA, 't', 9)) {
-        return T_BAD;
+        return T_INVARIANT;
     }
     if (tok_is(t, W_FOR, 0, 3)) {
         return T_FOR;
@@ -535,7 +553,10 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_SWITCH, 0, 6)) {
         return T_SWITCH;
     }
-    if (tok_is(t, W_BENCH, 0, 5) or tok_is(t, W_TRY, 0, 3)) {
+    if (tok_is(t, W_BENCH, 0, 5)) {
+        return T_BENCH;
+    }
+    if (tok_is(t, W_TRY, 0, 3)) {
         return T_BAD;
     }
     if (tok_is(t, W_USE, 0, 3)) {
@@ -1744,6 +1765,15 @@ fn parse_decl() -> i64 {
         has_tests = true;
         return mk(D_TEST, tname, 0, parse_block());
     }
+    if (k == T_BENCH) {
+        advance();
+        var bname: i64 = p;
+        expect(T_IDENT);
+        return mk(D_BENCH, bname, 0, parse_block());
+    }
+    if (k == T_INVARIANT) {
+        return parse_invariant();
+    }
     if (k == T_CONST or k == T_VAR) {
         p = p + 1;
         var name: i64 = p;
@@ -1855,6 +1885,48 @@ fn parse_enum(name: i64) -> i64 {
     var n: i64 = mk(D_ENUM, name, head, 0);
     nd_c[n as usize] = p - 1;
     return n;
+}
+
+; invariant NAME { CHECK ; ... }  or  invariant NAME : CHECK ;  -- p at the
+; keyword. A CHECK is an expression, or `assert(EXPR)`, whose `assert` gen-c
+; unwraps.
+fn parse_invariant() -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    var clause: bool = false;
+    advance();
+    var name: i64 = p;
+    expect(T_IDENT);
+    if (!failed and cur() == ':') {
+        clause = true;
+        advance();
+    } else {
+        expect(K_LBRACE);
+    }
+    while (!failed and (clause or cur() != K_RBRACE)) {
+        var k: i64 = cur();
+        if (k == T_VAR or k == T_CONST or k == T_IF or k == T_WHILE or k == T_FOR or k == T_RETURN) {
+            fail(E_INVARIANT, tpos(p));
+            return 0;
+        }
+        var c: i64 = mk(S_EXPR, p, parse_expr(), 0);
+        if (!failed and (cur() == '=' or cur() == T_OPEQ)) {
+            fail(E_INVARIANT, tpos(p));
+            return 0;
+        }
+        expect(';');
+        if (head == 0) {
+            head = c;
+        } else {
+            nd_next[tail as usize] = c;
+        }
+        tail = c;
+        if (clause) {
+            return mk(D_INV, name, head, 0);
+        }
+    }
+    expect(K_RBRACE);
+    return mk(D_INV, name, head, 0);
 }
 
 ; gen-c stops reading at `endmodule` and drops whatever follows it, so the
@@ -2902,6 +2974,56 @@ fn check_field(e: i64) -> void {
     nd_d[e as usize] = en;
 }
 
+; gen-c's `is_c_constant_expr` on its own rendering of a check: no call,
+; and every word C's or a `#define` of the file. A hex, binary or char
+; literal renders a word (`x1F`, `a`) that is neither, and so does an enum
+; member or any other const; each would be dropped to a comment (#8009).
+fn static_check(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM) {
+        return tk_len[ntok(e) as usize] == 1 or src[(tk_pos[ntok(e) as usize]) as usize] != '0';
+    }
+    if (k == N_TRUE or k == N_FALSE) {
+        return true;
+    }
+    if (k == N_UN or k == N_CAST) {
+        return static_check(na(e));
+    }
+    if (k == N_BIN) {
+        return static_check(na(e)) and static_check(nb(e));
+    }
+    if (k != N_IDENT) {
+        return false;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_CONST and tok_eq(ntok(d), ntok(e))) {
+            var v: i64 = nkind(na(d));
+            return v == N_NUM or v == N_TRUE or v == N_FALSE or v == N_CHAR or v == N_NEGLIT;
+        }
+        d = nnext(d);
+    }
+    return false;
+}
+
+; Each check is one gen-c keeps as `_Static_assert`; nd_b of its S_EXPR is
+; the predicate, `assert` unwrapped.
+fn check_invariant(d: i64) -> void {
+    var c: i64 = na(d);
+    while (!failed and c != 0) {
+        var e: i64 = na(c);
+        if (nkind(e) == N_CALL and tok_is(ntok(e), W_ASSERT, 0, 6) and list_len(na(e)) == 1) {
+            e = na(e);
+        }
+        if (!static_check(e)) {
+            fail(E_INVARIANT, tpos(ntok(c)));
+            return;
+        }
+        nd_b[c as usize] = e;
+        c = nnext(c);
+    }
+}
+
 fn check() -> void {
     var d: i64 = decls;
     check_structs();
@@ -2941,6 +3063,12 @@ fn check() -> void {
             check_stmts(nb(d), 0);
         } else if (k == D_TEST) {
             check_stmts(nb(d), nb(d));
+        } else if (k == D_BENCH) {
+            // A top-level `x = e` binds x in Zig's bench, as in a test, and
+            // gen-c leaves it undeclared (#8010): the test rule.
+            check_stmts(nb(d), nb(d));
+        } else if (k == D_INV) {
+            check_invariant(d);
         } else if (k == D_CONST or k == D_VAR) {
             if (!type_ok(naux(d))) {
                 fail(E_TYPE, tpos(naux(d)));
@@ -2974,7 +3102,8 @@ fn check() -> void {
 ; modules declare (#7939).
 
 fn named_decl(d: i64) -> bool {
-    return nkind(d) != D_TEST and nkind(d) != D_USE;
+    var k: i64 = nkind(d);
+    return k != D_TEST and k != D_USE and k != D_INV and k != D_BENCH;
 }
 
 fn is_let(d: i64) -> bool {
@@ -3732,7 +3861,7 @@ fn check_qualified() -> void {
 ; Whether function or test d binds a parameter or local named t.
 fn binds(d: i64, t: i64) -> bool {
     var prm: i64 = na(d);
-    if (nkind(d) != D_FN and nkind(d) != D_TEST) {
+    if (nkind(d) != D_FN and nkind(d) != D_TEST and nkind(d) != D_BENCH) {
         return false;
     }
     while (prm != 0) {
@@ -4435,6 +4564,61 @@ fn emit_structs() -> void {
     }
 }
 
+; gen-c's `gen_c_invariant`, a check a line, at module scope.
+fn emit_invariant(d: i64) -> void {
+    var c: i64 = na(d);
+    t_inv_head();
+    put_tok(ntok(d));
+    w(0xa2f2a20, 4);
+    if (c == 0) {
+        t_inv_none();
+        put_tok(ntok(d));
+        w(0xa2f2a203b2922, 7);
+    }
+    while (c != 0) {
+        w(0x5f6369746174535f, 8);
+        w(0x28747265737361, 7);
+        emit_expr(nb(c));
+        w(0x7261766e6922202c, 8);
+        w(0x203a746e6169, 6);
+        put_tok(ntok(d));
+        w(0xa3b2922, 4);
+        c = nnext(c);
+    }
+    put('\n');
+}
+
+; Token t opens with `bench_`.
+fn bench_named(t: i64) -> bool {
+    return tk_len[t as usize] >= 6 and (tok_word(t, 0) & 0xffffffffffff) == 0x5f68636e6562;
+}
+
+; gen-c's `gen_c_bench`: `bench_` before a name that lacks it.
+fn emit_bench(d: i64) -> void {
+    var t: i64 = ntok(d);
+    w(0x2064696f76, 5);
+    if (!bench_named(t)) {
+        w(0x5f68636e6562, 6);
+    }
+    put_tok(t);
+    w(0x7b202964696f7628, 8);
+    put('\n');
+    indent(1);
+    w(0x68636e6562202a2f, 8);
+    w(0x203a, 2);
+    put_tok(t);
+    w(0xa2f2a20, 4);
+    emit_stmts(nb(d), 1);
+    if (nb(d) == 0) {
+        indent(1);
+        w(0x3a4f444f54202a2f, 8);
+        w(0x656d656c706d6920, 8);
+        w(0x68636e656220746e, 8);
+        w(0xa2f2a206b72616d, 8);
+    }
+    t_close_fn();
+}
+
 fn count_kind(k1: i64, k2: i64, k3: i64) -> i64 {
     var n: i64 = 0;
     var d: i64 = decls;
@@ -4510,9 +4694,26 @@ fn emit_module() -> void {
             d = nnext(d);
         }
     }
+    if (count_kind(D_INV, D_INV, D_INV) > 0) {
+        t_banner_open();
+        w(0x6e61697261766e49, 8);
+        w(0x706d6f6328207374, 8);
+        w(0x656d69742d656c69, 8);
+        w(0x6974726573736120, 8);
+        w(0x29736e6f, 4);
+        t_banner_close();
+        d = decls;
+        while (d != 0) {
+            if (nkind(d) == D_INV) {
+                emit_invariant(d);
+            }
+            d = nnext(d);
+        }
+        put('\n');
+    }
+    var checked: i64 = 0;
+    var empty: i64 = 0;
     if (has_tests) {
-        var checked: i64 = 0;
-        var empty: i64 = 0;
         t_banner_open();
         t_tests();
         t_banner_close();
@@ -4535,6 +4736,22 @@ fn emit_module() -> void {
             d = nnext(d);
         }
         put('\n');
+    }
+    if (count_kind(D_BENCH, D_BENCH, D_BENCH) > 0) {
+        t_banner_open();
+        w(0x72616d68636e6542, 8);
+        w(0x736b, 2);
+        t_banner_close();
+        d = decls;
+        while (d != 0) {
+            if (nkind(d) == D_BENCH) {
+                emit_bench(d);
+            }
+            d = nnext(d);
+        }
+        put('\n');
+    }
+    if (has_tests) {
         t_banner_open();
         t_runner();
         t_banner_close();
@@ -5231,6 +5448,83 @@ test name_spelling_an_enum_constant_is_refused {
     assert(err_code == E_NAME);
 }
 
+; "module m;const A: i64 = 5;invariant i {A == 5;}": `_Static_assert` after
+; `/* invariant: i */`, 745 bytes in all.
+test invariant_is_a_static_assert {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x697261766e693b35, 8, n3);
+    var n5: i64 = feed(0x417b206920746e61, 8, n4);
+    var n6: i64 = feed(0x7d3b35203d3d20, 7, n5);
+    assert(compile(n6) == 745);
+    assert(out_at(668) == 'i');
+    assert(out_at(684) == '_');
+    assert(out_at(685) == 'S');
+}
+
+; "module m;fn f() -> i64 {return 1;}invariant i {f() == 1;}": gen-c writes
+; the check as a comment (#8009).
+test invariant_with_a_call_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292866206e663b, 8, n1);
+    var n3: i64 = feed(0x7b20343669203e2d, 8, n2);
+    var n4: i64 = feed(0x31206e7275746572, 8, n3);
+    var n5: i64 = feed(0x697261766e697d3b, 8, n4);
+    var n6: i64 = feed(0x667b206920746e61, 8, n5);
+    var n7: i64 = feed(0x3b31203d3d202928, 8, n6);
+    var n8: i64 = feed(0x7d, 1, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_INVARIANT);
+}
+
+; "module m;const A: i64 = 5;invariant i {A == 0x5;}": gen-c reads `x5` as
+; an undeclared name and drops the check (#8009).
+test invariant_with_a_hex_literal_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x697261766e693b35, 8, n3);
+    var n5: i64 = feed(0x417b206920746e61, 8, n4);
+    var n6: i64 = feed(0x3b357830203d3d20, 8, n5);
+    var n7: i64 = feed(0x7d, 1, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_INVARIANT);
+}
+
+; "module m;invariant i {var t: i64 = 1;}": a function nothing calls (#8009).
+test invariant_with_a_statement_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x61697261766e693b, 8, n1);
+    var n3: i64 = feed(0x61767b206920746e, 8, n2);
+    var n4: i64 = feed(0x343669203a742072, 8, n3);
+    var n5: i64 = feed(0x7d3b31203d20, 6, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_INVARIANT);
+}
+
+; "module m;bench b {}": `void bench_b(void)` and gen-c's TODO, 588 bytes.
+test bench_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x622068636e65623b, 8, n1);
+    var n3: i64 = feed(0x7d7b20, 3, n2);
+    assert(compile(n3) == 588);
+    assert(out_at(496) == 'b');
+    assert(out_at(502) == 'b');
+    assert(out_at(538) == 'T');
+}
+
+; "module m;bench b {x = 1;}": Zig binds x, gen-c leaves it undeclared
+; (#8010).
+test bench_unbound_assignment_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x622068636e65623b, 8, n1);
+    var n3: i64 = feed(0x3b31203d20787b20, 8, n2);
+    var n4: i64 = feed(0x7d, 1, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_TESTASSIGN);
+}
+
 test put_int_writes_decimal {
     reset_out();
     put_int(907);
@@ -5248,6 +5542,21 @@ test packed_words_match_their_spelling {
 }
 
 ; ---------------------------------------------------------------- fixed text
+
+; /* invariant: 
+fn t_inv_head() -> void {
+    w(0x7261766e69202a2f, 8);
+    w(0x203a746e6169, 6);
+}
+
+; /* _Static_assert(1, "invariant: 
+fn t_inv_none() -> void {
+    w(0x746174535f202a2f, 8);
+    w(0x72657373615f6369, 8);
+    w(0x6e6922202c312874, 8);
+    w(0x3a746e6169726176, 8);
+    w(0x20, 1);
+}
 
 ; Structs
 fn t_structs() -> void {
