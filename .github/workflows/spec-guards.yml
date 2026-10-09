@@ -128,7 +128,13 @@ jobs:
           t=$PWD/target/release/t27c d=$RUNNER_TEMP/aff; mkdir -p "$d/base" "$d/zig"
           curl -fsSL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz | tar -xJ -C "$d/zig" --strip-components=1
           export PATH="$d/zig:$PATH"
-          git archive HEAD^1 specs | tar -x -C "$d/base"
+          # #8095: what a build may take as already verified (t27c frontier, specs/verified/seal_identity.t27),
+          # always against the BASE revision's seals (a pull request cannot vouch for itself) and this head's
+          # test runner. A base spec frontier marks REUSE scores 0 failing tests without being run: 0 is the
+          # strictest baseline, so a wrong reuse can only turn this step red, never hide a regression.
+          git archive HEAD^1 specs .trinity/seals | tar -x -C "$d/base"
+          mkdir -p "$d/base/bootstrap/src" && git show HEAD:bootstrap/src/test_report.rs > "$d/base/bootstrap/src/test_report.rs"
+          (cd "$d/base" && "$t" frontier --list) > "$d/rebuild.txt"; tail -1 "$d/rebuild.txt" | tee -a "$GITHUB_STEP_SUMMARY"
           printf '#include "gen/c/ci/affected.c"\n#include <stdio.h>\n#include <stdlib.h>\nint main(void){size_t c=1<<26;uint8_t*b=malloc(c),*s=malloc(c),*o=calloc(c+1,1);size_t n=fread(b,1,c,stdin);if(n==c)return 2;if(select_affected(b,n,s,c,o,c)==RUN_ALL){puts("RUN_ALL");return 0;}fputs((char*)o,stdout);return 0;}\n' | cc -w -I . -x c -o "$d/sel" -
           { git diff --name-status HEAD^1 HEAD; echo --graph; "$t" use-edges; (cd "$d/base" && "$t" use-edges)
             echo --corpus; git ls-files 'specs/*.t27' 'specs/*.tri'; } | "$d/sel" > "$d/sel.txt"
@@ -139,7 +145,8 @@ jobs:
           while IFS= read -r f; do
             case $f in *.t27) ;; *) continue ;; esac
             h=$(score "$f"); b=0
-            if [ -f "$d/base/$f" ]; then b=$(cd "$d/base" && score "$f"); fi
+            if [ -f "$d/base/$f" ] && ! grep -q " $f\$" "$d/rebuild.txt"; then echo "$f: base reused (seal v2, t27c frontier)"
+            elif [ -f "$d/base/$f" ]; then b=$(cd "$d/base" && score "$f"); fi
             echo "$f: head $h, base $b (failing tests; 1000000 = does not build)"
             if [ "$h" -gt "$b" ]; then echo "::error file=$f::$h failing vs $b on the base"; bad=1; fi
           done < "$d/sel.txt"
