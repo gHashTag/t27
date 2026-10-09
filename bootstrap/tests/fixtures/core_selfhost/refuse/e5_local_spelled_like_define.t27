@@ -1,0 +1,7 @@
+// `#define LSD_K 5` rewrites the local's name in C (#8088).
+module local_spelled_like_define;
+const LSD_K: i64 = 5;
+fn lsd_g() -> i64 {
+    var LSD_K: i64 = 2;
+    return LSD_K;
+}

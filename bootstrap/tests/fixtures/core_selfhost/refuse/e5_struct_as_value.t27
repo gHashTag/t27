@@ -1,0 +1,9 @@
+// A struct name read as a value (#8087).
+module struct_as_value;
+struct SavP {
+    x: i64,
+}
+fn sav_g() -> i64 {
+    var a: SavP = SavP;
+    return a.x;
+}
