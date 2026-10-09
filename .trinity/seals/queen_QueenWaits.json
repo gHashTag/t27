@@ -1,20 +1,20 @@
 {
   "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
-  "gen_hash_c": "sha256:77709e21427ca6b34de97d340cc66985ca2b30707eac365e3eb4526d25cad998",
-  "gen_hash_rust": "sha256:70ded4ff61ec25408804a803a0f5ccf2fa8884b579f58a3e95ac5437e08bfd5e",
-  "gen_hash_verilog": "sha256:9ba46d77ff90e3654d4e50dc5fd2d9fddce10d4f4f53cbb353a0dd9323c27450",
-  "gen_hash_zig": "sha256:8329e3292c3f8432721abab29deaf34c615126fe04e47f51d8a21738a5662291",
+  "gen_hash_c": "sha256:37e89ffd41e092e98734d9fbbc4cb5b1071ebe8904d18ae0747f6d68021be4c2",
+  "gen_hash_rust": "sha256:8995d0f6a0b7cb97a6935cb220dbfa2e2c84ee22e4035dd872e90a6180ab0f8e",
+  "gen_hash_verilog": "sha256:96236dc669917e3c1d7d377542c6e0e24470b7277721040439b25f26efcefdac",
+  "gen_hash_zig": "sha256:c52f276247cac42384f9d59c497a1857b850956b4a69772ff92269040cfc2401",
   "module": "QueenWaits",
   "ring": 12,
-  "sealed_at": "2026-10-09T17:13:02Z",
+  "sealed_at": "2026-10-09T17:45:03Z",
   "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:01c97b699d9cd216a7444385a263a099398bde002a50f8ed209296f82248eec5",
+  "spec_hash": "sha256:59facd9a1583f1d859d76816a4dcffa23bc19a4b2d85c849454c0f0129877def",
   "spec_path": "specs/queen/waits.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 12,
-    "total": 12
+    "passed": 13,
+    "total": 13
   }
 }

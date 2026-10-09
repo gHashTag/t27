@@ -89,6 +89,13 @@ pub fn delivers_wake(landed: bool, to: u8) -> bool {
     return landed and wakes_owner(to);
 }
 
+/// A key resolves its row once. A resolution lands only on a waiting row nothing has resolved yet: a
+/// webhook and a check that both see a run finish leave the first answer, and a resolution that
+/// comes after the row ended changes nothing.
+pub fn resolution_lands(state: u8, already_resolved: bool) -> bool {
+    return state == W_WAITING and already_resolved == false;
+}
+
 ; --- 2. The wake rule --------------------------------------------------------------------------------
 
 /// What the scheduler does with a row it claimed.
@@ -182,7 +189,8 @@ pub fn recheck_in_seconds(checks: u32, seconds_to_expiry: u32) -> u32 {
 }
 
 /// What a check's answer does to the row: a finished run resolves it, whatever its conclusion (the
-/// owner reads the conclusion); anything else re-arms it.
+/// owner reads the conclusion); anything else re-arms it, a check that could not read included, and
+/// a key no resolver knows is never completed, so such a row ends at its expiry.
 pub fn check_event(completed: bool) -> u8 {
     if (completed) { return EV_RESOLVE; }
     return EV_RECHECK;
@@ -277,6 +285,14 @@ pub fn round_visits_job(parked: bool) -> bool {
     return parked == false;
 }
 
+/// A job's WAIT step parks on a row only when there is something to wait on that has not ended: a
+/// run that exists and has not completed. No run yet: the step answers NOT_YET and the round asks
+/// again (a run appears seconds after its event, even in a jammed queue). A completed run: the step
+/// answers at once and makes no row. A cancelled job cancels the rows it waits on (EV_CANCEL).
+pub fn step_parks(run_found: bool, run_completed: bool) -> bool {
+    return run_found and run_completed == false;
+}
+
 /// jobs.t27's step outcomes, written as literals here: O_PASS 0, O_NOT_YET 1, O_FAIL 2.
 pub const JOB_O_PASS : u8 = 0;
 pub const JOB_O_NOT_YET : u8 = 1;
@@ -358,6 +374,20 @@ test only_a_resolution_or_an_expiry_wakes_the_owner_and_only_once {
     assert delivers_wake(false, W_RESOLVED) == false;
     assert delivers_wake(false, W_EXPIRED) == false;
     assert delivers_wake(true, W_CANCELLED) == false;
+}
+
+test a_key_resolves_its_row_once {
+    assert resolution_lands(W_WAITING, false) == true;
+    // a second resolution of a waiting row: the first answer stays
+    assert resolution_lands(W_WAITING, true) == false;
+    // a resolution after the row ended: nothing
+    assert resolution_lands(W_RESOLVED, false) == false;
+    assert resolution_lands(W_EXPIRED, false) == false;
+    assert resolution_lands(W_CANCELLED, false) == false;
+    assert resolution_lands(9, false) == false;
+    // the resolution that landed is what makes the row due at once
+    assert wake_action(W_WAITING, true, true, false, 0, 100) == WA_RESOLVE;
+    assert due_in_seconds(W_WAITING, true, false, 0, 100) == 0;
 }
 
 test a_row_is_due_when_its_time_passed_or_its_key_resolved {
@@ -516,6 +546,14 @@ test a_job_parked_on_a_row_waits_off_the_round {
     assert step_outcome(W_EXPIRED, false) == JOB_O_FAIL;
     assert step_outcome(W_CANCELLED, true) == JOB_O_FAIL;
     assert step_outcome(9, true) == JOB_O_FAIL;
+    // a step parks only on a run that exists and has not completed
+    assert step_parks(true, false) == true;
+    assert step_parks(false, false) == false;
+    assert step_parks(true, true) == false;
+    assert step_parks(false, true) == false;
+    // a cancelled job's waiting row is cancelled, and its owner is not woken by it
+    assert state_after(W_WAITING, EV_CANCEL) == W_CANCELLED;
+    assert wakes_owner(state_after(W_WAITING, EV_CANCEL)) == false;
     assert JOB_O_PASS == 0;
     assert JOB_O_NOT_YET == 1;
     assert JOB_O_FAIL == 2;
