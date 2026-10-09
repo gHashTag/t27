@@ -1,0 +1,3 @@
+// #8013: an integer in a list of strings; C converts it.
+module integer_string_element;
+var ise_names: [2]str = [_]str{ "a", 7 };

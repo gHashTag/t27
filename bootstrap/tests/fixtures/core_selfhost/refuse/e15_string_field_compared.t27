@@ -1,0 +1,8 @@
+// #8013: C compares the two addresses a string field holds.
+module string_field_compared;
+struct SfcUser {
+    name: str,
+}
+fn sfc_f(a: SfcUser, b: SfcUser) -> bool {
+    return a.name == b.name;
+}
