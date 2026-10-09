@@ -33,7 +33,7 @@ enum ShellError {
     // ════════════════════════════════════════════════════════════════════
 
     // get retrieves an environment variable
-    fn get(name: str) -> Result(str?, ShellError) {
+    fn get(name: str) -> ShellError!?str {
         // Implementation: Get environment variable value
     }
 
@@ -48,12 +48,12 @@ enum ShellError {
     }
 
     // list returns all environment variables
-    fn list() -> Result([EnvVar], ShellError) {
+    fn list() -> ShellError![EnvVar] {
         // Implementation: Get all environment variables
     }
 
     // expand expands environment variables in a string
-    fn expand(input: str) -> Result(str, ShellError) {
+    fn expand(input: str) -> ShellError!str {
         // Implementation: Expand $VAR and ${VAR} patterns
     }
 
@@ -70,7 +70,7 @@ enum ShellError {
     }
 
     // set_path sets the PATH environment variable
-    fn set_path(value: str) -> Result(void, ShellError) {
+    fn set_path(value: str) -> ShellError!void {
         // Implementation: Set PATH value
     }
 
@@ -80,17 +80,17 @@ enum ShellError {
     }
 
     // path_remove removes a directory from PATH
-    fn path_remove(directory: str) -> Result(void, ShellError) {
+    fn path_remove(directory: str) -> ShellError!void {
         // Implementation: Remove from PATH
     }
 
     // path_list returns all directories in PATH
-    fn path_list() -> Result([str], ShellError) {
+    fn path_list() -> ShellError![str] {
         // Implementation: Split PATH into directories
     }
 
     // path_which finds the executable in PATH
-    fn path_which(executable: str) -> Result(str?, ShellError) {
+    fn path_which(executable: str) -> ShellError!?str {
         // Implementation: Find executable in PATH
     }
 
@@ -99,22 +99,22 @@ enum ShellError {
     // ════════════════════════════════════════════════════════════════════
 
     // detect detects the current shell
-    fn detect() -> Result(ShellProperties, ShellError) {
+    fn detect() -> ShellError!ShellProperties {
         // Implementation: Detect current shell from env
     }
 
     // find finds a shell by name
-    fn find(name: str) -> Result(ShellProperties?, ShellError) {
+    fn find(name: str) -> ShellError!?ShellProperties {
         // Implementation: Search for shell in system
     }
 
     // select selects the best available shell
-    fn select(preferred: str?) -> Result(ShellProperties, ShellError) {
+    fn select(preferred: str?) -> ShellError!ShellProperties {
         // Implementation: Select shell, preferring preferred
     }
 
     // fallback returns the fallback shell for the platform
-    fn fallback(platform: Platform) -> Result(ShellProperties, ShellError) {
+    fn fallback(platform: Platform) -> ShellError!ShellProperties {
         // Implementation: Return platform-specific fallback
     }
 
@@ -126,7 +126,7 @@ enum ShellError {
     const HOME: str = "HOME";
 
     // get_home returns the home directory
-    fn get_home() -> Result(str, ShellError) {
+    fn get_home() -> ShellError!str {
         // Implementation: Get HOME directory
     }
 
@@ -134,7 +134,7 @@ enum ShellError {
     const USER: str = "USER";
 
     // get_user returns the current user
-    fn get_user() -> Result(str, ShellError) {
+    fn get_user() -> ShellError!str {
         // Implementation: Get current user name
     }
 

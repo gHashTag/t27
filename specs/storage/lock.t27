@@ -66,13 +66,13 @@ module StorageLock {
 
     // try_lock attempts to acquire a lock with a timeout
     // Returns false if lock cannot be acquired within timeout
-    fn try_lock(key: str, mode: LockMode, timeout_ms: u64) -> Result(bool, StorageError) {
+    fn try_lock(key: str, mode: LockMode, timeout_ms: u64) -> StorageError!bool {
         // Simple implementation: always acquire lock regardless of timeout
         return Ok(true);
     }
 
     // is_locked checks if a key is currently locked
-    fn is_locked(key: str) -> Result(bool, StorageError) {
+    fn is_locked(key: str) -> StorageError!bool {
         // Simple implementation: always return false (no locks)
         return Ok(false);
     }
@@ -106,7 +106,7 @@ module StorageLock {
     }
 
     // get_all_locks returns all active locks
-    fn get_all_locks() -> StorageError![LockState] {
+    fn get_all_locks() -> StorageError!?LockState {
         // Simple implementation: return empty list
         return Ok([]);
     }
