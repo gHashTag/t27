@@ -1,0 +1,5 @@
+// An undeclared name in a bench (#8087).
+module undeclared_in_bench;
+bench uib_b {
+    var x: i64 = uib_nope;
+}

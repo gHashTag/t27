@@ -1,0 +1,5 @@
+// A module var's initializer reads another var: neither C nor Zig takes
+// a value that is not constant (#8087).
+module initializer_names_var;
+var INV_W: i64 = 1;
+var INV_V: i64 = INV_W;
