@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:743d6677d313b3bd150d257adf6c49e1e30ef30f663b039bb6ecc02ef52dcf9b",
+  "gen_hash_rust": "sha256:bf193798505aba433fed6aa6f4d3796c575ac2f2ff7a2cb58f0423c5d8059630",
+  "gen_hash_verilog": "sha256:2b27cdfbdf1a719c4b1f2062b9c4001d1d9b5b76696be456c6a6c72b8da09b9a",
+  "gen_hash_zig": "sha256:70a80168c7628a962a3119e25e6a4b57360650bf4f4f380f0c11c4a08a957b42",
+  "module": "PolicyTextLines",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:13c90895a4a44c760cce6b3b65f72f937298633062f040f8489486108ab0c2d1",
+  "spec_path": "specs/policy/text_lines.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

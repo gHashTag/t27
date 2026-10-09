@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:900488a12d56a6f7960cad5d862f45140cae8b7b6ce648f556ff9ff97ab9711c",
+  "gen_hash_rust": "sha256:acc34031e0e790a545d5dffde2692ea183d440a156386c5b154e33cc8118a90d",
+  "gen_hash_verilog": "sha256:315131a8854d9cfeb946c3f09f94241b79056ad56c230e92af331614cfdabb7b",
+  "gen_hash_zig": "sha256:758fc725ebe14dd9d2795aa51395563f34ba6d346003f6c912dca8a08633fe4d",
+  "module": "port::trios::mcp::rings::sr02::discovery",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8fb12486fe10242f4c51323f2f4bbf68aa267fe04f2a875c3ec6ab0c6e5c5e4e",
+  "spec_path": "specs/port/trios/crates/trios-mcp/rings/SR-02/src/discovery.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:84b5adf3b1d3675bcf0108258c901769e79a64d6a969904cb7e4a5cce1a06088",
+  "gen_hash_rust": "sha256:a15205699c49fe9cb2d2f5d974aba8531caec299193ab141adbe2f691305824c",
+  "gen_hash_verilog": "sha256:862f13857d962385e7291eb35d78cdc7af925f06f069c53e13e8bcd52b39db5e",
+  "gen_hash_zig": "sha256:85ef4128a55b0bd457599476bdae8722574af79c395bf9ac5b06e9209bf36550",
+  "module": "port::verify_emit_bitexact",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c904b80e88b5905ad30bbf95dced012f4dfec458f14d188359540b104cab9718",
+  "spec_path": "specs/port/tools/verify_emit_bitexact.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

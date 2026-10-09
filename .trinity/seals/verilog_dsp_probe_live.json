@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:23a6486d73be689ba86a03b2017366756c2e572990dadd73e695e433be7140b9",
+  "gen_hash_rust": "sha256:670212d8edc26e63b20ab8f308b4447d17815d8a79a84c5a2b5b9654f37858d6",
+  "gen_hash_verilog": "sha256:6bac4e0425068a85683dfac315fd210c7edc5d78743d6aa82b7eaf539d4051fa",
+  "gen_hash_zig": "sha256:5bea913f1e98a6eba1195ca05a6e9698114d9a7c8d6b879bbe86053d8dd681ed",
+  "module": "dsp_probe_live",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4be0ec5d36584b2239513143f93cfe894b139a3c48c27972ae93dad0ab778a7d",
+  "spec_path": "specs/port/fpga/verilog/dsp_probe_live.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

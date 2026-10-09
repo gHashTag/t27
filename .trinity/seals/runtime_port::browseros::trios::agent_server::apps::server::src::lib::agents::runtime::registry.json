@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fea46d3abee964cf26cbc6bd5a20c4ae07929af6c55f046c4a0b37d9d625f089",
+  "gen_hash_rust": "sha256:4a8070a600e91d62d31d3ecc878eea325ba0d6321ef47c684c5468b90e6737cc",
+  "gen_hash_verilog": "sha256:8d6f4cc067f4796e9b7f3fc5d6f40853ec9617c7d18a45e1bc6e03e683923737",
+  "gen_hash_zig": "sha256:d6316762d4c38bef51dc6425efdd1602cf1eca7a139bd4bdb4e3a9fd0a1443b8",
+  "module": "port::browseros::trios::agent_server::apps::server::src::lib::agents::runtime::registry",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:72fc018ea5819bf8d7a5761a7c752adf233e2b49a7fa23f03e7ee822d12fc1b1",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

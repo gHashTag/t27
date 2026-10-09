@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7195694afe20bb03bd62c1b145507dad0d9c36827cd7b9ffb79ba71cd0b2025f",
   "gen_hash_rust": "sha256:08a682f2543b21f4c64c3808b79fd90e563d9364b6d9d30961d00310eb552d8d",
   "gen_hash_verilog": "sha256:a3ea64f13131cc31bfdd0ac4f83cb615ffb511b53fb5b741e6b2244350801808",
   "gen_hash_zig": "sha256:9c8d4bb150b5ba6f2eab350f9dcae8fd2589d5ed0dd9bd16a910505884006806",
   "module": "trinity_capability_bot_tri_bot",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:35:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b7dd2658343c40cb234c9abcafc5e9b9d492a4a0f4649b4c767009477b94b342",
-  "spec_path": "specs/trinity/capabilities/bot.tri-bot.t27"
+  "spec_path": "specs/trinity/capabilities/bot.tri-bot.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

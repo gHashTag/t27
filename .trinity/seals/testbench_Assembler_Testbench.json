@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
   "closure": [
     {
       "spec": "specs/fpga/assembler/Assembler.t27",
@@ -18,7 +18,7 @@
   "module": "Assembler_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:48:36Z",
+  "sealed_at": "2026-10-09T20:47:55Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f8e7e3b02e8f738f43d3f6e65bd964cecc882eeab4179fa82269f08c47af2747",
   "spec_path": "specs/fpga/testbench/assembler_tb.t27",

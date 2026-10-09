@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4e6ff926a9076bbffc6404fd1688871c3486d576c11ad75f3e8bd197f5ae8245",
+  "gen_hash_rust": "sha256:565210e90e6c3da7a3040eab552225fc9688dc623c6ffcab3d6f8a0f26a72c00",
+  "gen_hash_verilog": "sha256:078cc0f009b29b2f4670358cb1d0f001c239387cd226d06e4404b92cb7754251",
+  "gen_hash_zig": "sha256:aa7d013744085838f6d26976dbf56ddc22ab588b7e4259ea0ed77f1c66470ec1",
+  "module": "jwt",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cf67e865a301ad560090c276b42eaefd1edb998723ad26e33ec845709abca0a4",
+  "spec_path": "specs/port/bootstrap/src/jwt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

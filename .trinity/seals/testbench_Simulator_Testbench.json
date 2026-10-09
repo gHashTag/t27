@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
   "closure": [
     {
       "spec": "specs/fpga/simulator/Simulator.t27",
@@ -14,7 +14,7 @@
   "module": "Simulator_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:48:50Z",
+  "sealed_at": "2026-10-09T21:05:44Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:69dfde195e9294cbe1a7dec908d04fb3c8f2de72498d4df8f400f48eb6b2289b",
   "spec_path": "specs/fpga/testbench/simulator_tb.t27",

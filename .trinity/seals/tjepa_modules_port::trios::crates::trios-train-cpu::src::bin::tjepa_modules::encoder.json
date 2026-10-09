@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:89e6c9464230f065902b9f8d711c461beeac5a811d02409e7cb04aa894e5cc38",
+  "gen_hash_rust": "sha256:a8084148861e9af2783ea1a144d88eabe4c48948d6bc3cd627cb6754486bab6f",
+  "gen_hash_verilog": "sha256:d6352904570afad2154f48a0a7e1f0cae532d922a994e478fd792c4793a03083",
+  "gen_hash_zig": "sha256:0e16aee6abe85f97ad7a3fb6e01818caf69169140e327c3d1da441d046a5523d",
+  "module": "port::trios::crates::trios-train-cpu::src::bin::tjepa_modules::encoder",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:25:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7ae6925ae4d0ac964cbc601f03c4e48da82f9734f482814de81232955ceb13a0",
+  "spec_path": "specs/port/trios/crates/trios-train-cpu/src/bin/tjepa_modules/encoder.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

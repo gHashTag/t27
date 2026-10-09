@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:19e85ce2c055f38ef9b8f03a1f2862db32c25d72d9da5db0e97f8af3a66b1c97",
+  "gen_hash_rust": "sha256:ed2f3fcd35c2b7cd334d635faba11eb7625ae77ae1130d9b33fc43ffafa6e914",
+  "gen_hash_verilog": "sha256:fff507e49d3b35e434aa3c35596cd5ece0460af78f4c854f693e8a5862cab6b1",
+  "gen_hash_zig": "sha256:d45aa1f23232dfe738d58a22ef8469a77f7ac0289fdc4ffa8c8628bf9662bef3",
+  "module": "kernel_fib",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:25:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:430c7e90d6496e5df94226ae0bd35e909e4220004eb5583aec19369903d6fba8",
+  "spec_path": "specs/benchmarks/kernel_fib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

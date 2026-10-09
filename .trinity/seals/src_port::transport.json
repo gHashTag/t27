@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:55ab532b21a8744f13a9c8f63fbf9e729be39ad29b8f5599f66ef1248e956843",
+  "gen_hash_rust": "sha256:3914c3398d2ea9b330ab2b0107b971e5b68d71b806ce191a8319c2fba526cc68",
+  "gen_hash_verilog": "sha256:654189be3748e2d1f0868c63468b74e70376e089b8d86da25c151e2663479ca3",
+  "gen_hash_zig": "sha256:6209f72082b2ee0b31a93f3c825c150896c627d55c36355871556bb0a94d2a5c",
+  "module": "port::transport",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:496523bad57745dfddfb12010e3d4eaf8427ad4f5586004fab49cc678b6d0d46",
+  "spec_path": "specs/port/trios/apps/trios-macos/rings/RUST-13/clade-meshd/src/transport.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

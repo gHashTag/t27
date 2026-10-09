@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e721faf2807d826a0899d53a5179c5419196096f48cdfcb7ea258ff5cb9389ce",
+  "gen_hash_rust": "sha256:4d17fc282c573f217d7aed048cdb26fbad13a9197c09faf38dc93a19f5b7e144",
+  "gen_hash_verilog": "sha256:a29a96c9f171ad05f83789abd1342018c560e3192ea8153da8ffe15b98b404a0",
+  "gen_hash_zig": "sha256:843e2f46a3b22de56bca981c85a915c6beff5d22f023ec83dd1a9f774afcfc93",
+  "module": "gen_w643",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:16:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:974b27946fc37591e36bcd1edb02811790d908435ce43d560e877b9873f6a490",
+  "spec_path": "specs/port/scripts/gen_w643.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

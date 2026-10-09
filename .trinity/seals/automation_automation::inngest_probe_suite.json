@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a6a7d6b7a6efbbf463868122b22cf0479b2c6d6fbfb0f036956e39b922a96453",
+  "gen_hash_rust": "sha256:b7f8df0c4837db0ab8c417da9e97227e02d6ad1e995455d1d6b15be06bde737f",
+  "gen_hash_verilog": "sha256:d3226fc59cf9c9c1ada38dbb7e4fa78532bc127b67c05780b2e6b825803065dc",
+  "gen_hash_zig": "sha256:5ad16d8625da2d537e141980a56d74c1a60e65069ff7bc900a5890e6f9e5bdce",
+  "module": "automation::inngest_probe_suite",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1999fd6540d36202c03ecd87d8fb669bff375489a78ee4c7438a7c1a5bfc5dd5",
+  "spec_path": "specs/automation/inngest-probe-suite.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

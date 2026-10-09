@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:240e48ed63c9bc68db7f69f4a3bf4d603df5056632212917c0a2725ad02d3a43",
+  "gen_hash_rust": "sha256:ea3d13cf37f844b18bb6c8af1e5ea0bbfa3b23305377a76d62a09d050d20dab3",
+  "gen_hash_verilog": "sha256:5d484ce74b57eacfaa711e63c9c5e31e8a1629e3e41826f9276116d6dfe2a558",
+  "gen_hash_zig": "sha256:a88db837e993f387d170a9e17e57e2abb26b25ce12e66326b4af73a0597e4c83",
+  "module": "LoopGuard_loop_cond",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:187c031339e189e797dfa49ba0158a8740ed9ba0f831353ad6add781b8307d77",
+  "spec_path": "specs/port/bootstrap/src/compiler/LoopGuard_loop_cond.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

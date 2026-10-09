@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e263c6deef40835f467d2034f95d56cc18ad343905cdebd750049f96aa64ffc2",
   "gen_hash_rust": "sha256:5e9eac800ed284fd51d74d18520fcc2593ca2ea224722e495469b30fd47d7feb",
   "gen_hash_verilog": "sha256:2eedacb9efa647e608c4e25cf5107383ef917e3578d9c56bd67e4fbaf780b066",
   "gen_hash_zig": "sha256:fc5a33281999c1e4fbdb97f632428dca2421cbfec018e741ef2feaf70880e8e0",
   "module": "cron_trinity_pages_health_check",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:25:33Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:38:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f712db4bd6338dcf9bc938e3011def77fb5f12eb3b72f3653140ae6c9dbc180f",
   "spec_path": "specs/crons/trinity-pages-health-check.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

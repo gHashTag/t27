@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c82f819e09bba663e31fcbf839f6ce8ea1c927e3538733cb16e312b7ef1dc6cf",
+  "gen_hash_rust": "sha256:b9bb220ce741189b56ce38cd051d0ae024d79ad6704b20c7ed3c75ded8cf66dc",
+  "gen_hash_verilog": "sha256:630828f245adbf49abbb129631f9030dd7a0cb523e910dee3ea28feecf5c27ff",
+  "gen_hash_zig": "sha256:425e6a7feacc4dd4bcc3403037fcdf1a566b506ba68cecdd04d6c3ad385066db",
+  "module": "cron_999_multibots_telegraf_provider_health_monitor_L344",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:32:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f6274d662a857b20573f197d415bc2468a1baec3164a53e39ba02045e800565e",
+  "spec_path": "specs/crons/999-multibots-telegraf-provider-health-monitor-L344.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

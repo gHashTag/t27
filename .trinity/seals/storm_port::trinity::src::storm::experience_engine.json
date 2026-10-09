@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e9a339d1d5c5f33e32e15f0b347b5546c51778966ed4aab61ae010d8f6841d39",
+  "gen_hash_rust": "sha256:e93c8bf2a5999e020c42618c48cf96c04fb57636b8159058243a65c44a9f19cd",
+  "gen_hash_verilog": "sha256:3912f34723cd9b3046def1b8ea7c8d33ef4a2fbd9057e6c27333b7d05a8137bb",
+  "gen_hash_zig": "sha256:ffc5ac96c5cc652c6c7c63152847fe72399db6607ec3e7abd5cd7271c5ed15b6",
+  "module": "port::trinity::src::storm::experience_engine",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7c752031bbf4ffc553064bb163e1942ddaf4eb074b7f21870e3e8dea6ff921d0",
+  "spec_path": "specs/port/trinity/src/storm/experience_engine.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

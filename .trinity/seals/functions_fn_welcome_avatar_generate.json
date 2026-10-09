@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:766e0b82928edfbe5d6abb3a180a805fcaf70785d5a6ecaeb0cb3a160c05a23f",
+  "gen_hash_rust": "sha256:a0f7afc6f21f581a459e224dbf77ab32968e49a4b2dca3f809bc55b65403946a",
+  "gen_hash_verilog": "sha256:e6e665a0890c351b4cafa26cd04781ca17458988e1903f29d1d14326cc49d966",
+  "gen_hash_zig": "sha256:14b814f442ca45c426c47659ca1d725539e54f5c407a2cfd1ed70ef1ca3c4c2b",
+  "module": "fn_welcome_avatar_generate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:07:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:74a598d71bd5afb789d3ec0523039020ed13ed510f87c8bfa10c5436d859cfcb",
+  "spec_path": "specs/functions/welcome-avatar-generate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

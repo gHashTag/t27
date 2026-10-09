@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:884bd97053ee78223cdcfc9f24b78c0de7c6b04f8e39b29e2aeec7e18096fdd0",
+  "gen_hash_rust": "sha256:66c79e14e01b132a83d7e18498284bfdbf7e035c4e20ead8c72904a812d7abec",
+  "gen_hash_verilog": "sha256:175829b8f07f96aa9658ffc452d1cd6cbe523b390e4665e3c73d8d96652d33f3",
+  "gen_hash_zig": "sha256:017709b660c00cb8ba40cd434bbb911ce67efb9f89f0dd79a0874cc0e7033f29",
+  "module": "QueenControl",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:03Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2c9c2698bca4bd146d21cf8ee002935e8c80cb88a0fc29cc5bb75e90eb496e58",
+  "spec_path": "specs/queen/control.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 22,
+    "total": 22
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

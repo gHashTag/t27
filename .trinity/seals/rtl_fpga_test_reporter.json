@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c83c5b18fca7c4b7d31d84cc603777935cea45dbbd6d374d786540c7bc0a05d7",
+  "gen_hash_rust": "sha256:770def39a02ceda1399f8002af6750898d0bb50c98cc918758b00d3fa1631d20",
+  "gen_hash_verilog": "sha256:7a5d1dff723bf6dcf0ea34a87714b6625f7edf0cee2405cde04c8e752103608d",
+  "gen_hash_zig": "sha256:bc4e7ef2e53fd6df8012a9358ba2a35d20957251ea54faf46fe920d088bb6489",
+  "module": "fpga_test_reporter",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:16Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:dfe7e502c48c839ee76fce3f73874192d7f0e8a042517b9f60c76fc9c0a0155b",
+  "spec_path": "specs/port/trinity/fpga/rtl/fpga_test_reporter.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

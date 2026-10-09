@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e6dfa24c716e5e785557daab74f5e6acf5c2f4dd470280127594ca11431c057b",
+  "gen_hash_rust": "sha256:22529394fe1f69bb6b6c48cf86defccf794397a5b9c94c1f99f529d4eb39ae5e",
+  "gen_hash_verilog": "sha256:5d30f1ddd2d68304fcc3844bd9bca861c63e79bbbdc9bd0287d92742fe1cd00a",
+  "gen_hash_zig": "sha256:1f685274728f8ce0adc2e07422f8384e467cc91056f5bc63b52b9b239c489593",
+  "module": "QueenShaping",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e887aacb9648b6efe25fd8fdd334e671e099692647f1d6836d121fe082205b05",
+  "spec_path": "specs/queen/shaping.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

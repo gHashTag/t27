@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:364d7f922852081eea8a36048ea2d80802db2343fa2f14bb10c8879f405f67d0",
+  "gen_hash_rust": "sha256:4b822760ecacb0a63a8a0c93599801f838ca0ae994541a5b56ce6fa87778b040",
+  "gen_hash_verilog": "sha256:5f17c2f3a785fff939e3e6fea5ce911353af18d53d5e519cb4cd11160608db1c",
+  "gen_hash_zig": "sha256:2db623dc1be84dd94f2da56d5c552d615d7da915c3becde6d4a056e0923ecced",
+  "module": "top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:dac0462ee26922aed2e846e0a139ca348dc0c5caf15270fa3ea6ab388b868741",
+  "spec_path": "specs/port/trinity/fpga/openxc7-regress/regress-fabric-bufg/fabric_bufg.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c1a072b2d1774c8e6ceb13ad4f11d9fb5a2315c7a486fe283ded7e84f772fdbc",
+  "gen_hash_rust": "sha256:e967833f267bb7fdbc29d6c4e697a6beee4dce90fe86091296487f960c4db571",
+  "gen_hash_verilog": "sha256:a9a98cb883b07fb4acb49ba924624a35b5c39fb13129b3d9a614e329b7085d1b",
+  "gen_hash_zig": "sha256:81490ba77a9c61a284a15131e606cd910a9bd582516a409eff68df28522a4774",
+  "module": "uart_echo",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:068793ae64daf8b774f6c5ec81b4d9124240318a7d8e793aa5db05c0ebf6097d",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/uart_echo.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

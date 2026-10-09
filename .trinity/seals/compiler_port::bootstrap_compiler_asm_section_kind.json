@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f753a3c9ab1101c89676ad53ebe702bfc3c5619b70144121154965161064c1b5",
+  "gen_hash_rust": "sha256:53dc9fa99fa1cd19062b62e3ccbca3542d4d606ec7c221c9b7120377f34e0a41",
+  "gen_hash_verilog": "sha256:07f56dea5a0cfa73aab5274220a644615a1dca252c0206fb040f21ae0281d117",
+  "gen_hash_zig": "sha256:ff39b6edb09b3aaaf22167df610defdf96eaf2af6fa375aad46f362ca2dbafd8",
+  "module": "port::bootstrap_compiler_asm_section_kind",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:543e21315f3f1fd75d02c8338ad67e064ba9ed831f14b7823492262829c7b31a",
+  "spec_path": "specs/port/bootstrap/src/compiler/AsmSectionKind_from_i8.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

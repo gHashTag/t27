@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
   "closure": [
     {
       "spec": "specs/fpga/timing/Timing.t27",
@@ -14,7 +14,7 @@
   "module": "Timing_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:48:51Z",
+  "sealed_at": "2026-10-09T21:05:58Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:57e03553d9bfb3c5fe8aca3eafc2a8d4b36165034711dffb2d262426f5fd0b9e",
   "spec_path": "specs/fpga/testbench/timing_tb.t27",

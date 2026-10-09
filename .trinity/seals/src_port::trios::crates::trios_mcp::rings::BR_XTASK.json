@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ad91b4c0cc3fc3f3beb97958f7c407184d5c6f4998482b7ae791ad775f9be89a",
+  "gen_hash_rust": "sha256:39f936a665e91248a254adbc807a6198efb3efcb68a01de3ddfc604ebfb8f57c",
+  "gen_hash_verilog": "sha256:00b85e1758a821b0e8024aa386b403e888005ebe808d1fd51dcae6e771645a2f",
+  "gen_hash_zig": "sha256:f6a40123df685ecf8d6fb608254a4cf82673d734ad3cbbb8d8f51aec4de8c7e8",
+  "module": "port::trios::crates::trios_mcp::rings::BR_XTASK",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2202d3e32ae9440f4abc49f60eca99a361491f68e01ffb3d60445cc986c0db17",
+  "spec_path": "specs/port/trios/crates/trios-mcp/rings/BR-XTASK/src/main.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

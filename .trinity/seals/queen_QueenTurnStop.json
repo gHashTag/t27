@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:94928d3cb7a14f412274b528a2d1adb1bc7a771cce5867af6360e21ab34e51e4",
   "gen_hash_rust": "sha256:571ecf7bd5e5d900241a1c53e0f4896ff5a1cb8ff9997f85df48f25a6a51d3a6",
   "gen_hash_verilog": "sha256:1b03b3e62dc8327820d3193b9523e17a1044cf1acee66f1149b4bbabdb64e7c9",
   "gen_hash_zig": "sha256:200ac4bdb1186d2166f55d4c154e80971693a72f5210494d427ef42920afcc35",
   "module": "QueenTurnStop",
   "ring": 12,
-  "sealed_at": "2026-10-09T17:43:40Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:092bab0e5725ec0fbc8acded0c268a4df145f3b66fec8833865126eb541d6ba2",
   "spec_path": "specs/queen/turn_stop.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

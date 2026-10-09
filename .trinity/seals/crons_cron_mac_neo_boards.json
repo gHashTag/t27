@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6e8f28d939ec71736e63e9875a03fa900fd223e74c4411d40d88252887936dc7",
+  "gen_hash_rust": "sha256:5582b4a6cd880e91bc1a46da53c365cc47d79a98d56e99eac80d27528ae3378b",
+  "gen_hash_verilog": "sha256:38c63ed48ac2fbd72f9920b292ef74aaf86d634e2d509bdb759dfad028d21dc7",
+  "gen_hash_zig": "sha256:edec69d40fa89a77b0f9f1d9dee92450aff99134098424caaa9e7adf630aa270",
+  "module": "cron_mac_neo_boards",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:35:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cd21ae7d171f89d404752547b297f7b4a4d5f9de61455bf1894ced58ff79b0d1",
+  "spec_path": "specs/crons/mac-neo-boards.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

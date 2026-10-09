@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5dedacf29bcb259ca523afef5717b39a5774da783055f387d4d3ccd839b69831",
   "gen_hash_rust": "sha256:1bcd1a3c731b70e30661560e48fa72a8e4d848c661474dfaebf1c77cccb589d7",
   "gen_hash_verilog": "sha256:df4e37377ac7d4856b86b2f0680f4843a1b8c979798a406d9f644f4a3be5b28c",
   "gen_hash_zig": "sha256:266fd9abf7b0129574a1b7e671b732c9c78d5e0e97e4d2c4cbffc1cf4219f272",
   "module": "cron_t27_pr_dashboard",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:25:29Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:37:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b8d8f09259b3bc16582f0e243435113f5c0b6b2461df1d6df65f5ee3abb355c8",
   "spec_path": "specs/crons/t27-pr-dashboard.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

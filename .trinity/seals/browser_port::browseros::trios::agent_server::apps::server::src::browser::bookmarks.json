@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:dc93c39e213eefc10a071b6fc152eece6b25bbb502684c23f713f50cb312a3bc",
+  "gen_hash_rust": "sha256:f2145276b4d0fd8cff23381998e3a1c5b31ed8ba14f19f49df52574ccf70efb3",
+  "gen_hash_verilog": "sha256:e118ec11b3900b1fb908f4f4a445a0df3133f143d094e58f39eded852059e409",
+  "gen_hash_zig": "sha256:280de82a389f1cf4d1e0bbf8ab56c966d01571224342e4db6e4f723022555d16",
+  "module": "port::browseros::trios::agent_server::apps::server::src::browser::bookmarks",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:328293e229e012be7c4b32dc1f3072910bae67d9a590e2a3228d47adf9384237",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/bookmarks.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

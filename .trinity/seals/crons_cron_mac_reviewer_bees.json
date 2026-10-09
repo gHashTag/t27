@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:586174af1086e0cfee5002b2c1cb777c920f790fe4e41af107fb97812e459a9f",
+  "gen_hash_rust": "sha256:c7af425d7e45b5938df71ab8cd6bc43a2ccec8d66d342b390439acf9fd3f0267",
+  "gen_hash_verilog": "sha256:8094cb9f644c5319c0231e235a14c3e3d1268ba4b3ad720d37c438cc0b27551a",
+  "gen_hash_zig": "sha256:b12bc41889947b8c597f482e262b765c468a8bf3aaca1d3a99c847622febecdf",
+  "module": "cron_mac_reviewer_bees",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:36:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c786901e03cdd1d843ca3c00f407446d9947e924e7acfd0c712462c9f840fa72",
+  "spec_path": "specs/crons/mac-reviewer-bees.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

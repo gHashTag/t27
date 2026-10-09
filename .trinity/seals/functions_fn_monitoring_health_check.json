@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fb77e531dff219ddd2251ae2d2e7f009ae6aebdf12c8d9b9db3fb42172f93c9f",
+  "gen_hash_rust": "sha256:9546f2889af544999f08f954fdf64cf9661736db37fb8f9673595dd644552c1b",
+  "gen_hash_verilog": "sha256:ad56d6ae6b602c65c49f87a5260658e1ca8d353a8e30ed9447b43f6464829c99",
+  "gen_hash_zig": "sha256:208e027a91fedab813b1c5eb8f12c8e1981b36371ed40a9136b0108ef34ad086",
+  "module": "fn_monitoring_health_check",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:06:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:54cbe820b452fe322fa7ca494730a7c2bb52fd591a628a2712459e4253dc3618",
+  "spec_path": "specs/functions/monitoring-health-check.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

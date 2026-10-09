@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:85ba7ecffcac1f69cd018ffe8efa474148f46c36279e86a87a185201b54dbde1",
+  "gen_hash_rust": "sha256:28a2fb300fd3567830489a2a93791b820cacbb3ef571c6bea4051f71c3f93595",
+  "gen_hash_verilog": "sha256:f2117c3745baa47c8593b86a53abf83ee4cb237146c22537c53fa069ee7ff5a8",
+  "gen_hash_zig": "sha256:9ec6b9de78b60ae9653f8e6731e25e4dee979fca76168ac2a28f96b41e28e571",
+  "module": "port::trios::crates::trios_doctor::rings::bronze_ring_dr",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:73e6363a3c63585cd4cec073ce50cec018b33ae398c6e56e56d8389b952aed3e",
+  "spec_path": "specs/port/trios/crates/trios-doctor/rings/BRONZE-RING-DR/src/main.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
