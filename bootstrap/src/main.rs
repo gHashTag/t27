@@ -109,6 +109,10 @@ mod seal_identity;
 #[path = "../gen/rust/verified/silicon_queue.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod silicon_queue;
+// specs/verified/bench_agent.t27 (#8153): what the agent next to a board does with a job.
+#[path = "../gen/rust/verified/bench_agent.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bench_agent;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -353,6 +357,16 @@ enum Commands {
         #[arg(long)] list: bool },
     /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
     SiliconQueue,
+    /// #8153: the agent next to a board (specs/verified/bench_agent.t27). Runs owner-approved jobs (open
+    /// issues labelled bench-job) with `t27c silicon` on the local cable, SRAM only, and answers each with
+    /// its receipt. Outbound only. Pause it by creating $TMPDIR/t27-bench-agent-paused.
+    BenchAgent {
+        /// The local cable, from `t27c boards`
+        #[arg(long)] busdev_num: String,
+        /// The control: a bitstream for the WRONG PART, which the die must refuse
+        #[arg(long)] wrong_part: String,
+        /// Look at the jobs once and exit
+        #[arg(long)] once: bool },
     RunRecord {
         /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
         input: String,
@@ -11966,6 +11980,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Frontier { list } => service::run_frontier(list)?,
         Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -12400,6 +12415,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Frontier { list } => service::run_frontier(list)?,
         Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }

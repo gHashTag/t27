@@ -282,7 +282,7 @@ measure it are written in **t27**, not in Rust or Python by hand.
   #8050's glue for an untyped list local read as a tuple and its port of
   cli/t27b/src/lower/tuple.rs's tuple rules into its plan
   `specs/tri/t27b/tuple_local_plan.t27`, +13, -41 and +10 on master
-  afc601f2c's 15261 plus 1263 and 8274),
+  e3b8c51c5's 15261 plus 1263 and 8274),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

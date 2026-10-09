@@ -1,14 +1,17 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+be97577",
-  "gen_hash_c": "sha256:aa94da15a9ec34970b59d62b60c0a928796f09889f6aa279ef597b3b685a88cd",
-  "gen_hash_rust": "sha256:562c4803ae27fd716255eefea99f726d26516ff6a45676a415024a39888f59cf",
-  "gen_hash_verilog": "sha256:8b2b5c7a49b872be79dbd57e6bd3c98aac0ff26777f71ae64b130aeb4528af2f",
-  "gen_hash_zig": "sha256:55c15d5629944de42e3afd576ac01a55575742eef298939fe3d47719d5f6fdd4",
+  "built_by": "t27c-bootstrap@0.5.2+927d1bdd3",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9454e73961ad31c100cc1cfa821742b3852a4d19afc3a582556660401b966a84",
+  "gen_hash_rust": "sha256:a2d3fe4a68abf36aa001d6e9b140d7dd3df4e4519ccddbff94f9754131b59c67",
+  "gen_hash_verilog": "sha256:7151b211ac854565bd3bd9a1cc64cea8a29b59ff4af016ac8a07895280a87e0d",
+  "gen_hash_zig": "sha256:53c7d99c32be463d05ed1bad5be7f0eb0c7f686b262b7cf7d357a6d99cf55344",
   "module": "CompilerTheoryWarmup",
   "ring": 12,
-  "sealed_at": "2026-10-09T11:56:28Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:00:33Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:097f5e58f352f788779415ba1f39c9bd1f6e081771e62f9c576614ccc1fa31b7",
+  "spec_hash": "sha256:9fbf657fb219c3821f36411eec85e143cc973a97d7782a202048c8a7fbdcc485",
   "spec_path": "specs/compiler/theory/warmup.t27",
   "tests": {
     "failed": 0,
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
