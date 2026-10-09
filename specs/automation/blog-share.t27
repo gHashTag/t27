@@ -41,7 +41,10 @@
 //       release before the crate exists. The daily pace exists so that
 //       articles are not pushed on the owner; it does not hold a release back. A
 //       finished, young release of ours is asked about at once and goes before every
-//       article. The yes, the receipt and the profile check stay as they are.
+//       article. Only the newest release of each tool is offered: turned on with
+//       three t27c releases inside the window, the desk would otherwise ask about
+//       0.5.2, then 0.5.1, then 0.5.0 -- the old-release complaint of v4 again.
+//       The yes, the receipt and the profile check stay as they are.
 // UI words (the owner reads Russian) stay in the host; the spec holds the rules.
 // Claim status: the desk is live behind BLOG_SHARE_ENABLED=1 on the render service,
 //       and its posts are confirmed: on 2026-10-03 08:36 UTC it found its post of
@@ -190,9 +193,11 @@ module automation::blog_share {
     // - it is neither a draft nor a pre-release;
     // - its pipeline finished;
     // - it is young;
-    // - and nobody was asked about it.
-    fn release_offerable(our_tag: bool, draft: bool, prerelease: bool, pipeline_done: bool, age_ms: u32, asked_before: bool) -> bool {
-        return our_tag && !draft && !prerelease && pipeline_done && age_ms <= RELEASE_FRESH_MS && !asked_before;
+    // - nobody was asked about it;
+    // - and it is the newest published release of its tool (`newest_of_tool`): a
+    //   newer one, finished or not, makes it history.
+    fn release_offerable(our_tag: bool, draft: bool, prerelease: bool, pipeline_done: bool, age_ms: u32, asked_before: bool, newest_of_tool: bool) -> bool {
+        return our_tag && !draft && !prerelease && pipeline_done && age_ms <= RELEASE_FRESH_MS && !asked_before && newest_of_tool;
     }
     // The pace holds articles back, not releases: a release is asked about whenever no
     // other question is open. One open question at a time still holds.
@@ -304,14 +309,15 @@ module automation::blog_share {
     }
 
     test "a finished release of ours is asked about at once, and still needs a yes" {
-        assert(release_offerable(true, false, false, true, 0, false));
-        assert(release_offerable(true, false, false, true, 259200000, false));
-        assert(!release_offerable(true, false, false, true, 259200001, false));
-        assert(!release_offerable(false, false, false, true, 0, false));
-        assert(!release_offerable(true, true, false, true, 0, false));
-        assert(!release_offerable(true, false, true, true, 0, false));
-        assert(!release_offerable(true, false, false, false, 0, false));
-        assert(!release_offerable(true, false, false, true, 0, true));
+        assert(release_offerable(true, false, false, true, 0, false, true));
+        assert(release_offerable(true, false, false, true, 259200000, false, true));
+        assert(!release_offerable(true, false, false, true, 259200001, false, true));
+        assert(!release_offerable(false, false, false, true, 0, false, true));
+        assert(!release_offerable(true, true, false, true, 0, false, true));
+        assert(!release_offerable(true, false, true, true, 0, false, true));
+        assert(!release_offerable(true, false, false, false, 0, false, true));
+        assert(!release_offerable(true, false, false, true, 0, true, true));
+        assert(!release_offerable(true, false, false, true, 0, false, false));
         assert(may_ask_release(false));
         assert(!may_ask_release(true));
         assert(release_first(1));
