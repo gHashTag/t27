@@ -40,36 +40,70 @@ module SelfAttention;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
+    // forward(input: []const f32) -> f32
+    fn forward(input: []const f32) -> f32 {
         // Self-attention forward pass
         // Input: embedding vector of size D_MODEL
         // Process: compute attention and update internal state
-        
+
         // Basic self-attention computation
         // In a complete implementation, this would:
         // 1. Project input to query, key, value using weights
         // 2. Compute attention scores
         // 3. Apply softmax to get attention weights
         // 4. Compute weighted sum of values
-        
-        // For now, perform a minimal computation to satisfy the compiler
+
+        // For now the pass reduces the embedding to the sum of its
+        // components and returns it, so a test can check what it read.
+        // In a real implementation, this would update the SelfAttentionState
         var sum: f32 = 0.0;
         for (input) |value| {
             sum += value;
         }
-        
-        // Store result in some way (this is a placeholder)
-        // In a real implementation, this would update the SelfAttentionState
-        _ = sum;
+        return sum;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Helper Functions
+    // ═══════════════════════════════════════════════════════════
+
+    // default_input(buf: []f32) -> []const f32
+    // The test embedding: writes 1.0, 2.0, ..., buf.len into a buffer the
+    // caller owns and returns it as forward()'s input. The values live in the
+    // caller's frame, so every host reads the same defined memory. It takes
+    // the buffer as an argument on purpose: a no-argument default_input()
+    // bound by `given` is the W585 scaffold, which t27c lowers to
+    // `const input = undefined;` without calling the helper (#7733, #8051).
+    fn default_input(buf: []f32) -> []const f32 {
+        var i: usize = 0;
+        var value: f32 = 1.0;
+        while (i < buf.len) {
+            buf[i] = value;
+            value = value + 1.0;
+            i = i + 1;
+        }
+        return buf;
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when forward(input)
-        then true
-
+    // The test used `given input = default_input()` with no such helper and
+    // `then true`: t27c iterated an undefined slice, so the verdict depended
+    // on the host (#8051). It now reads a four-component embedding the test
+    // owns and checks the sum forward() returns.
+    test forward_basic_case {
+        var buf: [4]f32 = [0.0, 0.0, 0.0, 0.0];
+        const input = default_input(&buf);
+        // default_input writes 1.0, 2.0, 3.0, 4.0
+        assert(input.len == 4);
+        assert(input[0] > 0.99);
+        assert(input[0] < 1.01);
+        assert(input[3] > 3.99);
+        assert(input[3] < 4.01);
+        const sum = forward(input);
+        // 1.0 + 2.0 + 3.0 + 4.0
+        assert(sum > 9.99);
+        assert(sum < 10.01);
+    }

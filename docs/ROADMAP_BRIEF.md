@@ -205,7 +205,7 @@ It ports `def clamp(x, lo, hi)` and `def count_nonempty(lines)` and passes
 ### Before you report
 
 1. `t27c parse <spec> > /dev/null && echo parses` - it prints the whole tree on success.
-2. `t27c test-report <spec>` - read the words, not the exit code, which is 0 either
-   way: every test `pass`, nothing `FAIL`, no `BLOCKED`.
+2. `t27c test-report <spec>` - every test `pass`, nothing `FAIL`, no `BLOCKED`. Since
+   #7370 it exits 1 on a `FAIL` and 2 on `BLOCKED`; read the words too.
 3. `t27c coverage <spec>` - every function has a test.
 4. `git status --short` - one line: the file in the Boundary.

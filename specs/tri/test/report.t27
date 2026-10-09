@@ -1,0 +1,517 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/test/report.t27 -- what `t27c test-report <spec>` said about a spec's tests (#7369)
+; `tri test <spec>` used to run `t27c test`, which only LISTS the tests, and then printed "tests passed"
+; whatever they did (gHashTag/t27#7369). The tests run in `t27c test-report`, and its exit code is 0
+; even when a test FAILs and when the spec is BLOCKED (#7370), so the verdict is read from the report's
+; TEXT. This spec holds that reading and the verdict; the command (`tri test`, cli/tri/src/main.rs,
+; through `t27c gen-rust` in gen/rust/tri/test/report.rs) is glue: it runs t27c, hands the text and
+; whether t27c exited 0 to `verdict`, and prints. `tri mutate plant` (specs/tri/mutate/plant.t27)
+; reads its baseline and its mutant through the same functions.
+; The report, as bootstrap/src/main.rs `run_test_report` prints it:
+;   --- test report: <spec> ---
+;     BLOCKED  <why>                   (then nothing about tests: the spec never built)
+;     FAIL  <name>                     (one per failing test)
+;     pass  <name>                     (one per passing test, only with --verbose)
+; --
+;     tests       N
+;     pass        P
+;     FAIL        F
+;     invariants  I   proved -- ...    (an invariant is checked at compile time; it is not a test)
+; and after the totals, per-test assert counts whose lines start with a number or '-'.
+; Two rules:
+;   fail closed -- a report with no totals and no BLOCKED line, totals that do not add up
+;     (pass + FAIL != tests), or a FAIL count that is not the number of FAIL names it lists, is not a
+;     verdict: it is an error, never a pass.
+;   the exit agrees -- test-report exits 0 today on FAIL and on BLOCKED; #7370 makes it exit non-zero
+;     on both. A red report with a non-zero exit is that red verdict. A non-zero exit with a report that
+;     reads green (or ran no test) disagrees with itself, and a non-zero exit with no readable report is
+;     an error: neither is a pass.
+; Fixtures are test-report's real text for specs/ternary/gft_relu.t27 (2026-10-08, t27c from master).
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriTestReport;
+
+// What one line of the report is. A line is the bytes up to its '\n' (or the end of the text).
+pub const LINE_OTHER : u8 = 0;
+pub const LINE_BLOCKED : u8 = 1;
+pub const LINE_TESTS : u8 = 2;
+pub const LINE_PASS : u8 = 3;
+pub const LINE_FAIL : u8 = 4;
+pub const LINE_FAIL_NAME : u8 = 5;
+pub const LINE_PASS_NAME : u8 = 6;
+
+// A total of more digits than this is not one t27c printed; 18 digits always fit in u64.
+pub const MAX_TOTAL_DIGITS : usize = 18;
+
+// The verdict on one run. GREEN, FAILED, BLOCKED and NO_TEST are verdicts about the tests; the codes
+// from NO_TOTALS up say the report itself cannot be believed.
+pub const V_GREEN : u8 = 0;
+pub const V_FAILED : u8 = 1;
+pub const V_BLOCKED : u8 = 2;
+pub const V_NO_TEST : u8 = 3;
+pub const V_NO_TOTALS : u8 = 4;
+pub const V_TOTALS_DISAGREE : u8 = 5;
+pub const V_NAMES_DISAGREE : u8 = 6;
+pub const V_EXIT_GREEN : u8 = 7;
+pub const V_EXIT_UNREAD : u8 = 8;
+
+/// The kinds and verdicts are numbered as the glue and the tests below name them.
+invariant the_kinds_and_verdicts_are_numbered { assert LINE_OTHER == 0 and LINE_PASS_NAME == 6 and V_GREEN == 0 and V_NO_TEST == 3 and V_EXIT_UNREAD == 8 and MAX_TOTAL_DIGITS == 18; }
+
+/// Whitespace as a regex's \s reads ASCII: space, tab, newline, vertical tab, form feed, return.
+pub fn is_blank(c: u8) -> bool {
+    return c == 32 or (c >= 9 and c <= 13);
+}
+
+/// The end of the line that starts at `at`: the offset of its '\n', or text.len.
+pub fn line_end(text: string, at: usize) -> usize {
+    var k : usize = at;
+    while (k < text.len and text[k] != 10) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// Does the line text[at..end] start with lit?
+pub fn opens_with(text: string, at: usize, end: usize, lit: string) -> bool {
+    if (at > end or lit.len > end - at) { return false; }
+    var k : usize = 0;
+    while (k < lit.len) {
+        if (text[at + k] != lit[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// text[from..end] without its trailing blanks: the offset just past the last non-blank, never before from.
+pub fn trimmed_end(text: string, from: usize, end: usize) -> usize {
+    var e : usize = end;
+    while (e > from and is_blank(text[e - 1])) {
+        e = e - 1;
+    }
+    return e;
+}
+
+/// A total line `<word>`, then 3 or more spaces, 1 to MAX_TOTAL_DIGITS digits and only blanks to the
+/// end of the line. Returns the offset of the digits, or end + 1 when the line is not that total.
+pub fn total_digits(text: string, at: usize, end: usize, word: string) -> usize {
+    if (opens_with(text, at, end, word) == false) { return end + 1; }
+    var k : usize = at + word.len;
+    while (k < end and text[k] == 32) {
+        k = k + 1;
+    }
+    if (k - (at + word.len) < 3) { return end + 1; }
+    const digits : usize = k;
+    while (k < end and text[k] >= 48 and text[k] <= 57) {
+        k = k + 1;
+    }
+    if (k == digits or k - digits > MAX_TOTAL_DIGITS) { return end + 1; }
+    if (trimmed_end(text, k, end) != k) { return end + 1; }
+    return digits;
+}
+
+/// A name line `<word>` followed by a character that is not blank: the name starts there.
+pub fn names_after(text: string, at: usize, end: usize, word: string) -> bool {
+    if (opens_with(text, at, end, word) == false) { return false; }
+    if (at + word.len >= end) { return false; }
+    return is_blank(text[at + word.len]) == false;
+}
+
+/// The kind of the line text[at..end]. A total is tried before a name, so `  pass        3` is a total
+/// and `  pass  pos` a name; the per-test assert lines (`       1  pos`) are OTHER.
+pub fn line_kind(text: string, at: usize, end: usize) -> u8 {
+    if (opens_with(text, at, end, "  BLOCKED  ")) { return LINE_BLOCKED; }
+    if (total_digits(text, at, end, "  tests") != end + 1) { return LINE_TESTS; }
+    if (total_digits(text, at, end, "  pass") != end + 1) { return LINE_PASS; }
+    if (total_digits(text, at, end, "  FAIL") != end + 1) { return LINE_FAIL; }
+    if (names_after(text, at, end, "  FAIL  ")) { return LINE_FAIL_NAME; }
+    if (names_after(text, at, end, "  pass  ")) { return LINE_PASS_NAME; }
+    return LINE_OTHER;
+}
+
+/// The offset of the n-th line (from 0) of this kind, or text.len + 1 when there are fewer.
+pub fn line_of(text: string, kind: u8, n: u64) -> usize {
+    var at : usize = 0;
+    var seen : u64 = 0;
+    while (at < text.len) {
+        const end : usize = line_end(text, at);
+        if (line_kind(text, at, end) == kind) {
+            if (seen == n) { return at; }
+            seen = seen + 1;
+        }
+        at = end + 1;
+    }
+    return text.len + 1;
+}
+
+/// How many lines of this kind the report has.
+pub fn count(text: string, kind: u8) -> u64 {
+    var at : usize = 0;
+    var seen : u64 = 0;
+    while (at < text.len) {
+        const end : usize = line_end(text, at);
+        if (line_kind(text, at, end) == kind) { seen = seen + 1; }
+        at = end + 1;
+    }
+    return seen;
+}
+
+/// The number on the FIRST line of a total kind (LINE_TESTS, LINE_PASS, LINE_FAIL); 0 when there is none
+/// (line_of is then text.len + 1, past every digit).
+pub fn total(text: string, kind: u8) -> u64 {
+    const at : usize = line_of(text, kind, 0);
+    var word : string = "  tests";
+    if (kind == LINE_PASS) { word = "  pass"; }
+    if (kind == LINE_FAIL) { word = "  FAIL"; }
+    const end : usize = line_end(text, at);
+    var k : usize = total_digits(text, at, end, word);
+    var value : u64 = 0;
+    while (k < end and text[k] >= 48 and text[k] <= 57) {
+        value = value * 10 + ((text[k] as u64) - 48);
+        k = k + 1;
+    }
+    return value;
+}
+
+/// Where the n-th name of a name kind (LINE_FAIL_NAME, LINE_PASS_NAME, or LINE_BLOCKED's why) starts;
+/// text.len when there is no such line, so text[name_from..name_to] is then empty.
+pub fn name_from(text: string, kind: u8, n: u64) -> usize {
+    const at : usize = line_of(text, kind, n);
+    if (at == text.len + 1) { return text.len; }
+    if (kind == LINE_BLOCKED) { return at + 11; }
+    return at + 8;
+}
+
+/// Where that name ends: its line's end without trailing blanks.
+pub fn name_to(text: string, kind: u8, n: u64) -> usize {
+    const from : usize = name_from(text, kind, n);
+    return trimmed_end(text, from, line_end(text, from));
+}
+
+/// The report's verdict, its exit code left aside. BLOCKED anywhere wins: the spec never built.
+pub fn read(text: string) -> u8 {
+    if (count(text, LINE_BLOCKED) > 0) { return V_BLOCKED; }
+    if (count(text, LINE_TESTS) == 0 or count(text, LINE_PASS) == 0 or count(text, LINE_FAIL) == 0) { return V_NO_TOTALS; }
+    const tests : u64 = total(text, LINE_TESTS);
+    const failed : u64 = total(text, LINE_FAIL);
+    if (total(text, LINE_PASS) + failed != tests) { return V_TOTALS_DISAGREE; }
+    if (count(text, LINE_FAIL_NAME) != failed) { return V_NAMES_DISAGREE; }
+    if (failed > 0) { return V_FAILED; }
+    if (tests == 0) { return V_NO_TEST; }
+    return V_GREEN;
+}
+
+/// The verdict on one run: the text's, and the exit only says what an unbelievable report means. A
+/// red report (FAILED, BLOCKED) with a non-zero exit is that red verdict, so a killed mutant is not a
+/// tool error once #7370 lands.
+pub fn verdict(text: string, exited_ok: bool) -> u8 {
+    const r : u8 = read(text);
+    if (exited_ok) { return r; }
+    if (r == V_FAILED or r == V_BLOCKED) { return r; }
+    if (r == V_GREEN or r == V_NO_TEST) { return V_EXIT_GREEN; }
+    return V_EXIT_UNREAD;
+}
+
+/// A verdict about the tests, not an error about the report.
+pub fn is_verdict(v: u8) -> bool {
+    return v <= V_NO_TEST;
+}
+
+/// `tri test` passes only on GREEN: it built, at least one test ran, and none failed.
+pub fn passes(v: u8) -> bool {
+    return v == V_GREEN;
+}
+
+/// What a verdict means, for the line the glue prints.
+pub fn why(v: u8) -> string {
+    if (v == V_GREEN) { return "green: it built, at least one test ran, and none failed"; }
+    if (v == V_FAILED) { return "a test FAILs"; }
+    if (v == V_BLOCKED) { return "BLOCKED: the spec never built, so no test ran"; }
+    if (v == V_NO_TEST) { return "no test ran: the spec has no `test` block (an invariant is proved at compile time; it is not a test)"; }
+    if (v == V_NO_TOTALS) { return "t27c test-report printed no tests / pass / FAIL totals and no BLOCKED line"; }
+    if (v == V_TOTALS_DISAGREE) { return "t27c test-report's totals do not add up: pass + FAIL is not tests"; }
+    if (v == V_NAMES_DISAGREE) { return "t27c test-report counts a number of FAIL that is not the number of FAIL names it lists"; }
+    if (v == V_EXIT_GREEN) { return "t27c test-report exited non-zero, yet its report reads green or ran no test; a run that disagrees with itself is not a pass"; }
+    return "t27c test-report exited non-zero and no report could be read from its output";
+}
+
+// The names of a list the glue builds from repeated flags: `count` entries joined by '\n'.
+
+/// Where entry k of a '\n'-joined list starts.
+pub fn entry_from(list: string, k: u64) -> usize {
+    var at : usize = 0;
+    var seen : u64 = 0;
+    while (seen < k and at < list.len) {
+        if (list[at] == 10) { seen = seen + 1; }
+        at = at + 1;
+    }
+    return at;
+}
+
+/// Is text[from..to] byte for byte the entry k of list?
+pub fn is_entry(text: string, from: usize, to: usize, list: string, k: u64) -> bool {
+    const at : usize = entry_from(list, k);
+    const end : usize = line_end(list, at);
+    if (end - at != to - from) { return false; }
+    var i : usize = 0;
+    while (i < to - from) {
+        if (text[from + i] != list[at + i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Is entry k of list one of the report's names of this kind?
+pub fn named(text: string, kind: u8, list: string, k: u64) -> bool {
+    var n : u64 = 0;
+    while (n < count(text, kind)) {
+        if (is_entry(text, name_from(text, kind, n), name_to(text, kind, n), list, k)) { return true; }
+        n = n + 1;
+    }
+    return false;
+}
+
+/// Is every one of the `entries` entries of list a name of this kind? (`--expect` must name a test.)
+pub fn all_named(text: string, kind: u8, list: string, entries: u64) -> bool {
+    var k : u64 = 0;
+    while (k < entries) {
+        if (named(text, kind, list, k) == false) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Are the report's names of this kind exactly the entries of list, as sets: every entry is a name,
+/// and every name is an entry. A name the list lacks, or an entry no line names, breaks it.
+pub fn same_names(text: string, kind: u8, list: string, entries: u64) -> bool {
+    if (all_named(text, kind, list, entries) == false) { return false; }
+    var n : u64 = 0;
+    while (n < count(text, kind)) {
+        var found : bool = false;
+        var k : u64 = 0;
+        while (k < entries) {
+            if (is_entry(text, name_from(text, kind, n), name_to(text, kind, n), list, k)) { found = true; }
+            k = k + 1;
+        }
+        if (found == false) { return false; }
+        n = n + 1;
+    }
+    return true;
+}
+
+// Scenario: specs/ternary/gft_relu.t27 as it stands -- 4 tests, all pass, no FAIL line.
+test the_clean_gft_relu_report_is_green {
+    const r : string = "--- test report: specs/ternary/gft_relu.t27 ---\n\n  tests       4\n  pass        4\n  FAIL        0\n  rate    100.0%\n\n  runtime asserts executed, per test (#6509; a pass with 0 is vacuous, T730):\n       1  pos\n       1  negz\n       1  zero\n       1  pos2\n  vacuous passes  0 of 4  (passed with 0 runtime asserts executed)\n";
+    assert total(r, LINE_TESTS) == 4;
+    assert total(r, LINE_PASS) == 4;
+    assert total(r, LINE_FAIL) == 0;
+    assert count(r, LINE_FAIL_NAME) == 0;
+    assert count(r, LINE_PASS_NAME) == 0;
+    assert read(r) == V_GREEN;
+    assert verdict(r, true) == V_GREEN;
+    assert passes(verdict(r, true)) == true;
+    assert verdict(r, false) == V_EXIT_GREEN;
+    assert passes(verdict(r, false)) == false;
+}
+
+// Scenario: line 12 of gft_relu.t27 planted (`return 0;` -> `return x;` for a negative input): negz
+// FAILs. `tri test` used to print "tests passed" here.
+test the_planted_gft_relu_report_names_negz {
+    const r : string = "--- test report: specs/ternary/gft_relu.t27 ---\n  FAIL  negz\n\n  tests       4\n  pass        3\n  FAIL        1\n  invariants  2   proved -- comptime, so compiling IS the check\n  rate    75.0%\n\n  runtime asserts executed, per test (#6509; a pass with 0 is vacuous, T730):\n       1  pos\n       -  negz   (failed, not counted)\n       1  zero\n       1  pos2\n  vacuous passes  0 of 3  (passed with 0 runtime asserts executed)\n";
+    assert total(r, LINE_TESTS) == 4;
+    assert total(r, LINE_PASS) == 3;
+    assert total(r, LINE_FAIL) == 1;
+    assert count(r, LINE_FAIL_NAME) == 1;
+    assert name_from(r, LINE_FAIL_NAME, 0) == 56;
+    assert name_to(r, LINE_FAIL_NAME, 0) == 60;
+    assert read(r) == V_FAILED;
+    assert verdict(r, true) == V_FAILED;
+    assert verdict(r, false) == V_FAILED;
+    assert passes(V_FAILED) == false;
+    assert is_verdict(V_FAILED) == true;
+}
+
+// Scenario: with --verbose the passing tests are named too, and the names are read in report order.
+test verbose_names_are_read_in_order {
+    const r : string = "--- test report: s.t27 ---\n  pass  pos\n  FAIL  negz\n  pass  zero  \n\n  tests       3\n  pass        2\n  FAIL        1\n";
+    assert count(r, LINE_PASS_NAME) == 2;
+    assert name_from(r, LINE_PASS_NAME, 0) == 35;
+    assert name_to(r, LINE_PASS_NAME, 0) == 38;
+    assert name_from(r, LINE_PASS_NAME, 1) == 60;
+    assert name_to(r, LINE_PASS_NAME, 1) == 64;
+    assert name_from(r, LINE_PASS_NAME, 2) == r.len;
+    assert name_to(r, LINE_PASS_NAME, 2) == r.len;
+    assert line_of(r, LINE_FAIL_NAME, 0) == 39;
+    assert line_of(r, LINE_FAIL_NAME, 1) == r.len + 1;
+    assert read(r) == V_FAILED;
+}
+
+// Scenario: a spec whose generated Zig does not build. The report says BLOCKED and nothing about
+// tests; it is red, whatever the exit, and its why is the name of the BLOCKED line.
+test a_blocked_report_is_red_with_either_exit {
+    const r : string = "--- test report: s.t27 ---\n  BLOCKED  zig: error: expected type 'i32'  \n\n  A blocked spec is not a failing one. It never produced a\n  binary, so it has no per-test result to report.\n";
+    assert count(r, LINE_BLOCKED) == 1;
+    assert name_from(r, LINE_BLOCKED, 0) == 38;
+    assert name_to(r, LINE_BLOCKED, 0) == 69;
+    assert read(r) == V_BLOCKED;
+    assert verdict(r, true) == V_BLOCKED;
+    assert verdict(r, false) == V_BLOCKED;
+    assert passes(V_BLOCKED) == false;
+    assert is_verdict(V_BLOCKED) == true;
+}
+
+// Scenario: a spec with invariants and no `test` block ran no test. That is not a pass.
+test no_test_is_not_a_pass {
+    const r : string = "--- test report: s.t27 ---\n\n  tests       0\n  pass        0\n  FAIL        0\n  invariants  2   proved -- comptime, so compiling IS the check\n";
+    assert read(r) == V_NO_TEST;
+    assert verdict(r, true) == V_NO_TEST;
+    assert passes(V_NO_TEST) == false;
+    assert is_verdict(V_NO_TEST) == true;
+    assert verdict(r, false) == V_EXIT_GREEN;
+}
+
+// Scenario: reports the reader cannot believe are errors, never passes, with either exit.
+test a_report_that_does_not_add_up_is_an_error {
+    assert read("") == V_NO_TOTALS;
+    assert read("--- test report: s.t27 ---\n  listed 4 tests\n") == V_NO_TOTALS;
+    assert read("\n  tests       2\n  pass        2\n") == V_NO_TOTALS;
+    assert read("\n  tests       2\n  FAIL        0\n") == V_NO_TOTALS;
+    assert read("\n  pass        2\n  FAIL        0\n") == V_NO_TOTALS;
+    assert read("\n  tests       3\n  pass        1\n  FAIL        0\n") == V_TOTALS_DISAGREE;
+    assert read("  FAIL  a\n\n  tests       2\n  pass        0\n  FAIL        2\n") == V_NAMES_DISAGREE;
+    assert read("  FAIL  a\n  FAIL  b\n\n  tests       2\n  pass        1\n  FAIL        1\n") == V_NAMES_DISAGREE;
+    assert verdict("", true) == V_NO_TOTALS;
+    assert verdict("", false) == V_EXIT_UNREAD;
+    assert verdict("\n  tests       3\n  pass        1\n  FAIL        0\n", false) == V_EXIT_UNREAD;
+    assert is_verdict(V_NO_TOTALS) == false;
+    assert is_verdict(V_TOTALS_DISAGREE) == false;
+    assert is_verdict(V_NAMES_DISAGREE) == false;
+    assert is_verdict(V_EXIT_GREEN) == false;
+    assert is_verdict(V_EXIT_UNREAD) == false;
+    assert passes(V_EXIT_UNREAD) == false;
+}
+
+// Scenario: only the first line of each total counts, as the first reader did; a later line that looks
+// like a total (the 2-of-3 vacuous summary does not) changes nothing.
+test the_first_total_counts {
+    const r : string = "\n  tests       2\n  pass        2\n  FAIL        0\n  tests       9\n";
+    assert count(r, LINE_TESTS) == 2;
+    assert total(r, LINE_TESTS) == 2;
+    assert read(r) == V_GREEN;
+}
+
+// Scenario: which line is which -- a total needs 3 or more spaces and only blanks after its digits, a
+// name exactly two spaces and a non-blank, and a total is tried first.
+test each_line_is_read_as_its_kind {
+    assert line_kind("  tests       4", 0, 15) == LINE_TESTS;
+    assert line_kind("  pass        3", 0, 15) == LINE_PASS;
+    assert line_kind("  FAIL        1", 0, 15) == LINE_FAIL;
+    assert line_kind("  FAIL   1", 0, 10) == LINE_FAIL;
+    assert line_kind("  FAIL  1", 0, 9) == LINE_FAIL_NAME;
+    assert line_kind("  FAIL  negz", 0, 12) == LINE_FAIL_NAME;
+    assert line_kind("  pass  pos", 0, 11) == LINE_PASS_NAME;
+    assert line_kind("  pass   ", 0, 9) == LINE_OTHER;
+    assert line_kind("  FAIL        1 x", 0, 17) == LINE_OTHER;
+    assert line_kind("  tests run                4", 0, 28) == LINE_OTHER;
+    assert line_kind("  tests       4 \t", 0, 17) == LINE_TESTS;
+    assert line_kind("  BLOCKED  x", 0, 12) == LINE_BLOCKED;
+    assert line_kind("  BLOCKED x", 0, 11) == LINE_OTHER;
+    assert line_kind("       1  pos", 0, 13) == LINE_OTHER;
+    assert line_kind("  vacuous passes  0 of 3", 0, 24) == LINE_OTHER;
+    assert line_kind(" FAIL  negz", 0, 11) == LINE_OTHER;
+    assert line_kind("", 0, 0) == LINE_OTHER;
+}
+
+// Scenario: a total of 18 digits is read, 19 is not a total, and a total with no digits is not one.
+test a_total_has_one_to_18_digits {
+    assert total_digits("  tests   123456789012345678", 0, 28, "  tests") == 10;
+    assert total_digits("  tests   1234567890123456789", 0, 29, "  tests") == 30;
+    assert total_digits("  tests      ", 0, 13, "  tests") == 14;
+    assert total_digits("  tests  4", 0, 10, "  tests") == 11;
+    assert total_digits("  tests   4x", 0, 12, "  tests") == 13;
+    assert total("\n  tests   123456789012345678\n", LINE_TESTS) == 123456789012345678;
+    assert total("no totals", LINE_TESTS) == 0;
+    assert total("  tests       4", LINE_TESTS) == 4;
+    assert total("  tests       4 \n", LINE_TESTS) == 4;
+    assert total("  pass        7\n  FAIL        2", LINE_FAIL) == 2;
+}
+
+// Scenario: the small readers on their edges.
+test the_line_readers_hold_on_their_edges {
+    assert line_end("ab\ncd", 0) == 2;
+    assert line_end("ab\ncd", 3) == 5;
+    assert line_end("", 0) == 0;
+    assert opens_with("abc", 0, 3, "ab") == true;
+    assert opens_with("abc", 1, 3, "ab") == false;
+    assert opens_with("abc", 0, 1, "ab") == false;
+    assert opens_with("abc", 4, 3, "") == false;
+    assert opens_with("abc", 3, 3, "") == true;
+    assert opens_with("ab", 0, 2, "ab") == true;
+    assert opens_with("abcd", 1, 2, "bc") == false;
+    assert count("a\nb\n", LINE_OTHER) == 2;
+    assert count("a\n\nb", LINE_OTHER) == 3;
+    assert line_of("a\n", LINE_OTHER, 1) == 3;
+    assert trimmed_end("ab  \t", 0, 5) == 2;
+    assert trimmed_end("   ", 1, 3) == 1;
+    assert is_blank(32) == true;
+    assert is_blank(9) == true;
+    assert is_blank(13) == true;
+    assert is_blank(8) == false;
+    assert is_blank(14) == false;
+    assert is_blank(97) == false;
+    assert names_after("  FAIL  ", 0, 8, "  FAIL  ") == false;
+    assert names_after("  FAIL  \t", 0, 9, "  FAIL  ") == false;
+    assert names_after("  FAIL  n", 0, 9, "  FAIL  ") == true;
+}
+
+// Scenario: `tri mutate plant --expect negz --expect zero` reads its two flags as one '\n'-joined list.
+test the_expect_list_is_read_entry_by_entry {
+    const list : string = "negz\nzero";
+    assert entry_from(list, 0) == 0;
+    assert entry_from(list, 1) == 5;
+    assert entry_from(list, 2) == 9;
+    assert is_entry("xnegzx", 1, 5, list, 0) == true;
+    assert is_entry("xnegzx", 1, 4, list, 0) == false;
+    assert is_entry("xzerox", 1, 5, list, 1) == true;
+    assert is_entry("xzerox", 1, 5, list, 0) == false;
+    assert is_entry("x", 0, 0, list, 2) == true;
+}
+
+// Scenario: every --expect must name a test of the spec (the baseline's `pass` names), and the mutant's
+// FAIL names must be exactly the --expect set: a subset is not the set, and neither is a superset.
+test the_failing_set_is_the_expected_set_or_nothing {
+    const base : string = "  pass  pos\n  pass  negz\n  pass  zero\n  pass  pos2\n\n  tests       4\n  pass        4\n  FAIL        0\n";
+    assert all_named(base, LINE_PASS_NAME, "negz", 1) == true;
+    assert all_named(base, LINE_PASS_NAME, "negz\npos2", 2) == true;
+    assert all_named(base, LINE_PASS_NAME, "nosuch", 1) == false;
+    assert all_named(base, LINE_PASS_NAME, "negz\nneg", 2) == false;
+    assert all_named(base, LINE_PASS_NAME, "", 0) == true;
+    const one : string = "  FAIL  negz\n\n  tests       4\n  pass        3\n  FAIL        1\n";
+    assert same_names(one, LINE_FAIL_NAME, "negz", 1) == true;
+    assert same_names(one, LINE_FAIL_NAME, "pos", 1) == false;
+    assert same_names(one, LINE_FAIL_NAME, "negz\nzero", 2) == false;
+    assert same_names(one, LINE_FAIL_NAME, "negz\nnegz", 2) == true;
+    assert same_names(one, LINE_FAIL_NAME, "", 0) == false;
+    const two : string = "  FAIL  pos\n  FAIL  pos2\n\n  tests       4\n  pass        2\n  FAIL        2\n";
+    assert same_names(two, LINE_FAIL_NAME, "pos\npos2", 2) == true;
+    assert same_names(two, LINE_FAIL_NAME, "pos2\npos", 2) == true;
+    assert same_names(two, LINE_FAIL_NAME, "pos", 1) == false;
+    assert same_names(two, LINE_FAIL_NAME, "pos\npos2", 1) == false;
+    assert named(two, LINE_FAIL_NAME, "", 0) == false;
+    assert named(two, LINE_FAIL_NAME, "pos\npos2", 1) == true;
+    assert named(two, LINE_FAIL_NAME, "pos\npos3", 1) == false;
+}
+
+// Scenario: each verdict has its own words, and the green one is not an error's.
+test each_verdict_says_what_it_means {
+    assert why(V_GREEN)[0] == 103;
+    assert why(V_FAILED)[0] == 97;
+    assert why(V_BLOCKED)[0] == 66;
+    assert why(V_NO_TEST)[0] == 110;
+    assert why(V_NO_TOTALS)[17] == 112;
+    assert why(V_TOTALS_DISAGREE)[17] == 115;
+    assert why(V_NAMES_DISAGREE)[17] == 99;
+    assert why(V_EXIT_GREEN)[32] == 44;
+    assert why(V_EXIT_UNREAD)[32] == 32;
+}

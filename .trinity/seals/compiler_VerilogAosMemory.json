@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+be9757784",
+  "gen_hash_c": "sha256:3ce6ec8d7ae1597fa32cd4ae8305c7268007404dfaa7410a7127637d97e97f05",
+  "gen_hash_rust": "sha256:73987a2102cef6d448be43324772192675564cb01024b105e6832417ddfe2747",
+  "gen_hash_verilog": "sha256:586a9e2d5b72851e5b5464c601a933714ac4ae9405dd986d81d3678984a4d5d8",
+  "gen_hash_zig": "sha256:cec8b87005220fdb3f137adf8004a5b9eca7312979b23576c767ac9cda231d0a",
+  "module": "VerilogAosMemory",
+  "ring": 12,
+  "sealed_at": "2026-10-09T10:45:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c080459991200b8e94e0d1077307143acbb3a5847162731a0aae3897706959a1",
+  "spec_path": "specs/compiler/verilog_aos_memory.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

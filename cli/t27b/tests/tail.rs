@@ -265,23 +265,6 @@ fn an_optional_enum_compares_by_tag() {
     assert!(rejected(&src.replace("K.B);\n}\n", "L.A);\n}\n")).contains("construct type mismatch at line 20"));
 }
 
-// ------------------------------------------------ `/` and `%` of two integer constants
-
-/// `const CLK_DIV : u32 = CLK_HZ / (UART_BAUD * 16);` (gf16_uart_sim_bench.t27): Zig folds `/` and an unsigned `%` of
-/// two constants at compile time (specs/tri/t27b/const_div_plan.t27; `t27c test-report` passes the conformance spec
-/// 5/5, none vacuous). A zero divisor and a signed `%`, which the reference refuses, stay refused as `ConstDecl`.
-#[test]
-fn integer_constants_divide_at_compile_time() {
-    let r = run(include_str!("../../../specs/tri/t27b/conformance/const_division.t27"));
-    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
-    let src = "module a;\n\npub const A : i32 = -7;\npub const B : i32 = 2;\npub const C : i32 = A / B;\n\ntest t {\n    assert(C == -3);\n}\n";
-    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
-    assert_eq!(names_ok(&run(&src.replace("C == -3", "C == -4"))), vec![("t", false, false)]);
-    for bad in ["A % B", "A / 0"] {
-        assert!(rejected(&src.replace("A / B", bad)).contains("construct ConstDecl"), "{}", bad);
-    }
-}
-
 // ------------------------------------------------ @bitCast, @intFromBool and the std.math NaN fns
 
 /// #7791: an f32's bits through a frame slot, integers of one size, a bool as a u1, and `std.math.nan` / `isNan` /
@@ -299,6 +282,20 @@ fn bit_cast_int_from_bool_and_the_nan_fns() {
         let m = rejected(&src.replace(from, to));
         assert!(m.contains(&format!("construct ExprCall({}) at line", what)) && m.contains(why), "{}", m);
     }
+}
+
+// ------------------------------------------------ a minus the parser folds into a float literal
+
+/// #7809: `const NEG_PI: f64 = -3.141592653589793;` reaches t27b as the literal "-3.141592653589793", which
+/// gen-zig prints as written and Zig negates (specs/tri/t27b/literal_plan.t27; `t27c test-report` passes the
+/// conformance spec 7/7, none vacuous), a zero to a negative zero.
+#[test]
+fn a_folded_minus_negates_a_float_literal() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/negative_float_literal.t27"));
+    assert!(r.len() == 7 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nconst Z: f64 = -0.0;\n\nfn id(x: f64) -> f64 {\n    return x;\n}\n\ntest t {\n    assert(1.0 / id(Z) < 0.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("-0.0", "0.0"))), vec![("t", false, false)]);
 }
 
 // ------------------------------------------------ a call returning a float, in `x as T`

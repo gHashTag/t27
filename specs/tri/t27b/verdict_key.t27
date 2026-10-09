@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/verdict_key.t27 -- what a row of the t27b reference cache is keyed by, and which reference
+; verdicts may be kept (epic #8095 "verdict reuse", step 1 on the t27b side; t27b epic #6063).
+; --
+; The reference verdict of a spec is what `t27c test-report <spec>` prints. It is made from: the Zig code
+; t27c generates for the spec (the use-resolved source, compiled; `t27c gen <spec>` prints exactly that
+; code), the test runner t27c wraps around it (bootstrap/src/test_report.rs: the instrumentation, runner.zig
+; and the per-test timeout), the zig that builds and runs it, and the host zig builds for. Until this file
+; the key named the t27c BINARY instead of the code it generates, so any pull request that touched
+; bootstrap/ missed every row: run 37911771594 spent 1406 s in the ratchet's corpus step (reference cache
+; 20539 -> 22249 rows) where run 37911494033, spec-only, spent 432 s (20000 -> 20003 rows).
+; --
+; The key, as seal v2 judges a toolchain (specs/verified/seal_identity.t27, #8110: by its output and the
+; test runner): FNV-1a 64 over the little-endian bytes of, in order, KEY_SCHEMA and five parts, each itself
+; an FNV-1a 64 the glue computes:
+;   spec    the spec path, then each file of its `use` closure (path, length, bytes)
+;   output  the stdout of `t27c gen <spec>`
+;   runner  the bytes of bootstrap/src/test_report.rs
+;   zig     the output of `zig version`
+;   host    the arch-os of the target `zig env` reports (x86_64-linux, aarch64-linux)
+; The host is in the key, so a verdict that depends on the host (specs/ml/recurrent/self_attention.t27,
+; #8051) is never served on another one. A part the glue cannot compute -- `t27c gen` exits non-zero or
+; times out, test_report.rs is not in the tree, zig cannot run -- is replaced by the t27c binary's own
+; hash (part_or), so that spec is keyed exactly as before this file, never more loosely.
+; --
+; What is kept. A verdict that says what the machine did, not what the spec does, is never written: a
+; reference timeout, a t27c that did not exit normally, a test the runner stopped at its timeout ("timed out
+; after N s, not counted"), and zig running out of threads, processes or memory in the container.
+; A cached pass or fail without per-test verdicts (a row from before #6441) is a miss.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bVerdictKey;
+
+use tri::t27b::blockers;
+
+/// The version of the key layout. 1 was the binary stamp (#6332, #6443); a row of another layout never
+/// matches, because the schema is the first word hashed.
+pub const KEY_SCHEMA : u64 = 2;
+
+/// The tags part_or hashes first, so a part computed from its source never equals the fallback.
+pub const PART_FROM_SOURCE : u64 = 1;
+pub const PART_FROM_BINARY : u64 = 2;
+
+/// FNV-1a 64 continued over the eight little-endian bytes of x.
+pub fn fnv_u64(h0: u64, x: u64) -> u64 {
+    var h : u64 = h0;
+    var v : u64 = x;
+    var i : u32 = 0;
+    while (i < 8) {
+        h = (h ^ (v & 0xff)) *% FNV_PRIME;
+        v = v >> 8;
+        i = i + 1;
+    }
+    return h;
+}
+
+/// A part from its source when the glue could compute it, else the t27c binary's hash.
+pub fn part_or(ok: bool, part: u64, binary: u64) -> u64 {
+    if (ok) {
+        return fnv_u64(fnv_u64(FNV_OFFSET, PART_FROM_SOURCE), part);
+    }
+    return fnv_u64(fnv_u64(FNV_OFFSET, PART_FROM_BINARY), binary);
+}
+
+/// The key of one reference-cache row.
+pub fn verdict_key(spec: u64, output: u64, runner: u64, zig: u64, host: u64) -> u64 {
+    var h : u64 = fnv_u64(FNV_OFFSET, KEY_SCHEMA);
+    h = fnv_u64(h, spec);
+    h = fnv_u64(h, output);
+    h = fnv_u64(h, runner);
+    h = fnv_u64(h, zig);
+    h = fnv_u64(h, host);
+    return h;
+}
+
+/// Whether a reference verdict may be written to the cache.
+pub fn keep(exited_normally: bool, reference_timed_out: bool, test_timed_out: bool, machine_fault: bool) -> bool {
+    if (exited_normally == false) { return false; }
+    if (reference_timed_out) { return false; }
+    if (test_timed_out) { return false; }
+    if (machine_fault) { return false; }
+    return true;
+}
+
+/// Whether a row found under the key is served: a verdict that ran tests needs its per-test verdicts.
+pub fn served(found: bool, ran_tests: bool, has_tests: bool) -> bool {
+    if (found == false) { return false; }
+    if (ran_tests) { return has_tests; }
+    return true;
+}
+
+test fnv_u64_is_fnv1a_over_the_little_endian_bytes {
+    // fnv64 of eight zero bytes, and of the bytes 08 07 06 05 04 03 02 01 (computed by Python, see PR)
+    assert fnv_u64(FNV_OFFSET, 0) == 0xa8c7f832281a39c5;
+    assert fnv_u64(FNV_OFFSET, 0x0102030405060708) == 0x0c6d4496e17859d5;
+    assert fnv64("") == FNV_OFFSET;
+}
+
+test every_part_is_in_the_key {
+    const base : u64 = verdict_key(1, 2, 3, 4, 5);
+    assert base == 0x1e3274a7191fe946;
+    assert verdict_key(9, 2, 3, 4, 5) != base;
+    assert verdict_key(1, 9, 3, 4, 5) != base;
+    assert verdict_key(1, 2, 9, 4, 5) != base;
+    assert verdict_key(1, 2, 3, 9, 5) != base;
+    assert verdict_key(1, 2, 3, 4, 9) != base;
+    // the order of the parts counts: output and runner swapped is another key
+    assert verdict_key(1, 3, 2, 4, 5) != base;
+}
+
+test the_same_parts_give_the_same_key {
+    // a t27c rebuilt from other sources that generates the same code keeps every key
+    assert verdict_key(1, 2, 3, 4, 5) == verdict_key(1, 2, 3, 4, 5);
+    assert verdict_key(0, 0, 0, 0, 0) == 0x3290e990c527c867;
+}
+
+test a_verdict_from_another_host_is_another_key {
+    const x86 : u64 = fnv64("x86_64-linux");
+    const arm : u64 = fnv64("aarch64-linux");
+    assert x86 == 0x3952318898810087;
+    assert arm == 0xd5b77ef2f1c53d29;
+    assert verdict_key(1, 2, 3, 4, x86) != verdict_key(1, 2, 3, 4, arm);
+}
+
+test a_part_not_computed_is_keyed_by_the_binary {
+    assert part_or(true, 7, 9) == 0x1a2742e842fb0203;
+    assert part_or(false, 7, 9) == 0xfef7bc88d3b49bce;
+    // the fallback ignores the part it could not compute, and names the binary
+    assert part_or(false, 123, 9) == part_or(false, 7, 9);
+    assert part_or(false, 7, 10) != part_or(false, 7, 9);
+    // a part never collides with the fallback for the same number
+    assert part_or(true, 9, 9) != part_or(false, 9, 9);
+}
+
+test only_what_the_spec_did_is_kept {
+    assert keep(true, false, false, false);
+    assert keep(false, false, false, false) == false;
+    assert keep(true, true, false, false) == false;
+    assert keep(true, false, true, false) == false;
+    assert keep(true, false, false, true) == false;
+}
+
+test a_row_without_per_test_verdicts_is_a_miss {
+    assert served(true, true, true);
+    assert served(true, true, false) == false;
+    // a blocked verdict never ran a test, so it has none to need
+    assert served(true, false, false);
+    assert served(false, false, false) == false;
+    assert served(false, true, true) == false;
+}
+
+invariant the_schema_moved_past_the_binary_stamp {
+    assert KEY_SCHEMA == 2;
+    assert PART_FROM_SOURCE != PART_FROM_BINARY;
+}
