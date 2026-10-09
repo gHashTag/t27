@@ -1,0 +1,10 @@
+// #8001: the parameter hides the constant MODE_ON, so C returns the
+// parameter where Zig returns the member.
+module enum_constant_param;
+enum Mode {
+    off,
+    on,
+}
+fn ep_g(MODE_ON: i64) -> Mode {
+    return Mode.on;
+}

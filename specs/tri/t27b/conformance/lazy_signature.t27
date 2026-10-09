@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/lazy_signature.t27 -- fns no test reaches whose signatures name `anytype` or a
+; many-item pointer `[*]T`, as the reference runs them (t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. The plan is
+; specs/tri/t27b/lazy_sig_plan.t27.
+; Zig analyzes a fn only when something analyzed names it. `format_into` is never instantiated, so the
+; methods `write_str` and `write_num` that no type here has are never looked up; `list_issues` and
+; `first_issue` are never analyzed, so `?[*]Issue` and `[*]const Issue` are never resolved. The ports this
+; mirrors are trios-scarab-types SR-00 and SR-02 (`Term_fmt(self, f: anytype)`) and trios-cli gh.t27
+; (`GhClient_list_agent_issues(..) -> ?[*]AgentIssue`). A mutant of those three bodies survives by
+; construction: no test reaches them, which is the point of the spec.
+; Not here (the reference cannot compile it): a test that calls `format_into`, which makes Zig look up
+; `write_str` on the argument's type, and `[*]Missing`, an undeclared name AstGen refuses in every fn.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceLazySignature;
+
+struct Issue {
+    number: u32,
+    weight: u32,
+}
+
+fn format_into(i: Issue, f: anytype) void {
+    const n = i.number;
+    _ = f.write_str("issue");
+    _ = f.write_num(n);
+}
+
+fn list_issues(owner: u32) -> ?[*]Issue {
+    return null;
+}
+
+fn first_issue(all: [*]const Issue) void {
+    return;
+}
+
+fn issue_score(i: Issue) -> u32 {
+    return i.number * 10 + i.weight;
+}
+
+fn heavier(a: Issue, b: Issue) -> u32 {
+    if (a.weight > b.weight) {
+        return a.number;
+    }
+    return b.number;
+}
+
+test issue_score_mixes_number_and_weight {
+    const i = Issue{ number: 3, weight: 4 };
+    assert(issue_score(i) == 34);
+}
+
+test heavier_picks_the_heavier_issue {
+    const a = Issue{ number: 1, weight: 9 };
+    const b = Issue{ number: 2, weight: 5 };
+    assert(heavier(a, b) == 1);
+    assert(heavier(b, a) == 1);
+}
+
+test a_tie_goes_to_the_second {
+    const a = Issue{ number: 6, weight: 5 };
+    const b = Issue{ number: 7, weight: 5 };
+    assert(heavier(a, b) == 7);
+    assert(issue_score(b) == 75);
+}

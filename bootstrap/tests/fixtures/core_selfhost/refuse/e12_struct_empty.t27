@@ -1,0 +1,4 @@
+// #7961: C99 has no empty struct; gen-c writes `struct SeNone {\n};`.
+module struct_empty;
+struct SeNone {
+}

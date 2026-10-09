@@ -250,6 +250,21 @@ fn an_undefined_argument_nobody_reads() {
     assert!(m.contains("construct ExprIdentifier(undefined argument read) at line 8"), "{}", m);
 }
 
+// ------------------------------------------------ an optional enum against a variant
+
+/// `?E == v` (ST-00's `Adapter_parse("claude") == Adapter.Claude`): equal only when the optional holds v's tag, so
+/// null is `!=` every variant (specs/tri/t27b/optional_compare_plan.t27; `t27c test-report` passes the conformance
+/// spec 6/6, none vacuous). A variant of another enum stays refused, as Zig refuses it.
+#[test]
+fn an_optional_enum_compares_by_tag() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/optional_enum_compare.t27"));
+    assert!(r.len() == 6 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\npub enum K {\n    A,\n    B,\n}\n\npub enum L {\n    A,\n}\n\nfn get(b: bool) -> ?K {\n    if (b) {\n        return K.B;\n    }\n    return null;\n}\n\ntest t {\n    assert(get(true) == K.B);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    assert_eq!(names_ok(&run(&src.replace("get(true) == K.B", "get(false) == K.B"))), vec![("t", false, false)]);
+    assert!(rejected(&src.replace("K.B);\n}\n", "L.A);\n}\n")).contains("construct type mismatch at line 20"));
+}
+
 // ------------------------------------------------ @bitCast, @intFromBool and the std.math NaN fns
 
 /// #7791: an f32's bits through a frame slot, integers of one size, a bool as a u1, and `std.math.nan` / `isNan` /
@@ -310,4 +325,38 @@ fn f32_rounding_and_rem_call_their_ports() {
         let m = rejected(&src.replace(from, to));
         assert!(m.contains(&format!("construct ExprCall({}) at line 4", what)) && m.contains(why), "{}", m);
     }
+}
+
+// ------------------------------------------------ `_ = e;` with e not a bare name
+
+/// `_ = e;` (collect_type_decls.t27): at the top of a fn body the reference's dead-store pass deletes it unless e
+/// holds a call; anywhere else e runs and its value is dropped (specs/tri/t27b/discard_plan.t27; `t27c test-report`
+/// passes the conformance spec 5/5, none vacuous). A nested `_ = a + b;` that overflows traps on both sides.
+#[test]
+fn a_discarded_value_runs_unless_the_reference_deletes_it() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/discard_value.t27"));
+    assert!(r.len() == 5 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let src = "module a;\n\nfn f(a: u8, b: u8) -> u8 {\n    _ = a + b;\n    return a;\n}\n\ntest t {\n    assert(f(200, 100) == 200);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    let r = run(&src.replace("    _ = a + b;\n", "    if (a > 0) {\n        _ = a + b;\n    }\n"));
+    assert!(matches!(r[0].2, Err((TrapKind::Overflow, _))), "{:?}", r);
+}
+
+// ------------------------------------------------ signatures Zig never resolves
+
+/// `anytype` and `[*]T` in the signature of a fn no test reaches (gh.t27, trios-scarab-types SR-00 and SR-02, #7857):
+/// Zig never resolves them, so the reference passes the file (specs/tri/t27b/lazy_sig_plan.t27; `t27c test-report`
+/// passes the conformance spec 3/3, none vacuous). A call from a test, an undeclared element type and an undeclared
+/// name in the withdrawn body keep their refusals, as the reference refuses each.
+#[test]
+fn a_signature_zig_never_resolves() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/lazy_signature.t27");
+    let r = run(src);
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    assert_eq!(names_ok(&run(&src.replace("== 34", "== 35"))).iter().filter(|t| !t.2).count(), 1);
+    assert!(rejected(&src.replace("assert(issue_score(i) == 34);", "format_into(i, 5);")).contains("type anytype"));
+    assert!(rejected(&src.replace("?[*]Issue", "?[*]Missing")).contains("type [*]T"));
+    assert!(rejected(&src.replace("all: [*]const Issue", "all: [*]const Issue, m: Missing")).contains("type [*]T"));
+    let m = common::lower_src(&src.replace("f.write_num", "undeclared_thing")).unwrap_err().join("\n");
+    assert!(m.contains("ExprIdentifier(undeclared) at line 23 (`undeclared_thing` in `format_into`"), "{}", m);
 }

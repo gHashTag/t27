@@ -1,0 +1,8 @@
+// #8009: a body with a statement becomes `void invariant_..(void)`, which
+// nothing calls.
+module invariant_statement;
+const IT_A: i64 = 5;
+invariant it_stmt {
+    var t: i64 = IT_A;
+    assert(t == 5);
+}

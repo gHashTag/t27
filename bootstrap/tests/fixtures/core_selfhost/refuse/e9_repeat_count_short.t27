@@ -1,0 +1,4 @@
+// P1 slice 5: a repeat count short of the dimension. gen-c fills the first
+// two elements and leaves zeros in the rest; Zig refuses [2]u8 as a [4]u8.
+module count_short;
+var cs_g: [4]u8 = [_]u8{1} ** 2;

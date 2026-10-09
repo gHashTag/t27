@@ -1,0 +1,8 @@
+// #8003: gen-c skips a const whose value opens with `.`, so EI_D is never
+// declared.
+module enum_inferred_const;
+enum EiMode {
+    off,
+    on,
+}
+const EI_D: EiMode = .on;

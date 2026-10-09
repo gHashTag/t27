@@ -1,0 +1,7 @@
+// #7427: gen-c reads every `**` as an array repeat, so a numeric power is
+// written `return /* repeat: a ** b */ {0};`, which cc refuses, and gen-c
+// exits 0. The core keeps `**` for a repeat initializer only.
+module numeric_power;
+fn np_pow(a: u32, b: u32) -> u32 {
+    return a ** b;
+}

@@ -1,0 +1,85 @@
+// P2 slice 2 (#5980): enums. gen-c writes `typedef enum { E_A, ... } E;`
+// between the constants and the structs, and a member, written `E.a`,
+// `E::a` or `.a`, as its upper-cased constant `E_A`. A switch of `.a` arms
+// with no `else` names every member, so gen-c's closing `: 0` is never read.
+module enum_values;
+
+enum EvColor {
+    red,
+    green,
+    blue,
+}
+
+pub enum EvMode(u8) {
+    off = 0,
+    on = 5,
+    auto,
+}
+
+const EvSign = enum(i8) {
+    neg = -1,
+    zero = 0,
+    pos = 1,
+};
+
+pub const EvOp = enum {
+    add,
+    sub,
+};
+
+struct EvCell {
+    color: EvColor,
+    hits: u8,
+}
+
+const EV_N: i64 = 3;
+const EV_DEFAULT: EvMode = EvMode.on;
+var ev_cur: EvColor = EvColor::green;
+var ev_cells: [2]EvCell = [_]EvCell{ EvCell{ .color = .red, .hits = 0 }, EvCell{ .color = EvColor.blue, .hits = 1 } };
+var ev_modes: [EV_N]EvMode = [_]EvMode{EvMode.auto} ** EV_N;
+var ev_ops: [2]EvOp = [_]EvOp{ .sub, EvOp::add };
+
+fn ev_pick(c: EvColor) -> EvMode {
+    if (c == EvColor.red) {
+        return .off;
+    }
+    return EvMode::auto;
+}
+
+fn ev_rank(c: EvColor) -> i64 {
+    return switch (c) {
+        .red => 1,
+        .green => 2,
+        else => 3,
+    };
+}
+
+fn ev_apply(op: EvOp, a: i64, b: i64) -> i64 {
+    return switch (op) {
+        .sub => a - b,
+        .add => a + b,
+    };
+}
+
+fn ev_flip(s: EvSign) -> EvSign {
+    return switch (s) { .neg => .pos, .pos => EvSign.neg, .zero => .zero };
+}
+
+test ev_members {
+    assert(ev_pick(EvColor.red) == EvMode.off);
+    assert(ev_pick(.blue) == .auto);
+    assert(EV_DEFAULT == EvMode::on);
+    assert(ev_rank(ev_cur) == 2);
+    assert(ev_apply(EvOp.sub, 7, 2) == 5);
+    assert(ev_apply(ev_ops[1], 7, 2) == 9);
+    assert(ev_flip(.neg) == EvSign.pos);
+    assert(ev_flip(EvSign.zero) == EvSign::zero);
+    assert(ev_cells[1].color == EvColor::blue);
+    assert(ev_modes[2] == EvMode.auto);
+}
+
+test ev_global_written {
+    ev_cur = .blue;
+    ev_cells[0].color = ev_cur;
+    assert(ev_rank(ev_cells[0].color) == 3);
+}

@@ -1,0 +1,15 @@
+// #8001: two enums have `x`, so gen-c writes a bare `X`, which is the const
+// here: f() returns 3 in C.
+module enum_no_single_owner;
+enum EoA {
+    x,
+    y,
+}
+enum EoB {
+    x,
+    z,
+}
+const X: i64 = 3;
+fn eo_f() -> EoA {
+    return .x;
+}

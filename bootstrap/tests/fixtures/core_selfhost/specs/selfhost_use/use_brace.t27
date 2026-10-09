@@ -1,0 +1,11 @@
+// A function whose `{` opens on the line after its header: gen-c's splice
+// ends a declaration at the first line where its depth is closed, so it
+// takes the header line alone (refuse/e11_use_brace_on_next_line.t27).
+module use_brace;
+fn ub_one() -> i64
+{
+    return 1;
+}
+test ub_values {
+    assert(ub_one() == 1);
+}
