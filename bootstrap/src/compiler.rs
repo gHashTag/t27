@@ -10323,6 +10323,103 @@ impl Codegen {
         }
     }
 
+    // Helper function to check if an expression is a string comparison
+    fn is_string_comparison(&self, node: &Node) -> bool {
+        if node.kind != NodeKind::ExprBinary || node.children.len() < 2 {
+            return false;
+        }
+        
+        let op = node.extra_op.as_str();
+        if !matches!(op, "==" | "!=") {
+            return false;
+        }
+        
+        let is_str = |n: &Node| {
+            n.kind == NodeKind::ExprLiteral && n.extra_kind == "string"
+        };
+        
+        is_str(&node.children[0]) || is_str(&node.children[1]) 
+            || self.is_string_typed(&node.children[0]) 
+            || self.is_string_typed(&node.children[1])
+    }
+
+    // Helper function to calculate bracket depth at a given position in text
+    fn calculate_bracket_depth(&self, text: &str, pos: usize) -> i32 {
+        let mut depth = 0;
+        for (i, c) in text.chars().enumerate() {
+            if i >= pos {
+                break;
+            }
+            match c {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+        }
+        depth
+    }
+
+    // Helper function to split conjunctions at bracket depth zero
+    fn split_conjunctions(&self, text: &str) -> Vec<&str> {
+        let mut parts = Vec::new();
+        let mut start = 0;
+        let mut depth = 0;
+        
+        // Pattern for " and " and " or " at bracket depth zero
+        let pattern = r#" and "#;
+        let or_pattern = r#" or "#;
+        
+        let mut i = 0;
+        while i < text.len() {
+            if depth == 0 && i + pattern.len() <= text.len() 
+                && &text[i..i + pattern.len()] == pattern {
+                parts.push(&text[start..i]);
+                start = i + pattern.len();
+                i += pattern.len();
+                continue;
+            }
+            
+            if depth == 0 && i + or_pattern.len() <= text.len() 
+                && &text[i..i + or_pattern.len()] == or_pattern {
+                parts.push(&text[start..i]);
+                start = i + or_pattern.len();
+                i += or_pattern.len();
+                continue;
+            }
+            
+            match text.chars().nth(i) {
+                Some('(') => depth += 1,
+                Some(')') => depth = (depth - 1).max(0),
+                _ => {}
+            }
+            i += 1;
+        }
+        
+        if start < text.len() {
+            parts.push(&text[start..]);
+        }
+        
+        parts
+    }
+
+    // Helper function to count string comparisons at the top level
+    fn count_top_level_comparisons(&self, node: &Node) -> usize {
+        if node.kind != NodeKind::ExprBinary {
+            return 0;
+        }
+        
+        let op = node.extra_op.as_str();
+        if !matches!(op, "and" | "or") {
+            return if self.is_string_comparison(node) { 1 } else { 0 };
+        }
+        
+        // Count comparisons on both sides
+        let left_count = self.count_top_level_comparisons(&node.children[0]);
+        let right_count = self.count_top_level_comparisons(&node.children[1]);
+        
+        left_count + right_count
+    }
+
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -10648,6 +10745,20 @@ impl Codegen {
                             || self.is_string_typed(&node.children[0])
                             || self.is_string_typed(&node.children[1]))
                     {
+                        // FR-001: Split conjunctions on top-level "and"/"or" at bracket depth zero
+                        // FR-002: Rewrite each side of a top-level conjunction independently
+                        // FR-003: Refuse to rewrite when more than one comparison exists at the top level
+                        
+                        let comparison_count = self.count_top_level_comparisons(node);
+                        
+                        if comparison_count > 1 {
+                            // FR-003: Refuse to rewrite when more than one comparison exists at the top level
+                            // Emit the original comparison unchanged
+                            self.gen_expr_maybe_paren(node);
+                            return;
+                        }
+                        
+                        // FR-001 & FR-002: Split conjunctions and rewrite each side independently
                         if op == "!=" {
                             self.write("!");
                         }
