@@ -45,6 +45,18 @@
 ;   EXPR: or and == != < > <= >= | ^ & << >> + - * / % ; unary - ! ~ ;
 ;         X as SCALAR ; f(args) ; a[i] ; a[i][j] ; ( EXPR ) ; number ; 'c' ;
 ;         true false            (no `defer`: #7352; no numeric `**`: #7427)
+;         S{ .F = EXPR , ... }   (every field of struct S once, in any order:
+;         gen-c writes it as written, #7959)
+;         X.F                    (after a name, an index, a call, a literal,
+;         or parentheses around one of those, a binary or a cast: gen-c drops
+;         them, so `(-x).f` is `-x.f`, #7961; an index cannot follow it)
+;   [pub] struct S { F : TYPE , ... }   or   [pub] const|let S = struct { ... };
+;         (at least one field, no defaults: gen-c drops a default, #7959; a
+;         field's TYPE is a SCALAR or another struct, never S itself through
+;         any chain of fields, #7961; S no name gen-c maps to a C type)
+;   TYPE: a SCALAR, or a struct declared in the module, wherever a SCALAR
+;         stands except after `as`; an array of structs repeats only an
+;         all-zero literal, which gen-c writes as `{0}` (#7960)
 ;   SCALAR: bool u8 i8 u16 i16 u32 i32 u64 i64 usize
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
@@ -87,6 +99,9 @@ const E_ARRAY: i64 = 9;
 const E_NEED: i64 = 10;
 ; An import gen-c splices with loss (#7379, #7380, #7381, #7702).
 const E_USE: i64 = 11;
+; A struct gen-c lowers with loss, or one C and Zig read apart: a default,
+; a literal missing or repeating a field, an empty struct, a cycle.
+const E_STRUCT: i64 = 12;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -136,6 +151,8 @@ const T_SWITCH: i64 = 289;
 const T_DOTDOT: i64 = 290;
 const T_ARM: i64 = 291;
 const T_USE: i64 = 292;
+const T_STRUCT: i64 = 293;
+const K_DOT: i64 = 46;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
 const N_NUM: i64 = 1;
@@ -152,6 +169,11 @@ const N_NEGLIT: i64 = 11;
 const N_LIST: i64 = 12;
 const N_SWITCH: i64 = 13;
 const N_ARM: i64 = 14;
+; X.F: nd_tok is F, nd_a is X. S{ .F = V }: nd_tok is S, nd_a the first
+; N_INIT (nd_tok F, nd_a V), nd_b how many.
+const N_FIELD: i64 = 15;
+const N_STRUCT: i64 = 16;
+const N_INIT: i64 = 17;
 const S_LOCAL: i64 = 20;
 const S_ASSIGN: i64 = 21;
 const S_EXPR: i64 = 22;
@@ -168,6 +190,10 @@ const D_FN: i64 = 43;
 const D_PARAM: i64 = 44;
 const D_TEST: i64 = 45;
 const D_USE: i64 = 46;
+; A struct: nd_tok its name, nd_a the first D_FIELD (nd_tok the field, nd_aux
+; its type token), nd_c its last token; nd_b marks it written (emit_structs).
+const D_STRUCT: i64 = 47;
+const D_FIELD: i64 = 48;
 
 ; Packed spellings of the words the lexer and checker recognise.
 const W_MODULE: i64 = 0x656c75646f6d;
@@ -231,6 +257,7 @@ var nd_b: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_c: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_next: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var nd_aux: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
+var nd_d: [NODE_MAX]i64 = [_]i64{0} ** NODE_MAX;
 var scope_arr: [SCOPE_MAX]i64 = [_]i64{0} ** SCOPE_MAX;
 var mod_from: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
 var mod_to: [MOD_MAX]i64 = [_]i64{0} ** MOD_MAX;
@@ -472,7 +499,10 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_AS, 0, 2)) {
         return T_AS;
     }
-    if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_STRUCT, 0, 6) or tok_is(t, W_INVARIA, 't', 9)) {
+    if (tok_is(t, W_STRUCT, 0, 6)) {
+        return T_STRUCT;
+    }
+    if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_INVARIA, 't', 9)) {
         return T_BAD;
     }
     if (tok_is(t, W_FOR, 0, 3)) {
@@ -560,7 +590,7 @@ fn is_single(c: i64) -> bool {
     if (c == '+' or c == '-' or c == '*' or c == '/' or c == '%' or c == '&') {
         return true;
     }
-    return c == '|' or c == '^' or c == '<' or c == '>';
+    return c == '|' or c == '^' or c == '<' or c == '>' or c == K_DOT;
 }
 
 fn skip_line(i: i64) -> i64 {
@@ -795,6 +825,10 @@ fn naux(n: i64) -> i64 {
     return nd_aux[n as usize];
 }
 
+fn nd(n: i64) -> i64 {
+    return nd_d[n as usize];
+}
+
 fn mk(k: i64, t: i64, a: i64, b: i64) -> i64 {
     if (node_count >= NODE_MAX) {
         fail(E_LIMIT, tpos(t));
@@ -809,6 +843,7 @@ fn mk(k: i64, t: i64, a: i64, b: i64) -> i64 {
     nd_c[n as usize] = 0;
     nd_next[n as usize] = 0;
     nd_aux[n as usize] = 0;
+    nd_d[n as usize] = 0;
     return n;
 }
 
@@ -858,6 +893,20 @@ fn expect_scalar() -> i64 {
         return 0;
     }
     if (!is_scalar(t)) {
+        fail(E_TYPE, tpos(t));
+        return 0;
+    }
+    p = p + 1;
+    return t;
+}
+
+; A SCALAR or a name; `check` holds the name to a struct of the module.
+fn expect_type() -> i64 {
+    var t: i64 = p;
+    if (failed) {
+        return 0;
+    }
+    if (kind(t) != T_IDENT) {
         fail(E_TYPE, tpos(t));
         return 0;
     }
@@ -927,6 +976,48 @@ fn parse_args() -> i64 {
     return head;
 }
 
+; `.F` after a primary, any number of times: gen-c writes `X.F`.
+fn parse_fields(base: i64) -> i64 {
+    var e: i64 = base;
+    while (!failed and cur() == K_DOT) {
+        advance();
+        var f: i64 = p;
+        expect(T_IDENT);
+        e = mk(N_FIELD, f, e, 0);
+    }
+    return e;
+}
+
+; S{ .F = EXPR , ... [,] }, p at the brace: gen-c writes `(S){ .F = e, ... }`.
+fn parse_struct_lit(t: i64) -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    var n: i64 = 0;
+    expect(K_LBRACE);
+    while (!failed and cur() != K_RBRACE) {
+        expect(K_DOT);
+        var f: i64 = p;
+        expect(T_IDENT);
+        expect('=');
+        var it: i64 = mk(N_INIT, f, parse_expr(), 0);
+        if (head == 0) {
+            head = it;
+        } else {
+            nd_next[tail as usize] = it;
+        }
+        tail = it;
+        n = n + 1;
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    return mk(N_STRUCT, t, head, n);
+}
+
 fn parse_primary() -> i64 {
     var k: i64 = cur();
     var t: i64 = p;
@@ -934,7 +1025,10 @@ fn parse_primary() -> i64 {
         p = p + 1;
         if (cur() == '(') {
             p = p + 1;
-            return mk(N_CALL, t, parse_args(), 0);
+            return parse_fields(mk(N_CALL, t, parse_args(), 0));
+        }
+        if (cur() == K_LBRACE) {
+            return parse_fields(parse_struct_lit(t));
         }
         var e: i64 = mk(N_IDENT, t, 0, 0);
         while (!failed and cur() == K_LBRACKET) {
@@ -943,7 +1037,7 @@ fn parse_primary() -> i64 {
             expect(K_RBRACKET);
             e = mk(N_INDEX, t, e, ix);
         }
-        return e;
+        return parse_fields(e);
     }
     if (k == T_NUM) {
         p = p + 1;
@@ -965,10 +1059,25 @@ fn parse_primary() -> i64 {
         p = p + 1;
         var inner: i64 = parse_expr();
         expect(')');
-        return inner;
+        // gen-c drops the parentheses: `(-x).f` would reach C as `-x.f` (#7961).
+        if (!failed and cur() == K_DOT and !field_base(inner)) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+        return parse_fields(inner);
     }
     fail(E_SYNTAX, tpos(t));
     return 0;
+}
+
+; A node gen-c writes as one C postfix operand: its own parentheses, or none
+; needed.
+fn field_base(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_IDENT or k == N_INDEX or k == N_FIELD or k == N_CALL) {
+        return true;
+    }
+    return k == N_STRUCT or k == N_BIN or k == N_CAST;
 }
 
 ; Unary binds looser than `as`: `-x as T` is `-(x as T)`, as in gen-c.
@@ -1151,6 +1260,24 @@ fn parse_value() -> i64 {
     return parse_expr();
 }
 
+; A name, an element, or a field of one: what an assignment may write.
+fn is_place(e: i64) -> bool {
+    var x: i64 = e;
+    while (nkind(x) == N_FIELD) {
+        x = na(x);
+    }
+    return nkind(x) == N_IDENT or nkind(x) == N_INDEX;
+}
+
+; The name token a place stands on: `a` in `a`, `a[i]`, `a[i].f.g`.
+fn root_tok(e: i64) -> i64 {
+    var x: i64 = e;
+    while (nkind(x) == N_FIELD) {
+        x = na(x);
+    }
+    return ntok(x);
+}
+
 fn parse_stmt() -> i64 {
     var k: i64 = cur();
     var t: i64 = p;
@@ -1163,7 +1290,7 @@ fn parse_stmt() -> i64 {
         if (!failed and k == T_VAR and cur() == K_LBRACKET) {
             return parse_array(name);
         }
-        var ty: i64 = expect_scalar();
+        var ty: i64 = expect_type();
         expect('=');
         var init: i64 = parse_value();
         expect(';');
@@ -1210,7 +1337,7 @@ fn parse_stmt() -> i64 {
             return 0;
         }
         if (cur() == '=' or cur() == T_OPEQ) {
-            if (nkind(lhs) != N_IDENT and nkind(lhs) != N_INDEX) {
+            if (!is_place(lhs)) {
                 fail(E_SYNTAX, tpos(p));
                 return 0;
             }
@@ -1243,7 +1370,7 @@ fn parse_stmt() -> i64 {
 ; `as` included (#6048). Anything else after a leading literal or name is
 ; skipped by gen-c, so it is refused.
 fn continues(k: i64) -> bool {
-    return op_level(k) >= 0 or k == T_POW or k == T_AS;
+    return op_level(k) >= 0 or k == T_POW or k == T_AS or k == K_DOT;
 }
 
 ; The value of a top-level `const`, mirroring gen-c's literal shortcuts: only
@@ -1272,7 +1399,7 @@ fn parse_const_value() -> i64 {
     if (k == T_NUM and (k1 == ';' or continues(k1))) {
         return parse_expr();
     }
-    if (k == T_IDENT and (k1 == ';' or k1 == '(' or continues(k1))) {
+    if (k == T_IDENT and (k1 == ';' or k1 == '(' or k1 == K_LBRACE or continues(k1))) {
         return parse_expr();
     }
     if ((k == T_TRUE or k == T_FALSE or k == T_CHAR) and (k1 == ';' or continues(k1))) {
@@ -1317,7 +1444,7 @@ fn parse_elem(ty: i64, inner: i64) -> void {
         advance();
         expect(K_RBRACKET);
     }
-    var ety: i64 = expect_scalar();
+    var ety: i64 = expect_type();
     if (!failed and !tok_eq(ty, ety)) {
         fail(E_ARRAY, tpos(ety));
     }
@@ -1399,7 +1526,7 @@ fn parse_array(name: i64) -> i64 {
         inner = parse_size();
         expect(K_RBRACKET);
     }
-    var ty: i64 = expect_scalar();
+    var ty: i64 = expect_type();
     expect('=');
     parse_elem(ty, inner);
     var n: i64 = mk(D_ARRAY, name, size, 0);
@@ -1411,7 +1538,10 @@ fn parse_array(name: i64) -> i64 {
         var l: i64 = parse_list(0, 0, ty);
         var it: i64 = na(l);
         if (cur() == T_POW) {
-            if (!failed and (nb(l) != 1 or nkind(it) != N_NUM or ntok(it) != p - 2)) {
+            // A struct value is kept in nd_d; `check` holds it to zero.
+            if (!failed and nb(l) == 1 and nkind(it) == N_STRUCT) {
+                nd_d[n as usize] = it;
+            } else if (!failed and (nb(l) != 1 or nkind(it) != N_NUM or ntok(it) != p - 2)) {
                 fail(E_ARRAY, tpos(p));
                 return 0;
             }
@@ -1440,7 +1570,7 @@ fn parse_params() -> i64 {
         var name: i64 = p;
         expect(T_IDENT);
         expect(':');
-        var ty: i64 = expect_scalar();
+        var ty: i64 = expect_type();
         var n: i64 = mk(D_PARAM, name, 0, 0);
         nd_aux[n as usize] = ty;
         if (head == 0) {
@@ -1470,7 +1600,7 @@ fn parse_fn() -> i64 {
         if (cur() == T_VOID) {
             advance();
         } else {
-            ret = expect_scalar();
+            ret = expect_type();
         }
     }
     var body: i64 = parse_block();
@@ -1502,13 +1632,28 @@ fn parse_decl() -> i64 {
         p = p + 1;
         k = cur();
         t = p;
-        if (k != T_FN and k != T_CONST and k != T_VAR) {
+        if (k != T_FN and k != T_CONST and k != T_VAR and k != T_STRUCT) {
             fail(E_SYNTAX, tpos(p));
             return 0;
         }
     }
     if (k == T_FN) {
         return parse_fn();
+    }
+    if (k == T_STRUCT) {
+        advance();
+        var sname: i64 = p;
+        expect(T_IDENT);
+        return parse_struct(sname);
+    }
+    // `const S = struct { ... };` and `let S = ...`: gen-c's struct S.
+    if (k == T_CONST and kind(p + 1) == T_IDENT and kind(p + 2) == '=' and kind(p + 3) == T_STRUCT) {
+        var cname: i64 = p + 1;
+        p = p + 4;
+        var sd: i64 = parse_struct(cname);
+        expect(';');
+        nd_c[sd as usize] = p - 1;
+        return sd;
     }
     if (k == T_USE) {
         return parse_use();
@@ -1528,7 +1673,7 @@ fn parse_decl() -> i64 {
         if (!failed and k == T_VAR and cur() == K_LBRACKET) {
             return parse_array(name);
         }
-        var ty: i64 = expect_scalar();
+        var ty: i64 = expect_type();
         expect('=');
         var v: i64 = 0;
         if (k == T_CONST) {
@@ -1547,6 +1692,41 @@ fn parse_decl() -> i64 {
     }
     fail(E_SYNTAX, tpos(t));
     return 0;
+}
+
+; { F : TYPE , ... [,] }, p at the brace. A default is refused: gen-c drops
+; it, so a literal that leaves the field out reads 0 in C (#7959).
+fn parse_struct(name: i64) -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    expect(K_LBRACE);
+    while (!failed and cur() != K_RBRACE) {
+        var f: i64 = p;
+        expect(T_IDENT);
+        expect(':');
+        var fd: i64 = mk(D_FIELD, f, 0, 0);
+        nd_aux[fd as usize] = expect_type();
+        if (head == 0) {
+            head = fd;
+        } else {
+            nd_next[tail as usize] = fd;
+        }
+        tail = fd;
+        if (!failed and cur() == '=') {
+            fail(E_STRUCT, tpos(p));
+            return 0;
+        }
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_SYNTAX, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    var n: i64 = mk(D_STRUCT, name, head, 0);
+    nd_c[n as usize] = p - 1;
+    return n;
 }
 
 ; gen-c stops reading at `endmodule` and drops whatever follows it, so the
@@ -1795,10 +1975,10 @@ fn mentions_call(e: i64) -> bool {
     if (k == N_BIN or k == N_INDEX) {
         return mentions_call(na(e)) or mentions_call(nb(e));
     }
-    if (k == N_UN or k == N_CAST) {
+    if (k == N_UN or k == N_CAST or k == N_FIELD) {
         return mentions_call(na(e));
     }
-    if (k == N_LIST) {
+    if (k == N_LIST or k == N_STRUCT) {
         var it: i64 = na(e);
         while (it != 0) {
             if (mentions_call(it)) {
@@ -1806,6 +1986,9 @@ fn mentions_call(e: i64) -> bool {
             }
             it = nnext(it);
         }
+    }
+    if (k == N_INIT) {
+        return mentions_call(na(e));
     }
     if (k == N_SWITCH) {
         if (mentions_call(na(e))) {
@@ -1857,7 +2040,7 @@ fn assigns(head: i64, t: i64) -> bool {
     var s: i64 = head;
     while (s != 0) {
         var k: i64 = nkind(s);
-        if (k == S_ASSIGN and tok_eq(ntok(na(s)), t)) {
+        if (k == S_ASSIGN and tok_eq(root_tok(na(s)), t)) {
             return true;
         }
         if (k == S_IF and (assigns(nb(s), t) or assigns(nc(s), t))) {
@@ -1892,19 +2075,28 @@ fn varies(e: i64, body: i64) -> bool {
     if (k == N_CALL) {
         return true;
     }
-    if (k == N_IDENT or k == N_INDEX) {
-        if (assigns(body, ntok(e))) {
+    if (is_place(e)) {
+        if (assigns(body, root_tok(e))) {
             return true;
         }
-        if (is_module_var(ntok(e)) and calls_in(body)) {
+        if (is_module_var(root_tok(e)) and calls_in(body)) {
             return true;
         }
     }
     if (k == N_BIN or k == N_INDEX) {
         return varies(na(e), body) or varies(nb(e), body);
     }
-    if (k == N_UN or k == N_CAST) {
+    if (k == N_UN or k == N_CAST or k == N_FIELD or k == N_INIT) {
         return varies(na(e), body);
+    }
+    if (k == N_STRUCT) {
+        var it: i64 = na(e);
+        while (it != 0) {
+            if (varies(it, body)) {
+                return true;
+            }
+            it = nnext(it);
+        }
     }
     return false;
 }
@@ -1957,6 +2149,14 @@ fn check_expr(e: i64) -> void {
             check_expr(arg);
             arg = nnext(arg);
         }
+        return;
+    }
+    if (k == N_FIELD) {
+        check_expr(na(e));
+        return;
+    }
+    if (k == N_STRUCT) {
+        check_lit(e);
         return;
     }
     // C reads a row or a whole array where a scalar goes, or will not compile
@@ -2023,6 +2223,7 @@ fn check_local_array(s: i64) -> void {
         fail(E_ARRAY, tpos(ntok(s)));
         return;
     }
+    check_elem(s);
     check_expr(nc(s));
     if (scope_len >= SCOPE_MAX) {
         fail(E_LIMIT, tpos(ntok(s)));
@@ -2070,6 +2271,10 @@ fn check_stmts(head: i64, test_body: i64) -> void {
             }
             check_stmts(nb(s), 0);
         } else {
+            if (k == S_LOCAL and !type_ok(naux(s))) {
+                fail(E_TYPE, tpos(naux(s)));
+                return;
+            }
             check_expr(na(s));
         }
         s = nnext(s);
@@ -2077,13 +2282,260 @@ fn check_stmts(head: i64, test_body: i64) -> void {
     scope_len = mark;
 }
 
+; ---------------------------------------------------------------- structs
+
+; The struct the module declares under token t's spelling, else 0.
+fn struct_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; A type token is a SCALAR or a struct of the module; 0 is a `void` return.
+fn type_ok(t: i64) -> bool {
+    if (t == 0 or is_scalar(t)) {
+        return true;
+    }
+    return struct_named(t) != 0;
+}
+
+; A name gen-c's `type_to_c` turns into another C type: a struct so named
+; would be written as that type in a signature (#7961).
+fn mapped_name(t: i64) -> bool {
+    if (is_scalar(t) or tok_is(t, 0x323366, 0, 3) or tok_is(t, 0x343666, 0, 3)) {
+        return true;
+    }
+    if (tok_is(t, 0x727473, 0, 3) or tok_is(t, 0x676e69727473, 0, 6) or tok_is(t, 0x657a697369, 0, 5)) {
+        return true;
+    }
+    if (tok_is(t, 0x36314647, 0, 4) or tok_is(t, 0x36316667, 0, 4) or tok_is(t, 0x72616863, 0, 4)) {
+        return true;
+    }
+    return tok_is(t, 0x38323175, 0, 4) or tok_is(t, 0x38323169, 0, 4);
+}
+
+; The field of struct s spelled like token t, else 0.
+fn field_of(s: i64, t: i64) -> i64 {
+    var f: i64 = na(s);
+    while (f != 0) {
+        if (tok_eq(ntok(f), t)) {
+            return f;
+        }
+        f = nnext(f);
+    }
+    return 0;
+}
+
+; How many of the module's named declarations are spelled like token t.
+fn decl_count(t: i64) -> i64 {
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (named_decl(d) and tok_eq(ntok(d), t)) {
+            n = n + 1;
+        }
+        d = nnext(d);
+    }
+    return n;
+}
+
+; A struct is named once, after no type gen-c maps, and holds one or more
+; fields, each named once, of a SCALAR or of another struct: C has no empty
+; struct, and a struct holding itself has no size (#7961).
+fn check_struct(d: i64) -> void {
+    var t: i64 = ntok(d);
+    var f: i64 = na(d);
+    if (mapped_name(t) or decl_count(t) != 1) {
+        fail(E_NAME, tpos(t));
+        return;
+    }
+    if (f == 0) {
+        fail(E_STRUCT, tpos(t));
+        return;
+    }
+    while (f != 0) {
+        if (!type_ok(naux(f))) {
+            fail(E_TYPE, tpos(naux(f)));
+            return;
+        }
+        if (struct_named(naux(f)) == d) {
+            fail(E_STRUCT, tpos(naux(f)));
+            return;
+        }
+        var g: i64 = na(d);
+        var n: i64 = 0;
+        while (g != 0) {
+            if (tok_eq(ntok(g), ntok(f))) {
+                n = n + 1;
+            }
+            g = nnext(g);
+        }
+        if (n != 1) {
+            fail(E_NAME, tpos(ntok(f)));
+            return;
+        }
+        f = nnext(f);
+    }
+}
+
+; Every struct a field of d holds by value is written already (nd_b).
+fn deps_done(d: i64) -> bool {
+    var f: i64 = na(d);
+    while (f != 0) {
+        var s: i64 = struct_named(naux(f));
+        if (s != 0 and nb(s) == 0) {
+            return false;
+        }
+        f = nnext(f);
+    }
+    return true;
+}
+
+; gen-c's `structs_in_declaration_order`: pass after pass over the structs in
+; source order, each one whose fields' structs are written goes next. With
+; `emit` set it writes them; false when a cycle leaves one unwritten.
+fn walk_structs(emit: bool) -> bool {
+    var d: i64 = decls;
+    var more: bool = true;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT) {
+            nd_b[d as usize] = 0;
+        }
+        d = nnext(d);
+    }
+    while (more) {
+        more = false;
+        d = decls;
+        while (d != 0) {
+            if (nkind(d) == D_STRUCT and nb(d) == 0 and deps_done(d)) {
+                nd_b[d as usize] = 1;
+                more = true;
+                if (emit) {
+                    emit_struct(d);
+                }
+            }
+            d = nnext(d);
+        }
+    }
+    d = decls;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT and nb(d) == 0) {
+            return false;
+        }
+        d = nnext(d);
+    }
+    return true;
+}
+
+fn check_structs() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        if (nkind(d) == D_STRUCT) {
+            check_struct(d);
+        }
+        d = nnext(d);
+    }
+    if (!failed and !walk_structs(false)) {
+        fail(E_STRUCT, 0);
+    }
+}
+
+; S{ ... } names every field of struct S once: C zero-fills a field left
+; out and keeps the last of two, where Zig refuses both (#7959).
+fn check_lit(e: i64) -> void {
+    var s: i64 = struct_named(ntok(e));
+    var it: i64 = na(e);
+    if (s == 0) {
+        fail(E_TYPE, tpos(ntok(e)));
+        return;
+    }
+    while (!failed and it != 0) {
+        var n: i64 = 0;
+        var j: i64 = na(e);
+        if (field_of(s, ntok(it)) == 0) {
+            fail(E_NAME, tpos(ntok(it)));
+            return;
+        }
+        while (j != 0) {
+            if (tok_eq(ntok(j), ntok(it))) {
+                n = n + 1;
+            }
+            j = nnext(j);
+        }
+        if (n != 1) {
+            fail(E_STRUCT, tpos(ntok(it)));
+            return;
+        }
+        check_expr(na(it));
+        it = nnext(it);
+    }
+    if (!failed and nb(e) != list_len(na(s))) {
+        fail(E_STRUCT, tpos(ntok(e)));
+    }
+}
+
+; A value `{0}` initializes exactly: zero numbers and `false`, at any depth.
+fn all_zero(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_NUM) {
+        return num_is_zero(ntok(e));
+    }
+    if (k == N_FALSE) {
+        return true;
+    }
+    if (k != N_STRUCT) {
+        return false;
+    }
+    var it: i64 = na(e);
+    while (it != 0) {
+        if (!all_zero(na(it))) {
+            return false;
+        }
+        it = nnext(it);
+    }
+    return true;
+}
+
+; An array's element type, and a repeated struct value: gen-c writes `{0}`
+; whatever it holds (#7960), so it must be all zeros.
+fn check_elem(d: i64) -> void {
+    if (!type_ok(naux(d))) {
+        fail(E_TYPE, tpos(naux(d)));
+        return;
+    }
+    if (nd(d) != 0) {
+        check_expr(nd(d));
+        if (!failed and !all_zero(nd(d))) {
+            fail(E_ARRAY, tpos(ntok(nd(d))));
+        }
+    }
+}
+
 fn check() -> void {
     var d: i64 = decls;
+    check_structs();
     while (!failed and d != 0) {
         var k: i64 = nkind(d);
         var t: i64 = ntok(d);
         cur_decl = d;
         if (k == D_FN) {
+            if (!type_ok(naux(d))) {
+                fail(E_TYPE, tpos(naux(d)));
+                return;
+            }
+            var prm: i64 = na(d);
+            while (prm != 0) {
+                if (!type_ok(naux(prm))) {
+                    fail(E_TYPE, tpos(naux(prm)));
+                    return;
+                }
+                prm = nnext(prm);
+            }
             if (tok_is(t, W_ASSERT, 0, 6) or tok_is(t, W_DEFAULT_, 0x7475706e69, 13) or tok_is(t, W_VALID_IN, 0x747570, 11)) {
                 fail(E_NAME, tpos(t));
                 return;
@@ -2096,12 +2548,17 @@ fn check() -> void {
         } else if (k == D_TEST) {
             check_stmts(nb(d), nb(d));
         } else if (k == D_CONST or k == D_VAR) {
+            if (!type_ok(naux(d))) {
+                fail(E_TYPE, tpos(naux(d)));
+                return;
+            }
             check_expr(na(d));
         } else if (k == D_ARRAY) {
             if (!repeat_ok(d)) {
                 fail(E_ARRAY, tpos(nb(d)));
                 return;
             }
+            check_elem(d);
             check_expr(nc(d));
         }
         d = nnext(d);
@@ -3058,6 +3515,10 @@ fn resolve_uses() -> void {
 
 fn emit_ctype(t: i64) -> void {
     var c: i64 = src[(tk_pos[t as usize]) as usize] as i64;
+    if (!is_scalar(t)) {
+        put_tok(t);
+        return;
+    }
     if (c == 'b') {
         t_ty_bool();
         return;
@@ -3180,9 +3641,37 @@ fn emit_expr(e: i64) -> void {
         put(K_RBRACE);
     } else if (k == N_SWITCH) {
         emit_switch(e);
+    } else if (k == N_FIELD) {
+        emit_expr(na(e));
+        put(K_DOT);
+        put_tok(ntok(e));
+    } else if (k == N_STRUCT) {
+        emit_lit(e);
     } else {
         put_tok(ntok(e));
     }
+}
+
+; `(S){ .F = e, ... }`, a C99 compound literal, fields as written.
+fn emit_lit(e: i64) -> void {
+    var it: i64 = na(e);
+    put('(');
+    put_tok(ntok(e));
+    put(')');
+    put(K_LBRACE);
+    put(' ');
+    while (it != 0) {
+        put(K_DOT);
+        put_tok(ntok(it));
+        t_assign();
+        emit_expr(na(it));
+        it = nnext(it);
+        if (it != 0) {
+            t_comma();
+        }
+    }
+    put(' ');
+    put(K_RBRACE);
 }
 
 fn emit_stmts(head: i64, lvl: i64) -> void {
@@ -3322,6 +3811,15 @@ fn emit_array(d: i64) -> void {
         t_semi_nl();
         return;
     }
+    // A repeated struct is `{0}` in gen-c whatever its value (check_elem).
+    if (nd(d) != 0) {
+        t_repeat();
+        emit_expr(nd(d));
+        t_repeat_mid();
+        put_tok(nb(d));
+        t_repeat_end();
+        return;
+    }
     // gen-c keeps `{0}` for a zero value and writes a GNU range for any
     // other (#6050): before, every repeat came out `{0}`.
     var vt: i64 = nb(d) - 3;
@@ -3399,6 +3897,80 @@ fn emit_sig(d: i64) -> void {
     }
 }
 
+; A global whose type, or element type, is a struct: gen-c writes it after
+; the structs, in its own section.
+fn is_typed(d: i64) -> bool {
+    var k: i64 = nkind(d);
+    if (k != D_CONST and k != D_VAR and k != D_ARRAY) {
+        return false;
+    }
+    return struct_named(naux(d)) != 0;
+}
+
+fn count_globals(typed: bool) -> i64 {
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if ((k == D_CONST or k == D_VAR or k == D_ARRAY) and is_typed(d) == typed) {
+            n = n + 1;
+        }
+        d = nnext(d);
+    }
+    return n;
+}
+
+fn emit_globals(typed: bool) -> void {
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if ((k == D_CONST or k == D_VAR or k == D_ARRAY) and is_typed(d) == typed) {
+            emit_global(d);
+        }
+        d = nnext(d);
+    }
+    put('\n');
+}
+
+fn emit_struct(d: i64) -> void {
+    var f: i64 = na(d);
+    t_struct_kw();
+    put_tok(ntok(d));
+    t_open_brace_nl();
+    while (f != 0) {
+        indent(1);
+        emit_ctype(naux(f));
+        put(' ');
+        put_tok(ntok(f));
+        t_semi_nl();
+        f = nnext(f);
+    }
+    t_struct_end();
+}
+
+; gen-c's Structs section: a `typedef` per struct in source order, then the
+; bodies in walk_structs' order.
+fn emit_structs() -> void {
+    var d: i64 = decls;
+    t_banner_open();
+    t_structs();
+    t_banner_close();
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT) {
+            t_typedef_struct();
+            put_tok(ntok(d));
+            put(' ');
+            put_tok(ntok(d));
+            t_semi_nl();
+        }
+        d = nnext(d);
+    }
+    put('\n');
+    if (walk_structs(true)) {
+        put('\n');
+    }
+}
+
 fn count_kind(k1: i64, k2: i64, k3: i64) -> i64 {
     var n: i64 = 0;
     var d: i64 = decls;
@@ -3425,19 +3997,20 @@ fn emit_module() -> void {
     t_define_guard();
     put_upper(mod_tok);
     t_guard_end();
-    if (count_kind(D_CONST, D_VAR, D_ARRAY) > 0) {
+    if (count_globals(false) > 0) {
         t_banner_open();
         t_constants();
         t_banner_close();
-        d = decls;
-        while (d != 0) {
-            var k: i64 = nkind(d);
-            if (k == D_CONST or k == D_VAR or k == D_ARRAY) {
-                emit_global(d);
-            }
-            d = nnext(d);
-        }
-        put('\n');
+        emit_globals(false);
+    }
+    if (count_kind(D_STRUCT, D_STRUCT, D_STRUCT) > 0) {
+        emit_structs();
+    }
+    if (count_globals(true) > 0) {
+        t_banner_open();
+        t_typed_consts();
+        t_banner_close();
+        emit_globals(true);
     }
     if (count_kind(D_FN, D_FN, D_FN) > 0) {
         t_banner_open();
@@ -3972,6 +4545,108 @@ test element_type_needs_a_hole {
     assert(err_code == E_ARRAY);
 }
 
+; "module m;struct P{x: u8}fn f(p: P) -> u8 {return p.x;}": a typedef, the
+; body after it, and `p.x`, 905 bytes in all.
+test struct_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x203a702866206e66, 8, n3);
+    var n5: i64 = feed(0x3875203e2d202950, 8, n4);
+    var n6: i64 = feed(0x6e72757465727b20, 8, n5);
+    var n7: i64 = feed(0x7d3b782e7020, 6, n6);
+    assert(compile(n7) == 905);
+    assert(out_at(509) == 's');
+    assert(out_at(516) == 'P');
+    assert(out_at(880) == 'p');
+    assert(out_at(881) == K_DOT);
+    assert(out_at(882) == 'x');
+}
+
+; "module m;struct P{x: u8,y: u8}var g: P = P{.x = 1};": C would read y as 0
+; (#7959).
+test struct_literal_missing_a_field_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x2c3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x61767d3875203a79, 8, n3);
+    var n5: i64 = feed(0x3d2050203a672072, 8, n4);
+    var n6: i64 = feed(0x203d20782e7b5020, 8, n5);
+    var n7: i64 = feed(0x3b7d31, 3, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;struct P{x: u8 = 1}": gen-c drops the default (#7959).
+test struct_field_default_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x203875203a787b50, 8, n2);
+    var n4: i64 = feed(0x7d31203d, 4, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;struct P{x: u8}var a: [1]P = [_]P{P{.x = 1}} ** 1;": gen-c
+; writes `{0}`, a zero (#7960).
+test struct_repeat_of_a_nonzero_value_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x5b203a6120726176, 8, n3);
+    var n5: i64 = feed(0x5f5b203d20505d31, 8, n4);
+    var n6: i64 = feed(0x20782e7b507b505d, 8, n5);
+    var n7: i64 = feed(0x2a2a207d7d31203d, 8, n6);
+    var n8: i64 = feed(0x3b3120, 3, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_ARRAY);
+}
+
+; "module m;struct P{x: u8}var a: [2]P = [_]P{P{.x = 0}} ** 2;": an all-zero
+; repeat is the `{0}` gen-c writes, 769 bytes in all.
+test zero_struct_repeat_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d3875203a787b50, 8, n2);
+    var n4: i64 = feed(0x5b203a6120726176, 8, n3);
+    var n5: i64 = feed(0x5f5b203d20505d32, 8, n4);
+    var n6: i64 = feed(0x20782e7b507b505d, 8, n5);
+    var n7: i64 = feed(0x2a2a207d7d30203d, 8, n6);
+    var n8: i64 = feed(0x3b3220, 3, n7);
+    assert(compile(n8) == 769);
+    assert(out_at(488) == 't');
+    assert(out_at(746) == K_LBRACE);
+    assert(out_at(747) == '0');
+}
+
+; "module m;struct A{a: A}": a struct holding itself has no size (#7961).
+test struct_holding_itself_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x7d41203a617b41, 7, n2);
+    assert(compile(n3) == -1);
+    assert(err_code == E_STRUCT);
+}
+
+; "module m;struct P{n: usize}fn f(p: P) -> void {var q: P = p;for (0..q.n)
+; |i| {q.n = i;}}": the body writes a field of the bound, which C reads on
+; every pass.
+test for_end_field_written_in_its_body_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x697375203a6e7b50, 8, n2);
+    var n4: i64 = feed(0x2866206e667d657a, 8, n3);
+    var n5: i64 = feed(0x3e2d202950203a70, 8, n4);
+    var n6: i64 = feed(0x767b2064696f7620, 8, n5);
+    var n7: i64 = feed(0x2050203a71207261, 8, n6);
+    var n8: i64 = feed(0x20726f663b70203d, 8, n7);
+    var n9: i64 = feed(0x296e2e712e2e3028, 8, n8);
+    var n10: i64 = feed(0x2e717b207c697c20, 8, n9);
+    var n11: i64 = feed(0x7d7d3b69203d206e, 8, n10);
+    assert(compile(n11) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
 test put_int_writes_decimal {
     reset_out();
     put_int(907);
@@ -3989,6 +4664,40 @@ test packed_words_match_their_spelling {
 }
 
 ; ---------------------------------------------------------------- fixed text
+
+; Structs
+fn t_structs() -> void {
+    w(0x73746375727453, 7);
+}
+
+; Constants of declared types
+fn t_typed_consts() -> void {
+    w(0x746e6174736e6f43, 8);
+    w(0x63656420666f2073, 8);
+    w(0x797420646572616c, 8);
+    w(0x736570, 3);
+}
+
+; typedef struct 
+fn t_typedef_struct() -> void {
+    w(0x2066656465707974, 8);
+    t_struct_kw();
+}
+
+; struct 
+fn t_struct_kw() -> void {
+    w(0x20746375727473, 7);
+}
+
+;  {\n
+fn t_open_brace_nl() -> void {
+    w(0xa7b20, 3);
+}
+
+; };\n\n
+fn t_struct_end() -> void {
+    w(0xa0a3b7d, 4);
+}
 
 fn t_test_pfx() -> void {
     w(0x5f74736574, 5);
