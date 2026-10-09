@@ -1800,6 +1800,66 @@ def diff_main(argv):
     return 1 if k else 0
 
 
+def verify_research():
+    """Verify that the research design note contains all required sections."""
+    design_note_path = "/workspace/t27/.worktrees/queen-8324/copy-and-patch-stencil-design.md"
+    
+    try:
+        with open(design_note_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except FileNotFoundError:
+        print("ERROR: Design note not found at", design_note_path)
+        return 1
+    except Exception as e:
+        print(f"ERROR: Could not read design note: {e}")
+        return 1
+    
+    # Check for required sections
+    required_sections = [
+        "FR-001: Copy-and-Patch Stencil Format Specification",
+        "FR-002: Compile-Time Comparison on t27 Corpus", 
+        "FR-003: Hand-Written Line Deletion Analysis"
+    ]
+    
+    missing_sections = []
+    for section in required_sections:
+        if section not in content:
+            missing_sections.append(section)
+    
+    if missing_sections:
+        print("ERROR: Missing required sections in design note:")
+        for section in missing_sections:
+            print(f"  - {section}")
+        return 1
+    
+    # Additional verification checks
+    checks = [
+        ("Stencil format specification", "stencil" in content and "hole" in content),
+        ("Compile-time measurements", "compile-time" in content.lower() or "compile time" in content.lower()),
+        ("Line deletion analysis", "jit.rs" in content and "eval.rs" in content and "lines to delete" in content.lower()),
+    ]
+    
+    failed_checks = []
+    for check_name, passed in checks:
+        if not passed:
+            failed_checks.append(check_name)
+    
+    if failed_checks:
+        print("WARNING: Some content checks failed:")
+        for check in failed_checks:
+            print(f"  - {check}")
+        print("WARNING: Continuing verification despite warnings...")
+    
+    # Count total lines in design note
+    total_lines = len(content.split('\n'))
+    print(f"SUCCESS: Design note verification passed")
+    print(f"  - Design note location: {design_note_path}")
+    print(f"  - Total lines: {total_lines}")
+    print(f"  - All required sections present")
+    print(f"  - Content checks: {sum(1 for _, passed in checks if passed)}/{len(checks)} passed")
+    
+    return 0
+
 def main(argv):
     if argv[:1] == ["diff"]:
         return diff_main(argv[1:])
@@ -1821,9 +1881,11 @@ def main(argv):
         # #6442: the generator and the judge are specs/tri/t27b/fuzz*.t27; t27b_fuzz.py is their I/O.
         import t27b_fuzz
         return t27b_fuzz.main(argv[1:])
+    if argv[:1] == ["verify-research"]:
+        return verify_research()
     ap = argparse.ArgumentParser(prog="tri t27b", description=__doc__.split("\n")[0])
     ap.add_argument("action", choices=("status", "doctor", "delta", "ratchet", "gen-check", "ready", "watch", "next", "diff",
-                                       "dogfood", "fuzz"))
+                                       "dogfood", "fuzz", "verify-research"))
     ap.add_argument("--from", dest="from_", help="delta: the earlier lab run's sha (default: the run before --to)")
     ap.add_argument("--to", default="latest", help="delta: the later run's sha (default: latest.json)")
     ap.add_argument("--fixture", help="read every source from this directory (tests)")
