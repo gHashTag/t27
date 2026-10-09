@@ -8,6 +8,7 @@
   bench.py phases  RUNS N [N...]  t27b --time phases: per-phase min and median
   bench.py build   RUNS [PKG]     clean release build of PKG (default t27b):
                                  wall, units; the last binary is kept as WORK/PKG
+  bench.py comment_scan DIR        run comment_scan gate to check Verilog-reading gates
 
 The synthetic program is N functions `k_i(x: u32) -> u32`, each an 8-trip
 loop of u32 arithmetic, plus one `assert_eq` test per function -- the same
@@ -398,6 +399,24 @@ def build(runs, pkg):
     return 0
 
 
+def comment_scan(directory):
+    """Run comment_scan gate to check Verilog-reading gates for comment stripping."""
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "comment_scan.py")
+    if not os.path.exists(script_path):
+        print(f"comment_scan.py not found at {script_path}")
+        return 1
+    
+    try:
+        result = subprocess.run([sys.executable, script_path, directory], 
+                              capture_output=True, text=True, cwd=WORK)
+        print(result.stdout)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
+        return result.returncode
+    except Exception as e:
+        print(f"Error running comment_scan: {e}")
+        return 1
+
 def main(a):
     os.makedirs(WORK, exist_ok=True)
     if len(a) == 3 and a[0] == "gen":
@@ -417,6 +436,8 @@ def main(a):
         return runtime(int(a[1]), [int(x) for x in a[2:]])
     if len(a) in (2, 3) and a[0] == "build":
         return build(int(a[1]), a[2] if len(a) == 3 else "t27b")
+    if len(a) >= 2 and a[0] == "comment_scan":
+        return comment_scan(a[1])
     print(__doc__)
     return 64
 
