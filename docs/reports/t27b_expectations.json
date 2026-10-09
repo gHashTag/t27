@@ -997,6 +997,7 @@
   {"path": "specs/tri/t27b/conformance/float_from_int_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_mul_pow2.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_sqrt.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/frame_address_caller_owned.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/frame_address_return.t27", "t27b": "blocked", "blocker": "ExprReturn(frame address)", "reason": "reference-bug"},
   {"path": "specs/tri/t27b/conformance/frame_address_store.t27", "t27b": "blocked", "blocker": "StmtAssign(frame address)", "reason": "reference-bug"},
   {"path": "specs/tri/t27b/conformance/int_cast.t27", "t27b": "pass"},
