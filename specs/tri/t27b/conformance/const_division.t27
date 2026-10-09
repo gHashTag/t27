@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/const_division.t27 -- `/` and `%` on two constants of one integer type, as the
+; reference runs them (t27b coverage epic #6063). Every test here passes `t27c test-report`; t27b must give the
+; same verdict on each, or refuse the file.
+; What t27c's Zig backend prints: the module constant as written, `pub const CD_DIV: u32 = CD_HZ / (CD_BAUD *
+; 16);`, which Zig evaluates at compile time. `/` on two signed constants truncates toward zero.
+; The shape is specs/port/fpga/vivado/gf16_uart_sim_bench.t27's own: a clock divider written as a quotient of
+; two other constants, read by a fn and by a test. Every test reads its values at run time through a fn.
+; Not here, because the reference refuses it: `%` on two signed constants, a zero divisor in a constant that is
+; used, and a quotient that does not fit its type.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceConstDivision;
+
+pub const CD_HZ : u32 = 323_310_000;
+pub const CD_BAUD : u32 = 115200;
+pub const CD_DIV : u32 = CD_HZ / (CD_BAUD * 16);
+pub const CD_REM : u32 = CD_HZ % (CD_BAUD * 16);
+pub const CD_KHZ : u32 = CD_HZ / 1000;
+
+pub const CD_NEG : i32 = -7;
+pub const CD_TWO : i32 = 2;
+pub const CD_SQ : i32 = CD_NEG / CD_TWO;
+pub const CD_POS : i32 = (CD_TWO * 21) / CD_TWO;
+
+pub const CD_WIDE : u64 = 1_000_000_000_000;
+pub const CD_WIDE_DIV : u64 = CD_WIDE / CD_HZ;
+
+fn cd_div() -> u32 {
+    return CD_DIV;
+}
+
+fn cd_ticks(n: u32) -> u32 {
+    return n * CD_DIV + CD_REM / CD_DIV;
+}
+
+fn cd_rem() -> u32 {
+    return CD_REM;
+}
+
+fn cd_sq() -> i32 {
+    return CD_SQ;
+}
+
+fn cd_wide() -> u64 {
+    return CD_WIDE_DIV;
+}
+
+test a_clock_divider_is_a_quotient {
+    assert(cd_div() == 175);
+    assert(cd_div() * 16 * CD_BAUD + CD_REM == CD_HZ);
+}
+
+test a_remainder_of_two_unsigned_constants {
+    assert(cd_rem() == 750000);
+    assert(cd_ticks(2) == 4635);
+}
+
+test a_constant_divided_by_a_literal {
+    assert(CD_KHZ == cd_div() * 1847 + 85);
+}
+
+test a_signed_quotient_truncates_toward_zero {
+    assert(cd_sq() == -3);
+    assert(CD_POS == cd_sq() + 24);
+}
+
+test a_wide_quotient {
+    assert(cd_wide() == 3093);
+}

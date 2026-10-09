@@ -22,6 +22,14 @@
 ; What is stored. Only a build whose every stage passed. A build that failed, or whose BSCAN chain did not
 ; agree with the placed site, is never stored: a cache that keeps a failure serves the failure forever.
 ; --
+; The audit. A key can miss an input it never declared (Bazel's usual cause of a poisoned cache: two actions
+; that look identical but read different host state). So every AUDIT_EVERY-th hit is rebuilt without the
+; cache and compared byte for byte. Equal bytes keep the entry. Different bytes mean the key missed an
+; input: the entry is POISONED, it is deleted, and the run says so loudly instead of loading it.
+; The comparison starts at the configuration sync word (BIT_SYNC_WORD): the .bit header before it carries
+; the build date and time. Measured 2026-10-10 on ternary_link: two builds of the same inputs differed in
+; exactly 3 bytes, at offsets 162..165, all inside that header; the configuration stream was identical.
+; --
 ; What a reuse does NOT change. The receipt still binds to the seal through `t27c seal --verify` (the
 ; seal's gen_hash_verilog), and the control bitstream and the readback still run on the board every time.
 ; Reuse skips the build, never the hardware check.
@@ -59,6 +67,28 @@ pub fn may_store(decision: u8, all_stages_ok: bool, chain_agrees: bool) -> bool 
     return all_stages_ok and chain_agrees;
 }
 
+/// The 7-series configuration sync word. An audit compares the two bitstreams from here on.
+pub const BIT_SYNC_WORD : u32 = 2862175590;
+
+/// Every AUDIT_EVERY-th hit on an entry is rebuilt and compared instead of loaded.
+pub const AUDIT_EVERY : u32 = 10;
+
+/// Is this hit an audit? `hits` counts the hits the entry served before this one.
+pub fn audit_due(hits: u32) -> bool {
+    return hits % AUDIT_EVERY == AUDIT_EVERY - 1;
+}
+
+/// What an audit found.
+///   SAME      the rebuilt bitstream is byte-identical to the cached one: keep the entry
+///   POISONED  the bytes differ, so the key missed an input: delete the entry and say so
+pub const AUDIT_SAME : u8 = 0;
+pub const AUDIT_POISONED : u8 = 1;
+
+pub fn audit_verdict(rebuilt_equal: bool) -> u8 {
+    if (rebuilt_equal) { return AUDIT_SAME; }
+    return AUDIT_POISONED;
+}
+
 test bit_decision_reuses_only_a_complete_intact_entry {
     assert bit_decision(false, true, true, true) == BIT_REUSE;
     assert bit_decision(false, false, false, false) == BIT_MISSING;
@@ -90,7 +120,23 @@ test may_store_never_rewrites_the_entry_it_loaded {
     assert may_store(BIT_REUSE, true, true) == false;
 }
 
+test audit_due_on_every_tenth_hit {
+    assert audit_due(0) == false;
+    assert audit_due(8) == false;
+    assert audit_due(9) == true;
+    assert audit_due(10) == false;
+    assert audit_due(19) == true;
+}
+
+test audit_verdict_keeps_only_identical_bytes {
+    assert audit_verdict(true) == AUDIT_SAME;
+    assert audit_verdict(false) == AUDIT_POISONED;
+}
+
 invariant the_bit_codes_never_move {
     assert BIT_REUSE == 0 and BIT_MISSING == 1 and BIT_INCOMPLETE == 2 and BIT_CORRUPT == 3 and BIT_FORCED == 4;
     assert BIT_RECIPE >= 1;
+    assert AUDIT_EVERY >= 2 and AUDIT_SAME != AUDIT_POISONED;
+    // 0xAA995566
+    assert BIT_SYNC_WORD == 2862175590;
 }

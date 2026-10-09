@@ -301,9 +301,14 @@ measure it are written in **t27**, not in Rust or Python by hand.
   after #8249 moved the body walks of `lower.rs` (`name_count`, `mutated`,
   `zig_mutates` and six more, over the body's bytes) to
   `specs/tri/t27b/ast_walk.t27`, -65, 0 and 0 on master 95ae4bcd6's 14687
-  plus 1222 and 8284; 14615 plus 1222, 15837 in all, and tests 8284, after
+  plus 1222 and 8284; 14601 plus 1222, 15823 in all, and tests 8284, after
+  #7812's glue for `/` and `%` of two integer constants
+  (`specs/tri/t27b/const_div_plan.t27`), +3, with `ArithOp`'s `symbol`,
+  `is_shift` and `commutative` moved from `ir.rs` to
+  `specs/tri/t27b/arith_op.t27`, -24, net -21, 0 and 0 on master ab5b3b7e1's
+  14622 plus 1222 and 8284; 14594 plus 1222, 15816 in all, and tests 8284, after
   #7909 deleted the stale refusal of a repeat local passed as an array, -7, 0
-  and 0 on master ab5b3b7e1's 14622 plus 1222 and 8284),
+  and 0 on master 54f3c140c's 14601 plus 1222 and 8284),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
