@@ -44,6 +44,7 @@
 # `eth_beacon 0` and `rgmii_sniff 0` arrived on master with e6e8257c5 (#7788)
 # without rows, so the ratchet read them as NEW and went red for every
 # branch that merged master. Both elaborate clean; a 0 row hides nothing.
+# `trinet_node 0` (#8356) arrives with its spec; it elaborates clean too.
 adapter 0
 apb_bridge 4
 assembler 4
@@ -85,6 +86,7 @@ ternary_link 0
 testbench 8
 timing 10
 top_level 0
+trinet_node 0
 uart 0
 vcd_conformance_compare 13
 vcd_trace 14

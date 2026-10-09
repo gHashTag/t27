@@ -68,7 +68,6 @@ var key0 : u64 = 0
 var key1 : u64 = 0
 var locked : u8 = 0
 var ms : u16 = 0
-var ph : u8 = 0
 var y : u8 = 0
 var dpos : u64 = 0
 var dneg : u64 = 0
@@ -77,11 +76,9 @@ var v0 : u64 = 0
 var v1 : u64 = 0
 var v2 : u64 = 0
 var v3 : u64 = 0
-var q0 : u64 = 0
-var q1 : u64 = 0
-var q2 : u64 = 0
-var q3 : u64 = 0
 var tq : u8 = 0
+var fa : u8 = 0
+var fs : u8 = 0
 var sum0 : u64 = 0
 var sum1 : u64 = 0
 var resp_v : u8 = 0
@@ -290,8 +287,8 @@ fn y_of(op: u8, p: u64, n: u64) -> u8 {
 }
 
 // A half round takes two clocks, so no clock carries an adder and the logic after it: a sum
-// step adds two pairs of the current bank into sum0/sum1, and the next step rotates, XORs and
-// writes the other bank. Inside each round of four steps: sum A, apply A, sum B, apply B.
+// step adds two pairs of the state words into sum0/sum1, and the next step rotates, XORs and
+// writes the words. Inside each round of four steps: sum A, apply A, sum B, apply B.
 fn half_step(r: u8) -> u8 {
     if (r == 0) { return 8; }
     if (r == 1) { return 3; }
@@ -350,20 +347,11 @@ fn nv3(t: u8, a3: u64, s0: u64, s1: u64, mw: u64, ke1: u64) -> u64 {
     return a3;
 }
 
-// The sum steps: one adder each, its second operand chosen before it.
+// The sum steps.
 fn is_sum(t: u8) -> u8 {
     if (t == 8) { return 1; }
     if (t == 9) { return 1; }
     return 0;
-}
-
-fn cur(p: u8, a: u64, b: u64) -> u64 {
-    if (p == 0) { return a; }
-    return b;
-}
-
-fn pair(t: u8, c: u64, for_a: u64, for_b: u64) -> u64 {
-    return add64(c, sel64(eqb(t, 8), for_a, for_b));
 }
 
 // The engine state packs (md, blk, sub) into one var, ms = md*1024 + blk*32 + sub, so a single
@@ -391,40 +379,8 @@ fn next_ms(m: u16, st: u8) -> u16 {
     return m + 1;
 }
 
-// Two banks hold the SipHash state. Init writes bank v; every later step reads the current
-// bank (ph 0: v, ph 1: u) and writes the other, so no word is read after it was written.
-fn wv(t: u8, p: u8) -> u8 {
-    if (t == 1) { return 1; }
-    if (t >= 2) {
-        if (t <= 6) {
-            if (p == 1) { return 1; }
-        }
-    }
-    return 0;
-}
-
-fn wu(t: u8, p: u8) -> u8 {
-    if (t >= 2) {
-        if (t <= 6) {
-            if (p == 0) { return 1; }
-        }
-    }
-    return 0;
-}
-
-fn next_ph(t: u8, p: u8) -> u8 {
-    if (t == 1) { return 0; }
-    if (t >= 2) {
-        if (t <= 6) { return 1 - p; }
-    }
-    return p;
-}
-
-fn bank_xor(p: u8, a0: u64, a1: u64, a2: u64, a3: u64, b0: u64, b1: u64, b2: u64, b3: u64) -> u64 {
-    if (p == 0) { return a0 ^ a1 ^ a2 ^ a3; }
-    return b0 ^ b1 ^ b2 ^ b3;
-}
-
+// One bank holds the SipHash state. Every step changes a word from its own old value and the
+// registered sums only, so no word is read after another one was written in the same clock.
 fn ke0_of(m: u16, op: u8, lk: u8, w: u64, k: u64) -> u64 { return sel64(setting(md_of(m), op, lk), w, k); }
 
 fn on_clock(pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) {
@@ -434,20 +390,16 @@ fn on_clock(pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) {
     r_y = sel8(eqb(tq, 7), y, r_y);
     r_st = sel8(eqb(tq, 7), stv, r_st);
     r_n = sel32(eqb(tq, 7), j_n, r_n);
-    r_tag = sel64(eqb(tq, 7), bank_xor(ph, v0, v1, v2, v3, q0, q1, q2, q3), r_tag);
-    v0 = sel64(wv(tq, ph), nv0(tq, q0, sum0, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), ke0_of(ms, j_op, locked, j_w, key0)), v0);
-    v1 = sel64(wv(tq, ph), nv1(tq, q1, sum0, sum1, ke0_of(ms, j_op, locked, j_x, key1)), v1);
-    v2 = sel64(wv(tq, ph), nv2(tq, q2, sum1, ke0_of(ms, j_op, locked, j_w, key0)), v2);
-    v3 = sel64(wv(tq, ph), nv3(tq, q3, sum0, sum1, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), ke0_of(ms, j_op, locked, j_x, key1)), v3);
-    q0 = sel64(wu(tq, ph), nv0(tq, v0, sum0, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), 0), q0);
-    q1 = sel64(wu(tq, ph), nv1(tq, v1, sum0, sum1, 0), q1);
-    q2 = sel64(wu(tq, ph), nv2(tq, v2, sum1, 0), q2);
-    q3 = sel64(wu(tq, ph), nv3(tq, v3, sum0, sum1, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), 0), q3);
-    // A sum step writes no bank and an apply step writes no sum, so the banks read here hold
-    // their pre-edge values whenever the sums change.
-    sum0 = sel64(is_sum(tq), pair(tq, cur(ph, v0, q0), cur(ph, v1, q1), cur(ph, v3, q3)), sum0);
-    sum1 = sel64(is_sum(tq), pair(tq, cur(ph, v2, q2), cur(ph, v3, q3), cur(ph, v1, q1)), sum1);
-    ph = next_ph(tq, ph);
+    r_tag = sel64(eqb(tq, 7), v0 ^ v1 ^ v2 ^ v3, r_tag);
+    v0 = nv0(tq, v0, sum0, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), ke0_of(ms, j_op, locked, j_w, key0));
+    v1 = nv1(tq, v1, sum0, sum1, ke0_of(ms, j_op, locked, j_x, key1));
+    v2 = nv2(tq, v2, sum1, ke0_of(ms, j_op, locked, j_w, key0));
+    v3 = nv3(tq, v3, sum0, sum1, msg(blk_of(ms), j_op, j_n, j_w, j_x, y), ke0_of(ms, j_op, locked, j_x, key1));
+    // A sum step changes no word and a word step changes no sum, so the words read here hold
+    // their pre-edge values whenever the sums change. fa picks the pairs of half A (v0+v1,
+    // v2+v3) or half B (v0+v3, v2+v1); it is decoded a clock early, like tq.
+    sum0 = sel64(fs, add64(v0, sel64(fa, v1, v3)), sum0);
+    sum1 = sel64(fs, add64(v2, sel64(fa, v3, v1)), sum1);
     y = sel8(y_ready(ms), y_of(j_op, dpos, dneg), y);
     dpos = next_count(ms, agree(j_w, j_x), dpos);
     dneg = next_count(ms, oppose(j_w, j_x), dneg);
@@ -465,6 +417,8 @@ fn on_clock(pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) {
     // The step code is decoded one clock early and held in tq, so the operand selects in front
     // of the sum adder read a register instead of the decode of ms.
     tq = t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms))));
+    fa = eqb(t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)))), 8);
+    fs = is_sum(t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)))));
     ms = next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)));
     c_a = cap8(pv, pi, 0, eqb(pb, 170), dn, c_a);
     c_5 = cap8(pv, pi, 1, eqb(pb, 85), dn, c_5);
@@ -612,7 +566,7 @@ test the_dot_product_matches_protocol_zig {
 }
 
 test seven_jobs_give_the_receipts_protocol_zig_gives {
-    ms = 0; tq = 0; ph = 0; locked = 0; key0 = 0; key1 = 0; resp_v = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; locked = 0; key0 = 0; key1 = 0; resp_v = 0;
     c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var i : u8 = 0;
     var k : u16 = 0;
@@ -648,7 +602,7 @@ test seven_jobs_give_the_receipts_protocol_zig_gives {
 }
 
 test a_request_while_busy_is_dropped_and_counted {
-    ms = 0; tq = 0; ph = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var k : u16 = 0;
     while (k < 24) {
         on_clock(1, v_byte(2, k), k, 0, 0);
@@ -666,7 +620,7 @@ test a_request_while_busy_is_dropped_and_counted {
 }
 
 test a_datagram_without_magic_or_too_short_is_not_a_request {
-    ms = 0; tq = 0; ph = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var k : u16 = 0;
     while (k < 24) {
         on_clock(1, 1, k, 0, 0);
@@ -686,7 +640,7 @@ test a_datagram_without_magic_or_too_short_is_not_a_request {
 }
 
 test a_frame_that_eth_rx_rejected_starts_nothing {
-    ms = 0; tq = 0; ph = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var k : u16 = 0;
     while (k < 24) {
         on_clock(1, v_byte(2, k), k, 0, 0);
