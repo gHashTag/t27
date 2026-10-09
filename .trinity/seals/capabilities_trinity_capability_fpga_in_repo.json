@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a9dc4d18812131af14a7c928e97b3d121ede2a4fd4d5e1facc533f549fbc5b3b",
   "gen_hash_rust": "sha256:2d5fe1301b853e86fed4fee7f58589064b0a2e391b9d9520d7b53866b42d4098",
   "gen_hash_verilog": "sha256:b8b43b7af7fb617e0e0301e65d6295b98ea385589fc1183d2079f8f438c58ed2",
   "gen_hash_zig": "sha256:8c4451a47416b112eae66a62ca159d43df25e1e4652fdd1f0d643db4dde80571",
   "module": "trinity_capability_fpga_in_repo",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:35:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1ca3f27fd3cadb4931f82ef647d12e04f4dac20e2c632cae112490f4457c9093",
-  "spec_path": "specs/trinity/capabilities/fpga.in-repo.t27"
+  "spec_path": "specs/trinity/capabilities/fpga.in-repo.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

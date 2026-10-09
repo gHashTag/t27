@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a916894de916393526d76f2ace1d6f167547434fddd819b710af677a3995f90e",
+  "gen_hash_rust": "sha256:44cb81c5b2299a9316b17ee7f7d53557f364c9c20c5c3ef86870a7e026d25b20",
+  "gen_hash_verilog": "sha256:98d759aa524bad2f0b73a1b1c3401c8e62422f72d4f4a78d6bce612bd132191c",
+  "gen_hash_zig": "sha256:092249609df6c356fffb3059a471aa825595ca558b4b322b4d1e29fde461c6ed",
+  "module": "kernel_matmul",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:26:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f68b8c7bad8faff4485e0794b1839eb4d76e6d16071b174d3fdb697f03107ada",
+  "spec_path": "specs/benchmarks/kernel_matmul.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

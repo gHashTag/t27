@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:394011089210e45e9fc511f8e0ae9750a7e251176db829e8a7fd9362d29423f6",
+  "gen_hash_rust": "sha256:b61e27ecba2d3f151c4e69bcf72217ddea87b09fc8a3e31ed9f639b3333de37b",
+  "gen_hash_verilog": "sha256:569c69c94e253b2522ca7e674ecaf9edadac9d60c1ead4ac06bcbdfc3be0a903",
+  "gen_hash_zig": "sha256:b437151a7eee91e2d5ab9d460fe807604a4b3ef7b1502b2dd739ea0e8e4c1d0c",
+  "module": "ZigFloatCallCast",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:30:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:da632f1b168d9c7dfed54f25fee87679470f3fc18c53917fd4a96a8d7444b568",
+  "spec_path": "specs/compiler/zig_float_call_cast.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

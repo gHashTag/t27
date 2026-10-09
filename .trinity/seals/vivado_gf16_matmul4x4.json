@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:705f1a5e73544b61645c9eafd7b4b6ffc32b27ead952c013853e003fd2685bb4",
+  "gen_hash_rust": "sha256:057be1e771c68fd7181b9139a6c32bd3c44ce3d3bc6eb38c84592918164eaeed",
+  "gen_hash_verilog": "sha256:d1a096bed95113fc4246fa380030547dffb9f16605b8394994563c173e2c3bb8",
+  "gen_hash_zig": "sha256:7b0685a89b4e04e5ee025261eabdc67876486c03e2d436bda6b419f16566a3b3",
+  "module": "gf16_matmul4x4",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:fb17a0166d349e5b39e04e8606fd0db0eb8dece732c92cfb93af5d1c5ed76b92",
+  "spec_path": "specs/port/fpga/vivado/gf16_matmul4x4.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

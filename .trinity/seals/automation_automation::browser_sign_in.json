@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fbc9e90748439d5a639db712251fa2287b5b3218937c7a046905e0f019a18d82",
+  "gen_hash_rust": "sha256:466b50b435e996c072d5af274b30e2f921f64d00f6b6428e5271c41ecc36ddbe",
+  "gen_hash_verilog": "sha256:6809b25e1c7d50f2311b85489032e75e3b7227c2c55988637500580be3bd00a7",
+  "gen_hash_zig": "sha256:cc207963294f36782053984e5c434dad39edbb8da6b0d97a63b87f5910e0c2d7",
+  "module": "automation::browser_sign_in",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e2f9f818cba20b11e3fd8f1dfe2be9038644e83bdb338b8d03af42fbd084c78f",
+  "spec_path": "specs/automation/browser-sign-in.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

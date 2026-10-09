@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
   "closure": [
     {
       "spec": "specs/fpga/axi4/Axi4.t27",
@@ -46,7 +46,7 @@
   "module": "ArtyA7_Integration",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:48:32Z",
+  "sealed_at": "2026-10-09T20:40:50Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8af99e802413fd1d7aa05a126ddc64fcca99ce26258bce4f6069997394b8b75d",
   "spec_path": "specs/fpga/boards/arty_a7_integration.t27",

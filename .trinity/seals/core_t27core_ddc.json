@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/compiler/core/t27core.t27",
+      "spec_hash": "sha256:dd2ff8ff9ee8b328eed905d37144890ac7279d7aa90dcecbe01e951543a1db4f"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:86b9b844c8c69ed29d8a85f06e7cc44bdf4e4f744e9ac8911de91ed28a48a8ad",
+  "gen_hash_rust": "sha256:bc0d8a447945e8105141426910afb42740edf64091de1f2bd344511fc8cfd09b",
+  "gen_hash_verilog": "sha256:c6b17c72a31f8e70c7466c89b908e5a6679cd8485786757522a075fc892c9270",
+  "gen_hash_zig": "sha256:2aaabb8c0babb7c762701a8cd3b74678d030d3a1bc0e08d058c6bdcfafec0e21",
+  "module": "t27core_ddc",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:29:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e22789aac14f3b3a8200d7570e6a83e327026abf59a2c881c6cb58ab46423a3b",
+  "spec_path": "specs/compiler/core/t27core_ddc.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

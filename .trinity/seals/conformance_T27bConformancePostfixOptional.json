@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b8de5939c70004f963b5d5d3bcc2af76c3e225cd25e4c10eaa1100509bddb0b6",
+  "gen_hash_rust": "sha256:74f4e2ece283ef212db488a176be916511090fc4c95dd2a991f7a7310ae94a9f",
+  "gen_hash_verilog": "sha256:1b1514fda4298ccbe42b73ad60a5dd5b2f3f06edf54c06d9b93ae727fee0ea06",
+  "gen_hash_zig": "sha256:d3cedca97ed0d690ebc3e97bcc546635ef0e2a33ae345af15bd315badc1ef4ff",
+  "module": "T27bConformancePostfixOptional",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:22Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:41e2b985aaa120ee923ec1136ebe29d138d485acc70762e669417e055140c69b",
+  "spec_path": "specs/tri/t27b/conformance/postfix_optional.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

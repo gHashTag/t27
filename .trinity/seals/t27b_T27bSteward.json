@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c699bc3ab8e8e01af1729ea96725a3abc2a8e6a85c88d5644fe30978e2fa57ee",
+  "gen_hash_rust": "sha256:0c6fe0756c745a0ff553e141c197f6535107ce71d8f8f556d70b31a6b04a11db",
+  "gen_hash_verilog": "sha256:eb7f9f6aecff876331ea1ad8fbdf9d32d55af1bef22d379eff01216d98adef76",
+  "gen_hash_zig": "sha256:db0e1e6532a57d2ba0c6559f001812827cfc8fc677876747c84848068af60b7e",
+  "module": "T27bSteward",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:34:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:70867c8cd8a8155d82f352b6833168f04c846a736413d6b2420d54774994123e",
+  "spec_path": "specs/tri/t27b/steward.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 128,
+    "total": 128
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

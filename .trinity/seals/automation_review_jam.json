@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a53272245acd53b9e42a86c67bf9159b1c30ef5d48ded84ec549a060240cfd27",
+  "gen_hash_rust": "sha256:9a17dd922d08c6b4093efe761c5d35500666880182272ff02a7abe770e22dd7d",
+  "gen_hash_verilog": "sha256:3c8adb026c197093c8c1a8d983db20e5510d058b7f0c5dd514046c671b5faf5e",
+  "gen_hash_zig": "sha256:5ac1fd03c0a29ef6cfc05bc0ec3a5008cf57a44a48ea5ef1e66b26d68a6be89c",
+  "module": "review_jam",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e1c98dcb48ff491bb006b420f16543c94def9ba52950cc62c54433ea186f9a1e",
+  "spec_path": "specs/automation/review-jam.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 27,
+    "total": 27
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

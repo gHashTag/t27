@@ -1,13 +1,29 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/queen/reviewer/keeps_up.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/reviewer/reviewer_concurrency.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/reviewer/slots_needed.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d749cdcedef44932a3d647ebc232a7a00918946e14fcd14a09930e51476bcd22",
   "gen_hash_rust": "sha256:053c6c7a973131923e9fb2d9f4d4aeba76aa57ddca2712397da90227f2132db8",
   "gen_hash_verilog": "sha256:7896ab040f72ab9a511e99e95ed35e11a1ec1256388926765121dd99b267fda6",
   "gen_hash_zig": "sha256:350d8132eecbb7bf520056b1c5192aa77a0dad0feb821b2b2ed3a730d58c6ad9",
   "module": "QueenReviewerSizing",
   "ring": 12,
-  "sealed_at": "2026-10-09T17:08:35Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7a37c374021c2143bcccfa22c9e6e6d69bb25d21a06ef33442a26902a51d0a8e",
   "spec_path": "specs/queen/reviewer_sizing.t27",
   "tests": {
@@ -16,5 +32,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

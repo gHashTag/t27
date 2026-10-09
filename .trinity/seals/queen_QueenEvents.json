@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ef9cc31382fb796b62ff20e32f451c9a65b1c70424e90ffd1eb28ac51cc7631c",
+  "gen_hash_rust": "sha256:cfd60834e4f1e98b0aa813fded6e58a95a9f28782ba06f159fcbb91a0b8b8f8b",
+  "gen_hash_verilog": "sha256:41a2bacd041fd67affd87cf292931bd7b08dab46d0f54bb127f6fd9e020a7582",
+  "gen_hash_zig": "sha256:8f513d8eb61212d692bf9f68797a027f972399e8a2373b211beabbd9a685a55f",
+  "module": "QueenEvents",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3ada80a188347a6cb76ac620b014b35241097fb057395ab3fd82e5468bb7ede1",
+  "spec_path": "specs/queen/events.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

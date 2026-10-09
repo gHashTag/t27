@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:46e31bc4f257a6d3f8afe207f02cbdfc3876350d0bdd0eb464683fec233527e0",
+  "gen_hash_rust": "sha256:54c5ccb3a7687a905c9c7c75c55d816db6845b1adfb09a3f34afbc8a522a1b3a",
+  "gen_hash_verilog": "sha256:158e30929af00ff73707e0c210a4233088240596c19e72f287ad729453685509",
+  "gen_hash_zig": "sha256:90383604af415a36f39e98454f67f98c62c8b6078045030545567377b04c6274",
+  "module": "skill_trinity_vibee_gen",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:28:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2893974303261ef50e6d4255c790b58ac56fdad894748d0d498ba073db7e5948",
+  "spec_path": "specs/skills/trinity-vibee-gen.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

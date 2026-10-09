@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6f1b7979d7b5fdfb242bb87d28ff06c75be89be02480dac94dd49bbe36b40e65",
+  "gen_hash_rust": "sha256:be6982cae1d52d217247dcb70b15f9c4096d4b004b4c9eed076d9d826bb6fb80",
+  "gen_hash_verilog": "sha256:70d8c3da7a1a1111e08c815dbac1130459d9d5d7d1acbcd583e4f6d216e8304a",
+  "gen_hash_zig": "sha256:dc43e7f16893b037cb29cd02cecc19d290d8f8d932d4203d7057488e079fcbbf",
+  "module": "port::trios::validate_bpb",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:25:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2418d3605f98be1fa7e0006890d4fdc278ed3d0303fb473be70c9e4644615393",
+  "spec_path": "specs/port/trios/validate_bpb.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

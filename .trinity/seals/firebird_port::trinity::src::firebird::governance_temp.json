@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:39ad5144299a63244956058baab8c2316dfd685f02fcb6569fdf2760b2de8fad",
+  "gen_hash_rust": "sha256:b0618dc649742509532189cf995fda436ffd4a040a877faabe7541d7934a1795",
+  "gen_hash_verilog": "sha256:44e19d3dc87a61ef076f721d46972d7430ce720c5fc54516014a832afff11ddf",
+  "gen_hash_zig": "sha256:7fbdb6cc9038886f6f77d7227a63a2db694217bbeaeaf3e542470fbf1e19c62d",
+  "module": "port::trinity::src::firebird::governance_temp",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:37Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8b0ff750a3e7e3b9de34afcb48e4c611e9c85522ea9310a2f359b8ac06a46690",
+  "spec_path": "specs/port/trinity/src/firebird/governance_temp.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

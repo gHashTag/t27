@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:acc1e845a213cb08fff28915d7be242ba3248e9ff2f3165135aac8ce8834ca74",
+  "gen_hash_rust": "sha256:e5d929fb133cc6fe5a4563d81b8f10fcf372ac71ed692312f1a0cfdb307f783c",
+  "gen_hash_verilog": "sha256:35b0718184a437009f6b0b8debe96df612ec8d82761dbdb3202ae2c6aef12328",
+  "gen_hash_zig": "sha256:47929d781f1f0ffaedcff87c0698d1930f7704c5794dc2d0b464a9f860b07872",
+  "module": "port::trios_trinity_brain_phi",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:25:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c0679c11e9cb902097cc817b493a6d1609059234f8dda19426069ea78a16f17e",
+  "spec_path": "specs/port/trios/crates/trios-trinity-brain/src/phi.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

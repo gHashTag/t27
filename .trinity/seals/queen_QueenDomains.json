@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ee965860f9d295652f416ccb32564279bc2385c19f2f2298bc299284af69e490",
+  "gen_hash_rust": "sha256:127704bd1f355ab45efef477b6e3473ef6b6225120d69fb2253161c01c40c796",
+  "gen_hash_verilog": "sha256:bceecaeda82108fa00fee0d4c74cdfb0d0c43a8cc04ecb45e57de1117ed28f83",
+  "gen_hash_zig": "sha256:16043d4c47bb4fbe557bf3d1d00874f5153ccec9c9f08c9a9040270ab0368bbc",
+  "module": "QueenDomains",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:34ce0dc6fb4c3bef0ba3da3c3f83c9779d3faa7a9a8e1331ec5a4aff6233b936",
+  "spec_path": "specs/queen/domains.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

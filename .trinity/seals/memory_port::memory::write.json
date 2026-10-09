@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fe6a949ac0cddc68e7f8703fea19f7f39d76e9bbc0d43225667cb766a6210293",
+  "gen_hash_rust": "sha256:782659e1622e52237bb336b1aefca9eb038c7b3926a09ca26e9b2744a3dd826f",
+  "gen_hash_verilog": "sha256:f8992ab3293b0fad37d0832ea823349b6d65c0b71c492479f8a29255d1e19afa",
+  "gen_hash_zig": "sha256:3149175753c7ffd90993612d473e1753f6a8547b95db0face7ed1ced5e94b6f7",
+  "module": "port::memory::write",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:db9d950feb1fb9996e9d71acc40b1f0188ead605bef59b65d0009ac3260fce46",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/tools/memory/write.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

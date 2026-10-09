@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6b005bc6eb09c5f4fe4c5aff929d2cad6e12a33192da745f32cea047b3060003",
+  "gen_hash_rust": "sha256:e3dc38ce4743fc5b31e0d4102ad4dc7c48bb14a4a70376b5ed8e737dad054264",
+  "gen_hash_verilog": "sha256:a47d2b1eb8e69be6a312de4c08a17ba7e7f8409f3c9c849943d1819f0b32d390",
+  "gen_hash_zig": "sha256:8879331a503304ca7695c5635d8a975aa6a887e1ab5ee6a0ea4df591c7efa123",
+  "module": "HirIpCatalog_new",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:317c38b0b9b8fb6299102da987e542c174167882d5fcb027c68ddc6f10b4c575",
+  "spec_path": "specs/port/bootstrap/src/compiler/HirIpCatalog_new.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

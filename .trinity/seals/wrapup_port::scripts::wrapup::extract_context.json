@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c143840b69d4996eca8619fd0a6296ee1ec5c11c84545ec77e9ee4b8df9f82ef",
+  "gen_hash_rust": "sha256:202dc61360bed9f8ca1950fef6c639558179ebf488a850358f691c8a037a36be",
+  "gen_hash_verilog": "sha256:928d75201ec371caebc49af6db6e6258c08f3c83896234b7ee35a3128ffb249c",
+  "gen_hash_zig": "sha256:7dc9118197605661a34b5d66bf9390df59b37a793b08e9735d135c32b91ff1e1",
+  "module": "port::scripts::wrapup::extract_context",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:187b4208d9ee4a0d947e3f917b03dd8b15b195cb136f3c97e2c87222a573e730",
+  "spec_path": "specs/port/scripts/wrapup/extract-context.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

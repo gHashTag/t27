@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c7c5affed48bedc2534a3c1423ebb634697875843358740767d932474c28771a",
+  "gen_hash_rust": "sha256:ed2c3efa380152b5bb64dde1fbb79c9249c82b26fa4ea27199155940a3685a3f",
+  "gen_hash_verilog": "sha256:135bdf141bfb78c8c00d9e25e464ee86884ba28d798dfd880b6ff6d37fdd0caf",
+  "gen_hash_zig": "sha256:7ead5d8888e66690e96f40253fa12542e8dd464d0965ae6cc717ebe14350182d",
+  "module": "cron_999_multibots_telegraf_skill_detector",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:33:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7b13e7d95ded329b7ac0ce98c7041738b15168a40bfde76b6e19c5c928bc1f3b",
+  "spec_path": "specs/crons/999-multibots-telegraf-skill-detector.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

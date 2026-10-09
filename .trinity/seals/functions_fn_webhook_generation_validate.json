@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fdc854b028e30d3538cbf7619c777180630251181aef916a5827b55bd158e61c",
+  "gen_hash_rust": "sha256:f174de1f586ef76869177978c2b19409cbd4f3724d16ada8ec82c6b8312a4601",
+  "gen_hash_verilog": "sha256:ec7dc23d8031a5f6993129e41db7278739f7e0396c67dcceadb0d5b6ba28a16b",
+  "gen_hash_zig": "sha256:97ca54fccc357e0138c69df7de61d1aeed0644bb4708162fd7cf695d81ad1758",
+  "module": "fn_webhook_generation_validate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:07:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3e0ec49b0ffe31f2b040123f750ad990068f05cf19f91f1fcc23856fd2bbdd96",
+  "spec_path": "specs/functions/webhook-generation-validate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

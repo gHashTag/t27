@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:51d41175e454d5c8294eec594c2cd1b4d0402693db6b36eb9a03d70a220a0559",
+  "gen_hash_rust": "sha256:fe2b35583717b0c90df5113fe847e6f93e1edd2f9c7f235e89a81d9f623e9a7d",
+  "gen_hash_verilog": "sha256:dc5248186b103f2af69767a7b3262d3d651816746673e8b321e5f5374591566d",
+  "gen_hash_zig": "sha256:f3e1efc9493932033b8edaaf1f545e79b37733aae59e1be0c5c96e91156d0d91",
+  "module": "cron_mac_mcp_hub",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:35:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8b04bbb089a16b0b97d778ee123d71fb2152732dd9e5f6e985095884ad55fa07",
+  "spec_path": "specs/crons/mac-mcp-hub.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

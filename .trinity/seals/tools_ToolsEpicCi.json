@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:42cddeecc6103da689c46afabaf6d069ad4d8b84abbb45cdaa3c3182eacca359",
+  "gen_hash_rust": "sha256:6610c6012259e5a5f1efea8a57ecf4e26e736e568e7eda6ac52eca03c642e1d0",
+  "gen_hash_verilog": "sha256:311caf7ebeacd75b5350e6d33770f358614e65c945ab437752e94c518026b62c",
+  "gen_hash_zig": "sha256:198e7b331f4a633ae77f34f4013d8409b3f3a9b2bfd7d558c0435c3a0b85b515",
+  "module": "ToolsEpicCi",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:30:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:23f6000e58bcf1753d550755ce575a6bcb1d6427bf6efd1c3f3aec3aa3aba5c0",
+  "spec_path": "specs/tools/epic_ci.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 17,
+    "total": 17
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

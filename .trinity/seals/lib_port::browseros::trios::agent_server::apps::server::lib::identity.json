@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:93f751809454810b6d790ea4b086b026c67cff6e4cfd777cb28eeb3194947918",
+  "gen_hash_rust": "sha256:c2f038a80d1be9244dff2704fd452950d927ea2aa050081fb83cc5586fe43669",
+  "gen_hash_verilog": "sha256:37519ca05b51d55e08e52c8deb5433165883ac4da1b2d891c1f8ff49c85ab544",
+  "gen_hash_zig": "sha256:b4d951f516f91327ffe18d4a90466ca2aecc06950a724ca80b4935c94a6dc1d5",
+  "module": "port::browseros::trios::agent_server::apps::server::lib::identity",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:817619912277c8ac5925c53321fee51d7b399b72e984c39a516b7aef66149d6a",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

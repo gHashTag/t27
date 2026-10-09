@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:bf3abfa2dc9e9b490d66b1cf2e60c0f2bf01c9f81ef1c83f64bf5f9251daf377",
+  "gen_hash_rust": "sha256:de20e2b5ab36f8e54e8df8a49dec8507a935506c098dc755339940bbd9b9649c",
+  "gen_hash_verilog": "sha256:8dff5184ab31de3e31aa4e179c282b5803a4a9d6b2c43df444ccf3123eae21fc",
+  "gen_hash_zig": "sha256:a7da0bf9939e64531b5780b0ef87a70d0970abf82931d8f24822a60c2348c32b",
+  "module": "basics_05_whole_numbers",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:23:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8c8726516fc7ba90a051bdf690553bf23a47117a53059a552a03411a11ee710f",
+  "spec_path": "specs/basics/05_whole_numbers.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

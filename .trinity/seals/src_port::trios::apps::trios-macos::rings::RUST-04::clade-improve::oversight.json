@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:bd1d4662a5de3b310eb4e8e18b1f9234693efcb62ecd2f813da0432dd42e17a5",
+  "gen_hash_rust": "sha256:368b681f96be44636cdba5824e3b0768914bfb26f035fce8505c6f58ceb63c0f",
+  "gen_hash_verilog": "sha256:a9299e5f7fcbdaa8ba4e904d9c8880672bbab6778167e50f607ae7f26c64b6e3",
+  "gen_hash_zig": "sha256:7f5e7b64e1e9117fdd0356eebefb5133cba4b731cb850fbb683190882c002cf7",
+  "module": "port::trios::apps::trios-macos::rings::RUST-04::clade-improve::oversight",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:bfc4db41d184ee96c43dd04f8fecef2bacc022351de387cd4c84ff57b0b24a0b",
+  "spec_path": "specs/port/trios/apps/trios-macos/rings/RUST-04/clade-improve/src/oversight.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

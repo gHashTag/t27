@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7f699f789617d7f1f042db0902098b5d3bfec5eb45ed58cbd3dc6d78452520ea",
   "gen_hash_rust": "sha256:f1e6183f1bb413ab16a263e14fb404b36168d8c67d99892e371ee8902947fd90",
   "gen_hash_verilog": "sha256:d87313018bf714bb5d5b134da296ab1df16301e0219934bafff29e778993768c",
   "gen_hash_zig": "sha256:60beb9c8fdc2a3546d9ec7dd1f4e8ff9f9285809a2c4916f8897e4911d8f3976",
   "module": "QueenNetlink",
   "ring": 12,
-  "sealed_at": "2026-10-09T17:40:47Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:447de25019d810d96b164cfda863d4b4708eb567e6635933cafa9f41c980724a",
   "spec_path": "specs/queen/netlink.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 9,
     "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

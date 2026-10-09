@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b8ba3059dd01ceaaac0ed628d632637de27898010894ae40f66e7cd1a4bfc617",
+  "gen_hash_rust": "sha256:10d8ed177fe965b60852901e007f578a33cd11f678f5cdd826d545f8352028a6",
+  "gen_hash_verilog": "sha256:7966b232d40f56b66958503206d856a2124688d29879226d34a7a53560314015",
+  "gen_hash_zig": "sha256:21b87d4cb65410a5405ed7c17da0bfc558bd074dafed62b8ead7fb9051d2c82d",
+  "module": "lighthouse",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:63c5d29fa6f454801bfee6068307ae7e8b53000d57dc0df07281f6a8fa7bb749",
+  "spec_path": "specs/port/trios/crates/trios-mcp/rings/SR-01/src/lighthouse.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

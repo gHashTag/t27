@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d19d20d62f2764cd57da4b54f852a0e3bd7eaa4c6262cb20859ba88bb05d06ba",
+  "gen_hash_rust": "sha256:a69dff49d1e837e357ee0caf483ff55726653a943a1cbd0b4ed086fef0e9dabd",
+  "gen_hash_verilog": "sha256:b38935a36b0438c17011b02765a9e0bb3442699604b14475444ef29cb4b25c7a",
+  "gen_hash_zig": "sha256:9d3c341d577647767f8d7544dc2230bedfaea5e5b9c3ff253481f306bd3ad4b8",
+  "module": "cron_999_multibots_telegraf_render_server_L2325",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:33:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4252da42015c3c1b5aff94fee9f919185a7cd52058ab40843b7eef579f690ed4",
+  "spec_path": "specs/crons/999-multibots-telegraf-render-server-L2325.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

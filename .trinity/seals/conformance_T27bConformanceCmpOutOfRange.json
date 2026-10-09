@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ba9d8f376774e7f539fbced962e374cadfff177e2f632fae0767b5cf2def73c1",
+  "gen_hash_rust": "sha256:b47c6feaf86d8ff51014b4018b22a74b0bc0028dc42d00be4daca52b2eaa4cb9",
+  "gen_hash_verilog": "sha256:8e41fbf5bf45e77aaf2761c18eab0273176200844e5222b4aec5ef498bba3f54",
+  "gen_hash_zig": "sha256:1b3d1340a5bc79c68c0b5e43f7cac510f9a7e79e8d09e416af6b141712633dfa",
+  "module": "T27bConformanceCmpOutOfRange",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:32:55Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f17a5802ac9fa570b18d446469628699ff8a92958b70a331b94ea2701e435301",
+  "spec_path": "specs/tri/t27b/conformance/cmp_out_of_range.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

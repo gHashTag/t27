@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5eeb6fa88cd17c56cc0ad838b097b6836ce48ad0f1b3175d6eeb519115831bb5",
+  "gen_hash_rust": "sha256:efd5e3eeda48a6d2e37fe7c1b203f617c6b9d7afef2ea1ccf7876e98d2f4d52e",
+  "gen_hash_verilog": "sha256:c86c0f9c27fd82f445fbf8024fc13be4a297d9e5ea89f0f1cd44de1248a5c09a",
+  "gen_hash_zig": "sha256:d266a3f877fe2f9b5432291bea28325ca5e0caff7c75df9c4406642e7f9b0d2e",
+  "module": "skill_t27_phi_loop",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2947c8377fc3fc1beab6d1feffd31c8fd3457127fe9ec0986a07337611c52eb9",
+  "spec_path": "specs/skills/t27-phi-loop.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

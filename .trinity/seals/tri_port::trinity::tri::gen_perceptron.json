@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ad2e37886f0eee674a0cb1f8356e8ae92bb95ab01ca76b10b52161b7879df9f9",
+  "gen_hash_rust": "sha256:b16826f4d8f76fd7ae28ae75adebe03f205f99297efaed7dc1c36816d0789bff",
+  "gen_hash_verilog": "sha256:b4edf7fcd962cc2b4947e23561930cde2485d005e30a3cbe8c3dad5c7cb8ef36",
+  "gen_hash_zig": "sha256:bf3981090c6991e37b01e38a4b612208e7454adc134c0a88847bb9100e21493f",
+  "module": "port::trinity::tri::gen_perceptron",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:21:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:99c7a39accb3e0c28e0b5278edc5359061931ff86c2a7013df25447358183255",
+  "spec_path": "specs/port/trinity/src/tri/gen_perceptron.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

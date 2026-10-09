@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f1372811004bc790fbdf1637576e0e0ca3710ac25262c69ee2de116b398e2e3e",
+  "gen_hash_rust": "sha256:a245a8ccd80b16b122840c5a391f9ba35aa19c7a37b557974cdab8583feeecc5",
+  "gen_hash_verilog": "sha256:0ecc35052393decc71b2a62c8feda37837dd4cff5da97847296749105feccd48",
+  "gen_hash_zig": "sha256:793839827905e3a1ca9a9b9cbc7ce764127ef2bb2e4051a62c556827a81551b7",
+  "module": "port::bootstrap::src::compiler::TbCheck_new",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:00Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b34b403ae69ee20a92943ef58366cfeb1091aa0ea14e40237e9b869f648f893f",
+  "spec_path": "specs/port/bootstrap/src/compiler/TbCheck_new.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

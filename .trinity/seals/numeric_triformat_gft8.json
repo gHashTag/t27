@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:b44c5837687d84b72e53f10352db1f4c506fd3bc1a8165ac7705422ee10baf34",
   "gen_hash_rust": "sha256:8d147d510bf884318806b2a3ac02e84cb59fe7b2b4739639bb0fde616020880b",
   "gen_hash_verilog": "sha256:92bdb0fcac13db68bdea2bf6dd2c5cac2cb08c16e9c8f935e692ba6bae0adf0d",
   "gen_hash_zig": "sha256:b6841432dbbfbf3df7f072aeab3d327fa5378acab5b4823947bf565e3ad9a05f",
   "module": "triformat_gft8",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:11:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:fd622012c98c063b5302508590829a22d10013618c70523d1c385b0f6c848c25",
-  "spec_path": "specs/numeric/gft8.t27"
+  "spec_path": "specs/numeric/gft8.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }
