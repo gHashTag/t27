@@ -391,3 +391,15 @@ fn log_base_e_log1p_inf_and_an_f64_round() {
     let f32_log = src.replace(" + std.math.log1p(x)", "").replace("x: f64) -> f64", "x: f32) -> f32").replace("log(f64,", "log(f32,");
     assert_eq!(names_ok(&run(&f32_log.replace("f(1.0) > 0.69", "f(1.0) == 0.0"))), vec![("t", false, true)]);
 }
+
+// ------------------------------------------------ std.math.pow of an f32
+
+/// #7823: `std.math.pow(f32, x, y)` calls libm.t27's port of Zig's std/math/pow.zig, and its operands take the type
+/// it names, a literal too; an f64 is refused (specs/tri/t27b/libm_plan.t27).
+#[test]
+fn std_math_pow_of_an_f32_calls_its_port() {
+    let src = "module a;\n\nfn p(x: f32) -> f32 {\n    return std.math.pow(f32, x, 3.0);\n}\n\ntest t {\n    assert(p(2.0) == 8.0);\n    assert(p(-2.0) == -8.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    let m = rejected(&src.replace("x: f32) -> f32", "x: f64) -> f64").replace("pow(f32", "pow(f64"));
+    assert!(m.contains("construct ExprCall(std.math.pow) at line 4") && m.contains("no f64 routine"), "{}", m);
+}
