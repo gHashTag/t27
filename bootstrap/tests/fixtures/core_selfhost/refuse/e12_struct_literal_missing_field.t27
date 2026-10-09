@@ -1,0 +1,11 @@
+// #7959: gen-c writes the literal as written, so C zero-fills `y`; Zig
+// refuses a literal missing a field.
+module struct_missing_field;
+struct SmPair {
+    x: i64,
+    y: i64,
+}
+fn sm_y() -> i64 {
+    var p: SmPair = SmPair{ .x = 1 };
+    return p.y;
+}

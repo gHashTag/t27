@@ -1,0 +1,7 @@
+// #8013: `s += 1` moves the C pointer; Zig refuses arithmetic on a slice.
+module string_compound_assign;
+fn sca_f(s: str) -> str {
+    var t: str = s;
+    t += 1;
+    return t;
+}

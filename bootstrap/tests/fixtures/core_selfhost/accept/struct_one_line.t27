@@ -1,0 +1,3 @@
+// P2 slice 1 (#5980): the one-line struct `REFUSALS` used to pin as E_LEX.
+module struct_one_line;
+struct S { a: u8 }

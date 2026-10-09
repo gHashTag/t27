@@ -1,0 +1,5 @@
+// #8013: C compares the two addresses; Zig refuses `==` on slices.
+module string_compared;
+fn sc_same(a: str, b: str) -> bool {
+    return a == b;
+}
