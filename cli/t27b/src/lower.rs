@@ -90,7 +90,7 @@ mod float;
 #[path = "../../../gen/rust/tri/t27b/builtin_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
-mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
+pub(crate) mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type; `widens` serves ir.rs
 #[path = "../../../gen/rust/tri/t27b/ptr_eq_plan.rs"] #[allow(dead_code, unused_parens)]
 mod pe; // t27c gen-rust of specs/tri/t27b/ptr_eq_plan.t27: `==` / `!=` of pointers and optional pointers
 #[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -117,10 +117,14 @@ mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)
 mod oc; // t27c gen-rust of specs/tri/t27b/optional_compare_plan.t27: `?T == v`, by value or by tag
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/literal_plan.rs"] #[allow(dead_code, unused_parens)]
+mod lp; // t27c gen-rust of specs/tri/t27b/literal_plan.t27: a literal's text as the t27c parser keeps it
 #[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
 mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
 #[path = "../../../gen/rust/tri/t27b/lazy_sig_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ls; // t27c gen-rust of specs/tri/t27b/lazy_sig_plan.t27: `anytype`, `[*]T` on a fn nothing analyzed reaches
+#[path = "../../../gen/rust/tri/t27b/type_text.rs"] #[allow(dead_code, unused_parens)]
+mod tt; // t27c gen-rust of specs/tri/t27b/type_text.t27: a type's text, read without the file's declarations
 mod refvars;
 mod tuple;
 
@@ -606,7 +610,7 @@ fn lower_mode<'a>(
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
             l.bool_fns.insert(item.name.clone());
         }
-        if item.kind == NodeKind::FnDecl && !item.name.is_empty() && returns_value(&item.extra_return_type) {
+        if item.kind == NodeKind::FnDecl && !item.name.is_empty() && tt::returns_value(item.extra_return_type.as_bytes()) {
             l.value_fns.insert(item.name.clone());
         }
     }
@@ -1109,30 +1113,10 @@ impl<'a> Lower<'a> {
     /// shape share a name (`type [N]T`, `type []T`, `type (struct)`), so the
     /// count says how many files need that shape; the detail names the type.
     fn type_construct(&self, t: &str) -> (String, String) {
-        let shape = if let Some(k) = self.type_decls.get(t) {
-            format!("type ({})", k)
-        } else if t.starts_with("[]") {
-            "type []T".to_string()
-        } else if t.starts_with('[') {
-            "type [N]T".to_string()
-        } else if t.starts_with('(') {
-            "type (tuple)".to_string()
-        } else if t.starts_with('?') {
-            "type ?T".to_string()
-        } else if t.starts_with('*') {
-            "type *T".to_string()
-        } else if t.contains('!') {
-            "type E!T".to_string()
-        } else if t.starts_with("struct") {
-            "type (anonymous struct)".to_string()
-        } else if t.contains('(') {
-            "type (generic)".to_string()
-        } else if t.starts_with(|c: char| c.is_ascii_uppercase()) && !matches!(t, "Result" | "Option") {
-            // Declared nowhere this file can see: an import `use` did not
-            // splice, or a type of a sibling spec.
-            "type (undeclared)".to_string()
-        } else {
-            return (format!("type {}", t), String::new());
+        let shape = match (self.type_decls.get(t), tt::shape(t.as_bytes())) {
+            (Some(k), _) => format!("type ({})", k),
+            (None, tt::SHAPE_PLAIN) => return (format!("type {}", t), String::new()),
+            (None, k) => tt::shape_name(k).to_string(),
         };
         (shape, format!("`{}`", t))
     }
@@ -1726,7 +1710,7 @@ impl<'a> Lower<'a> {
         // #6315: the reference returns a non-void fn's tail expression
         // (`fn f(v: u32) -> u32 { v + 1 }`). In a fn nothing analyzed
         // reaches, Zig never sees the body and the statement keeps its stub.
-        if !self.unanalyzed_fn && returns_value(&n.extra_return_type) {
+        if !self.unanalyzed_fn && tt::returns_value(n.extra_return_type.as_bytes()) {
             mark_tail_returns(&n.children, &mut self.tail_returns);
         }
         let lowered = self.stmts(&n.children);
@@ -3819,10 +3803,7 @@ impl<'a> Lower<'a> {
 
     /// An index or a slice bound, whose result type in Zig is `ic::INDEX_TYPE`: an `@intCast` there converts to it.
     fn usize_operand(&mut self, n: &Node) -> R<Val> {
-        match Ty::from_name(ic::INDEX_TYPE).filter(|_| n.kind == NodeKind::ExprCall && n.name == ic::SITE) {
-            Some(ty) => self.int_cast(n, ty),
-            None => self.expr(n),
-        }
+        if n.kind == NodeKind::ExprCall && n.name == ic::SITE { self.int_cast(n, Ty::from_name(ic::INDEX_TYPE).unwrap_or(Ty::U64)) } else { self.expr(n) }
     }
 
     /// `n` folded as Zig folds an expression that names a module constant of an integer type wider than 64 bits:
@@ -3987,7 +3968,10 @@ impl<'a> Lower<'a> {
                         Err(what) => self.reject(what, format!("`{}`", s)),
                     };
                 } else if s.contains('.') || (s.contains(['e', 'E']) && !s.starts_with("0x")) {
-                    match float::Q::parse(s) {
+                    // A minus the parser folded in front is Zig's negation of the literal after it (`lp`).
+                    let (b, neg) = (s.as_bytes(), lp::FLOAT_NEGATED);
+                    let sign = lp::float_sign(b[0], b.get(1).copied().unwrap_or(0), b.len());
+                    match float::Q::parse(&s[lp::skip(sign)..]).map(|q| if sign == neg { q.neg() } else { q }) {
                         Ok(q) => {
                             let suffix = n.extra_type.trim();
                             if suffix.is_empty() {
@@ -4537,7 +4521,7 @@ impl<'a> Lower<'a> {
         // type mapper writes a path whose last segment it maps on its own as
         // that mapping: `gf16::GF16` is `u16`, as a bare `GF16` is, in a field,
         // a parameter, a result and a local's annotation.
-        if is_scoped_gf16(t) {
+        if tt::scoped_gf16(t.as_bytes()) {
             return Ok(LTy::S(Ty::U16));
         }
         // t27c's Zig backend spells all four `[]const u8`.
@@ -4579,7 +4563,7 @@ impl<'a> Lower<'a> {
         // bracket pair around the whole type, no `;` -- is the mutable slice
         // `[]T`.
         if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
-            if close_of_open(t) == Some(t.len() - 1) {
+            if tt::close_in(t.as_bytes(), 0, t.len()) == t.len() as i64 - 1 {
                 let inner = inner.trim();
                 if inner == "*" || inner.starts_with('*') {
                     return self.reject("type [*]T", format!("`{}`: a many-item pointer", t));
@@ -7382,25 +7366,6 @@ impl<'a> Lower<'a> {
     }
 }
 
-/// The register type of a scalar or pointer; None for a struct.
-/// The byte index of the `]` that closes the `[` at index 0 of `t`.
-fn close_of_open(t: &str) -> Option<usize> {
-    let mut depth = 0i32;
-    for (i, c) in t.char_indices() {
-        match c {
-            '[' => depth += 1,
-            ']' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(i);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
 /// Whether `t` spells a `[` in Zig: an array, a slice, a string, or a
 /// pointer to one.
 fn has_brackets(t: &LTy) -> bool {
@@ -7762,17 +7727,6 @@ fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
     }
 }
 
-/// `m::GF16` / `a::b::gf16`: a module path whose last segment is GF16.
-fn is_scoped_gf16(t: &str) -> bool {
-    let segs: Vec<&str> = t.split("::").collect();
-    segs.len() > 1
-        && matches!(segs[segs.len() - 1], "GF16" | "gf16")
-        && segs.iter().all(|s| {
-            s.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-        })
-}
-
 /// The node kinds t27c's `gen_expr` prints anything for; every other kind (a
 /// statement) renders as the empty string.
 fn zig_renders(k: &NodeKind) -> bool {
@@ -7855,13 +7809,6 @@ fn analyzed_fns(items: &[&Node]) -> HashSet<String> {
         stack.extend(more.into_iter().filter(|m| !reached.contains(m)));
     }
     reached
-}
-
-/// A return type that is a value (t27c `call_returns_value` and the test
-/// in `gen_fn_decl` before `zig_tail_returns`): anything but none, `void`,
-/// `noreturn` and `()`.
-fn returns_value(rt: &str) -> bool {
-    !matches!(rt.trim(), "" | "void" | "noreturn" | "()")
 }
 
 /// #6315, t27c `zig_tail_returns`: the reference turns the last statement of
@@ -7986,84 +7933,9 @@ fn is_prose_clause(n: &Node) -> bool {
 /// declaration. Returns the offending base name. Anything else (dotted or
 /// scoped paths, `@This()`, function types) is left alone.
 fn undeclared_field_type(ty: &str, declared: &HashSet<&str>) -> Option<String> {
-    let base = type_base(ty)?;
-    if base.is_empty() {
-        return None;
-    }
-    if base.contains('<') {
-        return Some(base.to_string());
-    }
-    let ident = base.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-        && base.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-    if !ident || declared.contains(base) || zig_type_name(base) {
-        return None;
-    }
-    if matches!(base, "str" | "string" | "float" | "double" | "int" | "uint" | "GF16" | "gf16") {
-        return None;
-    }
-    Some(base.to_string())
-}
-
-/// The element name under `?`, `&`, `*`, `const`, and the array and slice
-/// forms of both t27 (`[T]`, `[T; N]`) and Zig (`[]T`, `[N]T`). `None` for a
-/// map type `[K:V]`, which is not a name.
-fn type_base(ty: &str) -> Option<&str> {
-    let t = ty.trim();
-    if let Some(r) = t.strip_prefix('?').or_else(|| t.strip_prefix('&')).or_else(|| t.strip_prefix('*')) {
-        return type_base(r);
-    }
-    if let Some(r) = t.strip_prefix("const ") {
-        return type_base(r);
-    }
-    // #7415: the postfix optional `T?`, which t27c writes as `?T`.
-    if let Some(r) = t.strip_suffix('?') {
-        if !r.trim().is_empty() && !r.trim_start().starts_with('?') {
-            return type_base(r);
-        }
-    }
-    if t.starts_with('[') {
-        let mut depth = 0i32;
-        let mut close = None;
-        for (i, c) in t.char_indices() {
-            match c {
-                '[' => depth += 1,
-                ']' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        close = Some(i);
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-        let close = close?;
-        if close == t.len() - 1 {
-            let inner = &t[1..close];
-            if inner.contains(':') {
-                return None;
-            }
-            let elem = match inner.rfind(';') {
-                Some(s) => &inner[..s],
-                None => inner,
-            };
-            return type_base(elem);
-        }
-        return type_base(&t[close + 1..]);
-    }
-    Some(t)
-}
-
-/// A type name Zig declares itself.
-fn zig_type_name(n: &str) -> bool {
-    matches!(
-        n,
-        "bool" | "void" | "type" | "anyerror" | "anyframe" | "anyopaque" | "noreturn" | "usize" | "isize"
-            | "comptime_int" | "comptime_float" | "c_char" | "c_short" | "c_ushort" | "c_int" | "c_uint"
-            | "c_long" | "c_ulong" | "c_longlong" | "c_ulonglong" | "c_longdouble"
-    ) || (n.len() >= 2
-        && (n.starts_with('u') || n.starts_with('i') || n.starts_with('f'))
-        && n[1..].chars().all(|c| c.is_ascii_digit()))
+    let r = tt::type_base(ty.as_bytes());
+    let base = (r >= 0).then(|| &ty[(r / tt::HALF) as usize..(r % tt::HALF) as usize])?;
+    tt::undeclared(base.as_bytes(), declared.contains(base)).then(|| base.to_string())
 }
 
 /// t27c's Zig backend writes every `_cse*` temporary the optimizer made at

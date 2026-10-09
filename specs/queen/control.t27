@@ -237,6 +237,84 @@ pub fn fits(agent_domain: u32, task_domain: u32, agent_free_mb: u32, need_mb: u3
     return agent_free_mb >= need_mb;
 }
 
+; One chooser call per wake fills every free slot with disjoint picks (#8211). dispatch.t27 measured
+; the chooser that runs: CHOICE_RULE takes the FIRST survivor, one dispatch per call, and each call
+; walks every candidate against every task, so a round costs dispatches x candidates x tasks. The
+; rule below replaces it. One call per wake picks up to offers_per_wake tasks. No two picks of one
+; batch meet on a file, the whole batch is written under the round's fence, and the work of a call is
+; linear in candidates + tasks for the quota of that wake.
+
+/// How many tasks one chooser call may pick: every free slot, up to the eligible candidates.
+pub fn batch_quota(cap: u32, running: u32, eligible: u32) -> u32 {
+    return offers_per_wake(free_slots(cap, running), eligible);
+}
+
+/// actors.t27 FA_ADMIT, owned there (section 10 file_admit): the file owner admits the candidate's
+/// edit against every edit that still runs. A literal, so this file imports nothing.
+pub const BATCH_OWNER_ADMIT : u8 = 0;
+
+/// Whether a candidate meets one task already in the batch. Both must edit through one file owner
+/// (actors.t27 file_owner_slot; a shared slot only serialises more) and their regions must meet by
+/// actors.t27 edits_meet. The caller evaluates edits_meet on the two regions and passes the answer
+/// in, so the rule is not copied here.
+pub fn meets_pick(c_owner: u64, p_owner: u64, regions_meet: bool) -> bool {
+    if (c_owner != p_owner) { return false; }
+    return regions_meet;
+}
+
+/// Pick admission. A candidate joins the batch only while the batch is under its quota, its file
+/// owner admits it against the running edits, and it meets no pick already taken. `meets_a_pick` is
+/// the OR of meets_pick over the batch so far, so the picks of one batch are pairwise disjoint.
+pub fn pick_admits(taken: u32, quota: u32, owner_answer: u8, meets_a_pick: bool) -> bool {
+    if (taken >= quota) { return false; }
+    if (owner_answer != BATCH_OWNER_ADMIT) { return false; }
+    return meets_a_pick == false;
+}
+
+/// The batch is committed in one fenced write (section 2 write_lands at the round's lease fence).
+/// Answers how many picks land: all of them, or none. A stale leader writes nothing, and a batch
+/// over its quota is a chooser fault that is refused whole rather than cut to an arbitrary prefix.
+pub fn batch_lands(fence: u64, round_fence: u64, picks: u32, quota: u32) -> u32 {
+    if (write_lands(fence, round_fence) == false) { return 0; }
+    if (picks > quota) { return 0; }
+    return picks;
+}
+
+/// Reference loop for the work of one chooser call. One step per running task indexes its region
+/// under its file owner, then one step per candidate looks its owner up, plus one comparison for each
+/// pick already in the batch. The scan stops when the quota is filled. A candidate is modelled as
+/// meeting a pick when its index is a multiple of `meet_every` (0: none meets).
+pub fn reference_wake_steps(candidates: u32, tasks: u32, quota: u32, meet_every: u32) -> u64 {
+    var steps : u64 = 0;
+    var t : u32 = 0;
+    while (t < tasks) {
+        steps = steps + 1;
+        t = t + 1;
+    }
+    var taken : u32 = 0;
+    var c : u32 = 0;
+    while (c < candidates and taken < quota) {
+        steps = steps + 1 + (taken as u64);
+        var met : bool = false;
+        if (meet_every > 0) { met = (c % meet_every) == 0; }
+        if (pick_admits(taken, quota, BATCH_OWNER_ADMIT, met)) { taken = taken + 1; }
+        c = c + 1;
+    }
+    return steps;
+}
+
+/// The work bound of one chooser call: tasks + candidates x quota. The quota is at most section 4's
+/// capacity, a configured ceiling, so for a wake the bound is linear in candidates + tasks.
+pub fn wake_work_bound(candidates: u32, tasks: u32, quota: u32) -> u64 {
+    return (tasks as u64) + (candidates as u64) * (quota as u64);
+}
+
+/// What the serial chooser costs for the same picks (dispatch.t27 CHOICE_RULE): a fresh call per
+/// dispatch, each walking every candidate against every task.
+pub fn serial_wake_steps(picks: u32, candidates: u32, tasks: u32) -> u64 {
+    return (picks as u64) * (candidates as u64) * (tasks as u64);
+}
+
 ; --- 5. Domain agents persist; the task context does not ----------------------------------------------
 
 /// The domains of the agent population. A small fixed set, not an agent per task.
@@ -564,6 +642,9 @@ invariant the_lease_beats_the_age_reaper { assert TASK_LEASE_TTL_SECONDS < 120 *
 invariant the_tick_is_slower_than_a_lease { assert RECONCILE_SECONDS > TASK_LEASE_TTL_SECONDS; }
 invariant every_domain_has_a_name { assert DOMAIN_COUNT == 4 and DOMAIN_QUEEN_OPS == DOMAIN_COUNT - 1; }
 invariant illegal_is_outside_every_agent_state { assert AG_ILLEGAL > AG_RETIRED; }
+/// The batch reads the file owner's admit code by literal; actors.t27 the_file_owner_answers_never_move
+/// pins FA_ADMIT at 0 on its side, so the two homes cannot drift without one of them failing.
+invariant the_batch_reads_the_file_owners_admit { assert BATCH_OWNER_ADMIT == 0; }
 /// Every journal entry, effect kind and answer of section 7 is its own value. An answer that equals
 /// another one would read a fenced-out holder as a look.
 invariant the_effect_codes_are_distinct {
@@ -850,4 +931,74 @@ test a_release_is_looked_up_by_its_tag_and_never_published_twice {
     assert effect_may_repeat(EK_RELEASE, false) == false;
     // a fenced-out holder does nothing, a release included
     assert effect_action(EFF_NONE, EK_RELEASE, 0, 8, 7) == DO_NOTHING;
+}
+
+test a_batch_never_holds_more_picks_than_free_slots_or_eligible_tasks {
+    // FR-001. The measured pulse of section 4: 70 lanes, 17 running, 145 eligible -> 53 picks.
+    assert batch_quota(70, 17, 145) == 53;
+    assert batch_quota(70, 17, 3) == 3;
+    assert batch_quota(4, 9, 10) == 0;
+    assert batch_quota(4, 4, 10) == 0;
+    assert batch_quota(4, 3, 10) == 1;
+    // the quota closes the batch: the 53rd pick is the last
+    assert pick_admits(52, 53, BATCH_OWNER_ADMIT, false) == true;
+    assert pick_admits(53, 53, BATCH_OWNER_ADMIT, false) == false;
+    assert pick_admits(0, 0, 0, false) == false;
+    // a batch the chooser over-filled is refused whole
+    assert batch_lands(7, 7, 53, 53) == 53;
+    assert batch_lands(7, 7, 54, 53) == 0;
+    assert batch_lands(7, 7, 0, 53) == 0;
+}
+
+test two_picks_of_one_batch_never_meet_on_a_file {
+    // FR-002. Regions are judged by actors.t27 edits_meet; its answers for these regions are its own
+    // tests' (disjoint_line_ranges_and_union_appends_do_not_meet).
+    // Pick A: owner 1044, lines 10..40. Candidate B: owner 1044, lines 200..260 -> edits_meet false.
+    var met : bool = meets_pick(1044, 1044, false);
+    assert met == false;
+    assert pick_admits(1, 4, 0, met) == true;
+    // Candidate C: owner 1044, lines 0..5 against A's 10..40 and B's 200..260 -> false, false.
+    met = meets_pick(1044, 1044, false) or meets_pick(1044, 1044, false);
+    assert pick_admits(2, 4, 0, met) == true;
+    // Candidate D: lines 5..10 touches A's 10..40 and C's 0..5 (touching ranges meet), not B's.
+    met = meets_pick(1044, 1044, true) or meets_pick(1044, 1044, false) or meets_pick(1044, 1044, true);
+    assert met == true;
+    assert pick_admits(3, 4, 0, met) == false;
+    // the same regions under another file owner do not meet: different files never collide
+    assert meets_pick(2048, 1044, true) == false;
+    assert meets_pick(1044, 2048, true) == false;
+    assert meets_pick(1044, 1044, true) == true;
+    // a candidate the file owner queues or refuses against running edits takes no slot
+    assert pick_admits(0, 4, 1, false) == false;
+    assert pick_admits(0, 4, 2, false) == false;
+}
+
+test a_batch_written_with_a_stale_fence_does_not_land {
+    // FR-003. The round took the lease at fence 7; a newer leader moved it to 8.
+    assert batch_lands(7, 7, 4, 4) == 4;
+    assert batch_lands(8, 7, 4, 4) == 0;
+    assert batch_lands(7, 8, 4, 4) == 0;
+    assert batch_lands(8, 7, 1, 4) == 0;
+}
+
+test one_call_per_wake_is_linear_in_candidates_and_tasks {
+    // The measured pulse: 150 tasks held, 145 candidates, 53 picks.
+    // 150 index steps + sum over the 53 picks of (1 + picks before it) = 150 + 53 + 1378.
+    assert reference_wake_steps(145, 150, 53, 0) == 1581;
+    assert wake_work_bound(145, 150, 53) == 7835;
+    assert reference_wake_steps(145, 150, 53, 0) <= wake_work_bound(145, 150, 53);
+    // the serial chooser for the same 53 picks walks candidates x tasks per pick
+    assert serial_wake_steps(53, 145, 150) == 1152750;
+    assert serial_wake_steps(53, 145, 150) > wake_work_bound(145, 150, 53);
+    // every second candidate meets a pick: 3 index steps, then 1 + 1 + 2 + 2 until two picks
+    assert reference_wake_steps(10, 3, 2, 2) == 9;
+    // every candidate meets: one step each, no pick, and the bound is reached exactly
+    assert reference_wake_steps(5, 4, 1, 1) == 9;
+    assert wake_work_bound(5, 4, 1) == 9;
+    // the first candidate fills a quota of one, so the scan stops there
+    assert reference_wake_steps(5, 4, 1, 0) == 5;
+    // a full board does no candidate work at all
+    assert reference_wake_steps(145, 150, 0, 0) == 150;
+    assert wake_work_bound(145, 150, 0) == 150;
+    assert reference_wake_steps(0, 0, 4, 0) == 0;
 }

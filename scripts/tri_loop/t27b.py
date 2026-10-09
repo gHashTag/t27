@@ -790,6 +790,9 @@ def lab_card(lab):
         lines.append(f"           of those {h['checked']} ran a test or invariant, {h['compile_only']} compile-only")
     lines.append(f"           not counted: {h['outside']} t27b pass(es) where the reference fails, "
                  f"{len(h['frontend'])} frontend reject(s) where it passes")
+    c = ((lab.get("steps") or {}).get("reference") or {}).get("cache") or {}
+    if "hits" in c:  # #8095: lab.py's reference cache, hits of all the specs it referenced
+        lines.append(f"           reference reused {c['hits']} of {c['hits'] + c.get('misses', 0) + c.get('not_cached', 0)} from the cache")
     for b in (lab.get("top_blockers") or [])[:5]:
         lines.append(f"           blocker {b.get('construct'):<34} first {b.get('first'):>4}  all {b.get('all')}")
     return lines

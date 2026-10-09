@@ -10,6 +10,11 @@ on:
       - 'bootstrap/**'
       - 'bindings/wasm-explorer/**'
 
+# A newer push or PR edit makes this run's verdict stale: cancel it (queue jam 2026-10-09).
+concurrency:
+  group: wasm-explorer-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

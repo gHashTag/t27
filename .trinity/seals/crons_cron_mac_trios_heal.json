@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:2732096133bd73d2b3f674175fec419c9b80675d64442d85b4806414ef229843",
+  "gen_hash_rust": "sha256:0f1785154860acb773b240c5ea114f07a100b42e48cef5dc66e5cc18e2bca320",
+  "gen_hash_verilog": "sha256:14e0d12cad487bcd28972a04517d70677f0b002b8c628998e79bb70321ba2165",
+  "gen_hash_zig": "sha256:a0c880a7246d7baeedd7c4d11e9f3d55a28be79cdc9b5e764f40f3101c28e4f7",
+  "module": "cron_mac_trios_heal",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:6e2848e0b871d3538000fe08bcdf9b591f43e37f9c60d567600635f013973cb2",
+  "spec_path": "specs/crons/mac-trios-heal.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

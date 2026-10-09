@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin or a `std.math` fn,
-; written in t27 (issues #7391, #7217, #7791, #7819, #7822 and #7923, t27b coverage epic #6063: ExprCall(@exp),
-; ExprCall(@log), std.math.nan, isNan, isPositiveInf, isNegativeInf, @floor, @ceil, @round, @trunc, @rem, @log,
-; @log2 and @log10 of an f32, and std.math.inf, std.math.log1p and @round of an f64).
+; written in t27 (issues #7391, #7217, #7791, #7819, #7822, #7923 and #7823, t27b coverage epic #6063:
+; ExprCall(@exp), ExprCall(@log), std.math.nan, isNan, isPositiveInf, isNegativeInf, @floor, @ceil, @round, @trunc,
+; @rem, @log, @log2, @log10 and std.math.pow of an f32, and std.math.inf, std.math.log1p and @round of an f64).
 ; `t27c test-report` runs `zig test` without libc, so a run-time `@exp(x)` is a call into Zig's
 ; compiler_rt: `exp` for an f64 and `expf` for an f32, both ports of the FreeBSD/musl fdlibm code.
 ; A run-time `@log(x)` of an f64 is compiler_rt's `log`, a port of musl's table-driven log.c.
@@ -864,6 +864,246 @@ fn t27b_libm_log10f(t27b_x0: f32) -> f32 {
     const t27b_lo: f32 = t27b_f - t27b_hi - t27b_hfsq + t27b_s * (t27b_hfsq + t27b_r);
     const t27b_dk: f32 = @floatFromInt(t27b_k);
     return t27b_dk * 0.00000079034151667656260542571544647216796875 + (t27b_lo + t27b_hi) * -0.00003168997136526741087436676025390625 + t27b_lo * 0.434326171875 + t27b_hi * 0.434326171875 + t27b_dk * 0.301029205322265625;
+}
+
+// `std.math.pow(f32, x, y)` (#7823, for specs/numeric/gf16.t27) is not compiler_rt: it is Zig 0.16's std/math/pow.zig,
+// a port of Go's math.Pow, with what it calls. Ported here step for step: `math.frexp` and `math.ldexp` (`scalbn`) of
+// an f32 on the bits, `isOddInteger` of an f64 (its `math.modf` is an f64 `@trunc`, ported below from compiler_rt
+// `trunc`), `math.copysign`, and the ports above for `@exp` and `@log` of an f32 (`expf`, `logf`), `@trunc` of an f32
+// (`truncf`) and `math.nan`. `@sqrt` stays the IEEE square root t27b already has. Zig's `@clz` and `@ctz` are read
+// here through a loop and a mask; `frexp` returns a struct, here two fns of one decomposition.
+const t27b_libm_ones64: u64 = 0xFFFFFFFFFFFFFFFF;
+
+// compiler_rt `trunc` (f64), as `truncf` above: `@trunc` of an f64 is `roundsd` on the t27c lab, so a NaN is quieted.
+fn t27b_libm_trunc(t27b_x: f64) -> f64 {
+    if (t27b_x != t27b_x) {
+        return t27b_x + t27b_x;
+    }
+    const t27b_u: u64 = @bitCast(t27b_x);
+    const t27b_be: i32 = @intCast((t27b_u >> 52) & 0x7FF);
+    var t27b_e: i32 = t27b_be - 1023 + 12;
+    if (t27b_e >= 64) {
+        return t27b_x;
+    }
+    if (t27b_e < 12) {
+        t27b_e = 1;
+    }
+    const t27b_m: u64 = t27b_libm_ones64 >> t27b_e;
+    if ((t27b_u & t27b_m) == 0) {
+        return t27b_x;
+    }
+    return @bitCast(t27b_u & (t27b_libm_ones64 ^ t27b_m));
+}
+
+// pow.zig `isOddInteger`: |x| >= 2^53 is even; else `math.modf(x)` has no fraction and an odd integer part.
+fn t27b_libm_is_odd_integer(t27b_x: f64) -> bool {
+    if (@abs(t27b_x) >= 9007199254740992.0) {
+        return false;
+    }
+    const t27b_ip: f64 = t27b_libm_trunc(t27b_x);
+    const t27b_fp: f64 = t27b_x - t27b_ip;
+    const t27b_i: i64 = @intFromFloat(t27b_ip);
+    return t27b_fp == 0.0 and (t27b_i & 1) == 1;
+}
+
+// `@clz` of a u32, and of a u23 (frexp's subnormal fraction).
+fn t27b_libm_clz32(t27b_v: u32) -> u32 {
+    var t27b_n: u32 = 0;
+    var t27b_b: u32 = 0x80000000;
+    while (t27b_b != 0 and (t27b_v & t27b_b) == 0) {
+        t27b_n = t27b_n + 1;
+        t27b_b = t27b_b >> 1;
+    }
+    return t27b_n;
+}
+
+// `math.frexp` of an f32 (frexp.zig): x = significand * 2^exponent with |significand| in [0.5, 1); +-0 and +-inf
+// have exponent 0 and themselves as significand. These two fns are its two fields; pow never asks it of a NaN.
+fn t27b_libm_frexpf_exp(t27b_x: f32) -> i32 {
+    const t27b_v: u32 = @bitCast(t27b_x);
+    const t27b_m: u32 = t27b_v & 0x007FFFFF;
+    const t27b_e: i32 = @intCast((t27b_v >> 23) & 0xFF);
+    if (t27b_e == 0) {
+        if (t27b_m != 0) {
+            const t27b_offset: i32 = @intCast(t27b_libm_clz32(t27b_m) - 9);
+            return -126 - t27b_offset;
+        }
+        return 0;
+    }
+    if (t27b_e == 255) {
+        return 0;
+    }
+    return t27b_e - 126;
+}
+
+fn t27b_libm_frexpf_sig(t27b_x: f32) -> f32 {
+    const t27b_v: u32 = @bitCast(t27b_x);
+    const t27b_m: u32 = t27b_v & 0x007FFFFF;
+    const t27b_e: u32 = (t27b_v >> 23) & 0xFF;
+    if (t27b_e == 0) {
+        if (t27b_m != 0) {
+            const t27b_shift: u32 = t27b_libm_clz32(t27b_m) - 8;
+            return @bitCast((t27b_v & 0x80000000) | 0x3F000000 | ((t27b_m << t27b_shift) & 0x007FFFFF));
+        }
+        return t27b_x;
+    }
+    if (t27b_e == 255) {
+        return t27b_x;
+    }
+    return @bitCast((t27b_v & 0x807FFFFF) | 0x3F000000);
+}
+
+// `math.ldexp` of an f32 (ldexp.zig), which `math.scalbn` is: x * 2^n, with a subnormal result rounded to nearest,
+// ties to even, on the bits. `repr << 1` and the shifts of a subnormal read the same bits through a mask here.
+fn t27b_libm_ldexpf(t27b_x: f32, t27b_n: i32) -> f32 {
+    const t27b_repr: u32 = @bitCast(t27b_x);
+    const t27b_sign: u32 = t27b_repr & 0x80000000;
+    if (t27b_x != t27b_x or (t27b_repr & 0x7F800000) == 0x7F800000) {
+        return t27b_x;
+    }
+    var t27b_exponent: i32 = @intCast((t27b_repr & 0x7FFFFFFF) >> 23);
+    if (t27b_exponent == 0) {
+        const t27b_lz: i32 = @intCast(t27b_libm_clz32((t27b_repr & 0x7FFFFFFF) << 1));
+        t27b_exponent = t27b_exponent + 8 - t27b_lz;
+    }
+    if (t27b_n >= 0) {
+        if (t27b_n > 254 - t27b_exponent) {
+            return @bitCast(t27b_libm_inf32 | t27b_sign);
+        }
+        if (t27b_exponent + t27b_n <= 0) {
+            return @bitCast(((t27b_repr & 0x7FFFFFFF) << t27b_n) | t27b_sign);
+        }
+        if (t27b_exponent <= 0) {
+            const t27b_ne: u32 = @intCast(t27b_n + t27b_exponent);
+            const t27b_frac: u32 = ((t27b_repr & 0x7FFFFFFF) << (1 - t27b_exponent)) & 0x007FFFFF;
+            return @bitCast((t27b_ne << 23) | t27b_frac | t27b_sign);
+        }
+        const t27b_nu: u32 = @intCast(t27b_n);
+        return @bitCast(t27b_repr + (t27b_nu << 23));
+    }
+    if (t27b_n <= 0 - t27b_exponent) {
+        if (t27b_n < 0 - (23 + t27b_exponent)) {
+            return @bitCast(t27b_sign);
+        }
+        var t27b_s: i32 = 0 - t27b_n;
+        if (1 - (t27b_exponent + t27b_n) < t27b_s) {
+            t27b_s = 1 - (t27b_exponent + t27b_n);
+        }
+        const t27b_shift: u32 = @intCast(t27b_s);
+        const t27b_low: u32 = t27b_libm_ones32 >> (32 - t27b_shift);
+        const t27b_half: u32 = t27b_low ^ (t27b_low >> 1);
+        var t27b_result: u32 = t27b_repr & 0x007FFFFF;
+        if (t27b_exponent > 0) {
+            t27b_result = t27b_result | 0x00800000;
+        }
+        t27b_result = t27b_result >> (t27b_shift - 1);
+        t27b_result = (t27b_result + 1) >> 1;
+        if ((t27b_repr & t27b_low) == t27b_half) {
+            t27b_result = t27b_result & 0xFFFFFFFE;
+        }
+        return @bitCast(t27b_result | t27b_sign);
+    }
+    const t27b_nn: u32 = @intCast(0 - t27b_n);
+    return @bitCast(t27b_repr - (t27b_nn << 23));
+}
+
+// `std.math.pow(f32, x, y)` (pow.zig).
+fn t27b_libm_powf(t27b_x: f32, t27b_y: f32) -> f32 {
+    if (t27b_y == 0.0 or t27b_x == 1.0) {
+        return 1.0;
+    }
+    if (t27b_x != t27b_x or t27b_y != t27b_y) {
+        return t27b_libm_nanf();
+    }
+    if (t27b_y == 1.0) {
+        return t27b_x;
+    }
+    const t27b_inf: f32 = @bitCast(t27b_libm_inf32);
+    const t27b_yd: f64 = t27b_y;
+    if (t27b_x == 0.0) {
+        if (t27b_y < 0.0) {
+            if (t27b_libm_is_odd_integer(t27b_yd)) {
+                const t27b_xb: u32 = @bitCast(t27b_x);
+                return @bitCast(t27b_libm_inf32 | (t27b_xb & 0x80000000));
+            }
+            return t27b_inf;
+        }
+        if (t27b_libm_is_odd_integer(t27b_yd)) {
+            return t27b_x;
+        }
+        return 0.0;
+    }
+    const t27b_yb: u32 = @bitCast(t27b_y);
+    if ((t27b_yb & 0x7FFFFFFF) == t27b_libm_inf32) {
+        if (t27b_x == -1.0) {
+            return 1.0;
+        }
+        if ((@abs(t27b_x) < 1.0) == t27b_libm_isposinff(t27b_y)) {
+            return 0.0;
+        }
+        return t27b_inf;
+    }
+    const t27b_xb2: u32 = @bitCast(t27b_x);
+    if ((t27b_xb2 & 0x7FFFFFFF) == t27b_libm_inf32) {
+        if (t27b_libm_isneginff(t27b_x)) {
+            return t27b_libm_powf(1.0 / t27b_x, -t27b_y);
+        }
+        if (t27b_y < 0.0) {
+            return 0.0;
+        }
+        if (t27b_y > 0.0) {
+            return t27b_inf;
+        }
+    }
+    if (t27b_y == 0.5) {
+        return @sqrt(t27b_x);
+    }
+    if (t27b_y == -0.5) {
+        return 1.0 / @sqrt(t27b_x);
+    }
+    const t27b_ay: f32 = @abs(t27b_y);
+    var t27b_yi: f32 = t27b_libm_truncf(t27b_ay);
+    var t27b_yf: f32 = t27b_ay - t27b_yi;
+    if (t27b_yf != 0.0 and t27b_x < 0.0) {
+        return t27b_libm_nanf();
+    }
+    if (t27b_yi >= 2147483648.0) {
+        return t27b_libm_expf(t27b_y * t27b_libm_logf(@abs(t27b_x)));
+    }
+    var t27b_a1: f32 = 1.0;
+    var t27b_ae: i32 = 0;
+    if (t27b_yf != 0.0) {
+        if (t27b_yf > 0.5) {
+            t27b_yf = t27b_yf - 1.0;
+            t27b_yi = t27b_yi + 1.0;
+        }
+        t27b_a1 = t27b_libm_expf(t27b_yf * t27b_libm_logf(t27b_x));
+    }
+    var t27b_xe: i32 = t27b_libm_frexpf_exp(t27b_x);
+    var t27b_x1: f32 = t27b_libm_frexpf_sig(t27b_x);
+    var t27b_i: i32 = @intFromFloat(t27b_yi);
+    while (t27b_i != 0) {
+        if (t27b_xe < -512 or 512 < t27b_xe) {
+            t27b_ae = t27b_ae + t27b_xe;
+            break;
+        }
+        if ((t27b_i & 1) == 1) {
+            t27b_a1 = t27b_a1 * t27b_x1;
+            t27b_ae = t27b_ae + t27b_xe;
+        }
+        t27b_x1 = t27b_x1 * t27b_x1;
+        t27b_xe = t27b_xe * 2;
+        if (t27b_x1 < 0.5) {
+            t27b_x1 = t27b_x1 + t27b_x1;
+            t27b_xe = t27b_xe - 1;
+        }
+        t27b_i = t27b_i >> 1;
+    }
+    if (t27b_y < 0.0) {
+        t27b_a1 = 1.0 / t27b_a1;
+        t27b_ae = 0 - t27b_ae;
+    }
+    return t27b_libm_ldexpf(t27b_a1, t27b_ae);
 }
 
 // ---------------------------------------------------------------- tests

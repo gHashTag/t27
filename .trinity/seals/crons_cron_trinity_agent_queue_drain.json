@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:111035e5f01debccb4d0167944dc1e53f3f520b9fecb89bec9be76ae446c38f3",
+  "gen_hash_rust": "sha256:79fa41435a4e4c6399c0472bcf1e35ec8dfd70f1bb043d23e00f847c76906a22",
+  "gen_hash_verilog": "sha256:a82e9e3e674a3926d05ec957d07a47f604a90df85c8733e41c4554196a74286c",
+  "gen_hash_zig": "sha256:cc3fb21d122a3c78c444ce4e6eda961943e299195986d9d19f01ea2b5766d8ea",
+  "module": "cron_trinity_agent_queue_drain",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:4c841a7402de2ac9562f3824caeef2577d9bff260c1b1d32fe7915301b5f62e2",
+  "spec_path": "specs/crons/trinity-agent-queue-drain.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

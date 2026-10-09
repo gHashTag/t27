@@ -204,20 +204,10 @@ impl Ty {
     }
 
     /// `self` can hold every value of `from`: the lossless implicit widening
-    /// the subset allows (Zig's rule: same signedness and not narrower, or
+    /// the subset allows (`widens` of specs/tri/t27b/int_cast_plan.t27: same signedness and not narrower, or
     /// unsigned into a strictly wider signed type).
     pub fn can_widen_from(self, from: Ty) -> bool {
-        if self == from {
-            return true;
-        }
-        if !self.is_int() || !from.is_int() {
-            return false;
-        }
-        if self.signed() == from.signed() {
-            self.bits() >= from.bits()
-        } else {
-            self.signed() && self.bits() > from.bits()
-        }
+        self == from || self.is_int() && from.is_int() && crate::lower::ic::widens(from.bits(), from.signed(), self.bits(), self.signed())
     }
 }
 
