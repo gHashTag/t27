@@ -90,6 +90,170 @@ test may_store_never_rewrites_the_entry_it_loaded {
     assert may_store(BIT_REUSE, true, true) == false;
 }
 
+/// The cache directory for bitstreams: ~/.cache/t27/bitstreams/<key>/
+pub const CACHE_DIR : str = "~/.cache/t27/bitstreams";
+
+/// Read a file and return its content as bytes
+pub fn read_file(path: str) -> []u8 {
+    // In a real implementation, this would read the file from disk
+    // For now, return empty bytes - the actual implementation would need file I/O
+    []u8
+}
+
+/// Run a command and return its output
+pub fn run_command(cmd: str, args: []str) -> str {
+    // In a real implementation, this would run the command and capture output
+    // For now, return empty string - the actual implementation would need process execution
+    ""
+}
+
+/// Compute SHA256 hash of bytes and return as hex string
+pub fn hash_bytes(data: []u8) -> str {
+    // Use the existing SHA256 implementation from tri/crypto/sha256
+    let hash_bytes = tri::crypto::sha256::hash(data);
+    let hex_chars = []u8;
+    for i in 0..32 {
+        let high = (hash_bytes[i] as usize) / 16;
+        let low = (hash_bytes[i] as usize) % 16;
+        hex_chars.push(hex_char(high));
+        hex_chars.push(hex_char(low));
+    }
+    return string_from_bytes(hex_chars);
+}
+
+/// Convert a number to a hex character
+pub fn hex_char(n: usize) -> u8 {
+    if n >= 10 {
+        return ((n + 87) as u8); // 'a' - 'f'
+    }
+    return ((n + 48) as u8); // '0' - '9'
+}
+
+/// Convert bytes to string
+pub fn string_from_bytes(bytes: []u8) -> str {
+    // In a real implementation, this would convert bytes to string
+    // For now, return empty string - the actual implementation would need string conversion
+    ""
+}
+
+/// Create a cache directory if it doesn't exist
+pub fn ensure_cache_dir() -> bool {
+    // In a real implementation, this would create the directory
+    // For now, return true assuming directory exists
+    true
+}
+
+/// Check if a cache entry exists for the given key
+pub fn cache_entry_exists(key: str) -> bool {
+    // In a real implementation, this would check if the cache directory exists
+    // For now, return false - cache starts empty
+    false
+}
+
+/// Read the BSCAN chain from a cache entry
+pub fn read_bscan_chain(key: str) -> []u8 {
+    // In a real implementation, this would read the BSCAN chain from cache
+    // For now, return empty bytes
+    []u8
+}
+
+/// Check if a bitstream's hash matches the recorded hash
+pub fn check_bitstream_hash(key: str, expected_hash: str) -> bool {
+    // In a real implementation, this would compare the actual bitstream hash with expected
+    // For now, return false - no cached bitstreams initially
+    false
+}
+
+/// Generate the cache key from all input factors
+pub fn generate_cache_key(gen_verilog: str, top_files: []str, chipdb: str, nextpnr_binary: str, yosys_version: str, git_rev: str) -> str {
+    let inputs = []str;
+    inputs.push(gen_verilog);
+    for file in top_files {
+        inputs.push(file);
+    }
+    inputs.push(chipdb);
+    inputs.push(nextpnr_binary);
+    inputs.push(yosys_version);
+    inputs.push(git_rev);
+    inputs.push(BIT_RECIPE.to_str());
+    
+    // Concatenate all inputs and hash them
+    let mut all_data = []u8;
+    for input in inputs {
+        all_data = all_data + string_to_bytes(input);
+    }
+    return hash_bytes(all_data);
+}
+
+/// Convert string to bytes (placeholder implementation)
+pub fn string_to_bytes(s: str) -> []u8 {
+    // In a real implementation, this would convert string to bytes
+    // For now, return empty bytes
+    []u8
+}
+
+/// Check if a forced rebuild is requested
+pub fn is_forced_rebuild() -> bool {
+    // In a real implementation, this would check for T27_SILICON_REBUILD environment variable
+    // For now, return false
+    false
+}
+
+/// Main function to determine bitstream reuse decision
+pub fn decide_bitstream_reuse(gen_verilog: str, top_files: []str, chipdb: str, nextpnr_binary: str) -> u8 {
+    // Generate the cache key from all inputs
+    let yosys_version = run_command("yosys", ["-V"]);
+    let git_rev = run_command("git", ["rev-parse", "HEAD"]);
+    let key = generate_cache_key(gen_verilog, top_files, chipdb, nextpnr_binary, yosys_version, git_rev);
+    
+    // Check if cache entry exists
+    let entry_found = cache_entry_exists(key);
+    if entry_found == false {
+        return BIT_MISSING;
+    }
+    
+    // Check if BSCAN chain is recorded
+    let chain_recorded = read_bscan_chain(key).len() > 0;
+    if chain_recorded == false {
+        return BIT_INCOMPLETE;
+    }
+    
+    // Check if bitstream hash matches
+    let expected_hash = ""; // In real implementation, read from cache metadata
+    let bit_hash_equal = check_bitstream_hash(key, expected_hash);
+    if bit_hash_equal == false {
+        return BIT_CORRUPT;
+    }
+    
+    // Check for forced rebuild
+    if is_forced_rebuild() {
+        return BIT_FORCED;
+    }
+    
+    return BIT_REUSE;
+}
+
+/// Print the bitstream reuse stage message
+pub fn print_reuse_stage(decision: u8) {
+    if decision == BIT_REUSE {
+        // In t27, we might need to use a different output mechanism
+        // For now, we'll leave this as a placeholder that would be implemented
+        // in the actual t27c silicon command
+    } else {
+        // In t27, we might need to use a different output mechanism
+        // For now, we'll leave this as a placeholder that would be implemented
+        // in the actual t27c silicon command
+    }
+}
+
+/// Main entry point for bitstream reuse decision in t27c silicon
+pub fn bitstream_reuse_main(gen_verilog: str, top_files: []str, chipdb: str, nextpnr_binary: str) -> u8 {
+    ensure_cache_dir();
+    let decision = decide_bitstream_reuse(gen_verilog, top_files, chipdb, nextpnr_binary);
+    print_reuse_stage(decision);
+    return decision;
+}
+
 invariant the_bit_codes_never_move {
     assert BIT_REUSE == 0 and BIT_MISSING == 1 and BIT_INCOMPLETE == 2 and BIT_CORRUPT == 3 and BIT_FORCED == 4;
     assert BIT_RECIPE >= 1;
