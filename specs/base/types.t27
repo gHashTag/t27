@@ -154,7 +154,7 @@ pub fn packed_to_trit(packed: u8) Trit {
 }
 
 // pack_trit(trit: Trit, position: u8, packed: PackedTrit) → PackedTrit
-// Pack a single trit into PackedTrit at given position (0-7)
+// Pack a single trit into PackedTrit at given position (0-3)
 // Returns updated packed value or error sentinel (0xFF) for invalid position
 pub fn pack_trit(trit: Trit, position: u8, packed: PackedTrit) PackedTrit {
     if (position >= TRITS_PER_BYTE) {
@@ -175,7 +175,7 @@ pub fn pack_trit(trit: Trit, position: u8, packed: PackedTrit) PackedTrit {
 }
 
 // unpack_trit(position: u8, packed: PackedTrit) → UnpackResult
-// Extract a single trit from PackedTrit at given position (0-7)
+// Extract a single trit from PackedTrit at given position (0-3)
 pub fn unpack_trit(position: u8, packed: PackedTrit) UnpackResult {
     if (position >= TRITS_PER_BYTE) {
         return UnpackResult{ .value = .zero, .valid = false };
@@ -342,11 +342,13 @@ pub fn trit_select(condition: Trit, a: Trit, b: Trit) Trit {
 // Count occurrences of a specific trit value in PackedTrit
 pub fn packed_trit_count(packed: PackedTrit, value: Trit) u8 {
     var count: u8 = 0;
-    for (0..TRITS_PER_BYTE) |i| {
-        const unpacked = unpack_trit(@intCast(i), packed);
+    var i: u8 = 0;
+    while (i < TRITS_PER_BYTE) {
+        const unpacked = unpack_trit(i, packed);
         if (unpacked.valid and unpacked.value == value) {
             count += 1;
         }
+        i += 1;
     }
     return count;
 }
@@ -374,12 +376,14 @@ pub fn packed_trit_is_all_same(packed: PackedTrit) bool {
 // Element-wise NAND operation on two PackedTrit values
 pub fn packed_trit_nand(a: PackedTrit, b: PackedTrit) PackedTrit {
     var result: PackedTrit = 0;
-    for (0..TRITS_PER_BYTE) |i| {
-        const a_trit = unpack_trit(@intCast(i), a).value;
-        const b_trit = unpack_trit(@intCast(i), b).value;
+    var i: u8 = 0;
+    while (i < TRITS_PER_BYTE) {
+        const a_trit = unpack_trit(i, a).value;
+        const b_trit = unpack_trit(i, b).value;
         const and_result = trit_and(a_trit, b_trit);
         const nand_result = trit_not(and_result);
-        result = pack_trit(nand_result, @intCast(i), result);
+        result = pack_trit(nand_result, i, result);
+        i += 1;
     }
     return result;
 }
@@ -388,12 +392,14 @@ pub fn packed_trit_nand(a: PackedTrit, b: PackedTrit) PackedTrit {
 // Element-wise NOR operation on two PackedTrit values
 pub fn packed_trit_nor(a: PackedTrit, b: PackedTrit) PackedTrit {
     var result: PackedTrit = 0;
-    for (0..TRITS_PER_BYTE) |i| {
-        const a_trit = unpack_trit(@intCast(i), a).value;
-        const b_trit = unpack_trit(@intCast(i), b).value;
+    var i: u8 = 0;
+    while (i < TRITS_PER_BYTE) {
+        const a_trit = unpack_trit(i, a).value;
+        const b_trit = unpack_trit(i, b).value;
         const or_result = trit_or(a_trit, b_trit);
         const nor_result = trit_not(or_result);
-        result = pack_trit(nor_result, @intCast(i), result);
+        result = pack_trit(nor_result, i, result);
+        i += 1;
     }
     return result;
 }
@@ -403,12 +409,14 @@ pub fn packed_trit_nor(a: PackedTrit, b: PackedTrit) PackedTrit {
 // Returns pos when trits are equal, neg when different
 pub fn packed_trit_xnor(a: PackedTrit, b: PackedTrit) PackedTrit {
     var result: PackedTrit = 0;
-    for (0..TRITS_PER_BYTE) |i| {
-        const a_trit = unpack_trit(@intCast(i), a).value;
-        const b_trit = unpack_trit(@intCast(i), b).value;
+    var i: u8 = 0;
+    while (i < TRITS_PER_BYTE) {
+        const a_trit = unpack_trit(i, a).value;
+        const b_trit = unpack_trit(i, b).value;
         const xor_result = trit_xor(a_trit, b_trit);
         const xnor_result = trit_not(xor_result);
-        result = pack_trit(xnor_result, @intCast(i), result);
+        result = pack_trit(xnor_result, i, result);
+        i += 1;
     }
     return result;
 }
@@ -425,13 +433,15 @@ pub fn packed_trit_shift_left(packed: PackedTrit, shift: u8) PackedTrit {
     }
 
     var result: PackedTrit = 0;
-    for (0..TRITS_PER_BYTE) |i| {
+    var i: u8 = 0;
+    while (i < TRITS_PER_BYTE) {
         if (i >= shift) {
-            const src_pos: u8 = @intCast(i - shift);
+            const src_pos: u8 = i - shift;
             const src_trit = unpack_trit(src_pos, packed).value;
-            result = pack_trit(src_trit, @intCast(i), result);
+            result = pack_trit(src_trit, i, result);
         }
         // Else: leave as zero (default)
+        i += 1;
     }
     return result;
 }
@@ -448,13 +458,15 @@ pub fn packed_trit_shift_right(packed: PackedTrit, shift: u8) PackedTrit {
     }
 
     var result: PackedTrit = 0;
-    for (0..TRITS_PER_BYTE) |i| {
-        const dst_pos: u8 = @intCast(i + shift);
+    var i: u8 = 0;
+    while (i < TRITS_PER_BYTE) {
+        const dst_pos: u8 = i + shift;
         if (dst_pos < TRITS_PER_BYTE) {
-            const src_trit = unpack_trit(@intCast(i), packed).value;
+            const src_trit = unpack_trit(i, packed).value;
             result = pack_trit(src_trit, dst_pos, result);
         }
         // Else: source trit shifts out
+        i += 1;
     }
     return result;
 }
@@ -469,11 +481,13 @@ pub fn packed_trit_rotate_left(packed: PackedTrit, rotate: u8) PackedTrit {
 
     const shift = rotate % TRITS_PER_BYTE;
     var result: PackedTrit = 0;
+    var i: u8 = 0;
 
-    for (0..TRITS_PER_BYTE) |i| {
-        const src_pos: u8 = @intCast((i + TRITS_PER_BYTE - shift) % TRITS_PER_BYTE);
+    while (i < TRITS_PER_BYTE) {
+        const src_pos: u8 = (i + TRITS_PER_BYTE - shift) % TRITS_PER_BYTE;
         const src_trit = unpack_trit(src_pos, packed).value;
-        result = pack_trit(src_trit, @intCast(i), result);
+        result = pack_trit(src_trit, i, result);
+        i += 1;
     }
 
     return result;
@@ -489,11 +503,13 @@ pub fn packed_trit_rotate_right(packed: PackedTrit, rotate: u8) PackedTrit {
 
     const shift = rotate % TRITS_PER_BYTE;
     var result: PackedTrit = 0;
+    var i: u8 = 0;
 
-    for (0..TRITS_PER_BYTE) |i| {
-        const src_pos: u8 = @intCast((i + shift) % TRITS_PER_BYTE);
+    while (i < TRITS_PER_BYTE) {
+        const src_pos: u8 = (i + shift) % TRITS_PER_BYTE;
         const src_trit = unpack_trit(src_pos, packed).value;
-        result = pack_trit(src_trit, @intCast(i), result);
+        result = pack_trit(src_trit, i, result);
+        i += 1;
     }
 
     return result;
@@ -502,13 +518,15 @@ pub fn packed_trit_rotate_right(packed: PackedTrit, rotate: u8) PackedTrit {
 // ternary_word_is_zero(word: TernaryWord) → bool
 // Check if all 27 trits in TernaryWord are zero
 pub fn ternary_word_is_zero(word: TernaryWord) bool {
-    for (0..TRITS_PER_WORD) |i| {
+    var i: u8 = 0;
+    while (i < TRITS_PER_WORD) {
         const byte_idx = i / TRITS_PER_BYTE;
-        const trit_pos: u8 = @intCast(i % TRITS_PER_BYTE);
+        const trit_pos: u8 = i % TRITS_PER_BYTE;
         const unpacked = unpack_trit(trit_pos, word[byte_idx]);
         if (unpacked.valid and unpacked.value != .zero) {
             return false;
         }
+        i += 1;
     }
     return true;
 }
@@ -543,12 +561,14 @@ pub fn ternary_word_eq(a: TernaryWord, b: TernaryWord) bool {
 // Negate all trits in TernaryWord
 pub fn ternary_word_negate(word: TernaryWord) TernaryWord {
     var result: TernaryWord = undefined;
-    for (0..TRITS_PER_WORD) |i| {
+    var i: u8 = 0;
+    while (i < TRITS_PER_WORD) {
         const byte_idx = i / TRITS_PER_BYTE;
-        const trit_pos: u8 = @intCast(i % TRITS_PER_BYTE);
+        const trit_pos: u8 = i % TRITS_PER_BYTE;
         const unpacked = unpack_trit(trit_pos, word[byte_idx]);
         const negated = trit_negate(unpacked.value);
         result[byte_idx] = pack_trit(negated, trit_pos, result[byte_idx]);
+        i += 1;
     }
     return result;
 }
@@ -600,7 +620,7 @@ test "test_pack_unpack_roundtrip" {
 }
 
 test "test_pack_trit_all_positions" {
-    // Verify: pack_trit works for all valid positions (0-7)
+    // Verify: pack_trit works for all valid positions (0-3)
     for (0..8) |pos| {
         const packed = pack_trit(.pos, pos, 0);
         const unpacked = unpack_trit(pos, packed);
@@ -610,8 +630,8 @@ test "test_pack_trit_all_positions" {
 }
 
 test "test_pack_trit_invalid_position_rejected" {
-    // Verify: pack_trit rejects position >= 8
-    const result = pack_trit(.pos, 8, 0);
+    // Verify: pack_trit rejects position >= 4
+    const result = pack_trit(.pos, 4, 0);
     try std.testing.expectEqual(@as(PackedTrit, 0xFF), result);
 }
 
@@ -961,12 +981,12 @@ test "test_packed_trit_shift_left_basic" {
     try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // Filled with zero
 }
 
-test "test_packed_trit_shift_left_by_eight_returns_zero" {
-    // Verify: shift by 8 returns all zeros
+test "test_packed_trit_shift_left_by_four_returns_zero" {
+    // Verify: shift by 4 returns all zeros
     var packed: PackedTrit = 0;
     packed = pack_trit(.pos, 0, packed);
     packed = pack_trit(.neg, 1, packed);
-    const result = packed_trit_shift_left(packed, 8);
+    const result = packed_trit_shift_left(packed, 4);
     try std.testing.expectEqual(@as(PackedTrit, 0), result);
 }
 
@@ -982,18 +1002,18 @@ test "test_packed_trit_shift_right_basic" {
     try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(2, result).value);
 }
 
-test "test_packed_trit_shift_right_by_eight_returns_zero" {
-    // Verify: shift by 8 returns all zeros
+test "test_packed_trit_shift_right_by_four_returns_zero" {
+    // Verify: shift by 4 returns all zeros
     var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 7, packed);
-    const result = packed_trit_shift_right(packed, 8);
+    packed = pack_trit(.pos, 3, packed);
+    const result = packed_trit_shift_right(packed, 4);
     try std.testing.expectEqual(@as(PackedTrit, 0), result);
 }
 
 test "test_packed_trit_rotate_left_basic" {
     // Verify: rotate left by 1 is circular
     var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 7, packed);  // Last position
+    packed = pack_trit(.pos, 3, packed);  // Last position
     packed = pack_trit(.neg, 0, packed);  // First position
     const result = packed_trit_rotate_left(packed, 1);
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);  // Wrapped to front
@@ -1003,19 +1023,19 @@ test "test_packed_trit_rotate_left_basic" {
 test "test_packed_trit_rotate_left_by_three" {
     // Verify: rotate left by 3 positions
     var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 5, packed);
+    packed = pack_trit(.pos, 1, packed);
     const result = packed_trit_rotate_left(packed, 3);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);  // 5+3=8, wraps to 2
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);  // (1 - 3) mod 4 = 2
 }
 
 test "test_packed_trit_rotate_right_basic" {
     // Verify: rotate right by 1 is circular
     var packed: PackedTrit = 0;
     packed = pack_trit(.pos, 0, packed);  // First position
-    packed = pack_trit(.neg, 7, packed);  // Last position
+    packed = pack_trit(.neg, 3, packed);  // Last position
     const result = packed_trit_rotate_right(packed, 1);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(7, result).value);  // Wrapped to back
-    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // Last position wrapped here
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(3, result).value);  // Wrapped to back
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // First position wrapped here
 }
 
 test "test_packed_trit_rotate_right_by_four" {
@@ -1023,7 +1043,7 @@ test "test_packed_trit_rotate_right_by_four" {
     var packed: PackedTrit = 0;
     packed = pack_trit(.pos, 2, packed);
     const result = packed_trit_rotate_right(packed, 4);
-    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(6, result).value);  // (2+4) % 8 = 6
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);  // (2+4) % 4 = 2 (full rotation)
 }
 
 test "test_packed_trit_shift_rotate_are_different" {
@@ -1062,10 +1082,12 @@ test "test_ternary_word_count_zeros" {
 test "test_ternary_word_count_all_same" {
     // Verify: count returns TRITS_PER_WORD for all same value
     var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
-    for (0..TRITS_PER_WORD) |i| {
+    var i: u8 = 0;
+    while (i < TRITS_PER_WORD) {
         const byte_idx = i / TRITS_PER_BYTE;
-        const trit_pos: u8 = @intCast(i % TRITS_PER_BYTE);
+        const trit_pos: u8 = i % TRITS_PER_BYTE;
         word[byte_idx] = pack_trit(.neg, trit_pos, word[byte_idx]);
+        i += 1;
     }
     try std.testing.expectEqual(TRITS_PER_WORD, ternary_word_count(word, .neg));
 }
@@ -1111,10 +1133,12 @@ test "test_ternary_word_negate_double_identity" {
 test "test_ternary_word_is_all_same_true" {
     // Verify: all same value ternary word is detected
     var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
-    for (0..TRITS_PER_WORD) |i| {
+    var i: u8 = 0;
+    while (i < TRITS_PER_WORD) {
         const byte_idx = i / TRITS_PER_BYTE;
-        const trit_pos: u8 = @intCast(i % TRITS_PER_BYTE);
+        const trit_pos: u8 = i % TRITS_PER_BYTE;
         word[byte_idx] = pack_trit(.pos, trit_pos, word[byte_idx]);
+        i += 1;
     }
     try std.testing.expect(ternary_word_is_all_same(word));
 }
@@ -1156,8 +1180,8 @@ invariant trit_mul_result_in_range {
 }
 
 invariant pack_position_bounds {
-    // pack_trit position must be in [0, 7]
-    @compileAssert(TRITS_PER_BYTE == 8);
+    // pack_trit position must be in [0, TRITS_PER_BYTE-1]
+    @compileAssert(TRITS_PER_BYTE == 4);
 }
 
 invariant ternary_word_max_trits {
@@ -1252,12 +1276,12 @@ invariant trit_select_condition_false {
 }
 
 invariant packed_trit_count_range {
-    // packed_trit_count result is in [0, 8]
+    // packed_trit_count result is in [0, TRITS_PER_BYTE]
     @compileAssert(true);
 }
 
 invariant packed_trit_count_sum_equals_trits_per_byte {
-    // For all packed: count(neg) + count(zero) + count(pos) = 8
+    // For all packed: count(neg) + count(zero) + count(pos) = TRITS_PER_BYTE
     @compileAssert(true);
 }
 
@@ -1286,13 +1310,13 @@ invariant packed_trit_xnor_equal_returns_pos {
     @compileAssert(true);
 }
 
-invariant packed_trit_shift_left_by_eight_returns_zero {
-    // packed_trit_shift_left(x, 8) = 0 for all x
+invariant packed_trit_shift_left_by_trits_per_byte_returns_zero {
+    // packed_trit_shift_left(x, TRITS_PER_BYTE) = 0 for all x
     @compileAssert(true);
 }
 
-invariant packed_trit_shift_right_by_eight_returns_zero {
-    // packed_trit_shift_right(x, 8) = 0 for all x
+invariant packed_trit_shift_right_by_trits_per_byte_returns_zero {
+    // packed_trit_shift_right(x, TRITS_PER_BYTE) = 0 for all x
     @compileAssert(true);
 }
 
@@ -1499,7 +1523,7 @@ bench "bench_trit_from_i8_latency" {
 
 bench "bench_packed_trit_count_latency" {
     // Measure: cycles for packed_trit_count operation
-    // Target: < 50 cycles on t27-hardware (unpacks 8 trits)
+    // Target: < 50 cycles on t27-hardware (unpacks 4 trits)
     @setEvalBranchQuota(10000);
     var result: u8 = 0;
     const packed: PackedTrit = 0xAA;
@@ -1535,7 +1559,7 @@ bench "bench_packed_trit_is_zero_latency" {
 
 bench "bench_packed_trit_nand_latency" {
     // Measure: cycles for packed_trit_nand operation
-    // Target: < 100 cycles on t27-hardware (8 trit operations)
+    // Target: < 100 cycles on t27-hardware (4 trit operations)
     @setEvalBranchQuota(10000);
     var result: PackedTrit = 0;
     const a: PackedTrit = 0xFF;
@@ -1548,7 +1572,7 @@ bench "bench_packed_trit_nand_latency" {
 
 bench "bench_packed_trit_nor_latency" {
     // Measure: cycles for packed_trit_nor operation
-    // Target: < 100 cycles on t27-hardware (8 trit operations)
+    // Target: < 100 cycles on t27-hardware (4 trit operations)
     @setEvalBranchQuota(10000);
     var result: PackedTrit = 0;
     const a: PackedTrit = 0x00;
@@ -1561,7 +1585,7 @@ bench "bench_packed_trit_nor_latency" {
 
 bench "bench_packed_trit_xnor_latency" {
     // Measure: cycles for packed_trit_xnor operation
-    // Target: < 100 cycles on t27-hardware (8 trit operations)
+    // Target: < 100 cycles on t27-hardware (4 trit operations)
     @setEvalBranchQuota(10000);
     var result: PackedTrit = 0;
     const a: PackedTrit = 0xAA;
