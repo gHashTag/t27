@@ -1,0 +1,14 @@
+// A struct passed where another struct is declared (#8075).
+module struct_for_another;
+struct SfaA {
+    v: u8,
+}
+struct SfaB {
+    v: u8,
+}
+fn sfa_take(b: SfaB) -> u8 {
+    return b.v;
+}
+fn sfa_g(a: SfaA) -> u8 {
+    return sfa_take(a);
+}

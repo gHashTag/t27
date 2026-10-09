@@ -1,0 +1,6 @@
+// An array literal's item is never checked against the element type (#8075).
+module item_cross_sign;
+fn ic_g(a: i8) -> u8 {
+    var t: [2]u8 = [_]u8{ a, 0 };
+    return t[1];
+}
