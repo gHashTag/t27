@@ -1,0 +1,6 @@
+// A constant index past the array's length (#8098).
+module index_past_array;
+var ipa_xs: [4]u8 = [_]u8{ 1, 2, 3, 4 };
+fn ipa_g() -> u8 {
+    return ipa_xs[4];
+}

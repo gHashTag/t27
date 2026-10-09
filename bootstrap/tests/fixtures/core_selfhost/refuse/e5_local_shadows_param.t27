@@ -1,0 +1,6 @@
+// A local shadowing a parameter (#8087).
+module local_shadows_param;
+fn lsp_g(a: i64) -> i64 {
+    var a: i64 = 2;
+    return a;
+}

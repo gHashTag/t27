@@ -101,6 +101,14 @@ mod run_record;
 #[path = "../gen/rust/verified/independence.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod independence;
+// specs/verified/seal_identity.t27 (#8095): seal v2 identity, SEAL_CONFIG, the per-node reuse decision.
+#[path = "../gen/rust/verified/seal_identity.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod seal_identity;
+// specs/verified/silicon_queue.t27 (#8095 step 5): the bench queue and the reseal guard.
+#[path = "../gen/rust/verified/silicon_queue.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod silicon_queue;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -340,6 +348,11 @@ enum Commands {
     /// (.trinity/receipts) and judge, by specs/verified/run_record.t27, whether
     /// they are ONE verified run a verdict record may cite as its run
     /// reference. Collects the facts, never repairs the record.
+    /// #8095: every spec, REUSE or the reason to rebuild (specs/verified/seal_identity.t27).
+    Frontier { /// Also print each spec that must be rebuilt, with its reason code.
+        #[arg(long)] list: bool },
+    /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
+    SiliconQueue,
     RunRecord {
         /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
         input: String,
@@ -5772,6 +5785,31 @@ fn producer_identity() -> String {
     )
 }
 
+/// Seal v2 toolchain (seal_identity.t27): the tools that turn generated code into a verdict -- test runner, zig.
+fn seal_toolchain() -> serde_json::Value {
+    let runner = fs::read("bootstrap/src/test_report.rs").map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into());
+    let zig = std::process::Command::new("zig").arg("version").output().ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|z| !z.is_empty()).unwrap_or_else(|| "missing".into());
+    serde_json::json!({ "test_runner": runner, "zig": zig })
+}
+
+/// Seal v2 closure (seal_identity.t27): every `use` import and its spec hash, sorted; unreadable is "missing".
+fn seal_closure(spec_path: &str) -> serde_json::Value {
+    let src = fs::read_to_string(spec_path).unwrap_or_default();
+    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use "))
+        .map(|u| format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")))
+        .map(|p| { let h = fs::read(&p).map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into()); (p, h) })
+        .collect();
+    v.sort();
+    serde_json::json!(v.into_iter().map(|(p, h)| serde_json::json!({ "spec": p, "spec_hash": h })).collect::<Vec<_>>())
+}
+
+/// The silicon receipts (.trinity/receipts/*.json, the current run) that name this spec.
+fn spec_receipts(spec_path: &str) -> usize {
+    fs::read_dir(".trinity/receipts").into_iter().flatten().flatten().map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |x| x == "json") && fs::read_to_string(p).map_or(false, |s| s.contains(&format!("\"{spec_path}\"")))).count()
+}
+
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
     let hashes = compute_seal_hashes(input_path)?;
 
@@ -5875,6 +5913,12 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
         // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
         // holding. Same machinery as `t27c test-report`, so the two cannot
         // disagree about what failed.
+        // #8095 step 5 (silicon_queue.t27 reseal_allowed): a new producer orphans the spec's silicon run.
+        let old_by = fs::read_to_string(seal_file_path(&hashes.module, &hashes.spec_path)).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()).and_then(|v| v.get("built_by")?.as_str().map(String::from));
+        if !silicon_queue::reseal_allowed(spec_receipts(&hashes.spec_path) > 0, old_by.as_deref() == Some(producer_identity().as_str()), force) {
+            eprintln!("refusing to seal {}: its silicon receipts name {}; a new producer orphans that run (run-record: RUN_PRODUCER_MISMATCH). --force to do it on purpose.", hashes.spec_path, old_by.unwrap_or_default());
+            std::process::exit(1);
+        }
         let report = test_report::run(Path::new(input_path), Path::new("specs"));
         let verdict = test_report::seal_verdict(&report, force);
         match &verdict {
@@ -5959,6 +6003,11 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // Seals minted before this field read as unknown producer to any
             // reader, never as a match.
             "built_by": producer_identity(),
+            // Seal v2 (specs/verified/seal_identity.t27, #8095): the parts reuse.t27 judges.
+            "seal_schema": 2,
+            "toolchain": seal_toolchain(),
+            "config": seal_identity::SEAL_CONFIG,
+            "closure": seal_closure(&hashes.spec_path),
             "ring": 12,
             // What the spec's own tests said when this seal was minted (#5577).
             "tests": tests_record
@@ -11915,6 +11964,8 @@ async fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
+        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -12347,6 +12398,8 @@ fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
+        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }

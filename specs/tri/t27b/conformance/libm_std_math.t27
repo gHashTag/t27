@@ -1,0 +1,167 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/libm_std_math.t27 -- `std.math.inf`, `std.math.log(T, std.math.e, x)`,
+; `std.math.log1p` and `@round` of an f64, as the reference runs them (issue #7923, t27b coverage epic #6063:
+; ExprCall(std.*) in specs/port/trinity/src/brain/weber_tuning.t27 and specs/numeric/formats.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints the calls as written. Zig 0.16's `std.math.log` with base `std.math.e` is `@log(x)`, compiler_rt
+; `log`; `std.math.log1p` of an f64 is std/math/log1p.zig's `log1p_64`; `@round` of an f64 is compiler_rt `round`;
+; `std.math.inf(T)` is +inf by its bits. The expected values were printed by Zig 0.16 on the t27c lab; log(3.0)
+; and log1p(2.0) differ in the last bit, so a lowering that swapped the two routines fails here.
+; What t27b decides is specs/tri/t27b/libm_plan.t27; the routines are specs/tri/t27b/libm.t27.
+; The sweeps hold libm.t27's `round` and `log1p` (brought in by `use tri::t27b::libm;`) to Zig's `@round` and
+; `std.math.log1p` of a run-time f64, bit for bit, under the reference.
+; Not here: another base (`log2`, `log10`, a quotient), an f32 `log1p`, and a literal operand, which t27b refuses.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceLibmStdMath;
+
+use tri::t27b::libm;
+
+// weber_tuning's shapes.
+fn lsm_ln1p_by_log(x: f64) -> f64 {
+    return std.math.log(f64, std.math.e, x + 1.0);
+}
+
+fn lsm_ln1p(x: f64) -> f64 {
+    return std.math.log1p(x);
+}
+
+fn lsm_quantize(value: f64, levels: i64) -> i64 {
+    const abs_v = @abs(value);
+    const log_val = std.math.log(f64, std.math.e, abs_v + 1.0);
+    const quantized = @round(log_val * @as(f64, @floatFromInt(levels)) / 5.0);
+    return @as(i64, @intFromFloat(quantized));
+}
+
+// weber_tuning's adaptiveJND, through lsm_ln1p.
+fn lsm_adaptive(base_jnd: f64, magnitude: f64) -> f64 {
+    return base_jnd * (1.0 + lsm_ln1p(@abs(magnitude)));
+}
+
+fn lsm_round(x: f64) -> f64 {
+    return @round(x);
+}
+
+// formats' shapes.
+fn lsm_saturate(x: f32) -> f32 {
+    if (x > 65504.0) {
+        return std.math.inf(f32);
+    }
+    if (x < -65504.0) {
+        return -std.math.inf(f32);
+    }
+    return x;
+}
+
+fn lsm_inf64() -> f64 {
+    return std.math.inf(f64);
+}
+
+test lsm_log_with_base_e_is_log {
+    assert(lsm_ln1p_by_log(0.25) == 0.22314355131420976);
+    assert(lsm_ln1p_by_log(2.0) == 1.0986122886681098);
+    assert(lsm_ln1p_by_log(100.0) == 4.61512051684126);
+    assert(lsm_ln1p_by_log(0.001) == 0.0009995003330834232);
+}
+
+// An f32 `std.math.log` with base `std.math.e` is `@log` of the f32, compiler_rt `logf` (#7822's port).
+fn lsm_log_e_f32(x: f32) -> f32 {
+    return std.math.log(f32, std.math.e, x);
+}
+
+test lsm_log_with_base_e_of_an_f32_is_logf {
+    assert(lsm_log_e_f32(7.5) == @log(@as(f32, 7.5)));
+    assert(lsm_log_e_f32(0.001) == @log(@as(f32, 0.001)));
+    assert(lsm_log_e_f32(1.0) == 0.0);
+    assert(lsm_log_e_f32(2.0) == 0.693147182464599609375);
+}
+
+test lsm_log1p_is_zig_s_log1p_64 {
+    assert(lsm_ln1p(0.25) == 0.22314355131420976);
+    assert(lsm_ln1p(2.0) == 1.0986122886681096);
+    assert(lsm_ln1p(2.0) != lsm_ln1p_by_log(2.0));
+    assert(lsm_ln1p(0.001) == 0.0009995003330835331);
+    assert(lsm_ln1p(0.000000003) == 0.0000000029999999955);
+    assert(lsm_adaptive(0.05, -0.7) == 0.07653141255310852);
+}
+
+test lsm_round_halves_away_from_zero {
+    assert(lsm_round(2.5) == 3.0);
+    assert(lsm_round(-2.5) == -3.0);
+    assert(lsm_round(0.25) == 0.0);
+    assert(lsm_round(25.0 - 0.0000001) == 25.0);
+    assert(lsm_round(-1000000.5) == -1000001.0);
+    assert(lsm_quantize(0.7, 8) == 1);
+    assert(lsm_quantize(-100.0, 50) == 46);
+    assert(lsm_quantize(0.0, 50) == 0);
+}
+
+test lsm_inf_saturates {
+    const inf: f32 = std.math.inf(f32);
+    assert(lsm_saturate(1.0e9) == inf);
+    assert(lsm_saturate(-1.0e9) == -inf);
+    assert(lsm_saturate(2.0) == 2.0);
+    assert(inf > 3.4028234663852886e38);
+    assert(lsm_inf64() > 1.7976931348623157e308);
+    assert(lsm_inf64() - lsm_inf64() != lsm_inf64() - lsm_inf64());
+}
+
+// `round` and `log1p` against Zig's `@round` and `std.math.log1p` of a run-time f64, bit for bit, under the
+// reference (#7923).
+fn round_lin_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f64 = start + @as(f64, @floatFromInt(i)) * step;
+        if (bits_of_f64(t27b_libm_round(x)) != bits_of_f64(@round(x))) {
+            misses = misses + 1;
+        }
+        i = i + 1;
+    }
+    return misses;
+}
+
+fn log1p_lin_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f64 = start + @as(f64, @floatFromInt(i)) * step;
+        if (bits_of_f64(t27b_libm_log1p(x)) != bits_of_f64(std.math.log1p(x))) {
+            misses = misses + 1;
+        }
+        i = i + 1;
+    }
+    return misses;
+}
+
+// x and -x for `x = start * step^i`, from the least subnormal up.
+fn log1p_geo_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var x: f64 = start;
+    var i: u32 = 0;
+    while (i < n) {
+        if (bits_of_f64(t27b_libm_log1p(x)) != bits_of_f64(std.math.log1p(x))) {
+            misses = misses + 1;
+        }
+        if (bits_of_f64(t27b_libm_log1p(-x)) != bits_of_f64(std.math.log1p(-x))) {
+            misses = misses + 1;
+        }
+        x = x * step;
+        i = i + 1;
+    }
+    return misses;
+}
+
+test round_agrees_with_compiler_rt {
+    assert(round_lin_misses(-1000.0, 0.0997, 20000) == 0);
+    assert(round_lin_misses(-3.0, 0.00025, 24000) == 0);
+    assert(round_lin_misses(4503599627370000.0, 0.25, 4000) == 0);
+    assert(round_lin_misses(-0.75, 0.0000625, 24000) == 0);
+}
+
+test log1p_agrees_with_zig_s_std_math {
+    assert(log1p_lin_misses(-0.999, 0.0001, 30000) == 0);
+    assert(log1p_lin_misses(-0.3, 0.00001, 60000) == 0);
+    assert(log1p_lin_misses(0.0, 0.37, 30000) == 0);
+    assert(log1p_geo_misses(5.0e-324, 1.37, 2400) == 0);
+}
