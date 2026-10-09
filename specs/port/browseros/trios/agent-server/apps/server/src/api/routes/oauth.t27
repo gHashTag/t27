@@ -1,0 +1,128 @@
+module specs::port::browseros::trios::agent-server::apps::server::src::api::routes;
+
+// Port of gHashTag/BrowserOS trios/agent-server/apps/server/src/api/routes/oauth.ts
+// (OAuth routes for subscription-based LLM provider authentication), so the code is
+// generated from .t27 instead of written by hand. Original at 879799a8bfb2, 109 lines.
+//
+// The original builds and returns a Hono router (HTTP plumbing). createOAuthRoutes
+// keeps its name with an `undefined;` body that no test calls; the decisions it makes
+// are ported as the pure helpers below:
+//   - an unknown provider answers 400 (original lines 27-29 and 71-72)
+//   - a provider whose authFlow is 'device-code' starts the JSON user-code flow,
+//     every other flow is the PKCE redirect (original line 33)
+//   - a start error whose message includes 'callback port' answers 503, any other
+//     start error answers 500 (original lines 60-63)
+//   - a token request whose body has no accessToken answers 400 (original line 76)
+
+// OAuthRouteDeps represents the dependencies for creating the OAuth routes.
+// In the original TypeScript it carried a tokenManager client (OAuth HTTP calls
+// and token storage) that talks to the world; it has no .t27 type today, so the
+// struct stays empty and every helper below takes the answers it needs as
+// parameters.
+struct OAuthRouteDeps {}
+
+pub fn createOAuthRoutes(deps: OAuthRouteDeps) {
+    undefined;
+}
+
+const FLOW_DEVICE_CODE_JSON: i32 = 0;
+const FLOW_PKCE_REDIRECT: i32 = 1;
+
+const HTTP_BAD_REQUEST: i32 = 400;
+const HTTP_INTERNAL_ERROR: i32 = 500;
+const HTTP_SERVICE_UNAVAILABLE: i32 = 503;
+
+// JS `String.prototype.includes`: does haystack contain needle as a substring?
+// Read only while j is inside both strings, so no index can run past the end.
+pub fn message_includes(haystack: []const u8, needle: []const u8) -> bool {
+    if (needle.len == 0) {
+        return true;
+    }
+    if (needle.len > haystack.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) {
+        var j: usize = 0;
+        var matched: bool = true;
+        while (j < needle.len) {
+            const k: usize = i + j;
+            if (haystack[k] != needle[j]) {
+                matched = false;
+                break;
+            }
+            j += 1;
+        }
+        if (matched) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// Which start flow a provider uses. The original branches on
+// `provider.authFlow === 'device-code'` and treats every other flow as PKCE.
+pub fn oauth_start_flow_kind(auth_flow: []const u8) -> i32 {
+    if (auth_flow == "device-code") {
+        return FLOW_DEVICE_CODE_JSON;
+    }
+    return FLOW_PKCE_REDIRECT;
+}
+
+// The status the start route answers with when starting the flow throws:
+// 503 for a callback-port conflict (the original's clear actionable message),
+// 500 for any other error.
+pub fn oauth_start_error_status(error_message: []const u8) -> i32 {
+    if (message_includes(error_message, "callback port")) {
+        return HTTP_SERVICE_UNAVAILABLE;
+    }
+    return HTTP_INTERNAL_ERROR;
+}
+
+// The status for a provider the registry does not know: the original answers
+// `Unknown OAuth provider: <id>` with 400 and never reaches the flow start.
+pub fn oauth_unknown_provider_status(provider_found: bool) -> i32 {
+    if (!provider_found) {
+        return HTTP_BAD_REQUEST;
+    }
+    return 200;
+}
+
+// The status for a token request whose body carries no accessToken: the original
+// answers `Missing accessToken` with 400 and never stores tokens.
+pub fn oauth_token_missing_status(has_access_token: bool) -> i32 {
+    if (!has_access_token) {
+        return HTTP_BAD_REQUEST;
+    }
+    return 200;
+}
+
+test unknown_provider_answers_400 {
+    assert(oauth_unknown_provider_status(false) == 400);
+    assert(oauth_unknown_provider_status(true) != 400);
+}
+
+test start_flow_kind_device_code_vs_pkce {
+    assert(oauth_start_flow_kind("device-code") == FLOW_DEVICE_CODE_JSON);
+    assert(oauth_start_flow_kind("pkce") == FLOW_PKCE_REDIRECT);
+    assert(oauth_start_flow_kind("") == FLOW_PKCE_REDIRECT);
+}
+
+test start_error_status_callback_port_vs_other {
+    assert(oauth_start_error_status("callback port 8123 already in use") == 503);
+    assert(oauth_start_error_status("Failed to start authentication.") == 500);
+    assert(oauth_start_error_status("") == 500);
+}
+
+test token_request_missing_access_token_answers_400 {
+    assert(oauth_token_missing_status(false) == 400);
+    assert(oauth_token_missing_status(true) != 400);
+}
+
+test message_includes_substring_cases {
+    assert(message_includes("callback port 8123 already in use", "callback port"));
+    assert(!message_includes("Failed to start authentication.", "callback port"));
+    assert(message_includes("anything", ""));
+    assert(!message_includes("ab", "abc"));
+}
