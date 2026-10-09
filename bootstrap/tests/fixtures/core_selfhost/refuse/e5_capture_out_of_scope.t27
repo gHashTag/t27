@@ -1,0 +1,9 @@
+// A `for` capture read after its loop (#8087).
+module capture_out_of_scope;
+fn cos_g() -> u64 {
+    var s: u64 = 0;
+    for (0..3) |cos_i| {
+        s = s + cos_i;
+    }
+    return cos_i;
+}

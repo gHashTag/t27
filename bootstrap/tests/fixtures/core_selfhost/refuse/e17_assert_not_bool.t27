@@ -1,0 +1,8 @@
+// `assert` takes a bool (#8075).
+module assert_not_bool;
+fn anb_one() -> u8 {
+    return 1;
+}
+test anb_t {
+    assert(anb_one());
+}

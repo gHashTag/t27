@@ -1,0 +1,7 @@
+// An assignment to an undeclared name: cc refuses it, gen-zig declares it
+// (#8087).
+module undeclared_assignment;
+fn ua_g() -> i64 {
+    ua_nope = 1;
+    return 0;
+}

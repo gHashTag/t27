@@ -829,6 +829,106 @@ pub fn place_before(free_a: u32, node_a: u64, free_b: u32, node_b: u64) -> bool 
     return node_a < node_b;
 }
 
+; --- 10. A file has one owner; disjoint edits share it ------------------------------------------------
+; Measured 2026-10-09T06:38:23Z at the live Queen (/queen/status): 70 lanes, 23 active, 47 idle; the
+; last round skipped fileConflict 236, missingBoundary 72, claimed 61 (gHashTag/t27#8037). Until now a
+; task that held a file shut every other task touching that file out for its whole run, and the
+; scheduler read it as one bit: file held -> skip. specs/queen/holds.t27 shortened how long FINISHED
+; work holds; a task at work still shut out every edit of the file, even of another part of it.
+; In the BEAM a resource is owned by one process: clients send it messages and it serialises them.
+; Here the same for a file:
+; - One owner per path key, a process on section 1's pid scheme. Its slot is read from a hash of the
+;   path, so finding the owner needs no registry (section 7). Two paths that share a slot share an
+;   owner: their edits are compared as if they were one file's, which can only queue more, never admit
+;   an overlap. A crash of the owner loses nothing it cannot rebuild: what runs is the tasks' leases
+;   (control.t27 section 2) and their regions, both in the store; what was queued is a dead letter the
+;   reconciler offers again.
+; - An edit names a region: the whole file, a line range of the base commit, or an append to a file
+;   git merges as a union (`.trinity/experience/*.jsonl merge=union` in .gitattributes). Two edits
+;   whose regions do not meet run at once; a three-way merge maps each range past the other's shift.
+;   A boundary entry that names no range is the whole file, so a task that declares none is treated
+;   exactly as before. Two tasks on different base commits are compared as whole files by the host.
+; - An edit that meets a running or an older queued edit waits in the owner's queue, the section 2
+;   model mailbox (MBOX_SLOTS deep), oldest first, and holds no lane while it waits: the lane goes to
+;   the next candidate at the same wake (control.t27 offers_per_wake). When the edit ahead ends, the
+;   owner sends the head of its queue an offer, so the wait ends on an event, not on the next tick.
+; - An edit queued past FILE_WAIT_MAX_SECONDS is refused and gives up, counted against its issue as
+;   control.t27 DO_GIVE_UP is: no person is waited for (owner, 2026-10-05). A full queue refuses a new
+;   edit for this wake only, uncounted, as a send into a full mailbox is a dead letter (section 2).
+; - The owner caps nothing but overlap. A domain is an affinity, not a cap (control.t27 section 5,
+;   #7674), and a file owner is not a second one.
+
+/// Owners live above every slot the Queen's own tree takes (1..23, invariant
+/// the_queens_tree_fits_the_call_chain) and inside a node's local slot field (section 9).
+pub const FILE_SLOT_BASE : u64 = 1024;
+pub const FILE_OWNER_SLOTS : u64 = 65536;
+
+/// The owner's slot for a path, from the path's 64-bit hash (the host's; any hash will do, since a
+/// shared slot only serialises). Its pid is pid_of(file_owner_slot(h), gen), or node_pid on a node.
+pub fn file_owner_slot(path_hash: u64) -> u64 {
+    return FILE_SLOT_BASE + (path_hash % FILE_OWNER_SLOTS);
+}
+
+/// The region an edit names. A range is lines [start, end) of the base commit.
+pub const EDIT_WHOLE : u8 = 0;
+pub const EDIT_LINES : u8 = 1;
+pub const EDIT_APPEND : u8 = 2;
+
+/// Whether two edits of one file meet. Ranges that only touch meet too (the safe side of a three-way
+/// merge: one untouched line between them is asked for). Two appends to a union-merged file never
+/// meet. An append and a range meet: the range may reach the end, and the append moves it. An empty
+/// or reversed range, and a kind this file does not know, are read as the whole file.
+pub fn edits_meet(a_kind: u8, a_start: u32, a_end: u32, b_kind: u8, b_start: u32, b_end: u32) -> bool {
+    if (a_kind == EDIT_APPEND && b_kind == EDIT_APPEND) { return false; }
+    if (a_kind != EDIT_LINES) { return true; }
+    if (b_kind != EDIT_LINES) { return true; }
+    if (a_start >= a_end) { return true; }
+    if (b_start >= b_end) { return true; }
+    return a_start <= b_end && b_start <= a_end;
+}
+
+/// What the owner answers an edit, and the scheduler reads instead of "file held -> skip".
+/// FA_ADMIT: run now, take a lane. FA_QUEUE: keep the place in the owner's queue, take no lane.
+/// FA_REFUSE: not this time; refusal_gives_up says whether it is counted.
+pub const FA_ADMIT : u8 = 0;
+pub const FA_QUEUE : u8 = 1;
+pub const FA_REFUSE : u8 = 2;
+
+/// Twice a turn's bound (TURN_MAX_SECONDS): the edit ahead runs at most one turn before its supervisor
+/// kills it, then holds for at most holds.t27 AWAITING_HOLD_MINUTES; the rest is room for one more
+/// edit ahead. Chosen, not measured.
+pub const FILE_WAIT_MAX_SECONDS : u32 = 7200;
+
+/// `meets_running`: the edit meets an admitted edit that still holds (edit_still_holds).
+/// `meets_queued`: it meets an edit queued before it, so it never overtakes one it would block.
+/// `queue`: the owner's model queue of edits ahead of this one. `waited_seconds`: since it first queued.
+pub fn file_admit(meets_running: bool, meets_queued: bool, queue: u64, waited_seconds: u32) -> u8 {
+    if (waited_seconds >= FILE_WAIT_MAX_SECONDS) { return FA_REFUSE; }
+    if (meets_running == false && meets_queued == false) { return FA_ADMIT; }
+    if (mbox_len(queue) >= MBOX_SLOTS) { return FA_REFUSE; }
+    return FA_QUEUE;
+}
+
+/// A refusal past the wait bound is a give-up that counts against the issue (control.t27
+/// give_up_counts_against_issue); a refusal by a full queue is not, and the task is offered again.
+pub fn refusal_gives_up(waited_seconds: u32) -> bool {
+    return waited_seconds >= FILE_WAIT_MAX_SECONDS;
+}
+
+/// Only an admitted edit takes a lane; a queued one leaves its lane to the next candidate.
+pub fn takes_a_lane(answer: u8) -> bool {
+    return answer == FA_ADMIT;
+}
+
+/// Whether an admitted edit still holds its region. While the task runs: while its lease is live
+/// (control.t27 TASK_LEASE_TTL_SECONDS, 180, a literal here), so a dead bee frees the region when its
+/// lease does. Once it finished: what holds.t27 holds_files says for its stage, passed in.
+pub fn edit_still_holds(finished: bool, holds_files_now: bool, seconds_since_renewal: u32) -> bool {
+    if (finished) { return holds_files_now; }
+    // 180 = control.t27 TASK_LEASE_TTL_SECONDS
+    return seconds_since_renewal < 180;
+}
+
 ; --- 7. Deliberately not the BEAM ---------------------------------------------------------------------
 
 ; Bounded mailboxes: an unbounded one hides a stuck runtime until memory runs out (section 2).
@@ -1444,3 +1544,105 @@ test placement_is_the_roomiest_node_and_ties_agree {
 invariant a_node_fits_the_slot_field { assert NODE_BITS + LOCAL_SLOT_BITS == 32 and LOCAL_SLOT_MASK + 1 == 1 << LOCAL_SLOT_BITS and MAX_NODE + 1 == 1 << NODE_BITS; }
 invariant a_node_is_down_only_after_missed_heartbeats { assert NODE_TTL_SECONDS >= 3 * NODE_HEARTBEAT_SECONDS; }
 invariant a_slice_is_short { assert SLICE_TURNS >= 1 and SLICE_MICROS <= 20000; }
+
+test a_file_has_one_owner_above_the_queens_tree {
+    assert file_owner_slot(0) == FILE_SLOT_BASE;
+    // the base is a number the supervisor mirrors from gen-js: it moves only on purpose
+    assert file_owner_slot(0) == 1024;
+    assert file_owner_slot(1) == FILE_SLOT_BASE + 1;
+    assert file_owner_slot(FILE_OWNER_SLOTS - 1) == FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1;
+    // a hash past the slot count wraps: two paths may share an owner, which only serialises
+    assert file_owner_slot(FILE_OWNER_SLOTS) == FILE_SLOT_BASE;
+    assert file_owner_slot(FILE_OWNER_SLOTS + 7) == file_owner_slot(7);
+    assert file_owner_slot(18446744073709551615) == FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1;
+    // its pid is a section 1 pid, and a restart of the owner is a new one
+    var owner : u64 = pid_of(file_owner_slot(12345), 1);
+    assert owner != NO_PID;
+    assert reaches(owner, pid_of(file_owner_slot(12345), next_gen(1))) == false;
+    // and a section 9 pid on a node keeps the slot
+    assert local_of(node_pid(3, file_owner_slot(18446744073709551615), 1)) == FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1;
+}
+
+test disjoint_line_ranges_and_union_appends_do_not_meet {
+    // lines 10..40 and 200..260 of one spec: they run at once
+    assert edits_meet(EDIT_LINES, 10, 40, EDIT_LINES, 200, 260) == false;
+    assert edits_meet(EDIT_LINES, 200, 260, EDIT_LINES, 10, 40) == false;
+    // one untouched line between them is enough
+    assert edits_meet(EDIT_LINES, 0, 5, EDIT_LINES, 6, 10) == false;
+    assert edits_meet(EDIT_LINES, 6, 10, EDIT_LINES, 0, 5) == false;
+    // ranges that touch or overlap meet
+    assert edits_meet(EDIT_LINES, 0, 5, EDIT_LINES, 5, 10) == true;
+    assert edits_meet(EDIT_LINES, 5, 10, EDIT_LINES, 0, 5) == true;
+    assert edits_meet(EDIT_LINES, 0, 10, EDIT_LINES, 3, 4) == true;
+    assert edits_meet(EDIT_LINES, 3, 4, EDIT_LINES, 0, 10) == true;
+    // two appends to a union-merged file never meet
+    assert edits_meet(EDIT_APPEND, 0, 0, EDIT_APPEND, 0, 0) == false;
+}
+
+test a_whole_file_an_append_and_a_bad_range_meet_everything_else {
+    assert edits_meet(EDIT_WHOLE, 0, 0, EDIT_LINES, 10, 20) == true;
+    assert edits_meet(EDIT_LINES, 10, 20, EDIT_WHOLE, 0, 0) == true;
+    assert edits_meet(EDIT_WHOLE, 0, 0, EDIT_WHOLE, 0, 0) == true;
+    assert edits_meet(EDIT_APPEND, 0, 0, EDIT_LINES, 10, 20) == true;
+    assert edits_meet(EDIT_LINES, 10, 20, EDIT_APPEND, 0, 0) == true;
+    assert edits_meet(EDIT_APPEND, 0, 0, EDIT_WHOLE, 0, 0) == true;
+    // an empty or reversed range is the whole file, on either side
+    assert edits_meet(EDIT_LINES, 5, 5, EDIT_LINES, 100, 200) == true;
+    assert edits_meet(EDIT_LINES, 9, 5, EDIT_LINES, 100, 200) == true;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_LINES, 5, 5) == true;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_LINES, 9, 5) == true;
+    // the smallest real range does not
+    assert edits_meet(EDIT_LINES, 5, 6, EDIT_LINES, 100, 200) == false;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_LINES, 5, 6) == false;
+    // a kind this file does not know is the whole file
+    assert edits_meet(EDIT_APPEND + 1, 10, 20, EDIT_LINES, 100, 200) == true;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_APPEND + 1, 10, 20) == true;
+    assert edits_meet(EDIT_APPEND + 1, 0, 0, EDIT_APPEND, 0, 0) == true;
+    // the largest line number is a range like any other
+    assert edits_meet(EDIT_LINES, 0, 10, EDIT_LINES, 20, 4294967295) == false;
+}
+
+test the_owner_admits_queues_or_refuses_and_never_waits_for_a_person {
+    // nothing in the way: admitted, and it takes a lane
+    assert file_admit(false, false, 0, 0) == FA_ADMIT;
+    assert takes_a_lane(file_admit(false, false, 0, 0)) == true;
+    // a full queue does not stop an edit that meets nothing
+    assert file_admit(false, false, 18446744073709551615, 0) == FA_ADMIT;
+    // it meets a running edit, or an older queued one: it queues and leaves its lane
+    assert file_admit(true, false, 0, 0) == FA_QUEUE;
+    assert file_admit(false, true, mbox_push(0, 1), 0) == FA_QUEUE;
+    assert takes_a_lane(FA_QUEUE) == false;
+    // seven ahead still queue; an eighth ahead fills the model box and the new edit is refused, uncounted
+    var seven : u64 = 72057594037927935;
+    assert mbox_len(seven) == MBOX_SLOTS - 1;
+    assert file_admit(true, false, seven, 0) == FA_QUEUE;
+    assert file_admit(true, false, mbox_push(seven, 9), 0) == FA_REFUSE;
+    assert refusal_gives_up(0) == false;
+    assert takes_a_lane(FA_REFUSE) == false;
+    // queued past the bound: refused and counted, whatever stands in its way
+    assert file_admit(true, false, 0, FILE_WAIT_MAX_SECONDS - 1) == FA_QUEUE;
+    assert file_admit(true, false, 0, FILE_WAIT_MAX_SECONDS) == FA_REFUSE;
+    assert file_admit(false, false, 0, FILE_WAIT_MAX_SECONDS) == FA_REFUSE;
+    assert refusal_gives_up(FILE_WAIT_MAX_SECONDS - 1) == false;
+    assert refusal_gives_up(FILE_WAIT_MAX_SECONDS) == true;
+    assert takes_a_lane(FA_REFUSE + 1) == false;
+}
+
+test a_region_is_held_while_the_lease_lives_then_as_holds_says {
+    assert edit_still_holds(false, false, 0) == true;
+    assert edit_still_holds(false, false, 179) == true;
+    // a bee whose lease ran out (control.t27 TASK_LEASE_TTL_SECONDS 180) frees its region
+    assert edit_still_holds(false, true, 180) == false;
+    // finished work holds what holds.t27 says, whatever its lease
+    assert edit_still_holds(true, true, 4000000000) == true;
+    assert edit_still_holds(true, false, 0) == false;
+}
+
+/// The answers are numbers the scheduler reads across a language boundary: they never move.
+invariant the_file_owner_answers_never_move { assert FA_ADMIT == 0 and FA_QUEUE == 1 and FA_REFUSE == 2; }
+invariant the_edit_kinds_are_contiguous { assert EDIT_WHOLE == 0 and EDIT_LINES == EDIT_WHOLE + 1 and EDIT_APPEND == EDIT_LINES + 1; }
+/// Owners sit above the call-chain model's slots and inside a node's local slot field.
+invariant a_file_owner_is_a_local_slot_above_the_tree { assert FILE_SLOT_BASE >= CHAIN_SLOTS and FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1 <= LOCAL_SLOT_MASK; }
+/// The wait is twice a turn, as its doc says, and outlasts one turn of the edit ahead plus its finished
+/// hold (30 = holds.t27 AWAITING_HOLD_MINUTES).
+invariant a_queued_edit_outwaits_one_turn_and_its_hold { assert FILE_WAIT_MAX_SECONDS == 2 * TURN_MAX_SECONDS and FILE_WAIT_MAX_SECONDS >= TURN_MAX_SECONDS + 30 * 60; }

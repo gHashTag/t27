@@ -1,0 +1,8 @@
+// typecheck only warns about an assignment to a module const; C has a
+// `#define` there, Zig a constant (#8075).
+module assign_module_const;
+const AMC_L: u8 = 3;
+fn amc_g() -> u8 {
+    AMC_L = 4;
+    return 1;
+}
