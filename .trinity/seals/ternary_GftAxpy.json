@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:72d5da90cb4b2cb9a61ab80dba3601bb21f8ceffc53e0185d44a2557cf84ecb7",
   "gen_hash_rust": "sha256:6bc6072168bf7bbbb1b805d7ed64eb8639c62da9b734afb5586ddcc7a2fcf64b",
   "gen_hash_verilog": "sha256:4e57750f291605179dd8365a64a49772d98b64b902e95a68b230a1fd9f42dff9",
   "gen_hash_zig": "sha256:5e1316205d323bad2276940b72cd03b00a1240eb3328980dd5f4bdc16e5ce777",
   "module": "GftAxpy",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:11:42Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:53:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:82362180b791a84cbb633157ac80d3fc5e825a69d8abf586d77980001b55438b",
   "spec_path": "specs/ternary/gft_axpy.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

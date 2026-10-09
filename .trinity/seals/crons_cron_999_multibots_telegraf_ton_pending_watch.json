@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:75b2c1d2403b6c26844dc58d40684b92b8f1042b74e4b5a91cc29466c4c29a48",
   "gen_hash_rust": "sha256:c15dcdb89a8c56470754ef7d9c9df27f534f677339fbecd0a10b93c1cee23052",
   "gen_hash_verilog": "sha256:946f1c085371b2d4b9e0e1769448032b2884671d5a58f927fa03e14d6aaeb0b2",
   "gen_hash_zig": "sha256:df84ef7e4e7ff5ac3c6babb3ce019af4b2c4efc3145cacb05fc10d0bea3a2f88",
   "module": "cron_999_multibots_telegraf_ton_pending_watch",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:25:24Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e72bb9861cf14191745788fdf702b390cbac46d3ec4fe479b4203b088f4d90e1",
   "spec_path": "specs/crons/999-multibots-telegraf-ton-pending-watch.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

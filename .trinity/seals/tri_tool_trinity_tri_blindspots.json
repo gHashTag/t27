@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:995198aa5cb058ff9a8a90bf3b2407b1fca88cdca77e898467f4b2e0fe52c13e",
   "gen_hash_rust": "sha256:814fc687465556767ea563eb08af99482ca8116dedfee2389cdff3212e95ac4e",
   "gen_hash_verilog": "sha256:5ccc3f181e04d49a316c1818a1ec667833e4ef4b1d0c4e0f55ef44bc6f4c668a",
   "gen_hash_zig": "sha256:89946645ffe4b83dcba112dc53ab32e637305328e441aec4d0697a6b9953f2b1",
   "module": "tool_trinity_tri_blindspots",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:05Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:56:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:bab5d6f89d25955e081ad6d257b5fa43ce12684fb3a56b4c2f8731d52a202910",
   "spec_path": "specs/tools/trinity/tri/blindspots.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

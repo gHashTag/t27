@@ -670,8 +670,8 @@ pub fn q_exact_f64(q: Q128) -> F64Bits {
 // ---------------------------------------------------------------- literals
 
 /// The literal without its `_` separators; n past 2048 when it does not fit.
-fn text_of(s: []const u8) -> Text {
-    var t : Text = Text{ .b = [0] ** 2048, .n = 0 };
+fn text_of(s: []const u8) -> LiteralText {
+    var t : LiteralText = LiteralText{ .b = [0] ** 2048, .n = 0 };
     var i : u32 = 0;
     while (i < (s.len as u32)) {
         if (s[i as usize] != 95) {
@@ -692,7 +692,7 @@ fn is_digit(c: u8) -> bool {
 }
 
 /// The literal with its `_` separators taken out, and its length.
-pub const Text = struct {
+pub const LiteralText = struct {
     b : [2048]u8,
     n : u32,
 };
@@ -710,7 +710,7 @@ const Exp = struct {
     fits : bool,
 };
 
-fn exp_of(t: Text, from: u32, to: u32) -> Exp {
+fn exp_of(t: LiteralText, from: u32, to: u32) -> Exp {
     var i : u32 = from;
     var neg : bool = false;
     if (i < to and (t.b[i as usize] == 43 or t.b[i as usize] == 45)) {
@@ -735,7 +735,7 @@ fn exp_of(t: Text, from: u32, to: u32) -> Exp {
     return Exp{ .value = v, .fits = fits };
 }
 
-fn all_digits(t: Text, from: u32, to: u32) -> bool {
+fn all_digits(t: LiteralText, from: u32, to: u32) -> bool {
     var i : u32 = from;
     while (i < to) {
         if (!is_digit(t.b[i as usize])) {
@@ -754,7 +754,7 @@ fn f64_overflow_bound() -> Big {
 
 /// The literal's significant digits as an integer, from `from` (the first nonzero digit) to `to`, `dot` the
 /// place of the point.
-fn digits_of(t: Text, from: u32, to: u32, dot: u32) -> Big {
+fn digits_of(t: LiteralText, from: u32, to: u32, dot: u32) -> Big {
     var d : Big = big_zero();
     var i : u32 = from;
     while (i < to) {
@@ -780,7 +780,7 @@ fn parsed_opt(r: QOpt, err: u8) -> QParse {
 /// A decimal float literal (digits, an optional fraction, an optional exponent, `_` separators) rounded once
 /// to binary128, ties to even.
 pub fn q_parse(s: []const u8) -> QParse {
-    const t : Text = text_of(s[0..s.len]);
+    const t : LiteralText = text_of(s[0..s.len]);
     if (t.n > 2048) {
         return parsed(TOO_LONG, q_zero());
     }
@@ -828,7 +828,7 @@ pub fn q_parse(s: []const u8) -> QParse {
 
 /// The value of a well-formed literal: integer digits [0, ip_end), fraction [fp_from, mant), exponent
 /// [exp_from, t.n) (none when `no_exp`).
-fn parse_value(t: Text, ip_end: u32, fp_from: u32, mant: u32, exp_from: u32, no_exp: bool) -> QParse {
+fn parse_value(t: LiteralText, ip_end: u32, fp_from: u32, mant: u32, exp_from: u32, no_exp: bool) -> QParse {
     var first : u32 = 0;
     while (first < mant and (t.b[first as usize] == 48 or first == ip_end)) {
         first = first + 1;

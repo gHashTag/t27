@@ -101,6 +101,8 @@ mod wp; // t27c gen-rust of specs/tri/t27b/wide_plan.t27: integer constants wide
 mod oq; // t27c gen-rust of specs/tri/t27b/opaque_plan.t27: `anyopaque`, `@ptrFromInt` to an optional pointer
 #[path = "../../../gen/rust/tri/t27b/slice_lit_plan.rs"] #[allow(dead_code, unused_parens)]
 mod sl; // t27c gen-rust of specs/tri/t27b/slice_lit_plan.t27: array literals printed `@constCast(&[_]E{ .. })`
+#[path = "../../../gen/rust/tri/t27b/tuple_local_plan.rs"] #[allow(dead_code, unused_parens)]
+mod tl; // t27c gen-rust of specs/tri/t27b/tuple_local_plan.t27: tuples, and an untyped list local printed as one
 #[path = "../../../gen/rust/tri/t27b/coerce_plan.rs"] #[allow(dead_code, unused_parens)]
 mod cp; // t27c gen-rust of specs/tri/t27b/coerce_plan.t27: a value of one numeric type where Zig takes another
 #[path = "../../../gen/rust/tri/t27b/void_bind_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -373,6 +375,8 @@ struct Lower<'a> {
     /// with that type. t27c's Zig backend writes the local as an anonymous
     /// `.{ ... }` (any `[N]T` prefix dropped), which coerces at each call.
     tuple_locals: HashMap<String, LTy>,
+    /// Untyped list locals `tuple_array_local` took: a Zig tuple each (#8050).
+    tuple_names: HashSet<String>,
     /// Untyped `const` locals bound to an array literal of plain literals
     /// and never mentioned again: the reference's `.{ ... }` plus
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
@@ -535,6 +539,7 @@ fn lower_mode<'a>(
         ref_vars: HashSet::new(),
         slice_locals: HashMap::new(),
         tuple_locals: HashMap::new(),
+        tuple_names: HashSet::new(),
         dead_lits: HashSet::new(),
         discards: HashMap::new(),
         sret: None,
@@ -1550,6 +1555,7 @@ impl<'a> Lower<'a> {
         self.collect_ref_vars(body);
         self.slice_locals.clear();
         self.tuple_locals.clear();
+        self.tuple_names.clear();
         self.dead_lits.clear();
         self.discards.clear();
         self.shadow_ok = shadow_names(body, &self.mod_vars);
@@ -2419,6 +2425,9 @@ impl<'a> Lower<'a> {
             }
             if let Some(t) = self.tuple_locals.get(&name).filter(|_| !mutable).cloned() {
                 return self.tuple_local(init, name, t, out);
+            }
+            if !mutable && self.tuple_array_local(init, &name)?.is_some() {
+                return Ok(());
             }
         }
         if init.kind == NodeKind::ExprTuple && !mutable {
@@ -6576,6 +6585,10 @@ impl<'a> Lower<'a> {
         let idx = self.expr(&n.children[1])?;
         if base.is_poison() || idx.is_poison() {
             return Err(());
+        }
+        if let (NodeKind::ExprIdentifier, true) = (&n.children[0].kind, self.tuple_names.contains(&n.children[0].name)) {
+            let constant = matches!(&idx, Val::Ct(_) | Val::E(Expr { kind: ExprKind::Const(_), .. }));
+            if tl::refuses_index(constant, self.comptime, self.unanalyzed_fn) { return self.tuple_refuse(tl::R_LOCAL_INDEX, &[]); }
         }
         // A string literal at a constant index is a constant.
         if let Val::S(k, len) = base {

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f21a0b39c",
+  "built_by": "t27c-bootstrap@0.5.2+cde548ecd",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:3fa714113116adad50bec29602e8c92e38995625182271ab498739fd67a4c1eb",
@@ -9,7 +9,7 @@
   "module": "T27bArithOp",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T17:03:00Z",
+  "sealed_at": "2026-10-09T18:39:29Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:51a7c67d67fb49f147071a464562e5644693fad4e2b107a759d1a9f9bf6e97a6",
   "spec_path": "specs/tri/t27b/arith_op.t27",
