@@ -1,0 +1,87 @@
+module port::mcp-transport-detect;
+
+pub fn detectMcpTransport(url: []const u8) -> u8 {
+  undefined;
+}
+
+pub fn clearTransportCache() -> void {
+  undefined;
+}
+
+// Decision logic from lines 71-80 of the original TypeScript
+// Returns: 1 = streamable-http, 2 = sse
+pub fn transport_for_probe(status: u16, is_json: bool, is_stream: bool, probe_failed: bool) -> u8 {
+  if (status == 200 and (is_json or is_stream)) {
+    return 1; // streamable-http
+  } else if (status == 401) {
+    return 1; // streamable-http
+  } else if (status >= 500) {
+    return 2; // sse
+  } else if (probe_failed) {
+    return 2; // sse
+  } else {
+    return 2; // sse
+  }
+}
+
+// Decision logic for caching from lines 32-34 and 90-95 of the original
+// Returns: true if should cache, false if not
+pub fn should_cache(status: u16, probe_failed: bool) -> bool {
+  if (probe_failed) {
+    return false;
+  }
+  if (status >= 500) {
+    return false;
+  }
+  return true;
+}
+
+test transport_for_probe_success_json {
+  const result = transport_for_probe(200, true, false, false);
+  assert(result == 1); // streamable-http
+}
+
+test transport_for_probe_success_stream {
+  const result = transport_for_probe(200, false, true, false);
+  assert(result == 1); // streamable-http
+}
+
+test transport_for_probe_401 {
+  const result = transport_for_probe(401, false, false, false);
+  assert(result == 1); // streamable-http
+}
+
+test transport_for_probe_server_error {
+  const result = transport_for_probe(503, false, false, false);
+  assert(result == 2); // sse
+}
+
+test transport_for_probe_other_status {
+  const result = transport_for_probe(400, false, false, false);
+  assert(result == 2); // sse
+}
+
+test transport_for_probe_failed {
+  const result = transport_for_probe(200, false, false, true);
+  assert(result == 2); // sse
+}
+
+test should_cache_success {
+  const result = should_cache(200, false);
+  assert(result == true);
+}
+
+test should_cache_401 {
+  const result = should_cache(401, false);
+  assert(result == true);
+}
+
+test should_cache_server_error {
+  const result = should_cache(500, false);
+  assert(result == false);
+}
+
+test should_cache_probe_failed {
+  const result = should_cache(200, true);
+  assert(result == false);
+}
