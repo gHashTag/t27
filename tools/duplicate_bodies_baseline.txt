@@ -4,12 +4,12 @@
 magadd 31
 magsub 31
 sadd 30
+build_tree 28
 magmul 22,2
 smul 20,2
 tmul 13
 relu 10
 dot27 8,5
-build_tree 28
 contrib 7
 activate 6
 clamp 6
@@ -128,7 +128,6 @@ instantiate_ports 2
 is_counter_power_of_two 2
 kill 2
 led_config 2
-ln 2
 local_branch 2
 log2_frac 2
 log2v 2
