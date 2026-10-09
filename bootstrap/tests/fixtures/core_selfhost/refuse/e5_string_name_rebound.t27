@@ -1,0 +1,7 @@
+// A string name is bound once in its function and module, so its type is
+// never another binding's (#8013).
+module string_name_rebound;
+fn snr_f(s: str, i: i64) -> i64 {
+    var s: i64 = i;
+    return s;
+}

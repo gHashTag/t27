@@ -1,0 +1,9 @@
+// #7939: two imported modules declare ud_twice differently. gen-c leaves it
+// unspliced ("UNRESOLVED ... ambiguous", #2764) and exits 0 with C that
+// calls an undeclared function. The core refuses the name.
+module use_ambiguous;
+use selfhost_use::use_dep;
+use selfhost_use::use_other;
+fn ua_two(a: i64) -> i64 {
+    return ud_twice(a);
+}

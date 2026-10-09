@@ -868,7 +868,7 @@ test text_repeat_fails {
 fn t27_array_spelling_rejections_are_precise() {
     let head = "module a;\n\nconst ONE: u32 = 1;\n\nfn total(xs: [u32]) u32 {\n    return 0;\n}\n\nfn nested(xs: [[2]u32]) u32 {\n    return 0;\n}\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("fn f(p: [*]u8) u32 { return 0; }", "type [*]T", "a many-item pointer"),
+        ("fn f(p: [*]u8) u32 { return 0; }\ntest t { assert(f(undefined) == 0); }", "type [*]T", "a many-item pointer"),
         ("fn f(m: [str:u32]) u32 { return 0; }", "type [K:V]", "a map"),
         ("test t { assert(total([1; 2]) == 2); }", "ExprArrayLiteral(repeat to slice)", "where a slice is declared"),
         (
@@ -3213,4 +3213,15 @@ fn large_frames_are_probed() {
         let e = codegen::compile(&prog, TrapStyle::Jit, true).err().expect("refused");
         assert_eq!(e.construct, "FnDecl(frame size)");
     }
+}
+
+/// `?*anyopaque` and `@ptrFromInt` to an optional pointer (#7737): the
+/// conformance spec runs as `t27c test-report` does (3 pass, none vacuous),
+/// and a non-optional result is refused by name.
+#[test]
+fn opaque_pointers() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/opaque_pointer.t27"));
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+    let m = rejected("module a;\n\nfn f(p: *anyopaque) -> bool {\n    return true;\n}\n\ntest t {\n    assert(f(@ptrFromInt(8)));\n}\n");
+    assert!(m.contains("ExprCall(@ptrFromInt)") && m.contains("not optional"), "{}", m);
 }

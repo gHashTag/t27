@@ -49,6 +49,36 @@ pub fn round_reviews(reviewer_running: bool) -> bool {
     return reviewer_running == false;
 }
 
+/// A row that answered `wait` is not visited again at once. Measured 2026-10-09 on the live Queen,
+/// over 44 minutes: 941 row visits, 888 of them `wait`, from just 22 rows whose branch the Queen could
+/// not read. One row was visited 54 times. Only 53 visits decided anything. Nothing about such a row
+/// changes in 50 s, and the frozen-wait valve releases it only after six hours, so each one burned
+/// about 430 visits of the reviewer's slots.
+/// After n waits in a row, the next visit waits WAIT_REVISIT_BASE_SECONDS doubled n - 1 times, never
+/// more than WAIT_REVISIT_CAP_SECONDS. Any answer other than `wait` resets the count, so a row that
+/// has started to read is visited at the normal pace again.
+pub const WAIT_REVISIT_BASE_SECONDS : u32 = 30;
+pub const WAIT_REVISIT_CAP_SECONDS : u32 = 900;
+
+pub fn revisit_after_seconds(waits: u32) -> u32 {
+    if (waits == 0) { return 0; }
+    var wait : u32 = WAIT_REVISIT_BASE_SECONDS;
+    var n : u32 = 1;
+    while (n < waits) {
+        if (wait >= WAIT_REVISIT_CAP_SECONDS) { return WAIT_REVISIT_CAP_SECONDS; }
+        wait = wait * 2;
+        n = n + 1;
+    }
+    if (wait > WAIT_REVISIT_CAP_SECONDS) { return WAIT_REVISIT_CAP_SECONDS; }
+    return wait;
+}
+
+/// Whether a row may be taken now: one that never waited always may, and one that waited only after
+/// its revisit time has passed since the last visit.
+pub fn due_again(waits: u32, seconds_since_visit: u32) -> bool {
+    return seconds_since_visit >= revisit_after_seconds(waits);
+}
+
 test a_pass_fills_the_free_slots_with_waiting_rows {
     assert review_slots(0, 0) == 0;
     assert review_slots(0, 2) == 2;
@@ -75,8 +105,28 @@ test the_round_stands_aside_for_the_reviewer {
     assert round_reviews(false) == true;
 }
 
+test a_row_that_keeps_waiting_is_visited_less_and_less {
+    assert revisit_after_seconds(0) == 0;
+    assert revisit_after_seconds(1) == 30;
+    assert revisit_after_seconds(2) == 60;
+    assert revisit_after_seconds(3) == 120;
+    assert revisit_after_seconds(5) == 480;
+    assert revisit_after_seconds(6) == WAIT_REVISIT_CAP_SECONDS;
+    assert revisit_after_seconds(50) == WAIT_REVISIT_CAP_SECONDS;
+    assert revisit_after_seconds(4294967295) == WAIT_REVISIT_CAP_SECONDS;
+    // a row that never waited is always due; one that waited is due only once its time has passed
+    assert due_again(0, 0) == true;
+    assert due_again(1, 29) == false;
+    assert due_again(1, 30) == true;
+    assert due_again(6, 899) == false;
+    assert due_again(6, 900) == true;
+}
+
 invariant the_reviewer_is_quicker_than_the_round {
     assert REVIEWER_EVERY_SECONDS < 60;
     assert REVIEWER_CONCURRENCY > 1;
     assert REVIEW_ROW_SECONDS >= 120;
+    // a stuck row is still seen several times an hour, so one that starts to read is not lost for long
+    assert WAIT_REVISIT_CAP_SECONDS <= 3600;
+    assert WAIT_REVISIT_BASE_SECONDS >= REVIEWER_EVERY_SECONDS;
 }

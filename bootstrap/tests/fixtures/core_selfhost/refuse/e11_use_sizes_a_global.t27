@@ -1,0 +1,5 @@
+// #7702: a module var sized by an imported const. gen-c writes the var
+// before the spliced `#define UD_LIMIT 7`, so C reads UD_LIMIT undeclared.
+module use_sized_global;
+use selfhost_use::use_dep;
+var usg_buf: [UD_LIMIT]u8 = [_]u8{0} ** UD_LIMIT;

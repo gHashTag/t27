@@ -1,0 +1,13 @@
+// #8003: C takes the first `.off` arm; Zig refuses the duplicate.
+module enum_switch_duplicate_label;
+enum EdlMode {
+    off,
+    on,
+}
+fn edl_f(m: EdlMode) -> i64 {
+    return switch (m) {
+        .off => 1,
+        .off => 2,
+        else => 3,
+    };
+}

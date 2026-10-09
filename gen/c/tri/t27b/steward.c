@@ -37,6 +37,7 @@ bool ledger_quiet(uint32_t age_min, uint32_t limit_min);
 uint8_t checkout_code(bool ok, bool recloned);
 uint8_t image_code(bool master_known, bool reported, bool same);
 bool cap_rise_is_new(uint32_t not_pass, uint32_t old_cap, uint32_t new_not_pass);
+bool header_stored(uint8_t field);
 bool is_alarm(uint8_t t, uint8_t reference);
 bool is_alarm_tests(uint8_t t, uint8_t reference, bool compared, uint32_t disagree);
 bool lanes_stop(uint32_t jit_interp_mismatch, uint32_t reference_disagree);
@@ -292,6 +293,16 @@ bool cap_rise_is_new(uint32_t not_pass, uint32_t old_cap, uint32_t new_not_pass)
     return ((not_pass - new_not_pass) <= old_cap);
 }
 
+bool header_stored(uint8_t field) {
+    if ((field == 5)) {
+        return false;
+    }
+    if ((field > 5)) {
+        return false;
+    }
+    return true;
+}
+
 bool is_alarm(uint8_t t, uint8_t reference) {
     if ((t == 6)) {
         return true;
@@ -454,6 +465,9 @@ uint32_t with_tests(uint32_t reference, uint32_t vacuous) {
 
 /* invariant: reference_disagree_always_stops */
 /* invariant reference_disagree_always_stops is not a C constant expression: lanes_stop(0, 1) */
+
+/* invariant: no_total_in_the_ledger_header */
+/* invariant no_total_in_the_ledger_header is not a C constant expression: (header_stored(5) == false) */
 
 /* invariant: gained_never_red */
 /* invariant gained_never_red is not a C constant expression: (delta_is_red(delta_code(0, 0, 2, 0, 0, 1)) == false) */
@@ -979,6 +993,22 @@ void test_next_with_tests_never_wraps(void) {
     assert_eq(with_tests(3, 5), 0);
 }
 
+void test_ledger_stores_its_cap(void) {
+    assert(header_stored(4));
+}
+
+void test_ledger_stores_where_it_came_from(void) {
+    assert(header_stored(2));
+}
+
+void test_ledger_derives_its_counts(void) {
+    assert((header_stored(5) == false));
+}
+
+void test_ledger_stores_no_unknown_field(void) {
+    assert((header_stored(6) == false));
+}
+
 
 /* -------------------------------------------------------
    Test runner (compile with -DT27_TEST_MAIN to execute)
@@ -1111,7 +1141,11 @@ int main(void) {
     test_next_score_value();
     test_next_with_tests();
     test_next_with_tests_never_wraps();
-    printf("All %d tests passed.\n", 124);
+    test_ledger_stores_its_cap();
+    test_ledger_stores_where_it_came_from();
+    test_ledger_derives_its_counts();
+    test_ledger_stores_no_unknown_field();
+    printf("All %d tests passed.\n", 128);
     return 0;
 }
 #endif /* T27_TEST_MAIN */

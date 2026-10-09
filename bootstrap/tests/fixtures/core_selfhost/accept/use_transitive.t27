@@ -1,0 +1,11 @@
+// gen-c follows `use` through the modules it reaches: um_four comes from
+// use_mid, and ud_twice, which it calls, from the use_dep that use_mid
+// imports. Both are spliced, use_dep's first (sorted by module path).
+module use_transitive;
+use selfhost_use::use_mid;
+fn ut_eight(a: i64) -> i64 {
+    return um_four(a) * 2;
+}
+test ut_values {
+    assert(ut_eight(1) == 8);
+}

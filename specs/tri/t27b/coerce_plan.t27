@@ -39,6 +39,12 @@
 ;   wrapping `+% -% *%` always fold, to the wrapped value. A result that does not fit stays the run-time
 ;   operation it was, as before this plan (Zig refuses it where it analyzes it). `/`, `%` and the shifts
 ;   are not folded here.
+;   `@floatFromInt(c)` of a comptime_int c (issue #7803) -- and `c as f32` / `c as f64`, which gen-zig prints
+;   that way, its is_float_expr reading a literal with no point as an integer -- is no coercion: Zig rounds c
+;   to the nearest value of the float type, ties to even. 0xFFFFFFFF gives the f32 4294967296.0, 16777217
+;   the f32 16777216.0, 16777219 the f32 16777220.0, 9007199254740993 the f64 9007199254740992.0, while
+;   `const a: f32 = 16777217;` does not compile. A c inside i64 or u64 rounds once (ROUND); a wider c keeps
+;   the coercion's rule above, as t27b has not measured how Zig rounds it.
 ; --
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
@@ -61,6 +67,10 @@ pub const REFUSE : u8 = 4;
 pub const IN_A : u8 = 5;
 pub const IN_B : u8 = 6;
 pub const IN_I64 : u8 = 7;
+
+// How `@floatFromInt` takes a comptime_int (float_from_int_literal): rounded once to the float type.
+pub const ROUND : u8 = 8;
+pub const COERCE_RULE : u8 = 9;
 
 /// An integer of type (from_bits, from_signed) where the integer type (to_bits, to_signed) is wanted.
 /// is_const: the value is a constant. fits: that constant is inside the wanted type.
@@ -103,6 +113,14 @@ pub fn int_to_float(from_bits: u32, from_signed: bool, float_bits: u32, is_const
     if (!from_signed and from_bits <= p) { return CONVERT; }
     if (is_const and span(mag) <= p) { return CONVERT; }
     return REFUSE;
+}
+
+/// `@floatFromInt(c)` of a comptime_int c where the float type of float_bits is the result. fits64: c is
+/// inside i64 or u64. ROUND, or COERCE_RULE: decide as int_to_float decides a constant.
+pub fn float_from_int_literal(fits64: bool, float_bits: u32) -> u8 {
+    if (significand(float_bits) == 0) { return REFUSE; }
+    if (fits64) { return ROUND; }
+    return COERCE_RULE;
 }
 
 /// The peer type of two integer operands of `+ - * & | ^` or of an `if`'s arms: true when it is the first
@@ -314,6 +332,24 @@ test constants_fold_when_the_result_fits_or_wraps {
     assert !folds(B_BAR, B_PERCENT, 2, true);
     assert !folds(B_PLUS, B_PERCENT, 3, true);
     assert !folds(B_PLUS, 0, 0, true);
+}
+
+test float_from_int_rounds_a_comptime_int_inside_64_bits {
+    // jepa_runner.t27: `0xFFFFFFFF as f32`, printed `@as(f32, @floatFromInt(0xFFFFFFFF))`.
+    assert float_from_int_literal(true, 32) == ROUND;
+    assert float_from_int_literal(true, 64) == ROUND;
+    assert float_from_int_literal(true, 16) == ROUND;
+    // The coercion of the same constant is refused: 2^32 - 1 spans 32 bits, more than an f32's 24.
+    assert int_to_float(64, false, 32, true, 4294967295) == REFUSE;
+    assert span(4294967295) == 32;
+}
+
+test float_from_int_leaves_a_wider_comptime_int_to_the_coercion_rule {
+    assert float_from_int_literal(false, 32) == COERCE_RULE;
+    assert float_from_int_literal(false, 64) == COERCE_RULE;
+    assert float_from_int_literal(true, 8) == REFUSE;
+    assert float_from_int_literal(false, 128) == REFUSE;
+    assert ROUND != COERCE_RULE and ROUND != REFUSE and COERCE_RULE != CONVERT;
 }
 
 // The glue passes the operator's own bytes, so each constant is its character's ASCII code.

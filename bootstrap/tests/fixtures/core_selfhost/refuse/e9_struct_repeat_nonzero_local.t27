@@ -1,0 +1,10 @@
+// #7960: the local repeat loses the value as the module one does.
+module struct_repeat_nonzero_local;
+struct SlCell {
+    x: i64,
+    on: bool,
+}
+fn sl_x() -> i64 {
+    var cells: [2]SlCell = [_]SlCell{SlCell{ .x = 0, .on = true }} ** 2;
+    return cells[1].x;
+}

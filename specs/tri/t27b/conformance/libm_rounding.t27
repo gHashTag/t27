@@ -1,0 +1,187 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/libm_rounding.t27 -- `@floor`, `@ceil`, `@round`, `@trunc` and `@rem` of an f32 against
+; specs/tri/t27b/libm.t27's ports of compiler_rt `floorf`, `ceilf`, `roundf`, `truncf` and `fmodf` (gHashTag/t27#7819,
+; part of #7746, a lane of #6063). Every test here passes `t27c test-report`; t27b must give the same verdict on
+; each, or refuse the file.
+; Under the reference each test holds a port (`use tri::t27b::libm;` brings it in) to Zig's builtin, bit for bit:
+; on the t27c lab `@floor`, `@ceil` and `@trunc` are the `roundss` instruction, `@round` is compiler_rt `roundf`,
+; `@rem` is compiler_rt `fmodf`. Under t27b the builtin is a call of the same port, under t27b's reserved name, so
+; the sweeps hold t27b's run of the port to the reference's bits, and the fixed values below to Zig's.
+; The tests live here, not in libm.t27, so that `t27b test --check` has a file's whole interpreter fuel for them.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceLibmRounding;
+
+use tri::t27b::libm;
+
+// The ports against Zig's builtins, bit for bit: the bits, not `==`, so a signed zero counts. The sweeps step through
+// bit patterns, so every exponent is met: zeros, subnormals, the fractions below one, the halves, 2^23 and up, the
+// infinities and NaNs of both signs. `@round` of a signalling NaN is left out: x86_64 (compiler_rt `roundf`) returns
+// it as it is and aarch64 (`frinta`) quiets it, so no answer is both references'. Every other point is the same on
+// both, and so is each port.
+fn rd_one(op: u32, x: f32) -> u32 {
+    if (op == 0) { return bits_of_f32(t27b_libm_floorf(x)) ^ bits_of_f32(@floor(x)); }
+    if (op == 1) { return bits_of_f32(t27b_libm_ceilf(x)) ^ bits_of_f32(@ceil(x)); }
+    if (op == 2) { return bits_of_f32(t27b_libm_roundf(x)) ^ bits_of_f32(@round(x)); }
+    return bits_of_f32(t27b_libm_truncf(x)) ^ bits_of_f32(@trunc(x));
+}
+
+// Points of the bit patterns start, start + step, .. (n of them) where a port and its builtin differ, over the
+// four rounding builtins.
+fn rd_misses(start: u32, step: u32, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var b: u32 = start;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f32 = f32_of(b);
+        var op: u32 = 0;
+        while (op < 4) {
+            const snan_round: bool = op == 2 and x != x and (b & 0x00400000) == 0;
+            if (!snan_round and rd_one(op, x) != 0) {
+                misses = misses + 1;
+            }
+            op = op + 1;
+        }
+        b = b + step;
+        i = i + 1;
+    }
+    return misses;
+}
+
+// Points x = the bit patterns start, start + step, .. (n of them) where `fmodf(x, y)` and `@rem(x, y)` differ in
+// their bits, for each of five divisors.
+fn rem_misses(start: u32, step: u32, n: u32) -> u32 {
+    var ys: [5]f32 = undefined;
+    ys[0] = 1.0;
+    ys[1] = -1.5;
+    ys[2] = 0.3;
+    ys[3] = 7.0;
+    ys[4] = 0.001;
+    var misses: u32 = 0;
+    var b: u32 = start;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f32 = f32_of(b);
+        var j: usize = 0;
+        while (j < 5) {
+            if (bits_of_f32(t27b_libm_fmodf(x, ys[j])) != bits_of_f32(@rem(x, ys[j]))) {
+                misses = misses + 1;
+            }
+            j = j + 1;
+        }
+        b = b + step;
+        i = i + 1;
+    }
+    return misses;
+}
+
+// Do the port and `@rem` give the same bits for x and y? For a NaN too: both make it with the same operations on
+// the same machine, so this holds on x86_64 and on aarch64 alike.
+fn rem_same(x: f32, y: f32) -> bool {
+    return bits_of_f32(t27b_libm_fmodf(x, y)) == bits_of_f32(@rem(x, y));
+}
+
+fn floor_of(x: f32) -> f32 {
+    return @floor(x);
+}
+
+fn ceil_of(x: f32) -> f32 {
+    return @ceil(x);
+}
+
+fn round_of(x: f32) -> f32 {
+    return @round(x);
+}
+
+fn trunc_of(x: f32) -> f32 {
+    return @trunc(x);
+}
+
+fn rem_of(x: f32, y: f32) -> f32 {
+    return @rem(x, y);
+}
+
+test rounding_agrees_with_zig_on_every_exponent {
+    // Both signs, every exponent, the infinities and the NaNs: 0x00000001 .. 0x802F...., then 0x80000001 .. 0xFFC1....
+    assert(rd_misses(0x00000001, 716851, 3000) == 0);
+    assert(rd_misses(0x80000001, 716851, 2990) == 0);
+}
+
+test rounding_agrees_with_zig_near_one_and_near_two_to_the_23 {
+    // 0.25 .. 16 and -0.25 .. -16, then the last fractions below 2^23 and the first integers above it.
+    assert(rd_misses(0x3E800000, 16777, 3000) == 0);
+    assert(rd_misses(0xBE800000, 16777, 3000) == 0);
+    assert(rd_misses(0x4AFFF000, 19, 600) == 0);
+    assert(rd_misses(0xCAFFF000, 19, 600) == 0);
+}
+
+test rounding_gives_the_reference_bits {
+    // Half away from zero, not to even: 2.5 -> 3, -2.5 -> -3, 0.5 -> 1; the largest f32 below 0.5 rounds to 0.
+    assert(round_of(2.5) == 3.0);
+    assert(round_of(-2.5) == -3.0);
+    assert(round_of(0.5) == 1.0);
+    assert(round_of(f32_of(0x3EFFFFFF)) == 0.0);
+    assert(round_of(8388607.5) == 8388608.0);
+    assert(round_of(3.5) == 4.0);
+    assert(round_of(-3.5) == -4.0);
+    assert(floor_of(-0.5) == -1.0);
+    assert(floor_of(2.75) == 2.0);
+    assert(ceil_of(2.25) == 3.0);
+    assert(trunc_of(-2.75) == -2.0);
+    // Signed zeros: a negative that rounds to zero keeps its sign.
+    assert(bits_of_f32(round_of(-0.4)) == 0x80000000);
+    assert(bits_of_f32(ceil_of(-0.5)) == 0x80000000);
+    assert(bits_of_f32(trunc_of(-0.7)) == 0x80000000);
+    assert(bits_of_f32(floor_of(f32_of(0x80000000))) == 0x80000000);
+    assert(bits_of_f32(floor_of(f32_of(0x00000001))) == 0x00000000);
+    assert(bits_of_f32(ceil_of(f32_of(0x00000001))) == 0x3F800000);
+    // A NaN stays a NaN; floor, ceil and trunc quiet a signalling one and keep its payload.
+    assert(bits_of_f32(floor_of(f32_of(0x7F800001))) == 0x7FC00001);
+    assert(bits_of_f32(trunc_of(f32_of(0xFF800123))) == 0xFFC00123);
+    assert(bits_of_f32(ceil_of(f32_of(0xFFC00123))) == 0xFFC00123);
+    const r: f32 = round_of(f32_of(0x7FC00000));
+    assert(r != r);
+    assert(floor_of(f32_of(0xFF800000)) == f32_of(0xFF800000));
+}
+
+test rem_agrees_with_zig {
+    // x over 0.001 .. 1e6 of either sign, against five divisors.
+    assert(rem_misses(0x3A83126F, 626699, 400) == 0);
+    assert(rem_misses(0xBA83126F, 626699, 400) == 0);
+    // Subnormal operands, and the longest reduction: 2^127 rem the least subnormal.
+    assert(rem_same(f32_of(0x00000007), f32_of(0x00000002)));
+    assert(rem_same(f32_of(0x7F000000), f32_of(0x00000001)));
+    assert(rem_same(f32_of(0x3F800000), f32_of(0x00000003)));
+    assert(rem_same(f32_of(0x00700000), f32_of(0x3F000000)));
+    // Equal magnitudes, signed zeros, an infinite divisor, and the NaN cases: a zero divisor, an infinite
+    // dividend, a NaN of either operand.
+    assert(rem_same(-2.0, 2.0));
+    assert(rem_same(f32_of(0x80000000), 1.0));
+    assert(rem_same(3.0, f32_of(0xFF800000)));
+    assert(rem_same(1.0, 0.0));
+    assert(rem_same(f32_of(0x7F800000), 1.0));
+    assert(rem_same(1.0, f32_of(0x7FC00000)));
+    assert(rem_same(f32_of(0xFF800001), 2.0));
+}
+
+test rem_gives_the_reference_bits {
+    // The sign follows the dividend, a zero result too.
+    assert(rem_of(-5.5, 2.0) == -1.5);
+    assert(rem_of(5.5, -2.0) == 1.5);
+    assert(rem_of(7.0, 2.5) == 2.0);
+    assert(bits_of_f32(rem_of(-4.0, 2.0)) == 0x80000000);
+    assert(bits_of_f32(rem_of(-2.0, 2.0)) == 0x80000000);
+    assert(bits_of_f32(rem_of(4.0, -2.0)) == 0x00000000);
+    assert(bits_of_f32(rem_of(f32_of(0x80000000), 1.0)) == 0x80000000);
+    assert(rem_of(0.25, 1.0) == 0.25);
+    assert(rem_of(3.0, f32_of(0x7F800000)) == 3.0);
+    // A zero divisor, a NaN, an infinite dividend: a NaN, whose bits are the platform's.
+    const a: f32 = rem_of(1.0, 0.0);
+    assert(a != a);
+    const b: f32 = rem_of(f32_of(0x7F800000), 1.0);
+    assert(b != b);
+    const c: f32 = rem_of(1.0, f32_of(0x7FC00000));
+    assert(c != c);
+    const d: f32 = rem_of(f32_of(0xFF800001), 2.0);
+    assert(d != d);
+}

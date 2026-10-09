@@ -1,0 +1,13 @@
+// #8003: no `else` and no `.auto` arm: gen-c reads `.auto` as 0, Zig refuses.
+module enum_switch_not_exhaustive;
+enum EnMode {
+    off,
+    on,
+    auto,
+}
+fn en_f(m: EnMode) -> i64 {
+    return switch (m) {
+        .off => 1,
+        .on => 2,
+    };
+}
