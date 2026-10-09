@@ -123,6 +123,8 @@ generate_verilog_ai_with_meta 2
 generate_verilog_ai_with_steering 2
 get 2
 hard_sigmoid 2
+has_at 2
+hw_place_before 2
 instantiate_modules 2
 instantiate_ports 2
 is_counter_power_of_two 2
