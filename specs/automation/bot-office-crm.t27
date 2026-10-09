@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// specs/automation/bot-office-crm.t27 -- the neuro-office's render half: the agent proposes tasks, the client's card shows them.
+// specs/automation/bot-office-crm.t27 -- the neuro-office's render half: the agent proposes tasks, the client's card shows them, and the client's thread posts its proposals into the office.
 // Host: 999-multibots-telegraf apps/vibee-editor/render/src/agent/chat.ts (the prompt of an
 // office turn, the client's brief) and routes.ts (a room turn carries no client).
 // Trace: owner 2026-10-09 "the agent sets tasks itself" and "is the office linked to the
@@ -12,13 +12,20 @@
 // v1 (2026-10-09): an office turn is taught the task marker and nothing else is; the owner's
 // client card lists the open tasks of the client's office, oldest first, at most 5; a room
 // turn never carries a client's card, because the client may sit in that very room.
+// v2 (2026-10-09), from the client's thread: the owner's agent posts a task proposal from the
+// client's thread into the client's office (may_assign): a seller posts -- the caller of a
+// client's thread is a seller (crm-sellers.t27), the agent speaks in their name -- never the
+// client's DM, the client is not a seller; the client's group is bound (crm_client_groups)
+// and the office there is open. What is posted is a proposal a person presses
+// (ASSIGN_IS_PROPOSAL), the seller its assignee, and the press makes the assignment: name
+// and work one line each, within 64 and 300 characters (assign_ok).
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::bot_office_crm {
     pub const KIND : str = "automation";
     pub const ID : str = "bot-office-crm";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
 
     // ---- the agent proposes tasks ----
 
@@ -43,6 +50,49 @@ module automation::bot_office_crm {
     fn card_tasks_shown(open_tasks: u32) -> u32 {
         if open_tasks > CLIENT_CARD_TASKS_MAX { return CLIENT_CARD_TASKS_MAX; }
         return open_tasks;
+    }
+
+    // ---- the client's thread posts into the office ----
+
+    // The card link still runs one way (the room does not read the card, below); what is new
+    // is the post. From the client's thread -- the seller's thread about one client
+    // (crm-client-workspace.t27) -- the owner's agent posts a task proposal into the client's
+    // office: the office in the group the CRM bound to that client (crm_client_groups).
+    // Who may post: a seller, the caller of a client's thread (crm-sellers.t27); the agent
+    // speaks in the seller's name, never on their own. Not the client's DM: the client is not
+    // a seller, and their DM with the bot is one person's chat, not an office. The client's
+    // group must be bound and the office there open; anything less and nothing is posted.
+    fn may_assign(is_seller: bool, from_client_dm: bool, group_bound: bool, office_open: bool) -> bool {
+        return is_seller && !from_client_dm && group_bound && office_open;
+    }
+
+    // What is posted is a proposal, not a task: it carries this mark until a person in the
+    // office presses it. An agent's post alone never assigns (bot-neuro-office.t27 v7, the
+    // same law: an answer alone never makes a task).
+    pub const ASSIGN_IS_PROPOSAL : bool = true;
+
+    // The proposal carries the seller as its assignee -- the seller whose thread it came
+    // from, the work is theirs, for their client. The client is not an assignee, and neither
+    // is an agent: the office hands a member a task, it never gives one.
+    pub const ASSIGNEE_IS_SELLER : bool = true;
+
+    // A proposal's name and work are one line each, within these bounds, so a pasted log
+    // cannot push a task out of the card.
+    pub const ASSIGN_NAME_MAX_CHARS : u32 = 64;
+    pub const ASSIGN_WORK_MAX_CHARS : u32 = 300;
+
+    // The press passes when the name and the work are within the bounds; anything longer or
+    // empty is refused and nothing is assigned.
+    fn assign_ok(name_chars: u32, work_chars: u32) -> bool {
+        return name_chars > 0 && name_chars <= ASSIGN_NAME_MAX_CHARS
+            && work_chars > 0 && work_chars <= ASSIGN_WORK_MAX_CHARS;
+    }
+
+    // The press makes the assignment: a person presses the proposal (the press itself is the
+    // office's, bot-neuro-office.t27 v7 may_take) and the proposal becomes a task with the
+    // seller as assignee.
+    fn assignment_made(pressed: bool, name_chars: u32, work_chars: u32) -> bool {
+        return ASSIGN_IS_PROPOSAL && pressed && assign_ok(name_chars, work_chars);
     }
 
     // ---- the room does not read the card ----
@@ -78,6 +128,30 @@ module automation::bot_office_crm {
         assert(card_tasks_shown(0) == 0);
     }
 
+    test "a seller posts the proposal from the client's thread, not the client's DM" {
+        assert(may_assign(true, false, true, true));
+        assert(!may_assign(false, false, true, true));
+        assert(!may_assign(true, true, true, true));
+        assert(!may_assign(true, false, false, true));
+        assert(!may_assign(true, false, true, false));
+    }
+
+    test "what is posted is a proposal a person presses, the seller its assignee" {
+        assert(ASSIGN_IS_PROPOSAL);
+        assert(ASSIGNEE_IS_SELLER);
+        assert(assignment_made(true, 64, 300));
+        assert(!assignment_made(false, 64, 300));
+    }
+
+    test "the press assigns when the name and the work are within 64 and 300" {
+        assert(assign_ok(1, 1));
+        assert(assign_ok(64, 300));
+        assert(!assign_ok(65, 300));
+        assert(!assign_ok(64, 301));
+        assert(!assign_ok(0, 300));
+        assert(!assign_ok(64, 0));
+    }
+
     test "a room turn never carries a client's card" {
         assert(!ROOM_SEES_CLIENT_CARD);
         assert(!room_gets_client_card(true));
@@ -85,7 +159,7 @@ module automation::bot_office_crm {
     }
 
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 1);
+        assert(VERSION == 2);
     }
 }
 
