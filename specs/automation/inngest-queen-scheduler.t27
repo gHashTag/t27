@@ -90,4 +90,15 @@ module automation::inngest_queen_scheduler {
     // Not claimed: no function of this app has fired yet at VERSION 1; the count of synced
     // functions is read from the server (list_functions), not written here.
     pub const ENABLED : bool = true;
+
+    test inngest_queen_scheduler_constants {
+        assert KIND == "automation";
+        assert ID == "inngest-queen-scheduler";
+        assert REPO == "BrowserOS";
+        assert APP_ID == "t27-queen";
+        assert GITHUB_OWNER == "gHashTag";
+        assert RUNS_FANOUT == true;
+        assert SCHEDULE_FIELDS == 5;
+        assert ENABLED == true;
+    }
 }
