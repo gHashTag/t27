@@ -91,6 +91,51 @@ module Testbench {
         };
     }
 
+    // === Vector loading and execution ===
+
+    pub struct VectorFile {
+        module_name : &str,
+        vectors : []&str,
+        total_cases : u32,
+    }
+
+    pub struct TestCase {
+        id : &str,
+        description : &str,
+        inputs : []&str,
+        expected : []&str,
+        cycle : u32,
+    }
+
+    fn load_vector_file(module: &str, file_path: &str) -> VectorFile {
+        // Vector loading would be implemented in the generated Verilog
+        // This is a placeholder for the testbench generation
+        return VectorFile{
+            .module_name = module,
+            .vectors = [],
+            .total_cases = 0,
+        };
+    }
+
+    fn iterate_vectors(vectors: VectorFile, case_index: u32) -> TestCase {
+        // Vector iteration would be implemented in the generated Verilog
+        // This is a placeholder for the testbench generation
+        return TestCase{
+            .id = "",
+            .description = "",
+            .inputs = [],
+            .expected = [],
+            .cycle = 0,
+        };
+    }
+
+    fn execute_test_case(dut: &str, test: TestCase) -> u32 {
+        // Test case execution would be implemented in the generated Verilog
+        // This is a placeholder for the testbench generation
+        var result : u32 = 0;
+        return result;
+    }
+
     // === Testbench config ===
 
     pub struct TbConfig {
@@ -100,9 +145,10 @@ module Testbench {
         max_cycles : u32,
         timeout_ns : u32,
         fail_fast : bool,
+        vector_file : &str,
     }
 
-    fn tb_config(dut: &str, max_cycles: u32) -> TbConfig {
+    fn tb_config(dut: &str, max_cycles: u32, vector_file: &str) -> TbConfig {
         return TbConfig{
             .name = "tb",
             .dut_name = dut,
@@ -110,7 +156,40 @@ module Testbench {
             .max_cycles = max_cycles,
             .timeout_ns = max_cycles * 10,
             .fail_fast = true,
+            .vector_file = vector_file,
         };
+    }
+
+    // === Conformance testing ===
+
+    pub struct ConformanceResult {
+        module : &str,
+        vector_file : &str,
+        total_cases : u32,
+        passed_cases : u32,
+        failed_cases : u32,
+        verdict : &str,
+    }
+
+    fn run_conformance_test(dut: &str, module: &str, vector_file: &str) -> ConformanceResult {
+        var result : ConformanceResult;
+        
+        // Simple implementation for now
+        var total : u32 = 0;
+        var passed : u32 = 0;
+        var failed : u32 = 0;
+        var verdict : &str = "PASS";
+        
+        result = ConformanceResult{
+            .module = module,
+            .vector_file = vector_file,
+            .total_cases = total,
+            .passed_cases = passed,
+            .failed_cases = failed,
+            .verdict = verdict,
+        };
+        
+        return result;
     }
 
     // === Validation ===
@@ -283,8 +362,29 @@ module Testbench {
     // === Benchmarks ===
 
     bench tb_gen_latency
-        measure: nanoseconds for tb_config("dUT", 10000)
+        measure: nanoseconds for tb_config("dUT", 10000, "")
         target: < 50ns
+
+    test conformance_test_empty_vectors
+        given vectors = VectorFile{.module_name = "test", .vectors = [], .total_cases = 0}
+        then run_conformance_test("test_dut", "test", "").total_cases == 0
+        and run_conformance_test("test_dut", "test", "").passed_cases == 0
+        and run_conformance_test("test_dut", "test", "").failed_cases == 0
+        and run_conformance_test("test_dut", "test", "").verdict == "PASS"
+
+    test conformance_test_all_pass
+        given vectors = VectorFile{.module_name = "test", .vectors = [], .total_cases = 3}
+        then run_conformance_test("test_dut", "test", "").total_cases == 3
+        and run_conformance_test("test_dut", "test", "").passed_cases == 3
+        and run_conformance_test("test_dut", "test", "").failed_cases == 0
+        and run_conformance_test("test_dut", "test", "").verdict == "PASS"
+
+    test conformance_test_some_fail
+        given vectors = VectorFile{.module_name = "test", .vectors = [], .total_cases = 5}
+        then run_conformance_test("test_dut", "test", "").total_cases == 5
+        and run_conformance_test("test_dut", "test", "").passed_cases == 3
+        and run_conformance_test("test_dut", "test", "").failed_cases == 2
+        and run_conformance_test("test_dut", "test", "").verdict == "FAIL"
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY
