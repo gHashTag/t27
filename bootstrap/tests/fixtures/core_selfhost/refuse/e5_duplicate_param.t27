@@ -1,0 +1,5 @@
+// A parameter named twice (#8087).
+module duplicate_param;
+fn dp_g(a: i64, a: i64) -> i64 {
+    return a;
+}
