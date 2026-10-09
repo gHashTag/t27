@@ -1,0 +1,659 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/type_text.t27 -- how t27b reads the TEXT of a type the t27c parser keeps (port epic #6198,
+; under #6063 and #5980). cli/t27b/src/lower.rs lowers the t27c AST to t27b's IR; a type reaches it as the
+; source spelling (`?*const [4]u8`, `[T; N]`, `gf16::GF16`), and these are the rules that read that spelling
+; without asking anything of the rest of the file. They were hand-written Rust in lower.rs (`close_of_open`,
+; `type_base`, `zig_type_name`, `undeclared_field_type`, `is_scoped_gf16`, `returns_value` and the shape
+; decision of `type_construct`); they now reach cli/t27b only through `t27c gen-rust`
+; (gen/rust/tri/t27b/type_text.rs, mounted as `tt`).
+; --
+; The glue passes a text's bytes. A sub-text is returned as its two byte offsets packed in one i64
+; (start * 2^32 + end), NONE when there is none. Trimming is Rust's `str::trim`: the White_Space chars of
+; `char::is_whitespace`, read from their UTF-8 bytes, so a non-ASCII space trims as it did.
+; What stays in Rust: the lookups in the file's declarations (`type_decls`, the `declared` set), and the
+; strings the refusals are built from.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bTypeText;
+
+/// No such text: the packed result of a type that names no element (a map `[K:V]`, an unclosed `[`).
+pub const NONE : i64 = -1;
+/// The packing of a sub-text's offsets: start * HALF + end.
+pub const HALF : i64 = 4294967296;
+
+// The bytes the rules read, as numbers (#7604).
+pub const B_TAB : u8 = 9;
+pub const B_CR : u8 = 13;
+pub const B_SPACE : u8 = 32;
+pub const B_BANG : u8 = 33;
+pub const B_AMP : u8 = 38;
+pub const B_LPAREN : u8 = 40;
+pub const B_STAR : u8 = 42;
+pub const B_COLON : u8 = 58;
+pub const B_SEMI : u8 = 59;
+pub const B_LT : u8 = 60;
+pub const B_QUEST : u8 = 63;
+pub const B_LBRACK : u8 = 91;
+pub const B_RBRACK : u8 = 93;
+pub const B_UNDERSCORE : u8 = 95;
+
+// The shape a type outside the subset is refused as (`type_construct`); SHAPE_PLAIN is `type <t>` with no
+// detail. The glue checks the file's own type declarations first.
+pub const SHAPE_PLAIN : u8 = 0;
+pub const SHAPE_SLICE : u8 = 1;
+pub const SHAPE_ARRAY : u8 = 2;
+pub const SHAPE_TUPLE : u8 = 3;
+pub const SHAPE_OPTIONAL : u8 = 4;
+pub const SHAPE_POINTER : u8 = 5;
+pub const SHAPE_ERROR_UNION : u8 = 6;
+pub const SHAPE_ANON_STRUCT : u8 = 7;
+pub const SHAPE_GENERIC : u8 = 8;
+pub const SHAPE_UNDECLARED : u8 = 9;
+pub const SHAPE_NAMES : [10]str = ["type", "type []T", "type [N]T", "type (tuple)", "type ?T", "type *T", "type E!T", "type (anonymous struct)", "type (generic)", "type (undeclared)"];
+
+/// The type names Zig declares itself, besides the integer and float widths.
+pub const ZIG_NAMES : [21]str = ["bool", "void", "type", "anyerror", "anyframe", "anyopaque", "noreturn", "usize", "isize", "comptime_int", "comptime_float", "c_char", "c_short", "c_ushort", "c_int", "c_uint", "c_long", "c_ulong", "c_longlong", "c_ulonglong", "c_longdouble"];
+/// The t27 names t27c's type mapper rewrites, so a struct field of one is no undeclared type.
+pub const MAPPED_NAMES : [8]str = ["str", "string", "float", "double", "int", "uint", "GF16", "gf16"];
+/// The return types that are no value.
+pub const NO_VALUE_NAMES : [4]str = ["", "void", "noreturn", "()"];
+
+/// Is the byte an ASCII letter?
+pub fn alpha(c: u8) -> bool {
+    return (c >= 65 and c <= 90) or (c >= 97 and c <= 122);
+}
+
+/// Is the byte an ASCII digit?
+pub fn digit(c: u8) -> bool {
+    return c >= 48 and c <= 57;
+}
+
+/// Is the byte an ASCII letter, digit or `_`?
+pub fn word(c: u8) -> bool {
+    return alpha(c) or digit(c) or c == B_UNDERSCORE;
+}
+
+/// Is the text exactly `w`?
+pub fn same(s: []const u8, w: str) -> bool {
+    if (s.len != w.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (s[k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Does s[lo .. hi] start with `w`?
+pub fn starts(s: []const u8, lo: usize, hi: usize, w: str) -> bool {
+    if (hi - lo < w.len) { return false; }
+    return same(s[lo .. lo + w.len], w);
+}
+
+/// Is the text a name: an ASCII letter or `_`, then letters, digits and `_`?
+pub fn ident(s: []const u8) -> bool {
+    if (s.len == 0) { return false; }
+    if (!alpha(s[0]) and s[0] != B_UNDERSCORE) { return false; }
+    var i : usize = 1;
+    while (i < s.len) {
+        if (!word(s[i])) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// The length in bytes of the White_Space char that starts at s[i] (before hi), 0 when it is none: tab to
+/// carriage return, space, U+0085, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000.
+pub fn ws_at(s: []const u8, i: usize, hi: usize) -> usize {
+    const c : u8 = s[i];
+    if ((c >= B_TAB and c <= B_CR) or c == B_SPACE) { return 1; }
+    if (c == 194) {
+        if (i + 1 < hi and (s[i + 1] == 133 or s[i + 1] == 160)) { return 2; }
+        return 0;
+    }
+    if (i + 2 >= hi) { return 0; }
+    const b1 : u8 = s[i + 1];
+    const b2 : u8 = s[i + 2];
+    if (c == 225 and b1 == 154 and b2 == 128) { return 3; }
+    if (c == 226 and b1 == 128 and ((b2 >= 128 and b2 <= 138) or b2 == 168 or b2 == 169 or b2 == 175)) { return 3; }
+    if (c == 226 and b1 == 129 and b2 == 159) { return 3; }
+    if (c == 227 and b1 == 128 and b2 == 128) { return 3; }
+    return 0;
+}
+
+/// The length of the White_Space char that ends at s[end - 1] (after lo), 0 when it is none.
+pub fn ws_before(s: []const u8, lo: usize, end: usize) -> usize {
+    const c : u8 = s[end - 1];
+    if ((c >= B_TAB and c <= B_CR) or c == B_SPACE) { return 1; }
+    if (end - lo >= 2 and ws_at(s, end - 2, end) == 2) { return 2; }
+    if (end - lo >= 3 and ws_at(s, end - 3, end) == 3) { return 3; }
+    return 0;
+}
+
+/// Where s[lo .. hi] starts once the leading White_Space is trimmed.
+pub fn trim_lo(s: []const u8, lo: usize, hi: usize) -> usize {
+    var i : usize = lo;
+    while (i < hi) {
+        const n : usize = ws_at(s, i, hi);
+        if (n == 0) { return i; }
+        i = i + n;
+    }
+    return i;
+}
+
+/// Where s[lo .. hi] ends once the trailing White_Space is trimmed.
+pub fn trim_hi(s: []const u8, lo: usize, hi: usize) -> usize {
+    var j : usize = hi;
+    while (j > lo) {
+        const n : usize = ws_before(s, lo, j);
+        if (n == 0) { return j; }
+        j = j - n;
+    }
+    return j;
+}
+
+/// Is the text, trimmed, exactly `w`?
+pub fn trimmed_is(s: []const u8, w: str) -> bool {
+    const lo : usize = trim_lo(s, 0, s.len);
+    return same(s[lo .. trim_hi(s, lo, s.len)], w);
+}
+
+/// The offsets lo and hi packed into one i64.
+pub fn pack(lo: usize, hi: usize) -> i64 {
+    const a : i64 = @intCast(lo);
+    const b : i64 = @intCast(hi);
+    return a * HALF + b;
+}
+
+/// The index of the `]` that closes the `[` at s[lo], counting the brackets from lo up to hi; NONE when
+/// none does (`close_of_open`).
+pub fn close_in(s: []const u8, lo: usize, hi: usize) -> i64 {
+    var depth : i64 = 0;
+    var i : usize = lo;
+    while (i < hi) {
+        if (s[i] == B_LBRACK) {
+            depth = depth + 1;
+        }
+        if (s[i] == B_RBRACK) {
+            depth = depth - 1;
+            if (depth == 0) { return @intCast(i); }
+        }
+        i = i + 1;
+    }
+    return NONE;
+}
+
+/// The index of the last byte `b` in s[lo .. hi]; NONE when there is none.
+pub fn last_of(s: []const u8, lo: usize, hi: usize, b: u8) -> i64 {
+    var i : usize = hi;
+    while (i > lo) {
+        i = i - 1;
+        if (s[i] == b) { return @intCast(i); }
+    }
+    return NONE;
+}
+
+/// The element name of a type's text (`type_base`), packed: the text under `?`, `&`, `*`, `const `, a
+/// postfix `?` (#7415), and the array and slice forms of both t27 (`[T]`, `[T; N]`) and Zig (`[]T`, `[N]T`),
+/// trimmed. NONE for a map type `[K:V]`, which is not a name, and for a `[` nothing closes.
+pub fn type_base(s: []const u8) -> i64 {
+    var lo : usize = trim_lo(s, 0, s.len);
+    var hi : usize = trim_hi(s, lo, s.len);
+    while (lo < hi) {
+        const c : u8 = s[lo];
+        if (c == B_QUEST or c == B_AMP or c == B_STAR) {
+            lo = lo + 1;
+        } else if (starts(s, lo, hi, "const ")) {
+            lo = lo + 6;
+        } else if (s[hi - 1] == B_QUEST) {
+            hi = hi - 1;
+        } else if (c == B_LBRACK) {
+            const close : i64 = close_in(s, lo, hi);
+            if (close == NONE) { return NONE; }
+            const at : usize = @intCast(close);
+            if (at == hi - 1) {
+                lo = lo + 1;
+                if (last_of(s, lo, at, B_COLON) != NONE) { return NONE; }
+                const semi : i64 = last_of(s, lo, at, B_SEMI);
+                hi = at;
+                if (semi != NONE) { hi = @intCast(semi); }
+            } else {
+                lo = at + 1;
+            }
+        } else {
+            return pack(lo, hi);
+        }
+        lo = trim_lo(s, lo, hi);
+        hi = trim_hi(s, lo, hi);
+    }
+    return pack(lo, hi);
+}
+
+/// A type name Zig declares itself: one of ZIG_NAMES, or `u`, `i` or `f` and one or more digits.
+pub fn zig_type_name(s: []const u8) -> bool {
+    var k : usize = 0;
+    while (k < 21) {
+        if (same(s, ZIG_NAMES[k])) { return true; }
+        k = k + 1;
+    }
+    if (s.len < 2) { return false; }
+    if (s[0] != 117 and s[0] != 105 and s[0] != 102) { return false; }
+    var i : usize = 1;
+    while (i < s.len) {
+        if (!digit(s[i])) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Is a struct field's element name `base` one the reference emits as a name Zig cannot resolve? A generic
+/// `List<T>` (a parse error), or a bare name that is not `declared` at the top level of the file, not a Zig
+/// type and not one t27c's type mapper rewrites. Anything else (dotted or scoped paths, `@This()`, fn types)
+/// is left alone.
+pub fn undeclared(base: []const u8, declared: bool) -> bool {
+    var i : usize = 0;
+    while (i < base.len) {
+        if (base[i] == B_LT) { return true; }
+        i = i + 1;
+    }
+    if (declared or !ident(base)) { return false; }
+    var k : usize = 0;
+    while (k < 8) {
+        if (same(base, MAPPED_NAMES[k])) { return false; }
+        k = k + 1;
+    }
+    return !zig_type_name(base);
+}
+
+/// `m::GF16` / `a::b::gf16`: a module path, its segments split at `::`, each a name, the last one GF16 or
+/// gf16 (`is_scoped_gf16`). t27c's type mapper writes it as `u16`, as it does a bare GF16.
+pub fn scoped_gf16(s: []const u8) -> bool {
+    var segs : usize = 0;
+    var start : usize = 0;
+    var last : usize = 0;
+    var j : usize = 0;
+    while (j <= s.len) {
+        if (j == s.len or (s[j] == B_COLON and j + 1 < s.len and s[j + 1] == B_COLON)) {
+            if (!ident(s[start .. j])) { return false; }
+            segs = segs + 1;
+            last = start;
+            if (j == s.len) {
+                j = j + 1;
+            } else {
+                j = j + 2;
+                start = j;
+            }
+        } else {
+            j = j + 1;
+        }
+    }
+    return segs > 1 and (same(s[last .. s.len], "GF16") or same(s[last .. s.len], "gf16"));
+}
+
+/// A return type that is a value (t27c `call_returns_value` and the test in `gen_fn_decl` before
+/// `zig_tail_returns`): anything but none, `void`, `noreturn` and `()`, trimmed.
+pub fn returns_value(s: []const u8) -> bool {
+    var k : usize = 0;
+    while (k < 4) {
+        if (trimmed_is(s, NO_VALUE_NAMES[k])) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The shape a type outside the subset is refused as, by its first bytes (`type_construct`, after the
+/// file's own declarations): types of one shape share a construct, so a count says how many files need it.
+pub fn shape(s: []const u8) -> u8 {
+    if (s.len == 0) { return SHAPE_PLAIN; }
+    if (starts(s, 0, s.len, "[]")) { return SHAPE_SLICE; }
+    if (s[0] == B_LBRACK) { return SHAPE_ARRAY; }
+    if (s[0] == B_LPAREN) { return SHAPE_TUPLE; }
+    if (s[0] == B_QUEST) { return SHAPE_OPTIONAL; }
+    if (s[0] == B_STAR) { return SHAPE_POINTER; }
+    if (last_of(s, 0, s.len, B_BANG) != NONE) { return SHAPE_ERROR_UNION; }
+    if (starts(s, 0, s.len, "struct")) { return SHAPE_ANON_STRUCT; }
+    if (last_of(s, 0, s.len, B_LPAREN) != NONE) { return SHAPE_GENERIC; }
+    if (s[0] >= 65 and s[0] <= 90 and !same(s, "Result") and !same(s, "Option")) { return SHAPE_UNDECLARED; }
+    return SHAPE_PLAIN;
+}
+
+/// The construct of a shape.
+pub fn shape_name(k: u8) -> str {
+    return SHAPE_NAMES[k];
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. The expected values are what the hand-written Rust of lower.rs (master a561d6d13) returns.
+// ----------------------------------------------------------------------------------------------------------
+
+/// The start of a packed sub-text.
+fn lo_of(p: i64) -> i64 {
+    return @divTrunc(p, HALF);
+}
+
+/// The end of a packed sub-text.
+fn hi_of(p: i64) -> i64 {
+    return p - lo_of(p) * HALF;
+}
+
+test bytes_are_classified_as_ascii {
+    assert alpha(65) and alpha(90) and alpha(97) and alpha(122);
+    assert !alpha(64) and !alpha(91) and !alpha(96) and !alpha(123) and !alpha(48);
+    assert digit(48) and digit(57) and !digit(47) and !digit(58);
+    assert word(95) and word(48) and word(97) and !word(46) and !word(58) and !word(194);
+    assert ident("a") and ident("_x9") and ident("GF16") and ident("Z_");
+    assert !ident("") and !ident("9a") and !ident("a.b") and !ident("a-b") and !ident(":b");
+}
+
+test exact_and_prefix_matches {
+    assert same("void", "void");
+    assert !same("voi", "void");
+    assert !same("voids", "void");
+    assert !same("vxid", "void");
+    assert same("", "");
+    assert starts("const T", 0, 7, "const ");
+    assert !starts("const", 0, 5, "const ");
+    assert starts("const ", 0, 6, "const ");
+    assert starts("[]", 0, 2, "[]");
+    assert !starts("constT", 0, 6, "const ");
+    assert starts("x[]u8", 1, 5, "[]");
+    assert !starts("x[]u8", 0, 5, "[]");
+}
+
+test ascii_whitespace_is_one_byte {
+    assert ws_at(" a", 0, 2) == 1;
+    assert ws_at("\ta", 0, 2) == 1;
+    assert ws_at("\na", 0, 2) == 1;
+    assert ws_at("a ", 0, 2) == 0;
+    assert ws_at("_", 0, 1) == 0;
+    assert ws_at("!", 0, 1) == 0;
+    assert ws_before("a ", 0, 2) == 1;
+    assert ws_before("a\t", 0, 2) == 1;
+    assert ws_before(" a", 0, 2) == 0;
+    assert ws_before("a!", 0, 2) == 0;
+}
+
+test vertical_tab_form_feed_and_carriage_return_are_whitespace {
+    var buf : [5]u8 = undefined;
+    buf[0] = 11;
+    buf[1] = 12;
+    buf[2] = 13;
+    buf[3] = 8;
+    buf[4] = 14;
+    assert ws_at(buf[0 .. 5], 0, 5) == 1;
+    assert ws_at(buf[0 .. 5], 1, 5) == 1;
+    assert ws_at(buf[0 .. 5], 2, 5) == 1;
+    assert ws_at(buf[0 .. 5], 3, 5) == 0;
+    assert ws_at(buf[0 .. 5], 4, 5) == 0;
+    assert ws_before(buf[0 .. 5], 0, 3) == 1;
+    assert ws_before(buf[0 .. 5], 0, 4) == 0;
+    assert ws_before(buf[0 .. 5], 0, 5) == 0;
+}
+
+test two_byte_spaces_are_nel_and_nbsp {
+    var buf : [6]u8 = undefined;
+    buf[0] = 194;
+    buf[1] = 133;
+    buf[2] = 194;
+    buf[3] = 160;
+    buf[4] = 194;
+    buf[5] = 161;
+    assert ws_at(buf[0 .. 6], 0, 6) == 2;
+    assert ws_at(buf[0 .. 6], 2, 6) == 2;
+    assert ws_at(buf[0 .. 6], 4, 6) == 0;
+    assert ws_at(buf[0 .. 6], 0, 1) == 0;
+    assert ws_before(buf[0 .. 6], 0, 2) == 2;
+    assert ws_before(buf[0 .. 6], 0, 4) == 2;
+    assert ws_before(buf[0 .. 6], 0, 6) == 0;
+    assert ws_before(buf[0 .. 6], 1, 2) == 0;
+}
+
+test three_byte_spaces_are_the_white_space_set {
+    var buf : [3]u8 = undefined;
+    buf[0] = 226;
+    buf[1] = 128;
+    buf[2] = 128;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    assert ws_at(buf[0 .. 3], 0, 2) == 0;
+    assert ws_before(buf[0 .. 3], 0, 3) == 3;
+    assert ws_before(buf[0 .. 3], 1, 3) == 0;
+    buf[2] = 138;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[2] = 139;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    assert ws_before(buf[0 .. 3], 0, 3) == 0;
+    buf[2] = 127;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[2] = 168;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[2] = 169;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[2] = 170;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[2] = 175;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[2] = 167;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[1] = 129;
+    buf[2] = 159;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[2] = 158;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[0] = 225;
+    buf[1] = 154;
+    buf[2] = 128;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[1] = 155;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[1] = 154;
+    buf[2] = 129;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[0] = 227;
+    buf[1] = 128;
+    buf[2] = 128;
+    assert ws_at(buf[0 .. 3], 0, 3) == 3;
+    buf[2] = 129;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[1] = 129;
+    buf[2] = 128;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+    buf[0] = 228;
+    buf[1] = 128;
+    assert ws_at(buf[0 .. 3], 0, 3) == 0;
+}
+
+test trimming_skips_whitespace_at_both_ends {
+    assert trim_lo("  ab ", 0, 5) == 2;
+    assert trim_hi("  ab ", 2, 5) == 4;
+    assert trim_lo("ab", 0, 2) == 0;
+    assert trim_hi("ab", 0, 2) == 2;
+    assert trim_lo("   ", 0, 3) == 3;
+    assert trim_hi("   ", 3, 3) == 3;
+    assert trim_hi(" \t ", 0, 3) == 0;
+    assert trim_lo("x  y", 1, 4) == 3;
+    assert trimmed_is("  void\t", "void");
+    assert trimmed_is(" ", "");
+    assert !trimmed_is(" voids ", "void");
+}
+
+test non_ascii_spaces_trim_too {
+    var buf : [7]u8 = undefined;
+    buf[0] = 194;
+    buf[1] = 160;
+    buf[2] = 117;
+    buf[3] = 56;
+    buf[4] = 227;
+    buf[5] = 128;
+    buf[6] = 128;
+    assert trim_lo(buf[0 .. 7], 0, 7) == 2;
+    assert trim_hi(buf[0 .. 7], 2, 7) == 4;
+    assert trimmed_is(buf[0 .. 7], "u8");
+    assert type_base(buf[0 .. 7]) == pack(2, 4);
+}
+
+test brackets_close_by_depth {
+    assert close_in("[4]u8", 0, 5) == 2;
+    assert close_in("[[2]u8; 3]", 0, 10) == 9;
+    assert close_in("[]T", 0, 3) == 1;
+    assert close_in("[a", 0, 2) == NONE;
+    assert close_in("]]", 0, 2) == NONE;
+    assert close_in("][]", 0, 3) == NONE;
+    assert close_in("x[1]", 0, 4) == 3;
+    assert close_in("[1]]", 1, 4) == NONE;
+    assert close_in("[1]", 0, 2) == NONE;
+    assert last_of("a;b;c", 0, 5, B_SEMI) == 3;
+    assert last_of("a;b;c", 0, 3, B_SEMI) == 1;
+    assert last_of("a;b;c", 2, 3, B_SEMI) == NONE;
+    assert last_of(";", 0, 1, B_SEMI) == 0;
+    assert last_of("abc", 0, 3, B_SEMI) == NONE;
+}
+
+test offsets_pack_into_one_i64 {
+    assert pack(0, 0) == 0;
+    assert pack(2, 5) == 8589934597;
+    assert lo_of(pack(7, 9)) == 7;
+    assert hi_of(pack(7, 9)) == 9;
+    assert HALF == 4294967296;
+}
+
+test a_type_base_strips_pointers_options_and_const {
+    assert type_base("u8") == pack(0, 2);
+    assert type_base("  Foo ") == pack(2, 5);
+    assert type_base("?Foo") == pack(1, 4);
+    assert type_base("&Foo") == pack(1, 4);
+    assert type_base("*Foo") == pack(1, 4);
+    assert type_base("*const Foo") == pack(7, 10);
+    assert type_base("? * const  Foo") == pack(11, 14);
+    assert type_base("const Foo") == pack(6, 9);
+    assert type_base("constFoo") == pack(0, 8);
+    assert type_base("Foo?") == pack(0, 3);
+    assert type_base("Foo ?") == pack(0, 3);
+    assert type_base("") == pack(0, 0);
+    assert type_base("   ") == pack(3, 3);
+    assert type_base("?") == pack(1, 1);
+}
+
+test a_type_base_reads_arrays_and_slices {
+    assert type_base("[]u8") == pack(2, 4);
+    assert type_base("[4]Foo") == pack(3, 6);
+    assert type_base("[Foo]") == pack(1, 4);
+    assert type_base("[Foo; 4]") == pack(1, 4);
+    assert type_base("[ Foo ; 4 ]") == pack(2, 5);
+    assert type_base("[[Foo; 2]; 3]") == pack(2, 5);
+    assert type_base("[a;b;4]") == pack(1, 4);
+    assert type_base("[]const Foo") == pack(8, 11);
+    assert type_base("?[]Foo") == pack(3, 6);
+    assert type_base("[2][3]Foo") == pack(6, 9);
+    assert type_base("[K:V]") == NONE;
+    assert type_base("[[K:V]]") == NONE;
+    assert type_base("[4]u8 [") == pack(3, 7);
+    assert type_base("[4") == NONE;
+    assert type_base("[]") == pack(1, 1);
+}
+
+test zig_declares_its_own_type_names {
+    assert zig_type_name("bool") and zig_type_name("void") and zig_type_name("type");
+    assert zig_type_name("anyerror") and zig_type_name("anyframe") and zig_type_name("anyopaque");
+    assert zig_type_name("noreturn") and zig_type_name("usize") and zig_type_name("isize");
+    assert zig_type_name("comptime_int") and zig_type_name("comptime_float");
+    assert zig_type_name("c_char") and zig_type_name("c_short") and zig_type_name("c_ushort");
+    assert zig_type_name("c_int") and zig_type_name("c_uint") and zig_type_name("c_long");
+    assert zig_type_name("c_ulong") and zig_type_name("c_longlong") and zig_type_name("c_ulonglong");
+    assert zig_type_name("c_longdouble");
+    assert zig_type_name("u8") and zig_type_name("i64") and zig_type_name("f32") and zig_type_name("u0");
+    assert zig_type_name("u1024");
+    assert !zig_type_name("u") and !zig_type_name("i") and !zig_type_name("f") and !zig_type_name("");
+    assert !zig_type_name("x8") and !zig_type_name("u8x") and !zig_type_name("u_8") and !zig_type_name("Bool");
+    assert !zig_type_name("c_float") and !zig_type_name("str") and !zig_type_name("U8");
+}
+
+test a_field_type_is_undeclared_only_when_zig_cannot_resolve_it {
+    assert undeclared("List<T>", false);
+    assert undeclared("List<T>", true);
+    assert undeclared("Foo", false);
+    assert undeclared("_x", false);
+    assert !undeclared("Foo", true);
+    assert !undeclared("", false);
+    assert !undeclared("a.B", false);
+    assert !undeclared("@This()", false);
+    assert !undeclared("9a", false);
+    assert !undeclared("u8", false);
+    assert !undeclared("usize", false);
+    assert !undeclared("bool", false);
+    assert !undeclared("str", false) and !undeclared("string", false) and !undeclared("float", false);
+    assert !undeclared("double", false) and !undeclared("int", false) and !undeclared("uint", false);
+    assert !undeclared("GF16", false) and !undeclared("gf16", false);
+    assert undeclared("Gf16", false);
+    assert undeclared("strings", false);
+}
+
+test scoped_gf16_is_a_path_ending_in_gf16 {
+    assert scoped_gf16("m::GF16");
+    assert scoped_gf16("a::b::gf16");
+    assert scoped_gf16("_m9::GF16");
+    assert !scoped_gf16("GF16");
+    assert !scoped_gf16("m::Gf16");
+    assert !scoped_gf16("m::GF16x");
+    assert !scoped_gf16("m::");
+    assert !scoped_gf16("::GF16");
+    assert !scoped_gf16("m:::GF16");
+    assert !scoped_gf16("m::::GF16");
+    assert !scoped_gf16("9m::GF16");
+    assert !scoped_gf16("m.n::GF16");
+    assert !scoped_gf16("m::GF16::x");
+    assert !scoped_gf16("m:GF16");
+    assert !scoped_gf16("m:xGF16");
+    assert !scoped_gf16("m::GF16:");
+    assert !scoped_gf16("");
+}
+
+test a_return_type_is_a_value_unless_it_is_none {
+    assert !returns_value("");
+    assert !returns_value("void");
+    assert !returns_value(" void ");
+    assert !returns_value("noreturn");
+    assert !returns_value("()");
+    assert !returns_value("  ");
+    assert returns_value("u8");
+    assert returns_value("?void");
+    assert returns_value("( )");
+    assert returns_value("voids");
+    assert returns_value("Void");
+}
+
+test a_refused_type_is_named_by_its_shape {
+    assert shape("[]u8") == SHAPE_SLICE;
+    assert shape("[4]u8") == SHAPE_ARRAY;
+    assert shape("[") == SHAPE_ARRAY;
+    assert shape("(u8, u8)") == SHAPE_TUPLE;
+    assert shape("?Foo") == SHAPE_OPTIONAL;
+    assert shape("*Foo") == SHAPE_POINTER;
+    assert shape("E!Foo") == SHAPE_ERROR_UNION;
+    assert shape("struct { a: u8 }") == SHAPE_ANON_STRUCT;
+    assert shape("structure!") == SHAPE_ERROR_UNION;
+    assert shape("Map(u8)") == SHAPE_GENERIC;
+    assert shape("Foo") == SHAPE_UNDECLARED;
+    assert shape("Results") == SHAPE_UNDECLARED;
+    assert shape("Result") == SHAPE_PLAIN;
+    assert shape("Option") == SHAPE_PLAIN;
+    assert shape("foo") == SHAPE_PLAIN;
+    assert shape("") == SHAPE_PLAIN;
+    assert shape("@T") == SHAPE_PLAIN;
+    assert shape("Zed") == SHAPE_UNDECLARED;
+    assert shape("A") == SHAPE_UNDECLARED;
+    assert shape("[]") == SHAPE_SLICE;
+    assert shape("[x") == SHAPE_ARRAY;
+}
+
+test shape_names_are_the_refusal_constructs {
+    assert same(shape_name(SHAPE_SLICE), "type []T");
+    assert same(shape_name(SHAPE_ARRAY), "type [N]T");
+    assert same(shape_name(SHAPE_TUPLE), "type (tuple)");
+    assert same(shape_name(SHAPE_OPTIONAL), "type ?T");
+    assert same(shape_name(SHAPE_POINTER), "type *T");
+    assert same(shape_name(SHAPE_ERROR_UNION), "type E!T");
+    assert same(shape_name(SHAPE_ANON_STRUCT), "type (anonymous struct)");
+    assert same(shape_name(SHAPE_GENERIC), "type (generic)");
+    assert same(shape_name(SHAPE_UNDECLARED), "type (undeclared)");
+}
