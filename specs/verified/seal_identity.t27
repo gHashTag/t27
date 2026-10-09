@@ -89,6 +89,35 @@ pub fn checks_pass(failed_zero: bool, forced: bool, tests_total: u32, invariants
     return tests_total + invariants > 0;
 }
 
+/// The re-mint: `t27c frontier --reseal` seals again every spec remint_wants() names, and keeps the new
+/// seal only when remint_keeps() allows it; otherwise the old seal is written back. A stale part (spec,
+/// closure, toolchain, config, verdict) is cured by sealing again. MISSING is not: no seal, or an import
+/// with none, needs the spec itself fixed -- on 2026-10-10, 391 of 524 unsealed specs did not compile.
+pub fn remint_wants(decision: u8) -> bool {
+    if (decision == REUSE) { return false; }
+    return decision != REBUILD_MISSING;
+}
+
+/// A re-mint shares one zig cache and wipes it after every REMINT_CACHE_EVERY specs. A cold cache
+/// rebuilds zig's std for each spec (about 20 s each, measured 2026-10-10); a cache never wiped filled
+/// the disk during the second re-mint. 25 kept both in bounds over 1203 specs.
+pub const REMINT_CACHE_EVERY : u32 = 25;
+
+/// The seal schema that records closure, toolchain and config, so frontier can reuse it.
+pub const SEAL_SCHEMA : u32 = 2;
+
+/// Keep a new seal only when it is a v2 record whose checks ran and passed. A blocked spec records no
+/// failed count, so failed_zero is false and it is never kept. The hand filter of the second re-mint
+/// demanded tests > 0 and dropped 15 invariant-only specs (#8386); checks_pass counts invariants.
+/// And only in a file that is the spec's own: two specs can derive one seal file name (parent dir and
+/// module), and `seal --save` then overwrites the other spec's seal. The first full run hit 5 such files
+/// on 2026-10-10; that file is written back, never kept and never deleted.
+pub fn remint_keeps(schema: u32, failed_zero: bool, forced: bool, tests_total: u32, invariants: u32, file_is_its_own: bool) -> bool {
+    if (file_is_its_own == false) { return false; }
+    if (schema != SEAL_SCHEMA) { return false; }
+    return checks_pass(failed_zero, forced, tests_total, invariants);
+}
+
 /// The verdict part: the recorded tests passed, and, when the artifact needs silicon, its hardware
 /// step is VERIFIED.
 pub fn verdict_pass(tests_pass: bool, needs_silicon: bool, hw: u8) -> bool {
@@ -193,6 +222,32 @@ test checks_pass_needs_at_least_one_check {
     assert checks_pass(true, true, 5, 1) == false;
 }
 
+test remint_wants_only_a_stale_part {
+    assert remint_wants(REUSE) == false;
+    assert remint_wants(REBUILD_MISSING) == false;
+    assert remint_wants(REBUILD_SPEC) == true;
+    assert remint_wants(REBUILD_CLOSURE) == true;
+    assert remint_wants(REBUILD_TOOLCHAIN) == true;
+    assert remint_wants(REBUILD_CONFIG) == true;
+    assert remint_wants(REBUILD_VERDICT) == true;
+}
+
+test remint_keeps_a_v2_seal_whose_checks_ran {
+    assert remint_keeps(2, true, false, 6, 0, true) == true;
+    // invariant-only: the 15 specs the hand filter dropped (#8386)
+    assert remint_keeps(2, true, false, 0, 1, true) == true;
+    // blocked: the seal records no failed count
+    assert remint_keeps(2, false, false, 0, 0, true) == false;
+    // nothing ran, a failing test, a forced seal, an old schema
+    assert remint_keeps(2, true, false, 0, 0, true) == false;
+    assert remint_keeps(2, false, false, 6, 1, true) == false;
+    assert remint_keeps(2, true, true, 6, 1, true) == false;
+    assert remint_keeps(1, true, false, 6, 0, true) == false;
+    assert remint_keeps(3, true, false, 6, 0, true) == false;
+    // a seal file another spec owns (a name collision) is never kept, however good the seal
+    assert remint_keeps(2, true, false, 6, 1, false) == false;
+}
+
 test the_reused_share_is_a_number {
     assert reused_permille(0, 0) == 0;
     assert reused_permille(0, 7) == 0;
@@ -201,6 +256,10 @@ test the_reused_share_is_a_number {
     assert reused_permille(2, 3) == 667;
     assert reused_permille(5, 5) == 1000;
     assert reused_permille(9, 5) == 1000;
+}
+
+invariant a_remint_cache_is_shared_and_bounded {
+    assert REMINT_CACHE_EVERY > 1 and REMINT_CACHE_EVERY <= 100;
 }
 
 invariant the_silicon_bar_is_three_distinct_dies {

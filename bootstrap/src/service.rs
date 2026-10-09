@@ -5650,7 +5650,7 @@ mod unresolved_is_not_a_rejection {
 
 /// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
 /// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
-pub fn run_frontier(list: bool) -> anyhow::Result<()> {
+pub fn run_frontier(list: bool, reseal: bool) -> anyhow::Result<()> {
     use crate::seal_identity as si;
     let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
     while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
@@ -5682,6 +5682,26 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
     for p in &specs { let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); counts[d as usize] += 1; if list && d != si::REUSE { println!("{d} {p}") } }
     let total = specs.len() as u32;
     println!("frontier: reused {} of {} ({} permille); rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
+    // --reseal (#8095): seal again what remint_wants names; keep the new seal only where remint_keeps allows,
+    // copied onto every twin, else write the old seal back. `seal` exits on a refusal, so it runs as a child.
+    let mut twins: std::collections::HashMap<String, Vec<std::path::PathBuf>> = Default::default();
+    for e in std::fs::read_dir(".trinity/seals").into_iter().flatten().flatten().filter(|_| reseal) { if let Some(s) = std::fs::read_to_string(e.path()).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()).and_then(|v| v["spec_path"].as_str().map(String::from)) { twins.entry(s).or_default().push(e.path()) } }
+    let zc = std::env::temp_dir().join(format!("t27c-reseal-{}", std::process::id()));
+    for (i, p) in specs.iter().filter(|p| reseal && memo.get(p.as_str()).map_or(false, |d| si::remint_wants(*d))).enumerate() {
+        let src = std::fs::read_to_string(p)?;
+        let primary = crate::seal_file_path(&crate::extract_module_name(&src).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()), p);
+        let mut old: Vec<(std::path::PathBuf, String, bool)> = twins.get(p.as_str()).into_iter().flatten().filter_map(|f| Some((f.clone(), std::fs::read_to_string(f).ok()?, true))).collect();
+        if let Some(o) = std::fs::read_to_string(&primary).ok().filter(|_| !old.iter().any(|(f, ..)| f == &primary)) { old.push((primary.clone(), o, false)) }
+        let sealed = std::process::Command::new(std::env::current_exe()?).args(["seal", p.as_str(), "--save"]).envs([("ZIG_GLOBAL_CACHE_DIR", &zc), ("ZIG_LOCAL_CACHE_DIR", &zc)]).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().map_or(false, |s| s.success());
+        if (i as u32 + 1) % si::REMINT_CACHE_EVERY == 0 { let _ = std::fs::remove_dir_all(&zc); }
+        let new: serde_json::Value = std::fs::read_to_string(&primary).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        let keep = sealed && si::remint_keeps(new["seal_schema"].as_u64().unwrap_or(0) as u32, new.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0), new.pointer("/tests/forced").and_then(|v| v.as_bool()) == Some(true), new.pointer("/tests/total").and_then(|v| v.as_u64()).unwrap_or(0) as u32, src.lines().filter(|l| l.trim_start().starts_with("invariant ")).count() as u32, !old.iter().any(|(f, _, mine)| f == &primary && !mine));
+        let same = |o: &str| serde_json::from_str::<serde_json::Value>(o).map_or(false, |mut v| { v["sealed_at"] = new["sealed_at"].clone(); v == new });
+        if !keep && !old.iter().any(|(f, ..)| f == &primary) { let _ = std::fs::remove_file(&primary); }
+        for (f, o, mine) in &old { std::fs::write(f, if keep && *mine && !same(o) { serde_json::to_string_pretty(&new)? } else { o.clone() })? }
+        println!("{} {p}", if keep { "resealed" } else { "kept the old seal" });
+    }
+    let _ = std::fs::remove_dir_all(&zc);
     Ok(())
 }
 
