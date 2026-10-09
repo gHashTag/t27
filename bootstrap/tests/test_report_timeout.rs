@@ -42,6 +42,10 @@ fn leftover_work_dirs() -> Vec<String> {
 }
 
 #[cfg(unix)]
+fn scratch(tag: &str) -> String { // pid: one run; counter: one test of that run
+    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    format!("t27-test-{tag}-{}-{}", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
 #[test]
 fn a_looping_test_fails_at_the_limit_the_environment_sets() {
     use std::os::unix::process::CommandExt;
@@ -49,9 +53,7 @@ fn a_looping_test_fails_at_the_limit_the_environment_sets() {
         eprintln!("skipped: zig not on PATH");
         return;
     }
-    let dir = fs::canonicalize(std::env::temp_dir())
-        .unwrap()
-        .join(format!("t27-test-timeout-{}", std::process::id()));
+    let dir = fs::canonicalize(std::env::temp_dir()).unwrap().join(scratch("timeout"));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("specs/probe")).expect("specs dir");
     fs::write(dir.join("specs/probe/cli_loop_probe.t27"), LOOP_PROBE).expect("write spec");
@@ -106,7 +108,7 @@ fn a_looping_test_fails_at_the_limit_the_environment_sets() {
 /// and an error that prints no report (a missing file) exits 1 either way.
 #[test]
 fn the_exit_code_says_what_the_report_says() {
-    let dir = std::env::temp_dir().join(format!("t27-test-exit-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(scratch("exit"));
     fs::create_dir_all(&dir).unwrap();
     let rc = |name: &str, body: Option<&str>, opt: &str| {
         let p = dir.join(format!("{name}.t27"));
