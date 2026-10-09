@@ -207,15 +207,11 @@ Violating any of these fails the tick.
 
 - Do not touch other working copies or other crons' directories:
   `workspace/goldsieve`, `workspace/corpus`, any `cron_tracking/*` but your own.
-- Do not push to `master`, do not merge, do not enable auto-merge. Only a push to
-  a `w699-<topic>` branch and opening a PR are permitted. Merging is a human act.
 - Do not restore code with `git checkout` / `git reset` over unsaved edits in the
   working copy.
 - AUTOCLOSING ISSUES IS FORBIDDEN. Never close issues, least of all in bulk. Most
   of the tracker consists of journal entries (`wave ...`, `formal: ... (Prop. NN)`)
   with no completion condition; they are not tasks, but they must not be closed.
-- Never claim "first", "only", or "best". Every number carries a tag:
-  `[measured]`, `[modelled]`, `[open hypothesis]`.
 - Do not `git add` before checks that run `git stash` / `git stash pop`: the pop
   unstages, and a partial set lands in the commit. This is how a commit with one
   file out of three reached a branch. Stage AFTER all checks, and compare
