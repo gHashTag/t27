@@ -4251,14 +4251,17 @@ pub fn run_silicon(
     let bit_path = tmp.join(format!("{stem}.bit"));
     let tools = [chipdb.clone(), pnr.clone(), xr.join("utils/fasm2frames.py"), PathBuf::from(run(Command::new("which").arg("xc7frames2bit")).1.trim())];
     let xdc_in = tops.last().map(|t| Path::new(t).with_extension("xdc")).filter(|p| p.exists());
-    let mut key_in = format!("{}|{}|{pnr_seed:?}|{}|{}", run(Command::new("yosys").arg("-V")).1.trim(), run(Command::new("git").arg("-C").arg(&db).args(["rev-parse", "HEAD"])).1.trim(), br::BIT_RECIPE, env!("CARGO_PKG_VERSION"));
+    let mut key_in = format!("{}|{}|{pnr_seed:?}|{}|{}", run(Command::new("yosys").arg("-V")).1.trim().to_owned() + run(Command::new(&venv).args(["-m", "pip", "freeze"])).1.trim(), run(Command::new("git").arg("-C").arg(&db).args(["rev-parse", "HEAD"])).1.trim(), br::BIT_RECIPE, env!("CARGO_PKG_VERSION"));
     for f in sources.iter().map(PathBuf::from).chain(xdc_in).chain(tools) { key_in += &format!("|{}", crate::sha256_hex(&std::fs::read(&f).unwrap_or_default())); }
     let cache = PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache/t27/bitstreams").join(crate::sha256_hex(key_in.as_bytes()));
     let (cached_bit, cached_chain) = (std::fs::read(cache.join("design.bit")).ok(), std::fs::read_to_string(cache.join("chain")).ok());
     let intact = cached_bit.as_deref().map(crate::sha256_hex) == std::fs::read_to_string(cache.join("bit.sha256")).ok();
     let decision = br::bit_decision(std::env::var_os("T27_SILICON_REBUILD").is_some(), cached_bit.is_some(), cached_chain.is_some(), intact);
+    let hits: u32 = std::fs::read_to_string(cache.join("hits")).ok().and_then(|h| h.trim().parse().ok()).unwrap_or(0);
+    let audit = decision == br::BIT_REUSE && br::audit_due(hits);
     'build: {
-    if decision == br::BIT_REUSE {
+    if decision == br::BIT_REUSE && !audit {
+        std::fs::write(cache.join("hits"), (hits + 1).to_string())?;
         std::fs::write(&bit_path, cached_bit.as_deref().unwrap_or_default())?;
         derived_chain = cached_chain.and_then(|c| c.trim().parse().ok());
         let note = format!("same inputs, same tools: {} (T27_SILICON_REBUILD=1 rebuilds)", cache.display());
@@ -4666,6 +4669,14 @@ pub fn run_silicon(
         std::fs::write(cache.join("chain"), derived_chain.map(|c| c.to_string()).unwrap_or_default())?;
         std::fs::write(cache.join("bit.sha256"), crate::sha256_hex(&bit))?; // last: a torn entry reads CORRUPT
         println!("  bitstream stored for reuse: {}", cache.display());
+    }
+    let stream = |b: &[u8]| b.windows(4).position(|w| w == br::BIT_SYNC_WORD.to_be_bytes()).map(|i| b[i..].to_vec());
+    if audit && br::audit_verdict(std::fs::read(&bit_path).ok().and_then(|b| stream(&b)) == cached_bit.as_deref().and_then(stream)) == br::AUDIT_POISONED {
+        std::fs::remove_dir_all(&cache)?;
+        println!("  AUDIT: the rebuilt bitstream differs from the cached one -- entry deleted, the key missed an input");
+    } else if audit {
+        std::fs::write(cache.join("hits"), (hits + 1).to_string())?;
+        println!("  AUDIT: the rebuilt bitstream is byte-identical to the cached one");
     }
 
     if skip_hardware {
