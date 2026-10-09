@@ -498,14 +498,83 @@ def self_test() -> int:
     return 0
 
 
+def check_coverage() -> int:
+    """Check that all gate specifications have COVERAGE paragraphs."""
+    try:
+        # Read the gate specifications file
+        gate_specs_file = "specs/tools/tri/gates.t27"
+        with open(gate_specs_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Find the GATE_SPECS array
+        import re
+        pattern = r'pub const GATE_SPECS : \[29\]str = \[(.*?)\];'
+        match = re.search(pattern, content, re.DOTALL)
+        if not match:
+            print(f"ERROR: Could not find GATE_SPECS in {gate_specs_file}")
+            return 1
+        
+        # Extract the gate specifications
+        specs_str = match.group(1)
+        # Remove the brackets and split by comma, handling quoted strings
+        specs = []
+        current = ""
+        in_quotes = False
+        escape = False
+        
+        for char in specs_str:
+            if escape:
+                current += char
+                escape = False
+            elif char == '\\':
+                escape = True
+            elif char == '"':
+                in_quotes = not in_quotes
+                current += char
+            elif char == ',' and not in_quotes:
+                specs.append(current.strip())
+                current = ""
+            else:
+                current += char
+        
+        if current.strip():
+            specs.append(current.strip())
+        
+        # Check each specification for COVERAGE paragraph
+        missing_coverage = []
+        for i, spec in enumerate(specs):
+            if "COVERAGE: " not in spec:
+                missing_coverage.append(i)
+        
+        if missing_coverage:
+            print(f"ERROR: {len(missing_coverage)} gate specifications missing COVERAGE paragraphs:")
+            for idx in missing_coverage:
+                print(f"  Gate {idx}: {specs[idx][:100]}...")
+            return 1
+        else:
+            print(f"SUCCESS: All 29 gate specifications have COVERAGE paragraphs")
+            return 0
+            
+    except FileNotFoundError:
+        print(f"ERROR: Could not find {gate_specs_file}")
+        return 1
+    except Exception as e:
+        print(f"ERROR: Failed to check coverage: {e}")
+        return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--check-coverage", action="store_true",
+                       help="Check that all gate specifications have COVERAGE paragraphs")
     args = parser.parse_args()
     if args.self_test:
         return self_test()
+    if args.check_coverage:
+        return check_coverage()
 
     today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     git("fetch", "-q", "origin", "master", timeout=600)
