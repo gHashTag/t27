@@ -105,6 +105,18 @@
 ;         it meets a runtime operand, only a number, a char and a local const
 ;         whose value is one number (gen-zig inlines it) take that operand's
 ;         type, and a module const or a cast keeps its own
+;   NAMES: every name read is bound where both backends bind it (E_NAME;
+;         typecheck binds none, #8087): a local or local array declared
+;         before it in its block or an enclosing one, a `for` capture in its
+;         body, a parameter, a module const, var or array (never a function,
+;         struct or enum as a value), a field its struct has. A module name,
+;         a parameter and a local in scope are each declared once, and no
+;         local, parameter or capture shadows another (Zig); a capture
+;         shadows no module name and takes no assignment (E_UNSOUND). C's one
+;         namespace (#8088): nothing is spelled like a const gen-c writes as
+;         `#define`; no call names a function a local shadows; test T and
+;         bench B are C's `test_T` and `bench_B`, declared once; a module
+;         initializer, type or size names only consts written before it
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
 ; With no string literals, fixed text is packed 64-bit words: w(word, n) emits
@@ -390,9 +402,11 @@ struct Pull {
     mod: i64,
 }
 
-; A name typecheck's scope holds while a function is checked: a local, as
-; t27c registers it (compiler.rs `check_stmt`), its TypeInfo, and 1 when it
-; is a `const` Zig knows at compile time.
+; A name bound while a function or test is checked: a local, as t27c's
+; typecheck registers it (compiler.rs `check_stmt`), or a `for` capture,
+; which typecheck does not; its TypeInfo; and ct: 0 for a runtime value, 1
+; for a `const` Zig knows at compile time, 3 for one whose value is one
+; number (gen-zig inlines it), 2 for a capture.
 struct Sym {
     tok: i64,
     ty: i64,
@@ -2447,6 +2461,10 @@ fn check_expr(e: i64) -> void {
     if (failed or e == 0) {
         return;
     }
+    if (k == N_IDENT and !value_bound(ntok(e))) {
+        fail(E_NAME, tpos(ntok(e)));
+        return;
+    }
     // A string where none is declared: C converts or compares the address.
     if (sv(e) and !allowed) {
         fail(E_STRING, tpos(ntok(e)));
@@ -2479,6 +2497,11 @@ fn check_expr(e: i64) -> void {
         var is_eq: bool = tok_is(t, W_ASSERT_E, 'q', 9);
         if (!is_assert and !is_eq and !is_fn_name(t)) {
             fail(E_CALL, tpos(t));
+            return;
+        }
+        // C calls the local a name shadows; gen-zig renames it (#8088).
+        if (!is_assert and !is_eq and local_bound(t)) {
+            fail(E_NAME, tpos(t));
             return;
         }
         // Both come from the test header, and take 1 and 2 arguments. The
@@ -2552,6 +2575,10 @@ fn check_expr(e: i64) -> void {
             }
             b = na(b);
             depth = depth + 1;
+        }
+        if (!failed and nkind(b) == N_IDENT and !value_bound(ntok(b))) {
+            fail(E_NAME, tpos(ntok(b)));
+            return;
         }
         if (!failed and depth != rank(ntok(e))) {
             fail(E_ARRAY, tpos(ntok(e)));
@@ -2629,9 +2656,11 @@ fn check_stmts(head: i64, test_body: i64) -> void {
         var k: i64 = nkind(s);
         if (k == S_LOCAL or k == D_ARRAY) {
             check_binding(ntok(s));
+            check_new_name(ntok(s), false);
         }
         if (k == S_FOR) {
             check_binding(naux(s));
+            check_new_name(naux(s), true);
         }
         if (k == D_ARRAY) {
             check_local_array(s);
@@ -2675,7 +2704,13 @@ fn check_stmts(head: i64, test_body: i64) -> void {
                 fail(E_SYNTAX, tpos(ntok(s)));
                 return;
             }
+            // The capture is bound in the body, as a constant (Sym.ct 2).
+            var cap_mark: i64 = sym_len;
+            if (!is_discard(naux(s))) {
+                push_sym(naux(s), 0, 2);
+            }
             check_stmts(nb(s), 0);
+            sym_len = cap_mark;
         } else {
             if (k == S_LOCAL and !type_ok(naux(s))) {
                 fail(E_TYPE, tpos(naux(s)));
@@ -3201,6 +3236,7 @@ fn check_field(e: i64) -> void {
             return;
         }
         check_expr(b);
+        check_field_name(e);
         return;
     }
     if (member_of(en, ntok(e)) == 0) {
@@ -3707,6 +3743,12 @@ fn check_assign_type(s: i64) -> void {
         fail(E_UNSOUND, tpos(ntok(lhs)));
         return;
     }
+    // A `for` capture is a constant in Zig; C changes its loop (#8087).
+    var si: i64 = sym_at(ntok(lhs));
+    if (si >= 0 and syms[si as usize].ct == 2) {
+        fail(E_UNSOUND, tpos(ntok(lhs)));
+        return;
+    }
     if (nkind(cur_decl) == D_FN and !tc_compat(tc_name(ntok(lhs)), tc_expr(nb(s)))) {
         fail(E_CHECK, tpos(ntok(lhs)));
         return;
@@ -3847,9 +3889,10 @@ fn tz_ct(e: i64) -> bool {
 
 ; How Zig sees local s (Sym.ct): 3 for a const whose value is one number,
 ; which gen-zig inlines as an untyped comptime_int; 1 for another const Zig
-; knows at compile time, typed; else 0.
+; knows at compile time, typed; else 0. A const the rest of its block
+; assigns is a var in gen-zig, known at run time only.
 fn local_ct(s: i64) -> i64 {
-    if (nd(s) != 1 or !tz_ct(na(s))) {
+    if (nd(s) != 1 or !tz_ct(na(s)) or assigns(nnext(s), ntok(s))) {
         return 0;
     }
     if (nkind(na(s)) == N_NUM) {
@@ -3868,14 +3911,8 @@ fn tz_untyped(e: i64) -> bool {
         return true;
     }
     if (k == N_IDENT) {
-        var i: i64 = sym_len - 1;
-        while (i >= 0) {
-            if (tok_eq(syms[i as usize].tok, ntok(e))) {
-                return syms[i as usize].ct == 3;
-            }
-            i = i - 1;
-        }
-        return false;
+        var i: i64 = sym_at(ntok(e));
+        return i >= 0 and syms[i as usize].ct == 3;
     }
     if (k == N_UN and kind(ntok(e)) != '!') {
         return tz_untyped(na(e));
@@ -4105,6 +4142,218 @@ fn check_un_type(e: i64) -> void {
     }
 }
 
+; ---------------------------------------------------------------- names
+
+; typecheck resolves no name (#8087): an undeclared name, a duplicate and
+; a shadow Zig refuses all reach gen-c, whose C cc refuses or reads another
+; way. The core binds each name as both backends do and refuses what either
+; refuses (E_NAME).
+
+fn is_discard(t: i64) -> bool {
+    return toks[t as usize].len == 1 and src[(toks[t as usize].pos) as usize] == '_';
+}
+
+fn param_named(t: i64) -> bool {
+    if (nkind(cur_decl) != D_FN) {
+        return false;
+    }
+    var prm: i64 = na(cur_decl);
+    while (prm != 0) {
+        if (tok_eq(ntok(prm), t)) {
+            return true;
+        }
+        prm = nnext(prm);
+    }
+    return false;
+}
+
+; The scope entry name t is bound by in the function or test being checked
+; (a local, a local array, a `for` capture), else -1.
+fn sym_at(t: i64) -> i64 {
+    var i: i64 = sym_len - 1;
+    while (i >= 0) {
+        if (tok_eq(syms[i as usize].tok, t)) {
+            return i;
+        }
+        i = i - 1;
+    }
+    return -1;
+}
+
+fn local_bound(t: i64) -> bool {
+    return sym_at(t) >= 0 or param_named(t);
+}
+
+; A module const gen-c writes as a `#define`: its value is one literal.
+fn is_define(d: i64) -> bool {
+    var k: i64 = nkind(na(d));
+    return d != 0 and nkind(d) == D_CONST and (k == N_NUM or k == N_NEGLIT or k == N_TRUE or k == N_FALSE or k == N_CHAR or k == N_STR);
+}
+
+; The module const, var or array named t, else 0.
+fn global_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        var k: i64 = nkind(d);
+        if ((k == D_CONST or k == D_VAR or k == D_ARRAY) and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; Name t, read as a value, is bound: a function or a struct or enum name is
+; not a value, and an undeclared name is nothing.
+fn value_bound(t: i64) -> bool {
+    return local_bound(t) or global_named(t) != 0;
+}
+
+; A new local, local array or `for` capture t. Zig refuses one that shadows
+; a local, capture or parameter in scope, and C one in the same block; a
+; `#define` const rewrites it in C (#8088); Zig refuses a capture that
+; shadows any module name, where gen-zig renames a local.
+fn check_new_name(t: i64, capture: bool) -> void {
+    if (failed or is_discard(t)) {
+        return;
+    }
+    if (local_bound(t) or is_define(global_named(t)) or (capture and decl_count(t) > 0)) {
+        fail(E_NAME, tpos(t));
+    }
+}
+
+; A parameter is named once in its function, and like no `#define` const
+; (#8088).
+fn check_param(d: i64, prm: i64) -> void {
+    var q: i64 = na(d);
+    while (q != prm) {
+        if (tok_eq(ntok(q), ntok(prm))) {
+            fail(E_NAME, tpos(ntok(prm)));
+            return;
+        }
+        q = nnext(q);
+    }
+    if (is_define(global_named(ntok(prm)))) {
+        fail(E_NAME, tpos(ntok(prm)));
+    }
+}
+
+; Token e spells the pfx_len bytes pfx, then token t.
+fn spells_prefixed(e: i64, pfx: i64, pfx_len: i64, t: i64) -> bool {
+    if (toks[e as usize].len != pfx_len + toks[t as usize].len) {
+        return false;
+    }
+    var i: i64 = 0;
+    while (i < pfx_len) {
+        if (at(tpos(e) + i) != ((pfx >> (i * 8)) & 255)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return word_is(tpos(e) + pfx_len, toks[t as usize].len, t);
+}
+
+; Test or bench d and declaration e name one C function: the same block
+; twice, or a name spelled `test_T`, `bench_B` (B itself if it opens with
+; `bench_`).
+fn c_name_clash(d: i64, e: i64) -> bool {
+    var t: i64 = ntok(d);
+    if (nkind(e) == nkind(d)) {
+        return tok_eq(ntok(e), t);
+    }
+    if (!named_decl(e)) {
+        return false;
+    }
+    if (nkind(d) == D_TEST) {
+        return spells_prefixed(ntok(e), 0x5f74736574, 5, t);
+    }
+    if (bench_named(t)) {
+        return tok_eq(ntok(e), t);
+    }
+    return spells_prefixed(ntok(e), 0x5f68636e6562, 6, t);
+}
+
+; Every module name is declared once (every backend refuses a
+; redeclaration; typecheck warns about a function only), every test and
+; bench names its own C function, and no struct field is spelled like a
+; `#define` const (#8088).
+fn check_decl_names() -> void {
+    var d: i64 = decls;
+    while (!failed and d != 0) {
+        var k: i64 = nkind(d);
+        if (named_decl(d) and decl_count(ntok(d)) != 1) {
+            fail(E_NAME, tpos(ntok(d)));
+            return;
+        }
+        if (k == D_TEST or k == D_BENCH) {
+            var e: i64 = decls;
+            while (e != 0) {
+                if (e != d and c_name_clash(d, e)) {
+                    fail(E_NAME, tpos(ntok(d)));
+                    return;
+                }
+                e = nnext(e);
+            }
+        }
+        if (k == D_STRUCT) {
+            var f: i64 = na(d);
+            while (f != 0) {
+                if (is_define(global_named(ntok(f)))) {
+                    fail(E_NAME, tpos(ntok(f)));
+                    return;
+                }
+                f = nnext(f);
+            }
+        }
+        d = nnext(d);
+    }
+}
+
+; Module global g comes before d in gen-c's C: untyped ones first, then
+; typed ones, each in declaration order.
+fn emitted_before(g: i64, d: i64) -> bool {
+    if (is_typed(g) != is_typed(d)) {
+        return !is_typed(g);
+    }
+    var e: i64 = decls;
+    while (e != 0 and e != d) {
+        if (e == g) {
+            return true;
+        }
+        e = nnext(e);
+    }
+    return false;
+}
+
+; A module const, var or array names, in its type or its value, only consts
+; gen-c writes before it: C reads a later one undeclared and a var as not
+; constant, where Zig minds no order (#8088).
+fn check_global_order(d: i64) -> void {
+    var t: i64 = ntok(d) + 1;
+    while (!failed and kind(t) != ';' and kind(t) != T_EOF) {
+        if (kind(t) == T_IDENT and kind(t - 1) != '.') {
+            var g: i64 = global_named(t);
+            if (g != 0 and (nkind(g) != D_CONST or !emitted_before(g, d))) {
+                fail(E_NAME, tpos(t));
+                return;
+            }
+        }
+        t = t + 1;
+    }
+}
+
+; A field read names a field of the base's struct; a scalar has none.
+fn check_field_name(e: i64) -> void {
+    var bt: i64 = ety(na(e));
+    if (failed or bt <= 0) {
+        return;
+    }
+    var st: i64 = struct_named(bt);
+    if ((st != 0 and field_of(st, ntok(e)) == 0) or (st == 0 and is_scalar(bt))) {
+        fail(E_NAME, tpos(ntok(e)));
+    }
+}
+
 ; A literal nested in another, in a module initializer: gen-c writes a
 ; compound literal inside one, which cc refuses in a static initializer
 ; (#8036). `inside` is set below a literal.
@@ -4242,6 +4491,10 @@ fn check_invariant(d: i64) -> void {
 
 fn check() -> void {
     var d: i64 = decls;
+    check_decl_names();
+    if (failed) {
+        return;
+    }
     check_structs();
     while (!failed and d != 0) {
         if (nkind(d) == D_ENUM) {
@@ -4267,6 +4520,7 @@ fn check() -> void {
                     return;
                 }
                 check_binding(ntok(prm));
+                check_param(d, prm);
                 if (holds_str(naux(prm))) {
                     check_str_name(ntok(prm));
                 }
@@ -4307,6 +4561,7 @@ fn check() -> void {
                 fail(E_STRUCT, tpos(t));
                 return;
             }
+            check_global_order(d);
             if (holds_str(naux(d))) {
                 check_str_name(t);
             }
@@ -4321,6 +4576,7 @@ fn check() -> void {
                 fail(E_ARRAY, tpos(nb(d)));
                 return;
             }
+            check_global_order(d);
             check_elem(d);
             check_items_of(nc(d), is_str_type(naux(d)), naux(d));
             if (!failed and static_nest(nc(d), false)) {
@@ -7126,6 +7382,7 @@ test signed_index_is_unsound {
     assert(compile(n9) == -1);
     assert(err_code == E_UNSOUND);
 }
+
 ; "module m;const G: i64 = 5;fn f(x: i16) -> i16 {return G & x;}": a module
 ; const keeps its type against a runtime operand, so the result is an i64 in
 ; Zig (#8075).
@@ -7158,6 +7415,153 @@ test inlined_local_const_takes_the_operand_type {
     assert(out_at(727) == 'L');
     assert(out_at(731) == 'x');
 }
+
+; "module m;fn g() -> i64 {return x;}": typecheck binds no name, and cc
+; refuses the C (#8087).
+test undeclared_name_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292867206e663b, 8, n1);
+    var n3: i64 = feed(0x7b20343669203e2d, 8, n2);
+    var n4: i64 = feed(0x78206e7275746572, 8, n3);
+    var n5: i64 = feed(0x7d3b, 2, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;fn g(c: bool) -> i64 {var a: i64 = 1;if (c) {var a: i64 =
+; 2;return a;}return a;}": Zig refuses the shadow (#8087).
+test local_shadowing_a_local_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a632867206e663b, 8, n1);
+    var n3: i64 = feed(0x2d20296c6f6f6220, 8, n2);
+    var n4: i64 = feed(0x767b20343669203e, 8, n3);
+    var n5: i64 = feed(0x3669203a61207261, 8, n4);
+    var n6: i64 = feed(0x66693b31203d2034, 8, n5);
+    var n7: i64 = feed(0x61767b2029632820, 8, n6);
+    var n8: i64 = feed(0x343669203a612072, 8, n7);
+    var n9: i64 = feed(0x7465723b32203d20, 8, n8);
+    var n10: i64 = feed(0x727d3b61206e7275, 8, n9);
+    var n11: i64 = feed(0x3b61206e72757465, 8, n10);
+    var n12: i64 = feed(0x7d, 1, n11);
+    assert(compile(n12) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;fn g(c: bool) -> i64 {if (c) {var t: i64 = 1;return t;}var t:
+; i64 = 2;return t;}": the block's t is out of scope at the second; 803
+; bytes.
+test block_before_a_declaration_reuses_a_name {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a632867206e663b, 8, n1);
+    var n3: i64 = feed(0x2d20296c6f6f6220, 8, n2);
+    var n4: i64 = feed(0x697b20343669203e, 8, n3);
+    var n5: i64 = feed(0x767b202963282066, 8, n4);
+    var n6: i64 = feed(0x3669203a74207261, 8, n5);
+    var n7: i64 = feed(0x65723b31203d2034, 8, n6);
+    var n8: i64 = feed(0x7d3b74206e727574, 8, n7);
+    var n9: i64 = feed(0x69203a7420726176, 8, n8);
+    var n10: i64 = feed(0x723b32203d203436, 8, n9);
+    var n11: i64 = feed(0x3b74206e72757465, 8, n10);
+    var n12: i64 = feed(0x7d, 1, n11);
+    assert(compile(n12) == 803);
+    assert(out_at(719) == 't');
+    assert(out_at(723) == '1');
+    assert(out_at(762) == 't');
+    assert(out_at(766) == '2');
+    assert(out_at(780) == 't');
+}
+
+; "module m;const A: i64 = 1;const A: i64 = 2;": C redefines the macro, and
+; typecheck says nothing (#8087).
+test duplicate_const_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x2074736e6f633b31, 8, n3);
+    var n5: i64 = feed(0x3d20343669203a41, 8, n4);
+    var n6: i64 = feed(0x3b3220, 3, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;const K: i64 = 5;fn g() -> i64 {var K: i64 = 2;return K;}":
+; `#define K 5` rewrites the local (#8088).
+test local_spelled_like_a_define_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x4b2074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x292867206e663b35, 8, n3);
+    var n5: i64 = feed(0x20343669203e2d20, 8, n4);
+    var n6: i64 = feed(0x203a4b207261767b, 8, n5);
+    var n7: i64 = feed(0x3b32203d20343669, 8, n6);
+    var n8: i64 = feed(0x4b206e7275746572, 8, n7);
+    var n9: i64 = feed(0x7d3b, 2, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;const A: i64 = B + 1;const B: i64 = 2;": C reads B undeclared
+; (#8088).
+test initializer_naming_a_later_const_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x412074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20343669203a, 8, n2);
+    var n4: i64 = feed(0x6f633b31202b2042, 8, n3);
+    var n5: i64 = feed(0x69203a422074736e, 8, n4);
+    var n6: i64 = feed(0x3b32203d203436, 7, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;fn test_t() -> bool {return true;}test t {assert(test_t());}":
+; one C name `test_t` twice (#8088).
+test test_named_like_a_function_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x74736574206e663b, 8, n1);
+    var n3: i64 = feed(0x203e2d202928745f, 8, n2);
+    var n4: i64 = feed(0x65727b206c6f6f62, 8, n3);
+    var n5: i64 = feed(0x757274206e727574, 8, n4);
+    var n6: i64 = feed(0x20747365747d3b65, 8, n5);
+    var n7: i64 = feed(0x72657373617b2074, 8, n6);
+    var n8: i64 = feed(0x745f747365742874, 8, n7);
+    var n9: i64 = feed(0x7d3b292928, 5, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;struct P {x: i64}fn g(p: P) -> i64 {return p.y;}": P has no
+; field y (#8087).
+test unknown_field_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207463757274733b, 8, n1);
+    var n3: i64 = feed(0x3669203a787b2050, 8, n2);
+    var n4: i64 = feed(0x702867206e667d34, 8, n3);
+    var n5: i64 = feed(0x203e2d202950203a, 8, n4);
+    var n6: i64 = feed(0x7465727b20343669, 8, n5);
+    var n7: i64 = feed(0x3b792e70206e7275, 8, n6);
+    var n8: i64 = feed(0x7d, 1, n7);
+    assert(compile(n8) == -1);
+    assert(err_code == E_NAME);
+}
+
+; "module m;fn g() -> u64 {var s: u64 = 0;for (0..3) |i| {i = 2;s = s +
+; i;}return s;}": a capture is a constant in Zig (#8087).
+test capture_assignment_is_unsound {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292867206e663b, 8, n1);
+    var n3: i64 = feed(0x7b20343675203e2d, 8, n2);
+    var n4: i64 = feed(0x75203a7320726176, 8, n3);
+    var n5: i64 = feed(0x663b30203d203436, 8, n4);
+    var n6: i64 = feed(0x332e2e302820726f, 8, n5);
+    var n7: i64 = feed(0x697b207c697c2029, 8, n6);
+    var n8: i64 = feed(0x3d20733b32203d20, 8, n7);
+    var n9: i64 = feed(0x7d3b69202b207320, 8, n8);
+    var n10: i64 = feed(0x73206e7275746572, 8, n9);
+    var n11: i64 = feed(0x7d3b, 2, n10);
+    assert(compile(n11) == -1);
+    assert(err_code == E_UNSOUND);
+}
+
 test put_int_writes_decimal {
     reset_out();
     put_int(907);

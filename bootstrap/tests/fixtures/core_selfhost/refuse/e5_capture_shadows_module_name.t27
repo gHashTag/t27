@@ -1,0 +1,11 @@
+// A `for` capture shadowing a module var: Zig refuses, as gen-zig renames
+// a local only (#8087).
+module capture_shadows_module_name;
+var i: u64 = 9;
+fn csm_g() -> u64 {
+    var s: u64 = 0;
+    for (0..3) |i| {
+        s = s + i;
+    }
+    return s;
+}

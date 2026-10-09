@@ -1,0 +1,8 @@
+// `bench bnf_b` is C's `bench_bnf_b`, which the function names too (#8088).
+module bench_named_like_fn;
+fn bench_bnf_b() -> i64 {
+    return 1;
+}
+bench bnf_b {
+    var x: i64 = bench_bnf_b();
+}

@@ -1,0 +1,10 @@
+// A `for` capture shadowing a local in scope: Zig refuses (#8087).
+module capture_shadows_local;
+fn csl_g() -> u64 {
+    var i: u64 = 7;
+    var s: u64 = 0;
+    for (0..3) |i| {
+        s = s + i;
+    }
+    return s + i;
+}

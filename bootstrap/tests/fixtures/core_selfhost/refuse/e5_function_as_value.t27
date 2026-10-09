@@ -1,0 +1,9 @@
+// A function read as a value: C converts its address, Zig refuses (#8087).
+module function_as_value;
+fn fav_h() -> i64 {
+    return 1;
+}
+fn fav_g() -> i64 {
+    var a: i64 = fav_h;
+    return a;
+}

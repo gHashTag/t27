@@ -1,0 +1,75 @@
+// P3 slice 3 (#5980): the names both backends bind, which the core binds as
+// they do (#8087). Sibling blocks, and a block before a declaration, reuse
+// a name. A parameter shadows a module var; locals shadow a function that
+// is not called, a struct, and a const C writes as a variable (gen-zig
+// renames them). A function is called before its declaration, a module var
+// is declared after the function that reads it, a const is computed from
+// an earlier one, and a capture is read in its body.
+module names_accepts;
+
+struct NaPair {
+    lo: i64,
+    hi: i64,
+}
+
+const NA_BASE: i64 = 5;
+const NA_NEXT: i64 = NA_BASE + 1;
+var na_count: i64 = 2;
+
+fn na_branch(c: bool) -> i64 {
+    if (c) {
+        var t: i64 = 1;
+        return t;
+    } else {
+        var t: i64 = 2;
+        return t;
+    }
+}
+
+fn na_after(c: bool) -> i64 {
+    if (c) {
+        var t: i64 = 10;
+        return t;
+    }
+    var t: i64 = 20;
+    return t;
+}
+
+fn na_shadow(na_count: i64) -> i64 {
+    var na_branch: i64 = 3;
+    var NaPair: i64 = 4;
+    var NA_NEXT: i64 = 7;
+    return na_count + na_branch + NaPair + NA_NEXT;
+}
+
+fn na_next() -> i64 {
+    return NA_NEXT;
+}
+
+fn na_early() -> i64 {
+    return na_late() + na_total;
+}
+
+fn na_late() -> i64 {
+    return 1;
+}
+
+var na_total: i64 = 40;
+
+fn na_sum(n: u64) -> u64 {
+    var s: u64 = 0;
+    for (0..n) |k| {
+        s = s + k;
+    }
+    return s;
+}
+
+test na_names_bind {
+    assert(na_branch(true) == 1);
+    assert(na_branch(false) == 2);
+    assert(na_after(false) == 20);
+    assert(na_shadow(1) == 15);
+    assert(na_next() == 6);
+    assert(na_early() == 41);
+    assert(na_sum(4) == 6);
+}
