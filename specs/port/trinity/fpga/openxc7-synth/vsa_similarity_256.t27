@@ -1,0 +1,265 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/vsa_similarity_256.t27
+// VSA Similarity Operation on FPGA - 256 dimensions
+// Week 3: Dot product + normalization
+//
+// Balanced Ternary: {-1, 0, +1}
+// Dot product: sum(a[i] * b[i]) for all i
+// Similarity: dot / (norm(a) * norm(b)) = dot / sqrt(dot(a,a) * dot(b,b))
+//
+// This module returns raw dot product (-256 to +256)
+// Full normalization requires floating point (host CPU or FPGA DSP)
+// phi^2 + 1/phi² = 3 | TRINITY
+
+module vsa_similarity_256 {
+
+    // Trit encoding: 2-bit signed ternary
+    // 00 =  0
+    // 01 = +1
+    // 10 = -1
+
+    // Trit product: a * b
+    // -1 * -1 = +1 (1)
+    // -1 *  0 =  0 (0)
+    // -1 * +1 = -1 (-1)
+    //  0 *  X =  0 (0)
+    // +1 * +1 = +1 (1)
+
+    // Trit multiplication function
+    fn trit_mult(a_trit: u2, b_trit: u2) -> i2 {
+        if (a_trit == 0b00 || b_trit == 0b00) {
+            return 0;
+        }
+        if (a_trit == b_trit) {
+            return 1;
+        }
+        return -1;  // 2'd11 = -1 in signed 2-bit
+    }
+
+    // Extract trit from 256-element array (each element represents 2 bits)
+    fn extract_trit(input_array: [256]u2, index: u32) -> u2 {
+        return input_array[index];
+    }
+
+    // Level 1: 256 trit products → 128 sums
+    fn level1_products(products: [256]i2) -> [128]i4 {
+        var result: [128]i4 = undefined;
+        var i: u32 = 0;
+        while (i < 128) {
+            result[i] = products[2*i] + products[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 2: 128 sums → 64 sums
+    fn level2_sums(level1: [128]i4) -> [64]i5 {
+        var result: [64]i5 = undefined;
+        var i: u32 = 0;
+        while (i < 64) {
+            result[i] = level1[2*i] + level1[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 3: 64 sums → 32 sums
+    fn level3_sums(level2: [64]i5) -> [32]i6 {
+        var result: [32]i6 = undefined;
+        var i: u32 = 0;
+        while (i < 32) {
+            result[i] = level2[2*i] + level2[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 4: 32 sums → 16 sums
+    fn level4_sums(level3: [32]i6) -> [16]i7 {
+        var result: [16]i7 = undefined;
+        var i: u32 = 0;
+        while (i < 16) {
+            result[i] = level3[2*i] + level3[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 5: 16 sums → 8 sums
+    fn level5_sums(level4: [16]i7) -> [8]i8 {
+        var result: [8]i8 = undefined;
+        var i: u32 = 0;
+        while (i < 8) {
+            result[i] = level4[2*i] + level4[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 6: 8 sums → 4 sums
+    fn level6_sums(level5: [8]i8) -> [4]i9 {
+        var result: [4]i9 = undefined;
+        var i: u32 = 0;
+        while (i < 4) {
+            result[i] = level5[2*i] + level5[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 7: 4 sums → 2 sums
+    fn level7_sums(level6: [4]i9) -> [2]i10 {
+        var result: [2]i10 = undefined;
+        var i: u32 = 0;
+        while (i < 2) {
+            result[i] = level6[2*i] + level6[2*i + 1];
+            i += 1;
+        }
+        return result;
+    }
+
+    // Level 8: 2 sums → 1 final dot product
+    fn final_sum(level7: [2]i10) -> i11 {
+        return level7[0] + level7[1];
+    }
+
+    // Main computation function
+    fn compute_dot_product(a_array: [256]u2, b_array: [256]u2) -> i11 {
+        // Generate 256 trit products
+        var products: [256]i2 = undefined;
+        var i: u32 = 0;
+        while (i < 256) {
+            var a_trit = extract_trit(a_array, i);
+            var b_trit = extract_trit(b_array, i);
+            products[i] = trit_mult(a_trit, b_trit);
+            i += 1;
+        }
+
+        // Tree accumulation
+        var level1 = level1_products(products);
+        var level2 = level2_sums(level1);
+        var level3 = level3_sums(level2);
+        var level4 = level4_sums(level3);
+        var level5 = level5_sums(level4);
+        var level6 = level6_sums(level5);
+        var level7 = level7_sums(level6);
+        var raw_dot = final_sum(level7);
+
+        return raw_dot;
+    }
+
+    // Test trit multiplication
+    test trit_mult_cases {
+        assert(trit_mult(0b00, 0b00) == 0);  // 0 * 0 = 0
+        assert(trit_mult(0b00, 0b01) == 0);  // 0 * 1 = 0
+        assert(trit_mult(0b00, 0b10) == 0);  // 0 * -1 = 0
+        assert(trit_mult(0b01, 0b00) == 0);  // 1 * 0 = 0
+        assert(trit_mult(0b01, 0b01) == 1);  // 1 * 1 = 1
+        assert(trit_mult(0b01, 0b10) == -1); // 1 * -1 = -1
+        assert(trit_mult(0b10, 0b00) == 0);  // -1 * 0 = 0
+        assert(trit_mult(0b10, 0b01) == -1); // -1 * 1 = -1
+        assert(trit_mult(0b10, 0b10) == 1);  // -1 * -1 = 1
+    }
+
+    // Test trit extraction
+    test extract_trit_simple {
+        var input_array: [4]u2 = [0b00, 0b01, 0b10, 0b00];
+        assert(extract_trit(input_array, 0) == 0b00);
+        assert(extract_trit(input_array, 1) == 0b01);
+        assert(extract_trit(input_array, 2) == 0b10);
+        assert(extract_trit(input_array, 3) == 0b00);
+    }
+
+    // Test level accumulation with simple values
+    test level1_accumulation {
+        var products: [4]i2 = [1, -1, 0, 1];
+        var result = level1_products(products);
+        assert(result[0] == 1 + (-1));  // 0
+        assert(result[1] == 0 + 1);     // 1
+    }
+
+    // Helper function to create arrays of +1 trits
+    fn create_plus_one_array() -> [256]u2 {
+        var result: [256]u2 = undefined;
+        var i: u32 = 0;
+        while (i < 256) {
+            result[i] = 0b01;
+            i += 1;
+        }
+        return result;
+    }
+
+    // Helper function to create arrays of -1 trits
+    fn create_minus_one_array() -> [256]u2 {
+        var result: [256]u2 = undefined;
+        var i: u32 = 0;
+        while (i < 256) {
+            result[i] = 0b10;
+            i += 1;
+        }
+        return result;
+    }
+
+    // Helper function to create arrays of 0 trits
+    fn create_zero_array() -> [256]u2 {
+        var result: [256]u2 = undefined;
+        var i: u32 = 0;
+        while (i < 256) {
+            result[i] = 0b00;
+            i += 1;
+        }
+        return result;
+    }
+
+    // Test full dot product computation with known values
+    test dot_product_simple {
+        // All trits are +1 (0b01), so each product is 1*1 = 1
+        // Total should be 256 * 1 = 256
+        var a_array = create_plus_one_array();
+        var b_array = create_plus_one_array();
+        var dot = compute_dot_product(a_array, b_array);
+        assert(dot == 256);
+    }
+
+    test dot_product_mixed {
+        // First half trits: +1, second half: -1
+        // Products: first half 1*1=1, second half (-1)*(-1)=1
+        // Total should be 256 * 1 = 256
+        var a_array: [256]u2 = undefined;
+        var b_array: [256]u2 = undefined;
+        var i: u32 = 0;
+        
+        while (i < 128) {
+            a_array[i] = 0b01;
+            b_array[i] = 0b01;
+            i += 1;
+        }
+        
+        while (i < 256) {
+            a_array[i] = 0b10;
+            b_array[i] = 0b10;
+            i += 1;
+        }
+        
+        var dot = compute_dot_product(a_array, b_array);
+        assert(dot == 256);
+    }
+
+    test dot_product_zero {
+        // All trits are 0, so all products are 0
+        var a_array = create_zero_array();
+        var b_array = create_zero_array();
+        var dot = compute_dot_product(a_array, b_array);
+        assert(dot == 0);
+    }
+
+    test dot_product_opposite {
+        // a has +1, b has -1 for all trits
+        // Each product: 1 * -1 = -1
+        // Total should be 256 * -1 = -256
+        var a_array = create_plus_one_array();
+        var b_array = create_minus_one_array();
+        var dot = compute_dot_product(a_array, b_array);
+        assert(dot == -256);
+    }
+}
