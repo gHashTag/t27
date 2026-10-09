@@ -259,10 +259,13 @@ measure it are written in **t27**, not in Rust or Python by hand.
   0 and +8 on master 42707603a's 15232 plus 1233 and 8183; 15271 plus 1239,
   16510 in all, and `cli/t27b/tests/*.rs` 8205, after #7805's glue for a call
   of a fn returning a float in `x as T` (`specs/tri/t27b/float_as_plan.t27`),
-  +6 and +14 on master 2dfe9786f's 15271 plus 1233 and 8191; 15279 plus 1239, 16518 in all, and
-  tests 8205, after #7902's glue for `@intCast` as an index or a slice bound
-  (`specs/tri/t27b/int_cast_plan.t27`), +8 and 0 on master 09ffc2fc5's 15271
-  plus 1239 and 8205),
+  +6 and +14 on master 2dfe9786f's 15271 plus 1233 and 8191; 15271 plus 1239,
+  16510 in all, and tests 8215, after #7822's `@bitCast` result type from an
+  assignment, for the f32 `@log`, `@log2` and `@log10` ports, +0 and +10 on
+  master 09ffc2fc5's 15271 plus 1239 and 8205; 15279 plus 1239, 16518 in all, and
+  tests 8215, after #7902's glue for `@intCast` as an index or a slice bound
+  (`specs/tri/t27b/int_cast_plan.t27`), +8 and 0 on master 12ee225c5's 15271
+  plus 1239 and 8215),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
