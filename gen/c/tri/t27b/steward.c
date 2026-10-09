@@ -30,6 +30,8 @@ bool ratchet_is_red(uint8_t code);
 bool is_unimplemented(uint8_t v);
 uint8_t bless_reason(uint8_t got, uint8_t kept);
 bool cap_rises(uint32_t not_pass, uint32_t old_cap, bool has_old);
+bool bless_source_ok(uint32_t listed, uint32_t keyed);
+bool bless_writes(bool named, bool key_same, bool verdict_same, bool blocker_same);
 bool lab_stale(uint32_t age_min, uint32_t limit_min);
 uint8_t claim_code(uint8_t alive, uint32_t age_min, uint32_t limit_min);
 bool railway_old(uint32_t major);
@@ -237,6 +239,26 @@ bool cap_rises(uint32_t not_pass, uint32_t old_cap, bool has_old) {
         return false;
     }
     return (not_pass > old_cap);
+}
+
+bool bless_source_ok(uint32_t listed, uint32_t keyed) {
+    if ((listed == 0)) {
+        return false;
+    }
+    return (keyed == listed);
+}
+
+bool bless_writes(bool named, bool key_same, bool verdict_same, bool blocker_same) {
+    if ((named == false)) {
+        return true;
+    }
+    if ((key_same == false)) {
+        return true;
+    }
+    if ((verdict_same == false)) {
+        return true;
+    }
+    return (blocker_same == false);
 }
 
 bool lab_stale(uint32_t age_min, uint32_t limit_min) {
@@ -466,6 +488,9 @@ uint32_t with_tests(uint32_t reference, uint32_t vacuous) {
 /* invariant: reference_disagree_always_stops */
 /* invariant reference_disagree_always_stops is not a C constant expression: lanes_stop(0, 1) */
 
+/* invariant: bless_never_guesses_from_a_keyless_source */
+/* invariant bless_never_guesses_from_a_keyless_source is not a C constant expression: (bless_source_ok(1, 0) == false) */
+
 /* invariant: no_total_in_the_ledger_header */
 /* invariant no_total_in_the_ledger_header is not a C constant expression: (header_stored(5) == false) */
 
@@ -639,6 +664,42 @@ void test_bless_cap_holds(void) {
 
 void test_bless_first_cap(void) {
     assert_eq(cap_rises(9, 0, false), false);
+}
+
+void test_bless_source_with_every_key(void) {
+    assert(bless_source_ok(1700, 1700));
+}
+
+void test_bless_refuses_a_source_without_keys(void) {
+    assert((bless_source_ok(1700, 0) == false));
+}
+
+void test_bless_refuses_a_source_partly_keyed(void) {
+    assert((bless_source_ok(1700, 1699) == false));
+}
+
+void test_bless_refuses_an_empty_source(void) {
+    assert((bless_source_ok(0, 0) == false));
+}
+
+void test_bless_keeps_a_row_nothing_moved(void) {
+    assert((bless_writes(true, true, true, true) == false));
+}
+
+void test_bless_writes_a_new_row(void) {
+    assert(bless_writes(false, true, true, true));
+}
+
+void test_bless_writes_a_moved_key(void) {
+    assert(bless_writes(true, false, true, true));
+}
+
+void test_bless_writes_a_moved_verdict(void) {
+    assert(bless_writes(true, true, false, true));
+}
+
+void test_bless_writes_a_moved_blocker(void) {
+    assert(bless_writes(true, true, true, false));
 }
 
 void test_doctor_stale(void) {
@@ -1055,6 +1116,15 @@ int main(void) {
     test_bless_cap_rises();
     test_bless_cap_holds();
     test_bless_first_cap();
+    test_bless_source_with_every_key();
+    test_bless_refuses_a_source_without_keys();
+    test_bless_refuses_a_source_partly_keyed();
+    test_bless_refuses_an_empty_source();
+    test_bless_keeps_a_row_nothing_moved();
+    test_bless_writes_a_new_row();
+    test_bless_writes_a_moved_key();
+    test_bless_writes_a_moved_verdict();
+    test_bless_writes_a_moved_blocker();
     test_doctor_stale();
     test_doctor_fresh_at_limit();
     test_doctor_claim_dead_young();
@@ -1145,7 +1215,7 @@ int main(void) {
     test_ledger_stores_where_it_came_from();
     test_ledger_derives_its_counts();
     test_ledger_stores_no_unknown_field();
-    printf("All %d tests passed.\n", 128);
+    printf("All %d tests passed.\n", 137);
     return 0;
 }
 #endif /* T27_TEST_MAIN */

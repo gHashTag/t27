@@ -163,6 +163,30 @@ pub fn cap_rises(not_pass: u32, old_cap: u32, has_old: bool) -> bool {
     return not_pass > old_cap;
 }
 
+// Bless against the ledger key (#8186; decisions posted on #8186). A ledger
+// row stores the host-free key of the reference verdict it was blessed
+// against (verdict_key.t27 `ledger_key`), so a run from the x86_64 lab and
+// one from CI's aarch64 job are both valid sources.
+//
+// The source: `listed` is the rows bless would write (the reference passes
+// them), `keyed` how many of those carry a key. Bless refuses a source with
+// none, or with some rows unkeyed, instead of guessing which rows moved.
+pub fn bless_source_ok(listed: u32, keyed: u32) -> bool {
+    if (listed == 0) { return false; }
+    return keyed == listed;
+}
+
+// One row: true writes it from the run, false keeps the ledger's row byte for
+// byte. A row the ledger does not name is written; a named one is rewritten
+// when its key or its verdict moved. The first blocker is part of the
+// verdict: a row kept with a moved blocker would read MOVED on every ratchet.
+pub fn bless_writes(named: bool, key_same: bool, verdict_same: bool, blocker_same: bool) -> bool {
+    if (named == false) { return true; }
+    if (key_same == false) { return true; }
+    if (verdict_same == false) { return true; }
+    return blocker_same == false;
+}
+
 // The doctor's thresholds are minutes. A lab run that failed has no
 // `finished`; its age is read from `updated`, so a stuck lab ages too.
 pub fn lab_stale(age_min: u32, limit_min: u32) -> bool {
@@ -425,6 +449,15 @@ test bless_refuses_a_timeout { assert_eq(bless_reason(8, 0), 0); }
 test bless_cap_rises { assert_eq(cap_rises(6, 5, true), true); }
 test bless_cap_holds { assert_eq(cap_rises(5, 5, true), false); }
 test bless_first_cap { assert_eq(cap_rises(9, 0, false), false); }
+test bless_source_with_every_key { assert(bless_source_ok(1700, 1700)); }
+test bless_refuses_a_source_without_keys { assert(bless_source_ok(1700, 0) == false); }
+test bless_refuses_a_source_partly_keyed { assert(bless_source_ok(1700, 1699) == false); }
+test bless_refuses_an_empty_source { assert(bless_source_ok(0, 0) == false); }
+test bless_keeps_a_row_nothing_moved { assert(bless_writes(true, true, true, true) == false); }
+test bless_writes_a_new_row { assert(bless_writes(false, true, true, true)); }
+test bless_writes_a_moved_key { assert(bless_writes(true, false, true, true)); }
+test bless_writes_a_moved_verdict { assert(bless_writes(true, true, false, true)); }
+test bless_writes_a_moved_blocker { assert(bless_writes(true, true, true, false)); }
 
 test doctor_stale { assert(lab_stale(361, 360)); }
 test doctor_fresh_at_limit { assert(lab_stale(360, 360) == false); }
@@ -540,6 +573,10 @@ test ledger_stores_no_unknown_field { assert(header_stored(6) == false); }
 
 invariant reference_disagree_always_stops {
     assert(lanes_stop(0, 1));
+}
+
+invariant bless_never_guesses_from_a_keyless_source {
+    assert(bless_source_ok(1, 0) == false);
 }
 
 invariant no_total_in_the_ledger_header {

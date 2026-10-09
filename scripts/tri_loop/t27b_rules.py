@@ -100,6 +100,8 @@ def _build():
     so.bless_reason.restype = ctypes.c_uint8
     so.cap_rises.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
     so.cap_rises.restype = ctypes.c_bool
+    so.bless_source_ok.argtypes, so.bless_source_ok.restype = [ctypes.c_uint32] * 2, ctypes.c_bool
+    so.bless_writes.argtypes, so.bless_writes.restype = [ctypes.c_bool] * 4, ctypes.c_bool
     for name in ("lab_stale", "ledger_quiet"):
         getattr(so, name).argtypes = [ctypes.c_uint32, ctypes.c_uint32]
         getattr(so, name).restype = ctypes.c_bool

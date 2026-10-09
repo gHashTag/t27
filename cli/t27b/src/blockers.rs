@@ -386,6 +386,7 @@ pub struct RefRunner {
     cache: Option<CacheWriter>,
     stamp: [u64; 4],
     known: Mutex<HashMap<u64, (Reference, Option<Verdicts>)>>,
+    ledger: Mutex<HashMap<PathBuf, u64>>,
 }
 
 fn dir_bytes(p: &Path) -> u64 {
@@ -597,10 +598,11 @@ impl RefRunner {
         // key changed), but drop them so nothing can serve one.
         known.retain(|_, r| cacheable(&r.0));
         let cache = cache.map(CacheWriter::new);
-        Ok(RefRunner { t27c, specs_dir, timeout, scratch, cap_bytes, cache, stamp, known: Mutex::new(known) })
+        Ok(RefRunner { t27c, specs_dir, timeout, scratch, cap_bytes, cache, stamp, known: Mutex::new(known), ledger: Mutex::default() })
     }
 
-    fn key(&self, file: &Path) -> u64 {
+    /// The cache key and the host-free ledger key (verdict_key.t27 `ledger_key`, #8186).
+    fn key(&self, file: &Path) -> (u64, u64) {
         let mut b = Vec::with_capacity(4096);
         b.extend_from_slice(file.to_string_lossy().as_bytes());
         b.push(0);
@@ -617,7 +619,14 @@ impl RefRunner {
             Ok(Some(c)) if c.code == Some(0) => Some(fnv64(c.stdout.as_bytes())),
             _ => None,
         };
-        vk::verdict_key(fnv64(&b), vk::part_or(out.is_some(), out.unwrap_or(0), bin), runner, zig, host)
+        let (s, o) = (fnv64(&b), out.unwrap_or(0));
+        (vk::verdict_key(s, vk::part_or(out.is_some(), o, bin), runner, zig, host), vk::ledger_key(s, out.is_some(), o, runner, zig))
+    }
+
+    /// The ledger key of `file`: the one `run` computed, else computed now.
+    pub fn ledger_key(&self, file: &Path) -> u64 {
+        let known = self.ledger.lock().unwrap().get(file).copied();
+        known.unwrap_or_else(|| self.key(file).1)
     }
 
     /// The reference verdict on `file`, run in `worker`'s scratch directory,
@@ -626,7 +635,8 @@ impl RefRunner {
     /// (a row from before #6441) is a miss: it cannot be compared test by
     /// test, and a file-level answer is what #6441 replaces.
     pub fn run(&self, worker: usize, file: &Path) -> (Reference, Option<Verdicts>, bool) {
-        let key = self.key(file);
+        let (key, lkey) = self.key(file);
+        self.ledger.lock().unwrap().insert(file.to_path_buf(), lkey);
         if let Some((r, t)) = self.known.lock().unwrap().get(&key) {
             let ran = matches!(r, Reference::Pass | Reference::Fail(_));
             if vk::served(true, ran, t.is_some()) {

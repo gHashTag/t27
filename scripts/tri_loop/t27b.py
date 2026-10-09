@@ -929,24 +929,31 @@ def bless(run, old, accept_new=False):
 
     What is recorded, with which reason, and whether the cap may move is
     decided by specs/tri/t27b/steward.t27 (`unlisted`, `is_pass`,
-    `bless_reason`, `cap_rises`)."""
+    `bless_reason`, `cap_rises`; #8186: `bless_source_ok`, `bless_writes`)."""
     r = rules()
     old_entries = {e["path"]: e for e in (old or {}).get("entries", [])}
     entries, refused = [], []
-    for rec in sorted(run["results"], key=lambda x: x.get("file") or ""):
-        if not r.unlisted(rec.get("reference") or "missing", False):
-            continue
+    listed = [x for x in run["results"] if r.unlisted(x.get("reference") or "missing", False)]
+    keyed = sum(1 for x in listed if x.get("key"))
+    if not r.lib().bless_source_ok(len(listed), keyed):
+        return old, [f"the run carries a ledger key on {keyed} of {len(listed)} rows the reference passes: "
+                     "bless from a lab run or a CI run.json made by a t27b with `keys` (#8186)"]
+    for rec in sorted(listed, key=lambda x: x.get("file") or ""):
         path = rec["file"]
         got, blocker = observed(rec)
+        o = old_entries.get(path) or {}
+        if not r.lib().bless_writes(bool(o), o.get("key") == rec["key"], o.get("t27b") == got, o.get("blocker") == blocker):
+            entries.append(o)  # nothing moved: the ledger's row, byte for byte
+            continue
         if r.is_pass(got):
-            entries.append({"path": path, "t27b": got})
+            entries.append({"path": path, "t27b": got, "key": rec["key"]})
             continue
         reason = r.bless_reason(got, (old_entries.get(path) or {}).get("reason"))
         if reason is None:
             refused.append(f"{path}: t27b {got} where the reference passes ({blocker}); read it, then add the "
                            f"entry by hand with reason reference-bug or n/a")
             continue
-        entries.append({"path": path, "t27b": got, "blocker": blocker, "reason": reason})
+        entries.append({"path": path, "t27b": got, "blocker": blocker, "reason": reason, "key": rec["key"]})
     asserts_counted = any("asserts" in r for r in run["results"])
     counts = ledger_counts(entries, asserts_counted)
     old_cap = (old or {}).get("max_not_pass")

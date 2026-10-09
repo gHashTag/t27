@@ -71,6 +71,7 @@ const USAGE: &str = "usage:
                     [--json <path>] [--runner \"<cmd> [args]\"]
                     [--blockers [--reference <t27c> [--reference-cache <file>]
                                  [--reference-timeout-ms N]]]
+  t27b keys   <dir> --reference <t27c>   per file, the host-free ledger key (#8186)
 
   --json       corpus: also write per-file results and totals to <path> as JSON
                (with --reference, the reference verdicts too)
@@ -220,6 +221,18 @@ fn main() -> ExitCode {
                 return usage("missing directory");
             };
             cmd_corpus(Path::new(&dir), &o)
+        }
+        "keys" => {
+            let (Some(dir), Some(t27c)) = (o.input.clone(), o.reference.clone()) else {
+                return usage("keys needs <dir> and --reference <t27c>");
+            };
+            let (mut files, t) = (Vec::new(), Duration::from_millis(o.reference_timeout_ms));
+            collect(Path::new(&dir), &mut files);
+            match blockers::RefRunner::new(PathBuf::from(t27c), PathBuf::from(&dir), t, std::env::temp_dir(), 0, None) {
+                Ok(rr) => files.iter().for_each(|f| outln!("{}\t{:016x}", f.display(), rr.ledger_key(f))),
+                Err(e) => return usage(&e),
+            }
+            ExitCode::SUCCESS
         }
         "help" | "--help" | "-h" => {
             outln!("{}", USAGE);
@@ -1033,6 +1046,9 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
                 }
                 if let Some(t) = &row.ref_tests {
                     per_test.push_str(&format!(", \"reference_tests\": {}", verdicts_json(t)));
+                }
+                if let Some(k) = reference.as_ref().map(|rr| rr.ledger_key(&files[*i])) {
+                    per_test.push_str(&format!(", \"key\": \"{:016x}\"", k));
                 }
                 if let Some(d) = row.disagree() {
                     let d: Vec<String> = d.iter().map(|x| json_str(x)).collect();
