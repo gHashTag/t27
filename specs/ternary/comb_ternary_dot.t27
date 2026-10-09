@@ -11,8 +11,8 @@ module CombTernaryDot;
 //
 // Here `on_comb(a, b)` is the bit-exact 27-trit dot product (the same tmul/tp
 // primitives verified vs an independent reference on 300 vectors, #1743). It
-// synthesizes to a real Artix-7 LUT tree (yosys synth_xilinx: ~160 LUT6 + a
-// CARRY4 reduction, no flip-flops -- pure combinational).
+// synthesizes to a real Artix-7 LUT tree (yosys synth_xilinx: 317 LUTs, 2 CARRY4, 
+// 99 MUXF7, 43 MUXF8, no flip-flops -- pure combinational).
 
 // Sign-only ternary multiply of two packed trits {N=0b00, Z=0b01, P=0b10}.
 fn tmul(ta: u8, tb: u8) -> i8 {

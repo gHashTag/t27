@@ -136,8 +136,14 @@ pub fn carry_sign(sum: i8) Trit {
 // Normalize raw sum to trit domain [-1, 0, +1]
 // Uses modulo 3 arithmetic: raw mod 3 mapped to {-1, 0, +1}
 pub fn normalize_trit(raw: i8) Trit {
-    const mod3: i8 = @rem(raw, 3);
-    return if (mod3 == 2) .neg else if (mod3 == -2) .pos else @as(Trit, @enumFromInt(mod3));
+    return switch (raw) {
+        2 => .neg,      // 2 ≡ -1 mod 3
+        1 => .pos,      // 1 ≡ 1 mod 3
+        0 => .zero,     // 0 ≡ 0 mod 3
+        -1 => .pos,     // -1 ≡ 2 mod 3 -> maps to +1
+        -2 => .neg,     // -2 ≡ 1 mod 3 -> maps to -1
+        else => @as(Trit, @enumFromInt(raw % 3)), // fallback for other values
+    };
 }
 
 // ============================================================================
