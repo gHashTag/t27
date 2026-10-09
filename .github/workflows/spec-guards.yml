@@ -145,7 +145,7 @@ jobs:
           while IFS= read -r f; do
             case $f in *.t27) ;; *) continue ;; esac
             h=$(score "$f"); b=0
-            if [ -f "$d/base/$f" ] && ! grep -q " $f\$" "$d/rebuild.txt"; then echo "$f: base reused (seal v2, t27c frontier)"
+            if [ -f "$d/base/$f" ] && [ -s "$d/rebuild.txt" ] && ! grep -q " $f\$" "$d/rebuild.txt"; then echo "$f: base reused (seal v2, t27c frontier)"
             elif [ -f "$d/base/$f" ]; then b=$(cd "$d/base" && score "$f"); fi
             echo "$f: head $h, base $b (failing tests; 1000000 = does not build)"
             if [ "$h" -gt "$b" ]; then echo "::error file=$f::$h failing vs $b on the base"; bad=1; fi
