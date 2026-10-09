@@ -142,15 +142,26 @@ fn top_cycle_counter_resets_on_start_and_increments_when_busy() {
 fn top_busy_tracks_started_until_done() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
+    // Confirmed contract (issue #1726): `busy` latches on `start` and
+    // clears on top-level `done` -- the deliberate W88 fix (PR #1013).
+    // The older `(current_layer != 6'd0) || layer_start` form missed
+    // layer 0 almost entirely and must not come back.
     assert!(stdout.contains("assign busy = started && !done;"));
+    assert!(!stdout.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
 }
 
 #[test]
 fn top_mem_outputs_driven_by_prefetch_axi() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
+    // Confirmed contract (issue #1726): the external memory read port is
+    // driven by the weight_prefetch_ctrl AXI read channel (issue #926
+    // Bug 2, PR #1085), not tied off to constants.
     assert!(stdout.contains("assign mem_addr  = pf_axi_araddr;"));
     assert!(stdout.contains("assign mem_rd_en = pf_axi_arvalid;"));
+    // The stale tied-off forms must not come back.
+    assert!(!stdout.contains("assign mem_addr  = 32'd0;"));
+    assert!(!stdout.contains("assign mem_rd_en = 1'b0;"));
 }
 
 #[test]
