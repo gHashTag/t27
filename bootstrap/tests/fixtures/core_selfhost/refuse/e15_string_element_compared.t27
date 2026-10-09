@@ -1,0 +1,6 @@
+// #8013: C compares the addresses two string elements hold.
+module string_element_compared;
+var sec_names: [2]str = [_]str{ "a", "b" };
+fn sec_f() -> bool {
+    return sec_names[0] == sec_names[1];
+}

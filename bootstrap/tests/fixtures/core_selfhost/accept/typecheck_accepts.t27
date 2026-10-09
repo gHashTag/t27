@@ -1,0 +1,59 @@
+// P3 slice 1 (#5980): what t27c's typecheck accepts, which the core now
+// checks as it does (compiler.rs `typecheck_ast`): an assignment its rule
+// finds compatible -- a wider integer, the same type, a value it cannot type
+// (a literal, a cast, a field, an element, a switch) -- and a constant that
+// fits its type, up to the edge.
+module typecheck_accepts;
+
+struct TaPair {
+    lo: u8,
+    hi: i64,
+}
+
+const TA_U8_MAX: u8 = 255;
+const TA_I16_MAX: i16 = 32767;
+const TA_U32_MAX: u32 = 4294967295;
+const TA_I64_MAX: i64 = 9223372036854775807;
+var ta_total: i64 = 0;
+var ta_xs: [2]u8 = [_]u8{ 4, 5 };
+
+fn ta_widen(a: u8, b: i32, c: u16) -> i64 {
+    var x: i64 = 0;
+    x = a;
+    x += b;
+    x = x + c;
+    var y: u32 = 0;
+    y = c;
+    y = 7;
+    var z: i64 = 0;
+    z = a as i64;
+    return x + z + y as i64;
+}
+
+fn ta_unknown(p: TaPair, i: usize) -> u8 {
+    var r: u8 = 0;
+    r = p.lo;
+    r = ta_xs[i];
+    r = switch (p.hi) { 1 => p.lo, else => 20 };
+    r = (p.hi as u8) + 1;
+    return r;
+}
+
+fn ta_flags(a: bool, b: bool) -> bool {
+    var f: bool = false;
+    f = a and b;
+    f = a == b;
+    return f;
+}
+
+test ta_typechecks {
+    assert(ta_widen(1, 2, 3) == 6 + 1 + 7);
+    assert(ta_unknown(TaPair{ .lo = 9, .hi = 3 }, 1) == 4);
+    assert(ta_flags(true, true));
+    assert(TA_U8_MAX == 255);
+    assert(TA_I16_MAX == 32767);
+    assert(TA_U32_MAX == 4294967295);
+    assert(TA_I64_MAX > 0);
+    ta_total = ta_widen(0, 0, 0);
+    assert(ta_total == 7);
+}

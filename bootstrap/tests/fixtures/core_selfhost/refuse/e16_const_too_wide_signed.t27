@@ -1,0 +1,3 @@
+// i8 holds 127: typecheck counts a signed type one bit short.
+module const_too_wide_signed;
+var CWS_B: i8 = 128;
