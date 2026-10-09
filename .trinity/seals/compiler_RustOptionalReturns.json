@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+a3d6cd04f",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:da183ede5a26d9bb736029abe5a41bd113060041a96e458e810627aa468b445d",
   "gen_hash_rust": "sha256:51fcef777f1bc45fc814f5f3572b0267bc0887a1a1bd60a0f15e47e2bf4526ae",
   "gen_hash_verilog": "sha256:9dd6de73a5c6be43d56941ac3e2c6804f2580201a34ae2ec126279c7c94ff38a",
   "gen_hash_zig": "sha256:cc90a9c2ab595eb41279e9fb8b07a01c573f41114556a6c1bdb38d8bc70cde4b",
   "module": "RustOptionalReturns",
   "ring": 12,
-  "sealed_at": "2026-10-07T13:46:24Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:32:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9e424b09e9dca2b8484ba1dacd4d92cb79199f638785eabbf7e464bba1990e9f",
   "spec_path": "specs/compiler/rust_optional_returns.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 7,
     "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

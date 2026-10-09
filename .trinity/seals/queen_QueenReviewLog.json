@@ -1,13 +1,21 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+05e633d03",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/test_framework/runner/str_contains.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0ed212be2862bbb810546e44517a5c8587aed84c93331d91fe6ef0491c0285a1",
   "gen_hash_rust": "sha256:c2db236ff8782b7188a111355030568beb86ff9f4c317f3f81e6f366c751af3b",
   "gen_hash_verilog": "sha256:0750789eac6368061e5214ec3a43ea8ba1c8c7d2368924f8fe38b962655a673f",
   "gen_hash_zig": "sha256:89911e4f52d7ff1472723b2e4325fb4b46cab78cc78df5882314058606cd8688",
   "module": "QueenReviewLog",
   "ring": 12,
-  "sealed_at": "2026-10-07T09:01:19Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:37:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f5ff9bae05a7fcda8da587457268f8e79247066e59e75d7dada1e0a7b00707f0",
   "spec_path": "specs/queen/review_log.t27",
   "tests": {
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 22,
     "total": 22
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

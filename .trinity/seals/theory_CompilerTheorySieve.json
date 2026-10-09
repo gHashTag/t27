@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+81dc8b727",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:69b9a2c14d7753d032e71b2409c20d6962db5e4d6b6ad1e1124f9da4844a446f",
   "gen_hash_rust": "sha256:b79f78c3d95328acc2fb361b64567bbd422aa378bc40c8ee052e252a68a3bab4",
   "gen_hash_verilog": "sha256:756a3f2e7def94ea17dc50139fe78ef63faf64b59cc089c6b5efea167131f32f",
   "gen_hash_zig": "sha256:7fa2bbf54e3ad73422545644c824c1316e2aecf7a100d9af430ef3534457a553",
   "module": "CompilerTheorySieve",
   "ring": 12,
-  "sealed_at": "2026-10-08T05:58:27Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:32:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a7a67a71ee495dbc54713df4dd118372a7778729d9bcb2d4585c7189ab575121",
   "spec_path": "specs/compiler/theory/sieve.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 10,
     "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

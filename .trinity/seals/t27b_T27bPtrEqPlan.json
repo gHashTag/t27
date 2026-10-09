@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+3a101a61c",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c7cc948671e28b6184b8eba69c7a9d577f0fcc90c8bdfa657448a95b39983726",
   "gen_hash_rust": "sha256:df826b868230996fc076ffddd9c19c44009349c4fb4c67b43b4ec958b5efc0c5",
   "gen_hash_verilog": "sha256:0d1395bf46976ea6a8aaf40abe295199ff484cae7ad4674aff95d44cc5c91e2c",
   "gen_hash_zig": "sha256:b3e0eb1355e5c6d94a99e6d2533be12c3a1f0ffda9c0375151d98d47d28b3e88",
   "module": "T27bPtrEqPlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T08:50:08Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:41:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:68d785000f62c398b3035c4da64dd293792142d28efca41a124455c151b91221",
   "spec_path": "specs/tri/t27b/ptr_eq_plan.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

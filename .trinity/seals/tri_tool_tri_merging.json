@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e20071531be3a8881162e62dc0f8d512bf6cf91521f3c389be8e306678b6c0f5",
   "gen_hash_rust": "sha256:cd05d16b1a96d988c955fa9a1733fc2f9f91bbca838d343d6b6090f977ace418",
   "gen_hash_verilog": "sha256:83fb60b12259a08ac108f98ee12ff0d8d638d43da17d788bf6491ed2a699601d",
   "gen_hash_zig": "sha256:94bbb00b30b68d4485f73f6c7494b04360022f81f153b7cacf4095208c2f8a7d",
   "module": "tool_tri_merging",
   "ring": 12,
-  "sealed_at": "2026-10-08T18:56:52Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:39:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:c47491932fa4ef12dec5ecf8a064c23a09f434b289a1c28625c6ead8c31da685",
   "spec_path": "specs/tools/tri/merging.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

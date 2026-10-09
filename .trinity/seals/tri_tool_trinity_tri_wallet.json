@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9cbf776013a950b148902f34cf40fe2f9edca3f759d462bb8cea39486afc44d9",
   "gen_hash_rust": "sha256:deaf11ec1cbb136d1e39eda71107cb265aff56764a0a8a2b25b4d3bebf1f12b3",
   "gen_hash_verilog": "sha256:d4c446a1d3cf2897897e4969911e2cd87531608aaed8deab352f033301d8af32",
   "gen_hash_zig": "sha256:90231ae382468adf5c7f8aaf3eda48f07afc652c3ce4f83ca2cde28d50ba0174",
   "module": "tool_trinity_tri_wallet",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:55Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:40f16ad827f851bab2b83b5ab6688606867b3a974faa083e60dab9db00fe1550",
   "spec_path": "specs/tools/trinity/tri/wallet.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

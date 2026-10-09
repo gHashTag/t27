@@ -1,12 +1,25 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:329ca86422b04dc4e424a47a8767e7755346964d01769a1260ac02f320ce1d25",
   "gen_hash_rust": "sha256:526d9268dbce67a2633098fbdc1260162d50a5f35da6162bad2292be670cf3ab",
   "gen_hash_verilog": "sha256:18b34f8f4484245b1b3cc11d144ff5ddb23d60bcfc4d2e53ba0f43fd510f7947",
   "gen_hash_zig": "sha256:a2efe162b0447d89646981fe36f94b2f0d7716b2f13ee3d15cc7161f5c6f76b6",
   "module": "FacultyBoard",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a05378bfed3b4e3af62fa932fa3581776cb4b7c8007d079dab2de5024e104f22",
   "spec_path": "specs/tri/agent/faculty_board.t27",
   "tests": {
@@ -15,5 +28,9 @@
     "forced": false,
     "passed": 0,
     "total": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

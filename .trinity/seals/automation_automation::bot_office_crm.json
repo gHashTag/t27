@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a1c1fae094c63e407f20341c340be1dce4d3bae9afe3f13d5b2bb53215fbdce9",
   "gen_hash_rust": "sha256:a39dee61ed403048a7ab02bc4a41e3b3bdd642dcf256554c35a419ea0b183d27",
   "gen_hash_verilog": "sha256:4e8d5197f1c7c798b08807e55d2434862600920b50da8f85f9e1ccb43e322f08",
   "gen_hash_zig": "sha256:7c5fb0f72c65d2443ac138dd898df2238f5f42232c7085381562734d2d9afae9",
   "module": "automation::bot_office_crm",
   "ring": 12,
-  "sealed_at": "2026-10-09T07:02:50Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:31:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:02a6dabdb079662687342c06f599ecad84e047ad80df642ff5ad0e17d90106d2",
   "spec_path": "specs/automation/bot-office-crm.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

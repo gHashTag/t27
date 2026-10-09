@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:cbc4cf25151618ba185ebf1becebbedf157431438375c511a2224f05c3da10a0",
   "gen_hash_rust": "sha256:8f61624781dac49f4bfa61d1b6f3f4e4af79f2294759e78f7f3bc8fbbe83ef5c",
   "gen_hash_verilog": "sha256:28e05cd97bdad4c8ef62f9b58a65872890b331741a614799d8cd8dc99105538f",
   "gen_hash_zig": "sha256:4789b9c61ffdfaf195228efe178d838f8aa4f5f53b3240332437f62bce912bb8",
   "module": "port::browseros::trios::agent_server::api::routes::queen_registry",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:43Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:35:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:df502341b5265b755bbe393935a710ddddd3b18543e4d6304081f6471bbc07e6",
   "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-registry.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 14,
     "total": 14
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

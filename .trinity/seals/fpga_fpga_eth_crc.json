@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:f2c221bbdc7dc6e5fdf96d1f739ab6e075049966f38f3020464c82c94a2c9e3f",
   "gen_hash_rust": "sha256:e057097d60e11817a5f9e349a34d7c5b4f0088291631f6d64170badd22333c43",
   "gen_hash_verilog": "sha256:20e8581b5f009b0e967b72a74d210d18e9db703895194180dd8acd3db77ad499",
   "gen_hash_zig": "sha256:db0ebde39c97ea680fa6e26166c324184b4f64e61cd13ede4c0dc88c55fab09e",
   "module": "fpga_eth_crc",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:40:45Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:33:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cf20e61e8d9537a1ec16b58cde19e4d65b6655e64a840fdabb7a1b1a7829146b",
   "spec_path": "specs/fpga/eth_crc.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

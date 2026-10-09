@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+81da89413",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7cd34999bad2cf4147e9673fdc19e46b9d277f7c14a5e132aac6c3aafbf68251",
   "gen_hash_rust": "sha256:5f5c3149f1f2fb1c5c0857a72c0a5ae16281c6e1146ad430b456b861a40052c4",
   "gen_hash_verilog": "sha256:03bae060d5af0903b1cc6070972dadc2b66856ed32829a6de376051664186cc3",
   "gen_hash_zig": "sha256:179da2d3b22dd83eaed934cb2c11c30328fe88b22f72365763ed9a5668c6e18b",
   "module": "T27bConformanceLazySignature",
   "ring": 12,
-  "sealed_at": "2026-10-08T17:38:08Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:42:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:dd14bb1bdf3ccee51b4d8826ef1f94a2a7cbd546c6b8351beed99864dd9ccbfb",
   "spec_path": "specs/tri/t27b/conformance/lazy_signature.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

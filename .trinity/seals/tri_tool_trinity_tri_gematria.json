@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:db5012a7973bb4b2657457194c2edd36d70390c4192c0a9e06a82379f7ad4e6a",
   "gen_hash_rust": "sha256:5fd3d092f50a5fa194705578f12d6bf6cd810ceda7252a083193f91e7fd36cd4",
   "gen_hash_verilog": "sha256:17a5c35b229b2b8c8ed89ac2c848caceb1349206690d7a1044e8e8df3f80df66",
   "gen_hash_zig": "sha256:59ea04f7ca9a77963abe7ef9bc228cc4adf7a68a787956bfa57acf955362f284",
   "module": "tool_trinity_tri_gematria",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:16Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:54650775e9aa862617c44e44024678c61a9012bc7b904a17c638e35f082c2ca1",
   "spec_path": "specs/tools/trinity/tri/gematria.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

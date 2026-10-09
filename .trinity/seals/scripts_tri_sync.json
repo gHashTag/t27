@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9bea3c929d2fdb685bf6c7b0e89ab74388ed573db0e4243a27f36e3ca6331cc0",
   "gen_hash_rust": "sha256:72330013d5d4580b0b5bccc4f7773477a1e500498208b69a8309933b25593449",
   "gen_hash_verilog": "sha256:d8dbb18189b51ced3bbcf0ba85da2c21cd422f753543831e79130eed58aeb149",
   "gen_hash_zig": "sha256:4275db7948b3993df9599732d46c2f3ed3df4cd658fa4d04681d963c2ef0cc59",
   "module": "tri_sync",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:10:36Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:36:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:d9415e8b90f7d5aab098c20f14c9d62706fce268d6eca8c3d36981c9dbbac4bc",
   "spec_path": "specs/port/scripts/tri-sync.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 7,
     "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

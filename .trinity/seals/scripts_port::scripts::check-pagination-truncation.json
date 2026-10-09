@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7f7d379d7c5cf06c11fb885ecec20514baeb3f04d8872ee69afd73e44a05f065",
   "gen_hash_rust": "sha256:9212cb667ba70244b0e499fb81d2c5698c57f333cf52546e3264e3b05e21278d",
   "gen_hash_verilog": "sha256:92ca7c792360b7d76e6541d6439a7df0f976f203a6aabd29362d9a54016d9d65",
   "gen_hash_zig": "sha256:4fb10fd110b13b42e6e7b3c02ce287d4677779e441f4f4c084b2e0ff25a8198b",
   "module": "port::scripts::check-pagination-truncation",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:10:01Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:35:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:de668ce2f16de62055850eda2f6d36315af9a3a955889ca71f87cf9e762ebb5c",
   "spec_path": "specs/port/scripts/check-pagination-truncation.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 12,
     "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

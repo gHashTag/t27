@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:ff5f5f86e7dac818868b42db9c8e07adadf9538d5c0a9dfd576656b82e7ac74d",
   "gen_hash_rust": "sha256:457653094efbaf4ecab99c8e98bbb8c3def0ca3f2194d9c4ecdb497fbf390c6b",
   "gen_hash_verilog": "sha256:9c640380ff708a078513f3de9fc919964a8fea6286ed5f14ef12d8af8e5c3139",
   "gen_hash_zig": "sha256:93740b7f4b83ddd338ac800a2ccb81261083a1846ebf908dd6123c2ae714a740",
   "module": "CArrayRepeatWrapper",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:23Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:32:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b51623666b84c1ada70a0a69aa7a45acf5d910b24b894507673a6dccd2998ded",
   "spec_path": "specs/compiler/c_array_repeat_wrapper.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

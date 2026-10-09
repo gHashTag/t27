@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+12c41a42b",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d7bfa28de4c29f9735404777df410d7a3670db5976157dd92f3e5b5740faca60",
   "gen_hash_rust": "sha256:da8ed98ab965b8056df19d42b0686685525ba35e769fe27b68b7306a19a6591a",
   "gen_hash_verilog": "sha256:6fd972510bc55a7b0deeef1544068ad9a749f8ff0160dc447f0542102890d76a",
   "gen_hash_zig": "sha256:55b2366f90224f9eacd2ee88532398500221112bce470b4a63afba6b0c708556",
   "module": "Layernorm",
   "ring": 12,
-  "sealed_at": "2026-10-08T07:56:29Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:34:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:01af1b15566525162107c29cd139eb9d98b48186fd5133768a2b6db3aae3d9e6",
   "spec_path": "specs/ml/layers/layernorm_layer.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

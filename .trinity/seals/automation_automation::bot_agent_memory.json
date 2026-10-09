@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+5263bba",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:69b236dcc7e723aaca3ccd4b56976b8ac6401fcb7cdd8a3ff568d447fa626bca",
   "gen_hash_rust": "sha256:19540c2eb04261caf1b99869f9cc75bd2d214f33f011b2b29ddf4cdd7da9586a",
   "gen_hash_verilog": "sha256:bf23c67d1b018d84fe95cf2851fae1a0c925547e1511dbb787f97c26a15ab731",
   "gen_hash_zig": "sha256:b165d8aa59d01438e11af9388b170f974ed0a38e518e0d25bafd6ab1e3c025c8",
   "module": "automation::bot_agent_memory",
   "ring": 12,
-  "sealed_at": "2026-10-08T13:38:49Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:31:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:31e53347190692b666fc1d0667e325d514a18b9c9d341689c3988c320ab609bb",
   "spec_path": "specs/automation/bot-agent-memory.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

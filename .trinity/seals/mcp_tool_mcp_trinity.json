@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:728e1f2485efb801b91d971320ccaec24772f04540c5a9f4470f9beabc868607",
   "gen_hash_rust": "sha256:bc297f4172fef2c4b73bf13465b969735cbfa30e7a66edccec712df77d08ab10",
   "gen_hash_verilog": "sha256:32b925a1d2a4a7dd3ab19d0491e9cb00ed224716327022322abf9bab01e360ec",
   "gen_hash_zig": "sha256:750bf64b87165b5e036f020abafe6ed8b6749215bbbb1615eb7bea1448b4cbf6",
   "module": "tool_mcp_trinity",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:11:25Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:38:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:96b2d4455beafde147e51baf1ef6518198990257cb43c9c490728bb90124f945",
   "spec_path": "specs/tools/mcp/trinity.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

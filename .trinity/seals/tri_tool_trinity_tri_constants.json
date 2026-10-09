@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e3923a12ab9c21859ebaa2b29643a6d720c89d65a81d13b37c65d0c0ca07b868",
   "gen_hash_rust": "sha256:5dd089f40118de3d544a3d2821e3b7c2c54fbe4b38d8946c39655820afd93868",
   "gen_hash_verilog": "sha256:df320f7f892162f6326b429f3b87cfeeda11cd74df90a56b991d6eba5bdd94ac",
   "gen_hash_zig": "sha256:679403a129da7b2069865856b55dc0d5fcf551565de31918f1cbbadfd9ff4a37",
   "module": "tool_trinity_tri_constants",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:08Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:39:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2664447e389cddb7e4a17d1ab83638d3abeaa34f9aaa308a0a0cacd342f52a7b",
   "spec_path": "specs/tools/trinity/tri/constants.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

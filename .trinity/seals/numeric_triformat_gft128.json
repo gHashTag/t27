@@ -1,12 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:fd6819911229325ccb180af2c4de61a1da009f91f86610642363658ae8d6614f",
   "gen_hash_rust": "sha256:07294e1f227e7a365001e603ec878e40b62298c975b5cdc9980dc2ea7561ab72",
   "gen_hash_verilog": "sha256:48b920991f93435d1984f150335778413596d19ec2a09250d209e05f077aa85e",
   "gen_hash_zig": "sha256:4e452b449eacefe6ad48b712285e8041d30a34cf76701951c72a20d891e52cb1",
   "module": "triformat_gft128",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:01:09Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:34:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:811ab919aaf42e67a0136001323bbff94b86589814062ef0b0f932f208736fef",
   "spec_path": "specs/numeric/gft128.t27",
   "tests": {
@@ -15,5 +24,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e241ce2c51f2019fc6dbe9de10ec99bca50d1ef39cfb2aa6d9c932dc6759c383",
   "gen_hash_rust": "sha256:902ab5fafa5e4273a21f9682d43ad391ae9a1422b625a90099ebd249f9d14821",
   "gen_hash_verilog": "sha256:a4c0e24bed91f86427c374bdf8800b1c1d421e37c204fd832d60a8c43802e675",
   "gen_hash_zig": "sha256:1ff5394574468533681321d9cf9bedb8ad9fe3feb30892b0f3543be7d515312c",
   "module": "tool_trinity_tri_identity",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:20Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:45ce31cd0f23d7b804c53616996219def403c13c29b9c132e94fbe05ef067d32",
   "spec_path": "specs/tools/trinity/tri/identity.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

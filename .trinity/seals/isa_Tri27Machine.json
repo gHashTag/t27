@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+a6841f939",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c432acdf678e39c88f1071d4513a57927d8906941d2ad1479eb539cc3c177f9a",
   "gen_hash_rust": "sha256:4cd5e4a0154e1b7e987baba489a1e4f2dca2621fd30c8d230c0fabc8b42779f9",
   "gen_hash_verilog": "sha256:7c3db36710d8303fb41e9089944baf696ecd08372f3a73dc3bd66cd59e4205b1",
   "gen_hash_zig": "sha256:220b21687907d10dc024abaad5c41afaa7b14b460f6e9bbb91b6309d93f1c09a",
   "module": "Tri27Machine",
   "ring": 12,
-  "sealed_at": "2026-10-07T02:03:01Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:34:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0b6421d15fbd861e9ed918f564d10c2f87064e3c12c0386ffa0584ee28eb4e44",
   "spec_path": "specs/isa/tri27_machine.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 10,
     "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

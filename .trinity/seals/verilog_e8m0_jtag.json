@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:8711ceecfde274f73ea2858f8c93b3931ae71f56773fca1cef7aa8c765d9c166",
   "gen_hash_rust": "sha256:fba11bdba0284c0100c34c6fd93878e260dbfacfca0c37a33c262accc7a0c869",
   "gen_hash_verilog": "sha256:15dff0ad9da876337dd9e78b9b8446075b72efdca3bd9129aa56a40f923169d7",
   "gen_hash_zig": "sha256:b36e8bf1af2c68df8592cb4360def772441414cf284f3a4605e67bf042a2fea3",
   "module": "e8m0_jtag",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:47Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:35:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:aeaa11af6514482414099af008f665ed6f5d44807319e3279c014c325ca92c30",
   "spec_path": "specs/port/fpga/verilog/e8m0_jtag.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 18,
     "total": 18
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

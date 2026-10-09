@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:2f6feed2bc39c959bd37bff2990a511609de74e5da69c10b8ce7600ce8b2ad51",
   "gen_hash_rust": "sha256:e75bbb60f27c269176537e3315fc8e4515b870bcf3174c8eef2ed6cd461f8198",
   "gen_hash_verilog": "sha256:7426f2c2f2222d73cfe67e2ee08d5f429ccda24917f1138dc091cfe4ada714d1",
   "gen_hash_zig": "sha256:606f21d8bbba6a452269aa810d5ab67f464971cd81db0fd5f6cd92d4585a0d0e",
   "module": "tool_trinity_tri_bench",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:02Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:39:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5f6ff971739dd6f980aaff141d2a9ca68194db3ddd6aae99ee988178b0c8bdf6",
   "spec_path": "specs/tools/trinity/tri/bench.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

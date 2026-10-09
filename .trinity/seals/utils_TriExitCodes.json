@@ -1,12 +1,25 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:fea2489b6cfd524bcb93ef4a9b6cdc356ba272f8613e0f2e9a8989339b41596a",
   "gen_hash_rust": "sha256:9ad34f8efc6e431dd8176f5cc7316debcabf4795c72c5b5abf8afa82eb4ff2da",
   "gen_hash_verilog": "sha256:0b94c33159981f4d6ffcc6dfcd19cd8c345aa00bc61f94e8d1187f15b5f91247",
   "gen_hash_zig": "sha256:00215a3c59cdc1346f3f0890637aff0088764e56eec3dbe1f4b9bcd27dbb0eed",
   "module": "TriExitCodes",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:57Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:42:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7e5d9b727926e97ad5ae4b0cb63666cfbf4fe9ec451578df61441b40dc262613",
   "spec_path": "specs/tri/utils/exit_codes.t27",
   "tests": {
@@ -15,5 +28,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

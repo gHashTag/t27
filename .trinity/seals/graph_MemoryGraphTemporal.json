@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a3647a5013b4378ea43a5e415a8e8eb39ecc5058e56c4d27d84431f422ba6695",
   "gen_hash_rust": "sha256:db9a63fe291bc2e19a47dcfd1c18137d72a1f48eae8f3509a9a671036922c5d4",
   "gen_hash_verilog": "sha256:8519e74ee681ae266489cdac1a2b31078e9fddd1967ef79979df15449712d803",
   "gen_hash_zig": "sha256:8a75e61a5668d645c29e914e9d0f45b2e8f85aef4b08e203f87f77ced7017c72",
   "module": "MemoryGraphTemporal",
   "ring": 12,
-  "sealed_at": "2026-10-08T13:44:46Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:34:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f1742b445b704609175217318a66693b5cd19eac3e1e99922a827cc1878bffdc",
   "spec_path": "specs/memory/graph/temporal.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

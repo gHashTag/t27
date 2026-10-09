@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d6967d0caa52bd63637b16c27cf3b1f51af9c8f24c2eeafc48a2fd385d70653d",
   "gen_hash_rust": "sha256:ecd275f4cf01af71d41f7162eb1ef53529ec0d5ef126e38353a8928a00068346",
   "gen_hash_verilog": "sha256:165fc73222ff9cb750d1b348a0ce7e3a07f33060a1c82ae8646feb62bc057190",
   "gen_hash_zig": "sha256:a4b566ef10c6e0d1bb0706fa953b505390eda1d8e29a7b7823ce055552d2648b",
   "module": "tool_trinity_tri_cosmos",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:10Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:39:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:484373477cb324dd7316218c9e2259e9ec783ebefdbed7870f573dbfc970bbfd",
   "spec_path": "specs/tools/trinity/tri/cosmos.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

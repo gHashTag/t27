@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3344e42b21f01feff5185e48fa43bfc49c54a206ff3c84cf4fa137558319aaa7",
+  "gen_hash_rust": "sha256:58fba8b7991169edf0babd234af8b5516793d386868ff05a69dabc8305188ccc",
+  "gen_hash_verilog": "sha256:bd3a0a76427539b4928ca5a562cc390f785c5c07f9186349820753de21f6519c",
+  "gen_hash_zig": "sha256:676535a09c802453835ddd1028ed5f8756402cda82f85ca41b2c9de085fa57ec",
+  "module": "gamma_conflict",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:35:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:39c068c9c39f7dcc7c021215f6ad2308a426bcd4aab5872f3a2cf4339d8100ae",
+  "spec_path": "specs/physics/gamma-conflict.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

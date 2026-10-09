@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+01de65cbc",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:cc0b4b79527fea1e652c3834a576773a46b648ad6974070ce7b87e0632f7829a",
   "gen_hash_rust": "sha256:d5845499ae28598246bd5709ab71fa10dfbfb1ee559e712506b6ff9c431cc65c",
   "gen_hash_verilog": "sha256:bfe981305444b5de6025232096e6c56ff61183c764504bdb253375c25acb8462",
   "gen_hash_zig": "sha256:8b7360c89e40807672af52cc957aa5202e0588227c50a6bf588cfcdb3c5977df",
   "module": "T27bSliceLitPlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T11:39:40Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:41:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:eff5664a44c674b58d74b0b04d90210a28eece3ce9e9b0203de38a061f5cef8b",
   "spec_path": "specs/tri/t27b/slice_lit_plan.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 13,
     "total": 13
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:28f2bf4c95503d6d6c187b869804fcd93746fb55359a2e6e0b3b11c7f5d972b6",
   "gen_hash_rust": "sha256:ecf15e570bff9bded34ce4ff55c89dac02edae897a6102507e970de851b571bc",
   "gen_hash_verilog": "sha256:65c9bc9229eddd93f28b6623d0d43da25990a3d0378ca3588af738bc286ed038",
   "gen_hash_zig": "sha256:8f932440f19983033aef1c9c62dba908b5a0cc0b1f22eae6127a3ad13c6cd45b",
   "module": "tool_tri_harness",
   "ring": 12,
-  "sealed_at": "2026-10-08T18:56:49Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:38:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5d18ad43307c2688009454d087d8c798757d8566666aeb9c17bc892eae088d6a",
   "spec_path": "specs/tools/tri/harness.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

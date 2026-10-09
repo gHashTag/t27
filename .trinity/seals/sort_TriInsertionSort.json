@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:32b6b2c006fea457a6912fbb8eeb241942c5d98edc762f34b07868909ff6d8a6",
   "gen_hash_rust": "sha256:6727821a7307011c3ebd8349d895370da58610b42c4d2607a34374efd97b6c74",
   "gen_hash_verilog": "sha256:362b0243dd283306b7d07aa1eebc8b34a00efd6d96071fed7cbda671a5c00f63",
   "gen_hash_zig": "sha256:eafecf9c132193045d31e2231703704d58978b029248fe4d59897776f20c51c8",
   "module": "TriInsertionSort",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:31Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:07c7d53ea460108141f97afbdd7638eec558967485872af683324d731a4d99c0",
   "spec_path": "specs/tri/sort/insertion_sort.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

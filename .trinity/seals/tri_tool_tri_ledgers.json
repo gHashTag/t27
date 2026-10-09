@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a8617f07c9b8b078a25b0061ce7a8ac05c59f50a5d6345d0898a63bf0225e519",
   "gen_hash_rust": "sha256:adff896327c07bb97dbac953f2070f55173fb861a5d6e5c4aacc5d7854a730ef",
   "gen_hash_verilog": "sha256:7e52bfc612fb3ec7504107837b3e513086d94b1e63c68afb1836a6420e9e0181",
   "gen_hash_zig": "sha256:186a9bd60d1aaccfc0b9093974f958f856a9e9f2f7a04c8ddd8d351a1e62713c",
   "module": "tool_tri_ledgers",
   "ring": 12,
-  "sealed_at": "2026-10-08T18:56:51Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:39:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:6114207ccbb5775f404979a3f951a32a71ad2b191d05fb3ed61989ea76c48a75",
   "spec_path": "specs/tools/tri/ledgers.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

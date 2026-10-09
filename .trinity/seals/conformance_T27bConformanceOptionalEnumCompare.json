@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+579bc55aa",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:f550fc3b68ef00b407d83de48c8ba108457e20a282ff22e8592c30fce113b53c",
   "gen_hash_rust": "sha256:f7a5c932d61e2ac703207eed7bb1ccfd97b9fceb962a0b4f40e761e0c500866c",
   "gen_hash_verilog": "sha256:51cb2897ba7c30ce50cd691fd99a8f2f1cbc509b18807aba192ae44446c3bd1e",
   "gen_hash_zig": "sha256:972d092ecb251987752612699f3704e420fcb9f88f29e03219a3b291c60463f0",
   "module": "T27bConformanceOptionalEnumCompare",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:20:00Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:42:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a8892307a55b0865d276ddbf46e38e585b1299787a69ec96f84995132b02030f",
   "spec_path": "specs/tri/t27b/conformance/optional_enum_compare.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

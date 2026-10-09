@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5384556eadadcb6fb998102655b6ba1ad551746c38e22b293cb1781815ce085f",
   "gen_hash_rust": "sha256:63e97550cecfc0ee7be28e869e98c4bc1ccbe59465377610f867ea42a71cba70",
   "gen_hash_verilog": "sha256:a68a74630c9ebcacd31e91874932727d455c756244e5d8582ad2df715aa70d4d",
   "gen_hash_zig": "sha256:170fc2a9ee3a4cff6eb9bd839a39ce99daa67ba44d5f634398d9134fd336f4d2",
   "module": "GftNeuronFull",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:06Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:37:40Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4e30ec4fa2372b483d8ff0ba5a80b5451842ce70c0769ce000e89f0a05797fd3",
   "spec_path": "specs/ternary/gft_neuron_full.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

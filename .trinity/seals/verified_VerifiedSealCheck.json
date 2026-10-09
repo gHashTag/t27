@@ -1,19 +1,28 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/verified/reuse.t27",
+      "spec_hash": "sha256:79af2725711852461d2d71c0ad089fb55130199e320abed77f11e915cf9d970b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e2f2fd46518aa48c4ad1492a6c89f8480aa9d4f8b84e92346ec4009b3c654680",
   "gen_hash_rust": "sha256:00b4777c3b9fafb215fabd5b915332b00f39965f4aceb3377700f5c755b709ce",
   "gen_hash_verilog": "sha256:21cd09f3948668b01efec2503695b5cc8498897e96fb4d83d78e7ff2b930e135",
   "gen_hash_zig": "sha256:c69c4fd5523dfa15ff007d061de264e18e66ab4b6d7cc3f9cdcfbfd73353e6ab",
   "module": "VerifiedSealCheck",
   "ring": 12,
-  "sealed_at": "2026-10-06T09:51:09Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:43:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ff3aa7add33c1f638b870bd051edd8f8994a62d612cf5a5e86e8676cfb6f04b7",
   "spec_path": "specs/verified/seal_check.t27",
   "tests": {
-    "failed": 0,
-    "failing": [],
-    "forced": false,
-    "passed": 11,
-    "total": 11
+    "blocked": "does not compile: error: failed to write: NoSpaceLeft"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

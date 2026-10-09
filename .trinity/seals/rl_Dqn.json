@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+c6517ff",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:3e3e4c6ec2c8790f213b9fdbc8bf532a80a6d39b7336fe059e7b8719f33750dc",
   "gen_hash_rust": "sha256:d2e56e88cfce5a586c7740bd6e9f2aecc412fb4b6dff9b5a5e133bf3d391685e",
   "gen_hash_verilog": "sha256:72003ae62bc12ddc47c74b1a7ed2c9a52382c04df45db38686d0c8537ce045e3",
   "gen_hash_zig": "sha256:b82f6d105fc427a5de5c7ba31ed2b47598cecfe39970f2d1b828ead363126e79",
   "module": "Dqn",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:33:43Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:34:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:924521fa8a7c2858e0aa6ecfdfd2bc811301b93d4a0e27a10872bd7179d055db",
   "spec_path": "specs/ml/rl/dqn.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

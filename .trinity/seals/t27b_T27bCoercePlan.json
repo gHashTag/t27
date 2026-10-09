@@ -1,13 +1,21 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+2781ae37b",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/int_cast_plan.t27",
+      "spec_hash": "sha256:4de93edab47dc680f5c6ba63a21b777330f0f7cdc673cf751ecb25ece1913152"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:3e293f9f7eb6fc1cdb86a1cfcfc05d5f52a0fe7b0d903e74f211dc6b533ee33a",
   "gen_hash_rust": "sha256:31f1701a76e5a3042cfbd87dfd6ed3bb1bead71bdab1600fd6637c4c4fce14ff",
   "gen_hash_verilog": "sha256:51f1eac1b3bc8df79619aa3f26b691ded8a47e211dfab433a244fc5d879393e7",
   "gen_hash_zig": "sha256:e344bdba32d307a0c771cb78878c739e001aed120b8504e89a0d39bd0e970ce1",
   "module": "T27bCoercePlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:22:43Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:41:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4c301189f81ac9a1868b45ed1afeb5568f4db4f25f21a3c0711080f79c797aa4",
   "spec_path": "specs/tri/t27b/coerce_plan.t27",
   "tests": {
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 11,
     "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

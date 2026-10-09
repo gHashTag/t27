@@ -1,12 +1,25 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/isa/t27a_mnemonics.t27",
+      "spec_hash": "sha256:2f337302ebc77b231866e172eb55ea688e25fb492b818388de3c4c814001a3f2"
+    },
+    {
+      "spec": "specs/isa/ternary_encoding.t27",
+      "spec_hash": "sha256:563b6ca610274d48010c05fca146634edcde13c391fcea3f44cc2790171530d6"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:758c27b2d64021d3f7d64e462561d67cb1cfe73e2d9633fc12843f09bc19b5c5",
   "gen_hash_rust": "sha256:765bce03e1cb603dd2dffe135707230f0fa898bb74f1cd269ec477989e58f54c",
   "gen_hash_verilog": "sha256:6552a2746b8f17ba5ad7ecbd0968c76b8d408c3a85ade3b1ab0f548eab166dc6",
   "gen_hash_zig": "sha256:b6e01cfb53d3c0be0adc6a638b8cccdbcc30363deb278d8bb039e0374a839219",
   "module": "T27a",
   "ring": 12,
-  "sealed_at": "2026-10-06T14:34:07Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:33:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4c2caab4f0cb4c953b55f3ec425900be32be50c18f806925f4fbce05d8f311c3",
   "spec_path": "specs/isa/t27a.t27",
   "tests": {
@@ -15,5 +28,9 @@
     "forced": false,
     "passed": 10,
     "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

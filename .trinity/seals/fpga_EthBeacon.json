@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+cb9df57c5",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:39e3091d0ba7e535ab4fd89930a0a5c2500babd2b6db5ce9e97b2e276ab49acb",
   "gen_hash_rust": "sha256:6fc2e611f1375d23dbd5a145a214159931b4d0821b0231891b9521a3f815a62e",
   "gen_hash_verilog": "sha256:a11728adc69273875fa9e12bce2a91df3b563220b3d55deff842287751c04e90",
   "gen_hash_zig": "sha256:4a0b1cc6d6c2ae66345541423da1b73757b3d01d5e17b566a6c7576f73461101",
   "module": "EthBeacon",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:06:15Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:33:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:40918113861c9bf6d02f82cd9050e417b8ddaf3b3b82de3d80c99572ddc9422e",
   "spec_path": "specs/fpga/eth_beacon.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 9,
     "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

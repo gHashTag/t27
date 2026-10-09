@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+2781ae37b",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:f18fa9da6e6f7b12190872b5e3e045de63dead51e07baf72ba467f8abfceafd4",
   "gen_hash_rust": "sha256:c21a02900514549138eea72c8abd374c5f7d4c784c982640afbd290a0803e486",
   "gen_hash_verilog": "sha256:416b6ea5492a38df165ead2d0960dd85ed04450df9799e9227783999c61c25ec",
   "gen_hash_zig": "sha256:337fcf07a78344df5d3ef8cd30b4e20a8223bb70f34561a2ce0b295f918d65ee",
   "module": "T27bFloatAsPlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:22:45Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:41:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0c3077d0ca9f8dfb42159140754cf306c0872b9e6af03894fab7b91f64aba7e2",
   "spec_path": "specs/tri/t27b/float_as_plan.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

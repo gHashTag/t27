@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+5a3485e1d",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:ff26b55aea3f822ff98eee47c6cc34cf797ce319fc1aed63b5b8b1139aea3652",
   "gen_hash_rust": "sha256:267270504065d25ea6237c4f9b4d76855591e899015e394b3007a35d51b13803",
   "gen_hash_verilog": "sha256:026d1074da45de071a418b779faf4192f0a6de7fe87ff503b50d8d5fefedea8d",
   "gen_hash_zig": "sha256:59cb618f6c5fdc08b31d8ab9110563f26228de8fe6915e50fc0e027422aad249",
   "module": "port::browseros::trios::agent-server::apps::server::src::browser::history",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:02:17Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:35:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:84378cf71643f6cfee34911f131dd3c7ed08fafd1fa2de9d51bc867bc73a4f8b",
   "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/history.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

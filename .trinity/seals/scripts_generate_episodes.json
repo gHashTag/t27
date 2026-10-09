@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6d81b3621b6d7a0e43c337002b6a44c64a73ac0d3db0343ad97ab2b4f1756d51",
   "gen_hash_rust": "sha256:6fccf680861da3d3ab8be22806c3f11d14ce562172dc839921d26a24c9d29f0b",
   "gen_hash_verilog": "sha256:041bb3c5a93a7dc14b5ba613224b5ee91a0b92473ed0c84b7ab5c1b84f4609a0",
   "gen_hash_zig": "sha256:b9178378541712782efdc20e4fce88f98e31216ad8a3335e76bf92668a26cc9e",
   "module": "generate_episodes",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:10:31Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:36:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:886edd4782561fc8b0a818a271bc1699ad702e73271ee34e831d02404da7ed26",
   "spec_path": "specs/port/scripts/generate_episodes.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

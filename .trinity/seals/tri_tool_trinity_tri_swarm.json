@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7e912b04700966f022c86c886cb95ec019443b5a86c49be75686f573cbe0526b",
   "gen_hash_rust": "sha256:a6c9274ee92d15dbb090b1e281ad4b136d1806f047b55c70498142cbde291637",
   "gen_hash_verilog": "sha256:122fd394f18cbf456b347ab47cf5eeaeaf2d0650a5ece16c70171ae558f77ced",
   "gen_hash_zig": "sha256:852842cbd4ca32eaa66ec5e42ebdc6493fabc8be2e1a70abcc4db3d3961f7050",
   "module": "tool_trinity_tri_swarm",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:50Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b5c22edc7d1891543a9c2502025217e612633fa85e5c0a3c4dc47e233326a9c0",
   "spec_path": "specs/tools/trinity/tri/swarm.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

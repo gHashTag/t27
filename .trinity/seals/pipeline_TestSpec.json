@@ -1,12 +1,25 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:174cef41ffae254c61d162c389093e091f7406f3ca7521680a80e7957e118e93",
   "gen_hash_rust": "sha256:3f246e9ac855b50c3d93c8bbd98131f857e1fb5a5ef003201614124dabd0152f",
   "gen_hash_verilog": "sha256:3cd18f15bc4f4da3d0880a75a2f4b714772d6f26d54b7ed51f991dce574969b6",
   "gen_hash_zig": "sha256:0dfe0f26a6bfd1ec98e2523bbb09ca8287849cc0ecdb1796d1add22d72c1dc14",
   "module": "TestSpec",
   "ring": 12,
-  "sealed_at": "2026-10-06T02:47:33Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:40:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a8201e48aca91baeea3838df250271a63e90647f6a6155ad02c41c0f9dac3b64",
   "spec_path": "specs/tri/pipeline/codegen.t27",
   "tests": {
@@ -15,5 +28,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

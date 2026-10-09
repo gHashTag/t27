@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:1de96d54899ca99fd3a01b0df673eef39c7cb801530a408135ab3a99bf20acfa",
   "gen_hash_rust": "sha256:104f9ae28d892f6bd99afed43ec63a17e87ec31a24878ddebd6ef6e4d0fbfc23",
   "gen_hash_verilog": "sha256:e6d63ff432e58d7c504ac88cfe3596d8c065ba52db96399abba6d30a9070b657",
   "gen_hash_zig": "sha256:34df41fe1ddee669096975a4ab2499886bca3f5ea44fbf70bbce44b3ecd9e2e1",
   "module": "port::trinity::gen_rsa_simple",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:11:03Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:36:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5817936692328567267e9c17cb60a0675b6891e0477195b82bde190cb8fb7e0d",
   "spec_path": "specs/port/trinity/src/tri/gen_rsa_simple.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

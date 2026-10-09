@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+2781ae37b",
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:3f77abba334c2f96603cf2dd52290e203aa1311829f2611634f5c0132dfff4c9",
   "gen_hash_rust": "sha256:fc7c8822b8c44b3d4c0cfad805147dec226ef56c8c3b12c65d4ea064e204c1f2",
   "gen_hash_verilog": "sha256:207d369163f6fe627fab30399459b616cc548bc8a271a4f89d9fc63e3977bc56",
   "gen_hash_zig": "sha256:34261ad7ad59b7499c0fcda951c5a49dee30191dc0d441dec98c9b0f1c5c1293",
   "module": "T27bBitCastPlan",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:26:52Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:41:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:77fa0663a1a521eba90b6c666f97d0b6c1fc4b98673f56977bc141bab8e7e636",
   "spec_path": "specs/tri/t27b/bit_cast_plan.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 10,
     "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

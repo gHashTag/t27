@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+06548e26d",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0d619dc64f1c81108fec370cc09dc76860597102abfdc7156113fd7cc836276a",
   "gen_hash_rust": "sha256:bc0b116df8a44b3baa8a3c05e2590662ea813f6fab2f78e0322a76dd996c7213",
   "gen_hash_verilog": "sha256:b4ce3617d5858cf4bfc4455eb981a901737d129a6f35344557f943600acec352",
   "gen_hash_zig": "sha256:7299d88d7304793dec0a0afc92ae283b8703b243b33ad5d292324dea82c8232b",
   "module": "GftSignedDot4",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:10Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T09:37:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:392469bd483fe7cae59c0ebc1a1f65184e215d9c694d4d500dbc42e687e98fa6",
   "spec_path": "specs/ternary/gft_signed_dot4.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
