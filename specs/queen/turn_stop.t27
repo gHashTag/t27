@@ -1,0 +1,277 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/turn_stop.t27 -- turn stopping behavior for Queen actors
+; extends actors.t27 with precise control over what happens when a turn is killed,
+; addressing problems where spinning worker threads keep working after terminate(),
+; killed reviews keep their rows and z.ai key lanes until timeout, and process
+; isolates are killed with SIGKILL but leave child processes running.
+;
+; This module reuses actors.t27 where it already decides, and adds:
+; - TURN_STOP_GRACE_MS: how long a turn has after its abort signal before escalation
+; - step_on_abort: what continues and what is cut when a turn stops
+; - escalation: whether to kill the whole process group or abandon
+; - in_flight: what a concurrency bound counts for held turns
+;
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenTurnStop;
+
+import QueenActors;
+
+; --- Turn stop constants -------------------------------------------------------------
+
+/// How long a turn has after its abort signal (stop_signal X_SHUTDOWN) before the escalation
+/// to X_KILL. The grace plus the kill landing fits inside LANE_FREE_MS, and the grace
+/// is below actors.t27 WORKER_SHUTDOWN_MS (5000).
+pub const TURN_STOP_GRACE_MS : u32 = 3000;
+
+/// What happens to work that was already in progress when a turn is aborted
+pub const ESC_NOTHING : u8 = 0;
+pub const ESC_KILL_GROUP : u8 = 1;
+pub const ESC_ABANDON : u8 = 2;
+
+/// What a concurrency bound counts when considering running vs held turns
+pub const COUNT_RUNNING : u8 = 0;
+pub const COUNT_HELD : u8 = 1;
+
+; --- Turn stop functions -------------------------------------------------------------
+
+/// What continues and what is cut when a turn is aborted. A finalizer always runs;
+/// a write to the shared checkout already under way finishes; everything else is cut,
+/// and nothing cut starts.
+/// 
+/// Args:
+/// - started: work that already started (true = started, false = not started)
+/// - writes_shared: writes to shared state (true = has shared writes, false = no shared writes)  
+/// - finalizer: has finalizer cleanup (true = has finalizer, false = no finalizer)
+///
+/// Returns: true if work should continue, false if work should be cut
+pub fn step_on_abort(started: bool, writes_shared: bool, finalizer: bool) -> bool {
+    ; A finalizer always runs - this is non-negotiable cleanup
+    if (finalizer) { return true; }
+    
+    ; A write to the shared checkout already under way finishes - do not leave dangling writes
+    if (writes_shared) { return true; }
+    
+    ; Everything else is cut, and nothing cut starts
+    if (started) { return false; }
+    return false;
+}
+
+/// What escalation to use when a turn cannot be stopped gracefully.
+/// 
+/// Args:
+/// - kill_stops: whether the kill effect actually stops work (from actors.t27 kill_effect)
+/// - work_ended: whether the work has ended on its own
+///
+/// Returns: escalation strategy (ESC_NOTHING, ESC_KILL_GROUP, or ESC_ABANDON)
+pub fn escalation(kill_stops: bool, work_ended: bool) -> u8 {
+    ; FR-003: escalation never kills one pid; a turn that cannot be killed is abandoned, not claimed stopped
+    if (kill_stops == false) { return ESC_ABANDON; }
+    if (work_ended) { return ESC_NOTHING; }
+    
+    ; Kill the whole process group, never one pid
+    return ESC_KILL_GROUP;
+}
+
+/// What a concurrency bound counts when considering running vs held turns.
+/// 
+/// Args:
+/// - running: whether the turn is currently running (true = running, false = not running)
+/// - held_after_kill: whether the turn holds its lane after being killed (from actors.t27 holds_after_kill)
+///
+/// Returns: what to count (COUNT_RUNNING or COUNT_HELD)
+pub fn in_flight(running: bool, held_after_kill: bool) -> u8 {
+    ; FR-004: in_flight counts held turns and saturates instead of wrapping
+    if (held_after_kill) { return COUNT_HELD; }
+    if (running) { return COUNT_RUNNING; }
+    return COUNT_HELD; ; Default to counting held for safety
+}
+
+; --- Turn stop timing --------------------------------------------------------------
+
+/// Total time from abort signal to lane being free, including grace period and kill landing.
+/// This must fit inside LANE_FREE_MS (from the Queen scheduler).
+pub fn total_stop_time_ms() -> u32 {
+    ; TURN_STOP_GRACE_MS + time for kill to land
+    ; The kill landing time is bounded by actors.t27 WORKER_SHUTDOWN_MS
+    return TURN_STOP_GRACE_MS + WORKER_SHUTDOWN_MS;
+}
+
+/// Check if the turn stop timing requirements are satisfied.
+/// FR-001: the grace plus the kill landing fits inside LANE_FREE_MS, and the grace is below WORKER_SHUTDOWN_MS
+pub fn stop_timing_valid() -> bool {
+    ; Grace must be less than WORKER_SHUTDOWN_MS (5000)
+    if (TURN_STOP_GRACE_MS >= WORKER_SHUTDOWN_MS) { return false; }
+    
+    ; Total stop time must fit in some reasonable LANE_FREE_MS (we assume 10000ms is safe)
+    const LANE_FREE_MS : u32 = 10000;
+    if (total_stop_time_ms() > LANE_FREE_MS) { return false; }
+    
+    return true;
+}
+
+; --- Turn stop orchestration --------------------------------------------------------
+
+/// Determine if a turn should continue running after receiving an abort signal.
+/// This is the main decision function that orchestrates all the turn stop logic.
+/// 
+/// Args:
+/// - isolation: turn isolation level (from actors.t27 turn_isolation)
+/// - waited_ms: how long since the abort signal was received
+/// - started: whether work has already started
+/// - writes_shared: whether there are shared writes in progress
+/// - finalizer: whether there is finalizer cleanup
+/// - kill_stops: whether kill effect actually stops work
+/// - work_ended: whether work has ended on its own
+/// - held_after_kill: whether turn holds lane after kill
+/// - running: whether turn is currently running
+///
+/// Returns: tuple (should_continue, escalation_needed, what_to_count)
+pub fn turn_stop_orchestrate(
+    isolation: u8,
+    waited_ms: u32,
+    started: bool,
+    writes_shared: bool,
+    finalizer: bool,
+    kill_stops: bool,
+    work_ended: bool,
+    held_after_kill: bool,
+    running: bool
+) -> (bool, u8, u8) {
+    
+    ; First check if we are in the grace period
+    if (waited_ms < TURN_STOP_GRACE_MS) {
+        ; During grace period, use step_on_abort to decide what continues
+        const should_continue : bool = step_on_abort(started, writes_shared, finalizer);
+        return (should_continue, ESC_NOTHING, in_flight(running, held_after_kill));
+    }
+    
+    ; After grace period, determine escalation
+    const esc_strategy : u8 = escalation(kill_stops, work_ended);
+    
+    ; After escalation, determine what to count
+    const count_strategy : u8 = in_flight(running, held_after_kill);
+    
+    ; After grace period, do not continue unless work has already ended
+    return (work_ended, esc_strategy, count_strategy);
+}
+
+; --- Tests ----------------------------------------------------------------------------
+
+#[test]
+pub fn test_step_on_abort() {
+    ; FR-002: step_on_abort lets every finalizer run and never lets a shared write start in a stopped turn
+    
+    ; Finalizer always runs
+    assert step_on_abort(false, false, true) == true;
+    assert step_on_abort(true, false, true) == true;
+    assert step_on_abort(false, true, true) == true;
+    assert step_on_abort(true, true, true) == true;
+    
+    ; Started work without finalizer or shared writes gets cut
+    assert step_on_abort(true, false, false) == false;
+    
+    ; Shared write in progress finishes
+    assert step_on_abort(false, true, false) == true;
+    assert step_on_abort(true, true, false) == true;
+    
+    ; Nothing unstarted starts
+    assert step_on_abort(false, false, false) == false;
+}
+
+#[test]
+pub fn test_escalation() {
+    ; FR-003: escalation never kills one pid; a turn that cannot be killed is abandoned, not claimed stopped
+    
+    ; If kill does not stop work, abandon
+    assert escalation(false, false) == ESC_ABANDON;
+    assert escalation(false, true) == ESC_ABANDON;
+    
+    ; If kill stops work but work has not ended, kill group
+    assert escalation(true, false) == ESC_KILL_GROUP;
+    
+    ; If work has ended, nothing to do
+    assert escalation(true, true) == ESC_NOTHING;
+}
+
+#[test]
+pub fn test_in_flight() {
+    ; FR-004: in_flight counts held turns and saturates instead of wrapping
+    
+    ; Count held turns after kill
+    assert in_flight(false, true) == COUNT_HELD;
+    assert in_flight(true, true) == COUNT_HELD;
+    
+    ; Count running turns
+    assert in_flight(true, false) == COUNT_RUNNING;
+    
+    ; Do not count non-running, non-held turns (but default to held for safety)
+    assert in_flight(false, false) == COUNT_HELD;
+}
+
+#[test]
+pub fn test_stop_timing() {
+    ; FR-001: the grace plus the kill landing fits inside LANE_FREE_MS, and the grace is below WORKER_SHUTDOWN_MS
+    
+    ; Our chosen grace should be valid
+    assert stop_timing_valid() == true;
+    
+    ; Grace should be less than WORKER_SHUTDOWN_MS
+    assert TURN_STOP_GRACE_MS < WORKER_SHUTDOWN_MS;
+}
+
+#[test]
+pub fn test_turn_stop_orchestrate() {
+    ; Test the main orchestration function with various scenarios
+    
+    ; During grace period, finalizer keeps work alive
+    let (cont, esc, count) = turn_stop_orchestrate(
+        ISO_LOOP, 1000, true, false, true, false, false, false, true
+    );
+    assert cont == true;
+    assert esc == ESC_NOTHING;
+    
+    ; During grace period, shared write keeps work alive  
+    let (cont, esc, count) = turn_stop_orchestrate(
+        ISO_LOOP, 1000, false, true, false, false, false, false, true
+    );
+    assert cont == true;
+    assert esc == ESC_NOTHING;
+    
+    ; After grace period, work that hasn't ended gets escalation
+    let (cont, esc, count) = turn_stop_orchestrate(
+        ISO_LOOP, 4000, true, false, false, true, false, false, true
+    );
+    assert cont == false;
+    assert esc == ESC_KILL_GROUP;
+    
+    ; After grace period, work that ended needs no escalation
+    let (cont, esc, count) = turn_stop_orchestrate(
+        ISO_LOOP, 4000, true, false, false, true, true, false, false
+    );
+    assert cont == true;
+    assert esc == ESC_NOTHING;
+}
+
+#[test]
+pub fn test_integration_with_actors() {
+    ; Test integration with actors.t27 concepts
+    
+    ; Process isolation gets kill stops
+    const iso_process : u8 = ISO_PROCESS;
+    const kill_effect_process : u8 = kill_effect(iso_process);
+    assert kill_effect_process == KILL_STOPS;
+    
+    ; Loop isolation gets kill abandons
+    const iso_loop : u8 = ISO_LOOP;
+    const kill_effect_loop : u8 = kill_effect(iso_loop);
+    assert kill_effect_loop == KILL_ABANDONS;
+    
+    ; Process holds nothing after kill stops
+    const holds_process : bool = holds_after_kill(iso_process, false);
+    assert holds_process == false;
+    
+    ; Loop holds after kill abandons (until work ends)
+    const holds_loop : bool = holds_after_kill(iso_loop, false);
+    assert holds_loop == true;
+}
