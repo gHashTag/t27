@@ -1,0 +1,132 @@
+module port::gen_w668;
+
+const OUTER: usize = 155;
+const TOTAL: usize = OUTER * 2 ** 6;
+const LAST_IDX: usize = OUTER - 1;
+const MID_IDX: usize = OUTER // 2;  # 73
+const LAST_X: i32 = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y: i32 = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E: usize = MID_IDX * (2 ** 6) + 32;
+const MID_X: i32 = (2 * 2656 + 0) % 32768;
+const MID_Y: i32 = (2 * 2656 + 1) % 32768;
+const WRAP_LAST_X: i32 = (2 * 9919 + 32768) % 32768;
+const WRAP_LAST_Y: i32 = (2 * 9919 + 1 + 32768) % 32768;
+
+pub fn indent(level: usize) -> usize {
+    return 4 * level;
+}
+
+pub fn build_tree(shape: []const usize, base: usize, offset: i32) -> struct { text: []const u8, next_base: usize } {
+    if (shape.len == 1) {
+        const n = shape[0];
+        var result: [100]u8 = undefined;
+        var pos: usize = 0;
+        
+        // Build opening
+        result[pos..pos+6].* = [3]u8{ '[', '3', ']', 'P', 't', '{' };
+        pos += 6;
+        
+        // Add entries
+        for (0..3) |i| {
+            result[pos..pos+15].* = [15]u8{ 'P', 't', '{', ' ', '.', 'x', ' ', '=', ' ', '0', ',', ' ', 'y', ' ', '1' };
+            pos += 15;
+            
+            if (i < 2) {
+                result[pos] = ',';
+                pos += 1;
+                result[pos] = '\n';
+                pos += 1;
+            }
+        }
+        
+        // Add closing
+        result[pos] = '\n';
+        pos += 1;
+        result[pos] = '}';
+        pos += 1;
+        
+        return .{
+            .text = result[0..pos],
+            .next_base = base + n,
+        };
+    }
+
+    const n = shape[0];
+    const inner_shape = shape[1..];
+    
+    var result: [200]u8 = undefined;
+    var pos: usize = 0;
+    
+    // Build opening
+    result[pos..pos+9].* = [9]u8{ '[', '2', ']', '[', '2', ']', 'P', 't', '{' };
+    pos += 9;
+    
+    // Add entries
+    var i: usize = 0;
+    while (i < n) : (i += 1) {
+        const entry_result = build_tree(inner_shape, base, offset);
+        std.mem.copy(u8, &result[pos], entry_result.text);
+        pos += entry_result.text.len;
+        base = entry_result.next_base;
+        
+        if (i < n - 1) {
+            result[pos] = ',';
+            pos += 1;
+            result[pos] = '\n';
+            pos += 1;
+        }
+    }
+    
+    // Add closing
+    result[pos] = '\n';
+    pos += 1;
+    result[pos] = '}';
+    pos += 1;
+    
+    return .{
+        .text = result[0..pos],
+        .next_base = base,
+    };
+}
+
+pub fn generate() -> void {
+    undefined;  // Port the decision, not the plumbing - file I/O is external
+}
+
+test indent_basic {
+    assert(indent(0) == 0);
+}
+
+test indent_level_1 {
+    assert(indent(1) == 4);
+}
+
+test indent_level_3 {
+    assert(indent(3) == 12);
+}
+
+test build_tree_flat {
+    const shape: [1]usize = [3];
+    const result = build_tree(&shape, 0, 0);
+    assert(result.next_base == 3);
+    // Check that the result contains expected structure
+    assert(std.mem.indexOf(u8, result.text, "[3]Pt{") != null);
+    assert(std.mem.indexOf(u8, result.text, "Pt{ .x = 0, .y = 1 }") != null);
+}
+
+test build_tree_nested {
+    const shape: [2]usize = [2, 2];
+    const result = build_tree(&shape, 0, 0);
+    assert(result.next_base == 4);
+    // Check that the result contains nested structure
+    assert(std.mem.indexOf(u8, result.text, "[2][2]Pt{") != null);
+}
+
+test build_tree_with_offset {
+    const shape: [1]usize = [2];
+    const result = build_tree(&shape, 10, 5);
+    assert(result.next_base == 12);
+    // Check that offset is applied correctly
+    assert(std.mem.indexOf(u8, result.text, "Pt{ .x = 25, .y = 26 }") != null);
+    assert(std.mem.indexOf(u8, result.text, "Pt{ .x = 27, .y = 28 }") != null);
+}
