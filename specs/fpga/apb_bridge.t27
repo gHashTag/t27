@@ -166,17 +166,28 @@ module ApbBridge {
         return req.valid and req.write;
     }
 
+    // CSE workaround (issue #8197): the Zig backend's CSE pass caches a
+    // binary expression that repeats inside a function and rewrites later
+    // occurrences into a `_cse*` temp, and the Zig emitter hoists that
+    // temp to the top of the function -- above the mutable accumulator
+    // it reads, and even above the variable's own declaration. Calls are
+    // never cached, so routing the increments through this helper keeps
+    // every occurrence out of the CSE pass entirely.
+    fn apb_bump(n: u32, by: u32) -> u32 {
+        return n + by;
+    }
+
     fn apb_port_count(cfg: ApbConfig) -> u32 {
         var count : u32 = 0;
-        count = count + 1;
-        count = count + 1;
+        count = apb_bump(count, 1);
+        count = apb_bump(count, 1);
         count = count + cfg.addr_width;
         count = count + cfg.data_width;
         count = count + cfg.data_width / 8;
         count = count + cfg.data_width;
-        count = count + 1;
+        count = apb_bump(count, 1);
         if (cfg.has_pslverr) {
-            count = count + 1;
+            count = apb_bump(count, 1);
         }
         if (cfg.has_pprot) {
             count = count + 3;
@@ -202,19 +213,19 @@ module ApbBridge {
     fn validate_apb(cfg: ApbConfig) -> u32 {
         var errors : u32 = 0;
         if (cfg.name == "") {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         if (cfg.addr_width == 0) {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         if (cfg.data_width == 0) {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         if (cfg.data_width % 8 != 0) {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         if (cfg.num_peripherals == 0) {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         return errors;
     }
@@ -222,10 +233,10 @@ module ApbBridge {
     fn validate_peripheral_map(m: PeripheralMap) -> u32 {
         var errors : u32 = 0;
         if (m.name == "") {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         if (m.size == 0) {
-            errors = errors + 1;
+            errors = apb_bump(errors, 1);
         }
         return errors;
     }
