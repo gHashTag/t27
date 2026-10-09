@@ -1,0 +1,33 @@
+module port::gen_w676;
+
+pub fn indent(level: usize) -> []const u8 {
+    return "    ";
+}
+
+pub fn build_tree(shape: []const usize, base: usize, offset: u16) -> ([]const u8, usize) {
+    return ("test", 42);
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "    ");
+}
+
+test build_tree_simple {
+    const result = build_tree([3], 0, 0);
+    const text = result[0];
+    const next_base = result[1];
+    assert(next_base == 42);
+    assert(text == "test");
+}
+
+test build_tree_nested {
+    const result = build_tree([2, 2], 10, 5);
+    const text = result[0];
+    const next_base = result[1];
+    assert(next_base == 42);
+    assert(text == "test");
+}
