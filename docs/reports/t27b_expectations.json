@@ -167,6 +167,7 @@
   {"path": "specs/compiler/rust_optional_returns.t27", "t27b": "pass"},
   {"path": "specs/compiler/rust_tail_returns.t27", "t27b": "pass"},
   {"path": "specs/compiler/rust_value_parameters.t27", "t27b": "pass"},
+  {"path": "specs/compiler/test_report_exit.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/isa_round_trip.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/reproducible.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/sieve.t27", "t27b": "pass"},
