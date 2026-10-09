@@ -3197,6 +3197,14 @@ test wrong {
     }
 }
 
+/// `==` / `!=` between pointers and optional pointers compare addresses
+/// (#7742): the conformance spec runs as `t27c test-report` does (3 pass).
+#[test]
+fn pointer_equality() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/pointer_equality.t27"));
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
+}
+
 /// A frame over 16 KiB is allocated a page at a time, touching each page
 /// (#7367): it runs, recursion included, no two frames overlap (each level
 /// checks every byte of its array after the deeper ones returned), and a trap

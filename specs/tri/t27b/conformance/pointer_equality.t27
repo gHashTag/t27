@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/pointer_equality.t27 -- `==` and `!=` between pointers and optional pointers
+; (gHashTag/t27#7742), in the shapes of specs/port/trinity/src/tri/gen_hazard_pointers.t27: `hazard1 != hazard2` (two
+; `?*HazardPointer`) and `&registry.hazards[i] == hazard` (a pointer whose index is bounds-checked, against an
+; optional pointer).
+; gen-zig prints them as written. In Zig 0.16 `==` and `!=` between two pointers, two optional pointers, or one of
+; each, to one pointee type, compare the addresses, null being 0, with both operands evaluated, left first.
+; `t27c test-report` (zig 0.16.0, t27c lab): 3/3 pass, 0 vacuous, 15 runtime asserts.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformancePointerEquality;
+
+pub const PtrEqSlot = struct {
+    value: u32,
+    used: bool,
+};
+
+pub const PtrEqBoard = struct {
+    slots: [4]PtrEqSlot,
+};
+
+pub fn board_new() -> PtrEqBoard {
+    var slots: [4]PtrEqSlot = undefined;
+    var i: usize = 0;
+    while (i < 4) {
+        slots[i] = PtrEqSlot { value = 0, used = false };
+        i += 1;
+    }
+    return PtrEqBoard { slots = slots };
+}
+
+// The first unused slot, marked used, or null when all four are.
+pub fn board_take(b: *PtrEqBoard) -> ?*PtrEqSlot {
+    var i: usize = 0;
+    while (i < 4) {
+        var s = &b.slots[i];
+        if (!s.used) {
+            s.used = true;
+            return s;
+        }
+        i += 1;
+    }
+    return null;
+}
+
+test optional_pointers_compare_by_address {
+    var b = board_new();
+    var s1 = board_take(&b);
+    var s2 = board_take(&b);
+    assert(s1 != null);
+    assert(s1 != s2);
+    assert(&b.slots[0] == s1);
+    assert(s2 == &b.slots[1]);
+    assert(&b.slots[1] != s1);
+}
+
+test null_optional_pointers_are_equal {
+    var b = board_new();
+    var i: usize = 0;
+    while (i < 4) {
+        assert(board_take(&b) != null);
+        i += 1;
+    }
+    var n1 = board_take(&b);
+    var n2 = board_take(&b);
+    assert(n1 == null);
+    assert(n1 == n2);
+    assert(&b.slots[3] != n1);
+}
+
+test pointers_compare_by_address {
+    var b = board_new();
+    var k: usize = 2;
+    assert(&b.slots[0] != &b.slots[1]);
+    assert(&b.slots[k] == &b.slots[2]);
+    assert(&b.slots[3] != &b.slots[k]);
+}
