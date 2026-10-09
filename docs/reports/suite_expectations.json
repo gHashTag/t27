@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 74,
+  "max_entries": 88,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
