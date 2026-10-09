@@ -4246,6 +4246,25 @@ pub fn run_silicon(
     let mut derived_chain: Option<u32> = None;
 
     let mut seen_sites: Vec<u32> = Vec::new();
+    // #8095: load a bitstream built before from the same inputs by the same tools (specs/verified/bitstream_reuse.t27).
+    use crate::bitstream_reuse as br;
+    let bit_path = tmp.join(format!("{stem}.bit"));
+    let tools = [chipdb.clone(), pnr.clone(), xr.join("utils/fasm2frames.py"), PathBuf::from(run(Command::new("which").arg("xc7frames2bit")).1.trim())];
+    let xdc_in = tops.last().map(|t| Path::new(t).with_extension("xdc")).filter(|p| p.exists());
+    let mut key_in = format!("{}|{}|{pnr_seed:?}|{}|{}", run(Command::new("yosys").arg("-V")).1.trim(), run(Command::new("git").arg("-C").arg(&db).args(["rev-parse", "HEAD"])).1.trim(), br::BIT_RECIPE, env!("CARGO_PKG_VERSION"));
+    for f in sources.iter().map(PathBuf::from).chain(xdc_in).chain(tools) { key_in += &format!("|{}", crate::sha256_hex(&std::fs::read(&f).unwrap_or_default())); }
+    let cache = PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache/t27/bitstreams").join(crate::sha256_hex(key_in.as_bytes()));
+    let (cached_bit, cached_chain) = (std::fs::read(cache.join("design.bit")).ok(), std::fs::read_to_string(cache.join("chain")).ok());
+    let intact = cached_bit.as_deref().map(crate::sha256_hex) == std::fs::read_to_string(cache.join("bit.sha256")).ok();
+    let decision = br::bit_decision(std::env::var_os("T27_SILICON_REBUILD").is_some(), cached_bit.is_some(), cached_chain.is_some(), intact);
+    'build: {
+    if decision == br::BIT_REUSE {
+        std::fs::write(&bit_path, cached_bit.as_deref().unwrap_or_default())?;
+        derived_chain = cached_chain.and_then(|c| c.trim().parse().ok());
+        let note = format!("same inputs, same tools: {} (T27_SILICON_REBUILD=1 rebuilds)", cache.display());
+        stages.push(Stage { name: "bitstream REUSED", secs: 0.0, code: Some(0), artefact: file_len(&bit_path), note });
+        break 'build;
+    }
     for attempt in 0..6u32 {
         let t = Instant::now();
         let chparam = match chain_override {
@@ -4609,7 +4628,6 @@ pub fn run_silicon(
     });
 
     // ---- bitstream, ONLY from non-empty frames ----
-    let bit_path = tmp.join(format!("{stem}.bit"));
     let frames_ok = file_len(&frames_path).map(|(_, n)| n > 0).unwrap_or(false);
     let t = Instant::now();
     let c = if frames_ok {
@@ -4634,11 +4652,20 @@ pub fn run_silicon(
             "SKIPPED: empty frames would still yield a 9.7 MB .bit (T169)".into()
         },
     });
+    }
 
     let build_ok = print_table(&stages);
     if !build_ok {
         println!("FAIL -- the build did not complete. Nothing was loaded.");
         std::process::exit(1);
+    }
+    if br::may_store(decision, build_ok, stages.iter().any(|s| s.name == "BSCAN chain == site" && s.ok())) {
+        let bit = std::fs::read(&bit_path)?;
+        std::fs::create_dir_all(&cache)?;
+        std::fs::write(cache.join("design.bit"), &bit)?;
+        std::fs::write(cache.join("chain"), derived_chain.map(|c| c.to_string()).unwrap_or_default())?;
+        std::fs::write(cache.join("bit.sha256"), crate::sha256_hex(&bit))?; // last: a torn entry reads CORRUPT
+        println!("  bitstream stored for reuse: {}", cache.display());
     }
 
     if skip_hardware {
