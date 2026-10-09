@@ -1,0 +1,135 @@
+module port::gen_w667;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level <= 0) {
+        return "";
+    }
+    var result: []const u8 = "";
+    var i: i32 = 0;
+    while (i < level) {
+        result = result ++ "    ";
+        i += 1;
+    }
+    return result;
+}
+
+pub fn build_tree(shape: []const i32, base: i32, offset: i32) -> struct { text: []const u8, next_base: i32 } {
+    if (shape.len == 1) {
+        const n = shape[0];
+        var lines: [2][]const u8 = ["", ""];
+        lines[0] = indent(1) ++ "[" ++ std.fmt.allocPrint(null, "{d}", .{n}) catch unreachable ++ "]Pt{";
+        
+        var entries: [100][]const u8 = undefined;
+        var entry_count: usize = 0;
+        var i: i32 = 0;
+        while (i < n) {
+            const e = base + i;
+            const x = (2 * e + offset) % 32768;
+            const y = (2 * e + offset + 1) % 32768;
+            entries[entry_count] = indent(2) ++ "Pt{ .x = " ++ std.fmt.allocPrint(null, "{d}", .{x}) catch unreachable ++ ", .y = " ++ std.fmt.allocPrint(null, "{d}", .{y}) catch unreachable ++ " }";
+            entry_count += 1;
+            i += 1;
+        }
+        
+        var joined_entries: []const u8 = "";
+        if (entry_count > 0) {
+            joined_entries = entries[0];
+            var j: usize = 1;
+            while (j < entry_count) {
+                joined_entries = joined_entries ++ ",\n" ++ entries[j];
+                j += 1;
+            }
+        }
+        
+        lines[1] = joined_entries ++ "\n" ++ indent(1) ++ "}";
+        return .{ 
+            .text = lines[0] ++ "\n" ++ lines[1], 
+            .next_base = base + n 
+        };
+    }
+
+    const n = shape[0];
+    var inner_shape: [6]i32 = undefined;
+    var i: usize = 0;
+    while (i < shape.len - 1) {
+        inner_shape[i] = shape[i + 1];
+        i += 1;
+    }
+    
+    var dims: []const u8 = "[";
+    i = 0;
+    while (i < shape.len) {
+        dims = dims ++ std.fmt.allocPrint(null, "{d}", .{shape[i]}) catch unreachable;
+        if (i < shape.len - 1) {
+            dims = dims ++ "][";
+        }
+        i += 1;
+    }
+    dims = dims ++ "]";
+    
+    var lines: [2][]const u8 = ["", ""];
+    lines[0] = indent(1) ++ dims ++ "Pt{";
+    
+    var entries: [100][]const u8 = undefined;
+    var entry_count: usize = 0;
+    var j: i32 = 0;
+    while (j < n) {
+        const entry_result = build_tree(&inner_shape, base, offset);
+        entries[entry_count] = entry_result.text;
+        base = entry_result.next_base;
+        entry_count += 1;
+        j += 1;
+    }
+    
+    var joined_entries: []const u8 = "";
+    if (entry_count > 0) {
+        joined_entries = entries[0];
+        var k: usize = 1;
+        while (k < entry_count) {
+            joined_entries = joined_entries ++ ",\n" ++ entries[k];
+            k += 1;
+        }
+    }
+    
+    lines[1] = joined_entries ++ "\n" ++ indent(1) ++ "}";
+    return .{ 
+        .text = lines[0] ++ "\n" ++ lines[1], 
+        .next_base = base 
+    };
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_flat {
+    var shape: [1]i32 = [5];
+    const result = build_tree(&shape, 0, 0);
+    // Should create a flat array with 5 Pt elements
+    assert(result.text != "");
+    assert(result.next_base == 5);
+}
+
+test build_tree_nested {
+    var shape: [2]i32 = [2, 3];
+    const result = build_tree(&shape, 10, 5);
+    // Should create a 2x3 nested array starting from base 10 with offset 5
+    assert(result.text != "");
+    assert(result.next_base == 16); // 2 * 3 = 6 elements, starting from 10 = 16
+}
+
+test build_tree_modulo {
+    // Test that modulo arithmetic works correctly
+    var shape: [1]i32 = [1];
+    const result = build_tree(&shape, 16384, 0);
+    // Should wrap around due to modulo 32768
+    assert(result.text != "");
+    assert(result.next_base == 16385);
+}
