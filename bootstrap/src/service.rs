@@ -5657,14 +5657,14 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
     fn decide(p: &str, tc: &serde_json::Value, memo: &mut std::collections::HashMap<String, u8>, depth: u32) -> Option<u8> {
         if let Some(d) = memo.get(p) { return Some(*d); }
         let src = std::fs::read_to_string(p).ok().filter(|_| depth < 64)?;
-        let module = crate::extract_module_name(&src).unwrap_or_default();
+        let module = crate::extract_module_name(&src).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
         let seal: serde_json::Value = [crate::seal_file_path(&module, p), std::path::Path::new(".trinity/seals").join(format!("{module}.json"))].iter()
             .find_map(|f| std::fs::read_to_string(f).ok().and_then(|s| serde_json::from_str(&s).ok())).unwrap_or_default();
         let g = |k: &str| seal.pointer(k).and_then(|v| v.as_str()).map(String::from);
         let t = |k: &str| tc.get(k).and_then(|v| v.as_str()).map(String::from);
         let (mut rebuilt, mut missing) = (false, false);
         for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")) {
-            match decide(&format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
+            match decide(&{ let m = u.trim_end_matches(';').trim().split("::{").next().unwrap_or("").replace("::", "/"); [format!("specs/{m}.t27"), format!("specs/{}.t27", m.rsplit_once('/').map_or(m.as_str(), |x| x.0))].into_iter().find(|f| Path::new(f).exists()).unwrap_or_else(|| format!("specs/{m}.t27")) }, tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
         }
         let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
         let cur = crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]);
