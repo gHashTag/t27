@@ -118,7 +118,7 @@ pub fn poll_wait_seconds(polls: u32) -> u32 {
 /// The measurements at PID_RESERVE: -j6 for 8 jobs on 48 cores took the default's time with a seventh of its pids.
 pub fn zig_j(nproc: u32, jobs: u32) -> u32 {
     if (jobs == 0) { return 1; }
-    var j : u32 = nproc / jobs;
+    const j : u32 = nproc / jobs;
     if (j == 0) { return 1; }
     return j;
 }
@@ -136,7 +136,7 @@ pub fn job_pids(zig_threads: u32) -> u32 {
 pub fn lab_jobs(requested: u32, pids_max: u32, pids_used: u32, per_job: u32) -> u32 {
     if (per_job == 0) { return 0; }
     if (pids_used + PID_RESERVE >= pids_max) { return 0; }
-    var fit : u32 = (pids_max - pids_used - PID_RESERVE) / per_job;
+    const fit : u32 = (pids_max - pids_used - PID_RESERVE) / per_job;
     if (fit < requested) { return fit; }
     return requested;
 }

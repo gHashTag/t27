@@ -1,0 +1,8 @@
+// #8013: an integer where a string field is declared; C converts it.
+module integer_into_string_field;
+struct IsfUser {
+    name: str,
+}
+fn isf_f() -> IsfUser {
+    return IsfUser{ .name = 5 };
+}

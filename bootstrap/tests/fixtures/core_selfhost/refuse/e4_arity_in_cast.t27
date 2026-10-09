@@ -1,0 +1,9 @@
+// typecheck does not look inside a cast (#8033).
+module arity_in_cast;
+fn aix_f(a: i64) -> i64 {
+    return a;
+}
+fn aix_g() -> i64 {
+    var x: i64 = aix_f(1) + (aix_f(2, 3) as i64);
+    return x;
+}
