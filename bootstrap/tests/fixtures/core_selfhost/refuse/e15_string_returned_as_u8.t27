@@ -1,0 +1,6 @@
+// #8013: a string returned where `u8` is declared; C converts the address.
+// Was a `REFUSALS` row (E_LEX) before strings were lexed.
+module string_returned_as_u8;
+fn sr_f() -> u8 {
+    return "s";
+}

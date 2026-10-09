@@ -71,10 +71,18 @@
 ;         E.M  E::M  .M   (M spelled as declared; `.M` names a member of one
 ;         enum only, #8001; never a const value or a repeat, #8003)
 ;         switch labels `.M`; with no `else`, every member of one enum once
-;   TYPE: a SCALAR, or a struct or an enum declared in the module, wherever a
-;         SCALAR stands except after `as`; an array of structs repeats only an
+;   TYPE: a SCALAR, a STRING, or a struct or an enum declared in the module,
+;         wherever a SCALAR stands except after `as`; an array of structs repeats only an
 ;         all-zero literal, which gen-c writes as `{0}` (#7960); an array of
 ;         enums repeats a member written `E.M` or `E::M`
+;   STRING: str string   (`const char*` in C) for parameters, returns,
+;         locals, module vars and consts; never a field or an element, nor a
+;         slice `[]T` (#8013). A literal "..." is printable ASCII with the
+;         escapes \n \t \\ \" only and no `??`. A string value stands only
+;         where a string is declared, as an initializer, an argument, a return
+;         value, an assignment or a switch arm there; `s[i]` indexes one, and
+;         `s.len` on a `string` parameter or local is `strlen(s)`. A string
+;         name is bound once in its function and module (#8013).
 ;   SCALAR: bool u8 i8 u16 i16 u32 i32 u64 i64 usize
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
@@ -126,6 +134,10 @@ const E_ENUM: i64 = 13;
 ; An invariant gen-c does not check: one it writes as a comment, or as a
 ; function nothing calls (#8009).
 const E_INVARIANT: i64 = 14;
+; A string gen-c lowers as a bare pointer with loss: an operand of an operator,
+; one where no string is declared, `.len` on a `str`, an escape whose value
+; changes, a trigraph (#8013).
+const E_STRING: i64 = 15;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -179,6 +191,7 @@ const T_STRUCT: i64 = 293;
 const T_ENUM: i64 = 294;
 const T_INVARIANT: i64 = 295;
 const T_BENCH: i64 = 296;
+const T_STR: i64 = 297;
 const K_DOT: i64 = 46;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
@@ -204,6 +217,9 @@ const N_INIT: i64 = 17;
 ; .M, a member whose enum is inferred: nd_tok M. `check` sets nd_d to the enum
 ; of it, of an N_FIELD that is E.M (nd_aux 1 for E::M), and of a `.M` arm.
 const N_EVAL: i64 = 18;
+; "...": nd_tok the literal, quotes included. An N_FIELD with nd_aux 2 is
+; `s.len` on a `string`, gen-c's `strlen(s)`.
+const N_STR: i64 = 19;
 const S_LOCAL: i64 = 20;
 const S_ASSIGN: i64 = 21;
 const S_EXPR: i64 = 22;
@@ -328,6 +344,10 @@ var open_comments: i64 = 0;
 var dep_b: i64 = 0;
 var dep_k: i64 = 0;
 var dep_p: i64 = 0;
+; Set while a `.len` on a `string` is written as `strlen`: gen-c includes
+; <string.h>. str_ctx lets check_expr take one string value (check_str_expr).
+var uses_strlen: bool = false;
+var str_ctx: bool = false;
 
 ; ---------------------------------------------------------------- output
 
@@ -784,6 +804,35 @@ fn lex_char(i: i64) -> i64 {
     return j + 1;
 }
 
+; "..." on one line, printable ASCII, the escapes \n \t \\ \" only: gen-c's
+; lexer keeps any other escape as a backslash and a letter, which zig_escape
+; doubles; and cc in -std=c99 reads `??=` as `#` (#8013).
+fn lex_str(i: i64) -> i64 {
+    var j: i64 = i + 1;
+    while (j < src_len and at(j) != '"') {
+        var c: i64 = at(j);
+        if (c < ' ' or c > '~' or (c == '?' and at(j + 1) == '?')) {
+            fail(E_STRING, j);
+            return j;
+        }
+        if (c == '\\') {
+            var d: i64 = at(j + 1);
+            if (d != 'n' and d != 't' and d != '\\' and d != '"') {
+                fail(E_STRING, j);
+                return j;
+            }
+            j = j + 1;
+        }
+        j = j + 1;
+    }
+    if (j >= src_len) {
+        fail(E_LEX, i);
+        return j;
+    }
+    add_tok(T_STR, i, j + 1 - i);
+    return j + 1;
+}
+
 fn lex_one(i: i64) -> i64 {
     var c: i64 = at(i);
     var d: i64 = at(i + 1);
@@ -810,6 +859,9 @@ fn lex_one(i: i64) -> i64 {
     }
     if (c == '\'') {
         return lex_char(i);
+    }
+    if (c == '"') {
+        return lex_str(i);
     }
     var k: i64 = pair_kind(c, d);
     if (k == T_BAD) {
@@ -1108,6 +1160,10 @@ fn parse_primary() -> i64 {
     if (k == T_CHAR) {
         p = p + 1;
         return mk(N_CHAR, t, 0, 0);
+    }
+    if (k == T_STR) {
+        advance();
+        return mk(N_STR, t, 0, 0);
     }
     if (k == T_TRUE) {
         p = p + 1;
@@ -1489,6 +1545,9 @@ fn parse_const_value() -> i64 {
         return parse_expr();
     }
     if ((k == T_TRUE or k == T_FALSE or k == T_CHAR) and (k1 == ';' or continues(k1))) {
+        return parse_expr();
+    }
+    if (k == T_STR and k1 == ';') {
         return parse_expr();
     }
     fail(E_CONST, tpos(t));
@@ -2071,6 +2130,9 @@ fn arr_rank(d: i64) -> i64 {
 ; else 0.
 fn rank(t: i64) -> i64 {
     var i: i64 = scope_len - 1;
+    if (is_str_type(name_type(t))) {
+        return 1;
+    }
     while (i >= 0) {
         if (tok_eq(ntok(scope_arr[i as usize]), t)) {
             return arr_rank(scope_arr[i as usize]);
@@ -2303,7 +2365,17 @@ fn varies(e: i64, body: i64) -> bool {
 
 fn check_expr(e: i64) -> void {
     var k: i64 = nkind(e);
+    var allowed: bool = str_ctx;
+    str_ctx = false;
     if (failed or e == 0) {
+        return;
+    }
+    // A string where none is declared: C converts or compares the address.
+    if (sv(e) and !allowed) {
+        fail(E_STRING, tpos(ntok(e)));
+        return;
+    }
+    if (k == N_STR or (allowed and k == N_IDENT)) {
         return;
     }
     if (k == N_SWITCH) {
@@ -2345,9 +2417,18 @@ fn check_expr(e: i64) -> void {
         if (is_assert or is_eq) {
             uses_assert = true;
         }
+        // A string parameter takes a string, and only it one.
+        var prm: i64 = na(fn_named(t));
         var arg: i64 = na(e);
         while (arg != 0) {
-            check_expr(arg);
+            if (prm != 0 and is_str_type(naux(prm))) {
+                check_str_expr(arg);
+            } else {
+                check_expr(arg);
+            }
+            if (prm != 0) {
+                prm = nnext(prm);
+            }
             arg = nnext(arg);
         }
         return;
@@ -2464,8 +2545,14 @@ fn check_stmts(head: i64, test_body: i64) -> void {
                     return;
                 }
             }
-            check_expr(lhs);
-            check_expr(nb(s));
+            // A string name takes a string, by `=` only: `s += 1` would move
+            // the pointer.
+            if (sv(lhs) and nc(s) == 0) {
+                check_str_expr(nb(s));
+            } else {
+                check_expr(lhs);
+                check_expr(nb(s));
+            }
         } else if (k == S_IF) {
             check_expr(na(s));
             check_stmts(nb(s), 0);
@@ -2486,7 +2573,18 @@ fn check_stmts(head: i64, test_body: i64) -> void {
                 fail(E_TYPE, tpos(naux(s)));
                 return;
             }
-            check_expr(na(s));
+            var str_place: bool = k == S_LOCAL and is_str_type(naux(s));
+            if (k == S_RETURN and nkind(cur_decl) == D_FN and is_str_type(naux(cur_decl))) {
+                str_place = true;
+            }
+            if (k == S_LOCAL and str_place) {
+                check_str_name(ntok(s));
+            }
+            if (str_place) {
+                check_str_expr(na(s));
+            } else {
+                check_expr(na(s));
+            }
         }
         s = nnext(s);
     }
@@ -2522,7 +2620,7 @@ fn enum_named(t: i64) -> i64 {
 ; A type token is a SCALAR, a struct or an enum of the module; 0 is a `void`
 ; return.
 fn type_ok(t: i64) -> bool {
-    if (t == 0 or is_scalar(t)) {
+    if (t == 0 or is_scalar(t) or is_str_type(t)) {
         return true;
     }
     return struct_named(t) != 0 or enum_named(t) != 0;
@@ -2779,7 +2877,8 @@ fn check_struct(d: i64) -> void {
         return;
     }
     while (f != 0) {
-        if (!type_ok(naux(f))) {
+        // A string field's type is out of the core's reach without P3.
+        if (!type_ok(naux(f)) or is_str_type(naux(f))) {
             fail(E_TYPE, tpos(naux(f)));
             return;
         }
@@ -2924,7 +3023,7 @@ fn all_zero(e: i64) -> bool {
 ; An array's element type, and a repeated struct value: gen-c writes `{0}`
 ; whatever it holds (#7960), so it must be all zeros.
 fn check_elem(d: i64) -> void {
-    if (!type_ok(naux(d))) {
+    if (!type_ok(naux(d)) or is_str_type(naux(d))) {
         fail(E_TYPE, tpos(naux(d)));
         return;
     }
@@ -2956,6 +3055,17 @@ fn check_elem(d: i64) -> void {
 fn check_field(e: i64) -> void {
     var b: i64 = na(e);
     var en: i64 = 0;
+    // gen-c writes `.len` as `strlen` on a `string` parameter or local only;
+    // on a `str` it stays `s.len`, which is not C (#8013).
+    if (nkind(b) == N_IDENT and is_str_type(name_type(ntok(b)))) {
+        if (tok_is(ntok(e), 0x6e656c, 0, 3) and tok_is(local_type(ntok(b)), 0x676e69727473, 0, 6)) {
+            nd_aux[e as usize] = 2;
+            uses_strlen = true;
+            return;
+        }
+        fail(E_STRING, tpos(ntok(e)));
+        return;
+    }
     if (nkind(b) == N_IDENT) {
         en = enum_named(ntok(b));
     }
@@ -2972,6 +3082,172 @@ fn check_field(e: i64) -> void {
         return;
     }
     nd_d[e as usize] = en;
+}
+
+; ---------------------------------------------------------------- strings
+
+; Type token t is `str` or `string`, gen-c's `const char*`.
+fn is_str_type(t: i64) -> bool {
+    if (t <= 0) {
+        return false;
+    }
+    return tok_is(t, 0x727473, 0, 3) or tok_is(t, 0x676e69727473, 0, 6);
+}
+
+fn fn_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_FN and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; The type token a statement list declares name t with, at any depth; -1
+; for an array or a `for` capture, 0 if it binds no t.
+fn stmts_type(head: i64, t: i64) -> i64 {
+    var s: i64 = head;
+    while (s != 0) {
+        var k: i64 = nkind(s);
+        var r: i64 = 0;
+        if (k == S_LOCAL and tok_eq(ntok(s), t)) {
+            return naux(s);
+        }
+        if (k == D_ARRAY and tok_eq(ntok(s), t)) {
+            return -1;
+        }
+        if (k == S_FOR and tok_eq(naux(s), t)) {
+            return -1;
+        }
+        if (k == S_IF) {
+            r = stmts_type(nb(s), t);
+            if (r == 0) {
+                r = stmts_type(nc(s), t);
+            }
+        }
+        if (k == S_WHILE or k == S_FOR) {
+            r = stmts_type(nb(s), t);
+        }
+        if (r != 0) {
+            return r;
+        }
+        s = nnext(s);
+    }
+    return 0;
+}
+
+; The type of name t as a parameter or local of the item being checked.
+fn local_type(t: i64) -> i64 {
+    var d: i64 = cur_decl;
+    var k: i64 = nkind(d);
+    if (k != D_FN and k != D_TEST and k != D_BENCH) {
+        return 0;
+    }
+    if (k == D_FN) {
+        var prm: i64 = na(d);
+        while (prm != 0) {
+            if (tok_eq(ntok(prm), t)) {
+                return naux(prm);
+            }
+            prm = nnext(prm);
+        }
+    }
+    return stmts_type(nb(d), t);
+}
+
+; The type name t is declared with where it is read: a parameter or local
+; first, else a module var or const; 0 if none.
+fn name_type(t: i64) -> i64 {
+    var lt: i64 = local_type(t);
+    if (lt != 0) {
+        return lt;
+    }
+    var d: i64 = decls;
+    while (d != 0) {
+        if ((nkind(d) == D_VAR or nkind(d) == D_CONST) and tok_eq(ntok(d), t)) {
+            return naux(d);
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; Expression e is a string value: a literal, a string name, a call of a
+; string function, or a switch with a string arm.
+fn sv(e: i64) -> bool {
+    var k: i64 = nkind(e);
+    if (k == N_STR) {
+        return true;
+    }
+    if (k == N_IDENT) {
+        return is_str_type(name_type(ntok(e)));
+    }
+    if (k == N_CALL) {
+        return is_str_type(naux(fn_named(ntok(e))));
+    }
+    if (k == N_SWITCH) {
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            if (sv(na(arm))) {
+                return true;
+            }
+            arm = nnext(arm);
+        }
+    }
+    return false;
+}
+
+; A place that declares a string takes exactly a string value: a switch
+; there, every arm one.
+fn check_str_expr(e: i64) -> void {
+    if (failed) {
+        return;
+    }
+    if (!sv(e)) {
+        fail(E_STRING, tpos(ntok(e)));
+        return;
+    }
+    if (nkind(e) == N_SWITCH) {
+        if (mentions_call(na(e))) {
+            fail(E_SYNTAX, tpos(ntok(e)));
+            return;
+        }
+        check_expr(na(e));
+        check_labels(e);
+        var arm: i64 = nb(e);
+        while (arm != 0) {
+            check_str_expr(na(arm));
+            arm = nnext(arm);
+        }
+        return;
+    }
+    str_ctx = true;
+    check_expr(e);
+}
+
+; A string name is bound once in its item and its module, so its type is
+; never another binding's (#8013).
+fn check_str_name(t: i64) -> void {
+    var n: i64 = decl_count(t);
+    var d: i64 = cur_decl;
+    var k: i64 = nkind(d);
+    if (k == D_FN or k == D_TEST or k == D_BENCH) {
+        n = n + local_count(nb(d), t);
+        if (k == D_FN) {
+            var prm: i64 = na(d);
+            while (prm != 0) {
+                if (tok_eq(ntok(prm), t)) {
+                    n = n + 1;
+                }
+                prm = nnext(prm);
+            }
+        }
+    }
+    if (n != 1) {
+        fail(E_NAME, tpos(t));
+    }
 }
 
 ; gen-c's `is_c_constant_expr` on its own rendering of a check: no call,
@@ -3050,6 +3326,9 @@ fn check() -> void {
                     return;
                 }
                 check_binding(ntok(prm));
+                if (is_str_type(naux(prm))) {
+                    check_str_name(ntok(prm));
+                }
                 prm = nnext(prm);
             }
             if (tok_is(t, W_ASSERT, 0, 6) or tok_is(t, W_DEFAULT_, 0x7475706e69, 13) or tok_is(t, W_VALID_IN, 0x747570, 11)) {
@@ -3074,7 +3353,12 @@ fn check() -> void {
                 fail(E_TYPE, tpos(naux(d)));
                 return;
             }
-            check_expr(na(d));
+            if (is_str_type(naux(d))) {
+                check_str_name(t);
+                check_str_expr(na(d));
+            } else {
+                check_expr(na(d));
+            }
         } else if (k == D_ARRAY) {
             if (!repeat_ok(d)) {
                 fail(E_ARRAY, tpos(nb(d)));
@@ -4038,6 +4322,11 @@ fn resolve_uses() -> void {
 
 fn emit_ctype(t: i64) -> void {
     var c: i64 = src[(tk_pos[t as usize]) as usize] as i64;
+    if (is_str_type(t)) {
+        w(0x68632074736e6f63, 8);
+        w(0x2a7261, 3);
+        return;
+    }
     if (!is_scalar(t)) {
         put_tok(t);
         return;
@@ -4181,6 +4470,10 @@ fn emit_expr(e: i64) -> void {
         put(K_RBRACE);
     } else if (k == N_SWITCH) {
         emit_switch(e);
+    } else if (k == N_FIELD and naux(e) == 2) {
+        w(0x286e656c727473, 7);
+        emit_expr(na(e));
+        put(')');
     } else if (k == N_FIELD and nd(e) != 0) {
         emit_member(nd(e), ntok(e));
     } else if (k == N_FIELD) {
@@ -4408,7 +4701,7 @@ fn emit_global(d: i64) -> void {
         put('\n');
         return;
     }
-    var lit: bool = nkind(v) == N_NUM or nkind(v) == N_TRUE or nkind(v) == N_FALSE or nkind(v) == N_CHAR;
+    var lit: bool = nkind(v) == N_NUM or nkind(v) == N_TRUE or nkind(v) == N_FALSE or nkind(v) == N_CHAR or nkind(v) == N_STR;
     if (k == D_CONST and lit) {
         t_define();
         put_tok(ntok(d));
@@ -4637,6 +4930,11 @@ fn emit_module() -> void {
     t_hdr_open();
     put_tok(mod_tok);
     t_hdr_close();
+    if (uses_strlen) {
+        w(0x6564756c636e6923, 8);
+        w(0x676e697274733c20, 8);
+        w(0xa3e682e, 4);
+    }
     if (has_tests or uses_assert) {
         t_hdr_tests();
     }
@@ -4804,6 +5102,8 @@ pub fn compile(n: i64) -> i64 {
     mod_count = 0;
     pull_count = 0;
     open_comments = 0;
+    uses_strlen = false;
+    str_ctx = false;
     if (n < 0 or n > SRC_MAX) {
         fail(E_LIMIT, 0);
         return -1;
@@ -5523,6 +5823,81 @@ test bench_unbound_assignment_is_refused {
     var n4: i64 = feed(0x7d, 1, n3);
     assert(compile(n4) == -1);
     assert(err_code == E_TESTASSIGN);
+}
+
+; "module m;fn f(s: string) -> usize {return s.len;}": `strlen(s)` and
+; <string.h>, 764 bytes in all.
+test string_len_is_strlen {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a732866206e663b, 8, n1);
+    var n3: i64 = feed(0x29676e6972747320, 8, n2);
+    var n4: i64 = feed(0x7a697375203e2d20, 8, n3);
+    var n5: i64 = feed(0x72757465727b2065, 8, n4);
+    var n6: i64 = feed(0x3b6e656c2e73206e, 8, n5);
+    var n7: i64 = feed(0x7d, 1, n6);
+    assert(compile(n7) == 764);
+    assert(uses_strlen);
+    assert(out_at(339) == 's');
+    assert(out_at(733) == 's');
+    assert(out_at(739) == '(');
+}
+
+; "module m;fn f(a: str, b: str) -> bool {return a == b;}": C compares the
+; addresses (#8013).
+test strings_compared_are_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a612866206e663b, 8, n1);
+    var n3: i64 = feed(0x3a62202c72747320, 8, n2);
+    var n4: i64 = feed(0x3e2d202972747320, 8, n3);
+    var n5: i64 = feed(0x727b206c6f6f6220, 8, n4);
+    var n6: i64 = feed(0x2061206e72757465, 8, n5);
+    var n7: i64 = feed(0x7d3b62203d3d, 6, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;fn f(s: str) -> usize {return s.len;}": gen-c writes `s.len`
+; on a `str` (#8013).
+test len_on_a_str_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x3a732866206e663b, 8, n1);
+    var n3: i64 = feed(0x3e2d202972747320, 8, n2);
+    var n4: i64 = feed(0x7b20657a69737520, 8, n3);
+    var n5: i64 = feed(0x73206e7275746572, 8, n4);
+    var n6: i64 = feed(0x7d3b6e656c2e, 6, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;fn f() -> u8 {return "s";}": C converts the address (#8013).
+test string_where_an_integer_goes_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292866206e663b, 8, n1);
+    var n3: i64 = feed(0x727b203875203e2d, 8, n2);
+    var n4: i64 = feed(0x7322206e72757465, 8, n3);
+    var n5: i64 = feed(0x7d3b22, 3, n4);
+    assert(compile(n5) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;const C: str = "a\rb";": gen-c writes `\\r` (#8013).
+test escape_that_changes_value_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x432074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20727473203a, 8, n2);
+    var n4: i64 = feed(0x3b2262725c6122, 7, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_STRING);
+}
+
+; "module m;const T: str = "??=";": cc -std=c99 reads the trigraph as `#`.
+test trigraph_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x542074736e6f633b, 8, n1);
+    var n3: i64 = feed(0x203d20727473203a, 8, n2);
+    var n4: i64 = feed(0x3b223d3f3f22, 6, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_STRING);
 }
 
 test put_int_writes_decimal {

@@ -1,0 +1,4 @@
+// #8013: gen-c's lexer keeps `\r` as a backslash and `r`, and zig_escape
+// writes `\\r`: two bytes where Zig has one.
+module string_escape_cr;
+const SE_CR: str = "a\rb";
