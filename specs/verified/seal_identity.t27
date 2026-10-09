@@ -80,6 +80,15 @@ pub fn silicon_state(has_run: bool, run_citable: bool, same_spec: bool, same_too
     return HW_VERIFIED;
 }
 
+/// The tests part of a verdict: the recorded tests passed, none was forced, and at least one check ran --
+/// a test or an invariant. "0 failed" of nothing is not a pass: a spec with no test, no invariant and no
+/// bench breaks L4, and frontier reused two such specs as verified (#8354).
+pub fn checks_pass(failed_zero: bool, forced: bool, tests_total: u32, invariants: u32) -> bool {
+    if (failed_zero == false) { return false; }
+    if (forced) { return false; }
+    return tests_total + invariants > 0;
+}
+
 /// The verdict part: the recorded tests passed, and, when the artifact needs silicon, its hardware
 /// step is VERIFIED.
 pub fn verdict_pass(tests_pass: bool, needs_silicon: bool, hw: u8) -> bool {
@@ -172,6 +181,16 @@ test a_node_follows_its_imports {
     assert node_decision(PART_SAME, true, true, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_MISSING;
     // the node's own spec is judged before its closure
     assert node_decision(PART_DIFF, true, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_SPEC;
+}
+
+test checks_pass_needs_at_least_one_check {
+    assert checks_pass(true, false, 5, 0) == true;
+    // a data spec whose invariants are proved at comptime is checked
+    assert checks_pass(true, false, 0, 2) == true;
+    // nothing ran: never a pass (specs/lsp/language.t27, specs/numeric/formats_catalog.t27)
+    assert checks_pass(true, false, 0, 0) == false;
+    assert checks_pass(false, false, 5, 1) == false;
+    assert checks_pass(true, true, 5, 1) == false;
 }
 
 test the_reused_share_is_a_number {
