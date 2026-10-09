@@ -1,0 +1,399 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trios/apps/trios-macos/rings/RUST-00/trios-config/src/lib.t27
+// Port of apps/trios-macos/rings/RUST-00/trios-config/src/lib.rs
+// (gHashTag/trios at 8b229e9489ee, 133 lines of hand-written Rust) to .t27.
+//
+// The decisions the original makes -- the six default ports, the health-URL
+// and GitHub-API-URL shapes, the project_dir fallback and its exit code, the
+// parse-or-default in port_or_env, the correlation id parts, and the JSONL
+// field escaping -- are the pure functions and tests below. The plumbing --
+// environment reads, the clock, the process id, stderr, the event-log file
+// write -- keeps the original function names with `undefined;` bodies that no
+// test calls.
+//
+// WHAT THIS PORT DELIBERATELY DOES NOT CONTAIN
+//
+// String concatenation and hex rendering. The original builds every URL and
+// the correlation id with Rust's format! (lib.rs lines 11, 14, 31, 37, and
+// 49) and renders the correlation id in lowercase hex ({:x}, line 37). This
+// language has neither, so the URL shapes and the correlation id travel as
+// structs of their parts -- scheme, host, port, path -- and the joins stay
+// with the plumbing they feed. Tests assert the parts and the defaults the
+// original would have joined, not a rebuilt string.
+
+module port::trios_config {
+    // lib.rs lines 1-6.
+    pub const SOVEREIGN_PORT: u16 = 9105;
+    pub const CANARY_PORT: u16 = 9205;
+    pub const A2A_PORT: u16 = 9200;
+    pub const DASHBOARD_PORT: u16 = 9300;
+    pub const CDP_PORT: u16 = 9106;
+    pub const DEV_PORT: u16 = 9305;
+
+    // lib.rs line 8.
+    pub const GITHUB_ORG: []const u8 = "gHashTag";
+
+    // The original prints a [FAIL] line and exits 1 from project_dir when
+    // TRIOS_ROOT is unset and current_dir is unavailable (lib.rs lines 22-25).
+    pub const EXIT_OK: i32 = 0;
+    pub const EXIT_FAIL: i32 = 1;
+
+    // ------------------------------------------------------------------
+    // The health URLs (lib.rs lines 10-16)
+    // ------------------------------------------------------------------
+
+    // The URL the original builds at line 11:
+    // http://127.0.0.1:{port}/health. The join needs concatenation, so the
+    // shape travels as its parts.
+    pub struct HealthUrl {
+        scheme: []const u8,
+        host: []const u8,
+        port: u16,
+        path: []const u8,
+    }
+
+    pub fn health_url_shape(port: u16) -> HealthUrl {
+        return HealthUrl { scheme: "http", host: "127.0.0.1", port: port, path: "/health" };
+    }
+
+    // Line 11: the port comes from the env var SOVEREIGN_PORT and falls back
+    // to SOVEREIGN_PORT (9105) when it is unset or does not parse. The env
+    // read is plumbing; the default is this decision.
+    pub fn sovereign_health_port(env_set: bool, env_val: []const u8) -> u16 {
+        return port_or_env_choice(env_set, env_val, SOVEREIGN_PORT);
+    }
+
+    // Line 14: the same for the canary, env var CANARY_PORT, default 9205.
+    pub fn canary_health_port(env_set: bool, env_val: []const u8) -> u16 {
+        return port_or_env_choice(env_set, env_val, CANARY_PORT);
+    }
+
+    // Line 10: reads the environment and joins the URL; both plumbing.
+    pub fn sovereign_health_url() -> []const u8 {
+        undefined;
+    }
+
+    // Line 14.
+    pub fn canary_health_url() -> []const u8 {
+        undefined;
+    }
+
+    // ------------------------------------------------------------------
+    // project_dir (lib.rs lines 18-28)
+    // ------------------------------------------------------------------
+
+    // TRIOS_ROOT wins when it is set; otherwise the current directory is
+    // used. The env read and the cwd lookup are plumbing; the precedence is
+    // this decision.
+    pub fn project_dir_choice(root_set: bool, root: []const u8, cwd_ok: bool, cwd: []const u8) -> []const u8 {
+        if (root_set) {
+            return root;
+        }
+        if (cwd_ok) {
+            return cwd;
+        }
+        return "";
+    }
+
+    // The exit the original makes at line 24: 1 only when TRIOS_ROOT is unset
+    // AND current_dir is unavailable; 0 otherwise.
+    pub fn project_dir_exit_code(root_set: bool, cwd_ok: bool) -> i32 {
+        if (root_set) {
+            return EXIT_OK;
+        }
+        if (cwd_ok) {
+            return EXIT_OK;
+        }
+        return EXIT_FAIL;
+    }
+
+    // Line 18: reads TRIOS_ROOT and current_dir; both plumbing.
+    pub fn project_dir() -> []const u8 {
+        undefined;
+    }
+
+    // ------------------------------------------------------------------
+    // The GitHub API URL (lib.rs lines 30-31)
+    // ------------------------------------------------------------------
+
+    // The URL the original builds at line 31:
+    // https://api.github.com/repos/{org}/{path}. The join needs
+    // concatenation, so the shape travels as its parts.
+    pub struct GithubApiUrl {
+        scheme: []const u8,
+        host: []const u8,
+        segment: []const u8,
+        org: []const u8,
+        path: []const u8,
+    }
+
+    pub fn github_api_url_shape(path: []const u8) -> GithubApiUrl {
+        return GithubApiUrl { scheme: "https", host: "api.github.com", segment: "repos/", org: GITHUB_ORG, path: path };
+    }
+
+    // Line 30: joins the URL from GITHUB_ORG and the path; the join needs
+    // concatenation (header note).
+    pub fn github_api_url(path: []const u8) -> []const u8 {
+        undefined;
+    }
+
+    // ------------------------------------------------------------------
+    // The correlation id (lib.rs lines 34-37)
+    // ------------------------------------------------------------------
+
+    // The id the original builds at line 37: {ts:x}-{pid:x}, the UTC timestamp
+    // in milliseconds and the process id rendered in lowercase hex and joined
+    // with '-'. The hex rendering and the join need formatting and
+    // concatenation, so the parts travel as a struct.
+    pub struct CorrelationId {
+        ts_millis: u64,
+        pid: u32,
+    }
+
+    pub fn correlation_id_parts(ts_millis: u64, pid: u32) -> CorrelationId {
+        return CorrelationId { ts_millis: ts_millis, pid: pid };
+    }
+
+    // The separator the original puts between the two parts (line 37).
+    pub fn correlation_id_separator() -> []const u8 {
+        return "-";
+    }
+
+    // Two correlation ids collide only when both parts match -- the
+    // uniqueness property the original's tests rely on.
+    pub fn correlation_ids_differ(a: CorrelationId, b: CorrelationId) -> bool {
+        if (a.ts_millis != b.ts_millis) {
+            return true;
+        }
+        if (a.pid != b.pid) {
+            return true;
+        }
+        return false;
+    }
+
+    // Line 34: reads the clock and the process id; both plumbing.
+    pub fn new_correlation_id() -> []const u8 {
+        undefined;
+    }
+
+    // ------------------------------------------------------------------
+    // log_event (lib.rs lines 40-49)
+    // ------------------------------------------------------------------
+
+    // Lines 43-44: event and details have backslashes and double quotes
+    // escaped before they enter the JSONL line. The rebuilt string needs
+    // concatenation; whether a field would be changed at all is this
+    // decision.
+    pub fn json_field_needs_escaping(s: []const u8) -> bool {
+        for c in s {
+            if (c == '\\' or c == '"') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // The JSONL record the original writes at lines 45-48, one field per key
+    // in this order: timestamp, correlation_id, event, details.
+    pub struct EventLine {
+        timestamp: []const u8,
+        correlation_id: []const u8,
+        event: []const u8,
+        details: []const u8,
+    }
+
+    // The event-log path the original builds at line 49, appended to
+    // project_dir().
+    pub const EVENT_LOG_SUFFIX: []const u8 = "/.trinity/event_log.jsonl";
+
+    // Line 40: appends the line to {project_dir}/.trinity/event_log.jsonl,
+    // creating the file when it is missing, and prints to stderr on failure.
+    // The file write and the stderr print are plumbing.
+    pub fn log_event(correlation_id: []const u8, event: []const u8, details: []const u8) {
+        undefined;
+    }
+
+    // ------------------------------------------------------------------
+    // port_or_env (lib.rs lines 60-65)
+    // ------------------------------------------------------------------
+
+    // The parse the original delegates to Rust's u16::from_str (lines 61-64):
+    // decimal digits to a u16, and every from_str failure -- empty text,
+    // non-digits, values beyond 65535 -- answering ok: false so the default
+    // is used.
+    pub struct ParsedPort {
+        ok: bool,
+        value: u16,
+    }
+
+    pub fn parse_port_text(s: []const u8) -> ParsedPort {
+        if (s.len == 0 or s.len > 5) {
+            return ParsedPort { ok: false, value: 0 };
+        }
+        var n: u32 = 0;
+        for c in s {
+            if (c < '0' or c > '9') {
+                return ParsedPort { ok: false, value: 0 };
+            }
+            n = n * 10 + ((c as u32) - 48);
+        }
+        if (n > 65535) {
+            return ParsedPort { ok: false, value: 0 };
+        }
+        const v: u16 = n as u16;
+        return ParsedPort { ok: true, value: v };
+    }
+
+    // The fallback the original makes (lines 61-64): the parsed env value
+    // when there is one, the default when the variable is unset or does not
+    // parse.
+    pub fn port_or_env_choice(env_set: bool, env_val: []const u8, default: u16) -> u16 {
+        if (!env_set) {
+            return default;
+        }
+        const p = parse_port_text(env_val);
+        if (!p.ok) {
+            return default;
+        }
+        return p.value;
+    }
+
+    // Line 60: reads the environment variable by name; the read is plumbing.
+    // Private in the original, so it stays private here.
+    fn port_or_env(env_name: []const u8, default: u16) -> u16 {
+        undefined;
+    }
+
+    // The original's test ports_are_distinct walks every pair of the six
+    // ports; this helper is that walk.
+    pub fn ports_are_distinct(ports: []const u16) -> bool {
+        var i: usize = 0;
+        while (i < ports.len) {
+            var j: usize = i + 1;
+            while (j < ports.len) {
+                if (ports[i] == ports[j]) {
+                    return false;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+        return true;
+    }
+
+    // ==================================================================
+    // Tests
+    // ==================================================================
+
+    test "the sovereign URL is built from the default port 9105 with the env unset"
+        const port = sovereign_health_port(false, "");
+        assert(port == SOVEREIGN_PORT);
+        assert(port == 9105);
+        const url = health_url_shape(port);
+        assert(url.scheme == "http");
+        assert(url.host == "127.0.0.1");
+        assert(url.port == 9105);
+        assert(url.path == "/health");
+
+    test "the canary URL is built from the default port 9205 with the env unset"
+        const port = canary_health_port(false, "");
+        assert(port == CANARY_PORT);
+        assert(port == 9205);
+        const url = health_url_shape(port);
+        assert(url.scheme == "http");
+        assert(url.host == "127.0.0.1");
+        assert(url.port == 9205);
+        assert(url.path == "/health");
+
+    test "the GitHub API URL carries the org and the path under repos, on https"
+        const url = github_api_url_shape("trios/pulls");
+        assert(url.scheme == "https");
+        assert(url.host == "api.github.com");
+        assert(url.segment == "repos/");
+        assert(url.org == "gHashTag");
+        assert(url.path == "trios/pulls");
+
+    test "a set TRIOS_ROOT is returned unchanged, whatever the cwd lookup says"
+        assert(project_dir_choice(true, "/opt/trios", true, "/home/bee/t27") == "/opt/trios");
+        assert(project_dir_choice(true, "/opt/trios", false, "") == "/opt/trios");
+
+    test "with TRIOS_ROOT unset the current directory is used"
+        assert(project_dir_choice(false, "", true, "/home/bee/t27") == "/home/bee/t27");
+        assert(project_dir_choice(false, "", true, "") == "");
+
+    test "the exit is 1 only when TRIOS_ROOT is unset and the cwd is unavailable"
+        assert(project_dir_exit_code(true, true) == EXIT_OK);
+        assert(project_dir_exit_code(true, false) == EXIT_OK);
+        assert(project_dir_exit_code(false, true) == EXIT_OK);
+        assert(project_dir_exit_code(false, false) == EXIT_FAIL);
+        assert(EXIT_OK == 0);
+        assert(EXIT_FAIL == 1);
+
+    test "an unset variable yields the default port"
+        assert(port_or_env_choice(false, "", 1234) == 1234);
+        assert(port_or_env_choice(false, "", SOVEREIGN_PORT) == 9105);
+
+    test "a parseable env value is used"
+        assert(port_or_env_choice(true, "9105", CANARY_PORT) == 9105);
+        const zero = port_or_env_choice(true, "0", CANARY_PORT);
+        assert(zero == 0);
+
+    test "an unparseable env value falls back to the default"
+        assert(port_or_env_choice(true, "", 1234) == 1234);
+        assert(port_or_env_choice(true, "9x05", 1234) == 1234);
+        assert(port_or_env_choice(true, "70 05", 1234) == 1234);
+        assert(port_or_env_choice(true, "70000", 1234) == 1234);
+
+    test "parse_port_text mirrors u16::from_str, failing to ok: false"
+        const ok = parse_port_text("9205");
+        assert(ok.ok);
+        assert(ok.value == 9205);
+        const zero = parse_port_text("0");
+        assert(zero.ok);
+        assert(zero.value == 0);
+        const max = parse_port_text("65535");
+        assert(max.ok);
+        assert(max.value == 65535);
+        const over = parse_port_text("65536");
+        assert(!over.ok);
+        const bad = parse_port_text("1234x");
+        assert(!bad.ok);
+        const empty = parse_port_text("");
+        assert(!empty.ok);
+
+    test "no two of the six ports collide"
+        var ports: [6]u16 = [SOVEREIGN_PORT, CANARY_PORT, A2A_PORT, DASHBOARD_PORT, CDP_PORT, DEV_PORT];
+        assert(ports_are_distinct(&ports));
+
+    test "the correlation id carries the timestamp and the pid, joined by a dash"
+        const a = correlation_id_parts(1760000000000, 4242);
+        assert(a.ts_millis == 1760000000000);
+        assert(a.pid == 4242);
+        assert(correlation_id_separator() == "-");
+
+    test "two calls with different inputs describe different ids"
+        const a = correlation_id_parts(1760000000000, 4242);
+        const b = correlation_id_parts(1760000000001, 4242);
+        const c = correlation_id_parts(1760000000000, 4243);
+        const same = correlation_id_parts(1760000000000, 4242);
+        assert(correlation_ids_differ(a, b));
+        assert(correlation_ids_differ(a, c));
+        assert(!correlation_ids_differ(a, same));
+
+    test "the GitHub org is gHashTag"
+        assert(GITHUB_ORG == "gHashTag");
+
+    test "backslashes and double quotes are the characters that get escaped"
+        assert(!json_field_needs_escaping("pull_request.opened"));
+        assert(json_field_needs_escaping("said \"hello\""));
+        assert(json_field_needs_escaping("back\\slash"));
+        assert(!json_field_needs_escaping(""));
+
+    test "the JSONL record has the four fields in order under the .trinity log path"
+        const line = EventLine { timestamp: "2026-10-05T00:00:00Z", correlation_id: "abc-123", event: "health.check", details: "ok" };
+        assert(line.timestamp == "2026-10-05T00:00:00Z");
+        assert(line.correlation_id == "abc-123");
+        assert(line.event == "health.check");
+        assert(line.details == "ok");
+        assert(EVENT_LOG_SUFFIX == "/.trinity/event_log.jsonl");
+}
