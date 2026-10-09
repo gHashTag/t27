@@ -107,3 +107,73 @@ test handle_task_start_invalid_existing_id {
     const sources = "";
     handle_task_start(root, title, sources);
 }
+
+// Bridge healing and recheck functions
+const STALE_GRACE_S: u32 = 600;
+
+pub fn heal_due(contains_latest: bool, uptime_s: u32, healed: bool) -> bool {
+    // FR-001: Return true exactly once per process when contains_latest is false, 
+    // uptime_s ≥ 600, and healed is false
+    return !contains_latest && uptime_s >= STALE_GRACE_S && !healed;
+}
+
+pub fn recheck_due(has_finished_mark: bool, asked_after_mark: bool, trusted: bool) -> bool {
+    // FR-003: Return true when has_finished_mark is true, asked_after_mark is true, 
+    // and trusted is true
+    return has_finished_mark && asked_after_mark && trusted;
+}
+
+// Test heal_due function - should return true exactly once per process
+test heal_due_should_trigger_when_stale_and_not_healed {
+    const result1 = heal_due(false, 600, false);  // contains_latest=false, uptime_s=600, healed=false
+    assert(result1 == true);
+    
+    const result2 = heal_due(false, 599, false);  // uptime_s < 600
+    assert(result2 == false);
+    
+    const result3 = heal_due(true, 600, false);   // contains_latest=true
+    assert(result3 == false);
+    
+    const result4 = heal_due(false, 600, true);   // healed=true
+    assert(result4 == false);
+}
+
+// Test heal_due edge cases
+test heal_due_edge_cases {
+    const result1 = heal_due(false, 601, false);  // uptime_s > 600
+    assert(result1 == true);
+    
+    const result2 = heal_due(false, 600, false);  // exactly 600
+    assert(result2 == true);
+    
+    const result3 = heal_due(false, 0, false);   // uptime_s = 0
+    assert(result3 == false);
+}
+
+// Test recheck_due function
+test recheck_due_should_trigger_when_all_conditions_met {
+    const result1 = recheck_due(true, true, true);   // All true
+    assert(result1 == true);
+    
+    const result2 = recheck_due(false, true, true);  // has_finished_mark=false
+    assert(result2 == false);
+    
+    const result3 = recheck_due(true, false, true);  // asked_after_mark=false
+    assert(result3 == false);
+    
+    const result4 = recheck_due(true, true, false);  // trusted=false
+    assert(result4 == false);
+}
+
+// Test recheck_due all combinations
+test recheck_due_all_combinations {
+    // Test all 8 combinations of the three boolean parameters
+    assert(recheck_due(false, false, false) == false);
+    assert(recheck_due(false, false, true) == false);
+    assert(recheck_due(false, true, false) == false);
+    assert(recheck_due(false, true, true) == false);
+    assert(recheck_due(true, false, false) == false);
+    assert(recheck_due(true, false, true) == false);
+    assert(recheck_due(true, true, false) == false);
+    assert(recheck_due(true, true, true) == true);
+}

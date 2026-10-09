@@ -412,4 +412,37 @@ module TrinityMemoryBridgeSpec {
         assert tms_bridge_request_capacity(2097152) == 2162688;
         assert tms_bridge_response_capacity(524288, 1000000) == 41064960;
     }
+
+    // Tests for stale detection in memory bridge
+    test "stale data detection beyond trit limit" {
+        const fresh_data_count = 500000;
+        const stale_data_count = 1500000;
+        const max_trits = 1000000;
+        
+        // Fresh data should not exceed trit limit
+        assert !tms_bridge_tmem_trit_limit_exceeded(fresh_data_count, max_trits);
+        
+        // Stale data should exceed trit limit
+        assert tms_bridge_tmem_trit_limit_exceeded(stale_data_count, max_trits);
+    }
+
+    test "stale storage detection when capacity exceeded" {
+        const current_objects = 15;
+        const max_objects = 16;
+        const stored_bytes = 7000000;
+        const new_object_size = 2000000;
+        const max_storage = 8388608;
+        
+        // Should accept new object if within limits
+        assert tms_bridge_storage_accepts(current_objects, max_objects, stored_bytes, 
+                                        new_object_size, max_storage);
+        
+        // Should reject if object count exceeded
+        assert !tms_bridge_storage_accepts(max_objects, max_objects, stored_bytes, 
+                                          new_object_size, max_storage);
+        
+        // Should reject if storage exceeded
+        assert !tms_bridge_storage_accepts(current_objects, max_objects, max_storage, 
+                                          new_object_size, max_storage);
+    }
 }

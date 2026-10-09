@@ -521,3 +521,20 @@ module FPGA_Bridge;
         measure: nanoseconds to process PKT_STATUS packet
         target: < 500ns
 
+    // Tests for bridge deployment behavior
+    test bridge_mode_deployment_spi_only
+        given bridge.handle_config(0x01)  // Enable SPI only
+        then bridge.spi_enabled == true
+        and bridge.mac_enabled == false
+
+    test bridge_mode_deployment_full_stack
+        given bridge.handle_config(0x03)  // Enable SPI and MAC
+        then bridge.spi_enabled == true
+        and bridge.mac_enabled == true
+
+    test bridge_deployment_state_transitions
+        given bridge.handle_config(0x01)  // SPI only
+        and bridge.handle_config(0x02)  // Switch to MAC only
+        then bridge.spi_enabled == false
+        and bridge.mac_enabled == true
+
