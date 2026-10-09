@@ -42,3 +42,111 @@ pub const WHEN_TO_USE : str = "The specs the compiler reads WRONGLY, and which o
 pub const CAST : str = "term/t27-tri-misread/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+; The identity of the card, held to the rules it is written under: specs/tools/catalog.t27
+; (ID_RULE: a legacy card has ID = <family>/<name> and QUALIFIED_ID = REPO:ID; every card
+; carries SCHEMA = 2) and the header above (the `tri <name>` command of the tri CLI, read off
+; a clap #[derive(Subcommand)] enum, which spells the name of a variant in kebab-case).
+
+test qualified_id_is_repo_colon_id {
+    assert SCHEMA == 2;
+    assert QUALIFIED_ID.len == REPO.len + 1 + ID.len;
+    var i : usize = 0;
+    while (i < REPO.len) {
+        assert QUALIFIED_ID[i] == REPO[i];
+        i = i + 1;
+    }
+    assert QUALIFIED_ID[REPO.len] == ':';
+    var j : usize = 0;
+    while (j < ID.len) {
+        assert QUALIFIED_ID[REPO.len + 1 + j] == ID[j];
+        j = j + 1;
+    }
+}
+
+test id_command_and_variant_name_one_subcommand {
+    // ID is `tri/<name>` and COMMAND is `tri <name>`: the same bytes but the separator.
+    assert ID.len == COMMAND.len;
+    var i : usize = 0;
+    while (i < ID.len) {
+        if (i == 3) {
+            assert ID[i] == '/';
+            assert COMMAND[i] == ' ';
+        } else {
+            assert ID[i] == COMMAND[i];
+        }
+        i = i + 1;
+    }
+    assert COMMAND[0] == 't';
+    assert COMMAND[1] == 'r';
+    assert COMMAND[2] == 'i';
+    // VARIANT is `Commands::<Name>`, and the kebab-case of <Name> is <name>: an upper-case
+    // letter starts each word, and a word boundary is a `-` in the name.
+    assert VARIANT[8] == ':';
+    assert VARIANT[9] == ':';
+    var v : usize = 10;
+    var n : usize = 4;
+    var word_start : bool = true;
+    while (n < ID.len) {
+        if (ID[n] == '-') {
+            word_start = true;
+        } else {
+            if (word_start) {
+                assert VARIANT[v] == ID[n] - 32;
+            } else {
+                assert VARIANT[v] == ID[n];
+            }
+            word_start = false;
+            v = v + 1;
+        }
+        n = n + 1;
+    }
+    assert v == VARIANT.len;
+}
+
+test clap_names_are_kebab_case {
+    // The own name of the command and every action are lower-case words joined by `-`, and each
+    // action has its about text (`""` when the source has none) at the same index.
+    assert ACTIONS.len == ACTIONS_ABOUT.len;
+    var n : usize = 4;
+    while (n < ID.len) {
+        assert (ID[n] >= 'a' and ID[n] <= 'z') or ID[n] == '-';
+        n = n + 1;
+    }
+    assert ID[4] != '-';
+    assert ID[ID.len - 1] != '-';
+    var a : usize = 0;
+    while (a < ACTIONS.len) {
+        var k : usize = 0;
+        while (k < ACTIONS[a].len) {
+            assert (ACTIONS[a][k] >= 'a' and ACTIONS[a][k] <= 'z') or (ACTIONS[a][k] >= '0' and ACTIONS[a][k] <= '9') or ACTIONS[a][k] == '-';
+            k = k + 1;
+        }
+        assert ACTIONS[a][0] != '-';
+        a = a + 1;
+    }
+    // ARGS are `<positional>` or `--flag`, each with its doc after `: ` when it has one.
+    var g : usize = 0;
+    while (g < ARGS.len) {
+        assert ARGS[g][0] == '<' or (ARGS[g][0] == '-' and ARGS[g][1] == '-');
+        g = g + 1;
+    }
+}
+
+test the_queen_holds_every_tool_beside_its_lead {
+    // AGENTS_ALPHABET.md binds every tool to the Queen (T) and names its domain lead(s):
+    // one letter each, the Queen first, no letter twice.
+    assert AGENTS.len >= 2;
+    assert AGENTS[0] == "T";
+    var i : usize = 0;
+    while (i < AGENTS.len) {
+        assert AGENTS[i].len == 1;
+        assert AGENTS[i][0] >= 'A' and AGENTS[i][0] <= 'Z';
+        var j : usize = i + 1;
+        while (j < AGENTS.len) {
+            assert AGENTS[i][0] != AGENTS[j][0];
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}

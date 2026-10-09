@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:ca28d1a09e2ab330a23225173732c9330e0e4fe08ebf10dd174366f6fdd325a7",
+  "gen_hash_rust": "sha256:6a92608ca48e301927621d4b4f6ab3e5b58ea3cdb7428500f599f9e978470ae4",
+  "gen_hash_verilog": "sha256:808a0b7ca6ee89c3404328cf0c20219907eb5a928574d4a48201cf4a5fe88c7a",
+  "gen_hash_zig": "sha256:3596a78994b97d991eb5f0dc0bc70e543ff9e6331a1d4995b6267fb0fef44286",
+  "module": "tool_tri_quantifiers",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:24:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:33db27a8a8b675e0be51219a4a64a325d85955b7fca5b76beb19aebfea0896c1",
+  "spec_path": "specs/tools/tri/quantifiers.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}
