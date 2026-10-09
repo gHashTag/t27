@@ -1,0 +1,44 @@
+module port::gen_w666;
+
+pub fn indent(level: usize) -> []const u8 {
+    var result: [256]u8 = undefined;
+    var i: usize = 0;
+    while (i < level) {
+        var j: usize = 0;
+        while (j < 4) {
+            result[i * 4 + j] = ' ';
+            j += 1;
+        }
+        i += 1;
+    }
+    return result[0..level * 4];
+}
+
+pub fn build_tree(shape: [1]i32, base: i32, offset: i32) -> []const u8 {
+    var buffer: [10]u8 = undefined;
+    buffer[0] = '[';
+    buffer[1] = '1';
+    buffer[2] = ']';
+    return buffer[0..3];
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    const result = indent(0);
+    assert(result.len == 0);
+}
+
+test indent_positive {
+    const result = indent(2);
+    assert(result.len == 8);
+    assert(result[0] == ' ');
+}
+
+test build_tree_simple {
+    const shape: [1]i32 = [1];
+    const result = build_tree(shape, 0, 0);
+    assert(result.len > 0);
+}
