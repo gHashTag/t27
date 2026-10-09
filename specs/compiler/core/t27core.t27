@@ -54,9 +54,18 @@
 ;         (at least one field, no defaults: gen-c drops a default, #7959; a
 ;         field's TYPE is a SCALAR or another struct, never S itself through
 ;         any chain of fields, #7961; S no name gen-c maps to a C type)
-;   TYPE: a SCALAR, or a struct declared in the module, wherever a SCALAR
-;         stands except after `as`; an array of structs repeats only an
-;         all-zero literal, which gen-c writes as `{0}` (#7960)
+;   [pub] enum E [( SCALAR )] { M [= [-]NUMBER] , ... }   or
+;         [pub] const|let E = enum [( SCALAR )] { ... };   (one member or more;
+;         a value is one number with no `_`, #8002; no constant `E_M` that two
+;         members, or any name of the module, spell: gen-c's upper-cased
+;         constants share C's one namespace, #8001)
+;         E.M  E::M  .M   (M spelled as declared; `.M` names a member of one
+;         enum only, #8001; never a const value or a repeat, #8003)
+;         switch labels `.M`; with no `else`, every member of one enum once
+;   TYPE: a SCALAR, or a struct or an enum declared in the module, wherever a
+;         SCALAR stands except after `as`; an array of structs repeats only an
+;         all-zero literal, which gen-c writes as `{0}` (#7960); an array of
+;         enums repeats a member written `E.M` or `E::M`
 ;   SCALAR: bool u8 i8 u16 i16 u32 i32 u64 i64 usize
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
@@ -102,6 +111,9 @@ const E_USE: i64 = 11;
 ; A struct gen-c lowers with loss, or one C and Zig read apart: a default,
 ; a literal missing or repeating a field, an empty struct, a cycle.
 const E_STRUCT: i64 = 12;
+; An enum gen-c lowers with loss: a member matched only by case or with no
+; single owner (#8001), a value cut short (#8002), constants that collide.
+const E_ENUM: i64 = 13;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -152,6 +164,7 @@ const T_DOTDOT: i64 = 290;
 const T_ARM: i64 = 291;
 const T_USE: i64 = 292;
 const T_STRUCT: i64 = 293;
+const T_ENUM: i64 = 294;
 const K_DOT: i64 = 46;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
@@ -174,6 +187,9 @@ const N_ARM: i64 = 14;
 const N_FIELD: i64 = 15;
 const N_STRUCT: i64 = 16;
 const N_INIT: i64 = 17;
+; .M, a member whose enum is inferred: nd_tok M. `check` sets nd_d to the enum
+; of it, of an N_FIELD that is E.M (nd_aux 1 for E::M), and of a `.M` arm.
+const N_EVAL: i64 = 18;
 const S_LOCAL: i64 = 20;
 const S_ASSIGN: i64 = 21;
 const S_EXPR: i64 = 22;
@@ -194,6 +210,11 @@ const D_USE: i64 = 46;
 ; its type token), nd_c its last token; nd_b marks it written (emit_structs).
 const D_STRUCT: i64 = 47;
 const D_FIELD: i64 = 48;
+; An enum: nd_tok its name, nd_a the first D_MEMBER (nd_tok the member, nd_aux
+; its value's number token or 0, nd_b 1 for a negated value), nd_c its last
+; token.
+const D_ENUM: i64 = 49;
+const D_MEMBER: i64 = 50;
 
 ; Packed spellings of the words the lexer and checker recognise.
 const W_MODULE: i64 = 0x656c75646f6d;
@@ -502,7 +523,10 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_STRUCT, 0, 6)) {
         return T_STRUCT;
     }
-    if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_INVARIA, 't', 9)) {
+    if (tok_is(t, W_ENUM, 0, 4)) {
+        return T_ENUM;
+    }
+    if (tok_is(t, W_INVARIA, 't', 9)) {
         return T_BAD;
     }
     if (tok_is(t, W_FOR, 0, 3)) {
@@ -1030,6 +1054,17 @@ fn parse_primary() -> i64 {
         if (cur() == K_LBRACE) {
             return parse_fields(parse_struct_lit(t));
         }
+        // E::M, a member: gen-c reads `E::M` as one name (`check` holds E to
+        // an enum).
+        if (cur() == ':' and kind(p + 1) == ':') {
+            advance();
+            advance();
+            var pm: i64 = p;
+            expect(T_IDENT);
+            var pe: i64 = mk(N_FIELD, pm, mk(N_IDENT, t, 0, 0), 0);
+            nd_aux[pe as usize] = 1;
+            return pe;
+        }
         var e: i64 = mk(N_IDENT, t, 0, 0);
         while (!failed and cur() == K_LBRACKET) {
             p = p + 1;
@@ -1042,6 +1077,12 @@ fn parse_primary() -> i64 {
     if (k == T_NUM) {
         p = p + 1;
         return mk(N_NUM, t, 0, 0);
+    }
+    if (k == K_DOT) {
+        advance();
+        var m: i64 = p;
+        expect(T_IDENT);
+        return mk(N_EVAL, m, 0, 0);
     }
     if (k == T_CHAR) {
         p = p + 1;
@@ -1192,6 +1233,12 @@ fn parse_arm() -> i64 {
     if (cur() == T_ELSE) {
         how = 2;
         advance();
+    } else if (cur() == K_DOT) {
+        // `.M`, an enum member (#8001): `check` finds its enum.
+        how = 3;
+        advance();
+        t = p;
+        expect(T_IDENT);
     } else {
         if (cur() == '-') {
             how = 1;
@@ -1244,11 +1291,28 @@ fn parse_switch() -> i64 {
         }
     }
     expect(K_RBRACE);
-    if (!failed and (tail == 0 or naux(tail) != 2)) {
+    if (!failed and tail == 0) {
+        fail(E_SYNTAX, tpos(t));
+        return 0;
+    }
+    // With no `else`, only `.M` labels: `check` holds them to every member
+    // of one enum, once, so gen-c's closing `: 0` is never reached (#8003).
+    if (!failed and naux(tail) != 2 and !all_members(head)) {
         fail(E_SYNTAX, tpos(t));
         return 0;
     }
     return mk(N_SWITCH, t, subj, head);
+}
+
+fn all_members(head: i64) -> bool {
+    var arm: i64 = head;
+    while (arm != 0) {
+        if (naux(arm) != 3) {
+            return false;
+        }
+        arm = nnext(arm);
+    }
+    return true;
 }
 
 ; A whole value: C's `?:` binds looser than every operator gen-c writes
@@ -1399,7 +1463,8 @@ fn parse_const_value() -> i64 {
     if (k == T_NUM and (k1 == ';' or continues(k1))) {
         return parse_expr();
     }
-    if (k == T_IDENT and (k1 == ';' or k1 == '(' or k1 == K_LBRACE or continues(k1))) {
+    // `E::M` too: gen-c reads a qualified name whole (W651).
+    if (k == T_IDENT and (k1 == ';' or k1 == '(' or k1 == K_LBRACE or k1 == ':' or continues(k1))) {
         return parse_expr();
     }
     if ((k == T_TRUE or k == T_FALSE or k == T_CHAR) and (k1 == ';' or continues(k1))) {
@@ -1539,7 +1604,8 @@ fn parse_array(name: i64) -> i64 {
         var it: i64 = na(l);
         if (cur() == T_POW) {
             // A struct value is kept in nd_d; `check` holds it to zero.
-            if (!failed and nb(l) == 1 and nkind(it) == N_STRUCT) {
+            var ik: i64 = nkind(it);
+            if (!failed and nb(l) == 1 and (ik == N_STRUCT or ik == N_FIELD or ik == N_EVAL)) {
                 nd_d[n as usize] = it;
             } else if (!failed and (nb(l) != 1 or nkind(it) != N_NUM or ntok(it) != p - 2)) {
                 fail(E_ARRAY, tpos(p));
@@ -1632,7 +1698,7 @@ fn parse_decl() -> i64 {
         p = p + 1;
         k = cur();
         t = p;
-        if (k != T_FN and k != T_CONST and k != T_VAR and k != T_STRUCT) {
+        if (k != T_FN and k != T_CONST and k != T_VAR and k != T_STRUCT and k != T_ENUM) {
             fail(E_SYNTAX, tpos(p));
             return 0;
         }
@@ -1646,11 +1712,24 @@ fn parse_decl() -> i64 {
         expect(T_IDENT);
         return parse_struct(sname);
     }
-    // `const S = struct { ... };` and `let S = ...`: gen-c's struct S.
-    if (k == T_CONST and kind(p + 1) == T_IDENT and kind(p + 2) == '=' and kind(p + 3) == T_STRUCT) {
+    if (k == T_ENUM) {
+        advance();
+        var ename: i64 = p;
+        expect(T_IDENT);
+        return parse_enum(ename);
+    }
+    // `const S = struct { ... };`, `let S = ...`, and the same for `enum`:
+    // gen-c's struct S and enum S.
+    var k3: i64 = kind(p + 3);
+    if (k == T_CONST and kind(p + 1) == T_IDENT and kind(p + 2) == '=' and (k3 == T_STRUCT or k3 == T_ENUM)) {
         var cname: i64 = p + 1;
         p = p + 4;
-        var sd: i64 = parse_struct(cname);
+        var sd: i64 = 0;
+        if (k3 == T_ENUM) {
+            sd = parse_enum(cname);
+        } else {
+            sd = parse_struct(cname);
+        }
         expect(';');
         nd_c[sd as usize] = p - 1;
         return sd;
@@ -1725,6 +1804,55 @@ fn parse_struct(name: i64) -> i64 {
     }
     expect(K_RBRACE);
     var n: i64 = mk(D_STRUCT, name, head, 0);
+    nd_c[n as usize] = p - 1;
+    return n;
+}
+
+; [( SCALAR )] { M [= [-]NUMBER] , ... [,] }, p after the name. gen-c drops
+; the tag type (C's enum is an int), reads a value as one token and makes a
+; member of what follows it (#8002), and writes a number as spelled.
+fn parse_enum(name: i64) -> i64 {
+    var head: i64 = 0;
+    var tail: i64 = 0;
+    if (cur() == '(') {
+        advance();
+        if (expect_scalar() == 0) {
+            return 0;
+        }
+        expect(')');
+    }
+    expect(K_LBRACE);
+    while (!failed and cur() != K_RBRACE) {
+        var m: i64 = mk(D_MEMBER, p, 0, 0);
+        expect(T_IDENT);
+        if (!failed and cur() == '=') {
+            advance();
+            if (cur() == '-') {
+                nd_b[m as usize] = 1;
+                advance();
+            }
+            if (cur() != T_NUM or has_sep(p)) {
+                fail(E_ENUM, tpos(p));
+                return 0;
+            }
+            nd_aux[m as usize] = p;
+            advance();
+        }
+        if (head == 0) {
+            head = m;
+        } else {
+            nd_next[tail as usize] = m;
+        }
+        tail = m;
+        if (cur() == ',') {
+            advance();
+        } else if (cur() != K_RBRACE) {
+            fail(E_ENUM, tpos(p));
+            return 0;
+        }
+    }
+    expect(K_RBRACE);
+    var n: i64 = mk(D_ENUM, name, head, 0);
     nd_c[n as usize] = p - 1;
     return n;
 }
@@ -2112,6 +2240,7 @@ fn check_expr(e: i64) -> void {
             return;
         }
         check_expr(na(e));
+        check_labels(e);
         var arm: i64 = nb(e);
         while (arm != 0) {
             check_expr(na(arm));
@@ -2152,7 +2281,11 @@ fn check_expr(e: i64) -> void {
         return;
     }
     if (k == N_FIELD) {
-        check_expr(na(e));
+        check_field(e);
+        return;
+    }
+    if (k == N_EVAL) {
+        nd_d[e as usize] = member_owner(ntok(e));
         return;
     }
     if (k == N_STRUCT) {
@@ -2238,6 +2371,12 @@ fn check_stmts(head: i64, test_body: i64) -> void {
     var mark: i64 = scope_len;
     while (!failed and s != 0) {
         var k: i64 = nkind(s);
+        if (k == S_LOCAL or k == D_ARRAY) {
+            check_binding(ntok(s));
+        }
+        if (k == S_FOR) {
+            check_binding(naux(s));
+        }
         if (k == D_ARRAY) {
             check_local_array(s);
         } else if (k == S_ASSIGN) {
@@ -2296,12 +2435,221 @@ fn struct_named(t: i64) -> i64 {
     return 0;
 }
 
-; A type token is a SCALAR or a struct of the module; 0 is a `void` return.
+; The enum the module declares under token t's spelling, else 0.
+fn enum_named(t: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_ENUM and tok_eq(ntok(d), t)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
+}
+
+; A type token is a SCALAR, a struct or an enum of the module; 0 is a `void`
+; return.
 fn type_ok(t: i64) -> bool {
     if (t == 0 or is_scalar(t)) {
         return true;
     }
-    return struct_named(t) != 0;
+    return struct_named(t) != 0 or enum_named(t) != 0;
+}
+
+fn upper(c: i64) -> i64 {
+    if (c >= 'a' and c <= 'z') {
+        return c - 32;
+    }
+    return c;
+}
+
+; Byte i of gen-c's constant for member token m of enum token en: `EN_M`,
+; upper-cased.
+fn const_len(en: i64, m: i64) -> i64 {
+    return tk_len[en as usize] + 1 + tk_len[m as usize];
+}
+
+fn const_byte(en: i64, m: i64, i: i64) -> i64 {
+    var n: i64 = tk_len[en as usize];
+    if (i < n) {
+        return upper(src[(tk_pos[en as usize] + i) as usize] as i64);
+    }
+    if (i == n) {
+        return '_';
+    }
+    return upper(src[(tk_pos[m as usize] + i - n - 1) as usize] as i64);
+}
+
+; Constants a and b (enum token, member token each) are one C name.
+fn const_eq(ea: i64, ma: i64, eb: i64, mb: i64) -> bool {
+    var i: i64 = 0;
+    if (const_len(ea, ma) != const_len(eb, mb)) {
+        return false;
+    }
+    while (i < const_len(ea, ma)) {
+        if (const_byte(ea, ma, i) != const_byte(eb, mb, i)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; Token t spells the constant of member m of enum en.
+fn spells_const(t: i64, en: i64, m: i64) -> bool {
+    var i: i64 = 0;
+    if (tk_len[t as usize] != const_len(en, m)) {
+        return false;
+    }
+    while (i < tk_len[t as usize]) {
+        if ((src[(tk_pos[t as usize] + i) as usize] as i64) != const_byte(en, m, i)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; Tokens a and b spell one word once upper-cased.
+fn upper_eq(a: i64, b: i64) -> bool {
+    var i: i64 = 0;
+    if (tk_len[a as usize] != tk_len[b as usize]) {
+        return false;
+    }
+    while (i < tk_len[a as usize]) {
+        if (upper(src[(tk_pos[a as usize] + i) as usize] as i64) != upper(src[(tk_pos[b as usize] + i) as usize] as i64)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+; An enum is named once, after no type gen-c maps, and has one member or
+; more. Each member's constant `E_M` is spelled by no other member of any
+; enum (E_ENUM) and by no name of the module (E_NAME): C's enum constants
+; share one namespace with every other name, and a parameter so named hides
+; one (#8001).
+fn check_enum(d: i64) -> void {
+    var t: i64 = ntok(d);
+    var m: i64 = na(d);
+    if (mapped_name(t) or decl_count(t) != 1) {
+        fail(E_NAME, tpos(t));
+        return;
+    }
+    if (m == 0) {
+        fail(E_ENUM, tpos(t));
+        return;
+    }
+    while (m != 0) {
+        var o: i64 = decls;
+        while (o != 0) {
+            if (nkind(o) == D_ENUM) {
+                var om: i64 = na(o);
+                while (om != 0) {
+                    if (om != m and const_eq(ntok(o), ntok(om), t, ntok(m))) {
+                        fail(E_ENUM, tpos(ntok(m)));
+                        return;
+                    }
+                    om = nnext(om);
+                }
+            }
+            o = nnext(o);
+        }
+        var x: i64 = mod_tok0[0];
+        while (kind(x) != T_EOF) {
+            if (kind(x) == T_IDENT and spells_const(x, t, ntok(m))) {
+                fail(E_NAME, tpos(x));
+                return;
+            }
+            x = x + 1;
+        }
+        m = nnext(m);
+    }
+}
+
+; The member of enum en spelled like token t, else 0.
+fn member_of(en: i64, t: i64) -> i64 {
+    var m: i64 = na(en);
+    while (m != 0) {
+        if (tok_eq(ntok(m), t)) {
+            return m;
+        }
+        m = nnext(m);
+    }
+    return 0;
+}
+
+; The one enum gen-c's `c_unique_enum_owner` finds for `.M`, token t: it
+; matches upper-cased spellings, so exactly one enum may have a member that
+; spells M in any case, and that member must spell it as written (#8001).
+fn member_owner(t: i64) -> i64 {
+    var owner: i64 = 0;
+    var n: i64 = 0;
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_ENUM) {
+            var m: i64 = na(d);
+            while (m != 0) {
+                if (upper_eq(ntok(m), t)) {
+                    n = n + 1;
+                    owner = d;
+                }
+                m = nnext(m);
+            }
+        }
+        d = nnext(d);
+    }
+    if (n != 1 or member_of(owner, t) == 0) {
+        fail(E_ENUM, tpos(t));
+        return 0;
+    }
+    return owner;
+}
+
+; A name bound in a function or a test is no enum's: gen-c reads `E.M` as the
+; member whatever binds E (#8001).
+fn check_binding(t: i64) -> void {
+    if (enum_named(t) != 0) {
+        fail(E_NAME, tpos(t));
+    }
+}
+
+; A switch's `.M` labels each name a member once; with no `else`, they name
+; every member of one enum (#8003).
+fn check_labels(e: i64) -> void {
+    var arm: i64 = nb(e);
+    var owner: i64 = 0;
+    var n: i64 = 0;
+    var full: bool = true;
+    while (!failed and arm != 0) {
+        if (naux(arm) == 3) {
+            var en: i64 = member_owner(ntok(arm));
+            nd_d[arm as usize] = en;
+            if (owner != 0 and en != owner) {
+                full = false;
+            }
+            owner = en;
+            n = n + 1;
+            var j: i64 = nb(e);
+            while (j != arm) {
+                if (naux(j) == 3 and tok_eq(ntok(j), ntok(arm))) {
+                    fail(E_SYNTAX, tpos(ntok(arm)));
+                    return;
+                }
+                j = nnext(j);
+            }
+        } else if (naux(arm) != 2) {
+            full = false;
+        }
+        arm = nnext(arm);
+    }
+    if (failed or all_members(nb(e)) == false) {
+        return;
+    }
+    if (full == false or n != list_len(na(owner))) {
+        fail(E_SYNTAX, tpos(ntok(e)));
+    }
 }
 
 ; A name gen-c's `type_to_c` turns into another C type: a struct so named
@@ -2508,17 +2856,62 @@ fn check_elem(d: i64) -> void {
         fail(E_TYPE, tpos(naux(d)));
         return;
     }
-    if (nd(d) != 0) {
-        check_expr(nd(d));
-        if (!failed and !all_zero(nd(d))) {
-            fail(E_ARRAY, tpos(ntok(nd(d))));
-        }
+    var v: i64 = nd(d);
+    if (v == 0) {
+        return;
     }
+    // gen-c writes a repeated `.M` as `{0}`, the first member (#8003); E.M
+    // and E::M take a range, as a number does.
+    if (nkind(v) == N_EVAL) {
+        fail(E_ARRAY, tpos(ntok(v)));
+        return;
+    }
+    check_expr(v);
+    if (failed) {
+        return;
+    }
+    if (nkind(v) == N_STRUCT and !all_zero(v)) {
+        fail(E_ARRAY, tpos(ntok(v)));
+    }
+    if (nkind(v) == N_FIELD and nd(v) == 0) {
+        fail(E_ARRAY, tpos(ntok(v)));
+    }
+}
+
+; X.F: E.M or E::M names a member of enum E, spelled as declared (gen-c
+; matches it upper-cased, #8001); any other X.F is a field. E::M with E no
+; enum is a path gen-c writes as it stands.
+fn check_field(e: i64) -> void {
+    var b: i64 = na(e);
+    var en: i64 = 0;
+    if (nkind(b) == N_IDENT) {
+        en = enum_named(ntok(b));
+    }
+    if (en == 0) {
+        if (naux(e) == 1) {
+            fail(E_NAME, tpos(ntok(e)));
+            return;
+        }
+        check_expr(b);
+        return;
+    }
+    if (member_of(en, ntok(e)) == 0) {
+        fail(E_ENUM, tpos(ntok(e)));
+        return;
+    }
+    nd_d[e as usize] = en;
 }
 
 fn check() -> void {
     var d: i64 = decls;
     check_structs();
+    while (!failed and d != 0) {
+        if (nkind(d) == D_ENUM) {
+            check_enum(d);
+        }
+        d = nnext(d);
+    }
+    d = decls;
     while (!failed and d != 0) {
         var k: i64 = nkind(d);
         var t: i64 = ntok(d);
@@ -2534,6 +2927,7 @@ fn check() -> void {
                     fail(E_TYPE, tpos(naux(prm)));
                     return;
                 }
+                check_binding(ntok(prm));
                 prm = nnext(prm);
             }
             if (tok_is(t, W_ASSERT, 0, 6) or tok_is(t, W_DEFAULT_, 0x7475706e69, 13) or tok_is(t, W_VALID_IN, 0x747570, 11)) {
@@ -3558,9 +3952,18 @@ fn emit_items(head: i64) -> void {
     }
 }
 
+; gen-c's constant for member token m of enum en: `EN_M`, upper-cased.
+fn emit_member(en: i64, m: i64) -> void {
+    put_upper(ntok(en));
+    put('_');
+    put_upper(m);
+}
+
 ; The last arm is `else` (parse_switch): every other one is followed by ` : `.
+; A switch of `.M` arms with no `else` ends `: 0`, never reached (#8003).
 fn emit_switch(e: i64) -> void {
     var arm: i64 = nb(e);
+    var last: i64 = 0;
     while (arm != 0) {
         if (naux(arm) == 2) {
             emit_expr(na(arm));
@@ -3571,13 +3974,21 @@ fn emit_switch(e: i64) -> void {
             if (naux(arm) == 1) {
                 put('-');
             }
-            put_tok(ntok(arm));
+            if (naux(arm) == 3) {
+                emit_member(nd(arm), ntok(arm));
+            } else {
+                put_tok(ntok(arm));
+            }
             t_then();
             emit_expr(na(arm));
             put(')');
             t_colon();
         }
+        last = arm;
         arm = nnext(arm);
+    }
+    if (naux(last) != 2) {
+        put('0');
     }
 }
 
@@ -3641,10 +4052,14 @@ fn emit_expr(e: i64) -> void {
         put(K_RBRACE);
     } else if (k == N_SWITCH) {
         emit_switch(e);
+    } else if (k == N_FIELD and nd(e) != 0) {
+        emit_member(nd(e), ntok(e));
     } else if (k == N_FIELD) {
         emit_expr(na(e));
         put(K_DOT);
         put_tok(ntok(e));
+    } else if (k == N_EVAL) {
+        emit_member(nd(e), ntok(e));
     } else if (k == N_STRUCT) {
         emit_lit(e);
     } else {
@@ -3811,13 +4226,22 @@ fn emit_array(d: i64) -> void {
         t_semi_nl();
         return;
     }
-    // A repeated struct is `{0}` in gen-c whatever its value (check_elem).
+    // A repeated struct is `{0}` in gen-c whatever its value (check_elem); a
+    // repeated member takes the range a number does.
     if (nd(d) != 0) {
         t_repeat();
         emit_expr(nd(d));
         t_repeat_mid();
         put_tok(nb(d));
-        t_repeat_end();
+        if (nkind(nd(d)) == N_STRUCT) {
+            t_repeat_end();
+        } else {
+            t_range_open();
+            put_tok(nb(d));
+            t_range_mid();
+            emit_expr(nd(d));
+            t_range_end();
+        }
         return;
     }
     // gen-c keeps `{0}` for a zero value and writes a GNU range for any
@@ -3904,7 +4328,7 @@ fn is_typed(d: i64) -> bool {
     if (k != D_CONST and k != D_VAR and k != D_ARRAY) {
         return false;
     }
-    return struct_named(naux(d)) != 0;
+    return struct_named(naux(d)) != 0 or enum_named(naux(d)) != 0;
 }
 
 fn count_globals(typed: bool) -> i64 {
@@ -3926,6 +4350,46 @@ fn emit_globals(typed: bool) -> void {
         var k: i64 = nkind(d);
         if ((k == D_CONST or k == D_VAR or k == D_ARRAY) and is_typed(d) == typed) {
             emit_global(d);
+        }
+        d = nnext(d);
+    }
+    put('\n');
+}
+
+; gen-c's `gen_c_enum`: `typedef enum {`, a member a line, `} E;`.
+fn emit_enum(d: i64) -> void {
+    var m: i64 = na(d);
+    t_typedef_enum();
+    while (m != 0) {
+        indent(1);
+        emit_member(d, ntok(m));
+        if (naux(m) != 0) {
+            t_assign();
+            if (nb(m) == 1) {
+                put('-');
+            }
+            put_tok(naux(m));
+        }
+        m = nnext(m);
+        if (m != 0) {
+            put(',');
+        }
+        put('\n');
+    }
+    w(0x207d, 2);
+    put_tok(ntok(d));
+    t_semi_nl();
+    put('\n');
+}
+
+fn emit_enums() -> void {
+    var d: i64 = decls;
+    t_banner_open();
+    w(0x736d756e45, 5);
+    t_banner_close();
+    while (d != 0) {
+        if (nkind(d) == D_ENUM) {
+            emit_enum(d);
         }
         d = nnext(d);
     }
@@ -4002,6 +4466,9 @@ fn emit_module() -> void {
         t_constants();
         t_banner_close();
         emit_globals(false);
+    }
+    if (count_kind(D_ENUM, D_ENUM, D_ENUM) > 0) {
+        emit_enums();
     }
     if (count_kind(D_STRUCT, D_STRUCT, D_STRUCT) > 0) {
         emit_structs();
@@ -4647,6 +5114,123 @@ test for_end_field_written_in_its_body_is_refused {
     assert(err_code == E_SYNTAX);
 }
 
+; "module m;enum E{a,b = 5}fn f() -> E {return E.b;}": `typedef enum`, and
+; E.b as `E_B` in the enum and the return, 884 bytes in all.
+test enum_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x7d35203d20622c61, 8, n2);
+    var n4: i64 = feed(0x2d20292866206e66, 8, n3);
+    var n5: i64 = feed(0x7465727b2045203e, 8, n4);
+    var n6: i64 = feed(0x3b622e45206e7275, 8, n5);
+    var n7: i64 = feed(0x7d, 1, n6);
+    assert(compile(n7) == 884);
+    assert(out_at(486) == 't');
+    assert(out_at(514) == 'E');
+    assert(out_at(516) == 'B');
+    assert(out_at(859) == 'E');
+    assert(out_at(861) == 'B');
+}
+
+; "module m;enum A{x}enum B{x}fn f() -> A {return .x;}": no one owner, so
+; gen-c writes a bare `X` (#8001).
+test inferred_member_without_one_owner_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b41206d756e653b, 8, n1);
+    var n3: i64 = feed(0x42206d756e657d78, 8, n2);
+    var n4: i64 = feed(0x2866206e667d787b, 8, n3);
+    var n5: i64 = feed(0x7b2041203e2d2029, 8, n4);
+    var n6: i64 = feed(0x2e206e7275746572, 8, n5);
+    var n7: i64 = feed(0x7d3b78, 3, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_ENUM);
+}
+
+; "module m;enum E{Red}fn f() -> E {return .red;}": gen-c matches `Red`
+; upper-cased; Zig has no `red` (#8001).
+test member_matched_only_by_case_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x66206e667d646552, 8, n2);
+    var n4: i64 = feed(0x2045203e2d202928, 8, n3);
+    var n5: i64 = feed(0x206e72757465727b, 8, n4);
+    var n6: i64 = feed(0x7d3b6465722e, 6, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_ENUM);
+}
+
+; "module m;enum G{p = 1 + 2,q}": gen-c makes `2` a member (#8002).
+test enum_value_expression_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b47206d756e653b, 8, n1);
+    var n3: i64 = feed(0x202b2031203d2070, 8, n2);
+    var n4: i64 = feed(0x7d712c32, 4, n3);
+    assert(compile(n4) == -1);
+    assert(err_code == E_ENUM);
+}
+
+; "module m;enum E{a,b}fn f(e: E) -> i64 {return switch (e) {.a => 1, .b =>
+; 2};}": every member, so gen-c's closing `: 0` is never reached; 926 bytes.
+test exhaustive_enum_switch_is_written {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x66206e667d622c61, 8, n2);
+    var n4: i64 = feed(0x2d202945203a6528, 8, n3);
+    var n5: i64 = feed(0x727b20343669203e, 8, n4);
+    var n6: i64 = feed(0x7773206e72757465, 8, n5);
+    var n7: i64 = feed(0x2965282068637469, 8, n6);
+    var n8: i64 = feed(0x203e3d20612e7b20, 8, n7);
+    var n9: i64 = feed(0x3e3d20622e202c31, 8, n8);
+    var n10: i64 = feed(0x7d3b7d3220, 5, n9);
+    assert(compile(n10) == 926);
+    assert(out_at(899) == ')');
+    assert(out_at(901) == ':');
+    assert(out_at(903) == '0');
+}
+
+; "module m;enum E{a,b}fn f(e: E) -> i64 {return switch (e) {.a => 1};}":
+; gen-c reads `.b` as 0; Zig refuses the switch (#8003).
+test enum_switch_missing_a_member_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x66206e667d622c61, 8, n2);
+    var n4: i64 = feed(0x2d202945203a6528, 8, n3);
+    var n5: i64 = feed(0x727b20343669203e, 8, n4);
+    var n6: i64 = feed(0x7773206e72757465, 8, n5);
+    var n7: i64 = feed(0x2965282068637469, 8, n6);
+    var n8: i64 = feed(0x203e3d20612e7b20, 8, n7);
+    var n9: i64 = feed(0x7d3b7d31, 4, n8);
+    assert(compile(n9) == -1);
+    assert(err_code == E_SYNTAX);
+}
+
+; "module m;enum E{a,b}var r: [1]E = [_]E{.b} ** 1;": gen-c writes `{0}`,
+; the member `a` (#8003).
+test repeat_of_an_inferred_member_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x207261767d622c61, 8, n2);
+    var n4: i64 = feed(0x20455d315b203a72, 8, n3);
+    var n5: i64 = feed(0x2e7b455d5f5b203d, 8, n4);
+    var n6: i64 = feed(0x3b31202a2a207d62, 8, n5);
+    assert(compile(n6) == -1);
+    assert(err_code == E_ARRAY);
+}
+
+; "module m;enum E{on}fn g(E_ON: i64) -> E {return E.on;}": the parameter
+; hides the constant, and C returns it (#8001).
+test name_spelling_an_enum_constant_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b45206d756e653b, 8, n1);
+    var n3: i64 = feed(0x2867206e667d6e6f, 8, n2);
+    var n4: i64 = feed(0x3669203a4e4f5f45, 8, n3);
+    var n5: i64 = feed(0x2045203e2d202934, 8, n4);
+    var n6: i64 = feed(0x206e72757465727b, 8, n5);
+    var n7: i64 = feed(0x7d3b6e6f2e45, 6, n6);
+    assert(compile(n7) == -1);
+    assert(err_code == E_NAME);
+}
+
 test put_int_writes_decimal {
     reset_out();
     put_int(907);
@@ -4682,6 +5266,12 @@ fn t_typed_consts() -> void {
 fn t_typedef_struct() -> void {
     w(0x2066656465707974, 8);
     t_struct_kw();
+}
+
+; typedef enum {\n
+fn t_typedef_enum() -> void {
+    w(0x2066656465707974, 8);
+    w(0xa7b206d756e65, 7);
 }
 
 ; struct 
