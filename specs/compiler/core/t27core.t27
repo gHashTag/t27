@@ -3952,11 +3952,19 @@ fn cmp_diverges(l: i64, r: i64) -> bool {
 }
 
 ; `==` and `!=`, and assert_eq's two values: bools with bools, the same
-; struct or enum, integers C compares as Zig does.
+; struct or enum, integers C compares as Zig does; a comptime integer with
+; an integer only.
 fn check_eq_types(a: i64, b: i64, at_tok: i64) -> void {
     var l: i64 = tz_expr(a);
     var r: i64 = tz_expr(b);
-    if (failed or l == 0 or r == 0 or tc_eq(l, r) or is_strish_tc(l) or is_strish_tc(r)) {
+    if (failed) {
+        return;
+    }
+    if (ct_misfit(r, a) or ct_misfit(l, b)) {
+        fail(E_UNSOUND, tpos(at_tok));
+        return;
+    }
+    if (l == 0 or r == 0 or tc_eq(l, r) or is_strish_tc(l) or is_strish_tc(r)) {
         return;
     }
     if (z_int(l) and z_int(r) and !cmp_diverges(l, r)) {
