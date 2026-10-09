@@ -5830,13 +5830,19 @@ fn seal_toolchain() -> serde_json::Value {
 }
 
 /// Seal v2 closure (seal_identity.t27): every `use` import and its spec hash, sorted; unreadable is "missing".
+/// The spec a `use` names: `use a::b;`, `use a::b::item;` and `use a::b::{X, Y};` all name specs/a/b.t27
+/// (#8351, #8384). An item path that is itself a file wins; otherwise the last segment is an item.
+pub(crate) fn use_spec_path(u: &str) -> String {
+    let m = u.trim_end_matches(';').trim().split("::{").next().unwrap_or("").replace("::", "/");
+    [format!("specs/{m}.t27"), format!("specs/{}.t27", m.rsplit_once('/').map_or(m.as_str(), |x| x.0))].into_iter().find(|f| Path::new(f).exists()).unwrap_or_else(|| format!("specs/{m}.t27"))
+}
+
 fn seal_closure(spec_path: &str) -> serde_json::Value {
     let src = fs::read_to_string(spec_path).unwrap_or_default();
-    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use "))
-        .map(|u| format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")))
+    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use ")).map(use_spec_path)
         .map(|p| { let h = fs::read(&p).map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into()); (p, h) })
         .collect();
-    v.sort();
+    v.sort(); v.dedup();
     serde_json::json!(v.into_iter().map(|(p, h)| serde_json::json!({ "spec": p, "spec_hash": h })).collect::<Vec<_>>())
 }
 

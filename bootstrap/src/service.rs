@@ -5664,7 +5664,7 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
         let t = |k: &str| tc.get(k).and_then(|v| v.as_str()).map(String::from);
         let (mut rebuilt, mut missing) = (false, false);
         for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")) {
-            match decide(&{ let m = u.trim_end_matches(';').trim().split("::{").next().unwrap_or("").replace("::", "/"); [format!("specs/{m}.t27"), format!("specs/{}.t27", m.rsplit_once('/').map_or(m.as_str(), |x| x.0))].into_iter().find(|f| Path::new(f).exists()).unwrap_or_else(|| format!("specs/{m}.t27")) }, tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
+            match decide(&crate::use_spec_path(u), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
         }
         let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
         let cur = crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]);
