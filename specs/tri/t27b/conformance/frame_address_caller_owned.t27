@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/frame_address_caller_owned.t27 -- the caller-owned twins of frame_address_return.t27
+; and frame_address_store.t27: the same two shapes, with the memory owned by the caller, so nothing dangles.
+; t27b refuses `return local[0..n];` (ExprReturn(frame address), #7550) and `param.field = &local;`
+; (StmtAssign(frame address), #7735, specs/tri/t27b/frame_store_plan.t27) because the caller reads a dead frame,
+; and the reference passes those two specs only while nothing reuses that frame. This spec pins where the refusal
+; stops: a slice of a slice parameter and a pointer parameter stored through another pointer parameter point
+; into the caller's memory, so t27b takes them and must agree with the reference.
+; Every read below comes after caller_owned_clobber, a call that fills 4 KiB of its own stack with 0x55. In the
+; refused shapes that call is what turns 7 into 0 or 6148914691236517205 (#7736); here the values must survive it.
+; The two corpus specs these families blocked, gen_lockfree_stack.t27 and tool-registry.t27, take these shapes
+; since gHashTag/t27#8047 (#7736); this spec keeps t27b from refusing them again (#8053, epic #6063).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceFrameAddressCallerOwned;
+
+pub const CallerOwnedCell = struct {
+    value: i64,
+    next: ?*CallerOwnedCell,
+};
+
+pub const CallerOwnedChain = struct {
+    first: ?*CallerOwnedCell = null,
+};
+
+// Fill 4 KiB of this fn's frame with 0x55 and return one byte of it, so the work is not optimized away.
+pub fn caller_owned_clobber(k: usize) -> u8 {
+    var junk: [4096]u8 = undefined;
+    var i: usize = 0;
+    while (i < 4096) {
+        junk[i] = 85;
+        i += 1;
+    }
+    return junk[k];
+}
+
+// Fill the first n cells of the caller's buffer with 7 and hand back a slice of them.
+pub fn caller_owned_fill(out: []u8, n: usize) -> []u8 {
+    var i: usize = 0;
+    while (i < n) {
+        out[i] = 7;
+        i += 1;
+    }
+    return out[0..n];
+}
+
+// Link the caller's cell in front of the chain: the cell is the caller's, and so is its address.
+pub fn caller_owned_push(chain: *CallerOwnedChain, cell: *CallerOwnedCell, value: i64) -> void {
+    cell.value = value;
+    cell.next = chain.first;
+    chain.first = cell;
+}
+
+test caller_owned_slice_survives_a_call {
+    var buf: [16]u8 = undefined;
+    var v = caller_owned_fill(&buf, 8);
+    assert(caller_owned_clobber(100) == 85);
+    assert(v.len == 8);
+    assert(v[0] == 7);
+    assert(v[7] == 7);
+    assert(buf[7] == 7);
+}
+
+test caller_owned_cells_survive_a_call {
+    var chain = CallerOwnedChain { first = null };
+    var a = CallerOwnedCell { value = 0, next = null };
+    var b = CallerOwnedCell { value = 0, next = null };
+    caller_owned_push(&chain, &a, 7);
+    caller_owned_push(&chain, &b, 9);
+    assert(caller_owned_clobber(200) == 85);
+    assert(chain.first != null);
+    assert(chain.first.?.value == 9);
+    assert(chain.first.?.next.?.value == 7);
+    assert(chain.first.?.next.?.next == null);
+    assert(a.value == 7);
+}
