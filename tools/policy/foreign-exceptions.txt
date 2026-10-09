@@ -445,3 +445,8 @@ cli/t27b/tests/source.rs
 # gen/rust/tri/t27b/lencall.rs, mounted in lower.rs); cli/t27b/src/lower/lencall.rs is deleted and lower.rs
 # keeps only the glue that builds the nodes it names. Debt #6198/#5980.
 cli/t27b/src/lower.rs
+
+# owner approval pending (label owner-approved-foreign), issue #7927: tools/jtag/mpsse_jtag.py takes the libftdi
+# path from $T27_LIBFTDI or the platform default, so stage B2 of t27c silicon reads on Linux (R3-3 die C, #7906).
+# A 5-line change; no Python back end exists, so no .t27 can generate this file.
+tools/jtag/mpsse_jtag.py

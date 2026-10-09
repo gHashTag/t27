@@ -1,0 +1,12 @@
+// typecheck checks an assignment in an `if`, `else` or `while` body too.
+module assign_in_nested_block;
+fn anb_g(v: i64) -> i64 {
+    var x: i64 = 0;
+    if (v > 0) {
+        x = 1;
+    } else {
+        var z: u8 = 0;
+        z = v;
+    }
+    return x;
+}

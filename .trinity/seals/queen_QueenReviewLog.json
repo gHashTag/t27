@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+e54d02d08",
-  "gen_hash_c": "sha256:eb872ccebab15113f11503d079abad25003b7215460c3ea9980f370d5051faf6",
-  "gen_hash_rust": "sha256:d780948d3bb2e3098ac8ec1d42e59ee5670af504841b32f72e194d05bc1c1f7c",
-  "gen_hash_verilog": "sha256:3147249391b4e59deb26d900b1af213abec00a2446c52d5fe89c0883daf3ff40",
-  "gen_hash_zig": "sha256:ac60ba63094d2703af2ee57513f377d656853a9f5bc812151b4860b5596441e6",
+  "built_by": "t27c-bootstrap@0.4.0+05e633d03",
+  "gen_hash_c": "sha256:0ed212be2862bbb810546e44517a5c8587aed84c93331d91fe6ef0491c0285a1",
+  "gen_hash_rust": "sha256:c2db236ff8782b7188a111355030568beb86ff9f4c317f3f81e6f366c751af3b",
+  "gen_hash_verilog": "sha256:0750789eac6368061e5214ec3a43ea8ba1c8c7d2368924f8fe38b962655a673f",
+  "gen_hash_zig": "sha256:89911e4f52d7ff1472723b2e4325fb4b46cab78cc78df5882314058606cd8688",
   "module": "QueenReviewLog",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:52:27Z",
+  "sealed_at": "2026-10-07T09:01:19Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:3046edaf31e27797094a97d3a919a454b3cfced6d2ca59a9cb914196f2d9ee0b",
+  "spec_hash": "sha256:f5ff9bae05a7fcda8da587457268f8e79247066e59e75d7dada1e0a7b00707f0",
   "spec_path": "specs/queen/review_log.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 17,
-    "total": 17
+    "passed": 22,
+    "total": 22
   }
 }

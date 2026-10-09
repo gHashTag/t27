@@ -1,0 +1,12 @@
+// typecheck does not look at an `if` condition, so the wrong-arity call
+// reaches C (#8033); the core refuses it as typecheck does elsewhere.
+module arity_in_condition;
+fn aic_f(a: i64) -> i64 {
+    return a;
+}
+fn aic_g() -> i64 {
+    if (aic_f(1, 2) > 0) {
+        return 1;
+    }
+    return 0;
+}
