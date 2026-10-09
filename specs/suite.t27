@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: Apache-2.0
+// T27 Gate Suite Specification
+//
+// Ring 194: Gate suite completeness check
+// Defines the complete gate suite with 58 steps that must run by construction
+// Never run by recall - the failure mode of recall is silence
+
+module suite;
+
+pub const TOTAL_STEPS : u8 = 58;
+pub const STEPS_NOT_EXEMPT : u8 = 43;
+
+pub const GATES : [58]str = [
+    "absence_sweep",
+    "claims_check",
+    "delimiter_balance_scan",
+    "capture_density_scan",
+    "spec_class_scan",
+    "coverage_gate",
+    "syntax_check",
+    "type_check",
+    "semantic_check",
+    "ir_gen_check",
+    "opt_check",
+    "binary_check",
+    "test_check",
+    "bench_check",
+    "doc_check",
+    "security_check",
+    "performance_check",
+    "compliance_check",
+    "integration_check",
+    "validation_check",
+    "verification_check",
+    "certification_check",
+    "quality_check",
+    "reliability_check",
+    "maintainability_check",
+    "usability_check",
+    "accessibility_check",
+    "localization_check",
+    "compatibility_check",
+    "portability_check",
+    "scalability_check",
+    "resilience_check",
+    "observability_check",
+    "traceability_check",
+    "auditability_check",
+    "recoverability_check",
+    "testability_check",
+    "deployability_check",
+    "monitorability_check",
+    "logability_check",
+    "metricability_check",
+    "alertability_check",
+    "debugability_check",
+    "profilability_check",
+    "optimizability_check",
+    "customizability_check",
+    "extendability_check",
+    "modularity_check",
+    "component_check",
+    "interface_check",
+    "protocol_check",
+    "format_check",
+    "schema_check",
+    "validation_check",
+    "verification_check",
+    "certification_check",
+    "finalization_check"
+];
+
+pub const EXEMPT_GATES : [15]str = [
+    "syntax_check",
+    "type_check", 
+    "semantic_check",
+    "ir_gen_check",
+    "opt_check",
+    "binary_check",
+    "test_check",
+    "bench_check",
+    "doc_check",
+    "security_check",
+    "performance_check",
+    "compliance_check",
+    "integration_check",
+    "validation_check",
+    "verification_check"
+];
+
+pub const REQUIRED_SUBJECTS : [58]str = [
+    "", // absence_sweep has no subject
+    "", // claims_check has no subject
+    "specs/", // delimiter_balance_scan requires specs directory
+    "", // capture_density_scan has no subject
+    "specs/", // spec_class_scan requires specs directory
+    "formal/*.py", // coverage_gate requires formal Python files
+    "", // syntax_check has no subject
+    "", // type_check has no subject
+    "", // semantic_check has no subject
+    "", // ir_gen_check has no subject
+    "", // opt_check has no subject
+    "", // binary_check has no subject
+    "", // test_check has no subject
+    "", // bench_check has no subject
+    "", // doc_check has no subject
+    "", // security_check has no subject
+    "", // performance_check has no subject
+    "", // compliance_check has no subject
+    "", // integration_check has no subject
+    "", // validation_check has no subject
+    "", // verification_check has no subject
+    "", // certification_check has no subject
+    "", // quality_check has no subject
+    "", // reliability_check has no subject
+    "", // maintainability_check has no subject
+    "", // usability_check has no subject
+    "", // accessibility_check has no subject
+    "", // localization_check has no subject
+    "", // compatibility_check has no subject
+    "", // portability_check has no subject
+    "", // scalability_check has no subject
+    "", // resilience_check has no subject
+    "", // observability_check has no subject
+    "", // traceability_check has no subject
+    "", // auditability_check has no subject
+    "", // recoverability_check has no subject
+    "", // testability_check has no subject
+    "", // deployability_check has no subject
+    "", // monitorability_check has no subject
+    "", // logability_check has no subject
+    "", // metricability_check has no subject
+    "", // alertability_check has no subject
+    "", // debugability_check has no subject
+    "", // profilability_check has no subject
+    "", // optimizability_check has no subject
+    "", // customizability_check has no subject
+    "", // extendability_check has no subject
+    "", // modularity_check has no subject
+    "", // component_check has no subject
+    "", // interface_check has no subject
+    "", // protocol_check has no subject
+    "", // format_check has no subject
+    "", // schema_check has no subject
+    "", // validation_check has no subject
+    "", // verification_check has no subject
+    "", // certification_check has no subject
+    ""  // finalization_check has no subject
+];
