@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+2dfe9786f",
+  "gen_hash_c": "sha256:67d6100495f0eb304319b6aedf37df949db84757f60a18ffca5785aa523c91a1",
+  "gen_hash_rust": "sha256:387fa8634089b88b4a00439a3725bba6f840472f3dbb41d611b6646ed5a01dab",
+  "gen_hash_verilog": "sha256:8ac6659b415bc8cbb682b21e35193417d50f1241c7f62980291f2706623caa06",
+  "gen_hash_zig": "sha256:637765aa99d76cb6d55e12e7946f383b9d0684cacc4f3af6116d9cada262eafd",
+  "module": "T27bConformanceFrameAddressCallerOwned",
+  "ring": 12,
+  "sealed_at": "2026-10-09T07:19:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8e64fd39df3a3b7de4bacd47543331e18f0cbdaa4777477901b819568a9f9132",
+  "spec_path": "specs/tri/t27b/conformance/frame_address_caller_owned.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
+}

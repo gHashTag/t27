@@ -1,0 +1,6 @@
+// `#define x 1` rewrites the field's name in C (#8088).
+module field_spelled_like_define;
+const x: i64 = 1;
+struct FsdP {
+    x: i64,
+}

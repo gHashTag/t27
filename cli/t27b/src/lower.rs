@@ -1352,6 +1352,7 @@ impl<'a> Lower<'a> {
         let with_str = match &t {
             LTy::Str => true,
             LTy::S(_) | LTy::Enum(..) | LTy::Struct(_) | LTy::Arr(..) => self.holds_str(&t)?,
+            LTy::Opt(_) if self.is_null(init) => false,
             _ => {
                 let d = self.type_name(&t);
                 return self.reject(
@@ -1375,6 +1376,7 @@ impl<'a> Lower<'a> {
                 buf.fill(0xAA);
                 Ok(())
             }
+            LTy::Opt(_) => Ok(()), // `= null` (#7910): zero bytes, a null flag; no payload is read before a write
             LTy::S(ty) => {
                 let ty = *ty;
                 let mut f = || -> R<()> {
@@ -2607,7 +2609,7 @@ impl<'a> Lower<'a> {
                     return self.reject("StmtAssign", format!("assignment to constant `{}`", name));
                 }
                 let ty = self.vars[id as usize].ty;
-                let conv = |c: &Node| c.kind == NodeKind::ExprCall && matches!(c.name.as_str(), "@floatFromInt" | "@intFromFloat" | "@floatCast");
+                let conv = |c: &Node| c.kind == NodeKind::ExprCall && matches!(c.name.as_str(), "@floatFromInt" | "@intFromFloat" | "@floatCast" | "@bitCast");
                 let rhs = if (op.is_empty() || op == "=") && conv(&n.children[1]) {
                     self.expr_as(&n.children[1], &LTy::S(ty))?
                 } else {
@@ -3853,7 +3855,8 @@ impl<'a> Lower<'a> {
         let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
         let ok = n.children.len() == xp::arity(b);
         let t = xp::takes_type(b) && ok; // `std.math.nan(f32)`: the first operand names the type, which no argument carries
-        let v = if ok && !t { self.expr(&n.children[0])? } else { Val::Poison };
+        let at = xp::operand(b); // `std.math.log(T, base, x)`: the value is the third
+        let v = if ok && !t { self.expr(&n.children[at])? } else { Val::Poison };
         let k = match &v {
             _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
             Val::Poison if ok => return Err(()),
@@ -3862,11 +3865,13 @@ impl<'a> Lower<'a> {
             Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
             _ => xp::K_OTHER,
         };
-        let a = xp::plan(b, n.children.len(), k);
+        let named = if k == xp::K_F64 { "f64" } else { "f32" };
+        let base_e = n.children.get(1).filter(|c| c.name == "e").is_some_and(|c| self.std_math_const(c).is_some());
+        let a = xp::with_base(b, xp::plan(b, n.children.len(), k), base_e, n.children.first().is_some_and(|c| c.name == named));
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
             (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => {
                 let mut args = if t { vec![] } else { vec![self.reg(v)?] };
-                for c in &n.children[1..] {
+                for c in &n.children[at + 1..] {
                     let r = self.expr_as(c, &LTy::S(if k == xp::K_F64 { Ty::F64 } else { Ty::F32 }))?; // `@rem(x, 2.0)`: the first one's type
                     args.push(self.reg(r)?);
                 }
