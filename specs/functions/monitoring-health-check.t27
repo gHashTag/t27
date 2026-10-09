@@ -47,3 +47,10 @@ test test_constants {
   assert LEGACY_ID == "health-check";
   assert TRIGGER == "cron";
 }
+
+test retries_and_schedule_hold {
+  assert RETRIES == 2;
+  assert TRIGGER == "cron";
+  assert CRON == "*/30 * * * *";
+  assert TZ == "UTC";
+}
