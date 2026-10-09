@@ -238,7 +238,28 @@ measure it are written in **t27**, not in Rust or Python by hand.
   master 14e1c7be9's 15129 plus 1202 and 8075; 15183 plus 1202, 16385 in all,
   and tests 8105, after #7737's glue for `?*anyopaque` and `@ptrFromInt` to an
   optional pointer, whose plan is `specs/tri/t27b/opaque_plan.t27`, +38, 0 and
-  +11 on master 81da89413's 15145 plus 1202 and 8094),
+  +11 on master 81da89413's 15145 plus 1202 and 8094; 15191 plus 1202, 16393
+  in all, and tests 8119, after #7819's glue for `@floor`, `@ceil`, `@round`,
+  `@trunc` and `@rem` of an f32 from `libm_plan.t27`, +8 and +14 on master
+  bbb77f0c3's 15183 plus 1202 and 8105; 15195 plus 1202, 16397 in all, and
+  `cli/t27b/tests/*.rs` 8134, after #7803's glue for `@floatFromInt` of a
+  comptime_int (`specs/tri/t27b/coerce_plan.t27`), +4 and +15 on master
+  10831352c's 15191 plus 1202 and 8119; 15224 plus 1202, 16426 in all, and
+  tests 8149, after #7810's glue for `_ = e;` with e not a bare name, whose
+  plan is `specs/tri/t27b/discard_plan.t27`, +29 and +15 on master 3d16be1f2's
+  15195 plus 1202 and 8134; 15227 plus 1202, 16429 in all, and tests 8164,
+  after #7811's glue for an optional enum compared with a variant, whose plan
+  is `specs/tri/t27b/optional_compare_plan.t27`, +6 -3 and +15 on master
+  824c82d78's 15224 plus 1202 and 8149; 15232 plus 1233, 16465 in all, and tests
+  8183, after #7857's glue for `anytype` and `[*]T` in the signature of a fn
+  nothing analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`), +5, +31 and +19
+  on master 408d740d9's 15227 plus 1202 and 8164; 15271 plus 1233, 16504 in
+  all, and tests 8191, after #7742's glue for `==` and `!=` between pointers
+  and optional pointers, whose plan is `specs/tri/t27b/ptr_eq_plan.t27`, +39,
+  0 and +8 on master 42707603a's 15232 plus 1233 and 8183; 15271 plus 1239,
+  16510 in all, and `cli/t27b/tests/*.rs` 8205, after #7805's glue for a call
+  of a fn returning a float in `x as T` (`specs/tri/t27b/float_as_plan.t27`),
+  +6 and +14 on master 2dfe9786f's 15271 plus 1233 and 8191),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

@@ -91,6 +91,8 @@ mod float;
 mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
+#[path = "../../../gen/rust/tri/t27b/ptr_eq_plan.rs"] #[allow(dead_code, unused_parens)]
+mod pe; // t27c gen-rust of specs/tri/t27b/ptr_eq_plan.t27: `==` / `!=` of pointers and optional pointers
 #[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
 mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp, @log call compiler_rt's in specs/tri/t27b/libm.t27
 #[path = "../../../gen/rust/tri/t27b/wide_plan.rs"] #[allow(dead_code, unused_parens, unexpected_cfgs)]
@@ -111,8 +113,14 @@ mod el; // t27c gen-rust of specs/tri/t27b/empty_lit_plan.t27: `.{}` by its resu
 mod fsp; // t27c gen-rust of specs/tri/t27b/frame_store_plan.t27: this frame's address stored where the caller reads it
 #[path = "../../../gen/rust/tri/t27b/undefined_arg_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ua; // t27c gen-rust of specs/tri/t27b/undefined_arg_plan.t27: `f(undefined)` for a parameter nobody reads
+#[path = "../../../gen/rust/tri/t27b/optional_compare_plan.rs"] #[allow(dead_code, unused_parens)]
+mod oc; // t27c gen-rust of specs/tri/t27b/optional_compare_plan.t27: `?T == v`, by value or by tag
 #[path = "../../../gen/rust/tri/t27b/bit_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
+#[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
+mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
+#[path = "../../../gen/rust/tri/t27b/lazy_sig_plan.rs"] #[allow(dead_code, unused_parens)]
+mod ls; // t27c gen-rust of specs/tri/t27b/lazy_sig_plan.t27: `anytype`, `[*]T` on a fn nothing analyzed reaches
 mod refvars;
 mod tuple;
 
@@ -1176,11 +1184,13 @@ impl<'a> Lower<'a> {
             } else {
                 self.lty(pty)
             };
+            self.layout_err |= r.is_err() && self.lazy_sig(pty, true);
             self.sig_layout_only &= r.is_ok() || self.layout_err;
             match r {
                 Ok(t) => params.push(t),
-                // Recovery mode reports every parameter and the return type.
-                Err(()) if self.recover => bad = true,
+                // Recovery mode reports every parameter and the return type, and so does an unreached fn
+                // until a refusal `unresolved_sig` cannot withdraw.
+                Err(()) if self.recover || (self.layout_err && !self.analyzed.contains(&n.name)) => bad = true,
                 Err(()) => return Err(()),
             }
         }
@@ -1192,6 +1202,7 @@ impl<'a> Lower<'a> {
         } else {
             self.layout_err = false;
             let r = self.ret_lty(rt);
+            self.layout_err |= r.is_err() && self.lazy_sig(rt, false);
             self.sig_layout_only &= r.is_ok() || self.layout_err;
             Some(r?)
         };
@@ -2562,6 +2573,16 @@ impl<'a> Lower<'a> {
                 return Ok(());
             }
         }
+        // `_ = e;`, e not a bare name (specs/tri/t27b/discard_plan.t27): deleted where the reference deletes it, else e runs.
+        if name == "_" && (op.is_empty() || op == "=") {
+            let (mut calls, top) = (Vec::new(), self.scopes.len() == 1);
+            calls_in(std::slice::from_ref(rhs), &mut calls);
+            match dp::plan(rhs.kind == NodeKind::ExprIdentifier, self.in_test && top, !self.in_test && top, !calls.is_empty()) {
+                dp::DELETED => return Ok(()),
+                dp::EVALUATE => return self.discard_value(rhs, out),
+                _ => {}
+            }
+        }
         // A module-level var written at the top of a test is a write to
         // module state, as in a fn body: since #6295 the reference no longer
         // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
@@ -2648,6 +2669,23 @@ impl<'a> Lower<'a> {
             }
             None => self.reject("StmtAssign(undeclared)", format!("assignment to undeclared `{}`", name)),
         }
+    }
+
+    /// `_ = e;` that runs (discard_plan.t27's EVALUATE): e is evaluated for its effects and traps, its value dropped.
+    fn discard_value(&mut self, e: &Node, out: &mut Vec<Stmt>) -> R<()> {
+        self.see(e);
+        if e.kind == NodeKind::ExprCall && self.sigs.contains_key(&e.name) {
+            let (call, _, _) = self.call(e, None)?;
+            out.push(Stmt::Eval(call));
+            return Ok(());
+        }
+        match self.expr(e)? {
+            Val::Poison => return Err(()),
+            Val::E(x) | Val::P(x, _) => out.push(Stmt::Eval(x)),
+            Val::M(p) if !pure_addr(&p.addr) => out.push(Stmt::Eval(p.addr)),
+            _ => {}
+        }
+        Ok(())
     }
 
     /// `undefined;`, the body stub a port leaves where plumbing was. t27c's
@@ -3467,6 +3505,7 @@ impl<'a> Lower<'a> {
                 let lit = |n: &Node| n.kind == NodeKind::ExprEnumValue;
                 let ordered = (self.names_variant(x) || self.names_variant(y)) && !lit(x) && !lit(y);
                 let (a, b) = self.operands(x, y)?;
+                if let Some(v) = self.ptr_compare(&op, &a, &b)? { return Ok(v); }
                 if let Some(v) = self.opt_compare(&op, &a, &b)? {
                     return Ok(v);
                 }
@@ -3812,11 +3851,12 @@ impl<'a> Lower<'a> {
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
         let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
-        let t = xp::takes_type(b) && n.children.len() == 1; // `std.math.nan(f32)`: its routine takes no argument
-        let v = if n.children.len() == 1 && !t { self.expr(&n.children[0])? } else { Val::Poison };
+        let ok = n.children.len() == xp::arity(b);
+        let t = xp::takes_type(b) && ok; // `std.math.nan(f32)`: the first operand names the type, which no argument carries
+        let v = if ok && !t { self.expr(&n.children[0])? } else { Val::Poison };
         let k = match &v {
             _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
-            Val::Poison if n.children.len() == 1 => return Err(()),
+            Val::Poison if ok => return Err(()),
             Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
             Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
             Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
@@ -3824,7 +3864,14 @@ impl<'a> Lower<'a> {
         };
         let a = xp::plan(b, n.children.len(), k);
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
-            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args: if t { vec![] } else { vec![self.reg(v)?] } } })),
+            (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => {
+                let mut args = if t { vec![] } else { vec![self.reg(v)?] };
+                for c in &n.children[1..] {
+                    let r = self.expr_as(c, &LTy::S(if k == xp::K_F64 { Ty::F64 } else { Ty::F32 }))?; // `@rem(x, 2.0)`: the first one's type
+                    args.push(self.reg(r)?);
+                }
+                Ok(Val::E(Expr { ty, kind: ExprKind::Call { func, args } }))
+            }
             _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),
         }
     }
@@ -5736,6 +5783,10 @@ impl<'a> Lower<'a> {
     fn int_to_float(&mut self, v: Val, to: Ty, what: &str) -> R<Val> {
         let e = match v {
             Val::Poison => return Err(()),
+            // A comptime_int rounds as below, inside 64 bits (coerce_plan.t27 `float_from_int_literal`).
+            Val::Ct(c) if cp::float_from_int_literal(i64::try_from(c).is_ok() || u64::try_from(c).is_ok(), to.bits()) == cp::ROUND => {
+                Expr { ty: Ty::I64, kind: ExprKind::Const(c) }
+            }
             Val::Ct(c) => return Ok(Val::E(self.coerce(Val::Ct(c), to)?)),
             Val::E(e) if e.ty.is_int() => e,
             v => {
@@ -5873,7 +5924,43 @@ impl<'a> Lower<'a> {
         Ok(Val::E(e))
     }
 
-    /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar) and `v` a `T`,
+    /// `a == b` / `a != b` between pointers and optional pointers: their addresses, null being 0, each operand
+    /// pinned once in source order (plan `ptr_eq_plan.t27`, #7742). None where the plan leaves it alone.
+    fn ptr_compare(&mut self, op: &str, a: &Val, b: &Val) -> R<Option<Val>> {
+        let kind = |v: &Val| match v {
+            Val::P(_, LTy::Ptr(t, _)) => (pe::K_PTR, Some(t.clone())),
+            Val::M(Place { ty: LTy::Opt(o), .. }) => match &**o {
+                LTy::Ptr(t, _) => (pe::K_OPT_PTR, Some(t.clone())),
+                _ => (pe::K_OTHER, None),
+            },
+            _ => (pe::K_OTHER, None),
+        };
+        let ((ka, ta), (kb, tb)) = (kind(a), kind(b));
+        if !pe::compares(op == "==" || op == "!=", ka, kb, ta == tb) { return Ok(None); }
+        let mut stmts = Vec::new();
+        let (x, y) = (self.ptr_word(a, &mut stmts)?, self.ptr_word(b, &mut stmts)?);
+        let cmp = Expr { ty: Ty::Bool, kind: ExprKind::Cmp { op: if op == "==" { CmpOp::Eq } else { CmpOp::Ne }, lhs: Box::new(x), rhs: Box::new(y) } };
+        Ok(Some(Val::E(Expr { ty: Ty::Bool, kind: ExprKind::Seq { stmts, value: Box::new(cmp) } })))
+    }
+
+    /// The address pointer or optional pointer `v` holds (0 for null), stored in a fresh slot by `stmts`.
+    fn ptr_word(&mut self, v: &Val, stmts: &mut Vec<Stmt>) -> R<Expr> {
+        let k = self.new_slot(&LTy::S(Ty::U64))?;
+        let load = |addr: Expr, ty, off| Expr { ty, kind: ExprKind::Load { addr: Box::new(addr), off } };
+        let value = match v {
+            Val::P(e, _) => e.clone(),
+            Val::M(p) => {
+                stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: addr_of(p) });
+                let (flag, word) = (load(load(slot_expr(k), Ty::Ptr, 0), Ty::Bool, 8), load(load(slot_expr(k), Ty::Ptr, 0), Ty::Ptr, 0));
+                Expr { ty: Ty::Ptr, kind: ExprKind::Select { cond: Box::new(flag), then: Box::new(word), els: Box::new(Expr { ty: Ty::Ptr, kind: ExprKind::Const(0) }) } }
+            }
+            _ => return Err(()),
+        };
+        stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value });
+        Ok(load(slot_expr(k), Ty::Ptr, 0))
+    }
+
+    /// `x == v` / `x != v` with `x` a `?T` (`T` a scalar or an enum: optional_compare_plan.t27) and `v` a `T`,
     /// either way round: Zig's comparison of an optional with a payload,
     /// equal only when `x` holds a value equal to `v`. None when neither
     /// operand is an optional.
@@ -5901,7 +5988,8 @@ impl<'a> Lower<'a> {
             _ => return self.reject(what, "an optional compared with a value that has effects".into()),
         }
         let LTy::Opt(inner) = p.ty.clone() else { unreachable!() };
-        if !matches!(*inner, LTy::S(_)) {
+        let by = oc::payload(match *inner { LTy::S(_) => oc::K_SCALAR, LTy::Enum(..) => oc::K_ENUM, _ => oc::K_OTHER });
+        if oc::refuses(by) {
             let t = self.type_name(&p.ty);
             return self.reject(what, format!("`{}` on {}", op, t));
         }
@@ -5917,7 +6005,7 @@ impl<'a> Lower<'a> {
         let flag = Expr { ty: Ty::Bool, kind: ExprKind::Load { addr: Box::new(addr.clone()), off: off + s } };
         let payload = self.place_value(Place { addr, off, ty: *inner, mutable: false, temp: None })?;
         let (l, r) = if left { (payload, other) } else { (other, payload) };
-        let cmp = self.binary(op, l, r)?;
+        let cmp = if by == oc::BY_TAG { self.enum_compare(op, &l, &r, false)?.ok_or(())? } else { self.binary(op, l, r)? };
         let cmp = self.coerce(cmp, Ty::Bool)?;
         let els = Expr { ty: Ty::Bool, kind: ExprKind::Const((op == "!=") as i128) };
         let e = Expr { ty: Ty::Bool, kind: ExprKind::Select { cond: Box::new(flag), then: Box::new(cmp), els: Box::new(els) } };

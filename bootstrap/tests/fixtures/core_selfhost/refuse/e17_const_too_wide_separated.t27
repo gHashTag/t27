@@ -1,0 +1,4 @@
+// typecheck skips a literal with `_` (`check_const_widths` asks for digits
+// only), so `#define CWX_B 1000` reaches C for a u8 (#8035).
+module const_too_wide_separated;
+const CWX_B: u8 = 1_000;

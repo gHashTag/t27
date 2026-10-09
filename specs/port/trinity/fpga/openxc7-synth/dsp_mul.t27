@@ -1,0 +1,131 @@
+//! Port of trinity's fpga/openxc7-synth/dsp_mul.v (gHashTag/trinity at
+//! a0d149e71560): 32-bit x 32-bit multiply, 3-cycle pipeline latency, Xilinx
+//! DSP48E1 primitives for TRINITY CORE V2.
+
+module dsp_mul {
+
+    // The original's constants: 32-bit operands and result, a 3-cycle
+    // pipeline, and the DSP slice budget of the target part (XC7A100T).
+    pub const DATA_WIDTH: u32 = 32;
+    pub const PIPELINE_DEPTH: u32 = 3;
+    pub const DSP_SLICES: u32 = 240;
+
+    // The pipeline registers a_reg[0:2], b_reg[0:2] and valid_reg[2:0], as
+    // flat fields. Index 0 is the newest sample and index 2 the one feeding
+    // the multiply (a_reg[2], b_reg[2]) / captured by valid_out (valid_reg[2]).
+    pub struct DspMulState {
+        a0: u32,
+        a1: u32,
+        a2: u32,
+        b0: u32,
+        b1: u32,
+        b2: u32,
+        v0: bool,
+        v1: bool,
+        v2: bool,
+    }
+
+    // The original's reset: every pipeline register cleared.
+    pub fn reset_state() -> DspMulState {
+        return DspMulState{.a0 = 0, .a1 = 0, .a2 = 0, .b0 = 0, .b1 = 0, .b2 = 0, .v0 = false, .v1 = false, .v2 = false};
+    }
+
+    // One clock of the pipeline — the `always @(posedge clk or negedge rst_n)`
+    // block with !rst_n deasserted: a_reg[0] <= a, a_reg[1] <= a_reg[0],
+    // a_reg[2] <= a_reg[1] (the same for b_reg), and the valid shift register
+    // advances: valid_reg <= {valid_reg[1:0], valid_in}.
+    pub fn step(s: DspMulState, a: u32, b: u32, valid_in: bool) -> DspMulState {
+        return DspMulState{
+            .a0 = a,
+            .a1 = s.a0,
+            .a2 = s.a1,
+            .b0 = b,
+            .b1 = s.b0,
+            .b2 = s.b1,
+            .v0 = valid_in,
+            .v1 = s.v0,
+            .v2 = s.v1,
+        };
+    }
+
+    // assign mult_result = a_reg[2] * b_reg[2];
+    // assign result = mult_result[31:0];
+    // The combinational surface gen-verilog lowers: the parameters become
+    // inputs [31:0] (a, b) and the return becomes output result [31:0] — the
+    // lower word of the 64-bit product.
+    pub fn on_comb(a: u32, b: u32) -> u32 {
+        var full: u64 = (a as u64) * (b as u64);
+        return full as u32;
+    }
+
+    // The same lower-word multiply applied to the pipelined operands.
+    pub fn pipeline_result(s: DspMulState) -> u32 {
+        var full: u64 = (s.a2 as u64) * (s.b2 as u64);
+        return full as u32;
+    }
+
+    // valid_out <= valid_reg[2]: a non-blocking assignment, so the value
+    // valid_out takes at the next clock edge is the oldest valid in the
+    // shift register as it stands before the edge.
+    pub fn valid_out_next(s: DspMulState) -> bool {
+        return s.v2;
+    }
+
+    // ----- tests -----
+
+    // For a=3, b=4 with valid_in held high: after the 3 pipeline stages the
+    // oldest operand pair has reached a_reg[2]/b_reg[2], the multiply gives
+    // 12, and the valid shift register is full (valid_reg[2] high in period 3).
+    test result_pipeline {
+        var s: DspMulState = reset_state();
+        s = step(s, 3, 4, true);
+        s = step(s, 3, 4, true);
+        s = step(s, 3, 4, true);
+        assert(s.a2 == 3);
+        assert(s.b2 == 4);
+        assert(s.a0 == 3);
+        assert(s.v2);
+        assert(pipeline_result(s) == 12);
+    }
+
+    // Three pairs pushed in sequence land in their pipeline stages: the
+    // oldest pair (10, 20) reaches stage 2 and multiplies to 200.
+    test operand_pipeline {
+        var s: DspMulState = reset_state();
+        s = step(s, 10, 20, true);
+        s = step(s, 30, 40, true);
+        s = step(s, 50, 60, true);
+        assert(s.a2 == 10);
+        assert(s.b2 == 20);
+        assert(s.a1 == 30);
+        assert(s.b1 == 40);
+        assert(s.a0 == 50);
+        assert(s.b0 == 60);
+        assert(pipeline_result(s) == 200);
+    }
+
+    // The original takes the lower word of the 64-bit product: 65536 * 65536
+    // = 2^32, so mult_result = 64'h1_0000_0000 and result = mult_result[31:0]
+    // = 32'h0. 65535 * 65537 = 2^32 - 1 stays inside the word.
+    test lower_word {
+        assert(on_comb(65536, 65536) == 0);
+        assert(on_comb(65535, 65537) == 4294967295);
+        assert(on_comb(0, 12345) == 0);
+    }
+
+    // valid_out <= valid_reg[2] samples the pre-edge valid_reg: with valid_in
+    // held high from period 1, valid_out is low after edges 1-3 and high
+    // after edge 4, while valid_reg[2] itself goes high after edge 3.
+    test valid_out_lag {
+        var s: DspMulState = reset_state();
+        assert(!valid_out_next(s));
+        s = step(s, 1, 1, true);
+        assert(!valid_out_next(s));
+        s = step(s, 1, 1, true);
+        assert(!valid_out_next(s));
+        assert(!s.v2);
+        s = step(s, 1, 1, true);
+        assert(valid_out_next(s));
+        assert(s.v2);
+    }
+}

@@ -703,26 +703,155 @@ pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u3
     return 0;
 }
 
+; --- 8. Preemption: a slice between turns, an OS thread or process within one ----------------------
+; Owner, 2026-10-09 (translated): "think how to improve this and do it: no distribution across
+; machines, no preemptive multitasking as in the BEAM".
+; The BEAM gives each process a budget of reductions and switches it out when the budget is spent, so
+; no process holds a scheduler for long. A JavaScript host runs one thread and cannot stop a function
+; midway. It can keep the two halves of that promise:
+; - Between turns, a slice. A scheduler runs at most SLICE_TURNS turns, or turns for SLICE_MICROS,
+;   then yields to the host's timers and I/O. Measured before this (t27#7851 ring benchmark): one
+;   message chain ran 200 000 turns without yielding once, so no timer and no socket could run.
+; - Within a turn, isolation. A turn whose work burns CPU runs in an OS thread, and one that runs code
+;   a bee wrote, or must be stoppable, runs in an OS process. The OS preempts both, so neither holds
+;   the host's thread. Only a process is certain to stop when killed. Measured 2026-10-09 on the
+;   Queen's host (Bun 1.3.11): `worker.terminate()` left a spinning worker thread counting, still
+;   running 3 s later. A kill of a thread turn, like a kill of a turn on the loop, only abandons it:
+;   its pid dies, whatever it sends is dropped, and its late result is fenced by the lease.
+
+pub const SLICE_TURNS : u32 = 64;
+pub const SLICE_MICROS : u32 = 5000;
+
+/// Whether a scheduler has spent its slice and must yield to the host before the next turn.
+pub fn slice_spent(turns: u32, micros: u32) -> bool {
+    if (turns >= SLICE_TURNS) { return true; }
+    return micros >= SLICE_MICROS;
+}
+
+/// Where a turn runs. On the host's thread: nothing of its own, and it cannot be stopped. In an OS
+/// thread: the OS preempts it, but terminate is not certain to stop it (section 8). In an OS process:
+/// its own memory, so a leak or a crash in foreign code stays there, and SIGKILL stops it.
+pub const ISO_LOOP : u8 = 0;
+pub const ISO_THREAD : u8 = 1;
+pub const ISO_PROCESS : u8 = 2;
+
+/// Code a bee wrote, any compiler or command run on its work, and any work that must stop when its turn
+/// is killed go to a process. Other work that burns CPU in this build's own code goes to a thread.
+/// Waiting on I/O stays on the loop: it holds no CPU, and a thread for it would only cost memory.
+pub fn turn_isolation(cpu_bound: bool, runs_foreign_code: bool, must_stop: bool) -> u8 {
+    if (runs_foreign_code) { return ISO_PROCESS; }
+    if (must_stop) { return ISO_PROCESS; }
+    if (cpu_bound) { return ISO_THREAD; }
+    return ISO_LOOP;
+}
+
+/// What a kill does to the work of the turn it ends.
+pub const KILL_ABANDONS : u8 = 0;
+pub const KILL_STOPS : u8 = 1;
+
+pub fn kill_effect(isolation: u8) -> u8 {
+    if (isolation == ISO_PROCESS) { return KILL_STOPS; }
+    return KILL_ABANDONS;
+}
+
+/// A turn whose work was abandoned still holds what it held, its row and its key lane, until the work
+/// ends on its own. One whose work was stopped holds nothing once the kill lands.
+pub fn holds_after_kill(isolation: u8, work_ended: bool) -> bool {
+    if (kill_effect(isolation) == KILL_STOPS) { return false; }
+    return work_ended == false;
+}
+
+; --- 9. Nodes: a pid names its host ----------------------------------------------------------------
+; The BEAM sends to a pid on another node exactly as to a local one. A node that stops answering turns
+; every link and monitor across it into a noconnection exit. Here the same, with the store as the wire:
+; - A pid carries its node in the top NODE_BITS of its slot, so a send needs no lookup to know where
+;   to go. Node 0 is a pid of section 1 unchanged.
+; - A send to another node is a row the target node's follower reads, in order for each pair of sender
+;   and receiver: section 2's only promise, kept across hosts. The target applies `deliver` on arrival.
+;   A sender that sees the node down drops the message as a dead letter, as a send to a dead pid does.
+; - A node holds a lease, renewed every NODE_HEARTBEAT_SECONDS. A node whose lease is older than
+;   NODE_TTL_SECONDS is down. Every monitor of a pid on it fires X_NOCONNECTION, which
+;   reclaim_wait_seconds already reads as proof of nothing: the holder may be alive across a partition.
+; - No code moves. Every node runs the same build, so a remote start names a kind, not a function.
+
+pub const NODE_BITS : u64 = 12;
+pub const LOCAL_SLOT_BITS : u64 = 20;
+pub const LOCAL_SLOT_MASK : u64 = 1048575;
+pub const MAX_NODE : u64 = 4095;
+
+/// The pid of local slot `local` on `node`, at `gen`. A local slot of 0, or one past the mask, is no
+/// pid, as in section 1.
+pub fn node_pid(node: u64, local: u64, gen: u64) -> u64 {
+    if (node > MAX_NODE) { return NO_PID; }
+    if (local == 0) { return NO_PID; }
+    if (local > LOCAL_SLOT_MASK) { return NO_PID; }
+    return pid_of((node << LOCAL_SLOT_BITS) | local, gen);
+}
+
+pub fn node_of(pid: u64) -> u64 {
+    return slot_of(pid) >> LOCAL_SLOT_BITS;
+}
+
+pub fn local_of(pid: u64) -> u64 {
+    return slot_of(pid) & LOCAL_SLOT_MASK;
+}
+
+pub fn is_remote(pid: u64, self_node: u64) -> bool {
+    if (pid == NO_PID) { return false; }
+    return node_of(pid) != self_node;
+}
+
+pub const NODE_HEARTBEAT_SECONDS : u32 = 5;
+pub const NODE_TTL_SECONDS : u32 = 20;
+
+pub fn node_up(seconds_since_heartbeat: u32) -> bool {
+    return seconds_since_heartbeat < NODE_TTL_SECONDS;
+}
+
+/// The sender's half of a remote send: a node that is down takes nothing.
+pub fn send_remote(target_node_up: bool) -> u8 {
+    if (target_node_up) { return D_QUEUED; }
+    return D_DROPPED_DEAD;
+}
+
+/// What a monitor of a remote pid hears. The node down: noconnection, whatever the pid did. The node up
+/// and the pid gone: the reason it ended with. Otherwise nothing yet.
+pub fn remote_down(target_node_up: bool, pid_ended: bool, reason: u8) -> u8 {
+    if (target_node_up == false) { return X_NOCONNECTION; }
+    if (pid_ended) { return reason; }
+    return X_NONE;
+}
+
+/// Placement of a new start: the node with more free room for the kind, and on a tie the lower node
+/// id, so that two placers reading the same counts choose the same node.
+pub fn place_before(free_a: u32, node_a: u64, free_b: u32, node_b: u64) -> bool {
+    if (free_a != free_b) { return free_a > free_b; }
+    return node_a < node_b;
+}
+
 ; --- 7. Deliberately not the BEAM ---------------------------------------------------------------------
 
 ; Bounded mailboxes: an unbounded one hides a stuck runtime until memory runs out (section 2).
 ; No hot code swap: a new build is a retired runtime and a fresh one (control.t27 RETIRED).
-; No transparent distribution: a pid is local to one host; across hosts liveness is the lease and its
-;   heartbeat, and a cross-host DOWN is only ever X_NOCONNECTION (section 6).
-; No reductions scheduler: fairness is the host's; a runtime is an OS process or a container.
+; Distribution over the store, not over sockets (section 9): a pid names its node, a send to another
+;   node is a row the target node reads, and a node's liveness is its lease. No code moves between
+;   nodes: every node runs the same build, so a remote start names a kind.
+; Preemption in two halves (section 8): between turns a scheduler slice, within a turn an OS thread or
+;   process. A turn on the host's own thread cannot be stopped midway; the BEAM's reduction count can.
 ; No global name registry: the store is the only directory of who holds what.
 ; No exit(self, normal) quirk: the BEAM kills a non-trapping process that sends itself a normal exit
 ;   signal, for backward compatibility; here a normal signal is ignored by a non-trapping receiver
 ;   whoever sent it (section 3).
 pub const MAILBOX_BOUNDED : bool = true;
 pub const HOT_CODE_SWAP : bool = false;
-pub const TRANSPARENT_DISTRIBUTION : bool = false;
+pub const TRANSPARENT_DISTRIBUTION : bool = true;
 pub const PREEMPTIVE_REDUCTIONS : bool = false;
+pub const PREEMPTIVE_SLICES : bool = true;
 pub const GLOBAL_NAME_REGISTRY : bool = false;
 
 invariant a_model_box_is_one_u64 { assert MBOX_SLOTS * SLOT_BITS == 64 and NO_MATCH == MBOX_SLOTS; }
 invariant a_tag_fills_one_slot { assert TAG_MASK + 1 == 1 << SLOT_BITS; }
-invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION == false and PREEMPTIVE_REDUCTIONS == false and GLOBAL_NAME_REGISTRY == false; }
+invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION and PREEMPTIVE_REDUCTIONS == false and PREEMPTIVE_SLICES and GLOBAL_NAME_REGISTRY == false; }
 invariant the_control_lane_is_one_u64 { assert CTL_TAGS == 64 and CTL_BIT == 1 and UNSTABLE_GIVE_UP > DOMAIN_MAX_RESTARTS; }
 invariant kill_is_a_signal_and_killed_a_reason { assert X_KILL != X_KILLED; }
 invariant none_is_outside_every_reason { assert X_NONE > X_NOCONNECTION; }
@@ -1248,3 +1377,70 @@ test a_full_domain_refuses_a_new_start_and_still_restarts_a_crashed_agent {
     assert start_answer(0, 0, 0) == START_MAX_CHILDREN;
     assert start_answer(0, 0, 1) == START_OK;
 }
+
+test a_scheduler_yields_after_its_slice_and_not_before {
+    assert slice_spent(0, 0) == false;
+    assert slice_spent(SLICE_TURNS - 1, SLICE_MICROS - 1) == false;
+    assert slice_spent(SLICE_TURNS, 0) == true;
+    assert slice_spent(0, SLICE_MICROS) == true;
+}
+
+test foreign_and_cpu_work_runs_where_a_kill_stops_it {
+    assert turn_isolation(false, false, false) == ISO_LOOP;
+    assert turn_isolation(true, false, false) == ISO_THREAD;
+    assert turn_isolation(false, true, false) == ISO_PROCESS;
+    assert turn_isolation(true, true, false) == ISO_PROCESS;
+    assert turn_isolation(true, false, true) == ISO_PROCESS;
+    assert turn_isolation(false, false, true) == ISO_PROCESS;
+    assert kill_effect(ISO_LOOP) == KILL_ABANDONS;
+    // measured: a terminated worker thread kept spinning, so a thread kill is not a stop
+    assert kill_effect(ISO_THREAD) == KILL_ABANDONS;
+    assert kill_effect(ISO_PROCESS) == KILL_STOPS;
+    // an abandoned turn keeps its row and lane until its work ends; a stopped one lets go at once
+    assert holds_after_kill(ISO_LOOP, false) == true;
+    assert holds_after_kill(ISO_LOOP, true) == false;
+    assert holds_after_kill(ISO_THREAD, false) == true;
+    assert holds_after_kill(ISO_PROCESS, false) == false;
+}
+
+test a_pid_names_its_node_and_node_0_is_section_1 {
+    assert node_pid(0, 5, 7) == pid_of(5, 7);
+    assert node_of(node_pid(3, 5, 7)) == 3;
+    assert local_of(node_pid(3, 5, 7)) == 5;
+    assert gen_of(node_pid(3, 5, 7)) == 7;
+    assert node_of(node_pid(MAX_NODE, LOCAL_SLOT_MASK, 1)) == MAX_NODE;
+    assert local_of(node_pid(MAX_NODE, LOCAL_SLOT_MASK, 1)) == LOCAL_SLOT_MASK;
+    assert node_pid(MAX_NODE + 1, 5, 7) == NO_PID;
+    assert node_pid(3, 0, 7) == NO_PID;
+    assert node_pid(3, LOCAL_SLOT_MASK + 1, 7) == NO_PID;
+    assert is_remote(node_pid(3, 5, 7), 3) == false;
+    assert is_remote(node_pid(3, 5, 7), 4) == true;
+    assert is_remote(NO_PID, 4) == false;
+    // a restart on the same node keeps the node, as it keeps the slot
+    assert node_of(node_pid(3, 5, next_gen(7))) == 3;
+}
+
+test a_node_that_stops_renewing_is_down_and_its_pids_are_noconnection {
+    assert node_up(0) == true;
+    assert node_up(NODE_TTL_SECONDS - 1) == true;
+    assert node_up(NODE_TTL_SECONDS) == false;
+    assert send_remote(true) == D_QUEUED;
+    assert send_remote(false) == D_DROPPED_DEAD;
+    assert is_dead_letter(send_remote(false)) == true;
+    assert remote_down(false, false, X_NONE) == X_NOCONNECTION;
+    assert remote_down(false, true, X_CRASH) == X_NOCONNECTION;
+    assert remote_down(true, true, X_CRASH) == X_CRASH;
+    assert remote_down(true, false, X_NONE) == X_NONE;
+    // a noconnection proves nothing: the task waits out its lease rather than being reclaimed at once
+    assert reclaim_wait_seconds(remote_down(false, false, X_NONE), 30, 180) == 150;
+}
+
+test placement_is_the_roomiest_node_and_ties_agree {
+    assert place_before(5, 2, 3, 1) == true;
+    assert place_before(3, 1, 5, 2) == false;
+    assert place_before(4, 1, 4, 2) == true;
+    assert place_before(4, 2, 4, 1) == false;
+}
+invariant a_node_fits_the_slot_field { assert NODE_BITS + LOCAL_SLOT_BITS == 32 and LOCAL_SLOT_MASK + 1 == 1 << LOCAL_SLOT_BITS and MAX_NODE + 1 == 1 << NODE_BITS; }
+invariant a_node_is_down_only_after_missed_heartbeats { assert NODE_TTL_SECONDS >= 3 * NODE_HEARTBEAT_SECONDS; }
+invariant a_slice_is_short { assert SLICE_TURNS >= 1 and SLICE_MICROS <= 20000; }

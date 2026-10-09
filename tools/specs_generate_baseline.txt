@@ -9,9 +9,19 @@ bootstrap/tests/fixtures/gen_typecheck/field_no_type.t27 | Error: typecheck refu
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_compound_as_expression.t27 | Error: Compile error: parse error in fn 'f' near line 4: Unexpected token in expression: PlusEquals ('+=') at line 4:20
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_shift_left_assign.t27 | Error: Compile error: parse error in fn 'f' near line 5: Unexpected token in expression: Equals ('=') at line 5:9
 # Not a debt: #7377's both-refuse fixtures, read by bootstrap/tests/core_selfhost.rs. gen-c must keep refusing them.
-bootstrap/tests/fixtures/core_selfhost/refuse/e1_pub_use.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 4:5
+bootstrap/tests/fixtures/core_selfhost/refuse/e2_pub_use.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 4:5
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_pub_twice.t27 | Error: Compile error: Unexpected top-level token: KwPub ('pub') at line 3:5
 # Not a debt: #7436's both-refuse fixtures, read by bootstrap/tests/core_selfhost.rs. gen-c must keep refusing them.
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_switch_bool_label.t27 | Error: Compile error: parse error in fn 'k' near line 4: Expected RBrace, got KwTrue ('true') at line 4:25
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_switch_multi_label.t27 | Error: Compile error: parse error in fn 'k' near line 4: Unexpected token in expression: Comma (',') at line 4:26
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_switch_statement.t27 | Error: Compile error: parse error in fn 'k' near line 5: Unexpected token in expression: KwReturn ('return') at line 5:14
+# Not a debt: P3 slice 1's typecheck fixtures, read by bootstrap/tests/core_selfhost.rs. typecheck refuses them, so no backend generates them, and the core must refuse them too (E_CHECK, E_CALL).
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_const_to_u8.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_const_to_u8.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_cross_sign.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_cross_sign.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_in_nested_block.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_in_nested_block.t27: 1 error(s), so nothing is generated for it (#64
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_narrowing.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_narrowing.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_u8_to_usize.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_assign_u8_to_usize.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_compound_cross_sign.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_compound_cross_sign.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_const_too_wide.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_const_too_wide.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/core_selfhost/refuse/e16_const_too_wide_signed.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e16_const_too_wide_signed.t27: 1 error(s), so nothing is generated for it (#644
+bootstrap/tests/fixtures/core_selfhost/refuse/e4_arity_return.t27 | Error: typecheck refused bootstrap/tests/fixtures/core_selfhost/refuse/e4_arity_return.t27: 1 error(s), so nothing is generated for it (#6446)

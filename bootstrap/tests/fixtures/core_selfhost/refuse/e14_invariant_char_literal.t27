@@ -1,0 +1,6 @@
+// #8009: gen-c reads `a` in `'a'` as an undeclared name and drops the check.
+module invariant_char_literal;
+const IQ_Q: u8 = 97;
+invariant iq_char {
+    IQ_Q == 'a';
+}

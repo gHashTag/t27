@@ -1,0 +1,9 @@
+// #8010: Zig's bench binds `x`; gen-c writes `x = ...` undeclared.
+module bench_unbound_assignment;
+fn bu_work(n: i64) -> i64 {
+    return n * 2;
+}
+bench bu_unbound {
+    x = bu_work(1);
+    assert(x == 2);
+}

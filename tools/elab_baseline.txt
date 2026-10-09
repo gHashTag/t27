@@ -58,6 +58,7 @@ cts 2
 dft 6
 e2e_demo 2
 eth_beacon 0
+eth_crc 0
 fifo 2
 formal 20
 gf16_accel 6
@@ -73,6 +74,7 @@ placement 6
 power 2
 power_analysis 1
 reset_sync 2
+rgmii 0
 rgmii_sniff 0
 router 8
 simulator 2

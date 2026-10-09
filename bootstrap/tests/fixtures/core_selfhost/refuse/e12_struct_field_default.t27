@@ -1,0 +1,11 @@
+// #7959: gen-c drops the default, so `SdCfg{ .y = 1 }` reads x as 0 in C
+// and as 5 in Zig.
+module struct_field_default;
+struct SdCfg {
+    x: i64 = 5,
+    y: u8,
+}
+fn sd_x() -> i64 {
+    var c: SdCfg = SdCfg{ .y = 1 };
+    return c.x;
+}

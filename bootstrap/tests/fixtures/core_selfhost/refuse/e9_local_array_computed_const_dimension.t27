@@ -1,0 +1,9 @@
+// P1 slice 5: a const with a computed value is `static const` in gen-c's C,
+// not a `#define`, so as a dimension it makes a variable-length array that
+// C cannot initialize.
+module computed_dimension;
+const CD_N: i64 = 2 + 2;
+fn cd_first() -> u8 {
+    var cd_a: [CD_N]u8 = [_]u8{0} ** CD_N;
+    return cd_a[0];
+}

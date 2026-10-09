@@ -868,7 +868,7 @@ test text_repeat_fails {
 fn t27_array_spelling_rejections_are_precise() {
     let head = "module a;\n\nconst ONE: u32 = 1;\n\nfn total(xs: [u32]) u32 {\n    return 0;\n}\n\nfn nested(xs: [[2]u32]) u32 {\n    return 0;\n}\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("fn f(p: [*]u8) u32 { return 0; }", "type [*]T", "a many-item pointer"),
+        ("fn f(p: [*]u8) u32 { return 0; }\ntest t { assert(f(undefined) == 0); }", "type [*]T", "a many-item pointer"),
         ("fn f(m: [str:u32]) u32 { return 0; }", "type [K:V]", "a map"),
         ("test t { assert(total([1; 2]) == 2); }", "ExprArrayLiteral(repeat to slice)", "where a slice is declared"),
         (
@@ -3195,6 +3195,14 @@ test wrong {
         ));
         assert!(m.contains("type ?T(??T)"), "{}: {}", ty, m);
     }
+}
+
+/// `==` / `!=` between pointers and optional pointers compare addresses
+/// (#7742): the conformance spec runs as `t27c test-report` does (3 pass).
+#[test]
+fn pointer_equality() {
+    let r = run(include_str!("../../../specs/tri/t27b/conformance/pointer_equality.t27"));
+    assert!(r.len() == 3 && names_ok(&r).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&r));
 }
 
 /// A frame over 16 KiB is allocated a page at a time, touching each page
