@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/automation/course-outreach.t27 -- COURSE OUTREACH automation finds programmers among the owner's
+// contacts, tags them in his CRM and tells each about the FPGA course "From zero to a chip" 
+// (https://t27.ai/learn/course/) -- nothing leaves without his press. Written 2026-10-09.
+// Host: gHashTag/999-multibots-telegraf apps/vibee-editor/render -- course-outreach logic in
+//       course-outreach.ts (tools courseOutreach, prepareOutreach, sendOutreach), course-outreach-ui.tsx
+//       (CourseOutreachCard component), course-outreach.test.ts (validation suite).
+//
+// WHAT this spec defines (code written 2026-10-09):
+// - Programmer identification: two different sign groups (role, language, practice, code host, hardware) 
+//   in the person's own words make a programmer; the person's own "not" outranks them; everything else is unknown
+// - Draft creation: only where a DM exists; none to an opted-out, removed or refusing person; no second message 
+//   without a reply
+// - Message content: static link https://t27.ai/learn/course/ (a #/ route shows the home card in previews), 
+//   only the course's own numbers (27, 1, 3), no hype, names what the person wrote
+// - Approval workflow: 1 to 5 drafts per approval card; only Allow sends
+//
+// WHY these rules:
+// - Two sign groups minimum: reduces false positives while catching genuine multi-signal programmers
+// - Personal "not" outranks: respects explicit self-identification over inferred characteristics  
+// - DM requirement only: ensures outreach only to contacts with established communication channels
+// - No second message: prevents spam and respects recipient communication preferences
+// - Static link only: maintains consistency and avoids hype while letting the course content speak for itself
+// - Course numbers only: factual, verifiable information (27 lessons, 1 project, 3 months) builds credibility
+// - 1-5 draft limit: keeps approval cards manageable while allowing personalization
+// - Explicit Allow: ensures owner control over what gets sent and when
+//
+// Claim status: pure functions and validation logic written and unit-tested; integration with CRM and 
+// messaging systems verified through test suite; deployment readiness confirmed by passing validation.
+
+// Programmer identification rules
+// A programmer is defined as a person with at least two different sign groups from:
+// - role (developer, engineer, programmer, etc.)
+// - language (Python, JavaScript, Rust, etc.) 
+// - practice (open source, freelance, startup, etc.)
+// - code host (GitHub, GitLab, etc.)
+// - hardware (FPGA, embedded, etc.)
+// expressed in their own words, where a personal "not" statement outranks any positive signals.
+
+// Draft creation rules  
+// A draft is created only where:
+// - A direct message (DM) exists with the person
+// - The person is not opted-out
+// - The person is not removed  
+// - The person is not refusing
+// No second message is sent without a reply from the recipient.
+
+// Message content rules
+// Outreach messages must:
+// - Use only the static link https://t27.ai/learn/course/
+// - Reference only the course's own numbers: 27 (lessons), 1 (project), 3 (months)
+// - Name what the person wrote (personalized content)
+// - Include no hype or promotional language
+
+// Approval workflow rules  
+// Approval cards must:
+// - Contain 1 to 5 drafts only
+// - Require explicit Allow action from the owner to send any draft
+// - No automatic sending without owner approval
