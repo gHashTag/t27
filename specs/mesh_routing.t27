@@ -11,3 +11,12 @@ pub fn n1_finite(value: u32) -> bool {
         false
     }
 }
+
+// test: n1_finite function
+test test_n1_finite {
+    // Test with 0: 0 + 1 = 1 > 0, should return true
+    assert n1_finite(0) == true;
+    
+    // Test with 4294967295: 4294967295 + 1 = 0 (wrapping), should return false
+    assert n1_finite(4294967295) == false;
+}

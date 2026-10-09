@@ -12,3 +12,18 @@ pub fn select_path_index(paths: [u32; 4]) -> u32 {
     // in some code path to trigger the bug
     return index;
 }
+
+// test: select_path_index function
+test test_select_path_index {
+    // Test with paths[0] > 0: should return paths[0]
+    var paths1: [u32; 4] = [5, 0, 0, 0];
+    assert select_path_index(paths1) == 5;
+    
+    // Test with only paths[1] > 0: should return paths[1]
+    var paths2: [u32; 4] = [0, 10, 0, 0];
+    assert select_path_index(paths2) == 10;
+    
+    // Test with both paths[0] and paths[1] zero: should return 0
+    var paths3: [u32; 4] = [0, 0, 0, 0];
+    assert select_path_index(paths3) == 0;
+}

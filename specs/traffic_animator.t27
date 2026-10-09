@@ -6,3 +6,11 @@ pub fn create_packet_color(type: u32, red: u8, green: u8, blue: u8) -> u32 {
     let rgb: u32 = ((red as u32) << 16) | ((green as u32) << 8) | (blue as u32);
     color | rgb
 }
+
+// test: packet color creation
+test test_create_packet_color {
+    // Test with different byte positions
+    assert create_packet_color(0x12, 0x34, 0x56, 0x78) == 0x12345678;
+    assert create_packet_color(0xFF, 0x00, 0xAA, 0xBB) == 0xFF00AABB;
+    assert create_packet_color(0x01, 0x02, 0x03, 0x04) == 0x01020304;
+}
