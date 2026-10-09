@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "gen_hash_c": "sha256:9d6983e52fed92fcf8cc0e6b630247dae1c6560b00d7dfcd82fb430509d81c28",
+  "gen_hash_rust": "sha256:cd670d06b224136c3eabc700253f8dba18352b66dc903f6b26d21419a9b3ab4f",
+  "gen_hash_verilog": "sha256:cdd812b8d87b23e33db3f00cc098fff36363d313bb0469b055a2709982adad62",
+  "gen_hash_zig": "sha256:0838be75d9a3c9426c25fe29ef02f3112ff8bd0a297eab445d2f62a851e5bf3d",
+  "module": "automation::bot_office_crm",
+  "ring": 12,
+  "sealed_at": "2026-10-09T05:12:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:6e2619fe13811e1c6beb00000e483cfce9b66e124f68bd9668860b4abf252e0d",
+  "spec_path": "specs/automation/bot-office-crm.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

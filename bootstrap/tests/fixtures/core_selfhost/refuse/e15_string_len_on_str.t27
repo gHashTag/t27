@@ -1,0 +1,6 @@
+// #8013: gen-c lowers `.len` only on a `string`; on a `str` it writes
+// `s.len`, which is not C.
+module string_len_on_str;
+fn sl_len(s: str) -> usize {
+    return s.len;
+}

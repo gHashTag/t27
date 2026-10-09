@@ -1,0 +1,56 @@
+// P2 slice 4 (#5980): strings. gen-c writes `str` and `string` as
+// `const char*`, a literal with zig_escape, a string const as a `#define`,
+// and `.len` on a `string` parameter or local as `strlen`. A string value
+// stands only where a string is declared (#8013).
+module string_values;
+
+const SV_NAME: str = "trinity";
+const SV_TAB: string = "a\tb\n\\ \"q\"";
+pub var sv_greeting: str = "hi";
+const SV_ALIAS: str = SV_NAME;
+
+fn sv_first(s: str) -> u8 {
+    return s[0] as u8;
+}
+
+fn sv_len(s: string) -> usize {
+    return s.len;
+}
+
+fn sv_pick(x: i64) -> str {
+    return switch (x) { 1 => "one", 2 => SV_NAME, else => "many" };
+}
+
+fn sv_echo(s: str) -> str {
+    var t: str = s;
+    t = "x";
+    t = s;
+    return t;
+}
+
+fn sv_count(s: string, c: u8) -> usize {
+    var n: usize = 0;
+    for (0..s.len) |i| {
+        if (s[i] as u8 == c) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+test sv_strings {
+    var s: string = "abc";
+    assert(s.len == 3);
+    assert(sv_len("hello") == 5);
+    assert(sv_first(SV_NAME) == 't');
+    assert(sv_first(SV_ALIAS) == 't');
+    assert(sv_first(sv_pick(2)) == 't');
+    assert(sv_first(sv_echo("zz")) == 'z');
+    assert(sv_count("banana", 'a') == 3);
+    assert(sv_len(SV_TAB) == 9);
+}
+
+test sv_global_written {
+    sv_greeting = "yo";
+    assert(sv_first(sv_greeting) == 'y');
+}

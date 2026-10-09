@@ -1,0 +1,7 @@
+// #8009: gen-c reads `x1F` in `0x1F` as an undeclared name and drops the
+// check to a comment.
+module invariant_hex_literal;
+const IH_B: u8 = 31;
+invariant ih_hex {
+    IH_B == 0x1F;
+}
