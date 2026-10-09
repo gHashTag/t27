@@ -9,7 +9,7 @@ smul 20,2
 tmul 13
 relu 10
 dot27 8,5
-build_tree 19
+build_tree 20
 contrib 7
 activate 6
 clamp 6
