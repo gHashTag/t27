@@ -749,7 +749,7 @@ def lab_run(sha, log, challenge=SRV / "challenge", master=True):
                 "command": "python3 scripts/tri_loop/t27b.py fuzz --cases %d --seed %d --jobs %d"
                 % (FUZZ_CASES, seed, REF_JOBS)}
 
-    if have_t27b and have_t27c and FUZZ_CASES > 0:
+    if have_t27b and have_t27c and FUZZ_CASES > 0 and master:  # #8267: a lane request is judged by its receipt
         step("fuzz", fuzz)
 
     def receipt():  # #7576: sign the run with T27_RECEIPT_SEED (trust NAMED); the nonce is the challenge file's text, if any
