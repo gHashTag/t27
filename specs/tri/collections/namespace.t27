@@ -66,3 +66,68 @@ module TriNamespace;
         assert(namespace_index(Namespace.core) == 0);
         assert(namespace_index(Namespace.system) == 5);
     }
+
+    // ================================================
+    // Namespace ordering and shadowing tests
+    // ================================================
+
+    // Test 1: Module initializer that names a later const
+    // This should work in gen-c - consts must be emitted in dependency order
+    const A: i64 = B + 1;
+    const B: i64 = 2;
+
+    test "const_dependency_order" {
+        assert(A == 3);
+        assert(B == 2);
+    }
+
+    // Test 2: Literal const conflicts with local variable
+    // gen-c should not use #define when name is bound elsewhere
+    const K: i64 = 5;
+
+    fn test_local_const_conflict() -> i64 {
+        var K: i64 = 2;  // This should not conflict with const K
+        return K;
+    }
+
+    test "local_const_conflict" {
+        assert(test_local_const_conflict() == 2);
+    }
+
+    // Test 3: Local that shadows function
+    // gen-c should ensure calls don't resolve to shadowing locals
+    fn shadowed_function() -> i64 {
+        return 42;
+    }
+
+    fn test_function_shadowing() -> i64 {
+        var shadowed_function: i64 = 10;
+        return shadowed_function() + shadowed_function;  // First call should be function, second should be local
+    }
+
+    test "function_shadowing" {
+        assert(test_function_shadowing() == 52);  // 42 + 10
+    }
+
+    // Test 4: Test/bench with duplicate C names
+    // gen-c should assign unique C identifiers
+    const test_t: i64 = 100;
+
+    test "test_name_collision" {
+        assert(test_t == 100);
+    }
+
+    bench "bench_collision" {
+        // Benchmark does nothing, just tests naming
+    }
+
+    // Test 5: Array with size dependency
+    // Array size should be declared before the array
+    var xs: [N]u8 = [_]u8{0} ** N;
+    const N: i64 = 3;
+
+    test "array_size_dependency" {
+        assert(xs[0] == 0);
+        assert(xs[1] == 0);
+        assert(xs[2] == 0);
+    }
