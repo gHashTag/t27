@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:b962fa112d2f610e43723df5d9ccaf3e587c8937bc94eab7311834d1ddeb2e64",
+  "gen_hash_rust": "sha256:972035c1ba32f9e12bf5863103f53137254fd3c6fe5080af1cbda792a1a83b1d",
+  "gen_hash_verilog": "sha256:615d86b3e4d1c4237948b7fda81a5a6474ff61516f6b215c196e7864c9e61735",
+  "gen_hash_zig": "sha256:c366b3225ae8b980b5bbf34089e0dd2fd90c77e452a70bfb0f24e1159e080842",
+  "module": "fn_club_invoice_abandoned_watch",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:7583006d6a3e8c5718e23c114d9f787b1c953b4b023cfd4e40e8cccd85fd626f",
+  "spec_path": "specs/functions/club-invoice-abandoned-watch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

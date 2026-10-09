@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:1d18fffdb7c0e6325cf6b8c74f998e283b45b86fc7b398903948360a84cdbda0",
+  "gen_hash_rust": "sha256:fbdcdc28ef1cd5fe038cbacd4d44db19b295b1ed4c324dbe0f8636043614c387",
+  "gen_hash_verilog": "sha256:7c8cc359b517aafe4b4fd7ae8cfb5becfa2433c999cf9aac7eb27abc302aa959",
+  "gen_hash_zig": "sha256:55f2fe74dc8022f41a8e0ff8851907b7070d00bcc375a88fcb7472a5c2e1139e",
+  "module": "fn_broadcast_message_send",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:cd4a9a9f72e5fd4168c7117ad5fdf8a48f692490d3c50519a33ca2bd0bb69b1b",
+  "spec_path": "specs/functions/broadcast-message-send.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:0f70584144e83a7b98a8754507c2726f9a2001702cdf0e8866dd4467bddd59e8",
+  "gen_hash_rust": "sha256:621bddc6352ee4cf24aa472cca53eff3f90c92910c9527684c915cb0619a7f6d",
+  "gen_hash_verilog": "sha256:3546466cc4e11cdd9f57408b8a5f3d23230f3d90ac7845cdd556ff8ad034e8b1",
+  "gen_hash_zig": "sha256:49dfadd66b7e042925b19656d11b39aeff222f749e3745dc346774c1aa655382",
+  "module": "fn_analytics_skills_detect",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:b0a18a8d9378d89c3abc4600a2a8367d12b88ef4ca148f082f4bfb87f6a2f50f",
+  "spec_path": "specs/functions/analytics-skills-detect.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

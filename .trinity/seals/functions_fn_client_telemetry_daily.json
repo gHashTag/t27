@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "gen_hash_c": "sha256:484628afaeb4423c7c2906d7f2180fc3f89a0185b845e092bfccddd57b8d1052",
+  "gen_hash_rust": "sha256:d695c8cdd877725c3cf889204650d3b916d8a67261eb10aa1819e71c0634d972",
+  "gen_hash_verilog": "sha256:6d6c8779646458af4947b7386361f07569f8c94b475ab8c5a54080e94e797986",
+  "gen_hash_zig": "sha256:f65f22b1b6448a5fd092ad185b5f64d7042e87817abb8f5a9d41a7b3e229c819",
+  "module": "fn_client_telemetry_daily",
+  "ring": 12,
+  "sealed_at": "2026-10-08T19:25:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.1",
+  "spec_hash": "sha256:cd10dbda17a43b8b64f91ad451861eecb80cedefaf44f002dd4ecf0face5f7bb",
+  "spec_path": "specs/functions/client-telemetry-daily.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}
