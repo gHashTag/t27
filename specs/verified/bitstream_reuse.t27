@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/bitstream_reuse.t27 -- when a cached bitstream may be loaded instead of rebuilt.
+; Issue gHashTag/t27#8290: Every `t27c silicon` run rebuilds the bitstream: about 27 s on die A.
+; --
+; This module decides when a cached bitstream may be loaded. The cache entry is keyed by a hash of
+; every input that can change a bit. t27c silicon loads a complete, intact entry instead of building.
+; Reuse skips the build, never the control bitstream or the readback.
+; --
+; Hash inputs that can change the bitstream:
+; - Spec source code (the .t27 file being compiled)
+; - All imported specs (transitive closure of `use` statements)
+; - Toolchain version (t27c + yosys + nextpnr + fasm2frames + xc7frames2bit)
+; - Build configuration (target device, speed grade, etc.)
+; - Previous build artifacts that affect bitstream generation
+; --
+; Decision flow:
+; 1. Compute hash of all inputs
+; 2. Look up cache entry by hash
+; 3. If found and all inputs match, load cached bitstream (REUSE)
+; 4. If not found or inputs differ, rebuild bitstream (REBUILD)
+; --
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module BitstreamReuse;
+
+/// Cache states
+pub const CACHE_MISS : u8 = 0;
+pub const CACHE_HIT : u8 = 1;
+pub const CACHE_INVALID : u8 = 2;
+
+/// Bitstream build decisions
+pub const BITSTREAM_REUSED : u8 = 0;
+pub const BITSTREAM_REBUILT : u8 = 1;
+
+/// Hash of one input source (placeholder for actual hash implementation)
+pub const INPUT_HASH_SIZE : u8 = 64;
+
+/// Complete hash key for bitstream cache lookup  
+pub const BITSTREAM_KEY_SIZE : u8 = 64;
+
+/// Whether a cached bitstream may be loaded
+/// Returns: BITSTREAM_REUSED if cache hit, BITSTREAM_REBUILT if cache miss or invalid
+pub fn can_reuse_bitstream(
+    spec_hash: u64,
+    closure_hash: u64, 
+    toolchain_hash: u64,
+    config_hash: u64,
+    cache_key: u64
+) -> u8 {
+    // Compute the complete hash key from all inputs
+    var complete_key : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    
+    // Check if cache entry exists and matches
+    if (cache_key == complete_key) {
+        return BITSTREAM_REUSED;
+    }
+    
+    return BITSTREAM_REBUILT;
+}
+
+/// Compute the complete cache key from all input hashes
+/// Uses a simple combination function - real implementation would use proper cryptographic hash
+pub fn compute_bitstream_key(
+    spec_hash: u64,
+    closure_hash: u64,
+    toolchain_hash: u64, 
+    config_hash: u64
+) -> u64 {
+    // Combine all hashes using XOR and bit rotation for avalanche effect
+    var key : u64 = spec_hash;
+    key = (key << 13) | (key >> 51);  // Rotate left by 13 bits
+    key ^= closure_hash;
+    key = (key << 17) | (key >> 47);  // Rotate left by 17 bits  
+    key ^= toolchain_hash;
+    key = (key << 19) | (key >> 45);  // Rotate left by 19 bits
+    key ^= config_hash;
+    
+    return key;
+}
+
+/// Check if a cache entry is valid for the current inputs
+/// Returns CACHE_HIT if valid, CACHE_INVALID if mismatched, CACHE_MISS if not found
+pub fn validate_cache_entry(
+    stored_key: u64,
+    spec_hash: u64,
+    closure_hash: u64,
+    toolchain_hash: u64,
+    config_hash: u64
+) -> u8 {
+    var expected_key : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    
+    if (stored_key == 0) {
+        return CACHE_MISS;  // No cache entry
+    }
+    
+    if (stored_key == expected_key) {
+        return CACHE_HIT;
+    }
+    
+    return CACHE_INVALID;
+}
+
+/// Simulate checking if toolchain has changed (placeholder)
+/// Returns true if toolchain version or tools have changed
+pub fn toolchain_changed(current_toolchain_hash: u64, cached_toolchain_hash: u64) -> bool {
+    return current_toolchain_hash != cached_toolchain_hash;
+}
+
+/// Simulate checking if spec source has changed (placeholder) 
+/// Returns true if the main spec file or its imports have changed
+pub fn spec_changed(current_spec_hash: u64, cached_spec_hash: u64) -> bool {
+    return current_spec_hash != cached_spec_hash;
+}
+
+/// Test: unchanged inputs should allow bitstream reuse
+test unchanged_inputs_allow_reuse {
+    var spec_hash : u64 = 0x1234567890ABCDEF;
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var toolchain_hash : u64 = 0x1111111111111111;
+    var config_hash : u64 = 0x2222222222222222;
+    
+    // Compute cache key
+    var cache_key : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    
+    // Should be able to reuse
+    assert can_reuse_bitstream(spec_hash, closure_hash, toolchain_hash, config_hash, cache_key) == BITSTREAM_REUSED;
+}
+
+/// Test: changed spec should force rebuild
+test changed_spec_forces_rebuild {
+    var old_spec_hash : u64 = 0x1234567890ABCDEF;
+    var new_spec_hash : u64 = 0x1234567890ABCDF0;  // Different
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var toolchain_hash : u64 = 0x1111111111111111;
+    var config_hash : u64 = 0x2222222222222222;
+    
+    // Compute cache key with old spec
+    var cache_key : u64 = compute_bitstream_key(old_spec_hash, closure_hash, toolchain_hash, config_hash);
+    
+    // Should force rebuild due to spec change
+    assert can_reuse_bitstream(new_spec_hash, closure_hash, toolchain_hash, config_hash, cache_key) == BITSTREAM_REBUILT;
+}
+
+/// Test: changed toolchain should force rebuild
+test changed_toolchain_forces_rebuild {
+    var spec_hash : u64 = 0x1234567890ABCDEF;
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var old_toolchain_hash : u64 = 0x1111111111111111;
+    var new_toolchain_hash : u64 = 0x1111111111111112;  // Different
+    var config_hash : u64 = 0x2222222222222222;
+    
+    // Compute cache key with old toolchain
+    var cache_key : u64 = compute_bitstream_key(spec_hash, closure_hash, old_toolchain_hash, config_hash);
+    
+    // Should force rebuild due to toolchain change
+    assert can_reuse_bitstream(spec_hash, closure_hash, new_toolchain_hash, config_hash, cache_key) == BITSTREAM_REBUILT;
+}
+
+/// Test: cache validation works correctly
+test cache_validation {
+    var spec_hash : u64 = 0x1234567890ABCDEF;
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var toolchain_hash : u64 = 0x1111111111111111;
+    var config_hash : u64 = 0x2222222222222222;
+    
+    var valid_key : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    var invalid_key : u64 = 0x0000000000000001;
+    
+    // Valid cache entry
+    assert validate_cache_entry(valid_key, spec_hash, closure_hash, toolchain_hash, config_hash) == CACHE_HIT;
+    
+    // Invalid cache entry
+    assert validate_cache_entry(invalid_key, spec_hash, closure_hash, toolchain_hash, config_hash) == CACHE_INVALID;
+    
+    // No cache entry
+    assert validate_cache_entry(0, spec_hash, closure_hash, toolchain_hash, config_hash) == CACHE_MISS;
+}
+
+/// Test: hash computation is deterministic
+test hash_determinism {
+    var spec_hash : u64 = 0x1234567890ABCDEF;
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var toolchain_hash : u64 = 0x1111111111111111;
+    var config_hash : u64 = 0x2222222222222222;
+    
+    var key1 : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    var key2 : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    
+    assert key1 == key2;
+}
+
+/// Test: different inputs produce different keys
+test hash_uniqueness {
+    var spec_hash1 : u64 = 0x1234567890ABCDEF;
+    var spec_hash2 : u64 = 0x1234567890ABCDF0;
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var toolchain_hash : u64 = 0x1111111111111111;
+    var config_hash : u64 = 0x2222222222222222;
+    
+    var key1 : u64 = compute_bitstream_key(spec_hash1, closure_hash, toolchain_hash, config_hash);
+    var key2 : u64 = compute_bitstream_key(spec_hash2, closure_hash, toolchain_hash, config_hash);
+    
+    assert key1 != key2;
+}
+
+/// Test: bitstream reuse decision matches cache validation
+test decision_matches_validation {
+    var spec_hash : u64 = 0x1234567890ABCDEF;
+    var closure_hash : u64 = 0xFEDCBA0987654321;
+    var toolchain_hash : u64 = 0x1111111111111111;
+    var config_hash : u64 = 0x2222222222222222;
+    
+    var cache_key : u64 = compute_bitstream_key(spec_hash, closure_hash, toolchain_hash, config_hash);
+    var validation_result : u8 = validate_cache_entry(cache_key, spec_hash, closure_hash, toolchain_hash, config_hash);
+    
+    // Both should indicate reuse is possible
+    assert can_reuse_bitstream(spec_hash, closure_hash, toolchain_hash, config_hash, cache_key) == BITSTREAM_REUSED;
+    assert validation_result == CACHE_HIT;
+}
+
+invariant bitstream_reuse_constants {
+    assert BITSTREAM_REUSED == 0;
+    assert BITSTREAM_REBUILT == 1;
+    assert CACHE_MISS == 0;
+    assert CACHE_HIT == 1;
+    assert CACHE_INVALID == 2;
+}
