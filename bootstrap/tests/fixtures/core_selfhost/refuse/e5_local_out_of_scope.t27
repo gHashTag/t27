@@ -1,0 +1,8 @@
+// A local read after its block ends (#8087).
+module local_out_of_scope;
+fn los_g(c: bool) -> i64 {
+    if (c) {
+        var los_a: i64 = 2;
+    }
+    return los_a;
+}
