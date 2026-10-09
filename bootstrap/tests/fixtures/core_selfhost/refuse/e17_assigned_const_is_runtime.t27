@@ -1,0 +1,9 @@
+// A local const the function assigns is a var in gen-zig, known at run
+// time only, so its i8 does not index (#8075).
+module assigned_const_is_runtime;
+fn acr_f(n: i8) -> u8 {
+    const k: i8 = 0;
+    var xs: [4]u8 = [_]u8{0} ** 4;
+    k = n;
+    return xs[k];
+}

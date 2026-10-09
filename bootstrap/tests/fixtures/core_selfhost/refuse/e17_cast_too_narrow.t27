@@ -1,0 +1,5 @@
+// A cast of a constant its type does not hold: @intCast refuses it (#8098).
+module cast_too_narrow;
+fn ctn_g() -> u8 {
+    return 300 as u8;
+}

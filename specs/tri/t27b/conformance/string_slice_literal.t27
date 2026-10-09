@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/string_slice_literal.t27 -- array literals whose elements hold a `str`, for a slice:
+; the value of a slice field in a named struct literal, and the value of a fn that returns a slice (t27b coverage
+; #8091, epic #6063; the shape of specs/automation/wrapup-auto.t27's `files_modified: ["specs/automation/wrapup-auto.t27"]`).
+; Every test here passes `t27c test-report`; t27b must give the same verdict, or refuse the file.
+; What the reference does with them (zig 0.16.0): t27c's Zig backend prints `@constCast(&[_]E{ ... })`, E the
+; destination's element type. Elements known at compile time (string literals, str constants, struct literals of
+; them) make the array a comptime value, interned and alive as long as the process: reading it is defined, from
+; the fn that built it or from any caller. Writing it is undefined behaviour (#7765), so no test here writes.
+; t27b's plan for these is specs/tri/t27b/slice_lit_plan.t27 (STATIC_STRINGS): one module global per element type
+; and value, written at the start of every test, invariant and bench, as a module var holding a str is.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceStringSliceLiteral;
+
+pub const STR_NOTEBOOK : str = "t27-QUEEN-BRAIN";
+
+pub const StrWrapUp = struct {
+    summary: str,
+    files: [str],
+    issue: u32,
+};
+
+pub const StrTarget = struct {
+    name: str,
+    value: i64,
+};
+
+pub const StrShelf = struct {
+    targets: []StrTarget,
+    count: usize,
+};
+
+// A literal of string constants for a slice field, built in a fn and read by its caller.
+fn str_wrapup(issue: u32) -> StrWrapUp {
+    return StrWrapUp { summary: "Test session", files: ["specs/automation/wrapup-auto.t27", "AGENTS.md"], issue: issue };
+}
+
+// A str constant and an empty string as elements.
+fn str_named() -> StrWrapUp {
+    return StrWrapUp { summary: "", files: [STR_NOTEBOOK, ""], issue: 7 };
+}
+
+// The same value as `str_wrapup`'s at another site.
+fn str_wrapup_again() -> StrWrapUp {
+    return StrWrapUp { summary: "again", files: ["specs/automation/wrapup-auto.t27", "AGENTS.md"], issue: 1 };
+}
+
+// A literal of strings returned as a slice, untyped and typed.
+fn str_names() -> []str {
+    return ["W_mass", "Z_mass", "H"];
+}
+
+fn str_view() -> []str {
+    return []str{ "ab", "cde" };
+}
+
+// Structs holding a str, for a slice field.
+fn str_shelf() -> StrShelf {
+    return StrShelf { targets: []StrTarget{ StrTarget { name: "W_mass", value: 80 }, StrTarget { name: "Z_mass", value: 91 } }, count: 2 };
+}
+
+fn str_total_len(xs: []str) -> usize {
+    var s: usize = 0;
+    var i: usize = 0;
+    while (i < xs.len) {
+        s += xs[i].len;
+        i += 1;
+    }
+    return s;
+}
+
+test a_string_slice_field_holds_its_elements {
+    var input = StrWrapUp {
+        summary: "Test session",
+        files: ["specs/automation/wrapup-auto.t27"],
+        issue: 350,
+    };
+    assert(input.issue == 350);
+    assert(input.files.len == 1);
+    assert(input.files[0].len == 32);
+    assert(input.files[0][0] == 115);
+    assert(input.files[0][31] == 55);
+    assert(input.summary.len == 12);
+}
+
+test a_string_slice_field_outlives_the_fn_that_built_it {
+    const w = str_wrapup(42);
+    assert(w.files.len == 2);
+    assert(w.files[1].len == 9);
+    assert(w.files[1][0] == 65);
+    assert(str_total_len(w.files) == 41);
+    assert(w.issue == 42);
+}
+
+test a_str_constant_and_an_empty_string_as_elements {
+    const w = str_named();
+    assert(w.files.len == 2);
+    assert(w.files[0].len == 15);
+    assert(w.files[0][4] == 81);
+    assert(w.files[1].len == 0);
+    assert(w.summary.len == 0);
+}
+
+test strings_returned_as_a_slice {
+    assert(str_names().len == 3);
+    assert(str_names()[1][0] == 90);
+    assert(str_names()[2].len == 1);
+    assert(str_total_len(str_names()) == 13);
+    assert(str_view().len == 2);
+    assert(str_view()[1][2] == 101);
+}
+
+test structs_holding_a_str_for_a_slice_field {
+    const s = str_shelf();
+    assert(s.targets.len == 2);
+    assert(s.count == 2);
+    assert(s.targets[1].value == 91);
+    assert(s.targets[0].name[0] == 87);
+    assert(s.targets[1].name.len == 6);
+}
+
+test equal_literals_at_two_sites_read_the_same_elements {
+    assert(str_wrapup(1).files[0][5] == str_wrapup_again().files[0][5]);
+    assert(str_total_len(str_wrapup(2).files) == str_total_len(str_wrapup_again().files));
+    assert(str_wrapup_again().summary.len == 5);
+}
