@@ -1,20 +1,20 @@
 {
   "built_by": "t27c-bootstrap@0.5.1+c0b721c83",
-  "gen_hash_c": "sha256:c63ca9aa960eee150249216ae8d07ac0274c5023506db21423f103c836b2a296",
-  "gen_hash_rust": "sha256:f34cdda42efae10186231764fab599b8648289e97c3ab48ac9dd323ea340702b",
-  "gen_hash_verilog": "sha256:3270f898ad460ba41b075af529e9075cb7b0eda3ff8a35493563efd95eb0fb4c",
-  "gen_hash_zig": "sha256:698ff9004f64a7dd210939ada1cba91311f91cd7c232601c86e49ad95f9be169",
+  "gen_hash_c": "sha256:02d330604fc85ba213a8dcecfc5a671a57e983405fd3ce10ce84081a939261a2",
+  "gen_hash_rust": "sha256:d7007fcedd4b282b9cfe44b651295e64e8266e0a4bb0976dbab2413785c26d89",
+  "gen_hash_verilog": "sha256:eed90796d34697a3029f36b30cd00b58061dcd3927cd189c3fead7fc7c242cfa",
+  "gen_hash_zig": "sha256:b14121bdd9c1347b8a57356ab8efc10248709f0bf4279580a64dbc75841f566f",
   "module": "automation::course_outreach",
   "ring": 12,
-  "sealed_at": "2026-10-09T09:00:17Z",
+  "sealed_at": "2026-10-09T10:39:54Z",
   "sealed_by": "t27c-bootstrap@0.5.1",
-  "spec_hash": "sha256:cdb52f3ef278c0f5f9a1e0e6e92db63766e527ed02f54d44aff8f43b2f286729",
+  "spec_hash": "sha256:3b00f9721e342832586034e8f458cbb2451238736d8e1854d84bb67b3c126239",
   "spec_path": "specs/automation/course-outreach.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 13,
-    "total": 13
+    "passed": 20,
+    "total": 20
   }
 }
