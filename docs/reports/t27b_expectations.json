@@ -1238,6 +1238,7 @@
   {"path": "specs/verified/review_gate.t27", "t27b": "pass"},
   {"path": "specs/verified/run_record.t27", "t27b": "pass"},
   {"path": "specs/verified/seal_check.t27", "t27b": "pass"},
+  {"path": "specs/verified/seal_identity.t27", "t27b": "pass"},
   {"path": "specs/verified/signed_receipt.t27", "t27b": "pass"},
   {"path": "specs/verified/silicon_queue.t27", "t27b": "pass"},
   {"path": "specs/verified/silicon_runs.t27", "t27b": "pass"},
