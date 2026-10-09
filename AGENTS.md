@@ -256,10 +256,13 @@ measure it are written in **t27**, not in Rust or Python by hand.
   on master 408d740d9's 15227 plus 1202 and 8164; 15271 plus 1233, 16504 in
   all, and tests 8191, after #7742's glue for `==` and `!=` between pointers
   and optional pointers, whose plan is `specs/tri/t27b/ptr_eq_plan.t27`, +39,
-  0 and +8 on master 42707603a's 15232 plus 1233 and 8183; 15285 plus 1264,
-  16549 in all, and tests 8208, after #8050's glue for an untyped list local
+  0 and +8 on master 42707603a's 15232 plus 1233 and 8183; 15271 plus 1239,
+  16510 in all, and `cli/t27b/tests/*.rs` 8205, after #7805's glue for a call
+  of a fn returning a float in `x as T` (`specs/tri/t27b/float_as_plan.t27`),
+  +6 and +14 on master 2dfe9786f's 15271 plus 1233 and 8191; 15285 plus 1270,
+  16555 in all, and tests 8222, after #8050's glue for an untyped list local
   read as a tuple, whose plan is `specs/tri/t27b/tuple_local_plan.t27`, +14,
-  +31 and +17 on master 6b6386e15's 15271 plus 1233 and 8191),
+  +31 and +17 on master 09ffc2fc5's 15271 plus 1239 and 8205),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

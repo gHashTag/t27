@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+2781ae37b",
+  "gen_hash_c": "sha256:93d4f9085a79ba1632340c868b57144e6d1ffce733a0b7df8021b50c42b0aeba",
+  "gen_hash_rust": "sha256:248dab5beab47f7c3bf28d72a6ce20a955f614aacc55d0c38ba6656af47edcf2",
+  "gen_hash_verilog": "sha256:ee596f4ff72f08030b17cf27011c9265e311c79eba3e2e57733e43ae81e348e7",
+  "gen_hash_zig": "sha256:dd39acbe3a658c6eec2b4270da0b0453b680ddba1b4c764b050b83c409bb6361",
+  "module": "T27bConformanceFloatCallCast",
+  "ring": 12,
+  "sealed_at": "2026-10-08T12:22:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:fbe46c23bac65ac01d15c4f9e0f5683de907a765202c2c5656e1700d1cfa5a59",
+  "spec_path": "specs/tri/t27b/conformance/float_call_cast.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
+}
