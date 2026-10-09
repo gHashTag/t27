@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+c0b721c83",
+  "built_by": "t27c-bootstrap@0.5.2+9678dc97b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:b82fc17470190b57f2fd6678cf82f7d81f7b7d36cbca0024f39101f1d7120226",
   "gen_hash_rust": "sha256:0d10a8347f69097a07620999ab615cf01ddac07debeaf162705836cc5b825a14",
   "gen_hash_verilog": "sha256:f60cf109edbdf5297b05977872ed86c06c29aa875c82209cc15a3c13f36408d5",
   "gen_hash_zig": "sha256:3dd52f65512b6c9e3b2daee1458cac2cc50f4776aafc3e79faf3271b056e9dcf",
   "module": "automation::blog_share",
   "ring": 12,
-  "sealed_at": "2026-10-09T20:05:38Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:27:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:29837ca77b428034b0b7707fef0aab344f8ab678d70857c09767cf0fed306b77",
   "spec_path": "specs/automation/blog-share.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 20,
     "total": 20
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
