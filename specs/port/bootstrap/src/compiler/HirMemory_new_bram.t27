@@ -1,0 +1,374 @@
+module port::bootstrap::src::compiler::HirMemory_new_bram;
+
+// Port of bootstrap/src/compiler.rs lines 29560-29689 to a pure .t27 module:
+// the HwMemKind and HwMemPortKind enums, the HirMemPort and HirMemory
+// structs, and the ten HirMemory impl functions (new_bram, new_rom,
+// calc_addr_width, add_read_port, add_write_port, has_read, has_write,
+// total_bits, bram18_count, validate).  gHashTag/t27#8190
+//
+// FR-001 decisions carried verbatim:
+//   - new_bram / new_rom take the name, depth and data_width as parameters,
+//     pin kind to Bram / Rom and compute addr_width with calc_addr_width
+//   - calc_addr_width floors log2(depth) with a minimum of 1: it returns 1
+//     for depth <= 1, then halves depth while it is above 1 and counts the
+//     halvings (non-powers of two round DOWN, never up: depth 3 -> width 1).
+//     The original's trailing .max(1) is dead code behind the early return
+//     and is not reproduced
+//   - add_read_port / add_write_port push a HirMemPort whose kind is Read /
+//     Write and whose addr_width / data_width are copied from the memory
+//   - has_read / has_write report whether any port is Read or ReadWrite /
+//     Write or ReadWrite respectively
+//   - total_bits is depth * data_width
+//   - bram18_count divides total_bits by 18432 (one BRAM18 is 18Kb) and
+//     rounds up on a remainder (the original's !bits.is_multiple_of(18432))
+//   - validate rejects an empty name ("memory name must not be empty"), a
+//     zero depth, a zero data width, and a Rom that has write ports, in
+//     that order
+//
+// Deliberate .t27 adaptations (no generics, no growable lists, no owned heap
+// strings, no cross-module use):
+//   - String and &str fields/params ported as str slices
+//   - &self receivers ported as plain by-value params (small fixed struct);
+//     the mutators add_read_port / add_write_port return the updated
+//     HirMemory value instead of mutating in place (no &mut here)
+//   - the growable ports Vec becomes a fixed-capacity [8]HirMemPort plus an
+//     explicit port_count (#7437); adds beyond the capacity are dropped
+//     where the original would keep growing the Vec
+//   - validate returns the same four checks as static messages in a
+//     fixed-capacity HirMemErrors list; the original format!s the memory
+//     name into each message, a str list cannot interpolate, so the caller
+//     renders HirMemory.name alongside the item
+
+## Line 29560: pub enum HwMemKind { Bram, Dram, Rom }
+## Line 29567: pub enum HwMemPortKind { Read, Write, ReadWrite }
+## Line 29574: pub struct HirMemPort { pub name: String, pub kind: HwMemPortKind, pub addr_width: u32, pub data_width: u32 }
+## Line 29582: pub struct HirMemory { pub name: String, pub kind: HwMemKind, pub depth: u32, pub data_width: u32, pub addr_width: u32, pub ports: Vec<HirMemPort> }
+## Line 29592: pub fn new_bram(name: &str, depth: u32, data_width: u32) -> Self
+## Line 29604: pub fn new_rom(name: &str, depth: u32, data_width: u32) -> Self
+## Line 29616: fn calc_addr_width(depth: u32) -> u32
+## Line 29629: pub fn add_read_port(&mut self, name: &str)
+## Line 29638: pub fn add_write_port(&mut self, name: &str)
+## Line 29647: pub fn has_read(&self) -> bool
+## Line 29653: pub fn has_write(&self) -> bool
+## Line 29659: pub fn total_bits(&self) -> u32
+## Line 29663: pub fn bram18_count(&self) -> u32
+## Line 29673: pub fn validate(&self) -> Vec<String>
+
+pub enum HwMemKind {
+    Bram,
+    Dram,
+    Rom,
+}
+
+pub enum HwMemPortKind {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+pub struct HirMemPort {
+    pub name: str,
+    pub kind: HwMemPortKind,
+    pub addr_width: u32,
+    pub data_width: u32,
+}
+
+pub struct HirMemory {
+    pub name: str,
+    pub kind: HwMemKind,
+    pub depth: u32,
+    pub data_width: u32,
+    pub addr_width: u32,
+    pub ports: [8]HirMemPort,
+    pub port_count: usize,
+}
+
+pub struct HirMemErrors {
+    pub items: [4]str,
+    pub len: usize,
+}
+
+const PORT_NONE: HirMemPort = HirMemPort {
+    name: "",
+    kind: HwMemPortKind::Read,
+    addr_width: 0,
+    data_width: 0,
+};
+
+const PORTS_NONE: [8]HirMemPort = [_]HirMemPort{PORT_NONE} ** 8;
+
+const ERRS_NONE: [4]str = ["", "", "", ""];
+
+pub fn HirMemory_new_bram(name: str, depth: u32, data_width: u32) -> HirMemory {
+    const addr_width: u32 = HirMemory_calc_addr_width(depth);
+    return HirMemory {
+        name: name,
+        kind: HwMemKind::Bram,
+        depth: depth,
+        data_width: data_width,
+        addr_width: addr_width,
+        ports: PORTS_NONE,
+        port_count: 0,
+    };
+}
+
+pub fn HirMemory_new_rom(name: str, depth: u32, data_width: u32) -> HirMemory {
+    const addr_width: u32 = HirMemory_calc_addr_width(depth);
+    return HirMemory {
+        name: name,
+        kind: HwMemKind::Rom,
+        depth: depth,
+        data_width: data_width,
+        addr_width: addr_width,
+        ports: PORTS_NONE,
+        port_count: 0,
+    };
+}
+
+pub fn HirMemory_calc_addr_width(depth: u32) -> u32 {
+    if (depth <= 1) {
+        return 1;
+    }
+    var w: u32 = 0;
+    var d: u32 = depth;
+    while (d > 1) {
+        w += 1;
+        d = d / 2;
+    }
+    return w;
+}
+
+pub fn HirMemory_add_read_port(self: HirMemory, name: str) -> HirMemory {
+    var out: HirMemory = self;
+    if (out.port_count < 8) {
+        const p: HirMemPort = HirMemPort {
+            name: name,
+            kind: HwMemPortKind::Read,
+            addr_width: out.addr_width,
+            data_width: out.data_width,
+        };
+        out.ports[out.port_count] = p;
+        out.port_count += 1;
+    }
+    return out;
+}
+
+pub fn HirMemory_add_write_port(self: HirMemory, name: str) -> HirMemory {
+    var out: HirMemory = self;
+    if (out.port_count < 8) {
+        const p: HirMemPort = HirMemPort {
+            name: name,
+            kind: HwMemPortKind::Write,
+            addr_width: out.addr_width,
+            data_width: out.data_width,
+        };
+        out.ports[out.port_count] = p;
+        out.port_count += 1;
+    }
+    return out;
+}
+
+pub fn HirMemory_has_read(self: HirMemory) -> bool {
+    var i: usize = 0;
+    while (i < self.port_count) {
+        const p: HirMemPort = self.ports[i];
+        if (p.kind == HwMemPortKind::Read || p.kind == HwMemPortKind::ReadWrite) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+pub fn HirMemory_has_write(self: HirMemory) -> bool {
+    var i: usize = 0;
+    while (i < self.port_count) {
+        const p: HirMemPort = self.ports[i];
+        if (p.kind == HwMemPortKind::Write || p.kind == HwMemPortKind::ReadWrite) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+pub fn HirMemory_total_bits(self: HirMemory) -> u32 {
+    return self.depth * self.data_width;
+}
+
+pub fn HirMemory_bram18_count(self: HirMemory) -> u32 {
+    const bits: u32 = HirMemory_total_bits(self);
+    const count: u32 = bits / 18432;
+    if (bits % 18432 != 0) {
+        return count + 1;
+    }
+    return count;
+}
+
+pub fn HirMemory_validate(self: HirMemory) -> HirMemErrors {
+    var items: [4]str = ERRS_NONE;
+    var count: usize = 0;
+    if (self.name == "") {
+        items[count] = "memory name must not be empty";
+        count += 1;
+    }
+    if (self.depth == 0) {
+        items[count] = "memory has zero depth";
+        count += 1;
+    }
+    if (self.data_width == 0) {
+        items[count] = "memory has zero data width";
+        count += 1;
+    }
+    if (self.kind == HwMemKind::Rom) {
+        if (HirMemory_has_write(self)) {
+            items[count] = "ROM cannot have write ports";
+            count += 1;
+        }
+    }
+    return HirMemErrors {
+        items: items,
+        len: count,
+    };
+}
+
+test HirMemory_new_bram_fields {
+    const mem = HirMemory_new_bram("vram", 1024, 32);
+    assert(mem.name == "vram");
+    assert(mem.kind == HwMemKind::Bram);
+    assert(mem.depth == 1024);
+    assert(mem.data_width == 32);
+    assert(mem.addr_width == 10);
+    assert(mem.port_count == 0);
+}
+
+test HirMemory_new_rom_fields {
+    const mem = HirMemory_new_rom("boot", 2048, 8);
+    assert(mem.name == "boot");
+    assert(mem.kind == HwMemKind::Rom);
+    assert(mem.addr_width == 11);
+    assert(mem.port_count == 0);
+}
+
+test HirMemory_calc_addr_width_powers_of_two {
+    assert(HirMemory_calc_addr_width(1) == 1);
+    assert(HirMemory_calc_addr_width(2) == 1);
+    assert(HirMemory_calc_addr_width(4) == 2);
+    assert(HirMemory_calc_addr_width(8) == 3);
+    assert(HirMemory_calc_addr_width(1024) == 10);
+}
+
+test HirMemory_calc_addr_width_non_powers_of_two {
+    // The original halves depth while it is above 1, so non-powers-of-two
+    // round DOWN (floor log2), never up: depth 3 still gets a 1-bit address.
+    assert(HirMemory_calc_addr_width(0) == 1);
+    assert(HirMemory_calc_addr_width(3) == 1);
+    assert(HirMemory_calc_addr_width(5) == 2);
+    assert(HirMemory_calc_addr_width(7) == 2);
+}
+
+test HirMemory_add_read_port {
+    const mem = HirMemory_add_read_port(HirMemory_new_bram("vram", 1024, 32), "rp");
+    assert(mem.port_count == 1);
+    assert(mem.ports[0].name == "rp");
+    assert(mem.ports[0].kind == HwMemPortKind::Read);
+    assert(mem.ports[0].addr_width == 10);
+    assert(mem.ports[0].data_width == 32);
+}
+
+test HirMemory_add_write_port {
+    const mem = HirMemory_add_write_port(HirMemory_new_bram("vram", 1024, 32), "wp");
+    assert(mem.port_count == 1);
+    assert(mem.ports[0].name == "wp");
+    assert(mem.ports[0].kind == HwMemPortKind::Write);
+    assert(mem.ports[0].addr_width == 10);
+}
+
+test HirMemory_has_read {
+    const bare = HirMemory_new_bram("m", 4, 8);
+    assert(!HirMemory_has_read(bare));
+    const read = HirMemory_add_read_port(bare, "rp");
+    assert(HirMemory_has_read(read));
+    const write_only = HirMemory_add_write_port(bare, "wp");
+    assert(!HirMemory_has_read(write_only));
+    const both = HirMemory_add_read_port(write_only, "rp");
+    assert(HirMemory_has_read(both));
+}
+
+test HirMemory_has_write {
+    const bare = HirMemory_new_rom("m", 4, 8);
+    assert(!HirMemory_has_write(bare));
+    const write = HirMemory_add_write_port(bare, "wp");
+    assert(HirMemory_has_write(write));
+    const read_only = HirMemory_add_read_port(bare, "rp");
+    assert(!HirMemory_has_write(read_only));
+}
+
+test HirMemory_total_bits {
+    assert(HirMemory_total_bits(HirMemory_new_bram("m", 1024, 32)) == 32768);
+    assert(HirMemory_total_bits(HirMemory_new_bram("m", 4, 8)) == 32);
+    assert(HirMemory_total_bits(HirMemory_new_rom("m", 2048, 8)) == 16384);
+}
+
+test HirMemory_bram18_count {
+    // 32768 bits is one BRAM18 (18432 bits) short of two; the original
+    // rounds up on the remainder.
+    assert(HirMemory_bram18_count(HirMemory_new_bram("m", 1024, 32)) == 2);
+    assert(HirMemory_bram18_count(HirMemory_new_bram("m", 18432, 1)) == 1);
+    assert(HirMemory_bram18_count(HirMemory_new_bram("m", 36864, 1)) == 2);
+    // A tiny memory still costs one BRAM18.
+    assert(HirMemory_bram18_count(HirMemory_new_bram("m", 4, 8)) == 1);
+}
+
+test HirMemory_validate_clean {
+    const errors = HirMemory_validate(HirMemory_new_bram("vram", 1024, 32));
+    assert(errors.len == 0);
+    const rom_errors = HirMemory_validate(HirMemory_new_rom("boot", 2048, 8));
+    assert(rom_errors.len == 0);
+}
+
+test HirMemory_validate_empty_name {
+    const errors = HirMemory_validate(HirMemory_new_bram("", 4, 8));
+    assert(errors.len == 1);
+    assert(errors.items[0] == "memory name must not be empty");
+}
+
+test HirMemory_validate_zero_depth {
+    const errors = HirMemory_validate(HirMemory_new_bram("m", 0, 8));
+    assert(errors.len == 1);
+    assert(errors.items[0] == "memory has zero depth");
+}
+
+test HirMemory_validate_zero_data_width {
+    const errors = HirMemory_validate(HirMemory_new_bram("m", 4, 0));
+    assert(errors.len == 1);
+    assert(errors.items[0] == "memory has zero data width");
+}
+
+test HirMemory_validate_rom_rejects_write_ports {
+    const rom = HirMemory_add_write_port(HirMemory_new_rom("boot", 2048, 8), "wp");
+    const errors = HirMemory_validate(rom);
+    assert(errors.len == 1);
+    assert(errors.items[0] == "ROM cannot have write ports");
+    // The same write port is fine on a Bram.
+    const bram = HirMemory_add_write_port(HirMemory_new_bram("vram", 1024, 32), "wp");
+    const bram_errors = HirMemory_validate(bram);
+    assert(bram_errors.len == 0);
+    // A read-only ROM passes too.
+    const rom_read = HirMemory_add_read_port(HirMemory_new_rom("boot", 2048, 8), "rp");
+    const rom_read_errors = HirMemory_validate(rom_read);
+    assert(rom_read_errors.len == 0);
+}
+
+test HirMemory_validate_collects_all_in_order {
+    const errors = HirMemory_validate(HirMemory_new_bram("", 0, 0));
+    assert(errors.len == 3);
+    assert(errors.items[0] == "memory name must not be empty");
+    assert(errors.items[1] == "memory has zero depth");
+    assert(errors.items[2] == "memory has zero data width");
+    // Four is the most the original can emit; the list holds exactly four.
+    const rom = HirMemory_add_write_port(HirMemory_new_rom("", 0, 0), "w");
+    const all = HirMemory_validate(rom);
+    assert(all.len == 4);
+    assert(all.items[3] == "ROM cannot have write ports");
+}
