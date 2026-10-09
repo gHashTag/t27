@@ -29,7 +29,7 @@ Read the plan limits with `get_usage`.
 
 | check | healthy | repair |
 |---|---|---|
-| `git -C /Users/playom/t27 config --get core.hooksPath` | `.githooks` (relative) | Set it back to `.githooks`. The absolute path runs the main checkout's uncommitted hooks, which need an unbuilt t27c and refuse every worktree commit. It flipped twice on 2026-10-09; the owner wants it relative. Agents never touch it; only the main session does. |
+| `git -C "$(git rev-parse --show-toplevel)" config --get core.hooksPath` | `.githooks` (relative) | Set it back to `.githooks`. The absolute path runs the main checkout's uncommitted hooks, which need an unbuilt t27c and refuse every worktree commit. It flipped twice on 2026-10-09; the owner wants it relative. Agents never touch it; only the main session does. |
 | failing checks on master's head commit | none, except Scorecard | Each red check makes every PR UNSTABLE, and GitHub then refuses `--auto`. Fix the cause in a small PR: #8277 (a type name defined twice), #8289 (ledger rows). |
 | t27b-lab `status.json` | `phase` moves, `updated` < 30 min old | If it is stale, read `ssh t27b-lab` logs before redeploying. A redeploy kills the run in flight, so time it right after a run publishes. |
 | t27b-lab `image.lab_py_sha` | equals `git hash-object` of master's `contrib/railway/t27b-lab/lab.py` | `railway up` from a clean `git archive` of `contrib/railway/t27b-lab` |
