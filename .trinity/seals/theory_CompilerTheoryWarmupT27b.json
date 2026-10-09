@@ -1,14 +1,22 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+be97577",
-  "gen_hash_c": "sha256:b43e98f3e8624bc4a089c741ca49ece86f6e0c557bf6a5ceacf2e6d771a66d82",
+  "built_by": "t27c-bootstrap@0.5.2+927d1bdd3",
+  "closure": [
+    {
+      "spec": "specs/compiler/theory/warmup.t27",
+      "spec_hash": "sha256:9fbf657fb219c3821f36411eec85e143cc973a97d7782a202048c8a7fbdcc485"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5be651d944667f7f6e11d3bd61496365ff52e375beebed4f5109165ec2c71f3a",
   "gen_hash_rust": "sha256:ed34480a971854228fa03040e836caf1740dc97ab74c2529db3b1d363b2c5930",
   "gen_hash_verilog": "sha256:5beeb23c22b1345436f7c46ad6577fbfe13e5ce1115a79895d4fe1fa7050ef31",
-  "gen_hash_zig": "sha256:1ce7a445d7b0c264ec7dc9bc4414872439475ccae7ca2f04fab43d7cc8d8b8fc",
+  "gen_hash_zig": "sha256:1861a425f394efd92f320f9cb8aee22c53d3a0a52422446cd58aead8c0c1dce5",
   "module": "CompilerTheoryWarmupT27b",
   "ring": 12,
-  "sealed_at": "2026-10-09T11:58:46Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:35:26Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:4900ba47530be07adf3767c661635ee2e7dfc8e8b710da2484ed6dcc4bf7c1eb",
+  "spec_hash": "sha256:cd72839155edeb64bec0680d5e016b63db5a596a3bd4a34177b6e4518876ca75",
   "spec_path": "specs/compiler/theory/warmup_t27b.t27",
   "tests": {
     "failed": 0,
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -16,7 +16,7 @@ pub const LEGACY_ID : str = "generate-content-scripts";
 pub const NAME : str = "Generate content scripts";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
-pub const SERVICE : str = "src/inngest_app/functions/content/generateContentScripts.ts:44";
+pub const SERVICE : str = "src/inngest_app/functions/content/generateContentScripts.ts:49";
 pub const DOMAIN : str = "content";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "event";
@@ -39,7 +39,7 @@ pub const GUARD : str = "zod-schema";
 pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
-pub const NOTE : str = "RETRIES is not declared in the code, so the Inngest JS SDK v3 default of 4 applies. Guard is zod-schema. The legacy event name keeps the instagram/ prefix the function was first registered under.";
+pub const NOTE : str = "RETRIES is not declared in the code, so the Inngest JS SDK v3 default of 4 applies. Guard is zod-schema. The legacy event name keeps the instagram/ prefix the function was first registered under. 2026-10-09 (plan: secrets in events): openai_api_key is no longer a field of the event schema -- it was optional and preferred over the env, so a sender could put the key into a stored event; zod now strips it and transcribe-audio and generate-scripts read OPENAI_API_KEY from env. Test: 999-multibots-telegraf src/__tests__/inngest/secretsOutOfPayloads.test.ts.";
 
 ; The card held to the schema of specs/functions/README.md: the vocabularies of its fields,
 ; what TRIGGER decides about EVENT, LEGACY_EVENTS and CRON, SERVICE as `file:line`, and a

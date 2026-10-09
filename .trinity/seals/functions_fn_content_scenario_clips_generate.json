@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:22fbe3105efb9303f096ae6be1d17067ffc519035d2df2580cc2db5277d6ea96",
   "gen_hash_rust": "sha256:d0f47dbebf122db7d0c16e3e27c004c0e18c108016a6f90379a46a4776a52e2b",
   "gen_hash_verilog": "sha256:94eb6b828ef11464e5a0bf0398c3ce36da4e93f0cec37076e5f5a752dc3f78a4",
   "gen_hash_zig": "sha256:4981d71fdb2b3127bf62479cb077f9d671427ca4f21c13d884928df93087c637",
   "module": "fn_content_scenario_clips_generate",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:25:50Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T16:57:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ae194655f715ed6c0d3e002635d308008c2e92e9c78140f64705d69e95824e4c",
   "spec_path": "specs/functions/content-scenario-clips-generate.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 5,
     "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

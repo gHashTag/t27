@@ -1620,7 +1620,7 @@ test t751_fib_warmup {
     assert count_class(&FIB_US, RUNS, ITERS, SLOWDOWN) == 0;
     assert count_class(&FIB_US, RUNS, ITERS, NO_STEADY) == 0;
     assert benchmark_class(&FIB_US, RUNS, ITERS) == GOOD_INCONSISTENT;
-    var v08: Verdict = judge(&FIB_US, 7 * ITERS, ITERS);
+    var v08: WarmupVerdict = judge(&FIB_US, 7 * ITERS, ITERS);
     assert v08.cls == WARMUP;
     assert v08.segments == 2;
     assert v08.steady_iter == 36;
@@ -1642,7 +1642,7 @@ test t751_matmul_warmup {
     assert count_class(&MATMUL_US, RUNS, ITERS, SLOWDOWN) == 0;
     assert count_class(&MATMUL_US, RUNS, ITERS, NO_STEADY) == 0;
     assert benchmark_class(&MATMUL_US, RUNS, ITERS) == GOOD_INCONSISTENT;
-    var v04: Verdict = judge(&MATMUL_US, 3 * ITERS, ITERS);
+    var v04: WarmupVerdict = judge(&MATMUL_US, 3 * ITERS, ITERS);
     assert v04.cls == WARMUP;
     assert v04.segments == 2;
     assert v04.steady_iter == 8;
@@ -1673,7 +1673,7 @@ test t751_f64loop_warmup {
     assert count_class(&F64LOOP_US, RUNS, ITERS, SLOWDOWN) == 0;
     assert count_class(&F64LOOP_US, RUNS, ITERS, NO_STEADY) == 1;
     assert benchmark_class(&F64LOOP_US, RUNS, ITERS) == BAD_INCONSISTENT;
-    var v10: Verdict = judge(&F64LOOP_US, 9 * ITERS, ITERS);
+    var v10: WarmupVerdict = judge(&F64LOOP_US, 9 * ITERS, ITERS);
     assert v10.cls == NO_STEADY;
     assert v10.segments == 2;
     assert v10.steady_iter == 426;
