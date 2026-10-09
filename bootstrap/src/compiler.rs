@@ -45,6 +45,13 @@ pub enum NodeKind {
     ExprTuple,
     ExprCast,
     ExprRange, // start..end
+    // Host I/O operations
+    ExprFileRead,     // read a file's bytes
+    ExprFileWrite,    // write bytes to a file
+    ExprDirCreate,    // create a directory
+    ExprFileHash,     // compute SHA-256 hash of file
+    ExprProcessRun,   // run a command and capture stdout
+    ExprEnvRead,      // read an environment variable
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -5577,19 +5584,63 @@ the parser used to read it as `{}` followed by a negation",
         // could only say which FILE it was in.
         let line = self.current.line as u32;
         self.advance(); // consume (
-        let mut call = Node::new(NodeKind::ExprCall);
-        call.name = name;
-        call.line = line;
-
+        
+        // Check for host I/O functions and create appropriate node types
+        let io_node = match name.as_str() {
+            "file_read" => {
+                let mut node = Node::new(NodeKind::ExprFileRead);
+                node.name = name;
+                node.line = line;
+                node
+            },
+            "file_write" => {
+                let mut node = Node::new(NodeKind::ExprFileWrite);
+                node.name = name;
+                node.line = line;
+                node
+            },
+            "dir_create" => {
+                let mut node = Node::new(NodeKind::ExprDirCreate);
+                node.name = name;
+                node.line = line;
+                node
+            },
+            "file_hash" => {
+                let mut node = Node::new(NodeKind::ExprFileHash);
+                node.name = name;
+                node.line = line;
+                node
+            },
+            "process_run" => {
+                let mut node = Node::new(NodeKind::ExprProcessRun);
+                node.name = name;
+                node.line = line;
+                node
+            },
+            "env_read" => {
+                let mut node = Node::new(NodeKind::ExprEnvRead);
+                node.name = name;
+                node.line = line;
+                node
+            },
+            _ => {
+                let mut call = Node::new(NodeKind::ExprCall);
+                call.name = name;
+                call.line = line;
+                call
+            }
+        };
+        
+        // Parse arguments for all function types
         while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
             let arg = self.parse_expr()?;
-            call.children.push(arg);
+            io_node.children.push(arg);
             if self.current.kind == TokenKind::Comma {
                 self.advance();
             }
         }
         self.expect(TokenKind::RParen)?;
-        Ok(call)
+        Ok(io_node)
     }
 
     /// Parse the anonymous braced literal `.{ ... }` -- Zig's anonymous struct
@@ -29375,6 +29426,55 @@ impl RustCodegen {
                     } else {
                         format!("({} as {})", operand, target)
                     }
+                }
+            }
+            NodeKind::ExprFileRead => {
+                if node.children.len() >= 1 {
+                    let path = self.expr_to_rust(&node.children[0]);
+                    format!("std::fs::read({})", path)
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprFileWrite => {
+                if node.children.len() >= 2 {
+                    let path = self.expr_to_rust(&node.children[0]);
+                    let content = self.expr_to_rust(&node.children[1]);
+                    format!("std::fs::write({}, {})", path, content)
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprDirCreate => {
+                if node.children.len() >= 1 {
+                    let path = self.expr_to_rust(&node.children[0]);
+                    format!("std::fs::create_dir_all({})", path)
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprFileHash => {
+                if node.children.len() >= 1 {
+                    let path = self.expr_to_rust(&node.children[0]);
+                    format!("t27_host_io::hash_file({})", path)
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprProcessRun => {
+                if node.children.len() >= 1 {
+                    let cmd = self.expr_to_rust(&node.children[0]);
+                    format!("t27_host_io::process_command({})", cmd)
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprEnvRead => {
+                if node.children.len() >= 1 {
+                    let var_name = self.expr_to_rust(&node.children[0]);
+                    format!("std::env::var({})", var_name)
+                } else {
+                    "()".to_string()
                 }
             }
             _ => "()".to_string(),
