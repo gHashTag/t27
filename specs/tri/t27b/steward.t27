@@ -215,6 +215,22 @@ pub fn cap_rise_is_new(not_pass: u32, old_cap: u32, new_not_pass: u32) -> bool {
     return not_pass - new_not_pass <= old_cap;
 }
 
+// Ledger header fields (#7859): SCHEMA_VERSION = 0, GENERATED_BY = 1,
+// SOURCE = 2, REASONS = 3, MAX_NOT_PASS = 4, COUNTS = 5.
+//
+// A header field is stored only when it is not a total over the entries.
+// `counts` is one: every PR that adds a spec moved the same "pass" line, and
+// on 2026-10-08 #7579, #7586 and #7626 went dirty three times in two hours on
+// that line alone while their entries merged cleanly. Counts are derived from
+// the entries wherever they are read. The cap stays stored: it is the
+// ratchet's promise (non-pass may only fall), not a total, and a PR that adds
+// a pass entry does not move it. An unknown field is not stored.
+pub fn header_stored(field: u8) -> bool {
+    if (field == 5) { return false; }
+    if (field > 5) { return false; }
+    return true;
+}
+
 // An alarm someone has to read. A crash or a mismatch always is; a fail or a
 // timeout only where the reference passes -- one the reference shares is a
 // reference-path defect, outside the denominator (#6237).
@@ -517,9 +533,17 @@ test next_first_breaks_ties { assert(lane_score(3, 10) > lane_score(3, 9)); }
 test next_score_value { assert_eq(lane_score(12, 40), 12040); }
 test next_with_tests { assert_eq(with_tests(720, 271), 449); }
 test next_with_tests_never_wraps { assert_eq(with_tests(3, 5), 0); }
+test ledger_stores_its_cap { assert(header_stored(4)); }
+test ledger_stores_where_it_came_from { assert(header_stored(2)); }
+test ledger_derives_its_counts { assert(header_stored(5) == false); }
+test ledger_stores_no_unknown_field { assert(header_stored(6) == false); }
 
 invariant reference_disagree_always_stops {
     assert(lanes_stop(0, 1));
+}
+
+invariant no_total_in_the_ledger_header {
+    assert(header_stored(5) == false);
 }
 
 invariant gained_never_red {

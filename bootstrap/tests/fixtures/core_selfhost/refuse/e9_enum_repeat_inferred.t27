@@ -1,0 +1,7 @@
+// #8003: gen-c writes `[_]ErMode{.on} ** 2` as `{0}`, the member `off`.
+module enum_repeat_inferred;
+enum ErMode {
+    off,
+    on,
+}
+var er_modes: [2]ErMode = [_]ErMode{.on} ** 2;
