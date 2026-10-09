@@ -538,6 +538,47 @@ test ledger_stores_where_it_came_from { assert(header_stored(2)); }
 test ledger_derives_its_counts { assert(header_stored(5) == false); }
 test ledger_stores_no_unknown_field { assert(header_stored(6) == false); }
 
+// bless_row decides whether to keep or rewrite a ledger row during blessing.
+// FR-001: the keep/rewrite decision is a function in steward.t27 with tests;
+// t27b.py only applies it.
+// FR-002: the key in a row is the key from specs/tri/t27b/verdict_key.t27
+// under which that row's reference verdict was judged.
+// FR-003: a row whose t27b verdict or blocker changed is always rewritten,
+// whatever the key says. Otherwise a t27b fix could never be blessed, and
+// the ratchet would report UNEXPECTED PASS forever.
+// Returns: 0 = keep row as-is, 1 = rewrite row from run
+pub fn bless_row(row_key: u64, run_key: u64, verdict_changed: bool, blocker_changed: bool) -> u8 {
+    // If the verdict or blocker changed, always rewrite (FR-003)
+    if (verdict_changed || blocker_changed) {
+        return 1;
+    }
+    
+    // If there's no key in the row, rewrite it (the proposal: "a run that carries no key
+    // for a spec, When bless runs, Then that row is written as today, without a key,
+    // and is never kept on a stale key")
+    if (row_key == 0) {
+        return 1;
+    }
+    
+    // If the keys match, keep the row (FR-02)
+    if (row_key == run_key) {
+        return 0;
+    }
+    
+    // If the keys don't match, rewrite the row
+    return 1;
+}
+
+// Tests for bless_row function covering the three user scenarios
+test bless_row_same_key_keeps_row { assert(bless_row(123, 123, false, false) == 0); }
+test bless_row_key_changed_rewrites_row { assert(bless_row(123, 456, false, false) == 1); }
+test bless_row_no_key_in_row_rewrites { assert(bless_row(0, 123, false, false) == 1); }
+test bless_row_verdict_changed_rewrites { assert(bless_row(123, 123, true, false) == 1); }
+test bless_row_blocker_changed_rewrites { assert(bless_row(123, 123, false, true) == 1); }
+test bless_row_both_changed_rewrites { assert(bless_row(123, 456, true, true) == 1); }
+test bless_row_no_key_verdict_changed_rewrites { assert(bless_row(0, 123, true, false) == 1); }
+test bless_row_no_key_blocker_changed_rewrites { assert(bless_row(0, 123, false, true) == 1); }
+
 invariant reference_disagree_always_stops {
     assert(lanes_stop(0, 1));
 }

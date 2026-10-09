@@ -96,10 +96,12 @@ def _build():
     so.over_cap.restype = ctypes.c_bool
     so.ratchet_is_red.argtypes = [ctypes.c_uint8]
     so.ratchet_is_red.restype = ctypes.c_bool
-    so.bless_reason.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
-    so.bless_reason.restype = ctypes.c_uint8
-    so.cap_rises.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
-    so.cap_rises.restype = ctypes.c_bool
+so.bless_reason.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
+so.bless_reason.restype = ctypes.c_uint8
+so.bless_row.argtypes = [ctypes.c_uint64, ctypes.c_uint64, ctypes.c_bool, ctypes.c_bool]
+so.bless_row.restype = ctypes.c_uint8
+so.cap_rises.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
+so.cap_rises.restype = ctypes.c_bool
     for name in ("lab_stale", "ledger_quiet"):
         getattr(so, name).argtypes = [ctypes.c_uint32, ctypes.c_uint32]
         getattr(so, name).restype = ctypes.c_bool
@@ -197,6 +199,11 @@ def bless_reason(got, kept):
     """The reason bless writes for a non-pass entry, or None: bless refuses it.
     `kept` is the reason already in the ledger; one that is not a known reason is no reason."""
     return REASONS[lib().bless_reason(verdict(got), REASONS.index(kept) if kept in REASONS else 0)]
+
+
+def bless_row(row_key, run_key, verdict_changed, blocker_changed):
+    """Whether to keep (0) or rewrite (1) a ledger row during blessing."""
+    return lib().bless_row(row_key, run_key, bool(verdict_changed), bool(blocker_changed))
 
 
 def cap_rises(not_pass, old_cap):
