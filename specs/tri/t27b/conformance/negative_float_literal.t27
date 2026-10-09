@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/negative_float_literal.t27 -- a float literal the t27c parser folds a minus into,
+; as the reference runs it (gHashTag/t27#7809, t27b coverage epic #6063: ExprLiteral(float literal) in
+; specs/port/scripts/lee_monte_carlo_baseline.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints the folded text as written, `-3.141592653589793`, and Zig negates the comptime_float after
+; the minus: in a module const, a local, an argument, with an exponent, in f32, and for zero (a negative
+; zero). specs/tri/t27b/literal_plan.t27 is the rule.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceNegativeFloatLiteral;
+
+const NFL_PI: f64 = 3.141592653589793;
+const NFL_NEG_PI: f64 = -3.141592653589793;
+const NFL_NEG_ZERO: f64 = -0.0;
+const NFL_NEG_TENTH: f32 = -0.1;
+const NFL_NEG_BIG: f64 = -1.5e3;
+
+fn nfl_id(x: f64) -> f64 {
+    return x;
+}
+
+fn nfl_id32(x: f32) -> f32 {
+    return x;
+}
+
+fn nfl_scale(x: f64, k: f64) -> f64 {
+    return x * k;
+}
+
+/// lee_monte_carlo_baseline.t27's range reduction: bring r into [-pi, pi).
+fn nfl_reduce(x: f64) -> f64 {
+    var r: f64 = x;
+    while (r >= NFL_PI) {
+        r = r - 2.0 * NFL_PI;
+    }
+    while (r < NFL_NEG_PI) {
+        r = r + 2.0 * NFL_PI;
+    }
+    return r;
+}
+
+fn nfl_local() -> f64 {
+    const h: f64 = -0.5;
+    return h;
+}
+
+test a_negated_module_const_is_the_negated_value {
+    assert(nfl_id(NFL_NEG_PI) == 0.0 - NFL_PI);
+    assert(nfl_id(NFL_NEG_PI) < -3.14);
+    assert(nfl_id(NFL_NEG_PI) > -3.15);
+}
+
+test a_negated_local_and_argument {
+    assert(nfl_local() == -0.5);
+    assert(nfl_scale(4.0, -2.5) == -10.0);
+}
+
+test a_negated_literal_with_an_exponent {
+    assert(nfl_id(NFL_NEG_BIG) == -1500.0);
+}
+
+test a_negated_f32_literal_rounds_once {
+    assert(nfl_id32(NFL_NEG_TENTH) == 0.0 - nfl_id32(0.1));
+    assert(nfl_id32(NFL_NEG_TENTH) < -0.09);
+}
+
+test a_negated_zero_is_a_negative_zero {
+    assert(nfl_id(NFL_NEG_ZERO) == 0.0);
+    assert(1.0 / nfl_id(NFL_NEG_ZERO) < 0.0);
+}
+
+test lee_s_range_reduction_stops_inside_minus_pi_to_pi {
+    const r = nfl_reduce(10.0);
+    assert(r > -2.5664);
+    assert(r < -2.5663);
+    const s = nfl_reduce(-10.0);
+    assert(s > 2.5663);
+    assert(s < 2.5664);
+}
+
+test the_reduction_s_bounds_are_minus_pi_in_and_pi_out {
+    assert(nfl_reduce(NFL_PI) == NFL_NEG_PI);
+    assert(nfl_reduce(NFL_NEG_PI) == NFL_NEG_PI);
+}

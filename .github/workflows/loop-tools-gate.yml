@@ -77,6 +77,11 @@ on:
 permissions:
   contents: read
 
+# A newer push or PR edit makes this run's verdict stale: cancel it (queue jam 2026-10-09).
+concurrency:
+  group: loop-tools-gate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   loop-tools-tracked:
     runs-on: ubuntu-latest
