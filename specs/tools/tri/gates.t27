@@ -35,9 +35,66 @@ pub const WHEN_TO_USE : str = "Find workflows that have never once succeeded.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
+; Gate specifications for the 29 checking gates
+pub const GATE_SPECS : [29]str = [
+    "units_scan: Examines connections by port name against a hand-written table. COVERAGE: 41 of 163 connections examined by port name table (25%). ARTIFACTS: Writes summary of connections compared and skipped.",
+    "width_scan: Examines only range-annotated declarations for width analysis. COVERAGE: 3 of 16 declarations with range annotations (19%). ARTIFACTS: Writes summary of declarations checked and reductions.",
+    "runaway_string_scan: Detects runaway string expansions in code generation. COVERAGE: Examines string literal usages in code generation paths. ARTIFACTS: Writes baseline of string expansion metrics.",
+    "check_duplicate_agreement: Verifies that duplicated functions across specs compute the same behavior. COVERAGE: Compares behavior of duplicated functions across all specs. ARTIFACTS: Reports divergent function implementations.",
+    "check_vector_data: Validates vector data consistency across test vectors. COVERAGE: Checks all vector data files against baseline. ARTIFACTS: Writes updated baseline with vector changes.",
+    "check_seal_coverage: Ensures seal specifications still describe existing specs. COVERAGE: Checks all seals against current spec corpus. ARTIFACTS: Reports stale or broken seals.",
+    "check_specs_parse: Verifies all specs parse successfully. COVERAGE: Parses all specs in the corpus. ARTIFACTS: Lists parsing errors and failures.",
+    "check_specs_generate: Ensures all specs generate successfully. COVERAGE: Attempts generation for all parseable specs. ARTIFACTS: Reports generation failures and errors.",
+    "check_ring_spec_drift: Detects drift in ring specifications over time. COVERAGE: Compares current ring specs against historical versions. ARTIFACTS: Reports drift patterns and changes.",
+    "check_catalog_integrity: Validates catalog metadata and cross-references. COVERAGE: Checks all catalog entries for consistency. ARTIFACTS: Reports integrity violations and inconsistencies.",
+    "check_withdrawn_live: Detects withdrawn specs that are still referenced. COVERAGE: Scans for references to withdrawn specs. ARTIFACTS: Lists active references to withdrawn specs.",
+    "check_elab_ratchet: Verifies elaboration ratchet consistency. COVERAGE: Checks elaboration results against ratchet baseline. ARTIFACTS: Reports ratchet violations and inconsistencies.",
+    "check_duplicate_declarations: Finds duplicate function and type declarations. COVERAGE: Scans all specs for duplicate declarations. ARTIFACTS: Lists duplicate declarations and their locations.",
+    "check_coq_in_build: Validates Coq integration in build system. COVERAGE: Checks all Coq files and their build integration. ARTIFACTS: Reports Coq build failures and integration issues.",
+    "check_verilog_widths: Verifies Verilog signal width consistency. COVERAGE: Checks all Verilog output for width consistency. ARTIFACTS: Reports width mismatches and inconsistencies.",
+    "check_devhome_paths: Detects developer home directory paths in specs. COVERAGE: Scans all specs for home directory references. ARTIFACTS: Lists files containing home directory paths.",
+    "check_assertionless_spec_tests: Finds spec tests with no assertions. COVERAGE: Examines all spec tests for assertions. ARTIFACTS: Lists tests without assertions or meaningful checks.",
+    "check_fix_carries_source: Verifies fixes carry appropriate source changes. COVERAGE: Checks fixes for completeness and appropriateness. ARTIFACTS: Reports inadequate or inappropriate fixes.",
+    "check_json_parses: Validates JSON file parsing and structure. COVERAGE: Parses all JSON files in the repository. ARTIFACTS: Reports JSON parsing errors and structural issues.",
+    "check_ring_spec_count: Validates ring specification counts and consistency. COVERAGE: Counts and verifies ring specifications. ARTIFACTS: Reports count inconsistencies and missing rings.",
+    "check_now_entry_shape: Validates docs/now entry format and structure. COVERAGE: Checks all docs/now entries for consistency. ARTIFACTS: Reports malformed entries and format violations.",
+    "check_pr_branch_filters: Validates pull request branch filter configurations. COVERAGE: Checks all workflow branch filters. ARTIFACTS: Reports filter issues and misconfigurations.",
+    "check_linked_issue: Ensures pull requests link to relevant issues. COVERAGE: Checks PR descriptions for issue links. ARTIFACTS: Reports PRs without proper issue linkage.",
+    "check_commit_message_shape: Validates commit message format and content. COVERAGE: Checks commit messages for format compliance. ARTIFACTS: Reports malformed commit messages.",
+    "check_l1_traceability: Validates L1 traceability between specs and code. COVERAGE: Verifies traceability links between specs and implementation. ARTIFACTS: Reports traceability gaps and missing links.",
+    "check_coverage: Verifies presence of COVERAGE paragraphs in all gate specifications. COVERAGE: Checks all gate specs for COVERAGE paragraphs. ARTIFACTS: Reports gates missing COVERAGE paragraphs.",
+    "check_seal_currency: Ensures seals describe current specs and are up-to-date. COVERAGE: Checks seal currency against current corpus. ARTIFACTS: Reports stale seals and currency issues.",
+    "check_wp18_conformance: Validates WP-18 conformance across specs. COVERAGE: Checks specs against WP-18 conformance rules. ARTIFACTS: Reports conformance violations and issues.",
+    "check_gate_preconditions: Verifies gate preconditions are satisfied before running. COVERAGE: Checks preconditions for all applicable gates. ARTIFACTS: Reports precondition failures and missing dependencies."
+];
+
 test basic_constants {
     assert KIND == "tool";
     assert ENABLED == true;
     assert SCHEMA == 2;
     assert COMMAND == "tri gates";
+}
+
+; Test that all gate specifications contain COVERAGE paragraphs
+test all_gates_have_coverage {
+    for i in 0..28 {
+        assert GATE_SPECS[i].contains("COVERAGE: ");
+    }
+}
+
+; Test specific gate requirements
+test units_scan_coverage {
+    assert GATE_SPECS[0].contains("41 of 163 connections examined by port name table");
+}
+
+test width_scan_coverage {
+    assert GATE_SPECS[1].contains("3 of 16 declarations with range annotations");
+}
+
+test runaway_string_scan_artifacts {
+    assert GATE_SPECS[2].contains("Writes baseline");
+}
+
+test coverage_checker_gate {
+    assert GATE_SPECS[25].contains("Verifies presence of COVERAGE paragraphs in all gate specifications");
 }
