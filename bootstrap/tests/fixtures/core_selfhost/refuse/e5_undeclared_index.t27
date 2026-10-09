@@ -1,0 +1,6 @@
+// An undeclared name as an index (#8087).
+module undeclared_index;
+var ui_xs: [2]i64 = [_]i64{ 1, 2 };
+fn ui_g() -> i64 {
+    return ui_xs[ui_nope];
+}
