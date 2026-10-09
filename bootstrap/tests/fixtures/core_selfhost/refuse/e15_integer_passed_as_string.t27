@@ -1,0 +1,9 @@
+// #8013: an integer passed where `str` is declared; C converts it to an
+// address.
+module integer_passed_as_string;
+fn ip_f(s: str) -> u8 {
+    return s[0] as u8;
+}
+fn ip_g() -> u8 {
+    return ip_f(5);
+}

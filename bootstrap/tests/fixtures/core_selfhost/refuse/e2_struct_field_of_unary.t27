@@ -1,0 +1,8 @@
+// #7961: gen-c drops the parentheses, and C reads `-p.x` as -(p.x).
+module struct_field_of_unary;
+struct SuPair {
+    x: i64,
+}
+fn su_x(p: SuPair) -> i64 {
+    return (-p).x;
+}

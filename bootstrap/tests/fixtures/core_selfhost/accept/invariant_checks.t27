@@ -1,0 +1,39 @@
+// P2 slice 3 (#5980): invariants. gen-c writes each check of decimal
+// numbers, true, false and `#define` consts, through operators and casts,
+// as `_Static_assert` after the functions; Zig checks the same at compile
+// time. A file whose checks fail would not build.
+module invariant_checks;
+
+const IC_WIDTH: i64 = 27;
+const IC_TRITS: u8 = 3;
+const IC_ON: bool = true;
+const IC_FLOOR: i64 = -9;
+const IC_ZERO: u8 = 'a' - 'a';
+const IC_BIG: i64 = 1_000_000;
+
+fn ic_area(w: i64) -> i64 {
+    return w * IC_TRITS as i64;
+}
+
+invariant ic_width_is_power_of_three {
+    IC_WIDTH == 3 * 3 * 3;
+    IC_WIDTH > 0 and IC_WIDTH < 64;
+    assert(IC_TRITS == 3);
+}
+
+invariant ic_flags: IC_ON and !false and IC_FLOOR < 0;
+
+invariant ic_arith {
+    IC_FLOOR + IC_WIDTH == 18;
+    (IC_TRITS as i64) * 9 == IC_WIDTH;
+    IC_BIG / 1000 == 1_000;
+    -IC_FLOOR == 9;
+    (IC_WIDTH << 1) | 1 == 55;
+}
+
+invariant ic_nothing_yet {
+}
+
+test ic_area_of_width {
+    assert(ic_area(IC_WIDTH) == 81);
+}
