@@ -87,6 +87,8 @@ const E_ARRAY: i64 = 9;
 const E_NEED: i64 = 10;
 ; An import gen-c splices with loss (#7379, #7380, #7381, #7702).
 const E_USE: i64 = 11;
+; Invalid struct literal (missing required field, duplicate field, or omitted field without default).
+const E_STRUCT: i64 = 12;
 
 ; Token kinds. A one-character punctuation token uses its own byte as its kind,
 ; so every named kind sits above 255.
@@ -152,6 +154,8 @@ const N_NEGLIT: i64 = 11;
 const N_LIST: i64 = 12;
 const N_SWITCH: i64 = 13;
 const N_ARM: i64 = 14;
+const N_STRUCT: i64 = 15;
+const N_STRUCT_LIT: i64 = 16;
 const S_LOCAL: i64 = 20;
 const S_ASSIGN: i64 = 21;
 const S_EXPR: i64 = 22;
@@ -168,6 +172,7 @@ const D_FN: i64 = 43;
 const D_PARAM: i64 = 44;
 const D_TEST: i64 = 45;
 const D_USE: i64 = 46;
+const D_STRUCT: i64 = 47;
 
 ; Packed spellings of the words the lexer and checker recognise.
 const W_MODULE: i64 = 0x656c75646f6d;
@@ -472,7 +477,7 @@ fn word_kind(t: i64) -> i64 {
     if (tok_is(t, W_AS, 0, 2)) {
         return T_AS;
     }
-    if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_STRUCT, 0, 6) or tok_is(t, W_INVARIA, 't', 9)) {
+    if (tok_is(t, W_ENUM, 0, 4) or tok_is(t, W_INVARIA, 't', 9)) {
         return T_BAD;
     }
     if (tok_is(t, W_FOR, 0, 3)) {
@@ -966,6 +971,44 @@ fn parse_primary() -> i64 {
         var inner: i64 = parse_expr();
         expect(')');
         return inner;
+    }
+    if (k == T_IDENT and cur() == K_LBRACE) {
+        var struct_name: i64 = t;
+        p = p + 1;
+        var fields: i64 = 0;
+        var field_count: i64 = 0;
+        var field_names: [100]i64;
+        var field_values: [100]i64;
+        var i: i64 = 0;
+        while (!failed and cur() != K_RBRACE) {
+            if (cur() == '.') {
+                p = p + 1;
+                var field_name: i64 = p;
+                expect(T_IDENT);
+                expect('=');
+                var field_value: i64 = parse_expr();
+                expect(',');
+                field_names[i as usize] = field_name;
+                field_values[i as usize] = field_value;
+                i = i + 1;
+            } else {
+                fail(E_SYNTAX, tpos(p));
+                return 0;
+            }
+        }
+        expect(K_RBRACE);
+        var struct_lit: i64 = mk(N_STRUCT_LIT, struct_name, 0, 0);
+        nd_aux[struct_lit as usize] = i;
+        for (var j: i64 = 0; j < i; j = j + 1) {
+            var field_node: i64 = mk(N_BIN, field_names[j as usize], field_values[j as usize], 0);
+            if (fields == 0) {
+                fields = field_node;
+            } else {
+                nd_next[(j - 1) as usize] = field_node;
+            }
+        }
+        nd_b[struct_lit as usize] = fields;
+        return struct_lit;
     }
     fail(E_SYNTAX, tpos(t));
     return 0;
@@ -1545,6 +1588,39 @@ fn parse_decl() -> i64 {
         nd_c[n as usize] = p - 1;
         return n;
     }
+    if (k == T_STRUCT) {
+        p = p + 1;
+        var name: i64 = p;
+        expect(T_IDENT);
+        expect(K_LBRACE);
+        var fields: i64 = 0;
+        var field_count: i64 = 0;
+        while (!failed and cur() != K_RBRACE) {
+            var field_name: i64 = p;
+            expect(T_IDENT);
+            expect(':');
+            var field_type: i64 = expect_scalar();
+            var default_val: i64 = 0;
+            if (cur() == '=') {
+                p = p + 1;
+                default_val = parse_expr();
+            }
+            expect(';');
+            var field_node: i64 = mk(N_IDENT, field_name, 0, 0);
+            nd_aux[field_node as usize] = field_type;
+            nd_c[field_node as usize] = default_val;
+            if (field_count == 0) {
+                fields = field_node;
+            } else {
+                nd_next[(field_count - 1) as usize] = field_node;
+            }
+            field_count = field_count + 1;
+        }
+        expect(K_RBRACE);
+        var struct_node: i64 = mk(D_STRUCT, name, fields, 0);
+        nd_aux[struct_node as usize] = field_count;
+        return struct_node;
+    }
     fail(E_SYNTAX, tpos(t));
     return 0;
 }
@@ -1990,6 +2066,87 @@ fn check_expr(e: i64) -> void {
     if (k == N_UN or k == N_CAST) {
         check_expr(na(e));
     }
+    if (k == N_STRUCT_LIT) {
+        // Validate struct literal: check for missing required fields and duplicates
+        var struct_name: i64 = ntok(e);
+        var struct_decl: i64 = find_struct_decl(struct_name);
+        
+        if (struct_decl == 0) {
+            fail(E_NAME, tpos(struct_name));
+            return;
+        }
+        
+        // Collect field assignments from the literal
+        var field_assigns: i64 = na(e);
+        var field_names: [100]i64;
+        var field_count: i64 = 0;
+        
+        while (field_assigns != 0) {
+            var field_name: i64 = ntok(field_assigns);
+            var field_value: i64 = na(field_assigns);
+            
+            // Check for duplicate fields
+            var i: i64 = 0;
+            var is_duplicate: bool = false;
+            while (i < field_count) {
+                if (field_names[i as usize] == field_name) {
+                    is_duplicate = true;
+                    break;
+                }
+                i = i + 1;
+            }
+            
+            if (is_duplicate) {
+                fail(E_STRUCT, tpos(field_name));
+                return;
+            }
+            
+            field_names[field_count as usize] = field_name;
+            field_count = field_count + 1;
+            
+            check_expr(field_value);
+            field_assigns = nnext(field_assigns);
+        }
+        
+        // Check that all required fields are present
+        var field: i64 = na(struct_decl); // First field is stored in nd_a
+        var field_idx: i64 = 0;
+        
+        while (field != 0) {
+            var field_name: i64 = ntok(field);
+            var field_has_default: bool = nd_c[field as usize] != 0; // Default value stored in nd_c
+            var field_found: bool = false;
+            
+            // Check if this field was provided in the literal
+            var i: i64 = 0;
+            while (i < field_count) {
+                if (field_names[i as usize] == field_name) {
+                    field_found = true;
+                    break;
+                }
+                i = i + 1;
+            }
+            
+            if (!field_found and !field_has_default) {
+                fail(E_STRUCT, tpos(field_name));
+                return;
+            }
+            
+            field = nnext(field);
+        }
+    }
+}
+
+; Find a struct declaration by name
+fn find_struct_decl(name: i64) -> i64 {
+    var d: i64 = decls;
+    while (d != 0) {
+        if (nkind(d) == D_STRUCT and tok_eq(ntok(d), name)) {
+            return d;
+        }
+        d = nnext(d);
+    }
+    return 0;
 }
 
 ; gen-c writes a test-level `x = e;` or `x op= e;` as a fresh `uint64_t x = e`
