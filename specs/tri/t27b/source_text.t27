@@ -1,0 +1,490 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/source_text.t27 -- how t27b reads the source TEXT the t27c parser keeps in the AST (port
+; epic #6198, under #6063 and #5980): an integer or a char literal's text, an array literal whose elements
+; the parser kept as one text, a prose clause's label, and the line of a declaration's header in the source
+; (a node the parser built from text has no line of its own). These rules were hand-written Rust in
+; cli/t27b/src/lower.rs (`parse_int`, `char_literal`, `int_lit_width`, `header_line`, `is_prose_clause` and
+; the element split of `text_lit`); they now reach cli/t27b only through `t27c gen-rust`
+; (gen/rust/tri/t27b/source_text.rs, mounted as `st`).
+; Trimming is type_text.t27's, Rust's `str::trim`.
+; --
+; The glue passes a text's bytes. An integer's value is an i128 of 0 or more; NO_INT when the text is no
+; integer. A char literal's value is 0 or more; a refusal is one of the negative CHAR_ codes. A line is 1
+; or more; NO_LINE when there is none. An element of a text literal ends at a byte offset.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bSourceText;
+
+use tri::t27b::type_text;
+
+/// No integer: the text is empty, holds a byte that is no digit of its radix, or its value is above
+/// I128_MAX.
+pub const NO_INT : i128 = -1;
+/// The largest value an integer literal may have (i128::MAX).
+pub const I128_MAX : i128 = 170141183460469231731687303715884105727;
+
+// The bytes the rules read, as numbers (#7604).
+pub const B_QUOTE : u8 = 34;
+pub const B_APOS : u8 = 39;
+pub const B_PLUS : u8 = 43;
+pub const B_BACKSLASH : u8 = 92;
+pub const B_ZERO : u8 = 48;
+pub const B_LOWER_B : u8 = 98;
+pub const B_LOWER_N : u8 = 110;
+pub const B_LOWER_O : u8 = 111;
+pub const B_LOWER_R : u8 = 114;
+pub const B_LOWER_T : u8 = 116;
+pub const B_LOWER_X : u8 = 120;
+pub const B_UPPER_X : u8 = 88;
+pub const B_NEWLINE : u8 = 10;
+pub const B_COMMA : u8 = 44;
+pub const B_RPAREN : u8 = 41;
+
+// A char literal the reference has no value for: no quotes around one or two bytes, an escape Zig does not
+// take, or a byte outside printable ASCII.
+pub const CHAR_LITERAL : i64 = -1;
+pub const CHAR_ESCAPE : i64 = -2;
+pub const CHAR_BYTE : i64 = -3;
+
+/// No header line.
+pub const NO_LINE : u32 = 0;
+
+/// The width t27c's Zig backend pins on an untyped `var` of an integer literal: none, or one of these.
+pub const WIDTHS : [11]str = ["", "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
+pub const WIDTH_NONE : u8 = 0;
+pub const WIDTH_U32 : u8 = 3;
+pub const WIDTH_U64 : u8 = 4;
+/// u32::MAX and u64::MAX.
+pub const U32_MAX : i128 = 4294967295;
+pub const U64_MAX : i128 = 18446744073709551615;
+
+/// The value of the byte as a digit of any radix up to 36 (Rust's `char::to_digit`), 99 when it is none.
+pub fn digit_value(c: u8) -> i128 {
+    if (c >= 48 and c <= 57) { return @intCast(c - 48); }
+    if (c >= 97 and c <= 122) { return @intCast(c - 87); }
+    if (c >= 65 and c <= 90) { return @intCast(c - 55); }
+    return 99;
+}
+
+/// The radix of an integer literal's text with its underscores dropped, by its first two bytes `c0` and
+/// `c1` (0 when there are fewer): `0x` / `0X` 16, `0o` 8, `0b` 2, else 10.
+pub fn radix(c0: u8, c1: u8) -> i128 {
+    if (c0 != B_ZERO) { return 10; }
+    if (c1 == B_LOWER_X or c1 == B_UPPER_X) { return 16; }
+    if (c1 == B_LOWER_O) { return 8; }
+    if (c1 == B_LOWER_B) { return 2; }
+    return 10;
+}
+
+/// The value of an integer literal's text (`parse_int`): decimal, `0x` / `0X`, `0o` or `0b`, with `_`
+/// separators anywhere, and the optional `+` Rust's `u128::from_str_radix` takes before the digits. NO_INT
+/// when the digits are missing or wrong, or the value is above I128_MAX.
+pub fn parse_int(s: []const u8) -> i128 {
+    var c0 : u8 = 0;
+    var c1 : u8 = 0;
+    var seen : usize = 0;
+    var i : usize = 0;
+    while (i < s.len and seen < 2) {
+        if (s[i] != 95) {
+            if (seen == 0) { c0 = s[i]; } else { c1 = s[i]; }
+            seen = seen + 1;
+        }
+        i = i + 1;
+    }
+    const base : i128 = radix(c0, c1);
+    var skip : usize = 0;
+    if (base != 10) { skip = 2; }
+    var v : i128 = 0;
+    var digits : usize = 0;
+    var plus : bool = false;
+    var at : usize = 0;
+    i = 0;
+    while (i < s.len) {
+        const c : u8 = s[i];
+        if (c != 95) {
+            if (at >= skip) {
+                if (digits == 0 and c == B_PLUS and !plus) {
+                    plus = true;
+                } else {
+                    const d : i128 = digit_value(c);
+                    if (d >= base) { return NO_INT; }
+                    if (v > @divTrunc(I128_MAX - d, base)) { return NO_INT; }
+                    v = v * base + d;
+                    digits = digits + 1;
+                }
+            }
+            at = at + 1;
+        }
+        i = i + 1;
+    }
+    if (digits == 0) { return NO_INT; }
+    return v;
+}
+
+/// The value of a char literal as the t27c parser leaves it (`char_literal`): the quotes kept and the
+/// lexeme raw, either one byte or a backslash and one byte. Only what Zig itself accepts is a value: a
+/// printable ASCII byte, or one of the escapes `\n \r \t \\ \' \"`. Otherwise a negative CHAR_ code.
+pub fn char_value(s: []const u8) -> i64 {
+    if (s.len < 3 or s[0] != B_APOS or s[s.len - 1] != B_APOS) { return CHAR_LITERAL; }
+    const n : usize = s.len - 2;
+    if (n == 2 and s[1] == B_BACKSLASH) {
+        const e : u8 = s[2];
+        if (e == B_LOWER_N) { return 10; }
+        if (e == B_LOWER_R) { return 13; }
+        if (e == B_LOWER_T) { return 9; }
+        if (e == B_BACKSLASH or e == B_APOS or e == B_QUOTE) { return @intCast(e); }
+        return CHAR_ESCAPE;
+    }
+    if (n == 1) {
+        if (s[1] >= 32 and s[1] < 127) { return @intCast(s[1]); }
+        return CHAR_BYTE;
+    }
+    return CHAR_LITERAL;
+}
+
+/// The construct a char literal's refusal names.
+pub fn char_error(code: i64) -> str {
+    if (code == CHAR_ESCAPE) { return "ExprLiteral(char escape)"; }
+    if (code == CHAR_BYTE) { return "ExprLiteral(char byte)"; }
+    return "ExprLiteral(char literal)";
+}
+
+/// The width t27c's Zig backend pins on an untyped `var` set to a bare integer literal, as Zig refuses a
+/// `var` of type comptime_int (`zig_int_literal_default_type` in bootstrap/src/compiler.rs): the literal's
+/// suffix `ty` when it is one of WIDTHS, else u32 when the value of the trimmed text `v` fits and u64 when
+/// it does not. An octal literal (`0o`) or a text that is no integer gets WIDTH_NONE (#6967).
+pub fn lit_width(ty: []const u8, v: []const u8) -> u8 {
+    var k : u8 = 1;
+    while (k < 11) {
+        if (same(ty, WIDTHS[k])) { return k; }
+        k = k + 1;
+    }
+    const lo : usize = trim_lo(v, 0, v.len);
+    const hi : usize = trim_hi(v, lo, v.len);
+    if (starts(v, lo, hi, "0o")) { return WIDTH_NONE; }
+    const x : i128 = parse_int(v[lo .. hi]);
+    if (x == NO_INT) { return WIDTH_NONE; }
+    if (x <= U32_MAX) { return WIDTH_U32; }
+    if (x <= U64_MAX) { return WIDTH_U64; }
+    return WIDTH_NONE;
+}
+
+/// Does s[lo .. hi] start with the bytes of `w`?
+pub fn starts_with(s: []const u8, lo: usize, hi: usize, w: []const u8) -> bool {
+    if (hi - lo < w.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (s[lo + k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The header test of one line s[a .. b]: after leading White_Space, `keyword`, one space or tab, more
+/// White_Space, an optional `"`, then `name` not followed by an ASCII letter, digit or `_`.
+pub fn header_at(s: []const u8, a: usize, b: usize, keyword: []const u8, name: []const u8) -> bool {
+    var p : usize = trim_lo(s, a, b);
+    if (!starts_with(s, p, b, keyword)) { return false; }
+    p = p + keyword.len;
+    if (p >= b or (s[p] != B_SPACE and s[p] != B_TAB)) { return false; }
+    p = trim_lo(s, p, b);
+    if (p < b and s[p] == B_QUOTE) { p = p + 1; }
+    if (!starts_with(s, p, b, name)) { return false; }
+    p = p + name.len;
+    return p >= b or !word(s[p]);
+}
+
+/// The line (1-based) of the first `<keyword> <name>` header in the source `s`, the name optionally quoted
+/// (`header_line`); NO_LINE when there is none. Lines end at a newline, a carriage return before it
+/// dropped, as Rust's `str::lines` reads them; the last line needs no newline, and an empty one after the
+/// last newline holds no header anyway.
+pub fn header_line(s: []const u8, keyword: []const u8, name: []const u8) -> u32 {
+    var line : u32 = 1;
+    var a : usize = 0;
+    var e : usize = 0;
+    while (e < s.len) {
+        if (s[e] == B_NEWLINE) {
+            var b : usize = e;
+            if (b > a and s[b - 1] == B_CR) { b = b - 1; }
+            if (header_at(s, a, b, keyword, name)) { return line; }
+            line = line + 1;
+            a = e + 1;
+        }
+        e = e + 1;
+    }
+    if (header_at(s, a, s.len, keyword, name)) { return line; }
+    return NO_LINE;
+}
+
+/// The label of a clause the front-end kept only as verbatim text (`is_prose_clause`): a word of ASCII
+/// letters, digits and `_`, then `:` (`measure:`, `target:`).
+pub fn prose_label(s: []const u8) -> bool {
+    if (s.len < 2 or s[s.len - 1] != B_COLON) { return false; }
+    var i : usize = 0;
+    while (i < s.len - 1) {
+        if (!word(s[i])) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Where the element of an array literal kept as text (`text_lit`) that starts at s[from] ends: at the
+/// first `,` outside parentheses and brackets, else at the end of the text.
+pub fn part_end(s: []const u8, from: usize) -> usize {
+    var depth : i64 = 0;
+    var i : usize = from;
+    while (i < s.len) {
+        const c : u8 = s[i];
+        if (c == B_LPAREN or c == B_LBRACK) { depth = depth + 1; }
+        if (c == B_RPAREN or c == B_RBRACK) { depth = depth - 1; }
+        if (c == B_COMMA and depth == 0) { return i; }
+        i = i + 1;
+    }
+    return s.len;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. The expected values are what the hand-written Rust of lower.rs (master 8415b2c0d) returns.
+// ----------------------------------------------------------------------------------------------------------
+
+test digits_of_every_radix {
+    assert digit_value(48) == 0;
+    assert digit_value(57) == 9;
+    assert digit_value(97) == 10;
+    assert digit_value(122) == 35;
+    assert digit_value(65) == 10;
+    assert digit_value(90) == 35;
+    assert digit_value(47) == 99;
+    assert digit_value(58) == 99;
+    assert digit_value(96) == 99;
+    assert digit_value(123) == 99;
+    assert digit_value(64) == 99;
+    assert digit_value(91) == 99;
+    assert digit_value(95) == 99;
+}
+
+test the_radix_is_read_from_the_first_two_bytes {
+    assert radix(48, 120) == 16;
+    assert radix(48, 88) == 16;
+    assert radix(48, 111) == 8;
+    assert radix(48, 98) == 2;
+    assert radix(48, 79) == 10;
+    assert radix(48, 66) == 10;
+    assert radix(48, 0) == 10;
+    assert radix(49, 120) == 10;
+    assert radix(0, 0) == 10;
+}
+
+test decimal_and_prefixed_integers_parse {
+    assert parse_int("0") == 0;
+    assert parse_int("42") == 42;
+    assert parse_int("1_000_000") == 1000000;
+    assert parse_int("0x1F") == 31;
+    assert parse_int("0Xff") == 255;
+    assert parse_int("0o17") == 15;
+    assert parse_int("0b1011") == 11;
+    assert parse_int("0_x1_0") == 16;
+    assert parse_int("_0b_1_") == 1;
+    assert parse_int("007") == 7;
+    assert parse_int("+5") == 5;
+    assert parse_int("0x+ff") == 255;
+    assert parse_int("170141183460469231731687303715884105727") == I128_MAX;
+}
+
+test non_integers_are_no_int {
+    assert parse_int("") == NO_INT;
+    assert parse_int("_") == NO_INT;
+    assert parse_int("0x") == NO_INT;
+    assert parse_int("0x_") == NO_INT;
+    assert parse_int("+") == NO_INT;
+    assert parse_int("0b+") == NO_INT;
+    assert parse_int("++5") == NO_INT;
+    assert parse_int("5+") == NO_INT;
+    assert parse_int("-5") == NO_INT;
+    assert parse_int("1.5") == NO_INT;
+    assert parse_int(" 5") == NO_INT;
+    assert parse_int("0b102") == NO_INT;
+    assert parse_int("0o8") == NO_INT;
+    assert parse_int("0xg") == NO_INT;
+    assert parse_int("12a") == NO_INT;
+    assert parse_int("0B101") == NO_INT;
+    assert parse_int("0O7") == NO_INT;
+    assert parse_int("true") == NO_INT;
+    assert parse_int("170141183460469231731687303715884105728") == NO_INT;
+    assert parse_int("340282366920938463463374607431768211456") == NO_INT;
+    assert parse_int("0x80000000000000000000000000000000") == NO_INT;
+    assert parse_int("0x7fffffffffffffffffffffffffffffff") == I128_MAX;
+}
+
+test char_literals_of_one_printable_byte {
+    assert char_value("'a'") == 97;
+    assert char_value("' '") == 32;
+    assert char_value("'~'") == 126;
+    assert char_value("'0'") == 48;
+    assert char_value("'''") == 39;
+    assert char_value("'\\'") == 92;
+}
+
+test char_escapes_zig_takes {
+    assert char_value("'\\n'") == 10;
+    assert char_value("'\\t'") == 9;
+    assert char_value("'\\r'") == 13;
+    assert char_value("'\\\\'") == 92;
+    assert char_value("'\\''") == 39;
+    assert char_value("'\\\"'") == 34;
+    assert char_value("'\\0'") == CHAR_ESCAPE;
+    assert char_value("'\\x'") == CHAR_ESCAPE;
+    assert char_value("'\\a'") == CHAR_ESCAPE;
+}
+
+test other_char_texts_are_refused {
+    var buf : [3]u8 = undefined;
+    buf[0] = 39;
+    buf[1] = 127;
+    buf[2] = 39;
+    assert char_value(buf[0 .. 3]) == CHAR_BYTE;
+    buf[1] = 31;
+    assert char_value(buf[0 .. 3]) == CHAR_BYTE;
+    buf[1] = 9;
+    assert char_value(buf[0 .. 3]) == CHAR_BYTE;
+    assert char_value("") == CHAR_LITERAL;
+    assert char_value("'") == CHAR_LITERAL;
+    assert char_value("''") == CHAR_LITERAL;
+    assert char_value("'ab'") == CHAR_LITERAL;
+    assert char_value("'abc'") == CHAR_LITERAL;
+    assert char_value("'ab") == CHAR_LITERAL;
+    assert char_value("ab'") == CHAR_LITERAL;
+    assert char_value("a'") == CHAR_LITERAL;
+    assert char_value("'a") == CHAR_LITERAL;
+    assert char_value("\"a\"") == CHAR_LITERAL;
+    assert char_value("'\\nn'") == CHAR_LITERAL;
+    assert char_value("x'a'") == CHAR_LITERAL;
+}
+
+test char_refusals_name_their_construct {
+    assert same(char_error(CHAR_ESCAPE), "ExprLiteral(char escape)");
+    assert same(char_error(CHAR_BYTE), "ExprLiteral(char byte)");
+    assert same(char_error(CHAR_LITERAL), "ExprLiteral(char literal)");
+}
+
+test a_suffix_is_the_width {
+    assert lit_width("u8", "300") == 1;
+    assert lit_width("u16", "1") == 2;
+    assert lit_width("u32", "1") == 3;
+    assert lit_width("u64", "1") == 4;
+    assert lit_width("usize", "0o7") == 5;
+    assert lit_width("i8", "x") == 6;
+    assert lit_width("i16", "1") == 7;
+    assert lit_width("i32", "1") == 8;
+    assert lit_width("i64", "1") == 9;
+    assert lit_width("isize", "1") == 10;
+    assert same(WIDTHS[lit_width("i32", "1")], "i32");
+}
+
+test an_unsuffixed_literal_is_u32_when_it_fits {
+    assert lit_width("", "1") == WIDTH_U32;
+    assert lit_width("", " 4294967295 ") == WIDTH_U32;
+    assert lit_width("", "4294967296") == WIDTH_U64;
+    assert lit_width("", "18446744073709551615") == WIDTH_U64;
+    assert lit_width("", "18446744073709551616") == WIDTH_NONE;
+    assert lit_width("", "0xffffffff") == WIDTH_U32;
+    assert lit_width("", "0x100000000") == WIDTH_U64;
+    assert lit_width("", "0o7") == WIDTH_NONE;
+    assert lit_width("", "  0o7") == WIDTH_NONE;
+    assert lit_width("", "-1") == WIDTH_NONE;
+    assert lit_width("", "0.0") == WIDTH_NONE;
+    assert lit_width("", "N") == WIDTH_NONE;
+    assert lit_width("f32", "1") == WIDTH_U32;
+    assert lit_width(" u8", "1") == WIDTH_U32;
+    assert lit_width("u128", "1") == WIDTH_U32;
+    assert lit_width("", "0b1") == WIDTH_U32;
+}
+
+test prefix_bytes_match {
+    assert starts_with("const X", 0, 7, "const");
+    assert starts_with("const X", 0, 7, "");
+    assert !starts_with("con", 0, 3, "const");
+    assert !starts_with("Const X", 0, 7, "const");
+    assert starts_with("a const", 2, 7, "const");
+    assert !starts_with("a const", 2, 6, "const");
+}
+
+test a_header_is_keyword_space_name {
+    assert header_at("const X = 1;", 0, 12, "const", "X");
+    assert header_at("  const\tX: u8", 0, 13, "const", "X");
+    assert header_at("const  \"X\"", 0, 10, "const", "X");
+    assert header_at("test X", 0, 6, "test", "X");
+    assert header_at("const X", 0, 7, "const", "X");
+    assert header_at("const X.y", 0, 9, "const", "X");
+    assert !header_at("const XY = 1;", 0, 13, "const", "X");
+    assert !header_at("const X_ = 1;", 0, 13, "const", "X");
+    assert !header_at("const X9", 0, 8, "const", "X");
+    assert !header_at("constX", 0, 6, "const", "X");
+    assert !header_at("const", 0, 5, "const", "X");
+    assert !header_at("pub const X", 0, 11, "const", "X");
+    assert !header_at("const Y", 0, 7, "const", "X");
+    assert !header_at("const ", 0, 6, "const", "X");
+    assert !header_at("const X", 0, 7, "CONST", "X");
+    assert header_at("pub const X", 0, 11, "pub const", "X");
+    assert !header_at("const X = 1;", 0, 6, "const", "X");
+}
+
+test the_header_line_counts_from_one {
+    assert header_line("const X = 1;\n", "const", "X") == 1;
+    assert header_line("// a\n\nconst X = 1;\n", "const", "X") == 3;
+    assert header_line("const XY = 1;\nconst X = 2;", "const", "X") == 2;
+    assert header_line("const Y = 1;\n", "const", "X") == NO_LINE;
+    assert header_line("", "const", "X") == NO_LINE;
+    assert header_line("\n\n", "const", "X") == NO_LINE;
+    assert header_line("a\nb\nenum E {}", "enum", "E") == 3;
+    assert header_line("const X\nconst X", "const", "X") == 1;
+}
+
+test a_carriage_return_ends_a_line_only_before_a_newline {
+    var buf : [9]u8 = undefined;
+    buf[0] = 99;
+    buf[1] = 111;
+    buf[2] = 110;
+    buf[3] = 115;
+    buf[4] = 116;
+    buf[5] = 32;
+    buf[6] = 88;
+    buf[7] = 13;
+    buf[8] = 10;
+    var name : [2]u8 = undefined;
+    name[0] = 88;
+    name[1] = 13;
+    assert header_line(buf[0 .. 9], "const", "X") == 1;
+    assert header_line(buf[0 .. 8], "const", "X") == 1;
+    assert header_line(buf[0 .. 9], "const", name[0 .. 2]) == NO_LINE;
+    assert header_line(buf[0 .. 8], "const", name[0 .. 2]) == 1;
+}
+
+test a_prose_label_is_a_word_and_a_colon {
+    assert prose_label("measure:");
+    assert prose_label("a:");
+    assert prose_label("_9:");
+    assert !prose_label(":");
+    assert !prose_label("");
+    assert !prose_label("measure");
+    assert !prose_label("a b:");
+    assert !prose_label("a::");
+    assert !prose_label("a.b:");
+    assert !prose_label(":a");
+}
+
+test elements_split_at_top_level_commas {
+    assert part_end("a, b", 0) == 1;
+    assert part_end("a, b", 2) == 4;
+    assert part_end("f(a, b), c", 0) == 7;
+    assert part_end("x[1, 2], y", 0) == 7;
+    assert part_end("a), b", 0) == 5;
+    assert part_end("a], b", 0) == 5;
+    assert part_end("(a, b", 0) == 5;
+    assert part_end("[a, b", 0) == 5;
+    assert part_end("", 0) == 0;
+    assert part_end(",", 0) == 0;
+    assert part_end("a,", 2) == 2;
+    assert part_end("((a)), b", 0) == 5;
+}
