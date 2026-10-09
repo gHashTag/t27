@@ -1,0 +1,7 @@
+// 0xFFFFFFFF is an unsigned int in C, so HWU_M + 1 wraps to 0 (#8099).
+module hex_wraps_unsigned_int;
+const HWU_M: u64 = 0xFFFFFFFF;
+fn hwu_g() -> u64 {
+    var y: u64 = HWU_M + 1;
+    return y;
+}

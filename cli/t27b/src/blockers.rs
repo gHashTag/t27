@@ -19,6 +19,9 @@ use std::time::{Duration, Instant};
 #[allow(dead_code, unused_parens, clippy::all)]
 mod spec; // t27c gen-rust of specs/tri/t27b/blockers.t27
 pub use spec::fnv64;
+#[path = "../../../gen/rust/tri/t27b/verdict_key.rs"]
+#[allow(dead_code, unused_parens, clippy::all)]
+mod vk; // t27c gen-rust of specs/tri/t27b/verdict_key.t27 (#8095)
 
 /// One greedy step: supporting `construct`, after every construct of the
 /// earlier steps, unlocks `unlocked` more files, `cumulative` in all.
@@ -381,7 +384,7 @@ pub struct RefRunner {
     pub scratch: PathBuf,
     pub cap_bytes: u64,
     cache: Option<CacheWriter>,
-    stamp: u64,
+    stamp: [u64; 4],
     known: Mutex<HashMap<u64, (Reference, Option<Verdicts>)>>,
 }
 
@@ -412,21 +415,24 @@ pub fn binary_stamp(t27c: &Path) -> Result<u64, String> {
     Ok(fnv64(&b))
 }
 
-/// The toolchain half of every reference-cache key (#6443): the t27c
-/// binary's content and the zig that compiles what it emits. `zig version`
-/// that cannot run is recorded as such, so it still keys consistently.
-pub fn toolchain_stamp(t27c: &Path) -> Result<u64, String> {
+/// The toolchain parts of every reference-cache key, as
+/// specs/tri/t27b/verdict_key.t27 names them (#8095): the t27c binary, the
+/// test runner beside the specs root, `zig version` and the arch-os zig builds
+/// for. A part that cannot be read is keyed by the binary instead.
+pub fn toolchain_stamp(t27c: &Path, specs_dir: &Path) -> Result<[u64; 4], String> {
     let bin = binary_stamp(t27c)?;
-    let zig = Command::new("zig")
-        .arg("version")
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|e| format!("unavailable: {}", e));
-    let mut b = Vec::with_capacity(64);
-    b.extend_from_slice(b"t27c+zig\0");
-    b.extend_from_slice(&bin.to_le_bytes());
-    b.extend_from_slice(zig.as_bytes());
-    Ok(fnv64(&b))
+    let zig = |a: &str| Command::new("zig").arg(a).output().ok().filter(|o| o.status.success());
+    let text = |a: &str| zig(a).map(|o| String::from_utf8_lossy(&o.stdout).into_owned());
+    let host = text("env").and_then(|e| {
+        e.lines().find_map(|l| {
+            let l = l.trim_start().trim_start_matches(|c| c == '.' || c == '"').strip_prefix("target")?;
+            Some(l.split('"').find(|s| s.contains('-'))?.split('.').next()?.to_string())
+        })
+    });
+    let part = |p: Option<&[u8]>| vk::part_or(p.is_some(), p.map_or(0, fnv64), bin);
+    let runner = specs_root(&specs_dir.join("_")).and_then(|r| std::fs::read(r.join("../bootstrap/src/test_report.rs")).ok());
+    let version = text("version");
+    Ok([bin, part(runner.as_deref()), part(version.as_deref().map(str::as_bytes)), part(host.as_deref().map(str::as_bytes))])
 }
 
 /// bootstrap/src/use_resolve.rs `find_specs_root`, for the cache key.
@@ -573,10 +579,10 @@ impl CacheWriter {
 
 impl RefRunner {
     /// `cache`, when given, is a tab-separated file of earlier results keyed
-    /// by spec path, the source of the spec and of its `use` closure, the
-    /// content of the t27c binary and the zig version (`toolchain_stamp`); a
-    /// changed spec or import, a rebuilt t27c or another zig misses, a copied
-    /// t27c hits. Timeouts are never cached (#6443).
+    /// by specs/tri/t27b/verdict_key.t27 (#8095): the spec and its `use`
+    /// closure, the code `t27c gen` makes of it, and `toolchain_stamp`. A
+    /// rebuilt t27c that generates the same code hits; another host misses.
+    /// Timeouts are never cached (#6443).
     pub fn new(
         t27c: PathBuf,
         specs_dir: PathBuf,
@@ -585,7 +591,7 @@ impl RefRunner {
         cap_bytes: u64,
         cache: Option<PathBuf>,
     ) -> Result<RefRunner, String> {
-        let stamp = toolchain_stamp(&t27c)?;
+        let stamp = toolchain_stamp(&t27c, &specs_dir)?;
         let mut known = cache.as_deref().map(read_cache_tests).unwrap_or_default();
         // Caches written before #6443 kept timeouts; they never hit now (the
         // key changed), but drop them so nothing can serve one.
@@ -605,8 +611,13 @@ impl RefRunner {
             b.extend_from_slice(&(src.len() as u64).to_le_bytes());
             b.extend_from_slice(&src);
         }
-        b.extend_from_slice(&self.stamp.to_le_bytes());
-        fnv64(&b)
+        let [bin, runner, zig, host] = self.stamp;
+        let mut emit = Command::new(&self.t27c);
+        let out = match run_capture(emit.arg("gen").arg(file), self.timeout) {
+            Ok(Some(c)) if c.code == Some(0) => Some(fnv64(c.stdout.as_bytes())),
+            _ => None,
+        };
+        vk::verdict_key(fnv64(&b), vk::part_or(out.is_some(), out.unwrap_or(0), bin), runner, zig, host)
     }
 
     /// The reference verdict on `file`, run in `worker`'s scratch directory,
@@ -618,7 +629,7 @@ impl RefRunner {
         let key = self.key(file);
         if let Some((r, t)) = self.known.lock().unwrap().get(&key) {
             let ran = matches!(r, Reference::Pass | Reference::Fail(_));
-            if t.is_some() || !ran {
+            if vk::served(true, ran, t.is_some()) {
                 return (r.clone(), t.clone(), true);
             }
         }
@@ -648,7 +659,10 @@ impl RefRunner {
                 if matches!(r, Reference::Pass | Reference::Fail(_)) {
                     tests = parse_test_verdicts(&c.stdout);
                 }
-                (r, true)
+                let says = |m: &str| c.stdout.contains(m) || c.stderr.contains(m);
+                // zig failing as a process, not a type in the code: `error{OutOfMemory}` is a verdict
+                let fault = ["SystemResources", "ProcessFdQuotaExceeded", "OutOfMemory"].iter().any(|m| says(&format!("error: {}", m)));
+                (r, vk::keep(true, false, says("(timed out after"), fault))
             }
             Ok(Some(c)) => (
                 Reference::Blocked(format!(
