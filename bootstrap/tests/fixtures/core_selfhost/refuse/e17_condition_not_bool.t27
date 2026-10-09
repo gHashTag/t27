@@ -1,0 +1,8 @@
+// A u8 as an `if` condition: C tests it against 0, Zig wants a bool (#8075).
+module condition_not_bool;
+fn cnb_g(n: u8) -> u8 {
+    if (n) {
+        return 1;
+    }
+    return 0;
+}

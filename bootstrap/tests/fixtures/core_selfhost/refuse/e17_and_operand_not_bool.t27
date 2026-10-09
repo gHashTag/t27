@@ -1,0 +1,5 @@
+// `and` takes bools (#8075).
+module and_operand_not_bool;
+fn aob_g(f: bool, n: u8) -> bool {
+    return f and n;
+}

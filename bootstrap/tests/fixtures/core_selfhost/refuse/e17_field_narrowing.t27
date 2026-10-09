@@ -1,0 +1,8 @@
+// A struct literal's field is never checked against its type (#8075).
+module field_narrowing;
+struct FnPair {
+    lo: u8,
+}
+fn fn_g(a: i32) -> FnPair {
+    return FnPair{ .lo = a };
+}
