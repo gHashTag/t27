@@ -1,0 +1,342 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/eval_arith.t27 -- the exact integer arithmetic of the t27b reference interpreter
+; (port epic #6198, under #6063 and #5980). Until this file it was the hand-written Rust fn `arith` in
+; cli/t27b/src/eval.rs. Now it reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/eval_arith.rs).
+; --
+; The interpreter (cli/t27b/src/eval.rs, `Interp`) is the oracle of t27b's randomized differential test:
+; every value and every trap site the JIT produces must be the one it produces. Its arithmetic is exact, in
+; i128, on operands already inside their type, and it is written independently of the code generator so that
+; the two can be compared. The rest of eval.rs -- the IR walk, the call stack, the checked memory model and
+; its fault messages -- walks Rust data structures and stays glue for now.
+; --
+; The layout. An operator is its ArithOp number (OP_ADD .. OP_SHR_W, in the order of cli/t27b/src/ir.rs).
+; A type is (bits, signed, boolean): `boolean` marks Ty::Bool, which is 8 bits wide when it wraps but holds
+; only 0 and 1 when it is checked. A pointer is (64, false, false). The answer is an EvalArith: `trap` is
+; TRAP_NONE or the TrapKind number (TRAP_OVERFLOW 1, TRAP_DIV_ZERO 2, TRAP_SHIFT_RANGE 3), and `value` is the
+; result when nothing trapped.
+; --
+; The rules:
+;   - `+ - *` (checked) trap with OVERFLOW when the exact result is outside the type; `+% -% *%` wrap it to
+;     the type, two's complement.
+;   - `/` truncates. A zero divisor traps with DIV_ZERO; a checked quotient outside the type (MIN / -1) traps
+;     with OVERFLOW, the wrapping one wraps it (to MIN). The checked division has two trap sites, the zero
+;     divisor first: `site_offset` says which one a trap takes.
+;   - `%` is the truncated remainder (sign of the dividend); a zero divisor traps; MIN % -1 is 0.
+;   - `& | ^` act on the exact values, as the Rust did; they never leave the type.
+;   - `<< >>` (checked) trap with SHIFT_RANGE unless 0 <= amount < bits. The wrapping shifts take an amount
+;     outside that range modulo the width: its low bits (lowering refuses a run-time amount on an odd width).
+;     `<<` drops the bits shifted out of the type; `>>` is arithmetic on the exact value, so it rounds toward
+;     minus infinity on a signed operand.
+; --
+; The oracle. The 108 asserts on ev_trap, ev_value, ty_min, ty_max, wrap and site_offset were re-run against
+; the hand-written `eval::arith`, Ty::min, Ty::max and Ty::wrap this file replaces (cli/t27b/src/eval.rs and
+; ir.rs on master 6b6386e15, t27c Railway lab), and all hold there. The 17 on mag, mul_too_large and
+; shift_amount test helpers the Rust did not have; their values are exact integer arithmetic.
+; No unary operator (#6549) and no char literal (#7604) below.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bEvalArith;
+
+/// ArithOp, in the order of cli/t27b/src/ir.rs.
+pub const OP_ADD : u8 = 0;
+pub const OP_SUB : u8 = 1;
+pub const OP_MUL : u8 = 2;
+pub const OP_ADD_W : u8 = 3;
+pub const OP_SUB_W : u8 = 4;
+pub const OP_MUL_W : u8 = 5;
+pub const OP_DIV : u8 = 6;
+pub const OP_DIV_W : u8 = 7;
+pub const OP_REM : u8 = 8;
+pub const OP_AND : u8 = 9;
+pub const OP_OR : u8 = 10;
+pub const OP_XOR : u8 = 11;
+pub const OP_SHL : u8 = 12;
+pub const OP_SHR : u8 = 13;
+pub const OP_SHL_W : u8 = 14;
+pub const OP_SHR_W : u8 = 15;
+
+/// The TrapKind numbers an arithmetic operation can raise (cli/t27b/src/ir.rs), and none.
+pub const TRAP_NONE : u8 = 0;
+pub const TRAP_OVERFLOW : u8 = 1;
+pub const TRAP_DIV_ZERO : u8 = 2;
+pub const TRAP_SHIFT_RANGE : u8 = 3;
+
+const ONE : i128 = 1;
+const ZERO : i128 = 0;
+const U64_MAX : i128 = 18446744073709551615;
+
+/// The answer: a trap, or the value.
+pub const EvalArith = struct {
+    trap : u8,
+    value : i128,
+};
+
+fn ok(v: i128) -> EvalArith {
+    return EvalArith{ .trap = TRAP_NONE, .value = v };
+}
+
+fn trapped(kind: u8) -> EvalArith {
+    return EvalArith{ .trap = kind, .value = ZERO };
+}
+
+/// 2^n, for n of at most 64.
+pub fn pow2(n: u32) -> i128 {
+    return ONE << n;
+}
+
+/// The least and the greatest value of the type. Ty::Bool is never signed, so its least value is the
+/// unsigned one and ty_min needs no `boolean`.
+pub fn ty_min(bits: u32, signed: bool) -> i128 {
+    if (signed) { return ZERO - pow2(bits - 1); }
+    return ZERO;
+}
+
+pub fn ty_max(bits: u32, signed: bool, boolean: bool) -> i128 {
+    if (boolean) { return ONE; }
+    if (signed) { return pow2(bits - 1) - ONE; }
+    return pow2(bits) - ONE;
+}
+
+pub fn fits(v: i128, bits: u32, signed: bool, boolean: bool) -> bool {
+    return v >= ty_min(bits, signed) and v <= ty_max(bits, signed, boolean);
+}
+
+/// Two's-complement reduction of v to `bits` bits (a bool wraps as 8 bits, as the Rust did).
+pub fn wrap(v: i128, bits: u32, signed: bool) -> i128 {
+    const m : i128 = v & (pow2(bits) - ONE);
+    if (signed and m >= pow2(bits - 1)) { return m - pow2(bits); }
+    return m;
+}
+
+fn checked(r: i128, bits: u32, signed: bool, boolean: bool) -> EvalArith {
+    if (fits(r, bits, signed, boolean)) { return ok(r); }
+    return trapped(TRAP_OVERFLOW);
+}
+
+/// The magnitude of an operand. Every operand is inside a type of at most 64 bits, so it is below 2^64.
+pub fn mag(v: i128) -> i128 {
+    if (v < ZERO) { return ZERO - v; }
+    return v;
+}
+
+/// Is the exact product of a and b too large for any type of at most 64 bits? Asked without forming the
+/// product, which may not fit i128: |a| * |b| > U64_MAX exactly when |b| > U64_MAX / |a|. (The Rust asked
+/// i128's checked_mul first and the type second; both refusals are the same OVERFLOW.)
+pub fn mul_too_large(a: i128, b: i128) -> bool {
+    const ma : i128 = mag(a);
+    if (ma == ZERO) { return false; }
+    return mag(b) > @divTrunc(U64_MAX, ma);
+}
+
+/// The amount a shift uses, or a negative number when a checked shift traps.
+pub fn shift_amount(op: u8, bits: u32, b: i128) -> i128 {
+    const width : i128 = @intCast(bits);
+    if (b >= ZERO and b < width) { return b; }
+    if (op == OP_SHL or op == OP_SHR) { return ZERO - ONE; }
+    return b & (width - ONE);
+}
+
+/// Exact arithmetic of one IR operation on operands already inside the type (bits, signed, boolean).
+pub fn arith(op: u8, bits: u32, signed: bool, boolean: bool, a: i128, b: i128) -> EvalArith {
+    if (op == OP_ADD) { return checked(a + b, bits, signed, boolean); }
+    if (op == OP_SUB) { return checked(a - b, bits, signed, boolean); }
+    if (op == OP_MUL) {
+        if (mul_too_large(a, b)) { return trapped(TRAP_OVERFLOW); }
+        return checked(a * b, bits, signed, boolean);
+    }
+    if (op == OP_ADD_W) { return ok(wrap(a + b, bits, signed)); }
+    if (op == OP_SUB_W) { return ok(wrap(a - b, bits, signed)); }
+    if (op == OP_MUL_W) { return ok(wrap(a *% b, bits, signed)); }
+    if (op == OP_DIV or op == OP_DIV_W or op == OP_REM) {
+        if (b == ZERO) { return trapped(TRAP_DIV_ZERO); }
+        if (op == OP_DIV) { return checked(@divTrunc(a, b), bits, signed, boolean); }
+        if (op == OP_DIV_W) { return ok(wrap(@divTrunc(a, b), bits, signed)); }
+        return ok(@rem(a, b));
+    }
+    if (op == OP_AND) { return ok(a & b); }
+    if (op == OP_OR) { return ok(a | b); }
+    if (op == OP_XOR) { return ok(a ^ b); }
+    const amt : i128 = shift_amount(op, bits, b);
+    if (amt < ZERO) { return trapped(TRAP_SHIFT_RANGE); }
+    const n : u32 = amt as u32;
+    if (op == OP_SHL or op == OP_SHL_W) { return ok(wrap(a << n, bits, signed)); }
+    return ok(a >> n);
+}
+
+/// Which trap site of the operation a trap takes, after its first: the checked division traps on a zero
+/// divisor at its own site and on an overflow at the next one.
+pub fn site_offset(op: u8, trap: u8) -> u32 {
+    if (op == OP_DIV and trap == TRAP_OVERFLOW) { return 1; }
+    return 0;
+}
+
+// Shorthands for the tests: the trap and the value of one operation.
+fn ev_trap(op: u8, bits: u32, signed: bool, boolean: bool, a: i128, b: i128) -> u8 {
+    return arith(op, bits, signed, boolean, a, b).trap;
+}
+
+fn ev_value(op: u8, bits: u32, signed: bool, boolean: bool, a: i128, b: i128) -> i128 {
+    return arith(op, bits, signed, boolean, a, b).value;
+}
+
+test the_bounds_of_each_type {
+    assert ty_min(8, true) == 0 - 128;
+    assert ty_max(8, true, false) == 127;
+    assert ty_max(8, false, false) == 255;
+    assert ty_min(8, false) == 0;
+    assert ty_max(8, false, true) == 1;
+    assert ty_min(64, true) == 0 - 9223372036854775808;
+    assert ty_max(64, true, false) == 9223372036854775807;
+    assert ty_max(64, false, false) == 18446744073709551615;
+    assert ty_max(3, false, false) == 7;
+    assert ty_min(5, true) == 0 - 16;
+    assert ty_max(5, true, false) == 15;
+}
+
+test wrap_is_twos_complement {
+    assert wrap(256, 8, false) == 0;
+    assert wrap(128, 8, true) == 0 - 128;
+    assert wrap(0 - 1, 8, false) == 255;
+    assert wrap(0 - 1, 64, false) == 18446744073709551615;
+    assert wrap(18446744073709551615, 64, true) == 0 - 1;
+    assert wrap(9223372036854775808, 64, true) == 0 - 9223372036854775808;
+    assert wrap(28, 3, false) == 4;
+    assert wrap(2, 8, false) == 2;
+    assert wrap(0 - 129, 8, true) == 127;
+}
+
+test checked_add_and_sub_trap_outside_the_type {
+    assert ev_value(OP_ADD, 8, true, false, 100, 27) == 127;
+    assert ev_trap(OP_ADD, 8, true, false, 100, 27) == TRAP_NONE;
+    assert ev_trap(OP_ADD, 8, true, false, 100, 28) == TRAP_OVERFLOW;
+    assert ev_value(OP_ADD, 8, true, false, 0 - 100, 0 - 28) == 0 - 128;
+    assert ev_trap(OP_ADD, 8, true, false, 0 - 100, 0 - 29) == TRAP_OVERFLOW;
+    assert ev_value(OP_ADD, 8, false, false, 255, 0) == 255;
+    assert ev_trap(OP_ADD, 8, false, false, 255, 1) == TRAP_OVERFLOW;
+    assert ev_trap(OP_SUB, 8, false, false, 0, 1) == TRAP_OVERFLOW;
+    assert ev_trap(OP_SUB, 64, true, false, 0 - 9223372036854775808, 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_SUB, 64, false, false, 18446744073709551615, 18446744073709551615) == 0;
+    assert ev_value(OP_ADD, 8, false, true, 0, 1) == 1;
+    assert ev_trap(OP_ADD, 8, false, true, 1, 1) == TRAP_OVERFLOW;
+    assert ev_trap(OP_ADD, 3, false, false, 4, 4) == TRAP_OVERFLOW;
+    assert ev_value(OP_ADD, 3, false, false, 4, 3) == 7;
+}
+
+test checked_mul_traps_outside_the_type_and_outside_i128 {
+    assert ev_trap(OP_MUL, 64, false, false, 18446744073709551615, 18446744073709551615) == TRAP_OVERFLOW;
+    assert ev_trap(OP_MUL, 64, false, false, 4294967296, 4294967296) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 64, false, false, 4294967295, 4294967297) == 18446744073709551615;
+    assert ev_trap(OP_MUL, 64, false, false, 4294967295, 4294967297) == TRAP_NONE;
+    assert ev_trap(OP_MUL, 64, true, false, 0 - 9223372036854775808, 0 - 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 64, true, false, 0 - 9223372036854775808, 1) == 0 - 9223372036854775808;
+    assert ev_trap(OP_MUL, 64, true, false, 0 - 9223372036854775808, 0 - 9223372036854775808) == TRAP_OVERFLOW;
+    assert ev_trap(OP_MUL, 64, false, false, 18446744073709551615, 2) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 8, true, false, 0 - 16, 8) == 0 - 128;
+    assert ev_trap(OP_MUL, 8, true, false, 0 - 16, 9) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 32, true, false, 0, 0 - 7) == 0;
+    assert ev_value(OP_MUL, 32, true, false, 0 - 7, 0) == 0;
+}
+
+test mul_too_large_is_exact_at_two_to_the_64 {
+    assert mul_too_large(18446744073709551615, 18446744073709551615);
+    assert mul_too_large(4294967296, 4294967296);
+    assert mul_too_large(4294967295, 4294967297) == false;
+    assert mul_too_large(0, 18446744073709551615) == false;
+    assert mul_too_large(0 - 1, 18446744073709551615) == false;
+    assert mul_too_large(0 - 2, 9223372036854775808);
+    assert mul_too_large(0 - 3, 0 - 6148914691236517205) == false;
+    assert mul_too_large(0 - 3, 0 - 6148914691236517206);
+}
+
+test magnitudes {
+    assert mag(0 - 9223372036854775808) == 9223372036854775808;
+    assert mag(18446744073709551615) == 18446744073709551615;
+    assert mag(0 - 1) == 1;
+    assert mag(0) == 0;
+}
+
+test wrapping_add_sub_mul_reduce_to_the_type {
+    assert ev_value(OP_ADD_W, 8, false, false, 255, 1) == 0;
+    assert ev_value(OP_ADD_W, 8, true, false, 127, 1) == 0 - 128;
+    assert ev_value(OP_ADD_W, 8, false, true, 1, 1) == 2;
+    assert ev_value(OP_SUB_W, 64, false, false, 0, 1) == 18446744073709551615;
+    assert ev_value(OP_SUB_W, 32, true, false, 0 - 2147483648, 1) == 2147483647;
+    assert ev_value(OP_MUL_W, 64, false, false, 18446744073709551615, 18446744073709551615) == 1;
+    assert ev_value(OP_MUL_W, 64, true, false, 0 - 9223372036854775808, 0 - 1) == 0 - 9223372036854775808;
+    assert ev_value(OP_MUL_W, 8, true, false, 0 - 128, 0 - 128) == 0;
+    assert ev_value(OP_MUL_W, 32, false, false, 4294967295, 4294967295) == 1;
+    assert ev_value(OP_MUL_W, 3, false, false, 5, 3) == 7;
+    assert ev_value(OP_MUL_W, 64, true, false, 3037000500, 3037000500) == 0 - 9223372036709301616;
+    assert ev_trap(OP_MUL_W, 64, false, false, 18446744073709551615, 18446744073709551615) == TRAP_NONE;
+}
+
+test division_truncates_and_traps_on_zero_and_min_by_minus_one {
+    assert ev_trap(OP_DIV, 8, false, false, 7, 0) == TRAP_DIV_ZERO;
+    assert ev_trap(OP_DIV_W, 8, false, false, 7, 0) == TRAP_DIV_ZERO;
+    assert ev_trap(OP_REM, 8, false, false, 7, 0) == TRAP_DIV_ZERO;
+    assert ev_trap(OP_DIV, 8, true, false, 0 - 128, 0 - 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_DIV_W, 8, true, false, 0 - 128, 0 - 1) == 0 - 128;
+    assert ev_value(OP_DIV, 32, true, false, 0 - 7, 2) == 0 - 3;
+    assert ev_value(OP_DIV, 64, true, false, 7, 0 - 2) == 0 - 3;
+    assert ev_value(OP_DIV, 64, false, false, 18446744073709551615, 3) == 6148914691236517205;
+    assert ev_value(OP_DIV, 64, true, false, 0 - 9223372036854775808, 0 - 2) == 4611686018427387904;
+    assert ev_value(OP_REM, 32, true, false, 0 - 7, 2) == 0 - 1;
+    assert ev_value(OP_REM, 32, true, false, 7, 0 - 2) == 1;
+    assert ev_value(OP_REM, 64, true, false, 0 - 9223372036854775808, 0 - 1) == 0;
+    assert ev_value(OP_REM, 64, false, false, 18446744073709551615, 10) == 5;
+    assert ev_trap(OP_DIV, 8, false, true, 1, 0) == TRAP_DIV_ZERO;
+}
+
+test bitwise_ops_act_on_the_exact_values {
+    assert ev_value(OP_AND, 8, true, false, 0 - 1, 15) == 15;
+    assert ev_value(OP_OR, 64, true, false, 0 - 9223372036854775808, 1) == 0 - 9223372036854775807;
+    assert ev_value(OP_XOR, 32, true, false, 0 - 1, 5) == 0 - 6;
+    assert ev_value(OP_AND, 64, false, false, 18446744073709551615, 4095) == 4095;
+    assert ev_value(OP_OR, 8, false, false, 240, 15) == 255;
+    assert ev_value(OP_XOR, 8, false, true, 1, 1) == 0;
+    assert ev_trap(OP_XOR, 8, false, false, 255, 255) == TRAP_NONE;
+}
+
+test checked_shifts_trap_outside_the_width {
+    assert ev_value(OP_SHL, 8, false, false, 1, 7) == 128;
+    assert ev_trap(OP_SHL, 8, false, false, 1, 8) == TRAP_SHIFT_RANGE;
+    assert ev_trap(OP_SHL, 8, false, false, 1, 0 - 1) == TRAP_SHIFT_RANGE;
+    assert ev_value(OP_SHL, 8, true, false, 1, 7) == 0 - 128;
+    assert ev_value(OP_SHL, 8, false, false, 255, 4) == 240;
+    assert ev_value(OP_SHL, 64, true, false, 0 - 1, 63) == 0 - 9223372036854775808;
+    assert ev_value(OP_SHL, 64, false, false, 18446744073709551615, 1) == 18446744073709551614;
+    assert ev_value(OP_SHL, 3, false, false, 7, 2) == 4;
+    assert ev_trap(OP_SHL, 21, false, false, 1, 21) == TRAP_SHIFT_RANGE;
+    assert ev_value(OP_SHL, 21, false, false, 1, 20) == 1048576;
+    assert ev_value(OP_SHR, 8, true, false, 0 - 128, 7) == 0 - 1;
+    assert ev_value(OP_SHR, 64, false, false, 18446744073709551615, 63) == 1;
+    assert ev_value(OP_SHR, 32, true, false, 0 - 7, 1) == 0 - 4;
+    assert ev_trap(OP_SHR, 64, false, false, 1, 64) == TRAP_SHIFT_RANGE;
+    assert ev_value(OP_SHR, 64, true, false, 0 - 9223372036854775808, 0) == 0 - 9223372036854775808;
+}
+
+test wrapping_shifts_take_the_amount_modulo_the_width {
+    assert ev_value(OP_SHL_W, 32, false, false, 1, 33) == 2;
+    assert ev_value(OP_SHL_W, 8, false, false, 1, 0 - 1) == 128;
+    assert ev_value(OP_SHR_W, 64, true, false, 0 - 9223372036854775808, 64) == 0 - 9223372036854775808;
+    assert ev_value(OP_SHR_W, 16, false, false, 32768, 17) == 16384;
+    assert ev_value(OP_SHL_W, 3, false, false, 1, 5) == 1;
+    assert ev_value(OP_SHL_W, 64, true, false, 1, 63) == 0 - 9223372036854775808;
+    assert ev_trap(OP_SHL_W, 8, false, false, 1, 300) == TRAP_NONE;
+    assert ev_value(OP_SHL_W, 8, false, false, 3, 300) == 48;
+    assert shift_amount(OP_SHL, 8, 8) == 0 - 1;
+    assert shift_amount(OP_SHR, 8, 0 - 3) == 0 - 1;
+    assert shift_amount(OP_SHR_W, 8, 0 - 3) == 5;
+    assert shift_amount(OP_SHL_W, 5, 7) == 4;
+    assert shift_amount(OP_SHL, 64, 63) == 63;
+}
+
+test only_a_checked_division_overflow_takes_the_next_site {
+    assert site_offset(OP_DIV, TRAP_OVERFLOW) == 1;
+    assert site_offset(OP_DIV, TRAP_DIV_ZERO) == 0;
+    assert site_offset(OP_DIV_W, TRAP_DIV_ZERO) == 0;
+    assert site_offset(OP_ADD, TRAP_OVERFLOW) == 0;
+    assert site_offset(OP_MUL, TRAP_OVERFLOW) == 0;
+    assert site_offset(OP_SHL, TRAP_SHIFT_RANGE) == 0;
+}

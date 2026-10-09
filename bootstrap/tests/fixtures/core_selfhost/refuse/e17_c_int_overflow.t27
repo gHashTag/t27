@@ -1,0 +1,3 @@
+// gen-c writes 100000 * 100000, which C computes in int (#8099).
+module c_int_overflow;
+const CIO_X: i64 = 100000 * 100000;

@@ -268,9 +268,26 @@ measure it are written in **t27**, not in Rust or Python by hand.
   8215; 15276 plus 1239, 16515 in all, and tests 8247, after #7923's glue for
   `std.math.log` with base `std.math.e` (`std.math.inf`, `std.math.log1p` and
   an f64 `@round` are plan and routines only, `libm_plan.t27` and `libm.t27`),
-  +3 and +21 on master 35e69962d's 15273 plus 1239 and 8226; 15269 plus 1239, 16508 in all, and
-  tests 8260, after #7909 deleted the stale refusal of a repeat local passed as
-  an array, -7 and +13 on master a97cb9e55's 15276 plus 1239 and 8247),
+  +3 and +21 on master 35e69962d's 15273 plus 1239 and 8226; 15281 plus 1239,
+  16520 in all, and `cli/t27b/tests/*.rs` 8261, after #7809's glue for a minus
+  the parser folds into a float literal (`specs/tri/t27b/literal_plan.t27`),
+  +5 and +14 on master a97cb9e55's 15276 plus 1239 and 8247; 15308 plus 1263,
+  16571 in all, and tests 8274, after #7833's glue for an array literal of
+  strings for a slice, whose plan is `specs/tri/t27b/slice_lit_plan.t27`, +24
+  and +13 on master 3d2ea886e's 15308 plus 1239 and 8261;
+  15261 plus 1263, 16524 in all, and tests 8274, after #8057 moved
+  `eval::arith`, the reference interpreter's exact arithmetic, to
+  `specs/tri/t27b/eval_arith.t27`, -47, 0 and 0 on master a561d6d13's 15308
+  plus 1263 and 8274; 14880 plus 1263, 16143 in all, and tests 8274, after
+  #8244 moved the comptime_float arithmetic of `lower_float.rs` (`Big`,
+  `round_bits`, `Q`) to `specs/tri/t27b/comptime_float.t27`, -384, 0 and 0 on
+  master ca9866b73's 15264 plus 1263 and 8274; 14750 plus 1263, 16013 in all,
+  and tests 8274, after #8229 moved the type-text rules of `lower.rs`
+  (`type_base`, `close_of_open`, `type_construct`'s shape and four more) to
+  `specs/tri/t27b/type_text.t27`, -130, 0 and 0 on master 0fca4bdfd's 14880
+  plus 1263 and 8274; 14743 plus 1263, 16006 in all, and
+  tests 8274, after #7909 deleted the stale refusal of a repeat local passed as
+  an array, -7, 0 and 0 on master f21a0b39c's 14750 plus 1263 and 8274),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

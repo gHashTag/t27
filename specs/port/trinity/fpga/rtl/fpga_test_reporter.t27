@@ -1,0 +1,350 @@
+// FPGA Test Reporter
+// Sends test results via UART for automated hardware verification
+// Format: "PASS:test_name\n" or "FAIL:test_name:reason\n"
+//
+// Port of fpga/rtl/fpga_test_reporter.v (gHashTag/trinity at 2e12914ba5d4,
+// 117 lines, 1 module). The Verilog always block becomes the pure functions
+// below; `t27c gen-verilog` turns this file back into the module.
+//
+// Not ported, named: the uart_tx transmitter instance (original lines 28-38)
+// is a separate module in fpga/rtl/uart_tx.v -- wiring one module to another
+// is plumbing, and this file models the character stream that instance
+// carries, through on_comb. The `rst` input and the `led` status pin are
+// platform wiring: the caller holds the pins, the functions below decide
+// what they do.
+
+module fpga_test_reporter {
+
+    // ------------------------------------------------------------
+    // Parameters (original lines 6-7)
+    // ------------------------------------------------------------
+
+    pub const CLK_FREQ : u32 = 50_000_000;
+    pub const BAUD : u32 = 115200;
+
+    // ------------------------------------------------------------
+    // Test states (original lines 16-18, localparam)
+    // ------------------------------------------------------------
+
+    pub const IDLE : u32 = 0;
+    pub const SEND_RESULT : u32 = 1;
+    pub const WAITING : u32 = 2;
+
+    // The result message the original sends is "PASS:test\n": 10
+    // characters (original line 89, char_idx < 10).
+    pub const RESULT_LEN : u32 = 10;
+
+    // ------------------------------------------------------------
+    // The result ROM (original lines 42-60, function get_char):
+    // idx [4:0] -> one character of "PASS:test\n", 8'h00 past the end.
+    // ------------------------------------------------------------
+
+    pub fn get_char(idx: u32) -> u8 {
+        if (idx == 0) {
+            return 'P';
+        }
+        if (idx == 1) {
+            return 'A';
+        }
+        if (idx == 2) {
+            return 'S';
+        }
+        if (idx == 3) {
+            return 'S';
+        }
+        if (idx == 4) {
+            return ':';
+        }
+        if (idx == 5) {
+            return 't';
+        }
+        if (idx == 6) {
+            return 'e';
+        }
+        if (idx == 7) {
+            return 's';
+        }
+        if (idx == 8) {
+            return 't';
+        }
+        if (idx == 9) {
+            return '\n';
+        }
+        return 0x00;
+    }
+
+    // ------------------------------------------------------------
+    // Blink counter (original lines 63-70, reg [23:0], wraps at 2^24)
+    // ------------------------------------------------------------
+
+    pub const BLINK_WRAP : u32 = 16777216; // 2^24
+
+    // blink_counter <= blink_counter + 1, with the 24-bit wrap.
+    pub fn blink_next(counter: u32) -> u32 {
+        if (counter + 1 == BLINK_WRAP) {
+            return 0;
+        }
+        return counter + 1;
+    }
+
+    // blink_counter[23] == 1 (original line 104): bit 23 of the counter.
+    pub fn blink_bit23(counter: u32) -> bool {
+        return (counter >> 23) % 2 == 1;
+    }
+
+    // ------------------------------------------------------------
+    // Status LED, active-low: 1 = OFF, 0 = ON (original lines 77, 96)
+    // ------------------------------------------------------------
+
+    pub const LED_OFF : u32 = 1;
+    pub const LED_ON : u32 = 0;
+
+    // WAITING blinks slowly: led_reg <= ~led_reg on the original's 1-bit
+    // reg (line 105) -- 1 - led is that toggle on the 0/1 values.
+    pub fn led_toggle(led: u32) -> u32 {
+        return 1 - led;
+    }
+
+    // ------------------------------------------------------------
+    // State transitions (original lines 72-112, the always block).
+    // tx_busy is the uart instance's busy wire: a parameter here, the
+    // caller passes it in.
+    // ------------------------------------------------------------
+
+    // IDLE: wait until the blink counter wraps to 0, then start sending.
+    pub fn next_state_idle(blink_counter: u32) -> u32 {
+        if (blink_counter == 0) {
+            return SEND_RESULT;
+        }
+        return IDLE;
+    }
+
+    // SEND_RESULT, !tx_busy && char_idx < RESULT_LEN: load and send the
+    // next character (original lines 89-92).
+    pub fn should_send(tx_busy: bool, char_idx: u32) -> bool {
+        return !tx_busy and char_idx < RESULT_LEN;
+    }
+
+    // char_to_send <= get_char(char_idx) while sending; 8'h00 holds when
+    // the transmitter is busy or the message is done.
+    pub fn char_to_send(tx_busy: bool, char_idx: u32) -> u8 {
+        if (should_send(tx_busy, char_idx)) {
+            return get_char(char_idx);
+        }
+        return 0x00;
+    }
+
+    // start_tx <= 1 while sending; <= 0 when busy (original lines 91, 98).
+    pub fn start_tx(tx_busy: bool, char_idx: u32) -> bool {
+        if (should_send(tx_busy, char_idx)) {
+            return true;
+        }
+        return false;
+    }
+
+    // char_idx <= char_idx + 1 while sending (original line 92).
+    pub fn char_idx_next(tx_busy: bool, char_idx: u32) -> u32 {
+        if (should_send(tx_busy, char_idx)) {
+            return char_idx + 1;
+        }
+        return char_idx;
+    }
+
+    // SEND_RESULT, !tx_busy && char_idx >= RESULT_LEN: done sending ->
+    // WAITING (original lines 93-96).
+    pub fn next_state_send(tx_busy: bool, char_idx: u32) -> u32 {
+        if (!tx_busy and char_idx >= RESULT_LEN) {
+            return WAITING;
+        }
+        return SEND_RESULT;
+    }
+
+    // Done sending: led_reg <= 0 -- LED ON, active-low, test passed
+    // (original line 96). Until then the LED stays OFF (1).
+    pub fn led_after_send(tx_busy: bool, char_idx: u32) -> u32 {
+        if (!tx_busy and char_idx >= RESULT_LEN) {
+            return LED_ON;
+        }
+        return LED_OFF;
+    }
+
+    // WAITING: blink slowly to indicate the test passed (original
+    // lines 102-107).
+    pub fn led_in_waiting(blink_counter: u32, led: u32) -> u32 {
+        if (blink_bit23(blink_counter)) {
+            return led_toggle(led);
+        }
+        return led;
+    }
+
+    // The original's case (state) with its default arm (line 109): an
+    // unknown state code falls back to IDLE.
+    pub fn next_state(state: u32, tx_busy: bool, char_idx: u32, blink_counter: u32) -> u32 {
+        if (state == IDLE) {
+            return next_state_idle(blink_counter);
+        }
+        if (state == SEND_RESULT) {
+            return next_state_send(tx_busy, char_idx);
+        }
+        if (state == WAITING) {
+            return WAITING;
+        }
+        return IDLE;
+    }
+
+    // ------------------------------------------------------------
+    // Combinational surface: the character loaded for transmission
+    // becomes the module's data input, the byte the wire carries its
+    // output -- what uart_tx sends.
+    // ------------------------------------------------------------
+
+    pub fn on_comb(char_idx: u32) -> u8 {
+        return get_char(char_idx);
+    }
+
+    // ------------------------------------------------------------
+    // Compile-time invariants
+    // ------------------------------------------------------------
+
+    invariant led_is_one_bit {
+        assert(LED_OFF == 1);
+        assert(LED_ON == 0);
+    }
+
+    invariant state_codes_distinct {
+        assert(IDLE != SEND_RESULT);
+        assert(SEND_RESULT != WAITING);
+        assert(IDLE != WAITING);
+    }
+
+    // ------------------------------------------------------------
+    // Tests: the values the original produces
+    // ------------------------------------------------------------
+
+    test get_char_message {
+        // "PASS:test\n", one character per index (original lines 47-56).
+        assert(get_char(0) == 'P');
+        assert(get_char(1) == 'A');
+        assert(get_char(2) == 'S');
+        assert(get_char(3) == 'S');
+        assert(get_char(4) == ':');
+        assert(get_char(5) == 't');
+        assert(get_char(6) == 'e');
+        assert(get_char(7) == 's');
+        assert(get_char(8) == 't');
+        assert(get_char(9) == '\n');
+        // default: 8'h00 past the message, across the whole [4:0] range.
+        assert(get_char(10) == 0x00);
+        assert(get_char(31) == 0x00);
+    }
+
+    test blink_counter_wraps {
+        // 24-bit counter: wraps to 0 after 2^24 - 1 (original line 68).
+        assert(blink_next(0) == 1);
+        assert(blink_next(BLINK_WRAP - 2) == BLINK_WRAP - 1);
+        assert(blink_next(BLINK_WRAP - 1) == 0);
+        // bit 23 is the slow-blink flag (original line 104).
+        assert(!blink_bit23(0));
+        assert(blink_bit23(8388608));
+        assert(blink_bit23(BLINK_WRAP - 1));
+    }
+
+    test led_toggle_active_low {
+        assert(led_toggle(LED_OFF) == LED_ON);
+        assert(led_toggle(LED_ON) == LED_OFF);
+        assert(led_toggle(1) == 0);
+        assert(led_toggle(0) == 1);
+    }
+
+    test idle_waits_then_sends {
+        // IDLE holds while the counter runs (original lines 80-86).
+        assert(next_state_idle(1) == IDLE);
+        assert(next_state_idle(12345) == IDLE);
+        // ...and starts sending when it wraps to 0.
+        assert(next_state_idle(0) == SEND_RESULT);
+    }
+
+    test send_streams_the_message {
+        // Not busy: every character loads in order, idx advances, start
+        // pulses (original lines 89-92).
+        assert(should_send(false, 0));
+        assert(char_to_send(false, 0) == 'P');
+        assert(char_idx_next(false, 0) == 1);
+        assert(char_to_send(false, 4) == ':');
+        assert(char_to_send(false, 9) == '\n');
+        assert(char_idx_next(false, 9) == 10);
+        assert(start_tx(false, 5));
+        // RESULT_LEN is the boundary: 10 characters, no more.
+        assert(!should_send(false, 10));
+        assert(char_to_send(false, 10) == 0x00);
+        assert(char_idx_next(false, 10) == 10);
+        // Busy: nothing loads, no start (original line 98).
+        assert(!should_send(true, 0));
+        assert(char_to_send(true, 0) == 0x00);
+        assert(!start_tx(true, 0));
+        assert(char_idx_next(true, 7) == 7);
+    }
+
+    test send_finishes_into_waiting {
+        // !tx_busy && char_idx >= 10: done -> WAITING, LED ON
+        // (original lines 93-96).
+        assert(next_state_send(false, 10) == WAITING);
+        assert(next_state_send(false, 25) == WAITING);
+        assert(led_after_send(false, 10) == LED_ON);
+        // Still busy or still sending: stay in SEND_RESULT, LED OFF.
+        assert(next_state_send(true, 10) == SEND_RESULT);
+        assert(next_state_send(false, 9) == SEND_RESULT);
+        assert(next_state_send(true, 0) == SEND_RESULT);
+        assert(led_after_send(true, 10) == LED_OFF);
+        assert(led_after_send(false, 9) == LED_OFF);
+    }
+
+    test waiting_blinks_slowly {
+        // bit 23 set: the LED toggles (original lines 104-106).
+        assert(led_in_waiting(8388608, LED_OFF) == LED_ON);
+        assert(led_in_waiting(8388608, LED_ON) == LED_OFF);
+        // bit 23 clear: the LED holds.
+        assert(led_in_waiting(0, LED_ON) == LED_ON);
+        assert(led_in_waiting(8388607, LED_OFF) == LED_OFF);
+    }
+
+    test next_state_walks_the_case {
+        // IDLE -> SEND_RESULT at the wrap, else IDLE.
+        assert(next_state(IDLE, true, 0, 0) == SEND_RESULT);
+        assert(next_state(IDLE, false, 0, 5) == IDLE);
+        // SEND_RESULT streams while busy-or-sending, waits when free.
+        assert(next_state(SEND_RESULT, false, 0, 1) == SEND_RESULT);
+        assert(next_state(SEND_RESULT, true, 0, 1) == SEND_RESULT);
+        assert(next_state(SEND_RESULT, false, 10, 1) == WAITING);
+        // WAITING holds (the blink is the LED's job).
+        assert(next_state(WAITING, false, 0, 1) == WAITING);
+        // default arm: an unknown state code returns to IDLE
+        // (original line 109).
+        assert(next_state(7, false, 0, 1) == IDLE);
+    }
+
+    test on_comb_carries_the_message {
+        // The byte on the wire is the ROM's character (original line 90).
+        assert(on_comb(0) == 'P');
+        assert(on_comb(9) == '\n');
+        assert(on_comb(10) == 0x00);
+    }
+
+    test parameters_match_the_original {
+        // The original's parameters (lines 6-7): CLK_FREQ and BAUD feed
+        // only the uart bit period (uart_tx's business, not ported), so
+        // they are pinned comptime; RESULT_LEN and the blink wrap are
+        // pinned at runtime through the functions that use them.
+        assert(CLK_FREQ == 50_000_000);
+        assert(BAUD == 115200);
+        // RESULT_LEN is the message length: the ROM's last character is
+        // at RESULT_LEN - 1, 8'h00 from RESULT_LEN on, and idx stops there.
+        assert(get_char(RESULT_LEN - 1) == '\n');
+        assert(get_char(RESULT_LEN) == 0x00);
+        assert(char_idx_next(false, RESULT_LEN - 1) == RESULT_LEN);
+        // BLINK_WRAP is 2^24: the counter's last index sets bit 23 and
+        // the next step wraps to 0 (original line 68).
+        assert(blink_bit23(BLINK_WRAP - 1));
+        assert(blink_next(BLINK_WRAP - 1) == 0);
+    }
+}

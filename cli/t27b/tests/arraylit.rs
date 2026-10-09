@@ -120,15 +120,15 @@ fn frame_address_store_is_refused() {
     assert!(r.contains("StmtAssign(frame address)") && r.contains("`cell`"), "{}", r);
 }
 
-/// `const a = [v; n];` passed where `[N]T` is declared: `.{ v } ** n` in the reference (#7909; `t27c test-report`:
-/// 4 pass, none vacuous). A count other than N, or a v that T cannot hold, does not compile there; refused here.
+/// Strings behind a slice field or a returned slice (wrapup-auto.t27's `files_modified: ["..."]`): a static
+/// written at every entry, as a module var holding a string is (#7470, #7833; `t27c test-report`: 6 pass,
+/// none vacuous). A write through such a slice and run-time elements stay refused.
 #[test]
-fn repeat_local_spec_passes_and_must_fit_its_array() {
-    let ran = run(include_str!("../../../specs/tri/t27b/conformance/repeat_local.t27"));
-    let got = names_ok(&ran);
-    assert!(got.len() == 4 && got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
-    let src = "module a;\n\nfn total(a: [4]i8) -> i32 {\n    return (a[0] as i32) + (a[3] as i32);\n}\n\ntest t {\n    const a = [2; 4];\n    assert(total(a) == 4);\n}\n";
+fn string_slice_literal_spec_passes() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/string_slice_literal.t27"));
+    assert!(ran.len() == 6 && names_ok(&ran).iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", names_ok(&ran));
+    let src = "module a;\n\npub const S = struct {\n    xs: [str],\n};\n\nfn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };\n}\n\ntest t {\n    var v = s();\n    assert(v.xs[1].len == 1);\n}\n";
     assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
-    assert!(rejected(&src.replace("[2; 4]", "[2; 3]")).contains("at line 8 (3 elements for `[4]i8`)"));
-    assert!(rejected(&src.replace("[2; 4]", "[300; 4]")).contains("at line 8 (300 does not fit in i8)"));
+    assert!(rejected(&src.replace("    assert(v.xs", "    v.xs[0] = \"z\";\n    assert(v.xs")).contains("StmtAssign(write through an array literal)"));
+    assert!(rejected(&src.replace("fn s() -> S {\n    return S{ .xs = [\"ab\", \"c\"] };", "fn s(c: str) -> S {\n    return S{ .xs = [\"ab\", c] };").replace("s();", "s(\"c\");")).contains("ExprArrayLiteral(to slice field)"));
 }
