@@ -1,0 +1,6 @@
+// A comptime integer compared with a bool: C compares 9 with 0 or 1, Zig
+// refuses (#8075).
+module compare_literal_with_bool;
+fn clb_g(f: bool) -> bool {
+    return 9 == f;
+}
