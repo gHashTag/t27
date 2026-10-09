@@ -109,15 +109,15 @@ module automation::tri_claim_batch {
     pub const PASSING_CODES : str = "quorum_not_reached,signer_unreachable,signer_answer_malformed,signers_disagree";
 
     // Done counts as withdrawn; passing may be asked again; final is shown and not asked again.
-    fn counts_as_done(class: u8) -> bool {
-        return class == REFUSAL_DONE;
+    fn counts_as_done(kind: u8) -> bool {
+        return kind == REFUSAL_DONE;
     }
 
     // A passing refusal is asked again at most MAX_RETRY_ROUNDS more times, a round after the
     // rest of the queue -- never in a tight loop, never forever.
     pub const MAX_RETRY_ROUNDS : u32 = 2;
-    fn may_retry(class: u8, rounds_done: u32) -> bool {
-        return class == REFUSAL_PASSING && rounds_done < MAX_RETRY_ROUNDS;
+    fn may_retry(kind: u8, rounds_done: u32) -> bool {
+        return kind == REFUSAL_PASSING && rounds_done < MAX_RETRY_ROUNDS;
     }
 
     // A wallet that accepted the transaction proves nothing about the mint: the card says
