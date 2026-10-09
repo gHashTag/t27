@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/math/pell_hybrid.t27 -- Pell numbers and the two phi/Pell "hybrid" diagnostics that `t27c
+; math-compare` prints. Ported from hand-written Rust (bootstrap/src/math_compare.rs: pell_u64, pell_f64,
+; hybrid_inner_product, hybrid_v2_cosine); the Rust now calls the code generated from this file.
+; --
+; Pell numbers: P_0 = 0, P_1 = 1, P_n = 2 P_{n-1} + P_{n-2} (the sqrt(2) ladder). pell_u64 saturates at
+; the u64 maximum instead of wrapping, as the Rust did with saturating_mul and saturating_add.
+; --
+; Hybrid v1: the inner product of phi^k (k = 0..4) normalized by its sum with P_{k+1} (k = 0..4)
+; normalized by its largest weight, P_5 = 29.
+; Hybrid v2: the cosine between phi^k and P_{k+1} for k = 0..n-1, both L2-normalized. It converges to
+; 0.9617435163 as n grows. The test vectors are the GOLDEN_V2 table of math_compare.rs, held here to 1e-9
+; (the Rust tests held them to 1e-6).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module MathPellHybrid;
+
+/// The largest u64; pell_u64 saturates here.
+pub const U64_MAX : u64 = 18446744073709551615;
+
+pub fn pell_u64(n: u32) -> u64 {
+    if (n == 0) { return 0; }
+    if (n == 1) { return 1; }
+    var a : u64 = 0;
+    var b : u64 = 1;
+    var i : u32 = 2;
+    while (i <= n) {
+        var c : u64 = U64_MAX;
+        if (b <= (U64_MAX - a) / 2) { c = 2 * b + a; }
+        a = b;
+        b = c;
+        i += 1;
+    }
+    return b;
+}
+
+/// Pell numbers as f64, so that n above about 50 does not saturate.
+pub fn pell_f64(n: u32) -> f64 {
+    if (n == 0) { return 0.0; }
+    if (n == 1) { return 1.0; }
+    var a : f64 = 0.0;
+    var b : f64 = 1.0;
+    var i : u32 = 2;
+    while (i <= n) {
+        const c : f64 = 2.0 * b + a;
+        a = b;
+        b = c;
+        i += 1;
+    }
+    return b;
+}
+
+/// x to the k-th power by repeated multiplication.
+pub fn pow_f64(x: f64, k: u32) -> f64 {
+    var r : f64 = 1.0;
+    var i : u32 = 0;
+    while (i < k) {
+        r = r * x;
+        i += 1;
+    }
+    return r;
+}
+
+/// Hybrid v1: sum over k = 0..4 of (phi^k / sum phi^j) * (P_{k+1} / P_5).
+pub fn hybrid_inner_product(phi: f64) -> f64 {
+    var sum_m : f64 = 0.0;
+    var k : u32 = 0;
+    while (k < 5) {
+        sum_m = sum_m + pow_f64(phi, k);
+        k += 1;
+    }
+    const maxw : f64 = pell_f64(5);
+    var acc : f64 = 0.0;
+    k = 0;
+    while (k < 5) {
+        acc = acc + (pow_f64(phi, k) / sum_m) * (pell_f64(k + 1) / maxw);
+        k += 1;
+    }
+    return acc;
+}
+
+/// Hybrid v2: the cosine between phi^k and P_{k+1}, k = 0..n-1. Zero when either side is all zeros.
+pub fn hybrid_v2_cosine(phi: f64, n: u32) -> f64 {
+    var dot : f64 = 0.0;
+    var uu : f64 = 0.0;
+    var vv : f64 = 0.0;
+    var k : u32 = 0;
+    while (k < n) {
+        const u : f64 = pow_f64(phi, k);
+        const v : f64 = pell_f64(k + 1);
+        dot = dot + u * v;
+        uu = uu + u * u;
+        vv = vv + v * v;
+        k += 1;
+    }
+    if (uu == 0.0 or vv == 0.0) { return 0.0; }
+    return dot / (@sqrt(uu) * @sqrt(vv));
+}
+
+fn phi_value() -> f64 {
+    // a typed operand: gen-rust lowers @sqrt of a bare float literal to (5.0).sqrt(), which rustc rejects
+    const five : f64 = 5.0;
+    return (1.0 + @sqrt(five)) / 2.0;
+}
+
+fn near(x: f64, y: f64) -> bool {
+    var d : f64 = x - y;
+    if (d < 0.0) { d = 0.0 - d; }
+    return d < 0.000000001;
+}
+
+test pell_u64_follows_the_sqrt2_ladder {
+    assert pell_u64(0) == 0;
+    assert pell_u64(1) == 1;
+    assert pell_u64(2) == 2;
+    assert pell_u64(5) == 29;
+    assert pell_u64(10) == 2378;
+    assert pell_u64(20) == 15994428;
+}
+
+test pell_u64_saturates_instead_of_wrapping {
+    // P_51 is the last Pell number that fits; P_52 would be 28365513113449345692
+    assert pell_u64(51) == 11749380235262596085;
+    assert pell_u64(52) == U64_MAX;
+    assert pell_u64(60) == U64_MAX;
+}
+
+test pell_f64_agrees_with_pell_u64 {
+    assert pell_f64(0) == 0.0;
+    assert pell_f64(5) == 29.0;
+    assert pell_f64(20) == 15994428.0;
+}
+
+test pow_f64_multiplies {
+    assert pow_f64(2.0, 0) == 1.0;
+    assert pow_f64(2.0, 10) == 1024.0;
+    assert near(pow_f64(phi_value(), 2), phi_value() + 1.0);
+}
+
+test hybrid_inner_product_matches_its_golden_value {
+    assert near(hybrid_inner_product(phi_value()), 0.563780474444);
+    assert near(hybrid_inner_product(phi_value()), 0.563780475444) == false;
+}
+
+test hybrid_v2_cosine_matches_golden_v2 {
+    assert hybrid_v2_cosine(phi_value(), 5) > 0.96491599505 and hybrid_v2_cosine(phi_value(), 5) < 0.96491599515;
+    assert hybrid_v2_cosine(phi_value(), 10) > 0.96177449375 and hybrid_v2_cosine(phi_value(), 10) < 0.96177449385;
+    assert hybrid_v2_cosine(phi_value(), 15) > 0.96174377385 and hybrid_v2_cosine(phi_value(), 15) < 0.96174377395;
+    assert hybrid_v2_cosine(phi_value(), 20) > 0.96174351835 and hybrid_v2_cosine(phi_value(), 20) < 0.96174351845;
+    assert hybrid_v2_cosine(phi_value(), 50) > 0.96174351625 and hybrid_v2_cosine(phi_value(), 50) < 0.96174351635;
+    assert hybrid_v2_cosine(phi_value(), 152) > 0.96174351625 and hybrid_v2_cosine(phi_value(), 152) < 0.96174351635;
+}
+
+test hybrid_v2_cosine_of_nothing_is_zero {
+    assert hybrid_v2_cosine(phi_value(), 0) == 0.0;
+    assert hybrid_v2_cosine(0.0, 0) == 0.0;
+}
+
+invariant pell_identity_holds_at_twenty {
+    assert pell_u64(20) == 2 * pell_u64(19) + pell_u64(18);
+}

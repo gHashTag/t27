@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+66a28fc17",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fa9cf080b711d29075882cb679907586159b564f2d67644fe07753c1c45bf6a3",
+  "gen_hash_rust": "sha256:8f34e00d9d7ad9db600b175672db1019bc47a4702308388f62df15debb80a4da",
+  "gen_hash_verilog": "sha256:621b1daadf20969d33b37e6be01ab4d3c22e4f4e9a718e55ecec859100fa8249",
+  "gen_hash_zig": "sha256:c5293748cbde6d251db4b8cef1b25ba0f50feaf7f7dea2d4973e591fcdbd0a82",
+  "module": "MathPellHybrid",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T19:29:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d2f294c9c9a0697089cb8e2e5a75a7e10ab25d48bfa30faa11a9226784f504af",
+  "spec_path": "specs/math/pell_hybrid.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
