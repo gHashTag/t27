@@ -8156,3 +8156,11 @@ impl<'a> Lower<'a> {
         self.expr(&field).map(Some)
     }
 }
+
+#[cfg(test)]
+mod gate30_probe {
+    #[test]
+    fn probe_lib_tests_run() {
+        assert!(false, "probe: if this runs, lib tests run under cargo test despite test=false");
+    }
+}
