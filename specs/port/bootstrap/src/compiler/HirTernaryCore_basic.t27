@@ -1,0 +1,294 @@
+module specs.port.bootstrap.src.compiler.HirTernaryCore_basic;
+
+pub struct HirTernaryAluOp {
+    pub name: str,
+    pub opcode: u32,
+    pub latency: u32,
+    pub uses_gf16: bool,
+}
+
+pub struct HirPipelineStage {
+    pub name: str,
+    pub latency: u32,
+    pub has_forwarding: bool,
+}
+
+pub struct HirTernaryRegFile {
+    pub name: str,
+    pub num_regs: u32,
+    pub trit_width: u32,
+    pub read_ports: u32,
+    pub write_ports: u32,
+    pub has_forwarding: bool,
+}
+
+pub struct HirTernaryCore {
+    pub name: str,
+    pub data_width: u32,
+    pub addr_width: u32,
+    pub num_alus: u32,
+    pub has_gf16_unit: bool,
+    pub has_ternary_alu: bool,
+    pub has_branch_predictor: bool,
+    pub pipeline_depth: u32,
+    pub clock_freq_hz: u32,
+    pub reg_file: ?HirTernaryRegFile,
+    pub pipeline_stages: []HirPipelineStage,
+    pub alu_ops: []HirTernaryAluOp,
+}
+
+pub fn HirTernaryCore_basic(name: str) -> HirTernaryCore {
+    HirTernaryCore {
+        name: name,
+        data_width: 64,
+        addr_width: 32,
+        num_alus: 1,
+        has_gf16_unit: true,
+        has_ternary_alu: true,
+        has_branch_predictor: false,
+        pipeline_depth: 5,
+        clock_freq_hz: 100_000_000,
+        reg_file: null,
+        pipeline_stages: [],
+        alu_ops: [],
+    }
+}
+
+pub fn HirTernaryCore_full(name: str) -> HirTernaryCore {
+    HirTernaryCore {
+        name: name,
+        data_width: 64,
+        addr_width: 32,
+        num_alus: 4,
+        has_gf16_unit: true,
+        has_ternary_alu: true,
+        has_branch_predictor: true,
+        pipeline_depth: 7,
+        clock_freq_hz: 100_000_000,
+        reg_file: null,
+        pipeline_stages: [],
+        alu_ops: [],
+    }
+}
+
+pub fn HirTernaryCore_with_regfile(_self: HirTernaryCore, _rf: HirTernaryRegFile) -> HirTernaryCore {
+    return _self;
+}
+
+pub fn HirTernaryCore_add_pipeline_stage(_self: HirTernaryCore, _name: str, _latency: u32, _has_forwarding: bool) {
+    return;
+}
+
+pub fn HirTernaryCore_add_alu_op(_self: HirTernaryCore, _name: str, _opcode: u32, _latency: u32, _uses_gf16: bool) {
+    return;
+}
+
+pub fn HirTernaryCore_dsp_count(core: HirTernaryCore) -> u32 {
+    var count: u32 = core.num_alus;
+    if core.has_gf16_unit {
+        count += 4;
+    }
+    return count;
+}
+
+pub fn HirTernaryCore_bram_count(core: HirTernaryCore) -> u32 {
+    var count: u32 = 2;
+    if core.has_gf16_unit {
+        count += 1;
+    }
+    return count;
+}
+
+pub fn HirTernaryCore_lut_estimate(core: HirTernaryCore) -> u32 {
+    var luts: u32 = 5000;
+    luts += core.num_alus * 2000;
+    if core.has_gf16_unit {
+        luts += 3000;
+    }
+    if core.has_ternary_alu {
+        luts += 1500;
+    }
+    if core.has_branch_predictor {
+        luts += 500;
+    }
+    return luts;
+}
+
+pub fn HirTernaryCore_fmax_mhz(core: HirTernaryCore) -> u32 {
+    return core.clock_freq_hz / 1_000_000;
+}
+
+pub fn HirTernaryCore_fits_arty_a7(core: HirTernaryCore) -> bool {
+    return HirTernaryCore_lut_estimate(core) < 33800;
+}
+
+pub fn HirTernaryCore_fits_xc7a100t(core: HirTernaryCore) -> bool {
+    return HirTernaryCore_lut_estimate(core) < 63400;
+}
+
+pub fn HirTernaryCore_pipeline_total_latency(core: HirTernaryCore) -> u32 {
+    var total: u32 = 0;
+    for stage in core.pipeline_stages {
+        total += stage.latency;
+    }
+    return total;
+}
+
+pub fn HirTernaryCore_validate(core: HirTernaryCore) -> [10][]const u8 {
+    var errors: [10][]const u8 = undefined;
+    var count: usize = 0;
+    
+    if core.name.len == 0 {
+        errors[count] = "ternary core name must not be empty";
+        count += 1;
+    }
+    
+    if core.data_width == 0 {
+        errors[count] = "core '";
+        count += 1;
+        errors[count] = core.name;
+        count += 1;
+        errors[count] = "' has zero data width";
+        count += 1;
+    }
+    
+    if core.num_alus == 0 {
+        errors[count] = "core '";
+        count += 1;
+        errors[count] = core.name;
+        count += 1;
+        errors[count] = "' has zero ALUs";
+        count += 1;
+    }
+    
+    if core.pipeline_depth == 0 {
+        errors[count] = "core '";
+        count += 1;
+        errors[count] = core.name;
+        count += 1;
+        errors[count] = "' has zero pipeline depth";
+        count += 1;
+    }
+    
+    if core.clock_freq_hz == 0 {
+        errors[count] = "core '";
+        count += 1;
+        errors[count] = core.name;
+        count += 1;
+        errors[count] = "' has zero clock frequency";
+        count += 1;
+    }
+    
+    return errors;
+}
+
+test HirTernaryCore_basic_creation {
+    var core = HirTernaryCore_basic("test_core");
+    assert(core.name == "test_core");
+    assert(core.data_width == 64);
+    assert(core.addr_width == 32);
+    assert(core.num_alus == 1);
+    assert(core.has_gf16_unit == true);
+    assert(core.has_ternary_alu == true);
+    assert(core.has_branch_predictor == false);
+    assert(core.pipeline_depth == 5);
+    assert(core.clock_freq_hz == 100_000_000);
+    assert(core.reg_file == null);
+    assert(core.pipeline_stages.len == 0);
+    assert(core.alu_ops.len == 0);
+}
+
+test HirTernaryCore_full_creation {
+    var core = HirTernaryCore_full("full_core");
+    assert(core.name == "full_core");
+    assert(core.num_alus == 4);
+    assert(core.has_branch_predictor == true);
+    assert(core.pipeline_depth == 7);
+    assert(core.has_gf16_unit == true);
+    assert(core.has_ternary_alu == true);
+}
+
+test HirTernaryCore_dsp_count_basic {
+    var core = HirTernaryCore_basic("test");
+    assert(HirTernaryCore_dsp_count(core) == 1);
+}
+
+test HirTernaryCore_dsp_count_with_gf16 {
+    var core = HirTernaryCore_basic("test");
+    core.has_gf16_unit = true;
+    assert(HirTernaryCore_dsp_count(core) == 5);
+}
+
+test HirTernaryCore_bram_count_basic {
+    var core = HirTernaryCore_basic("test");
+    assert(HirTernaryCore_bram_count(core) == 2);
+}
+
+test HirTernaryCore_bram_count_with_gf16 {
+    var core = HirTernaryCore_basic("test");
+    core.has_gf16_unit = true;
+    assert(HirTernaryCore_bram_count(core) == 3);
+}
+
+test HirTernaryCore_lut_estimate_basic {
+    var core = HirTernaryCore_basic("test");
+    assert(HirTernaryCore_lut_estimate(core) == 5000 + 1 * 2000);
+}
+
+test HirTernaryCore_lut_estimate_full {
+    var core = HirTernaryCore_full("test");
+    assert(HirTernaryCore_lut_estimate(core) == 5000 + 4 * 2000 + 3000 + 1500 + 500);
+}
+
+test HirTernaryCore_fmax_mhz {
+    var core = HirTernaryCore_basic("test");
+    core.clock_freq_hz = 250_000_000;
+    assert(HirTernaryCore_fmax_mhz(core) == 250);
+}
+
+test HirTernaryCore_fits_arty_a7_true {
+    var core = HirTernaryCore_basic("test");
+    core.num_alus = 10;
+    assert(HirTernaryCore_fits_arty_a7(core) == true);
+}
+
+test HirTernaryCore_fits_arty_a7_false {
+    var core = HirTernaryCore_basic("test");
+    core.num_alus = 20;
+    assert(HirTernaryCore_fits_arty_a7(core) == false);
+}
+
+test HirTernaryCore_fits_xc7a100t_true {
+    var core = HirTernaryCore_basic("test");
+    assert(HirTernaryCore_fits_xc7a100t(core) == true);
+}
+
+test HirTernaryCore_fits_xc7a100t_false {
+    var core = HirTernaryCore_basic("test");
+    core.has_gf16_unit = true;
+    core.has_ternary_alu = true;
+    core.has_branch_predictor = true;
+    assert(HirTernaryCore_fits_xc7a100t(core) == false);
+}
+
+test HirTernaryCore_pipeline_total_latency {
+    var core = HirTernaryCore_basic("test");
+    var stage1 = HirPipelineStage { name: "fetch", latency: 1, has_forwarding: false };
+    var stage2 = HirPipelineStage { name: "decode", latency: 2, has_forwarding: true };
+    var stages: [2]HirPipelineStage = [stage1, stage2];
+    core.pipeline_stages = stages[0..2];
+    assert(HirTernaryCore_pipeline_total_latency(core) == 3);
+}
+
+test HirTernaryCore_validate_empty_name {
+    var core = HirTernaryCore_basic("");
+    var errors = HirTernaryCore_validate(core);
+    assert(errors.len == 1);
+    assert(errors[0] == "ternary core name must not be empty");
+}
+
+test HirTernaryCore_validate_valid_core {
+    var core = HirTernaryCore_basic("valid_core");
+    var errors = HirTernaryCore_validate(core);
+    assert(errors.len == 0);
+}
