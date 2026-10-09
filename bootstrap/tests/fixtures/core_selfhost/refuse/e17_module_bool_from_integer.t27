@@ -1,0 +1,3 @@
+// A module const bool initialized from a literal 0 (#8075).
+module module_bool_from_integer;
+const MBI_F: bool = 0;
