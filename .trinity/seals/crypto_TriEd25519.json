@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+cfe753c9c",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     },
     {
       "spec": "specs/tri/crypto/sha512.t27",
@@ -18,9 +18,9 @@
   "module": "TriEd25519",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:57:53Z",
+  "sealed_at": "2026-10-09T20:13:40Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:27c8a99f8647a2fba321e29769f206af801e978b577b98f5b2014b31efc5bbf8",
+  "spec_hash": "sha256:13915d74de7f5f3de9f13ce84ac87b964d8e183c31d2d5fc080a9994849b1617",
   "spec_path": "specs/tri/crypto/ed25519.t27",
   "tests": {
     "failed": 0,

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:e4cf0584f7e5a27ec0c85da8dbd6dd10f51480ee83bbdabb0e0bfd527d1ce9cb",
+  "gen_hash_rust": "sha256:39c4f6e7389cb44d3ebc29f8cc128a76ca3afdbba16ee2597626eec40e6037dd",
+  "gen_hash_verilog": "sha256:cf0f7853ed5b20d18b310d8bbaaa54b4516eec034e0640dfdebd76c5dffa0f32",
+  "gen_hash_zig": "sha256:5c100018ddefbf992dacedfe1bcc955acbfb6ba0a109221eca9001cb55ea6aed",
+  "module": "QueenActorsHw",
+  "ring": 12,
+  "sealed_at": "2026-10-09T20:29:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:e6a11cd9844c279672a8c02603381814133ba8a4f7fdd3978cc189c1180c1fb3",
+  "spec_path": "specs/queen/actors_hw.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 17,
+    "total": 17
+  }
+}

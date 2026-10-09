@@ -204,20 +204,10 @@ impl Ty {
     }
 
     /// `self` can hold every value of `from`: the lossless implicit widening
-    /// the subset allows (Zig's rule: same signedness and not narrower, or
+    /// the subset allows (`widens` of specs/tri/t27b/int_cast_plan.t27: same signedness and not narrower, or
     /// unsigned into a strictly wider signed type).
     pub fn can_widen_from(self, from: Ty) -> bool {
-        if self == from {
-            return true;
-        }
-        if !self.is_int() || !from.is_int() {
-            return false;
-        }
-        if self.signed() == from.signed() {
-            self.bits() >= from.bits()
-        } else {
-            self.signed() && self.bits() > from.bits()
-        }
+        self == from || self.is_int() && from.is_int() && crate::lower::ic::widens(from.bits(), from.signed(), self.bits(), self.signed())
     }
 }
 
@@ -307,41 +297,17 @@ pub enum ArithOp {
     ShrW,
 }
 
+#[path = "../../../gen/rust/tri/t27b/arith_op.rs"]
+#[allow(dead_code, unused_parens)]
+mod ao; // t27c gen-rust of specs/tri/t27b/arith_op.t27: the integer operators by their ArithOp number
+const _: () = assert!(ArithOp::Add as u8 == ao::OP_ADD && ArithOp::Rem as u8 == ao::OP_REM && ArithOp::ShrW as u8 == ao::OP_SHR_W);
+
 impl ArithOp {
-    pub fn symbol(self) -> &'static str {
-        match self {
-            ArithOp::Add => "+",
-            ArithOp::Sub => "-",
-            ArithOp::Mul => "*",
-            ArithOp::AddW => "+%",
-            ArithOp::SubW => "-%",
-            ArithOp::MulW => "*%",
-            ArithOp::Div | ArithOp::DivW => "/",
-            ArithOp::Rem => "%",
-            ArithOp::And => "&",
-            ArithOp::Or => "|",
-            ArithOp::Xor => "^",
-            ArithOp::Shl | ArithOp::ShlW => "<<",
-            ArithOp::Shr | ArithOp::ShrW => ">>",
-        }
-    }
+    pub fn symbol(self) -> &'static str { ao::symbol(self as u8) }
 
-    pub fn is_shift(self) -> bool {
-        matches!(self, ArithOp::Shl | ArithOp::Shr | ArithOp::ShlW | ArithOp::ShrW)
-    }
+    pub fn is_shift(self) -> bool { ao::is_shift(self as u8) }
 
-    pub fn commutative(self) -> bool {
-        matches!(
-            self,
-            ArithOp::Add
-                | ArithOp::Mul
-                | ArithOp::AddW
-                | ArithOp::MulW
-                | ArithOp::And
-                | ArithOp::Or
-                | ArithOp::Xor
-        )
-    }
+    pub fn commutative(self) -> bool { ao::commutative(self as u8) }
 }
 
 /// IEEE-754 binary operations on F64.

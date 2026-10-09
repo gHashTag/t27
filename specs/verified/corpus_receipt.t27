@@ -80,7 +80,9 @@
 ; admits it: a 40-digit lowercase hex sha, among the first REQUEST_QUEUE_MAX requests by age, not
 ; older than REQUEST_AGE_MAX_S, and on origin (a branch head, or a commit on master's first-parent
 ; line). On origin bounds who can put code in front of the signing step: the people who can
-; already push to master. The judge is master's t27c, never the requested commit's.
+; already push to master. The judge is master's t27c, never the requested commit's. A sha not on
+; origin yet waits up to REQUEST_ORIGIN_GRACE_S before it is dropped (#8320): the lab may not have
+; fetched a commit that just landed, and waiting never runs it.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module VerifiedCorpusReceipt;
@@ -175,7 +177,8 @@ pub const REQ_BAD_NAME : u8 = 1;
 pub const REQ_QUEUE_FULL : u8 = 2;
 pub const REQ_EXPIRED : u8 = 3;
 pub const REQ_NOT_ON_ORIGIN : u8 = 4;
-pub const REQUEST_NAMES : [5]str = ["ADMIT", "BAD_NAME", "QUEUE_FULL", "EXPIRED", "NOT_ON_ORIGIN"];
+pub const REQ_WAIT_ORIGIN : u8 = 5;
+pub const REQUEST_NAMES : [6]str = ["ADMIT", "BAD_NAME", "QUEUE_FULL", "EXPIRED", "NOT_ON_ORIGIN", "WAIT_ORIGIN"];
 
 /// A request names a full commit sha, in git's lowercase spelling.
 pub const REQUEST_SHA_LEN : u32 = 40;
@@ -183,6 +186,9 @@ pub const REQUEST_SHA_LEN : u32 = 40;
 pub const REQUEST_QUEUE_MAX : u32 = 4;
 /// A request not started within 6 hours of being written is dropped unrun.
 pub const REQUEST_AGE_MAX_S : u32 = 21600;
+/// A request whose sha is not on origin waits this long before it is dropped (#8320): long enough
+/// for the lab to fetch a commit that just landed on master, short of a lab run.
+pub const REQUEST_ORIGIN_GRACE_S : u32 = 1800;
 
 ; --- The message ---------------------------------------------------------------------------------
 
@@ -428,14 +434,17 @@ pub fn request_verdict(name: string, age_s: u32, index: u32, on_origin: bool) ->
     if (request_name_ok(name) == false) { return REQ_BAD_NAME; }
     if (index >= REQUEST_QUEUE_MAX) { return REQ_QUEUE_FULL; }
     if (age_s > REQUEST_AGE_MAX_S) { return REQ_EXPIRED; }
+    if (on_origin == false and age_s <= REQUEST_ORIGIN_GRACE_S) { return REQ_WAIT_ORIGIN; }
     if (on_origin == false) { return REQ_NOT_ON_ORIGIN; }
     return REQ_ADMIT;
 }
 
-/// `admit` exits 0 to run the request and 1 to drop it. Any other exit (an older t27c with no
-/// `admit`) leaves the request waiting, so a judge that cannot judge never drops one.
+/// `admit` exits 0 to run the request, 2 to leave it waiting (WAIT_ORIGIN) and 1 to drop it. Any
+/// other exit (an older t27c with no `admit`) also leaves it waiting, so a judge that cannot judge
+/// never drops one.
 pub fn request_exit(verdict: u8) -> u8 {
     if (verdict == REQ_ADMIT) { return 0; }
+    if (verdict == REQ_WAIT_ORIGIN) { return 2; }
     return 1;
 }
 
@@ -751,7 +760,9 @@ test "a request runs only when every bound holds, its name judged first" {
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 21600, 3, true) == REQ_ADMIT;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 21601, 0, true) == REQ_EXPIRED;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 4, true) == REQ_QUEUE_FULL;
-    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 0, false) == REQ_NOT_ON_ORIGIN;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 0, false) == REQ_WAIT_ORIGIN;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 1800, 3, false) == REQ_WAIT_ORIGIN;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 1801, 0, false) == REQ_NOT_ON_ORIGIN;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 99999, 9, false) == REQ_QUEUE_FULL;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 99999, 0, false) == REQ_EXPIRED;
     assert request_verdict("HEAD", 0, 0, true) == REQ_BAD_NAME;
@@ -761,6 +772,10 @@ test "a request runs only when every bound holds, its name judged first" {
     assert request_exit(REQ_ADMIT) == 0;
     assert request_exit(REQ_BAD_NAME) == 1;
     assert request_exit(REQ_NOT_ON_ORIGIN) == 1;
+    assert request_exit(REQ_WAIT_ORIGIN) == 2;
+    assert request_exit(REQ_QUEUE_FULL) == 1;
+    assert text_is(REQUEST_NAMES[REQ_WAIT_ORIGIN], "WAIT_ORIGIN") == true;
+    assert REQUEST_ORIGIN_GRACE_S == 1800;
     assert REQUEST_SHA_LEN == 40;
     assert REQUEST_QUEUE_MAX == 4;
     assert REQUEST_AGE_MAX_S == 21600;

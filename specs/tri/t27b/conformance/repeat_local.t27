@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/repeat_local.t27 -- an untyped local bound to an array repeat `[v; n]` and passed
+; where a fn declares one array type `[N]T`, as the reference runs it (issue #7909, t27b coverage epic #6063:
+; ExprArrayLiteral(repeat) in specs/port/trios/crates/trinity_loss/src/lib.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints `const a = [v; n];` as `const a = .{ v } ** n;`: a tuple of n copies of v, which coerces to
+; `[N]T` at each call, as the tuple `.{ a, b }` of a list literal does. So the local is that `[N]T`, built once
+; at its declaration: v may be negative, a run-time value or an expression, and n a named constant. Zig refuses
+; n other than N ("expected type '[4]i8', found 'struct { ... }'") and a v that T cannot hold; t27b refuses
+; both too. cli/t27b/tests/tail.rs holds those two cases, since a conformance test must pass.
+; Not here: a Rust width suffix on v (`[1i8; 64]`, #7813), and a repeat passed where a slice is declared.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceRepeatLocal;
+
+const RL_LEN : usize = 4;
+
+fn rl_total(a: [4]i8) -> i32 {
+    var acc: i32 = 0;
+    var i: usize = 0;
+    while (i < 4) {
+        acc += (a[i] as i32);
+        i += 1;
+    }
+    return acc;
+}
+
+fn rl_dot(a: [4]i8, b: [4]i8) -> i32 {
+    var acc: i32 = 0;
+    var i: usize = 0;
+    while (i < 4) {
+        acc += (a[i] as i32) * (b[i] as i32);
+        i += 1;
+    }
+    return acc;
+}
+
+fn rl_last(a: [6]u16) -> u16 {
+    return a[5];
+}
+
+// The local inside a fn body, as in a test.
+fn rl_fill_total(v: i8) -> i32 {
+    const a = [v; 4];
+    return rl_total(a);
+}
+
+test rl_a_repeat_is_n_copies {
+    const a = [2; 4];
+    assert(rl_total(a) == 8);
+    const z = [0; 4];
+    assert(rl_total(z) == 0);
+}
+
+test rl_negative_and_named_length {
+    const n = [-3; RL_LEN];
+    assert(rl_total(n) == -12);
+    const p = [1; RL_LEN];
+    assert(rl_dot(p, n) == -12);
+}
+
+test rl_the_same_local_passed_twice {
+    const ones = [1; 4];
+    const neg = [-1; 4];
+    assert(rl_dot(ones, ones) == 4);
+    assert(rl_dot(ones, neg) == -4);
+    assert(rl_total(ones) == 4);
+}
+
+test rl_a_run_time_value {
+    var x: u16 = 600;
+    x += 9;
+    const a = [x; 6];
+    assert(rl_last(a) == 609);
+    assert(rl_fill_total(5) == 20);
+    assert(rl_fill_total(-7) == -28);
+}
