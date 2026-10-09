@@ -2607,7 +2607,7 @@ impl<'a> Lower<'a> {
                     return self.reject("StmtAssign", format!("assignment to constant `{}`", name));
                 }
                 let ty = self.vars[id as usize].ty;
-                let conv = |c: &Node| c.kind == NodeKind::ExprCall && matches!(c.name.as_str(), "@floatFromInt" | "@intFromFloat" | "@floatCast");
+                let conv = |c: &Node| c.kind == NodeKind::ExprCall && matches!(c.name.as_str(), "@floatFromInt" | "@intFromFloat" | "@floatCast" | "@bitCast");
                 let rhs = if (op.is_empty() || op == "=") && conv(&n.children[1]) {
                     self.expr_as(&n.children[1], &LTy::S(ty))?
                 } else {

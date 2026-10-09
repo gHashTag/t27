@@ -4,7 +4,7 @@
 // This backend emits declarations only. The spec's checks live in
 // the Zig and Verilog outputs; do not read this file as verified.
 
-pub const BUILTINS: &'static str = "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem";
+pub const BUILTINS: &'static str = "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem @log2 @log10";
 
 pub const EXP: u8 = 0;
 
@@ -28,6 +28,10 @@ pub const TRUNC: u8 = 9;
 
 pub const REM: u8 = 10;
 
+pub const LOG2: u8 = 11;
+
+pub const LOG10: u8 = 12;
+
 pub const PORT: &'static str = "t27b_libm_";
 
 pub const HELPER: &'static str = "__t27b_libm_";
@@ -50,16 +54,10 @@ pub const REFUSE_LITERAL: u8 = 3;
 
 pub const REFUSE_OPERAND: u8 = 4;
 
-pub const REFUSE_NO_ROUTINE: u8 = 5;
-
-pub const REFUSE_NO_F64: u8 = 6;
-
-pub fn has_f32(b: u8) -> bool {
-    return (b != LOG);
-}
+pub const REFUSE_NO_F64: u8 = 5;
 
 pub fn has_f64(b: u8) -> bool {
-    return (b < FLOOR);
+    return (b <= IS_NEG_INF);
 }
 
 pub fn arity(b: u8) -> usize {
@@ -80,14 +78,11 @@ pub fn plan(b: u8, operands: usize, k: u8) -> u8 {
     if ((k == K_F64) && has_f64(b)) {
         return CALL_F64;
     }
-    if ((k == K_F32) && has_f32(b)) {
+    if (k == K_F32) {
         return CALL_F32;
     }
     if (k == K_F64) {
         return REFUSE_NO_F64;
-    }
-    if (k == K_F32) {
-        return REFUSE_NO_ROUTINE;
     }
     if (k == K_LITERAL) {
         return REFUSE_LITERAL;
@@ -104,6 +99,9 @@ pub fn routine(b: u8, act: u8) -> &'static str {
     }
     if ((b == LOG) && (act == CALL_F64)) {
         return "__t27b_libm_log";
+    }
+    if ((b == LOG) && (act == CALL_F32)) {
+        return "__t27b_libm_logf";
     }
     if ((b == NAN) && (act == CALL_F64)) {
         return "__t27b_libm_nan";
@@ -144,6 +142,12 @@ pub fn routine(b: u8, act: u8) -> &'static str {
     if ((b == REM) && (act == CALL_F32)) {
         return "__t27b_libm_fmodf";
     }
+    if ((b == LOG2) && (act == CALL_F32)) {
+        return "__t27b_libm_log2f";
+    }
+    if ((b == LOG10) && (act == CALL_F32)) {
+        return "__t27b_libm_log10f";
+    }
     return "";
 }
 
@@ -181,6 +185,12 @@ pub fn what(b: u8) -> &'static str {
     if (b == REM) {
         return "ExprCall(@rem)";
     }
+    if (b == LOG2) {
+        return "ExprCall(@log2)";
+    }
+    if (b == LOG10) {
+        return "ExprCall(@log10)";
+    }
     return "ExprCall(libm)";
 }
 
@@ -193,9 +203,6 @@ pub fn why(act: u8) -> &'static str {
     }
     if (act == REFUSE_OPERAND) {
         return "the operand is not an f64 or an f32";
-    }
-    if (act == REFUSE_NO_ROUTINE) {
-        return "libm.t27 has no f32 routine for it (compiler_rt logf is not ported)";
     }
     if (act == REFUSE_NO_F64) {
         return "libm.t27 has no f64 routine for it (compiler_rt's is not ported)";
