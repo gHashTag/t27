@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/int_cast_index.t27 -- `@intCast(x)` as an array index or a slice bound, as the
+; reference runs it (issue #7902, t27b coverage epic #6063: ExprCall(@intCast) in specs/numeric/ocp_mx.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints `a[@intCast(k)]` as written. Zig gives an index, and each bound of a slice, the result type
+; `usize`, so the cast converts k to a usize exactly as `@as(usize, @intCast(k))` would: an i64 or an i32 is
+; checked (a negative one is a safety panic in Debug, which is a failed test), a u8 or a u32 widens, a usize
+; is kept, and a literal folds. The index is then checked against the length as any index is. The trap cases
+; are in cli/t27b/tests/int_cast_traps.t27, since a conformance test must pass. What t27b decides is
+; specs/tri/t27b/int_cast_plan.t27 (INDEX_TYPE).
+; Not here: `@intCast` as an arithmetic operand (`x + @intCast(k)`), which has no result type; Zig refuses it.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceIntCastIndex;
+
+const ICX_POW2 : [8]i64 = [1, 2, 4, 8, 16, 32, 64, 128];
+const ICX_BITS : [3]i64 = [4, 6, 8];
+const ICX_BYTES : [6]u8 = [10, 20, 30, 40, 50, 60];
+
+// ocp_mx's shape: a signed i64 index, converted to a usize.
+fn icx_pow2(e: i64) -> i64 {
+    return ICX_POW2[@intCast(e)];
+}
+
+// An index read from one table indexes another; the cast's operand is arithmetic.
+fn icx_half(kind: i64) -> i64 {
+    return ICX_POW2[@intCast(ICX_BITS[@intCast(kind)] - 1)];
+}
+
+// Two indexed reads under the operators of ocp_mx's `units`.
+fn icx_units(e: i64, m: i64, mant_bits: i64) -> i64 {
+    if (e == 0) { return m; }
+    return (ICX_POW2[@intCast(mant_bits)] + m) * ICX_POW2[@intCast(e - 1)];
+}
+
+fn icx_by_u8(k: u8) -> i64 {
+    return ICX_POW2[@intCast(k)];
+}
+
+fn icx_by_u32(k: u32) -> i64 {
+    return ICX_POW2[@intCast(k)];
+}
+
+fn icx_by_usize(k: usize) -> i64 {
+    return ICX_POW2[@intCast(k)];
+}
+
+fn icx_by_i32(k: i32) -> i64 {
+    return ICX_POW2[@intCast(k)];
+}
+
+// An array parameter, indexed by an i64 counter: ocp_mx's block loops.
+fn icx_sum(vals: [4]i64, n: i64) -> i64 {
+    var s : i64 = 0;
+    var i : i64 = 0;
+    while (i < n) {
+        s = s + vals[@intCast(i)];
+        i = i + 1;
+    }
+    return s;
+}
+
+// A write through a cast index.
+fn icx_fill(n: i64) -> i64 {
+    var buf : [4]i64 = [0, 0, 0, 0];
+    var i : i64 = 0;
+    while (i < n) {
+        buf[@intCast(i)] = (i + 1) * 10;
+        i = i + 1;
+    }
+    return buf[0] + buf[1] + buf[2] + buf[3];
+}
+
+// Both bounds of a slice cast from i64.
+fn icx_window_sum(a: i64, b: i64) -> u32 {
+    const w : []const u8 = ICX_BYTES[@intCast(a)..@intCast(b)];
+    var s : u32 = 0;
+    for x in w {
+        s = s + x;
+    }
+    return s;
+}
+
+fn icx_window_len(a: i64, b: i64) -> usize {
+    const w : []const u8 = ICX_BYTES[@intCast(a)..@intCast(b)];
+    return w.len;
+}
+
+test icx_a_signed_index_reads_its_element {
+    assert(icx_pow2(0) == 1);
+    assert(icx_pow2(3) == 8);
+    assert(icx_pow2(7) == 128);
+    assert(icx_half(0) == 8);
+    assert(icx_half(1) == 32);
+    assert(icx_half(2) == 128);
+}
+
+test icx_operators_around_cast_indexes {
+    assert(icx_units(0, 5, 1) == 5);
+    assert(icx_units(1, 1, 1) == 3);
+    assert(icx_units(3, 2, 2) == 24);
+    assert(icx_units(4, 0, 3) == 64);
+}
+
+test icx_unsigned_and_narrow_indexes {
+    assert(icx_by_u8(2) == 4);
+    assert(icx_by_u8(7) == 128);
+    assert(icx_by_u32(5) == 32);
+    assert(icx_by_usize(6) == 64);
+    assert(icx_by_i32(1) == 2);
+    assert(icx_by_i32(4) == 16);
+}
+
+test icx_loops_over_an_array_parameter {
+    const v : [4]i64 = [3, -4, 5, 100];
+    assert(icx_sum(v, 0) == 0);
+    assert(icx_sum(v, 3) == 4);
+    assert(icx_sum(v, 4) == 104);
+    assert(icx_fill(2) == 30);
+    assert(icx_fill(4) == 100);
+}
+
+test icx_slice_bounds_cast_from_i64 {
+    assert(icx_window_len(1, 4) == 3);
+    assert(icx_window_len(2, 2) == 0);
+    assert(icx_window_sum(0, 6) == 210);
+    assert(icx_window_sum(1, 3) == 50);
+    assert(icx_window_sum(5, 6) == 60);
+}
