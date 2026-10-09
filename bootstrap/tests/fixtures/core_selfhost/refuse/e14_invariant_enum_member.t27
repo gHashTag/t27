@@ -1,0 +1,10 @@
+// #8009: gen-c renders the check without its enum table, so `IeE.y` stays
+// a field access and the check becomes a comment.
+module invariant_enum_member;
+enum IeE {
+    x,
+    y,
+}
+invariant ie_members {
+    IeE.y != IeE.x;
+}

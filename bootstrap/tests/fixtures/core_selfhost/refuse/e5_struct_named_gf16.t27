@@ -1,0 +1,8 @@
+// #7961: `type_to_c` maps the name, so the parameter is written `uint16_t g`.
+module struct_named_gf16;
+struct GF16 {
+    x: i64,
+}
+fn sg_x(g: GF16) -> i64 {
+    return g.x;
+}

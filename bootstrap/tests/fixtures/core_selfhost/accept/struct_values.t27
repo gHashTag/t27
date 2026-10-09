@@ -1,0 +1,78 @@
+// P2 slice 1 (#5980): structs. gen-c writes a forward typedef per struct,
+// the bodies in dependency order, a literal as a C99 compound literal, and a
+// global whose type is a struct after the structs. A repeated struct is `{0}`
+// whatever its value (#7960), so only an all-zero one is taken.
+module struct_values;
+
+struct SvBox {
+    lo: SvPoint,
+    hi: SvPoint,
+    tag: u8,
+}
+
+pub struct SvPoint {
+    x: i64,
+    y: i64,
+}
+
+pub const SvFlag = struct {
+    on: bool,
+    count: u16,
+};
+
+const SV_N: i64 = 3;
+const SV_ORIGIN: SvPoint = SvPoint{ .y = 0, .x = 0 };
+var sv_cur: SvPoint = SvPoint{ .x = 1, .y = -2 };
+var sv_list: [2]SvPoint = [_]SvPoint{ SvPoint{ .x = 1, .y = 2 }, SvPoint{ .x = 3, .y = 4 } };
+var sv_boxes: [SV_N]SvBox = [_]SvBox{SvBox{ .lo = SvPoint{ .x = 0, .y = 0x0 }, .hi = SvPoint{ .x = 0, .y = 0 }, .tag = 0 }} ** SV_N;
+var sv_seen: i64 = 0;
+
+fn sv_make(a: i64, b: i64) -> SvPoint {
+    var p: SvPoint = SvPoint{ .x = a, .y = b };
+    p.x = p.x + 1;
+    p.y *= 2;
+    return p;
+}
+
+fn sv_area(b: SvBox) -> i64 {
+    return (b.hi.x - b.lo.x) * (b.hi.y - b.lo.y);
+}
+
+fn sv_grow(i: usize, by: i64) -> i64 {
+    sv_boxes[i].hi = sv_make(by, by);
+    sv_boxes[i].tag += 1;
+    sv_boxes[i].lo.x -= by;
+    return sv_area(sv_boxes[i]) + sv_boxes[i].tag as i64;
+}
+
+fn sv_pick(f: SvFlag, n: usize) -> i64 {
+    var s: i64 = 0;
+    var lim: SvFlag = f;
+    for (0..lim.count) |i| {
+        if (lim.on) {
+            s += sv_list[i % 2].x;
+        }
+    }
+    var seven: SvPoint = SvPoint{ .x = 7, .y = 8 };
+    return s + n as i64 + seven.y + sv_make(1, 1).x + (sv_cur).y;
+}
+
+test sv_fields {
+    var p: SvPoint = sv_make(4, 5);
+    assert(p.x == 5);
+    assert(p.y == 10);
+    assert(SV_ORIGIN.x == 0);
+    assert(sv_list[1].y == 4);
+    assert(sv_boxes[2].tag == 0);
+    assert(sv_grow(1, 3) == 7 * 6 + 1);
+    assert(sv_boxes[1].lo.x == -3);
+    assert(sv_pick(SvFlag{ .on = true, .count = 3 }, 1) == 5 + 1 + 8 + 2 - 2);
+}
+
+test sv_global_written {
+    sv_cur = SvPoint{ .x = 11, .y = 12 };
+    sv_seen = sv_cur.x;
+    var b: SvBox = SvBox{ .tag = 1, .hi = sv_cur, .lo = SV_ORIGIN };
+    assert(sv_area(b) == 132);
+    assert(sv_seen == 11);
+}

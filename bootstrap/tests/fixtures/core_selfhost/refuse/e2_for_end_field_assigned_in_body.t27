@@ -1,0 +1,15 @@
+// gen-c's `for` reads its end on every pass and Zig reads it once, so a body
+// that writes a field of the end is refused like one that writes the name.
+module for_end_field;
+struct FfLim {
+    n: usize,
+}
+fn ff_sum(lim: FfLim) -> usize {
+    var l: FfLim = lim;
+    var s: usize = 0;
+    for (0..l.n) |i| {
+        l.n = 1;
+        s += i;
+    }
+    return s;
+}

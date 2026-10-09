@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0
+// Port of scripts/gen_w652.py (issue #7893).
+// The original writes the spec w652_bench_module_123x2p6_aos_var_call_write.t27: a
+// [123][2][2][2][2][2][2]Pt grid literal whose points are numbered in row-major order.
+// The decisions in it are the indent width, the coordinate of each point (2e + offset,
+// wrapped at 32768) and how many points a subtree consumes. Building the text and
+// writing the file are plumbing.
+module gen_w652 {
+    const WRAP: u32 = 32768;
+    const INDENT_UNIT: u32 = 4;
+
+    // indent(level): the number of spaces for one indent level ("    " * level).
+    fn indent(level: u32) -> u32 {
+        return INDENT_UNIT * level;
+    }
+
+    // coordinate(e, offset, step): x is step 0, y is step 1 -> (2e + offset + step) % 32768.
+    fn coordinate(e: u32, offset: u32, step: u32) -> u32 {
+        return (2 * e + offset + step) % WRAP;
+    }
+
+    // build_tree(n, inner_points, base): the next base after n subtrees of inner_points
+    // points each, starting at base. A leaf row is n subtrees of one point.
+    fn build_tree(n: u32, inner_points: u32, base: u32) -> u32 {
+        var b: u32 = base;
+        var i: u32 = 0;
+        while (i < n) {
+            b = b + inner_points;
+            i = i + 1;
+        }
+        return b;
+    }
+
+    // Plumbing: assembles the text and writes the .t27 file; no test calls it.
+    fn generate() -> u32 {
+        undefined;
+    }
+
+    test indent_is_four_spaces_per_level {
+        assert(indent(0) == 0);
+        assert(indent(1) == 4);
+        assert(indent(2) == 8);
+    }
+
+    test first_point_is_zero_one {
+        assert(coordinate(0, 0, 0) == 0);
+        assert(coordinate(0, 0, 1) == 1);
+    }
+
+    test last_point_matches_the_generated_expectations {
+        // 123 * 64 = 7872 points, the last has e = 7871: x = 15742, y = 15743.
+        assert(coordinate(7871, 0, 0) == 15742);
+        assert(coordinate(7871, 0, 1) == 15743);
+        // The point at dst[61][1][0][0][0][0][0] has e = 61 * 64 + 32 = 3936.
+        assert(coordinate(3936, 0, 0) == 7872);
+        assert(coordinate(3936, 0, 1) == 7873);
+    }
+
+    test offset_32768_wraps_back {
+        assert(coordinate(0, 32768, 0) == 0);
+        assert(coordinate(0, 32768, 1) == 1);
+        assert(coordinate(7871, 32768, 0) == 15742);
+        assert(coordinate(7871, 32768, 1) == 15743);
+    }
+
+    test build_tree_advances_the_base {
+        // leaf row of 123 single points starting at 0
+        assert(build_tree(123, 1, 0) == 123);
+        // 2 subtrees of 32 points from base 10
+        assert(build_tree(2, 32, 10) == 74);
+        assert(build_tree(0, 5, 7) == 7);
+    }
+
+    test whole_grid_has_7872_points {
+        // 123 * 2^6 points: 123 outer entries of 64 points each
+        assert(build_tree(123, 64, 0) == 7872);
+    }
+}
