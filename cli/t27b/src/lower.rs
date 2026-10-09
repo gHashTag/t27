@@ -137,6 +137,8 @@ mod refvars;
 mod tuple;
 #[path = "../../../gen/rust/tri/t27b/ast_walk.rs"] #[allow(dead_code, unused_parens)]
 mod aw; // t27c gen-rust of specs/tri/t27b/ast_walk.t27: walks of a list of nodes, read from `flat`'s bytes
+#[path = "../../../gen/rust/tri/t27b/ast_scan.rs"] #[allow(dead_code, unused_parens, unused_variables)]
+mod ax; // t27c gen-rust of specs/tri/t27b/ast_scan.t27: the nodes a scan of a list collects, as marks
 
 /// A construct outside the supported subset (or a type error inside it).
 #[derive(Clone, Debug)]
@@ -7402,25 +7404,12 @@ fn zero_lines(n: &mut Node) {
 /// Names a statement list binds to an array literal (`collect_array_locals`
 /// in t27c).
 fn array_locals(ns: &[Node], out: &mut HashSet<String>) {
-    for n in ns {
-        if matches!(n.kind, NodeKind::StmtLocal | NodeKind::StmtAssign)
-            && !n.name.is_empty()
-            && n.children.first().is_some_and(|c| c.kind == NodeKind::ExprArrayLiteral)
-        {
-            out.insert(n.name.clone());
-        }
-        array_locals(&n.children, out);
-    }
+    out.extend(marked(ns, ax::array_locals).map(|n| n.name.clone()));
 }
 
 /// The local declarations of `name` under `ns`, at every nesting level.
 fn decls_of<'n>(ns: &'n [Node], name: &str, out: &mut Vec<&'n Node>) {
-    for n in ns {
-        if matches!(n.kind, NodeKind::StmtLocal | NodeKind::StmtAssign) && n.name == name {
-            out.push(n);
-        }
-        decls_of(&n.children, name, out);
-    }
+    out.extend(marked(ns, |a, t, m| ax::decls_of(a, t, name.as_bytes(), m)));
 }
 
 /// `ns` as specs/tri/t27b/ast_walk.t27 reads it: a record per node in preorder, then the fields' text.
@@ -7442,6 +7431,15 @@ fn flat(ns: &[Node]) -> (Vec<u8>, Vec<u8>) {
     (a, t)
 }
 const _: () = assert!(NodeKind::StmtExpr as u8 == aw::K_STMT_EXPR && NodeKind::ExprRange as u8 == aw::K_EXPR_RANGE);
+/// The nodes of `ns` in preorder that `scan`, a fn of specs/tri/t27b/ast_scan.t27, marks.
+fn marked<'n>(ns: &'n [Node], scan: impl Fn(&[u8], &[u8], &mut [u8])) -> impl Iterator<Item = &'n Node> {
+    fn pre<'n>(ns: &'n [Node], v: &mut Vec<&'n Node>) { ns.iter().for_each(|n| { v.push(n); pre(&n.children, v) }) }
+    let ((a, t), mut v) = (flat(ns), Vec::new());
+    let mut m = vec![0u8; a.len() / aw::REC];
+    scan(&a, &t, &mut m);
+    pre(ns, &mut v);
+    v.into_iter().zip(m).filter(|p| p.1 == ax::MARK).map(|p| p.0)
+}
 
 /// How many nodes under `ns` carry `name` (or a dotted path starting with
 /// it) as their name, of any kind: an over-count of its uses.
@@ -7480,12 +7478,7 @@ fn plain_lit(n: &Node) -> bool {
 }
 
 fn calls_in<'n>(ns: &'n [Node], out: &mut Vec<&'n Node>) {
-    for n in ns {
-        if n.kind == NodeKind::ExprCall {
-            out.push(n);
-        }
-        calls_in(&n.children, out);
-    }
+    out.extend(marked(ns, ax::calls));
 }
 
 fn reg_ty(t: &LTy) -> Option<Ty> {
@@ -7632,16 +7625,7 @@ fn is_undefined(n: &Node) -> bool {
 
 /// Names whose address is taken (`&name`) anywhere in a body.
 fn scan_addr_taken(ns: &[Node], out: &mut HashSet<String>) {
-    for n in ns {
-        if n.kind == NodeKind::ExprUnary && n.extra_op == "&" {
-            if let Some(c) = n.children.first() {
-                if c.kind == NodeKind::ExprIdentifier {
-                    out.insert(c.name.clone());
-                }
-            }
-        }
-        scan_addr_taken(&n.children, out);
-    }
+    out.extend(marked(ns, ax::addr_taken).map(|n| n.name.clone()));
 }
 
 /// Count plain assignments per identifier in a test body (all nesting levels).
@@ -7650,12 +7634,7 @@ fn scan_addr_taken(ns: &[Node], out: &mut HashSet<String>) {
 /// over-approximation of what it references, so a fn left out of
 /// `analyzed_fns` is one Zig cannot reach.
 fn names_in(ns: &[Node], out: &mut HashSet<String>) {
-    for n in ns {
-        if !n.name.is_empty() {
-            out.insert(n.name.clone());
-        }
-        names_in(&n.children, out);
-    }
+    out.extend(marked(ns, ax::named).map(|n| n.name.clone()));
 }
 
 /// Collect the `if` expressions the reference prints unparenthesized where the
@@ -7666,22 +7645,7 @@ fn names_in(ns: &[Node], out: &mut HashSet<String>) {
 /// `ExprFieldAccess` named `f` holding the value, printed as `.f = <value>,`,
 /// and the comma ends the `if`.
 fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
-    if matches!(n.kind, NodeKind::ExprBinary | NodeKind::ExprFieldAccess | NodeKind::ExprIndex) {
-        if let Some(c) = n.children.first() {
-            if c.kind == NodeKind::ExprIf {
-                out.insert(c as *const Node as usize);
-            }
-        }
-    }
-    for c in &n.children {
-        if n.kind == NodeKind::ExprStructLit && c.kind == NodeKind::ExprFieldAccess {
-            for v in &c.children {
-                misprinted_ifs(v, out);
-            }
-        } else {
-            misprinted_ifs(c, out);
-        }
-    }
+    out.extend(marked(std::slice::from_ref(n), ax::misprinted_ifs).map(|c| c as *const Node as usize));
 }
 
 /// The node kinds t27c's `gen_expr` prints anything for; every other kind (a
@@ -7758,27 +7722,7 @@ fn analyzed_fns(items: &[&Node]) -> HashSet<String> {
 /// `unreachable`, `print` and `println`, and through an if/else that is last,
 /// the last statement of each branch. Marks those statements by address.
 fn mark_tail_returns(ns: &[Node], out: &mut HashSet<usize>) {
-    let Some(last) = ns.last() else { return };
-    match last.kind {
-        NodeKind::StmtExpr if last.children.len() == 1 => {
-            let e = &last.children[0];
-            let action = match e.kind {
-                NodeKind::ExprReturn => true,
-                NodeKind::ExprCall => {
-                    matches!(e.name.as_str(), "assert" | "assert_eq" | "panic" | "unreachable" | "print" | "println")
-                }
-                _ => false,
-            };
-            if !action {
-                out.insert(last as *const Node as usize);
-            }
-        }
-        NodeKind::StmtIf if last.children.len() == 3 => {
-            mark_tail_returns(&last.children[1].children, out);
-            mark_tail_returns(&last.children[2].children, out);
-        }
-        _ => {}
-    }
+    out.extend(marked(ns, ax::tail_returns).map(|c| c as *const Node as usize));
 }
 
 /// An expression whose value Zig refuses to drop when it is a statement
@@ -7826,16 +7770,7 @@ fn mutated(ns: &[Node], name: &str) -> bool {
 }
 
 fn count_assigns(ns: &[Node], counts: &mut HashMap<String, u32>) {
-    for n in ns {
-        if n.kind == NodeKind::StmtAssign {
-            if let Some(t) = n.children.first() {
-                if t.kind == NodeKind::ExprIdentifier {
-                    *counts.entry(t.name.clone()).or_insert(0) += 1;
-                }
-            }
-        }
-        count_assigns(&n.children, counts);
-    }
+    marked(ns, ax::assign_targets).for_each(|n| *counts.entry(n.name.clone()).or_insert(0) += 1);
 }
 
 /// A clause the front-end kept only as verbatim text: a childless StmtExpr
@@ -7896,33 +7831,7 @@ fn cse_hoist_defect(f: &Node) -> Option<String> {
 /// are a name, or whose immediate base (index or field) is one, looking into
 /// `if`/`while`/`for` bodies and nowhere else.
 fn ref_mutable_names(ns: &[Node], out: &mut HashSet<String>) {
-    for n in ns {
-        match n.kind {
-            NodeKind::StmtAssign if !n.children.is_empty() => {
-                let t = &n.children[0];
-                if t.kind == NodeKind::ExprIdentifier {
-                    out.insert(t.name.clone());
-                }
-                if matches!(t.kind, NodeKind::ExprIndex | NodeKind::ExprFieldAccess) {
-                    if let Some(b) = t.children.first() {
-                        if b.kind == NodeKind::ExprIdentifier {
-                            out.insert(b.name.clone());
-                        }
-                    }
-                }
-            }
-            NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
-                for c in &n.children {
-                    if c.kind == NodeKind::Module {
-                        ref_mutable_names(&c.children, out);
-                    } else {
-                        ref_mutable_names(std::slice::from_ref(c), out);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
+    out.extend(marked(ns, ax::mutable_names).map(|n| n.name.clone()));
 }
 
 /// Does Zig count `var name` as mutated anywhere in `ns`? An assignment whose
