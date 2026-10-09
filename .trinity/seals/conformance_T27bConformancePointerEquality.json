@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+3a101a61c",
+  "gen_hash_c": "sha256:60d55f5fe38ba20cbd2a14a158d371a166c864ff93e56a6079b21208dacf5d91",
+  "gen_hash_rust": "sha256:431a3fb91767e9cb8b0fbd3214c395849da788a3f6a6b21adf7cdd8fddbefb9a",
+  "gen_hash_verilog": "sha256:427813b48dc5ffea834e51bc1b606fcf4d60bcb53472171d6b9696485d7c025f",
+  "gen_hash_zig": "sha256:2a9dff2241ba92249b124c924dbb8f90c791c0a64f585a390efbad2949d81fd7",
+  "module": "T27bConformancePointerEquality",
+  "ring": 12,
+  "sealed_at": "2026-10-08T08:50:09Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:57e4167156722314d148ce104931d16a08917c2a14c8fb59e992d0e075904e1f",
+  "spec_path": "specs/tri/t27b/conformance/pointer_equality.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
+}

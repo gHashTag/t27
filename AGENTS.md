@@ -253,10 +253,13 @@ measure it are written in **t27**, not in Rust or Python by hand.
   824c82d78's 15224 plus 1202 and 8149; 15232 plus 1233, 16465 in all, and tests
   8183, after #7857's glue for `anytype` and `[*]T` in the signature of a fn
   nothing analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`), +5, +31 and +19
-  on master 408d740d9's 15227 plus 1202 and 8164; 15255 plus 1233, 16488 in all,
-  and tests 8199, after #7876's glue for an `anytype` parameter the body never
-  reads (`specs/tri/t27b/any_param_plan.t27`), +23 and +16 on master 42707603a's
-  15232 plus 1233 and 8183),
+  on master 408d740d9's 15227 plus 1202 and 8164; 15271 plus 1233, 16504 in
+  all, and tests 8191, after #7742's glue for `==` and `!=` between pointers
+  and optional pointers, whose plan is `specs/tri/t27b/ptr_eq_plan.t27`, +39,
+  0 and +8 on master 42707603a's 15232 plus 1233 and 8183; 15294 plus 1233,
+  16527 in all, and tests 8207, after #7876's glue for an `anytype` parameter
+  the body never reads (`specs/tri/t27b/any_param_plan.t27`), +23 and +16 on
+  master 2dfe9786f's 15271 plus 1233 and 8191),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
