@@ -16,7 +16,7 @@ pub const LEGACY_ID : str = "broadcast-message";
 pub const NAME : str = "Broadcast message";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
-pub const SERVICE : str = "src/inngest_app/functions/broadcast/broadcastMessage.ts:22";
+pub const SERVICE : str = "src/inngest_app/functions/broadcast/broadcastMessage.ts:27";
 pub const DOMAIN : str = "broadcast";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "event";
@@ -26,7 +26,7 @@ pub const CRON : str = "";
 pub const TZ : str = "UTC";
 pub const SUMMARY_EN : str = "Sends a broadcast to a bot audience: validates the request, checks the sender permissions, fetches the recipients, sends the messages and summarises the delivery results.";
 ; step.run names in source order
-pub const STEPS : [5]str = ["validate-input", "check-permissions", "fetch-users", "send-messages", "analyze-results"];
+pub const STEPS : [6]str = ["validate-input", "check-permissions", "fetch-users", "send-batch-${firstId}", "pause-after-${firstId}", "analyze-results"];
 ; retries declared on the function; when the code declares none, the Inngest JS SDK v3 default (4) is written and NOTE says so
 pub const RETRIES : u8 = 3;
 ; "admin-telegram" (onFailure handler messages the admin chat), "log" (no handler) or "refund+notify"
@@ -39,4 +39,4 @@ pub const GUARD : str = "validate-input";
 pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
-pub const NOTE : str = "The manifest carries no file, steps or retries for this function (its extractor did not resolve them); SERVICE, STEPS and RETRIES here were read from the same checkout (retries 3). Guard is validate-input. A test_telegram_id in the payload narrows the audience to one recipient.";
+pub const NOTE : str = "The manifest carries no file, steps or retries for this function (its extractor did not resolve them); SERVICE, STEPS and RETRIES here were read from the same checkout (retries 3). Guard is validate-input. A test_telegram_id in the payload narrows the audience to one recipient. 2026-09-17 (plan section 3, one big step): send-messages, which carried the whole audience in one step.run, is replaced by one step.run per batch of 25 recipients, named send-batch-${firstId} after the first telegram_id in the batch, with a step.sleep pause-after-${firstId} of 1s between batches; a batch that finished is memoised by Inngest, so a retry after a mid-way failure no longer re-sends to everyone already served. The function declares concurrency 1 keyed on event.data.bot_name. The service (plan_b/broadcast.service.ts sendToAllUsers) receives the batch as options.recipients and does not re-query the users table; on a Telegram 429 it waits parameters.retry_after seconds (capped at 60) once and counts that recipient as an error rather than retrying, so a re-run of the batch step cannot double-send. Not verified: a live broadcast on the deployed build. Test: 999-multibots-telegraf src/__tests__/inngest/broadcastBatches.test.ts.";
