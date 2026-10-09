@@ -1,0 +1,726 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/ast_walk.t27 -- the walks cli/t27b/src/lower.rs makes over a fn body of the t27c AST, read
+; from the body's bytes (port epic #6198, under #6063 and #5980). They were hand-written Rust recursions over
+; `compiler::Node` (`name_count`, `name_mentions` with its `word_in`, `discard_count`, `mentions`, `mutated`,
+; `zig_mutates`, the declaration count of `shadow_names`, `is_value_stmt` and `zig_renders`); they now reach
+; cli/t27b only through `t27c gen-rust` (gen/rust/tri/t27b/ast_walk.rs, mounted as `aw`).
+; --
+; gen-rust passes a `[]const u8` parameter as a borrowed `&[u8]`, and any other slice by value (#8102), so a
+; list of nodes reaches this file as two byte texts that `flat` in lower.rs writes:
+;   nodes: one record of REC bytes per node, in preorder (a node, then its children's subtrees in order):
+;          byte 0 the node's kind (NodeKind's discriminant, K_ below); bytes 4..8 the index one past the last
+;          node of its subtree (u32, little-endian); then for each of the FIELDS text fields (F_ below) its
+;          start and end offset in `text` (two u32).
+;   text:  the fields' bytes, one after the other.
+; A walk over the list visits every record; one over a node's children goes from the node's index + 1 to
+; its subtree's end, each child's subtree end giving the next child. Every walk here is a count or an
+; `any` over the whole tree, so its order is free.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bAstWalk;
+
+use tri::t27b::type_text;
+
+/// No such node.
+pub const NO_NODE : i64 = -1;
+/// Bytes per node record: kind, subtree end, then FIELDS spans of two u32.
+pub const REC : usize = 72;
+pub const FIELDS : usize = 8;
+
+// The text fields of a node, in record order.
+pub const F_NAME : usize = 0;
+pub const F_VALUE : usize = 1;
+pub const F_TYPE : usize = 2;
+pub const F_FIELD : usize = 3;
+pub const F_SIZE : usize = 4;
+pub const F_KIND : usize = 5;
+pub const F_OP : usize = 6;
+pub const F_RET : usize = 7;
+
+// NodeKind's discriminants (bootstrap/src/compiler.rs). lower.rs checks two of them at compile time.
+pub const K_MODULE : u8 = 0;
+pub const K_USE_DECL : u8 = 1;
+pub const K_CONST_DECL : u8 = 2;
+pub const K_ENUM_DECL : u8 = 3;
+pub const K_ENUM_VARIANT : u8 = 4;
+pub const K_STRUCT_DECL : u8 = 5;
+pub const K_FN_DECL : u8 = 6;
+pub const K_INVARIANT_BLOCK : u8 = 7;
+pub const K_TEST_BLOCK : u8 = 8;
+pub const K_BENCH_BLOCK : u8 = 9;
+pub const K_EXPR_LITERAL : u8 = 10;
+pub const K_EXPR_IDENTIFIER : u8 = 11;
+pub const K_EXPR_ENUM_VALUE : u8 = 12;
+pub const K_EXPR_CALL : u8 = 13;
+pub const K_EXPR_FIELD_ACCESS : u8 = 14;
+pub const K_EXPR_SWITCH : u8 = 15;
+pub const K_EXPR_BINARY : u8 = 16;
+pub const K_EXPR_UNARY : u8 = 17;
+pub const K_EXPR_RETURN : u8 = 18;
+pub const K_EXPR_INDEX : u8 = 19;
+pub const K_EXPR_IF : u8 = 20;
+pub const K_EXPR_STRUCT_LIT : u8 = 21;
+pub const K_EXPR_ARRAY_LITERAL : u8 = 22;
+pub const K_EXPR_TUPLE : u8 = 23;
+pub const K_EXPR_CAST : u8 = 24;
+pub const K_EXPR_RANGE : u8 = 25;
+pub const K_STMT_LOCAL : u8 = 26;
+pub const K_STMT_ASSIGN : u8 = 27;
+pub const K_STMT_IF : u8 = 28;
+pub const K_STMT_WHILE : u8 = 29;
+pub const K_STMT_FOR : u8 = 30;
+pub const K_STMT_FOR_RANGE : u8 = 31;
+pub const K_STMT_BREAK : u8 = 32;
+pub const K_STMT_CONTINUE : u8 = 33;
+pub const K_STMT_EXPR : u8 = 34;
+
+pub const B_DOT : u8 = 46;
+
+/// Does s[lo .. hi] start with the bytes of `w`?
+pub fn has_at(s: []const u8, lo: usize, hi: usize, w: []const u8) -> bool {
+    if (hi - lo < w.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (s[lo + k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Do the bytes around s[i .. e] end a word: no ASCII letter, digit or `_` just before i or at e?
+pub fn bounded(s: []const u8, i: usize, e: usize) -> bool {
+    return (i == 0 or !word(s[i - 1])) and (e >= s.len or !word(s[e]));
+}
+
+/// Does a char start at a byte `c`: is it no UTF-8 continuation byte (10xxxxxx)?
+pub fn char_start(c: u8) -> bool {
+    return c < 128 or c >= 192;
+}
+
+/// Does `name` occur in `text` as a word (`name_mentions`' `word_in`)? The occurrences are Rust's
+/// `str::match_indices`: left to right and not overlapping; an empty name occurs at every char boundary.
+pub fn word_in(text: []const u8, name: []const u8) -> bool {
+    var i : usize = 0;
+    while (i <= text.len) {
+        if (name.len == 0) {
+            if ((i == text.len or char_start(text[i])) and bounded(text, i, i)) { return true; }
+            i = i + 1;
+        } else if (has_at(text, i, text.len, name)) {
+            if (bounded(text, i, i + name.len)) { return true; }
+            i = i + name.len;
+        } else {
+            i = i + 1;
+        }
+    }
+    return false;
+}
+
+/// The u32 at byte `at`, little-endian.
+pub fn u32_at(nodes: []const u8, at: usize) -> usize {
+    const b0 : usize = nodes[at] as usize;
+    const b1 : usize = nodes[at + 1] as usize;
+    const b2 : usize = nodes[at + 2] as usize;
+    const b3 : usize = nodes[at + 3] as usize;
+    return b0 + b1 * 256 + b2 * 65536 + b3 * 16777216;
+}
+
+/// How many nodes the records hold.
+pub fn count(nodes: []const u8) -> usize {
+    return nodes.len / REC;
+}
+
+/// The kind of node i.
+pub fn kind(nodes: []const u8, i: usize) -> u8 {
+    return nodes[i * REC];
+}
+
+/// One past the last node of node i's subtree.
+pub fn end(nodes: []const u8, i: usize) -> usize {
+    return u32_at(nodes, i * REC + 4);
+}
+
+/// Where field f of node i starts in the text.
+pub fn lo(nodes: []const u8, i: usize, f: usize) -> usize {
+    return u32_at(nodes, i * REC + 8 + f * 8);
+}
+
+/// Where field f of node i ends in the text.
+pub fn hi(nodes: []const u8, i: usize, f: usize) -> usize {
+    return u32_at(nodes, i * REC + 12 + f * 8);
+}
+
+/// Is field f of node i exactly the bytes of `w`?
+pub fn field_is(nodes: []const u8, text: []const u8, i: usize, f: usize, w: []const u8) -> bool {
+    const a : usize = lo(nodes, i, f);
+    const b : usize = hi(nodes, i, f);
+    return b - a == w.len and has_at(text, a, b, w);
+}
+
+/// Is field f of node i exactly the constant `w`?
+pub fn field_eq(nodes: []const u8, text: []const u8, i: usize, f: usize, w: str) -> bool {
+    return same(text[lo(nodes, i, f) .. hi(nodes, i, f)], w);
+}
+
+/// The first child of node i, NO_NODE when it has none.
+pub fn first_child(nodes: []const u8, i: usize) -> i64 {
+    if (i + 1 < end(nodes, i)) { return @intCast(i + 1); }
+    return NO_NODE;
+}
+
+/// How many children node i has.
+pub fn children(nodes: []const u8, i: usize) -> usize {
+    var n : usize = 0;
+    var c : usize = i + 1;
+    while (c < end(nodes, i)) {
+        n = n + 1;
+        c = end(nodes, c);
+    }
+    return n;
+}
+
+/// Is node i an identifier named exactly `name`?
+pub fn ident_is(nodes: []const u8, text: []const u8, i: usize, name: []const u8) -> bool {
+    return kind(nodes, i) == K_EXPR_IDENTIFIER and field_is(nodes, text, i, F_NAME, name);
+}
+
+/// Does node i carry `name`, or a dotted path starting with it, as its name?
+pub fn names(nodes: []const u8, text: []const u8, i: usize, name: []const u8) -> bool {
+    const a : usize = lo(nodes, i, F_NAME);
+    const b : usize = hi(nodes, i, F_NAME);
+    if (!has_at(text, a, b, name)) { return false; }
+    return b - a == name.len or text[a + name.len] == B_DOT;
+}
+
+/// How many nodes carry `name` (or a dotted path starting with it) as their name, of any kind: an over-count
+/// of its uses (`name_count`).
+pub fn name_count(nodes: []const u8, text: []const u8, name: []const u8) -> usize {
+    var n : usize = 0;
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (names(nodes, text, i, name)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Does field f of node i name `name` as a word?
+pub fn field_word(nodes: []const u8, text: []const u8, i: usize, f: usize, name: []const u8) -> bool {
+    return word_in(text[lo(nodes, i, f) .. hi(nodes, i, f)], name);
+}
+
+/// `name_count`, plus each node whose size, type, field or return type text names `name` as a word (array
+/// literal elements and array sizes are kept as text): an over-count of its mentions (`name_mentions`).
+pub fn name_mentions(nodes: []const u8, text: []const u8, name: []const u8) -> usize {
+    var n : usize = 0;
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (names(nodes, text, i, name)) { n = n + 1; }
+        if (field_word(nodes, text, i, F_SIZE, name) or field_word(nodes, text, i, F_TYPE, name) or field_word(nodes, text, i, F_FIELD, name) or field_word(nodes, text, i, F_RET, name)) {
+            n = n + 1;
+        }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Is node i the statement `_ = name;`: an assignment (op empty or `=`) of exactly two children, the
+/// identifier `_` and the identifier `name`?
+pub fn discards(nodes: []const u8, text: []const u8, i: usize, name: []const u8) -> bool {
+    if (kind(nodes, i) != K_STMT_ASSIGN or children(nodes, i) != 2) { return false; }
+    if (!field_eq(nodes, text, i, F_OP, "") and !field_eq(nodes, text, i, F_OP, "=")) { return false; }
+    const c0 : usize = i + 1;
+    const c1 : usize = end(nodes, c0);
+    return kind(nodes, c0) == K_EXPR_IDENTIFIER and field_eq(nodes, text, c0, F_NAME, "_") and ident_is(nodes, text, c1, name);
+}
+
+/// How many `_ = name;` statements the nodes hold, at any depth (`discard_count`).
+pub fn discard_count(nodes: []const u8, text: []const u8, name: []const u8) -> usize {
+    var n : usize = 0;
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (discards(nodes, text, i, name)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Is `name` an identifier anywhere in the nodes (`mentions`)?
+pub fn mentions(nodes: []const u8, text: []const u8, name: []const u8) -> bool {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (ident_is(nodes, text, i, name)) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// How many `StmtLocal` nodes declare `name` (the declaration count of `shadow_names`).
+pub fn decl_count(nodes: []const u8, text: []const u8, name: []const u8) -> usize {
+    var n : usize = 0;
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (kind(nodes, i) == K_STMT_LOCAL and field_is(nodes, text, i, F_NAME, name)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// The reference's `collect_mutable_names` (`mutated`): is `name` the target, or the base of an indexed or
+/// field target, of an assignment in the nodes? The base is the target's first child, when it has one.
+pub fn mutated(nodes: []const u8, text: []const u8, name: []const u8) -> bool {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const t : i64 = first_child(nodes, i);
+        if (kind(nodes, i) == K_STMT_ASSIGN and t != NO_NODE) {
+            var b : i64 = t;
+            const tk : u8 = kind(nodes, @intCast(t));
+            if (tk == K_EXPR_INDEX or tk == K_EXPR_FIELD_ACCESS) { b = first_child(nodes, @intCast(t)); }
+            if (b != NO_NODE and ident_is(nodes, text, @intCast(b), name)) { return true; }
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// Does node t reach `name` through fields and indexes but no `.*` (`zig_mutates`' `rooted`)?
+pub fn rooted(nodes: []const u8, text: []const u8, t: i64, name: []const u8) -> bool {
+    var at : i64 = t;
+    while (at != NO_NODE) {
+        const i : usize = @intCast(at);
+        const k : u8 = kind(nodes, i);
+        if (k == K_EXPR_IDENTIFIER) { return field_is(nodes, text, i, F_NAME, name); }
+        if (k == K_EXPR_FIELD_ACCESS and field_eq(nodes, text, i, F_NAME, "*")) { return false; }
+        if (k != K_EXPR_FIELD_ACCESS and k != K_EXPR_INDEX) { return false; }
+        at = first_child(nodes, i);
+    }
+    return false;
+}
+
+/// Is node i a call of a method of `name`: its name `name` and a `.`, then anything?
+pub fn method_of(nodes: []const u8, text: []const u8, i: usize, name: []const u8) -> bool {
+    const a : usize = lo(nodes, i, F_NAME);
+    const b : usize = hi(nodes, i, F_NAME);
+    var dot : usize = a;
+    while (dot < b and text[dot] != B_DOT) { dot = dot + 1; }
+    return dot < b and dot - a == name.len and has_at(text, a, dot, name);
+}
+
+/// Does Zig count `var name` as mutated anywhere in the nodes (`zig_mutates`)? An assignment whose target
+/// reaches `name` through fields and indexes but no `.*`, `&` of such a path, or a method call on it. Errs
+/// toward yes: a yes refuses nothing.
+pub fn zig_mutates(nodes: []const u8, text: []const u8, name: []const u8) -> bool {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const k : u8 = kind(nodes, i);
+        if (k == K_STMT_ASSIGN and rooted(nodes, text, first_child(nodes, i), name)) { return true; }
+        if (k == K_EXPR_UNARY and field_eq(nodes, text, i, F_OP, "&") and rooted(nodes, text, first_child(nodes, i), name)) { return true; }
+        if (k == K_EXPR_CALL and method_of(nodes, text, i, name)) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// Is a statement of kind k and name `name` a bare value, which the reference returns at a fn's tail
+/// (`is_value_stmt`)? A binary, a literal, a cast, a field access, an index, a struct or array literal, or a
+/// name other than `undefined`.
+pub fn value_stmt(k: u8, name: []const u8) -> bool {
+    if (k == K_EXPR_BINARY or k == K_EXPR_LITERAL or k == K_EXPR_CAST or k == K_EXPR_FIELD_ACCESS) { return true; }
+    if (k == K_EXPR_INDEX or k == K_EXPR_STRUCT_LIT or k == K_EXPR_ARRAY_LITERAL) { return true; }
+    if (k == K_EXPR_IDENTIFIER) { return !same(name, "undefined"); }
+    return false;
+}
+
+/// Does t27c's `gen_expr` print anything for a node of kind k (`zig_renders`)? Every other kind, a
+/// statement, renders as the empty string.
+pub fn renders(k: u8) -> bool {
+    if (k == K_EXPR_LITERAL or k == K_EXPR_IDENTIFIER or k == K_EXPR_ENUM_VALUE or k == K_EXPR_CALL) { return true; }
+    if (k == K_EXPR_BINARY or k == K_EXPR_UNARY or k == K_EXPR_FIELD_ACCESS or k == K_EXPR_INDEX) { return true; }
+    if (k == K_EXPR_SWITCH or k == K_EXPR_IF or k == K_EXPR_ARRAY_LITERAL or k == K_EXPR_STRUCT_LIT) { return true; }
+    return k == K_EXPR_CAST or k == K_EXPR_TUPLE;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. The expected values are what the hand-written Rust of lower.rs (master 8415b2c0d) returns on the
+// same trees. The texts of the test trees are slices of TEXT:
+//   0 `_`, 1 `x`, 2 `=`, 3..6 `xyz`, 3..8 `xyz.w`, 8 `N`, 9 `&`, 10 `*`, 11..20 `undefined`, 20..22 `+=`.
+// ----------------------------------------------------------------------------------------------------------
+
+const TEXT : str = "_x=xyz.wN&*undefined+=";
+
+/// Writes `v` at nodes[at] as a little-endian u32.
+fn put32(nodes: []u8, at: usize, v: usize) -> void {
+    nodes[at] = @intCast(v % 256);
+    nodes[at + 1] = @intCast((v / 256) % 256);
+    nodes[at + 2] = @intCast((v / 65536) % 256);
+    nodes[at + 3] = @intCast(v / 16777216);
+}
+
+/// Writes node i: kind k, subtree end e, name TEXT[a .. b], every other field empty. Bytes 1 to 3 of a
+/// record are never read.
+fn node(nodes: []u8, i: usize, k: u8, e: usize, a: usize, b: usize) -> void {
+    nodes[i * REC] = k;
+    put32(nodes, i * REC + 4, e);
+    var f : usize = 0;
+    while (f < FIELDS) {
+        put32(nodes, i * REC + 8 + f * 8, a);
+        put32(nodes, i * REC + 12 + f * 8, a);
+        f = f + 1;
+    }
+    put32(nodes, i * REC + 12, b);
+}
+
+/// Sets field f of node i to TEXT[a .. b].
+fn set(nodes: []u8, i: usize, f: usize, a: usize, b: usize) -> void {
+    put32(nodes, i * REC + 8 + f * 8, a);
+    put32(nodes, i * REC + 12 + f * 8, b);
+}
+
+test prefix_bytes_match {
+    assert has_at("const X", 0, 7, "const");
+    assert has_at("const X", 0, 7, "");
+    assert !has_at("con", 0, 3, "const");
+    assert !has_at("Const X", 0, 7, "const");
+    assert has_at("a const", 2, 7, "const");
+    assert !has_at("a const", 2, 6, "const");
+}
+
+test a_word_is_bounded_by_non_word_bytes {
+    assert bounded("x", 0, 1);
+    assert bounded("a x b", 2, 3);
+    assert !bounded("ax", 1, 2);
+    assert !bounded("xa", 0, 1);
+    assert !bounded("_x", 1, 2);
+    assert !bounded("x9", 0, 1);
+    assert bounded(".x.", 1, 2);
+}
+
+test a_name_is_mentioned_as_a_word {
+    assert word_in("N", "N");
+    assert word_in("[N]u8", "N");
+    assert word_in("x, N", "N");
+    assert !word_in("NN", "N");
+    assert !word_in("N_", "N");
+    assert !word_in("aN", "N");
+    assert !word_in("", "N");
+    assert word_in("aN N", "N");
+    assert word_in("NNx N", "N");
+    assert !word_in("ba.a.a", "a.a");
+    assert word_in("a.a.a", "a.a");
+    assert word_in("x.a.a", "a.a");
+}
+
+test a_char_starts_at_any_byte_but_a_continuation {
+    assert char_start(0) and char_start(97) and char_start(127);
+    assert !char_start(128) and !char_start(160) and !char_start(191);
+    assert char_start(192) and char_start(195) and char_start(227) and char_start(255);
+}
+
+test an_empty_name_occurs_at_each_char_boundary {
+    assert word_in("", "");
+    assert word_in(" ", "");
+    assert !word_in("ab", "");
+    assert word_in("a  b", "");
+    var buf : [4]u8 = undefined;
+    buf[0] = 97;
+    buf[1] = 195;
+    buf[2] = 169;
+    buf[3] = 98;
+    assert !word_in(buf[0 .. 4], "");
+    assert word_in(buf[0 .. 3], "");
+    assert word_in(buf[1 .. 4], "");
+    var wide : [5]u8 = undefined;
+    wide[0] = 97;
+    wide[1] = 227;
+    wide[2] = 128;
+    wide[3] = 128;
+    wide[4] = 98;
+    assert !word_in(wide[0 .. 5], "");
+    assert word_in(wide[0 .. 4], "");
+}
+
+test records_read_little_endian {
+    var buf : [8]u8 = undefined;
+    put32(buf[0 .. 8], 0, 305419896);
+    assert buf[0] == 120 and buf[1] == 86 and buf[2] == 52 and buf[3] == 18;
+    assert u32_at(buf[0 .. 8], 0) == 305419896;
+    put32(buf[0 .. 8], 4, 4294967295);
+    assert u32_at(buf[0 .. 8], 4) == 4294967295;
+    put32(buf[0 .. 8], 4, 65536);
+    assert u32_at(buf[0 .. 8], 4) == 65536;
+    put32(buf[0 .. 8], 4, 16777216);
+    assert u32_at(buf[0 .. 8], 4) == 16777216;
+    assert REC == 8 + FIELDS * 8;
+}
+
+test a_record_holds_kind_end_and_spans {
+    var buf : [144]u8 = undefined;
+    node(buf[0 .. 144], 0, K_STMT_LOCAL, 2, 3, 6);
+    node(buf[0 .. 144], 1, K_EXPR_LITERAL, 2, 8, 9);
+    set(buf[0 .. 144], 1, F_TYPE, 3, 8);
+    const ns : []const u8 = buf[0 .. 144];
+    assert count(ns) == 2;
+    assert count(buf[0 .. 143]) == 1;
+    assert kind(ns, 0) == K_STMT_LOCAL and kind(ns, 1) == K_EXPR_LITERAL;
+    assert end(ns, 0) == 2 and end(ns, 1) == 2;
+    assert lo(ns, 0, F_NAME) == 3 and hi(ns, 0, F_NAME) == 6;
+    assert lo(ns, 0, F_RET) == 3 and hi(ns, 0, F_RET) == 3;
+    assert lo(ns, 1, F_TYPE) == 3 and hi(ns, 1, F_TYPE) == 8;
+    assert lo(ns, 1, F_VALUE) == 8 and hi(ns, 1, F_VALUE) == 8;
+    assert field_is(ns, TEXT, 0, F_NAME, "xyz");
+    assert !field_is(ns, TEXT, 0, F_NAME, "xy");
+    assert !field_is(ns, TEXT, 0, F_NAME, "xyzz");
+    assert field_eq(ns, TEXT, 1, F_TYPE, "xyz.w");
+    assert field_eq(ns, TEXT, 1, F_OP, "");
+    assert first_child(ns, 0) == 1;
+    assert first_child(ns, 1) == NO_NODE;
+    assert children(ns, 0) == 1 and children(ns, 1) == 0;
+}
+
+test children_are_walked_by_subtree_ends {
+    // 0 { 1 { 2 }, 3, 4 { 5 } }
+    var buf : [432]u8 = undefined;
+    node(buf[0 .. 432], 0, K_STMT_IF, 6, 0, 0);
+    node(buf[0 .. 432], 1, K_EXPR_BINARY, 3, 0, 0);
+    node(buf[0 .. 432], 2, K_EXPR_LITERAL, 3, 0, 0);
+    node(buf[0 .. 432], 3, K_EXPR_LITERAL, 4, 0, 0);
+    node(buf[0 .. 432], 4, K_MODULE, 6, 0, 0);
+    node(buf[0 .. 432], 5, K_STMT_BREAK, 6, 0, 0);
+    const ns : []const u8 = buf[0 .. 432];
+    assert children(ns, 0) == 3;
+    assert children(ns, 1) == 1;
+    assert children(ns, 4) == 1;
+    assert children(ns, 5) == 0;
+    assert first_child(ns, 4) == 5;
+}
+
+test a_name_counts_exactly_or_as_a_dotted_path {
+    // `xyz.w`, `xyz`, `x`, `N` with the type text `xyz.w`
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_EXPR_FIELD_ACCESS, 1, 3, 8);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 3, 6);
+    node(buf[0 .. 288], 2, K_STMT_LOCAL, 3, 1, 2);
+    node(buf[0 .. 288], 3, K_EXPR_LITERAL, 4, 8, 9);
+    set(buf[0 .. 288], 3, F_TYPE, 3, 8);
+    const ns : []const u8 = buf[0 .. 288];
+    assert names(ns, TEXT, 0, "xyz");
+    assert names(ns, TEXT, 1, "xyz");
+    assert !names(ns, TEXT, 0, "xy");
+    assert !names(ns, TEXT, 2, "xyz");
+    assert names(ns, TEXT, 0, "xyz.w");
+    assert name_count(ns, TEXT, "xyz") == 2;
+    assert name_count(ns, TEXT, "x") == 1;
+    assert name_count(ns, TEXT, "xyz.w") == 1;
+    assert name_count(ns, TEXT, "w") == 0;
+    assert name_count(ns, TEXT, "N") == 1;
+    assert name_mentions(ns, TEXT, "xyz") == 3;
+    assert name_mentions(ns, TEXT, "w") == 1;
+    assert name_mentions(ns, TEXT, "N") == 1;
+    assert name_mentions(ns, TEXT, "z") == 0;
+}
+
+test every_text_field_is_a_mention {
+    var buf : [72]u8 = undefined;
+    node(buf[0 .. 72], 0, K_STMT_LOCAL, 1, 0, 0);
+    const ns : []const u8 = buf[0 .. 72];
+    assert name_mentions(ns, TEXT, "N") == 0;
+    set(buf[0 .. 72], 0, F_SIZE, 8, 9);
+    assert name_mentions(ns, TEXT, "N") == 1;
+    set(buf[0 .. 72], 0, F_SIZE, 0, 0);
+    set(buf[0 .. 72], 0, F_FIELD, 8, 9);
+    assert name_mentions(ns, TEXT, "N") == 1;
+    set(buf[0 .. 72], 0, F_FIELD, 0, 0);
+    set(buf[0 .. 72], 0, F_RET, 7, 9);
+    assert name_mentions(ns, TEXT, "N") == 0;
+    set(buf[0 .. 72], 0, F_RET, 8, 10);
+    assert name_mentions(ns, TEXT, "N") == 1;
+    set(buf[0 .. 72], 0, F_RET, 0, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 8, 9);
+    set(buf[0 .. 72], 0, F_OP, 8, 9);
+    set(buf[0 .. 72], 0, F_KIND, 8, 9);
+    assert name_mentions(ns, TEXT, "N") == 0;
+    set(buf[0 .. 72], 0, F_NAME, 8, 9);
+    set(buf[0 .. 72], 0, F_TYPE, 8, 9);
+    assert name_mentions(ns, TEXT, "N") == 2;
+}
+
+test a_discard_is_an_assignment_of_two_identifiers {
+    // `_ = x;` with op `=`; then op empty; `+=`; three children; `x = x`; `_ = xyz`; `_ = 1`
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 3, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 0, 1);
+    node(buf[0 .. 288], 2, K_EXPR_IDENTIFIER, 3, 1, 2);
+    const ns : []const u8 = buf[0 .. 216];
+    assert discards(ns, TEXT, 0, "x");
+    assert discard_count(ns, TEXT, "x") == 1;
+    assert discard_count(ns, TEXT, "xyz") == 0;
+    set(buf[0 .. 288], 0, F_OP, 2, 2);
+    assert discard_count(ns, TEXT, "x") == 1;
+    set(buf[0 .. 288], 0, F_OP, 20, 22);
+    assert discard_count(ns, TEXT, "x") == 0;
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 1, 2);
+    assert discard_count(ns, TEXT, "x") == 0;
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 1);
+    assert discard_count(ns, TEXT, "x") == 0;
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 0, 1);
+    node(buf[0 .. 288], 2, K_EXPR_LITERAL, 3, 1, 2);
+    assert discard_count(ns, TEXT, "x") == 0;
+    node(buf[0 .. 288], 2, K_EXPR_IDENTIFIER, 3, 1, 2);
+    node(buf[0 .. 288], 0, K_STMT_LOCAL, 3, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    assert discard_count(ns, TEXT, "x") == 0;
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 4, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    node(buf[0 .. 288], 3, K_EXPR_LITERAL, 4, 8, 9);
+    assert discard_count(buf[0 .. 288], TEXT, "x") == 0;
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 2, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 0, 1);
+    node(buf[0 .. 288], 2, K_STMT_ASSIGN, 4, 0, 0);
+    node(buf[0 .. 288], 3, K_EXPR_IDENTIFIER, 4, 1, 2);
+    assert discard_count(buf[0 .. 288], TEXT, "x") == 0;
+}
+
+test discards_count_at_any_depth {
+    // StmtIf { `_ = x;`, `_ = x;` }
+    var buf : [504]u8 = undefined;
+    node(buf[0 .. 504], 0, K_STMT_IF, 7, 0, 0);
+    node(buf[0 .. 504], 1, K_STMT_ASSIGN, 4, 0, 0);
+    node(buf[0 .. 504], 2, K_EXPR_IDENTIFIER, 3, 0, 1);
+    node(buf[0 .. 504], 3, K_EXPR_IDENTIFIER, 4, 1, 2);
+    node(buf[0 .. 504], 4, K_STMT_ASSIGN, 7, 0, 0);
+    node(buf[0 .. 504], 5, K_EXPR_IDENTIFIER, 6, 0, 1);
+    node(buf[0 .. 504], 6, K_EXPR_IDENTIFIER, 7, 1, 2);
+    assert discard_count(buf[0 .. 504], TEXT, "x") == 2;
+    assert mentions(buf[0 .. 504], TEXT, "x");
+    assert mentions(buf[0 .. 504], TEXT, "_");
+    assert !mentions(buf[0 .. 504], TEXT, "xyz");
+    assert !mentions(buf[0 .. 72], TEXT, "x");
+}
+
+test only_identifiers_are_mentions_and_only_locals_declare {
+    var buf : [216]u8 = undefined;
+    node(buf[0 .. 216], 0, K_STMT_LOCAL, 2, 1, 2);
+    node(buf[0 .. 216], 1, K_EXPR_CALL, 2, 1, 2);
+    node(buf[0 .. 216], 2, K_STMT_LOCAL, 3, 1, 2);
+    const ns : []const u8 = buf[0 .. 216];
+    assert !mentions(ns, TEXT, "x");
+    assert decl_count(ns, TEXT, "x") == 2;
+    assert decl_count(ns, TEXT, "xyz") == 0;
+    node(buf[0 .. 216], 2, K_STMT_ASSIGN, 3, 1, 2);
+    assert decl_count(ns, TEXT, "x") == 1;
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 1, 2);
+    assert mentions(ns, TEXT, "x");
+}
+
+test an_assignment_mutates_its_target_or_its_base {
+    // `x = ..`; `x[..] = ..`; `x.f = ..`; `y = ..`; `f(x) = ..`
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 3, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 1, 2);
+    node(buf[0 .. 288], 2, K_EXPR_LITERAL, 3, 8, 9);
+    const ns : []const u8 = buf[0 .. 216];
+    assert mutated(ns, TEXT, "x");
+    assert !mutated(ns, TEXT, "xyz");
+    node(buf[0 .. 288], 0, K_STMT_LOCAL, 3, 0, 0);
+    assert !mutated(ns, TEXT, "x");
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 4, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_INDEX, 3, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_IDENTIFIER, 3, 1, 2);
+    node(buf[0 .. 288], 3, K_EXPR_LITERAL, 4, 8, 9);
+    assert mutated(buf[0 .. 288], TEXT, "x");
+    node(buf[0 .. 288], 1, K_EXPR_FIELD_ACCESS, 3, 3, 6);
+    assert mutated(buf[0 .. 288], TEXT, "x");
+    node(buf[0 .. 288], 1, K_EXPR_CALL, 3, 3, 6);
+    assert !mutated(buf[0 .. 288], TEXT, "x");
+    assert !mutated(buf[0 .. 288], TEXT, "xyz");
+    node(buf[0 .. 288], 1, K_EXPR_INDEX, 2, 0, 0);
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 2, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_IDENTIFIER, 3, 1, 2);
+    node(buf[0 .. 288], 3, K_EXPR_LITERAL, 4, 8, 9);
+    assert !mutated(buf[0 .. 288], TEXT, "x");
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 1, 0, 0);
+    node(buf[0 .. 288], 1, K_STMT_ASSIGN, 3, 0, 0);
+    assert mutated(buf[0 .. 288], TEXT, "x");
+}
+
+test zig_counts_a_write_through_fields_and_indexes {
+    // `x.f[i] = ..`
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_STMT_ASSIGN, 4, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_INDEX, 4, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_FIELD_ACCESS, 4, 7, 8);
+    node(buf[0 .. 288], 3, K_EXPR_IDENTIFIER, 4, 1, 2);
+    const ns : []const u8 = buf[0 .. 288];
+    assert rooted(ns, TEXT, 1, "x");
+    assert rooted(ns, TEXT, 3, "x");
+    assert !rooted(ns, TEXT, 3, "xyz");
+    assert !rooted(ns, TEXT, NO_NODE, "x");
+    assert zig_mutates(ns, TEXT, "x");
+    assert !zig_mutates(ns, TEXT, "xyz");
+    // `x.*` stops it
+    node(buf[0 .. 288], 2, K_EXPR_FIELD_ACCESS, 4, 10, 11);
+    assert !rooted(ns, TEXT, 1, "x");
+    assert !zig_mutates(ns, TEXT, "x");
+    // a call in the path stops it
+    node(buf[0 .. 288], 2, K_EXPR_CALL, 4, 7, 8);
+    assert !zig_mutates(ns, TEXT, "x");
+    // `&x.f[i]`
+    node(buf[0 .. 288], 2, K_EXPR_FIELD_ACCESS, 4, 7, 8);
+    node(buf[0 .. 288], 0, K_EXPR_UNARY, 4, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 9, 10);
+    assert zig_mutates(ns, TEXT, "x");
+    set(buf[0 .. 288], 0, F_OP, 10, 11);
+    assert !zig_mutates(ns, TEXT, "x");
+    node(buf[0 .. 288], 0, K_STMT_LOCAL, 4, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 9, 10);
+    assert !zig_mutates(ns, TEXT, "x");
+}
+
+test a_method_call_on_a_name_mutates_it {
+    var buf : [72]u8 = undefined;
+    node(buf[0 .. 72], 0, K_EXPR_CALL, 1, 3, 8);
+    const ns : []const u8 = buf[0 .. 72];
+    assert method_of(ns, TEXT, 0, "xyz");
+    assert zig_mutates(ns, TEXT, "xyz");
+    assert !zig_mutates(ns, TEXT, "xy");
+    assert !zig_mutates(ns, TEXT, "xyz.w");
+    assert !zig_mutates(ns, TEXT, "w");
+    node(buf[0 .. 72], 0, K_EXPR_CALL, 1, 3, 6);
+    assert !zig_mutates(ns, TEXT, "xyz");
+    node(buf[0 .. 72], 0, K_EXPR_IDENTIFIER, 1, 3, 8);
+    assert !zig_mutates(ns, TEXT, "xyz");
+    node(buf[0 .. 72], 0, K_EXPR_CALL, 1, 6, 8);
+    assert zig_mutates(ns, TEXT, "");
+    node(buf[0 .. 72], 0, K_EXPR_CALL, 1, 20, 22);
+    assert !method_of(ns, TEXT, 0, "+=");
+    assert !zig_mutates(ns, TEXT, "+=");
+}
+
+test value_statements_are_bare_values {
+    assert value_stmt(K_EXPR_BINARY, "") and value_stmt(K_EXPR_LITERAL, "") and value_stmt(K_EXPR_CAST, "");
+    assert value_stmt(K_EXPR_FIELD_ACCESS, "") and value_stmt(K_EXPR_INDEX, "");
+    assert value_stmt(K_EXPR_STRUCT_LIT, "") and value_stmt(K_EXPR_ARRAY_LITERAL, "");
+    assert value_stmt(K_EXPR_IDENTIFIER, "x");
+    assert !value_stmt(K_EXPR_IDENTIFIER, "undefined");
+    assert !value_stmt(K_EXPR_CALL, "") and !value_stmt(K_EXPR_UNARY, "") and !value_stmt(K_STMT_EXPR, "");
+    assert !value_stmt(K_EXPR_IF, "") and !value_stmt(K_EXPR_SWITCH, "") and !value_stmt(K_EXPR_TUPLE, "");
+    assert !value_stmt(K_EXPR_ENUM_VALUE, "") and !value_stmt(K_EXPR_RETURN, "") and !value_stmt(K_MODULE, "");
+}
+
+test expressions_render_and_statements_do_not {
+    var k : u8 = 0;
+    var n : u32 = 0;
+    while (k <= K_STMT_EXPR) {
+        if (renders(k)) { n = n + 1; }
+        k = k + 1;
+    }
+    assert n == 14;
+    assert renders(K_EXPR_LITERAL) and renders(K_EXPR_IDENTIFIER) and renders(K_EXPR_ENUM_VALUE);
+    assert renders(K_EXPR_CALL) and renders(K_EXPR_BINARY) and renders(K_EXPR_UNARY);
+    assert renders(K_EXPR_FIELD_ACCESS) and renders(K_EXPR_INDEX) and renders(K_EXPR_SWITCH);
+    assert renders(K_EXPR_IF) and renders(K_EXPR_ARRAY_LITERAL) and renders(K_EXPR_STRUCT_LIT);
+    assert renders(K_EXPR_CAST) and renders(K_EXPR_TUPLE);
+    assert !renders(K_EXPR_RETURN) and !renders(K_EXPR_RANGE) and !renders(K_STMT_EXPR) and !renders(K_MODULE);
+}

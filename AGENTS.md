@@ -285,6 +285,10 @@ measure it are written in **t27**, not in Rust or Python by hand.
   and tests 8274, after #8229 moved the type-text rules of `lower.rs`
   (`type_base`, `close_of_open`, `type_construct`'s shape and four more) to
   `specs/tri/t27b/type_text.t27`, -130, 0 and 0 on master 0fca4bdfd's 14880
+  plus 1263 and 8274; 14685 plus 1263, 15948 in all, and tests 8274, after
+  #8249 moved the body walks of `lower.rs` (`name_count`, `mutated`,
+  `zig_mutates` and six more, over the body's bytes) to
+  `specs/tri/t27b/ast_walk.t27`, -65, 0 and 0 on master f21a0b39c's 14750
   plus 1263 and 8274),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
