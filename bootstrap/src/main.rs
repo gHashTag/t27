@@ -101,6 +101,10 @@ mod run_record;
 #[path = "../gen/rust/verified/independence.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod independence;
+// specs/compiler/test_report_exit.t27 (#7370): the exit code of `t27c test-report <spec>`.
+#[path = "../gen/rust/compiler/test_report_exit.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod test_report_exit;
 // specs/verified/seal_identity.t27 (#8095): seal v2 identity, SEAL_CONFIG, the per-node reuse decision.
 #[path = "../gen/rust/verified/seal_identity.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
@@ -559,6 +563,9 @@ enum Commands {
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
+    ///
+    /// One spec exits 1 when a test FAILs and 2 when it is BLOCKED (#7370,
+    /// specs/compiler/test_report_exit.t27); T27C_TEST_REPORT_EXIT_ZERO=1 exits 0.
     TestReport {
         /// The .t27 spec to measure. Omit with --all to measure the tree.
         #[arg(default_value = "")]
@@ -3932,7 +3939,7 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         println!();
         println!("  A blocked spec is not a failing one. It never produced a");
         println!("  binary, so it has no per-test result to report.");
-        return Ok(());
+        return test_report_exit_now(&r);
     }
     for o in &r.outcomes {
         if !o.passed {
@@ -3965,6 +3972,17 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         for l in lines {
             println!("{}", l);
         }
+    }
+    test_report_exit_now(&r)
+}
+
+/// #7370: exit as specs/compiler/test_report_exit.t27 says, once the report is printed.
+fn test_report_exit_now(r: &test_report::Report) -> anyhow::Result<()> {
+    let var: &'static str = Box::leak(std::env::var(test_report_exit::OPT_OUT_VAR).unwrap_or_default().into());
+    let code = test_report_exit::exit_with(r.blocked.is_some(), r.failed as u64, test_report_exit::opted_out(var));
+    if code != test_report_exit::EXIT_GREEN {
+        std::io::Write::flush(&mut std::io::stdout())?;
+        std::process::exit(code as i32);
     }
     Ok(())
 }
