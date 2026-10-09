@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/compiler/test_report_exit.t27 -- the exit code of `t27c test-report <spec>` (gHashTag/t27#7370).
+; Until this file, every path of bootstrap/src/main.rs `run_test_report` returned Ok, so the command
+; exited 0 when a test FAILed and when the spec was BLOCKED: a caller that trusted the exit code read a
+; red spec as green (`t27c test-report <spec> && t27c seal <spec> --save` did not stop). This file is the
+; rule; bootstrap/src/main.rs runs it through `t27c gen-rust` (bootstrap/gen/rust/compiler/
+; test_report_exit.rs, never hand-edited) after the report is printed, and the report's text is
+; unchanged: only the exit code says more.
+; --
+; The rule, for ONE spec:
+;   BLOCKED (the generated Zig never built, or no zig ran it)   exit 2
+;   at least one test FAILs (a timed-out test is a FAIL, #7255)  exit 1
+;   otherwise                                                    exit 0
+; BLOCKED is judged first: a blocked spec ran no test, so its FAIL count is 0 and says nothing. A spec with
+; no `test` block (tests 0, invariants proved or not) exits 0: nothing failed. Whether running no test is
+; good enough is the caller's question -- `tri test` refuses it -- not the exit code's.
+; --
+; Two codes collide with errors that are not a report: an error before the report (not a file) exits 1,
+; and a usage error from the argument parser exits 2. Neither prints the report's first line,
+; `--- test report: <spec> ---`, on stdout; a caller that must tell them apart reads that line.
+; --
+; The opt-out, for callers that read the report's words and treat any non-zero exit as the tool failing:
+; with the environment variable OPT_OUT_VAR set to exactly "1", a printed report exits 0 whatever it says,
+; as before #7370. An error is still an error (exit 1). It is an environment variable, not a flag, so a
+; process that spawns test-report many times (t27b's reference runner) can ask once for all of them, and a
+; t27c from before #7370 ignores it. Any other value, unset included, is the rule above.
+; --
+; `t27c test-report --all` is a census of the whole tree, not a verdict on one spec, and keeps exit 0.
+; Fixtures: specs/ternary/gft_relu.t27 (4 tests, all pass), a two-test spec with one test failing, and a
+; spec calling an undeclared fn (BLOCKED), each run under t27c test-report on 2026-10-09 before and after.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module CompilerTestReportExit;
+
+/// The exit codes of a printed report.
+pub const EXIT_GREEN : u8 = 0;
+pub const EXIT_FAILED : u8 = 1;
+pub const EXIT_BLOCKED : u8 = 2;
+
+/// The variable that asks for the exit of before #7370, and the one value that asks.
+pub const OPT_OUT_VAR : str = "T27C_TEST_REPORT_EXIT_ZERO";
+pub const OPT_OUT_ON : u8 = 49;
+
+/// The codes are numbered as the callers read them.
+invariant the_exit_codes_are_numbered { assert EXIT_GREEN == 0 and EXIT_FAILED == 1 and EXIT_BLOCKED == 2 and OPT_OUT_ON == 49; }
+
+/// Is the opt-out asked for? `value` is the variable's value, "" when it is unset: exactly "1" asks.
+pub fn opted_out(value: str) -> bool {
+    return value.len == 1 and value[0] == OPT_OUT_ON;
+}
+
+/// The exit of `t27c test-report <spec>` once its report is printed: BLOCKED first, then FAIL.
+pub fn exit_code(blocked: bool, failed: u64) -> u8 {
+    if (blocked) { return EXIT_BLOCKED; }
+    if (failed > 0) { return EXIT_FAILED; }
+    return EXIT_GREEN;
+}
+
+/// The exit the command takes: the rule, or 0 when the caller opted out.
+pub fn exit_with(blocked: bool, failed: u64, opt_out: bool) -> u8 {
+    if (opt_out) { return EXIT_GREEN; }
+    return exit_code(blocked, failed);
+}
+
+// Scenario: specs/ternary/gft_relu.t27 -- 4 tests, 4 pass, FAIL 0 -- exits 0, as before.
+test a_green_report_exits_zero {
+    assert exit_code(false, 0) == 0;
+    assert exit_with(false, 0, false) == 0;
+    assert exit_with(false, 0, true) == 0;
+}
+
+// Scenario: a spec whose test one_is_two fails (tests 2, pass 1, FAIL 1). It exited 0 before #7370.
+test a_failing_test_exits_one {
+    assert exit_code(false, 1) == 1;
+    assert exit_code(false, 18446744073709551615) == 1;
+    assert exit_with(false, 1, false) == EXIT_FAILED;
+}
+
+// Scenario: a spec that calls an undeclared fn -- BLOCKED, does not compile. It exited 0 before #7370.
+test a_blocked_report_exits_two {
+    assert exit_code(true, 0) == 2;
+    assert exit_with(true, 0, false) == EXIT_BLOCKED;
+}
+
+// Scenario: BLOCKED is judged before FAIL, so a blocked report never reads as a failing one.
+test blocked_is_judged_first {
+    assert exit_code(true, 3) == EXIT_BLOCKED;
+}
+
+// Scenario: a spec with invariants and no `test` block ran no test; nothing failed, so it exits 0.
+test no_test_is_not_a_failure {
+    assert exit_code(false, 0) == EXIT_GREEN;
+}
+
+// Scenario: the opt-out turns every printed report back to exit 0, red ones included.
+test the_opt_out_exits_zero_on_every_report {
+    assert exit_with(false, 1, true) == EXIT_GREEN;
+    assert exit_with(true, 0, true) == EXIT_GREEN;
+    assert exit_with(true, 5, true) == EXIT_GREEN;
+}
+
+// Scenario: only "1" opts out; unset (""), "0", "11", "true" and " 1" do not.
+test only_one_opts_out {
+    assert opted_out("1") == true;
+    assert opted_out("") == false;
+    assert opted_out("0") == false;
+    assert opted_out("11") == false;
+    assert opted_out("true") == false;
+    assert opted_out(" 1") == false;
+    assert opted_out("2") == false;
+}

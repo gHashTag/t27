@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9fef664e8c050951bcb19ac380b36ff4de438392c662c462b00c7f91d5ac2399",
   "gen_hash_rust": "sha256:9559436548d9cc5f86ecc6a75d068c6571b5aab0bc583dd48ccf556e5c01deef",
   "gen_hash_verilog": "sha256:23fb8d4090365fbcbc96a15c676d0e30a3048fc4ddd7cd71e0f7d3a863b26e7f",
   "gen_hash_zig": "sha256:32b43854e849c1d0394ad0d7e45da370423e77e466fc187c4f44dc77bcb34a74",
   "module": "GftSadd",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:10:14Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:53:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:addb2f0080ec0dd61b29abb307ecd95219103865e4be32c8a3fcb182c90062b6",
   "spec_path": "specs/ternary/gft_sadd.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

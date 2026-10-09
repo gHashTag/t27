@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/unread_anytype.t27 -- fns with an `anytype` parameter their body never names,
+; called from tests, as the reference runs them (t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. The plan is
+; specs/tri/t27b/any_param_plan.t27.
+; Zig instantiates each fn once per argument type: a string, `null`, an integer literal. The body never
+; reads the parameter, so every instance computes the same thing from the other parameters, which the tests
+; vary at run time. The port this mirrors is identity.t27 (`isNotFoundError(err: anytype) bool`, called with
+; "ENOENT", "other error" and null).
+; Not here: a body that names the parameter (Zig compiles it per argument type; t27b keeps `type anytype`), and
+; an argument whose evaluation runs code (t27b refuses it as `ExprCall(anytype argument)`).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceUnreadAnytype;
+
+const CODE = "ENOENT";
+
+fn is_not_found(err: anytype) -> bool {
+    return false;
+}
+
+fn scaled(tag: anytype, n: u32) -> u32 {
+    return n * 3;
+}
+
+fn pick(a: u32, label: anytype, b: u32) -> u32 {
+    if (a > b) {
+        return a;
+    }
+    return b + 1;
+}
+
+test a_string_argument {
+    assert(is_not_found("ENOENT") == false);
+    assert(!is_not_found("other error"));
+    assert(!is_not_found(CODE));
+}
+
+test a_null_argument {
+    assert(is_not_found(null) == false);
+}
+
+test an_integer_argument_beside_a_read_one {
+    var n: u32 = 4;
+    assert(scaled(7, n) == 12);
+    n = n + 1;
+    assert(scaled("five", n) == 15);
+}
+
+test the_parameter_in_the_middle {
+    var a: u32 = 9;
+    assert(pick(a, null, 2) == 9);
+    assert(pick(1, "x", a) == 10);
+    a = 5;
+    assert(pick(a, 3, 5) == 6);
+}

@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5069fde9de7f42538c7a9c26afa5946a5ab135d4fd5d9deeb9c62a1f5b9723e9",
   "gen_hash_rust": "sha256:8af1dd7bcee1e75c4c2f4afcbfca702fa1446129aa3b9e941286636fda892fce",
   "gen_hash_verilog": "sha256:4864edf98ec23a12fe4a891c2ad5fa1ec1be66864dc12ce16212053bc49e84b4",
   "gen_hash_zig": "sha256:fef1b44f9a781994af388f54c2ee8f97b72ed7705195d2cce733c261ccc53748",
   "module": "tool_tri_gates",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:11:51Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cbcbc65121d17fc0ab92086f75dffd0b53b37b45a260c1c5ef81073974f096ef",
   "spec_path": "specs/tools/tri/gates.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

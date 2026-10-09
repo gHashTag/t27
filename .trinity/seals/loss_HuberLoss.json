@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+cd6708d32",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:854ca4e786d983992b770f1fb73aedb3e9e1284bf34c4e4540ad6ff0436fbe8a",
   "gen_hash_rust": "sha256:8cfa76858e384f8416ed5b810c4fd5316af72c08885e03859c174e0ac15bd501",
   "gen_hash_verilog": "sha256:45ee57de4fe399ce31b9de59b567345ff06e014102315e3374ce936ce091201f",
   "gen_hash_zig": "sha256:dab49d0f65154df08634bc68ba51c6ce90196abbb84683651cc65636465f29bf",
   "module": "HuberLoss",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:45:26Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:40Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ff04a9d69fad5628d6aef1141f5d303b8da9a341a4aa9172e9bb36d79ae5c313",
   "spec_path": "specs/ml/loss/huber_loss.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

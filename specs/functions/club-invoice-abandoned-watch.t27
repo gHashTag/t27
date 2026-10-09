@@ -40,3 +40,84 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No safe probe has been sent: the 2026-09-09 probe pass predates this registration, which is why the manifest row carries no deployment reading. The live status endpoint answered on 2026-09-22 with 11 runs over seven days and none failed. SIDE_EFFECTS drops the manifest's db-read, which the catalog vocabulary cannot say; the run reads the invoices it marks. Abandonment is a conclusion, not a report: Telegram tells nobody when a person closes a payment window, so the rule is an invoice older than an hour with no charge after it, and it lives in services/trackEvent.ts where it is tested apart from the schedule. A unique index makes the row land once however often the job runs, and an unreadable table throws so that could not look reaches the failure handler instead of printing as nobody walked away.";
+
+; The card held to the schema of specs/functions/README.md: the vocabularies of its fields,
+; what TRIGGER decides about EVENT, LEGACY_EVENTS and CRON, SERVICE as `file:line`, and a
+; SAFE_PROBE that agrees with its PROBE_RESULT.
+test domain_is_in_the_vocabulary {
+    // DOMAIN comes from the vocabulary of the README. ID does not open with it on this card
+    // (#7911), so only the vocabulary and the shape of ID are checked.
+    assert DOMAIN == "neuro" or DOMAIN == "reels" or DOMAIN == "training" or DOMAIN == "morph" or DOMAIN == "render" or DOMAIN == "payment" or DOMAIN == "broadcast" or DOMAIN == "instagram" or DOMAIN == "content" or DOMAIN == "monitoring" or DOMAIN == "analytics" or DOMAIN == "webhook" or DOMAIN == "welcome" or DOMAIN == "crm";
+    var k : usize = 0;
+    while (k < ID.len) {
+        assert (ID[k] >= 'a' and ID[k] <= 'z') or (ID[k] >= '0' and ID[k] <= '9') or ID[k] == '-';
+        k = k + 1;
+    }
+}
+test a_cron_function_has_a_cron_and_no_event {
+    // TRIGGER `cron`: CRON is a five-field cron expression, EVENT is `""` and LEGACY_EVENTS
+    // is empty (README; the generator fails otherwise).
+    assert TRIGGER == "cron";
+    assert EVENT.len == 0;
+    assert LEGACY_EVENTS.len == 0;
+    assert CRON[0] != ' ';
+    assert CRON[CRON.len - 1] != ' ';
+    var spaces : u32 = 0;
+    var i : usize = 0;
+    while (i < CRON.len) {
+        const c : u8 = CRON[i];
+        if (c == ' ') {
+            spaces = spaces + 1;
+            assert CRON[i + 1] != ' ';
+        } else {
+            assert (c >= '0' and c <= '9') or c == '*' or c == '/' or c == ',' or c == '-';
+        }
+        i = i + 1;
+    }
+    assert spaces == 4;
+}
+test fields_come_from_their_vocabularies {
+    assert KIND == "function";
+    assert REPO == "999-multibots-telegraf";
+    assert TZ == "UTC";
+    assert ON_FAILURE == "admin-telegram" or ON_FAILURE == "log" or ON_FAILURE == "refund+notify";
+    assert PROBE_RESULT == "COMPLETED" or PROBE_RESULT == "FAILED-at-guard" or PROBE_RESULT == "skipped" or PROBE_RESULT == "not-deployed";
+    assert CONTROL == "spec+code" or CONTROL == "spec-only" or CONTROL == "code-only" or CONTROL == "code-only/unregistered";
+    assert SIDE_EFFECTS.len > 0;
+    var i : usize = 0;
+    while (i < SIDE_EFFECTS.len) {
+        const e : str = SIDE_EFFECTS[i];
+        assert e == "charges-balance" or e == "paid-api" or e == "messages-user" or e == "messages-owners" or e == "messages-admin" or e == "db-write" or e == "external-webhook" or e == "none";
+        var j : usize = i + 1;
+        while (j < SIDE_EFFECTS.len) {
+            assert SIDE_EFFECTS[j] != e;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}
+test no_probe_was_sent {
+    // SAFE_PROBE is `""` when none was sent, and PROBE_RESULT then says why: `skipped`, or
+    // `not-deployed` with GUARD `unknown`.
+    assert SAFE_PROBE.len == 0;
+    assert PROBE_RESULT == "skipped" or PROBE_RESULT == "not-deployed";
+    assert PROBE_RESULT != "not-deployed" or GUARD == "unknown";
+}
+test service_is_file_and_line {
+    // SERVICE is `file:line` of inngest.createFunction( in REPO.
+    var colon : usize = 0;
+    var i : usize = 0;
+    while (i < SERVICE.len) {
+        if (SERVICE[i] == ':') {
+            colon = i;
+        }
+        i = i + 1;
+    }
+    assert colon > 0;
+    assert colon + 1 < SERVICE.len;
+    var d : usize = colon + 1;
+    while (d < SERVICE.len) {
+        assert SERVICE[d] >= '0' and SERVICE[d] <= '9';
+        d = d + 1;
+    }
+}

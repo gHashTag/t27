@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+285694e",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:077e3e8bfbbc50f48b639b1c96310e87735133c2c9dd44411fba68ad1a2c31a0",
   "gen_hash_rust": "sha256:96da77a17083cd17fceb098142baaacff3abf5fa5b1a18ed15113796c48d6d58",
   "gen_hash_verilog": "sha256:04eec6692cfc067a1cc9f47579f9ac47d97485b5d8ad94f647f19a427338af99",
   "gen_hash_zig": "sha256:0866da1d5686a0000cf28dad6e870f86561edd594f428f5c22ed2bc7cd19462e",
   "module": "automation::connect_card",
   "ring": 12,
-  "sealed_at": "2026-10-07T10:47:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:46:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3a3eed9ca8ecd3034da5f256e450379ca338d360178312ddd2575afd8da6dce5",
   "spec_path": "specs/automation/connect-card.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

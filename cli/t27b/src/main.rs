@@ -197,6 +197,9 @@ fn parse_args() -> Result<Opts, String> {
 }
 
 fn main() -> ExitCode {
+    // #7370: the reference runner (blockers.rs) reads `t27c test-report`'s words and takes any non-zero
+    // exit for a broken tool, so every test-report it spawns keeps the exit of before #7370.
+    std::env::set_var("T27C_TEST_REPORT_EXIT_ZERO", "1");
     let o = match parse_args() {
         Ok(o) => o,
         Err(e) => return usage(&e),
@@ -326,7 +329,12 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
     let mut fuel_left = check_budget::FILE_FUEL;
     let t0 = Instant::now();
     for (id, f) in prog.tests() {
+        let t1 = Instant::now();
         let r = jit.call(id as u32, &[]);
+        if o.time {
+            // One in-process iteration per test, for the warmup series (#7596).
+            lines.push(format!("TIME {} {}", f.name, t1.elapsed().as_nanos()));
+        }
         // An invariant runs exactly like a test and is reported apart from
         // the tests, prefixed `INVARIANT`.
         let tag = if f.is_invariant { "INVARIANT " } else { "" };
@@ -543,6 +551,7 @@ struct Row {
     tests: Option<Verdicts>,
     rf: Option<Reference>,
     ref_tests: Option<Verdicts>,
+    reused: bool, // the reference verdict came from --reference-cache
 }
 
 impl Row {
@@ -782,12 +791,13 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
             let (r, tests) = run_one(&exe, &files[i], &opts);
             let rf = reference.as_ref().map(|rr| rr.run(worker, &files[i]));
             let fresh = matches!(rf, Some((_, _, false)));
+            let reused = matches!(rf, Some((_, _, true)));
             let (rf, ref_tests) = match rf {
                 Some((v, t, _)) => (Some(v), t),
                 None => (None, None),
             };
             let mut res = results.lock().unwrap();
-            res.push(Row { i, r, tests, rf, ref_tests });
+            res.push(Row { i, r, tests, rf, ref_tests, reused });
             if fresh {
                 // Reference runs take seconds each: show progress.
                 if res.len() % 25 == 0 {
@@ -928,6 +938,11 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
     for (c, n) in top.iter().take(15) {
         outln!("  {:5} {:5}  {}", n, all.get(c).copied().unwrap_or(0), c);
     }
+    // #8095: how much of the reference sweep the cache saved.
+    let reused = results.iter().filter(|r| r.reused).count();
+    if reference.is_some() {
+        outln!("reference reused {} of {} from the cache", reused, results.len());
+    }
     if let Some(path) = &o.json {
         // The same counts as the text summary above, plus one record per file.
         // With `--reference`, each record carries the reference path's verdict
@@ -950,7 +965,7 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
                 "\"reference_disagree\": {}, \"reference_disagree_tests\": {}, \"reference_compared\": {}, ",
                 "\"codegen\": {}, \"timeout\": {}, \"timeout_retried\": {}, \"crash\": {}, ",
                 "\"reference\": {{\"ran\": {}, \"pass\": {}, \"blocked\": {}, \"fail\": {}, ",
-                "\"timeout\": {}, \"skip\": {}}}}}"
+                "\"timeout\": {}, \"skip\": {}, \"reused\": {}}}}}"
             ),
             pass,
             pass_vacuous,
@@ -975,7 +990,8 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
             r_blocked,
             r_fail,
             r_tout,
-            r_skip
+            r_skip,
+            if reference.is_some() { reused.to_string() } else { "null".into() }
         );
         let tops: Vec<String> = top
             .iter()

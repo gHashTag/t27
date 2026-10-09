@@ -1,13 +1,21 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+c6517ff",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:f221b39d597fc76084236ec78b74313e009d2c2fe9a4d2426d7b5ad5505c1863",
   "gen_hash_rust": "sha256:0bc1c2b6574c72831b79cb0e4477429f054a49f64e6330c19101e9e93664a58c",
   "gen_hash_verilog": "sha256:567c44e1a7d3fb59d34e337ae8c32849e474fbd820661fa87f4a7b3ec7d3939d",
   "gen_hash_zig": "sha256:62fa1edbeb10b82bc3c36bda0ed26b4e9d5ede797ecb3c9aa5525968cd7f4387",
   "module": "TriHex",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:33:41Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:57:55Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1a6d03971b52e254ef4e6dbae12c66e8550bf64cdcc6ada179fbcd2ad6933883",
   "spec_path": "specs/tri/crypto/hex.t27",
   "tests": {
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 14,
     "total": 14
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

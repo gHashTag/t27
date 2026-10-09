@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e96d09ee49345d98b1eb8412030e8967050fa5f2622beda16933ac14e39c9482",
   "gen_hash_rust": "sha256:90b20dd8ddbea09d8f8d126beac217efdcdd758baaf9528c009f5793753cafd5",
   "gen_hash_verilog": "sha256:edad26ecbe828bb528d8d0c3caeed98554d0aff8ad9f5c269e10f69b5adc5418",
   "gen_hash_zig": "sha256:bb056a19ae8c3d1a15100fca0a1bb07c1292de2252c4ed64373dae1693374a2a",
   "module": "ZigPrimitiveBindings",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:34Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:c3212317c50d3ec0fb592a87e7b2b2a43fb873c3aa68c846a7f66f84ef071f6f",
   "spec_path": "specs/compiler/zig_primitive_bindings.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
