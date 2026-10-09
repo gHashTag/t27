@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:76346f1e88e63f640065587aaf5c147540c376ea0510ac99e1803e628bc5c8a9",
   "gen_hash_rust": "sha256:ba227d3fc3109121ac0376d4026a8ba231c479c63068af11d34fbea8a7494058",
   "gen_hash_verilog": "sha256:69c90a3cada290d2641ed4e904a271f25c68e146f9b3c1f31670b1b0935781a1",
   "gen_hash_zig": "sha256:2f9a1de63dd8ea145d91b3223c1fe459e53d71953b0bae6cb5f4bfc5cc4f6611",
   "module": "tool_tri_skill",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:24:27Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:55:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:d3b663df53edc113095b346390376e9141a7e453119862836b2f424f2b09ac27",
   "spec_path": "specs/tools/tri/skill.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/tuple_local_index.t27 -- an untyped list local that the code indexes
+; (gHashTag/t27#8050), in the shapes of specs/isa/ternary_gates.t27 (`const vals = [_]i32{TRIT_NEG, TRIT_ZERO,
+; TRIT_POS};`, read as `vals[i]` inside invariants) and specs/port/scripts/ultra_engine_v70_ultimate.t27
+; (`const targets = []PDGTarget{ PDGTarget{ name: "W_mass", ... }, ... };`, read as `targets[0].value`).
+; gen-zig drops the literal's type and prints `const vals = .{ ... };`: a Zig tuple whose fields have the element
+; values' types, comptime fields here. Zig 0.16 takes a compile-time index anywhere, and a run-time one only where
+; the code runs at compile time (an invariant is a `comptime {}` block); in run-time code a run-time index does not
+; compile ("unable to resolve comptime value"), so no test below uses one. The calls keep the asserts at run time:
+; an assert on a comptime field alone is folded.
+; `t27c test-report` (zig 0.16.0, t27c lab): 2/2 pass, 0 vacuous, 6 runtime asserts; the invariant compiles.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceTupleLocalIndex;
+
+const LOW : i32 = -1;
+const MID : i32 = 0;
+const HIGH : i32 = 1;
+
+pub const TupleLocalPoint = struct {
+    name: []const u8,
+    weight: f64,
+};
+
+fn twice(x: i32) -> i32 {
+    return x * 2;
+}
+
+fn half(x: f64) -> f64 {
+    return x / 2.0;
+}
+
+fn size_of_name(s: []const u8) -> usize {
+    return s.len;
+}
+
+test typed_consts_at_constant_indices {
+    const vals = [_]i32{LOW, MID, HIGH};
+    assert(twice(vals[0]) == -2);
+    assert(twice(vals[2]) == 2);
+    assert(twice(vals[1]) + vals[2] == 1);
+}
+
+test struct_elements_at_constant_indices {
+    const pts = []TupleLocalPoint{
+        TupleLocalPoint{ name: "a", weight: 1.5 },
+        TupleLocalPoint{ name: "bc", weight: 2.5 },
+    };
+    assert(half(pts[1].weight) == 1.25);
+    assert(size_of_name(pts[1].name) == 2);
+    assert(size_of_name(pts[0].name) == 1);
+}
+
+invariant typed_consts_in_a_loop
+    const vals = [_]i32{LOW, MID, HIGH};
+    var i : usize = 0;
+    while (i < 3) {
+        assert twice(vals[i]) == vals[i] * 2
+        i = i + 1;
+    }

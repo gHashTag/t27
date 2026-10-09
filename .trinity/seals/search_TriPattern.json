@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+cd6708d32",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:aac3adfbaf126515b65a616f5686a756f5542ee890620ed44491d844e5d8dfc1",
   "gen_hash_rust": "sha256:403c42afaa1897f97c31d5526178daa35ffc00b906ea295137fb0b1624a934d2",
   "gen_hash_verilog": "sha256:8ed2f034b8e961c9786fe4d13d778f4303e6d747bfb90eef8ce3e99da28cccbf",
   "gen_hash_zig": "sha256:71781552d9786c07ce1dd10680b3fa8198ca3204953bcb52da25aa20fdeea1d2",
   "module": "TriPattern",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:45:29Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7c94c572e768979aff360e0b9b25f2fd6ddbccc3bbe2701ad13c8a470929b59b",
   "spec_path": "specs/tri/search/pattern.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 11,
     "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

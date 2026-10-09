@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:68b6caff4b4e4bd03bbd171e1c839943ff19f0724b8b5411a7bb4bfaa8d54073",
   "gen_hash_rust": "sha256:92769670b9bec25a22767018e59d4cb51f8e738faa328ee29d3ab3517cf17734",
   "gen_hash_verilog": "sha256:0a70905a9c9983842a2a457a151699ffba2d11a6397d8ba8c6b1b0bc11fe0b11",
   "gen_hash_zig": "sha256:979742e15bb4ca0ef225c6957e04cfd8dd3775ba2dde6ed15827afbb2f349e6c",
   "module": "tool_tri_fmt",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:11:48Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:665dc7ac90bf22817320dbd0641df766e852619268ca0ab73226cd6062ee9546",
   "spec_path": "specs/tools/tri/fmt.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,0 +1,370 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/tuple_local_plan.t27 -- tuples, the way t27c's Zig backend writes them, and how t27b lowers them
+; (issue #8050, t27b coverage epic #6063; written in t27 under the port epic #6198 and the owner rule of 2026-10-09,
+; "t27b must be generated entirely from .t27 specs"). Everything t27b decides about a tuple is in this file and
+; reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/tuple_local_plan.rs, module `tl`). The Rust glue
+; (cli/t27b/src/lower/tuple.rs, cli/t27b/src/lower/arraylit.rs for a list local, cli/t27b/src/lower.rs for an
+; index) walks the nodes, asks, and builds the answer.
+; --
+; Tuple types. The reference turns a tuple type into Zig only where it is a function's return type:
+; `-> (u32, bool)` is `struct { u32, bool }`, and the named form `-> (lo: u32, hi: u32)` is
+; `struct { lo: u32, hi: u32 }`. Anywhere else (a parameter, a local's annotation, a field) it prints the t27
+; spelling verbatim, which Zig cannot parse, so those stay `type (tuple)`. In t27b a tuple type is a struct whose
+; fields are named `0`, `1`, ... (or by the names the type gives), interned by its spelling (key), so every
+; function returning `(u32, u32)` returns the same type. Values of it come from:
+;   - `return (a, b)` (Zig `.{ a, b }`; for a named tuple `.{ .lo = a, .hi = b }`), and a tuple-returning call;
+;   - `t.0`, `t.lo`: an ordinary field access;
+;   - `let (a, b) = f()` / `var (a, b) = f()`: Zig's `const a, const b = f()`. A named tuple is read field by
+;     field (the reference's `__tN.lo`), always as constants, and only from a direct call, as the reference does;
+;   - `(a, b) = f()` at the top of a test: fresh constants, like the reference's `const a, const b = f()` there.
+;     In a function body the reference writes `.{ a, b } = f()`, which Zig refuses (assigns).
+; A `(a, b)` / `.{ a, b }` literal also initialises an array (`[N]T`) where one is the result type, which is what
+; Zig's anonymous list literal does. Without a result type (`const t = (a, 2)`) it is still `ExprTuple`.
+; --
+; Untyped list locals (#8050; zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/tuple_local_index.t27):
+;   - `const vals = [_]i32{ ... };` with no annotation is printed `const vals = .{ ... };`: the literal's type is dropped,
+;     and the tuple's fields have the element values' types. Elements that are compile-time values give comptime
+;     fields, so an assert on one alone is folded.
+;   - A compile-time index works anywhere. A run-time index works only where the code runs at compile time: an
+;     invariant (a `comptime {}` block). In run-time code it does not compile ("unable to resolve comptime value"),
+;     and a bench or a fn no test reaches is never analyzed by Zig at all.
+; t27b takes a local whose literal names its element type T and whose every element is a value of type T (a struct
+; literal of T, or a module const declared as T), so that T is the type of each field:
+;   - RODATA: an array [N]T in read-only data, where every element is a compile-time value with no str in it. A read
+;     at a constant index folds to the constant, as a comptime field does.
+;   - CONST_AGG: a constant aggregate, where T holds a str (a string's address is not known when read-only data is
+;     written); a constant index folds to the element, and memory is made only where it is needed.
+;   - NOT_MINE: anything else (no element type text, a bare literal element of type comptime_int or comptime_float,
+;     elements of another type, no elements), which keeps the old refusal, "array literal with no result type".
+; An index into such a local is refused as ExprIndex(tuple) when it is not a compile-time constant and the code is
+; neither an invariant nor a body Zig never analyzes (a bench, a fn no test reaches).
+; --
+; Refusals: what() is the construct a refusal names and why() its words, with a `{}` hole for each value the glue
+; fills in, in order.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bTupleLocalPlan;
+
+// The answers.
+pub const NOT_MINE : u8 = 0;
+pub const RODATA : u8 = 1;
+pub const CONST_AGG : u8 = 2;
+
+/// Where the local lives. typed: the literal names its element type. same_type: every element is a value of that
+/// type. elements: how many. strings: the element type holds a `str`.
+pub fn storage(typed: bool, same_type: bool, elements: usize, strings: bool) -> u8 {
+    if (!typed or !same_type or elements == 0) { return NOT_MINE; }
+    if (strings) { return CONST_AGG; }
+    return RODATA;
+}
+
+/// Whether an index into such a local is refused. constant_index: the index is a compile-time constant.
+/// comptime: the code is an invariant, which Zig runs at compile time. never_run: Zig never analyzes the body.
+pub fn refuses_index(constant_index: bool, comptime: bool, never_run: bool) -> bool {
+    return !constant_index and !comptime and !never_run;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tuple types: the text of a return type, split as the reference splits it.
+// ----------------------------------------------------------------------------------------------------------
+
+// The bytes read, as numbers: gen-rust prints a character literal as a Rust char, which a u8 is not compared
+// with (#7604).
+pub const OPEN : u8 = 40;
+pub const CLOSE : u8 = 41;
+pub const COMMA : u8 = 44;
+pub const COLON : u8 = 58;
+pub const EQUALS : u8 = 61;
+pub const SPACE : u8 = 32;
+
+/// Whether a return type's text (trimmed) is a tuple: `(` .. `)` with a comma in it.
+pub fn is_tuple(t: []const u8) -> bool {
+    if (t.len < 2 or t[0] != OPEN or t[t.len - 1] != CLOSE) { return false; }
+    return has(t, 1, t.len - 1, COMMA);
+}
+
+/// Whether t[from..to] holds the byte c.
+fn has(t: []const u8, from: usize, to: usize, c: u8) -> bool {
+    var i : usize = from;
+    while (i < to) {
+        if (t[i] == c) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// A byte `str::trim` removes, within ASCII (L3): tab, line feed, vertical tab, form feed, carriage return, space.
+pub fn is_space(c: u8) -> bool {
+    return c == SPACE or (c >= 9 and c <= 13);
+}
+
+/// Whether t[from..to] is a field name: letters, digits and `_`, not starting with a digit.
+fn is_name(t: []const u8, from: usize, to: usize) -> bool {
+    if (t[from] >= 48 and t[from] <= 57) { return false; }
+    var i : usize = from;
+    while (i < to) {
+        if (!is_name_byte(t[i])) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// A letter, a digit or `_`. A fn of its own: the reference prints `!(a or b)` as `!a or b` (#8228).
+pub fn is_name_byte(c: u8) -> bool {
+    return (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 95;
+}
+
+/// The elements of tuple type t (is_tuple holds), split on every comma as the reference splits it, each trimmed.
+/// at[4i] .. at[4i+1] is element i's name and at[4i+2] .. at[4i+3] its type, as byte ranges of t; an unnamed
+/// element has an empty name and is all type. An element `n: T` is named when n is a field name and T is not
+/// empty. at has room for 4 entries per byte of t. Returns how many elements (at least 2), or a refusal:
+/// R_ELEMENT for an empty element or one with a bracket (a nested tuple, a generic argument list, which the
+/// reference tears apart), its range at at[0] .. at[1]; R_MIXED when some elements are named and some not (the
+/// reference takes all names or none).
+pub fn split(t: []const u8, at: []usize) -> usize {
+    var n : usize = 0;
+    var named : usize = 0;
+    var s : usize = 1;
+    while (s < t.len) {
+        var e : usize = s;
+        while (e < t.len - 1 and t[e] != COMMA) { e = e + 1; }
+        var a : usize = s;
+        while (a < e and is_space(t[a])) { a = a + 1; }
+        var b : usize = e;
+        while (b > a and is_space(t[b - 1])) { b = b - 1; }
+        if (a == b or has(t, a, b, OPEN) or has(t, a, b, CLOSE)) {
+            at[0] = a;
+            at[1] = b;
+            return R_ELEMENT as usize;
+        }
+        at[4 * n] = a;
+        at[4 * n + 1] = a;
+        at[4 * n + 2] = a;
+        at[4 * n + 3] = b;
+        var p : usize = a;
+        while (p < b and t[p] != COLON) { p = p + 1; }
+        if (p < b) {
+            var ne : usize = p;
+            while (ne > a and is_space(t[ne - 1])) { ne = ne - 1; }
+            var ts : usize = p + 1;
+            while (ts < b and is_space(t[ts])) { ts = ts + 1; }
+            if (ne > a and ts < b and is_name(t, a, ne)) {
+                at[4 * n + 1] = ne;
+                at[4 * n + 2] = ts;
+                named = named + 1;
+            }
+        }
+        n = n + 1;
+        s = e + 1;
+    }
+    if (named != 0 and named != n) { return R_MIXED as usize; }
+    return n;
+}
+
+/// The text a tuple type is interned by, written to out from split's n elements: `(name: type, ...)` or
+/// `(type, ...)`, so that every spelling of one tuple type names one struct. out has room for 3 bytes per byte
+/// of t. Returns its length.
+pub fn key(t: []const u8, at: []const usize, n: usize, out: []u8) -> usize {
+    out[0] = OPEN;
+    var w : usize = 1;
+    var i : usize = 0;
+    while (i < n) {
+        if (i > 0) {
+            out[w] = COMMA;
+            out[w + 1] = SPACE;
+            w = w + 2;
+        }
+        if (at[4 * i] < at[4 * i + 1]) {
+            w = put_range(out, w, t, at[4 * i], at[4 * i + 1]);
+            out[w] = COLON;
+            out[w + 1] = SPACE;
+            w = w + 2;
+        }
+        w = put_range(out, w, t, at[4 * i + 2], at[4 * i + 3]);
+        i = i + 1;
+    }
+    out[w] = CLOSE;
+    return w + 1;
+}
+
+/// t[from..to] written to out at w; returns the end.
+fn put_range(out: []u8, w0: usize, t: []const u8, from: usize, to: usize) -> usize {
+    var w : usize = w0;
+    var i : usize = from;
+    while (i < to) {
+        out[w] = t[i];
+        w = w + 1;
+        i = i + 1;
+    }
+    return w;
+}
+
+/// Whether `(a, b) = init` is taken: only at the top of a test, where the reference writes
+/// `const a, const b = ..`, and only as a plain `=`. op: the assignment's operator text.
+pub fn assigns(top_of_test: bool, op: []const u8) -> bool {
+    return top_of_test and (op.len == 0 or (op.len == 1 and op[0] == EQUALS));
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Refusals. split returns R_ELEMENT and R_MIXED as its failures.
+// ----------------------------------------------------------------------------------------------------------
+
+pub const R_ELEMENT : u8 = 0;
+pub const R_MIXED : u8 = 1;
+pub const R_HOLDING : u8 = 2;
+pub const R_EXPECTED : u8 = 3;
+pub const R_OUTSIDE : u8 = 4;
+pub const R_BOUND : u8 = 5;
+pub const R_NAMED_CALL : u8 = 6;
+pub const R_NOT_TUPLE : u8 = 7;
+pub const R_NAMES : u8 = 8;
+pub const R_LOCAL_INDEX : u8 = 9;
+
+/// The construct a refusal names.
+pub fn what(r: u8) -> str {
+    if (r <= R_MIXED) { return "type (tuple)"; }
+    if (r <= R_EXPECTED) { return "ExprTuple"; }
+    if (r <= R_BOUND) { return "StmtAssign(tuple)"; }
+    if (r <= R_NAMES) { return "StmtLocal(destructure)"; }
+    return "ExprIndex(tuple)";
+}
+
+/// The words of a refusal, a `{}` for each value the glue fills in.
+pub fn why(r: u8) -> str {
+    if (r == R_ELEMENT) { return "`{}`: element `{}`"; }
+    if (r == R_MIXED) { return "`{}`: some elements named, some not"; }
+    if (r == R_HOLDING) { return "`{}` = a tuple holding {} (only run-time scalars are laid out)"; }
+    if (r == R_EXPECTED) { return "a tuple literal where `{}` is expected"; }
+    if (r == R_OUTSIDE) {
+        return "a tuple assignment outside the top of a test (the reference writes `.{ a, b } = ..`, which Zig refuses)";
+    }
+    if (r == R_BOUND) { return "`{}` is already bound (the reference declares it again)"; }
+    if (r == R_NAMED_CALL) { return "a named tuple not returned by a direct call (Zig cannot destructure a struct)"; }
+    if (r == R_NOT_TUPLE) { return "`{}` is not a tuple or an array"; }
+    if (r == R_NAMES) { return "{} names for {} elements"; }
+    return "a run-time index into an untyped list local, which the reference prints as a tuple (Zig: unable to resolve comptime value)";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then what stays with the other paths.
+// ----------------------------------------------------------------------------------------------------------
+
+test typed_consts_go_to_read_only_data {
+    // ternary_gates.t27's `[_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS}`.
+    assert(storage(true, true, 3, false) == RODATA);
+}
+
+test elements_with_a_string_are_a_constant_aggregate {
+    // ultra_engine_v70_ultimate.t27's `[]PDGTarget{ PDGTarget{ name: "W_mass", ... }, ... }`.
+    assert(storage(true, true, 2, true) == CONST_AGG);
+}
+
+test anything_else_keeps_the_old_refusal {
+    assert(storage(false, true, 3, false) == NOT_MINE);
+    assert(storage(true, false, 3, false) == NOT_MINE);
+    assert(storage(true, true, 0, false) == NOT_MINE);
+    assert(storage(false, false, 2, true) == NOT_MINE);
+}
+
+test a_constant_index_is_taken_everywhere {
+    assert(!refuses_index(true, false, false));
+    assert(!refuses_index(true, true, false));
+    assert(!refuses_index(true, false, true));
+}
+
+test a_run_time_index_only_at_compile_time_or_never_run {
+    assert(refuses_index(false, false, false));
+    assert(!refuses_index(false, true, false));
+    assert(!refuses_index(false, false, true));
+}
+
+test a_return_type_is_a_tuple_with_a_comma {
+    assert(is_tuple("(u32, bool)"));
+    assert(is_tuple("(lo: u32, hi: u32)"));
+    assert(is_tuple("(,)"));
+    assert(!is_tuple("(u32)"));
+    assert(!is_tuple("u32"));
+    assert(!is_tuple("("));
+    assert(!is_tuple(""));
+    assert(!is_tuple("[2]u32, u8"));
+    assert(!is_tuple("(u32, bool"));
+}
+
+test split_trims_each_element {
+    var at : [64]usize = [0] ** 64;
+    assert(split("( u32 ,bool )", at[0..64]) == 2);
+    assert(at[0] == 2 and at[1] == 2 and at[2] == 2 and at[3] == 5);
+    assert(at[4] == 7 and at[5] == 7 and at[6] == 7 and at[7] == 11);
+    assert(is_space(9) and is_space(13) and is_space(32) and !is_space(14) and !is_space(95));
+}
+
+test split_reads_names_and_the_key_spells_them_one_way {
+    var at : [80]usize = [0] ** 80;
+    var out : [64]u8 = [0] ** 64;
+    assert(split("(lo: u32, hi :u32)", at[0..80]) == 2);
+    assert(at[0] == 1 and at[1] == 3 and at[2] == 5 and at[3] == 8);
+    assert(at[4] == 10 and at[5] == 12 and at[6] == 14 and at[7] == 17);
+    const k : usize = key("(lo: u32, hi :u32)", at[0..80], 2, out[0..64]);
+    assert(std.mem.eql(u8, out[0..k], "(lo: u32, hi: u32)"));
+    assert(split("( u32 ,bool )", at[0..80]) == 2);
+    const k2 : usize = key("( u32 ,bool )", at[0..80], 2, out[0..64]);
+    assert(std.mem.eql(u8, out[0..k2], "(u32, bool)"));
+}
+
+test a_name_is_a_field_name_before_a_type {
+    var at : [80]usize = [0] ** 80;
+    // a digit first, or a dot: not a name, so the whole element is the type
+    assert(split("(1a: u32, b)", at[0..80]) == 2);
+    assert(at[0] == at[1] and at[2] == 1 and at[3] == 8);
+    assert(split("(std.Foo: u32, u8)", at[0..80]) == 2);
+    assert(at[0] == at[1]);
+    // nothing after the colon: not a name either
+    assert(split("(a:, b)", at[0..80]) == 2);
+    assert(at[0] == at[1] and at[3] == 3);
+    assert(split("(a_1: u8, b: u8, c: u8)", at[0..80]) == 3);
+    assert(at[8] == 17 and at[9] == 18);
+    assert(is_name_byte(95) and is_name_byte(48) and is_name_byte(90) and is_name_byte(97));
+    assert(!is_name_byte(46) and !is_name_byte(58) and !is_name_byte(64) and !is_name_byte(123));
+}
+
+test a_bad_element_or_mixed_names_are_refused {
+    var at : [80]usize = [0] ** 80;
+    assert(split("(u32, (u8, u8))", at[0..80]) == R_ELEMENT as usize);
+    assert(at[0] == 6 and at[1] == 9);
+    assert(split("(u32, )", at[0..80]) == R_ELEMENT as usize);
+    assert(at[0] == 6 and at[1] == 6);
+    assert(split("(,)", at[0..80]) == R_ELEMENT as usize);
+    assert(split("(ArrayList(u8), u8)", at[0..80]) == R_ELEMENT as usize);
+    assert(split("(lo: u32, u32)", at[0..80]) == R_MIXED as usize);
+    assert(split("(a:, b: u32)", at[0..80]) == R_MIXED as usize);
+}
+
+test a_tuple_assignment_only_at_the_top_of_a_test {
+    assert(assigns(true, ""));
+    assert(assigns(true, "="));
+    assert(!assigns(true, "+="));
+    assert(!assigns(true, "=="));
+    assert(!assigns(false, "="));
+    assert(!assigns(false, ""));
+}
+
+test the_refusals {
+    assert(std.mem.eql(u8, what(R_ELEMENT), "type (tuple)"));
+    assert(std.mem.eql(u8, what(R_MIXED), "type (tuple)"));
+    assert(std.mem.eql(u8, what(R_HOLDING), "ExprTuple"));
+    assert(std.mem.eql(u8, what(R_EXPECTED), "ExprTuple"));
+    assert(std.mem.eql(u8, what(R_OUTSIDE), "StmtAssign(tuple)"));
+    assert(std.mem.eql(u8, what(R_BOUND), "StmtAssign(tuple)"));
+    assert(std.mem.eql(u8, what(R_NAMED_CALL), "StmtLocal(destructure)"));
+    assert(std.mem.eql(u8, what(R_NOT_TUPLE), "StmtLocal(destructure)"));
+    assert(std.mem.eql(u8, what(R_NAMES), "StmtLocal(destructure)"));
+    assert(std.mem.eql(u8, what(R_LOCAL_INDEX), "ExprIndex(tuple)"));
+    assert(std.mem.eql(u8, why(R_ELEMENT), "`{}`: element `{}`"));
+    assert(std.mem.eql(u8, why(R_MIXED), "`{}`: some elements named, some not"));
+    assert(std.mem.eql(u8, why(R_NAMES), "{} names for {} elements"));
+    assert(std.mem.eql(u8, why(R_NOT_TUPLE), "`{}` is not a tuple or an array"));
+    assert(why(R_LOCAL_INDEX).len > 0);
+    assert(!std.mem.eql(u8, why(R_LOCAL_INDEX), why(R_NAMED_CALL)));
+}

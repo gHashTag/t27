@@ -1,0 +1,594 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/waits.t27 -- a long wait is a row in the store: it holds no process and outlives a deploy
+; Owner, 2026-10-09 (translated): "implement all the improvements" (gHashTag/trios#1712, item 4).
+; Measured on the live Queen (gHashTag/trios trios/agent-server, branch queen):
+; - the swarm's first release, job #3 (t27c 0.5.2, 2026-10-09), published its GitHub release at 07:41Z
+;   and its release.yml run published the crate at 09:12Z. About 90 of the job's 92 minutes were spent
+;   at step 3, release-workflow, waiting for a runner in the Actions queue (695 runs queued at peak).
+; - that WAIT step is asked again by every round (jobs.t27 says "the Queen advances every running job
+;   on each round"): one GitHub read of the workflow's runs and one entry appended to the job's log per
+;   round, a round about every 30 s, so about 180 of each for one 90-minute wait, and the wait moves
+;   only while some process runs rounds.
+; - a deploy of the Queen drains for 1800 s; one morning had five of them.
+; Every durable-execution platform reviewed keeps a timer as a row with a wake time, not as a timer in
+; a process: Cloudflare Durable Object alarms and the Agents schedules table, DBOS step checkpoints
+; (one Postgres write of 1-2 ms per step), Restate awakeables, Temporal timers, Inngest waitForEvent,
+; Orleans reminders. DBOS measured (2026-07) that NOTIFY takes a global lock at commit, so here a
+; notification is a hint that brings a pass forward, and the poll stays.
+; The model: a wait row names its owner, a key that resolves it and/or a time it wakes at, and an
+; expiry. One scheduler pass claims the due rows (FOR UPDATE SKIP LOCKED, then the claim bumps the
+; row's epoch); any write after the claim lands only at the epoch it claimed with (control.t27
+; section 2's fence, per row). A deploy writes nothing to a wait: the next process takes it up.
+; Not here: the store, the GitHub reads, and who the owner is (the runtime, gHashTag/trios).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenWaits;
+
+; --- 1. The row and its states -----------------------------------------------------------------------
+
+/// A row is WAITING until exactly one of three things ends it. RESOLVED, EXPIRED and CANCELLED are
+/// terminal: a row never waits again, and a second resolution, a late expiry or a cancel after the
+/// wake changes nothing.
+pub const W_WAITING : u8 = 0;
+pub const W_RESOLVED : u8 = 1;
+pub const W_EXPIRED : u8 = 2;
+pub const W_CANCELLED : u8 = 3;
+pub const WAIT_STATES : u8 = 4;
+
+/// What happens to a row.
+///   RESOLVE  its key resolved, or (a row with no key) its wake time came
+///   EXPIRE   its expiry passed before anything resolved it
+///   CANCEL   its owner gave up on it (a cancelled job)
+///   RECHECK  a check of its key answered "not yet": it waits on, with its next check armed
+pub const EV_RESOLVE : u8 = 0;
+pub const EV_EXPIRE : u8 = 1;
+pub const EV_CANCEL : u8 = 2;
+pub const EV_RECHECK : u8 = 3;
+
+/// Seconds that never come: the due time of a row that is not waiting.
+pub const NEVER : u32 = 4294967295;
+
+/// A state this file does not know is terminal: it is never woken and never written again.
+pub fn is_terminal(state: u8) -> bool {
+    return state != W_WAITING;
+}
+
+/// The state after an event. Only a waiting row moves.
+pub fn state_after(state: u8, ev: u8) -> u8 {
+    if (state != W_WAITING) { return state; }
+    if (ev == EV_RESOLVE) { return W_RESOLVED; }
+    if (ev == EV_EXPIRE) { return W_EXPIRED; }
+    if (ev == EV_CANCEL) { return W_CANCELLED; }
+    return W_WAITING;
+}
+
+/// The allowed transitions, as a table a store constraint or a reader can check a row change against.
+pub fn transition_allowed(from: u8, to: u8) -> bool {
+    if (from != W_WAITING) { return false; }
+    if (to == W_RESOLVED) { return true; }
+    if (to == W_EXPIRED) { return true; }
+    if (to == W_CANCELLED) { return true; }
+    return false;
+}
+
+/// A wait names what ends it: a key, a wake time, or both. A row with neither would only ever expire.
+pub fn valid_wait(has_key: bool, has_wake: bool) -> bool {
+    return has_key or has_wake;
+}
+
+/// Whether the owner hears that the row ended. A cancel comes from the owner, so it is not woken by it.
+pub fn wakes_owner(state: u8) -> bool {
+    if (state == W_RESOLVED) { return true; }
+    if (state == W_EXPIRED) { return true; }
+    return false;
+}
+
+/// The wake is delivered once: only by the write that moved the row out of WAITING and landed.
+pub fn delivers_wake(landed: bool, to: u8) -> bool {
+    return landed and wakes_owner(to);
+}
+
+/// A key resolves its row once. A resolution lands only on a waiting row nothing has resolved yet: a
+/// webhook and a check that both see a run finish leave the first answer, and a resolution that
+/// comes after the row ended changes nothing.
+pub fn resolution_lands(state: u8, already_resolved: bool) -> bool {
+    return state == W_WAITING and already_resolved == false;
+}
+
+; --- 2. The wake rule --------------------------------------------------------------------------------
+
+/// What the scheduler does with a row it claimed.
+///   NONE     not due: let it go
+///   RESOLVE  RESOLVED, and wake the owner
+///   EXPIRE   EXPIRED, and wake the owner
+///   CHECK    a keyed row whose check time came: ask the key's resolver, then RESOLVE or RECHECK
+pub const WA_NONE : u8 = 0;
+pub const WA_RESOLVE : u8 = 1;
+pub const WA_EXPIRE : u8 = 2;
+pub const WA_CHECK : u8 = 3;
+
+/// A row is due when its wake time has passed or its key is resolved (or its expiry has passed).
+/// `seconds_to_wake` and `seconds_to_expiry` are 0 once that time has come.
+/// A resolution goes first: one that landed before the expiry wins even when the pass that sees it
+/// comes after the expiry. A row with no key resolves at its wake time: its time is its answer.
+pub fn wake_action(state: u8, resolved: bool, has_key: bool, has_wake: bool, seconds_to_wake: u32, seconds_to_expiry: u32) -> u8 {
+    if (state != W_WAITING) { return WA_NONE; }
+    if (resolved) { return WA_RESOLVE; }
+    if (seconds_to_expiry == 0) { return WA_EXPIRE; }
+    if (has_wake and seconds_to_wake == 0) {
+        if (has_key) { return WA_CHECK; }
+        return WA_RESOLVE;
+    }
+    return WA_NONE;
+}
+
+/// Seconds until the row is due, which the store keeps beside the row so one indexed query finds every
+/// due row: 0 = due now, NEVER = not waiting. It is 0 exactly when wake_action is not NONE.
+pub fn due_in_seconds(state: u8, resolved: bool, has_wake: bool, seconds_to_wake: u32, seconds_to_expiry: u32) -> u32 {
+    if (state != W_WAITING) { return NEVER; }
+    if (resolved) { return 0; }
+    if (has_wake and seconds_to_wake < seconds_to_expiry) { return seconds_to_wake; }
+    return seconds_to_expiry;
+}
+
+; --- 3. The expiry cap -------------------------------------------------------------------------------
+
+/// No wait lives longer than a day: jobs.t27 fails a WAIT step after WAIT_LIMIT_MINUTES = 1440, and a
+/// row that outlived its job would wake nobody.
+pub const WAIT_MAX_SECONDS : u32 = 86400;
+
+/// jobs.t27 WAIT_LIMIT_MINUTES * 60, written as a literal here.
+pub const JOB_WAIT_LIMIT_SECONDS : u32 = 86400;
+
+/// The expiry of a wait asked for `asked` seconds: the cap when it asks for none or for more.
+pub fn expiry_seconds(asked: u32) -> u32 {
+    if (asked == 0) { return WAIT_MAX_SECONDS; }
+    if (asked > WAIT_MAX_SECONDS) { return WAIT_MAX_SECONDS; }
+    return asked;
+}
+
+/// The expiry of a wait made by a job step that has already waited `waited_seconds`: what is left of
+/// the step's limit, so the row and the job end at the same moment. A wait keeps its first deadline
+/// across a restart (Hatchet: a sleep interrupted after 23 of 24 hours sleeps one more hour).
+pub fn job_wait_seconds(waited_seconds: u32) -> u32 {
+    if (waited_seconds >= JOB_WAIT_LIMIT_SECONDS) { return 1; }
+    return expiry_seconds(JOB_WAIT_LIMIT_SECONDS - waited_seconds);
+}
+
+; --- 4. Checking a key -------------------------------------------------------------------------------
+
+/// A keyed row whose key nobody resolves from outside (no webhook yet) is checked by its resolver:
+/// for a CI run, one GitHub read of that run. The first check comes CHECK_BASE_SECONDS after the row is
+/// made, and each "not yet" doubles the next, up to CHECK_CAP_SECONDS. Chosen, not measured: a run in
+/// a jammed queue waits tens of minutes, and a finished one is seen within four.
+pub const CHECK_BASE_SECONDS : u32 = 30;
+pub const CHECK_CAP_SECONDS : u32 = 240;
+
+/// The bound on one check's read: the runtime's GitHub client gives up after 20 s.
+pub const CHECK_TIMEOUT_SECONDS : u32 = 20;
+
+/// Seconds to the next check after `checks` checks answered "not yet".
+pub fn check_after_seconds(checks: u32) -> u32 {
+    var wait : u32 = CHECK_BASE_SECONDS;
+    var n : u32 = 0;
+    while (n < checks) {
+        if (wait >= CHECK_CAP_SECONDS) { return CHECK_CAP_SECONDS; }
+        wait = wait * 2;
+        n = n + 1;
+    }
+    if (wait > CHECK_CAP_SECONDS) { return CHECK_CAP_SECONDS; }
+    return wait;
+}
+
+/// A re-armed check never lands after the expiry: the expiry is taken on time.
+pub fn recheck_in_seconds(checks: u32, seconds_to_expiry: u32) -> u32 {
+    let next : u32 = check_after_seconds(checks);
+    if (seconds_to_expiry < next) { return seconds_to_expiry; }
+    return next;
+}
+
+/// What a check's answer does to the row: a finished run resolves it, whatever its conclusion (the
+/// owner reads the conclusion); anything else re-arms it, a check that could not read included, and
+/// a key no resolver knows is never completed, so such a row ends at its expiry.
+pub fn check_event(completed: bool) -> u8 {
+    if (completed) { return EV_RESOLVE; }
+    return EV_RECHECK;
+}
+
+; --- 5. Claims and fencing ---------------------------------------------------------------------------
+
+/// A pass claims a due row by bumping its epoch and moving its due time CLAIM_TTL_SECONDS ahead, in
+/// one short transaction (FOR UPDATE SKIP LOCKED: two passes at once never take the same row). The
+/// claim holds no lock while the check reads GitHub. If the claimer dies, the row is due again when
+/// its claim runs out, and the next claim bumps the epoch again.
+pub const CLAIM_TTL_SECONDS : u32 = 60;
+
+/// Rows one pass claims at most. A full batch passes again at once.
+pub const CLAIM_BATCH : u32 = 32;
+
+pub fn epoch_after_claim(epoch: u64) -> u64 {
+    return epoch + 1;
+}
+
+/// Every write after a claim -- resolved, expired, re-armed -- lands only at the epoch it claimed
+/// with. A pass that slept past its claim writes nothing and wakes nobody; the row is the next
+/// claimer's. A cancel bumps the epoch too, so a pass that was checking a cancelled row writes nothing.
+pub fn write_lands(epoch: u64, my_epoch: u64) -> bool {
+    return epoch == my_epoch;
+}
+
+pub fn more_now(claimed: u32) -> bool {
+    return claimed >= CLAIM_BATCH;
+}
+
+; --- 6. The poll, and NOTIFY as a hint ---------------------------------------------------------------
+
+/// How often a pass runs when nothing asks for one. A pass costs one indexed query.
+pub const WAIT_POLL_SECONDS : u32 = 15;
+
+/// A notification (a key resolved in another process) brings a pass forward. It never replaces the
+/// poll: a notification can be lost (no listener connection, a dropped connection), and NOTIFY on
+/// every write serialises commits behind one lock. So a host that listens polls exactly as often as one
+/// that does not.
+pub const NOTIFY_IS_A_HINT : bool = true;
+
+pub fn poll_seconds(listening: bool) -> u32 {
+    return WAIT_POLL_SECONDS;
+}
+
+/// Seconds to the next pass: the poll, or sooner when the nearest due row is sooner (a timer due in
+/// 3 s is woken in 3 s, not 15), and never 0 (a row due now is the full batch's case, more_now).
+pub fn beat_after_seconds(listening: bool, has_next: bool, seconds_to_next: u32) -> u32 {
+    let poll : u32 = poll_seconds(listening);
+    if (has_next == false) { return poll; }
+    if (seconds_to_next < 1) { return 1; }
+    if (seconds_to_next < poll) { return seconds_to_next; }
+    return poll;
+}
+
+/// A hint while a pass runs queues one more pass; hints while one is queued are dropped (coalesced).
+pub const PH_NOW : u8 = 0;
+pub const PH_QUEUE : u8 = 1;
+pub const PH_DROP : u8 = 2;
+
+pub fn pass_on_hint(running: bool, queued: bool) -> u8 {
+    if (running == false) { return PH_NOW; }
+    if (queued == false) { return PH_QUEUE; }
+    return PH_DROP;
+}
+
+; --- 7. A deploy -------------------------------------------------------------------------------------
+
+/// What a deploy does to waiting rows: nothing. A stopping process neither hands rows over nor
+/// releases its claims; the rows stay in the store and the next process takes them up. A row the old
+/// process had claimed waits out its claim (at most CLAIM_TTL_SECONDS), every other one is taken at
+/// the next process's first pass.
+pub const DEPLOY_WRITES_WAITS : bool = false;
+
+/// The measured drain of one Queen deploy (RAILWAY_DEPLOYMENT_DRAINING_SECONDS).
+pub const DEPLOY_DRAIN_SECONDS : u32 = 1800;
+
+/// Seconds before another process may take a row this one left, `seconds_since_claim` after its claim.
+pub fn pickup_after_seconds(claimed: bool, seconds_since_claim: u32) -> u32 {
+    if (claimed == false) { return 0; }
+    if (seconds_since_claim >= CLAIM_TTL_SECONDS) { return 0; }
+    return CLAIM_TTL_SECONDS - seconds_since_claim;
+}
+
+; --- 8. A job waits on a row -------------------------------------------------------------------------
+
+/// A job whose WAIT step is parked on a WAITING row is not visited by the round: no read, no log
+/// entry, no lane. The row's end wakes it; and if that wake is lost (the process died between the
+/// write and the wake), the row is no longer WAITING, so the next round visits the job anyway.
+pub fn round_visits_job(parked: bool) -> bool {
+    return parked == false;
+}
+
+/// A job's WAIT step parks on a row only when there is something to wait on that has not ended: a
+/// run that exists and has not completed. No run yet: the step answers NOT_YET and the round asks
+/// again (a run appears seconds after its event, even in a jammed queue). A completed run: the step
+/// answers at once and makes no row. A cancelled job cancels the rows it waits on (EV_CANCEL).
+pub fn step_parks(run_found: bool, run_completed: bool) -> bool {
+    return run_found and run_completed == false;
+}
+
+/// jobs.t27's step outcomes, written as literals here: O_PASS 0, O_NOT_YET 1, O_FAIL 2.
+pub const JOB_O_PASS : u8 = 0;
+pub const JOB_O_NOT_YET : u8 = 1;
+pub const JOB_O_FAIL : u8 = 2;
+
+/// What the job's WAIT step answers from its row. `success`: the resolution says the condition held
+/// (the run concluded success). An expiry, a cancel, a failed run and an unknown state all fail it.
+pub fn step_outcome(state: u8, success: bool) -> u8 {
+    if (state == W_WAITING) { return JOB_O_NOT_YET; }
+    if (state == W_RESOLVED and success) { return JOB_O_PASS; }
+    return JOB_O_FAIL;
+}
+
+; --- Tests -------------------------------------------------------------------------------------------
+
+test only_a_waiting_row_moves {
+    assert state_after(W_WAITING, EV_RESOLVE) == W_RESOLVED;
+    assert state_after(W_WAITING, EV_EXPIRE) == W_EXPIRED;
+    assert state_after(W_WAITING, EV_CANCEL) == W_CANCELLED;
+    assert state_after(W_WAITING, EV_RECHECK) == W_WAITING;
+    assert state_after(W_WAITING, 9) == W_WAITING;
+    // a second resolution, a late expiry, a cancel after the wake: nothing
+    assert state_after(W_RESOLVED, EV_RESOLVE) == W_RESOLVED;
+    assert state_after(W_RESOLVED, EV_CANCEL) == W_RESOLVED;
+    assert state_after(W_EXPIRED, EV_RESOLVE) == W_EXPIRED;
+    assert state_after(W_CANCELLED, EV_RESOLVE) == W_CANCELLED;
+    assert state_after(W_CANCELLED, EV_EXPIRE) == W_CANCELLED;
+    assert state_after(7, EV_RESOLVE) == 7;
+    assert transition_allowed(W_WAITING, W_RESOLVED) == true;
+    assert transition_allowed(W_WAITING, W_EXPIRED) == true;
+    assert transition_allowed(W_WAITING, W_CANCELLED) == true;
+    assert transition_allowed(W_WAITING, W_WAITING) == false;
+    assert transition_allowed(W_WAITING, 9) == false;
+    assert transition_allowed(W_RESOLVED, W_EXPIRED) == false;
+    assert transition_allowed(W_EXPIRED, W_RESOLVED) == false;
+    assert transition_allowed(W_CANCELLED, W_WAITING) == false;
+    assert is_terminal(W_WAITING) == false;
+    assert is_terminal(W_RESOLVED) == true;
+    assert is_terminal(W_EXPIRED) == true;
+    assert is_terminal(W_CANCELLED) == true;
+    assert is_terminal(9) == true;
+}
+
+test every_transition_the_events_make_is_allowed {
+    var ev : u8 = 0;
+    var moved : u32 = 0;
+    while (ev < 4) {
+        let to : u8 = state_after(W_WAITING, ev);
+        if (to != W_WAITING) {
+            assert transition_allowed(W_WAITING, to);
+            moved = moved + 1;
+        }
+        var from : u8 = 1;
+        while (from < WAIT_STATES) {
+            assert state_after(from, ev) == from;
+            from = from + 1;
+        }
+        ev = ev + 1;
+    }
+    assert moved == 3;
+}
+
+test a_wait_names_what_ends_it {
+    assert valid_wait(true, false) == true;
+    assert valid_wait(false, true) == true;
+    assert valid_wait(true, true) == true;
+    assert valid_wait(false, false) == false;
+}
+
+test only_a_resolution_or_an_expiry_wakes_the_owner_and_only_once {
+    assert wakes_owner(W_RESOLVED) == true;
+    assert wakes_owner(W_EXPIRED) == true;
+    assert wakes_owner(W_CANCELLED) == false;
+    assert wakes_owner(W_WAITING) == false;
+    assert wakes_owner(9) == false;
+    assert delivers_wake(true, W_RESOLVED) == true;
+    assert delivers_wake(true, W_EXPIRED) == true;
+    // the write was refused (stale epoch, or another pass got there first): no wake
+    assert delivers_wake(false, W_RESOLVED) == false;
+    assert delivers_wake(false, W_EXPIRED) == false;
+    assert delivers_wake(true, W_CANCELLED) == false;
+}
+
+test a_key_resolves_its_row_once {
+    assert resolution_lands(W_WAITING, false) == true;
+    // a second resolution of a waiting row: the first answer stays
+    assert resolution_lands(W_WAITING, true) == false;
+    // a resolution after the row ended: nothing
+    assert resolution_lands(W_RESOLVED, false) == false;
+    assert resolution_lands(W_EXPIRED, false) == false;
+    assert resolution_lands(W_CANCELLED, false) == false;
+    assert resolution_lands(9, false) == false;
+    // the resolution that landed is what makes the row due at once
+    assert wake_action(W_WAITING, true, true, false, 0, 100) == WA_RESOLVE;
+    assert due_in_seconds(W_WAITING, true, false, 0, 100) == 0;
+}
+
+test a_row_is_due_when_its_time_passed_or_its_key_resolved {
+    // a timer (no key): due at its wake time, and resolved by it
+    assert wake_action(W_WAITING, false, false, true, 5, 100) == WA_NONE;
+    assert wake_action(W_WAITING, false, false, true, 0, 100) == WA_RESOLVE;
+    // a keyed row (a CI run): its wake time is a check, not an answer
+    assert wake_action(W_WAITING, false, true, true, 0, 100) == WA_CHECK;
+    assert wake_action(W_WAITING, false, true, true, 30, 100) == WA_NONE;
+    // a resolved key: due at once, whatever the times say
+    assert wake_action(W_WAITING, true, true, true, 30, 100) == WA_RESOLVE;
+    assert wake_action(W_WAITING, true, true, false, 0, 100) == WA_RESOLVE;
+    // a key nobody checks (a webhook or a person resolves it): due only by resolution or expiry
+    assert wake_action(W_WAITING, false, true, false, 0, 100) == WA_NONE;
+    assert wake_action(W_WAITING, false, true, false, 0, 0) == WA_EXPIRE;
+    // the expiry beats a check and a timer that came at the same pass
+    assert wake_action(W_WAITING, false, true, true, 0, 0) == WA_EXPIRE;
+    assert wake_action(W_WAITING, false, false, true, 0, 0) == WA_EXPIRE;
+    // a resolution that landed before the expiry wins, even seen after it
+    assert wake_action(W_WAITING, true, true, true, 0, 0) == WA_RESOLVE;
+    // a row that is not waiting is never woken again
+    assert wake_action(W_RESOLVED, true, true, true, 0, 0) == WA_NONE;
+    assert wake_action(W_EXPIRED, false, true, true, 0, 0) == WA_NONE;
+    assert wake_action(W_CANCELLED, true, false, true, 0, 0) == WA_NONE;
+}
+
+test the_due_time_agrees_with_the_wake_rule {
+    // over a grid of rows: due now exactly when the scheduler would act on it
+    var bits : u32 = 0;
+    var checked : u32 = 0;
+    while (bits < 8) {
+        let resolved : bool = (bits % 2) == 1;
+        let has_key : bool = ((bits / 2) % 2) == 1;
+        let has_wake : bool = ((bits / 4) % 2) == 1;
+        var w : u32 = 0;
+        while (w < 3) {
+            var x : u32 = 0;
+            while (x < 3) {
+                let acts : bool = wake_action(W_WAITING, resolved, has_key, has_wake, w * 5, x * 5) != WA_NONE;
+                let due : bool = due_in_seconds(W_WAITING, resolved, has_wake, w * 5, x * 5) == 0;
+                assert acts == due;
+                checked = checked + 1;
+                x = x + 1;
+            }
+            w = w + 1;
+        }
+        bits = bits + 1;
+    }
+    assert checked == 72;
+    // the nearer of the wake and the expiry
+    assert due_in_seconds(W_WAITING, false, true, 30, 100) == 30;
+    assert due_in_seconds(W_WAITING, false, true, 300, 100) == 100;
+    assert due_in_seconds(W_WAITING, false, false, 30, 100) == 100;
+    assert due_in_seconds(W_WAITING, true, true, 30, 100) == 0;
+    assert due_in_seconds(W_RESOLVED, false, true, 0, 0) == NEVER;
+    assert due_in_seconds(W_CANCELLED, true, true, 0, 0) == NEVER;
+}
+
+test a_wait_never_outlives_the_cap {
+    assert expiry_seconds(0) == WAIT_MAX_SECONDS;
+    assert expiry_seconds(1) == 1;
+    assert expiry_seconds(5400) == 5400;
+    assert expiry_seconds(86400) == 86400;
+    assert expiry_seconds(86401) == WAIT_MAX_SECONDS;
+    assert expiry_seconds(4294967295) == WAIT_MAX_SECONDS;
+    assert WAIT_MAX_SECONDS == 86400;
+    // a job step keeps its first deadline: after 23 of 24 hours, one hour is left
+    assert job_wait_seconds(0) == 86400;
+    assert job_wait_seconds(82800) == 3600;
+    assert job_wait_seconds(86399) == 1;
+    assert job_wait_seconds(86400) == 1;
+    assert job_wait_seconds(4294967295) == 1;
+}
+
+test a_keyed_row_is_checked_less_and_less_but_never_past_its_expiry {
+    assert check_after_seconds(0) == 30;
+    assert check_after_seconds(1) == 60;
+    assert check_after_seconds(2) == 120;
+    assert check_after_seconds(3) == 240;
+    assert check_after_seconds(4) == 240;
+    assert check_after_seconds(50) == CHECK_CAP_SECONDS;
+    assert check_after_seconds(4294967295) == CHECK_CAP_SECONDS;
+    assert recheck_in_seconds(3, 1000) == 240;
+    assert recheck_in_seconds(3, 100) == 100;
+    assert recheck_in_seconds(0, 0) == 0;
+    assert check_event(true) == EV_RESOLVE;
+    assert check_event(false) == EV_RECHECK;
+    // the 90-minute release wait of 2026-10-09: 24 GitHub reads, against one a round (about 180)
+    var t : u32 = check_after_seconds(0);
+    var checks : u32 = 0;
+    while (t <= 5400) {
+        checks = checks + 1;
+        t = t + check_after_seconds(checks);
+    }
+    assert checks == 24;
+    // and a run that finished is seen within the cap
+    assert t - 5400 <= CHECK_CAP_SECONDS;
+}
+
+test a_stale_epoch_writes_nothing {
+    // pass A claims at epoch 4 -> 5; its claim runs out while it reads GitHub; pass B claims 5 -> 6
+    let a : u64 = epoch_after_claim(4);
+    assert a == 5;
+    let b : u64 = epoch_after_claim(a);
+    assert b == 6;
+    // A's late write carries 5 against the row's 6: refused, and so is its wake
+    assert write_lands(b, a) == false;
+    assert delivers_wake(write_lands(b, a), W_RESOLVED) == false;
+    // B's write lands and wakes the owner
+    assert write_lands(b, b) == true;
+    assert delivers_wake(write_lands(b, b), W_RESOLVED) == true;
+    // a cancel bumps the epoch: B, still checking, writes nothing either
+    assert write_lands(epoch_after_claim(b), b) == false;
+    // a full batch passes again at once
+    assert more_now(CLAIM_BATCH) == true;
+    assert more_now(CLAIM_BATCH - 1) == false;
+    assert more_now(0) == false;
+}
+
+test notify_brings_a_pass_forward_and_the_poll_stays {
+    assert poll_seconds(true) == WAIT_POLL_SECONDS;
+    assert poll_seconds(false) == WAIT_POLL_SECONDS;
+    assert poll_seconds(true) == 15;
+    assert beat_after_seconds(true, false, 0) == 15;
+    assert beat_after_seconds(false, false, 0) == 15;
+    assert beat_after_seconds(true, true, 3) == 3;
+    assert beat_after_seconds(true, true, 0) == 1;
+    assert beat_after_seconds(true, true, 15) == 15;
+    assert beat_after_seconds(true, true, 900) == 15;
+    assert beat_after_seconds(false, true, 900) == 15;
+    assert pass_on_hint(false, false) == PH_NOW;
+    assert pass_on_hint(false, true) == PH_NOW;
+    assert pass_on_hint(true, false) == PH_QUEUE;
+    assert pass_on_hint(true, true) == PH_DROP;
+}
+
+test a_deploy_leaves_waiting_rows_to_the_next_process {
+    assert DEPLOY_WRITES_WAITS == false;
+    // an unclaimed row is taken at the next process's first pass
+    assert pickup_after_seconds(false, 0) == 0;
+    // a row the old process claimed waits out the rest of its claim, never more
+    assert pickup_after_seconds(true, 0) == 60;
+    assert pickup_after_seconds(true, 45) == 15;
+    assert pickup_after_seconds(true, 60) == 0;
+    assert pickup_after_seconds(true, 4294967295) == 0;
+}
+
+test a_job_parked_on_a_row_waits_off_the_round {
+    assert round_visits_job(true) == false;
+    assert round_visits_job(false) == true;
+    assert step_outcome(W_WAITING, false) == JOB_O_NOT_YET;
+    assert step_outcome(W_WAITING, true) == JOB_O_NOT_YET;
+    assert step_outcome(W_RESOLVED, true) == JOB_O_PASS;
+    assert step_outcome(W_RESOLVED, false) == JOB_O_FAIL;
+    assert step_outcome(W_EXPIRED, true) == JOB_O_FAIL;
+    assert step_outcome(W_EXPIRED, false) == JOB_O_FAIL;
+    assert step_outcome(W_CANCELLED, true) == JOB_O_FAIL;
+    assert step_outcome(9, true) == JOB_O_FAIL;
+    // a step parks only on a run that exists and has not completed
+    assert step_parks(true, false) == true;
+    assert step_parks(false, false) == false;
+    assert step_parks(true, true) == false;
+    assert step_parks(false, true) == false;
+    // a cancelled job's waiting row is cancelled, and its owner is not woken by it
+    assert state_after(W_WAITING, EV_CANCEL) == W_CANCELLED;
+    assert wakes_owner(state_after(W_WAITING, EV_CANCEL)) == false;
+    assert JOB_O_PASS == 0;
+    assert JOB_O_NOT_YET == 1;
+    assert JOB_O_FAIL == 2;
+}
+
+// The runtime stores states and events by number.
+invariant the_wait_codes_never_move {
+    assert W_WAITING == 0;
+    assert W_RESOLVED == 1;
+    assert W_EXPIRED == 2;
+    assert W_CANCELLED == 3;
+    assert WAIT_STATES == 4;
+    assert EV_RESOLVE == 0;
+    assert EV_EXPIRE == 1;
+    assert EV_CANCEL == 2;
+    assert EV_RECHECK == 3;
+    assert WA_NONE == 0;
+    assert WA_RESOLVE == 1;
+    assert WA_EXPIRE == 2;
+    assert WA_CHECK == 3;
+}
+
+invariant the_clocks_fit_inside_each_other {
+    // a live claimer finishes its check well inside its claim
+    assert CLAIM_TTL_SECONDS >= 3 * CHECK_TIMEOUT_SECONDS;
+    // the poll looks several times within one claim, and a check is never due more often than a pass
+    assert WAIT_POLL_SECONDS * 4 == CLAIM_TTL_SECONDS;
+    assert CHECK_BASE_SECONDS >= WAIT_POLL_SECONDS;
+    assert CHECK_CAP_SECONDS <= 300;
+    assert CHECK_CAP_SECONDS < WAIT_MAX_SECONDS;
+    // a row left by a deploy is taken up far inside one drain
+    assert CLAIM_TTL_SECONDS + WAIT_POLL_SECONDS < DEPLOY_DRAIN_SECONDS;
+    // the row and its job end together
+    assert JOB_WAIT_LIMIT_SECONDS == WAIT_MAX_SECONDS;
+    assert JOB_WAIT_LIMIT_SECONDS == 1440 * 60;
+    assert NOTIFY_IS_A_HINT;
+    assert CLAIM_BATCH >= 1;
+}
