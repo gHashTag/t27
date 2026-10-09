@@ -265,7 +265,7 @@ measure it are written in **t27**, not in Rust or Python by hand.
   master 09ffc2fc5's 15271 plus 1239 and 8205; 15274 plus 1239, 16513 in all,
   and tests 8236, after #7923's glue for `std.math.log` with base `std.math.e`
   (`std.math.inf`, `std.math.log1p` and an f64 `@round` are plan and routines
-  only, `libm_plan.t27` and `libm.t27`), +3 and +21 on master 19e09710e's
+  only, `libm_plan.t27` and `libm.t27`), +3 and +21 on master 462798038's
   15271 plus 1239 and 8215),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
