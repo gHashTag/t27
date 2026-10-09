@@ -547,6 +547,17 @@ fn undefined_module_vars_read_as_0xaa() {
     assert_eq!(r[3].2, Err((TrapKind::Assert, line_of(src, "assert(w[1] == 0)"))));
 }
 
+/// A module var of an optional type that starts as `null` (#7910): zero bytes, a null flag, in every test; the
+/// conformance spec passes (`t27c test-report`: 4 pass, none vacuous). Any other initial value stays refused.
+#[test]
+fn optional_module_vars_start_null() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/optional_module_var.t27"));
+    let got = names_ok(&ran);
+    assert!(got.len() == 4 && got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+    let m = rejected("module a;\n\nvar g: ?u32 = 5;\n\ntest t {\n    assert(g.? == 5);\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct VarDecl(module, pointer/slice) at line 3"), "{}", m);
+}
+
 #[test]
 fn string_rejections_are_precise() {
     let head = "module s;\n\nconst S: str = \"ab\";\n\n";

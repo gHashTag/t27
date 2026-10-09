@@ -1352,6 +1352,7 @@ impl<'a> Lower<'a> {
         let with_str = match &t {
             LTy::Str => true,
             LTy::S(_) | LTy::Enum(..) | LTy::Struct(_) | LTy::Arr(..) => self.holds_str(&t)?,
+            LTy::Opt(_) if self.is_null(init) => false,
             _ => {
                 let d = self.type_name(&t);
                 return self.reject(
@@ -1375,6 +1376,7 @@ impl<'a> Lower<'a> {
                 buf.fill(0xAA);
                 Ok(())
             }
+            LTy::Opt(_) => Ok(()), // `= null` (#7910): zero bytes, a null flag; no payload is read before a write
             LTy::S(ty) => {
                 let ty = *ty;
                 let mut f = || -> R<()> {
@@ -2607,7 +2609,7 @@ impl<'a> Lower<'a> {
                     return self.reject("StmtAssign", format!("assignment to constant `{}`", name));
                 }
                 let ty = self.vars[id as usize].ty;
-                let conv = |c: &Node| c.kind == NodeKind::ExprCall && matches!(c.name.as_str(), "@floatFromInt" | "@intFromFloat" | "@floatCast");
+                let conv = |c: &Node| c.kind == NodeKind::ExprCall && matches!(c.name.as_str(), "@floatFromInt" | "@intFromFloat" | "@floatCast" | "@bitCast");
                 let rhs = if (op.is_empty() || op == "=") && conv(&n.children[1]) {
                     self.expr_as(&n.children[1], &LTy::S(ty))?
                 } else {
