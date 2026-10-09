@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 27,
+ "max_not_pass": 26,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
   {"path": "specs/a_b/c.t27", "t27b": "pass_vacuous"},
@@ -458,7 +458,7 @@
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/openclaw/claw-session.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/bookmarks.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/history.t27", "t27b": "pass"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27", "t27b": "blocked", "blocker": "VarDecl(module, pointer/slice)", "reason": "unimplemented"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/db/retry.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27", "t27b": "blocked", "blocker": "type anytype", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/port-binding.t27", "t27b": "pass"},
@@ -1088,6 +1088,7 @@
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/opaque_pointer.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/optional_enum_compare.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/optional_module_var.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/pointer_equality.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/postfix_optional.t27", "t27b": "pass"},

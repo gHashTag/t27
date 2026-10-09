@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/optional_module_var.t27 -- a module-level var of an optional type that starts as
+; `null`, as the reference runs it (issue #7910, t27b coverage epic #6063: VarDecl(module, pointer/slice) in
+; specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints `var g: ?T = null;` as written: a container-level var whose initial value is null, so its
+; payload is never read before a write. t27b holds a `?T` as the payload and then a flag byte, 0 for null, so
+; the var's initial image is zero bytes, a str inside the payload included: no address needs to be written
+; when the program starts. Every test starts from null, as the reference runs each test in a fresh process
+; (the third and the fourth test check that the one before them left nothing behind).
+; Reads, writes, `== null`, `.?` and `&g.?` are the ones t27b already lowers for an optional local.
+; Not here: an optional module var with a value other than null, which t27b still refuses.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceOptionalModuleVar;
+
+struct OmvEntry {
+    name: []const u8,
+    hits: u32,
+}
+
+var omv_count: ?u32 = null;
+var omv_entry: ?OmvEntry = null;
+
+fn omv_bump() -> u32 {
+    if (omv_count == null) {
+        omv_count = 0;
+    }
+    omv_count = omv_count.? + 1;
+    return omv_count.?;
+}
+
+// registry.t27's shape: create on first use, hand out the payload's address.
+fn omv_get() -> *OmvEntry {
+    if (omv_entry == null) {
+        omv_entry = OmvEntry{ .name = "first", .hits = 0 };
+    }
+    return &omv_entry.?;
+}
+
+fn omv_reset() {
+    omv_entry = null;
+}
+
+test omv_starts_null {
+    assert(omv_count == null);
+    assert(omv_entry == null);
+}
+
+test omv_counts_from_its_first_write {
+    assert(omv_bump() == 1);
+    assert(omv_bump() == 2);
+    assert(omv_count.? == 2);
+    assert(omv_count != null);
+}
+
+test omv_a_struct_payload_by_address {
+    assert(omv_count == null);
+    const e = omv_get();
+    assert(e.hits == 0);
+    e.hits += 5;
+    assert(omv_get().hits == 5);
+    assert(omv_entry.?.name.len == 5);
+    assert(omv_entry.?.name[0] == 'f');
+}
+
+test omv_reset_drops_the_payload {
+    assert(omv_entry == null);
+    const e = omv_get();
+    e.hits = 9;
+    omv_reset();
+    assert(omv_entry == null);
+    assert(omv_get().hits == 0);
+}

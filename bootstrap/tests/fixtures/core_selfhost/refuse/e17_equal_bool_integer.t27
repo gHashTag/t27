@@ -1,0 +1,5 @@
+// `==` between a bool and an integer (#8075).
+module equal_bool_integer;
+fn ebi_g(f: bool, n: u8) -> bool {
+    return f == n;
+}
