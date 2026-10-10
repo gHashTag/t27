@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/git/schema.t27",
+      "spec_hash": "sha256:bf23173a297d24d495bc24dd8cfd662f81832366cf140b1ae507fe084afec95d"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a04d8ad2e82919c0665c1d3e2ee405c478cd8a81849c8ced4f8fd3b8a1b6866d",
   "gen_hash_rust": "sha256:61af9398e2b82aee5154eb208453498bcb33248d16713b8629d601fb1e910235",
   "gen_hash_verilog": "sha256:8dbff0c5cab9e460ea58f6dd0d5cb38bbf565a8d205f37192429403fbf7eaedd",
-  "gen_hash_zig": "sha256:bd79f15d8c2d95c328d8beaf8c3aa7c464a397386fa55ce18da25a3668f2a878",
+  "gen_hash_zig": "sha256:e6f49bda547107df4f54226c5d05819d44c7fb05ba7120b943d127e8acbdb8f6",
   "module": "GitDiff",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:40:25Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:6ba08cd0bbdecdfe3a925775aef0c93858e2ae4f888bd331ba94f01eb01a355f",
   "spec_path": "specs/git/diff.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-diff-754696/spec.zig:72:18: error: use of undeclared identifier 'execute_command'"
+    "blocked": "does not compile: spec.zig:72:18: error: use of undeclared identifier 'execute_command'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

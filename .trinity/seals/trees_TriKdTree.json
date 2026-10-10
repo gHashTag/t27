@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:8d1bfe9cd256ab37be7ff2c54f1ff3f814a257d0a658c5b5a65e0441d0ba58e6",
   "gen_hash_rust": "sha256:60a01bdf59b5a66e5962473efe5efefa2e0367d6f09932874a811f5482f2aaed",
   "gen_hash_verilog": "sha256:8a8716c9ea2ad004c377aee6f5a43e86004007622a609c1702e554463a41956a",
-  "gen_hash_zig": "sha256:17a9a42e05e1611063c020d51782f68dfd96788dc4fad6b769f0bd1927f665f0",
+  "gen_hash_zig": "sha256:1e7fe0888bb9252d0da40af9bc4920c7e38dbe7a635f45f0eb96e92edc577b9e",
   "module": "TriKdTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:addfe9e2acdc781ad66b980b1cf2b231d334dcb0471eaedbf22867a32cc94748",
-  "spec_path": "specs/tri/trees/kd_tree.t27"
+  "spec_path": "specs/tri/trees/kd_tree.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:100:9: error: local variable is never mutated"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

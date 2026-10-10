@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:37833f490fd2a8a0d22c0f6ca2897c7ed1d07150c964777a6f0fab026818b4f2",
+  "gen_hash_rust": "sha256:af7b0d1c360b709814b616a08495c2b75984b7e049b1531f7af87095f9d7bdbd",
+  "gen_hash_verilog": "sha256:4b43e4cab64c81391b7da1670efb53c71860ace3ba6600b703243790ef607a75",
+  "gen_hash_zig": "sha256:988739451fbeba69b5c02cd41273fe3e1c84b612dbc6f0058559b60ce885d4fa",
+  "module": "specs::port::tools",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:eba003a8a9c2c15421a6bc1172bd30c43f0f31439bdba57651583a4d5730311a",
+  "spec_path": "specs/port/tools/dedupe_identical_tests.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:33:38: error: use of undeclared identifier 'Option'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -9979,11 +9979,14 @@ impl Codegen {
                         } else {
                             None
                         };
-                        match slice_elem {
+                        // #8602: a local DECLARED `[]T` gets the `@constCast(&[_]T{...})` slice fields get; `.{...}` is no slice
+                        let typed = Self::slice_element_type(&Self::t27_array_type_to_zig(&node.extra_type)).filter(|_| slice_elem.is_none() && node.children[0].kind == NodeKind::ExprArrayLiteral);
+                        match slice_elem.or(typed.clone()) {
                             Some(t) => {
-                                self.write(&format!("[_]{}", t));
+                                self.write(&format!("{}[_]{}", if typed.is_some() { "@constCast(&" } else { "" }, t));
                                 let lit = node.children[0].clone();
                                 self.gen_array_literal_braces(&lit);
+                                if typed.is_some() { self.write(")"); }
                             }
                             None => {
                                 // W624: `let n : u32 = s.len();`. Third of the

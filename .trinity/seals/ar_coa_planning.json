@@ -1,15 +1,28 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a0df52015ccbc3a6d0b15c63b38167048a6a9c064b0a72be91471e186df7dc6d",
   "gen_hash_rust": "sha256:1683eb291004d169425a3e20acfcc5d61fde548c34102d0c541d81e0f392f21c",
   "gen_hash_verilog": "sha256:6e447f83bc21a6c01489c81b50ffd5701049f266d37eb235fa28bf96809abd48",
-  "gen_hash_zig": "sha256:9db28c83fba50f8bf391536e238ba19e24d522f47032ac46e6cfbe2aba5cd8ad",
+  "gen_hash_zig": "sha256:f1ee4a24881f02dc620439ccd7aa6da9e677a2724985585c4fa95d9ca8314688",
   "module": "coa_planning",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:28:30Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:37:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7fc854dc01beaf32f9578e657817520cb7c1e548523bba82d413df2ec29de345",
   "spec_path": "specs/ar/coa_planning.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-coa_planning-580889/spec.zig:38:20: error: use of undeclared identifier 'ProofStep'"
+    "blocked": "does not compile: spec.zig:38:20: error: use of undeclared identifier 'ProofStep'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

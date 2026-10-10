@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:d02b79f3cf1e7980767cb71d681bf84a0a469ecef63a920bd4481540d49eb07c",
   "gen_hash_rust": "sha256:295fe81794b912c0881314d744b884dd2d2676679a773286163949d5286ef5ff",
   "gen_hash_verilog": "sha256:3e079c9ecdb0c46626d301b159ec40a69ef35b45923ca94d66dc4605e2efd01e",
-  "gen_hash_zig": "sha256:98e034c3d59cc91a833dcce130637de46d569af154a14203d40315e0997dcb15",
+  "gen_hash_zig": "sha256:fac1e769c6b877db1b229bb2c205205bb438a1557a15ffe2eb8a9d49878207df",
   "module": "portable::relay_observer",
   "ring": 12,
-  "sealed_at": "2026-10-08T06:15:19Z",
+  "sealed_at": "2026-10-10T13:38:14Z",
   "spec_hash": "sha256:22eb9b38f7ce6a91d5e60f5cc789b52824a928275923b7e0af500b9e98beca9e",
   "spec_path": "specs/portable/relay_observer.t27",
   "tests": {

@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/base/ops.t27",
+      "spec_hash": "sha256:8e6c6168f64ff2d654a3b276d7f3ceee4fbd408d334590ce03467b1f3aaa68b3"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:da742951bad3de16408948097ca66724ed4a81ed71acbf6c36ef81e502d0acc9",
   "gen_hash_rust": "sha256:e29125f3d3105509b0a1b038eb3c5d7baa2af6eaac2240057d84d24b5fe5e68e",
   "gen_hash_verilog": "sha256:e4be62c8876102e115ae4bdc392a5964f5d625d0b54f99f85269d76a7669745f",
-  "gen_hash_zig": "sha256:45c7f7a1f5b9a70440c57bd3dd3afc8d8b9c43e99d031051dc549a96622b6f48",
+  "gen_hash_zig": "sha256:e321a1abf5ff0fd651e88eaa6a125d91ce742cc0dee90b18bc10d807d248c178",
   "module": "VSAOps",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5f8f1e6257d4daea69a8f492f77f0531aff8d1ca955882b6bcab3d1fccbb6604",
-  "spec_path": "specs/vsa/ops.t27"
+  "spec_path": "specs/vsa/ops.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:31:11: error: no field or member function named 'reserve' in '[]spec.Trit'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

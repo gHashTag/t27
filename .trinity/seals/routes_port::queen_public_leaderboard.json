@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0711a631ca50b15b259d24b8586591188b3bef5390138010a8ba7636a00322ed",
+  "gen_hash_rust": "sha256:46564b8c9d9307bd07f5ab358485370a016caea05e561e043d0d577d3d75be84",
+  "gen_hash_verilog": "sha256:a20212922f8e09a3b15919ad83617a2064639cf934168e54c7fe1ae0034730a7",
+  "gen_hash_zig": "sha256:6b765190a4e3b9f89aae44bd811668ddf22bc1247344098c9ef1795dd1a4af45",
+  "module": "port::queen_public_leaderboard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c455d7ae7a64929ea559e29d4530761fd6bb00404eb1c3d4ad7834816b1d12ba",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-public-leaderboard.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:23:32: error: use of undeclared identifier 'unreachable'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

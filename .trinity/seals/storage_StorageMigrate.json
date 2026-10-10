@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/storage/schema.t27",
+      "spec_hash": "sha256:d578f5119a7cf08325892829db66a22d189ced7b969be6c8dd9a1022b2e06f87"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:4de635f68f6eb3b53bf1b0de7df14268d8e209d38ec0685bc8f04616cfe14c17",
   "gen_hash_rust": "sha256:060844562228a2de1125143f5adb3eda2fa9ad91360d4c267b11713528ff9232",
   "gen_hash_verilog": "sha256:aef49913466821124c67d4d2b40fbb6eeca60c4f1bffaccc1228857f5504b6f6",
-  "gen_hash_zig": "sha256:448c91e2eeedefac982506e2c8a6dddef13001bbfab4f7fac64f39a469e885e4",
+  "gen_hash_zig": "sha256:e5ac7799b5ec5d4c6bf2a9c1f86a89d0775b46b7ed97c65ad53bae8fa532b688",
   "module": "StorageMigrate",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:41:42Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:30a5c86e9a79bd86c5c7a3d8a78c7ec3ab232dfa6290087424cefe6285af3e37",
   "spec_path": "specs/storage/migrate.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-migrate-762929/spec.zig:23:14: error: expected ',' after field"
+    "blocked": "does not compile: spec.zig:23:14: error: expected ',' after field"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

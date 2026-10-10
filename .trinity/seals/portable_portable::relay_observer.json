@@ -1,16 +1,28 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+20d20c9d2",
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/compiler/lexer.t27",
+      "spec_hash": "sha256:dad76e110f828f726b197d002854b83550a7bf80a65999b6642778892f0a168a"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d02b79f3cf1e7980767cb71d681bf84a0a469ecef63a920bd4481540d49eb07c",
   "gen_hash_rust": "sha256:295fe81794b912c0881314d744b884dd2d2676679a773286163949d5286ef5ff",
   "gen_hash_verilog": "sha256:3e079c9ecdb0c46626d301b159ec40a69ef35b45923ca94d66dc4605e2efd01e",
-  "gen_hash_zig": "sha256:98e034c3d59cc91a833dcce130637de46d569af154a14203d40315e0997dcb15",
+  "gen_hash_zig": "sha256:fac1e769c6b877db1b229bb2c205205bb438a1557a15ffe2eb8a9d49878207df",
   "module": "portable::relay_observer",
   "ring": 12,
-  "sealed_at": "2026-10-08T06:15:19Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:22eb9b38f7ce6a91d5e60f5cc789b52824a928275923b7e0af500b9e98beca9e",
   "spec_path": "specs/portable/relay_observer.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:298:65: error: expected expression, found '.'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

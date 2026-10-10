@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9e6ca8b73a238026f8bbebeb6467e90a105c54787bf1311175653c6e04504ef2",
+  "gen_hash_rust": "sha256:0a81c1042a1f25dfffbc1c346b709b3c31d2fab74a36a2e6f735a33d81d6ee02",
+  "gen_hash_verilog": "sha256:426fbf1e31964d8b60709735ef5b8490202ac4470affe3ce7c6993c2de6aae57",
+  "gen_hash_zig": "sha256:8237bfdaf51c4258418dd2c7876944f464de63e1ca5d6aea3c9724a7ec1283f8",
+  "module": "verify-trainer-c",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:db92a2de20e8ad223187ee2e7374b5aa00f2b2a554c32fd6e6d4d4b9e58ed667",
+  "spec_path": "specs/port/tools/verify_trainer_c.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:45:77: error: expected ')', found ','"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

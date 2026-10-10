@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/shell/schema.t27",
+      "spec_hash": "sha256:6c8c4ade7ef0dfc805fe1ad42dfb188ed8afd8d2db10bf92807c4921bde839ea"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5ad264905831fc625c37d44004802c9c5efdfe9ffa347442ada0d928db04b46f",
   "gen_hash_rust": "sha256:60d1482a1e43ff8adb56c3c7eff49d4d6389d2e09ae4a14cfa8780bc3dc97539",
   "gen_hash_verilog": "sha256:1d35771385efa5b79126df34365589655dfbf2ef5101306606db6384d2bbda30",
-  "gen_hash_zig": "sha256:4688fa1b6f4271aaadcb829f3f98896ca1efedef14f365df76d2ee0213bbaac4",
+  "gen_hash_zig": "sha256:be2baa9226bde4f6e2127d67303923f336e82357e119100f32de3415f7fce273",
   "module": "ShellProcess",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:34Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:38:16Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cf75222dedc5962d97d11d39d7b684d113dca2aa2a6980d9ee06d741e315c54d",
   "spec_path": "specs/shell/process.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-process-34663/spec.zig:23:73: error: use of undeclared identifier 'Result'"
+    "blocked": "does not compile: spec.zig:23:73: error: use of undeclared identifier 'Result'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

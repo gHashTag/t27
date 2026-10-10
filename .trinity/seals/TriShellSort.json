@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:472481a75732d4b6ab7a0d87b531031f6208c1268834e85108fcbba97ae56c0f",
   "gen_hash_rust": "sha256:5021aa2c065913ee5b983333489151730c354c94332a402bca5c2f74fdcde094",
   "gen_hash_verilog": "sha256:955626df7aed361cad9083a87e8bab9c8357b06d683f7a8122b44e7f2f919028",
-  "gen_hash_zig": "sha256:83684e5d06de0cab0402c0dc8f2249d8c079a2f758c8d7a835670e5ef743e424",
+  "gen_hash_zig": "sha256:d2b081a5b983c2933ac8a958d8e2a8746e35c72369cb2785acec1c5743b61773",
   "module": "TriShellSort",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-10T13:38:21Z",
   "spec_hash": "sha256:ef2346eba9cf05d8e2ee67598fa7af0082983effe9ca9cda88ee05b1ddeac057",
-  "spec_path": "specs/tri/sort/shell_sort.t27"
+  "spec_path": "specs/tri/sort/shell_sort.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:22:22: error: no member named 'length' in '[]i64'"
+  }
 }

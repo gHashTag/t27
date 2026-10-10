@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -14,11 +14,11 @@
   "gen_hash_c": "sha256:5675e16d0c3f3f224b9c711c27dc22f35354d68f17f698699d69e4f185c0cbe2",
   "gen_hash_rust": "sha256:2e3fc1b5a73955f81968987e4232891969e4c20b88f77bd612a6c687c52d6d5d",
   "gen_hash_verilog": "sha256:9802bc7f8589907f8a867594acfa8c2ade8ba1221d258e238db36f12382b9beb",
-  "gen_hash_zig": "sha256:bb134a6e821d9b85267c43bcf60a92ef78707d95de59e94a98ccbd5081a87d8b",
+  "gen_hash_zig": "sha256:3ddc426908463a4713a133ec4c33bd601e778788dea5c1fdc4f5df0978a6e982",
   "module": "TriAhoCorasick",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T23:18:30Z",
+  "sealed_at": "2026-10-10T13:38:20Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:77f63a000c48b767716e72ae3e8429c44f2debb2b9ce51c086cc5d0f8aa2d114",
   "spec_path": "specs/tri/search/aho_corasick.t27",
