@@ -1,0 +1,19 @@
+//! tri/xor_cipher — XOR cipher encryption
+//! TTT Dogfood v0.2 Stage 241
+
+pub fn xorCrypt(data: []const u8, key: []const u8) []u8 {
+    var result: [256]u8 = undefined;
+    var i: usize = 0;
+    while (i < data.len and i < result.len) {
+        result[i] = data[i] ^ key[i % key.len];
+        i += 1;
+    }
+    return result[0..i];
+}
+
+test "xor cipher" {
+    const data = "Hello";
+    const key = "key";
+    const encrypted = xorCrypt(data, key);
+    try std.testing.expect(encrypted.len == data.len);
+}
