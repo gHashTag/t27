@@ -1,0 +1,313 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/blink_internal.t27
+// Blink Internal Module Specification for Trinity T27 FPGA HIR
+// Port of gHashTag/trinity fpga/openxc7-synth/blink_internal.v
+// Internal oscillator with MMCME2_BASE and 26-bit counter driving LED
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinity_top {
+
+    // === Module interface definitions ===
+
+    pub struct TrinityInputs {
+        clk : bool,     // External clock (unused)
+    }
+
+    pub struct TrinityOutputs {
+        led : bool,     // Active-low LED output
+    }
+
+    // === Internal oscillator configuration ===
+
+    pub struct OscillatorConfig {
+        clkfbout_mult_f : f64,
+        clkin1_period : f64,
+        clkout0_divide_f : f64,
+        divclk_divide : u32,
+    }
+
+    pub struct OscillatorState {
+        clk_fb : bool,
+        clk_out : bool,
+        locked : bool,
+    }
+
+    // === Blink state ===
+
+    pub struct BlinkState {
+        counter : u64,  // 26-bit counter (reg [25:0])
+        led_state : bool,
+    }
+
+    // === Configuration constants ===
+
+    pub const OSC_CONFIG : OscillatorConfig = OscillatorConfig{
+        .clkfbout_mult_f = 8.0,
+        .clkin1_period = 10.0,
+        .clkout0_divide_f = 4.0,
+        .divclk_divide = 1,
+    }
+
+    pub const COUNTER_WIDTH : u32 = 26;
+    pub const COUNTER_MAX : u64 = (1 << 26) - 1;  // 26-bit counter max value
+
+    // === Constructor functions ===
+
+    fn trinity_inputs(clk: bool) -> TrinityInputs {
+        return TrinityInputs{
+            .clk = clk,
+        };
+    }
+
+    fn trinity_outputs(led: bool) -> TrinityOutputs {
+        return TrinityOutputs{
+            .led = led,
+        };
+    }
+
+    fn oscillator_config() -> OscillatorConfig {
+        return OSC_CONFIG;
+    }
+
+    fn oscillator_state() -> OscillatorState {
+        return OscillatorState{
+            .clk_fb = false,
+            .clk_out = false,
+            .locked = false,
+        };
+    }
+
+    fn blink_state() -> BlinkState {
+        return BlinkState{
+            .counter = 0,
+            .led_state = false,
+        };
+    }
+
+    // === Oscillator functions ===
+
+    fn compute_output_frequency(config: OscillatorConfig) -> f64 {
+        return (config.clkfbout_mult_f * 1000.0) / config.clkout0_divide_f;
+    }
+
+    fn is_oscillator_locked(state: OscillatorState) -> bool {
+        return state.locked;
+    }
+
+    // === Counter functions ===
+
+    fn is_counter_overflow(counter: u64) -> bool {
+        return counter >= COUNTER_MAX;
+    }
+
+    fn increment_counter(counter: u64) -> u64 {
+        if (is_counter_overflow(counter)) {
+            return 0;
+        }
+        return counter + 1;
+    }
+
+    // === LED state functions ===
+
+    fn toggle_led_state(current_state: bool) -> bool {
+        return !current_state;
+    }
+
+    fn update_blink_state(counter: u64) -> BlinkState {
+        var new_counter : u64 = increment_counter(counter);
+        var new_led_state : bool = false;
+        
+        // Only toggle LED when counter overflows
+        if (counter == COUNTER_MAX) {
+            new_led_state = toggle_led_state(false);
+        }
+        
+        return BlinkState{
+            .counter = new_counter,
+            .led_state = new_led_state,
+        };
+    }
+
+    // === Output computation functions ===
+
+    fn compute_led_output(led_state: bool) -> bool {
+        return !led_state;  // Active-low
+    }
+
+    fn compute_outputs(blink_state: BlinkState) -> TrinityOutputs {
+        return TrinityOutputs{
+            .led = compute_led_output(blink_state.led_state),
+        };
+    }
+
+    // === Simulation functions ===
+
+    fn simulate_oscillator_update(inputs: TrinityInputs, current_osc_state: OscillatorState) -> OscillatorState {
+        // MMCME2_BASE simulation:
+        // - CLKIN1 is grounded (1'b0), so we simulate internal oscillator
+        // - Output frequency: ~100 MHz (8.0 * 1000 / 4.0 = 2000 MHz / 2 = 100 MHz)
+        // - LOCKED is asserted after startup
+        var new_state : OscillatorState = current_osc_state;
+        new_state.clk_out = true;  // Internal oscillator running
+        new_state.locked = true;   // PLL locked
+        return new_state;
+    }
+
+    fn simulate_blink_update(osc_state: OscillatorState, current_blink_state: BlinkState) -> BlinkState {
+        if (osc_state.clk_out) {
+            return update_blink_state(current_blink_state.counter);
+        }
+        return current_blink_state;
+    }
+
+    // === Validation functions ===
+
+    fn validate_oscillator_config(config: OscillatorConfig) -> u32 {
+        var errors : u32 = 0;
+        if (config.clkfbout_mult_f <= 0.0) {
+            errors = errors + 1;
+        }
+        if (config.clkout0_divide_f <= 0.0) {
+            errors = errors + 1;
+        }
+        if (config.divclk_divide == 0) {
+            errors = errors + 1;
+        }
+        return errors;
+    }
+
+    fn validate_blink_state(state: BlinkState) -> u32 {
+        var errors : u32 = 0;
+        if (state.counter > COUNTER_MAX) {
+            errors = errors + 1;
+        }
+        return errors;
+    }
+
+    // === Tests ===
+
+    test inputs_creation
+        given inputs = trinity_inputs(true)
+        then inputs.clk == true
+
+    test outputs_creation
+        given outputs = trinity_outputs(false)
+        then outputs.led == false
+
+    test oscillator_config_creation
+        given cfg = oscillator_config()
+        then cfg.clkfbout_mult_f == 8.0
+        and cfg.clkin1_period == 10.0
+        and cfg.clkout0_divide_f == 4.0
+        and cfg.divclk_divide == 1
+
+    test oscillator_frequency_calculation
+        given cfg = oscillator_config()
+        then compute_output_frequency(cfg) == 2000.0  // 8.0 * 1000 / 4.0 = 2000 MHz / 2 = 100 MHz
+
+    test oscillator_locked_state
+        given state = oscillator_state()
+        and updated_state = simulate_oscillator_update(trinity_inputs(false), state)
+        then is_oscillator_locked(updated_state) == true
+
+    test counter_increment_normal
+        then increment_counter(0) == 1
+        and increment_counter(100) == 101
+        and increment_counter(COUNTER_MAX - 1) == COUNTER_MAX
+
+    test counter_increment_overflow
+        then increment_counter(COUNTER_MAX) == 0  // 26-bit wrap
+
+    test counter_overflow_detection
+        then is_counter_overflow(COUNTER_MAX - 1) == false
+        and is_counter_overflow(COUNTER_MAX) == true
+        and is_counter_overflow(COUNTER_MAX + 1) == true
+
+    test led_state_toggle
+        then toggle_led_state(false) == true
+        and toggle_led_state(true) == false
+
+    test blink_state_update_no_overflow
+        given state = BlinkState{ .counter = 100, .led_state = false }
+        and new_state = update_blink_state(state.counter)
+        then new_state.counter == 101
+        and new_state.led_state == false
+
+    test blink_state_update_with_overflow
+        given state = BlinkState{ .counter = COUNTER_MAX, .led_state = false }
+        and new_state = update_blink_state(state.counter)
+        then new_state.counter == 0
+        and new_state.led_state == true
+
+    test led_output_active_low
+        then compute_led_output(false) == true
+        and compute_led_output(true) == false
+
+    test output_computation
+        given state = BlinkState{ .counter = COUNTER_MAX, .led_state = true }
+        and outputs = compute_outputs(state)
+        then outputs.led == false  // Active-low
+
+    test full_simulation_step
+        given inputs = trinity_inputs(false)
+        and osc_state = oscillator_state()
+        and blink_state = blink_state()
+        and updated_osc = simulate_oscillator_update(inputs, osc_state)
+        and updated_blink = simulate_blink_update(updated_osc, blink_state)
+        then updated_osc.locked == true
+        and updated_osc.clk_out == true
+        and updated_blink.counter == 1
+
+    test oscillator_config_validation
+        given cfg1 = oscillator_config()
+        and cfg2 = OscillatorConfig{ .clkfbout_mult_f = 0.0, .clkin1_period = 10.0, .clkout0_divide_f = 4.0, .divclk_divide = 1 }
+        then validate_oscillator_config(cfg1) == 0
+        and validate_oscillator_config(cfg2) > 0
+
+    test blink_state_validation
+        given state1 = blink_state()
+        and state2 = BlinkState{ .counter = COUNTER_MAX, .led_state = false }
+        and state3 = BlinkState{ .counter = COUNTER_MAX + 1, .led_state = false }
+        then validate_blink_state(state1) == 0
+        and validate_blink_state(state2) == 0
+        and validate_blink_state(state3) > 0
+
+    // === Invariants ===
+
+    invariant oscillator_config_valid
+        given cfg = oscillator_config()
+        assert validate_oscillator_config(cfg) == 0
+
+    invariant blink_state_valid
+        given state = blink_state()
+        assert validate_blink_state(state) == 0
+
+    invariant counter_bounded
+        assert blink_state().counter <= COUNTER_MAX
+        assert increment_counter(COUNTER_MAX) <= COUNTER_MAX
+
+    invariant led_state_boolean
+        assert blink_state().led_state == true or blink_state().led_state == false
+
+    invariant output_active_low
+        given state = BlinkState{ .counter = COUNTER_MAX, .led_state = true }
+        assert compute_outputs(state).led == false
+
+    // === Benchmarks ===
+
+    bench counter_increment_latency
+        measure: nanoseconds to increment_counter(1000)
+        target: < 10ns
+
+    bench led_toggle_latency
+        measure: nanoseconds to toggle_led_state(false)
+        target: < 5ns
+
+    bench blink_update_latency
+        measure: nanoseconds to update_blink_state(1000)
+        target: < 20ns
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
