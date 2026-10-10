@@ -14,7 +14,7 @@ pub const AUDIT_AGREES: u8 = 0;
 
 pub const AUDIT_POISONED: u8 = 1;
 
-pub fn audit_result(compiled: bool, failed: u32, rerun_total: u32, sealed_total: u32) -> u8 {
+pub fn audit_result(compiled: bool, failed: u32, rerun_total: u32, sealed_total: u32, checked: bool) -> u8 {
     if (compiled == false) {
         return AUDIT_POISONED;
     }
@@ -22,6 +22,9 @@ pub fn audit_result(compiled: bool, failed: u32, rerun_total: u32, sealed_total:
         return AUDIT_POISONED;
     }
     if (rerun_total != sealed_total) {
+        return AUDIT_POISONED;
+    }
+    if (checked == false) {
         return AUDIT_POISONED;
     }
     return AUDIT_AGREES;
