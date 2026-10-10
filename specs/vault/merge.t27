@@ -1,0 +1,539 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/vault/merge.t27 -- bringing today's secrets into the vault: reading the two exports they live
+; in, finding the same value under several names and the same name with several values, merging only
+; what the owner says to merge, and the vault's own export format
+; The owner, 2026-10-10 (gHashTag/trios#1759, translated): they are partly in the key manager now:
+; store them all safely, remove duplicates and move them. Today's secrets live in two sources with
+; duplicates between them:
+; - Infisical, read by 999-multibots-telegraf with `infisical secrets get NAME` (environments dev and
+;   prod), exported with `infisical export --env=prod --format=dotenv`;
+; - Railway variables, whose export (the owner's age file of 2026-10-10) decrypts to the
+;   `railway variables --kv` format: a `### <service>` line before each service's `KEY=VALUE` lines.
+; The OWNER pipes each into `vault import --stdin --source <label> --format dotenv|railway-kv`. This card
+; decides what a line of each format is, which entries are taken, how they are named, and how the
+; copies are found and merged. The parsing itself, the comparison and the store are gHashTag/trios.
+; --
+; What an import keeps: every entry is its own secret, named by its provenance (policy.t27 id_ok):
+; `source/service/NAME` for railway-kv, `source/NAME` for dotenv. Two services' DATABASE_URL are two
+; secrets, and each keeps its source, its service and its original name. An entry is bound in a scope
+; under its original name, so a workload leases exactly the environment it had: for railway-kv the
+; scope is the service, and a dotenv entry is bound in the scope the owner names, or in none. A secret
+; the owner put has OWNER_SOURCE as its source.
+; --
+; How copies are found, and what the owner is shown: the vault opens every value in memory and compares
+; them under a keyed HMAC whose key is DEDUP_KEY_BYTES of fresh randomness per run, dropped when the run
+; ends. The report names ids, names, sources, services and counts: every key anywhere in it is one of
+; REPORT_FIELDS, and every text in it a token (audit.t27 text_ok), or the report is not printed. It
+; never carries a value, and never a plain hash of one: a hash of a short secret is that secret to
+; anyone who can guess.
+; - A value group is every secret holding one value. With one name it is the same name copied (Infisical
+;   and Railway agree); with several it is one value under several names. A group of one is not shown.
+; - A name group is every secret whose original name is one NAME. When its values differ across two or
+;   more sources it is a CONFLICT. When they differ only between services of one source it is ordinary
+;   (each service its own database) and is only counted.
+; --
+; How copies are merged: only by a plan the owner writes, one line per merge (`merge CANONICAL = ID ID
+; ...`). The vault keeps one ciphertext under the canonical id and turns every other member into an alias
+; of it, so a service bound to an old id keeps leasing the same value under the same environment name
+; until it is switched. No source wins by default. Members whose values differ merge only when the plan
+; names the keeper (`keep=ID`), and the others' values are then dropped and their leases refused at the
+; next renewal, as after a rotation (policy.t27 section 6).
+; --
+; The vault's own export (section 5) is a third format, read back by `import --format vault`: it keeps
+; ids, classes, ages, bindings, aliases and provenance, so a restored vault is the vault that was
+; exported.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VaultMerge;
+
+use hosting::host::TIER_OWNER;
+use vault::policy::CODE_OK;
+use vault::policy::DENY_BAD_NAME;
+use vault::policy::DENY_EXISTS;
+use vault::policy::DENY_MISSING;
+use vault::policy::DENY_NOT_OWNER;
+use vault::policy::DENY_TOO_MANY;
+use vault::policy::DENY_EMPTY_SCOPE;
+use vault::policy::DENY_DUPLICATE_IN_STREAM;
+use vault::policy::DENY_MERGE_SMALL;
+use vault::policy::DENY_MERGE_CONFLICT;
+use vault::policy::DENY_MERGE_KEEPER;
+use vault::policy::DENY_MERGE_TAKEN;
+use vault::policy::DENY_MERGE_CLASS;
+use vault::policy::DENY_ALIAS;
+use vault::policy::SECRET_CLASSES;
+use vault::policy::CLASS_OTHER;
+use vault::policy::CLASS_NONE;
+
+; --- 1. The two formats ---------------------------------------------------------------------------
+; A line is one of: SKIP (blank, or a `#` comment), SERVICE (`### <service>`, railway-kv only; in dotenv
+; it is a comment), ENTRY (`NAME=value`, with an optional `export ` before NAME in dotenv), CONTINUATION
+; or BAD.
+; railway-kv prints a value raw, so a value holding a newline (a PEM key) runs onto lines that are not
+; `NAME=` lines: such a line continues the entry before it. A raw line before any entry has nothing to
+; continue and is BAD. dotenv quotes a multi-line value, so the reader joins quoted lines itself and a
+; raw line is BAD. A blank or `#` line is skipped in both formats, even after an entry: a key never
+; holds an empty or a `#` line, and a blank line between services must not add a newline to the value
+; before it. A BAD line refuses the whole import; the refusal gives its line number, never its text.
+; An entry inside the open quote of a dotenv value is part of that value, so the reader asks this only
+; for lines outside a quote.
+; One exception in railway-kv: a raw value that starts with PEM_BEGIN is a PEM block, and every line up
+; to the one starting with PEM_END belongs to it, whatever it looks like. A base64 line of a key can
+; read `AbC1==`, which is a `NAME=value` line to the rule above; inside an open block it is not. A
+; stream that ends with a block still open is refused: the END line was lost, and so was the key.
+
+pub const FMT_DOTENV : u8 = 0;
+pub const FMT_RAILWAY_KV : u8 = 1;
+pub const FMT_VAULT : u8 = 2;
+pub const FORMATS : u8 = 3;
+pub const FORMAT_NAMES : [3]str = ["dotenv", "railway-kv", "vault"];
+pub const SERVICE_HEADER : str = "### ";
+pub const DOTENV_EXPORT_PREFIX : str = "export ";
+pub const PEM_BEGIN : str = "-----BEGIN ";
+pub const PEM_END : str = "-----END ";
+pub const OWNER_SOURCE : str = "owner";
+
+pub const LK_SKIP : u8 = 0;
+pub const LK_SERVICE : u8 = 1;
+pub const LK_ENTRY : u8 = 2;
+pub const LK_CONTINUATION : u8 = 3;
+pub const LK_BAD : u8 = 4;
+
+pub fn line_kind(format: u8, blank: bool, header: bool, comment: bool, assignment: bool, after_entry: bool, open_block: bool) -> u8 {
+    if (format != FMT_DOTENV and format != FMT_RAILWAY_KV) { return LK_BAD; }
+    if (open_block and after_entry and format == FMT_RAILWAY_KV) { return LK_CONTINUATION; }
+    if (header and format == FMT_RAILWAY_KV) { return LK_SERVICE; }
+    if (assignment) { return LK_ENTRY; }
+    if (blank or comment or header) { return LK_SKIP; }
+    if (format == FMT_RAILWAY_KV and after_entry) { return LK_CONTINUATION; }
+    return LK_BAD;
+}
+
+/// Whether a stream may end here: not inside a PEM block.
+pub fn stream_ends_clean(open_block: bool) -> bool {
+    return open_block == false;
+}
+
+; Railway injects variables of its own into every service (RAILWAY_PUBLIC_DOMAIN, RAILWAY_SERVICE_NAME,
+; ...). They describe the deployment, not a secret, and a new host makes its own, so a railway-kv import
+; leaves out every name that starts with PLATFORM_PREFIX and counts them. A dotenv import takes every
+; name: Infisical holds only what someone put there.
+
+pub const PLATFORM_PREFIX : str = "RAILWAY_";
+
+pub fn platform_name(buf: []const u8, n: usize) -> bool {
+    if (n < 8) { return false; }
+    return buf[0] == 82 and buf[1] == 65 and buf[2] == 73 and buf[3] == 76 and buf[4] == 87 and buf[5] == 65 and buf[6] == 89 and buf[7] == 95;
+}
+
+pub fn skip_on_import(format: u8, platform: bool) -> bool {
+    return format == FMT_RAILWAY_KV and platform;
+}
+
+; --- 2. Taking entries ----------------------------------------------------------------------------
+; An import is all or nothing: every entry must have a valid id, no id may come twice in one stream, and
+; no id may be in the vault already (a second import of the same source is a rotation, done by name).
+; One refused entry refuses the import, with that entry's code.
+; An import holds at most IMPORT_MAX entries.
+; An imported value's age counts from the import (the vault cannot know when a provider issued it),
+; except in the vault's own export, which records it: a restored vault keeps its rotation clock. A
+; recorded time later than now is not believed.
+
+pub const IMPORT_MAX : u32 = 5000;
+
+pub fn entry_code(id_valid: bool, seen_in_stream: bool, exists: bool) -> u8 {
+    if (id_valid == false) { return DENY_BAD_NAME; }
+    if (seen_in_stream) { return DENY_DUPLICATE_IN_STREAM; }
+    if (exists) { return DENY_EXISTS; }
+    return CODE_OK;
+}
+
+pub fn import_code(tier: u8, entries: u32, refused: u32, first_refusal: u8) -> u8 {
+    if (tier != TIER_OWNER) { return DENY_NOT_OWNER; }
+    if (entries == 0) { return DENY_EMPTY_SCOPE; }
+    if (entries > IMPORT_MAX) { return DENY_TOO_MANY; }
+    if (refused > 0) {
+        if (first_refusal == CODE_OK) { return DENY_BAD_NAME; }
+        return first_refusal;
+    }
+    return CODE_OK;
+}
+
+/// Whether an entry's id carries its service, and whether that service is its default scope.
+pub fn has_service(format: u8) -> bool {
+    return format == FMT_RAILWAY_KV;
+}
+
+/// An imported entry's class: the one the owner named (or the export recorded), or the worst case
+/// (policy.t27 CLASS_OTHER, which only the owner's machines may lease).
+pub fn import_class(named: u8) -> u8 {
+    if (named < SECRET_CLASSES) { return named; }
+    return CLASS_OTHER;
+}
+
+pub fn imported_rotated_at(format: u8, recorded: u64, now: u64) -> u64 {
+    if (format == FMT_VAULT and recorded > 0 and recorded <= now) { return recorded; }
+    return now;
+}
+
+; --- 3. Finding copies ----------------------------------------------------------------------------
+
+pub const DEDUP_KEY_BYTES : u32 = 32;
+pub const REPORT_FIELDS : [10]str = ["count", "groups", "conflicts", "kind", "name", "names", "ids", "sources", "services", "members"];
+
+pub const VG_SINGLE : u8 = 0;
+pub const VG_SAME_NAME : u8 = 1;
+pub const VG_SAME_VALUE : u8 = 2;
+pub const VALUE_GROUP_NAMES : [3]str = ["single", "same-name", "same-value"];
+
+pub fn value_group_kind(members: u32, names: u32) -> u8 {
+    if (members < 2) { return VG_SINGLE; }
+    if (names <= 1) { return VG_SAME_NAME; }
+    return VG_SAME_VALUE;
+}
+
+pub const NG_AGREE : u8 = 0;
+pub const NG_PER_SERVICE : u8 = 1;
+pub const NG_CONFLICT : u8 = 2;
+pub const NAME_GROUP_NAMES : [3]str = ["agree", "per-service", "conflict"];
+
+pub fn name_group_kind(members: u32, sources: u32, values: u32) -> u8 {
+    if (members < 2 or values <= 1) { return NG_AGREE; }
+    if (sources >= 2) { return NG_CONFLICT; }
+    return NG_PER_SERVICE;
+}
+
+pub fn value_group_shown(kind: u8) -> bool {
+    return kind == VG_SAME_NAME or kind == VG_SAME_VALUE;
+}
+
+pub fn name_group_shown(kind: u8) -> bool {
+    return kind == NG_CONFLICT;
+}
+
+; --- 4. Merging -----------------------------------------------------------------------------------
+; A plan line is applied only when: the signer is the owner; it names at least two members; the canonical
+; id is free or is one of the members (a merge never overwrites a third secret); the members hold one
+; value, or the plan names a keeper among them; and the merged class is decided -- the plan's, or the one
+; every member already has. No source and no member is a default winner. A plan holds at most PLAN_MAX
+; lines, and a line at most MERGE_MEMBERS_MAX members.
+; Every member must be a secret, not an alias: an alias already points somewhere, and pointing it again
+; would chain aliases. ALIAS_DEPTH_MAX is one: an alias names a secret that holds a ciphertext, and a
+; member that held aliases hands them to the canonical id.
+
+pub const PLAN_MAX : u32 = 1000;
+pub const MERGE_MEMBERS_MAX : u32 = 64;
+pub const ALIAS_DEPTH_MAX : u32 = 1;
+
+pub fn merged_class(all_agree: bool, agreed: u8, planned: u8) -> u8 {
+    if (planned < SECRET_CLASSES) { return planned; }
+    if (all_agree and agreed < SECRET_CLASSES) { return agreed; }
+    return CLASS_NONE;
+}
+
+pub fn canonical_free(taken: bool, member: bool) -> bool {
+    return taken == false or member;
+}
+
+pub fn merge_code(tier: u8, members: u32, values_equal: bool, keeper_named: bool, keeper_member: bool, canonical_ok: bool, class: u8) -> u8 {
+    if (tier != TIER_OWNER) { return DENY_NOT_OWNER; }
+    if (members < 2) { return DENY_MERGE_SMALL; }
+    if (members > MERGE_MEMBERS_MAX) { return DENY_TOO_MANY; }
+    if (keeper_named and keeper_member == false) { return DENY_MERGE_KEEPER; }
+    if (values_equal == false and keeper_named == false) { return DENY_MERGE_CONFLICT; }
+    if (canonical_ok == false) { return DENY_MERGE_TAKEN; }
+    if (class >= SECRET_CLASSES) { return DENY_MERGE_CLASS; }
+    return CODE_OK;
+}
+
+/// A member, or a name an owner command acts on, must be a secret that exists and is not an alias.
+pub fn target_code(exists: bool, is_alias: bool) -> u8 {
+    if (exists == false) { return DENY_MISSING; }
+    if (is_alias) { return DENY_ALIAS; }
+    return CODE_OK;
+}
+
+/// The merged secret's age: the oldest member's when they held one value (the value is as old as its
+/// oldest copy), the keeper's otherwise.
+pub fn merged_rotated_at(values_equal: bool, keeper_at: u64, oldest_at: u64) -> u64 {
+    if (values_equal) { return oldest_at; }
+    return keeper_at;
+}
+
+/// Whether the merged secret is due for rotation at once (policy.t27 rotation_due): when one value was
+/// merged, if a break-glass lease touched any copy of it; otherwise only if one touched the keeper's.
+pub fn merged_due(any_broken: bool, values_equal: bool, keeper_broken: bool) -> bool {
+    if (values_equal) { return any_broken; }
+    return keeper_broken;
+}
+
+/// Whether the leases holding a member are refused at their next renewal: only when its value changed.
+pub fn merge_revokes(values_equal: bool, is_keeper: bool) -> bool {
+    return values_equal == false and is_keeper == false;
+}
+
+; A plan is text the owner writes: blank and `#` lines are skipped, and every other line is
+; `merge CANONICAL = ID ID ...`, optionally followed by `keep=ID` and `class=WORD`. A line that is
+; neither refuses the whole plan before anything is merged, by its line number. `dedup` prints the
+; groups it found as commented plan lines for the owner to fill in; it never fills in a canonical id.
+; A plan is applied whole or not at all: every line is judged (merge_code) against the vault as it is
+; before the plan, so no id may appear in two lines -- as a member or as a canonical id -- and one
+; refused line refuses the plan.
+
+pub const PLAN_WORD : str = "merge";
+pub const PLAN_EQUALS : str = "=";
+pub const PLAN_KEEP : str = "keep=";
+pub const PLAN_CLASS : str = "class=";
+
+pub const PL_SKIP : u8 = 0;
+pub const PL_MERGE : u8 = 1;
+pub const PL_BAD : u8 = 2;
+
+pub fn plan_line_kind(blank: bool, comment: bool, word_ok: bool, equals_ok: bool, members: u32) -> u8 {
+    if (blank or comment) { return PL_SKIP; }
+    if (word_ok and equals_ok and members >= 1) { return PL_MERGE; }
+    return PL_BAD;
+}
+
+pub fn plan_code(tier: u8, lines: u32, overlap: bool) -> u8 {
+    if (tier != TIER_OWNER) { return DENY_NOT_OWNER; }
+    if (lines == 0) { return DENY_EMPTY_SCOPE; }
+    if (lines > PLAN_MAX) { return DENY_TOO_MANY; }
+    if (overlap) { return DENY_MERGE_TAKEN; }
+    return CODE_OK;
+}
+
+; --- 5. The vault's own export --------------------------------------------------------------------
+; The plaintext inside an export (policy.t27 section 10), one record per line, space-separated:
+;   EXPORT_DOMAIN                                         the first line, alone
+;   secret ID CLASS_WORD ROTATED_AT BROKEN VALUE_BASE64   one per secret; BROKEN is 0 or 1
+;   bind SCOPE ENV ID                                     one per binding
+;   alias ID CANONICAL                                    one per alias
+;   from ID SOURCE SERVICE NAME                           one per provenance; SERVICE `-` for none
+; Every field but the value is a token (audit.t27 text_ok); the value is base64, so a line never holds
+; a raw newline. A blank line is skipped; any other line that is not a record of the right length
+; refuses the whole import, by its line number.
+
+pub const EXPORT_DOMAIN : str = "trios-vault-export-v1";
+pub const NO_SERVICE : str = "-";
+pub const RECORDS : u8 = 4;
+pub const RECORD_WORDS : [4]str = ["secret", "bind", "alias", "from"];
+pub const RECORD_FIELDS : [4]u32 = [6, 4, 3, 5];
+
+pub const VL_SKIP : u8 = 0;
+pub const VL_DOMAIN : u8 = 1;
+pub const VL_SECRET : u8 = 2;
+pub const VL_BIND : u8 = 3;
+pub const VL_ALIAS : u8 = 4;
+pub const VL_FROM : u8 = 5;
+pub const VL_BAD : u8 = 6;
+
+pub fn vault_line_kind(first: bool, domain_ok: bool, blank: bool, record: u8, fields: u32) -> u8 {
+    if (first) {
+        if (domain_ok) { return VL_DOMAIN; }
+        return VL_BAD;
+    }
+    if (blank) { return VL_SKIP; }
+    if (record >= RECORDS) { return VL_BAD; }
+    if (fields != RECORD_FIELDS[record]) { return VL_BAD; }
+    return VL_SECRET + record;
+}
+
+; --- tests ----------------------------------------------------------------------------------------
+
+test a_railway_kv_line_is_read_as_its_format_says {
+    // line_kind(format, blank, header, comment, assignment, after_entry, open_block)
+    assert line_kind(FMT_RAILWAY_KV, false, true, true, false, false, false) == LK_SERVICE;
+    assert line_kind(FMT_RAILWAY_KV, false, true, true, false, true, false) == LK_SERVICE;
+    assert line_kind(FMT_RAILWAY_KV, false, false, false, true, true, false) == LK_ENTRY;
+    // a raw line after an entry continues a multi-line value; before any entry it is refused
+    assert line_kind(FMT_RAILWAY_KV, false, false, false, false, true, false) == LK_CONTINUATION;
+    assert line_kind(FMT_RAILWAY_KV, false, false, false, false, false, false) == LK_BAD;
+    // a blank or a comment line is skipped even after an entry, so no value gains a trailing newline
+    assert line_kind(FMT_RAILWAY_KV, true, false, false, false, true, false) == LK_SKIP;
+    assert line_kind(FMT_RAILWAY_KV, false, false, true, false, true, false) == LK_SKIP;
+    assert line_kind(FMT_RAILWAY_KV, true, false, false, false, false, false) == LK_SKIP;
+    assert line_kind(FMT_RAILWAY_KV, false, false, true, false, false, false) == LK_SKIP;
+}
+
+test inside_a_pem_block_every_line_is_the_key {
+    // a base64 line that reads as `NAME=value`, a blank line, a `#` and a `###` line all continue it
+    assert line_kind(FMT_RAILWAY_KV, false, false, false, true, true, true) == LK_CONTINUATION;
+    assert line_kind(FMT_RAILWAY_KV, true, false, false, false, true, true) == LK_CONTINUATION;
+    assert line_kind(FMT_RAILWAY_KV, false, false, true, false, true, true) == LK_CONTINUATION;
+    assert line_kind(FMT_RAILWAY_KV, false, true, true, false, true, true) == LK_CONTINUATION;
+    // with no entry before it there is no block to be in
+    assert line_kind(FMT_RAILWAY_KV, false, false, false, true, false, true) == LK_ENTRY;
+    // dotenv quotes its multi-line values, so it has no open block
+    assert line_kind(FMT_DOTENV, false, false, false, true, true, true) == LK_ENTRY;
+    assert stream_ends_clean(false) == true;
+    assert stream_ends_clean(true) == false;
+}
+
+test a_dotenv_line_is_read_as_its_format_says {
+    assert line_kind(FMT_DOTENV, false, false, false, true, false, false) == LK_ENTRY;
+    assert line_kind(FMT_DOTENV, true, false, false, false, true, false) == LK_SKIP;
+    assert line_kind(FMT_DOTENV, false, false, true, false, true, false) == LK_SKIP;
+    // `### x` is only a comment in dotenv
+    assert line_kind(FMT_DOTENV, false, true, true, false, true, false) == LK_SKIP;
+    // dotenv quotes a multi-line value, so a raw line is never a continuation
+    assert line_kind(FMT_DOTENV, false, false, false, false, true, false) == LK_BAD;
+    // the vault's export and a format that is not one are never read line by line here
+    assert line_kind(FMT_VAULT, false, false, false, true, false, false) == LK_BAD;
+    assert line_kind(FORMATS, false, false, false, true, false, false) == LK_BAD;
+}
+
+test railway_platform_names_are_left_out_of_a_railway_import_only {
+    assert platform_name("RAILWAY_PUBLIC_DOMAIN", 21) == true;
+    assert platform_name("RAILWAY_", 8) == true;
+    assert platform_name("RAILWAY", 7) == false;
+    assert platform_name("RAILWAYX_A", 10) == false;
+    assert platform_name("MY_RAILWAY_TOKEN", 16) == false;
+    assert platform_name("railway_x", 9) == false;
+    assert skip_on_import(FMT_RAILWAY_KV, true) == true;
+    assert skip_on_import(FMT_RAILWAY_KV, false) == false;
+    assert skip_on_import(FMT_DOTENV, true) == false;
+    assert skip_on_import(FMT_VAULT, true) == false;
+    assert has_service(FMT_RAILWAY_KV) == true;
+    assert has_service(FMT_DOTENV) == false;
+    assert has_service(FMT_VAULT) == false;
+}
+
+test an_import_is_all_or_nothing_and_the_owners {
+    assert entry_code(true, false, false) == CODE_OK;
+    assert entry_code(false, false, false) == DENY_BAD_NAME;
+    assert entry_code(true, true, false) == DENY_DUPLICATE_IN_STREAM;
+    assert entry_code(true, false, true) == DENY_EXISTS;
+    assert import_code(TIER_OWNER, 10, 0, CODE_OK) == CODE_OK;
+    assert import_code(TIER_OWNER, 10, 1, DENY_DUPLICATE_IN_STREAM) == DENY_DUPLICATE_IN_STREAM;
+    assert import_code(TIER_OWNER, 10, 1, DENY_EXISTS) == DENY_EXISTS;
+    assert import_code(TIER_OWNER, 10, 1, CODE_OK) == DENY_BAD_NAME;
+    assert import_code(TIER_OWNER, 0, 0, CODE_OK) == DENY_EMPTY_SCOPE;
+    assert import_code(TIER_OWNER, IMPORT_MAX, 0, CODE_OK) == CODE_OK;
+    assert import_code(TIER_OWNER, IMPORT_MAX + 1, 0, CODE_OK) == DENY_TOO_MANY;
+    assert import_code(1, 10, 0, CODE_OK) == DENY_NOT_OWNER;
+    assert import_class(0) == 0;
+    assert import_class(3) == 3;
+    assert import_class(CLASS_NONE) == CLASS_OTHER;
+    assert import_class(SECRET_CLASSES) == CLASS_OTHER;
+    // an imported value is as old as its import, unless the vault's own export recorded its age
+    assert imported_rotated_at(FMT_RAILWAY_KV, 500, 900) == 900;
+    assert imported_rotated_at(FMT_DOTENV, 500, 900) == 900;
+    assert imported_rotated_at(FMT_VAULT, 500, 900) == 500;
+    assert imported_rotated_at(FMT_VAULT, 0, 900) == 900;
+    assert imported_rotated_at(FMT_VAULT, 901, 900) == 900;
+}
+
+test copies_and_conflicts_are_told_apart {
+    assert value_group_kind(1, 1) == VG_SINGLE;
+    assert value_group_kind(2, 1) == VG_SAME_NAME;
+    assert value_group_kind(3, 2) == VG_SAME_VALUE;
+    assert value_group_shown(VG_SINGLE) == false;
+    assert value_group_shown(VG_SAME_NAME) == true;
+    assert value_group_shown(VG_SAME_VALUE) == true;
+    // one name, one value everywhere
+    assert name_group_kind(3, 2, 1) == NG_AGREE;
+    assert name_group_kind(1, 1, 1) == NG_AGREE;
+    // one name, two values, in Infisical and in Railway
+    assert name_group_kind(2, 2, 2) == NG_CONFLICT;
+    assert name_group_kind(5, 2, 3) == NG_CONFLICT;
+    // one name, two values, in two services of one source: each its own
+    assert name_group_kind(4, 1, 4) == NG_PER_SERVICE;
+    assert name_group_shown(NG_CONFLICT) == true;
+    assert name_group_shown(NG_PER_SERVICE) == false;
+    assert name_group_shown(NG_AGREE) == false;
+}
+
+test only_the_owners_plan_merges_and_no_source_wins_by_default {
+    // equal values, a free canonical id, a class every member has
+    assert merge_code(TIER_OWNER, 2, true, false, false, true, 0) == CODE_OK;
+    assert merge_code(1, 2, true, false, false, true, 0) == DENY_NOT_OWNER;
+    assert merge_code(TIER_OWNER, 1, true, false, false, true, 0) == DENY_MERGE_SMALL;
+    assert merge_code(TIER_OWNER, MERGE_MEMBERS_MAX + 1, true, false, false, true, 0) == DENY_TOO_MANY;
+    // different values: refused unless the owner names the keeper, and the keeper must be a member
+    assert merge_code(TIER_OWNER, 2, false, false, false, true, 0) == DENY_MERGE_CONFLICT;
+    assert merge_code(TIER_OWNER, 2, false, true, true, true, 0) == CODE_OK;
+    assert merge_code(TIER_OWNER, 2, false, true, false, true, 0) == DENY_MERGE_KEEPER;
+    assert merge_code(TIER_OWNER, 2, true, true, false, true, 0) == DENY_MERGE_KEEPER;
+    // the canonical id belongs to a third secret
+    assert merge_code(TIER_OWNER, 2, true, false, false, false, 0) == DENY_MERGE_TAKEN;
+    assert canonical_free(false, false) == true;
+    assert canonical_free(true, true) == true;
+    assert canonical_free(true, false) == false;
+    // the class is undecided
+    assert merge_code(TIER_OWNER, 2, true, false, false, true, CLASS_NONE) == DENY_MERGE_CLASS;
+    assert merged_class(true, 2, CLASS_NONE) == 2;
+    assert merged_class(false, 2, CLASS_NONE) == CLASS_NONE;
+    assert merged_class(false, 2, 4) == 4;
+    assert merged_class(true, 2, 4) == 4;
+    assert merged_class(true, CLASS_NONE, CLASS_NONE) == CLASS_NONE;
+}
+
+test aliases_point_one_step_and_a_dropped_value_ends_its_leases {
+    assert target_code(true, false) == CODE_OK;
+    assert target_code(false, false) == DENY_MISSING;
+    assert target_code(true, true) == DENY_ALIAS;
+    assert merged_rotated_at(true, 500, 100) == 100;
+    assert merged_rotated_at(false, 500, 100) == 500;
+    assert merge_revokes(true, false) == false;
+    assert merge_revokes(false, false) == true;
+    assert merge_revokes(false, true) == false;
+    // one value: a break-glass on any copy makes it due; a kept value: only the keeper's own
+    assert merged_due(true, true, false) == true;
+    assert merged_due(false, true, false) == false;
+    assert merged_due(true, false, false) == false;
+    assert merged_due(false, false, true) == true;
+}
+
+test a_plan_line_is_a_merge_or_nothing {
+    // plan_line_kind(blank, comment, word_ok, equals_ok, members)
+    assert plan_line_kind(false, false, true, true, 2) == PL_MERGE;
+    assert plan_line_kind(false, false, true, true, 1) == PL_MERGE;
+    assert plan_line_kind(true, false, false, false, 0) == PL_SKIP;
+    assert plan_line_kind(false, true, true, true, 2) == PL_SKIP;
+    assert plan_line_kind(false, false, false, true, 2) == PL_BAD;
+    assert plan_line_kind(false, false, true, false, 2) == PL_BAD;
+    assert plan_line_kind(false, false, true, true, 0) == PL_BAD;
+    // a plan is the owner's, bounded, and names each id once
+    assert plan_code(TIER_OWNER, 3, false) == CODE_OK;
+    assert plan_code(1, 3, false) == DENY_NOT_OWNER;
+    assert plan_code(TIER_OWNER, 0, false) == DENY_EMPTY_SCOPE;
+    assert plan_code(TIER_OWNER, PLAN_MAX, false) == CODE_OK;
+    assert plan_code(TIER_OWNER, PLAN_MAX + 1, false) == DENY_TOO_MANY;
+    assert plan_code(TIER_OWNER, 2, true) == DENY_MERGE_TAKEN;
+}
+
+test the_vaults_export_is_read_record_by_record {
+    // vault_line_kind(first, domain_ok, blank, record, fields)
+    assert vault_line_kind(true, true, false, 255, 1) == VL_DOMAIN;
+    assert vault_line_kind(true, false, false, 0, 6) == VL_BAD;
+    assert vault_line_kind(false, true, false, 255, 1) == VL_BAD;
+    assert vault_line_kind(false, false, true, 255, 0) == VL_SKIP;
+    assert vault_line_kind(false, false, false, 0, 6) == VL_SECRET;
+    assert vault_line_kind(false, false, false, 1, 4) == VL_BIND;
+    assert vault_line_kind(false, false, false, 2, 3) == VL_ALIAS;
+    assert vault_line_kind(false, false, false, 3, 5) == VL_FROM;
+    // a record of the wrong length, or a word that is not a record
+    assert vault_line_kind(false, false, false, 0, 5) == VL_BAD;
+    assert vault_line_kind(false, false, false, 0, 7) == VL_BAD;
+    assert vault_line_kind(false, false, false, 2, 4) == VL_BAD;
+    assert vault_line_kind(false, false, false, RECORDS, 3) == VL_BAD;
+}
+
+invariant the_formats_and_tables_are_complete {
+    assert FMT_DOTENV == 0 and FMT_RAILWAY_KV == 1 and FMT_VAULT == 2 and FORMATS == 3;
+    assert LK_SKIP == 0 and LK_BAD == 4;
+    assert VG_SINGLE == 0 and VG_SAME_VALUE == 2 and NG_CONFLICT == 2;
+    assert PL_SKIP == 0 and PL_BAD == 2;
+    // a record kind is VL_SECRET plus the record's place in RECORD_WORDS
+    assert RECORDS == 4 and VL_SECRET + RECORDS == VL_BAD and VL_FROM + 1 == VL_BAD;
+}
+/// The comparison key is at least as long as the HMAC's output block of SHA-256, and nothing is merged
+/// past the bounds the plan reader enforces.
+invariant the_bounds_hold {
+    assert DEDUP_KEY_BYTES >= 32;
+    assert ALIAS_DEPTH_MAX == 1;
+    assert MERGE_MEMBERS_MAX >= 2 and PLAN_MAX > 0 and IMPORT_MAX > 0;
+    assert CLASS_OTHER < SECRET_CLASSES and CLASS_NONE >= SECRET_CLASSES;
+}

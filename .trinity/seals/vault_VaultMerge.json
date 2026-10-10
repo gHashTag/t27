@@ -1,0 +1,37 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+32d97946e",
+  "closure": [
+    {
+      "spec": "specs/hosting/host.t27",
+      "spec_hash": "sha256:f2ac0265cc5b43920bea8859f7984b74321de21a736392fd18ae27eefc717628"
+    },
+    {
+      "spec": "specs/vault/policy.t27",
+      "spec_hash": "sha256:c956a0986b6e676732ea03fbf72d9586bfd19e9cee4c96ddb061fe749296d680"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c5cc74c8a7a6fccf29cde91b2f534641ffb4a7d25efcb9dcf46bb2ad08a3fe0c",
+  "gen_hash_rust": "sha256:9049aea6507ff9de3abee483069428bee7e4608fd8cb0b4485ec6411e47ad556",
+  "gen_hash_verilog": "sha256:847aedbeb67fd4820f9e5e02ea4d58c10ac957526160287bdcd5474ee22a31c0",
+  "gen_hash_zig": "sha256:713ff5c67a1c823ba5796d5d3d64a2ba30ba3e06918a17f2d83fcdbbfb3ec8a5",
+  "module": "VaultMerge",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T20:10:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1f14711de32b7f3b85a6407b5d59462d9fd8d4273806855d6f526ceac098c602",
+  "spec_path": "specs/vault/merge.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
