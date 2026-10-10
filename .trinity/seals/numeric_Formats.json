@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+76dab5063",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
     },
     {
       "spec": "specs/numeric/gf16.t27",
@@ -14,13 +14,13 @@
   "gen_hash_c": "sha256:5c1d934dbfa44b4984fde1641573e6909cc09f7034946ee2be488d83419dce38",
   "gen_hash_rust": "sha256:0fea95c0296440bd161bf5289e594ec815c84100bcb647b393bf7651927c8764",
   "gen_hash_verilog": "sha256:6697466c4d9ffdef9403a992d24e54804dcc06c0bef358fff498a318ab13720d",
-  "gen_hash_zig": "sha256:f51555b7b651a9d0306ca0c2a216143af03131d40125247adecf8cbfabb43f37",
+  "gen_hash_zig": "sha256:cfc8d41dabaf328c98e922afd9879d7984588d6ce55903229bb54d6561e80ce0",
   "module": "Formats",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:49:54Z",
+  "sealed_at": "2026-10-10T16:44:45Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:eeadb600e8f30e858cb990094b7962b71d6d9712e93ed6df70f8b122845d70bf",
+  "spec_hash": "sha256:55b831f1fff5e14fc08fe8aaf53a34c998f9a0094077f0dd4e50865c0618d4c5",
   "spec_path": "specs/numeric/formats.t27",
   "tests": {
     "failed": 0,

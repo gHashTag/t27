@@ -1649,7 +1649,7 @@ bench "bench_ternary_word_count_latency" {
     // Target: < 300 cycles on t27-hardware (27 trit checks)
     @setEvalBranchQuota(10000);
     var result: u8 = 0;
-    const word: TernaryWord = [_]u8{0xAA, 0x55, 0xAA, 0x55, 0xAA};
+    const word: TernaryWord = [_]u8{0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA};
     for (0..1000) |_| {
         result = ternary_word_count(word, .pos);
     }
@@ -1674,7 +1674,7 @@ bench "bench_ternary_word_negate_latency" {
     // Target: < 500 cycles on t27-hardware (27 trit negations + packing)
     @setEvalBranchQuota(10000);
     var result: TernaryWord = undefined;
-    const word: TernaryWord = [_]u8{0x55, 0xAA, 0x55, 0xAA, 0x55};
+    const word: TernaryWord = [_]u8{0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
     for (0..1000) |_| {
         result = ternary_word_negate(word);
     }

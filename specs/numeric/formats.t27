@@ -625,7 +625,7 @@ module Formats {
         // ternary_to_f32 is inverse of f32_to_ternary on the three trit values.
         // Not on -0.5 and 0.5: the threshold is strict, so both quantize to 0
         // and come back as 0.0 -- this list held them and claimed a 0.01 bound.
-        const values = [3]f32{ -1.0, 0.0, 1.0 };
+        const values: [3]f32 = [-1.0, 0.0, 1.0];
         for i in 0..3 {
             const v = values[i];
             const t = f32_to_ternary(v);
