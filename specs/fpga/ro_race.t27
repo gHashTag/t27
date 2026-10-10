@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0
+module RoRace;
+// specs/fpga/ro_race.t27 -- one runner of the die probe's ring-oscillator race (issues #8635, #8655).
+// One instance per ring: the ring's own output is this module's clock, so the count advances
+// once per ring period. The first LAST + 1 periods are counted, and then `done` rises and stays
+// up. The ring only runs while DieProbe's `run` is high, so `done` rises after a time inversely
+// proportional to this ring's frequency, and DieProbe (specs/fpga/die_probe.t27) compares two
+// rings by which `done` it sees first. Nothing here is reset: the counters start at 0 from the
+// configuration, so every SRAM load of the bitstream is one fresh race.
+// Why a race and not a count: the comparison needs one bit per ring crossing into DieProbe's
+// clock, not a 16-bit count. `done` only ever rises, so two flip-flops synchronise it.
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at most
+// once on each path, and every right-hand side reads values from before the edge.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+const LAST : u16 = 32767
+
+var count : u16 = 0
+var done : bool = false
+
+fn on_clock() {
+    if (done == false) {
+        if (count == LAST) { done = true; }
+        count = count + 1;
+    }
+}
+
+test done_rises_after_the_last_counted_period_and_never_before {
+    count = 0; done = false;
+    var i : u32 = 0;
+    while (i < 32767) { on_clock(); i = i + 1; }
+    assert_eq(done, false);
+    assert_eq(count, 32767);
+    on_clock();
+    assert_eq(done, true);
+    assert_eq(count, 32768);
+}
+
+test the_count_freezes_once_done {
+    count = 32767; done = false;
+    on_clock();
+    on_clock();
+    on_clock();
+    assert_eq(done, true);
+    assert_eq(count, 32768);
+}

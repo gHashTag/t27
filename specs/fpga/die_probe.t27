@@ -1,0 +1,325 @@
+// SPDX-License-Identifier: Apache-2.0
+module DieProbe;
+// specs/fpga/die_probe.t27 -- a pin-free ring-oscillator probe for any 7-series die (issues #8635,
+// #8655; first run on die D: the PZSDR P201/P203 Mini's Zynq XC7Z020, IDCODE 0x23727093). It needs no
+// board pin, so it does not depend on any board's schematic. Over JTAG USER1 it reports two words:
+//   RESULT  -- MAGIC in [31:20], VERSION in [19:16], the race length in [15:4] (CFGMCLK cycles
+//              / 64), and four flags: [0] race started, [1] race over, [2] every pair decided,
+//              [3] the race timed out;
+//   PUF     -- 32 ring-oscillator pair bits, one race per configuration.
+// The die's NAME is not read here. It comes from the JTAG instructions with no user design
+// (specs/verified/device_dna.t27): the decoded XSC_DNA for die_binding v2, and the 64-bit
+// FUSE_DNA. DNA_PORT is not used: on the open flow it read 0 on die D (2026-10-10, one load).
+//
+// The wrapper holds only primitives: STARTUPE2 (its CFGMCLK, through a BUFG, is this module's
+// clock), BSCANE2 on chain 1, and 64 rings of five LUTs (a NAND gated by `run`, then four
+// inverters), each clocking one RoRace (specs/fpga/ro_race.t27). Pair k is ring 2k (done_a bit k)
+// against ring 2k+1 (done_b bit k). It is not generated: gen-verilog cannot instantiate
+// primitives yet, and hand-written Verilog may not grow (the own-language gate).
+//
+// PUF: after WAIT_LAST + 1 cycles the rings start. Bit k is 1 when ring 2k reached RoRace's
+// LAST + 1 periods strictly before ring 2k+1, as seen through two flip-flops; a tie is 0. Each
+// pair is decided once, by its first `done`. This is a value the die computes, not yet a secret:
+// anyone with this bitstream and the board can read it. Whether its bits come from process
+// variation or from routing asymmetry between the two rings of a pair is not settled by one die
+// (see #8620). The identity rule (tri-net's kill switch): a PUF whose reads of one die differ in
+// more than 15% of their bits stays out of identity; puf_usable() is that rule.
+//
+// JTAG: the shift register runs in the CFGMCLK domain. TCK is sampled through two flip-flops and
+// SEL, CAPTURE, SHIFT and TDI through three, so on a rising TCK edge the controls used are ones
+// sampled while TCK was still low, i.e. the TAP state of that edge. The register moves two to
+// three CFGMCLK cycles after the edge and TDO one cycle later; the TAP takes TDO on the falling
+// edge, so TCK must stay high for at least four CFGMCLK periods (adapter speed 1000 kHz gives
+// 500 ns; CFGMCLK is 65 MHz nominal, at worst about half that). Shifted LSB first: drscan 32 x 2
+// returns RESULT, then PUF.
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at most
+// once on each path, and every right-hand side reads values from before the edge.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+const ALL : u32 = 4294967295
+const MAGIC_FIELD : u32 = 3521118208
+const VERSION_FIELD : u32 = 131072
+const WAIT_LAST : u32 = 4095
+const T_MAX : u32 = 4194304
+const P_WAIT : u8 = 0
+const P_RACE : u8 = 1
+const P_DONE : u8 = 2
+const PUF_BITS : u32 = 32
+const KILL_PERCENT : u32 = 15
+
+// Die D, 2026-10-10: five SRAM loads of one bitstream (sha256 c5a03d34de17b021...), each read
+// twice over USER1 with openocd; all ten reads agreed. A sixth load, the first of the series,
+// ended with DONE low and is not counted. These words belong to that placement: an earlier
+// netlist of this probe read 0x6131e7a2 on the same die.
+const DIE_D_RESULT : u32 = 3521251575
+const DIE_D_PUF_1 : u32 = 4233850154
+const DIE_D_PUF_2 : u32 = 4233850154
+const DIE_D_PUF_3 : u32 = 4233850154
+const DIE_D_PUF_4 : u32 = 4233850154
+const DIE_D_PUF_5 : u32 = 4233850154
+
+var phase : u8 = 0
+var run : bool = false
+var started : bool = false
+var t : u32 = 0
+var decided : u32 = 0
+var puf : u32 = 0
+var race_done : bool = false
+var all_decided : bool = false
+var timed_out : bool = false
+var da1 : u32 = 0
+var da2 : u32 = 0
+var db1 : u32 = 0
+var db2 : u32 = 0
+var tck1 : bool = false
+var tck2 : bool = false
+var sel1 : bool = false
+var sel2 : bool = false
+var sel3 : bool = false
+var cap1 : bool = false
+var cap2 : bool = false
+var cap3 : bool = false
+var sh1 : bool = false
+var sh2 : bool = false
+var sh3 : bool = false
+var tdi1 : bool = false
+var tdi2 : bool = false
+var tdi3 : bool = false
+var s0 : u32 = 0
+var s1 : u32 = 0
+var tdo : bool = false
+
+fn bit32(b: bool) -> u32 {
+    if (b) { return 1; }
+    return 0;
+}
+
+// Pairs whose first `done` arrives now.
+fn fresh(a: u32, b: u32, d: u32) -> u32 {
+    return (a | b) & (d ^ ALL);
+}
+
+// Of those, the pairs whose ring 2k arrived alone.
+fn first_a(a: u32, b: u32, d: u32) -> u32 {
+    return fresh(a, b, d) & a & (b ^ ALL);
+}
+
+fn result_word(go: bool, over: bool, every: bool, late: bool, cycles: u32) -> u32 {
+    return MAGIC_FIELD | VERSION_FIELD | (((cycles >> 6) & 4095) << 4)
+        | bit32(go) | (bit32(over) << 1) | (bit32(every) << 2) | (bit32(late) << 3);
+}
+
+// Population count without a loop: pairs, nibbles, bytes, then the four byte counts.
+fn pc_pairs(x: u32) -> u32 {
+    return x - ((x >> 1) & 1431655765);
+}
+
+fn pc_nibbles(x: u32) -> u32 {
+    return (x & 858993459) + ((x >> 2) & 858993459);
+}
+
+fn pc_bytes(x: u32) -> u32 {
+    return (x + (x >> 4)) & 252645135;
+}
+
+fn popcount32(x: u32) -> u32 {
+    var y : u32 = pc_bytes(pc_nibbles(pc_pairs(x)));
+    return (y + (y >> 8) + (y >> 16) + (y >> 24)) & 63;
+}
+
+// Bits in which two reads of one die's PUF differ.
+fn hamming32(a: u32, b: u32) -> u32 {
+    return popcount32(a ^ b);
+}
+
+// The kill switch: the PUF may enter identity only when no two reads differ in more than
+// KILL_PERCENT of its bits.
+fn puf_usable(worst: u32) -> bool {
+    return worst * 100 <= KILL_PERCENT * PUF_BITS;
+}
+
+fn on_clock(tck: bool, sel: bool, capture: bool, shift: bool, tdi: bool, done_a: u32, done_b: u32) {
+    tdo = (s0 & 1) == 1;
+    if (tck1 == true && tck2 == false && sel3 == true) {
+        if (cap3 == true) {
+            s0 = result_word(started, race_done, all_decided, timed_out, t);
+            s1 = puf;
+        } else {
+            if (sh3 == true) {
+                s0 = (s0 >> 1) | ((s1 & 1) << 31);
+                s1 = (s1 >> 1) | (bit32(tdi3) << 31);
+            }
+        }
+    }
+    tck2 = tck1;
+    tck1 = tck;
+    sel3 = sel2;
+    sel2 = sel1;
+    sel1 = sel;
+    cap3 = cap2;
+    cap2 = cap1;
+    cap1 = capture;
+    sh3 = sh2;
+    sh2 = sh1;
+    sh1 = shift;
+    tdi3 = tdi2;
+    tdi2 = tdi1;
+    tdi1 = tdi;
+
+    if (phase == P_WAIT) {
+        if (t == WAIT_LAST) {
+            run = true;
+            started = true;
+            phase = P_RACE;
+            t = 0;
+        } else {
+            t = t + 1;
+        }
+    } else {
+        if (phase == P_RACE) {
+            if (decided == ALL) {
+                all_decided = true;
+                race_done = true;
+                run = false;
+                phase = P_DONE;
+            } else {
+                if (t == T_MAX) {
+                    timed_out = true;
+                    race_done = true;
+                    run = false;
+                    phase = P_DONE;
+                }
+            }
+            puf = puf | first_a(da2, db2, decided);
+            decided = decided | fresh(da2, db2, decided);
+            t = t + 1;
+        }
+    }
+    da2 = da1;
+    da1 = done_a;
+    db2 = db1;
+    db1 = done_b;
+}
+
+fn reset_all() {
+    phase = 0; run = false; started = false; t = 0; decided = 0; puf = 0;
+    race_done = false; all_decided = false; timed_out = false;
+    da1 = 0; da2 = 0; db1 = 0; db2 = 0; tck1 = false; tck2 = false;
+    sel1 = false; sel2 = false; sel3 = false; cap1 = false; cap2 = false; cap3 = false;
+    sh1 = false; sh2 = false; sh3 = false; tdi1 = false; tdi2 = false; tdi3 = false;
+    s0 = 0; s1 = 0; tdo = false;
+}
+
+fn idle(n: u32) {
+    var i : u32 = 0;
+    while (i < n) { on_clock(false, false, false, false, false, 0, 0); i = i + 1; }
+}
+
+test the_rings_start_after_the_wait_and_not_before {
+    reset_all();
+    idle(4095);
+    assert_eq(run, false);
+    assert_eq(phase, P_WAIT);
+    idle(1);
+    assert_eq(run, true);
+    assert_eq(started, true);
+    assert_eq(phase, P_RACE);
+    assert_eq(t, 0);
+}
+
+test a_pair_is_decided_once_by_its_first_done_and_a_tie_is_zero {
+    reset_all();
+    phase = P_RACE; run = true; started = true;
+    on_clock(false, false, false, false, false, 1, 0);
+    on_clock(false, false, false, false, false, 1, 0);
+    on_clock(false, false, false, false, false, 1, 0);
+    assert_eq(decided, 1);
+    assert_eq(puf, 1);
+    on_clock(false, false, false, false, false, 1, 2);
+    on_clock(false, false, false, false, false, 7, 6);
+    on_clock(false, false, false, false, false, 7, 7);
+    on_clock(false, false, false, false, false, 7, 7);
+    assert_eq(decided, 7);
+    assert_eq(puf, 1);
+    assert_eq(race_done, false);
+    on_clock(false, false, false, false, false, ALL, ALL);
+    on_clock(false, false, false, false, false, ALL, ALL);
+    on_clock(false, false, false, false, false, ALL, ALL);
+    on_clock(false, false, false, false, false, ALL, ALL);
+    assert_eq(decided, ALL);
+    assert_eq(puf, 1);
+    assert_eq(race_done, true);
+    assert_eq(all_decided, true);
+    assert_eq(timed_out, false);
+    assert_eq(run, false);
+    assert_eq(phase, P_DONE);
+}
+
+test a_race_that_never_ends_times_out {
+    reset_all();
+    phase = P_RACE; run = true; t = T_MAX;
+    on_clock(false, false, false, false, false, 0, 0);
+    assert_eq(timed_out, true);
+    assert_eq(all_decided, false);
+    assert_eq(run, false);
+}
+
+// A full USER1 scan: capture, then 64 shifts, each TCK half period four CFGMCLK cycles long;
+// TDO is read at the end of each high half, before the TAP's falling edge.
+test the_user1_scan_returns_result_then_puf_lsb_first {
+    reset_all();
+    phase = P_DONE; puf = 2309737967; started = true; race_done = true; all_decided = true; t = 13000;
+    var got0 : u32 = 0;
+    var got1 : u32 = 0;
+    var k : u32 = 0;
+    var j : u32 = 0;
+    while (j < 4) { on_clock(false, true, true, false, false, 0, 0); j = j + 1; }
+    j = 0;
+    while (j < 4) { on_clock(true, true, true, false, false, 0, 0); j = j + 1; }
+    while (k < 64) {
+        j = 0;
+        while (j < 4) { on_clock(false, true, false, true, false, 0, 0); j = j + 1; }
+        var b : u32 = bit32(tdo);
+        if (k < 32) { got0 = got0 | (b << k); } else { got1 = got1 | (b << (k - 32)); }
+        j = 0;
+        while (j < 4) { on_clock(true, true, false, true, false, 0, 0); j = j + 1; }
+        k = k + 1;
+    }
+    assert_eq(got0, 3521252535);
+    assert_eq(got1, 2309737967);
+}
+
+test the_result_word_carries_magic_version_length_and_flags {
+    assert_eq(result_word(true, true, true, false, 13000), 3521252535);
+    assert_eq(result_word(false, false, false, false, 0), 3521249280);
+    assert_eq(result_word(true, false, false, false, 640), 3521249441);
+}
+
+test popcount_and_hamming_distance {
+    assert_eq(popcount32(0), 0);
+    assert_eq(popcount32(ALL), 32);
+    assert_eq(popcount32(1630660514), 15);
+    assert_eq(hamming32(1630660514, 1630660514), 0);
+    assert_eq(hamming32(0, ALL), 32);
+    assert_eq(hamming32(5, 6), 2);
+}
+
+test the_kill_switch_is_fifteen_percent_of_the_bits {
+    assert_eq(puf_usable(0), true);
+    assert_eq(puf_usable(4), true);
+    assert_eq(puf_usable(5), false);
+    assert_eq(puf_usable(32), false);
+}
+
+test die_d_read_back_a_finished_race_and_one_puf_word_over_five_loads {
+    assert_eq(DIE_D_RESULT >> 16, 53730);
+    assert_eq(DIE_D_RESULT & 15, 7);
+    assert_eq(((DIE_D_RESULT >> 4) & 4095) * 64, 9152);
+    assert_eq(hamming32(DIE_D_PUF_1, DIE_D_PUF_2), 0);
+    assert_eq(hamming32(DIE_D_PUF_1, DIE_D_PUF_3), 0);
+    assert_eq(hamming32(DIE_D_PUF_1, DIE_D_PUF_4), 0);
+    assert_eq(hamming32(DIE_D_PUF_1, DIE_D_PUF_5), 0);
+    assert_eq(puf_usable(hamming32(DIE_D_PUF_1, DIE_D_PUF_5)), true);
+    assert_eq(popcount32(DIE_D_PUF_1), 19);
+    assert_eq(hamming32(DIE_D_PUF_1, 1630660514), 14);
+}
