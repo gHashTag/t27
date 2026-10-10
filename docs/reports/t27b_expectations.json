@@ -862,6 +862,7 @@
   {"path": "specs/queen/holds.t27", "t27b": "pass"},
   {"path": "specs/queen/jobs.t27", "t27b": "pass"},
   {"path": "specs/queen/keyed.t27", "t27b": "pass"},
+  {"path": "specs/queen/keyed_guard.t27", "t27b": "pass"},
   {"path": "specs/queen/merger_gate.t27", "t27b": "pass"},
   {"path": "specs/queen/netlink.t27", "t27b": "pass"},
   {"path": "specs/queen/priority.t27", "t27b": "pass"},
