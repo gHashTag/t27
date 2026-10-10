@@ -1,0 +1,381 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/gf16_mac_16.t27
+// GF16 MAC Cell — Dot Product Unit (BENCH-006)
+// Port of gHashTag/trinity fpga/openxc7-synth/gf16_mac_16.v (1a7ffe8f72c7)
+// Computes: y += w·x for 16-dimensional vectors
+// w[i], x[i] ∈ GF16 (6:9 format, bias=31)
+// Result: y ∈ GF16 (normalized)
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module gf16_mac_16 {
+
+    // === GF16 Format Constants ===
+    
+    pub const GF16_SIGN_BITS: u32 = 1;
+    pub const GF16_EXP_BITS: u32 = 6;
+    pub const GF16_MANT_BITS: u32 = 9;
+    pub const GF16_TOTAL_BITS: u32 = 16;
+    pub const GF16_BIAS: u32 = 31;
+    pub const VECTOR_SIZE: u32 = 16;
+    pub const WORD_BITS: u32 = 16;
+    pub const VECTOR_TOTAL_BITS: u32 = 256;  // 16 × 16-bit
+    
+    // === GF16 Value Representation ===
+    
+    pub struct Gf16Value {
+        sign: bool,
+        exp: u32,
+        mant: u32,
+        is_zero: bool,
+    }
+    
+    // === Decoded Vector Elements ===
+    
+    pub struct DecodedVector {
+        values: [VECTOR_SIZE]Gf16Value,
+        words: [VECTOR_SIZE]u32,
+        mantissas: [VECTOR_SIZE]u32,
+    }
+    
+    fn init_decoded_vector() -> DecodedVector {
+        var values: [VECTOR_SIZE]Gf16Value;
+        var words: [VECTOR_SIZE]u32;
+        var mantissas: [VECTOR_SIZE]u32;
+        
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            values[i] = Gf16Value{.sign = false, .exp = 0, .mant = 0, .is_zero = true};
+            words[i] = 0;
+            mantissas[i] = 0;
+            i = i + 1;
+        }
+        
+        return DecodedVector{
+            .values = values,
+            .words = words,
+            .mantissas = mantissas,
+        };
+    }
+    
+    // === Multiplier Results ===
+    
+    pub struct MultiplierResult {
+        mant_product: i32,
+        sign: bool,
+        valid: bool,
+    }
+    
+    // === Accumulator State ===
+    
+    pub struct AccumulatorState {
+        stages: [VECTOR_SIZE]u32,
+        final_result: u32,
+    }
+    
+    // === GF16 Decoding Functions ===
+    
+    fn extract_sign(word: u32) -> bool {
+        return (word >> (WORD_BITS - 1)) != 0;
+    }
+    
+    fn extract_exponent(word: u32) -> u32 {
+        return (word >> (WORD_BITS - GF16_SIGN_BITS - GF16_EXP_BITS)) & ((1 << GF16_EXP_BITS) - 1);
+    }
+    
+    fn extract_mantissa(word: u32) -> u32 {
+        return word & ((1 << GF16_MANT_BITS) - 1);
+    }
+    
+    fn is_zero_word(word: u32) -> bool {
+        return word == 0;
+    }
+    
+    fn decode_gf16_word(word: u32) -> Gf16Value {
+        var is_zero: bool = is_zero_word(word);
+        
+        if (is_zero) {
+            return Gf16Value{
+                .sign = false,
+                .exp = 0,
+                .mant = 0,
+                .is_zero = true,
+            };
+        }
+        
+        var sign: bool = extract_sign(word);
+        var exp: u32 = extract_exponent(word);
+        var mant: u32 = extract_mantissa(word);
+        
+        // Add implicit 1 to mantissa
+        var full_mant: u32 = (1 << GF16_MANT_BITS) | mant;
+        
+        return Gf16Value{
+            .sign = sign,
+            .exp = exp,
+            .mant = full_mant,
+            .is_zero = false,
+        };
+    }
+    
+    fn decode_vector(data: [VECTOR_SIZE]u32) -> DecodedVector {
+        var result: DecodedVector = init_decoded_vector();
+        
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            result.values[i] = decode_gf16_word(data[i]);
+            result.words[i] = data[i];
+            result.mantissas[i] = result.values[i].mant;
+            i = i + 1;
+        }
+        
+        return result;
+    }
+    
+    // === Multiplier Functions ===
+    
+    fn multiply_mantissas(w_mant: u32, x_mant: u32) -> i32 {
+        // 9×9 multiply, result truncated to 9 bits (signed)
+        var product: u64 = (w_mant as u64) * (x_mant as u64);
+        return product as i32;
+    }
+    
+    fn compute_multiplier(w_word: u32, x_word: u32) -> MultiplierResult {
+        var w_sign: bool = extract_sign(w_word);
+        var x_sign: bool = extract_sign(x_word);
+        var w_mant: u32 = extract_mantissa(w_word);
+        var x_mant: u32 = extract_mantissa(x_word);
+        
+        // Add implicit 1 to mantissas
+        var w_full_mant: u32 = (1 << GF16_MANT_BITS) | w_mant;
+        var x_full_mant: u32 = (1 << GF16_MANT_BITS) | x_mant;
+        
+        // Sign: w_sign XOR x_sign
+        var sign: bool = w_sign ^ x_sign;
+        
+        // Multiply mantissas
+        var mant_product: i32 = multiply_mantissas(w_full_mant, x_full_mant);
+        
+        return MultiplierResult{
+            .mant_product = mant_product,
+            .sign = sign,
+            .valid = true,
+        };
+    }
+    
+    fn multiply_vector_pair(w_data: [VECTOR_SIZE]u32, x_data: [VECTOR_SIZE]u32) -> [VECTOR_SIZE]MultiplierResult {
+        var results: [VECTOR_SIZE]MultiplierResult;
+        
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            results[i] = compute_multiplier(w_data[i], x_data[i]);
+            i = i + 1;
+        }
+        
+        return results;
+    }
+    
+    // === Accumulator Functions ===
+    
+fn accumulate_products(multipliers: [VECTOR_SIZE]MultiplierResult) -> AccumulatorState {
+    var stages: [VECTOR_SIZE]u32 = [0] * VECTOR_SIZE;
+    
+    // Simple cascade adder (not optimized for speed)
+    stages[0] = multipliers[0].mant_product as u32;
+    var i: u32 = 1;
+    while (i < VECTOR_SIZE) {
+        stages[i] = stages[i - 1] + multipliers[i].mant_product as u32;
+        i = i + 1;
+    }
+    
+    return AccumulatorState{
+        .stages = stages,
+        .final_result = stages[VECTOR_SIZE - 1],
+    };
+}
+    
+    // === Result Packing Functions ===
+    
+    fn pack_gf16_result(acc_value: i32) -> u32 {
+        // Pack result as GF16 (simplified: sign=0, exp=31, mant=acc_value[8:0])
+        var mant_bits: i32 = acc_value & ((1 << GF16_MANT_BITS) - 1);
+        return (0 << (GF16_MANT_BITS + GF16_EXP_BITS)) | (GF16_BIAS << GF16_MANT_BITS) | mant_bits;
+    }
+    
+    // === LED Control Functions ===
+    
+    fn led_control(rst_n: bool) -> bool {
+        // rst_n ? 1'b0 : 1'b1 (ON when not reset)
+        return !rst_n;
+    }
+    
+    // === Test Functions ===
+    
+    fn create_test_vector() -> [VECTOR_SIZE]u32 {
+        var vec: [VECTOR_SIZE]u32;
+        // Create a simple test vector with known values
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            vec[i] = (i + 1) << 8;  // Simple non-zero values
+            i = i + 1;
+        }
+        return vec;
+    }
+    
+    fn create_zero_vector() -> [VECTOR_SIZE]u32 {
+        var vec: [VECTOR_SIZE]u32;
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            vec[i] = 0;
+            i = i + 1;
+        }
+        return vec;
+    }
+    
+    // === Tests ===
+    
+    test decode_gf16_zero {
+        var zero_word: u32 = 0;
+        var decoded: Gf16Value = decode_gf16_word(zero_word);
+        assert(decoded.is_zero == true);
+        assert(decoded.sign == false);
+        assert(decoded.exp == 0);
+        assert(decoded.mant == 0);
+    }
+    
+    test decode_gf16_nonzero {
+        var test_word: u32 = 0b0111111110000000;  // sign=0, exp=31, mant=0
+        var decoded: Gf16Value = decode_gf16_word(test_word);
+        assert(decoded.is_zero == false);
+        assert(decoded.sign == false);
+        assert(decoded.exp == 31);
+        assert(decoded.mant == 0b100000000);  // implicit 1 + mantissa bits
+    }
+    
+    test extract_sign_function {
+        var positive: u32 = 0b0111111111111111;
+        var negative: u32 = 0b1111111111111111;
+        assert(extract_sign(positive) == false);
+        assert(extract_sign(negative) == true);
+    }
+    
+    test extract_exponent_function {
+        var word: u32 = 0b0111111110000000;  // exp = 31 (111111)
+        assert(extract_exponent(word) == 31);
+    }
+    
+    test extract_mantissa_function {
+        var word: u32 = 0b0000000011111111;  // mant = 0b11111111
+        assert(extract_mantissa(word) == 0b11111111);
+    }
+    
+    test is_zero_detection {
+        assert(is_zero_word(0) == true);
+        assert(is_zero_word(1) == false);
+        assert(is_zero_word(0xFFFF) == false);
+    }
+    
+    test multiply_mantissas_simple {
+        var w_mant: u32 = 0b100000000;  // 1.0 in 9-bit format
+        var x_mant: u32 = 0b100000000;  // 1.0 in 9-bit format
+        var product: i32 = multiply_mantissas(w_mant, x_mant);
+        assert(product == 0b100000000000000000);  // 1.0 * 1.0 = 1.0 (18-bit)
+    }
+    
+    test multiplier_result {
+        var w_word: u32 = 0b0011111110000000;  // sign=0, exp=15, mant=0
+        var x_word: u32 = 0b0011111110000000;  // sign=0, exp=15, mant=0
+        var result: MultiplierResult = compute_multiplier(w_word, x_word);
+        assert(result.valid == true);
+        assert(result.sign == false);  // 0 XOR 0 = 0
+        assert(result.mant_product >= 0);
+    }
+    
+    test accumulate_products_simple {
+        var multipliers: [VECTOR_SIZE]MultiplierResult;
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            multipliers[i] = MultiplierResult{.mant_product = 1, .sign = false, .valid = true};
+            i = i + 1;
+        }
+        var acc_state: AccumulatorState = accumulate_products(multipliers);
+        assert(acc_state.final_result == 16);  // 1 + 1 + ... + 1 (16 times)
+    }
+    
+    test pack_gf16_result {
+        var acc_value: i32 = 0b100000000;  // 1.0 in 9-bit format
+        var packed: u32 = pack_gf16_result(acc_value);
+        var expected_sign: u32 = 0;
+        var expected_exp: u32 = GF16_BIAS;
+        var expected_mant: u32 = acc_value & ((1 << GF16_MANT_BITS) - 1);
+        var expected: u32 = (expected_sign << (GF16_MANT_BITS + GF16_EXP_BITS)) | 
+                           (expected_exp << GF16_MANT_BITS) | 
+                           expected_mant;
+        assert(packed == expected);
+    }
+    
+    test led_control_active {
+        assert(led_control(true) == false);  // rst_n = true, led = false
+    }
+    
+    test led_control_reset {
+        assert(led_control(false) == true);   // rst_n = false, led = true
+    }
+    
+    test decode_vector_all_zero {
+        var zero_vec: [VECTOR_SIZE]u32 = create_zero_vector();
+        var decoded: DecodedVector = decode_vector(zero_vec);
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            assert(decoded.values[i].is_zero == true);
+            assert(decoded.words[i] == 0);
+            assert(decoded.mantissas[i] == 0);
+            i = i + 1;
+        }
+    }
+    
+    test decode_vector_nonzero {
+        var test_vec: [VECTOR_SIZE]u32 = create_test_vector();
+        var decoded: DecodedVector = decode_vector(test_vec);
+        assert(decoded.values[0].is_zero == false);
+        assert(decoded.words[0] == 1 << 8);
+        assert(decoded.mantissas[0] == (1 << GF16_MANT_BITS) | 0);  // implicit 1 + mantissa
+    }
+    
+    test multiply_vector_pair_simple {
+        var w_vec: [VECTOR_SIZE]u32 = create_test_vector();
+        var x_vec: [VECTOR_SIZE]u32 = create_test_vector();
+        var results: [VECTOR_SIZE]MultiplierResult = multiply_vector_pair(w_vec, x_vec);
+        var i: u32 = 0;
+        while (i < VECTOR_SIZE) {
+            assert(results[i].valid == true);
+            // Both vectors have positive sign, so result should be positive
+            assert(results[i].sign == false);
+            assert(results[i].mant_product > 0);
+            i = i + 1;
+        }
+    }
+    
+    // === Invariants ===
+    
+    invariant gf16_format_constants
+        assert(GF16_SIGN_BITS == 1);
+        assert(GF16_EXP_BITS == 6);
+        assert(GF16_MANT_BITS == 9);
+        assert(GF16_TOTAL_BITS == 16);
+        assert(GF16_BIAS == 31);
+        assert(VECTOR_SIZE == 16);
+        assert(WORD_BITS == 16);
+        assert(VECTOR_TOTAL_BITS == 256);
+    
+    invariant vector_size_matches
+        assert(VECTOR_SIZE * WORD_BITS == VECTOR_TOTAL_BITS);
+    
+    invariant mantissa_bits_correct
+        assert(GF16_MANT_BITS == 9);
+        assert(GF16_EXP_BITS == 6);
+        assert(GF16_SIGN_BITS == 1);
+        assert(GF16_SIGN_BITS + GF16_EXP_BITS + GF16_MANT_BITS == GF16_TOTAL_BITS);
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
