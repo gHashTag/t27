@@ -349,6 +349,7 @@
   {"path": "specs/hosting/host.t27", "t27b": "pass"},
   {"path": "specs/hosting/placement.t27", "t27b": "pass"},
   {"path": "specs/hosting/proof.t27", "t27b": "pass"},
+  {"path": "specs/hosting/sybil.t27", "t27b": "pass"},
   {"path": "specs/hosting/toolchain.t27", "t27b": "pass"},
   {"path": "specs/hosting/topology.t27", "t27b": "pass"},
   {"path": "specs/i18n/agents-ru.t27", "t27b": "pass"},

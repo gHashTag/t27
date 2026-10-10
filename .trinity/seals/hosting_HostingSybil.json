@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:abf927787d41b69d178e6d083531688d653ee157e8533009f066a3ad4de9f4a6",
+  "gen_hash_rust": "sha256:a0ed70c31ed09b24d996647a8a4d980c5bb0ab51337b6b33b2068aa9dbde99a9",
+  "gen_hash_verilog": "sha256:e822bca1cff6af9e0287b50aa39fb39ace11443d2cf3e69b8bf7023899cd6089",
+  "gen_hash_zig": "sha256:6fe6f854b417437a96f4326340cd57ccf0a040f3984017c6e8d5977400e0b0f5",
+  "module": "HostingSybil",
+  "ring": 12,
+  "sealed_at": "2026-10-10T18:48:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:5eeff187e83c9473d29e66c71759bd89c493084402bc8c754f3a2d0fb45760cc",
+  "spec_path": "specs/hosting/sybil.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
+}
