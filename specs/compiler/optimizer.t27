@@ -319,18 +319,10 @@ module Optimization {
         given result = get_precondition(DeadStoreElim)
         then result != null
 
-    test dead_store_elim_preserves_side_effecting_calls
-        ; Test that dead_store_elim does not delete expressions containing function calls
-        ; even when the result is unused
-        given
-            var result = true ; Placeholder until an implementation lands
-        then result == true ; This comment documents the requirement - calls should be preserved
-
-    test dead_store_elim_counts_field_writes_as_reads
-        ; Test that dead_store_elim recognizes field writes as reads of the base variable
-        given
-            var result = true ; Placeholder until an implementation lands
-        then result == true ; This comment documents the requirement - field writes should preserve declarations
+    // Deferred obligations (#8756): dead-store elimination must preserve
+    // side-effecting calls and treat field writes as reads of the base.
+    // Neither is implemented by this spec. Former true-valued placeholders
+    // were not executable evidence and discarded 84 tokens during parsing.
 
     test loop_unroll_has_precondition
         given result = get_precondition(LoopUnroll)

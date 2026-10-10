@@ -175,15 +175,6 @@
       "suggested_action": "Two fixes, unrelated: (a) leave the types alone, they are genuinely different; (b) fix the field reader in `tri types dup` to accept `pub` on fields \u2014 it currently reports three structs as fieldless."
     },
     {
-      "name": "Episode",
-      "sites": [
-        "specs/memory/graph/ingest.t27:63",
-        "specs/queen/lotus.t27:65"
-      ],
-      "verdict": "DISTINCT",
-      "evidence": "ingest.t27:63 `pub struct Episode { id: u64, group_id, principal, owner, thread, valid_at, created_at, content_hash, plaintext_consent, trust_domain, attempts, state }` is the memory graph's append-only provenance record (ENTRY_INVARIANT 'Episode log is append-only, no deletions', agents/e.t27:32). lotus.t27:65 `struct Episode { id: usize, timestamp, context, evaluation, plan, result, outcome }` (nested in module lotus, beside `var episode_buffer : [EPISODE_BUFFER_SIZE]Episode`) is the Lotus runtime's loop-step entry for PHASE_OBSERVE..PHASE_LEARN. Provenance ledger record vs agent-loop step: two concepts, one name."
-    },
-    {
       "name": "EvalResult",
       "sites": [
         "specs/igla/coder/eval.t27:47",

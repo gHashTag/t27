@@ -284,27 +284,7 @@ pub fn analyzed(nodes: []const u8, text: []const u8, marks: []u8) -> void {
 
 const SHAPE_TEXT : str = "**-undefinedunion(enumunion (enumbodystringfgh 'a'x.ya:b  u8";
 
-/// Clears the first n marks.
-fn wipe(marks: []u8, n: usize) -> void {
-    var i : usize = 0;
-    while (i < n) {
-        marks[i] = 0;
-        i = i + 1;
-    }
-}
-
-/// Which of the first n marks are set: bit i of the result for mark i.
-fn bits(marks: []u8, n: usize) -> u32 {
-    var m : u32 = 0;
-    var bit : u32 = 1;
-    var i : usize = 0;
-    while (i < n) {
-        if (marks[i] == MARK) { m = m + bit; }
-        bit = bit * 2;
-        i = i + 1;
-    }
-    return m;
-}
+// Shared fixture helpers come from ast_scan (#8756); no second bodies here.
 
 test a_field_is_blank_when_only_white_space_is_in_it {
     assert blank(SHAPE_TEXT, 56, 58);
@@ -374,19 +354,19 @@ test the_value_of_each_one_child_constant_is_marked {
     node(buf[0 .. 648], 7, K_CONST_DECL, 9, 50, 51);
     node(buf[0 .. 648], 8, K_EXPR_IDENTIFIER, 9, 50, 51);
     const ns : []const u8 = buf[0 .. 648];
-    wipe(m[0 .. 9], 9);
+    ast_scan::clear(m[0 .. 9], 9);
     const_values(ns, SHAPE_TEXT, "x", m[0 .. 9]);
-    assert bits(m[0 .. 9], 9) == 260;
-    wipe(m[0 .. 9], 9);
+    assert ast_scan::mask(m[0 .. 9], 9) == 260;
+    ast_scan::clear(m[0 .. 9], 9);
     const_values(ns, SHAPE_TEXT, "f", m[0 .. 9]);
-    assert bits(m[0 .. 9], 9) == 0;
-    wipe(m[0 .. 9], 9);
+    assert ast_scan::mask(m[0 .. 9], 9) == 0;
+    ast_scan::clear(m[0 .. 9], 9);
     const_values(ns, SHAPE_TEXT, "", m[0 .. 9]);
-    assert bits(m[0 .. 9], 9) == 0;
+    assert ast_scan::mask(m[0 .. 9], 9) == 0;
     node(buf[0 .. 648], 7, K_STMT_LOCAL, 9, 50, 51);
-    wipe(m[0 .. 9], 9);
+    ast_scan::clear(m[0 .. 9], 9);
     const_values(ns, SHAPE_TEXT, "x", m[0 .. 9]);
-    assert bits(m[0 .. 9], 9) == 4;
+    assert ast_scan::mask(m[0 .. 9], 9) == 4;
 }
 
 test a_simple_element_is_a_literal_a_name_a_call_of_those_or_a_negated_literal {
@@ -447,9 +427,9 @@ test identifiers_are_marked_and_a_name_ends_at_its_first_dot_or_colon {
     node(buf[0 .. 360], 2, K_EXPR_FIELD_ACCESS, 4, 44, 45);
     node(buf[0 .. 360], 3, K_EXPR_IDENTIFIER, 4, 53, 56);
     node(buf[0 .. 360], 4, K_EXPR_LITERAL, 5, 50, 51);
-    wipe(m[0 .. 5], 5);
+    ast_scan::clear(m[0 .. 5], 5);
     idents(buf[0 .. 360], SHAPE_TEXT, m[0 .. 5]);
-    assert bits(m[0 .. 5], 5) == 10;
+    assert ast_scan::mask(m[0 .. 5], 5) == 10;
     assert head_len("x.y") == 1;
     assert head_len("a:b") == 1;
     assert head_len("body") == 4;
@@ -616,70 +596,70 @@ test strength_reduction_reaches_muls_from_top_level_statements_of_fn_bodies {
     node(buf[0 .. 1656], 21, K_EXPR_LITERAL, 22, 0, 0);
     node(buf[0 .. 1656], 22, K_EXPR_LITERAL, 23, 0, 0);
     const ns : []const u8 = buf[0 .. 1656];
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 516;
+    assert ast_scan::mask(m[0 .. 23], 23) == 516;
     // A `return` at the top level is a root; an `if` is not
     node(buf[0 .. 1656], 13, K_EXPR_RETURN, 18, 0, 0);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 16900;
+    assert ast_scan::mask(m[0 .. 23], 23) == 16900;
     node(buf[0 .. 1656], 13, K_STMT_IF, 18, 0, 0);
     // The `+` above the `*`: the walk passes through it and marks it when it is a `*` too
     set(buf[0 .. 1656], 9, F_OP, 2, 3);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 4;
+    assert ast_scan::mask(m[0 .. 23], 23) == 4;
     set(buf[0 .. 1656], 8, F_OP, 0, 1);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 260;
+    assert ast_scan::mask(m[0 .. 23], 23) == 260;
     set(buf[0 .. 1656], 8, F_OP, 2, 3);
     set(buf[0 .. 1656], 9, F_OP, 0, 1);
     // A module not named `body` is not looked into; a test is no fn
     node(buf[0 .. 1656], 5, K_MODULE, 18, 50, 51);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 4;
+    assert ast_scan::mask(m[0 .. 23], 23) == 4;
     node(buf[0 .. 1656], 5, K_MODULE, 18, 33, 37);
     node(buf[0 .. 1656], 0, K_TEST_BLOCK, 18, 43, 44);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 0;
+    assert ast_scan::mask(m[0 .. 23], 23) == 0;
     node(buf[0 .. 1656], 0, K_FN_DECL, 18, 43, 44);
     // An assignment of one child has no value to walk
     node(buf[0 .. 1656], 6, K_STMT_ASSIGN, 8, 0, 0);
     node(buf[0 .. 1656], 8, K_STMT_EXPR, 13, 0, 0);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 4;
+    assert ast_scan::mask(m[0 .. 23], 23) == 4;
     node(buf[0 .. 1656], 6, K_STMT_ASSIGN, 13, 0, 0);
     node(buf[0 .. 1656], 8, K_EXPR_BINARY, 13, 0, 0);
     set(buf[0 .. 1656], 8, F_OP, 2, 3);
     // A value that is no binary operator is not walked, whatever its operator text and children
     node(buf[0 .. 1656], 2, K_EXPR_CALL, 5, 43, 44);
     set(buf[0 .. 1656], 2, F_OP, 0, 1);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 512;
+    assert ast_scan::mask(m[0 .. 23], 23) == 512;
     // A binary operator of one child is not walked either
     node(buf[0 .. 1656], 2, K_EXPR_BINARY, 4, 0, 0);
     set(buf[0 .. 1656], 2, F_OP, 0, 1);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 512;
+    assert ast_scan::mask(m[0 .. 23], 23) == 512;
     node(buf[0 .. 1656], 2, K_EXPR_BINARY, 5, 0, 0);
     set(buf[0 .. 1656], 2, F_OP, 0, 1);
     // A childless `return` has no value; the bare `*` statement after it is no root
     node(buf[0 .. 1656], 13, K_EXPR_RETURN, 14, 0, 0);
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 516;
+    assert ast_scan::mask(m[0 .. 23], 23) == 516;
     node(buf[0 .. 1656], 13, K_STMT_IF, 18, 0, 0);
     // The fn as the last item of the list
-    wipe(m[0 .. 23], 23);
+    ast_scan::clear(m[0 .. 23], 23);
     strength_reduced(buf[0 .. 1296], SHAPE_TEXT, m[0 .. 23]);
-    assert bits(m[0 .. 23], 23) == 516;
+    assert ast_scan::mask(m[0 .. 23], 23) == 516;
 }
 
 test analyzed_fns_are_named_by_a_root_or_by_a_reached_body {
@@ -710,42 +690,42 @@ test analyzed_fns_are_named_by_a_root_or_by_a_reached_body {
     node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 58, 60);
     node(buf[0 .. 1512], 20, K_EXPR_IDENTIFIER, 21, 45, 46);
     const ns : []const u8 = buf[0 .. 1512];
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 66184;
+    assert ast_scan::mask(m[0 .. 21], 21) == 66184;
     // A bench is no root: f, and g through it, are gone; h stays through the constant
     node(buf[0 .. 1512], 0, K_BENCH_BLOCK, 3, 0, 0);
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 512;
+    assert ast_scan::mask(m[0 .. 21], 21) == 512;
     // A root's own name counts: a constant named x reaches fn x, whose body names f
     node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 50, 51);
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 67208;
+    assert ast_scan::mask(m[0 .. 21], 21) == 67208;
     node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 58, 60);
     node(buf[0 .. 1512], 0, K_TEST_BLOCK, 3, 0, 0);
     // An invariant is a root; a top-level statement is not, but any other kind is
     node(buf[0 .. 1512], 12, K_INVARIANT_BLOCK, 14, 0, 0);
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 67208;
+    assert ast_scan::mask(m[0 .. 21], 21) == 67208;
     node(buf[0 .. 1512], 12, K_BENCH_BLOCK, 14, 0, 0);
     node(buf[0 .. 1512], 14, K_STMT_LOCAL, 16, 0, 0);
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 67208;
+    assert ast_scan::mask(m[0 .. 21], 21) == 67208;
     node(buf[0 .. 1512], 14, K_STMT_EXPR, 16, 0, 0);
     // The second g reaches what its body names once g is reached
     node(buf[0 .. 1512], 17, K_EXPR_IDENTIFIER, 18, 50, 51);
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 67208;
+    assert ast_scan::mask(m[0 .. 21], 21) == 67208;
     node(buf[0 .. 1512], 17, K_EXPR_IDENTIFIER, 18, 58, 60);
     // No root at all: nothing is reached
     node(buf[0 .. 1512], 0, K_BENCH_BLOCK, 3, 0, 0);
     node(buf[0 .. 1512], 19, K_FN_DECL, 21, 58, 60);
-    wipe(m[0 .. 21], 21);
+    ast_scan::clear(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
-    assert bits(m[0 .. 21], 21) == 0;
+    assert ast_scan::mask(m[0 .. 21], 21) == 0;
 }

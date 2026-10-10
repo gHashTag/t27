@@ -39,6 +39,8 @@
 
 module T27bIntCastPlan;
 
+use tri::t27b::type_text;
+
 // What the lowered operand is, as the glue sees it: a typed integer (a constant one included), a
 // comptime_int literal, or anything else.
 pub const K_INT : u8 = 0;
@@ -71,23 +73,14 @@ pub const INDEX_TYPE : str = "usize";
 pub const INDEX_BITS : u32 = 64;
 pub const INDEX_SIGNED : bool = false;
 
-/// Is the text exactly `w`?
-fn same(s: []const u8, w: str) -> bool {
-    if (s.len != w.len) { return false; }
-    var k : usize = 0;
-    while (k < w.len) {
-        if (s[k] != w[k]) { return false; }
-        k = k + 1;
-    }
-    return true;
-}
+// Reuse type_text::same rather than another byte-comparison body (#8756).
 
 /// Does a plain assignment `x = f(..)` to a scalar var give the builtin `f` x's type as its result type? Each
 /// builtin here takes its type from the result location: `@intCast` (by `plan`), `@floatFromInt`,
 /// `@intFromFloat`, `@floatCast` and `@bitCast`. Any other right-hand side is evaluated on its own.
 pub fn from_destination(name: []const u8) -> bool {
-    if (same(name, SITE) or same(name, "@bitCast")) { return true; }
-    return same(name, "@floatFromInt") or same(name, "@intFromFloat") or same(name, "@floatCast");
+    if (type_text::same(name, SITE) or type_text::same(name, "@bitCast")) { return true; }
+    return type_text::same(name, "@floatFromInt") or type_text::same(name, "@intFromFloat") or type_text::same(name, "@floatCast");
 }
 
 /// Can the call be lowered at all: one operand, an integer result type? The operand count is asked first.

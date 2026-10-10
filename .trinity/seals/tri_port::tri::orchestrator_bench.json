@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+12c6d9140",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:7ea5d466e0d65d0f429d6b9d6a15a60f2b62b264083b144c571460d361b6bcb1",
+  "gen_hash_rust": "sha256:3f1de9fdadc8708b68df2598add524ad4a20f9167d636e17feddfde91c998448",
+  "gen_hash_verilog": "sha256:fddacfe04fb254dd18ac5126fff6b78088d91a9c2cbb32c2d68ff99270d69cc2",
+  "gen_hash_zig": "sha256:9bd0d4db204e607ba542eb17071b32ddcbc2e7439142fe1055ee4afc0c5623f2",
+  "module": "port::tri::orchestrator_bench",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:07:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b93d58531fc3a25cf4fa98287c83f72619f63736eae7ab2fc9370e95abe4a401",
+  "spec_path": "specs/port/trinity/src/tri/orchestrator_bench.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

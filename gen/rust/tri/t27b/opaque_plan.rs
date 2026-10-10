@@ -43,20 +43,6 @@ pub fn opaque_type(by_value: bool) -> u8 {
     return OPAQUE;
 }
 
-pub fn same(s: &[u8], w: &'static str) -> bool {
-    if (s.len() != w.len()) {
-        return false;
-    }
-    let mut k: usize = 0;
-    while (k < w.len()) {
-        if (s[(k) as usize] != w.as_bytes()[(k) as usize]) {
-            return false;
-        }
-        k = (k + 1);
-    }
-    return true;
-}
-
 pub fn named(t: &[u8], by_value: bool) -> u8 {
     if same(t, "anyopaque") {
         return opaque_type(by_value);
@@ -234,5 +220,101 @@ pub fn why(act: u8) -> &'static str {
         return "to a pointer whose pointee is aligned to more than 1 byte (Zig panics on a misaligned address, which t27b does not check yet)";
     }
     return "";
+}
+
+pub const B_LT: u8 = 60;
+
+pub const B_UNDERSCORE: u8 = 95;
+
+pub const MAPPED_NAMES: [&'static str; 8] = ["str", "string", "float", "double", "int", "uint", "GF16", "gf16"];
+
+pub const ZIG_NAMES: [&'static str; 21] = ["bool", "void", "type", "anyerror", "anyframe", "anyopaque", "noreturn", "usize", "isize", "comptime_int", "comptime_float", "c_char", "c_short", "c_ushort", "c_int", "c_uint", "c_long", "c_ulong", "c_longlong", "c_ulonglong", "c_longdouble"];
+
+pub fn alpha(c: u8) -> bool {
+    return (((c >= 65) && (c <= 90)) || ((c >= 97) && (c <= 122)));
+}
+
+pub fn digit(c: u8) -> bool {
+    return ((c >= 48) && (c <= 57));
+}
+
+pub fn ident(s: &[u8]) -> bool {
+    if (s.len() == 0) {
+        return false;
+    }
+    if (!(alpha(s[0])) && (s[0] != B_UNDERSCORE)) {
+        return false;
+    }
+    let mut i: usize = 1;
+    while (i < s.len()) {
+        if !(word(s[(i) as usize])) {
+            return false;
+        }
+        i = (i + 1);
+    }
+    return true;
+}
+
+pub fn same(s: &[u8], w: &'static str) -> bool {
+    if (s.len() != w.len()) {
+        return false;
+    }
+    let mut k: usize = 0;
+    while (k < w.len()) {
+        if (s[(k) as usize] != w.as_bytes()[(k) as usize]) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return true;
+}
+
+pub fn undeclared(base: &[u8], declared: bool) -> bool {
+    let mut i: usize = 0;
+    while (i < base.len()) {
+        if (base[(i) as usize] == B_LT) {
+            return true;
+        }
+        i = (i + 1);
+    }
+    if (declared || !(ident(base))) {
+        return false;
+    }
+    let mut k: usize = 0;
+    while (k < 8) {
+        if same(base, MAPPED_NAMES[(k) as usize]) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return !(zig_type_name(base));
+}
+
+pub fn word(c: u8) -> bool {
+    return ((alpha(c) || digit(c)) || (c == B_UNDERSCORE));
+}
+
+pub fn zig_type_name(s: &[u8]) -> bool {
+    let mut k: usize = 0;
+    while (k < 21) {
+        if same(s, ZIG_NAMES[(k) as usize]) {
+            return true;
+        }
+        k = (k + 1);
+    }
+    if (s.len() < 2) {
+        return false;
+    }
+    if (((s[0] != 117) && (s[0] != 105)) && (s[0] != 102)) {
+        return false;
+    }
+    let mut i: usize = 1;
+    while (i < s.len()) {
+        if !(digit(s[(i) as usize])) {
+            return false;
+        }
+        i = (i + 1);
+    }
+    return true;
 }
 

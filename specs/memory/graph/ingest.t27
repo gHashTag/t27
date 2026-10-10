@@ -1,489 +1,365 @@
-; SPDX-License-Identifier: Apache-2.0
-; specs/memory/graph/ingest.t27 -- how an episode becomes entities and facts, and every way that can refuse
-; Epic #7828, slice 4. Slices 1-3 already landed: types.t27, temporal.t27, scope.t27, crypt.t27.
+// SPDX-License-Identifier: Apache-2.0
+; Epic #7828, slice 4 (#8425), executable restoration #8752.
+; Pure extraction policy: it emits an effect request but never calls an LLM.
+; Plaintext disclosure needs explicit consent for the selected trust domain.
+; Slices 1-3 own scope, retention and fact validity; their rules are called here.
+; Outcome is one u64 so state, emission, commit and refusal cannot drift apart.
 
 module MemoryGraphIngest;
 
-; Import dependencies
-import MemoryGraphTypes;
-import MemoryGraphScope;
-import MemoryGraphTemporal;
-import MemoryGraphCrypt;
+use memory::graph::scope;
+use memory::graph::temporal;
+use memory::graph::types;
 
-; State codes
 pub const STATE_RECEIVED : u8 = 1;
 pub const STATE_ADMITTED : u8 = 2;
 pub const STATE_EXTRACTING : u8 = 3;
 pub const STATE_COMMITTED : u8 = 4;
 pub const STATE_REJECTED : u8 = 5;
-
-; Event codes
 pub const EVENT_ADMIT : u8 = 1;
 pub const EVENT_EMIT : u8 = 2;
 pub const EVENT_RESULT : u8 = 3;
 pub const EVENT_FAIL : u8 = 4;
 pub const EVENT_ABORT : u8 = 5;
-
-; Reason codes
 pub const REASON_NONE : u8 = 0;
 pub const REASON_SCOPE : u8 = 1;
 pub const REASON_TEMPORAL : u8 = 2;
 pub const REASON_FORMAT : u8 = 3;
 pub const REASON_EFFECT : u8 = 4;
 pub const REASON_STATE : u8 = 5;
-
-; Trust domain codes
+pub const REASON_CONSENT : u8 = 6;
+pub const REASON_DOMAIN : u8 = 7;
+pub const REASON_SETTLED : u8 = 8;
 pub const DOMAIN_UNKNOWN : u8 = 0;
 pub const DOMAIN_PRIVATE : u8 = 1;
 pub const DOMAIN_PUBLIC : u8 = 2;
-
-; Consent codes
 pub const CONSENT_MISSING : u8 = 0;
-pub const CONSENT_GRANTED : u8 = 1;
+pub const CONSENT_PRIVATE : u8 = 1;
 pub const CONSENT_DENIED : u8 = 2;
+pub const CONSENT_PUBLIC : u8 = 3;
+pub const CONSENT_BOTH : u8 = 4;
+pub const MAX_ATTEMPTS : u8 = 3;
 
-; Admission verdict codes
-pub const VERDICT_ALLOWED : u8 = 1;
-pub const VERDICT_DENIED : u8 = 8;
+; Bits 0..7: state; 8: emitted; 9: committed; 10: requires_plaintext;
+; 16..23: reason; 24..31: trust domain; 32..39: attempts already emitted.
+pub const EFFECT_BIT : u64 = 256;
+pub const COMMIT_BIT : u64 = 512;
+pub const PLAINTEXT_BIT : u64 = 1024;
 
-; Outcome codes
-pub const OUTCOME_SETTLED : u8 = 1;
-pub const OUTCOME_STATE : u8 = 2;
-
-; Transition result structure
-pub struct TransitionResult {
-    next_state: u8,
-    emitted: bool,
-    committed: bool,
-    reason: u8,
-    outcome: u8
+pub fn is_state(state: u8) -> bool {
+    return state >= STATE_RECEIVED && state <= STATE_REJECTED;
 }
 
-; Episode structure
-pub struct Episode {
-    id: u64,
-    group_id: u64,
-    principal: u64,
-    owner: u64,
-    thread: u64,
-    valid_at: u64,
-    created_at: u64,
-    content_hash: u64,
-    plaintext_consent: u8,
-    trust_domain: u8,
-    attempts: u8,
-    state: u8,
-    reason: u8
+pub fn is_event(event: u8) -> bool {
+    return event >= EVENT_ADMIT && event <= EVENT_ABORT;
 }
 
-; Test episode creator
-fn create_test_episode() -> Episode {
-    return Episode {
-        id: 1,
-        group_id: 1,
-        principal: 1,
-        owner: 1,
-        thread: 1,
-        valid_at: 1000,
-        created_at: 1000,
-        content_hash: 0x12345678,
-        plaintext_consent: CONSENT_GRANTED,
-        trust_domain: DOMAIN_PRIVATE,
-        attempts: 1,
-        state: STATE_RECEIVED,
-        reason: REASON_NONE
-    }
+pub fn is_allowed(reason: u8) -> bool { return reason == REASON_NONE; }
+
+pub fn refusal(reason: u8) -> u8 {
+    if (reason >= REASON_SCOPE && reason <= REASON_SETTLED) { return reason; }
+    return REASON_STATE;
 }
 
-; Admission gate function
-fn admission_gate(episode: Episode) -> (u8, u8) {
-    ; Check scope policy
-    var may_write = scope::may_write(episode.principal, episode.group_id);
-    if (!may_write) {
-        return (VERDICT_DENIED, REASON_SCOPE);
-    }
-    
-    ; Check temporal policy
-    var known_as_of = temporal::known_as_of(episode.valid_at);
-    if (!known_as_of) {
-        return (VERDICT_DENIED, REASON_TEMPORAL);
-    }
-    
-    var raw_expired = scope::raw_expired(episode.created_at);
-    if (raw_expired) {
-        return (VERDICT_DENIED, REASON_TEMPORAL);
-    }
-    
-    ; Check fact well-formedness
-    var endpoints_ok = types::fact_endpoints_ok(episode.id, episode.owner, episode.thread);
-    if (!endpoints_ok) {
-        return (VERDICT_DENIED, REASON_FORMAT);
-    }
-    
-    var well_formed = types::fact_well_formed(episode.id);
-    if (!well_formed) {
-        return (VERDICT_DENIED, REASON_FORMAT);
-    }
-    
-    return (VERDICT_ALLOWED, REASON_NONE);
+pub fn is_domain(domain: u8) -> bool {
+    return domain == DOMAIN_PRIVATE || domain == DOMAIN_PUBLIC;
 }
 
-; Main transition function
-fn transition(state: u8, event: u8, verdict: u8, attempts: u8, consent: u8, domain: u8) -> TransitionResult {
-    var result = TransitionResult {
-        next_state: state,
-        emitted: false,
-        committed: false,
-        reason: REASON_NONE,
-        outcome: OUTCOME_STATE
-    };
-    
-    ; Handle absorbing states
+pub fn consent_covers(domain: u8, consent: u8) -> bool {
+    if (!is_domain(domain)) { return false; }
+    if (consent == CONSENT_BOTH) { return true; }
+    if (domain == DOMAIN_PRIVATE) { return consent == CONSENT_PRIVATE; }
+    return consent == CONSENT_PUBLIC;
+}
+
+pub fn disclosure_status(domain: u8, consent: u8) -> u8 {
+    if (!is_domain(domain)) { return REASON_DOMAIN; }
+    if (!consent_covers(domain, consent)) { return REASON_CONSENT; }
+    return REASON_NONE;
+}
+
+; The first refusal wins. No second copy of the owner/user/thread rule.
+pub fn admission(p_kind: u8, p_owner: u64, p_user: u64, p_thread: u64,
+                 r_owner: u64, r_user: u64, r_thread: u64,
+                 created_at: u64, expired_at: u64, as_of: u64,
+                 ttl: u64, now: u64, domain: u8, consent: u8) -> u8 {
+    if (!scope::may_write(p_kind, p_owner, p_user, p_thread, r_owner, r_user, r_thread)) {
+        return REASON_SCOPE;
+    }
+    if (!temporal::known_as_of(created_at, expired_at, as_of)) { return REASON_TEMPORAL; }
+    if (scope::raw_expired(created_at, ttl, now)) { return REASON_TEMPORAL; }
+    return disclosure_status(domain, consent);
+}
+
+; Extraction results do not exist before the effect: validate them before commit.
+pub fn result_status(group: u64, source: u64, source_group: u64,
+                     target: u64, target_group: u64, valid_at: u64,
+                     invalid_at: u64, created_at: u64, expired_at: u64) -> u8 {
+    if (!types::fact_endpoints_ok(group, source, source_group, target, target_group)) {
+        return REASON_FORMAT;
+    }
+    if (!types::fact_well_formed(valid_at, invalid_at, created_at, expired_at)) {
+        return REASON_FORMAT;
+    }
+    return REASON_NONE;
+}
+
+pub fn outcome(state: u8, emitted: bool, committed: bool, reason: u8,
+               domain: u8, attempts: u8) -> u64 {
+    var value: u64 = state as u64;
+    if (emitted) { value = value | EFFECT_BIT | PLAINTEXT_BIT | ((domain as u64) << 24); }
+    if (committed) { value = value | COMMIT_BIT; }
+    return value | ((reason as u64) << 16) | ((attempts as u64) << 32);
+}
+
+pub fn state_of(value: u64) -> u8 { return (value & 255) as u8; }
+pub fn emitted(value: u64) -> bool { return (value & EFFECT_BIT) != 0; }
+pub fn committed(value: u64) -> bool { return (value & COMMIT_BIT) != 0; }
+pub fn requires_plaintext(value: u64) -> bool { return (value & PLAINTEXT_BIT) != 0; }
+pub fn reason_of(value: u64) -> u8 { return ((value >> 16) & 255) as u8; }
+pub fn domain_of(value: u64) -> u8 { return ((value >> 24) & 255) as u8; }
+pub fn attempts_of(value: u64) -> u8 { return ((value >> 32) & 255) as u8; }
+
+; Caller supplies a fresh admission status at ADMIT, EMIT and RESULT, and the
+; extraction result's status at RESULT. An earlier admission is not authority
+; for a later disclosure or write. Attempts count actual emitted requests.
+pub fn step(state: u8, event: u8, gate: u8, result: u8, attempts: u8,
+            domain: u8, consent: u8) -> u64 {
     if (state == STATE_COMMITTED || state == STATE_REJECTED) {
         if (event == EVENT_RESULT) {
-            result.outcome = OUTCOME_SETTLED;
-        } else {
-            result.outcome = OUTCOME_STATE;
+            return outcome(state, false, false, REASON_SETTLED, DOMAIN_UNKNOWN, attempts);
         }
-        return result;
+        return outcome(state, false, false, REASON_STATE, DOMAIN_UNKNOWN, attempts);
     }
-    
-    ; Handle unknown states
-    if (state != STATE_RECEIVED && state != STATE_ADMITTED && state != STATE_EXTRACTING) {
-        result.next_state = STATE_REJECTED;
-        result.reason = REASON_STATE;
-        result.outcome = OUTCOME_STATE;
-        return result;
+    if (!is_state(state) || !is_event(event) || attempts > MAX_ATTEMPTS) {
+        return outcome(STATE_REJECTED, false, false, REASON_STATE, DOMAIN_UNKNOWN, attempts);
     }
-    
-    ; Handle unknown events
-    if (event != EVENT_ADMIT && event != EVENT_EMIT && event != EVENT_RESULT && event != EVENT_FAIL && event != EVENT_ABORT) {
-        result.next_state = STATE_REJECTED;
-        result.reason = REASON_STATE;
-        result.outcome = OUTCOME_STATE;
-        return result;
+    if (state == STATE_EXTRACTING && attempts == 0) {
+        return outcome(STATE_REJECTED, false, false, REASON_STATE, DOMAIN_UNKNOWN, attempts);
     }
-    
-    ; State machine transitions
-    if (state == STATE_RECEIVED) {
-        if (event == EVENT_ADMIT) {
-            var episode = create_test_episode();
-            var admission_result = admission_gate(episode);
-            
-            if (admission_result.0 == VERDICT_ALLOWED) {
-                result.next_state = STATE_ADMITTED;
-                result.reason = REASON_NONE;
-            } else {
-                result.next_state = STATE_REJECTED;
-                result.reason = admission_result.1;
-            }
-        } else if (event == EVENT_ABORT) {
-            result.next_state = STATE_REJECTED;
-            result.reason = REASON_STATE;
+    if (event == EVENT_ABORT) {
+        return outcome(STATE_REJECTED, false, false, REASON_EFFECT, DOMAIN_UNKNOWN, attempts);
+    }
+    if (state == STATE_RECEIVED && event == EVENT_ADMIT) {
+        if (!is_allowed(gate)) {
+            return outcome(STATE_REJECTED, false, false, refusal(gate), DOMAIN_UNKNOWN, attempts);
         }
-    } else if (state == STATE_ADMITTED) {
-        if (event == EVENT_EMIT) {
-            ; Re-check admission verdict
-            var episode = create_test_episode();
-            var admission_result = admission_gate(episode);
-            
-            if (admission_result.0 == VERDICT_ALLOWED && consent == CONSENT_GRANTED && domain != DOMAIN_UNKNOWN) {
-                result.emitted = true;
-                result.next_state = STATE_EXTRACTING;
-                result.reason = REASON_NONE;
-            } else {
-                result.next_state = STATE_REJECTED;
-                result.reason = REASON_SCOPE;
-            }
-        } else if (event == EVENT_ABORT) {
-            result.next_state = STATE_REJECTED;
-            result.reason = REASON_STATE;
+        return outcome(STATE_ADMITTED, false, false, REASON_NONE, DOMAIN_UNKNOWN, attempts);
+    }
+    if (state == STATE_ADMITTED && event == EVENT_EMIT) {
+        if (!is_allowed(gate)) {
+            return outcome(STATE_REJECTED, false, false, refusal(gate), DOMAIN_UNKNOWN, attempts);
         }
-    } else if (state == STATE_EXTRACTING) {
-        if (event == EVENT_RESULT) {
-            result.next_state = STATE_COMMITTED;
-            result.committed = true;
-            result.reason = REASON_NONE;
-        } else if (event == EVENT_FAIL) {
-            if (attempts < 3) {
-                result.next_state = STATE_RECEIVED;
-                result.reason = REASON_EFFECT;
-            } else {
-                result.next_state = STATE_REJECTED;
-                result.reason = REASON_EFFECT;
-            }
-        } else if (event == EVENT_ABORT) {
-            result.next_state = STATE_REJECTED;
-            result.reason = REASON_STATE;
+        let disclosure: u8 = disclosure_status(domain, consent);
+        if (!is_allowed(disclosure)) {
+            return outcome(STATE_REJECTED, false, false, disclosure, DOMAIN_UNKNOWN, attempts);
         }
-    }
-    
-    return result;
-}
-
-; Test functions
-fn test_state_machine() -> bool {
-    ; Test valid path: RECEIVED -> ADMITTED -> EXTRACTING -> COMMITTED
-    var result1 = transition(STATE_RECEIVED, EVENT_ADMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result1.next_state == STATE_ADMITTED;
-    
-    var result2 = transition(STATE_ADMITTED, EVENT_EMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result2.next_state == STATE_EXTRACTING;
-    assert result2.emitted == true;
-    
-    var result3 = transition(STATE_EXTRACTING, EVENT_RESULT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result3.next_state == STATE_COMMITTED;
-    assert result3.committed == true;
-    
-    return true;
-}
-
-fn test_foreign_scope() -> bool {
-    ; Test foreign scope rejection
-    var result = transition(STATE_RECEIVED, EVENT_ADMIT, VERDICT_DENIED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result.next_state == STATE_REJECTED;
-    assert result.reason == REASON_SCOPE;
-    
-    return true;
-}
-
-fn test_missing_consent() -> bool {
-    ; Test missing consent rejection
-    var result = transition(STATE_ADMITTED, EVENT_EMIT, VERDICT_ALLOWED, 1, CONSENT_MISSING, DOMAIN_PRIVATE);
-    assert result.next_state == STATE_REJECTED;
-    assert result.reason == REASON_SCOPE;
-    
-    return true;
-}
-
-fn test_denied_consent() -> bool {
-    ; Test denied consent rejection
-    var result = transition(STATE_ADMITTED, EVENT_EMIT, VERDICT_ALLOWED, 1, CONSENT_DENIED, DOMAIN_PRIVATE);
-    assert result.next_state == STATE_REJECTED;
-    assert result.reason == REASON_SCOPE;
-    
-    return true;
-}
-
-fn test_invalid_domain() -> bool {
-    ; Test invalid domain rejection
-    var result = transition(STATE_ADMITTED, EVENT_EMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_UNKNOWN);
-    assert result.next_state == STATE_REJECTED;
-    assert result.reason == REASON_SCOPE;
-    
-    return true;
-}
-
-fn test_retry_logic() -> bool {
-    ; Test retry logic: FAIL with attempts remaining returns to RECEIVED
-    var result1 = transition(STATE_EXTRACTING, EVENT_FAIL, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result1.next_state == STATE_RECEIVED;
-    assert result1.reason == REASON_EFFECT;
-    
-    ; Test exhausted attempts: FAIL with no attempts remaining goes to REJECTED
-    var result2 = transition(STATE_EXTRACTING, EVENT_FAIL, VERDICT_ALLOWED, 3, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result2.next_state == STATE_REJECTED;
-    assert result2.reason == REASON_EFFECT;
-    
-    return true;
-}
-
-fn test_absorbing_states() -> bool {
-    ; Test COMMITTED is absorbing
-    var result1 = transition(STATE_COMMITTED, EVENT_RESULT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result1.next_state == STATE_COMMITTED;
-    assert result1.committed == false; ; No new commit on repeated RESULT
-    assert result1.outcome == OUTCOME_SETTLED;
-    
-    var result2 = transition(STATE_COMMITTED, EVENT_ADMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result2.next_state == STATE_COMMITTED;
-    assert result2.outcome == OUTCOME_STATE;
-    
-    ; Test REJECTED is absorbing
-    var result3 = transition(STATE_REJECTED, EVENT_RESULT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result3.next_state == STATE_REJECTED;
-    assert result3.outcome == OUTCOME_SETTLED;
-    
-    return true;
-}
-
-fn test_unknown_states_events() -> bool {
-    ; Test unknown state
-    var result1 = transition(99, EVENT_ADMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result1.next_state == STATE_REJECTED;
-    assert result1.reason == REASON_STATE;
-    
-    ; Test unknown event
-    var result2 = transition(STATE_RECEIVED, 99, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result2.next_state == STATE_REJECTED;
-    assert result2.reason == REASON_STATE;
-    
-    return true;
-}
-
-fn test_emit_rechecks_admission() -> bool {
-    ; Test EMIT re-checks admission verdict
-    var result = transition(STATE_ADMITTED, EVENT_EMIT, VERDICT_DENIED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result.next_state == STATE_REJECTED;
-    assert result.reason == REASON_SCOPE;
-    
-    return true;
-}
-
-fn test_effect_fields() -> bool {
-    ; Test that emitted effect carries required fields
-    var result = transition(STATE_ADMITTED, EVENT_EMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result.emitted == true;
-    
-    ; Non-emitted step carries neither field
-    var result2 = transition(STATE_RECEIVED, EVENT_ADMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    assert result2.emitted == false;
-    
-    return true;
-}
-
-fn test_exhaustive_checks() -> bool {
-    ; Test state machine exhaustively
-    var test_states = [STATE_RECEIVED, STATE_ADMITTED, STATE_EXTRACTING, STATE_COMMITTED, STATE_REJECTED, 99, 100];
-    var test_events = [EVENT_ADMIT, EVENT_EMIT, EVENT_RESULT, EVENT_FAIL, EVENT_ABORT, 99, 100];
-    var effect_emitted = false;
-    var episode_committed = false;
-    
-    for (var i = 0; i < test_states.length; i++) {
-        for (var j = 0; j < test_events.length; j++) {
-            var state = test_states[i];
-            var event = test_events[j];
-            
-            var result = transition(state, event, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-            
-            ; Count effect emissions and commits
-            if (result.emitted) {
-                assert !effect_emitted; ; Only one should emit effect
-                effect_emitted = true;
-            }
-            
-            if (result.committed) {
-                assert !episode_committed; ; Only one should commit
-                episode_committed = true;
-            }
+        if (attempts >= MAX_ATTEMPTS) {
+            return outcome(STATE_REJECTED, false, false, REASON_EFFECT, DOMAIN_UNKNOWN, attempts);
         }
+        return outcome(STATE_EXTRACTING, true, false, REASON_NONE, domain, attempts + 1);
     }
-    
-    assert effect_emitted;
-    assert episode_committed;
-    
-    return true;
-}
-
-fn test_trust_domain_consent_exhaustive() -> bool {
-    var test_domains = [DOMAIN_UNKNOWN, DOMAIN_PRIVATE, DOMAIN_PUBLIC, 99, 100];
-    var test_consents = [CONSENT_MISSING, CONSENT_GRANTED, CONSENT_DENIED, 99, 100];
-    
-    for (var i = 0; i < test_domains.length; i++) {
-        for (var j = 0; j < test_consents.length; j++) {
-            var domain = test_domains[i];
-            var consent = test_consents[j];
-            
-            ; Determine if effect should be emitted
-            var should_emit = false;
-            if (domain == DOMAIN_PRIVATE && consent == CONSENT_GRANTED) {
-                should_emit = true;
-            }
-            if (domain == DOMAIN_PUBLIC && consent == CONSENT_GRANTED) {
-                should_emit = true;
-            }
-            
-            var result = transition(STATE_RECEIVED, EVENT_EMIT, VERDICT_ALLOWED, 1, consent, domain);
-            
-            ; Test effect emission matches expectation
-            if (should_emit) {
-                assert result.emitted;
-            } else {
-                assert !result.emitted;
-            }
+    if (state == STATE_EXTRACTING && event == EVENT_RESULT) {
+        if (!is_allowed(gate)) {
+            return outcome(STATE_REJECTED, false, false, refusal(gate), DOMAIN_UNKNOWN, attempts);
         }
+        if (!is_allowed(result)) {
+            return outcome(STATE_REJECTED, false, false, refusal(result), DOMAIN_UNKNOWN, attempts);
+        }
+        return outcome(STATE_COMMITTED, false, true, REASON_NONE, DOMAIN_UNKNOWN, attempts);
     }
-    
-    return true;
+    if (state == STATE_EXTRACTING && event == EVENT_FAIL) {
+        if (attempts < MAX_ATTEMPTS) {
+            return outcome(STATE_RECEIVED, false, false, REASON_EFFECT, DOMAIN_UNKNOWN, attempts);
+        }
+        return outcome(STATE_REJECTED, false, false, REASON_EFFECT, DOMAIN_UNKNOWN, attempts);
+    }
+    return outcome(STATE_REJECTED, false, false, REASON_STATE, DOMAIN_UNKNOWN, attempts);
 }
 
-; Test negative controls - these should fail
-fn test_negative_control_wrong_outcome() -> bool {
-    ; This test should fail because we expect a different outcome
-    var result = transition(STATE_RECEIVED, EVENT_ADMIT, VERDICT_ALLOWED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    ; We expect ADMITTED, but let's assert something wrong to test the negative control
-    assert result.next_state == STATE_REJECTED;
-    return false;
+fn same_thread_admission(domain: u8, consent: u8) -> u8 {
+    return admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 1, 2, 3,
+                     100, 0, 100, scope::RAW_TTL_DEFAULT, 100, domain, consent);
 }
 
-fn test_negative_control_widened_transition() -> bool {
-    ; This test should fail because we're allowing a transition that should be rejected
-    var result = transition(STATE_RECEIVED, EVENT_EMIT, VERDICT_DENIED, 1, CONSENT_GRANTED, DOMAIN_PRIVATE);
-    ; We expect rejection, but let's assert success to test the negative control
-    assert result.emitted;
-    return false;
+fn good_result() -> u8 { return result_status(7, 11, 7, 12, 7, 100, 0, 100, 0); }
+
+test ingest_valid_path_emits_then_commits_once {
+    let gate: u8 = same_thread_admission(DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    let a: u64 = step(STATE_RECEIVED, EVENT_ADMIT, gate, REASON_NONE, 0, DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    assert state_of(a) == STATE_ADMITTED;
+    assert !emitted(a) && !committed(a);
+    let e: u64 = step(state_of(a), EVENT_EMIT, gate, REASON_NONE, attempts_of(a), DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    assert state_of(e) == STATE_EXTRACTING;
+    assert emitted(e) && requires_plaintext(e);
+    assert domain_of(e) == DOMAIN_PRIVATE;
+    assert attempts_of(e) == 1;
+    let c: u64 = step(state_of(e), EVENT_RESULT, gate, good_result(), attempts_of(e), DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    assert state_of(c) == STATE_COMMITTED && committed(c);
+    assert !emitted(c) && !requires_plaintext(c) && domain_of(c) == DOMAIN_UNKNOWN;
+    let again: u64 = step(state_of(c), EVENT_RESULT, gate, good_result(), attempts_of(c), DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    assert state_of(again) == STATE_COMMITTED && !committed(again);
+    assert reason_of(again) == REASON_SETTLED;
 }
 
-; Main test runner
-fn run_tests() -> bool {
-    var success = true
-    
-    if (!test_state_machine()) {
-        success = false
+test ingest_scope_and_temporal_refusals_are_distinct {
+    let foreign: u8 = admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 9, 2, 3,
+                               100, 0, 100, scope::RAW_TTL_DEFAULT, 100, DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    assert foreign == REASON_SCOPE;
+    let rejected: u64 = step(STATE_RECEIVED, EVENT_ADMIT, foreign, 0, 0, DOMAIN_PRIVATE, CONSENT_PRIVATE);
+    assert state_of(rejected) == STATE_REJECTED && !emitted(rejected);
+    assert reason_of(rejected) == REASON_SCOPE;
+    assert admission(scope::PRINCIPAL_PERSON, 1, 2, 3, 1, 2, 3, 100, 0, 100, scope::RAW_TTL_DEFAULT, 100, 1, 1) == REASON_SCOPE;
+    assert admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 1, 2, 4, 100, 0, 100, scope::RAW_TTL_DEFAULT, 100, 1, 1) == REASON_SCOPE;
+    assert admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 1, 2, 3, 101, 0, 100, scope::RAW_TTL_DEFAULT, 100, 1, 1) == REASON_TEMPORAL;
+    assert admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 1, 2, 3, 100, 101, 101, scope::RAW_TTL_DEFAULT, 101, 1, 1) == REASON_TEMPORAL;
+    assert admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 1, 2, 3, 100, 0, 100, 86400, 86500, 1, 1) == REASON_TEMPORAL;
+    assert admission(scope::PRINCIPAL_AGENT, 1, 2, 3, 1, 2, 3, 100, 0, 100, 0, 100, 1, 1) == REASON_TEMPORAL;
+}
+
+test ingest_disclosure_refuses_missing_denied_and_unknown_codes {
+    assert same_thread_admission(DOMAIN_PRIVATE, CONSENT_MISSING) == REASON_CONSENT;
+    assert same_thread_admission(DOMAIN_PRIVATE, CONSENT_DENIED) == REASON_CONSENT;
+    assert same_thread_admission(DOMAIN_PRIVATE, CONSENT_PUBLIC) == REASON_CONSENT;
+    assert same_thread_admission(DOMAIN_UNKNOWN, CONSENT_BOTH) == REASON_DOMAIN;
+    let missing: u64 = step(STATE_ADMITTED, EVENT_EMIT, REASON_NONE, 0, 0, DOMAIN_PRIVATE, CONSENT_MISSING);
+    assert state_of(missing) == STATE_REJECTED && !emitted(missing);
+    assert reason_of(missing) == REASON_CONSENT;
+    assert !requires_plaintext(missing) && domain_of(missing) == DOMAIN_UNKNOWN;
+}
+
+test ingest_emission_rereads_admission_after_it_changed {
+    let admitted: u64 = step(STATE_RECEIVED, EVENT_ADMIT, REASON_NONE, 0, 0, 1, 1);
+    assert state_of(admitted) == STATE_ADMITTED;
+    let denied: u64 = step(state_of(admitted), EVENT_EMIT, REASON_SCOPE, 0, 0, 1, 1);
+    assert state_of(denied) == STATE_REJECTED && !emitted(denied);
+    assert reason_of(denied) == REASON_SCOPE;
+    let withdrawn: u64 = step(STATE_EXTRACTING, EVENT_RESULT, REASON_CONSENT, good_result(), 1, 1, 2);
+    assert state_of(withdrawn) == STATE_REJECTED && !committed(withdrawn);
+    assert reason_of(withdrawn) == REASON_CONSENT;
+}
+
+test ingest_results_use_real_endpoint_and_time_policies {
+    assert good_result() == REASON_NONE;
+    assert result_status(7, 11, 7, 12, 8, 100, 0, 100, 0) == REASON_FORMAT;
+    assert result_status(7, 11, 7, 11, 7, 100, 0, 100, 0) == REASON_FORMAT;
+    assert result_status(7, 11, 7, 12, 7, 100, 99, 100, 0) == REASON_FORMAT;
+    let bad: u8 = result_status(7, 11, 7, 12, 7, 100, 0, 0, 0);
+    let rejected: u64 = step(STATE_EXTRACTING, EVENT_RESULT, REASON_NONE, bad, 1, 1, 1);
+    assert state_of(rejected) == STATE_REJECTED && !committed(rejected);
+    assert reason_of(rejected) == REASON_FORMAT;
+}
+
+test ingest_retry_reenters_received_and_withdrawal_stops_disclosure {
+    let e: u64 = step(STATE_ADMITTED, EVENT_EMIT, REASON_NONE, 0, 0, 1, 1);
+    let retry: u64 = step(state_of(e), EVENT_FAIL, 0, 0, attempts_of(e), 1, 1);
+    assert state_of(retry) == STATE_RECEIVED && !emitted(retry);
+    assert attempts_of(retry) == 1;
+    let gate: u8 = same_thread_admission(DOMAIN_PRIVATE, CONSENT_DENIED);
+    let stopped: u64 = step(state_of(retry), EVENT_ADMIT, gate, 0, attempts_of(retry), 1, 2);
+    assert state_of(stopped) == STATE_REJECTED && reason_of(stopped) == REASON_CONSENT;
+    assert !emitted(stopped) && !committed(stopped);
+}
+
+test ingest_attempt_cap_and_abort_settle_without_an_effect {
+    let exhausted: u64 = step(STATE_EXTRACTING, EVENT_FAIL, 0, 0, MAX_ATTEMPTS, 1, 1);
+    assert state_of(exhausted) == STATE_REJECTED && reason_of(exhausted) == REASON_EFFECT;
+    let extra: u64 = step(STATE_ADMITTED, EVENT_EMIT, 0, 0, MAX_ATTEMPTS, 1, 1);
+    assert !emitted(extra) && attempts_of(extra) == MAX_ATTEMPTS;
+    assert reason_of(extra) == REASON_EFFECT;
+    let aborted: u64 = step(STATE_RECEIVED, EVENT_ABORT, 0, 0, 0, 1, 1);
+    assert state_of(aborted) == STATE_REJECTED && !committed(aborted);
+}
+
+test ingest_failed_effects_retry_through_admission_until_the_cap {
+    var state: u8 = STATE_RECEIVED;
+    var attempts: u8 = 0;
+    while (attempts < MAX_ATTEMPTS) {
+        let admitted: u64 = step(state, EVENT_ADMIT, same_thread_admission(1, 1), 0, attempts, 1, 1);
+        assert state_of(admitted) == STATE_ADMITTED;
+        let request: u64 = step(state_of(admitted), EVENT_EMIT, same_thread_admission(1, 1), 0, attempts, 1, 1);
+        assert emitted(request) && !committed(request);
+        attempts = attempts_of(request);
+        let failed: u64 = step(state_of(request), EVENT_FAIL, 0, 0, attempts, 1, 1);
+        assert !emitted(failed) && !committed(failed) && reason_of(failed) == REASON_EFFECT;
+        state = state_of(failed);
+        if (attempts < MAX_ATTEMPTS) { assert state == STATE_RECEIVED; }
+        else { assert state == STATE_REJECTED; }
     }
-    
-    if (!test_foreign_scope()) {
-        success = false
+    assert attempts == MAX_ATTEMPTS && state == STATE_REJECTED;
+}
+
+test ingest_invalid_codes_and_unknown_reasons_fail_closed {
+    assert !is_allowed(255);
+    let unknown: u64 = step(255, EVENT_ADMIT, 0, 0, 0, 1, 1);
+    assert state_of(unknown) == STATE_REJECTED && reason_of(unknown) == REASON_STATE;
+    let event: u64 = step(STATE_RECEIVED, 255, 0, 0, 0, 1, 1);
+    assert !emitted(event) && !committed(event) && reason_of(event) == REASON_STATE;
+    let gate: u64 = step(STATE_RECEIVED, EVENT_ADMIT, 255, 0, 0, 1, 1);
+    assert state_of(gate) == STATE_REJECTED && reason_of(gate) == REASON_STATE;
+    let result: u64 = step(STATE_EXTRACTING, EVENT_RESULT, 0, 255, 1, 1, 1);
+    assert !committed(result) && reason_of(result) == REASON_STATE;
+    let corrupted: u64 = step(STATE_EXTRACTING, EVENT_RESULT, 0, 0, 0, 1, 1);
+    assert !committed(corrupted) && reason_of(corrupted) == REASON_STATE;
+}
+
+test ingest_settled_states_absorb_every_event_including_invalid_ones {
+    var state: u8 = STATE_COMMITTED;
+    while (state <= STATE_REJECTED) {
+        var event: u8 = 0;
+        while (event < 8) {
+            let value: u64 = step(state, event, 0, 0, 1, 1, 1);
+            assert state_of(value) == state;
+            assert !emitted(value) && !committed(value);
+            if (event == EVENT_RESULT) { assert reason_of(value) == REASON_SETTLED; }
+            else { assert reason_of(value) == REASON_STATE; }
+            event = event + 1;
+        }
+        state = state + 1;
     }
-    
-    if (!test_missing_consent()) {
-        success = false
+}
+
+test ingest_exhaustive_state_event_pairs_have_one_emit_and_one_commit {
+    var emit_count: u32 = 0;
+    var commit_count: u32 = 0;
+    var state: u8 = 0;
+    while (state < 8) {
+        var event: u8 = 0;
+        while (event < 8) {
+            let value: u64 = step(state, event, 0, 0, 1, DOMAIN_PRIVATE, CONSENT_PRIVATE);
+            assert is_state(state_of(value));
+            assert emitted(value) == (state == STATE_ADMITTED && event == EVENT_EMIT);
+            assert committed(value) == (state == STATE_EXTRACTING && event == EVENT_RESULT);
+            assert requires_plaintext(value) == emitted(value);
+            if (emitted(value)) {
+                emit_count = emit_count + 1;
+                assert domain_of(value) == DOMAIN_PRIVATE;
+            } else { assert domain_of(value) == DOMAIN_UNKNOWN; }
+            if (committed(value)) { commit_count = commit_count + 1; }
+            event = event + 1;
+        }
+        state = state + 1;
     }
-    
-    if (!test_denied_consent()) {
-        success = false
+    assert emit_count == 1;
+    assert commit_count == 1;
+}
+
+test ingest_exhaustive_domain_consent_pairs_emit_iff_explicitly_covered {
+    var domain: u8 = 0;
+    while (domain < 5) {
+        var consent: u8 = 0;
+        while (consent < 7) {
+            let gate: u8 = same_thread_admission(domain, consent);
+            let value: u64 = step(STATE_ADMITTED, EVENT_EMIT, gate, 0, 0, domain, consent);
+            let expected: bool = (domain == DOMAIN_PRIVATE && (consent == CONSENT_PRIVATE || consent == CONSENT_BOTH))
+                              || (domain == DOMAIN_PUBLIC && (consent == CONSENT_PUBLIC || consent == CONSENT_BOTH));
+            assert emitted(value) == expected;
+            assert requires_plaintext(value) == expected;
+            assert !committed(value);
+            if (expected) { assert domain_of(value) == domain; }
+            else { assert domain_of(value) == DOMAIN_UNKNOWN; }
+            consent = consent + 1;
+        }
+        domain = domain + 1;
     }
-    
-    if (!test_invalid_domain()) {
-        success = false
-    }
-    
-    if (!test_retry_logic()) {
-        success = false
-    }
-    
-    if (!test_absorbing_states()) {
-        success = false
-    }
-    
-    if (!test_unknown_states_events()) {
-        success = false
-    }
-    
-    if (!test_emit_rechecks_admission()) {
-        success = false
-    }
-    
-    if (!test_effect_fields()) {
-        success = false
-    }
-    
-    if (!test_exhaustive_checks()) {
-        success = false
-    }
-    
-    if (!test_trust_domain_consent_exhaustive()) {
-        success = false
-    }
-    
-    ; Negative controls should fail
-    if (test_negative_control_wrong_outcome()) {
-        success = false
-    }
-    
-    if (test_negative_control_widened_transition()) {
-        success = false
-    }
-    
-    return success
 }

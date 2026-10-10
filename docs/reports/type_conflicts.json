@@ -17,7 +17,6 @@
     "DataSample",
     "Diagnostic",
     "EnvVar",
-    "Episode",
     "EvalResult",
     "FFNConfig",
     "FileInfo",

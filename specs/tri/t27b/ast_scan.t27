@@ -282,7 +282,7 @@ pub fn shadow_locals(nodes: []const u8, text: []const u8, marks: []u8) -> void {
 const SCAN_TEXT : str = "x&assert_eqprintlnf-panicunreachabley_cse0";
 
 /// Clears the first n marks.
-fn clear(marks: []u8, n: usize) -> void {
+pub fn clear(marks: []u8, n: usize) -> void {
     var i : usize = 0;
     while (i < n) {
         marks[i] = 0;
@@ -291,7 +291,7 @@ fn clear(marks: []u8, n: usize) -> void {
 }
 
 /// How many of the first n marks are set, and which: bit i of the result for mark i.
-fn mask(marks: []u8, n: usize) -> u32 {
+pub fn mask(marks: []u8, n: usize) -> u32 {
     var m : u32 = 0;
     var bit : u32 = 1;
     var i : usize = 0;

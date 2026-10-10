@@ -281,7 +281,9 @@ pub fn analyzed(nodes: &[u8], text: &[u8], marks: &mut [u8]) -> () {
 
 pub const SHAPE_TEXT: &'static str = "**-undefinedunion(enumunion (enumbodystringfgh 'a'x.ya:b  u8";
 
-pub fn wipe(marks: &mut [u8], n: usize) -> () {
+pub const MARK: u8 = 1;
+
+pub fn clear(marks: &mut [u8], n: usize) -> () {
     let mut i: usize = 0;
     while (i < n) {
         marks[(i) as usize] = 0;
@@ -289,7 +291,7 @@ pub fn wipe(marks: &mut [u8], n: usize) -> () {
     }
 }
 
-pub fn bits(marks: Vec<u8>, n: usize) -> u32 {
+pub fn mask(marks: Vec<u8>, n: usize) -> u32 {
     let mut m: u32 = 0;
     let mut bit: u32 = 1;
     let mut i: usize = 0;
@@ -302,8 +304,6 @@ pub fn bits(marks: Vec<u8>, n: usize) -> u32 {
     }
     return m;
 }
-
-pub const MARK: u8 = 1;
 
 pub const B_DOT: u8 = 46;
 

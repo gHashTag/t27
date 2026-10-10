@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// b_c.t27 — Acceptance criteria for gHashTag/t27#1962
-// 
-// Criterion 1: The formal foundations document exists and contains numbered propositions with evidence classes (PROVED, MEASURED, CONJECTURE).
-// Criterion 2: The Yosys-only proof pipeline is verified.
-// Criterion 3: The seal path collision guard is in place and a test asserts the collision holds.
-// Criterion 4: The three cooperation variants for W553 are documented.
+// Seal-path collision fixture for #1962; parser restoration #8756.
+// The test below checks only its local value, not project-wide acceptance.
 
 module b_c_spec;
 
@@ -16,5 +12,4 @@ pub fn dummy() -> bool {
 // The one value this module declares: dummy() returns the boolean true.
 test b_c_dummy_returns_true {
     assert dummy() == true;
-}
 }
