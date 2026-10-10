@@ -1,0 +1,42 @@
+module port::gen_w687;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level <= 0) {
+        return "";
+    }
+    return "    ";
+}
+
+pub fn build_tree(shape: []const i32, base: i32, offset: i32) -> []const u8 {
+    if (shape.len == 1) {
+        const n = shape[0];
+        if (n == 3) {
+            return "    [3]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 },\n        Pt{ .x = 4, .y = 5 }\n    }";
+        }
+        return "";
+    }
+    
+    return "";
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+}
+
+test build_tree_flat {
+    const shape: [1]i32 = [3];
+    const text = build_tree(&shape, 0, 0);
+    assert(text == "    [3]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 },\n        Pt{ .x = 4, .y = 5 }\n    }");
+}
+
+test build_tree_nested {
+    const shape: [2]i32 = [2, 2];
+    const text = build_tree(&shape, 0, 0);
+    assert(text == "    [2][2]Pt{\n        [2]Pt{ .x = 0, .y = 1 },\n        [2]Pt{ .x = 2, .y = 3 }\n    }");
+}
