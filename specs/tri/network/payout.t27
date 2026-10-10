@@ -75,6 +75,12 @@ use tri::lab::receipt;
 /// Where GitHub answers for one commit: append its full sha.
 pub const API_COMMITS : str = "https://api.github.com/repos/gHashTag/t27/commits/";
 
+/// The glue keeps each answer gh_read accepts as $TMPDIR/GH_CACHE/<sha> and reads it from there next
+/// time: an answer for one commit does not change, and a run asks GitHub about up to ~900 commits (one
+/// shared token has 5000 calls an hour). An answer that does not read is never kept, and a kept file
+/// that does not read is asked for again.
+pub const GH_CACHE : str = "tri-payout-github";
+
 /// The labs whose receipts are read, in order. Lab 0 is LAB_URL of specs/tri/lab/receipt.t27; the glue
 /// appends RUNS, the sha and RECEIPT_EXT.
 pub const LAB_COUNT : u32 = 2;
@@ -840,6 +846,7 @@ test the_exit_is_no_verdict_unless_every_fact_was_read {
     assert span_is(lab_url(1), 0, LAB2_URL.len, LAB2_URL);
     // the glue appends lab receipt.t27's RUNS, the sha and RECEIPT_EXT to lab_url(k)
     assert span_is(RUNS, 0, 5, "runs/") and span_is(RECEIPT_EXT, 0, 13, ".receipt.json");
+    assert span_is(GH_CACHE, 0, 17, "tri-payout-github");
     assert span_is(rc_list(LIST_INPUT), 0, 5, "input");
     assert span_is(rc_list(LIST_VERDICT), 0, 7, "verdict");
 }

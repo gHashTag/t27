@@ -6,6 +6,8 @@
 
 pub const API_COMMITS: &'static str = "https://api.github.com/repos/gHashTag/t27/commits/";
 
+pub const GH_CACHE: &'static str = "tri-payout-github";
+
 pub const LAB_COUNT: u32 = 2;
 
 pub const LAB2_URL: &'static str = "https://t27b-lab-2-production.up.railway.app/";

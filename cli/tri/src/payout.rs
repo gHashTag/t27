@@ -7,7 +7,7 @@ fn sh(c: &str, a: &[&str], input: &str) -> &'static str { let mut p = Command::n
 pub fn cmd(epoch: u64, pool: u64, json: bool) -> Result<u8> {
     let auth = std::env::var("GH_TOKEN").map(|t| format!("Authorization: Bearer {t}\n")).unwrap_or_default();
     let commits: Vec<&'static str> = sh("git", &["log", "--first-parent", pay::LOG_EPOCH, pay::REV], "").lines().filter(|l| pay::in_epoch(l, epoch)).map(|l| &l[..40]).collect();
-    let (head, tmp) = (commits.first().copied().unwrap_or(""), std::env::temp_dir().join(format!("tri-payout-{}.json", std::process::id())));
+    let (head, tmp, cache) = (commits.first().copied().unwrap_or(""), std::env::temp_dir().join(format!("tri-payout-{}.json", std::process::id())), std::env::temp_dir().join(pay::GH_CACHE)); let _ = std::fs::create_dir_all(&cache);
     let (mut facts, mut tables, mut green, mut corpus, mut counting) = (format!("epoch {epoch} pool {pool} head {head}\n"), Vec::new(), None, BTreeSet::new(), 0u64);
     for c in &commits { let mut rows = Vec::new(); for k in 0..pay::LAB_COUNT {
         let t = sh("curl", &["-fsSL", "--max-time", "300", &format!("{}{}{c}{}", pay::lab_url(k), pay::RUNS, pay::RECEIPT_EXT)], ""); if t.is_empty() { continue; }
@@ -25,7 +25,7 @@ pub fn cmd(epoch: u64, pool: u64, json: bool) -> Result<u8> {
         let (mut per, mut at, mut sha) = (BTreeMap::<&str, (u64, u64)>::new(), 0, "");
         while at < b.len() { let e = pay::line_end(b, at); if pay::bl_header(b, at, e) { sha = &b[at..at + 40]; } if pay::bl_line(b, at, e) { let r = per.entry(sha).or_default(); *r = (r.0 + 1, r.1 + pay::bl_test(b, at, e) as u64); } at = e + 1; }
         let mut t = ([pay::NO_SPEC; 16], [0u64; 16], [0u64; 16], [0u64; 16], [0u8; 16]);
-        for (c, (l, n)) in per { let ag = agent.get(c).copied().unwrap_or(false); let g = *gh.entry(c).or_insert_with(|| if pay::needs_github(ag) { sh("curl", &["-fsSL", "--max-time", "60", "-H", "@-", &format!("{}{c}", pay::API_COMMITS)], &auth) } else { "" });
+        for (c, (l, n)) in per { let ag = agent.get(c).copied().unwrap_or(false); let g = *gh.entry(c).or_insert_with(|| if pay::needs_github(ag) { std::fs::read_to_string(cache.join(c)).ok().map(|s| &*s.leak()).filter(|s| pay::gh_read(s, c)).unwrap_or_else(|| { let t = sh("curl", &["-fsSL", "--max-time", "60", "-H", "@-", &format!("{}{c}", pay::API_COMMITS)], &auth); if pay::gh_read(t, c) { let _ = std::fs::write(cache.join(c), t); } t }) } else { "" });
             unread += pay::gh_unread(g, c, ag) as u64; let (id, f) = (pay::gh_author(g), pay::row_flags(g, ag, green.as_ref().is_some_and(|s: &BTreeSet<&str>| s.contains(p))));
             let k = pay::table_slot(t.0, t.1, t.2, t.3, t.4, id, f, l, n) as usize; if k == pay::ATTR_ROWS as usize { full += 1; break; }
             (t.0[k], t.1[k], t.2[k], t.3[k], t.4[k]) = (0, id, t.2[k] + l, t.3[k] + n, f); facts += &format!("row {p} {c} {id} {l} {n} {f}\n");
