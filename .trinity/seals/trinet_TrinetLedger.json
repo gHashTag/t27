@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+af4c8b8ac",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9529818ef186869cc208d2ae52e51e94417abea32b006d637a3d02493c9f9986",
+  "gen_hash_rust": "sha256:d8a56d00cd688cbd38a475e6c7c18889e33c775a2d143d46a6ec096ce1d2582f",
+  "gen_hash_verilog": "sha256:62b259933540a722348007c82002162956d786e9236f0573f8fb4aefa87693d1",
+  "gen_hash_zig": "sha256:ff18fea26b22d1fc8eb43f268c0903288fd0f9ef6edeba291426fa2f557c5582",
+  "module": "TrinetLedger",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:55:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c1879562fd7a265b0fd054fa6cc3b605e0e7262080d023231c9b1b63e6866dbf",
+  "spec_path": "specs/trinet/ledger.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 32,
+    "total": 32
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

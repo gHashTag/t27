@@ -1207,6 +1207,7 @@
   {"path": "specs/tri/utils/string.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/utils/template.t27", "t27b": "pass"},
   {"path": "specs/trinet/etx.t27", "t27b": "pass"},
+  {"path": "specs/trinet/ledger.t27", "t27b": "pass"},
   {"path": "specs/trinet/node-work-credit.t27", "t27b": "pass"},
   {"path": "specs/trinet/tri-bridge.t27", "t27b": "pass"},
   {"path": "specs/trinity/build_graph.t27", "t27b": "pass"},
