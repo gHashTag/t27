@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "built_by": "t27c-bootstrap@0.5.2+7381eca0e",
   "closure": [
     {
       "spec": "specs/fpga/fifo.t27",
@@ -26,7 +26,7 @@
   "module": "QMTech_A100T_Integration",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:06:40Z",
+  "sealed_at": "2026-10-10T12:37:21Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:da3bcda1b3eac7cb7c72da2db47f31a992885d7dc8522e7d753e819d12400c18",
   "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27",

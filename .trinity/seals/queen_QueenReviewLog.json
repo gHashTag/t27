@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "built_by": "t27c-bootstrap@0.5.2+7381eca0e",
   "closure": [
     {
       "spec": "specs/test_framework/runner.t27",
@@ -14,7 +14,7 @@
   "module": "QueenReviewLog",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:19:23Z",
+  "sealed_at": "2026-10-10T12:49:51Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f5ff9bae05a7fcda8da587457268f8e79247066e59e75d7dada1e0a7b00707f0",
   "spec_path": "specs/queen/review_log.t27",

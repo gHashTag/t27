@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "built_by": "t27c-bootstrap@0.5.2+7381eca0e",
   "closure": [
     {
       "spec": "specs/compiler/lexer.t27",
@@ -18,7 +18,7 @@
   "module": "MetaCompilation",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:06:28Z",
+  "sealed_at": "2026-10-10T12:37:11Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7b16ea29ae644a0ff54968ea37806543ba823c4bfeddd82f64c66485efec33b1",
   "spec_path": "specs/compiler/meta_compile.t27",

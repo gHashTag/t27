@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "built_by": "t27c-bootstrap@0.5.2+7381eca0e",
   "closure": [
     {
       "spec": "specs/memory/notebooklm.t27",
@@ -14,7 +14,7 @@
   "module": "automation::wrapup",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:06:08Z",
+  "sealed_at": "2026-10-10T12:37:02Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:799e6a7045aee442cbf4c5c991ca8acfe6e40e23bfc00386e94e76339cdd4bec",
   "spec_path": "specs/automation/wrapup-auto.t27",

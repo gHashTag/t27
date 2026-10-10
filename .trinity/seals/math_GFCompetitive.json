@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "built_by": "t27c-bootstrap@0.5.2+7381eca0e",
   "closure": [
     {
       "spec": "specs/math/constants.t27",
@@ -18,7 +18,7 @@
   "module": "GFCompetitive",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:17:03Z",
+  "sealed_at": "2026-10-10T12:47:31Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0c7ab6d6bceb875e70487a3f11a726a6f66d3c14cb227dce17cf99a5d41e85fe",
   "spec_path": "specs/math/gf_competitive.t27",
