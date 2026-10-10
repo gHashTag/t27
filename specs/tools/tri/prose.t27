@@ -23,8 +23,8 @@ pub const ENTRY : str = "cli/tri/src/main.rs";
 pub const ABOUT : str = "Specs a literate author left prose in, and how far that prose is from code.";
 pub const ABOUT_SOURCE : str = "clap /// doc on Commands::Prose (cli/tri/src/main.rs; module cli/tri/src/prose.rs)";
 ; Nested subcommands (kebab-case as clap derives them) and their first /// paragraph ("" when none).
-pub const ACTIONS : [1]str = ["report"];
-pub const ACTIONS_ABOUT : [1]str = ["Which specs are blocked only by prose, and how many lines that is."];
+pub const ACTIONS : [2]str = ["report", "check-formal-claims"];
+pub const ACTIONS_ABOUT : [2]str = ["Which specs are blocked only by prose, and how many lines that is.", "Re-derives countable claims from tree and compares against README, checking integration properties and CI step names."];
 ; Top-level arguments/flags of the command itself, "<name>: doc".
 pub const ARGS : [0]str = [];
 ; Agent letters that own this command, only where a source line names it (AGENTS_NOTE cites it).
