@@ -34,7 +34,10 @@
 ; shift_amount test helpers the Rust did not have; their values are exact integer arithmetic. Since #8736 the
 ; hand-written Ty::min, Ty::max, Ty::fits and Ty::wrap of ir.rs are gone too: they call ty_min, ty_max, fits and
 ; wrap, which take a signed type of 128 bits (a run-time i128, specs/tri/t27b/i128_plan.t27) without forming a
-; value past it; the asserts on bits 1 and 128 are new.
+; value past it; the asserts on bits 1 and 128 are new. Since #8763 the checked `+ - *` and `/` take an i128's
+; operands too: `add_leaves`, `sub_leaves` and `mul_leaves` decide an overflow without forming the result (they
+; replace mag and mul_too_large, which held for types of at most 64 bits), and minInt / -1 is decided before the
+; division, so no operation here goes past i128; the asserts on bits 128 are new.
 ; No unary operator (#6549) and no char literal (#7604) below.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
@@ -67,7 +70,6 @@ pub const TRAP_SHIFT_RANGE : u8 = 3;
 
 const ONE : i128 = 1;
 const ZERO : i128 = 0;
-const U64_MAX : i128 = 18446744073709551615;
 
 /// The answer: a trap, or the value.
 pub const EvalArith = struct {
@@ -119,19 +121,27 @@ fn checked(r: i128, bits: u32, signed: bool, boolean: bool) -> EvalArith {
     return trapped(TRAP_OVERFLOW);
 }
 
-/// The magnitude of an operand. Every operand is inside a type of at most 64 bits, so it is below 2^64.
-pub fn mag(v: i128) -> i128 {
-    if (v < ZERO) { return ZERO - v; }
-    return v;
+/// Would a + b leave the type, whose least and greatest values are lo and hi? Asked without forming a + b,
+/// which need not be an i128 when the type is one: hi - b and lo - b lie between lo and hi for every b of the type.
+pub fn add_leaves(a: i128, b: i128, lo: i128, hi: i128) -> bool {
+    if (b > ZERO) { return a > hi - b; }
+    return a < lo - b;
 }
 
-/// Is the exact product of a and b too large for any type of at most 64 bits? Asked without forming the
-/// product, which may not fit i128: |a| * |b| > U64_MAX exactly when |b| > U64_MAX / |a|. (The Rust asked
-/// i128's checked_mul first and the type second; both refusals are the same OVERFLOW.)
-pub fn mul_too_large(a: i128, b: i128) -> bool {
-    const ma : i128 = mag(a);
-    if (ma == ZERO) { return false; }
-    return mag(b) > @divTrunc(U64_MAX, ma);
+/// Would a - b leave the type? hi + b (b negative) and lo + b (b not negative) lie between lo and hi.
+pub fn sub_leaves(a: i128, b: i128, lo: i128, hi: i128) -> bool {
+    if (b < ZERO) { return a > hi + b; }
+    return a < lo + b;
+}
+
+/// Would a * b leave the type? Asked without forming a * b: each bound, divided by one operand and rounded
+/// toward zero, bounds the other (lo is 0 or negative, hi positive, and neither division overflows).
+pub fn mul_leaves(a: i128, b: i128, lo: i128, hi: i128) -> bool {
+    if (a == ZERO or b == ZERO) { return false; }
+    if (a > ZERO and b > ZERO) { return a > @divTrunc(hi, b); }
+    if (a > ZERO) { return b < @divTrunc(lo, a); }
+    if (b > ZERO) { return a < @divTrunc(lo, b); }
+    return b < @divTrunc(hi, a);
 }
 
 /// The amount a shift uses, or a negative number when a checked shift traps.
@@ -144,17 +154,31 @@ pub fn shift_amount(op: u8, bits: u32, b: i128) -> i128 {
 
 /// Exact arithmetic of one IR operation on operands already inside the type (bits, signed, boolean).
 pub fn arith(op: u8, bits: u32, signed: bool, boolean: bool, a: i128, b: i128) -> EvalArith {
-    if (op == OP_ADD) { return checked(a + b, bits, signed, boolean); }
-    if (op == OP_SUB) { return checked(a - b, bits, signed, boolean); }
+    const lo : i128 = ty_min(bits, signed);
+    const hi : i128 = ty_max(bits, signed, boolean);
+    if (op == OP_ADD) {
+        if (add_leaves(a, b, lo, hi)) { return trapped(TRAP_OVERFLOW); }
+        return ok(a + b);
+    }
+    if (op == OP_SUB) {
+        if (sub_leaves(a, b, lo, hi)) { return trapped(TRAP_OVERFLOW); }
+        return ok(a - b);
+    }
     if (op == OP_MUL) {
-        if (mul_too_large(a, b)) { return trapped(TRAP_OVERFLOW); }
-        return checked(a * b, bits, signed, boolean);
+        if (mul_leaves(a, b, lo, hi)) { return trapped(TRAP_OVERFLOW); }
+        return ok(a * b);
     }
     if (op == OP_ADD_W) { return ok(wrap(a + b, bits, signed)); }
     if (op == OP_SUB_W) { return ok(wrap(a - b, bits, signed)); }
     if (op == OP_MUL_W) { return ok(wrap(a *% b, bits, signed)); }
     if (op == OP_DIV or op == OP_DIV_W or op == OP_REM) {
         if (b == ZERO) { return trapped(TRAP_DIV_ZERO); }
+        // minInt / -1 is past the type, an i128's past i128 itself: it traps, wraps back to minInt, or leaves 0.
+        if (signed and a == lo and b == ZERO - ONE) {
+            if (op == OP_DIV) { return trapped(TRAP_OVERFLOW); }
+            if (op == OP_DIV_W) { return ok(lo); }
+            return ok(ZERO);
+        }
         if (op == OP_DIV) { return checked(@divTrunc(a, b), bits, signed, boolean); }
         if (op == OP_DIV_W) { return ok(wrap(@divTrunc(a, b), bits, signed)); }
         return ok(@rem(a, b));
@@ -251,22 +275,56 @@ test checked_mul_traps_outside_the_type_and_outside_i128 {
     assert ev_value(OP_MUL, 32, true, false, 0 - 7, 0) == 0;
 }
 
-test mul_too_large_is_exact_at_two_to_the_64 {
-    assert mul_too_large(18446744073709551615, 18446744073709551615);
-    assert mul_too_large(4294967296, 4294967296);
-    assert mul_too_large(4294967295, 4294967297) == false;
-    assert mul_too_large(0, 18446744073709551615) == false;
-    assert mul_too_large(0 - 1, 18446744073709551615) == false;
-    assert mul_too_large(0 - 2, 9223372036854775808);
-    assert mul_too_large(0 - 3, 0 - 6148914691236517205) == false;
-    assert mul_too_large(0 - 3, 0 - 6148914691236517206);
+test the_leaves_tests_are_exact_at_each_bound {
+    // u64: (2^64 - 1)^2, 2^32 * 2^32 and 2 * (2^64 - 1) leave it; (2^32 - 1) * (2^32 + 1) is its greatest value.
+    assert mul_leaves(18446744073709551615, 18446744073709551615, 0, 18446744073709551615);
+    assert mul_leaves(4294967296, 4294967296, 0, 18446744073709551615);
+    assert mul_leaves(4294967295, 4294967297, 0, 18446744073709551615) == false;
+    assert mul_leaves(2, 18446744073709551615, 0, 18446744073709551615);
+    assert mul_leaves(0, 18446744073709551615, 0, 18446744073709551615) == false;
+    // i64: -3 * -3074457345618258602 is the greatest multiple of 3 inside it; one step further leaves it.
+    assert mul_leaves(0 - 3, 0 - 3074457345618258602, 0 - 9223372036854775808, 9223372036854775807) == false;
+    assert mul_leaves(0 - 3, 0 - 3074457345618258603, 0 - 9223372036854775808, 9223372036854775807);
+    assert mul_leaves(0 - 2, 4611686018427387904, 0 - 9223372036854775808, 9223372036854775807) == false;
+    assert mul_leaves(2, 0 - 4611686018427387905, 0 - 9223372036854775808, 9223372036854775807);
+    assert mul_leaves(0 - 9223372036854775808, 0 - 1, 0 - 9223372036854775808, 9223372036854775807);
+    // i8 and u8 sums and differences at each end.
+    assert add_leaves(100, 27, 0 - 128, 127) == false;
+    assert add_leaves(100, 28, 0 - 128, 127);
+    assert add_leaves(0 - 100, 0 - 29, 0 - 128, 127);
+    assert sub_leaves(0 - 100, 28, 0 - 128, 127) == false;
+    assert sub_leaves(0 - 100, 29, 0 - 128, 127);
+    assert sub_leaves(27, 0 - 100, 0 - 128, 127) == false;
+    assert sub_leaves(28, 0 - 100, 0 - 128, 127);
+    assert sub_leaves(0, 1, 0, 255);
+    assert sub_leaves(255, 255, 0, 255) == false;
 }
 
-test magnitudes {
-    assert mag(0 - 9223372036854775808) == 9223372036854775808;
-    assert mag(18446744073709551615) == 18446744073709551615;
-    assert mag(0 - 1) == 1;
-    assert mag(0) == 0;
+test checked_arithmetic_of_an_i128_never_goes_past_it {
+    // + and - at both ends: the greatest plus 1, the least minus 1, 0 minus the least.
+    assert ev_trap(OP_ADD, 128, true, false, 170141183460469231731687303715884105727, 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_ADD, 128, true, false, 170141183460469231731687303715884105727, 0) == 170141183460469231731687303715884105727;
+    assert ev_trap(OP_ADD, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 0 - 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_ADD, 128, true, false, 170141183460469231731687303715884105727, 0 - 170141183460469231731687303715884105727 - 1) == 0 - 1;
+    assert ev_trap(OP_SUB, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 1) == TRAP_OVERFLOW;
+    assert ev_trap(OP_SUB, 128, true, false, 0, 0 - 170141183460469231731687303715884105727 - 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_SUB, 128, true, false, 0 - 1, 0 - 170141183460469231731687303715884105727 - 1) == 170141183460469231731687303715884105727;
+    assert ev_trap(OP_SUB, 128, true, false, 170141183460469231731687303715884105727, 0 - 1) == TRAP_OVERFLOW;
+    // * : 2^64 * 2^63 is 2^127, one past the greatest; -2^64 * 2^63 is the least; (2^64 - 1)^2 is past it.
+    assert ev_trap(OP_MUL, 128, true, false, 18446744073709551616, 9223372036854775808) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 128, true, false, 0 - 18446744073709551616, 9223372036854775808) == 0 - 170141183460469231731687303715884105727 - 1;
+    assert ev_trap(OP_MUL, 128, true, false, 18446744073709551615, 18446744073709551615) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 128, true, false, 9223372036854775808, 9223372036854775808) == 85070591730234615865843651857942052864;
+    assert ev_trap(OP_MUL, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 0 - 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_MUL, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 1) == 0 - 170141183460469231731687303715884105727 - 1;
+    assert ev_value(OP_MUL, 128, true, false, 0 - 1, 170141183460469231731687303715884105727) == 0 - 170141183460469231731687303715884105727;
+    // / : minInt / -1 traps at the next site, wraps to minInt, and leaves the remainder 0; a zero divisor first.
+    assert ev_trap(OP_DIV, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 0 - 1) == TRAP_OVERFLOW;
+    assert ev_value(OP_DIV_W, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 0 - 1) == 0 - 170141183460469231731687303715884105727 - 1;
+    assert ev_value(OP_REM, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 0 - 1) == 0;
+    assert ev_trap(OP_DIV, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 0) == TRAP_DIV_ZERO;
+    assert ev_value(OP_DIV, 128, true, false, 0 - 170141183460469231731687303715884105727 - 1, 1) == 0 - 170141183460469231731687303715884105727 - 1;
+    assert ev_value(OP_DIV, 128, true, false, 170141183460469231731687303715884105727, 0 - 16) == 0 - 10633823966279326983230456482242756607;
 }
 
 test wrapping_add_sub_mul_reduce_to_the_type {

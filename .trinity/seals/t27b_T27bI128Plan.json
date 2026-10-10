@@ -1,24 +1,29 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+bba8efb24",
-  "closure": [],
+  "built_by": "t27c-bootstrap@0.5.2+c31c059ef",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/a64.t27",
+      "spec_hash": "sha256:c2a215f06da0956cd9105078e5d5ae0609e7cf58948e69ba548102ac0b93ce58"
+    }
+  ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:41df47b9c0101357620c696eb7696f75ce5a197a55d4175f7da4c07c3eeeea19",
-  "gen_hash_rust": "sha256:617fdd832a1d7bd5256fa5226f50f31e0b400b1043f0ac0af6297ab7fdcced59",
-  "gen_hash_verilog": "sha256:d2cab4388f05fca6430befd272ddb2bb2366a216655156ffe8b6d62984701bed",
-  "gen_hash_zig": "sha256:9b0a73bc846d61a57c3a9fc5acf92d87c21a895035aa23f88826a1d3c1afe05f",
+  "gen_hash_c": "sha256:7d8b9536044391b830729007fc02d7d72f786bc046467ba15ecd38c5140683e1",
+  "gen_hash_rust": "sha256:d259222345d5e40ad830b21954d1c19288e7b57c7004c3f3a0a71ab606a84bad",
+  "gen_hash_verilog": "sha256:38658071d108ac8de23e5c0b998c556c601257ff12018776bbd1bc099de35ca7",
+  "gen_hash_zig": "sha256:2b30a85e57dc7ff5790130e7da065c4a0316c592d4a4b339cff7b1a2f5cbea23",
   "module": "T27bI128Plan",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T18:22:14Z",
+  "sealed_at": "2026-10-10T20:12:16Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:100d2eb08e10c41e4d1ea7bf2cc5a0cbb693941bbfab3a54f4ed8292eb2600f5",
+  "spec_hash": "sha256:5ec76509db6900edc0ec36443a026fd1d2ca49d9c908928bdcb0c5dbe80a65be",
   "spec_path": "specs/tri/t27b/i128_plan.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 7,
-    "total": 7,
+    "passed": 13,
+    "total": 13,
     "vacuous": 0
   },
   "toolchain": {

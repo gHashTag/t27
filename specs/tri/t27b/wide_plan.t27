@@ -26,6 +26,10 @@
 ; everything Zig's compiler rejects (overflow, a value or a cast outside its type, a shift by the full width, a
 ; division by zero). Values are held as a sign and a magnitude of LIMBS 32-bit limbs; a value or a type wider
 ; than CAP_BITS is refused as too wide.
+; Since #8763 an i128 exists at run time too (specs/tri/t27b/i128_plan.t27), so a constant of type i128 is not
+; refused where t27b needs a run-time value (`run_time`): beside a value that does not fold, the expression is
+; lowered at run time and the constant is a pair constant there; folded to an i128 value, it is that value's pair
+; constant (`pair_value`). Every other wide type keeps the refusals above.
 ; --
 ; The oracle is the hand-written Rust of draft PR #7440 (cli/t27b/src/lower/wide.rs, 701 lines): its `Big`, its
 ; `Wide::fits` / `wrap` and its `wide_arith`. Its expected values were checked against i128 in that PR and against
@@ -656,6 +660,34 @@ pub fn low64(v: WideFold) -> u64 {
     return m;
 }
 
+/// What t27b does with a fold now that an i128 exists at run time: AS_VERDICT, `verdict` decides; AS_PAIR, the
+/// expression folded to an i128 whose value t27b needs at run time, a pair constant of `pair_value`; AS_RUN, the
+/// expression names an i128 constant beside a value that does not fold, so it is lowered as a run-time expression
+/// whose i128 constants are pair constants. Only a constant of type i128 counts, and an `as` keeps its verdict.
+pub const AS_VERDICT : u8 = 0;
+pub const AS_PAIR : u8 = 1;
+pub const AS_RUN : u8 = 2;
+
+pub fn run_time(v: WideFold, is_cast: bool) -> u8 {
+    if (v.named != 128 or v.named_signed == false or is_cast) { return AS_VERDICT; }
+    if (v.state == OTHER) { return AS_RUN; }
+    if (v.state == OK and v.is_bool == false and v.width == 128 and v.is_signed) { return AS_PAIR; }
+    return AS_VERDICT;
+}
+
+/// The value of a fold `run_time` calls AS_PAIR: its four low limbs, the most significant first, each one
+/// subtracted when the value is negative, so the least i128 is never formed from its magnitude.
+pub fn pair_value(v: WideFold) -> i128 {
+    var x : i128 = 0;
+    var i : usize = 4;
+    while (i > 0) {
+        i = i - 1;
+        const limb : i128 = @intCast(v.mag[i]);
+        if (v.neg) { x = x * 4294967296 - limb; } else { x = x * 4294967296 + limb; }
+    }
+    return x;
+}
+
 /// The letter of the wide type a refusal is reported under: `type u128`, `type i128`.
 pub fn letter(v: WideFold) -> str {
     if (v.named_signed) { return "i"; }
@@ -971,4 +1003,25 @@ test every_refusal_has_its_own_words {
         s = s + 1;
     }
     assert why(OK).len == 0;
+}
+
+test an_i128_constant_is_a_pair_constant_at_run_time {
+    // Beside a value that does not fold: lowered at run time.
+    assert run_time(wp_bin("-", wp_i128("170141183460469231731687303715884105727"), other()), false) == AS_RUN;
+    assert run_time(wp_bin("==", other(), wp_i128("1")), false) == AS_RUN;
+    // Folded to an i128: a pair constant, exact at both ends.
+    const top : WideFold = wp_bin("-", wp_i128("170141183460469231731687303715884105727"), wp_i128("0"));
+    assert run_time(top, false) == AS_PAIR;
+    assert pair_value(top) == 170141183460469231731687303715884105727;
+    const bottom : WideFold = wp_bin("-", wp_un("-", wp_i128("170141183460469231731687303715884105727")), wp_lit("1"));
+    assert run_time(bottom, false) == AS_PAIR;
+    assert pair_value(bottom) == 0 - 170141183460469231731687303715884105727 - 1;
+    assert pair_value(wp_i128("18446744073709551616")) == 18446744073709551616;
+    assert pair_value(wp_bin("-", wp_i128("0"), wp_lit("52"))) == 0 - 52;
+    assert run_time(wp_i128("1"), false) == AS_PAIR;
+    // A comparison, an `as`, a u128, and a fold Zig refuses keep their verdict.
+    assert run_time(wp_bin("==", wp_i128("1"), wp_lit("1")), false) == AS_VERDICT;
+    assert run_time(wp_i128("1"), true) == AS_VERDICT;
+    assert run_time(wp_bin("-", wp_u128("1"), other()), false) == AS_VERDICT;
+    assert run_time(wp_bin("+", wp_i128("170141183460469231731687303715884105727"), wp_lit("1")), false) == AS_VERDICT;
 }
