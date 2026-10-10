@@ -110,8 +110,12 @@ pub fn reason_class(reason: u8) -> u8 {
 /// ACTOR_WINDOW_MS: one follower read of events.t27 (FOLLOW_MS), so a board that reads every
 /// READ_PAUSE_MS sees each pair's traffic at most two windows late. At most AGG_PAIRS_MAX pairs are
 /// open at once, so a sender that fans out to many receivers cannot grow the runtime's memory.
+/// A table smaller than the pairs in use stops counting: measured on the runtime's ring bench
+/// (gHashTag/trios#1744), 1000 actors passing 100 000 messages round a ring of 1000 pairs, a table
+/// of 256 filled and emptied as the ring went round and wrote 101 000 events per run: its 1000
+/// spawns and one count per message. 4096 pairs hold that ring, at a few hundred bytes a pair.
 pub const ACTOR_WINDOW_MS : u32 = 1000;
-pub const AGG_PAIRS_MAX : u32 = 256;
+pub const AGG_PAIRS_MAX : u32 = 4096;
 
 /// What an event does to the open counts before it is written.
 /// OR_NONE: nothing (a spawn or a restart names a new pid, which has no count yet).
@@ -163,7 +167,8 @@ pub fn flush_reason(elapsed_ms: u32, ordered: bool, full: bool, stopping: bool) 
 /// Events wait in the runtime until the bus has taken them, in order, one writer per runtime. While the
 /// store cannot write, at most PUBLISH_BUFFER_MAX wait; a newer event finds no room, is counted as
 /// lost, and the count is shown with the feed. Bounded memory beats a runtime that dies of its log.
-pub const PUBLISH_BUFFER_MAX : u32 = 4096;
+/// A full table writes every open count at once, so the buffer holds at least two tables.
+pub const PUBLISH_BUFFER_MAX : u32 = 16384;
 
 pub fn buffer_admits(buffered: u32) -> bool {
     return buffered < PUBLISH_BUFFER_MAX;
@@ -200,7 +205,6 @@ pub const REPLAY_REPO : str = "gHashTag/t27";
 /// Literals, each pinned to its home by the_replay_names_its_homes: `t27c gen-ts` cannot emit a const
 /// that reads an imported one, and the replay's host reads these from the generated module.
 pub const REPLAY_TASK_KIND : u8 = 2;
-pub const REPLAY_JOB_IDS : [2]str = ["mvp-job-1", "mvp-job-2"];
 /// Slot s is REPLAY_ACTOR_NAMES[s - 1]; slot 1 is the root supervisor.
 pub const REPLAY_ACTOR_NAMES : [7]str = [
     "mvp-root", "dispatcher", "worker-ref", "worker-native", "worker", "verifier", "treasurer"
@@ -209,14 +213,14 @@ pub const REPLAY_SUPERVISOR_SLOT : u32 = 1;
 pub const REPLAY_STRATEGY : u8 = 0;
 pub const REPLAY_MAX_RESTARTS : u32 = 3;
 pub const REPLAY_PERIOD_SECONDS : u32 = 300;
-pub const REPLAY_KIND : [24]u8 = [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 1, 2, 3, 4, 5, 4, 4, 4, 5, 1];
+pub const REPLAY_KIND : [24]u8 = [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 2, 3, 1, 4, 5, 4, 4, 4, 5, 2];
 pub const REPLAY_FROM_SLOT : [24]u32 = [0, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4, 6, 2, 2, 5, 5, 1, 2, 2, 5, 3, 6, 2, 4];
 pub const REPLAY_FROM_GEN : [24]u32 = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1];
 pub const REPLAY_TO_SLOT : [24]u32 = [1, 2, 3, 4, 5, 6, 7, 3, 4, 6, 6, 7, 3, 5, 1, 2, 5, 5, 6, 6, 6, 2, 7, 1];
 pub const REPLAY_TO_GEN : [24]u32 = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1];
 /// actors.t27 exit reasons for an exit or a DOWN; X_NONE elsewhere.
 pub const REPLAY_REASON : [24]u8 = [99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 4, 4, 99, 99, 99, 99, 99, 99, 99, 0];
-/// 0: no task; j: REPLAY_JOB_IDS[j - 1].
+/// 0: no task; j: job j, the task (REPLAY_TASK_KIND, REPLAY_REPO, number j).
 pub const REPLAY_TASK : [24]u8 = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 0, 2, 0, 2, 2, 2, 0, 0];
 pub const REPLAY_RESTARTS : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 pub const REPLAY_COUNT : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 10, 1, 1, 1, 4, 0];
@@ -379,8 +383,9 @@ test the_replay_crash_ends_its_task_and_comes_back {
 
 invariant the_window_is_one_follower_read {
     assert ACTOR_WINDOW_MS == 1000;
-    assert AGG_PAIRS_MAX >= 64;
-    assert PUBLISH_BUFFER_MAX >= AGG_PAIRS_MAX;
+    // the runtime's ring bench: 1000 actors, 1000 pairs
+    assert AGG_PAIRS_MAX >= 1000;
+    assert PUBLISH_BUFFER_MAX >= 2 * AGG_PAIRS_MAX;
 }
 
 invariant three_reason_classes {

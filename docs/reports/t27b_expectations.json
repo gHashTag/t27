@@ -843,6 +843,7 @@
   {"path": "specs/providers/tri_gnk_pair.t27", "t27b": "pass"},
   {"path": "specs/providers/trinet/fpga-xc7a200t.t27", "t27b": "pass"},
   {"path": "specs/providers/trinet/gpu-consumer-24gb.t27", "t27b": "pass"},
+  {"path": "specs/queen/actor_events.t27", "t27b": "pass"},
   {"path": "specs/queen/actor_view.t27", "t27b": "pass"},
   {"path": "specs/queen/actors.t27", "t27b": "pass"},
   {"path": "specs/queen/actors_hw.t27", "t27b": "pass"},

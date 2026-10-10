@@ -210,16 +210,18 @@ pub fn prune_through(newest: u64) -> u64 {
 /// ACTOR_EVENT_NAMES. spawn, exit, DOWN and restart are rare and every one is written. A deliver that
 /// names a task is written one by one (EV_ACTOR_DELIVER); every other deliver is counted into one
 /// EV_ACTOR_DELIVERS per sender and receiver per window. actor_events.t27 decides which is which.
+/// The first five are numbered as the view reads them (actor_view.t27, #8615: spawn, restart, exit,
+/// down, deliver), so the board needs no table between the feed's kind and its own.
 pub const ACTOR_STREAM : str = "actors";
 pub const EV_ACTOR_SPAWN : u8 = 0;
-pub const EV_ACTOR_EXIT : u8 = 1;
-pub const EV_ACTOR_DOWN : u8 = 2;
-pub const EV_ACTOR_RESTART : u8 = 3;
+pub const EV_ACTOR_RESTART : u8 = 1;
+pub const EV_ACTOR_EXIT : u8 = 2;
+pub const EV_ACTOR_DOWN : u8 = 3;
 pub const EV_ACTOR_DELIVER : u8 = 4;
 pub const EV_ACTOR_DELIVERS : u8 = 5;
 pub const ACTOR_KINDS : u8 = 6;
 pub const ACTOR_EVENT_NAMES : [6]str = [
-    "actor.spawn", "actor.exit", "actor.down", "actor.restart", "actor.deliver", "actor.delivers"
+    "actor.spawn", "actor.restart", "actor.exit", "actor.down", "actor.deliver", "actor.delivers"
 ];
 
 /// Whether a kind is one the actors' stream carries. A row of any other kind on that stream is not
@@ -388,6 +390,8 @@ test the_actors_have_kinds_of_their_own {
 }
 
 invariant the_actor_kinds_are_numbered_in_order {
-    assert EV_ACTOR_SPAWN == 0 and EV_ACTOR_DELIVERS == ACTOR_KINDS - 1;
+    assert EV_ACTOR_SPAWN == 0 and EV_ACTOR_RESTART == 1 and EV_ACTOR_EXIT == 2;
+    assert EV_ACTOR_DOWN == 3 and EV_ACTOR_DELIVER == 4;
+    assert EV_ACTOR_DELIVERS == ACTOR_KINDS - 1;
     assert ACTOR_KINDS == 6;
 }
