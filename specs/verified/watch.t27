@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/watch.t27 -- what `t27c frontier --watch` reruns after a spec is saved. Epic
+; gHashTag/t27#8095, issue #8737 (hot reload, step H5).
+; --
+; Why. Until now an author who edited a spec ran `t27c test-report` on it by hand, and on everything that
+; imports it only if they remembered to; a CI run told them an hour later. The watch loop reruns, within a
+; poll interval of the save, exactly the specs whose verdict the save can change.
+; --
+; Which specs. A spec's closure digest (gen_hash_cache.t27) is one hash over its own source and the source
+; of every spec in its `use` closure. A save changes the digest of the saved spec and of every spec that
+; imports it, directly or not, and of nothing else -- so "the digest changed since the last look" is
+; exactly the set to rerun, and the import graph does not have to be walked backwards.
+; --
+; The first look only records. Rerunning every spec when the watch starts would take the corpus' full
+; test time (about an hour) before the first useful answer; the first pass records each digest, and a
+; spec is rerun only when its digest differs from one already seen.
+; --
+; The batch. A save to a hub (types.t27 is imported by hundreds of specs) changes many digests at once. At
+; most WATCH_BATCH specs are rerun per look, in path order, and the rest are counted and stay changed, so
+; the next look takes them; the loop never goes quiet on a change it has not rerun.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedWatch;
+
+/// How long the loop sleeps between looks, in milliseconds.
+pub const WATCH_POLL_MS : u32 = 500;
+
+/// At most this many specs are rerun per look.
+pub const WATCH_BATCH : u32 = 16;
+
+/// Rerun a spec only when it was seen before and its closure digest changed.
+pub fn watch_rerun(seen_before: bool, digest_changed: bool) -> bool {
+    if (seen_before == false) { return false; }
+    return digest_changed;
+}
+
+/// How many of `affected` specs this look reruns; the rest wait for the next look.
+pub fn watch_take(affected: u32) -> u32 {
+    if (affected > WATCH_BATCH) { return WATCH_BATCH; }
+    return affected;
+}
+
+test watch_rerun_only_a_changed_spec_seen_before {
+    assert watch_rerun(true, true) == true;
+    assert watch_rerun(true, false) == false;
+    // the first look records, it never reruns the corpus
+    assert watch_rerun(false, true) == false;
+    assert watch_rerun(false, false) == false;
+}
+
+test watch_take_caps_a_hub_save {
+    assert watch_take(1) == 1;
+    assert watch_take(16) == 16;
+    // a save to a hub changes hundreds of digests; one look takes a batch
+    assert watch_take(300) == 16;
+    assert watch_take(0) == 0;
+}
+
+invariant the_watch_stays_responsive {
+    assert WATCH_POLL_MS >= 100 and WATCH_POLL_MS <= 2000;
+    assert WATCH_BATCH >= 1;
+}

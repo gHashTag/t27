@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+32d97946e",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9e8a852e74a5312f3d3ba213bd431fa9b17a358cc8704dca639e9b5050a28dbd",
+  "gen_hash_rust": "sha256:bfd3ffde836905c27832a051be6b1a36fcb4fe08964fd420256b5a82b5b3e536",
+  "gen_hash_verilog": "sha256:bc312f6650d1d76a53abe48d4d4a10ec7986a498fa2a658eb27fd74982f8fa92",
+  "gen_hash_zig": "sha256:8d758ee38ed354656ab4f6c53ca4c9dbf5df91462b2f448f3c568185a849bbf0",
+  "module": "VerifiedWatch",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T18:52:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:68f673d95427e1c84450b1906f5876cbd9d01680e7a93eff71fce849080df750",
+  "spec_path": "specs/verified/watch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

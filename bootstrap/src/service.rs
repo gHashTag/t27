@@ -5650,8 +5650,8 @@ mod unresolved_is_not_a_rejection {
 
 /// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
 /// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
-pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Result<()> {
-    use crate::{gen_hash_cache as gc, seal_identity as si, verdict_audit as va};
+pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>, watch: bool) -> anyhow::Result<()> {
+    use crate::{gen_hash_cache as gc, seal_identity as si, verdict_audit as va, watch as wt};
     let (mut tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
     tc["gen_cache_bin"] = std::fs::read(std::env::current_exe()?).map(|b| crate::sha256_hex(&b)).unwrap_or_default().into(); // #8737: the generator's identity
     while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
@@ -5660,6 +5660,8 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
         [crate::seal_file_path(&module, p), std::path::Path::new(".trinity/seals").join(format!("{module}.json"))].iter()
             .find_map(|f| std::fs::read_to_string(f).ok().and_then(|s| serde_json::from_str(&s).ok())).unwrap_or_default()
     }
+    thread_local!(static DIG: std::cell::RefCell<std::collections::HashMap<String, String>> = Default::default());
+    fn digest(p: &str, d: u32) -> String { if let Some(x) = DIG.with(|m| m.borrow().get(p).cloned()) { return x } let src = std::fs::read_to_string(p).unwrap_or_default(); let mut h = src.clone(); for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")).filter(|_| d < 64) { h.push_str(&digest(&crate::use_spec_path(u), d + 1)) } let x = crate::sha256_hex(h.as_bytes()); DIG.with(|m| m.borrow_mut().insert(p.into(), x.clone())); x }
     fn decide(p: &str, tc: &serde_json::Value, memo: &mut std::collections::HashMap<String, u8>, depth: u32) -> Option<u8> {
         if let Some(d) = memo.get(p) { return Some(*d); }
         let src = std::fs::read_to_string(p).ok().filter(|_| depth < 64)?;
@@ -5671,8 +5673,6 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
             match decide(&crate::use_spec_path(u), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
         }
         let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
-        thread_local!(static DIG: std::cell::RefCell<std::collections::HashMap<String, String>> = Default::default());
-        fn digest(p: &str, d: u32) -> String { if let Some(x) = DIG.with(|m| m.borrow().get(p).cloned()) { return x } let src = std::fs::read_to_string(p).unwrap_or_default(); let mut h = src.clone(); for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")).filter(|_| d < 64) { h.push_str(&digest(&crate::use_spec_path(u), d + 1)) } let x = crate::sha256_hex(h.as_bytes()); DIG.with(|m| m.borrow_mut().insert(p.into(), x.clone())); x }
         let file = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/t27/genhash").join(crate::sha256_hex(format!("{}{}{}", digest(p, 0), tc["gen_cache_bin"].as_str().unwrap_or(""), gc::GEN_CACHE_VERSION).as_bytes()));
         let hit: Option<[String; 4]> = std::fs::read_to_string(&file).ok().and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok()).filter(|v| gc::gen_cache_use(true, v.len() as u32)).map(|v| [v[0].clone(), v[1].clone(), v[2].clone(), v[3].clone()]);
         let cur = hit.clone().or_else(|| crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]));
@@ -5722,6 +5722,17 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
         println!("{} {p}: rerun {} of {} failed, sealed {}{}", if bad { "POISONED" } else { "agrees" }, r.failed, r.total, sealed, r.blocked.map(|b| format!(", blocked: {}", b.lines().next().unwrap_or(""))).unwrap_or_default());
     }
     if poisoned > 0 { anyhow::bail!("{poisoned} reused verdict(s) disagree with their rerun (specs/verified/verdict_audit.t27)") }
+    // --watch (#8737 H5): rerun every spec whose closure digest changed since the last look (watch.t27).
+    let mut last: std::collections::HashMap<String, String> = Default::default();
+    while watch {
+        DIG.with(|m| m.borrow_mut().clear());
+        let now: Vec<(String, String)> = specs.iter().map(|p| (p.clone(), digest(p, 0))).collect();
+        let changed: Vec<&(String, String)> = now.iter().filter(|(p, d)| wt::watch_rerun(last.contains_key(p), last.get(p) != Some(d))).collect();
+        for (p, d) in changed.iter().take(wt::watch_take(changed.len() as u32) as usize) { let r = crate::test_report::run(Path::new(p), Path::new("specs")); println!("{} {p}: {} of {} pass{}", if r.blocked.is_some() { "BLOCKED" } else if r.failed > 0 { "FAIL" } else { "ok" }, r.passed, r.total, r.blocked.as_deref().map(|b| format!(" -- {}", b.lines().next().unwrap_or(""))).unwrap_or_default()); last.insert(p.clone(), d.clone()); }
+        if changed.len() as u32 > wt::WATCH_BATCH { println!("watch: {} more changed specs wait for the next look", changed.len() as u32 - wt::WATCH_BATCH) }
+        for (p, d) in &now { last.entry(p.clone()).or_insert_with(|| d.clone()); }
+        std::thread::sleep(std::time::Duration::from_millis(wt::WATCH_POLL_MS as u64));
+    }
     Ok(())
 }
 
