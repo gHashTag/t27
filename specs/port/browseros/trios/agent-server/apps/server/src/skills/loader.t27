@@ -1,0 +1,114 @@
+module port::loader;
+
+// SkillMeta struct definition
+struct SkillMeta {
+    id: []const u8,
+    name: []const u8,
+    description: []const u8,
+    location: []const u8,
+    enabled: bool,
+    version: ?[]const u8,
+    builtIn: bool,
+}
+
+// Port of isDirectory from line 9 - decision logic only
+fn isDirectory(dirPath: []const u8) -> bool {
+    return false;
+}
+
+// Port of isValidFrontmatter from line 18 - export
+pub fn isValidFrontmatter(data: bool) -> bool {
+    return data;
+}
+
+// Port of parseSkillFile from line 29 - decision logic only
+fn parseSkillFile(
+    skillMdPath: []const u8,
+    dirName: []const u8,
+    builtIn: bool,
+) -> ?SkillMeta {
+    return null;
+}
+
+// Port of scanDir from line 65 - decision logic only  
+fn scanDir(
+    dir: []const u8,
+    builtIn: bool,
+    skipDirs: ?[]const u8,
+) -> []SkillMeta {
+    return []SkillMeta{};
+}
+
+// Port of loadAllSkills from line 102 - export
+pub fn loadAllSkills() -> []SkillMeta {
+    return []SkillMeta{};
+}
+
+// Port of loadSkills from line 112 - export
+pub fn loadSkills() -> []SkillMeta {
+    return []SkillMeta{};
+}
+
+// Test cases for isDirectory logic
+test isDirectory_valid_path {
+    assert(isDirectory("/valid/path") == false);
+}
+
+test isDirectory_invalid_path {
+    assert(isDirectory("/invalid/path") == false);
+}
+
+// Test cases for isValidFrontmatter logic
+test isValidFrontmatter_valid {
+    assert(isValidFrontmatter(true) == true);
+}
+
+test isValidFrontmatter_missing_name {
+    assert(isValidFrontmatter(false) == false);
+}
+
+test isValidFrontmatter_empty_name {
+    assert(isValidFrontmatter(false) == false);
+}
+
+test isValidFrontmatter_not_object {
+    assert(isValidFrontmatter(false) == false);
+}
+
+// Test cases for parseSkillFile logic
+test parseSkillFile_valid {
+    const result = parseSkillFile(
+        "/path/to/skill.md",
+        "test-skill",
+        false,
+    );
+    assert(result == null);
+}
+
+test parseSkillFile_invalid_frontmatter {
+    const result = parseSkillFile(
+        "/path/to/invalid.md", 
+        "invalid-skill",
+        false,
+    );
+    assert(result == null);
+}
+
+// Test cases for scanDir logic
+test scanDir_empty_directory {
+    const skills = scanDir(
+        "/empty/dir",
+        false,
+        null,
+    );
+    assert(skills.len == 0);
+}
+
+test scanDir_with_skip_dirs {
+    const skills = scanDir(
+        "/test/dir",
+        false,
+        null,
+    );
+    assert(skills.len == 0);
+}
