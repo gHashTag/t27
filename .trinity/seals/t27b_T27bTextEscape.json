@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0c90f130b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2bb7149dfa7555819c3566317580623a31b87e36ab7b870d44cbbe6c2e037e62",
+  "gen_hash_rust": "sha256:4044ef75f330178708a9398c9143c079a5990deac8f4a240d46f4dcd41d160da",
+  "gen_hash_verilog": "sha256:0ce1e5cd9a9dd876bc0735321a3bd20e98d831fb21e681490cc7a85d1dbc15b4",
+  "gen_hash_zig": "sha256:ba866d55fb7e9f301efa6d8233b054eed1accfcb9d08a89e90388a6e7500e2ec",
+  "module": "T27bTextEscape",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T21:19:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:afa0ac9a0836d21d97dec1477922cba8efd70dbf3428c6a9099979607320d4d4",
+  "spec_path": "specs/tri/t27b/text_escape.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

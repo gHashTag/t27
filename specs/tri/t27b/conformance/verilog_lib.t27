@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/verilog_lib.t27 -- the imported half of the use-closure fixture of `t27b verilog`
+; (gHashTag/t27#8796; the defect it answers is #8769). verilog_use.t27 imports `twice` from here; t27c's
+; gen-verilog called it and never defined it, and exited 0.
+; `twice` calls `wrap_add`, which the importer never names: the closure must carry it too.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceVerilogLib;
+
+/// x + y, cut to a byte.
+pub fn wrap_add(x: u8, y: u8) -> u8 {
+    return x +% y;
+}
+
+/// 2x, cut to a byte.
+pub fn twice(x: u8) -> u8 {
+    return wrap_add(x, x);
+}
+
+test twice_doubles_and_wraps {
+    assert_eq(twice(3), 6);
+    assert_eq(twice(200), 144);
+    assert_eq(wrap_add(255, 1), 0);
+}

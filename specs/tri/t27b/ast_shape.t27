@@ -16,6 +16,7 @@
 module T27bAstShape;
 
 use tri::t27b::ast_scan;
+use tri::t27b::verilog_plan;
 
 /// A fn `analyzed` has reached and expanded; rewritten as MARK before it returns, so the glue sees marks only.
 pub const DONE : u8 = 2;
@@ -246,12 +247,13 @@ pub fn reach_named(nodes: []const u8, text: []const u8, from: usize, to: usize, 
 /// fn is reached when a root, or the body of a reached fn, names it: any node under the root, or under the
 /// fn, carries its name. `pub` does not make a fn a root, nor does `main`. A bench is not a root: t27c
 /// emits it as `fn bench_<name>() void`, which nothing calls. Nor is a top-level statement, which t27c does
-/// not emit at all. A fn with no name is never reached.
+/// not emit at all. Nor is a const only the hardware reads (verilog_plan.t27's is_hw_const: an instance of an
+/// extern module, or a net built on one), which no test reaches (#8796). A fn with no name is never reached.
 pub fn analyzed(nodes: []const u8, text: []const u8, marks: []u8) -> void {
     var r : usize = 0;
     while (r < count(nodes)) {
         const k : u8 = kind(nodes, r);
-        if (k != K_FN_DECL and k != K_BENCH_BLOCK and k != K_STMT_EXPR) { reach_named(nodes, text, r, end(nodes, r), marks); }
+        if (k != K_FN_DECL and k != K_BENCH_BLOCK and k != K_STMT_EXPR and !is_hw_const(nodes, text, r, 0)) { reach_named(nodes, text, r, end(nodes, r), marks); }
         r = end(nodes, r);
     }
     var again : bool = true;
@@ -718,6 +720,12 @@ test analyzed_fns_are_named_by_a_root_or_by_a_reached_body {
     wipe(m[0 .. 21], 21);
     analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
     assert bits(m[0 .. 21], 21) == 512;
+    // A const that calls a fn with an empty body (an instance of an extern module, verilog_plan.t27) is no root
+    node(buf[0 .. 1512], 20, K_EXPR_CALL, 21, 45, 46);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 0;
+    node(buf[0 .. 1512], 20, K_EXPR_IDENTIFIER, 21, 45, 46);
     // A root's own name counts: a constant named x reaches fn x, whose body names f
     node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 50, 51);
     wipe(m[0 .. 21], 21);

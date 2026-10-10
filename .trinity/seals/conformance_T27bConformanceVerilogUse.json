@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0c90f130b",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/conformance/verilog_lib.t27",
+      "spec_hash": "sha256:4c655ba6f0696c1396e265d4d3dae90e7c2cdd02e8aa765375cb34e5280ed9c8"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3f464438db020aaab5ddb6823339edf7a78c401b319b192094b6e99d53d260cb",
+  "gen_hash_rust": "sha256:1904d71c413a3c817b1af52aca6685d75b0048ab55d8d2f2a09a9df3aadfa8ff",
+  "gen_hash_verilog": "sha256:faacd5da0361593d9c05b97ddb3f5c42d668b5f00f5c8d1e5c2b567e3ff654a4",
+  "gen_hash_zig": "sha256:859b5ea6878714fd86a4468863c6b3e7bbcf17bfbbb2d432251aeae1e4969478",
+  "module": "T27bConformanceVerilogUse",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T21:19:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8a8c9c4f1885c3fcc30708f07d563a2a2ba655010dcea25f3681ddec98182e4a",
+  "spec_path": "specs/tri/t27b/conformance/verilog_use.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

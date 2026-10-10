@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/verilog_widths.t27 -- `t27b verilog` computes every value at its t27 width
+; (gHashTag/t27#8796). Verilog sizes an expression to its context: a sum of two bytes compared with a u16
+; is summed at 16 bits, so `200 +% 60` is 260 there and 4 in t27 (the defect of #8341 in t27c's gen-verilog).
+; verilog_plan.t27 writes a sum, a shift or a complement inside a concatenation, which Verilog sizes to its
+; own operands, and a narrowing cast through t27_uW. Each test below fails in the generated test bench when
+; one of those rules is dropped, and passes in the reference and in t27b:
+; - a sum that wraps at a byte, compared with a u16;
+; - a complement, compared with a u16;
+; - a shift that drops bits at a byte, compared with a u16;
+; - a narrowing cast, widened again;
+; - the same sum inside on_clock, in the module.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceVerilogWidths;
+
+pub fn sum_below(a: u8, b: u8, c: u16) -> bool {
+    return (a +% b) < c;
+}
+
+pub fn complement_below(a: u8, c: u16) -> bool {
+    return (~a) < c;
+}
+
+pub fn shift_back_is(a: u8, c: u16) -> bool {
+    return ((a << 4) >> 4) == c;
+}
+
+pub fn low_byte_widened(x: u32) -> u16 {
+    return (x as u8) as u16;
+}
+
+pub var out : u8 = 0;
+
+// Every var is read before it is written, so the test's order and the clock edge agree.
+fn on_clock(a: u8, b: u8, c: u16) {
+    if ((a +% b) < c) { out = 1; } else { out = 2; }
+}
+
+test a_sum_wraps_at_its_operands_width {
+    assert sum_below(200, 60, 5);
+    assert !sum_below(200, 60, 4);
+}
+
+test a_complement_is_at_its_width {
+    assert complement_below(200, 56);
+    assert !complement_below(200, 55);
+}
+
+test a_shift_drops_bits_at_its_width {
+    assert shift_back_is(171, 11);
+    assert !shift_back_is(171, 171);
+}
+
+test a_narrowing_keeps_the_low_bits {
+    assert_eq(low_byte_widened(300), 44);
+    assert_eq(low_byte_widened(65535), 255);
+}
+
+test the_module_computes_at_its_widths {
+    out = 0;
+    on_clock(200, 60, 5);
+    assert_eq(out, 1);
+    on_clock(200, 60, 4);
+    assert_eq(out, 2);
+}

@@ -1,0 +1,2329 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/verilog_emit.t27 -- the writer of `t27b verilog` (issue #8796, under #5980; FPGA row of
+; gHashTag/trios#1763). It walks the t27c AST of one spec, as `flat` in cli/t27b/src/lower.rs writes it (see
+; specs/tri/t27b/ast_walk.t27), and writes a Verilog module and, behind `ifdef T27B_TESTBENCH, a test bench
+; that runs the spec's own tests against that module. Every decision it takes is in
+; specs/tri/t27b/verilog_plan.t27; this file only spells them. It reaches cli/t27b only through
+; `t27c gen-rust` (gen/rust/tri/t27b/verilog_emit.rs).
+; --
+; The entry point is emit(nodes, text, meta, ptext, work, out): the AST records and their text; per node a
+; meta record of four u32 (flags, line, params span; verilog_plan.t27); the params text; a work area of at
+; least 2 * count(nodes) + 70 bytes, all 0; the output buffer. It returns the length of the Verilog it wrote
+; at out[0 ..], or minus the length of the refusal it wrote there instead. A refusal names the construct,
+; the name and the line: "t27b: verilog: unsupported construct <what> `<name>` at line <n>".
+; The work area: [0, n) marks the fns the hardware reaches, [n, 2n) those the tests reach, [2n, 2n + 65)
+; the widths whose truncation function t27_uW a cast used.
+; --
+; Modes. An expression or statement is written for one of five places: the module scope (M_TOP: a net, an
+; instance's connections, a reset value), a Verilog function of the module (M_FUNC), the clocked process of
+; on_clock (M_CLOCK), a test of the bench (M_TEST), or a function of the bench (M_TBFUNC). A module var is
+; written `name <= e` in M_CLOCK and `dut.name = e` in M_TEST, and is not written anywhere else.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bVerilogEmit;
+
+use tri::t27b::verilog_plan;
+
+pub const M_TOP : u8 = 0;
+pub const M_FUNC : u8 = 1;
+pub const M_CLOCK : u8 = 2;
+pub const M_TEST : u8 = 3;
+pub const M_TBFUNC : u8 = 4;
+
+/// The room at the end of `out` a refusal is first written to, so the text before it survives.
+pub const MSG_ROOM : usize = 400;
+/// The longest name a refusal quotes.
+pub const NAME_CAP : usize = 120;
+
+/// Symbols: a resolved name is a tag times SYM_UNIT plus a node index (a parameter: its position).
+pub const SYM_UNIT : i64 = 1099511627776;
+pub const SYM_LOCAL : i64 = 1;
+pub const SYM_PARAM : i64 = 2;
+pub const SYM_TOP : i64 = 3;
+pub const SYM_FN : i64 = 4;
+pub const NO_SYM : i64 = -1;
+
+// ----------------------------------------------------------------------------------------------------------
+// Writing bytes.
+// ----------------------------------------------------------------------------------------------------------
+
+/// Writes the constant w at out[at ..]; returns the end.
+pub fn put(out: []u8, at: usize, w: str) -> usize {
+    var k : usize = 0;
+    while (k < w.len) {
+        out[at + k] = w[k];
+        k = k + 1;
+    }
+    return at + w.len;
+}
+
+/// Writes s[a .. b] at out[at ..].
+pub fn put_span(out: []u8, at: usize, s: []const u8, a: usize, b: usize) -> usize {
+    var k : usize = a;
+    var q : usize = at;
+    while (k < b) {
+        out[q] = s[k];
+        q = q + 1;
+        k = k + 1;
+    }
+    return q;
+}
+
+/// How many decimal digits v has.
+pub fn dec_len(v: u64) -> usize {
+    var n : usize = 1;
+    var x : u64 = v;
+    while (x >= 10) {
+        x = x / 10;
+        n = n + 1;
+    }
+    return n;
+}
+
+/// Writes v in decimal.
+pub fn put_dec(out: []u8, at: usize, v: u64) -> usize {
+    const n : usize = dec_len(v);
+    var x : u64 = v;
+    var k : usize = n;
+    while (k > 0) {
+        const db : u8 = @intCast(x % 10 + 48);
+        out[at + k - 1] = db;
+        x = x / 10;
+        k = k - 1;
+    }
+    return at + n;
+}
+
+/// Writes n spaces.
+pub fn put_ind(out: []u8, at: usize, n: usize) -> usize {
+    var k : usize = 0;
+    while (k < n) {
+        out[at + k] = 32;
+        k = k + 1;
+    }
+    return at + n;
+}
+
+/// Writes the name text[a .. b], as an escaped identifier (`\wait `) when it is a Verilog keyword.
+pub fn put_name(out: []u8, at: usize, text: []const u8, a: usize, b: usize) -> usize {
+    if (verilog_keyword(text[a .. b])) {
+        var q : usize = put(out, at, "\\");
+        q = put_span(out, q, text, a, b);
+        return put(out, q, " ");
+    }
+    return put_span(out, at, text, a, b);
+}
+
+/// Writes the range of a scalar type, `[W-1:0] `, or nothing for one bit.
+pub fn put_range(out: []u8, at: usize, t: i64) -> usize {
+    const w : i64 = ty_width(t);
+    if (w <= 1) { return at; }
+    var q : usize = put(out, at, "[");
+    const top : u64 = (w - 1) as u64;
+    q = put_dec(out, q, top);
+    return put(out, q, ":0] ");
+}
+
+/// Writes v as a literal of the scalar type t: `1'b1` for a bool, `W'dV` for an integer.
+pub fn put_lit(out: []u8, at: usize, v: u64, t: i64) -> usize {
+    if (t == TY_BOOL) {
+        if (v == 0) { return put(out, at, "1'b0"); }
+        return put(out, at, "1'b1");
+    }
+    const w : u64 = ty_width(t) as u64;
+    var q : usize = put_dec(out, at, w);
+    q = put(out, q, "'d");
+    return put_dec(out, q, v);
+}
+
+/// The first non-zero source line at or after node i within its subtree, else the nearest one before it.
+pub fn line_near(nodes: []const u8, meta: []const u8, i: usize) -> usize {
+    var j : usize = i;
+    while (j < end(nodes, i)) {
+        if (line_of(meta, j) != 0) { return line_of(meta, j); }
+        j = j + 1;
+    }
+    var k : usize = i;
+    while (k > 0) {
+        k = k - 1;
+        if (line_of(meta, k) != 0) { return line_of(meta, k); }
+    }
+    return 0;
+}
+
+/// Writes a refusal at the end of out: "t27b: verilog: unsupported construct <what> `<name>` at line <n>",
+/// the name being text[a .. b] (none when a == b). Returns minus its length.
+pub fn fail(out: []u8, nodes: []const u8, meta: []const u8, text: []const u8, i: usize, what: str, a: usize, b: usize) -> i64 {
+    const base : usize = out.len - MSG_ROOM;
+    var q : usize = put(out, base, "t27b: verilog: unsupported construct ");
+    q = put(out, q, what);
+    if (b > a) {
+        var nb : usize = b;
+        if (nb - a > NAME_CAP) { nb = a + NAME_CAP; }
+        q = put(out, q, " `");
+        q = put_span(out, q, text, a, nb);
+        q = put(out, q, "`");
+    }
+    q = put(out, q, " at line ");
+    q = put_dec(out, q, line_near(nodes, meta, i) as u64);
+    const len : i64 = @intCast(q - base);
+    return 0 - len;
+}
+
+/// Copies the refusal of length n from the end of out to out[at ..]; returns the end.
+pub fn copy_msg(out: []u8, at: usize, n: usize) -> usize {
+    const base : usize = out.len - MSG_ROOM;
+    var k : usize = 0;
+    while (k < n) {
+        out[at + k] = out[base + k];
+        k = k + 1;
+    }
+    return at + n;
+}
+
+/// Copies the refusal of length n from the end of out to its start; returns minus n.
+pub fn to_front(out: []u8, n: usize) -> i64 {
+    const base : usize = out.len - MSG_ROOM;
+    var k : usize = 0;
+    while (k < n) {
+        out[k] = out[base + k];
+        k = k + 1;
+    }
+    const ni : i64 = @intCast(n);
+    return 0 - ni;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Names, scopes and types.
+// ----------------------------------------------------------------------------------------------------------
+
+/// The child of node c that holds node d in its subtree (c < d < end(c)).
+pub fn child_holding(nodes: []const u8, c: usize, d: usize) -> usize {
+    var x : usize = c + 1;
+    while (x < end(nodes, c)) {
+        if (d < end(nodes, x)) { return x; }
+        x = end(nodes, x);
+    }
+    return c;
+}
+
+/// The node whose direct child d is, searching down from `root` (root < d).
+pub fn parent_of(nodes: []const u8, root: usize, d: usize) -> usize {
+    var cur : usize = root;
+    while (true) {
+        const nx : usize = child_holding(nodes, cur, d);
+        if (nx == d or nx == cur) { return cur; }
+        cur = nx;
+    }
+    return cur;
+}
+
+/// Is the local declared at node d (under item) in scope at node u: d comes before u, u is not in d's own
+/// initializer, and d's enclosing block holds u?
+pub fn in_scope(nodes: []const u8, item: usize, d: usize, u: usize) -> bool {
+    if (d >= u or u < end(nodes, d)) { return false; }
+    const pb : usize = parent_of(nodes, item, d);
+    return u < end(nodes, pb);
+}
+
+/// The position of the parameter named text[a .. b] in fn `item`'s parameter lines, or -1.
+pub fn param_index(text: []const u8, meta: []const u8, ptext: []const u8, item: usize, a: usize, b: usize) -> i64 {
+    const pa : usize = params_lo(meta, item);
+    const pb : usize = params_hi(meta, item);
+    var k : usize = 0;
+    var s : usize = pa;
+    while (s < pb) {
+        const e : usize = line_stop(ptext, s, pb);
+        const c : usize = colon_at(ptext, s, e);
+        if (c - s == b - a and has_at(ptext, s, c, text[a .. b])) {
+            const ki : i64 = @intCast(k);
+            return ki;
+        }
+        k = k + 1;
+        s = e + 1;
+    }
+    return -1;
+}
+
+/// Where parameter k's name starts in the params text of `item`.
+pub fn param_name_lo(meta: []const u8, ptext: []const u8, item: usize, k: usize) -> usize {
+    return param_at(ptext, params_lo(meta, item), params_hi(meta, item), k);
+}
+
+/// Where parameter k's name ends.
+pub fn param_name_hi(meta: []const u8, ptext: []const u8, item: usize, k: usize) -> usize {
+    const s : usize = param_name_lo(meta, ptext, item, k);
+    return colon_at(ptext, s, line_stop(ptext, s, params_hi(meta, item)));
+}
+
+/// The type code of parameter k of `item`.
+pub fn param_type(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, k: usize) -> i64 {
+    const s : usize = param_name_lo(meta, ptext, item, k);
+    const e : usize = line_stop(ptext, s, params_hi(meta, item));
+    const c : usize = colon_at(ptext, s, e);
+    if (c >= e) { return TY_BAD; }
+    return type_code(ptext, c + 1, e);
+}
+
+/// Resolves the name text[a .. b] used at node u inside `item` (a fn or a test; 0 for the module scope): a
+/// local in scope, a parameter of item, a top-level declaration, or a top-level fn. NO_SYM when there is
+/// none.
+pub fn resolve(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, u: usize, a: usize, b: usize) -> i64 {
+    if (item > 0) {
+        var j : usize = u;
+        while (j > item + 1) {
+            j = j - 1;
+            if (kind(nodes, j) == K_STMT_LOCAL and field_is(nodes, text, j, F_NAME, text[a .. b])) {
+                if (in_scope(nodes, item, j, u)) {
+                    const ji : i64 = @intCast(j);
+                    return SYM_LOCAL * SYM_UNIT + ji;
+                }
+            }
+        }
+        if (kind(nodes, item) == K_FN_DECL) {
+            const pk : i64 = param_index(text, meta, ptext, item, a, b);
+            if (pk >= 0) { return SYM_PARAM * SYM_UNIT + pk; }
+        }
+    }
+    const d : i64 = find_decl(nodes, text, a, b);
+    if (d != NO_NODE) { return SYM_TOP * SYM_UNIT + d; }
+    const f : i64 = find_fn(nodes, text, a, b);
+    if (f != NO_NODE) { return SYM_FN * SYM_UNIT + f; }
+    return NO_SYM;
+}
+
+/// The symbol of tag `tag` at node (or parameter position) `at`.
+pub fn sym_of(tag: i64, at: usize) -> i64 {
+    const ai : i64 = @intCast(at);
+    return tag * SYM_UNIT + ai;
+}
+
+/// The tag of a symbol.
+pub fn sym_tag(s: i64) -> i64 {
+    return @divTrunc(s, SYM_UNIT);
+}
+
+/// The node index (or parameter position) of a symbol.
+pub fn sym_at(s: i64) -> usize {
+    const r : i64 = @rem(s, SYM_UNIT);
+    const ru : usize = @intCast(r);
+    return ru;
+}
+
+/// The type a type text names: a scalar code, or TY_STRUCT plus the struct declared under that name.
+pub fn named_type(nodes: []const u8, text: []const u8, a: usize, b: usize) -> i64 {
+    const t : i64 = type_code(text, a, b);
+    if (t != TY_BAD) { return t; }
+    const p : usize = trim_lo(text, a, b);
+    const q : usize = trim_hi(text, p, b);
+    const d : i64 = find_decl(nodes, text, p, q);
+    if (d != NO_NODE) {
+        const di : usize = @intCast(d);
+        if (kind(nodes, di) == K_STRUCT_DECL) { return TY_STRUCT + d; }
+    }
+    return TY_BAD;
+}
+
+/// The type of a field `name` (text[a .. b]) of the struct declared at node sd; TY_BAD when it has none.
+pub fn field_type(nodes: []const u8, text: []const u8, sd: usize, a: usize, b: usize) -> i64 {
+    var c : usize = sd + 1;
+    while (c < end(nodes, sd)) {
+        if (field_is(nodes, text, c, F_NAME, text[a .. b])) {
+            return type_code(text, lo(nodes, c, F_TYPE), hi(nodes, c, F_TYPE));
+        }
+        c = end(nodes, c);
+    }
+    return TY_BAD;
+}
+
+/// The type of a symbol (a local, a parameter, a top-level declaration).
+pub fn sym_type(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, s: i64, depth: usize) -> i64 {
+    const tg : i64 = sym_tag(s);
+    const at : usize = sym_at(s);
+    if (tg == SYM_PARAM) { return param_type(nodes, text, meta, ptext, item, at); }
+    if (tg == SYM_LOCAL or tg == SYM_TOP) {
+        if (kind(nodes, at) == K_STRUCT_DECL) { return TY_BAD; }
+        if (hi(nodes, at, F_TYPE) > lo(nodes, at, F_TYPE)) {
+            return named_type(nodes, text, lo(nodes, at, F_TYPE), hi(nodes, at, F_TYPE));
+        }
+        if (at + 1 >= end(nodes, at) or depth > 48) { return TY_BAD; }
+        var owner : usize = item;
+        if (tg == SYM_TOP) { owner = 0; }
+        const it : i64 = ty_of(nodes, text, meta, ptext, owner, at + 1, depth + 1);
+        if (it == TY_COMPTIME and is_mut(meta, at)) { return TY_BAD; }
+        return it;
+    }
+    return TY_BAD;
+}
+
+/// The result type of the fn declared at node f.
+pub fn fn_type(nodes: []const u8, text: []const u8, f: usize) -> i64 {
+    return named_type(nodes, text, lo(nodes, f, F_RET), hi(nodes, f, F_RET));
+}
+
+/// The type of expression node i, used inside `item`. TY_BAD for anything this path does not hold.
+pub fn ty_of(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, i: usize, depth: usize) -> i64 {
+    if (depth > 64) { return TY_BAD; }
+    const k : u8 = kind(nodes, i);
+    if (k == K_EXPR_LITERAL) {
+        if (field_eq(nodes, text, i, F_VALUE, "true") or field_eq(nodes, text, i, F_VALUE, "false")) { return TY_BOOL; }
+        if (field_eq(nodes, text, i, F_KIND, "string")) { return TY_STR; }
+        if (lit_ok(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE))) { return TY_COMPTIME; }
+        if (has_at(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE), ".") or float_text(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE))) { return TY_FLOAT; }
+        return TY_BAD;
+    }
+    if (k == K_EXPR_IDENTIFIER) {
+        const s : i64 = resolve(nodes, text, meta, ptext, item, i, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+        if (s == NO_SYM or sym_tag(s) == SYM_FN) { return TY_BAD; }
+        return sym_type(nodes, text, meta, ptext, item, s, depth + 1);
+    }
+    if (k == K_EXPR_BINARY) {
+        if (children(nodes, i) != 2) { return TY_BAD; }
+        const l : usize = i + 1;
+        const r : usize = end(nodes, l);
+        const oc : u8 = op_class(text[lo(nodes, i, F_OP) .. hi(nodes, i, F_OP)]);
+        if (oc == OP_CMP or oc == OP_LOGIC) { return TY_BOOL; }
+        const lt : i64 = ty_of(nodes, text, meta, ptext, item, l, depth + 1);
+        if (oc == OP_SHIFT) { return lt; }
+        if (oc == OP_ARITH) {
+            const rt : i64 = ty_of(nodes, text, meta, ptext, item, r, depth + 1);
+            const pt : i64 = peer(lt, rt);
+            if (pt == TY_BOOL and !op_bitwise(text[lo(nodes, i, F_OP) .. hi(nodes, i, F_OP)])) { return TY_BAD; }
+            return pt;
+        }
+        return TY_BAD;
+    }
+    if (k == K_EXPR_UNARY) {
+        if (children(nodes, i) != 1) { return TY_BAD; }
+        if (field_eq(nodes, text, i, F_OP, "!")) { return TY_BOOL; }
+        if (field_eq(nodes, text, i, F_OP, "~")) {
+            const ot : i64 = ty_of(nodes, text, meta, ptext, item, i + 1, depth + 1);
+            if (ty_int(ot)) { return ot; }
+        }
+        return TY_BAD;
+    }
+    if (k == K_EXPR_CAST) {
+        return named_type(nodes, text, lo(nodes, i, F_TYPE), hi(nodes, i, F_TYPE));
+    }
+    if (k == K_EXPR_CALL) {
+        const f : i64 = find_fn(nodes, text, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+        if (f == NO_NODE) { return TY_BAD; }
+        const fi : usize = @intCast(f);
+        return fn_type(nodes, text, fi);
+    }
+    if (k == K_EXPR_FIELD_ACCESS) {
+        if (children(nodes, i) != 1 or kind(nodes, i + 1) != K_EXPR_IDENTIFIER) { return TY_BAD; }
+        const s2 : i64 = resolve(nodes, text, meta, ptext, 0, i, lo(nodes, i + 1, F_NAME), hi(nodes, i + 1, F_NAME));
+        if (s2 == NO_SYM or sym_tag(s2) != SYM_TOP) { return TY_BAD; }
+        const st : i64 = sym_type(nodes, text, meta, ptext, 0, s2, depth + 1);
+        if (st < TY_STRUCT) { return TY_BAD; }
+        const sd : usize = @intCast(st - TY_STRUCT);
+        return field_type(nodes, text, sd, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+    }
+    if (k == K_EXPR_IF) {
+        if (children(nodes, i) != 3) { return TY_BAD; }
+        const a1 : usize = end(nodes, i + 1);
+        const a2 : usize = end(nodes, a1);
+        return peer(ty_of(nodes, text, meta, ptext, item, a1, depth + 1), ty_of(nodes, text, meta, ptext, item, a2, depth + 1));
+    }
+    return TY_BAD;
+}
+
+/// Is text[a .. b] a float literal's text: digits with an `e` or a `.` (`10.0`, `1e3`)?
+pub fn float_text(text: []const u8, a: usize, b: usize) -> bool {
+    if (b <= a or !digit(text[a])) { return false; }
+    var seen : bool = false;
+    var j : usize = a;
+    while (j < b) {
+        const c : u8 = text[j];
+        if (c == 46 or c == 101 or c == 69) {
+            seen = true;
+        } else if (!digit(c) and c != 95 and c != 43 and c != 45) {
+            return false;
+        }
+        j = j + 1;
+    }
+    return seen;
+}
+
+/// Does expression node i fold to a compile-time value: a literal, `true`/`false`, a constant (a top-level
+/// `const` or a `const` local of a constant value) that fits its declared type, a cast of one that fits, and
+/// a binary operator over two of them that verilog_plan.t27's fold_ok_op folds?
+pub fn fold_ok(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, i: usize, depth: usize) -> bool {
+    if (depth > 48) { return false; }
+    const k : u8 = kind(nodes, i);
+    if (k == K_EXPR_LITERAL) {
+        if (field_eq(nodes, text, i, F_VALUE, "true") or field_eq(nodes, text, i, F_VALUE, "false")) { return true; }
+        if (field_eq(nodes, text, i, F_KIND, "string")) { return false; }
+        return lit_ok(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE));
+    }
+    if (k == K_EXPR_IDENTIFIER) {
+        const d : i64 = const_decl(nodes, text, meta, ptext, item, i);
+        if (d == NO_NODE) { return false; }
+        const di : usize = @intCast(d);
+        var owner : usize = item;
+        if (sym_tag(resolve(nodes, text, meta, ptext, item, i, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME))) == SYM_TOP) { owner = 0; }
+        if (!fold_ok(nodes, text, meta, ptext, owner, di + 1, depth + 1)) { return false; }
+        if (hi(nodes, di, F_TYPE) > lo(nodes, di, F_TYPE)) {
+            const dt : i64 = type_code(text, lo(nodes, di, F_TYPE), hi(nodes, di, F_TYPE));
+            return fits(fold_val(nodes, text, meta, ptext, owner, di + 1, depth + 1), dt);
+        }
+        return true;
+    }
+    if (k == K_EXPR_CAST) {
+        if (!fold_ok(nodes, text, meta, ptext, item, i + 1, depth + 1)) { return false; }
+        const ct : i64 = type_code(text, lo(nodes, i, F_TYPE), hi(nodes, i, F_TYPE));
+        return fits(fold_val(nodes, text, meta, ptext, item, i + 1, depth + 1), ct);
+    }
+    if (k == K_EXPR_BINARY and children(nodes, i) == 2) {
+        const r : usize = end(nodes, i + 1);
+        if (!fold_ok(nodes, text, meta, ptext, item, i + 1, depth + 1) or !fold_ok(nodes, text, meta, ptext, item, r, depth + 1)) { return false; }
+        const a : u64 = fold_val(nodes, text, meta, ptext, item, i + 1, depth + 1);
+        const b : u64 = fold_val(nodes, text, meta, ptext, item, r, depth + 1);
+        return fold_ok_op(text[lo(nodes, i, F_OP) .. hi(nodes, i, F_OP)], a, b);
+    }
+    return false;
+}
+
+/// The value of expression node i, when fold_ok says it folds.
+pub fn fold_val(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, i: usize, depth: usize) -> u64 {
+    if (depth > 48) { return 0; }
+    const k : u8 = kind(nodes, i);
+    if (k == K_EXPR_LITERAL) {
+        if (field_eq(nodes, text, i, F_VALUE, "true")) { return 1; }
+        if (field_eq(nodes, text, i, F_VALUE, "false")) { return 0; }
+        return lit_val(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE));
+    }
+    if (k == K_EXPR_IDENTIFIER) {
+        const d : i64 = const_decl(nodes, text, meta, ptext, item, i);
+        if (d == NO_NODE) { return 0; }
+        const di : usize = @intCast(d);
+        var owner : usize = item;
+        if (sym_tag(resolve(nodes, text, meta, ptext, item, i, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME))) == SYM_TOP) { owner = 0; }
+        return fold_val(nodes, text, meta, ptext, owner, di + 1, depth + 1);
+    }
+    if (k == K_EXPR_CAST) { return fold_val(nodes, text, meta, ptext, item, i + 1, depth + 1); }
+    if (k == K_EXPR_BINARY and children(nodes, i) == 2) {
+        const a : u64 = fold_val(nodes, text, meta, ptext, item, i + 1, depth + 1);
+        const b : u64 = fold_val(nodes, text, meta, ptext, item, end(nodes, i + 1), depth + 1);
+        return fold_val_op(text[lo(nodes, i, F_OP) .. hi(nodes, i, F_OP)], a, b);
+    }
+    return 0;
+}
+
+/// The declaration a name used at node i stands for when it is a constant one: a top-level `const` or a
+/// `const` local, with a value; NO_NODE otherwise.
+pub fn const_decl(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, i: usize) -> i64 {
+    const s : i64 = resolve(nodes, text, meta, ptext, item, i, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+    const tg : i64 = sym_tag(s);
+    if (s == NO_SYM or (tg != SYM_TOP and tg != SYM_LOCAL)) { return NO_NODE; }
+    const d : usize = sym_at(s);
+    if (kind(nodes, d) == K_STRUCT_DECL or is_mut(meta, d) or d + 1 >= end(nodes, d)) { return NO_NODE; }
+    const di : i64 = @intCast(d);
+    return di;
+}
+
+/// Does the subtree of node i fold to a constant?
+pub fn is_const_expr(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, i: usize) -> bool {
+    return fold_ok(nodes, text, meta, ptext, item, i, 0);
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Module items: the class of each top-level node, the clock, the ports.
+// ----------------------------------------------------------------------------------------------------------
+
+/// The class of top-level node c (verilog_plan.t27's C_ codes).
+pub fn item_class(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, c: usize) -> u8 {
+    const k : u8 = kind(nodes, c);
+    if (k == K_FN_DECL) {
+        if (is_extern(nodes, c)) { return C_EXTERN; }
+        if (field_eq(nodes, text, c, F_NAME, "on_clock")) { return C_CLOCK; }
+        return C_FN;
+    }
+    if (k == K_TEST_BLOCK) { return C_TEST; }
+    if (k == K_CONST_DECL) {
+        if (is_mut(meta, c)) { return C_VAR; }
+        if (is_instance(nodes, text, meta, c)) { return C_INSTANCE; }
+        if (c + 1 < end(nodes, c) and is_const_expr(nodes, text, meta, ptext, 0, c + 1)) { return C_CONST; }
+        const t : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
+        if (ty_scalar(t) and c + 1 < end(nodes, c)) { return C_NET; }
+        return C_TYPE;
+    }
+    return C_TYPE;
+}
+
+/// The top-level `fn on_clock` with a body; NO_NODE when there is none.
+pub fn clock_fn(nodes: []const u8, text: []const u8) -> i64 {
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (kind(nodes, c) == K_FN_DECL and field_eq(nodes, text, c, F_NAME, "on_clock") and !is_extern(nodes, c)) {
+            const ci : i64 = @intCast(c);
+            return ci;
+        }
+        c = end(nodes, c);
+    }
+    return NO_NODE;
+}
+
+/// Is there a top-level net named `name` (it then replaces the implicit port of that name)?
+pub fn has_net(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, name: str) -> bool {
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (kind(nodes, c) == K_CONST_DECL and field_eq(nodes, text, c, F_NAME, name)) {
+            const cl : u8 = item_class(nodes, text, meta, ptext, c);
+            return cl == C_NET or cl == C_CONST;
+        }
+        c = end(nodes, c);
+    }
+    return false;
+}
+
+/// Does the module mark any var or net `pub`? When it does not, every var is an output (t27c's rule).
+pub fn declares_ports(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8) -> bool {
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (kind(nodes, c) == K_CONST_DECL and is_pub(meta, c)) {
+            const cl : u8 = item_class(nodes, text, meta, ptext, c);
+            if (cl == C_VAR or cl == C_NET) { return true; }
+        }
+        c = end(nodes, c);
+    }
+    return false;
+}
+
+/// Is the top-level var or net c an output port?
+pub fn is_output(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, c: usize, declared: bool) -> bool {
+    const cl : u8 = item_class(nodes, text, meta, ptext, c);
+    if (declared) { return (cl == C_VAR or cl == C_NET) and is_pub(meta, c); }
+    return cl == C_VAR;
+}
+
+/// The instance an on_clock parameter (text[a .. b]) is bound to, as the top-level const's node; NO_NODE when
+/// it is a port. The field is found again by the writer.
+pub fn bound_instance(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, a: usize, b: usize) -> i64 {
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (is_instance(nodes, text, meta, c)) {
+            const sd : i64 = result_struct(nodes, text, c);
+            if (sd != NO_NODE) {
+                const sdi : usize = @intCast(sd);
+                var f : usize = sdi + 1;
+                while (f < end(nodes, sdi)) {
+                    if (binds(ptext, a, b, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME), lo(nodes, f, F_NAME), hi(nodes, f, F_NAME))) {
+                        const ci : i64 = @intCast(c);
+                        return ci;
+                    }
+                    f = end(nodes, f);
+                }
+            }
+        }
+        c = end(nodes, c);
+    }
+    return NO_NODE;
+}
+
+/// The struct an instance's extern returns, as its node; NO_NODE when the extern returns none.
+pub fn result_struct(nodes: []const u8, text: []const u8, c: usize) -> i64 {
+    const f : i64 = find_fn(nodes, text, lo(nodes, c + 1, F_NAME), hi(nodes, c + 1, F_NAME));
+    if (f == NO_NODE) { return NO_NODE; }
+    const fi : usize = @intCast(f);
+    const t : i64 = fn_type(nodes, text, fi);
+    if (t < TY_STRUCT) { return NO_NODE; }
+    const sd : i64 = t - TY_STRUCT;
+    return sd;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// The use closure: which fns the hardware (base 0) or the tests (base n) reach. A mark is 1 for reached and
+// 2 once its calls were followed.
+// ----------------------------------------------------------------------------------------------------------
+
+/// Marks the fn each call in nodes[a .. b] names (a call of an undeclared name is refused where it is
+/// written, not here).
+pub fn mark_calls(nodes: []const u8, text: []const u8, work: []u8, base: usize, a: usize, b: usize) -> void {
+    var j : usize = a;
+    while (j < b) {
+        if (kind(nodes, j) == K_EXPR_CALL) {
+            const f : i64 = find_fn(nodes, text, lo(nodes, j, F_NAME), hi(nodes, j, F_NAME));
+            if (f != NO_NODE) {
+                const fi : usize = @intCast(f);
+                if (work[base + fi] == 0 and !field_eq(nodes, text, fi, F_NAME, "on_clock")) { work[base + fi] = 1; }
+            }
+        }
+        j = j + 1;
+    }
+}
+
+/// Follows the marks at base until no reached fn has unfollowed calls.
+pub fn close_marks(nodes: []const u8, text: []const u8, work: []u8, base: usize) -> void {
+    var again : bool = true;
+    while (again) {
+        again = false;
+        var c : usize = 1;
+        while (c < end(nodes, 0)) {
+            if (kind(nodes, c) == K_FN_DECL and work[base + c] == 1) {
+                work[base + c] = 2;
+                mark_calls(nodes, text, work, base, c + 1, end(nodes, c));
+                again = true;
+            }
+            c = end(nodes, c);
+        }
+    }
+}
+
+/// The hardware's closure (base 0): on_clock, the nets and the instances' arguments; the tests' (base n):
+/// every test.
+pub fn closures(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8) -> void {
+    const n : usize = count(nodes);
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        const cl : u8 = item_class(nodes, text, meta, ptext, c);
+        if (cl == C_CLOCK or cl == C_NET) { mark_calls(nodes, text, work, 0, c + 1, end(nodes, c)); }
+        if (cl == C_INSTANCE) { mark_calls(nodes, text, work, 0, c + 2, end(nodes, c)); }
+        if (cl == C_TEST) { mark_calls(nodes, text, work, n, c + 1, end(nodes, c)); }
+        c = end(nodes, c);
+    }
+    close_marks(nodes, text, work, 0);
+    close_marks(nodes, text, work, n);
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Expressions.
+// ----------------------------------------------------------------------------------------------------------
+
+/// Writes the Verilog name of symbol s used in `item` under `mode`.
+pub fn put_sym(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, mode: u8, s: i64) -> usize {
+    const tg : i64 = sym_tag(s);
+    const d : usize = sym_at(s);
+    if (tg == SYM_PARAM) {
+        return put_name(out, at, ptext, param_name_lo(meta, ptext, item, d), param_name_hi(meta, ptext, item, d));
+    }
+    if (tg == SYM_LOCAL) {
+        var q : usize = at;
+        const many : bool = decl_count_in(nodes, text, item, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME)) > 1;
+        if (mode == M_TEST) {
+            q = put(out, q, "t");
+            q = put_dec(out, q, item as u64);
+            q = put(out, q, "__");
+            q = put_span(out, q, text, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME));
+        } else if (many) {
+            q = put_span(out, q, text, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME));
+        } else {
+            return put_name(out, q, text, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME));
+        }
+        if (many) {
+            q = put(out, q, "__");
+            q = put_dec(out, q, d as u64);
+        }
+        return q;
+    }
+    if (mode == M_TEST) {
+        const q2 : usize = put(out, at, "dut.");
+        return put_name(out, q2, text, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME));
+    }
+    return put_name(out, at, text, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME));
+}
+
+/// How many locals named text[a .. b] `item` declares.
+pub fn decl_count_in(nodes: []const u8, text: []const u8, item: usize, a: usize, b: usize) -> usize {
+    var n : usize = 0;
+    var j : usize = item + 1;
+    while (j < end(nodes, item)) {
+        if (kind(nodes, j) == K_STMT_LOCAL and field_is(nodes, text, j, F_NAME, text[a .. b])) { n = n + 1; }
+        j = j + 1;
+    }
+    return n;
+}
+
+/// Writes expression node i at type `want` (the type an untyped literal takes; a typed expression keeps its
+/// own). Returns the end, or a refusal.
+pub fn ex(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, i: usize, want: i64) -> i64 {
+    const k : u8 = kind(nodes, i);
+    const own : i64 = ty_of(nodes, text, meta, ptext, item, i, 0);
+    // An untyped value is folded and written at the type it takes.
+    if (own == TY_COMPTIME) {
+        if (!fold_ok(nodes, text, meta, ptext, item, i, 0)) { return fail(out, nodes, meta, text, i, "untyped value that does not fold", 0, 0); }
+        const v : u64 = fold_val(nodes, text, meta, ptext, item, i, 0);
+        if (!ty_scalar(want)) { return fail(out, nodes, meta, text, i, "untyped value with no type to take", 0, 0); }
+        if (!fits(v, want)) { return fail(out, nodes, meta, text, i, "literal that does not fit its type", 0, 0); }
+        const q0 : usize = put_lit(out, at, v, want);
+        const r0 : i64 = @intCast(q0);
+        return r0;
+    }
+    if (own == TY_BAD) {
+        if (k == K_EXPR_CALL) {
+            const f : i64 = find_fn(nodes, text, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+            if (f == NO_NODE) { return fail(out, nodes, meta, text, i, "call of an undeclared fn", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+            return fail(out, nodes, meta, text, i, "call of a fn whose result is no scalar", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+        }
+        if (k == K_EXPR_IDENTIFIER) {
+            return fail(out, nodes, meta, text, i, "name with no scalar type", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+        }
+        if (k == K_EXPR_BINARY or k == K_EXPR_UNARY) {
+            return fail(out, nodes, meta, text, i, "operator", lo(nodes, i, F_OP), hi(nodes, i, F_OP));
+        }
+        if (k == K_EXPR_CAST) {
+            return fail(out, nodes, meta, text, i, "cast to type", lo(nodes, i, F_TYPE), hi(nodes, i, F_TYPE));
+        }
+        return fail(out, nodes, meta, text, i, kind_label(k), lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+    }
+    if (!ty_scalar(own)) { return fail(out, nodes, meta, text, i, "value that is no integer or bool", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+    var q : usize = at;
+    if (k == K_EXPR_LITERAL) {
+        const lv : u64 = fold_val(nodes, text, meta, ptext, item, i, 0);
+        q = put_lit(out, q, lv, own);
+        const rl : i64 = @intCast(q);
+        return rl;
+    }
+    if (k == K_EXPR_IDENTIFIER) {
+        const s : i64 = resolve(nodes, text, meta, ptext, item, i, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+        const tg : i64 = sym_tag(s);
+        if (tg == SYM_TOP) {
+            const d : usize = sym_at(s);
+            const cl : u8 = item_class(nodes, text, meta, ptext, d);
+            if (cl == C_CONST) {
+                q = put_lit(out, q, fold_val(nodes, text, meta, ptext, item, i, 0), own);
+                const rc : i64 = @intCast(q);
+                return rc;
+            }
+            if (cl == C_NET) {
+                if (mode == M_FUNC or mode == M_TBFUNC or mode == M_TEST) { return fail(out, nodes, meta, text, i, "net read outside the module scope and on_clock", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+            } else if (cl == C_VAR) {
+                if (mode == M_FUNC or mode == M_TBFUNC) { return fail(out, nodes, meta, text, i, "module var read inside a fn", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+            } else {
+                return fail(out, nodes, meta, text, i, "name", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+            }
+        }
+        if (tg == SYM_LOCAL) {
+            const dl : usize = sym_at(s);
+            if (!is_mut(meta, dl) and dl + 1 < end(nodes, dl) and fold_ok(nodes, text, meta, ptext, item, dl + 1, 0)) {
+                q = put_lit(out, q, fold_val(nodes, text, meta, ptext, item, i, 0), own);
+                const rk : i64 = @intCast(q);
+                return rk;
+            }
+        }
+        if (tg == SYM_PARAM and mode == M_CLOCK) {
+            const pa : usize = param_name_lo(meta, ptext, item, sym_at(s));
+            const pb : usize = param_name_hi(meta, ptext, item, sym_at(s));
+            const bi : i64 = bound_instance(nodes, text, meta, ptext, pa, pb);
+            if (bi != NO_NODE) {
+                // the parameter is `<instance>_<output>`: the instance's output wire, `<instance>__<output>`
+                const bii : usize = @intCast(bi);
+                const nlen : usize = hi(nodes, bii, F_NAME) - lo(nodes, bii, F_NAME);
+                q = put_span(out, q, text, lo(nodes, bii, F_NAME), hi(nodes, bii, F_NAME));
+                q = put(out, q, "__");
+                q = put_span(out, q, ptext, pa + nlen + 1, pb);
+                const rb : i64 = @intCast(q);
+                return rb;
+            }
+        }
+        q = put_sym(out, q, nodes, text, meta, ptext, item, mode, s);
+        const ri : i64 = @intCast(q);
+        return ri;
+    }
+    if (k == K_EXPR_BINARY) {
+        const l : usize = i + 1;
+        const r : usize = end(nodes, l);
+        const op_a : usize = lo(nodes, i, F_OP);
+        const op_b : usize = hi(nodes, i, F_OP);
+        const oc : u8 = op_class(text[op_a .. op_b]);
+        const lt : i64 = ty_of(nodes, text, meta, ptext, item, l, 0);
+        const rt : i64 = ty_of(nodes, text, meta, ptext, item, r, 0);
+        var lw : i64 = peer(lt, rt);
+        var rw : i64 = lw;
+        if (oc == OP_SHIFT) {
+            lw = own;
+            rw = rt;
+            if (rt == TY_COMPTIME) { rw = 32; }
+        }
+        if (oc == OP_LOGIC) {
+            lw = TY_BOOL;
+            rw = TY_BOOL;
+        }
+        if (oc == OP_BAD or lw == TY_BAD) { return fail(out, nodes, meta, text, i, "operator", op_a, op_b); }
+        if (oc == OP_ARITH or oc == OP_SHIFT) {
+            q = put(out, q, "{");
+        } else {
+            q = put(out, q, "(");
+        }
+        const r1 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, l, lw);
+        if (r1 < 0) { return r1; }
+        q = @intCast(r1);
+        q = put(out, q, " ");
+        q = put(out, q, verilog_op(text[op_a .. op_b]));
+        q = put(out, q, " ");
+        const r2 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, r, rw);
+        if (r2 < 0) { return r2; }
+        q = @intCast(r2);
+        if (oc == OP_ARITH or oc == OP_SHIFT) {
+            q = put(out, q, "}");
+        } else {
+            q = put(out, q, ")");
+        }
+        const rbn : i64 = @intCast(q);
+        return rbn;
+    }
+    if (k == K_EXPR_UNARY) {
+        if (field_eq(nodes, text, i, F_OP, "!")) {
+            q = put(out, q, "(!");
+        } else {
+            q = put(out, q, "{~");
+        }
+        const r3 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, i + 1, own);
+        if (r3 < 0) { return r3; }
+        q = @intCast(r3);
+        if (field_eq(nodes, text, i, F_OP, "!")) {
+            q = put(out, q, ")");
+        } else {
+            q = put(out, q, "}");
+        }
+        const ru : i64 = @intCast(q);
+        return ru;
+    }
+    if (k == K_EXPR_CAST) {
+        const src : i64 = ty_of(nodes, text, meta, ptext, item, i + 1, 0);
+        if (src == TY_COMPTIME) { return ex(out, q, nodes, text, meta, ptext, work, item, mode, i + 1, own); }
+        if (!ty_scalar(src)) { return fail(out, nodes, meta, text, i, "cast of a value that is no integer or bool", lo(nodes, i, F_TYPE), hi(nodes, i, F_TYPE)); }
+        if (own == TY_BOOL and src != TY_BOOL) { return fail(out, nodes, meta, text, i, "cast to bool", lo(nodes, i, F_TYPE), hi(nodes, i, F_TYPE)); }
+        const sw : i64 = ty_width(src);
+        const dw : i64 = ty_width(own);
+        if (sw == dw) {
+            return ex(out, q, nodes, text, meta, ptext, work, item, mode, i + 1, src);
+        }
+        if (sw < dw) {
+            // zero fill: {N'd0, x}
+            q = put(out, q, "{");
+            const fillw : i64 = dw - sw;
+            q = put_lit(out, q, 0, fillw);
+            q = put(out, q, ", ");
+            const r4 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, i + 1, src);
+            if (r4 < 0) { return r4; }
+            q = @intCast(r4);
+            q = put(out, q, "}");
+            const rw2 : i64 = @intCast(q);
+            return rw2;
+        }
+        // narrowing: the low bits, through t27_uW
+        const dwu : usize = @intCast(dw);
+        work[2 * count(nodes) + dwu] = 1;
+        q = put(out, q, "t27_u");
+        q = put_dec(out, q, dw as u64);
+        q = put(out, q, "(");
+        const r5 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, i + 1, src);
+        if (r5 < 0) { return r5; }
+        q = @intCast(r5);
+        q = put(out, q, ")");
+        const rn : i64 = @intCast(q);
+        return rn;
+    }
+    if (k == K_EXPR_CALL) {
+        return ex_call(out, q, nodes, text, meta, ptext, work, item, mode, i);
+    }
+    if (k == K_EXPR_FIELD_ACCESS) {
+        if (mode != M_TOP and mode != M_CLOCK) { return fail(out, nodes, meta, text, i, "instance output read outside the module scope and on_clock", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+        q = put_span(out, q, text, lo(nodes, i + 1, F_NAME), hi(nodes, i + 1, F_NAME));
+        q = put(out, q, "__");
+        q = put_span(out, q, text, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+        const rf : i64 = @intCast(q);
+        return rf;
+    }
+    if (k == K_EXPR_IF) {
+        const c0 : usize = i + 1;
+        const a1 : usize = end(nodes, c0);
+        const a2 : usize = end(nodes, a1);
+        q = put(out, q, "(");
+        const r6 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, c0, TY_BOOL);
+        if (r6 < 0) { return r6; }
+        q = @intCast(r6);
+        q = put(out, q, " ? ");
+        const r7 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a1, own);
+        if (r7 < 0) { return r7; }
+        q = @intCast(r7);
+        q = put(out, q, " : ");
+        const r8 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a2, own);
+        if (r8 < 0) { return r8; }
+        q = @intCast(r8);
+        q = put(out, q, ")");
+        const rif : i64 = @intCast(q);
+        return rif;
+    }
+    return fail(out, nodes, meta, text, i, kind_label(k), lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+}
+
+/// Writes a call of a fn with a body: `f(a, b)` with each argument at its parameter's type; a fn with no
+/// parameter gets the dummy input t27_none, given 1'b0.
+pub fn ex_call(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, i: usize) -> i64 {
+    const f : i64 = find_fn(nodes, text, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+    if (f == NO_NODE) { return fail(out, nodes, meta, text, i, "call of an undeclared fn", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+    const fi : usize = @intCast(f);
+    if (is_extern(nodes, fi)) { return fail(out, nodes, meta, text, i, "call of an extern module (bind it to a module-level const)", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+    if (field_eq(nodes, text, fi, F_NAME, "on_clock")) { return fail(out, nodes, meta, text, i, "call of on_clock outside a test", 0, 0); }
+    const np : usize = param_count(ptext, params_lo(meta, fi), params_hi(meta, fi));
+    if (children(nodes, i) != np) { return fail(out, nodes, meta, text, i, "call with the wrong number of arguments", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+    var q : usize = put_name(out, at, text, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+    q = put(out, q, "(");
+    if (np == 0) { q = put(out, q, "1'b0"); }
+    var a : usize = i + 1;
+    var kx : usize = 0;
+    while (a < end(nodes, i)) {
+        if (kx > 0) { q = put(out, q, ", "); }
+        const pt : i64 = param_type(nodes, text, meta, ptext, fi, kx);
+        if (!ty_scalar(pt)) { return fail(out, nodes, meta, text, i, "call of a fn with a parameter that is no integer or bool", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+        const r : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a, pt);
+        if (r < 0) { return r; }
+        q = @intCast(r);
+        a = end(nodes, a);
+        kx = kx + 1;
+    }
+    q = put(out, q, ")");
+    const rr : i64 = @intCast(q);
+    return rr;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Statements.
+// ----------------------------------------------------------------------------------------------------------
+
+/// What a statement may leave early through: bit 1 a `return`, bit 2 a `break` and bit 4 a `continue` of
+/// the loop it is in (one of a nested loop does not count).
+pub const X_RET : u8 = 1;
+pub const X_BRK : u8 = 2;
+pub const X_CONT : u8 = 4;
+
+pub fn exits(nodes: []const u8, i: usize) -> u8 {
+    var m : u8 = 0;
+    var j : usize = i;
+    while (j < end(nodes, i)) {
+        const k : u8 = kind(nodes, j);
+        if (k == K_EXPR_RETURN) { m = m | X_RET; }
+        if (k == K_STMT_WHILE) {
+            // a loop's break and continue are its own; its returns still count
+            var r : usize = j;
+            while (r < end(nodes, j)) {
+                if (kind(nodes, r) == K_EXPR_RETURN) { m = m | X_RET; }
+                r = r + 1;
+            }
+            j = end(nodes, j);
+        } else {
+            if (k == K_STMT_BREAK) { m = m | X_BRK; }
+            if (k == K_STMT_CONTINUE) { m = m | X_CONT; }
+            j = j + 1;
+        }
+    }
+    return m;
+}
+
+/// Does fn `item` need the flag t27_done: a `return` anywhere but as its last statement?
+pub fn needs_done(nodes: []const u8, item: usize) -> bool {
+    var last : usize = item;
+    var c : usize = item + 1;
+    while (c < end(nodes, item)) {
+        last = c;
+        c = end(nodes, c);
+    }
+    var j : usize = item + 1;
+    while (j < end(nodes, item)) {
+        if (kind(nodes, j) == K_EXPR_RETURN and j != last) { return true; }
+        j = j + 1;
+    }
+    return false;
+}
+
+/// Writes the guard that keeps the statements after an early exit from running: `if (!t27_done && ...)`.
+/// `lp` is the innermost loop's node (0 outside a loop).
+pub fn put_guard(out: []u8, at: usize, m: u8, lp: usize, done_name: str) -> usize {
+    var q : usize = put(out, at, "if (1'b1");
+    if ((m & X_RET) != 0) {
+        q = put(out, q, " && !");
+        q = put(out, q, done_name);
+    }
+    if ((m & X_BRK) != 0 and lp > 0) {
+        q = put(out, q, " && !t27_brk");
+        q = put_dec(out, q, lp as u64);
+    }
+    if ((m & X_CONT) != 0 and lp > 0) {
+        q = put(out, q, " && !t27_cont");
+        q = put_dec(out, q, lp as u64);
+    }
+    return put(out, q, ") begin\n");
+}
+
+/// The name of the early-return flag in a mode.
+pub fn done_flag(mode: u8) -> str {
+    if (mode == M_CLOCK) { return "t27_oc_done"; }
+    return "t27_done";
+}
+
+/// Writes the statements of block node b (its children from c on) at indent n; after a statement that may
+/// leave early, the rest go under a guard.
+pub fn stmts(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, b: usize, c: usize, n: usize, lp: usize, guard_ret: bool) -> i64 {
+    var q : usize = at;
+    var s : usize = c;
+    while (s < end(nodes, b)) {
+        const r : i64 = stmt(out, q, nodes, text, meta, ptext, work, item, mode, s, n, lp, guard_ret);
+        if (r < 0) { return r; }
+        q = @intCast(r);
+        var m : u8 = exits(nodes, s);
+        if (!guard_ret) { m = m & (X_BRK | X_CONT); }
+        const nx : usize = end(nodes, s);
+        if (m != 0 and nx < end(nodes, b)) {
+            q = put_ind(out, q, n);
+            q = put_guard(out, q, m, lp, done_flag(mode));
+            const r2 : i64 = stmts(out, q, nodes, text, meta, ptext, work, item, mode, b, nx, n + 4, lp, guard_ret);
+            if (r2 < 0) { return r2; }
+            q = @intCast(r2);
+            q = put_ind(out, q, n);
+            q = put(out, q, "end\n");
+            const rg : i64 = @intCast(q);
+            return rg;
+        }
+        s = nx;
+    }
+    const re : i64 = @intCast(q);
+    return re;
+}
+
+/// Writes one statement at indent n.
+pub fn stmt(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, s: usize, n: usize, lp: usize, guard_ret: bool) -> i64 {
+    const k : u8 = kind(nodes, s);
+    var q : usize = at;
+    if (k == K_STMT_LOCAL) {
+        if (s + 1 >= end(nodes, s)) {
+            const r0 : i64 = @intCast(q);
+            return r0;
+        }
+        if (ident_is(nodes, text, s + 1, "undefined")) {
+            const ru : i64 = @intCast(q);
+            return ru;
+        }
+        const t : i64 = sym_type(nodes, text, meta, ptext, item, sym_of(SYM_LOCAL, s), 0);
+        if (t == TY_COMPTIME) {
+            // a constant local: every use is folded
+            const rc : i64 = @intCast(q);
+            return rc;
+        }
+        if (!ty_scalar(t)) { return fail(out, nodes, meta, text, s, "local that is no integer or bool", lo(nodes, s, F_NAME), hi(nodes, s, F_NAME)); }
+        q = put_ind(out, q, n);
+        q = put_sym(out, q, nodes, text, meta, ptext, item, mode, sym_of(SYM_LOCAL, s));
+        q = put(out, q, " = ");
+        const r1 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, s + 1, t);
+        if (r1 < 0) { return r1; }
+        q = @intCast(r1);
+        q = put(out, q, ";\n");
+        const rl : i64 = @intCast(q);
+        return rl;
+    }
+    if (k == K_STMT_ASSIGN) {
+        return assign(out, q, nodes, text, meta, ptext, work, item, mode, s, n);
+    }
+    if (k == K_STMT_IF) {
+        return stmt_if(out, q, nodes, text, meta, ptext, work, item, mode, s, n, lp, guard_ret);
+    }
+    if (k == K_STMT_WHILE) {
+        return stmt_while(out, q, nodes, text, meta, ptext, work, item, mode, s, n, guard_ret);
+    }
+    if (k == K_EXPR_RETURN) {
+        if (mode == M_TEST) { return fail(out, nodes, meta, text, s, "return in a test", 0, 0); }
+        if (mode == M_CLOCK) {
+            if (s + 1 < end(nodes, s)) { return fail(out, nodes, meta, text, s, "return of a value from on_clock", 0, 0); }
+        } else {
+            if (s + 1 >= end(nodes, s)) { return fail(out, nodes, meta, text, s, "return with no value from a fn", 0, 0); }
+            q = put_ind(out, q, n);
+            q = put_name(out, q, text, lo(nodes, item, F_NAME), hi(nodes, item, F_NAME));
+            q = put(out, q, " = ");
+            const r2 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, s + 1, fn_type(nodes, text, item));
+            if (r2 < 0) { return r2; }
+            q = @intCast(r2);
+            q = put(out, q, ";\n");
+        }
+        if (guard_ret) {
+            q = put_ind(out, q, n);
+            q = put(out, q, done_flag(mode));
+            q = put(out, q, " = 1'b1;\n");
+        }
+        const rr : i64 = @intCast(q);
+        return rr;
+    }
+    if (k == K_STMT_BREAK or k == K_STMT_CONTINUE) {
+        if (lp == 0) { return fail(out, nodes, meta, text, s, kind_label(k), 0, 0); }
+        q = put_ind(out, q, n);
+        if (k == K_STMT_BREAK) {
+            q = put(out, q, "t27_brk");
+        } else {
+            q = put(out, q, "t27_cont");
+        }
+        q = put_dec(out, q, lp as u64);
+        q = put(out, q, " = 1'b1;\n");
+        const rb : i64 = @intCast(q);
+        return rb;
+    }
+    if (k == K_STMT_EXPR) {
+        if (s + 1 < end(nodes, s) and kind(nodes, s + 1) == K_EXPR_CALL) {
+            return call_stmt(out, q, nodes, text, meta, ptext, work, item, mode, s + 1, n);
+        }
+        return fail(out, nodes, meta, text, s, "expression statement", 0, 0);
+    }
+    return fail(out, nodes, meta, text, s, kind_label(k), lo(nodes, s, F_NAME), hi(nodes, s, F_NAME));
+}
+
+/// Writes an assignment: a local (blocking), a module var (`<=` in on_clock, `dut.x =` in a test); a
+/// compound operator `x op= e` as `x = {x op e}`; `_ = e` writes nothing.
+pub fn assign(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, s: usize, n: usize) -> i64 {
+    if (children(nodes, s) != 2) { return fail(out, nodes, meta, text, s, "assignment", 0, 0); }
+    const t : usize = s + 1;
+    const e : usize = end(nodes, t);
+    var q : usize = at;
+    if (ident_is(nodes, text, t, "_")) {
+        const rd : i64 = @intCast(q);
+        return rd;
+    }
+    if (kind(nodes, t) != K_EXPR_IDENTIFIER) { return fail(out, nodes, meta, text, s, "assignment to", lo(nodes, t, F_NAME), hi(nodes, t, F_NAME)); }
+    const sy : i64 = resolve(nodes, text, meta, ptext, item, t, lo(nodes, t, F_NAME), hi(nodes, t, F_NAME));
+    if (sy == NO_SYM) { return fail(out, nodes, meta, text, s, "assignment that declares a name", lo(nodes, t, F_NAME), hi(nodes, t, F_NAME)); }
+    const tg : i64 = sym_tag(sy);
+    var nonblocking : bool = false;
+    if (tg == SYM_TOP) {
+        if (item_class(nodes, text, meta, ptext, sym_at(sy)) != C_VAR) { return fail(out, nodes, meta, text, s, "assignment to", lo(nodes, t, F_NAME), hi(nodes, t, F_NAME)); }
+        if (mode == M_CLOCK) {
+            nonblocking = true;
+        } else if (mode != M_TEST) {
+            return fail(out, nodes, meta, text, s, "a fn that writes the module var", lo(nodes, t, F_NAME), hi(nodes, t, F_NAME));
+        }
+    } else if (tg != SYM_LOCAL) {
+        return fail(out, nodes, meta, text, s, "assignment to", lo(nodes, t, F_NAME), hi(nodes, t, F_NAME));
+    }
+    const tt : i64 = sym_type(nodes, text, meta, ptext, item, sy, 0);
+    if (!ty_scalar(tt)) { return fail(out, nodes, meta, text, s, "assignment to a name that is no integer or bool", lo(nodes, t, F_NAME), hi(nodes, t, F_NAME)); }
+    q = put_ind(out, q, n);
+    q = put_sym(out, q, nodes, text, meta, ptext, item, mode, sy);
+    if (nonblocking) {
+        q = put(out, q, " <= ");
+    } else {
+        q = put(out, q, " = ");
+    }
+    const oa : usize = lo(nodes, s, F_OP);
+    const ob : usize = hi(nodes, s, F_OP);
+    const compound : bool = ob > oa and !field_eq(nodes, text, s, F_OP, "=");
+    if (compound) {
+        // `x op= e`: the operator is the text before `=`
+        const oc : u8 = op_class(text[oa .. ob - 1]);
+        if (oc != OP_ARITH and oc != OP_SHIFT) { return fail(out, nodes, meta, text, s, "compound assignment", oa, ob); }
+        q = put(out, q, "{");
+        q = put_sym(out, q, nodes, text, meta, ptext, item, mode, sy);
+        q = put(out, q, " ");
+        q = put(out, q, verilog_op(text[oa .. ob - 1]));
+        q = put(out, q, " ");
+        var et : i64 = tt;
+        if (oc == OP_SHIFT) {
+            et = ty_of(nodes, text, meta, ptext, item, e, 0);
+            if (et == TY_COMPTIME) { et = 32; }
+        }
+        const r1 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, e, et);
+        if (r1 < 0) { return r1; }
+        q = @intCast(r1);
+        q = put(out, q, "}");
+    } else {
+        const r2 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, e, tt);
+        if (r2 < 0) { return r2; }
+        q = @intCast(r2);
+    }
+    q = put(out, q, ";\n");
+    const ra : i64 = @intCast(q);
+    return ra;
+}
+
+/// Writes `if (c) begin ... end else begin ... end`; an `else if` chain nests.
+pub fn stmt_if(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, s: usize, n: usize, lp: usize, guard_ret: bool) -> i64 {
+    const c0 : usize = s + 1;
+    const th : usize = end(nodes, c0);
+    if (th >= end(nodes, s) or kind(nodes, th) != K_MODULE) { return fail(out, nodes, meta, text, s, "if", 0, 0); }
+    var q : usize = put_ind(out, at, n);
+    q = put(out, q, "if (");
+    const r1 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, c0, TY_BOOL);
+    if (r1 < 0) { return r1; }
+    if (ty_of(nodes, text, meta, ptext, item, c0, 0) != TY_BOOL) { return fail(out, nodes, meta, text, s, "if on a value that is no bool", 0, 0); }
+    q = @intCast(r1);
+    q = put(out, q, ") begin\n");
+    const r2 : i64 = stmts(out, q, nodes, text, meta, ptext, work, item, mode, th, th + 1, n + 4, lp, guard_ret);
+    if (r2 < 0) { return r2; }
+    q = @intCast(r2);
+    q = put_ind(out, q, n);
+    q = put(out, q, "end\n");
+    const el : usize = end(nodes, th);
+    if (el < end(nodes, s)) {
+        q = put_ind(out, q, n);
+        q = put(out, q, "else begin\n");
+        const r3 : i64 = stmts(out, q, nodes, text, meta, ptext, work, item, mode, el, el + 1, n + 4, lp, guard_ret);
+        if (r3 < 0) { return r3; }
+        q = @intCast(r3);
+        q = put_ind(out, q, n);
+        q = put(out, q, "end\n");
+    }
+    const ri : i64 = @intCast(q);
+    return ri;
+}
+
+/// The static trip bound of loop w, read by verilog_plan.t27's trip_bound; NO_BOUND when it has none.
+pub fn loop_bound(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, w: usize) -> i64 {
+    const cnd : usize = w + 1;
+    if (kind(nodes, cnd) != K_EXPR_BINARY or children(nodes, cnd) != 2) { return NO_BOUND; }
+    const v : usize = cnd + 1;
+    if (kind(nodes, v) != K_EXPR_IDENTIFIER) { return NO_BOUND; }
+    if (!ty_int(ty_of(nodes, text, meta, ptext, item, v, 0))) { return NO_BOUND; }
+    const kn : usize = end(nodes, v);
+    const st : i64 = step_of(nodes, text, w, lo(nodes, v, F_NAME), hi(nodes, v, F_NAME));
+    if (st == NO_NODE) { return NO_BOUND; }
+    const sti : usize = @intCast(st);
+    const kok : bool = fold_ok(nodes, text, meta, ptext, item, kn, 0);
+    const sok : bool = fold_ok(nodes, text, meta, ptext, item, sti, 0);
+    return trip_bound(text[lo(nodes, cnd, F_OP) .. hi(nodes, cnd, F_OP)], kok, fold_val(nodes, text, meta, ptext, item, kn, 0), sok, fold_val(nodes, text, meta, ptext, item, sti, 0));
+}
+
+/// Writes a loop. With a static bound: `for (t27_kW = 0; t27_kW < B; ...) if (guards && cond) begin ... end`;
+/// without one, only in the test bench, `while (guards && cond) begin ... end`. A `continue` clears at the top
+/// of each pass; the continue expression runs after the body.
+pub fn stmt_while(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, w: usize, n: usize, guard_ret: bool) -> i64 {
+    const body : i64 = loop_block(nodes, text, w, "body");
+    if (body == NO_NODE) { return fail(out, nodes, meta, text, w, "while with no body", 0, 0); }
+    const bi : usize = @intCast(body);
+    const ce : i64 = loop_block(nodes, text, w, "continue_expr");
+    const bound : i64 = loop_bound(nodes, text, meta, ptext, item, w);
+    if (bound > MAX_UNROLL and (mode == M_FUNC or mode == M_CLOCK)) { return fail(out, nodes, meta, text, w, "while whose static bound is above MAX_UNROLL", 0, 0); }
+    if (bound == NO_BOUND and (mode == M_FUNC or mode == M_CLOCK)) { return fail(out, nodes, meta, text, w, "while with no static trip bound (see verilog_plan.t27 trip_bound)", 0, 0); }
+    const m : u8 = exits(nodes, bi);
+    var q : usize = at;
+    if ((m & X_BRK) != 0) {
+        q = put_ind(out, q, n);
+        q = put(out, q, "t27_brk");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " = 1'b0;\n");
+    }
+    q = put_ind(out, q, n);
+    if (bound != NO_BOUND) {
+        q = put(out, q, "for (t27_k");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " = 0; t27_k");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " < ");
+        q = put_dec(out, q, bound as u64);
+        q = put(out, q, "; t27_k");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " = t27_k");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " + 1) begin\n");
+        q = put_ind(out, q, n + 4);
+        q = put(out, q, "if (");
+    } else {
+        q = put(out, q, "while (");
+    }
+    if (guard_ret and (m & X_RET) != 0) {
+        q = put(out, q, "!");
+        q = put(out, q, done_flag(mode));
+        q = put(out, q, " && ");
+    }
+    if ((m & X_BRK) != 0) {
+        q = put(out, q, "!t27_brk");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " && ");
+    }
+    const r1 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, w + 1, TY_BOOL);
+    if (r1 < 0) { return r1; }
+    q = @intCast(r1);
+    q = put(out, q, ") begin\n");
+    var inner : usize = n + 4;
+    if (bound != NO_BOUND) { inner = n + 8; }
+    if ((m & X_CONT) != 0) {
+        q = put_ind(out, q, inner);
+        q = put(out, q, "t27_cont");
+        q = put_dec(out, q, w as u64);
+        q = put(out, q, " = 1'b0;\n");
+    }
+    const r2 : i64 = stmts(out, q, nodes, text, meta, ptext, work, item, mode, bi, bi + 1, inner, w, guard_ret);
+    if (r2 < 0) { return r2; }
+    q = @intCast(r2);
+    if (ce != NO_NODE) {
+        const cei : usize = @intCast(ce);
+        if (guard_ret and (m & X_RET) != 0) {
+            q = put_ind(out, q, inner);
+            q = put(out, q, "if (!");
+            q = put(out, q, done_flag(mode));
+            q = put(out, q, ") begin\n");
+        }
+        const r3 : i64 = stmts(out, q, nodes, text, meta, ptext, work, item, mode, cei, cei + 1, inner, 0, guard_ret);
+        if (r3 < 0) { return r3; }
+        q = @intCast(r3);
+        if (guard_ret and (m & X_RET) != 0) {
+            q = put_ind(out, q, inner);
+            q = put(out, q, "end\n");
+        }
+    }
+    if (bound != NO_BOUND) {
+        q = put_ind(out, q, n + 4);
+        q = put(out, q, "end\n");
+    }
+    q = put_ind(out, q, n);
+    q = put(out, q, "end\n");
+    const rw : i64 = @intCast(q);
+    return rw;
+}
+
+/// Writes a call statement: in a test, `assert`, `assert_eq` and `on_clock` (drive its inputs, then one
+/// clock); anywhere else a call statement is refused (a Verilog function has no effect but its value).
+pub fn call_stmt(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, item: usize, mode: u8, i: usize, n: usize) -> i64 {
+    var q : usize = at;
+    if (mode != M_TEST) { return fail(out, nodes, meta, text, i, "call statement outside a test", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+    if (field_eq(nodes, text, i, F_NAME, "assert") or field_eq(nodes, text, i, F_NAME, "assert_eq")) {
+        const eq : bool = field_eq(nodes, text, i, F_NAME, "assert_eq");
+        if ((eq and children(nodes, i) != 2) or (!eq and children(nodes, i) != 1)) { return fail(out, nodes, meta, text, i, "assert with a message", 0, 0); }
+        const a : usize = i + 1;
+        var pt : i64 = TY_BOOL;
+        if (eq) { pt = peer(ty_of(nodes, text, meta, ptext, item, a, 0), ty_of(nodes, text, meta, ptext, item, end(nodes, a), 0)); }
+        if (!ty_scalar(pt)) { return fail(out, nodes, meta, text, i, "assert on a value that is no integer or bool", 0, 0); }
+        q = put_ind(out, q, n);
+        q = put(out, q, "t27_n = t27_n + 1;\n");
+        q = put_ind(out, q, n);
+        q = put(out, q, "if (!(");
+        const r1 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a, pt);
+        if (r1 < 0) { return r1; }
+        q = @intCast(r1);
+        if (eq) {
+            q = put(out, q, " == ");
+            const r2 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, end(nodes, a), pt);
+            if (r2 < 0) { return r2; }
+            q = @intCast(r2);
+        }
+        q = put(out, q, ")) begin\n");
+        q = put_ind(out, q, n + 4);
+        q = put(out, q, "if (t27_tf == 0) $display(\"FAIL ");
+        q = put_span(out, q, text, lo(nodes, item, F_NAME), hi(nodes, item, F_NAME));
+        q = put(out, q, ": ");
+        if (eq) {
+            q = put(out, q, "assert_eq at line ");
+        } else {
+            q = put(out, q, "assert at line ");
+        }
+        q = put_dec(out, q, line_near(nodes, meta, i) as u64);
+        if (eq) {
+            q = put(out, q, ": %0d != %0d\", ");
+            const r3 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a, pt);
+            if (r3 < 0) { return r3; }
+            q = @intCast(r3);
+            q = put(out, q, ", ");
+            const r4 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, end(nodes, a), pt);
+            if (r4 < 0) { return r4; }
+            q = @intCast(r4);
+            q = put(out, q, ");\n");
+        } else {
+            q = put(out, q, "\");\n");
+        }
+        q = put_ind(out, q, n + 4);
+        q = put(out, q, "t27_tf = t27_tf + 1;\n");
+        q = put_ind(out, q, n);
+        q = put(out, q, "end\n");
+        const ra : i64 = @intCast(q);
+        return ra;
+    }
+    if (field_eq(nodes, text, i, F_NAME, "on_clock")) {
+        const oc : i64 = clock_fn(nodes, text);
+        if (oc == NO_NODE) { return fail(out, nodes, meta, text, i, "call of on_clock in a module without one", 0, 0); }
+        const oci : usize = @intCast(oc);
+        const np : usize = param_count(ptext, params_lo(meta, oci), params_hi(meta, oci));
+        if (children(nodes, i) != np) { return fail(out, nodes, meta, text, i, "call with the wrong number of arguments", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME)); }
+        var a2 : usize = i + 1;
+        var kx : usize = 0;
+        while (a2 < end(nodes, i)) {
+            const pt2 : i64 = param_type(nodes, text, meta, ptext, oci, kx);
+            const pa : usize = param_name_lo(meta, ptext, oci, kx);
+            const pb : usize = param_name_hi(meta, ptext, oci, kx);
+            const bi : i64 = bound_instance(nodes, text, meta, ptext, pa, pb);
+            if (bi == NO_NODE) {
+                q = put_ind(out, q, n);
+                q = put_name(out, q, ptext, pa, pb);
+                q = put(out, q, " = ");
+                const r5 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a2, pt2);
+                if (r5 < 0) { return r5; }
+                q = @intCast(r5);
+                q = put(out, q, ";\n");
+            } else {
+                // a parameter bound to an instance output is the instance's: the test's value is checked
+                // against it, as an assert, before the edge
+                const bii : usize = @intCast(bi);
+                const nlen : usize = hi(nodes, bii, F_NAME) - lo(nodes, bii, F_NAME);
+                q = put_ind(out, q, n);
+                q = put(out, q, "t27_n = t27_n + 1;\n");
+                q = put_ind(out, q, n);
+                q = put(out, q, "if (!(dut.");
+                q = put_span(out, q, text, lo(nodes, bii, F_NAME), hi(nodes, bii, F_NAME));
+                q = put(out, q, "__");
+                q = put_span(out, q, ptext, pa + nlen + 1, pb);
+                q = put(out, q, " == ");
+                const r6 : i64 = ex(out, q, nodes, text, meta, ptext, work, item, mode, a2, pt2);
+                if (r6 < 0) { return r6; }
+                q = @intCast(r6);
+                q = put(out, q, ")) begin\n");
+                q = put_ind(out, q, n + 4);
+                q = put(out, q, "if (t27_tf == 0) $display(\"FAIL ");
+                q = put_span(out, q, text, lo(nodes, item, F_NAME), hi(nodes, item, F_NAME));
+                q = put(out, q, ": the instance output ");
+                q = put_span(out, q, ptext, pa, pb);
+                q = put(out, q, " is not the value the test gives at line ");
+                q = put_dec(out, q, line_near(nodes, meta, i) as u64);
+                q = put(out, q, "\");\n");
+                q = put_ind(out, q, n + 4);
+                q = put(out, q, "t27_tf = t27_tf + 1;\n");
+                q = put_ind(out, q, n);
+                q = put(out, q, "end\n");
+            }
+            a2 = end(nodes, a2);
+            kx = kx + 1;
+        }
+        q = put_ind(out, q, n);
+        q = put(out, q, "t27_clock;\n");
+        const rc : i64 = @intCast(q);
+        return rc;
+    }
+    return fail(out, nodes, meta, text, i, "call statement (a fn with no value is no Verilog function)", lo(nodes, i, F_NAME), hi(nodes, i, F_NAME));
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Declarations of a body: its locals, loop counters and flags, hoisted to the top of a Verilog function (or
+// to the module, for on_clock and the tests).
+// ----------------------------------------------------------------------------------------------------------
+
+/// Writes `reg`/`integer` declarations for item's locals, loops and flags at indent n.
+pub fn decls(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, item: usize, mode: u8, n: usize) -> i64 {
+    var q : usize = at;
+    var j : usize = item + 1;
+    while (j < end(nodes, item)) {
+        const k : u8 = kind(nodes, j);
+        if (k == K_STMT_LOCAL) {
+            const t : i64 = sym_type(nodes, text, meta, ptext, item, sym_of(SYM_LOCAL, j), 0);
+            if (t != TY_COMPTIME) {
+                if (!ty_scalar(t)) { return fail(out, nodes, meta, text, j, "local that is no integer or bool", lo(nodes, j, F_NAME), hi(nodes, j, F_NAME)); }
+                q = put_ind(out, q, n);
+                q = put(out, q, "reg ");
+                q = put_range(out, q, t);
+                q = put_sym(out, q, nodes, text, meta, ptext, item, mode, sym_of(SYM_LOCAL, j));
+                q = put(out, q, ";\n");
+            }
+        }
+        if (k == K_STMT_WHILE) {
+            const m : u8 = exits(nodes, j);
+            if (loop_bound(nodes, text, meta, ptext, item, j) != NO_BOUND) {
+                q = put_ind(out, q, n);
+                q = put(out, q, "integer t27_k");
+                q = put_dec(out, q, j as u64);
+                q = put(out, q, ";\n");
+            }
+            if ((m & X_BRK) != 0) {
+                q = put_ind(out, q, n);
+                q = put(out, q, "reg t27_brk");
+                q = put_dec(out, q, j as u64);
+                q = put(out, q, ";\n");
+            }
+            if ((m & X_CONT) != 0) {
+                q = put_ind(out, q, n);
+                q = put(out, q, "reg t27_cont");
+                q = put_dec(out, q, j as u64);
+                q = put(out, q, ";\n");
+            }
+        }
+        if (k != K_STMT_LOCAL and k != K_STMT_WHILE and k != K_STMT_IF and k != K_MODULE and k != K_STMT_ASSIGN and k != K_EXPR_RETURN and k != K_STMT_EXPR and k != K_STMT_BREAK and k != K_STMT_CONTINUE and k != K_EXPR_LITERAL and k != K_EXPR_IDENTIFIER and k != K_EXPR_CALL and k != K_EXPR_BINARY and k != K_EXPR_UNARY and k != K_EXPR_CAST and k != K_EXPR_IF and k != K_EXPR_FIELD_ACCESS) {
+            return fail(out, nodes, meta, text, j, kind_label(k), lo(nodes, j, F_NAME), hi(nodes, j, F_NAME));
+        }
+        j = j + 1;
+    }
+    const r : i64 = @intCast(q);
+    return r;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Functions, the module, the test bench.
+// ----------------------------------------------------------------------------------------------------------
+
+/// Writes fn f as a Verilog function.
+pub fn function(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, f: usize, mode: u8) -> i64 {
+    const rt : i64 = fn_type(nodes, text, f);
+    if (!ty_scalar(rt)) { return fail(out, nodes, meta, text, f, "fn whose result is no integer or bool", lo(nodes, f, F_NAME), hi(nodes, f, F_NAME)); }
+    var q : usize = put(out, at, "\n    // fn ");
+    q = put_span(out, q, text, lo(nodes, f, F_NAME), hi(nodes, f, F_NAME));
+    q = put(out, q, " (line ");
+    q = put_dec(out, q, line_of(meta, f) as u64);
+    q = put(out, q, ")\n    function ");
+    q = put_range(out, q, rt);
+    q = put_name(out, q, text, lo(nodes, f, F_NAME), hi(nodes, f, F_NAME));
+    q = put(out, q, ";\n");
+    const np : usize = param_count(ptext, params_lo(meta, f), params_hi(meta, f));
+    if (np == 0) { q = put(out, q, "        input t27_none;\n"); }
+    var kx : usize = 0;
+    while (kx < np) {
+        const pt : i64 = param_type(nodes, text, meta, ptext, f, kx);
+        if (!ty_scalar(pt)) { return fail(out, nodes, meta, text, f, "fn with a parameter that is no integer or bool", lo(nodes, f, F_NAME), hi(nodes, f, F_NAME)); }
+        q = put(out, q, "        input ");
+        q = put_range(out, q, pt);
+        q = put_name(out, q, ptext, param_name_lo(meta, ptext, f, kx), param_name_hi(meta, ptext, f, kx));
+        q = put(out, q, ";\n");
+        kx = kx + 1;
+    }
+    const gd : bool = needs_done(nodes, f);
+    if (gd) { q = put(out, q, "        reg t27_done;\n"); }
+    const r1 : i64 = decls(out, q, nodes, text, meta, ptext, f, mode, 8);
+    if (r1 < 0) { return r1; }
+    q = @intCast(r1);
+    q = put(out, q, "        begin\n");
+    if (gd) { q = put(out, q, "            t27_done = 1'b0;\n"); }
+    const r2 : i64 = stmts(out, q, nodes, text, meta, ptext, work, f, mode, f, f + 1, 12, 0, gd);
+    if (r2 < 0) { return r2; }
+    q = @intCast(r2);
+    q = put(out, q, "        end\n    endfunction\n");
+    const rf : i64 = @intCast(q);
+    return rf;
+}
+
+/// Writes every fn marked at base (in declaration order), and then the truncation functions the casts used.
+pub fn functions(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, base: usize, mode: u8) -> i64 {
+    var q : usize = at;
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (kind(nodes, c) == K_FN_DECL and work[base + c] != 0 and !is_extern(nodes, c)) {
+            const r : i64 = function(out, q, nodes, text, meta, ptext, work, c, mode);
+            if (r < 0) { return r; }
+            q = @intCast(r);
+        }
+        c = end(nodes, c);
+    }
+    var w : usize = 1;
+    while (w <= 64) {
+        if (work[2 * count(nodes) + w] != 0) {
+            q = put(out, q, "\n    function [");
+            q = put_dec(out, q, (w - 1) as u64);
+            q = put(out, q, ":0] t27_u");
+            q = put_dec(out, q, w as u64);
+            q = put(out, q, ";\n        input [63:0] x;\n        t27_u");
+            q = put_dec(out, q, w as u64);
+            q = put(out, q, " = x[");
+            q = put_dec(out, q, (w - 1) as u64);
+            q = put(out, q, ":0];\n    endfunction\n");
+        }
+        w = w + 1;
+    }
+    const rr : i64 = @intCast(q);
+    return rr;
+}
+
+/// Writes the port list of the module: the implicit inputs, on_clock's unbound parameters, the outputs.
+pub fn ports(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, oc: i64) -> i64 {
+    var q : usize = at;
+    var first : bool = true;
+    if (oc != NO_NODE) {
+        if (!has_net(nodes, text, meta, ptext, "clk")) {
+            q = put(out, q, "\n    input  wire clk");
+            first = false;
+        }
+        if (!has_net(nodes, text, meta, ptext, "rst_n")) {
+            if (!first) { q = put(out, q, ","); }
+            q = put(out, q, "\n    input  wire rst_n");
+            first = false;
+        }
+        if (!has_net(nodes, text, meta, ptext, "en")) {
+            if (!first) { q = put(out, q, ","); }
+            q = put(out, q, "\n    input  wire en");
+            first = false;
+        }
+        const oci : usize = @intCast(oc);
+        const np : usize = param_count(ptext, params_lo(meta, oci), params_hi(meta, oci));
+        var kx : usize = 0;
+        while (kx < np) {
+            const pa : usize = param_name_lo(meta, ptext, oci, kx);
+            const pb : usize = param_name_hi(meta, ptext, oci, kx);
+            if (bound_instance(nodes, text, meta, ptext, pa, pb) == NO_NODE) {
+                const pt : i64 = param_type(nodes, text, meta, ptext, oci, kx);
+                if (!ty_scalar(pt)) { return fail(out, nodes, meta, text, oci, "on_clock parameter that is no integer or bool", pa, pb); }
+                if (!first) { q = put(out, q, ","); }
+                q = put(out, q, "\n    input  wire ");
+                q = put_range(out, q, pt);
+                q = put_name(out, q, ptext, pa, pb);
+                first = false;
+            }
+            kx = kx + 1;
+        }
+    }
+    const dp : bool = declares_ports(nodes, text, meta, ptext);
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (kind(nodes, c) == K_CONST_DECL and is_output(nodes, text, meta, ptext, c, dp)) {
+            const t : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
+            if (!ty_scalar(t)) { return fail(out, nodes, meta, text, c, "port that is no integer or bool", lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)); }
+            if (!first) { q = put(out, q, ","); }
+            if (item_class(nodes, text, meta, ptext, c) == C_VAR) {
+                q = put(out, q, "\n    output reg  ");
+            } else {
+                q = put(out, q, "\n    output wire ");
+            }
+            q = put_range(out, q, t);
+            q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            first = false;
+        }
+        c = end(nodes, c);
+    }
+    const rp : i64 = @intCast(q);
+    return rp;
+}
+
+/// Writes one instance: its output wires, its attributes, `NAME #(.P(v), ...) inst (.I(e), ..., .O(w));`.
+pub fn instance(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, c: usize) -> i64 {
+    const call : usize = c + 1;
+    // the first argument, bound once: t27c's Zig backend hoists a repeated `call + 1` above `call` (#2629)
+    const arg0 : usize = call + 1;
+    const f : i64 = find_fn(nodes, text, lo(nodes, call, F_NAME), hi(nodes, call, F_NAME));
+    const fi : usize = @intCast(f);
+    const np : usize = param_count(ptext, params_lo(meta, fi), params_hi(meta, fi));
+    if (children(nodes, call) != np) { return fail(out, nodes, meta, text, call, "instance with the wrong number of arguments", lo(nodes, call, F_NAME), hi(nodes, call, F_NAME)); }
+    const sd : i64 = result_struct(nodes, text, c);
+    var q : usize = at;
+    q = put(out, q, "\n    // instance ");
+    q = put_span(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+    q = put(out, q, " of ");
+    q = put_span(out, q, text, lo(nodes, call, F_NAME), hi(nodes, call, F_NAME));
+    q = put(out, q, " (line ");
+    q = put_dec(out, q, line_near(nodes, meta, c) as u64);
+    q = put(out, q, ")\n");
+    if (sd != NO_NODE) {
+        const sdi : usize = @intCast(sd);
+        var fl : usize = sdi + 1;
+        while (fl < end(nodes, sdi)) {
+            const ft : i64 = type_code(text, lo(nodes, fl, F_TYPE), hi(nodes, fl, F_TYPE));
+            if (!ty_scalar(ft)) { return fail(out, nodes, meta, text, c, "extern output that is no integer or bool", lo(nodes, fl, F_NAME), hi(nodes, fl, F_NAME)); }
+            q = put(out, q, "    wire ");
+            q = put_range(out, q, ft);
+            q = put_span(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            q = put(out, q, "__");
+            q = put_span(out, q, text, lo(nodes, fl, F_NAME), hi(nodes, fl, F_NAME));
+            q = put(out, q, ";\n");
+            fl = end(nodes, fl);
+        }
+    }
+    // attributes
+    var nattr : usize = 0;
+    var a : usize = arg0;
+    var kx : usize = 0;
+    while (a < end(nodes, call)) {
+        const pa : usize = param_name_lo(meta, ptext, fi, kx);
+        const pb : usize = param_name_hi(meta, ptext, fi, kx);
+        const role : u8 = param_role(ptext[pa .. pb], param_type(nodes, text, meta, ptext, fi, kx));
+        if (role == ROLE_BAD) { return fail(out, nodes, meta, text, call, "extern parameter of a type with no role", pa, pb); }
+        if (role == ROLE_ATTR) {
+            if (!fold_ok(nodes, text, meta, ptext, 0, a, 0)) { return fail(out, nodes, meta, text, call, "attribute that is no constant", pa, pb); }
+            if (fold_val(nodes, text, meta, ptext, 0, a, 0) == 1) {
+                if (nattr == 0) {
+                    q = put(out, q, "    (* ");
+                } else {
+                    q = put(out, q, ", ");
+                }
+                q = put_span(out, q, ptext, pa, pb);
+                nattr = nattr + 1;
+            }
+        }
+        a = end(nodes, a);
+        kx = kx + 1;
+    }
+    if (nattr > 0) { q = put(out, q, " *)\n"); }
+    q = put(out, q, "    ");
+    q = put_span(out, q, text, lo(nodes, call, F_NAME), hi(nodes, call, F_NAME));
+    // parameters
+    var npar : usize = 0;
+    a = arg0;
+    kx = 0;
+    while (a < end(nodes, call)) {
+        const pa2 : usize = param_name_lo(meta, ptext, fi, kx);
+        const pb2 : usize = param_name_hi(meta, ptext, fi, kx);
+        const pt2 : i64 = param_type(nodes, text, meta, ptext, fi, kx);
+        if (param_role(ptext[pa2 .. pb2], pt2) == ROLE_PARAM) {
+            if (npar == 0) {
+                q = put(out, q, " #(");
+            } else {
+                q = put(out, q, ", ");
+            }
+            q = put(out, q, ".");
+            q = put_span(out, q, ptext, pa2, pb2);
+            q = put(out, q, "(");
+            const r1 : i64 = param_value(out, q, nodes, text, meta, ptext, a, pt2);
+            if (r1 < 0) { return r1; }
+            q = @intCast(r1);
+            q = put(out, q, ")");
+            npar = npar + 1;
+        }
+        a = end(nodes, a);
+        kx = kx + 1;
+    }
+    if (npar > 0) { q = put(out, q, ")"); }
+    q = put(out, q, " ");
+    q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+    q = put(out, q, " (");
+    // ports: inputs, then outputs
+    var nport : usize = 0;
+    a = arg0;
+    kx = 0;
+    while (a < end(nodes, call)) {
+        const pa3 : usize = param_name_lo(meta, ptext, fi, kx);
+        const pb3 : usize = param_name_hi(meta, ptext, fi, kx);
+        const pt3 : i64 = param_type(nodes, text, meta, ptext, fi, kx);
+        if (param_role(ptext[pa3 .. pb3], pt3) == ROLE_PORT) {
+            if (nport > 0) { q = put(out, q, ","); }
+            q = put(out, q, "\n        .");
+            q = put_span(out, q, ptext, pa3, pb3);
+            q = put(out, q, "(");
+            const r2 : i64 = ex(out, q, nodes, text, meta, ptext, work, 0, M_TOP, a, pt3);
+            if (r2 < 0) { return r2; }
+            q = @intCast(r2);
+            q = put(out, q, ")");
+            nport = nport + 1;
+        }
+        a = end(nodes, a);
+        kx = kx + 1;
+    }
+    if (sd != NO_NODE) {
+        const sdj : usize = @intCast(sd);
+        var fo : usize = sdj + 1;
+        while (fo < end(nodes, sdj)) {
+            if (nport > 0) { q = put(out, q, ","); }
+            q = put(out, q, "\n        .");
+            q = put_span(out, q, text, lo(nodes, fo, F_NAME), hi(nodes, fo, F_NAME));
+            q = put(out, q, "(");
+            q = put_span(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            q = put(out, q, "__");
+            q = put_span(out, q, text, lo(nodes, fo, F_NAME), hi(nodes, fo, F_NAME));
+            q = put(out, q, ")");
+            nport = nport + 1;
+            fo = end(nodes, fo);
+        }
+    }
+    q = put(out, q, ");\n");
+    const ri : i64 = @intCast(q);
+    return ri;
+}
+
+/// Writes the value of an extern's Verilog parameter: a string literal quoted, a float literal as written, an
+/// integer folded. A name of a top-level const is read through.
+pub fn param_value(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, a: usize, t: i64) -> i64 {
+    var v : usize = a;
+    if (kind(nodes, v) == K_EXPR_IDENTIFIER) {
+        const d : i64 = find_decl(nodes, text, lo(nodes, v, F_NAME), hi(nodes, v, F_NAME));
+        if (d != NO_NODE) {
+            const di : usize = @intCast(d);
+            if (di + 1 < end(nodes, di)) { v = di + 1; }
+        }
+    }
+    var q : usize = at;
+    if (t == TY_STR) {
+        if (kind(nodes, v) != K_EXPR_LITERAL or !field_eq(nodes, text, v, F_KIND, "string")) { return fail(out, nodes, meta, text, a, "string parameter that is no string literal", 0, 0); }
+        q = put(out, q, "\"");
+        q = put_span(out, q, text, lo(nodes, v, F_VALUE), hi(nodes, v, F_VALUE));
+        q = put(out, q, "\"");
+        const rs : i64 = @intCast(q);
+        return rs;
+    }
+    if (t == TY_FLOAT) {
+        if (kind(nodes, v) != K_EXPR_LITERAL or !float_text(text, lo(nodes, v, F_VALUE), hi(nodes, v, F_VALUE))) { return fail(out, nodes, meta, text, a, "float parameter that is no float literal", 0, 0); }
+        q = put_span(out, q, text, lo(nodes, v, F_VALUE), hi(nodes, v, F_VALUE));
+        const rfl : i64 = @intCast(q);
+        return rfl;
+    }
+    if (!fold_ok(nodes, text, meta, ptext, 0, a, 0)) { return fail(out, nodes, meta, text, a, "integer parameter that is no constant", 0, 0); }
+    q = put_dec(out, q, fold_val(nodes, text, meta, ptext, 0, a, 0));
+    const ri : i64 = @intCast(q);
+    return ri;
+}
+
+/// Writes the module: header, registers, nets, instances, the reset values, the clocked process, the fns.
+pub fn module_text(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8) -> i64 {
+    const oc : i64 = clock_fn(nodes, text);
+    const dp : bool = declares_ports(nodes, text, meta, ptext);
+    var q : usize = at;
+    q = put(out, q, "\nmodule ");
+    q = put_name(out, q, text, lo(nodes, 0, F_NAME), hi(nodes, 0, F_NAME));
+    q = put(out, q, " (");
+    const r1 : i64 = ports(out, q, nodes, text, meta, ptext, oc);
+    if (r1 < 0) { return r1; }
+    q = @intCast(r1);
+    q = put(out, q, "\n);\n");
+    // every item: refuse what does not lower; registers, nets and instances
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        const cl : u8 = item_class(nodes, text, meta, ptext, c);
+        const k : u8 = kind(nodes, c);
+        if (k == K_ENUM_DECL or k == K_STMT_LOCAL or k == K_STMT_ASSIGN or k == K_STMT_EXPR) {
+            if (k != K_ENUM_DECL) { return fail(out, nodes, meta, text, c, kind_label(k), lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)); }
+        }
+        if (cl == C_VAR) {
+            const t : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
+            if (!ty_scalar(t)) { return fail(out, nodes, meta, text, c, "var that is no integer or bool", lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)); }
+            if (c + 1 >= end(nodes, c) or !fold_ok(nodes, text, meta, ptext, 0, c + 1, 0)) {
+                if (c + 1 >= end(nodes, c) or !ident_is(nodes, text, c + 1, "undefined")) { return fail(out, nodes, meta, text, c, "var whose initial value is no constant", lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)); }
+            }
+            if (!is_output(nodes, text, meta, ptext, c, dp)) {
+                q = put(out, q, "    reg ");
+                q = put_range(out, q, t);
+                q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+                q = put(out, q, ";\n");
+            }
+        }
+        if (cl == C_NET) {
+            const tn : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
+            if (!is_output(nodes, text, meta, ptext, c, dp)) {
+                q = put(out, q, "    wire ");
+                q = put_range(out, q, tn);
+                q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+                q = put(out, q, ";\n");
+            }
+            q = put(out, q, "    assign ");
+            q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            q = put(out, q, " = ");
+            const r2 : i64 = ex(out, q, nodes, text, meta, ptext, work, 0, M_TOP, c + 1, tn);
+            if (r2 < 0) { return r2; }
+            q = @intCast(r2);
+            q = put(out, q, ";\n");
+        }
+        if (cl == C_CONST and implicit_port(text[lo(nodes, c, F_NAME) .. hi(nodes, c, F_NAME)]) and oc != NO_NODE) {
+            // a constant clk, rst_n or en replaces that port: a wire tied to its value
+            q = put(out, q, "    wire ");
+            q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            q = put(out, q, ";\n    assign ");
+            q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            q = put(out, q, " = ");
+            q = put_lit(out, q, fold_val(nodes, text, meta, ptext, 0, c + 1, 0), TY_BOOL);
+            q = put(out, q, ";\n");
+        }
+        if (cl == C_INSTANCE) {
+            const r3 : i64 = instance(out, q, nodes, text, meta, ptext, work, c);
+            if (r3 < 0) { return r3; }
+            q = @intCast(r3);
+        }
+        c = end(nodes, c);
+    }
+    // reset values
+    q = put(out, q, "\n    initial begin\n");
+    var c2 : usize = 1;
+    while (c2 < end(nodes, 0)) {
+        if (item_class(nodes, text, meta, ptext, c2) == C_VAR and !ident_is(nodes, text, c2 + 1, "undefined")) {
+            const t2 : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c2), 0);
+            q = put(out, q, "        ");
+            q = put_name(out, q, text, lo(nodes, c2, F_NAME), hi(nodes, c2, F_NAME));
+            q = put(out, q, " = ");
+            q = put_lit(out, q, fold_val(nodes, text, meta, ptext, 0, c2 + 1, 0), t2);
+            q = put(out, q, ";\n");
+        }
+        c2 = end(nodes, c2);
+    }
+    q = put(out, q, "    end\n");
+    if (oc != NO_NODE) {
+        const oci : usize = @intCast(oc);
+        const r4 : i64 = clocked(out, q, nodes, text, meta, ptext, work, oci);
+        if (r4 < 0) { return r4; }
+        q = @intCast(r4);
+    }
+    const r5 : i64 = functions(out, q, nodes, text, meta, ptext, work, 0, M_FUNC);
+    if (r5 < 0) { return r5; }
+    q = @intCast(r5);
+    q = put(out, q, "endmodule\n");
+    const rm : i64 = @intCast(q);
+    return rm;
+}
+
+/// Writes on_clock: its locals and flags as module registers, then
+/// `always @(posedge clk or negedge rst_n) if (!rst_n) <reset> else if (en) <body>`.
+pub fn clocked(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, oc: usize) -> i64 {
+    var q : usize = put(out, at, "\n    // on_clock (line ");
+    q = put_dec(out, q, line_of(meta, oc) as u64);
+    q = put(out, q, "): its locals are registers written with `=` before they are read\n");
+    const gd : bool = needs_done(nodes, oc);
+    if (gd) { q = put(out, q, "    reg t27_oc_done;\n"); }
+    const r1 : i64 = decls(out, q, nodes, text, meta, ptext, oc, M_CLOCK, 4);
+    if (r1 < 0) { return r1; }
+    q = @intCast(r1);
+    q = put(out, q, "    always @(posedge clk or negedge rst_n) begin\n        if (!rst_n) begin\n");
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (item_class(nodes, text, meta, ptext, c) == C_VAR and !ident_is(nodes, text, c + 1, "undefined")) {
+            const t : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
+            q = put(out, q, "            ");
+            q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+            q = put(out, q, " <= ");
+            q = put_lit(out, q, fold_val(nodes, text, meta, ptext, 0, c + 1, 0), t);
+            q = put(out, q, ";\n");
+        }
+        c = end(nodes, c);
+    }
+    q = put(out, q, "        end else if (en) begin\n");
+    if (gd) { q = put(out, q, "            t27_oc_done = 1'b0;\n"); }
+    const r2 : i64 = stmts(out, q, nodes, text, meta, ptext, work, oc, M_CLOCK, oc, oc + 1, 12, 0, gd);
+    if (r2 < 0) { return r2; }
+    q = @intCast(r2);
+    q = put(out, q, "        end\n    end\n");
+    const rc : i64 = @intCast(q);
+    return rc;
+}
+
+/// Writes the test bench: the module under test as `dut`, the inputs as registers it drives, one block per
+/// test (a reset first, then the test's statements, then its verdict), and the fns the tests reach.
+pub fn test_bench(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8) -> i64 {
+    const n : usize = count(nodes);
+    const oc : i64 = clock_fn(nodes, text);
+    var q : usize = at;
+    // the bench drives the clock: a module whose clk is a net has none to drive
+    if (oc != NO_NODE and has_net(nodes, text, meta, ptext, "clk")) { return fail(out, nodes, meta, text, 0, "test bench of a module whose clk is a net", 0, 0); }
+    var ntest : usize = 0;
+    var c0 : usize = 1;
+    while (c0 < end(nodes, 0)) {
+        if (kind(nodes, c0) == K_TEST_BLOCK) { ntest = ntest + 1; }
+        c0 = end(nodes, c0);
+    }
+    if (ntest == 0) {
+        const r0 : i64 = @intCast(q);
+        return r0;
+    }
+    q = put(out, q, "\n`ifdef T27B_TESTBENCH\nmodule ");
+    q = put_span(out, q, text, lo(nodes, 0, F_NAME), hi(nodes, 0, F_NAME));
+    q = put(out, q, "_tb;\n");
+    // every extern the module instantiates is simulated from its own model, which the simulator is given
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (item_class(nodes, text, meta, ptext, c) == C_INSTANCE) {
+            q = put(out, q, "    // needs the simulation model of ");
+            q = put_span(out, q, text, lo(nodes, c + 1, F_NAME), hi(nodes, c + 1, F_NAME));
+            q = put(out, q, "\n");
+        }
+        c = end(nodes, c);
+    }
+    q = put(out, q, "    integer t27_n = 0;\n    integer t27_n0 = 0;\n    integer t27_tf = 0;\n    integer t27_pass = 0;\n    integer t27_fail = 0;\n");
+    if (oc != NO_NODE) {
+        const oci : usize = @intCast(oc);
+        q = put(out, q, "    reg clk = 1'b0;\n    reg rst_n = 1'b1;\n    reg en = 1'b1;\n");
+        const np : usize = param_count(ptext, params_lo(meta, oci), params_hi(meta, oci));
+        var kx : usize = 0;
+        while (kx < np) {
+            const pt : i64 = param_type(nodes, text, meta, ptext, oci, kx);
+            if (bound_instance(nodes, text, meta, ptext, param_name_lo(meta, ptext, oci, kx), param_name_hi(meta, ptext, oci, kx)) == NO_NODE) {
+                q = put(out, q, "    reg ");
+                q = put_range(out, q, pt);
+                q = put_name(out, q, ptext, param_name_lo(meta, ptext, oci, kx), param_name_hi(meta, ptext, oci, kx));
+                q = put(out, q, " = ");
+                q = put_lit(out, q, 0, pt);
+                q = put(out, q, ";\n");
+            }
+            kx = kx + 1;
+        }
+        const dp : bool = declares_ports(nodes, text, meta, ptext);
+        var c3 : usize = 1;
+        while (c3 < end(nodes, 0)) {
+            if (kind(nodes, c3) == K_CONST_DECL and is_output(nodes, text, meta, ptext, c3, dp)) {
+                q = put(out, q, "    wire ");
+                q = put_range(out, q, sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c3), 0));
+                q = put_name(out, q, text, lo(nodes, c3, F_NAME), hi(nodes, c3, F_NAME));
+                q = put(out, q, ";\n");
+            }
+            c3 = end(nodes, c3);
+        }
+        q = put(out, q, "    ");
+        q = put_name(out, q, text, lo(nodes, 0, F_NAME), hi(nodes, 0, F_NAME));
+        q = put(out, q, " dut (.clk(clk)");
+        if (!has_net(nodes, text, meta, ptext, "rst_n")) { q = put(out, q, ", .rst_n(rst_n)"); }
+        if (!has_net(nodes, text, meta, ptext, "en")) { q = put(out, q, ", .en(en)"); }
+        kx = 0;
+        while (kx < np) {
+            if (bound_instance(nodes, text, meta, ptext, param_name_lo(meta, ptext, oci, kx), param_name_hi(meta, ptext, oci, kx)) == NO_NODE) {
+                q = put(out, q, ", .");
+                q = put_name(out, q, ptext, param_name_lo(meta, ptext, oci, kx), param_name_hi(meta, ptext, oci, kx));
+                q = put(out, q, "(");
+                q = put_name(out, q, ptext, param_name_lo(meta, ptext, oci, kx), param_name_hi(meta, ptext, oci, kx));
+                q = put(out, q, ")");
+            }
+            kx = kx + 1;
+        }
+        c3 = 1;
+        while (c3 < end(nodes, 0)) {
+            if (kind(nodes, c3) == K_CONST_DECL and is_output(nodes, text, meta, ptext, c3, dp)) {
+                q = put(out, q, ", .");
+                q = put_name(out, q, text, lo(nodes, c3, F_NAME), hi(nodes, c3, F_NAME));
+                q = put(out, q, "(");
+                q = put_name(out, q, text, lo(nodes, c3, F_NAME), hi(nodes, c3, F_NAME));
+                q = put(out, q, ")");
+            }
+            c3 = end(nodes, c3);
+        }
+        q = put(out, q, ");\n");
+        q = put(out, q, "    task t27_clock;\n        begin\n            #1 clk = 1'b1;\n            #1 clk = 1'b0;\n            #1;\n        end\n    endtask\n");
+        q = put(out, q, "    task t27_reset;\n        begin\n            rst_n = 1'b0;\n            #1 rst_n = 1'b1;\n            #1;\n        end\n    endtask\n");
+    }
+    // the tests' locals and loop counters
+    var c4 : usize = 1;
+    while (c4 < end(nodes, 0)) {
+        if (kind(nodes, c4) == K_TEST_BLOCK) {
+            const r1 : i64 = decls(out, q, nodes, text, meta, ptext, c4, M_TEST, 4);
+            if (r1 < 0) { return r1; }
+            q = @intCast(r1);
+        }
+        c4 = end(nodes, c4);
+    }
+    q = put(out, q, "    initial begin\n");
+    var ntests : usize = 0;
+    var c5 : usize = 1;
+    while (c5 < end(nodes, 0)) {
+        if (kind(nodes, c5) == K_TEST_BLOCK) {
+            q = put(out, q, "        // test ");
+            q = put_span(out, q, text, lo(nodes, c5, F_NAME), hi(nodes, c5, F_NAME));
+            q = put(out, q, "\n");
+            if (oc != NO_NODE) { q = put(out, q, "        t27_reset;\n"); }
+            q = put(out, q, "        t27_tf = 0;\n        t27_n0 = t27_n;\n");
+            const r2 : i64 = stmts(out, q, nodes, text, meta, ptext, work, c5, M_TEST, c5, c5 + 1, 8, 0, false);
+            if (r2 < 0) { return r2; }
+            q = @intCast(r2);
+            q = put(out, q, "        if (t27_tf == 0) begin\n            t27_pass = t27_pass + 1;\n            $display(\"PASS ");
+            q = put_span(out, q, text, lo(nodes, c5, F_NAME), hi(nodes, c5, F_NAME));
+            q = put(out, q, " (%0d runtime asserts)\", t27_n - t27_n0);\n        end else begin\n            t27_fail = t27_fail + 1;\n            $display(\"FAIL ");
+            q = put_span(out, q, text, lo(nodes, c5, F_NAME), hi(nodes, c5, F_NAME));
+            q = put(out, q, " (%0d asserts failed)\", t27_tf);\n        end\n");
+            ntests = ntests + 1;
+        }
+        c5 = end(nodes, c5);
+    }
+    q = put(out, q, "        $display(\"t27b verilog test bench ");
+    q = put_span(out, q, text, lo(nodes, 0, F_NAME), hi(nodes, 0, F_NAME));
+    q = put(out, q, ": %0d passed, %0d failed, %0d tests, %0d runtime asserts\", t27_pass, t27_fail, ");
+    q = put_dec(out, q, ntests as u64);
+    q = put(out, q, ", t27_n);\n        $finish;\n    end\n");
+    const r3 : i64 = functions(out, q, nodes, text, meta, ptext, work, n, M_TBFUNC);
+    if (r3 < 0) { return r3; }
+    q = @intCast(r3);
+    q = put(out, q, "endmodule\n`endif\n");
+    const rb : i64 = @intCast(q);
+    return rb;
+}
+
+/// The entry point (see the header): the module, then its test bench; a test bench that does not lower is a
+/// comment naming why, and the module stands.
+pub fn emit(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, work: []u8, out: []u8) -> i64 {
+    if (count(nodes) == 0 or kind(nodes, 0) != K_MODULE) { return fail_front(out, "file with no module node"); }
+    closures(nodes, text, meta, ptext, work);
+    var q : usize = put(out, 0, "// Generated by t27b verilog from module ");
+    q = put_span(out, q, text, lo(nodes, 0, F_NAME), hi(nodes, 0, F_NAME));
+    q = put(out, q, " -- DO NOT EDIT; the decisions are specs/tri/t27b/verilog_plan.t27\n");
+    q = put(out, q, "// phi^2 + 1/phi^2 = 3 | TRINITY\n`timescale 1ns / 1ps\n`default_nettype none\n");
+    const r1 : i64 = module_text(out, q, nodes, text, meta, ptext, work);
+    if (r1 < 0) {
+        const ml1 : usize = @intCast(0 - r1);
+        return to_front(out, ml1);
+    }
+    q = @intCast(r1);
+    const keep : usize = q;
+    const r2 : i64 = test_bench(out, q, nodes, text, meta, ptext, work);
+    if (r2 < 0) {
+        q = put(out, keep, "\n// The test bench does not lower: ");
+        const ml : usize = @intCast(0 - r2);
+        q = copy_msg(out, q, ml);
+        q = put(out, q, "\n");
+    } else {
+        q = @intCast(r2);
+    }
+    q = put(out, q, "`default_nettype wire\n");
+    if (q + MSG_ROOM > out.len) { return fail_front(out, "output larger than the buffer"); }
+    const rq : i64 = @intCast(q);
+    return rq;
+}
+
+/// A refusal with no node, written at the front.
+pub fn fail_front(out: []u8, what: str) -> i64 {
+    var q : usize = put(out, 0, "t27b: verilog: unsupported construct ");
+    q = put(out, q, what);
+    const l : i64 = @intCast(q);
+    return 0 - l;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. A tree is written as ast_walk.t27 lays it out, with its meta records; its texts are slices of a
+// constant. The expected Verilog is what verilog_plan.t27 decides for it.
+// ----------------------------------------------------------------------------------------------------------
+
+fn tput32(buf: []u8, at: usize, v: usize) -> void {
+    buf[at] = @intCast(v % 256);
+    buf[at + 1] = @intCast((v / 256) % 256);
+    buf[at + 2] = @intCast((v / 65536) % 256);
+    buf[at + 3] = @intCast(v / 16777216);
+}
+
+/// Node i: kind k, subtree end e, name text[a .. b], every other field empty.
+fn tnode(buf: []u8, i: usize, k: u8, e: usize, a: usize, b: usize) -> void {
+    buf[i * REC] = k;
+    tput32(buf, i * REC + 4, e);
+    var f : usize = 0;
+    while (f < FIELDS) {
+        tput32(buf, i * REC + 8 + f * 8, 0);
+        tput32(buf, i * REC + 12 + f * 8, 0);
+        f = f + 1;
+    }
+    tput32(buf, i * REC + 8, a);
+    tput32(buf, i * REC + 12, b);
+}
+
+/// Field f of node i is text[a .. b].
+fn tset(buf: []u8, i: usize, f: usize, a: usize, b: usize) -> void {
+    tput32(buf, i * REC + 8 + f * 8, a);
+    tput32(buf, i * REC + 12 + f * 8, b);
+}
+
+/// Node i's meta record: flags, line, no parameters.
+fn tmeta(m: []u8, i: usize, flags: usize, line: usize) -> void {
+    tput32(m, i * META, flags);
+    tput32(m, i * META + 4, line);
+    tput32(m, i * META + 8, 0);
+    tput32(m, i * META + 12, 0);
+}
+
+/// Does out[0 .. n] hold w?
+fn holds(out: []const u8, n: usize, w: str) -> bool {
+    var i : usize = 0;
+    while (i + w.len <= n) {
+        var k : usize = 0;
+        while (k < w.len and out[i + k] == w[k]) { k = k + 1; }
+        if (k == w.len) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+test numbers_ranges_literals_and_names_are_spelled {
+    var out : [64]u8 = undefined;
+    assert put_dec(out[0 .. 64], 0, 0) == 1 and out[0] == 48;
+    assert put_dec(out[0 .. 64], 0, 18446744073709551615) == 20 and out[0] == 49 and out[19] == 53;
+    assert dec_len(9) == 1 and dec_len(10) == 2 and dec_len(1000) == 4;
+    const n1 : usize = put_range(out[0 .. 64], 0, 16);
+    assert n1 == 7 and holds(out[0 .. 64], 7, "[15:0] ");
+    assert put_range(out[0 .. 64], 0, TY_BOOL) == 0 and put_range(out[0 .. 64], 0, 1) == 0;
+    const n2 : usize = put_lit(out[0 .. 64], 0, 255, 8);
+    assert n2 == 6 and holds(out[0 .. 64], 6, "8'd255");
+    const n3 : usize = put_lit(out[0 .. 64], 0, 1, TY_BOOL);
+    assert n3 == 4 and holds(out[0 .. 64], 4, "1'b1");
+    const n4 : usize = put_name(out[0 .. 64], 0, "xwait", 1, 5);
+    assert n4 == 6 and out[0] == 92 and out[5] == 32;
+    const n5 : usize = put_name(out[0 .. 64], 0, "xseed", 1, 5);
+    assert n5 == 4 and holds(out[0 .. 64], 4, "seed");
+}
+
+test a_clocked_counter_lowers_to_a_register_and_an_always_block {
+    // module M { var x : u8 = 0; fn on_clock() { x = x + 1; } }
+    // text: M 0..1, x 1..2, u8 2..4, 0 4..5, 1 5..6, + 6..7, on_clock 7..15
+    const tx : str = "Mxu801+on_clock";
+    var nb : [648]u8 = undefined;
+    tnode(nb[0 .. 648], 0, K_MODULE, 9, 0, 1);
+    tnode(nb[0 .. 648], 1, K_CONST_DECL, 3, 1, 2);
+    tset(nb[0 .. 648], 1, F_TYPE, 2, 4);
+    tnode(nb[0 .. 648], 2, K_EXPR_LITERAL, 3, 0, 0);
+    tset(nb[0 .. 648], 2, F_VALUE, 4, 5);
+    tnode(nb[0 .. 648], 3, K_FN_DECL, 9, 7, 15);
+    tnode(nb[0 .. 648], 4, K_STMT_ASSIGN, 9, 0, 0);
+    tnode(nb[0 .. 648], 5, K_EXPR_IDENTIFIER, 6, 1, 2);
+    tnode(nb[0 .. 648], 6, K_EXPR_BINARY, 9, 0, 0);
+    tset(nb[0 .. 648], 6, F_OP, 6, 7);
+    tnode(nb[0 .. 648], 7, K_EXPR_IDENTIFIER, 8, 1, 2);
+    tnode(nb[0 .. 648], 8, K_EXPR_LITERAL, 9, 0, 0);
+    tset(nb[0 .. 648], 8, F_VALUE, 5, 6);
+    var mb : [144]u8 = undefined;
+    var i : usize = 0;
+    while (i < 9) {
+        tmeta(mb[0 .. 144], i, 0, 0);
+        i = i + 1;
+    }
+    tmeta(mb[0 .. 144], 1, FLAG_MUT, 2);
+    tmeta(mb[0 .. 144], 3, 0, 3);
+    tmeta(mb[0 .. 144], 4, 0, 3);
+    var wk : [88]u8 = undefined;
+    i = 0;
+    while (i < 88) {
+        wk[i] = 0;
+        i = i + 1;
+    }
+    var out : [4096]u8 = undefined;
+    const r : i64 = emit(nb[0 .. 648], tx, mb[0 .. 144], "", wk[0 .. 88], out[0 .. 4096]);
+    assert r > 0;
+    const n : usize = @intCast(r);
+    assert holds(out[0 .. 4096], n, "module M (");
+    assert holds(out[0 .. 4096], n, "input  wire clk");
+    assert holds(out[0 .. 4096], n, "output reg  [7:0] x");
+    assert holds(out[0 .. 4096], n, "x <= 8'd0;");
+    assert holds(out[0 .. 4096], n, "x <= {x + 8'd1};");
+    assert holds(out[0 .. 4096], n, "always @(posedge clk or negedge rst_n)");
+    assert holds(out[0 .. 4096], n, "endmodule");
+    // no test: no test bench
+    assert !holds(out[0 .. 4096], n, "T27B_TESTBENCH");
+    // a pub var makes x an internal register: the module declares its ports
+    tmeta(mb[0 .. 144], 1, FLAG_MUT | FLAG_PUB, 2);
+    i = 0;
+    while (i < 88) {
+        wk[i] = 0;
+        i = i + 1;
+    }
+    const r2 : i64 = emit(nb[0 .. 648], tx, mb[0 .. 144], "", wk[0 .. 88], out[0 .. 4096]);
+    assert r2 > 0;
+    const n2 : usize = @intCast(r2);
+    assert holds(out[0 .. 4096], n2, "output reg  [7:0] x");
+    tmeta(mb[0 .. 144], 1, FLAG_MUT, 2);
+}
+
+test a_call_of_an_undeclared_fn_is_refused_by_name {
+    // module M { var mclk : bool = false; fn on_clock() { mclk = STARTUPE2(false); } }
+    const tx : str = "Mmclkboolfalseon_clockSTARTUPE2";
+    var nb : [576]u8 = undefined;
+    tnode(nb[0 .. 576], 0, K_MODULE, 8, 0, 1);
+    tnode(nb[0 .. 576], 1, K_CONST_DECL, 3, 1, 5);
+    tset(nb[0 .. 576], 1, F_TYPE, 5, 9);
+    tnode(nb[0 .. 576], 2, K_EXPR_LITERAL, 3, 0, 0);
+    tset(nb[0 .. 576], 2, F_VALUE, 9, 14);
+    tnode(nb[0 .. 576], 3, K_FN_DECL, 8, 14, 22);
+    tnode(nb[0 .. 576], 4, K_STMT_ASSIGN, 8, 0, 0);
+    tnode(nb[0 .. 576], 5, K_EXPR_IDENTIFIER, 6, 1, 5);
+    tnode(nb[0 .. 576], 6, K_EXPR_CALL, 8, 22, 31);
+    tnode(nb[0 .. 576], 7, K_EXPR_LITERAL, 8, 0, 0);
+    tset(nb[0 .. 576], 7, F_VALUE, 9, 14);
+    var mb : [128]u8 = undefined;
+    var i : usize = 0;
+    while (i < 8) {
+        tmeta(mb[0 .. 128], i, 0, 0);
+        i = i + 1;
+    }
+    tmeta(mb[0 .. 128], 1, FLAG_MUT, 3);
+    tmeta(mb[0 .. 128], 6, 0, 7);
+    var wk : [86]u8 = undefined;
+    i = 0;
+    while (i < 86) {
+        wk[i] = 0;
+        i = i + 1;
+    }
+    var out : [4096]u8 = undefined;
+    const r : i64 = emit(nb[0 .. 576], tx, mb[0 .. 128], "", wk[0 .. 86], out[0 .. 4096]);
+    assert r < 0;
+    const n : usize = @intCast(0 - r);
+    assert holds(out[0 .. 4096], n, "unsupported construct call of an undeclared fn `STARTUPE2` at line 7");
+    // the same call of a declared fn with a body lowers to a Verilog function call
+    assert exits(nb[0 .. 576], 4) == 0;
+    assert !needs_done(nb[0 .. 576], 3);
+}
+
+test early_exits_are_found_where_they_belong {
+    // 0 FnDecl { 1 StmtWhile { 2 Module body { 3 StmtBreak } }, 4 ExprReturn, 5 StmtContinue }
+    var nb : [432]u8 = undefined;
+    tnode(nb[0 .. 432], 0, K_FN_DECL, 6, 0, 0);
+    tnode(nb[0 .. 432], 1, K_STMT_WHILE, 4, 0, 0);
+    tnode(nb[0 .. 432], 2, K_MODULE, 4, 0, 0);
+    tnode(nb[0 .. 432], 3, K_STMT_BREAK, 4, 0, 0);
+    tnode(nb[0 .. 432], 4, K_EXPR_RETURN, 5, 0, 0);
+    tnode(nb[0 .. 432], 5, K_STMT_CONTINUE, 6, 0, 0);
+    const ns : []const u8 = nb[0 .. 432];
+    assert exits(ns, 1) == 0;
+    assert exits(ns, 2) == X_BRK;
+    assert exits(ns, 4) == X_RET;
+    assert exits(ns, 0) == (X_RET | X_CONT);
+    // the return is not the fn's last statement, so the fn needs t27_done
+    assert needs_done(ns, 0);
+    assert child_holding(ns, 0, 3) == 1 and parent_of(ns, 0, 3) == 2 and parent_of(ns, 0, 4) == 0;
+}

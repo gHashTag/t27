@@ -1,0 +1,250 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/text_escape.t27 -- how t27b escapes a text it writes out (port epic #6198; issue #8796):
+; a JSON string literal for `t27b corpus --json`, and a test name in a row of the reference cache. They were
+; hand-written Rust (`json_str` in cli/t27b/src/main.rs, `escape_name` in cli/t27b/src/blockers.rs); they now
+; reach cli/t27b only through `t27c gen-rust` (gen/rust/tri/t27b/text_escape.rs, mounted in blockers.rs as
+; `te`).
+; --
+; The glue passes the text's UTF-8 bytes and a buffer large enough for the result (6 bytes per input byte, plus
+; 2); each fn returns the length it wrote.
+; - json_quote: RFC 8259. `"` and `\` are escaped with a backslash; newline, carriage return and tab as \n, \r
+;   and \t; every other char below U+0020 or above U+007E as \uXXXX in lower-case hex, one escape per UTF-16
+;   unit (so a char above U+FFFF is a surrogate pair). The result is ASCII.
+; - escape_name: `%` `;` tab newline and carriage return become %25 %3B %09 %0A %0D, so a name never holds
+;   the row's separators; every other byte is kept.
+; - construct_span reads the other way: the construct a reject line `t27b: unsupported construct X at line N
+;   (...)` names (`construct_of` in main.rs), as its two offsets packed in one i64 (start * 2^32 + end), -1
+;   when the line is no reject line.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bTextEscape;
+
+pub const HEX_DIGITS : str = "0123456789abcdef";
+
+/// The number of bytes of the UTF-8 char whose first byte is c (1 for a byte that starts none).
+pub fn utf8_len(c: u8) -> usize {
+    if (c >= 240) { return 4; }
+    if (c >= 224) { return 3; }
+    if (c >= 192) { return 2; }
+    return 1;
+}
+
+/// The code point of the UTF-8 char of n bytes at s[i ..].
+pub fn code_point(s: []const u8, i: usize, n: usize) -> u32 {
+    const b0 : u32 = s[i] as u32;
+    if (n == 1) { return b0; }
+    const b1 : u32 = (s[i + 1] as u32) & 63;
+    if (n == 2) { return ((b0 & 31) << 6) | b1; }
+    const b2 : u32 = (s[i + 2] as u32) & 63;
+    if (n == 3) { return ((b0 & 15) << 12) | (b1 << 6) | b2; }
+    const b3 : u32 = (s[i + 3] as u32) & 63;
+    return ((b0 & 7) << 18) | (b1 << 12) | (b2 << 6) | b3;
+}
+
+/// Writes `\u` and the UTF-16 unit u as four lower-case hex digits.
+pub fn put_unit(out: []u8, at: usize, u: u32) -> usize {
+    out[at] = 92;
+    out[at + 1] = 117;
+    var k : usize = 0;
+    while (k < 4) {
+        const sh : u32 = (3 - (k as u32)) * 4;
+        const d : usize = ((u >> sh) & 15) as usize;
+        out[at + 2 + k] = HEX_DIGITS[d];
+        k = k + 1;
+    }
+    return at + 6;
+}
+
+/// Writes the two-byte escape `\` and the byte e.
+pub fn put_pair(out: []u8, at: usize, e: u8) -> usize {
+    out[at] = 92;
+    out[at + 1] = e;
+    return at + 2;
+}
+
+/// Writes the JSON string literal of the UTF-8 text s into out; returns its length.
+pub fn json_quote(s: []const u8, out: []u8) -> usize {
+    out[0] = 34;
+    var q : usize = 1;
+    var i : usize = 0;
+    while (i < s.len) {
+        const n : usize = utf8_len(s[i]);
+        const c : u32 = code_point(s, i, n);
+        if (c == 34) {
+            q = put_pair(out, q, 34);
+        } else if (c == 92) {
+            q = put_pair(out, q, 92);
+        } else if (c == 10) {
+            q = put_pair(out, q, 110);
+        } else if (c == 13) {
+            q = put_pair(out, q, 114);
+        } else if (c == 9) {
+            q = put_pair(out, q, 116);
+        } else if (c < 32 or c > 126) {
+            if (c > 65535) {
+                const v : u32 = c - 65536;
+                q = put_unit(out, q, 55296 + (v >> 10));
+                q = put_unit(out, q, 56320 + (v & 1023));
+            } else {
+                q = put_unit(out, q, c);
+            }
+        } else {
+            out[q] = s[i];
+            q = q + 1;
+        }
+        i = i + n;
+    }
+    out[q] = 34;
+    return q + 1;
+}
+
+/// Writes `%` and the two upper-case hex digits of byte b.
+pub fn put_percent(out: []u8, at: usize, b: u8) -> usize {
+    out[at] = 37;
+    const hi4 : usize = (b >> 4) as usize;
+    const lo4 : usize = (b & 15) as usize;
+    out[at + 1] = HEX_UPPER[hi4];
+    out[at + 2] = HEX_UPPER[lo4];
+    return at + 3;
+}
+
+pub const HEX_UPPER : str = "0123456789ABCDEF";
+
+/// Writes the test name s with `%` `;` tab newline and carriage return percent-escaped; returns its length.
+pub fn escape_name(s: []const u8, out: []u8) -> usize {
+    var q : usize = 0;
+    var i : usize = 0;
+    while (i < s.len) {
+        const b : u8 = s[i];
+        if (b == 37 or b == 59 or b == 9 or b == 10 or b == 13) {
+            q = put_percent(out, q, b);
+        } else {
+            out[q] = b;
+            q = q + 1;
+        }
+        i = i + 1;
+    }
+    return q;
+}
+
+pub const REJECT_HEAD : str = "t27b: unsupported construct ";
+pub const REJECT_LINE : str = " at line ";
+
+/// Does s[at ..] start with w?
+pub fn starts_at(s: []const u8, at: usize, w: str) -> bool {
+    if (at + w.len > s.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (s[at + k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The construct a reject line names: the text after REJECT_HEAD up to the first REJECT_LINE, packed as
+/// start * 2^32 + end; -1 when the line does not start with REJECT_HEAD or has no REJECT_LINE after it.
+pub fn construct_span(s: []const u8) -> i64 {
+    if (!starts_at(s, 0, REJECT_HEAD)) { return -1; }
+    const from : usize = REJECT_HEAD.len;
+    var j : usize = from;
+    while (j + REJECT_LINE.len <= s.len) {
+        if (starts_at(s, j, REJECT_LINE)) {
+            const a : i64 = @intCast(from);
+            const b : i64 = @intCast(j);
+            return a * 4294967296 + b;
+        }
+        j = j + 1;
+    }
+    return -1;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. The expected texts are what the hand-written Rust these fns replace printed for the same input
+// (main.rs `json_str` and `construct_of`, blockers.rs `escape_name`, master ef1697338).
+// ----------------------------------------------------------------------------------------------------------
+
+/// Does out[0 .. n] read exactly `w`?
+fn reads(out: []const u8, n: usize, w: str) -> bool {
+    if (n != w.len) { return false; }
+    var k : usize = 0;
+    while (k < n) {
+        if (out[k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+test plain_ascii_is_quoted_as_it_is {
+    var out : [64]u8 = undefined;
+    assert reads(out[0 .. 64], json_quote("specs/a/b.t27", out[0 .. 64]), "\"specs/a/b.t27\"");
+    assert reads(out[0 .. 64], json_quote("", out[0 .. 64]), "\"\"");
+    assert reads(out[0 .. 64], json_quote("~ !", out[0 .. 64]), "\"~ !\"");
+}
+
+test quotes_backslashes_and_whitespace_escape_by_name {
+    var out : [64]u8 = undefined;
+    assert reads(out[0 .. 64], json_quote("a\"b", out[0 .. 64]), "\"a\\\"b\"");
+    assert reads(out[0 .. 64], json_quote("a\\b", out[0 .. 64]), "\"a\\\\b\"");
+    assert reads(out[0 .. 64], json_quote("x\ny\tz", out[0 .. 64]), "\"x\\ny\\tz\"");
+    // a carriage return is written as a byte: the t27 lexer keeps `\r` in a string literal as two chars (#8813)
+    var cr : [2]u8 = undefined;
+    cr[0] = 13;
+    cr[1] = 122;
+    assert reads(out[0 .. 64], json_quote(cr[0 .. 2], out[0 .. 64]), "\"\\rz\"");
+}
+
+test control_bytes_and_delete_are_unicode_escapes {
+    var buf : [3]u8 = undefined;
+    buf[0] = 1;
+    buf[1] = 127;
+    buf[2] = 31;
+    var out : [64]u8 = undefined;
+    assert reads(out[0 .. 64], json_quote(buf[0 .. 3], out[0 .. 64]), "\"\\u0001\\u007f\\u001f\"");
+}
+
+test chars_above_ascii_are_utf16_units {
+    // e acute (U+00E9, c3 a9), the euro sign (U+20AC, e2 82 ac), and U+1F600 (f0 9f 98 80, a surrogate pair)
+    var buf : [9]u8 = undefined;
+    buf[0] = 195;
+    buf[1] = 169;
+    buf[2] = 226;
+    buf[3] = 130;
+    buf[4] = 172;
+    buf[5] = 240;
+    buf[6] = 159;
+    buf[7] = 152;
+    buf[8] = 128;
+    var out : [96]u8 = undefined;
+    assert reads(out[0 .. 96], json_quote(buf[0 .. 9], out[0 .. 96]), "\"\\u00e9\\u20ac\\ud83d\\ude00\"");
+    assert code_point(buf[0 .. 9], 0, 2) == 233 and code_point(buf[0 .. 9], 2, 3) == 8364 and code_point(buf[0 .. 9], 5, 4) == 128512;
+    assert utf8_len(65) == 1 and utf8_len(195) == 2 and utf8_len(226) == 3 and utf8_len(240) == 4;
+}
+
+test cache_row_names_escape_their_separators {
+    var out : [64]u8 = undefined;
+    assert reads(out[0 .. 64], escape_name("a;b%c", out[0 .. 64]), "a%3Bb%25c");
+    assert reads(out[0 .. 64], escape_name("t\tn\nr", out[0 .. 64]), "t%09n%0Ar");
+    var cr : [2]u8 = undefined;
+    cr[0] = 114;
+    cr[1] = 13;
+    assert reads(out[0 .. 64], escape_name(cr[0 .. 2], out[0 .. 64]), "r%0D");
+    assert reads(out[0 .. 64], escape_name("plain_name", out[0 .. 64]), "plain_name");
+    assert reads(out[0 .. 64], escape_name("", out[0 .. 64]), "");
+    var buf : [2]u8 = undefined;
+    buf[0] = 195;
+    buf[1] = 169;
+    const n : usize = escape_name(buf[0 .. 2], out[0 .. 64]);
+    assert n == 2 and out[0] == 195 and out[1] == 169;
+}
+
+test a_reject_line_names_its_construct {
+    const l : str = "t27b: unsupported construct ExprIndex at line 12 (fn f: x)";
+    assert construct_span(l) == 28 * 4294967296 + 37;
+    assert construct_span("t27b: unsupported construct type [N]T at line 3") == 28 * 4294967296 + 37;
+    assert construct_span("t27b: unsupported construct X") == -1;
+    assert construct_span("t27b: parse error in x") == -1;
+    assert construct_span("") == -1;
+    // the first " at line " ends it, as `str::find` does
+    assert construct_span("t27b: unsupported construct a at line b at line 2") == 28 * 4294967296 + 29;
+}
