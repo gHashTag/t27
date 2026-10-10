@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 22,
+ "max_not_pass": 21,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass"},
   {"path": "specs/a_b/c.t27", "t27b": "pass"},
@@ -775,7 +775,7 @@
   {"path": "specs/port/trios/crates/trios-bridge/src/main.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-01/src/key_package_expiry_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-02/src/epoch_rollover_wraparound_guard.t27", "t27b": "pass"},
-  {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/ratchet_tree_resolution_guard.t27", "t27b": "blocked", "blocker": "ExprArrayLiteral", "reason": "unimplemented"},
+  {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/ratchet_tree_resolution_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/unmerged_leaves_bound_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-07/src/cover_decoy_ratio_governor.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-LAWS/src/lib.t27", "t27b": "pass"},
@@ -1173,6 +1173,7 @@
   {"path": "specs/tri/t27b/conformance/scoped_gf16.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/shadow_module_var.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/size_of.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/slice_arg_one_element.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/static_slice_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/str_module_var.t27", "t27b": "pass"},

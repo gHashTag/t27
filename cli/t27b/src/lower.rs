@@ -5290,7 +5290,7 @@ impl<'a> Lower<'a> {
             if let Some(elem) = elem {
                 self.see(n);
                 self.see(&n.children[0]);
-                let len = n.children[0].children.len() as u32;
+                let len = self.text_lit(&n.children[0])?.as_ref().unwrap_or(&n.children[0]).children.len() as u32; // `&[x]`: x kept as text (PARSE, #8690)
                 let Val::M(arr) = self.struct_temp(&n.children[0], LTy::Arr(Box::new(elem), len))? else {
                     return Err(());
                 };

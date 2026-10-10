@@ -30,6 +30,8 @@
 ; and bench instead, as a module var holding a str is (`at_entry`).
 ; No elements and no size text (EMPTY): a zero-length slice, whose address is never read. Elements the parser
 ; kept as size text (`[a, b]` in some positions) are read back first (PARSE), as t27c's Zig backend pastes them.
+; A call argument `&[x]` where a slice is declared (a temporary, not a static) reads them back the same way: the
+; parser keeps a one-element `[x]` as text, gen-zig pastes `&.{ x }`, and the slice is as long as what is read back (#8690).
 ; Refused: a field of an anonymous struct literal, a slice of arrays or slices, a repeat `[v; n]`, a typed
 ; literal with a dimension and no elements (the reference prints the dimension as its element, the defect
 ; ExprArrayLiteral(reference empty typed) names), and run-time elements (the glue learns that when it cannot

@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/slice_arg_one_element.t27 -- a one-element list literal taken by address where a
+; slice is declared, `f(&[0])`, as the reference runs it (issue #8690, t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; The t27c parser keeps a one-element `[x]` as text (it could be an array type's length), and gen-zig pastes it
+; back as `&.{ x }`: a pointer to a one-element tuple, which Zig coerces to the slice. t27b reads the text back
+; (PARSE in specs/tri/t27b/slice_lit_plan.t27), so the slice holds one element; it held none, and the literal
+; was refused as "1 elements for `[0]u32`".
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceSliceArgOneElement;
+
+const SEED: u32 = 41;
+
+fn total(xs: []const u32) -> u32 {
+    var s: u32 = 0;
+    var i: usize = 0;
+    while (i < xs.len) {
+        s = s + xs[i];
+        i = i + 1;
+    }
+    return s;
+}
+
+fn count(xs: []const i32) -> usize {
+    return xs.len;
+}
+
+fn first(xs: []const i32) -> i32 {
+    return xs[0];
+}
+
+fn next(x: u32) -> u32 {
+    return x + 1;
+}
+
+test a_zero_is_one_element {
+    var n: u32 = 0;
+    n = n + total(&[0]);
+    assert(n == 0);
+    assert(count(&[0]) == 1);
+}
+
+test a_literal_is_its_value {
+    var n: u32 = 1;
+    n = n + total(&[7]);
+    assert(n == 8);
+}
+
+test a_negated_literal {
+    var v: i32 = 0;
+    v = first(&[-3]);
+    assert(v == -3);
+}
+
+test a_name_and_a_call {
+    var n: u32 = 0;
+    n = total(&[SEED]) + total(&[next(SEED)]);
+    assert(n == 83);
+}
+
+test more_elements_still_count {
+    var n: u32 = 0;
+    n = total(&[1, 2, 3]);
+    assert(n == 6);
+}
