@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: Apache-2.0
+module TextEscape {
+    use base::types;
+
+    // Test string length functions
+    fn str_len(s: str) -> usize {
+        var i: usize = 0;
+        while (i < s.len) {
+            i = i + 1;
+        }
+        return i;
+    }
+
+    fn byte_len(s: []const u8) -> usize {
+        return s.len;
+    }
+
+    // Test escape sequences in string literals
+    test newline_escape
+        given result = str_len("hello\nworld")
+        then result == 11
+
+    test tab_escape
+        given result = str_len("hello\tworld")
+        then result == 10
+
+    test backslash_escape
+        given result = str_len("hello\\world")
+        then result == 10
+
+    test quote_escape
+        given result = str_len("hello\"world")
+        then result == 10
+
+    test carriage_return_escape
+        given result = str_len("hello\rworld")
+        then result == 10
+
+    test mixed_escapes
+        given result = str_len("line1\nline2\ttab\\quote\"end")
+        then result == 20
+
+    test byte_level_newline
+        given result = byte_len("hello\nworld")
+        then result == 11
+
+    test byte_level_tab
+        given result = byte_len("hello\tworld")
+        then result == 10
+
+    test byte_level_backslash
+        given result = byte_len("hello\\world")
+        then result == 10
+
+    test byte_level_quote
+        given result = byte_len("hello\"world")
+        then result == 10
+
+    test byte_level_carriage_return
+        given result = byte_len("hello\rworld")
+        then result == 10
+
+    test cr_is_one_byte
+        given result = byte_len("\r")
+        then result == 1
+
+    test cr_with_other_chars
+        given result = byte_len("a\rb")
+        then result == 3
+
+    test cr_at_start
+        given result = byte_len("\ra")
+        then result == 2
+
+    test cr_at_end
+        given result = byte_len("a\r")
+        then result == 2
+
+    // Test that literal backslash+r is NOT unescaped
+    test literal_backslash_r
+        given result = str_len("\\r")
+        then result == 2
+
+    test literal_backslash_r_byte_len
+        given result = byte_len("\\r")
+        then result == 2
+
+    invariant all_escapes_unescaped
+        assert str_len("\n") == 1 and
+        str_len("\t") == 1 and
+        str_len("\\") == 1 and
+        str_len("\"") == 1 and
+        str_len("\r") == 1
+
+    invariant no_double_escaping
+        assert str_len("\\n") == 2 and  // backslash + n, not newline
+        str_len("\\t") == 2 and  // backslash + t, not tab
+        str_len("\\r") == 2 and  // backslash + r, not carriage return
+        str_len("\\\"") == 2 and  // backslash + quote, not quote
+        str_len("\\\\") == 2   // backslash + backslash, not single backslash
+}

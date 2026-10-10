@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
+module GapCr;
+pub fn len_of(s: []const u8) -> usize { return s.len; }
+test cr_is_one_byte { assert len_of("\r") == 1; }
