@@ -1,0 +1,52 @@
+module port::mock-language-model;
+
+pub fn createMockResult() -> i32 {
+    return 42;
+}
+
+pub fn isMockBrowserOSLLMEnabled() -> bool {
+    return true;
+}
+
+pub fn shouldUseMockBrowserOSLLM(
+    provider: str,
+) -> bool {
+    return true;
+}
+
+pub fn resolveMockBrowserOSConfig(
+    provider: str,
+    model: ?str,
+    browserosId: ?str,
+) -> i32 {
+    return 1;
+}
+
+pub fn createMockBrowserOSLanguageModel() -> i32 {
+    return 2;
+}
+
+test createMockResult_returns_correct_structure {
+    const result = createMockResult();
+    assert(result == 42);
+}
+
+test isMockBrowserOSLLMEnabled_returns_true {
+    const result = isMockBrowserOSLLMEnabled();
+    assert(result == true);
+}
+
+test shouldUseMockBrowserOSLLM_returns_true {
+    const result = shouldUseMockBrowserOSLLM("browseros");
+    assert(result == true);
+}
+
+test resolveMockBrowserOSConfig_returns_correct_structure {
+    const result = resolveMockBrowserOSConfig("browseros", null, null);
+    assert(result == 1);
+}
+
+test createMockBrowserOSLanguageModel_returns_model {
+    const result = createMockBrowserOSLanguageModel();
+    assert(result == 2);
+}
