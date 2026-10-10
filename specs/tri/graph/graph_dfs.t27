@@ -5,10 +5,17 @@
 module TriGraphDfs;
     use base::types;
     use math::constants;
+    use std;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
     // ═══════════════════════════════════════════════════════════
+
+    pub const Graph = struct {
+        nodes : "std.HashMap(usize, []usize)",
+        directed : "bool",
+        allocator : "std.mem.Allocator",
+    };
 
     pub const DFSResult = struct {
         preorder : []usize,
@@ -22,7 +29,72 @@ module TriGraphDfs;
 
     // traverse(graph: *Graph) → void
     fn traverse(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+        var visited = std.ArrayList(bool).init(graph.allocator);
+        defer visited.deinit();
+        
+        var stack = std.ArrayList(usize).init(graph.allocator);
+        defer stack.deinit();
+        
+        // Start from node 0 if available
+        if (graph.nodes.count() > 0) {
+            var start_node: usize = 0;
+            stack.append(start_node);
+            
+            while (stack.items.len > 0) {
+                const current = stack.pop();
+                
+                // Check if we've already visited this node
+                var found = false;
+                for (visited.items) |visited_node| {
+                    if (visited_node == current) {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (!found) {
+                    // Mark as visited
+                    visited.append(current);
+                    
+                    // Push unvisited neighbors onto stack
+                    var neighbors = std.ArrayList(usize).init(graph.allocator);
+                    defer neighbors.deinit();
+                    
+                    // Get neighbors from graph
+                    if (graph.nodes.get(current)) |neighbor_list| {
+                        for (neighbor_list) |neighbor| {
+                            var already_visited = false;
+                            for (visited.items) |visited_node| {
+                                if (visited_node == neighbor) {
+                                    already_visited = true;
+                                    break;
+                                }
+                            }
+                            if (!already_visited) {
+                                neighbors.append(neighbor);
+                            }
+                        }
+                    }
+                    
+                    // Push neighbors in reverse order for proper DFS
+                    for (0..neighbors.items.len) |i| {
+                        const neighbor = neighbors.items[neighbors.items.len - 1 - i];
+                        stack.append(neighbor);
+                    }
+                }
+            }
+        }
+    }
+
+    // Helper function for tests
+    fn default_input() -> Graph {
+        var allocator = std.testing.allocator;
+        var nodes = std.HashMap(usize, []usize).init(allocator);
+        return Graph{
+            .nodes = nodes,
+            .directed = false,
+            .allocator = allocator,
+        };
     }
 
     // ═══════════════════════════════════════════════════════════
