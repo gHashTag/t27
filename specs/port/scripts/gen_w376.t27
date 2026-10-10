@@ -1,0 +1,245 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w376.t27
+// Port of scripts/gen_w376.py (41 lines, one function: append_w376) to t27.
+
+// The Python reads a spec file, finds the last `// Wave Loop N ... invariant
+// ... true` block with a regex, checks the wave number, renumbers the block
+// with five literal substitutions, and writes the file back. Reading, the
+// regex, the write and the print are plumbing; the decision inside
+// append_w376 is ported below as pure code: the file text arrives as a
+// parameter, and the result is the plan -- append the renumbered block at
+// insert_pos, or skip with the reason from the original's two SKIP messages.
+
+module port::scripts::gen_w376;
+
+// Python: `if wave != 375`.
+const LAST_WAVE: i32 = 375;
+
+// Python strings grow; this buffer is the fixed-capacity stand-in. The clamp
+// in build_new_block leaves 32 bytes of headroom so every digit patch lands
+// inside the buffer.
+const BLOCK_CAP: usize = 4096;
+
+// The matched block, copied out of the file text.
+struct Block {
+    chars: [BLOCK_CAP]u8,
+    len: usize,
+}
+
+// What append_w376 decides for one spec. last_wave is carried so the caller
+// can format "last wave is {wave}, expected 375"; insert_pos is the end of
+// the last match (Python: `insert_pos = last.end()`), where the new block is
+// inserted; new_block is the renumbered copy of the matched block.
+struct W376Plan {
+    appended: bool,
+    skip_reason: []const u8,
+    last_wave: i32,
+    insert_pos: usize,
+    new_block: Block,
+}
+
+// Literal matching at an offset -- the regex's job, reduced to what the
+// decision reads: the `// Wave Loop ` prefix, the `invariant ` line and its
+// `true\n` end.
+pub fn matches_at(src: []const u8, pos: usize, lit: []const u8) -> bool {
+    if (pos + lit.len > src.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < lit.len) {
+        if (src[pos + i] != lit[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// Python lines 27-31: `new_block = block.replace(...)` five times. Every
+// substitution changes exactly one digit, so the port copies the block and
+// patches those digits, tried in the original's replacement order:
+//   "Wave Loop 375" -> "Wave Loop 376"            (digit 12: 5 -> 6)
+//   "w375_" -> "w376_"                            (digit 3: 5 -> 6)
+//   "W374 seal regeneration" -> "W375 seal regeneration"  (digit 3: 4 -> 5)
+//   "after W374" -> "after W375"                  (digit 9: 4 -> 5)
+//   "WAVE_LOOP_374_COOPERATION.md" -> "WAVE_LOOP_375_COOPERATION.md"
+//                                                 (digit 12: 4 -> 5)
+pub fn build_new_block(src: []const u8) -> Block {
+    var n: usize = src.len;
+    if (n > BLOCK_CAP - 32) {
+        n = BLOCK_CAP - 32;
+    }
+    var out: Block = Block { chars: [_]u8{0} ** BLOCK_CAP, len: 0 };
+    var i: usize = 0;
+    while (i < n) {
+        out.chars[i] = src[i];
+        i += 1;
+    }
+    out.len = n;
+    var j: usize = 0;
+    while (j < n) {
+        if (matches_at(src, j, "Wave Loop 375")) {
+            out.chars[j + 12] = '6';
+            j += 13;
+        } else if (matches_at(src, j, "w375_")) {
+            out.chars[j + 3] = '6';
+            j += 5;
+        } else if (matches_at(src, j, "W374 seal regeneration")) {
+            out.chars[j + 3] = '5';
+            j += 22;
+        } else if (matches_at(src, j, "after W374")) {
+            out.chars[j + 9] = '5';
+            j += 10;
+        } else if (matches_at(src, j, "WAVE_LOOP_374_COOPERATION.md")) {
+            out.chars[j + 12] = '5';
+            j += 28;
+        } else {
+            out.chars[j] = src[j];
+            j += 1;
+        }
+    }
+    return out;
+}
+
+// Compare a renumbered block against the expected text.
+pub fn block_equals(out: Block, expected: []const u8) -> bool {
+    if (out.len != expected.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < out.len) {
+        if (out.chars[i] != expected[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// Python line 13: `def append_w376(path: Path) -> None:`. The path is carried
+// for the caller's messages; the text stands in for `path.read_text()`. The
+// scan mirrors `re.finditer(r'// Wave Loop (\d+).*?\n(invariant .*?true)\n',
+// text, re.DOTALL)`: left to right, non-overlapping, and for each
+// `// Wave Loop N` the first `\ninvariant ` whose continuation reaches a
+// `true\n`. `if not m` skips; `if wave != 375` skips; otherwise the
+// renumbered block is inserted right after the match, so the block is
+// duplicated with W376 numbering.
+pub fn append_w376(path: []const u8, text: []const u8) -> W376Plan {
+    const empty = build_new_block("");
+    var match_count: usize = 0;
+    var last_wave: i32 = -1;
+    var last_start: usize = 0;
+    var last_end: usize = 0;
+    var pos: usize = 0;
+    while (pos < text.len) {
+        var matched_here = false;
+        if (matches_at(text, pos, "// Wave Loop ")) {
+            var wi: usize = pos + 13;
+            var digits: usize = 0;
+            var wave: i32 = 0;
+            while (wi < text.len and text[wi] >= '0' and text[wi] <= '9') {
+                wave = wave * 10 + (text[wi] - '0');
+                digits += 1;
+                wi += 1;
+            }
+            if (digits > 0) {
+                var c: usize = wi;
+                while (c < text.len and matched_here == false) {
+                    if (text[c] == '\n' and matches_at(text, c + 1, "invariant ")) {
+                        var t: usize = c + 11;
+                        while (t + 5 <= text.len and matched_here == false) {
+                            if (matches_at(text, t, "true\n")) {
+                                match_count += 1;
+                                last_wave = wave;
+                                last_start = pos;
+                                last_end = t + 5;
+                                matched_here = true;
+                            }
+                            t += 1;
+                        }
+                    }
+                    c += 1;
+                }
+            }
+        }
+        if (matched_here) {
+            pos += last_end - pos;
+        } else {
+            pos += 1;
+        }
+    }
+
+    if (match_count == 0) {
+        return W376Plan { appended: false, skip_reason: "no Wave Loop block found", last_wave: -1, insert_pos: 0, new_block: empty };
+    }
+    if (last_wave != LAST_WAVE) {
+        return W376Plan { appended: false, skip_reason: "last wave is not 375", last_wave: last_wave, insert_pos: last_end, new_block: empty };
+    }
+    const block: []const u8 = text[last_start..last_end];
+    const nb = build_new_block(block);
+    return W376Plan { appended: true, skip_reason: "", last_wave: last_wave, insert_pos: last_end, new_block: nb };
+}
+
+// Python: `if not m` -- the spec has no Wave Loop block at all.
+test append_w376_skips_without_a_wave_loop_block {
+    const p = append_w376("some/path.t27", "some other content without wave loop");
+    assert(p.appended == false);
+    assert(p.skip_reason == "no Wave Loop block found");
+}
+
+// Python: `if wave != 375` -- the last block belongs to a different wave.
+test append_w376_skips_when_last_wave_is_374 {
+    const p = append_w376("some/path.t27", "// Wave Loop 374\ninvariant a true\n\nother content");
+    assert(p.appended == false);
+    assert(p.last_wave == 374);
+    assert(p.skip_reason == "last wave is not 375");
+}
+
+// Python: `last = m[-1]` -- the only block is renumbered 375 -> 376 and the
+// insertion point is the end of the match (`insert_pos = last.end()`).
+test append_w376_appends_a_w376_copy {
+    const p = append_w376("some/path.t27", "// Wave Loop 375\ninvariant x true\n");
+    assert(p.appended == true);
+    assert(p.insert_pos == 34);
+    assert(p.last_wave == 375);
+    assert(block_equals(p.new_block, "// Wave Loop 376\ninvariant x true\n"));
+}
+
+// Python: `m[-1]` with several blocks -- only the last match matters.
+test append_w376_uses_the_last_match {
+    const p = append_w376("some/path.t27", "// Wave Loop 374\ninvariant a true\n\n// Wave Loop 375\ninvariant b true\n");
+    assert(p.appended == true);
+    assert(p.last_wave == 375);
+    assert(block_equals(p.new_block, "// Wave Loop 376\ninvariant b true\n"));
+}
+
+// Python lines 27-31 -- every substitution lands in one block: the wave
+// comment, the w375_ prefix, the seal-regeneration note, the after-W374
+// note, the cooperation file, and the invariant's w375_alive.
+test append_w376_renumbers_the_matched_block {
+    const p = append_w376("some/path.t27", "// Wave Loop 375 w375_x W374 seal regeneration after W374 WAVE_LOOP_374_COOPERATION.md\ninvariant w375_alive() == true\n");
+    assert(p.appended == true);
+    assert(block_equals(p.new_block, "// Wave Loop 376 w376_x W375 seal regeneration after W375 WAVE_LOOP_375_COOPERATION.md\ninvariant w376_alive() == true\n"));
+}
+
+// The five substitutions, exercised together on one input.
+test build_new_block_renumbers_every_form {
+    const b = build_new_block("w375_x Wave Loop 375 W374 seal regeneration after W374 WAVE_LOOP_374_COOPERATION.md");
+    assert(block_equals(b, "w376_x Wave Loop 376 W375 seal regeneration after W375 WAVE_LOOP_375_COOPERATION.md"));
+}
+
+// Text that matches none of the five substitutions is copied unchanged.
+test build_new_block_leaves_other_text_alone {
+    const b = build_new_block("// Wave Loop 9\ninvariant other() == true\nw375 stays\n");
+    assert(block_equals(b, "// Wave Loop 9\ninvariant other() == true\nw375 stays\n"));
+}
+
+// The literal matcher behind the regex's anchors and prefixes.
+test matches_at_finds_literals_at_offsets {
+    assert(matches_at("Wave Loop 375", 0, "Wave Loop 375"));
+    assert(matches_at("// Wave Loop 375 x", 3, "Wave Loop 375"));
+    assert(matches_at("x w375_ y", 2, "w375_"));
+    assert(matches_at("Wav", 0, "Wave") == false);
+    assert(matches_at("w375", 0, "w375_") == false);
+    assert(matches_at("abc", 1, "abcd") == false);
+}
