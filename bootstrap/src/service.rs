@@ -5711,7 +5711,8 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
         let src = std::fs::read_to_string(p)?;
         if !va::audit_pick(u32::from_str_radix(&crate::sha256_hex(src.as_bytes())[..8], 16).unwrap_or(0), audit.unwrap_or(0)) { continue }
         let (r, sealed) = (crate::test_report::run(Path::new(p), Path::new("specs")), seal_of(p, &src).pointer("/tests/total").and_then(|v| v.as_u64()).unwrap_or(0) as u32);
-        let bad = va::audit_result(r.blocked.is_none(), r.failed as u32, r.total as u32, sealed) == va::AUDIT_POISONED;
+        let checked = (r.total as u32 > r.vacuous() as u32) || (r.invariants > 0);
+        let bad = va::audit_result(r.blocked.is_none(), r.failed as u32, r.total as u32, sealed, checked) == va::AUDIT_POISONED;
         poisoned += bad as u32;
         println!("{} {p}: rerun {} of {} failed, sealed {}{}", if bad { "POISONED" } else { "agrees" }, r.failed, r.total, sealed, r.blocked.map(|b| format!(", blocked: {}", b.lines().next().unwrap_or(""))).unwrap_or_default());
     }

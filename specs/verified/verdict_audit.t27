@@ -34,10 +34,11 @@ pub fn audit_pick(hash_word: u32, round: u32) -> bool {
 pub const AUDIT_AGREES : u8 = 0;
 pub const AUDIT_POISONED : u8 = 1;
 
-pub fn audit_result(compiled: bool, failed: u32, rerun_total: u32, sealed_total: u32) -> u8 {
+pub fn audit_result(compiled: bool, failed: u32, rerun_total: u32, sealed_total: u32, checked: bool) -> u8 {
     if (compiled == false) { return AUDIT_POISONED; }
     if (failed > 0) { return AUDIT_POISONED; }
     if (rerun_total != sealed_total) { return AUDIT_POISONED; }
+    if (checked == false) { return AUDIT_POISONED; }
     return AUDIT_AGREES;
 }
 
@@ -53,14 +54,23 @@ test audit_pick_covers_every_spec_once_per_cycle {
 }
 
 test audit_result_agrees_only_on_the_same_clean_run {
-    assert audit_result(true, 0, 6, 6) == AUDIT_AGREES;
+    assert audit_result(true, 0, 6, 6, true) == AUDIT_AGREES;
     // did not compile: the toolchain or a dependency moved under a seal that still reads REUSE
-    assert audit_result(false, 0, 0, 6) == AUDIT_POISONED;
+    assert audit_result(false, 0, 0, 6, true) == AUDIT_POISONED;
     // a flaky test failed on the rerun
-    assert audit_result(true, 1, 6, 6) == AUDIT_POISONED;
+    assert audit_result(true, 1, 6, 6, true) == AUDIT_POISONED;
     // a test vanished, or one appeared that the seal never judged
-    assert audit_result(true, 0, 5, 6) == AUDIT_POISONED;
-    assert audit_result(true, 0, 7, 6) == AUDIT_POISONED;
+    assert audit_result(true, 0, 5, 6, true) == AUDIT_POISONED;
+    assert audit_result(true, 0, 7, 6, true) == AUDIT_POISONED;
+}
+
+test audit_result_poisoned_when_checked_false {
+    // rerun executed no asserts and spec has no invariant: the seal is poisoned
+    assert audit_result(true, 0, 0, 0, false) == AUDIT_POISONED;
+    // rerun executed some asserts but spec has no invariant: checked = true
+    assert audit_result(true, 0, 3, 3, true) == AUDIT_AGREES;
+    // rerun executed no asserts but spec has invariant: checked = true (invariant covers it)
+    assert audit_result(true, 0, 0, 0, true) == AUDIT_AGREES;
 }
 
 invariant the_audit_codes_never_move {
