@@ -1,0 +1,12 @@
+module spec::port::trios::tools::page_gate;
+
+const MIN_PAGES: u64 = 1;
+const MAX_PAGES: u64 = 10;
+
+pub fn main() -> i32 {
+    return 0;
+}
+
+test main_returns_zero {
+    assert(main() == 0);
+}
