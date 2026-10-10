@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+6a8e44b5f",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:29d2f0c0d8338380616294626301270351cb40832ff40f2ab1471a4378015d06",
+  "gen_hash_rust": "sha256:79cdb36a942d6a320ec62239abfdb1a53241c1704da8a9d53bd1f5408a1aa526",
+  "gen_hash_verilog": "sha256:ce7646d8a6bbfdec2696b69182a1296d2b12de8db5dc493d7dcbd0b8f43573be",
+  "gen_hash_zig": "sha256:0209ceb95a55f9ceea8528320263393dab4edd7f29ca029c486a71ad86a76170",
+  "module": "T27bConformanceNestedAnonStruct",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T17:08:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7497da89ba24fd19ba7e72fff585f7ad40058e93e26b99163c1da39245760f89",
+  "spec_path": "specs/tri/t27b/conformance/nested_anon_struct.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

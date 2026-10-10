@@ -3,8 +3,8 @@
 ; under #6063 and #5980). cli/t27b/src/lower.rs lowers the t27c AST to t27b's IR; a type reaches it as the
 ; source spelling (`?*const [4]u8`, `[T; N]`, `gf16::GF16`), and these are the rules that read that spelling
 ; without asking anything of the rest of the file. They were hand-written Rust in lower.rs (`close_of_open`,
-; `type_base`, `zig_type_name`, `undeclared_field_type`, `is_scoped_gf16`, `returns_value` and the shape
-; decision of `type_construct`); they now reach cli/t27b only through `t27c gen-rust`
+; `type_base`, `zig_type_name`, `undeclared_field_type`, `is_scoped_gf16`, `returns_value`, the shape
+; decision of `type_construct`, the prefix walk of `zig_spelled`); they now reach cli/t27b only through `t27c gen-rust`
 ; (gen/rust/tri/t27b/type_text.rs, mounted as `tt`).
 ; --
 ; The glue passes a text's bytes. A sub-text is returned as its two byte offsets packed in one i64
@@ -318,6 +318,106 @@ pub fn zig_keyword(s: []const u8) -> bool {
         k = k + 1;
     }
     return false;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// An anonymous struct as a fn's result type (`anon_struct_ret`, issue #8705). The reference prints the
+// spelling token by token (`struct { user : struct { login : [ ] const u8 } , state : [ ] const u8 , }`),
+// and Zig makes each `struct { .. }` in it a type of its own, a field's type included. The glue walks the
+// field list one field at a time (`field_end`), reads each `name : type`, and asks `anon_struct` whether the
+// type is again an anonymous struct; any other field type must be one Zig spells (`zig_spelled_base`).
+// ----------------------------------------------------------------------------------------------------------
+
+pub const B_COMMA : u8 = 44;
+pub const B_EQ : u8 = 61;
+pub const B_LBRACE : u8 = 123;
+pub const B_RBRACE : u8 = 125;
+
+/// Is the text, trimmed, `struct` and then `{` (White_Space between them allowed)?
+pub fn anon_struct(s: []const u8) -> bool {
+    const lo : usize = trim_lo(s, 0, s.len);
+    if (!starts(s, lo, s.len, "struct")) { return false; }
+    const at : usize = trim_lo(s, lo + 6, s.len);
+    return at < s.len and s[at] == B_LBRACE;
+}
+
+/// The field list of an anonymous struct's text, packed: what lies between its `{` and the `}` it ends with.
+/// NONE when the text is no anonymous struct or does not end with `}`, and when the list holds a `(`, `)` or
+/// `=` (a default value, a call) or a brace that does not pair up: only `name: type` fields, a field's type
+/// perhaps an anonymous struct again.
+pub fn anon_fields(s: []const u8) -> i64 {
+    if (!anon_struct(s)) { return NONE; }
+    const lo : usize = trim_lo(s, trim_lo(s, 0, s.len) + 6, s.len) + 1;
+    const end : usize = trim_hi(s, lo, s.len);
+    if (end == lo or s[end - 1] != B_RBRACE) { return NONE; }
+    var depth : i64 = 0;
+    var i : usize = lo;
+    while (i < end - 1) {
+        const c : u8 = s[i];
+        if (c == B_LPAREN or c == B_RPAREN or c == B_EQ) { return NONE; }
+        if (c == B_LBRACE) { depth = depth + 1; }
+        if (c == B_RBRACE) {
+            if (depth == 0) { return NONE; }
+            depth = depth - 1;
+        }
+        i = i + 1;
+    }
+    if (depth != 0) { return NONE; }
+    return pack(lo, end - 1);
+}
+
+/// The end of the field that starts at s[lo] in a field list that ends at hi: the first `,` outside the
+/// braces of a nested anonymous struct, or hi.
+pub fn field_end(s: []const u8, lo: usize, hi: usize) -> usize {
+    var depth : i64 = 0;
+    var i : usize = lo;
+    while (i < hi) {
+        const c : u8 = s[i];
+        if (c == B_LBRACE) { depth = depth + 1; }
+        if (c == B_RBRACE) { depth = depth - 1; }
+        if (c == B_COMMA and depth == 0) { return i; }
+        i = i + 1;
+    }
+    return hi;
+}
+
+/// The name a field type of an anonymous struct spells under Zig's prefixes (`zig_spelled`), packed: `?`,
+/// `*const `, `*`, `[]const `, `[]` and `[N]` stripped in any order and number, trimmed each time. NONE for a
+/// `[` that no `]` closes, or whose N is empty or holds a byte that is no letter, digit or `_`. The glue then
+/// asks whether the name is a Zig scalar or a struct or enum the file declares.
+pub fn zig_spelled_base(s: []const u8) -> i64 {
+    var lo : usize = trim_lo(s, 0, s.len);
+    const hi : usize = trim_hi(s, lo, s.len);
+    while (lo < hi) {
+        if (s[lo] == B_QUEST) {
+            lo = lo + 1;
+        } else if (starts(s, lo, hi, "*const ")) {
+            lo = lo + 7;
+        } else if (s[lo] == B_STAR) {
+            lo = lo + 1;
+        } else if (starts(s, lo, hi, "[]const ")) {
+            lo = lo + 8;
+        } else if (starts(s, lo, hi, "[]")) {
+            lo = lo + 2;
+        } else if (s[lo] == B_LBRACK) {
+            const close : i64 = close_in(s, lo, hi);
+            if (close == NONE) { return NONE; }
+            const at : usize = @intCast(close);
+            const a : usize = trim_lo(s, lo + 1, at);
+            const b : usize = trim_hi(s, a, at);
+            if (a == b) { return NONE; }
+            var k : usize = a;
+            while (k < b) {
+                if (!word(s[k])) { return NONE; }
+                k = k + 1;
+            }
+            lo = at + 1;
+        } else {
+            return pack(lo, hi);
+        }
+        lo = trim_lo(s, lo, hi);
+    }
+    return pack(lo, hi);
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -934,4 +1034,71 @@ test the_names_of_a_length_are_found_in_order {
     assert name_hi("a.+1", 0) == 1;
     assert name_hi("a.", 0) == 1;
     assert name_hi("a.b.c", 0) == 5;
+}
+
+test an_anonymous_struct_is_struct_then_a_brace {
+    assert anon_struct("struct { a : u8 }");
+    assert anon_struct("  struct{a:u8}");
+    assert anon_struct("struct  {");
+    assert !anon_struct("structx { a : u8 }");
+    assert !anon_struct("struct");
+    assert !anon_struct("struct x");
+    assert !anon_struct("Spot");
+    assert !anon_struct("");
+    assert !anon_struct("?struct { a : u8 }");
+}
+
+test the_field_list_lies_between_the_braces {
+    assert anon_fields("struct { a : u8 }") == pack(8, 16);
+    assert anon_fields(" struct{a:u8} ") == pack(8, 12);
+    assert anon_fields("struct { }") == pack(8, 9);
+    assert anon_fields("struct {}") == pack(8, 8);
+    assert anon_fields("struct { u : struct { l : u8 } , s : u8 , }") == pack(8, 42);
+    assert anon_fields("struct { r : struct { v : struct { t : u8 , } , } , }") == pack(8, 52);
+}
+
+test a_field_list_with_a_default_a_call_or_odd_braces_is_none {
+    assert anon_fields("struct { a : u8 = 1 }") == NONE;
+    assert anon_fields("struct { a : f ( ) }") == NONE;
+    assert anon_fields("struct { a : u8 } }") == NONE;
+    assert anon_fields("struct { a : struct { b : u8 }") == NONE;
+    assert anon_fields("struct { a : u8 ") == NONE;
+    assert anon_fields("struct {") == NONE;
+    assert anon_fields("Spot") == NONE;
+    assert anon_fields("") == NONE;
+}
+
+test a_field_ends_at_the_first_comma_outside_nested_braces {
+    const s : str = "a : u8 , u : struct { l : u8 , m : u8 } , t : u8";
+    assert field_end(s, 0, 48) == 7;
+    assert field_end(s, 8, 48) == 40;
+    assert field_end(s, 41, 48) == 48;
+    assert field_end(s, 48, 48) == 48;
+    assert field_end("", 0, 0) == 0;
+    assert field_end(s, 0, 5) == 5;
+}
+
+test a_zig_spelled_field_type_is_a_name_under_prefixes {
+    assert zig_spelled_base("u8") == pack(0, 2);
+    assert zig_spelled_base(" Spot ") == pack(1, 5);
+    assert zig_spelled_base("[]const u8") == pack(8, 10);
+    assert zig_spelled_base("[]u8") == pack(2, 4);
+    assert zig_spelled_base("?*const Spot") == pack(8, 12);
+    assert zig_spelled_base("*u8") == pack(1, 3);
+    assert zig_spelled_base("[4]u8") == pack(3, 5);
+    assert zig_spelled_base("[ N_2 ]u8") == pack(7, 9);
+    assert zig_spelled_base("[2][3]?u8") == pack(7, 9);
+    assert zig_spelled_base("? []const  u8") == pack(11, 13);
+    assert zig_spelled_base("") == pack(0, 0);
+    assert zig_spelled_base("?") == pack(1, 1);
+    assert zig_spelled_base("*constu8") == pack(1, 8);
+}
+
+test a_zig_spelled_field_type_with_an_odd_length_is_none {
+    assert zig_spelled_base("[ ]u8") == NONE;
+    assert zig_spelled_base("[N+1]u8") == NONE;
+    assert zig_spelled_base("[4") == NONE;
+    assert zig_spelled_base("[u8; 4]") == NONE;
+    assert zig_spelled_base("[[2]]u8") == NONE;
+    assert zig_spelled_base("?[x.y]u8") == NONE;
 }

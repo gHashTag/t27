@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+; nested_anon_struct.t27 -- conformance spec for t27b (epic #6063, lane: type (anonymous struct), #8705)
+; A field of a fn's anonymous result struct may itself be `struct { .. }`,
+; as merger_gate_selftest.t27's `review` returns
+; `struct { user: struct { login: []const u8 }, .. }`. t27c's Zig backend
+; prints the spelling as written; Zig makes each inner struct a type of its
+; own, and the fn fills it with a nested anonymous literal
+; `.{ .user = .{ .login = .. } }`. These tests pin down that every field
+; keeps its own value: an inner struct between scalars of other widths, two
+; levels of nesting with trailing commas, an inner string and array, the
+; same inner spelling in two fields, and a result written through a var.
+; phi^2 + phi^-2 = 3 | TRINITY
+
+module T27bConformanceNestedAnonStruct;
+
+fn framed(a: u8, b: u64, c: u8, d: u16) -> struct { head: u8, mid: struct { wide: u64, tag: u8 }, tail: u16 } {
+    return .{ .head = a, .mid = .{ .wide = b, .tag = c }, .tail = d };
+}
+
+fn deep(n: i32) -> struct { outer: struct { inner: struct { v: i32, neg: bool, }, twice: i32, }, label: []const u8, } {
+    return .{ .outer = .{ .inner = .{ .v = n, .neg = n < 0 }, .twice = n * 2 }, .label = "deep" };
+}
+
+fn named(who: []const u8, xs: [3]u8) -> struct { user: struct { login: []const u8, seen: [3]u8 }, state: []const u8 } {
+    return .{ .user = .{ .login = who, .seen = xs }, .state = "APPROVED" };
+}
+
+fn pair(a: i32, b: i32) -> struct { left: struct { x: i32 }, right: struct { x: i32 } } {
+    return .{ .left = .{ .x = a }, .right = .{ .x = b } };
+}
+
+// The innermost value bumped and the middle one lowered through a var.
+fn bumped(n: i32) -> i32 {
+    var r = deep(n);
+    r.outer.inner.v = r.outer.inner.v + 1;
+    r.outer.twice = r.outer.twice - 1;
+    return r.outer.inner.v * 100 + r.outer.twice;
+}
+
+test an_inner_struct_between_scalars {
+    const f = framed(7, 1099511627776, 9, 65535);
+    assert(f.head == 7);
+    assert(f.mid.wide == 1099511627776);
+    assert(f.mid.tag == 9);
+    assert(f.tail == 65535);
+}
+
+test two_levels_and_trailing_commas {
+    const d = deep(0 - 21);
+    assert(d.outer.inner.v == 0 - 21);
+    assert(d.outer.inner.neg);
+    assert(d.outer.twice == 0 - 42);
+    assert(d.label.len == 4);
+    const e = deep(5);
+    assert(!e.outer.inner.neg);
+    assert(e.outer.twice == 10);
+}
+
+test an_inner_string_and_array {
+    const r = named("t27-bees[bot]", [3]u8{ 4, 5, 6 });
+    assert(r.user.login == "t27-bees[bot]");
+    assert(r.user.login.len == 13);
+    assert(r.user.seen[0] == 4);
+    assert(r.user.seen[2] == 6);
+    assert(r.state == "APPROVED");
+}
+
+test the_same_inner_spelling_in_two_fields {
+    const p = pair(3, 0 - 8);
+    assert(p.left.x == 3);
+    assert(p.right.x == 0 - 8);
+}
+
+test a_result_written_through_a_var {
+    assert(bumped(3) == 405);
+    assert(bumped(0 - 1) == 0 - 3);
+}
