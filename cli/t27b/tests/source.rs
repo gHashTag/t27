@@ -2915,44 +2915,6 @@ fn only_discards(x: u32, K: u32, y: u32) -> u32 {
     return y;
 }
 
-test ok {
-    assert(triple_first(5, 100) == 15);
-    assert(seven(3, 4) == 7);
-    assert(twice(-4, 1) == -8);
-    assert(only_discards(1, 2, 5) == 5);
-    assert(only_discards(1, 2, 0) == 0);
-}
-
-test fails {
-    assert(triple_first(5, 100) == 500);
-}
-";
-    let r = run(src);
-    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
-    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 500"))));
-}
-
-/// The nested discards the reference cannot compile: Zig's AstGen refuses
-/// a discard of a parameter the body also uses, in every fn. A parameter
-/// that shares a module declaration's name is refused the same way, since
-/// gen-zig renames it. A discard of a local stays unsupported.
-#[test]
-fn parameter_discard_rejections() {
-    let head = "module a;\n\nconst K: u32 = 3;\n\nfn k2() -> u32 {\n    return 2;\n}\n\n";
-    let cases: &[(&str, &str, &str)] = &[
-        ("fn f(x: u32) -> u32 { if (x > 1) { _ = x; } return 1; }", "StmtAssign(discard)", "`_ = x;`"),
-        ("fn f(x: u32, y: u32) -> u32 { if (y > 1) { _ = x; _ = x; } return x; }", "StmtAssign(discard)", "`_ = x;`"),
-        ("fn f(x: u32, y: u32) -> u32 { _ = x; if (y > 1) { _ = x; } return y + x; }", "StmtAssign(discard)", "`_ = x;`"),
-        ("fn f(K: u32, y: u32) -> u32 { if (y > 1) { _ = K; } return y + K; }", "StmtAssign(discard)", "`_ = K;`"),
-        ("fn f(x: u32) -> u32 { var y: u32 = x; _ = y; return 1; }", "StmtAssign(undeclared)", "`_`"),
-    ];
-    for (body, construct, detail) in cases {
-        let m = rejected(&format!("{}{}\n", head, body));
-        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
-        assert!(m.contains(detail), "{}: {}", body, m);
-    }
-}
-
 // ------------------------------------------------------------ array length expressions
 
 /// An array length spelled as an expression (`[W+1]u8`, `[(W+1)*2]u16`) is
@@ -3051,7 +3013,43 @@ test ok {
     assert!(m.contains("`OV` overflows u8"), "{}", m);
 }
 
+test ok {
+    assert(triple_first(5, 100) == 15);
+    assert(seven(3, 4) == 7);
+    assert(twice(-4, 1) == -8);
+    assert(only_discards(1, 2, 5) == 5);
+    assert(only_discards(1, 2, 0) == 0);
+}
 
+test fails {
+    assert(triple_first(5, 100) == 500);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 500"))));
+}
+
+/// The nested discards the reference cannot compile: Zig's AstGen refuses
+/// a discard of a parameter the body also uses, in every fn. A parameter
+/// that shares a module declaration's name is refused the same way, since
+/// gen-zig renames it. A discard of a local stays unsupported.
+#[test]
+fn parameter_discard_rejections() {
+    let head = "module a;\n\nconst K: u32 = 3;\n\nfn k2() -> u32 {\n    return 2;\n}\n\n";
+    let cases: &[(&str, &str, &str)] = &[
+        ("fn f(x: u32) -> u32 { if (x > 1) { _ = x; } return 1; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { if (y > 1) { _ = x; _ = x; } return x; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { _ = x; if (y > 1) { _ = x; } return y + x; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(K: u32, y: u32) -> u32 { if (y > 1) { _ = K; } return y + K; }", "StmtAssign(discard)", "`_ = K;`"),
+        ("fn f(x: u32) -> u32 { var y: u32 = x; _ = y; return 1; }", "StmtAssign(undeclared)", "`_`"),
+    ];
+    for (body, construct, detail) in cases {
+        let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
 
 // ------------------------------------------------------------- type alias
 
