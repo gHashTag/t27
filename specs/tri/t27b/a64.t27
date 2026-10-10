@@ -3,7 +3,8 @@ module T27bA64;
 // epic #6198, issue #7531, Refs #6063). Owner's order, 2026-10-07: t27b gets no more
 // hand-written Rust; its stages move into t27. cli/t27b/src/a64.rs mounts the
 // `t27c gen-rust` output of this file (gen/rust/tri/t27b/a64.rs) and keeps
-// only what this backend cannot yet express: Cond's invert/name/from_bits,
+// only what this backend cannot yet express: Cond::from_bits (an enum from
+// its bits; Cond's invert and name are `invert_bits` and `cond_name` here),
 // the disassembler (builds Strings), and two thin adapters -- bitmask_imm
 // splits bitmask_field's packed field into a tuple, mov_imm pushes
 // mov_imm_at's words into a Vec (issue #7549).
@@ -483,6 +484,26 @@ pub fn umulh(rd: u8, rn: u8, rm: u8) -> u32 {
     return 0x9BC00000 | (r(rm) << 16) | (r(ZR) << 10) | (r(rn) << 5) | r(rd);
 }
 
+// --------------------------------- with carry, and the conditional compare
+// The words a pair of X registers takes for an i128 (specs/tri/t27b/i128_plan.t27): the high words of `+` and
+// `-` go through the carry, and a comparison is two instructions, one per word.
+
+/// ADCS rd, rn, rm (rd = rn + rm + C, setting the flags). Reg 31 is ZR.
+pub fn adcs(sf: bool, rd: u8, rn: u8, rm: u8) -> u32 {
+    return sfb(sf) | 0x3A000000 | (r(rm) << 16) | (r(rn) << 5) | r(rd);
+}
+
+/// SBCS rd, rn, rm (rd = rn - rm - 1 + C, setting the flags). Reg 31 is ZR.
+pub fn sbcs(sf: bool, rd: u8, rn: u8, rm: u8) -> u32 {
+    return sfb(sf) | 0x7A000000 | (r(rm) << 16) | (r(rn) << 5) | r(rd);
+}
+
+/// CCMP rn, rm, #nzcv, cond: the flags of CMP rn, rm when `cond` holds, else `nzcv` (N 8, Z 4, C 2, V 1).
+/// Reg 31 is ZR.
+pub fn ccmp(sf: bool, rn: u8, rm: u8, nzcv: u32, cond: Cond) -> u32 {
+    return sfb(sf) | 0x7A400000 | (r(rm) << 16) | (cond_bits(cond) << 12) | (r(rn) << 5) | (nzcv & 15);
+}
+
 // ----------------------------------------------------------------- bitfield
 
 pub fn sbfm(sf: bool, rd: u8, rn: u8, immr: u32, imms: u32) -> u32 {
@@ -546,12 +567,32 @@ pub fn csinc(sf: bool, rd: u8, rn: u8, rm: u8, cond: Cond) -> u32 {
     return csinc_bits(sf, rd, rn, rm, cond_bits(cond));
 }
 
-/// The inverse condition's 4 bits: flip bit 0, except AL stays AL.
-fn invert_bits(c: u32) -> u32 {
+/// The inverse condition's 4 bits: flip bit 0, except AL stays AL. Cond::invert in cli/t27b/src/a64.rs.
+pub fn invert_bits(c: u32) -> u32 {
     if (c == 14) {
         return 14;
     }
     return c ^ 1;
+}
+
+/// A condition's name in assembly (`b.eq`, `cset w0, ne`), from its 4 bits; 15 reads as AL, as
+/// Cond::from_bits reads it. Cond::name in cli/t27b/src/a64.rs.
+pub fn cond_name(c: u32) -> str {
+    if (c == 0) { return "eq"; }
+    if (c == 1) { return "ne"; }
+    if (c == 2) { return "hs"; }
+    if (c == 3) { return "lo"; }
+    if (c == 4) { return "mi"; }
+    if (c == 5) { return "pl"; }
+    if (c == 6) { return "vs"; }
+    if (c == 7) { return "vc"; }
+    if (c == 8) { return "hi"; }
+    if (c == 9) { return "ls"; }
+    if (c == 10) { return "ge"; }
+    if (c == 11) { return "lt"; }
+    if (c == 12) { return "gt"; }
+    if (c == 13) { return "le"; }
+    return "al";
 }
 
 /// CSET rd, cond (rd = cond ? 1 : 0): CSINC rd, ZR, ZR, invert(cond).
@@ -1329,6 +1370,56 @@ test a64_cset_inverts_every_condition {
     assert_eq(invert_bits(14), 14);
     assert_eq(invert_bits(13), 12);
     assert_eq(invert_bits(0), 1);
+}
+
+// The names the hand-written Cond::name printed (cli/t27b/src/a64.rs before #8736), and the inverse of each.
+test a64_condition_names_and_inverses {
+    assert std.mem.eql(u8, cond_name(0), "eq");
+    assert std.mem.eql(u8, cond_name(1), "ne");
+    assert std.mem.eql(u8, cond_name(2), "hs");
+    assert std.mem.eql(u8, cond_name(3), "lo");
+    assert std.mem.eql(u8, cond_name(4), "mi");
+    assert std.mem.eql(u8, cond_name(5), "pl");
+    assert std.mem.eql(u8, cond_name(6), "vs");
+    assert std.mem.eql(u8, cond_name(7), "vc");
+    assert std.mem.eql(u8, cond_name(8), "hi");
+    assert std.mem.eql(u8, cond_name(9), "ls");
+    assert std.mem.eql(u8, cond_name(10), "ge");
+    assert std.mem.eql(u8, cond_name(11), "lt");
+    assert std.mem.eql(u8, cond_name(12), "gt");
+    assert std.mem.eql(u8, cond_name(13), "le");
+    assert std.mem.eql(u8, cond_name(14), "al");
+    assert std.mem.eql(u8, cond_name(15), "al");
+    var c : u32 = 0;
+    while (c < 14) {
+        assert invert_bits(invert_bits(c)) == c;
+        assert invert_bits(c) != c;
+        c = c + 1;
+    }
+}
+
+// Words from GNU as (aarch64-linux-gnu-as, then objdump -d) on the t27c lab.
+test a64_carry_and_conditional_compare_match_gas {
+    // ccmp x9, x10, #0, eq
+    assert_eq(ccmp(true, 9, 10, 0, Cond.Eq), 0xfa4a0120);
+    // ccmp w1, w2, #15, ne
+    assert_eq(ccmp(false, 1, 2, 15, Cond.Ne), 0x7a42102f);
+    // ccmp x17, x16, #4, lt
+    assert_eq(ccmp(true, 17, 16, 4, Cond.Lt), 0xfa50b224);
+    // ccmp x0, xzr, #0, eq
+    assert_eq(ccmp(true, 0, ZR, 0, Cond.Eq), 0xfa5f0000);
+    // sbcs xzr, x9, x10
+    assert_eq(sbcs(true, ZR, 9, 10), 0xfa0a013f);
+    // sbcs w3, w4, w5
+    assert_eq(sbcs(false, 3, 4, 5), 0x7a050083);
+    // sbcs x0, x30, x17
+    assert_eq(sbcs(true, 0, 30, 17), 0xfa1103c0);
+    // adcs x1, x3, x5
+    assert_eq(adcs(true, 1, 3, 5), 0xba050061);
+    // adcs w0, w1, w2
+    assert_eq(adcs(false, 0, 1, 2), 0x3a020020);
+    // adcs x17, x16, xzr
+    assert_eq(adcs(true, 17, 16, ZR), 0xba1f0211);
 }
 
 test a64_branch_offset_edges {

@@ -31,7 +31,10 @@
 ; The oracle. The 108 asserts on ev_trap, ev_value, ty_min, ty_max, wrap and site_offset were re-run against
 ; the hand-written `eval::arith`, Ty::min, Ty::max and Ty::wrap this file replaces (cli/t27b/src/eval.rs and
 ; ir.rs on master 6b6386e15, t27c Railway lab), and all hold there. The 17 on mag, mul_too_large and
-; shift_amount test helpers the Rust did not have; their values are exact integer arithmetic.
+; shift_amount test helpers the Rust did not have; their values are exact integer arithmetic. Since #8736 the
+; hand-written Ty::min, Ty::max, Ty::fits and Ty::wrap of ir.rs are gone too: they call ty_min, ty_max, fits and
+; wrap, which take a signed type of 128 bits (a run-time i128, specs/tri/t27b/i128_plan.t27) without forming a
+; value past it; the asserts on bits 1 and 128 are new.
 ; No unary operator (#6549) and no char literal (#7604) below.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
@@ -86,15 +89,16 @@ pub fn pow2(n: u32) -> i128 {
 }
 
 /// The least and the greatest value of the type. Ty::Bool is never signed, so its least value is the
-/// unsigned one and ty_min needs no `boolean`.
+/// unsigned one and ty_min needs no `boolean`. A signed type may be i128 (specs/tri/t27b/i128_plan.t27), so
+/// neither bound is formed past it: -1 shifted left keeps the sign, and the greatest is -1 minus the least.
 pub fn ty_min(bits: u32, signed: bool) -> i128 {
-    if (signed) { return ZERO - pow2(bits - 1); }
+    if (signed) { return (ZERO - ONE) << (bits - 1); }
     return ZERO;
 }
 
 pub fn ty_max(bits: u32, signed: bool, boolean: bool) -> i128 {
     if (boolean) { return ONE; }
-    if (signed) { return pow2(bits - 1) - ONE; }
+    if (signed) { return (ZERO - ONE) - ty_min(bits, signed); }
     return pow2(bits) - ONE;
 }
 
@@ -104,6 +108,7 @@ pub fn fits(v: i128, bits: u32, signed: bool, boolean: bool) -> bool {
 
 /// Two's-complement reduction of v to `bits` bits (a bool wraps as 8 bits, as the Rust did).
 pub fn wrap(v: i128, bits: u32, signed: bool) -> i128 {
+    if (bits >= 128) { return v; }
     const m : i128 = v & (pow2(bits) - ONE);
     if (signed and m >= pow2(bits - 1)) { return m - pow2(bits); }
     return m;
@@ -192,6 +197,12 @@ test the_bounds_of_each_type {
     assert ty_max(3, false, false) == 7;
     assert ty_min(5, true) == 0 - 16;
     assert ty_max(5, true, false) == 15;
+    assert ty_min(1, true) == 0 - 1;
+    assert ty_max(1, true, false) == 0;
+    assert ty_max(128, true, false) == 170141183460469231731687303715884105727;
+    assert ty_min(128, true) == 0 - 170141183460469231731687303715884105727 - 1;
+    assert fits(0 - 52, 128, true, false);
+    assert fits(170141183460469231731687303715884105727, 128, true, false);
 }
 
 test wrap_is_twos_complement {
@@ -204,6 +215,8 @@ test wrap_is_twos_complement {
     assert wrap(28, 3, false) == 4;
     assert wrap(2, 8, false) == 2;
     assert wrap(0 - 129, 8, true) == 127;
+    assert wrap(0 - 52, 128, true) == 0 - 52;
+    assert wrap(18446744073709551616, 128, true) == 18446744073709551616;
 }
 
 test checked_add_and_sub_trap_outside_the_type {

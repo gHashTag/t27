@@ -16,7 +16,7 @@ use crate::ir::*;
 
 #[path = "../../../gen/rust/tri/t27b/eval_arith.rs"]
 #[allow(dead_code, unused_parens, unexpected_cfgs, clippy::all)]
-mod spec; // t27c gen-rust of specs/tri/t27b/eval_arith.t27
+pub(crate) mod spec; // t27c gen-rust of specs/tri/t27b/eval_arith.t27; also Ty::min, max, fits and wrap
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stop {

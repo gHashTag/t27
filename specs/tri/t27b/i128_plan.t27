@@ -1,0 +1,416 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/i128_plan.t27 -- how t27b holds a run-time i128 (issue #8736, stage 1 of the three that #7915
+; tracks; t27b coverage epic #6063, written in t27 under the port epic #6198).
+; --
+; The design the owner chose on 2026-10-10 (option A of the design comment on #7915): an i128 is a type of
+; t27b's code generator in its own right, held in a pair of X registers, the low word in the first one, as
+; AAPCS64 holds it. A result comes back in x0 (low) and x1 (high); an argument takes the next even-numbered
+; pair, x0:x1 up to x6:x7, and the stack after that; in memory it is 16 bytes, aligned to 16, the low word
+; first (Zig 0.16: `@sizeOf(i128)` and `@alignOf(i128)` are both 16, measured on the t27c lab for #7915).
+; Every decision about the pair is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/i128_plan.rs, mounted by cli/t27b/src/ir.rs): which type text is an i128, where a
+; variable's pair lives, how a literal splits into its two words, and which instructions compare two pairs.
+; The glue in cli/t27b/src/codegen.rs moves the two words, and refuses as REFUSED every i128 shape this file
+; does not cover yet, so nothing outside it is compiled to a guess.
+; --
+; Stage 1 is what specs/port/bootstrap/src/phi_f64_literals.t27 needs (the conformance spec is
+; specs/tri/t27b/conformance/i128_return.t27):
+;   - NAME is read as a fn's result type. A parameter, a struct field, a local's annotation, an optional and an
+;     array of i128 keep their `type i128` refusal; a module constant declared i128 is still folded at compile
+;     time by wide_plan.t27.
+;   - an i128 value is a literal, a call or a variable. A variable takes its type from a call (`const r = f();`)
+;     and lives in HOME_WORDS words of its frame, the low word first; those homes are laid out before any
+;     other variable, so each is 16-byte aligned.
+;   - a literal is split into its two words (`lit_lo`, `lit_hi`): the two's complement of its sign and
+;     magnitude. Each word is then put in a register as any 64-bit constant is (a64.t27's mov_imm).
+;   - every comparison is two instructions on the two words (`cmp_step`): `cmp` of the low words, then for
+;     `==` and `!=` `ccmp` of the high words, which sets CCMP_NZCV (Z clear: unequal) when the low words
+;     differ, and for an ordered comparison `sbcs xzr` of the high words, whose N and V are those of the
+;     128-bit difference, so LT and GE are exact. `>` and `<=` exchange the operands (`cmp_swaps`) and test LT
+;     and GE. The condition is `cmp_cond`. `holds` runs these steps on a model of the flags, and the tests
+;     check it against the order of the integers for every pair of SAMPLES values.
+; Stage 2 (specs/tri/t27b/source_text.t27) and stage 3 (specs/tri/t27b/eval_arith.t27) add arithmetic with
+; Zig's traps (adds/adcs and subs/sbcs, whose V is the overflow; mul and umulh), casts, shifts, division
+; through a routine written in t27, parameters (`pair_first` and `pair_in_regs` are here already) and struct
+; fields; until then cli/t27b's Ty::bytes is never asked for an i128.
+; --
+; The oracle: AAPCS64 (section 6.8.2, rules C.10 to C.13: a 16-byte integer argument), Zig 0.16's layout
+; above, and the Arm ARM's flags of SUBS, SBCS and CCMP; the instruction words are a64.t27's, checked there
+; against GNU as. The tests' order of two integers is computed from their signs and magnitudes, apart from
+; the flags.
+; No unary operator (#6549), no wrapping operator and no char literal (#7604) below.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bI128Plan;
+
+/// The type text t27b reads as a run-time i128 (stage 1: a fn's result type).
+pub const NAME : str = "i128";
+/// What an i128 shape t27b does not lower yet is refused as: the construct the refusal had before this plan.
+pub const REFUSED : str = "type i128";
+
+/// AAPCS64 returns an i128 in x0 (the low word) and x1 (the high word).
+pub const RET_LO : u8 = 0;
+pub const RET_HI : u8 = 1;
+/// In memory the low word comes first (little-endian): the high word is HI_OFF bytes after it.
+pub const HI_OFF : u32 = 8;
+/// A variable's home: this many 8-byte words of the frame, BYTES in all, aligned to ALIGN.
+pub const HOME_WORDS : u32 = 2;
+pub const BYTES : u32 = 16;
+pub const ALIGN : u32 = 16;
+/// x0 to x7 carry integer arguments.
+pub const ARG_REGS : u32 = 8;
+
+const MAX64 : u64 = 18446744073709551615;
+const SIGN64 : u64 = 9223372036854775808;
+
+// ---------------------------------------------------------------- arguments
+
+/// AAPCS64 C.10: an argument aligned to 16 starts at an even-numbered register, so the next general register
+/// number `ngrn` is rounded up to even.
+pub fn pair_first(ngrn: u32) -> u32 {
+    return ngrn + (ngrn & 1);
+}
+
+/// AAPCS64 C.11 and C.13: the pair is passed in registers when it starts at x6 at the latest; otherwise it goes
+/// on the stack, 16-byte aligned, and no later integer argument takes a register.
+pub fn pair_in_regs(ngrn: u32) -> bool {
+    return pair_first(ngrn) + 2 <= ARG_REGS;
+}
+
+// ---------------------------------------------------------------- literals
+
+/// 0 - x modulo 2^64.
+fn neg_word(x: u64) -> u64 {
+    if (x == 0) { return 0; }
+    return (MAX64 - x) + 1;
+}
+
+/// The low word of the literal whose sign is `neg` and whose magnitude's low word is `mag_lo`.
+pub fn lit_lo(neg: bool, mag_lo: u64) -> u64 {
+    if (neg) { return neg_word(mag_lo); }
+    return mag_lo;
+}
+
+/// The high word of that literal, whose magnitude's high word is `mag_hi`: the high word itself, or for a
+/// negative literal its complement plus the carry out of the low word (1 exactly when the low word is 0).
+pub fn lit_hi(neg: bool, mag_lo: u64, mag_hi: u64) -> u64 {
+    if (neg == false) { return mag_hi; }
+    if (mag_lo == 0) { return neg_word(mag_hi); }
+    return MAX64 - mag_hi;
+}
+
+// ---------------------------------------------------------------- comparisons
+
+/// The comparisons, by their CmpOp number (cli/t27b/src/ir.rs, specs/tri/t27b/cmp_op.t27).
+pub const EQ : u8 = 0;
+pub const NE : u8 = 1;
+pub const LT : u8 = 2;
+pub const LE : u8 = 3;
+pub const GT : u8 = 4;
+pub const GE : u8 = 5;
+
+/// One step of a comparison of the pairs x and y, on word k of each: `cmp xk, yk`; `ccmp xk, yk, #CCMP_NZCV, eq`;
+/// `sbcs xzr, xk, yk`.
+pub const STEP_CMP : u8 = 0;
+pub const STEP_CCMP : u8 = 1;
+pub const STEP_SBCS : u8 = 2;
+/// The flags ccmp sets when the low words differ: all clear, so EQ fails and NE holds.
+pub const CCMP_NZCV : u32 = 0;
+/// The conditions a comparison ends on, in a64.t27's 4-bit encoding.
+pub const COND_EQ : u32 = 0;
+pub const COND_NE : u32 = 1;
+pub const COND_GE : u32 = 10;
+pub const COND_LT : u32 = 11;
+
+/// Step k of comparison `op`: word 0 (the low words) first, then word 1 (the high words).
+pub fn cmp_step(op: u8, k: u32) -> u8 {
+    if (k == 0) { return STEP_CMP; }
+    if (op == EQ or op == NE) { return STEP_CCMP; }
+    return STEP_SBCS;
+}
+
+/// `x > y` is `y < x` and `x <= y` is `y >= x`: these two compare the operands exchanged.
+pub fn cmp_swaps(op: u8) -> bool {
+    return op == GT or op == LE;
+}
+
+/// The condition that holds after the two steps exactly when `x op y`.
+pub fn cmp_cond(op: u8) -> u32 {
+    if (op == EQ) { return COND_EQ; }
+    if (op == NE) { return COND_NE; }
+    if (op == LT or op == GT) { return COND_LT; }
+    return COND_GE;
+}
+
+// ---------------------------------------------------------------- the flags, modelled
+
+/// NZCV as four bits.
+const FLAG_N : u32 = 8;
+const FLAG_Z : u32 = 4;
+const FLAG_C : u32 = 2;
+const FLAG_V : u32 = 1;
+
+/// x - y modulo 2^64.
+fn diff_word(x: u64, y: u64) -> u64 {
+    if (x >= y) { return x - y; }
+    return (MAX64 - y) + x + 1;
+}
+
+/// x - y - borrow modulo 2^64, for a borrow of 0 or 1.
+fn sub_word(x: u64, y: u64, borrow: u64) -> u64 {
+    const d : u64 = diff_word(x, y);
+    if (borrow == 0) { return d; }
+    if (d == 0) { return MAX64; }
+    return d - 1;
+}
+
+/// The flags SUBS x, y (borrow 0) or SBCS x, y (borrow 1 when C is clear) leave: N the sign of the result, Z
+/// a zero result, C no borrow out, V a signed overflow.
+fn sub_flags(x: u64, y: u64, borrow: u64) -> u32 {
+    const d : u64 = sub_word(x, y, borrow);
+    var f : u32 = 0;
+    if (d >= SIGN64) { f = f | FLAG_N; }
+    if (d == 0) { f = f | FLAG_Z; }
+    if (x > y or (x == y and borrow == 0)) { f = f | FLAG_C; }
+    const sx : bool = x >= SIGN64;
+    const sy : bool = y >= SIGN64;
+    const sd : bool = d >= SIGN64;
+    if (sx != sy and sd != sx) { f = f | FLAG_V; }
+    return f;
+}
+
+/// Does condition `c` (one of the COND_ values) hold under flags `f`?
+fn cond_holds(c: u32, f: u32) -> bool {
+    const z : bool = (f & FLAG_Z) != 0;
+    const n_is_v : bool = ((f & FLAG_N) != 0) == ((f & FLAG_V) != 0);
+    if (c == COND_EQ) { return z; }
+    if (c == COND_NE) { return z == false; }
+    if (c == COND_GE) { return n_is_v; }
+    return n_is_v == false;
+}
+
+/// The flags after step `s` on the words x and y, from the flags `f` the step before left.
+fn step_flags(s: u8, x: u64, y: u64, f: u32) -> u32 {
+    if (s == STEP_CMP) { return sub_flags(x, y, 0); }
+    if (s == STEP_CCMP) {
+        if (cond_holds(COND_EQ, f)) { return sub_flags(x, y, 0); }
+        return CCMP_NZCV;
+    }
+    if ((f & FLAG_C) != 0) { return sub_flags(x, y, 0); }
+    return sub_flags(x, y, 1);
+}
+
+/// `x op y` for the pairs (x_lo, x_hi) and (y_lo, y_hi), by the steps, the exchange and the condition above.
+pub fn holds(op: u8, x_lo: u64, x_hi: u64, y_lo: u64, y_hi: u64) -> bool {
+    var a_lo : u64 = x_lo;
+    var a_hi : u64 = x_hi;
+    var b_lo : u64 = y_lo;
+    var b_hi : u64 = y_hi;
+    if (cmp_swaps(op)) {
+        a_lo = y_lo;
+        a_hi = y_hi;
+        b_lo = x_lo;
+        b_hi = x_hi;
+    }
+    const f0 : u32 = step_flags(cmp_step(op, 0), a_lo, b_lo, 0);
+    const f1 : u32 = step_flags(cmp_step(op, 1), a_hi, b_hi, f0);
+    return cond_holds(cmp_cond(op), f1);
+}
+
+// ---------------------------------------------------------------- tests
+
+/// How many sample integers the tests compare, each with every other.
+const SAMPLES : u32 = 15;
+
+/// Sample integer i as its sign (part 0: 1 when negative), its magnitude's high word (part 1) and its
+/// magnitude's low word (part 2): 0, 1, -1, -52, 7286977268806824, 2^63, -2^63, 2^64 - 1, -(2^64 - 1), 2^64,
+/// -2^64, 2^64 + 1, the greatest i128, the least i128 plus 1, and the least i128.
+fn sample(i: u32, part: u32) -> u64 {
+    var neg : u64 = 0;
+    var hi : u64 = 0;
+    var lo : u64 = 0;
+    if (i == 1) { lo = 1; }
+    if (i == 2) { neg = 1; lo = 1; }
+    if (i == 3) { neg = 1; lo = 52; }
+    if (i == 4) { lo = 7286977268806824; }
+    if (i == 5) { lo = SIGN64; }
+    if (i == 6) { neg = 1; lo = SIGN64; }
+    if (i == 7) { lo = MAX64; }
+    if (i == 8) { neg = 1; lo = MAX64; }
+    if (i == 9) { hi = 1; }
+    if (i == 10) { neg = 1; hi = 1; }
+    if (i == 11) { hi = 1; lo = 1; }
+    if (i == 12) { hi = SIGN64 - 1; lo = MAX64; }
+    if (i == 13) { neg = 1; hi = SIGN64 - 1; lo = MAX64; }
+    if (i == 14) { neg = 1; hi = SIGN64; }
+    if (part == 0) { return neg; }
+    if (part == 1) { return hi; }
+    return lo;
+}
+
+/// Word k (0 low, 1 high) of sample i, by the split above.
+fn word(i: u32, k: u32) -> u64 {
+    const neg : bool = sample(i, 0) == 1;
+    if (k == 0) { return lit_lo(neg, sample(i, 2)); }
+    return lit_hi(neg, sample(i, 2), sample(i, 1));
+}
+
+/// The order of samples i and j from their signs and magnitudes: 0 less, 1 equal, 2 greater.
+fn order(i: u32, j: u32) -> u8 {
+    const ni : bool = sample(i, 0) == 1;
+    const nj : bool = sample(j, 0) == 1;
+    if (ni and nj == false) { return 0; }
+    if (nj and ni == false) { return 2; }
+    var m : u8 = 1;
+    if (sample(i, 1) != sample(j, 1)) {
+        if (sample(i, 1) < sample(j, 1)) { m = 0; } else { m = 2; }
+    } else if (sample(i, 2) != sample(j, 2)) {
+        if (sample(i, 2) < sample(j, 2)) { m = 0; } else { m = 2; }
+    }
+    if (ni) { return 2 - m; }
+    return m;
+}
+
+/// Whether `op` holds for two integers in order `ord`.
+fn expected(op: u8, ord: u8) -> bool {
+    if (op == EQ) { return ord == 1; }
+    if (op == NE) { return ord != 1; }
+    if (op == LT) { return ord == 0; }
+    if (op == LE) { return ord != 2; }
+    if (op == GT) { return ord == 2; }
+    return ord != 0;
+}
+
+test the_result_is_x0_then_x1_and_a_home_is_sixteen_aligned_bytes {
+    assert RET_LO == 0;
+    assert RET_HI == 1;
+    assert HI_OFF == 8;
+    assert HOME_WORDS * 8 == BYTES;
+    assert BYTES == 16;
+    assert ALIGN == 16;
+    assert std.mem.eql(u8, NAME, "i128");
+    assert std.mem.eql(u8, REFUSED, "type i128");
+}
+
+test a_pair_argument_starts_at_an_even_register_and_fits_up_to_x6 {
+    assert pair_first(0) == 0;
+    assert pair_first(1) == 2;
+    assert pair_first(2) == 2;
+    assert pair_first(5) == 6;
+    assert pair_first(6) == 6;
+    assert pair_first(7) == 8;
+    assert pair_in_regs(0);
+    assert pair_in_regs(5);
+    assert pair_in_regs(6);
+    assert pair_in_regs(7) == false;
+    assert pair_in_regs(8) == false;
+}
+
+test a_literal_splits_into_its_twos_complement_words {
+    // 7286977268806824 and -52, the literals phi_f64_literals returns.
+    assert lit_lo(false, 7286977268806824) == 7286977268806824;
+    assert lit_hi(false, 7286977268806824, 0) == 0;
+    assert lit_lo(true, 52) == 18446744073709551564;
+    assert lit_hi(true, 52, 0) == MAX64;
+    assert lit_lo(false, 0) == 0;
+    assert lit_hi(false, 0, 0) == 0;
+    // 2^64 and -2^64: the carry out of a zero low word.
+    assert lit_lo(false, 0) == 0;
+    assert lit_hi(false, 0, 1) == 1;
+    assert lit_lo(true, 0) == 0;
+    assert lit_hi(true, 0, 1) == MAX64;
+    // -(2^64 + 1): no carry.
+    assert lit_lo(true, 1) == MAX64;
+    assert lit_hi(true, 1, 1) == MAX64 - 1;
+    // The greatest i128, and the least, whose magnitude 2^127 is its own two's complement.
+    assert lit_lo(false, MAX64) == MAX64;
+    assert lit_hi(false, MAX64, SIGN64 - 1) == SIGN64 - 1;
+    assert lit_lo(true, 0) == 0;
+    assert lit_hi(true, 0, SIGN64) == SIGN64;
+    // The least plus 1.
+    assert lit_lo(true, MAX64) == 1;
+    assert lit_hi(true, MAX64, SIGN64 - 1) == SIGN64;
+}
+
+test equality_is_cmp_then_ccmp_and_order_is_cmp_then_sbcs {
+    var op : u8 = 0;
+    while (op < 6) {
+        assert cmp_step(op, 0) == STEP_CMP;
+        op = op + 1;
+    }
+    assert cmp_step(EQ, 1) == STEP_CCMP;
+    assert cmp_step(NE, 1) == STEP_CCMP;
+    assert cmp_step(LT, 1) == STEP_SBCS;
+    assert cmp_step(LE, 1) == STEP_SBCS;
+    assert cmp_step(GT, 1) == STEP_SBCS;
+    assert cmp_step(GE, 1) == STEP_SBCS;
+    assert cmp_swaps(EQ) == false;
+    assert cmp_swaps(NE) == false;
+    assert cmp_swaps(LT) == false;
+    assert cmp_swaps(GE) == false;
+    assert cmp_swaps(GT);
+    assert cmp_swaps(LE);
+    assert cmp_cond(EQ) == COND_EQ;
+    assert cmp_cond(NE) == COND_NE;
+    assert cmp_cond(LT) == COND_LT;
+    assert cmp_cond(GT) == COND_LT;
+    assert cmp_cond(GE) == COND_GE;
+    assert cmp_cond(LE) == COND_GE;
+    assert CCMP_NZCV == 0;
+}
+
+test the_flags_of_one_word {
+    // 5 - 3: C set (no borrow); 3 - 5: N, borrow; 0 - 0: Z and C; 2^63 - 1: V (the least i64 minus 1).
+    assert sub_flags(5, 3, 0) == FLAG_C;
+    assert sub_flags(3, 5, 0) == FLAG_N;
+    assert sub_flags(0, 0, 0) == FLAG_Z + FLAG_C;
+    assert sub_flags(SIGN64, 1, 0) == FLAG_C + FLAG_V;
+    // With a borrow: 5 - 5 - 1 borrows; 6 - 5 - 1 is zero with no borrow.
+    assert sub_flags(5, 5, 1) == FLAG_N;
+    assert sub_flags(6, 5, 1) == FLAG_Z + FLAG_C;
+    assert sub_word(0, 1, 0) == MAX64;
+    assert sub_word(0, 0, 1) == MAX64;
+    assert sub_word(MAX64, 0, 1) == MAX64 - 1;
+}
+
+test the_two_steps_order_every_pair_of_samples {
+    var i : u32 = 0;
+    var checked : u32 = 0;
+    while (i < SAMPLES) {
+        var j : u32 = 0;
+        while (j < SAMPLES) {
+            const ord : u8 = order(i, j);
+            var op : u8 = 0;
+            while (op < 6) {
+                assert holds(op, word(i, 0), word(i, 1), word(j, 0), word(j, 1)) == expected(op, ord);
+                checked = checked + 1;
+                op = op + 1;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    assert checked == SAMPLES * SAMPLES * 6;
+}
+
+test the_samples_are_distinct_and_ordered_as_listed_by_sign_and_size {
+    // -1 < 0 < 1, -2^64 < -(2^64 - 1), the least i128 below everything, the greatest above.
+    assert order(2, 0) == 0;
+    assert order(0, 1) == 0;
+    assert order(10, 8) == 0;
+    assert order(14, 13) == 0;
+    assert order(12, 11) == 2;
+    var i : u32 = 0;
+    while (i < SAMPLES) {
+        var j : u32 = 0;
+        while (j < SAMPLES) {
+            if (i != j) { assert order(i, j) != 1; }
+            assert order(i, j) == 2 - order(j, i);
+            j = j + 1;
+        }
+        assert order(14, i) == 0 or i == 14;
+        assert order(12, i) == 2 or i == 12;
+        i = i + 1;
+    }
+}

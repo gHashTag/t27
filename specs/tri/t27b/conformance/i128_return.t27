@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: Apache-2.0
+; i128_return.t27 -- conformance spec for t27b (epic #6063, stage 1 of #7915's run-time i128, #8736)
+; A fn may return an i128, which t27b holds in a pair of X registers, x0
+; the low word and x1 the high one (specs/tri/t27b/i128_plan.t27). `pick`
+; is the repro of the design comment on #7915. The other tests pin down
+; both words: literals of 64 bits and wider, positive and negative, the
+; greatest and nearly the least i128, a result kept in an untyped const
+; while other calls run, a var given a second result, a non-leaf fn, and
+; every comparison, whose high and low words decide in turn.
+; phi^2 + phi^-2 = 3 | TRINITY
+
+module T27bConformanceI128Return;
+
+fn pick(x: bool) -> i128 {
+    if (x) {
+        return 7286977268806824;
+    }
+    return -52;
+}
+
+// Sample k: 2^64, -2^64, 2^64 + 1, the greatest i128, the least plus 1, -1, 0 and 18446744073709551615.
+fn wide(k: u8) -> i128 {
+    if (k == 0) { return 18446744073709551616; }
+    if (k == 1) { return -18446744073709551616; }
+    if (k == 2) { return 18446744073709551617; }
+    if (k == 3) { return 170141183460469231731687303715884105727; }
+    if (k == 4) { return -170141183460469231731687303715884105727; }
+    if (k == 5) { return -1; }
+    if (k == 6) { return 0; }
+    return 18446744073709551615;
+}
+
+// Not a leaf: the result crosses a call of its own.
+fn by_name(scope: []const u8) -> i128 {
+    if (std.mem.eql(u8, scope, "%positive")) {
+        return wide(3);
+    }
+    return pick(false);
+}
+
+test pick_returns_i128 {
+    assert(pick(true) == 7286977268806824);
+    assert(pick(false) == -52);
+}
+
+test a_negative_literal_and_inequality {
+    const r = pick(false);
+    assert(r == -52);
+    assert(r != 52);
+    assert(r != -53);
+    assert(r != 18446744073709551564);
+}
+
+test both_words_of_wide_literals {
+    assert(wide(0) == 18446744073709551616);
+    assert(wide(0) != 0);
+    assert(wide(0) != 1);
+    assert(wide(1) == -18446744073709551616);
+    assert(wide(1) != 18446744073709551616);
+    assert(wide(2) == 18446744073709551617);
+    assert(wide(3) == 170141183460469231731687303715884105727);
+    assert(wide(4) == -170141183460469231731687303715884105727);
+    assert(wide(5) == -1);
+    assert(wide(5) != 18446744073709551615);
+    assert(wide(6) == 0);
+    assert(wide(7) == 18446744073709551615);
+}
+
+test a_result_held_across_calls {
+    const a = wide(0);
+    const b = wide(1);
+    const c = by_name("%positive");
+    const d = by_name("%Z");
+    assert(a != b);
+    assert(c == wide(3));
+    assert(d == -52);
+    assert(wide(2) == wide(2));
+    assert(wide(2) != wide(0));
+    assert(a == 18446744073709551616);
+}
+
+test a_var_takes_a_second_result {
+    var r = wide(3);
+    assert(r == 170141183460469231731687303715884105727);
+    r = wide(4);
+    assert(r == -170141183460469231731687303715884105727);
+    r = 7;
+    assert(r == 7);
+}
+
+test the_ordered_comparisons {
+    assert(wide(1) < wide(5));
+    assert(wide(5) < wide(6));
+    assert(wide(6) < wide(7));
+    assert(wide(7) < wide(0));
+    assert(wide(0) < wide(2));
+    assert(wide(2) < wide(3));
+    assert(wide(4) < wide(1));
+    assert(wide(3) > wide(4));
+    assert(wide(0) >= wide(0));
+    assert(wide(0) <= wide(0));
+    assert(wide(1) <= wide(0));
+    assert(wide(2) >= wide(7));
+    assert(pick(false) < 0);
+    assert(pick(false) > -53);
+    assert(pick(true) > -18446744073709551616);
+    assert(wide(5) >= -1);
+    assert(wide(4) <= wide(3));
+    assert(wide(7) >= wide(5));
+}

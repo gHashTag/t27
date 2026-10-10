@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 14,
+ "max_not_pass": 12,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass"},
   {"path": "specs/a_b/c.t27", "t27b": "pass"},
@@ -476,7 +476,7 @@
   {"path": "specs/port/bootstrap/src/enrichment/mod.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/jwt.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/parse_conform.t27", "t27b": "pass"},
-  {"path": "specs/port/bootstrap/src/phi_f64_literals.t27", "t27b": "blocked", "blocker": "type i128", "reason": "unimplemented"},
+  {"path": "specs/port/bootstrap/src/phi_f64_literals.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/phi_selfcheck.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/sensitivity.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/source_kind.t27", "t27b": "pass"},
@@ -1154,6 +1154,7 @@
   {"path": "specs/tri/t27b/conformance/frame_address_caller_owned.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/frame_address_return.t27", "t27b": "blocked", "blocker": "ExprReturn(frame address)", "reason": "reference-bug"},
   {"path": "specs/tri/t27b/conformance/frame_address_store.t27", "t27b": "blocked", "blocker": "StmtAssign(frame address)", "reason": "reference-bug"},
+  {"path": "specs/tri/t27b/conformance/i128_return.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/int_cast.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/int_cast_index.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/large_frame.t27", "t27b": "pass"},
@@ -1217,6 +1218,7 @@
   {"path": "specs/tri/t27b/frame_store_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/fuzz.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/fuzz_oracle.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/i128_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/int_cast_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/lazy_sig_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/ledger_steward.t27", "t27b": "pass"},

@@ -17,7 +17,7 @@ impl<'a> Lower<'a> {
     pub(super) fn ret_lty(&mut self, rt: &str) -> R<LTy> {
         let t = rt.trim();
         if !tl::is_tuple(t.as_bytes()) {
-            return self.lty(t);
+            return if t == ip::NAME { Ok(LTy::S(Ty::I128)) } else { self.lty(t) }; // a run-time i128: specs/tri/t27b/i128_plan.t27
         }
         // Each element's name and type as byte ranges of `t`, and the key the type is interned by.
         let (mut at, mut kb) = (vec![0usize; 4 * t.len()], vec![0u8; 3 * t.len()]);

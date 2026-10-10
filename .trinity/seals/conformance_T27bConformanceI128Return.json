@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+bba8efb24",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6674e9a021457f39b70e54ab9ee75e8f1b20d6af4a5a61785d2b8694ac01b875",
+  "gen_hash_rust": "sha256:4000ae628f98cf9fe69224a173a0d9b8b4746948509e78e304bfad53287dbcc4",
+  "gen_hash_verilog": "sha256:b8f18c9e58ddbc82d48a6bad9a6d4e8870ee67eb5ac16985daff04a39262f6bf",
+  "gen_hash_zig": "sha256:c2b3ec75bfce0f3e7ec54ff7ed70122d6314b76b31afc3bc15d48f372b9f6d8d",
+  "module": "T27bConformanceI128Return",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T18:22:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:af79b6cf1203554c8a7b09d00b2a8b5a005fc110cbbecbfd9f90d24d416ee99a",
+  "spec_path": "specs/tri/t27b/conformance/i128_return.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -71,7 +71,7 @@ pub fn pow2(n: u32) -> i128 {
 
 pub fn ty_min(bits: u32, signed: bool) -> i128 {
     if signed {
-        return (ZERO - pow2((bits - 1)));
+        return ((ZERO - ONE) << (bits - 1));
     }
     return ZERO;
 }
@@ -81,7 +81,7 @@ pub fn ty_max(bits: u32, signed: bool, boolean: bool) -> i128 {
         return ONE;
     }
     if signed {
-        return (pow2((bits - 1)) - ONE);
+        return ((ZERO - ONE) - ty_min(bits, signed));
     }
     return (pow2(bits) - ONE);
 }
@@ -91,6 +91,9 @@ pub fn fits(v: i128, bits: u32, signed: bool, boolean: bool) -> bool {
 }
 
 pub fn wrap(v: i128, bits: u32, signed: bool) -> i128 {
+    if (bits >= 128) {
+        return v;
+    }
     let m: i128 = (v & (pow2(bits) - ONE));
     if (signed && (m >= pow2((bits - 1)))) {
         return (m - pow2(bits));

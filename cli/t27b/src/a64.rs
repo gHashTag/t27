@@ -8,7 +8,7 @@
 //! The words are checked against the system assembler in tests/encoder.rs.
 //! The encoders are generated: specs/tri/t27b/a64.t27 -> `t27c gen-rust` ->
 //! gen/rust/tri/t27b/a64.rs (#7531, #7549). This file keeps what gen-rust
-//! cannot express yet: Cond's methods, the tuple and Vec adapters
+//! cannot express yet: Cond::from_bits, the tuple and Vec adapters
 //! `bitmask_imm` and `mov_imm`, and the disassembler.
 
 #[path = "../../../gen/rust/tri/t27b/a64.rs"]
@@ -20,47 +20,9 @@ pub use enc::*;
 pub type Reg = u8;
 
 impl Cond {
-    pub fn invert(self) -> Cond {
-        use Cond::*;
-        match self {
-            Eq => Ne,
-            Ne => Eq,
-            Hs => Lo,
-            Lo => Hs,
-            Mi => Pl,
-            Pl => Mi,
-            Vs => Vc,
-            Vc => Vs,
-            Hi => Ls,
-            Ls => Hi,
-            Ge => Lt,
-            Lt => Ge,
-            Gt => Le,
-            Le => Gt,
-            Al => Al,
-        }
-    }
+    pub fn invert(self) -> Cond { Cond::from_bits(enc::invert_bits(self as u32)) }
 
-    pub fn name(self) -> &'static str {
-        use Cond::*;
-        match self {
-            Eq => "eq",
-            Ne => "ne",
-            Hs => "hs",
-            Lo => "lo",
-            Mi => "mi",
-            Pl => "pl",
-            Vs => "vs",
-            Vc => "vc",
-            Hi => "hi",
-            Ls => "ls",
-            Ge => "ge",
-            Lt => "lt",
-            Gt => "gt",
-            Le => "le",
-            Al => "al",
-        }
-    }
+    pub fn name(self) -> &'static str { enc::cond_name(self as u32) }
 
     pub fn from_bits(b: u32) -> Cond {
         use Cond::*;
