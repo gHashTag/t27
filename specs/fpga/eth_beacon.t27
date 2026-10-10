@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: Apache-2.0
+module EthBeacon;
+// specs/fpga/eth_beacon.t27 -- E1 of the Ethernet bring-up (epic #6655): the die transmits
+// one UDP broadcast every GAP_CYCLES on the board's gigabit PHY, so a host on the same LAN
+// sees the board without any host-side driver.
+//
+// The board is an ALINX AX7203 (xc7a200tfbg484-2), not the QMTech Wukong this file was
+// first written for. A camera on the bench read "ALINX" off the PCB on 2026-10-08 and the
+// AX7203 gf8 conformance bitstream then answered 512/512 over its UART; the 200 MHz
+// oscillator is on R4/T4. That is why eth_probe.t27 found no clock on any Wukong pin.
+// The AX7203 has two KSZ9031RNX PHYs on RGMII (pins in fpga/verilog/eth_beacon_top.xdc,
+// from the ALINX AX7103/AX7203 manual); this module drives both, so either port works.
+//
+// The frame, byte for byte (FRAME_BYTES = 72 on the wire):
+//   0..6    preamble 0x55, 7 SFD 0xD5                         (not covered by the FCS)
+//   8..13   destination MAC ff:ff:ff:ff:ff:ff                 (broadcast)
+//   14..19  source MAC 02:27:00:00:00:01                      (locally administered)
+//   20..21  ethertype 0x0800                                  (IPv4)
+//   22..41  IPv4 header: 45 00 | len 46 | id 0 | DF | ttl 64 | UDP | checksum | src | dst
+//   42..49  UDP header: port 27027 -> 27027, length 26, checksum 0 (allowed for IPv4)
+//   50..67  payload: "T27E", the frame counter big-endian, ten zero bytes (pads to 46)
+//   68..71  FCS: CRC-32 (IEEE 802.3, reflected 0xEDB88320, init and final xor all ones)
+//           over bytes 8..67, sent least significant byte first
+//
+// Addresses are the bench's: source 192.168.1.227 (checked free by ARP on 2026-10-08),
+// destination the subnet broadcast 192.168.1.255. The IPv4 checksum is a constant because
+// no header field varies; ip_checksum() recomputes it from the fields and a test pins the
+// two together, so editing an address without the checksum fails.
+//
+// Reference values were computed independently (Python zlib.crc32 and the RFC 791 sum)
+// before this spec was written: IP checksum 0xB58C; counter 0 -> FCS bytes D9 CA 27 66;
+// counter 1 -> 19 15 A9 A7.
+//
+// Clocking: one 125 MHz domain from a PLL on the 200 MHz oscillator. At 1000 Mb/s RGMII
+// carries one byte per clock, so the byte stream below is the same as GMII's; the wrapper
+// splits each byte into two nibbles with ODDR, and forwards a 90-degree copy of the clock
+// as TXC, which centres TXC in the data eye without programming the PHY's skew over MDIO.
+//
+// What the camera reads, led[3:0]: bit 0 = PHY 1 link up, bit 1 = PHY 2 link up, bit 2 =
+// a link is up at 1000 Mb/s, bit 3 = count bit 2 (toggles every 4 frames, about 1 Hz).
+// Link and speed come from RGMII in-band status: while RX_CTL is low the PHY puts
+// {duplex, speed[1:0], link} on RXD. The pins are sampled through two registers on this
+// clock, which is safe because that nibble only changes when the link does.
+//
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at
+// most once on each path, and every right-hand side reads values from before the edge.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+const FRAME_BYTES : u8 = 72
+const FRAME_LAST : u8 = 71
+const DATA_FIRST : u8 = 8
+const DATA_END : u8 = 68
+const GAP_CYCLES : u32 = 16777216
+const CRC_INIT : u32 = 4294967295
+const CRC_POLY : u32 = 3988292384
+const IP_TOTAL_LEN : u32 = 46
+const UDP_LEN : u32 = 26
+const UDP_PORT : u32 = 27027
+const SRC_IP : u32 = 3232236003
+const DST_IP : u32 = 3232236031
+const IP_CSUM : u32 = 46476
+const RST_HOLD : u32 = 2097152
+
+var pos : u8 = 0
+var np : u8 = 1
+var gap : u32 = 0
+var crc : u32 = 4294967295
+var count : u32 = 0
+var txd : u8 = 0
+var tx_en : u8 = 0
+var nb : u8 = 85
+var rst_cnt : u32 = 0
+var phy_rst_n : u8 = 0
+var a1 : u8 = 0
+var b1 : u8 = 0
+var st1 : u8 = 0
+var a2 : u8 = 0
+var b2 : u8 = 0
+var st2 : u8 = 0
+var led : u8 = 0
+
+fn byte_of(w: u32, k: u8) -> u8 {
+    return ((w >> ((8 * k) as u32)) & 255) as u8;
+}
+
+// RFC 791: one's complement of the one's complement sum of the ten header words.
+fn ip_checksum() -> u32 {
+    const a : u32 = 17664 + IP_TOTAL_LEN + 16384 + 16401 + (SRC_IP >> 16) + (SRC_IP & 65535) + (DST_IP >> 16) + (DST_IP & 65535);
+    const b : u32 = (a & 65535) + (a >> 16);
+    const c : u32 = (b & 65535) + (b >> 16);
+    return (c ^ 65535) & 65535;
+}
+
+// Wire byte at position p (0..67) of the frame carrying `counter`, by absolute position:
+// no index arithmetic, so it maps to a table on p's seven bits and closes 125 MHz.
+fn frame_byte(p: u8, counter: u32) -> u8 {
+    if (p < 7) { return 85; }
+    if (p == 7) { return 213; }
+    if (p < 14) { return 255; }
+    if (p == 14) { return 2; }
+    if (p == 15) { return 39; }
+    if (p < 19) { return 0; }
+    if (p == 19) { return 1; }
+    if (p == 20) { return 8; }
+    if (p == 21) { return 0; }
+    if (p == 22) { return 69; }
+    if (p == 23) { return 0; }
+    if (p == 24) { return byte_of(IP_TOTAL_LEN, 1); }
+    if (p == 25) { return byte_of(IP_TOTAL_LEN, 0); }
+    if (p < 28) { return 0; }
+    if (p == 28) { return 64; }
+    if (p == 29) { return 0; }
+    if (p == 30) { return 64; }
+    if (p == 31) { return 17; }
+    if (p == 32) { return byte_of(IP_CSUM, 1); }
+    if (p == 33) { return byte_of(IP_CSUM, 0); }
+    if (p == 34) { return byte_of(SRC_IP, 3); }
+    if (p == 35) { return byte_of(SRC_IP, 2); }
+    if (p == 36) { return byte_of(SRC_IP, 1); }
+    if (p == 37) { return byte_of(SRC_IP, 0); }
+    if (p == 38) { return byte_of(DST_IP, 3); }
+    if (p == 39) { return byte_of(DST_IP, 2); }
+    if (p == 40) { return byte_of(DST_IP, 1); }
+    if (p == 41) { return byte_of(DST_IP, 0); }
+    if (p == 42) { return byte_of(UDP_PORT, 1); }
+    if (p == 43) { return byte_of(UDP_PORT, 0); }
+    if (p == 44) { return byte_of(UDP_PORT, 1); }
+    if (p == 45) { return byte_of(UDP_PORT, 0); }
+    if (p == 46) { return byte_of(UDP_LEN, 1); }
+    if (p == 47) { return byte_of(UDP_LEN, 0); }
+    if (p < 50) { return 0; }
+    if (p == 50) { return 84; }
+    if (p == 51) { return 50; }
+    if (p == 52) { return 55; }
+    if (p == 53) { return 69; }
+    if (p == 54) { return byte_of(counter, 3); }
+    if (p == 55) { return byte_of(counter, 2); }
+    if (p == 56) { return byte_of(counter, 1); }
+    if (p == 57) { return byte_of(counter, 0); }
+    return 0;
+}
+
+fn crc_step(c: u32) -> u32 {
+    if ((c & 1) == 1) { return (c >> 1) ^ CRC_POLY; }
+    return c >> 1;
+}
+
+fn crc_byte(c: u32, b: u8) -> u32 {
+    return crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(c ^ (b as u32)))))))));
+}
+
+// FCS byte k (0..3) from the running CRC: final xor, least significant byte first.
+fn fcs_byte(c: u32, k: u8) -> u8 {
+    return byte_of(c ^ CRC_INIT, k);
+}
+
+// In-band status {duplex, speed[1:0], link}: 1000 Mb/s is speed 2.
+fn gigabit(st: u8) -> u8 {
+    if ((st & 1) == 1) {
+        if (((st >> 1) & 3) == 2) { return 1; }
+    }
+    return 0;
+}
+
+fn led_of(s1: u8, s2: u8, counter: u32) -> u8 {
+    const g : u8 = gigabit(s1) | gigabit(s2);
+    return (s1 & 1) | ((s2 & 1) << 1) | (g << 2) | ((((counter >> 2) & 1) as u8) << 3);
+}
+
+// c1, d1: PHY 1's RX_CTL and RXD[3:0] as sampled at this edge; c2, d2 the same for PHY 2.
+fn on_clock(c1: u8, d1: u8, c2: u8, d2: u8) {
+    led = led_of(st1, st2, count);
+    if (((b1 >> 4) & 1) == 0) { st1 = b1 & 15; }
+    if (((b2 >> 4) & 1) == 0) { st2 = b2 & 15; }
+    b1 = a1;
+    b2 = a2;
+    a1 = ((c1 & 1) << 4) | (d1 & 15);
+    a2 = ((c2 & 1) << 4) | (d2 & 15);
+    if (rst_cnt < RST_HOLD) {
+        phy_rst_n = 0;
+        rst_cnt = rst_cnt + 1;
+    } else {
+        phy_rst_n = 1;
+    }
+    // nb is the byte at pos, fetched one clock ahead, so both the line and the CRC read a
+    // register and no frame_byte mux sits in front of the eight CRC steps (125 MHz).
+    if (gap != 0) {
+        gap = gap - 1;
+        tx_en = 0;
+        txd = 0;
+    } else {
+        tx_en = 1;
+        if (pos < DATA_END) {
+            txd = nb;
+        } else {
+            txd = fcs_byte(crc, pos - DATA_END);
+        }
+        if (pos == FRAME_LAST) {
+            pos = 0;
+            np = 1;
+            gap = GAP_CYCLES;
+            count = (((count as u64) + 1) % 4294967296) as u32;
+            crc = CRC_INIT;
+            nb = 85;
+        } else {
+            if (pos >= DATA_FIRST) {
+                if (pos < DATA_END) {
+                    crc = crc_byte(crc, nb);
+                }
+            }
+            nb = frame_byte(np, count);
+            pos = np;
+            np = np + 1;
+        }
+    }
+}
+
+invariant the_frame_is_the_data_plus_the_fcs {
+    assert_eq(DATA_END + 4, FRAME_BYTES);
+    assert_eq(FRAME_LAST + 1, FRAME_BYTES);
+    assert_eq(IP_TOTAL_LEN, 20 + UDP_LEN);
+}
+
+test the_ip_checksum_constant_is_the_rfc_791_sum_of_the_fields {
+    assert_eq(ip_checksum(), 46476);
+    assert_eq(IP_CSUM, ip_checksum());
+}
+
+test the_header_starts_with_the_broadcast_mac_and_ipv4 {
+    assert_eq(frame_byte(8, 0), 255);
+    assert_eq(frame_byte(14, 0), 2);
+    assert_eq(frame_byte(20, 0), 8);
+    assert_eq(frame_byte(21, 0), 0);
+    assert_eq(frame_byte(22, 0), 69);
+    assert_eq(frame_byte(31, 0), 17);
+    assert_eq(frame_byte(32, 0), 181);
+    assert_eq(frame_byte(33, 0), 140);
+    assert_eq(frame_byte(34, 0), 192);
+    assert_eq(frame_byte(37, 0), 227);
+    assert_eq(frame_byte(41, 0), 255);
+    assert_eq(frame_byte(42, 0), 105);
+    assert_eq(frame_byte(43, 0), 147);
+    assert_eq(frame_byte(47, 0), 26);
+}
+
+test the_payload_carries_t27e_and_the_counter {
+    assert_eq(frame_byte(50, 16909060), 84);
+    assert_eq(frame_byte(53, 16909060), 69);
+    assert_eq(frame_byte(54, 16909060), 1);
+    assert_eq(frame_byte(57, 16909060), 4);
+    assert_eq(frame_byte(58, 16909060), 0);
+    assert_eq(frame_byte(67, 16909060), 0);
+}
+
+test the_crc_of_the_ascii_digits_is_the_ieee_check_value {
+    var c : u32 = CRC_INIT;
+    c = crc_byte(c, 49); c = crc_byte(c, 50); c = crc_byte(c, 51);
+    c = crc_byte(c, 52); c = crc_byte(c, 53); c = crc_byte(c, 54);
+    c = crc_byte(c, 55); c = crc_byte(c, 56); c = crc_byte(c, 57);
+    assert_eq(c ^ CRC_INIT, 3421780262);
+}
+
+test frame_zero_ends_with_fcs_d9_ca_27_66_then_frame_one_with_19_15_a9_a7 {
+    pos = 0; np = 1; gap = 0; crc = CRC_INIT; count = 0; txd = 0; tx_en = 0; nb = 85;
+    var i : u32 = 0;
+    while (i < 68) { on_clock(0, 0, 0, 0); i = i + 1; }
+    assert_eq(tx_en, 1);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 217);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 202);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 39);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 102);
+    assert_eq(pos, 0);
+    assert_eq(count, 1);
+    assert_eq(gap, GAP_CYCLES);
+    gap = 0;
+    i = 0;
+    while (i < 68) { on_clock(0, 0, 0, 0); i = i + 1; }
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 25);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 21);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 169);
+    on_clock(0, 0, 0, 0);
+    assert_eq(txd, 167);
+}
+
+test the_line_is_idle_during_the_gap {
+    pos = 0; gap = 3; crc = CRC_INIT; count = 0; txd = 9; tx_en = 1;
+    on_clock(0, 0, 0, 0);
+    assert_eq(tx_en, 0);
+    assert_eq(txd, 0);
+    assert_eq(gap, 2);
+}
+
+test the_phy_leaves_reset_after_the_hold_and_stays_out {
+    rst_cnt = RST_HOLD - 2; phy_rst_n = 0;
+    on_clock(0, 0, 0, 0);
+    assert_eq(phy_rst_n, 0);
+    on_clock(0, 0, 0, 0);
+    assert_eq(phy_rst_n, 0);
+    assert_eq(rst_cnt, RST_HOLD);
+    on_clock(0, 0, 0, 0);
+    assert_eq(phy_rst_n, 1);
+    on_clock(0, 0, 0, 0);
+    assert_eq(phy_rst_n, 1);
+    assert_eq(rst_cnt, RST_HOLD);
+}
+
+test in_band_status_lights_link_and_gigabit_and_ignores_frame_data {
+    a1 = 0; b1 = 0; st1 = 0; a2 = 0; b2 = 0; st2 = 0; count = 0; gap = 5; led = 0;
+    on_clock(0, 13, 0, 0);
+    on_clock(0, 13, 0, 0);
+    on_clock(0, 13, 0, 0);
+    assert_eq(st1, 13);
+    assert_eq(st2, 0);
+    on_clock(1, 5, 0, 0);
+    assert_eq(led, 5);
+    on_clock(1, 5, 0, 0);
+    on_clock(1, 5, 0, 0);
+    assert_eq(st1, 13);
+    assert_eq(gigabit(3), 0);
+    assert_eq(gigabit(5), 1);
+    assert_eq(led_of(0, 3, 4), 10);
+}
+
+test the_prefetched_byte_is_the_frame_byte_at_pos {
+    pos = 0; np = 1; gap = 0; crc = CRC_INIT; count = 7; txd = 0; tx_en = 0; nb = 85;
+    var i : u8 = 0;
+    while (i < 60) {
+        assert_eq(nb, frame_byte(pos, count));
+        assert_eq(np, pos + 1);
+        on_clock(0, 0, 0, 0);
+        assert_eq(txd, frame_byte(i, 7));
+        i = i + 1;
+    }
+}

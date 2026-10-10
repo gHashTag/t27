@@ -5,7 +5,8 @@
 
 module VerilogBenchHarness {
     use test_framework::core::{TestResult, Verdict, ToleranceTier, EngineeringStatus};
-    use numeric::golden_float::{GF16, GF32};
+    use numeric::gf16::GF16;
+    use numeric::gf32::GF32;
     
     // -----------------------------------------------------
     // 1. Verilog Integration Configuration

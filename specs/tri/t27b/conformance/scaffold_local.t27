@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/scaffold_local.t27 -- a local bound to the template scaffold `default_input()` or
+; `valid_input()`, as the reference runs it (gHashTag/t27#7691, a lane of #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints (W585, `collect_scaffold_locals`): when such a local is passed as a bare
+; argument to a declared fn, `const graph = undefined;`. The helper is never called, so neither its effects
+; nor its traps happen, and whether the spec declares it does not matter. The value takes the type of the
+; parameter it is passed to, which nobody here reads.
+; The shapes are the corpus's own: specs/tri/graph/topological_sort.t27 (`given graph = default_input()`, then
+; `sort(graph)` through a const pointer that `sort` never reads), specs/tri/graph/bellman_ford.t27 (a slice
+; passed to a void fn that ignores it) and the generated tests whose helper is defined nowhere. Here
+; `default_input` is declared with an effect, which pins that it is never called, and `valid_input` is
+; declared nowhere. Every test reads SC_CALLS or a result at run time.
+; Not here, because a spec that holds them does not pass the reference or passes it on dead memory: a
+; callee that reads the value, any other read of the local, and `var input = default_input();`. t27b refuses
+; each by name (specs/tri/t27b/scaffold_plan.t27).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceScaffoldLocal;
+
+var SC_CALLS: u32 = 0;
+
+pub const ScGraph = struct {
+    adjacency: []usize,
+    node_count: usize,
+};
+
+pub const ScOrder = struct {
+    order: []usize,
+    has_cycle: bool,
+};
+
+pub const ScEdge = struct {
+    from: u32,
+    to: u32,
+};
+
+/// The scaffold, declared with an effect the reference never runs.
+fn default_input() -> ScGraph {
+    SC_CALLS = SC_CALLS + 1;
+    return ScGraph{ .adjacency = []usize, .node_count = 4 };
+}
+
+/// topological_sort.t27's sort: never reads its parameter.
+fn sc_sort(graph: *const ScGraph) -> ScOrder {
+    return ScOrder{ .order = []usize{ 0, 1, 2, 3 }, .has_cycle = false };
+}
+
+fn sc_is_valid(result: ScOrder) -> bool {
+    return result.order.len == 4 and !result.has_cycle;
+}
+
+/// bellman_ford.t27's shortest_path: a slice it ignores, and an effect of its own.
+fn sc_relax(edges: []ScEdge) -> void {
+    SC_CALLS = SC_CALLS + 100;
+}
+
+/// A struct by value, never read.
+fn sc_count(graph: ScGraph) -> u32 {
+    return 9;
+}
+
+/// A scalar never read.
+fn sc_width(n: u32) -> u32 {
+    return 5;
+}
+
+/// Reads its second parameter only.
+fn sc_pair(a: u32, b: u32) -> u32 {
+    return b * 2;
+}
+
+/// A scaffold in a fn body.
+fn sc_in_a_fn() -> bool {
+    const g = default_input();
+    return sc_is_valid(sc_sort(g)) and SC_CALLS == 0;
+}
+
+test sort_basic_case
+    given graph = default_input()
+    when sort_result = sc_sort(graph)
+    then sort_result.has_cycle == false
+    then SC_CALLS == 0
+
+test is_valid_basic_case
+    given graph = default_input()
+    when sort_result = sc_sort(graph)
+    when validation = sc_is_valid(sort_result)
+    then validation == true
+    then sort_result.order[3] == 3
+
+test the_type_comes_from_the_consumer
+    given input = default_input()
+    when result = sc_relax(input)
+    then SC_CALLS == 100
+
+test a_struct_by_value_is_never_read {
+    const graph = default_input();
+    assert(sc_count(graph) == 9);
+    assert(SC_CALLS == 0);
+}
+
+test a_helper_defined_nowhere {
+    const n = valid_input();
+    assert(sc_width(n) == 5);
+    assert(sc_pair(n, 3) == 6);
+}
+
+test one_scaffold_two_calls {
+    const g = default_input();
+    const first = sc_sort(g);
+    const again = sc_sort(g);
+    assert(sc_is_valid(first) and sc_is_valid(again));
+    assert(again.order[2] == 2);
+    assert(SC_CALLS == 0);
+}
+
+test a_nested_call_is_a_consumer {
+    const g = default_input();
+    assert(sc_is_valid(sc_sort(g)));
+    assert(SC_CALLS == 0);
+}
+
+test a_scaffold_in_a_fn_body {
+    assert(sc_in_a_fn());
+    assert(SC_CALLS == 0);
+}

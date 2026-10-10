@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fc9a503a10d6a2bac9367e7a23c1c51d6827e132b72f35f86b197dcd93dce889",
+  "gen_hash_rust": "sha256:3afb6c76c0a1fb75f009d93f32f46ca9ba09f06ff447226e35fa2a5bfe8a7ea2",
+  "gen_hash_verilog": "sha256:e3bf8c5c9ae5ee353045d348c0b546ead13577723a3ba74ae5c23339ab5dced0",
+  "gen_hash_zig": "sha256:5c6af6606d33229e1f7cf9a8b737d04394f55eee63c9a118209e6a6bede12175",
+  "module": "port::browseros::trios::agent_server::apps::server::src::lib::provider_error_classifier",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:55Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:02bfbcb607017aee324f056f26c82d6e70f2a863fa51a4d2f491b6b7f712f6a4",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/provider-error-classifier.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

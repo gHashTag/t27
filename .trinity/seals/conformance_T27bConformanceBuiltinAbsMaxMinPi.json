@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5aaf05af69486bf362012a602b5b719aaada4399b9044ad74c2f4e5022da01cb",
+  "gen_hash_rust": "sha256:b16e144b758f18299aaf62342ac592765ef9e1285ab34c03dcc36506088d96f0",
+  "gen_hash_verilog": "sha256:4bdb56fda5e3f18d575acfa1ef5b535e601f0264bc5fe2872a4452558812e814",
+  "gen_hash_zig": "sha256:3527e3d33f12e1b2959b9b1b128e2f85465670d5d98e4443390d5c663dac26b3",
+  "module": "T27bConformanceBuiltinAbsMaxMinPi",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:0d4b879283ec0a0dcf53acc6cea0d8134e2e29b3edb75b7f336f40beb382412c",
+  "spec_path": "specs/tri/t27b/conformance/builtin_abs_max_min_pi.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

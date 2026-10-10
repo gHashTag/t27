@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fe68d4e4c41a08994f782568aa348b8bf5d37d305f0d22967f6eaecfea849feb",
+  "gen_hash_rust": "sha256:2917575147738ca275db447b459e642e2b8625f59bd0cd3575a01050e7fe84eb",
+  "gen_hash_verilog": "sha256:37c4bece3affd8996307d52139df37673e8489cba3e348649b86626b0de24110",
+  "gen_hash_zig": "sha256:28036df17c41a31c60db06415078a13989a275a527f946ac2021397f01b159a0",
+  "module": "automation::crm_client_ownership",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:957eda56603a3b88260f0862061897d9b92f52a98262946b8b035de951ab34a8",
+  "spec_path": "specs/automation/crm-client-ownership.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

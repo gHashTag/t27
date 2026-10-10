@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:fe09283256718a54c7d2d529ac7c2ed358f27c7714b551c95d80e7b2c301c287",
-  "gen_hash_rust": "sha256:fb225f02fa981ca661e8213d0a88d0e3bd96eb5212a291aa463b166d4c293cf0",
-  "gen_hash_verilog": "sha256:29d90514f9b5be64ee8e5c0f79ee0a123407b446e7c8257b888455ed1de35b98",
-  "gen_hash_zig": "sha256:645e39d6e5db1af24a89bbed75866989f143497395d5013ff4b0884af92437da",
+  "gen_hash_c": "sha256:174cef41ffae254c61d162c389093e091f7406f3ca7521680a80e7957e118e93",
+  "gen_hash_rust": "sha256:3f246e9ac855b50c3d93c8bbd98131f857e1fb5a5ef003201614124dabd0152f",
+  "gen_hash_verilog": "sha256:3cd18f15bc4f4da3d0880a75a2f4b714772d6f26d54b7ed51f991dce574969b6",
+  "gen_hash_zig": "sha256:0dfe0f26a6bfd1ec98e2523bbb09ca8287849cc0ecdb1796d1add22d72c1dc14",
   "module": "TestSpec",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:fc14c912253e6b52a302909533c7da0fd963384e66b03eda50a3ca9ca7c68659",
-  "spec_path": "specs/tri/pipeline/codegen.t27"
+  "sealed_at": "2026-10-06T02:47:33Z",
+  "spec_hash": "sha256:a8201e48aca91baeea3838df250271a63e90647f6a6155ad02c41c0f9dac3b64",
+  "spec_path": "specs/tri/pipeline/codegen.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
 }

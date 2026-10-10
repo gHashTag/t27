@@ -21,9 +21,16 @@ them have since been repaired and their rows dropped (2026-10-02):
 `CounterConfig`, `CounterState`, `Issue`, `LedConfig`, `LedOutputs`,
 `ModuleInterface`, `OscillatorState`, `Outputs`, `TbCheck`, `TbConfig`) and
 were read the same way on 2026-10-05.
+Twenty-six more arrived with the 2026-10-06/07 batch merges of port specs
+(trios crates, BrowserOS, compiler.rs slices, openxc7-synth tops, `gen_*`
+trinity files, wave generators) and were read the same way on 2026-10-07:
+17 DRIFT, 9 DISTINCT. Most DRIFT rows among them are a port restating a type
+its source's own spec already defines (`AsmSection`, `LinkSection`, `HwType`
+against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
+spec (`LockFreeStack`, `RTree`, `Point`).
 
-    DRIFT     51
-    DISTINCT  37
+    DRIFT     50
+    DISTINCT  35
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
 file is the summary; that file is the record.
@@ -120,7 +127,7 @@ has had it: `tri types dup` no longer reports the name, and its row is gone.
 
 Every remaining DRIFT row needs a decision about which module owns the concept.
 
-## DISTINCT -- 34 names
+## DISTINCT -- 35 names
 
 Two concepts that met on a name. Nothing to converge; the question is only
 whether to rename.
@@ -151,6 +158,7 @@ whether to rename.
 | `Parser` | 2 | 2 files | None needed; if flattened, PinsParser is the natural rename for the pins one (it is already t... |
 | `PipelineConfig` | 3 | 3 files | Delete specs/igla/coder/_tmp_pipeline_import.t27 — it is a temp import artifact that duplicat... |
 | `PipelineResult` | 5 | 5 files | Rename per subsystem (FusionResult / CompilePipelineResult / GenerationResult / BatchEntryRes... |
+| `Point` | 2 | 2 files | None. The basics lesson's Point is quoted by its course page; TriBezier's could become BezierP... |
 | `Promise` | 2 | 2 files | None urgent. Note the report's field list for the async site is wrong — see the pattern note ... |
 | `ProofStep` | 3 | 3 files | Rename the math one to DerivationStep (and share the single copy between phi_split_optimality... |
 | `QueryResult` | 3 | 3 files | Rename per subsystem (DatalogAnswer / NotebookAnswer / SimilarityHit); no shared meaning to p... |

@@ -72,6 +72,24 @@ const ALL: [Ty; 9] = [
     Ty::I64,
 ];
 
+/// Odd widths (`u1`, `i21`): canonical like u8/u16 in a W register, with
+/// bitfield extracts where those have byte and halfword extends. The edge-
+/// value tests run them next to `Ty::INTS`; the random generator does not.
+const ODD: [Ty; 12] = [
+    Ty::UN(1),
+    Ty::IN(1),
+    Ty::IN(2),
+    Ty::UN(4),
+    Ty::IN(5),
+    Ty::UN(7),
+    Ty::UN(17),
+    Ty::IN(17),
+    Ty::UN(21),
+    Ty::IN(21),
+    Ty::UN(31),
+    Ty::IN(31),
+];
+
 /// A value of `ty`, biased towards the edges of its range.
 fn value(rng: &mut Rng, ty: Ty) -> i128 {
     if ty == Ty::Bool {
@@ -1118,6 +1136,7 @@ fn show_expr(p: &Program, f: &Func, e: &Expr) -> String {
             format!("({} f{} {})", show_expr(p, f, lhs), op.symbol(), show_expr(p, f, rhs))
         }
         ExprKind::FNeg(a) => format!("-f{}", show_expr(p, f, a)),
+        ExprKind::FSqrt(a) => format!("@sqrt({})", show_expr(p, f, a)),
         ExprKind::IntToFloat(a) => format!("@floatFromInt({})", show_expr(p, f, a)),
         ExprKind::FloatCast(a) => format!("@floatCast({}):{}", show_expr(p, f, a), e.ty.name()),
         ExprKind::FloatToInt { arg, site } => {
@@ -1517,9 +1536,14 @@ fn every_operator_at_edge_values() {
     let mut rng = Rng::new(99);
     let mut stats = Stats::default();
     let mut failures = Vec::new();
-    for ty in Ty::INTS {
+    for ty in Ty::INTS.into_iter().chain(ODD) {
         let vals = edge_values(ty);
         for op in OPS {
+            // A runtime wrap-mode shift of an odd width is refused by
+            // lowering (`bits - 1` is no mask); its constant form is below.
+            if ty.is_odd() && matches!(op, ArithOp::ShlW | ArithOp::ShrW) {
+                continue;
+            }
             let amt_tys: Vec<Ty> = if op.is_shift() {
                 vec![ty, Ty::U8, Ty::I8, Ty::U32, Ty::I64]
             } else {
@@ -1581,6 +1605,25 @@ fn every_operator_at_edge_values() {
             }
         }
     }
+    // Constant shifts of the odd widths: every in-range amount, the form
+    // lowering gives a comptime-known amount.
+    for ty in ODD {
+        let vals = edge_values(ty);
+        let (sites, _) = sites_for(ArithOp::ShlW, ty);
+        let mut funcs = Vec::new();
+        for c in 0..ty.bits() as i128 {
+            for op in [ArithOp::ShlW, ArithOp::ShrW] {
+                let e = arith(ty, op, var(ty, 0), konst(Ty::U32, c), 0);
+                funcs.push(one_func("sc", &[ty], ty, vec![Stmt::Return(Some(e))], 1));
+            }
+        }
+        let n = funcs.len();
+        let prog = Program { module: "oddshift".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), globals: Vec::new(), internal_abi: Vec::new() };
+        let calls: Vec<(usize, Vec<i128>)> = (0..n).flat_map(|f| vals.iter().map(move |&a| (f, vec![a]))).collect();
+        if let Err(e) = compare_calls(&prog, &calls, &mut rng, &mut stats) {
+            failures.push(format!("constant shifts on {}: {}", ty.name(), e));
+        }
+    }
     eprintln!(
         "edge values: {} programs, {} calls compared ({} returns, {} traps)",
         stats.programs,
@@ -1599,7 +1642,7 @@ fn compare_unary_widen_at_edge_values() {
     let mut stats = Stats::default();
     let mut failures = Vec::new();
     let mk = |kind, ty| Site { kind, line: 1, what: String::new(), ty };
-    for ty in ALL {
+    for ty in ALL.into_iter().chain(ODD) {
         let vals = edge_values(ty);
         let ops: Vec<CmpOp> = if ty == Ty::Bool { vec![CmpOp::Eq, CmpOp::Ne] } else { CMPS.to_vec() };
         for op in ops {
@@ -1662,7 +1705,7 @@ fn compare_unary_widen_at_edge_values() {
             failures.push(format!("unary on {}: {}", ty.name(), e));
         }
         // Widening into every wider type.
-        for to in Ty::INTS {
+        for to in Ty::INTS.into_iter().chain(ODD) {
             if to == ty || !to.can_widen_from(ty) {
                 continue;
             }
@@ -1699,9 +1742,9 @@ fn casts_at_edge_values() {
     let mut stats = Stats::default();
     let mut failures = Vec::new();
     let mk = |kind, ty| Site { kind, line: 1, what: String::new(), ty };
-    for from in ALL {
+    for from in ALL.into_iter().chain(ODD) {
         let vals = edge_values(from);
-        for to in Ty::INTS {
+        for to in Ty::INTS.into_iter().chain(ODD) {
             if to == from {
                 continue;
             }
@@ -2201,11 +2244,13 @@ test nan_to_int {
     );
 }
 
-/// What stays refused, each named: `@sqrt` and `std.math.*`, a conversion
-/// with no result type, f16, `as` from f64 or from a bool to f64 (an
-/// integer `as f64` is `@floatFromInt`, see `source.rs`), compile-time arithmetic
-/// on a literal that is not exactly an f64 (Zig folds it in f128), and
-/// `x * 2^k` on f64 (t27c gen rewrites it into a shift that cannot compile).
+/// What stays refused, each named: `@sqrt` of a literal, `std.math.*`, a
+/// conversion with no result type, f16, `as` from an f64 t27c gen does not
+/// spell as a float (here an array element; a spelled one, a call of a fn
+/// declared `-> f64` included, is lowered, see `float_as_plan.t27`) or from a bool to f64 (an integer `as f64` is
+/// `@floatFromInt`, see `source.rs`), a folded value
+/// past the f64 range, and `x * 2^k` on f64 (t27c gen rewrites it into a
+/// shift that cannot compile).
 #[test]
 fn f64_refusals_name_the_construct() {
     let first = |body: &str| -> String {
@@ -2216,24 +2261,26 @@ fn f64_refusals_name_the_construct() {
         }
     };
     for (body, want) in [
-        ("return @sqrt(x);", "ExprCall(@sqrt)"),
+        ("return @sqrt(2.0) + x;", "ExprCall(@sqrt)"),
         ("return std.math.sqrt(x);", "ExprCall(std.*)"),
         ("return @floatFromInt(n) + x;", "ExprCall(@floatFromInt)"),
         ("const y: f16 = 1.0;\nreturn x;", "type f16"),
-        ("return x as f64;", "ExprCast(f64)"),
-        ("const k: i32 = x as i32;\nreturn x;", "ExprCast(f64)"),
+        ("const a: [1]f64 = [x];\nreturn a[0] as f64;", "ExprCast(f64)"),
+        ("const a: [1]f64 = [x];\nconst k: i32 = a[0] as i32;\nreturn x;", "ExprCast(f64)"),
         ("return (n > 0) as f64;", "ExprCast(f64)"),
-        ("return x + 0.1 * 3.0;", "ExprBinary(*)"),
+        ("return x + 1e308 * 10.0;", "literal out of range"),
+        ("return x + 1.0 / 0.0;", "ExprBinary"),
         ("return x * 2;", "ExprBinary(f64 * 2^k)"),
         ("return x % 2.0;", "ExprBinary(%)"),
-        ("return x + n;", "type mismatch"),
+        ("return x + @as(i64, n);", "type mismatch"),
     ] {
         let msg = first(body);
         assert!(msg.contains(&format!("unsupported construct {} ", want)), "{}: {}", body, msg);
     }
-    // Exact literals fold: 1e22 is an f64 exactly, 1e23 is not.
+    // Literals fold whether or not they are an f64 exactly (in binary128,
+    // see `comptime_floats_fold_in_binary128`): 1e22 is one, 1e23 is not.
     assert!(f64_lower("module ok;\nfn f() f64 {\nreturn 1e22 * 0.5 + 0.5 * 3.0;\n}\n").is_ok());
-    assert!(f64_lower("module no;\nfn f() f64 {\nreturn 1e23 * 1.0;\n}\n").is_err());
+    assert!(f64_lower("module ok;\nfn f(x: f64) f64 {\nreturn x + 1e23 * 1.0 + 0.1 * 3.0;\n}\n").is_ok());
 }
 
 // ------------------------------------------------------------------ f32
@@ -2526,11 +2573,11 @@ test f32_out_of_range {
 }
 
 /// What stays refused for f32, each named: an integer literal that is not
-/// exactly an f32 (a Zig compile error), an inexact literal whose f64 is
-/// exactly an f32 midpoint (Zig rounds the f128, which the f64 cannot
-/// tell apart: 1.0000000596046447753906250001 is 0x3f800001 in Zig and
-/// 1.00000005960464477539062499 is 0x3f800000, one f64), `as` from a float,
-/// and `@floatCast` of a literal or with no result type.
+/// exactly an f32 (a Zig compile error), `as` from a float t27c gen does
+/// not spell as one (an array element), and
+/// `@floatCast` of a literal or with no result type. (A literal one f64
+/// apart from an f32 midpoint rounds from its binary128 value, see
+/// `comptime_floats_fold_in_binary128`.)
 #[test]
 fn f32_refusals_name_the_construct() {
     let first = |body: &str| -> String {
@@ -2542,10 +2589,8 @@ fn f32_refusals_name_the_construct() {
     };
     for (body, want) in [
         ("return 16777217;", "literal out of range"),
-        ("return 1.0000000596046447753906250001;", "literal out of range"),
-        ("return 1.00000005960464477539062499;", "literal out of range"),
-        ("return x as f32;", "ExprCast(f32)"),
-        ("const k: i32 = x as i32;\nreturn x;", "ExprCast(f32)"),
+        ("const a: [1]f32 = [x];\nreturn a[0] as f32;", "ExprCast(f32)"),
+        ("const a: [1]f32 = [x];\nconst k: i32 = a[0] as i32;\nreturn x;", "ExprCast(f32)"),
         ("return @floatCast(0.5);", "ExprCall(@floatCast)"),
         ("return @floatCast(x) + x;", "ExprCall(@floatCast)"),
         ("return x * 4;", "ExprBinary(f64 * 2^k)"),
@@ -2560,6 +2605,103 @@ fn f32_refusals_name_the_construct() {
     for body in ["return 16777216;", "return 0.1 + x;", "return 16777217.0;", "return 16777219.0 - x;", "return n as f32;"] {
         let src = format!("module f32ok;\nfn f(x: f32, n: i32) f32 {{\n{}\n}}\n", body);
         assert!(f64_lower(&src).is_ok(), "{}", body);
+    }
+}
+
+/// Zig keeps a comptime_float in binary128: `+ - * /` of two of them round
+/// to binary128, they compare as binary128 values, and a typed f64 or f32
+/// takes one rounding of the result. Every value below was checked with
+/// exact rational arithmetic, and the same text passes `t27c gen` + `zig
+/// test` 6/6 with every assert run at run time (the conformance spec
+/// `specs/tri/t27b/conformance/comptime_float.t27` holds the first cases).
+#[test]
+fn comptime_floats_fold_in_binary128() {
+    let src = "module cfwide;
+
+fn add(x: f64, y: f64) f64 {
+    return x + y;
+}
+
+fn sub(x: f64, y: f64) f64 {
+    return x - y;
+}
+
+fn mul(x: f64, y: f64) f64 {
+    return x * y;
+}
+
+fn same(b: bool) bool {
+    return b;
+}
+
+fn widen(x: f32) f64 {
+    return x;
+}
+
+fn to_i32(x: f64) i32 {
+    return @intFromFloat(x);
+}
+
+test past_f64_and_back {
+    const big: f64 = 1e308 * 10.0 / 10.0;
+    assert(add(big, 0.0) == 1e308);
+    assert(mul(mul(1e308, 10.0), 0.1) > 1e308);
+}
+
+test subnormal_results_round_once {
+    const half: f64 = 5e-324 * 0.5;
+    const quarter: f64 = 5e-324 * 0.25;
+    assert(add(half, 0.0) == 5e-324);
+    assert(add(quarter, 0.0) == 0.0);
+}
+
+test comptime_ints_take_part {
+    assert(same(0.1 * 10.0 == 1));
+    assert(same(0.1 * 3.0 != 0.3));
+    const one: f64 = (1.0 / 3.0) * 3.0;
+    assert(add(one, 0.0) == 1.0);
+}
+
+test differences_and_squares_fold {
+    const d: f64 = 0.3 - 0.1;
+    assert(add(d, 0.0) == 0.2);
+    assert(sub(0.3, 0.1) < 0.2);
+    const sq: f64 = 1.1 * 1.1;
+    assert(add(sq, 0.0) == 1.21);
+    assert(mul(1.1, 1.1) > 1.21);
+}
+
+test f32_rounds_once_from_binary128 {
+    const f: f32 = 0.1 + 0.2;
+    assert(widen(f) == 0.300000011920928955078125);
+    const up: f32 = 1.0000000596046447753906250001;
+    const down: f32 = 1.00000005960464477539062499;
+    assert(widen(up) == 1.00000011920928955078125);
+    assert(widen(down) == 1.0);
+}
+
+test exact_folds_convert {
+    assert(to_i32(0.5 * 4.0) == 2);
+    const k: i32 = @intFromFloat(0.5 * 4.0);
+    assert(same(k == 2));
+}
+";
+    let r = f64_run(src);
+    assert_eq!(r.len(), 6, "{:?}", r);
+    for (name, o) in &r {
+        assert_eq!(*o, Ok(()), "{}", name);
+    }
+    // The same asserts with the folded and the run-time values swapped fail.
+    for (from, to) in [
+        ("assert(add(big, 0.0) == 1e308);", "assert(add(big, 0.0) != 1e308);"),
+        ("assert(add(quarter, 0.0) == 0.0);", "assert(add(quarter, 0.0) == 5e-324);"),
+        ("assert(same(0.1 * 3.0 != 0.3));", "assert(same(0.1 * 3.0 == 0.3));"),
+        ("assert(add(d, 0.0) == 0.2);", "assert(add(d, 0.0) < 0.2);"),
+        ("assert(widen(up) == 1.00000011920928955078125);", "assert(widen(up) == 1.0);"),
+    ] {
+        assert!(src.contains(from), "{}", from);
+        let r = f64_run(&src.replace(from, to));
+        assert_eq!(r.iter().filter(|(_, o)| o.is_err()).count(), 1, "{}: {:?}", to, r);
     }
 }
 

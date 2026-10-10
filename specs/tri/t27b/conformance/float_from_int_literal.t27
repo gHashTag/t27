@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/float_from_int_literal.t27 -- `@floatFromInt` of a comptime_int, and `c as f32`
+; / `c as f64` of one, as the reference runs them (gHashTag/t27#7803, t27b coverage epic #6063: `literal out
+; of range` in specs/port/trios/crates/trios-igla-trainer/src/jepa_runner.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints `c as f32` as `@as(f32, @floatFromInt(c))`, and Zig rounds c to the nearest f32, ties to
+; even; the same for f64 and for an explicit `@floatFromInt(c)` with a float result type. A coercion of the
+; same c (`const a: f32 = 16777217;`) does not compile, so it is not here.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceFloatFromIntLiteral;
+
+fn ffl_u32_max() -> f32 {
+    return 0xFFFFFFFF as f32;
+}
+
+fn ffl_two_24_plus_1() -> f32 {
+    return 16777217 as f32;
+}
+
+fn ffl_two_24_plus_3() -> f32 {
+    return 16777219 as f32;
+}
+
+fn ffl_neg_two_24_minus_1() -> f32 {
+    return -16777217 as f32;
+}
+
+fn ffl_u64_max() -> f32 {
+    return 0xFFFFFFFFFFFFFFFF as f32;
+}
+
+fn ffl_two_53_plus_1() -> f64 {
+    return 9007199254740993 as f64;
+}
+
+fn ffl_explicit() -> f64 {
+    const x: f64 = @floatFromInt(9007199254740995);
+    return x;
+}
+
+fn ffl_exact() -> f32 {
+    return 16777216 as f32;
+}
+
+/// jepa_runner.t27's noise: the top 31 bits of an LCG state over 2^32 - 1, scaled to [-1, 1].
+fn ffl_noise(s: u64) -> f32 {
+    const noise_f32: f32 = ((s >> 33) as f32) / (0xFFFFFFFF as f32) * 2.0 - 1.0;
+    return noise_f32;
+}
+
+test u32_max_rounds_up_to_two_to_the_32 {
+    assert(ffl_u32_max() == 4294967296.0);
+    assert(ffl_u32_max() > 4294967040.0);
+}
+
+test an_inexact_comptime_int_rounds_to_nearest_ties_to_even {
+    assert(ffl_two_24_plus_1() == 16777216.0);
+    assert(ffl_two_24_plus_3() == 16777220.0);
+    assert(ffl_neg_two_24_minus_1() == -16777216.0);
+    assert(ffl_u64_max() == 18446744073709551616.0);
+}
+
+test f64_rounds_the_same_way {
+    assert(ffl_two_53_plus_1() == 9007199254740992.0);
+    assert(ffl_explicit() == 9007199254740996.0);
+}
+
+test an_exact_comptime_int_is_unchanged {
+    assert(ffl_exact() == 16777216.0);
+}
+
+test jepa_runner_s_noise_stays_in_the_unit_interval {
+    assert(ffl_noise(0) == -1.0);
+    const top: u64 = 0xFFFFFFFFFFFFFFFF;
+    assert(ffl_noise(top) == 0.0);
+    assert(ffl_noise(6364136223846793005) > -1.0);
+    assert(ffl_noise(6364136223846793005) < 1.0);
+}

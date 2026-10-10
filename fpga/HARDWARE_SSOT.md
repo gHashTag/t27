@@ -10,6 +10,54 @@
 
 ---
 
+## 2026-10-08 — the board is an ALINX AX7203 (`xc7a200tfbg484-2`), not a QMTech Wukong
+
+**Correction to §1 below, measured, #7788.** The board on the Verified Compute
+bench (the Mac that took over from the old machine on 2026-10-08) is an
+**ALINX AX7203**: XC7A200T in **FBG484**, two KSZ9031RNX gigabit PHYs, 200 MHz
+oscillator on R4/T4. IDCODE `0x3636093` is the die, not the package, so it never
+could tell the two boards apart.
+
+Evidence:
+- a USB camera on the bench reads "ALINX" off the PCB;
+- `gf8_clean_ax7203.bit` from gHashTag/trinity-fpga (sha256 `47d8a076e519...`)
+  answers `HW RESULT: 512/512 bit-exact (fails=0)` over the AX7203 UART (N15,
+  160000 baud), clocked from R4/T4;
+- a JTAG USER3 probe built for `xc7a200tfbg484-2` counts both KSZ9031 RXC pins
+  (B17, E19) at 25 MHz against the 200 MHz reference.
+
+The old three-board bench was almost certainly the same board. trinity-fpga's
+AX7203 campaign (2026-07-30) ran on the same cable serial, `210512180081`. On
+2026-08-08 its fpga-synth notes measured a KSZ9031 RGMII PHY on all three boards.
+A Wukong carries an RTL8211 on GMII. The 16 MiB N25Q128 flash in §1 is the
+AX7203's flash as well.
+
+**What this does and does not invalidate.** Every `t27c silicon` verdict
+(ternary_link, e8m0, tnf17 and the rest) stands. Those designs touch no package
+pin: they clock from STARTUPE2 and read out through BSCANE2, so a placement on
+`xc7a200tfbg676` loads and runs on the FBG484 die. Every **pin-level** result
+written for the Wukong does not stand: the clock search on M22/M21, the
+RTL8211/GMII pins, and "PHY held in reset (R1)". Those designs drove pins that
+the AX7203 routes elsewhere. A design that uses pins must target
+`xc7a200tfbg484-2`. Its chipdb is `build/fpga/openxc7/xc7a200tfbg484-2.bin`
+(333,207,792 B, md5 `59f828c441e6e6081bfee63ff994660e`), built on the Railway
+lab like the fbg676 one.
+
+AX7203 pins used so far (ALINX AX7103/AX7203 manual; the base board is shared):
+
+| signal | pins |
+|---|---|
+| 200 MHz (DIFF_SSTL15) | R4 (P), T4 (N) |
+| UART | N15 TX, P20 RX |
+| user LEDs (active low) | B13 C13 D14 D15 |
+| PHY 1 RGMII | TXC E18, TXD C20 D20 A19 A18, TX_CTL F18, RXC B17, RXD A16 B18 C18 C19, RX_CTL A15, MDC B16, MDIO B15, RESET D16 |
+| PHY 2 RGMII | TXC A14, TXD E17 C14 C15 A13, TX_CTL D17, RXC E19, RXD A20 B20 D19 C17, RX_CTL F19, MDC F20, MDIO C22, RESET B22 |
+
+The first spec on these pins is `specs/fpga/eth_beacon.t27`, with the wrapper
+`fpga/verilog/eth_beacon_top.v` and the constraints in `eth_beacon_top.xdc`.
+
+---
+
 ## W796-W799 — five specifications answered from silicon
 
 `t27c silicon` carries a `.t27` spec through Verilog, yosys, nextpnr on

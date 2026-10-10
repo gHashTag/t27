@@ -7587,6 +7587,13 @@ fn lowerability_models_keep_real_source_signatures() {
             ("pub struct Program { pub clauses: Vec<Clause>, pub constraints: Vec<Clause>, }", r#"structs := [("Program", [("clauses", (.struct "[Clause]")), ("constraints", (.struct "[Clause]"))])]"#),
             ("pub fn solve(prog: Program) -> Vec<AnswerSet>", r#"{ name := "solve", params := [("prog", (.struct "Program"))], ret := (some (.struct "[AnswerSet]")), body := [] }"#),
         ]),
+        // #6658: the model was empty and proved the empty module lowerable.
+        ("ar_ternary_logic", "specs/ar/ternary_logic.t27", vec![
+            ("pub fn k3_and(a: Trit, b: Trit) -> Trit", r#"{ name := "k3_and", params := [("a", (.struct "Trit")), ("b", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }"#),
+            ("pub fn backward_chain(goal: Trit, rules: Vec<Rule>) -> Trit", r#"{ name := "backward_chain", params := [("goal", (.struct "Trit")), ("rules", (.struct "[Rule]"))], ret := (some (.struct "Trit")), body := [] }"#),
+            ("pub fn resolve(clause_a: Vec<Trit>, clause_b: Vec<Trit>) -> Vec<Trit>", r#"{ name := "resolve", params := [("clause_a", (.struct "[Trit]")), ("clause_b", (.struct "[Trit]"))], ret := (some (.struct "[Trit]")), body := [] }"#),
+            ("pub fn apply_restraint(values: Vec<Trit>) -> Vec<Trit>", r#"{ name := "apply_restraint", params := [("values", (.struct "[Trit]"))], ret := (some (.struct "[Trit]")), body := [] }"#),
+        ]),
     ] {
         let output = Command::new(bin()).arg("gen-rust").arg(repo.join(source))
             .output().expect("generate real source signatures");
@@ -7834,10 +7841,11 @@ fn corpus_classifier_matches_lean_completeness() {
     // The floor guards against this test quietly checking nothing. Skipping the
     // prose files moved `checked` 245 -> 225, so the floor is held on the SUM:
     // a spec may move from checked to skipped when it turns out to be Markdown,
-    // but neither number may simply evaporate.
+    // but neither number may simply evaporate. #8054 deleted 22 empty generated stubs and #8222 their
+    // theorems, so the sum moved 245 -> 223 by deletion, not by a theorem going quiet.
     assert!(
-        checked + skipped_prose >= 245,
-        "expected at least 245 corpus theorems reached, got {} checked + {} skipped as prose",
+        checked + skipped_prose >= 223,
+        "expected at least 223 corpus theorems reached, got {} checked + {} skipped as prose",
         checked,
         skipped_prose
     );

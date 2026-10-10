@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:07b69bf41973b531c02214f096075056704fc327a0c52ac1ec38ec11d0e63250",
+  "gen_hash_rust": "sha256:12d45a7df30e6c818871d28348937f404971c296770a8a543bb0eb81897b1534",
+  "gen_hash_verilog": "sha256:c88b1bb9bb5ff1e5b0288250a77f69a1b6d44dab8eed7ebabd76fba15f55ba3d",
+  "gen_hash_zig": "sha256:85b16ed6720a4ac9ac87a543c486f3a28cc01c339ccc090562404f7cb5832aab",
+  "module": "cron_mac_alerts_watchdog",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:34:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:deebea93892834d273aea0bf2c413e10a3d390e86ceda121df564d403a02f4c1",
+  "spec_path": "specs/crons/mac-alerts-watchdog.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

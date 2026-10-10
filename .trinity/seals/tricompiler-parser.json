@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:169d38758a8671afc355477e0f81bb6fbd16d7969a4db52f02093efe7ddf154f",
-  "gen_hash_rust": "sha256:a7cf92e828ee3805d74fc1f8cb8e4568ac4d19fb7f192dde353235b3eef94ee3",
+  "gen_hash_rust": "sha256:ee1d209550760d3728ba4356a6431d0e263a275949e7ac473c746b4c354fa523",
   "gen_hash_verilog": "sha256:4b39f00f18c58de1210c3c02ced859f1b8c6fe801269042ad1774aa8db912a4c",
   "gen_hash_zig": "sha256:58655723a90cdcc6aede591ca27287c5523dc3777ff6ccb3ad74f0fa8890f5bc",
   "module": "tricompiler-parser",

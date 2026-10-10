@@ -50,7 +50,13 @@ module gen_w387 {
         assert(append_w387(true, 388) == 1);
     }
 
+    // The wave this script appends follows the last wave it expects to find. A call, so the
+    // assertion runs at runtime; two constants alone would fold at compile time.
+    fn next_wave(last_wave: u32) -> u32 {
+        return last_wave + 1;
+    }
+
     test wave_constants_follow_each_other {
-        assert(WAVE == EXPECTED_LAST_WAVE + 1);
+        assert(next_wave(EXPECTED_LAST_WAVE) == WAVE);
     }
 }

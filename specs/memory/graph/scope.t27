@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/memory/graph/scope.t27 -- who may read, write and erase a record, and what the memory may keep
+; Epic #7828, slice 2 (#7881). Graphiti scopes a query by a group_id in a WHERE clause and trusts the
+; caller to pass the right one. Here the scope is (owner, user, thread):
+;   owner   the account the agent serves (one bot owner);
+;   user    the person the agent talks to;
+;   thread  one dialog of that pair; 0 marks a group-level record (entities and facts).
+; The group of types.t27 is one (owner, user) pair, so what a person told one owner never reaches
+; another. A read filter is built from the PRINCIPAL (who is asking), never from the request, and
+; crypt.t27 (slice 3) binds the same scope into each envelope, so a row copied into another
+; group does not open even if a filter is wrong.
+; Retention follows gHashTag/999-multibots-telegraf#3876: raw episodes expire, facts are kept
+; instead of raw text where facts suffice, and a mirror to an external graph store is off unless
+; the owner opts in and the store is self-hosted.
+; Ids are opaque u64 (0 = unset, as in types.t27); times are unix seconds.
+
+module MemoryGraphScope;
+
+; Principals.
+pub const PRINCIPAL_AGENT : u8 = 1;
+pub const PRINCIPAL_PERSON : u8 = 2;
+pub const PRINCIPAL_OPERATOR : u8 = 3;
+
+; Hosts of an external mirror.
+pub const HOST_SELF_HOSTED : u8 = 1;
+pub const HOST_ZEP_CLOUD : u8 = 2;
+pub const HOST_OTHER : u8 = 3;
+
+; What the agent needs from a dialog.
+pub const PURPOSE_FACTS_ONLY : u8 = 1;
+pub const PURPOSE_REPLY_CONTEXT : u8 = 2;
+
+; Retention of raw episodes, in seconds.
+pub const DAY_SECONDS : u64 = 86400;
+pub const RAW_TTL_DEFAULT : u64 = 2592000;
+pub const RAW_TTL_MAX : u64 = 31536000;
+
+; The mirror is off until the owner turns it on.
+pub const MIRROR_DEFAULT_ON : bool = false;
+
+pub fn is_principal(kind: u8) -> bool {
+    return kind == PRINCIPAL_AGENT || kind == PRINCIPAL_PERSON || kind == PRINCIPAL_OPERATOR;
+}
+
+; Same (owner, user) pair, both set.
+pub fn same_group(p_owner: u64, p_user: u64, r_owner: u64, r_user: u64) -> bool {
+    if (p_owner == 0 || p_user == 0) { return false; }
+    return p_owner == r_owner && p_user == r_user;
+}
+
+; An agent reads group-level records of its pair and the episodes of its own thread.
+; A person reads every record about themself, under any owner (access request).
+; An operator never reads content.
+pub fn may_read(p_kind: u8, p_owner: u64, p_user: u64, p_thread: u64,
+                r_owner: u64, r_user: u64, r_thread: u64) -> bool {
+    if (r_owner == 0 || r_user == 0) { return false; }
+    if (p_kind == PRINCIPAL_AGENT) {
+        if (p_thread == 0) { return false; }
+        if (!same_group(p_owner, p_user, r_owner, r_user)) { return false; }
+        return r_thread == 0 || r_thread == p_thread;
+    }
+    if (p_kind == PRINCIPAL_PERSON) {
+        return p_user != 0 && p_user == r_user;
+    }
+    return false;
+}
+
+; Only an agent writes, and only into its own pair: episodes into its own thread,
+; entities and facts at group level (thread 0).
+pub fn may_write(p_kind: u8, p_owner: u64, p_user: u64, p_thread: u64,
+                 r_owner: u64, r_user: u64, r_thread: u64) -> bool {
+    if (p_kind != PRINCIPAL_AGENT || p_thread == 0) { return false; }
+    if (!same_group(p_owner, p_user, r_owner, r_user)) { return false; }
+    return r_thread == 0 || r_thread == p_thread;
+}
+
+; Erase on request. A person erases everything about themself; an agent erases its own pair
+; when the person asks it to; an operator may carry out an erase, which reveals nothing.
+pub fn may_erase(p_kind: u8, p_owner: u64, p_user: u64, r_owner: u64, r_user: u64) -> bool {
+    if (r_owner == 0 || r_user == 0) { return false; }
+    if (p_kind == PRINCIPAL_PERSON) { return p_user != 0 && p_user == r_user; }
+    if (p_kind == PRINCIPAL_AGENT) { return same_group(p_owner, p_user, r_owner, r_user); }
+    return p_kind == PRINCIPAL_OPERATOR;
+}
+
+; Raw text is kept only when the reply needs recent wording; otherwise facts are enough.
+pub fn keep_raw(purpose: u8) -> bool {
+    return purpose == PURPOSE_REPLY_CONTEXT;
+}
+
+; A TTL is never 0 (keep forever) and never longer than a year.
+pub fn raw_ttl_ok(ttl: u64) -> bool {
+    return ttl != 0 && ttl <= RAW_TTL_MAX;
+}
+
+; A raw episode is expired once its age reaches the TTL. A creation time in the future
+; (clock skew) is not expired; an invalid TTL expires everything (fail closed).
+pub fn raw_expired(created_at: u64, ttl: u64, now: u64) -> bool {
+    if (!raw_ttl_ok(ttl)) { return true; }
+    if (now < created_at) { return false; }
+    return now - created_at >= ttl;
+}
+
+; The external mirror: only with the owner's opt-in and only to a self-hosted store.
+pub fn mirror_allowed(opted_in: bool, host: u8) -> bool {
+    return opted_in && host == HOST_SELF_HOSTED;
+}
+
+test principals_are_exactly_three {
+    assert is_principal(PRINCIPAL_AGENT);
+    assert is_principal(PRINCIPAL_PERSON);
+    assert is_principal(PRINCIPAL_OPERATOR);
+    assert !is_principal(0);
+    assert !is_principal(4);
+}
+
+test an_agent_reads_its_own_pair_and_thread {
+    assert may_read(PRINCIPAL_AGENT, 1, 2, 5, 1, 2, 5);
+    assert may_read(PRINCIPAL_AGENT, 1, 2, 5, 1, 2, 0);
+    assert !may_read(PRINCIPAL_AGENT, 1, 2, 5, 1, 2, 6);
+    assert !may_read(PRINCIPAL_AGENT, 1, 2, 5, 9, 2, 5);
+    assert !may_read(PRINCIPAL_AGENT, 1, 2, 5, 1, 9, 5);
+    assert !may_read(PRINCIPAL_AGENT, 1, 2, 0, 1, 2, 0);
+    assert !may_read(PRINCIPAL_AGENT, 0, 2, 5, 0, 2, 5);
+    assert !may_read(PRINCIPAL_AGENT, 1, 0, 5, 1, 0, 5);
+}
+
+test a_person_reads_only_themself {
+    assert may_read(PRINCIPAL_PERSON, 0, 2, 0, 1, 2, 5);
+    assert may_read(PRINCIPAL_PERSON, 0, 2, 0, 7, 2, 0);
+    assert !may_read(PRINCIPAL_PERSON, 0, 2, 0, 1, 3, 5);
+    assert !may_read(PRINCIPAL_PERSON, 0, 0, 0, 1, 0, 5);
+    assert !may_read(PRINCIPAL_PERSON, 0, 2, 0, 0, 2, 5);
+}
+
+test an_operator_never_reads_content {
+    assert !may_read(PRINCIPAL_OPERATOR, 1, 2, 5, 1, 2, 5);
+    assert !may_read(PRINCIPAL_OPERATOR, 1, 2, 5, 1, 2, 0);
+    assert !may_read(0, 1, 2, 5, 1, 2, 5);
+    assert !may_read(4, 1, 2, 5, 1, 2, 5);
+}
+
+test only_an_agent_writes_into_its_own_pair {
+    assert may_write(PRINCIPAL_AGENT, 1, 2, 5, 1, 2, 5);
+    assert may_write(PRINCIPAL_AGENT, 1, 2, 5, 1, 2, 0);
+    assert !may_write(PRINCIPAL_AGENT, 1, 2, 5, 1, 2, 6);
+    assert !may_write(PRINCIPAL_AGENT, 1, 2, 5, 1, 3, 5);
+    assert !may_write(PRINCIPAL_AGENT, 1, 2, 5, 8, 2, 5);
+    assert !may_write(PRINCIPAL_AGENT, 1, 2, 0, 1, 2, 0);
+    assert !may_write(PRINCIPAL_PERSON, 1, 2, 5, 1, 2, 5);
+    assert !may_write(PRINCIPAL_OPERATOR, 1, 2, 5, 1, 2, 5);
+    assert !may_write(PRINCIPAL_AGENT, 0, 2, 5, 0, 2, 5);
+    assert !may_write(PRINCIPAL_AGENT, 1, 0, 5, 1, 0, 5);
+}
+
+test erase_on_request {
+    assert may_erase(PRINCIPAL_PERSON, 0, 2, 1, 2);
+    assert may_erase(PRINCIPAL_PERSON, 0, 2, 7, 2);
+    assert !may_erase(PRINCIPAL_PERSON, 0, 2, 1, 3);
+    assert may_erase(PRINCIPAL_AGENT, 1, 2, 1, 2);
+    assert !may_erase(PRINCIPAL_AGENT, 1, 2, 7, 2);
+    assert !may_erase(PRINCIPAL_AGENT, 1, 2, 1, 3);
+    assert may_erase(PRINCIPAL_OPERATOR, 0, 0, 1, 2);
+    assert !may_erase(PRINCIPAL_OPERATOR, 0, 0, 0, 2);
+    assert !may_erase(PRINCIPAL_PERSON, 0, 2, 1, 0);
+    assert !may_erase(PRINCIPAL_PERSON, 0, 2, 0, 2);
+    assert !may_erase(0, 1, 2, 1, 2);
+}
+
+test raw_text_only_when_the_reply_needs_it {
+    assert keep_raw(PURPOSE_REPLY_CONTEXT);
+    assert !keep_raw(PURPOSE_FACTS_ONLY);
+    assert !keep_raw(0);
+}
+
+test raw_ttl_is_bounded {
+    assert raw_ttl_ok(RAW_TTL_DEFAULT);
+    assert raw_ttl_ok(1);
+    assert raw_ttl_ok(RAW_TTL_MAX);
+    assert !raw_ttl_ok(0);
+    assert !raw_ttl_ok(31536001);
+}
+
+test raw_episodes_expire_at_their_ttl {
+    assert !raw_expired(1000, 100, 1099);
+    assert raw_expired(1000, 100, 1100);
+    assert raw_expired(1000, 100, 5000);
+    assert !raw_expired(1000, 100, 999);
+    assert raw_expired(1000, 0, 1000);
+    assert raw_expired(1000, 31536001, 1000);
+    assert !raw_expired(1000, RAW_TTL_DEFAULT, 1000 + 29 * DAY_SECONDS);
+    assert raw_expired(1000, RAW_TTL_DEFAULT, 1000 + 30 * DAY_SECONDS);
+}
+
+test the_mirror_is_opt_in_and_self_hosted {
+    assert !mirror_allowed(MIRROR_DEFAULT_ON, HOST_SELF_HOSTED);
+    assert mirror_allowed(true, HOST_SELF_HOSTED);
+    assert !mirror_allowed(true, HOST_ZEP_CLOUD);
+    assert !mirror_allowed(true, HOST_OTHER);
+    assert !mirror_allowed(true, 0);
+    assert !mirror_allowed(false, HOST_ZEP_CLOUD);
+}
+
+invariant default_ttl_is_thirty_days {
+    RAW_TTL_DEFAULT == 30 * DAY_SECONDS;
+}
+
+invariant max_ttl_is_a_year {
+    RAW_TTL_MAX == 365 * DAY_SECONDS;
+}

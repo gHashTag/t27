@@ -5,7 +5,6 @@
 module check_conflict_markers;
 
 use std::fs;
-use std::process;
 use std::mem;
 
 // Constants from the original implementation

@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """t27b lab: run `t27b corpus` on Railway instead of the owner's Mac.
 
-Issue #6071, epic #6063. One process does three things:
+Issue #6071, epic #6063. One process does four things:
 
 * serves T27_SRV (default /srv) over HTTP on $PORT: /latest.json,
   /runs/<sha>.json, /runs/<sha>.log, /status.json;
 * on start, and then every T27_POLL_SECONDS (default 600) if
   origin/<T27_REF> moved, runs the lab once on that commit;
+* between polls, runs and signs a commit a lane PR asked for by writing
+  T27_SRV/requests/<sha> (#7672, lane_request);
 * never writes anywhere but its own disk. The repository is public and is
   cloned anonymously; there are no secrets in this service.
 
@@ -28,7 +30,13 @@ One run, in order:
    of that same commit diffs the merged per-file verdicts against
    docs/reports/t27b_expectations.json; its verdict and findings go into
    steps.ratchet, which is ok=false on any UNEXPECTED FAILURE / PASS;
-8. write /srv/runs/<sha>.json and /srv/latest.json.
+8. the differential fuzzer (#6442): `python3 scripts/tri_loop/t27b.py fuzz`
+   of that same commit generates T27_FUZZ_CASES programs from a fresh seed
+   (specs/tri/t27b/fuzz.t27), runs t27b and the reference on them and judges
+   every test (specs/tri/t27b/fuzz_oracle.t27); its summary is the run's
+   top-level `fuzz` (cases, tests, agree, disagree, rejected, unjudged, seed,
+   seeds, classes, the first findings);
+9. write /srv/runs/<sha>.json and /srv/latest.json.
 
 A step that fails is recorded with its error and the run is still published;
 no number is filled in that a command did not produce.
@@ -49,6 +57,7 @@ import os
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -92,6 +101,9 @@ REF_JOBS = int(os.environ.get("T27_REFERENCE_JOBS", "0")) or max(
 CORPUS_DIR = os.environ.get("T27_CORPUS_DIR", "specs")
 T27B_TIMEOUT_MS = int(os.environ.get("T27B_TIMEOUT_MS", "60000"))
 REF_TIMEOUT_S = int(os.environ.get("T27_REFERENCE_TIMEOUT_S", "300"))
+# #6442: generated cases per run for `tri t27b fuzz` (0 turns the step off).
+FUZZ_CASES = int(os.environ.get("T27_FUZZ_CASES", "1000"))
+SEED = os.environ.pop("T27_RECEIPT_SEED", None)  # #7672: no child (a build, a test, a requested commit's code) inherits it
 TARGET = "aarch64-unknown-linux-gnu"
 QEMU = ["qemu-aarch64", "-L", "/usr/aarch64-linux-gnu"]
 
@@ -99,6 +111,7 @@ CLONE = WORK / "t27"
 TARGET_DIR = WORK / "target"
 T27C = TARGET_DIR / "release" / "t27c"
 T27B = TARGET_DIR / TARGET / "release" / "t27b"
+JUDGE = WORK / "t27c-master"  # #7672: master's t27c admits lane requests, never a requested commit's own
 
 def git_blob_sha(path):
     """The sha git gives this file's bytes (`git hash-object`), or None."""
@@ -167,6 +180,32 @@ class Log:
         self.f.close()
 
 
+def kill_group(p):
+    """SIGKILL the session `p` leads (start_new_session=True), so a timeout also
+    stops what `p` started -- t27c's spec_tests, zig -- instead of leaving it to
+    PID 1 (#7090). A group that is already gone is fine."""
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def run_group(cmd, timeout, **kw):
+    """subprocess.run(capture_output=True, text=True) in a session of its own:
+    on the timeout the whole group is killed before TimeoutExpired is raised."""
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True, start_new_session=True, **kw) as p:
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            kill_group(p)
+            p.communicate()
+            raise
+        finally:
+            kill_group(p)
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
 def run(cmd, log, cwd=None, env=None, timeout=None, tail=40):
     """Run `cmd`, stream its output into the log, return (exit code, tail).
 
@@ -182,11 +221,12 @@ def run(cmd, log, cwd=None, env=None, timeout=None, tail=40):
         stdin=subprocess.DEVNULL,
         text=True,
         errors="replace",
+        start_new_session=True,
     )
     lines = []
     killer = None
     if timeout:
-        killer = threading.Timer(timeout, p.kill)
+        killer = threading.Timer(timeout, kill_group, (p,))
         killer.start()
     for line in p.stdout:
         log.f.write(line)
@@ -194,6 +234,7 @@ def run(cmd, log, cwd=None, env=None, timeout=None, tail=40):
         if len(lines) > 4000:
             del lines[:2000]
     code = p.wait()
+    kill_group(p)
     timed_out = False
     if killer:
         timed_out = not killer.is_alive() and code < 0
@@ -355,12 +396,12 @@ def reference_one(worker, file, tests=None):
     env["ZIG_GLOBAL_CACHE_DIR"] = str(scratch / "zig-global")
     env["ZIG_LOCAL_CACHE_DIR"] = str(scratch / "zig-local")
     env["TMPDIR"] = str(tmp)
+    env["T27C_TEST_REPORT_EXIT_ZERO"] = "1"  # #7370: the verdict is read from the words below
     for attempt in range(3):
         try:
-            out = subprocess.run(
+            out = run_group(
                 [str(T27C), "test-report", file, "--specs-dir", CORPUS_DIR, "--verbose"],
-                cwd=CLONE, env=env, capture_output=True, text=True, errors="replace",
-                timeout=REF_TIMEOUT_S,
+                REF_TIMEOUT_S, cwd=CLONE, env=env, errors="replace",
             )
             break
         except subprocess.TimeoutExpired:
@@ -559,7 +600,7 @@ def parse_cargo_test(lines):
 # ------------------------------------------------------------ one run
 
 
-def lab_run(sha, log):
+def lab_run(sha, log, challenge=SRV / "challenge", master=True):
     doc = {
         "lab": "t27b-lab",
         "issue": "https://github.com/gHashTag/t27/issues/6071",
@@ -668,6 +709,7 @@ def lab_run(sha, log):
             % (CORPUS_DIR, REF_JOBS, REF_TIMEOUT_S),
             "totals": tot,
             "cache": cache,
+            "reused": "%d of %d" % (cache["hits"], sum(cache.values())),  # #8095
         }
 
     if have_t27c:
@@ -686,6 +728,45 @@ def lab_run(sha, log):
 
     if have_t27b:
         step("cargo_test_t27b", cargo_test)
+
+    def fuzz():
+        if not (CLONE / "scripts" / "tri_loop" / "t27b_fuzz.py").exists():
+            return {"skipped": "no tri t27b fuzz at this commit"}
+        seed = int(time.time())
+        out = WORK / "fuzz.json"
+        if out.exists():
+            out.unlink()
+        cmd = [sys.executable, CLONE / "scripts" / "tri_loop" / "t27b.py", "fuzz", "--cases", FUZZ_CASES,
+               "--seed", seed, "--t27b", T27B, "--reference", T27C, "--runner", " ".join(QEMU),
+               "--jobs", REF_JOBS, "--json", out]
+        code, tail = run(cmd, log, cwd=CLONE, timeout=4 * 3600)
+        if not out.exists():
+            raise RuntimeError("tri t27b fuzz exited %s and wrote no summary: %s" % (code, " | ".join(tail[-5:])))
+        summary = json.loads(out.read_text())
+        summary["findings"] = summary.get("findings", [])[:20]
+        doc["fuzz"] = summary
+        return {"exit": code, "seed": seed, "cases": summary.get("cases"), "disagree": summary.get("disagree"),
+                "command": "python3 scripts/tri_loop/t27b.py fuzz --cases %d --seed %d --jobs %d"
+                % (FUZZ_CASES, seed, REF_JOBS)}
+
+    if have_t27b and have_t27c and FUZZ_CASES > 0 and master:  # #8267: a lane request is judged by its receipt
+        step("fuzz", fuzz)
+
+    def receipt():  # #7576: sign the run with T27_RECEIPT_SEED (trust NAMED); the nonce is the challenge file's text, if any
+        key, run_file, ch = WORK / "receipt-ed25519.key", WORK / "receipt-run.json", challenge
+        nonce = ["--nonce", ch.read_text().strip()] if ch.exists() and ch.read_text().strip() else []
+        with os.fdopen(os.open(key, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600), "w") as f:
+            f.write(SEED)
+        try:
+            write_json(run_file, doc)
+            p = run_group([str(c) for c in [T27C, "corpus-receipt", "sign", run_file, T27B, "--runner", " ".join(QEMU)] + nonce],
+                          3600, cwd=CLONE, env=dict(os.environ, T27_RECEIPT_KEY=str(key)))
+        finally:
+            key.unlink()
+        if p.returncode != 0:
+            raise RuntimeError("t27c corpus-receipt exited %s: %s" % (p.returncode, p.stderr.strip()[-300:]))
+        write_json(SRV / "runs" / ("%s.receipt.json" % sha), json.loads(p.stdout))
+        return {"json": "/runs/%s.receipt.json" % sha, "nonce": nonce[1:]}
 
     # Per-file merge and the honest ratio: t27b passes over reference passes.
     results = []
@@ -740,6 +821,8 @@ def lab_run(sha, log):
         doc["results"] = results
         if reference:
             steps["ratchet"] = ratchet(doc, log)
+        if SEED:
+            step("receipt", receipt)
     elif reference:
         # Reference-only lab: t27b could not run here, say so and count the reference.
         doc["summary"] = {
@@ -750,8 +833,44 @@ def lab_run(sha, log):
         doc["results"] = [
             {"file": f, "reference": v, "reference_detail": w, "t27b": "not run"} for f, (v, w) in sorted(reference.items())
         ]
+    step("ddc", lambda: ddc_receipt(sha, log, challenge, master)) if have_t27c and have_t27b and SEED else None  # #7699
     return doc
 
+
+def ddc_receipt(sha, log, challenge, master=True):  # #7955: only a master run moves /ddc/latest.receipt.json
+    """#7699 (specs/verified/ddc_receipt.t27): build t27core on routes A, B, C and sign the run when `ddc-receipt due` says so."""
+    core, w, DDC, sh = CLONE / "specs" / "compiler" / "core", WORK / "ddc", SRV / "ddc", lambda b: hashlib.sha256(b).hexdigest()  # noqa: E731
+    shutil.rmtree(w, ignore_errors=True), w.mkdir(parents=True), DDC.mkdir(exist_ok=True)
+    S, h, text, e = core / "t27core.t27", core / "t27core_ddc.t27", (core / "t27core_ddc.t27").read_text(), subprocess.run([str(T27C), "gen-c", str(core / "t27core.t27")], capture_output=True, timeout=600)
+    packed = lambda fn: b"".join(b"".join((int(x) % 2 ** 64).to_bytes(8, "little") for x in a.split(","))[:None if k == "4" else int(a.split(",")[1])]  # noqa: E731
+                                 for k, a in re.findall(r"d([14])\(([^)]*)\)", text.split("fn %s() -> void {" % fn)[1].split("\n}")[0]))  # d4: 4 words, d1(x, n): n bytes
+    doc = {"commit": sha, "s_sha256": sh(S.read_bytes()), "e_sha256": sh(e.stdout) if e.returncode == 0 else "", "harness_sha256": sh(text.encode()),
+           "frozen_hash": (CLONE / "bootstrap" / "stage0" / "FROZEN_HASH").read_text().split()[0], "harness_s_sha256": sh(packed("ddc_source")), "t27c_sha256": sh(T27C.read_bytes())}
+    write_json(w / "run.json", doc)
+    due = subprocess.run([str(T27C), "ddc-receipt", "due", str(w / "run.json"), str(DDC / "latest.receipt.json")], timeout=60).returncode
+    if due:  # due_exit: 0 runs; 1 skips; anything else is a t27c without ddc-receipt, which could not sign either
+        return {"skipped": "S, E and FROZEN_HASH are those of /ddc/latest.receipt.json" if due == 1 else "no t27c ddc-receipt here"}
+    (w / "core.c").write_bytes(e.stdout), (w / "d.c").write_text(re.search(r'DRIVER: &str = r#"(.*?)"#', (CLONE / "bootstrap" / "tests" / "core_selfhost.rs").read_text(), re.S)[1])
+    a = subprocess.run([str(w / "core")], stdin=S.open("rb"), capture_output=True, timeout=600) if run(["cc", "-O1", "-w", "-o", w / "core", w / "d.c"], log)[0] == 0 else None  # A: E, cc and the commit's own driver; stdout is stage 2
+    b, c, x = run(QEMU + [T27B, "test", h, "--check"], log, cwd=CLONE, timeout=3600)[0], {"pass": 0, "fail": 1}.get(reference_one(999, str(h.relative_to(CLONE)))[0]), sh(packed("ddc_expected"))
+    out = lambda code, ran=True: "not_run" if code is None or not ran else "pass" if code == 0 else "fail"  # noqa: E731
+    routes = [("A", "cc", first_line(["cc", "--version"]), out(a and a.returncode), sh(a.stdout) if a else ""),  # B and C compare stage 2 with the harness's E in-program
+              ("B", T27B, "t27b %s %s" % (sha, TARGET), out(b, b not in (2, 3, 5, 64, 74)), x), ("C", "zig", "zig " + first_line(["zig", "version"]), out(c), x)]
+    doc["routes"] = [{"route": r, "builder_sha256": sh(Path(shutil.which(p) or p).resolve().read_bytes()), "built_by": by, "outcome": o, "front_end":
+                      "bootstrap/src/compiler.rs@" + doc["frozen_hash"], "stage2_sha256": s2 if o == "pass" else ""} for r, p, by, o, s2 in routes]
+    nonce, key = (["--nonce", challenge.read_text().strip()] if challenge.exists() and challenge.read_text().strip() else []), w / "receipt-ed25519.key"
+    with os.fdopen(os.open(key, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600), "w") as f:
+        f.write(SEED)
+    try:
+        write_json(w / "run.json", doc)
+        p = run_group([str(T27C), "ddc-receipt", "sign", str(w / "run.json")] + nonce, 600, cwd=CLONE, env=dict(os.environ, T27_RECEIPT_KEY=str(key)))
+    finally:
+        key.unlink()
+    if p.returncode != 0:
+        raise RuntimeError("t27c ddc-receipt sign exited %s: %s" % (p.returncode, p.stderr.strip()[-300:]))
+    [write_json(DDC / n, json.loads(p.stdout)) for n in ("%s.receipt.json" % sha,) + (("latest.receipt.json",) if master else ())]
+    v = subprocess.run([str(T27C), "ddc-receipt", "verify", str(DDC / ("%s.receipt.json" % sha))] + nonce, cwd=CLONE, capture_output=True, text=True, timeout=60)
+    return {"json": "/ddc/%s.receipt.json" % sha, "routes": [r[3] for r in routes], "verify": v.stdout.strip().splitlines()[-1:]}
 
 def ratchet(doc, log):
     """The per-spec ratchet of this commit against its own ledger (#6115).
@@ -831,6 +950,27 @@ def serve():
     httpd.serve_forever()
 
 
+def lane_request(master):
+    """#7672: master's t27c judges each SRV/requests/<sha> (corpus_receipt.t27 request_verdict), exit 1 drops it; run and
+    sign the oldest admitted one, its text the challenge, into /runs/<sha>.json and its receipt. True when one ran."""
+    q = sorted((SRV / "requests").glob("*"), key=lambda p: p.stat().st_mtime) if JUDGE.exists() else []
+    out = lambda *a, **kw: subprocess.run(a, capture_output=True, text=True, timeout=300, **kw).stdout.split()  # noqa: E731
+    known = set(out("git", "ls-remote", "--heads", REPO) + out("git", "rev-list", "--first-parent", master, cwd=CLONE)) if q else ()
+    waiting = []
+    for r in q:
+        facts = "%d,%d,%d" % (time.time() - r.stat().st_mtime, len(waiting), r.name in known)
+        p = subprocess.run([str(JUDGE), "corpus-receipt", "admit", "--", r.name, facts], capture_output=True, text=True, timeout=60)
+        print("lane request %r %s: %s" % (r.name[:80], facts, p.stdout.strip() or p.returncode), flush=True)
+        r.unlink() if p.returncode == 1 else waiting.append((p.returncode, r))
+    r = next((r for code, r in waiting if code == 0), None)
+    if r:
+        log = Log(SRV / "runs" / ("%s.log" % r.name))
+        write_json(SRV / "runs" / ("%s.json" % r.name), dict(lab_run(r.name, log, r, master=False), finished=now(), ref="request"))
+        log.close()
+        r.unlink()
+    return r is not None
+
+
 def run_done(doc):
     """Whether a published run settles its commit. A run whose checkout failed
     (2026-10-05 16:35Z, 18a240eca: a fresh container's `git clone` got
@@ -855,6 +995,7 @@ def main():
         except ValueError:
             pass
     while True:
+        ran = False
         try:
             sha = remote_sha()
             if sha != last:
@@ -864,15 +1005,18 @@ def main():
                     IMAGE["lab_py_sha"], IMAGE["dockerfile_sha"], IMAGE["image_built"], IMAGE["railway_deployment"]))
                 set_status(phase="running", commit=sha, started=now(), progress=None)
                 doc = lab_run(sha, log)
+                if doc["steps"].get("build_t27c", {}).get("ok"):
+                    shutil.copy2(T27C, JUDGE)
                 publish(doc, sha)
                 log("published /runs/%s.json: %s" % (sha, json.dumps(doc.get("summary"))))
                 log.close()
                 last = sha if run_done(doc) else None
             set_status(phase="idle", commit=sha, next_poll_in_s=POLL, retry=last is None)
+            ran = lane_request(sha)
         except Exception as e:
             print("lab loop error: %s" % e, flush=True)
             set_status(phase="error", error=str(e))
-        time.sleep(POLL)
+        time.sleep(0 if ran else POLL)
 
 
 if __name__ == "__main__":

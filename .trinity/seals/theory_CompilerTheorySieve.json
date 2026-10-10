@@ -1,19 +1,27 @@
 {
-  "gen_hash_c": "sha256:3e4b5934b82da51ff6e4fb58fccf0013b49327725439244f13cdbb5923ba2604",
-  "gen_hash_rust": "sha256:f4deee770254c10ee55bf154fbab98f95dc00f782f738e5db0b9fca35a5c8712",
-  "gen_hash_verilog": "sha256:b211f49c1639d086eec395824c47c7cdde7a80ccbde668ce8df41ddfbb8f51e5",
-  "gen_hash_zig": "sha256:40ba843a15f53eeb6af9253d44f1c03eafcbca16e030a44a92f6cc6551711537",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a25b83d69b48e46f99b994826f5141aaabe0326bfa087779dacb416f41a982d9",
+  "gen_hash_rust": "sha256:01b964bee7c717dde816d0320bde6b17077736fd904ed9a69ef32d0264b02f42",
+  "gen_hash_verilog": "sha256:3d9b65db37314fddcb7e90af54dc486243f86ca1b6beeaed80bdac06892cc3b3",
+  "gen_hash_zig": "sha256:23d6cccfdb7c66502d275be7db1ce841be75682bc4da468f29f22097e906e2e4",
   "module": "CompilerTheorySieve",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:53:09Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:d46582e86f0ab902fa0f12b882f2db9e4345a37f01319c3d94750a66e3a6a36e",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:22Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:dd9ae1f565c1260548f1be00d8b5678df4cd81d545ee6013f3ce6a4a8f949ad5",
   "spec_path": "specs/compiler/theory/sieve.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 9,
-    "total": 9
+    "passed": 11,
+    "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

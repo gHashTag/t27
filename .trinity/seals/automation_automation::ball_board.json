@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:cc622d7aa0b5de5bb4d8dc7fe623e982de3b8b391605c2845fd6e8a57c9e72ee",
+  "gen_hash_rust": "sha256:b015414e43db30cfde7b115c276ca27bfff484884fe4ad7b8357295166f2d17b",
+  "gen_hash_verilog": "sha256:61c5f06d8855137719b635695d5376bdeef78352b49bd62fa2483d2bb5b6b5f6",
+  "gen_hash_zig": "sha256:7614ae47c33c711b155e0f750ec67536a2899fdc600ec007c630d0c956e31361",
+  "module": "automation::ball_board",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:323e046782c4fa7b302083995e53bf000f42bdd69b931b278e14a0e28d6dae79",
+  "spec_path": "specs/automation/ball-board.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 19,
+    "total": 19
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

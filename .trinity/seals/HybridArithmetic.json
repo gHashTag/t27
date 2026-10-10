@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:f4f556d666e54d5fed52a3602039304f57b6c7557e3c7d571e3ddd4a4900039e",
+  "gen_hash_c": "sha256:7fed36b978d6ee065f81ed902cb5193bc6e77502527a89364f48a7169413279d",
   "gen_hash_rust": "sha256:cef3a89b4bb757edee7b2fec6b2656155a849c2eccbe1cda20981d9ce47e06b1",
   "gen_hash_verilog": "sha256:505aa2cfbafc150adc21330237dfa62fdb3b8327e62f8423b498f450afde5815",
   "gen_hash_zig": "sha256:f1e60268280d3e22886388ac619408d2da4c86aa26e284492eac82670d18f446",
   "module": "HybridArithmetic",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-06T14:38:47Z",
   "spec_hash": "sha256:60e1436c9824221d833735dc04c56bd447a66e4253703feb6b3b5024f96d1db2",
-  "spec_path": "specs/ternary/hybrid_arithmetic.t27"
+  "spec_path": "specs/ternary/hybrid_arithmetic.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-hybrid_arithmetic-3940105/spec.zig:94:26: error: use of undeclared identifier 'packed_mode'"
+  }
 }

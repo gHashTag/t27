@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/arith_op.t27 -- the spelling and the two properties of t27b's integer operators, by number
+; (port epic #6198, under #6063 and #5980; it lands with #7812's PR so that its hand-written Rust shrinks).
+; Until this file they were the hand-written Rust methods `ArithOp::symbol`, `is_shift` and `commutative` in
+; cli/t27b/src/ir.rs. Now they reach cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/arith_op.rs); each
+; method is one line that calls this file, and a compile-time assert pins ArithOp's discriminants to the
+; numbers here.
+; --
+; An operator is its ArithOp number, in the order ir.rs declares them, the numbering
+; specs/tri/t27b/eval_arith.t27 uses too: ADD 0, SUB 1, MUL 2, ADD_W 3, SUB_W 4, MUL_W 5, DIV 6, DIV_W 7,
+; REM 8, AND 9, OR 10, XOR 11, SHL 12, SHR 13, SHL_W 14, SHR_W 15.
+;   - `symbol` is the Zig spelling a refusal and the assembly listing print. The checked and the wrapping
+;     division print the same `/`, and the two shifts of each direction the same `<<` or `>>`.
+;   - `is_shift`: the four shifts, whose amount has its own type and range.
+;   - `commutative`: the operators whose operands may be exchanged -- `+ * & | ^` and the wrapping `+% *%`.
+;     Subtraction, division, remainder and the shifts are not.
+; --
+; The oracle is the hand-written Rust this file replaces (cli/t27b/src/ir.rs on master f21a0b39c): a match
+; table and two `matches!` lists. The tests below are those tables row by row.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bArithOp;
+
+pub const OP_ADD : u8 = 0;
+pub const OP_SUB : u8 = 1;
+pub const OP_MUL : u8 = 2;
+pub const OP_ADD_W : u8 = 3;
+pub const OP_SUB_W : u8 = 4;
+pub const OP_MUL_W : u8 = 5;
+pub const OP_DIV : u8 = 6;
+pub const OP_DIV_W : u8 = 7;
+pub const OP_REM : u8 = 8;
+pub const OP_AND : u8 = 9;
+pub const OP_OR : u8 = 10;
+pub const OP_XOR : u8 = 11;
+pub const OP_SHL : u8 = 12;
+pub const OP_SHR : u8 = 13;
+pub const OP_SHL_W : u8 = 14;
+pub const OP_SHR_W : u8 = 15;
+
+/// The Zig spelling of operator `op`.
+pub fn symbol(op: u8) -> str {
+    if (op == OP_ADD) { return "+"; }
+    if (op == OP_SUB) { return "-"; }
+    if (op == OP_MUL) { return "*"; }
+    if (op == OP_ADD_W) { return "+%"; }
+    if (op == OP_SUB_W) { return "-%"; }
+    if (op == OP_MUL_W) { return "*%"; }
+    if (op == OP_DIV or op == OP_DIV_W) { return "/"; }
+    if (op == OP_REM) { return "%"; }
+    if (op == OP_AND) { return "&"; }
+    if (op == OP_OR) { return "|"; }
+    if (op == OP_XOR) { return "^"; }
+    if (op == OP_SHL or op == OP_SHL_W) { return "<<"; }
+    return ">>";
+}
+
+/// Is `op` one of the four shifts?
+pub fn is_shift(op: u8) -> bool {
+    return op == OP_SHL or op == OP_SHR or op == OP_SHL_W or op == OP_SHR_W;
+}
+
+/// May the operands of `op` be exchanged?
+pub fn commutative(op: u8) -> bool {
+    return op == OP_ADD or op == OP_MUL or op == OP_ADD_W or op == OP_MUL_W or op == OP_AND or op == OP_OR or op == OP_XOR;
+}
+
+test the_symbols_are_zig_s {
+    assert std.mem.eql(u8, symbol(OP_ADD), "+");
+    assert std.mem.eql(u8, symbol(OP_SUB), "-");
+    assert std.mem.eql(u8, symbol(OP_MUL), "*");
+    assert std.mem.eql(u8, symbol(OP_ADD_W), "+%");
+    assert std.mem.eql(u8, symbol(OP_SUB_W), "-%");
+    assert std.mem.eql(u8, symbol(OP_MUL_W), "*%");
+    assert std.mem.eql(u8, symbol(OP_DIV), "/");
+    assert std.mem.eql(u8, symbol(OP_DIV_W), "/");
+    assert std.mem.eql(u8, symbol(OP_REM), "%");
+    assert std.mem.eql(u8, symbol(OP_AND), "&");
+    assert std.mem.eql(u8, symbol(OP_OR), "|");
+    assert std.mem.eql(u8, symbol(OP_XOR), "^");
+    assert std.mem.eql(u8, symbol(OP_SHL), "<<");
+    assert std.mem.eql(u8, symbol(OP_SHR), ">>");
+    assert std.mem.eql(u8, symbol(OP_SHL_W), "<<");
+    assert std.mem.eql(u8, symbol(OP_SHR_W), ">>");
+}
+
+test the_shifts_are_the_last_four {
+    assert is_shift(OP_SHL);
+    assert is_shift(OP_SHR);
+    assert is_shift(OP_SHL_W);
+    assert is_shift(OP_SHR_W);
+    var op : u8 = 0;
+    var n : u32 = 0;
+    while (op < 16) {
+        if (is_shift(op)) {
+            n = n + 1;
+            assert op >= OP_SHL;
+            assert std.mem.indexOf(u8, symbol(op), "<") != null or std.mem.indexOf(u8, symbol(op), ">") != null;
+        }
+        op = op + 1;
+    }
+    assert n == 4;
+}
+
+test the_commutative_operators {
+    assert commutative(OP_ADD);
+    assert commutative(OP_MUL);
+    assert commutative(OP_ADD_W);
+    assert commutative(OP_MUL_W);
+    assert commutative(OP_AND);
+    assert commutative(OP_OR);
+    assert commutative(OP_XOR);
+    assert !commutative(OP_SUB);
+    assert !commutative(OP_SUB_W);
+    assert !commutative(OP_DIV);
+    assert !commutative(OP_DIV_W);
+    assert !commutative(OP_REM);
+    assert !commutative(OP_SHL);
+    assert !commutative(OP_SHR);
+    assert !commutative(OP_SHL_W);
+    assert !commutative(OP_SHR_W);
+}
+
+// No operator is both a shift and commutative, and seven of the sixteen are commutative.
+test shifts_never_commute {
+    var op : u8 = 0;
+    var c : u32 = 0;
+    while (op < 16) {
+        assert (is_shift(op) and commutative(op)) == false;
+        if (commutative(op)) { c = c + 1; }
+        op = op + 1;
+    }
+    assert c == 7;
+}

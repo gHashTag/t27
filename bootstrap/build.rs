@@ -1,7 +1,13 @@
 //! Hard language guard: fail `cargo build` if Cyrillic appears in specs or unlisted docs.
 //! See docs/nona-03-manifest/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md Article LANG-EN.
 
-use sha2::{Digest, Sha256};
+// Hashing is specs/tri/crypto/sha256.t27, lowered by `t27c gen-rust`.
+#[path = "gen/rust/tri/crypto/sha256.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod sha256;
+fn sha256_hex(data: &[u8]) -> String {
+    sha256::hash_hex(data).iter().map(|&c| c as char).collect()
+}
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -97,6 +103,23 @@ fn main() {
         .expect("bootstrap crate must live one level below repo root")
         .to_path_buf();
 
+    // Bake the building commit into the binary so a seal can name the build
+    // that minted it (#7075, prerequisite of #7072) and a silicon receipt can
+    // name the compiler that produced it (#7041). A runtime `git rev-parse`
+    // would name the tree the seal/receipt was WRITTEN in -- a different claim,
+    // and the wrong one for "which t27c made this". Outside a git checkout the
+    // identity is honestly "unknown" rather than absent.
+    let git = std::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .current_dir(&manifest_dir)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".into());
+    println!("cargo:rustc-env=T27C_BUILD_GIT={git}");
+
     // Everything below enforces REPOSITORY policy -- no Cyrillic in repo-owned
     // Rust, the M5 freeze -- by reading files that live outside this package:
     // ../docs/.legacy-non-english-docs and the like. A published crate is
@@ -154,7 +177,8 @@ fn main() {
             if let Err(msg) = scan_cyrillic(path, &rel, &HashSet::new()) {
                 panic!("{msg}");
             }
-            rerun_line(&manifest_dir, &root, path);
+            // No rerun-if-changed: a spec edit must not rebuild t27c (#7548).
+            // spec-guards runs specs/policy/lang_en.t27 on the specs a PR changes.
         }
     }
 
@@ -232,7 +256,7 @@ fn main() {
              See FROZEN.md and CANON.md M5."
         )
     });
-    let live_hash = format!("{:x}", Sha256::digest(&compiler_bytes));
+    let live_hash = sha256_hex(&compiler_bytes);
     let frozen_text = fs::read_to_string(&frozen_path).unwrap_or_else(|e| {
         panic!(
             "t27c FROZEN HASH violation: cannot read bootstrap/stage0/FROZEN_HASH: {e}\n\
@@ -284,7 +308,7 @@ fn main() {
              or shadowed."
         )
     });
-    let live_credit = format!("{:x}", Sha256::digest(article.as_bytes()));
+    let live_credit = sha256_hex(article.as_bytes());
     let sealed_credit = fs::read_to_string(&credit_seal_path).unwrap_or_else(|e| {
         panic!(
             "t27c CREDIT SEAL violation: cannot read bootstrap/stage0/CREDIT_HASH: {e}\n\

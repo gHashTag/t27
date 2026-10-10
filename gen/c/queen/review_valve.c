@@ -26,6 +26,7 @@
 #define KIND_EMPTY_ACCEPT 5
 #define KIND_BEYOND_THE_PATCH 6
 #define KIND_BASE_TRUTH_ALONE 7
+#define KIND_EFFECT_GAVE_UP 8
 #define STEP_HOLD 0
 #define STEP_RELEASE 1
 #define STEP_BACKFILL 2
@@ -44,12 +45,23 @@
 #define PR_JUDGE 1
 #define PR_WAIT_FIX 2
 #define PR_CLOSE 3
+#define C_NONE 0
+#define C_WAIT 1
+#define C_UPDATE 2
+#define C_REDO 3
+#define C_CLOSE 4
+#define CONFLICT_UPDATES 2
+#define UPDATE_QUEUE_CEILING 50
+#define CONFLICT_WAIT_HOURS 48
 
 /* -------------------------------------------------------
    Function prototypes
    ------------------------------------------------------- */
 
+uint8_t conflict_step(bool queen_branch, bool conflicting, bool update_failed, uint32_t updates, uint32_t hours, uint32_t releases, uint32_t queued_runs);
 uint8_t escalation_kind(uint32_t criteria, bool send_back_ceiling, bool dead_letter, bool reviewer_gave_up);
+bool is_recorded_kind(uint8_t kind);
+uint8_t recorded_escalation_kind(uint8_t recorded, uint32_t criteria, bool send_back_ceiling, bool dead_letter, bool reviewer_gave_up);
 bool wants_backfill(uint8_t kind);
 uint8_t next_step(uint8_t kind, uint32_t idle_minutes, uint32_t releases);
 bool holds_files(uint8_t step);
@@ -58,6 +70,32 @@ uint8_t pr_step(bool queen_branch, bool changes_on_head, bool head_judged, uint3
 /* -------------------------------------------------------
    Function implementations
    ------------------------------------------------------- */
+
+uint8_t conflict_step(bool queen_branch, bool conflicting, bool update_failed, uint32_t updates, uint32_t hours, uint32_t releases, uint32_t queued_runs) {
+    if ((queen_branch == false)) {
+        return C_NONE;
+    }
+    if ((conflicting == false)) {
+        return C_NONE;
+    }
+    bool redo = update_failed;
+    if ((updates >= CONFLICT_UPDATES)) {
+        redo = true;
+    }
+    if ((hours >= CONFLICT_WAIT_HOURS)) {
+        redo = true;
+    }
+    if (redo) {
+        if ((releases >= MAX_RELEASES)) {
+            return C_CLOSE;
+        }
+        return C_REDO;
+    }
+    if ((queued_runs > UPDATE_QUEUE_CEILING)) {
+        return C_WAIT;
+    }
+    return C_UPDATE;
+}
 
 uint8_t escalation_kind(uint32_t criteria, bool send_back_ceiling, bool dead_letter, bool reviewer_gave_up) {
     if ((criteria == 0)) {
@@ -71,6 +109,33 @@ uint8_t escalation_kind(uint32_t criteria, bool send_back_ceiling, bool dead_let
     }
     if (reviewer_gave_up) {
         return KIND_REVIEWER_GAVE_UP;
+    }
+    return KIND_UNRECORDED;
+}
+
+bool is_recorded_kind(uint8_t kind) {
+    if ((kind == KIND_EMPTY_ACCEPT)) {
+        return true;
+    }
+    if ((kind == KIND_BEYOND_THE_PATCH)) {
+        return true;
+    }
+    if ((kind == KIND_BASE_TRUTH_ALONE)) {
+        return true;
+    }
+    if ((kind == KIND_EFFECT_GAVE_UP)) {
+        return true;
+    }
+    return false;
+}
+
+uint8_t recorded_escalation_kind(uint8_t recorded, uint32_t criteria, bool send_back_ceiling, bool dead_letter, bool reviewer_gave_up) {
+    uint8_t kind = escalation_kind(criteria, send_back_ceiling, dead_letter, reviewer_gave_up);
+    if ((kind != KIND_UNRECORDED)) {
+        return kind;
+    }
+    if (is_recorded_kind(recorded)) {
+        return recorded;
     }
     return KIND_UNRECORDED;
 }
@@ -141,6 +206,24 @@ uint8_t pr_step(bool queen_branch, bool changes_on_head, bool head_judged, uint3
    Invariants (compile-time assertions)
    ------------------------------------------------------- */
 
+/* invariant: the_kind_codes_never_move */
+_Static_assert((KIND_UNRECORDED == 0), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_NO_CRITERIA == 1), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_SEND_BACK_CEILING == 2), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_DEAD_LETTER == 3), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_REVIEWER_GAVE_UP == 4), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_EMPTY_ACCEPT == 5), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_BEYOND_THE_PATCH == 6), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_BASE_TRUTH_ALONE == 7), "invariant: the_kind_codes_never_move");
+_Static_assert((KIND_EFFECT_GAVE_UP == 8), "invariant: the_kind_codes_never_move");
+
+/* invariant: the_conflict_codes_never_move */
+_Static_assert((C_NONE == 0), "invariant: the_conflict_codes_never_move");
+_Static_assert((C_WAIT == 1), "invariant: the_conflict_codes_never_move");
+_Static_assert((C_UPDATE == 2), "invariant: the_conflict_codes_never_move");
+_Static_assert((C_REDO == 3), "invariant: the_conflict_codes_never_move");
+_Static_assert((C_CLOSE == 4), "invariant: the_conflict_codes_never_move");
+
 /* invariant: every_clock_ends_before_the_policy_hold */
 _Static_assert((RETRY_FLOOR_MINUTES < CEILING_FLOOR_MINUTES), "invariant: every_clock_ends_before_the_policy_hold");
 _Static_assert((CEILING_FLOOR_MINUTES < BACKFILL_WINDOW_MINUTES), "invariant: every_clock_ends_before_the_policy_hold");
@@ -148,6 +231,8 @@ _Static_assert((BACKFILL_WINDOW_MINUTES < POLICY_HOLD_MINUTES), "invariant: ever
 _Static_assert(((PR_FIX_WINDOW_HOURS * 60) <= POLICY_HOLD_MINUTES), "invariant: every_clock_ends_before_the_policy_hold");
 _Static_assert((MAX_RELEASES > 0), "invariant: every_clock_ends_before_the_policy_hold");
 _Static_assert((PR_FIX_ATTEMPTS > 0), "invariant: every_clock_ends_before_the_policy_hold");
+_Static_assert(((CONFLICT_WAIT_HOURS * 60) <= POLICY_HOLD_MINUTES), "invariant: every_clock_ends_before_the_policy_hold");
+_Static_assert((CONFLICT_UPDATES > 0), "invariant: every_clock_ends_before_the_policy_hold");
 _Static_assert((STEP_HOLD < STEP_RELEASE), "invariant: every_clock_ends_before_the_policy_hold");
 _Static_assert((STEP_RELEASE < STEP_BACKFILL), "invariant: every_clock_ends_before_the_policy_hold");
 _Static_assert((STEP_BACKFILL < STEP_CLOSE), "invariant: every_clock_ends_before_the_policy_hold");
@@ -165,6 +250,34 @@ void test_the_kind_is_read_from_the_row(void) {
     assert((escalation_kind(3, false, false, false) == KIND_UNRECORDED));
 }
 
+void test_an_effect_give_up_is_named_only_when_recorded(void) {
+    assert((recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, false, false, false) == KIND_EFFECT_GAVE_UP));
+    assert((escalation_kind(3, false, false, false) == KIND_UNRECORDED));
+    assert((recorded_escalation_kind(KIND_UNRECORDED, 3, false, false, false) == KIND_UNRECORDED));
+    assert((recorded_escalation_kind(KIND_EMPTY_ACCEPT, 3, false, false, false) == KIND_EMPTY_ACCEPT));
+    assert((recorded_escalation_kind(KIND_BEYOND_THE_PATCH, 3, false, false, false) == KIND_BEYOND_THE_PATCH));
+    assert((recorded_escalation_kind(KIND_BASE_TRUTH_ALONE, 3, false, false, false) == KIND_BASE_TRUTH_ALONE));
+}
+
+void test_the_counters_outrank_the_record(void) {
+    assert((recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 0, false, false, false) == KIND_NO_CRITERIA));
+    assert((recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, true, false, false) == KIND_SEND_BACK_CEILING));
+    assert((recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, false, true, false) == KIND_DEAD_LETTER));
+    assert((recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, false, false, true) == KIND_REVIEWER_GAVE_UP));
+    assert((recorded_escalation_kind(KIND_DEAD_LETTER, 3, false, false, false) == KIND_UNRECORDED));
+    assert((recorded_escalation_kind(KIND_NO_CRITERIA, 3, false, false, false) == KIND_UNRECORDED));
+    assert((recorded_escalation_kind((KIND_EFFECT_GAVE_UP + 1), 3, false, false, false) == KIND_UNRECORDED));
+    assert((is_recorded_kind(KIND_SEND_BACK_CEILING) == false));
+    assert((is_recorded_kind(KIND_REVIEWER_GAVE_UP) == false));
+}
+
+void test_a_give_up_waits_the_floor_then_goes_back_once(void) {
+    assert((next_step(KIND_EFFECT_GAVE_UP, 29, 0) == STEP_HOLD));
+    assert((next_step(KIND_EFFECT_GAVE_UP, 30, 0) == STEP_RELEASE));
+    assert((next_step(KIND_EFFECT_GAVE_UP, 30, 1) == STEP_CLOSE));
+    assert((wants_backfill(KIND_EFFECT_GAVE_UP) == false));
+}
+
 void test_an_empty_attempt_is_released_after_the_floor(void) {
     assert((next_step(KIND_DEAD_LETTER, 0, 0) == STEP_HOLD));
     assert((next_step(KIND_DEAD_LETTER, 29, 0) == STEP_HOLD));
@@ -172,6 +285,7 @@ void test_an_empty_attempt_is_released_after_the_floor(void) {
     assert((next_step(KIND_REVIEWER_GAVE_UP, 30, 0) == STEP_RELEASE));
     assert((next_step(KIND_EMPTY_ACCEPT, 30, 0) == STEP_RELEASE));
     assert((next_step(KIND_UNRECORDED, 30, 0) == STEP_RELEASE));
+    assert((holds_files(next_step(KIND_DEAD_LETTER, 29, 0)) == true));
 }
 
 void test_a_spent_ceiling_waits_the_hour_then_goes_back_once(void) {
@@ -194,6 +308,7 @@ void test_missing_criteria_are_backfilled_then_closed(void) {
     assert((next_step(KIND_BASE_TRUTH_ALONE, 120, 0) == STEP_CLOSE));
     assert((next_step(KIND_NO_CRITERIA, 120, 0) == STEP_CLOSE));
     assert((wants_backfill(KIND_DEAD_LETTER) == false));
+    assert((holds_files(next_step(KIND_NO_CRITERIA, 0, 0)) == true));
 }
 
 void test_no_kind_waits_for_a_person(void) {
@@ -205,6 +320,7 @@ void test_no_kind_waits_for_a_person(void) {
     assert((holds_files(next_step(KIND_EMPTY_ACCEPT, POLICY_HOLD_MINUTES, 0)) == false));
     assert((holds_files(next_step(KIND_BEYOND_THE_PATCH, POLICY_HOLD_MINUTES, 0)) == false));
     assert((holds_files(next_step(KIND_BASE_TRUTH_ALONE, POLICY_HOLD_MINUTES, 0)) == false));
+    assert((holds_files(next_step(KIND_EFFECT_GAVE_UP, POLICY_HOLD_MINUTES, 0)) == false));
 }
 
 void test_request_changes_goes_back_to_the_queen_then_closes(void) {
@@ -220,6 +336,27 @@ void test_a_new_head_is_judged_and_a_stranger_is_left_alone(void) {
     assert((pr_step(true, false, true, 0, 900) == PR_NONE));
 }
 
+void test_a_conflicting_bee_branch_is_updated_not_left(void) {
+    assert((conflict_step(true, true, false, 0, 0, 0, 0) == C_UPDATE));
+    assert((conflict_step(true, true, false, 1, 47, 0, 50) == C_UPDATE));
+    assert((conflict_step(true, true, false, 0, 0, 0, 51) == C_WAIT));
+    assert((conflict_step(true, true, false, 1, 47, 1, 273) == C_WAIT));
+}
+
+void test_a_branch_that_cannot_be_updated_is_redone_from_master(void) {
+    assert((conflict_step(true, true, true, 1, 0, 0, 0) == C_REDO));
+    assert((conflict_step(true, true, false, 2, 0, 0, 0) == C_REDO));
+    assert((conflict_step(true, true, false, 1, 48, 0, 273) == C_REDO));
+    assert((conflict_step(true, true, true, 1, 0, 1, 0) == C_CLOSE));
+    assert((conflict_step(true, true, false, 2, 0, 1, 0) == C_CLOSE));
+    assert((conflict_step(true, true, false, 0, 48, 1, 0) == C_CLOSE));
+}
+
+void test_a_clean_or_foreign_branch_is_left_alone(void) {
+    assert((conflict_step(true, false, true, 9, 900, 9, 999) == C_NONE));
+    assert((conflict_step(false, true, true, 9, 900, 0, 0) == C_NONE));
+}
+
 
 /* -------------------------------------------------------
    Test runner (compile with -DT27_TEST_MAIN to execute)
@@ -229,6 +366,9 @@ void test_a_new_head_is_judged_and_a_stranger_is_left_alone(void) {
 #include <stdio.h>
 int main(void) {
     test_the_kind_is_read_from_the_row();
+    test_an_effect_give_up_is_named_only_when_recorded();
+    test_the_counters_outrank_the_record();
+    test_a_give_up_waits_the_floor_then_goes_back_once();
     test_an_empty_attempt_is_released_after_the_floor();
     test_a_spent_ceiling_waits_the_hour_then_goes_back_once();
     test_spent_releases_close_at_once_not_hold();
@@ -236,7 +376,10 @@ int main(void) {
     test_no_kind_waits_for_a_person();
     test_request_changes_goes_back_to_the_queen_then_closes();
     test_a_new_head_is_judged_and_a_stranger_is_left_alone();
-    printf("All %d tests passed.\n", 8);
+    test_a_conflicting_bee_branch_is_updated_not_left();
+    test_a_branch_that_cannot_be_updated_is_redone_from_master();
+    test_a_clean_or_foreign_branch_is_left_alone();
+    printf("All %d tests passed.\n", 14);
     return 0;
 }
 #endif /* T27_TEST_MAIN */

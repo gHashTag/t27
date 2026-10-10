@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c9f1fc1318f53639afcecb4ec0d49676c7afcfd96f903278ccb2bcea657a544d",
+  "gen_hash_rust": "sha256:430ff0ba2a2070889d3f11a669bdc50cb54a478ecaf13ba9930464bf70d93e29",
+  "gen_hash_verilog": "sha256:e50b4a15349f00daf0523c8066c423b6c2ebd0b7e5944fcaa99d931e9fd4e1bf",
+  "gen_hash_zig": "sha256:a23b30b47c4e4cc381160c90e40a3dc54c860bc6a9e44b7233826ff0b7a68546",
+  "module": "cron_mac_trios_cycle_heal",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:36:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b39c3f6432b41a8ec2edec88ca94c31b057e6c45398cdd079f6e8db812099fc7",
+  "spec_path": "specs/crons/mac-trios-cycle-heal.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

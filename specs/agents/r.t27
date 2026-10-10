@@ -44,3 +44,20 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test agent_r_constants {
+  assert KIND == "agent";
+  assert ID == "t27/R";
+  assert LETTER == "R";
+  assert ORDINAL == 18;
+  assert LETTER_NAME == "Rho";
+  assert NAME == "Rho (Runtime)";
+  assert DOMAIN == "Runtime / Bootstrap";
+  assert ARCHETYPE == "Head - beginning of execution";
+  assert REGISTER == "R17";
+  assert LAYER == "Spiritual";
+  assert ENABLED == true;
+  assert CLARA_ROLE == "";
+  assert KEY_FILES[0] == "t27/compiler/runtime/";
+  assert KEY_FILES[1] == "bootstrap/src/compiler.rs";
+}

@@ -600,3 +600,121 @@ fn a_pointer_struct_field_stays_a_raw_pointer() {
         "a field must not become &mut, which needs a lifetime; got:\n{text}"
     );
 }
+
+/// #6446: every gen path runs `typecheck` first.
+///
+/// `tri misread` found 35 spec-shape pairs that `typecheck` refused while the
+/// backends printed them anyway: a field with no type came out of `gen-rust`
+/// as `pub f: ,`, and the command exited 0. That is the defect this file was
+/// written against -- a green exit over output no compiler accepts. A refused
+/// spec now generates nothing: non-zero exit, empty stdout, and the typecheck
+/// message on stderr. The inputs are .t27 fixtures under
+/// tests/fixtures/gen_typecheck/.
+fn gate_fixture(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/gen_typecheck")
+        .join(name)
+}
+
+fn t27c_on(args: &[&str], spec: &std::path::Path) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_t27c"))
+        .args(args)
+        .arg(spec)
+        .output()
+        .expect("run t27c")
+}
+
+fn assert_refused(out: &std::process::Output, what: &str) {
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !out.status.success(),
+        "{what} exited 0 on a spec typecheck refuses"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "{what} printed output for a refused spec:\n{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        stderr.contains("typecheck refused"),
+        "{what} stderr lacks the refusal:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("field `f` has no type"),
+        "{what} stderr lacks the typecheck message:\n{stderr}"
+    );
+}
+
+#[test]
+fn gen_rust_refuses_a_field_with_no_type() {
+    // Before #6446 this printed `pub f: ,` and exited 0.
+    let spec = gate_fixture("field_no_type.t27");
+    assert_refused(&t27c_on(&["gen-rust"], &spec), "gen-rust");
+}
+
+#[test]
+fn every_gen_path_refuses_a_spec_typecheck_refuses() {
+    let spec = gate_fixture("field_no_type.t27");
+    for cmd in [
+        "gen",
+        "gen-c",
+        "gen-verilog",
+        "gen-verilog-hir",
+        "gen-verilog-for-simulation",
+        "gen-testbench",
+        "gen-js",
+        "gen-ts",
+        "gen-python",
+    ] {
+        assert_refused(&t27c_on(&[cmd], &spec), cmd);
+    }
+}
+
+#[test]
+fn typecheck_and_gen_agree_on_the_gate_fixtures() {
+    // The negative control: if every command failed on every input, the two
+    // tests above would pass against a broken binary.
+    let refused = gate_fixture("field_no_type.t27");
+    let tc = t27c_on(&["typecheck"], &refused);
+    assert!(!tc.status.success(), "typecheck accepted field_no_type.t27");
+    let clean = gate_fixture("field_with_type.t27");
+    for cmd in ["typecheck", "gen", "gen-rust", "gen-c"] {
+        let out = t27c_on(&[cmd], &clean);
+        assert!(
+            out.status.success(),
+            "{cmd} refused the clean control:\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+}
+
+/// #7428 (part of #5980): `_ =>` is the catch-all arm, as `else` is. gen-c wrote
+/// it as `(x == _)`, which C rejects as an undeclared name.
+#[test]
+fn c_takes_the_underscore_arm_of_a_switch() {
+    let spec = "module sw\npub fn f(x: i64) i64 {\n    return switch (x) {\n        1 => 10,\n        _ => 99,\n    };\n}\n\
+                pub const Color = enum { red, green, blue };\n\
+                pub fn g(c: Color) i64 {\n    return switch (c) {\n        .red => 1,\n        _ => 7,\n    };\n}\n";
+    let main = "int main(void){ printf(\"%lld %lld %lld %lld\\n\", (long long)f(1), (long long)f(5), \
+                (long long)g(COLOR_RED), (long long)g(COLOR_BLUE)); return 0; }\n";
+    let Some(out) = c_says(spec, main, "c-switch-underscore") else {
+        return;
+    };
+    assert_eq!(out, "10 99 1 7", "`_` must take every value no other arm names");
+}
+
+/// #7441 (part of #5980): a local `[16][16]u8` was declared `[16]u8 m[16]`, a
+/// t27 type inside C. Every inner fixed dimension now moves to the declarator.
+#[test]
+fn c_declares_a_local_nested_array_as_a_matrix() {
+    let spec = "module nest\npub const K: usize = 3;\npub fn f() u8 {\n    var m: [16][16]u8 = undefined;\n    \
+                m[15][15] = 3;\n    m[0][15] = 1;\n    return m[15][15] + m[0][15];\n}\n\
+                pub fn g() i64 {\n    var a: [2][K][4]i64 = undefined;\n    a[1][2][3] = 9;\n    a[0][0][0] = -1;\n    \
+                return a[1][2][3] + a[0][0][0];\n}\n\
+                pub fn h() u8 {\n    var b: [2][2]u8 = [_][2]u8{ [_]u8{1, 2}, [_]u8{3, 4} };\n    return b[1][0] * 10 + b[0][1];\n}\n";
+    let main = "int main(void){ printf(\"%d %lld %d\\n\", f(), (long long)g(), h()); return 0; }\n";
+    let Some(out) = c_says(spec, main, "c-local-nested-array") else {
+        return;
+    };
+    assert_eq!(out, "4 8 32", "every cell of a local matrix keeps its own value");
+}

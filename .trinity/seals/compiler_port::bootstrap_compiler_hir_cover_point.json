@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0a130f23c5ec2d5e443a0c7d9ae2983a30d616e1899544ec7cb08990aa69dac6",
+  "gen_hash_rust": "sha256:f15a752bfd37e559b3ba1c21f7119742a45eb5682027f8c7b2bda5e04339d10d",
+  "gen_hash_verilog": "sha256:d9a324c5cb0909a2463b31c9d10f8959930a2b935d754343182ccabbb7954546",
+  "gen_hash_zig": "sha256:528ebddee297c4f139dba2449ebb3655a39b27d1365683bbbb6edef58945ccf5",
+  "module": "port::bootstrap_compiler_hir_cover_point",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1968ca5af75be2d02dccc2423ec946e354bb40382885b722de85686b8e38e83c",
+  "spec_path": "specs/port/bootstrap/src/compiler/HirCoverPoint_new.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

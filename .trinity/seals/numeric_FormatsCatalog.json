@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e668ed454505a4e7c2d4ed065336051eadde61b4932ac2ac5085f81a8348aeb6",
   "gen_hash_rust": "sha256:edf51f0f20f05583bb6195f7b2396868164a5be852b442848fd0bc56da29a492",
   "gen_hash_verilog": "sha256:2bcd8d75b95beb240d4e2ebb75b2e45d5d1df2fac07e458b192e3e43db764887",
   "gen_hash_zig": "sha256:4ff0cb150da5ddd382f9250eeb27ffa87b68f9547f5341591f896869f42bee1f",
   "module": "FormatsCatalog",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:26e96deff0757cd3212e851ff3d25c659007d609d2184f80b22b0c4a397960ac",
-  "spec_path": "specs/numeric/formats_catalog.t27"
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:177a303ff705d65acd5eed7b8359eda43c429627aa60d47d727f449c55977de6",
+  "spec_path": "specs/numeric/formats_catalog.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

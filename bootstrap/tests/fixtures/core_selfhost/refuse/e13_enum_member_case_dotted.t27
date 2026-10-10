@@ -1,0 +1,9 @@
+// #8001: gen-c writes `EdColor.BLUE` as `EDCOLOR_BLUE`, the member `blue`.
+module enum_case_dotted;
+enum EdColor {
+    red,
+    blue,
+}
+fn ed_f() -> EdColor {
+    return EdColor.BLUE;
+}

@@ -25,12 +25,17 @@ is the ruleset's answer, not this table:
 `gh api repos/gHashTag/t27/rules/branches/master`. (The NOW Sync Gate row was
 removed with that gate, owner decision 2026-10-04, #5935.)
 
+The authoritative source of truth for required contexts is the spec file
+`specs/policy/required_contexts.t27`, which is regenerated from the GitHub API
+when the ruleset changes.
+
 | Workflow | File | Description |
 |----------|------|-------------|
 | **PHI Loop CI** | `.github/workflows/phi-loop-ci.yml` | Main test suite, L5 identity, L8 FPGA-safety |
 | **Seal Coverage** | `.github/workflows/seal-coverage.yml` | All specs have valid seals |
 | **Schema Validation** | `.github/workflows/schema-validation.yml` | JSON schema conformance |
 | **Issue Gate** | `.github/workflows/issue-gate.yml` | L1 TRACEABILITY (Closes #N) |
+| **Parse Ratchet** | `.github/workflows/spec-parse-ratchet.yml` | Self-test, build t27c, check specs still parse |
 
 ### Restrict Settings
 

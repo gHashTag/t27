@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ab764a9d99e437d8a61cd7ba4e24bde04a1bbebb6b84c645ec2ea99bbd5aa592",
+  "gen_hash_rust": "sha256:6a8ed3ed9be5a4b708f0ded79f1787f9653b29550f5e01aeb9d7d76f9649ca53",
+  "gen_hash_verilog": "sha256:e919a61babc17def891879505b94b39e781832773053d9280791e673c278e1f9",
+  "gen_hash_zig": "sha256:cb0d5d1340bfaae9338678c0735f9d57410ac9f021ec025a2f000841391d3a62",
+  "module": "port::trinity::tri::gen_cross_entropy",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:20:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6c6cdf7c2ff85412f5dd56842cad3b19470c3f7330888319e348704529f5d0f8",
+  "spec_path": "specs/port/trinity/src/tri/gen_cross_entropy.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

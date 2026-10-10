@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:4e6928a637e4e19f4ad7723b9c8c5da8eb27d7fba8281e87150d4d560c1c64f6",
-  "gen_hash_rust": "sha256:a686fe3835b29af6d560a3bfb3604e28370c4801f8d48c5dc0503efde41870ff",
+  "gen_hash_c": "sha256:f086b73fd907303c7d3b3d237e4161c72e48609be707f2f8877840957cd96676",
+  "gen_hash_rust": "sha256:fd956ff9aaf9089e598a16c89880d307dd847dc5f2219dea90e44a3a8e834c24",
   "gen_hash_verilog": "sha256:d912bfa57657942cb5c9fa7b17f4397afff0a33f04e4a151e889be259fcd1a0f",
   "gen_hash_zig": "sha256:1a558d80c6a540c4348b3d74b60e639649b31f415be1c3fb4dbe389738da120f",
   "module": "TriText",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-08T06:15:24Z",
   "spec_hash": "sha256:0d5c0ce70d13e069af3c01a63da0455776822d78890edba1165fbd03e962e5e1",
-  "spec_path": "specs/tri/utils/text.t27"
+  "spec_path": "specs/tri/utils/text.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:69:17: error: type 'type' not a function"
+  }
 }

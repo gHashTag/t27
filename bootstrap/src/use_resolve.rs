@@ -54,40 +54,141 @@ fn find_specs_root(input: &Path) -> Option<PathBuf> {
     }
 }
 
-/// `use a::b::c;` -> `<specs>/a/b/c.t27`
+/// The module path a `use` line names, read the way the resolver reads it, or
+/// `None` for a line that is not an import. `use a::b::c;   // note` -> `a::b::c`.
+fn use_path_expr(line: &str) -> Option<&str> {
+    let rest = line.trim().strip_prefix("use ")?;
+    // W587: strip a trailing comment BEFORE the semicolon. A line like
+    // `use igla::race::cordic;   // note` left the whole comment inside the
+    // module path, so the import silently resolved to nothing -- and the
+    // comment in question was one I added in W571 to explain the import.
+    let rest = match rest.find("//") {
+        Some(i) => &rest[..i],
+        None => rest,
+    };
+    let path_expr = rest.trim().trim_end_matches(';').trim();
+    if path_expr.is_empty() || !path_expr.contains("::") && path_expr.contains(' ') {
+        return None;
+    }
+    Some(path_expr)
+}
+
+/// `a::b::c` -> `<specs>/a/b/c.t27`, whether or not that file exists.
+fn use_path(specs_root: &Path, path_expr: &str) -> PathBuf {
+    let mut p = specs_root.to_path_buf();
+    // #5978: `use sandbox.session_timeout;` is the same path as
+    // `use sandbox::session_timeout;` -- the parser now reads both, and
+    // stores the dotted one as `sandbox::session_timeout`. Splitting on
+    // `::` alone looked for `specs/sandbox.session_timeout.t27`, so the
+    // parser and this resolver disagreed about one import.
+    for seg in path_expr.split("::").flat_map(|s| s.split('.')) {
+        p.push(seg);
+    }
+    p.set_extension("t27");
+    p
+}
+
+/// `a::b::{X, Y}` -> `a::b`: the module a brace list takes its items from.
+fn brace_module(path_expr: &str) -> Option<&str> {
+    let i = path_expr.find('{')?;
+    Some(path_expr[..i].trim_end().trim_end_matches("::").trim_end_matches('.'))
+}
+
+/// The spec one `use` line names, and whether the line names that whole module.
+/// `use a::b;` -> `<specs>/a/b.t27`, whole. Two item forms name the module that
+/// holds the items, not whole: `use a::b::{X, Y};` (#2537) and `use a::b::Item;`
+/// when `<specs>/a/b/Item.t27` is not a spec (#5552). Only one level is tried:
+/// `use a::b::c::Item;` with neither `c.t27` nor `c/Item.t27` names nothing,
+/// rather than a guess two levels up. A module named through an item is spliced
+/// like any other -- the referenced names it declares are pulled, not only the
+/// listed ones -- but its basename is not a qualifier: after `use a::b::K;`,
+/// `b::K` is not rewritten, as `b` is not in scope in Rust either.
+fn use_target(specs_root: &Path, path_expr: &str) -> Option<(PathBuf, bool)> {
+    let p = use_path(specs_root, path_expr);
+    if p.is_file() {
+        return Some((p, true));
+    }
+    let module = match brace_module(path_expr) {
+        Some(m) if !m.is_empty() => use_path(specs_root, m),
+        Some(_) => return None,
+        None => p.parent()?.with_extension("t27"),
+    };
+    (module.starts_with(specs_root) && module.is_file()).then_some((module, false))
+}
+
+/// The spec each `use` line names (`use_target`), for each line that names one.
 fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
+    source
+        .lines()
+        .filter_map(use_path_expr)
+        .filter_map(|e| use_target(specs_root, e))
+        .map(|(p, _)| p)
+        .collect()
+}
+
+/// #7565: the `use` edges of one spec, for `t27c use-edges` (main.rs); std only, t27b compiles
+/// this file too.
+pub fn use_edges(source: &str, specs_root: &Path) -> Vec<PathBuf> {
+    use_targets(source, specs_root)
+}
+
+/// #7176: one warning per `use` line `use_targets` drops. A target that is not
+/// a file was skipped without a word, `gen` exited 0, and the first error came
+/// from zig, about an identifier (`use of undeclared identifier 'LIST_END'`),
+/// never about the `use` line. `tri mutate spec` read that as a spec that does
+/// not pass (#7148): its copy sat in the system temp dir, with no `specs/`
+/// above it.
+///
+/// A warning, not an error, and the exit code is unchanged: 119 `use` lines in
+/// 70 tracked specs name neither a spec nor a module to take an item from (7 of
+/// them brace lists), and the zig backend still emits an `@import` for a
+/// qualified reference through such a line (`tests/dotted_module_name.rs`).
+/// Making it an error is #7176's next step.
+/// The note goes to stderr; the generated code on stdout does not change.
+pub fn missing_use_notes(input_path: &Path, source: &str) -> Vec<String> {
+    missing_uses(
+        &input_path.display().to_string(),
+        source,
+        find_specs_root(input_path).as_deref(),
+    )
+}
+
+fn missing_uses(label: &str, source: &str, specs_root: Option<&Path>) -> Vec<String> {
     let mut out = Vec::new();
-    for line in source.lines() {
-        let t = line.trim();
-        let rest = match t.strip_prefix("use ") {
-            Some(r) => r,
+    for (i, line) in source.lines().enumerate() {
+        let expr = match use_path_expr(line) {
+            Some(e) => e,
             None => continue,
         };
-        // W587: strip a trailing comment BEFORE the semicolon. A line like
-        // `use igla::race::cordic;   // note` left the whole comment inside the
-        // module path, so the import silently resolved to nothing -- and the
-        // comment in question was one I added in W571 to explain the import.
-        let rest = match rest.find("//") {
-            Some(i) => &rest[..i],
-            None => rest,
+        let why = match specs_root {
+            None => format!("no specs/ directory above {}", label),
+            Some(root) => {
+                if use_target(root, expr).is_some() {
+                    continue;
+                }
+                let p = use_path(root, expr);
+                let module = p.parent().map(|d| d.with_extension("t27")).filter(|m| m.starts_with(root));
+                match (brace_module(expr), module) {
+                    (Some(m), _) => format!(
+                        "no spec at {} (the module a brace list takes its items from)",
+                        use_path(root, m).display()
+                    ),
+                    (None, Some(m)) => format!(
+                        "no spec at {}, nor a module at {} to take the item from",
+                        p.display(),
+                        m.display()
+                    ),
+                    (None, None) => format!("no spec at {}", p.display()),
+                }
+            }
         };
-        let path_expr = rest.trim().trim_end_matches(';').trim();
-        if path_expr.is_empty() || !path_expr.contains("::") && path_expr.contains(' ') {
-            continue;
-        }
-        let mut p = specs_root.to_path_buf();
-        // #5978: `use sandbox.session_timeout;` is the same path as
-        // `use sandbox::session_timeout;` -- the parser now reads both, and
-        // stores the dotted one as `sandbox::session_timeout`. Splitting on
-        // `::` alone looked for `specs/sandbox.session_timeout.t27`, so the
-        // parser and this resolver disagreed about one import.
-        for seg in path_expr.split("::").flat_map(|s| s.split('.')) {
-            p.push(seg);
-        }
-        p.set_extension("t27");
-        if p.is_file() {
-            out.push(p);
-        }
+        out.push(format!(
+            "warning: {}:{}: use {} resolves to no spec: {}; nothing is spliced from it (#7176)",
+            label,
+            i + 1,
+            expr,
+            why
+        ));
     }
     out
 }
@@ -154,30 +255,18 @@ fn split_decls(source: &str, origin: &str) -> Vec<Decl> {
         let start = i;
         let mut brace = 0i32;
         let mut bracket = 0i32;
+        let mut paren = 0i32;
         loop {
-            let mut in_str = false;
-            let mut prev = '\0';
-            let mut chars = lines[i].chars().peekable();
-            while let Some(c) = chars.next() {
-                if in_str {
-                    if c == '"' && prev != '\\' {
-                        in_str = false;
-                    }
-                    prev = c;
-                    continue;
-                }
-                match c {
-                    '"' => in_str = true,
-                    '/' if chars.peek() == Some(&'/') => break, // line comment
-                    '{' => brace += 1,
-                    '}' => brace -= 1,
-                    '[' => bracket += 1,
-                    ']' => bracket -= 1,
-                    _ => {}
-                }
-                prev = c;
-            }
-            if (brace <= 0 && bracket <= 0) || i + 1 >= lines.len() {
+            let (b, k, p) = depth_change(lines[i]);
+            brace += b;
+            bracket += k;
+            paren += p;
+            // A header split over lines (`fn f(` ... `) -> T {`) is open
+            // until its `)`: without the paren count the declaration was its
+            // first line alone, and the importer got `fn f(` glued to the
+            // next declaration (fpga/mac.t27's mac_parallel_multiply in
+            // mac_tb).
+            if (brace <= 0 && bracket <= 0 && paren <= 0) || i + 1 >= lines.len() {
                 break;
             }
             i += 1;
@@ -188,6 +277,78 @@ fn split_decls(source: &str, origin: &str) -> Vec<Decl> {
             origin: origin.to_string(),
         });
         i += 1;
+    }
+    out
+}
+
+/// How far one line moves the `{}`, `[]` and `()` depth, outside strings, char
+/// literals, `//` comments and `;` prose lines. A char literal `'"'` read as
+/// the start of a string hid the rest of its line, `)` included
+/// (`specs/policy/own_language.t27`), and the declaration around it never
+/// closed: every later declaration of the module went unspliced.
+fn depth_change(line: &str) -> (i32, i32, i32) {
+    let (mut brace, mut bracket, mut paren) = (0i32, 0i32, 0i32);
+    if line.trim_start().starts_with(';') {
+        return (0, 0, 0);
+    }
+    let c: Vec<char> = line.chars().collect();
+    let mut in_str = false;
+    let mut i = 0usize;
+    while i < c.len() {
+        if in_str {
+            match c[i] {
+                '\\' => i += 1, // the escaped char is not a closing quote
+                '"' => in_str = false,
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
+        match c[i] {
+            '"' => in_str = true,
+            '/' if c.get(i + 1) == Some(&'/') => break, // line comment
+            // A char literal, `'\x'` or `'x'`; a lone apostrophe is not one.
+            '\'' if c.get(i + 1) == Some(&'\\') && c.get(i + 3) == Some(&'\'') => i += 3,
+            '\'' if c.get(i + 2) == Some(&'\'') => i += 2,
+            '{' => brace += 1,
+            '}' => brace -= 1,
+            '[' => bracket += 1,
+            ']' => bracket -= 1,
+            '(' => paren += 1,
+            ')' => paren -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+    (brace, bracket, paren)
+}
+
+/// Names the importer declares at module level, found by brace depth: depth 0,
+/// or depth 1 inside a `module M {` block. `split_decls` takes the smallest
+/// indent as the module's, so a nested body followed by one column-0 `fn`
+/// (`specs/fpga/testbench/spi_tb.t27`) hid every declaration in the body, and
+/// the splice pulled a second `spi_transfer` beside the spec's own: zig said
+/// "duplicate struct member name". A name in this set is never pulled.
+fn module_level_names(source: &str) -> HashSet<String> {
+    let mut out = HashSet::new();
+    let mut depth = 0i32;
+    let mut module_open = false;
+    for line in source.lines() {
+        let at_module_level = depth == 0 || (depth == 1 && module_open);
+        if at_module_level {
+            if let Some(name) = decl_name(line) {
+                out.insert(name);
+            }
+        }
+        let t = line.trim_start();
+        if depth == 0 && t.starts_with("module ") && t.contains('{') {
+            module_open = true;
+        }
+        depth += depth_change(line).0;
+        if depth <= 0 {
+            depth = 0;
+            module_open = false;
+        }
     }
     out
 }
@@ -239,6 +400,11 @@ fn qualified_refs(text: &str, modules: &[String]) -> Vec<(String, String, bool)>
 
 /// Every identifier-shaped token in the text, with `//` comments removed so a
 /// doc line cannot invent a dependency.
+///
+/// A token right after `@` is a builtin (`@pow`, `@abs`, `@as`), not a name
+/// the spec reads, so it is left out (#7292). Read as a name, `@pow(x, y)` in
+/// `memory/formula_embed.t27` spliced `math/constants.t27`'s own `pow`, and
+/// with it `floor`, `exp_approx` and `E`, which nothing in the importer calls.
 fn identifiers(text: &str) -> HashSet<String> {
     let mut out = HashSet::new();
     for line in text.lines() {
@@ -247,18 +413,24 @@ fn identifiers(text: &str) -> HashSet<String> {
             None => line,
         };
         let mut cur = String::new();
+        let mut builtin = false;
+        let mut prev = ' ';
         for c in code.chars() {
             if c.is_alphanumeric() || c == '_' {
+                if cur.is_empty() {
+                    builtin = prev == '@';
+                }
                 cur.push(c);
             } else {
-                if !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
+                if !builtin && !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
                     out.insert(std::mem::take(&mut cur));
                 } else {
                     cur.clear();
                 }
             }
+            prev = c;
         }
-        if !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
+        if !builtin && !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
             out.insert(cur);
         }
     }
@@ -456,6 +628,58 @@ fn flatten_qualified(
         .unwrap_or(false)
 }
 
+/// #7281: an item `use` whose items the splice declares has done its work, so
+/// it is written into the resolved text as a comment. Kept as it was, the Zig
+/// backend read `use base::types::Trit;` as an import whenever the body reads
+/// `Trit.neg`, and wrote `const Trit = @import("Trit.zig");` beside the
+/// spliced `Trit`: zig stops at "duplicate struct member name". A brace list
+/// keeps the items the splice did not declare. A whole-module `use`, an alias
+/// and an item the splice did not declare stay as they are. One line in, one
+/// line out, so a line number in a diagnostic still names the importer's line.
+fn consume_spliced_uses(source: &str, specs_root: &Path, pulled: &HashSet<String>) -> String {
+    let mut out = String::with_capacity(source.len());
+    for line in source.split_inclusive('\n') {
+        let text = line.strip_suffix('\n').unwrap_or(line);
+        match consumed_use(text, specs_root, pulled) {
+            Some(new) => {
+                out.push_str(&new);
+                if line.ends_with('\n') {
+                    out.push('\n');
+                }
+            }
+            None => out.push_str(line),
+        }
+    }
+    out
+}
+
+/// The line `consume_spliced_uses` writes for one `use` line, or None to keep it.
+fn consumed_use(line: &str, specs_root: &Path, pulled: &HashSet<String>) -> Option<String> {
+    let expr = use_path_expr(line)?;
+    let (_, whole) = use_target(specs_root, expr)?;
+    if whole || expr.contains(" as ") {
+        return None;
+    }
+    let indent = &line[..line.len() - line.trim_start().len()];
+    let (prefix, items): (&str, Vec<&str>) = match expr.find('{') {
+        Some(open) => {
+            let close = expr.rfind('}')?;
+            let list = expr[open + 1..close].split(',').map(str::trim).filter(|s| !s.is_empty());
+            (&expr[..open], list.collect())
+        }
+        None => ("", vec![expr.rsplit(|c| c == ':' || c == '.').next()?]),
+    };
+    let (spliced, kept): (Vec<&str>, Vec<&str>) = items.iter().partition(|n| pulled.contains(**n));
+    if spliced.is_empty() {
+        return None;
+    }
+    let note = format!("{} spliced below by t27c (#7281)", spliced.join(", "));
+    if kept.is_empty() {
+        return Some(format!("{}// {} -- {}", indent, line.trim(), note));
+    }
+    Some(format!("{}use {}{{{}}}; // {}", indent, prefix, kept.join(", "), note))
+}
+
 pub fn resolve(input_path: &Path, source: &str) -> String {
     let specs_root = match find_specs_root(input_path) {
         Some(r) => r,
@@ -500,12 +724,20 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     }
 
     let local_decls: Vec<Decl> = split_decls(source, "self");
-    let local: HashSet<String> = local_decls.iter().map(|d| d.name.clone()).collect();
-
-    // Module basenames this spec imports, for the qualified-reference rewrite.
-    let modules: Vec<String> = use_targets(source, &specs_root)
+    let local: HashSet<String> = local_decls
         .iter()
-        .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+        .map(|d| d.name.clone())
+        .chain(module_level_names(source))
+        .collect();
+
+    // Basenames of the modules this spec imports whole, for the
+    // qualified-reference rewrite (`use_target`: an item's module is not one).
+    let modules: Vec<String> = source
+        .lines()
+        .filter_map(use_path_expr)
+        .filter_map(|e| use_target(&specs_root, e))
+        .filter(|(_, whole)| *whole)
+        .filter_map(|(p, _)| p.file_stem().map(|s| s.to_string_lossy().to_string()))
         .collect();
     let qualified = qualified_refs(source, &modules);
 
@@ -585,7 +817,7 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
 
     // Rewrite `module::name` / `module.name` to the bare name the splice
     // declares. Longest first, so `a::bc` is not damaged by rewriting `a::b`.
-    let mut out = String::from(source);
+    let mut out = consume_spliced_uses(source, &specs_root, &pulled_names);
     // W606: `|| local.contains(name)`.
     //
     // The filter used to accept only names the splice PULLED, so a qualified
@@ -847,10 +1079,51 @@ mod tests {
     }
 
     #[test]
+    fn split_decls_keeps_a_header_split_over_lines_with_its_body() {
+        let src = "fn f(\n    a: []u8,\n    n: usize,\n) -> u8 {\n    return a[n];\n}\nfn g() -> u8 {\n    return 2;\n}\n";
+        let d = split_decls(src, "m");
+        let names: Vec<&str> = d.iter().map(|x| x.name.as_str()).collect();
+        assert_eq!(names, ["f", "g"]);
+        assert!(d[0].text.ends_with("    return a[n];\n}"), "{}", d[0].text);
+        assert!(!d[0].text.contains("return 2;"));
+    }
+
+    #[test]
+    fn depth_change_skips_char_literals_strings_and_prose() {
+        assert_eq!(depth_change("    if (t > f and s[f] == '\"') { f += 1; }"), (0, 0, 0));
+        assert_eq!(depth_change("    if (c == '(') {"), (1, 0, 0));
+        assert_eq!(depth_change("    if (c == '\\'') {"), (1, 0, 0));
+        assert_eq!(depth_change("    const S = \"a\\\"(\"; // (x"), (0, 0, 0));
+        assert_eq!(depth_change("; prose (see the table"), (0, 0, 0));
+        assert_eq!(depth_change("fn f("), (0, 0, 1));
+    }
+
+    #[test]
+    fn split_decls_ends_a_body_whose_line_holds_a_quote_char() {
+        let src = "fn trim(s: []u8, f: usize) -> usize {\n    if (s[f] == '\"') { return 1; }\n    return 0;\n}\nfn g() -> u8 {\n    return 2;\n}\n";
+        let d = split_decls(src, "m");
+        let names: Vec<&str> = d.iter().map(|x| x.name.as_str()).collect();
+        assert_eq!(names, ["trim", "g"]);
+    }
+
+    #[test]
     fn identifiers_ignores_comments() {
         let ids = identifiers("let x = y; // mentions zzz\n");
         assert!(ids.contains("y"));
         assert!(!ids.contains("zzz"));
+    }
+
+    /// #7292: a builtin is not a name. `x@pow` cannot occur, so only the
+    /// token that starts right after `@` is dropped, and its arguments stay.
+    #[test]
+    fn identifiers_skips_a_builtin_but_keeps_its_arguments() {
+        let ids = identifiers("return @pow(base, @as(f64, exp)) + pow(a, b);\n");
+        for name in ["base", "exp", "f64", "pow", "a", "b"] {
+            assert!(ids.contains(name), "{} missing from {:?}", name, ids);
+        }
+        assert!(!ids.contains("as"), "{:?}", ids);
+        let only = identifiers("return @pow(base, 2.0);\n");
+        assert!(!only.contains("pow"), "{:?}", only);
     }
 }
 
@@ -1013,3 +1286,240 @@ mod alias_tests {
     }
 }
 
+
+#[cfg(test)]
+mod missing_use_tests {
+    use super::*;
+
+    /// A scratch `specs/` holding `a/b.t27`, so a target can exist or not.
+    fn specs_with_a_b(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir()
+            .join(format!("t27c-7176-{}-{}", std::process::id(), tag))
+            .join("specs");
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("a")).expect("dir");
+        std::fs::write(d.join("a/b.t27"), "module b;\npub const K : u8 = 3;\n").expect("write");
+        d
+    }
+
+    const SRC: &str = "module m;\n\
+                       use a::b;\n\
+                       use a::gone;   // a note\n\
+                       use a::b::Item;\n\
+                       use a::b::{X, Y};\n\
+                       // use a::commented;\n\
+                       use a.b;\n\
+                       use a::gone::{X};\n\
+                       use gone;\n";
+
+    #[test]
+    fn a_use_line_is_read_the_way_the_resolver_reads_it() {
+        assert_eq!(use_path_expr("use a::b::c;"), Some("a::b::c"));
+        assert_eq!(use_path_expr("    use igla::race::cordic;   // note"), Some("igla::race::cordic"));
+        assert_eq!(use_path_expr("use sandbox.session;"), Some("sandbox.session"));
+        assert_eq!(use_path_expr("use = 24,"), None);
+        assert_eq!(use_path_expr("use ;"), None);
+        assert_eq!(use_path_expr("// use a::b;"), None);
+        assert_eq!(use_path_expr("user::x;"), None);
+    }
+
+    #[test]
+    fn each_use_line_the_resolver_drops_is_named_by_line() {
+        let root = specs_with_a_b("lines");
+        let notes = missing_uses("m.t27", SRC, Some(&root));
+        let lines: Vec<&str> = notes
+            .iter()
+            .map(|n| n.split(": use ").next().unwrap_or(""))
+            .collect();
+        assert_eq!(lines, vec!["warning: m.t27:3", "warning: m.t27:8", "warning: m.t27:9"], "{:#?}", notes);
+        assert_eq!(
+            notes[0],
+            format!(
+                "warning: m.t27:3: use a::gone resolves to no spec: no spec at {}, nor a module at {} to take the item from; nothing is spliced from it (#7176)",
+                root.join("a/gone.t27").display(),
+                root.join("a.t27").display()
+            )
+        );
+        assert_eq!(
+            notes[1],
+            format!(
+                "warning: m.t27:8: use a::gone::{{X}} resolves to no spec: no spec at {} (the module a brace list takes its items from); nothing is spliced from it (#7176)",
+                root.join("a/gone.t27").display()
+            )
+        );
+        assert_eq!(
+            notes[2],
+            format!(
+                "warning: m.t27:9: use gone resolves to no spec: no spec at {}; nothing is spliced from it (#7176)",
+                root.join("gone.t27").display()
+            )
+        );
+    }
+
+    /// #5552 and #2537: an item and a brace list name the module that holds
+    /// them, one level up and no further, and only a whole-module line is whole.
+    #[test]
+    fn an_item_or_a_brace_list_names_its_module() {
+        let root = specs_with_a_b("kinds");
+        let ab = root.join("a/b.t27");
+        assert_eq!(use_target(&root, "a::b"), Some((ab.clone(), true)));
+        assert_eq!(use_target(&root, "a.b"), Some((ab.clone(), true)));
+        assert_eq!(use_target(&root, "a::b::Item"), Some((ab.clone(), false)));
+        assert_eq!(use_target(&root, "a.b.Item"), Some((ab.clone(), false)));
+        assert_eq!(use_target(&root, "a::b::{X, Y}"), Some((ab.clone(), false)));
+        assert_eq!(use_target(&root, "a::b::c::Item"), None);
+        assert_eq!(use_target(&root, "a::gone::{X}"), None);
+        assert_eq!(use_target(&root, "{X}"), None);
+        assert_eq!(use_target(&root, "b"), None);
+        assert_eq!(brace_module("a::b::{X, Y}"), Some("a::b"));
+        assert_eq!(brace_module("a.b.{X}"), Some("a.b"));
+        assert_eq!(brace_module("a::b"), None);
+    }
+
+    /// The splice reads an item's module; the module's basename stays out of
+    /// the qualified-reference rewrite unless the whole module is imported.
+    #[test]
+    fn an_item_use_splices_from_its_module_without_making_it_a_qualifier() {
+        let root = specs_with_a_b("splice");
+        let input = root.join("m.t27");
+        let item = "module m;\nuse a::b::K;\n\npub fn k() -> u8 {\n    return K;\n}\n";
+        let out = resolve(&input, item);
+        assert!(out.contains("pub const K : u8 = 3;"), "{}", out);
+        let brace = "module m;\nuse a::b::{K};\n\npub fn k() -> u8 {\n    return K;\n}\n";
+        assert!(resolve(&input, brace).contains("pub const K : u8 = 3;"));
+        let through_item = "module m;\nuse a::b::K;\n\npub fn k() -> u8 {\n    return b::K;\n}\n";
+        assert!(resolve(&input, through_item).contains("return b::K;"));
+        let through_module = "module m;\nuse a::b;\n\npub fn k() -> u8 {\n    return b::K;\n}\n";
+        let out = resolve(&input, through_module);
+        assert!(out.contains("return K;") && !out.contains("b::K"), "{}", out);
+    }
+
+    /// Listing a name does not pick between two modules that declare it: it
+    /// stays UNRESOLVED, as with whole-module imports. Rust's rule (an explicit
+    /// import outranks a glob) was tried and measured on the corpus: in
+    /// `specs/base/ring_32.t27` it chose math/sacred_physics' TRINITY, whose
+    /// closure declares `PHI` as `constants::PHI`, and the splice rewrites
+    /// qualifiers in the importer only, so zig failed on `constants` where the
+    /// unspliced output passed its test.
+    #[test]
+    fn a_listed_item_two_modules_declare_stays_unresolved() {
+        let root = specs_with_a_b("listed");
+        std::fs::write(root.join("a/c.t27"), "module c;\npub const K : u8 = 4;\n").expect("write");
+        let input = root.join("m.t27");
+        let body = "\n\npub fn k() -> u8 {\n    return K;\n}\n";
+        for line in ["use a::b::{ K };", "use a::b::K;", "use a::b;"] {
+            let out = resolve(&input, &format!("module m;\nuse a::c;\n{}{}", line, body));
+            assert!(out.contains("UNRESOLVED K"), "{}: {}", line, out);
+            assert!(!out.contains("= 3;") && !out.contains("= 4;"), "{}: {}", line, out);
+        }
+    }
+
+    /// `specs/fpga/testbench/spi_tb.t27`'s shape: a module body at four spaces
+    /// and one `fn` at column 0. The body's own `K` is the importer's, so the
+    /// module's `K` is not pulled beside it.
+    #[test]
+    fn a_name_the_importer_declares_in_a_nested_body_is_not_pulled() {
+        let root = specs_with_a_b("nested");
+        let input = root.join("m.t27");
+        let src = "module m {\n    use a::b::K;\n\n    const K : u8 = 9;\n\n    fn k() -> u8 {\n        const J : u8 = 1;\n        return K + J;\n    }\n}\nfn tail() -> u8 { return K; }\n";
+        let out = resolve(&input, src);
+        assert!(out.contains("const K : u8 = 9;") && !out.contains("= 3;"), "{}", out);
+        let names = module_level_names(src);
+        let mut sorted: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        sorted.sort();
+        assert_eq!(sorted, ["K", "k", "tail"]);
+        let flat = "module m;\nconst A : u8 = 1;\ntest t {\n    const B : u8 = 2;\n}\nfn f() -> u8 {\n    const C : u8 = 3;\n    return C;\n}\n";
+        let mut sorted: Vec<String> = module_level_names(flat).into_iter().collect();
+        sorted.sort();
+        assert_eq!(sorted, ["A", "f"]);
+    }
+
+    #[test]
+    fn with_no_specs_directory_every_use_line_is_named() {
+        let notes = missing_uses("/tmp/q/m.t27", SRC, None);
+        assert_eq!(notes.len(), 7, "{:#?}", notes);
+        assert_eq!(
+            notes[0],
+            "warning: /tmp/q/m.t27:2: use a::b resolves to no spec: no specs/ directory above /tmp/q/m.t27; nothing is spliced from it (#7176)"
+        );
+        assert!(missing_uses("m.t27", "module m;\npub const N : u8 = 1;\n", None).is_empty());
+    }
+
+    /// The splice and the warning read one line the same way: every `use`
+    /// line is either a target `use_targets` returns or a warning, never both
+    /// and never neither.
+    #[test]
+    fn every_use_line_is_spliced_or_named() {
+        let root = specs_with_a_b("agree");
+        let read = SRC.lines().filter_map(use_path_expr).count();
+        let targets = use_targets(SRC, &root);
+        let notes = missing_uses("m.t27", SRC, Some(&root));
+        assert_eq!(read, 7);
+        assert_eq!(targets.len(), 4, "{:?}", targets);
+        assert_eq!(targets.len() + notes.len(), read);
+    }
+
+    /// #7281: the item a `use` names is spliced, so the line is a comment and
+    /// the Zig backend imports nothing for it. Kept as a `use`, the same text
+    /// lowers `E.y` through `const E = @import("E.zig");` beside the spliced
+    /// `E` -- the control below shows that, so this test cannot pass on a
+    /// backend that stopped importing for another reason.
+    #[test]
+    fn a_spliced_item_use_is_written_as_a_comment() {
+        let root = specs_with_a_b("consume");
+        let b = "module b;\npub const K : u8 = 3;\npub const E = enum(u8) {\n    x = 0,\n    y = 1,\n};\n";
+        std::fs::write(root.join("a/b.t27"), b).expect("write");
+        let input = root.join("m.t27");
+        let src = "module m;\nuse a::b::E;\n\npub fn e() -> E {\n    return E.y;\n}\n";
+        let out = resolve(&input, src);
+        let note = "// use a::b::E; -- E spliced below by t27c (#7281)";
+        assert_eq!(out.lines().nth(1), Some(note), "{}", out);
+        assert_eq!(out.lines().nth(3), Some("pub fn e() -> E {"), "{}", out);
+        assert!(out.contains("pub const E = enum(u8) {"), "{}", out);
+        let zig = crate::compiler::Compiler::compile(&out).expect("gen");
+        assert!(!zig.contains("@import(\"E.zig\")"), "{}", zig);
+        let kept = crate::compiler::Compiler::compile(&out.replace(note, "use a::b::E;")).expect("gen");
+        assert!(kept.contains("const E = @import(\"E.zig\");"), "{}", kept);
+    }
+
+    /// A brace list keeps what the splice did not declare; a whole-module
+    /// `use`, an alias, and an item the importer declares itself stay as written.
+    #[test]
+    fn only_the_spliced_items_of_a_use_are_consumed() {
+        let root = specs_with_a_b("consume-kinds");
+        let input = root.join("m.t27");
+        let body = "\n\npub fn k() -> u8 {\n    return K;\n}\n";
+        let out = resolve(&input, &format!("module m;\n    use a::b::{{K, Q}};{}", body));
+        assert_eq!(
+            out.lines().nth(1),
+            Some("    use a::b::{Q}; // K spliced below by t27c (#7281)"),
+            "{}",
+            out
+        );
+        let out = resolve(&input, &format!("module m;\nuse a::b::{{ K }};{}", body));
+        assert_eq!(out.lines().nth(1), Some("// use a::b::{ K }; -- K spliced below by t27c (#7281)"));
+        for line in ["use a::b;", "use a::b::K as L;", "use a::b::Q;"] {
+            let out = resolve(&input, &format!("module m;\n{}{}", line, body));
+            assert_eq!(out.lines().nth(1), Some(line), "{}", out);
+        }
+        let local = "module m;\nuse a::b::K;\nconst K : u8 = 9;\npub fn k() -> u8 {\n    return K;\n}\n";
+        assert_eq!(resolve(&input, local).lines().nth(1), Some("use a::b::K;"));
+    }
+
+    /// #7292: an importer that reads `@pow` splices no `pow`. The control
+    /// calls `pow` by name and gets it, so the test cannot pass because the
+    /// splice stopped working.
+    #[test]
+    fn a_builtin_call_splices_no_namesake() {
+        let root = specs_with_a_b("builtin");
+        let b = "module b;\npub const K : f64 = 3.0;\npub fn pow(x: f64, y: f64) -> f64 {\n    return x;\n}\n";
+        std::fs::write(root.join("a/b.t27"), b).expect("write");
+        let input = root.join("m.t27");
+        let src = "module m;\nuse a::b::K;\n\npub fn sq() -> f64 {\n    return @pow(K, 2.0);\n}\n";
+        let out = resolve(&input, src);
+        assert!(out.contains("pub const K : f64 = 3.0;"), "{}", out);
+        assert!(!out.contains("pub fn pow("), "{}", out);
+        let named = resolve(&input, &src.replace("@pow(", "pow("));
+        assert!(named.contains("pub fn pow("), "{}", named);
+    }
+}

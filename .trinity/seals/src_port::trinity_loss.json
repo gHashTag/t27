@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:20f24f8e2a92ee01dd7049becbceedcda6d2ea12dd530e2263911e9f57859a4c",
+  "gen_hash_rust": "sha256:64e687d3b463a7a78833e6401af807b67b4fabb6754c028ebf97a6efe759d592",
+  "gen_hash_verilog": "sha256:3d255d22580b0d38925925d796dc73f8ddabaa7e0cdbb3c45e58a385e48d5a37",
+  "gen_hash_zig": "sha256:8101c5b23c10cc5848fe328d823ec7faf201dcdd96c6733b66744834694cc4fd",
+  "module": "port::trinity_loss",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d3c2e87cf2ea3e97f3cf1166515b99f1180d1dac569051305e36cc53b9a531c1",
+  "spec_path": "specs/port/trios/crates/trinity_loss/src/lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

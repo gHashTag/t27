@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:77df16172b4f9e4ee305916af2686d08ccf6966366b13a4b179bcff51faf8087",
+  "gen_hash_rust": "sha256:e77265ca5925aa9264b5b22af7d1565a3caa9329b881566b739aec2dd171d4b2",
+  "gen_hash_verilog": "sha256:0e94d40710d80759db124849cddbcd41be732480275f70ecadcad48d6233a2ad",
+  "gen_hash_zig": "sha256:69fff3f873a9cde8b580252785f11f09bc15db7efbfb098fd271a81bb69451c4",
+  "module": "T27bOpaquePlan",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:21dd1d4e98deb603f3c47a7ed8c37230ba584261ddb839bbc7a5bfb94e28706c",
+  "spec_path": "specs/tri/t27b/opaque_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

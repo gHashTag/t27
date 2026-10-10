@@ -1,0 +1,16 @@
+// P2 slice 2 (#5980): an enum value cast to an integer. gen-c writes a C
+// cast and runs it; `t27c gen` writes `@intCast` on the enum, which Zig
+// rejects (#8006), and t27b refuses the cast.
+module enum_cast;
+enum EcaMode {
+    off = 0,
+    on = 5,
+    auto,
+}
+fn eca_code(m: EcaMode) -> u8 {
+    return m as u8;
+}
+test eca_codes {
+    assert(eca_code(EcaMode.auto) == 6);
+    assert(eca_code(.on) == 5);
+}

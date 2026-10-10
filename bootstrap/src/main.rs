@@ -45,12 +45,82 @@ mod sensitivity;
 mod runtime;
 mod neural;
 mod ternary;
+// specs/isa/t27a.t27 (with the T736 field table it uses from
+// specs/isa/ternary_encoding.t27), lowered by `t27c gen-rust`. It drives
+// `t27c asm` / `t27c disasm` (#6507). Never hand-edit: regenerate it, and
+// bootstrap/tests/t27a_cli.rs fails when the copy drifts from the spec.
+#[path = "../gen/rust/isa/t27a.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod t27a;
+// specs/verified/signed_receipt.t27 (R3-1, #7332), lowered by `t27c gen-rust`:
+// the receipt constants and decisions service.rs calls. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when the copy drifts.
+#[path = "../gen/rust/verified/signed_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod signed_receipt;
+// specs/verified/die_binding.t27 (R3-2, #7452): the v2 message and the die level.
+#[path = "../gen/rust/verified/die_binding.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod die_binding;
+// specs/verified/corpus_receipt.t27 (#7576): corpus receipt layout and compare rules. Its RFC 6962 tree
+// (vectors: corpus_merkle.t27) runs below on the sha2 crate until gen-rust lowers slices (#7469).
+#[path = "../gen/rust/verified/corpus_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod corpus_receipt;
+use corpus_receipt as cr;
+// specs/verified/ddc_receipt.t27 (#7699): a DDC run of t27core as a signed receipt, judged by T732's ddc_verdict.
+#[path = "../gen/rust/verified/ddc_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ddc_receipt;
+fn cr_sha(parts: &[&[u8]]) -> [u8; 32] { use sha2::Digest; parts.iter().fold(sha2::Sha256::new(), |h, p| h.chain_update(p)).finalize().into() }
+fn cr_root(l: &[String]) -> [u8; 32] { let k = cr::split_point(l.len() as u32) as usize;
+    if l.len() < 2 { l.first().map_or(cr_sha(&[]), |x| cr_sha(&[&[cr::LEAF_PREFIX], x.as_bytes()])) } else { cr_sha(&[&[cr::NODE_PREFIX], &cr_root(&l[..k]), &cr_root(&l[k..])]) } }
+fn cr_pair(a: &str, b: &str) -> String { let (a, b): (&'static str, &'static str) = (Box::leak(a.into()), Box::leak(b.into())); (0..cr::pair_len(a, b)).map(|k| cr::pair_char(a, b, k) as u8 as char).collect() }
+fn cr_leaves(v: &serde_json::Value, n: &str) -> Vec<String> { v["leaves"][n].as_array().into_iter().flatten().filter_map(|s| s.as_str().map(String::from)).collect() }
+// specs/tri/crypto/{sha256,ed25519}.t27 (ed25519 carries sha512.t27), lowered by
+// `t27c gen-rust`: receipt key ids, signing and verification. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when a copy drifts.
+#[path = "../gen/rust/tri/crypto/sha256.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod sha256;
+#[path = "../gen/rust/tri/crypto/ed25519.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ed25519;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
 mod behavior_sva_v2;
 mod service;
 mod phi_selfcheck;
+// specs/verified/run_record.t27 with the receipt.t27 rules it uses, lowered by
+// `t27c gen-rust`; `t27c run-record` calls it. Never hand-edit it.
+#[path = "../gen/rust/verified/run_record.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod run_record;
+// specs/verified/independence.t27 (R3-3, #7497): whether three placements are independent evidence.
+#[path = "../gen/rust/verified/independence.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod independence;
+// specs/compiler/test_report_exit.t27 (#7370): the exit code of `t27c test-report <spec>`.
+#[path = "../gen/rust/compiler/test_report_exit.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod test_report_exit;
+// specs/verified/seal_identity.t27 (#8095): seal v2 identity, SEAL_CONFIG, the per-node reuse decision.
+#[path = "../gen/rust/verified/seal_identity.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod seal_identity;
+// specs/verified/silicon_queue.t27 (#8095 step 5): the bench queue and the reseal guard.
+#[path = "../gen/rust/verified/silicon_queue.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod silicon_queue;
+// specs/verified/bench_agent.t27 (#8153): what the agent next to a board does with a job.
+#[path = "../gen/rust/verified/bench_agent.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bench_agent;
+// specs/verified/bitstream_reuse.t27 (#8095): when `t27c silicon` loads a bitstream it built before.
+#[path = "../gen/rust/verified/bitstream_reuse.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bitstream_reuse;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -69,7 +139,6 @@ mod tt_profile;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use sha2::{Sha256, Digest};
 #[cfg(feature = "server")]
 use std::env;
 use std::fs;
@@ -169,6 +238,11 @@ enum Commands {
         /// holds across seeds has its cause in FASM or bitstream generation.
         #[arg(long)]
         pnr_seed: Option<u32>,
+        /// R3-1 (#7332): the verifier's challenge, in hex (at least 16 bytes).
+        /// It is a signed field of the receipt, so the receipt can be FRESH for
+        /// this verifier and only AUTHOR for any other (signed_receipt.t27).
+        #[arg(long)]
+        nonce: Option<String>,
     },
 
     /// THE SERVICE: compare a table PRINTED in a paper against the script that
@@ -282,6 +356,66 @@ enum Commands {
         #[arg(long, value_delimiter = ',', default_value = "1,7,42")]
         seeds: Vec<u32>,
     },
+    /// THE SERVICE (R2-4): read the receipts a spec's hardware runs wrote
+    /// (.trinity/receipts) and judge, by specs/verified/run_record.t27, whether
+    /// they are ONE verified run a verdict record may cite as its run
+    /// reference. Collects the facts, never repairs the record.
+    /// #8095: every spec, REUSE or the reason to rebuild (specs/verified/seal_identity.t27).
+    Frontier { /// Also print each spec that must be rebuilt, with its reason code.
+        #[arg(long)] list: bool },
+    /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
+    SiliconQueue,
+    /// #8153: the agent next to a board (specs/verified/bench_agent.t27). Runs owner-approved jobs (open
+    /// issues labelled bench-job) with `t27c silicon` on the local cable, SRAM only, and answers each with
+    /// its receipt. Outbound only. Pause it by creating $TMPDIR/t27-bench-agent-paused.
+    BenchAgent {
+        /// The local cable, from `t27c boards`
+        #[arg(long)] busdev_num: String,
+        /// The control: a bitstream for the WRONG PART, which the die must refuse
+        #[arg(long)] wrong_part: String,
+        /// Look at the jobs once and exit
+        #[arg(long)] once: bool },
+    RunRecord {
+        /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
+        input: String,
+        /// R3-1 (#7332): the nonce this verifier gave `t27c silicon --nonce`, in
+        /// hex (at least 16 bytes). With it a receipt can reach level FRESH.
+        #[arg(long)]
+        challenge: Option<String>,
+        /// The authentication level a citation requires: none, author or fresh
+        /// (specs/verified/signed_receipt.t27). Default none: unsigned runs stay citable.
+        #[arg(long, default_value = "none")]
+        require_level: String,
+        /// The directory of receipts to judge as one run; an archived run lives in a subdirectory.
+        #[arg(long, default_value = ".trinity/receipts")]
+        receipts: String,
+        /// Also write the judgment as JSON to this path (the Spec Explorer's Chip tab reads it).
+        #[arg(long)]
+        json: Option<String>,
+    },
+
+    /// R3-1 (#7332): this host's receipt signing key. `init` creates an Ed25519
+    /// key outside the repository ($T27_RECEIPT_KEY, else
+    /// ~/.config/t27/receipt-ed25519.key, mode 600) and writes its public half to
+    /// .trinity/keys/<key id>.pub to be committed; `show` names the key
+    /// `t27c silicon` would sign with. The private half is never printed.
+    ReceiptKey {
+        #[arg(value_parser = ["init", "show"])]
+        action: String,
+    },
+    /// #7576: `sign RUN.json T27B [--nonce N] [--runner CMD]` prints a signed corpus receipt of a t27b lab run;
+    /// `compare BASE HEAD [--challenge N] [--challenge-head N]` checks two, names every changed file and judges the
+    /// pair as a lane (#7672); `admit SHA AGE,INDEX,ON_ORIGIN` judges a lab request.
+    CorpusReceipt {
+        #[arg(value_parser = ["sign", "compare", "admit"])] action: String,
+        a: String, b: String,
+        #[arg(long, alias = "challenge")] nonce: Option<String>,
+        #[arg(long)] challenge_head: Option<String>,
+        #[arg(long)] runner: Option<String>,
+    },
+    /// #7699: `sign RUN.json [--nonce N]` signs a DDC run of t27core; `verify RECEIPT [--challenge N]` checks one and
+    /// prints T732's verdict over its routes (specs/verified/ddc_receipt.t27); `due RUN.json [LAST]` exits 0 to run DDC.
+    DdcReceipt { #[arg(value_parser = ["sign", "verify", "due"])] action: String, a: String, b: Option<String>, #[arg(long, alias = "challenge")] nonce: Option<String> },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
@@ -425,9 +559,17 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         verbose: bool,
     },
+    /// Print every `use` edge as "importer<TAB>imported" for specs/ci/affected.t27 (#7565)
+    UseEdges {
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+    },
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
+    ///
+    /// One spec exits 1 when a test FAILs and 2 when it is BLOCKED (#7370,
+    /// specs/compiler/test_report_exit.t27); T27C_TEST_REPORT_EXIT_ZERO=1 exits 0.
     TestReport {
         /// The .t27 spec to measure. Omit with --all to measure the tree.
         #[arg(default_value = "")]
@@ -1068,18 +1210,6 @@ enum Commands {
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
         output: Option<String>,
-    },
-
-    /// Assemble ternary assembly source into machine code
-    Asm {
-        /// Input .t27 assembly source file
-        input: String,
-        /// Output binary file path (stdout if omitted)
-        #[arg(short, long)]
-        output: Option<String>,
-        /// Output format: binary, hex, or vlog (Verilog $readmemh)
-        #[arg(long, default_value = "hex")]
-        format: String,
     },
 
     /// Generate testbench from .t27 HIR module
@@ -1862,6 +1992,20 @@ enum Commands {
     FrozenDigest {
         /// File to digest (default: bootstrap/src/compiler.rs)
         path: Option<String>,
+    },
+
+    /// Assemble TRI-27 text, one instruction per line, to 32-bit words (specs/isa/t27a.t27)
+    #[command(name = "asm")]
+    Asm {
+        /// Source file; `-` or nothing reads stdin. Blank lines are skipped.
+        input: Option<String>,
+    },
+
+    /// Disassemble 32-bit TRI-27 words to text, one listing per line (specs/isa/t27a.t27)
+    #[command(name = "disasm")]
+    Disasm {
+        /// Words as 0x-hex or decimal; none reads whitespace-separated words from stdin
+        words: Vec<String>,
     },
 
     /// Build an openXC7/nextpnr chipdb for a Xilinx 7-series part
@@ -2807,7 +2951,7 @@ async fn global_event_handler(State(state): State<AppState>) -> impl IntoRespons
 async fn compile_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile) {
         Ok(zig_code) => (
             StatusCode::OK,
             Json(CompileResponse {
@@ -2855,7 +2999,7 @@ async fn parse_handler(
 async fn gen_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2879,7 +3023,7 @@ async fn gen_handler(
 async fn gen_verilog_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile_verilog(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile_verilog) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2903,7 +3047,7 @@ async fn gen_verilog_handler(
 async fn gen_c_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile_c(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile_c) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2927,7 +3071,7 @@ async fn gen_c_handler(
 async fn gen_rust_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile_rust(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile_rust) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2954,28 +3098,28 @@ async fn seal_handler(
     let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
 
     let mut gen_failures: Vec<serde_json::Value> = Vec::new();
-    let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
+    let gen_hash_zig = match gated_backend(&req.source, compiler::Compiler::compile) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "zig", "error": e.to_string()}));
             "none".to_string()
         }
     };
-    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
+    let gen_hash_verilog = match gated_backend(&req.source, compiler::Compiler::compile_verilog) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "verilog", "error": e.to_string()}));
             "none".to_string()
         }
     };
-    let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
+    let gen_hash_c = match gated_backend(&req.source, compiler::Compiler::compile_c) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "c", "error": e.to_string()}));
             "none".to_string()
         }
     };
-    let gen_hash_rust = match compiler::Compiler::compile_rust(&req.source) {
+    let gen_hash_rust = match gated_backend(&req.source, compiler::Compiler::compile_rust) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "rust", "error": e.to_string()}));
@@ -3750,6 +3894,12 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
             (t.passed as f64) * 100.0 / (t.tests as f64)
         );
     }
+    // #6509: a pass that executed no runtime assert certifies nothing (T730).
+    println!();
+    println!("  checked passes           {}   (executed at least one runtime assert)", t.checked);
+    println!("  VACUOUS passes           {}   (executed 0 runtime asserts, #6509)", t.vacuous);
+    println!("  uncounted passes         {}   (counting build did not compile)", t.not_counted);
+    println!("  specs every pass vacuous {}   (t27b pass_vacuous, #6115)", t.vacuous_specs);
     println!();
     println!("  Five populations, deliberately not merged. BLOCKED never produced");
     println!("  a binary. INVARIANTS ONLY has no test functions but its invariants");
@@ -3758,6 +3908,26 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
     println!("  violation overstates the debt. NO TESTS has declarations and");
     println!("  checks none of them -- that is the L4 violation. Only MEASURED");
     println!("  specs have a rate.");
+    Ok(())
+}
+
+/// #7565: every `use` edge under `specs_dir`, "importer\timported", sorted -- the `--graph`
+/// section specs/ci/affected.t27 reads, from the resolver t27c compiles with.
+fn run_use_edges(specs_dir: &Path) -> anyhow::Result<()> {
+    let mut files = Vec::new();
+    for e in walkdir::WalkDir::new(specs_dir) {
+        let p = e?.into_path();
+        if p.extension().is_some_and(|x| x == "t27") {
+            files.push(p);
+        }
+    }
+    files.sort();
+    for f in files {
+        let src = fs::read_to_string(&f).with_context(|| format!("{}", f.display()))?;
+        for t in use_resolve::use_edges(&src, specs_dir) {
+            println!("{}\t{}", f.display(), t.display());
+        }
+    }
     Ok(())
 }
 
@@ -3773,7 +3943,7 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         println!();
         println!("  A blocked spec is not a failing one. It never produced a");
         println!("  binary, so it has no per-test result to report.");
-        return Ok(());
+        return test_report_exit_now(&r);
     }
     for o in &r.outcomes {
         if !o.passed {
@@ -3797,6 +3967,26 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
             "  rate    {:.1}%",
             (r.passed as f64) * 100.0 / (r.total as f64)
         );
+    }
+    // #6509: per-test runtime assert counts and the vacuous-pass summary,
+    // after the totals so the lines above read exactly as before.
+    let lines = r.assert_lines();
+    if !lines.is_empty() {
+        println!();
+        for l in lines {
+            println!("{}", l);
+        }
+    }
+    test_report_exit_now(&r)
+}
+
+/// #7370: exit as specs/compiler/test_report_exit.t27 says, once the report is printed.
+fn test_report_exit_now(r: &test_report::Report) -> anyhow::Result<()> {
+    let var: &'static str = Box::leak(std::env::var(test_report_exit::OPT_OUT_VAR).unwrap_or_default().into());
+    let code = test_report_exit::exit_with(r.blocked.is_some(), r.failed as u64, test_report_exit::opted_out(var));
+    if code != test_report_exit::EXIT_GREEN {
+        std::io::Write::flush(&mut std::io::stdout())?;
+        std::process::exit(code as i32);
     }
     Ok(())
 }
@@ -4345,9 +4535,82 @@ fn run_check_calls(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()>
     Ok(())
 }
 
+/// #6446: the source a file-based command typechecks, chosen the way
+/// `run_typecheck` always chose it -- the `use`-spliced source if it parses,
+/// else the raw file (the second field says the raw one was used). `None` when
+/// neither parses: that is a parse error, and the backend reports it in its own
+/// words.
+fn typecheck_input_ast(path: &Path, raw: &str) -> Option<(compiler::Node, bool)> {
+    let spliced = use_resolve::resolve(path, raw);
+    match compiler::Compiler::parse_ast(&spliced) {
+        Ok(ast) => Some((ast, false)),
+        Err(_) => compiler::Compiler::parse_ast(raw).ok().map(|ast| (ast, true)),
+    }
+}
+
+/// #6446: the refusal text, or `None` when typecheck accepts the AST.
+fn typecheck_refusal_for_ast(label: &str, ast: &compiler::Node) -> Option<String> {
+    let result = compiler::typecheck_ast(ast);
+    if result.ok {
+        return None;
+    }
+    let mut msg = format!(
+        "typecheck refused {}: {} error(s), so nothing is generated for it (#6446)",
+        label, result.error_count
+    );
+    for err in &result.errors {
+        msg.push_str("\n  - ");
+        msg.push_str(err);
+    }
+    Some(msg)
+}
+
+/// #6446: every gen path runs typecheck first. `tri misread` found 35 specs
+/// that typecheck refused while `gen`, `gen-rust` and the rest emitted code for
+/// them anyway -- `pub f: ,`, a field with no type, generated as Rust that does
+/// not compile, and every gate that only asked "did gen exit 0?" stayed green.
+/// A refused spec now generates nothing and the command exits non-zero with
+/// the same messages `t27c typecheck` prints. There is no flag to skip this:
+/// a skip flag would be the next gate that stays green.
+fn typecheck_gate(path: &Path, raw: &str) -> anyhow::Result<()> {
+    // #7176: a `use` the splice finds no spec for is named here, once per gen
+    // command, before anything that could fail on the names it would have
+    // brought. A warning: the exit code and stdout do not change.
+    for note in use_resolve::missing_use_notes(path, raw) {
+        eprintln!("{}", note);
+    }
+    if let Some((ast, _)) = typecheck_input_ast(path, raw) {
+        if let Some(msg) = typecheck_refusal_for_ast(&path.display().to_string(), &ast) {
+            anyhow::bail!("{}", msg);
+        }
+    }
+    Ok(())
+}
+
+/// #6446: the same gate for a source with no file behind it (the HTTP server,
+/// `compile-all`, `compile-project`). No `use` splice, since there is no path to
+/// resolve imports from.
+fn typecheck_refusal_for_source(label: &str, source: &str) -> Option<String> {
+    let ast = compiler::Compiler::parse_ast(source).ok()?;
+    typecheck_refusal_for_ast(label, &ast)
+}
+
+/// #6446: run `backend` only on a source typecheck accepts.
+#[cfg_attr(not(feature = "server"), allow(dead_code))]
+fn gated_backend(
+    source: &str,
+    backend: fn(&str) -> Result<String, String>,
+) -> Result<String, String> {
+    match typecheck_refusal_for_source("source", source) {
+        Some(msg) => Err(msg),
+        None => backend(source),
+    }
+}
+
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     // W569: `use a::b::c` was parsed and then ignored, so a spec failed on
     // names declared in exactly the module it imported. Splice in the
     // declarations this spec actually needs before compiling.
@@ -4387,6 +4650,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
 ) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
 
     // The path, not just the source: `use base::ops;` names a file, and until
     // it is read the backend emits `Trit_neg` with nothing declaring it. See
@@ -4418,6 +4682,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
 fn run_gen_verilog_for_simulation(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
     match compiler::Compiler::compile_verilog_for_simulation(&source) {
         Ok(verilog) => print!("{}", verilog),
         Err(e) => anyhow::bail!("Simulation Verilog generation error: {}", e),
@@ -4443,6 +4708,7 @@ fn run_gen_verilog_hir(
 ) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
 
     match compiler::Compiler::compile_verilog_hir(&source) {
         Ok(verilog) => {
@@ -4466,6 +4732,7 @@ fn run_gen_verilog_hir(
 fn run_icarus_simulate(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
     let verilog = compiler::Compiler::compile_verilog_for_simulation_at(&source, path)
         .map_err(|e| anyhow::anyhow!("Verilog generation error: {}", e))?;
 
@@ -4601,6 +4868,7 @@ fn run_icarus_cocotb(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", input_path))?;
+    typecheck_gate(path, &source)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -5147,68 +5415,10 @@ fn run_gen_phi_selfcheck(
     Ok(())
 }
 
-fn run_asm(input_path: &str, output: Option<&str>, format: &str) -> anyhow::Result<()> {
-    let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    let ast = compiler::Compiler::parse_ast(&source)
-        .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
-
-    let config = compiler::AsmConfig::new("t27c_asm");
-    let mut asm = compiler::HirAssembler::with_config(config);
-    for node in &ast.children {
-        if node.kind == compiler::NodeKind::FnDecl {
-            if !node.name.is_empty() {
-                asm.define_symbol(&node.name, true);
-            }
-        }
-    }
-    asm.emit_r(0x01, 1, 27, 0);
-    asm.emit_i(0x03, 2, 1, 42);
-    asm.emit_r(0x01, 3, 2, 1);
-    asm.apply_relocations().map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    match format {
-        "hex" => {
-            let words = asm.encode_all();
-            for w in &words {
-                println!("{:08x}", w);
-            }
-        }
-        "binary" => {
-            let bytes = asm.to_binary();
-            match output {
-                Some(out) => fs::write(out, &bytes)?,
-                None => {
-                    use std::io::Write;
-                    std::io::stdout().write_all(&bytes)?;
-                }
-            }
-        }
-        "vlog" => {
-            let words = asm.encode_all();
-            println!("// T27 Assembled Program — {} instructions", words.len());
-            println!("// phi^2 + 1/phi^2 = 3 | TRINITY");
-            if let Some(out) = output {
-                println!("// Output: {}", out);
-            }
-            println!();
-            println!("initial begin");
-            for (i, w) in words.iter().enumerate() {
-                println!("    mem[{}] = 32'h{:08x};", i, w);
-            }
-            println!("end");
-        }
-        _ => anyhow::bail!("unknown asm format: {} (use hex, binary, or vlog)", format),
-    }
-
-    eprintln!("Assembled {} instructions, {} bytes", asm.total_instructions(), asm.total_bytes());
-    Ok(())
-}
-
 fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: Option<&str>) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -5241,6 +5451,7 @@ fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: 
 fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     // W584: `use` resolution is a source-to-source pass (W569), so it is
     // backend-agnostic -- only `gen` was calling it, which is why the C headers
     // failed on types declared in modules they import. Same safety contract:
@@ -5272,6 +5483,7 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
 fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     // W584: same as gen-c -- `use` resolution is backend-agnostic and only
     // `gen` was calling it.
     let resolved = use_resolve::resolve(path, &raw);
@@ -5311,6 +5523,7 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
 fn ast_for_codegen(input_path: &str) -> anyhow::Result<(compiler::Node, String)> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     let resolved = use_resolve::resolve(path, &raw);
     for note in use_resolve::unresolved_notes(&resolved) {
         eprintln!("{}", note);
@@ -5391,9 +5604,7 @@ fn run_gen_python(input_path: &str) -> anyhow::Result<()> {
 }
 
 fn sha256_hex(data: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    sha256::hash_hex(data).iter().map(|&c| c as char).collect()
 }
 
 fn run_conformance(input_path: &str) -> anyhow::Result<()> {
@@ -5469,6 +5680,7 @@ struct SealHashes {
 fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    let spec_path = seal_spec_path(input_path)?;
 
     let module = extract_module_name(&source)
         .unwrap_or_else(|| {
@@ -5481,7 +5693,19 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     let spec_hash = format!("sha256:{}", sha256_hex(source.as_bytes()));
 
     let mut failures: Vec<(String, String)> = Vec::new();
-    let gen_hash_zig = match compiler::Compiler::compile(&source) {
+    // #6446: a spec typecheck refuses generates nothing, so every backend hash
+    // is "none" and the refusal is the recorded reason. `seal --save` then
+    // refuses it, and `seal --verify` against a seal minted before this gate
+    // reports the mismatch instead of certifying output gen no longer emits.
+    let refusal = typecheck_input_ast(path, &source)
+        .and_then(|(ast, _)| typecheck_refusal_for_ast(input_path, &ast));
+    let gated = |backend: fn(&str) -> Result<String, String>| -> Result<String, String> {
+        match &refusal {
+            Some(msg) => Err(msg.clone()),
+            None => backend(&source),
+        }
+    };
+    let gen_hash_zig = match gated(compiler::Compiler::compile) {
         Ok(zig_code) => format!("sha256:{}", sha256_hex(zig_code.as_bytes())),
         Err(e) => {
             failures.push(("zig".to_string(), e.to_string()));
@@ -5489,7 +5713,7 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
         }
     };
 
-    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&source) {
+    let gen_hash_verilog = match gated(compiler::Compiler::compile_verilog) {
         Ok(verilog_code) => format!("sha256:{}", sha256_hex(verilog_code.as_bytes())),
         Err(e) => {
             failures.push(("verilog".to_string(), e.to_string()));
@@ -5497,7 +5721,7 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
         }
     };
 
-    let gen_hash_c = match compiler::Compiler::compile_c(&source) {
+    let gen_hash_c = match gated(compiler::Compiler::compile_c) {
         Ok(c_code) => format!("sha256:{}", sha256_hex(c_code.as_bytes())),
         Err(e) => {
             failures.push(("c".to_string(), e.to_string()));
@@ -5505,7 +5729,7 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
         }
     };
 
-    let gen_hash_rust = match compiler::Compiler::compile_rust(&source) {
+    let gen_hash_rust = match gated(compiler::Compiler::compile_rust) {
         Ok(rust_code) => format!("sha256:{}", sha256_hex(rust_code.as_bytes())),
         Err(e) => {
             failures.push(("rust".to_string(), e.to_string()));
@@ -5516,13 +5740,55 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     Ok(SealHashes {
         failures,
         module,
-        spec_path: input_path.to_string(),
+        spec_path,
         spec_hash,
         gen_hash_zig,
         gen_hash_verilog,
         gen_hash_c,
         gen_hash_rust,
     })
+}
+
+/// The `spec_path` a seal records: relative to the working directory, which is
+/// the directory `.trinity/seals` resolves against, with `/` separators.
+///
+/// #6913: the path used to be recorded as typed. `t27c seal --save` given an
+/// absolute path committed three seals (#6789) naming the sealing agent's own
+/// worktree, which every checker then found dangling; and the twin refresh in
+/// `run_seal`, which matches `spec_path` by string, skipped the repo-relative
+/// twins without a word. A spec outside the working directory is refused: its
+/// seal would land in this store under a path no checker here can open.
+fn seal_spec_path(input_path: &str) -> anyhow::Result<String> {
+    use std::path::Component;
+    let path = Path::new(input_path);
+    let plain = path
+        .components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+    let rel: std::path::PathBuf = if plain {
+        path.components()
+            .filter(|c| *c != Component::CurDir)
+            .collect()
+    } else {
+        let cwd = std::env::current_dir()?.canonicalize()?;
+        let full = path
+            .canonicalize()
+            .with_context(|| format!("resolving {}", input_path))?;
+        match full.strip_prefix(&cwd) {
+            Ok(r) => r.to_path_buf(),
+            Err(_) => anyhow::bail!(
+                "{} is outside the working directory {}: a seal records its spec relative to \
+                 the directory .trinity/seals resolves against, so run t27c seal from the \
+                 repository root that holds this spec",
+                input_path,
+                cwd.display()
+            ),
+        }
+    };
+    let parts: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    Ok(parts.join("/"))
 }
 
 fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
@@ -5534,6 +5800,56 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
         format!("{}_{}.json", parent, module)
     };
     Path::new(".trinity").join("seals").join(name)
+}
+
+/// The producer identity a seal and a receipt both carry: `name@version+git`,
+/// defined ONCE. specs/verified/receipt.t27's `producer_matches` compares two
+/// producer identities verbatim -- no normalization anywhere, matching is not
+/// graded -- so the moment two call sites each format their own string, the
+/// comparison silently becomes false for every seal and receipt this tool
+/// writes. The git commit is the identity (it subsumes the tree, FROZEN_HASH
+/// included); the version rides along because `sealed_by` already speaks it.
+/// Outside a git checkout the tail is honestly `+unknown`. The env var is
+/// emitted by bootstrap/build.rs (the only place a build script may set it);
+/// `env!` -- not `option_env!` -- so a checkout that drops the emission fails
+/// to compile instead of writing seals that claim an identity it does not know.
+fn producer_identity() -> String {
+    format!(
+        "t27c-bootstrap@{}+{}",
+        env!("CARGO_PKG_VERSION"),
+        env!("T27C_BUILD_GIT")
+    )
+}
+
+/// Seal v2 toolchain (seal_identity.t27): the tools that turn generated code into a verdict -- test runner, zig.
+fn seal_toolchain() -> serde_json::Value {
+    let runner = fs::read("bootstrap/src/test_report.rs").map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into());
+    let zig = std::process::Command::new("zig").arg("version").output().ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|z| !z.is_empty()).unwrap_or_else(|| "missing".into());
+    serde_json::json!({ "test_runner": runner, "zig": zig })
+}
+
+/// Seal v2 closure (seal_identity.t27): every `use` import and its spec hash, sorted; unreadable is "missing".
+/// The spec a `use` names: `use a::b;`, `use a::b::item;` and `use a::b::{X, Y};` all name specs/a/b.t27
+/// (#8351, #8384). An item path that is itself a file wins; otherwise the last segment is an item.
+pub(crate) fn use_spec_path(u: &str) -> String {
+    let m = u.trim_end_matches(';').trim().split("::{").next().unwrap_or("").replace("::", "/");
+    [format!("specs/{m}.t27"), format!("specs/{}.t27", m.rsplit_once('/').map_or(m.as_str(), |x| x.0))].into_iter().find(|f| Path::new(f).exists()).unwrap_or_else(|| format!("specs/{m}.t27"))
+}
+
+fn seal_closure(spec_path: &str) -> serde_json::Value {
+    let src = fs::read_to_string(spec_path).unwrap_or_default();
+    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use ")).map(use_spec_path)
+        .map(|p| { let h = fs::read(&p).map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into()); (p, h) })
+        .collect();
+    v.sort(); v.dedup();
+    serde_json::json!(v.into_iter().map(|(p, h)| serde_json::json!({ "spec": p, "spec_hash": h })).collect::<Vec<_>>())
+}
+
+/// The silicon receipts (.trinity/receipts/*.json, the current run) that name this spec.
+fn spec_receipts(spec_path: &str) -> usize {
+    fs::read_dir(".trinity/receipts").into_iter().flatten().flatten().map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |x| x == "json") && fs::read_to_string(p).map_or(false, |s| s.contains(&format!("\"{spec_path}\"")))).count()
 }
 
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
@@ -5639,6 +5955,12 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
         // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
         // holding. Same machinery as `t27c test-report`, so the two cannot
         // disagree about what failed.
+        // #8095 step 5 (silicon_queue.t27 reseal_allowed): a new producer orphans the spec's silicon run.
+        let old_by = fs::read_to_string(seal_file_path(&hashes.module, &hashes.spec_path)).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()).and_then(|v| v.get("built_by")?.as_str().map(String::from));
+        if !silicon_queue::reseal_allowed(spec_receipts(&hashes.spec_path) > 0, old_by.as_deref() == Some(producer_identity().as_str()), force) {
+            eprintln!("refusing to seal {}: its silicon receipts name {}; a new producer orphans that run (run-record: RUN_PRODUCER_MISMATCH). --force to do it on purpose.", hashes.spec_path, old_by.unwrap_or_default());
+            std::process::exit(1);
+        }
         let report = test_report::run(Path::new(input_path), Path::new("specs"));
         let verdict = test_report::seal_verdict(&report, force);
         match &verdict {
@@ -5665,6 +5987,19 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                 for n in names {
                     eprintln!("    FAIL  {}", n);
                 }
+            }
+            test_report::SealVerdict::Unmeasured(why) => {
+                // #7243: a fact about this machine, which would replace the
+                // spec's last measured test record.
+                eprintln!(
+                    "refusing to seal {}: its tests cannot run on this machine ({})",
+                    hashes.spec_path, why
+                );
+                eprintln!();
+                eprintln!("The seal's test record would describe this machine, not the spec,");
+                eprintln!("and replace the result the last seal measured. Put zig on PATH, or");
+                eprintln!("pass --force to seal with \"{}\" on the record.", why);
+                std::process::exit(1);
             }
             test_report::SealVerdict::Blocked(why) => {
                 // Not a failure: no binary was produced, so no test ran. Said
@@ -5703,6 +6038,18 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
+            // WHICH BUILD minted this seal (#7075, the #7072 prerequisite):
+            // `sealed_by` names the tool family and version; `built_by` names
+            // the exact build -- the one producer string a silicon receipt's
+            // toolchain can match verbatim (receipt.t27 producer_matches).
+            // Seals minted before this field read as unknown producer to any
+            // reader, never as a match.
+            "built_by": producer_identity(),
+            // Seal v2 (specs/verified/seal_identity.t27, #8095): the parts reuse.t27 judges.
+            "seal_schema": 2,
+            "toolchain": seal_toolchain(),
+            "config": seal_identity::SEAL_CONFIG,
+            "closure": seal_closure(&hashes.spec_path),
             "ring": 12,
             // What the spec's own tests said when this seal was minted (#5577).
             "tests": tests_record
@@ -5822,6 +6169,10 @@ fn backend_extension(backend: &str) -> &str {
 }
 
 fn compile_source(source: &str, backend: &str) -> Result<String, String> {
+    // #6446: compile-all generates nothing for a spec typecheck refuses.
+    if let Some(msg) = typecheck_refusal_for_source("source", source) {
+        return Err(msg);
+    }
     match backend {
         "verilog" => compiler::Compiler::compile_verilog(source),
         "c" => compiler::Compiler::compile_c(source),
@@ -6052,11 +6403,14 @@ fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
             }
         };
 
-        let code = match backend {
-            "verilog" => compiler::Compiler::compile_verilog(&source),
-            "c" => compiler::Compiler::compile_c(&source),
-            "rust" => compiler::Compiler::compile_rust(&source),
-            _ => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
+        // #6446: a spec typecheck refuses is skipped, like one that fails to compile.
+        let refusal = typecheck_refusal_for_source(&source_path.display().to_string(), &source);
+        let code = match (refusal, backend) {
+            (Some(msg), _) => Err(msg),
+            (None, "verilog") => compiler::Compiler::compile_verilog(&source),
+            (None, "c") => compiler::Compiler::compile_c(&source),
+            (None, "rust") => compiler::Compiler::compile_rust(&source),
+            (None, _) => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
         };
 
         let code = match code {
@@ -6386,23 +6740,26 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
     // 652:1 while all four backends still compiled it -- the splice can
     // produce source the parser rejects, and that is a handled condition
     // rather than a verdict about the spec.
-    let spliced = use_resolve::resolve(std::path::Path::new(input_path), &raw);
-    let (source, ast) = match compiler::Compiler::parse_ast(&spliced) {
-        Ok(a) => (spliced, a),
-        Err(splice_err) => {
-            let a = compiler::Compiler::parse_ast(&raw).map_err(|_| {
-                // The raw source failing too is a real parse error and is
-                // reported as the spliced one, which is the more informative.
-                anyhow::anyhow!("{}", splice_err)
-            })?;
-            eprintln!(
-                "note: spliced source did not parse, typechecking the \
-unresolved original -- imported declarations are NOT considered here"
-            );
-            (raw.clone(), a)
+    // #6446: the selection lives in `typecheck_input_ast`, shared with the gate
+    // every gen path runs, so `typecheck` and `gen` cannot disagree on a spec.
+    let (ast, used_raw) = match typecheck_input_ast(std::path::Path::new(input_path), &raw) {
+        Some(pair) => pair,
+        None => {
+            // The raw source failing too is a real parse error and is
+            // reported as the spliced one, which is the more informative.
+            let spliced = use_resolve::resolve(std::path::Path::new(input_path), &raw);
+            let e = compiler::Compiler::parse_ast(&spliced)
+                .err()
+                .unwrap_or_else(|| "parse error".to_string());
+            anyhow::bail!("{}", e)
         }
     };
-    let _ = &source;
+    if used_raw {
+        eprintln!(
+            "note: spliced source did not parse, typechecking the \
+unresolved original -- imported declarations are NOT considered here"
+        );
+    }
     let result = compiler::typecheck_ast(&ast);
     if json {
         let resp = serde_json::json!({
@@ -7192,10 +7549,90 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
 /// Prints `<64-hex-sha256> <repo-relative-path>`, which is the operational line
 /// `bootstrap/stage0/FROZEN_HASH` expects.
 fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
-    use sha2::{Digest, Sha256};
     let rel = path.unwrap_or("bootstrap/src/compiler.rs");
     let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
-    println!("{:x} {}", Sha256::digest(&bytes), rel);
+    println!("{} {}", sha256_hex(&bytes), rel);
+    Ok(())
+}
+
+/// Read a whole input: a file, or stdin for `None` / `-`.
+fn read_t27a_input(path: Option<&str>) -> anyhow::Result<String> {
+    match path {
+        None | Some("-") => {
+            let mut s = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut s).context("reading stdin")?;
+            Ok(s)
+        }
+        Some(p) => fs::read_to_string(p).with_context(|| format!("reading {}", p)),
+    }
+}
+
+/// What an `ASM_*` status of specs/isa/t27a.t27 means, for the error line.
+fn t27a_status_text(status: u32) -> &'static str {
+    match status {
+        t27a::ASM_NO_MNEMONIC => "no mnemonic",
+        t27a::ASM_UNKNOWN_MNEMONIC => "unknown mnemonic",
+        t27a::ASM_BAD_SEPARATOR => "missing or misplaced operand separator",
+        t27a::ASM_BAD_REGISTER => "register out of range or misspelled",
+        t27a::ASM_BAD_IMMEDIATE => "immediate does not fit the field",
+        t27a::ASM_TRAILING_TEXT => "trailing text after the instruction",
+        t27a::ASM_BAD_WORD => "bad .word operand",
+        _ => "rejected",
+    }
+}
+
+/// `t27c asm` (#6507). Plumbing only: every decision -- mnemonics, operand
+/// forms, register and immediate ranges, the T736 field table -- is
+/// specs/isa/t27a.t27 lowered by `t27c gen-rust` into `t27a`. It replaces an
+/// earlier `asm` that parsed its input, ignored it, and printed the same three
+/// hard-coded words for every file.
+fn run_asm(input: Option<&str>) -> anyhow::Result<()> {
+    // gen-rust lowers the spec's `string` to `&'static str`; the source is read
+    // once and kept for the life of this short process.
+    let src: &'static str = Box::leak(read_t27a_input(input)?.into_boxed_str());
+    let name = input.unwrap_or("<stdin>");
+    let mut rejected = 0usize;
+    for (n, line) in src.lines().enumerate() {
+        let line = line.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            continue;
+        }
+        let status = t27a::assemble_status(line);
+        if status == t27a::ASM_OK {
+            println!("0x{:08x}", t27a::assemble(line));
+        } else {
+            eprintln!("{}:{}: {} (status {}): {}", name, n + 1, t27a_status_text(status), status, line);
+            rejected += 1;
+        }
+    }
+    if rejected > 0 {
+        anyhow::bail!("{} line(s) did not assemble", rejected);
+    }
+    Ok(())
+}
+
+/// `t27c disasm` (#6507). Plumbing only, as `run_asm`: the listing is
+/// `listing_len` / `listing_char` of specs/isa/t27a.t27. Undefined bytes and
+/// non-canonical words list as `.word N`, which `t27c asm` reads back.
+fn run_disasm(words: &[String]) -> anyhow::Result<()> {
+    let stdin_text;
+    let tokens: Vec<&str> = if words.is_empty() {
+        stdin_text = read_t27a_input(None)?;
+        stdin_text.split_whitespace().collect()
+    } else {
+        words.iter().map(|s| s.as_str()).collect()
+    };
+    for tok in tokens {
+        let parsed = match tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+            Some(hex) => u32::from_str_radix(hex, 16),
+            None => tok.parse::<u32>(),
+        };
+        let w = parsed.with_context(|| format!("`{}` is not a 32-bit word (0x-hex or decimal)", tok))?;
+        let listing: String = (0..t27a::listing_len(w))
+            .map(|k| char::from(t27a::listing_char(w, k) as u8))
+            .collect();
+        println!("{}", listing);
+    }
     Ok(())
 }
 
@@ -9752,9 +10189,7 @@ fn body_digest(node: &compiler::Node) -> String {
     for child in &node.children {
         structural(child, &mut shape);
     }
-    let mut hasher = Sha256::new();
-    hasher.update(shape.as_bytes());
-    format!("{:x}", hasher.finalize())[..16].to_string()
+    sha256_hex(shape.as_bytes())[..16].to_string()
 }
 
 /// How much body there is to compare.
@@ -11197,15 +11632,7 @@ fn run_hash(input_path: &str) -> anyhow::Result<()> {
     let mut f = std::fs::File::open(input_path)?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)?;
-    let hash = {
-        use std::fmt::Write;
-        let digest = <sha2::Sha256 as sha2::Digest>::digest(&buf);
-        let mut s = String::with_capacity(64);
-        for byte in digest {
-            write!(&mut s, "{:02x}", byte).unwrap();
-        }
-        s
-    };
+    let hash = sha256_hex(&buf);
     println!("{}  {}", hash, file_name);
     Ok(())
 }
@@ -11386,6 +11813,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => run_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -11495,7 +11923,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenTtDebugWrapper { manifest, inner, output } => {
             run_gen_tt_debug_wrapper(&manifest, inner.as_deref(), output.as_deref())?
         }
-        Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
@@ -11519,6 +11946,7 @@ async fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -11528,6 +11956,7 @@ async fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         )?,
         Commands::RecomputeDiff { script, tex, label, tol } => {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
@@ -11550,6 +11979,14 @@ async fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
+        Commands::RunRecord { input, challenge, require_level, receipts, json } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level, &receipts, json)?
+        }
+        Commands::ReceiptKey { action } => {
+            service::run_receipt_key(&std::env::current_dir()?, &action)?
+        }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
+        Commands::DdcReceipt { action, a, b, nonce } => service::run_ddc_receipt(&std::env::current_dir()?, &action, &a, b, nonce)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -11569,6 +12006,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
+        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -11691,6 +12131,12 @@ async fn main() -> anyhow::Result<()> {
          Commands::FrozenDigest { path } => {
              run_frozen_digest(path.as_deref())?;
          }
+         Commands::Asm { input } => {
+             run_asm(input.as_deref())?;
+         }
+         Commands::Disasm { words } => {
+             run_disasm(&words)?;
+         }
          Commands::FpgaChipdb { device, image, work, force } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_chipdb(&repo_root, &device, &image, &work, force)?;
@@ -11802,6 +12248,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => run_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -11911,7 +12358,6 @@ fn main() -> anyhow::Result<()> {
         Commands::GenTtDebugWrapper { manifest, inner, output } => {
             run_gen_tt_debug_wrapper(&manifest, inner.as_deref(), output.as_deref())?
         }
-        Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
@@ -11935,6 +12381,7 @@ fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -11944,6 +12391,7 @@ fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         )?,
         Commands::RecomputeDiff { script, tex, label, tol } => {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
@@ -11966,6 +12414,14 @@ fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
+        Commands::RunRecord { input, challenge, require_level, receipts, json } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level, &receipts, json)?
+        }
+        Commands::ReceiptKey { action } => {
+            service::run_receipt_key(&std::env::current_dir()?, &action)?
+        }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
+        Commands::DdcReceipt { action, a, b, nonce } => service::run_ddc_receipt(&std::env::current_dir()?, &action, &a, b, nonce)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -11985,6 +12441,9 @@ fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
+        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -12114,6 +12573,12 @@ fn main() -> anyhow::Result<()> {
          }
          Commands::FrozenDigest { path } => {
              run_frozen_digest(path.as_deref())?;
+         }
+         Commands::Asm { input } => {
+             run_asm(input.as_deref())?;
+         }
+         Commands::Disasm { words } => {
+             run_disasm(&words)?;
          }
          Commands::FpgaChipdb { device, image, work, force } => {
              let repo_root = std::env::current_dir()?;

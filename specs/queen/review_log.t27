@@ -1,0 +1,355 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/review_log.t27 -- classify reviewer log lines and determine review health status
+; This spec implements the pure decision logic for the review log health card. It classifies each 
+; log line by its content and determines when a window indicates "the reviewer is not reading 
+; the queue" based on listing errors after the last queue read.
+; 
+; The original Python tool (scripts/tri_loop/review_log.py) is not ported - this spec only carries
+; the classification rules and health decision logic that is pure and testable in t27.
+; 
+; Classification constants:
+;   0 = QUEUE_READ
+;   1 = LISTING_ERROR_504  
+;   2 = LISTING_ERROR_OTHER
+;   3 = RETRY
+;   4 = LOCK_CONTENTION
+;   5 = VERDICT_APPROVE
+;   6 = VERDICT_CHANGES
+;   7 = VERDICT_INCOMPLETE
+;   8 = POSTED_APPROVED
+;   9 = POSTED_REQUEST_CHANGES
+;   10 = AGENT_FAILURE
+;   11 = TRACEBACK
+;   255 = OTHER
+; Exit codes:
+;   0 = healthy (0 or 1 listing errors since last queue read)
+;   1 = unhealthy (2+ listing errors since last queue read) 
+;   2 = error (no timestamped lines in window)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenReviewLog
+
+use test_framework::runner::str_contains;
+
+/// Prefix check: does haystack begin with needle
+fn str_starts_with(haystack: string, needle: string) -> bool {
+    if (needle.len > haystack.len) {
+        return false;
+    }
+    var k : u32 = 0;
+    while (k < needle.len) {
+        if (haystack[k] != needle[k]) {
+            return false;
+        }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Does haystack hold needle at offset at? False when needle runs past the end.
+fn starts_with_at(haystack: string, at: usize, needle: string) -> bool {
+    if (at > haystack.len) {
+        return false;
+    }
+    if (needle.len > haystack.len - at) {
+        return false;
+    }
+    var k : usize = 0;
+    while (k < needle.len) {
+        if (haystack[at + k] != needle[k]) {
+            return false;
+        }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The offset of the first byte at or after from that is not an ASCII digit
+/// ('0' is 48, '9' is 57); text.len when every byte from there on is one.
+fn digits_end(text: string, from: usize) -> usize {
+    var k : usize = from;
+    while (k < text.len) {
+        if (text[k] < 48 or text[k] > 57) {
+            return k;
+        }
+        k = k + 1;
+    }
+    return k;
+}
+
+/// A queue read, as the health-card tool's QUEUE_READ_RE has it (#7407):
+/// `^\d+ to review, \d+ approved but unlabelled`, a prefix with any count on
+/// either side. Before #7407 this was the one fixture line, so a real log,
+/// whose counts are not 3 and 1, held no queue read at all.
+pub fn is_queue_read(text: string) -> bool {
+    const first : usize = digits_end(text, 0);
+    if (first == 0) {
+        return false;
+    }
+    if (starts_with_at(text, first, " to review, ") == false) {
+        return false;
+    }
+    const second_from : usize = first + 12;
+    const second : usize = digits_end(text, second_from);
+    if (second == second_from) {
+        return false;
+    }
+    return starts_with_at(text, second, " approved but unlabelled");
+}
+
+// Classification constants
+pub const QUEUE_READ : u8 = 0;
+pub const LISTING_ERROR_504 : u8 = 1;
+pub const LISTING_ERROR_OTHER : u8 = 2;
+pub const RETRY : u8 = 3;
+pub const LOCK_CONTENTION : u8 = 4;
+pub const VERDICT_APPROVE : u8 = 5;
+pub const VERDICT_CHANGES : u8 = 6;
+pub const VERDICT_INCOMPLETE : u8 = 7;
+pub const POSTED_APPROVED : u8 = 8;
+pub const POSTED_REQUEST_CHANGES : u8 = 9;
+pub const AGENT_FAILURE : u8 = 10;
+pub const TRACEBACK : u8 = 11;
+pub const OTHER : u8 = 255;
+
+/// Classify a review log line based on its text content.
+/// Returns one of the classification constants above.
+pub fn classify_review_line(text: string) -> u8 {
+    if (is_queue_read(text)) {
+        return QUEUE_READ;
+    }
+    
+    if (str_starts_with(text, "reviewer: gh pr list")) {
+        if (str_contains(text, "HTTP 504")) {
+            return LISTING_ERROR_504;
+        } else {
+            return LISTING_ERROR_OTHER;
+        }
+    }
+    
+    if (str_starts_with(text, "gh pr list -R: transient failure")) {
+        return RETRY;
+    }
+    
+    if (str_contains(text, "another reviewer run holds the lock")) {
+        return LOCK_CONTENTION;
+    }
+    
+    if (str_contains(text, ": verdict approve -- ")) {
+        return VERDICT_APPROVE;
+    }
+    
+    if (str_contains(text, ": verdict changes -- ")) {
+        return VERDICT_CHANGES;
+    }
+    
+    if (str_contains(text, ": verdict incomplete -- ")) {
+        return VERDICT_INCOMPLETE;
+    }
+    
+    if (str_contains(text, ": APPROVED and labelled")) {
+        return POSTED_APPROVED;
+    }
+    
+    if (str_contains(text, ": posted REQUEST_CHANGES")) {
+        return POSTED_REQUEST_CHANGES;
+    }
+    
+    if (str_contains(text, ": agent failed:")) {
+        return AGENT_FAILURE;
+    }
+    
+    if (str_starts_with(text, "Traceback (most recent call last):")) {
+        return TRACEBACK;
+    }
+    
+    return OTHER;
+}
+
+/// Determine exit code based on number of listing errors since last queue read.
+/// Returns 0 for healthy (0-1 errors), 1 for unhealthy (2+ errors).
+pub fn review_health_exit(errors_since_last_read: u32) -> u8 {
+    if (errors_since_last_read >= 2) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/// Determine exit code for a review window.
+/// Returns 0 for healthy, 1 for unhealthy, 2 for error (no timestamped lines).
+pub fn review_window_exit(timestamped_lines: u32, errors_since_last_read: u32) -> u8 {
+    if (timestamped_lines == 0) {
+        return 2;
+    }
+    return review_health_exit(errors_since_last_read);
+}
+
+// Test cases based on the fixture lines from the issue
+
+test classify_queue_read {
+    assert classify_review_line("3 to review, 1 approved but unlabelled") == QUEUE_READ;
+}
+
+// A queue read is any count, not the fixture's 3 and 1 (#7407). Before #7407
+// the rule was the fixture line itself, so every line below that is not it read
+// as OTHER, and a real log held no queue read at all.
+
+test classify_queue_read_any_count {
+    assert classify_review_line("5 to review, 0 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("0 to review, 0 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("9 to review, 9 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("12 to review, 3 approved but unlabelled (2 held)") == QUEUE_READ;
+}
+
+test classify_queue_read_needs_both_counts {
+    assert classify_review_line(" to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review,  approved but unlabelled") == OTHER;
+    assert classify_review_line("x to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("/ to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line(": to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review, : approved but unlabelled") == OTHER;
+}
+
+test classify_queue_read_is_a_prefix {
+    assert classify_review_line("#1: 3 to review, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review, 1 approved but") == OTHER;
+    assert classify_review_line("3 to reviews, 1 approved but unlabelled") == OTHER;
+    assert classify_review_line("3 to review, 1 approved but unlabelle") == OTHER;
+}
+
+test digits_end_stops_at_the_first_non_digit {
+    assert digits_end("12x", 0) == 2;
+    assert digits_end("abc", 0) == 0;
+    assert digits_end("123", 0) == 3;
+    assert digits_end("a12", 1) == 3;
+    assert digits_end("09/", 0) == 2;
+    assert digits_end("9:", 0) == 1;
+}
+
+test starts_with_at_reads_at_the_offset {
+    assert starts_with_at("abc", 1, "bc") == true;
+    assert starts_with_at("ab", 1, "bc") == false;
+    assert starts_with_at("abc", 3, "") == true;
+    assert starts_with_at("ab", 5, "") == false;
+    assert starts_with_at("abd", 1, "bc") == false;
+}
+
+test classify_listing_errors {
+    assert classify_review_line("reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == LISTING_ERROR_504;
+    assert classify_review_line("reviewer: gh pr list -R -> 500: Internal server error") == LISTING_ERROR_OTHER;
+}
+
+test classify_retries {
+    assert classify_review_line("gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == RETRY;
+}
+
+// Prefix, not substring (#7396). #7359 turned str_starts_with from a substring
+// check into a real prefix check, and every test above passed both before and
+// after. These lines carry a rule's needle somewhere other than at offset 0, so
+// they classify differently under the two bodies and pin the fix.
+
+test classify_listing_prefix_not_substring {
+    assert classify_review_line("x reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == OTHER;
+    assert classify_review_line("x reviewer: gh pr list -R -> 500: Internal server error") == OTHER;
+    assert classify_review_line("reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == LISTING_ERROR_504;
+    assert classify_review_line("reviewer: gh pr list -R -> 500: Internal server error") == LISTING_ERROR_OTHER;
+}
+
+test classify_retry_prefix_not_substring {
+    assert classify_review_line("x gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == OTHER;
+    assert classify_review_line("gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == RETRY;
+}
+
+test str_starts_with_is_a_prefix_check {
+    assert str_starts_with("x reviewer: gh pr list", "reviewer: gh pr list") == false;
+    assert str_starts_with("reviewer: gh pr list -R", "reviewer: gh pr list") == true;
+    assert str_starts_with("reviewer: gh", "reviewer: gh pr list") == false;
+    assert str_starts_with("anything", "") == true;
+}
+
+test classify_lock_contention {
+    assert classify_review_line("another reviewer run holds the lock; exiting") == LOCK_CONTENTION;
+}
+
+test classify_verdicts {
+    assert classify_review_line("#5956@0123456789: verdict approve -- glm-4.5-flash and glm-4.7-flash both approve") == VERDICT_APPROVE;
+    assert classify_review_line("#5960@abcdef0123: verdict changes -- the bee requested changes ($0.00)") == VERDICT_CHANGES;
+    assert classify_review_line("#5961@abcdef4567: verdict incomplete -- an approval needs a second model and the second did not answer") == VERDICT_INCOMPLETE;
+}
+
+test classify_posted {
+    assert classify_review_line("#5956@0123456789: APPROVED and labelled bee-reviewed as t27-bees[bot]") == POSTED_APPROVED;
+    assert classify_review_line("#5960@abcdef0123: posted REQUEST_CHANGES as a comment review") == POSTED_REQUEST_CHANGES;
+}
+
+test classify_agent_failure {
+    assert classify_review_line("#5962@abcdef8901: agent failed: agent ended success: Failed to authenticate") == AGENT_FAILURE;
+}
+
+test classify_traceback {
+    assert classify_review_line("Traceback (most recent call last):") == TRACEBACK;
+    assert classify_review_line("Traceback (most recent call last): extra") == TRACEBACK;
+    assert classify_review_line("x Traceback (most recent call last):") == OTHER;
+}
+
+test classify_other {
+    assert classify_review_line("#5956@0123456789: reviewing (2 red non-required check(s), issue #5948)") == OTHER;
+}
+
+test health_exit_with_two_errors {
+    assert review_health_exit(2) == 1;
+    assert review_health_exit(3) == 1;
+}
+
+test health_exit_with_zero_or_one_error {
+    assert review_health_exit(0) == 0;
+    assert review_health_exit(1) == 0;
+}
+
+test window_exit_with_no_timestamped_lines {
+    assert review_window_exit(0, 0) == 2;
+    assert review_window_exit(0, 5) == 2;
+}
+
+test window_exit_with_timestamped_lines {
+    assert review_window_exit(1, 0) == 0;
+    assert review_window_exit(1, 1) == 0;
+    assert review_window_exit(1, 2) == 1;
+    assert review_window_exit(10, 3) == 1;
+}
+
+// Test the complete classification of the fixture lines
+test fixture_classifications {
+    // From the fixture: 15 lines total
+    assert classify_review_line("3 to review, 1 approved but unlabelled") == QUEUE_READ;
+    assert classify_review_line("#5956@0123456789: reviewing (2 red non-required check(s), issue #5948)") == OTHER;
+    assert classify_review_line("#5956@0123456789: verdict approve -- glm-4.5-flash and glm-4.7-flash both approve") == VERDICT_APPROVE;
+    assert classify_review_line("#5956@0123456789: APPROVED and labelled bee-reviewed as t27-bees[bot]") == POSTED_APPROVED;
+    assert classify_review_line("#5960@abcdef0123: verdict changes -- the bee requested changes ($0.00)") == VERDICT_CHANGES;
+    assert classify_review_line("#5960@abcdef0123: posted REQUEST_CHANGES as a comment review") == POSTED_REQUEST_CHANGES;
+    assert classify_review_line("#5961@abcdef4567: verdict incomplete -- an approval needs a second model and the second did not answer") == VERDICT_INCOMPLETE;
+    assert classify_review_line("#5962@abcdef8901: agent failed: agent ended success: Failed to authenticate") == AGENT_FAILURE;
+    assert classify_review_line("another reviewer run holds the lock; exiting") == LOCK_CONTENTION;
+    assert classify_review_line("gh pr list -R: transient failure, again in 20 s: HTTP 504: We couldn't respond to your request in time.") == RETRY;
+    assert classify_review_line("reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == LISTING_ERROR_504;
+    assert classify_review_line("gh pr list -R: transient failure, again in 5 s: unexpected end of JSON input") == RETRY;
+    assert classify_review_line("reviewer: gh pr list -R -> HTTP 504: We couldn't respond to your request in time.") == LISTING_ERROR_504;
+    assert classify_review_line("Traceback (most recent call last):") == TRACEBACK;
+}
+
+invariant classification_constants_are_valid {
+    assert QUEUE_READ == 0;
+    assert LISTING_ERROR_504 == 1;
+    assert LISTING_ERROR_OTHER == 2;
+    assert RETRY == 3;
+    assert LOCK_CONTENTION == 4;
+    assert VERDICT_APPROVE == 5;
+    assert VERDICT_CHANGES == 6;
+    assert VERDICT_INCOMPLETE == 7;
+    assert POSTED_APPROVED == 8;
+    assert POSTED_REQUEST_CHANGES == 9;
+    assert AGENT_FAILURE == 10;
+    assert TRACEBACK == 11;
+    assert OTHER == 255;
+}

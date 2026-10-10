@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/libm.t27",
+      "spec_hash": "sha256:d4414973506e15dbe7e061ff41077da40fc844d55c4647c7ef970ff47192a378"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f764c91d6fab05927f08b392a2dcdf63be461c865cc07e243fb59b59a6ab8f8b",
+  "gen_hash_rust": "sha256:b8f9ae337a33c679ccff053b172974fa7b39bf33a93d1a32da9d8474f902e919",
+  "gen_hash_verilog": "sha256:5db2f999690756a2fbb190c3d45545b8d1b6ecdafc3e6525bcb9cf2c29234d72",
+  "gen_hash_zig": "sha256:d1fa46b376939fb43fc891a487c026184f542eb78b1df92deff95fffb0f270be",
+  "module": "T27bConformanceLibmLogf",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5ba2c342e8d8677a4fa381c538c758f3ed6a9e270b7c9d8d320384518f00d8d0",
+  "spec_path": "specs/tri/t27b/conformance/libm_logf.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

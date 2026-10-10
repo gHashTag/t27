@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:8ff5d24676a15499987c35103158b0c770dac0cd0dba62194c22a0eca3e41938",
+  "gen_hash_rust": "sha256:bd32351a6f154f795bdf4d1fed1245ce4ef6e2aea84f4ce91eac75645ddbd967",
+  "gen_hash_verilog": "sha256:0ea264034d73d0b33e5ec55589c5e83497cec39af1c12495e7bec26fadfe2b29",
+  "gen_hash_zig": "sha256:997d38d23eb462bec24d801eb515dbf3053c9bb1d1f48c45125dcea1c663eb21",
+  "module": "fn_crm_proactive_sweep",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T16:57:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:748f098b4f10f6a3f4a5c85fd3e7f28770597f20f643403bf176a2872ef2216b",
+  "spec_path": "specs/functions/crm-proactive-sweep.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

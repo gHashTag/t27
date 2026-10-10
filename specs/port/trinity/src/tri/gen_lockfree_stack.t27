@@ -1,0 +1,111 @@
+module port::tri::gen_lockfree_stack;
+
+pub const Node = struct {
+    value: i64,
+    next: ?*Node,
+};
+
+// Not named LockFreeStack: specs/tri/collections/lockfree_stack.t27 owns that
+// name, with an LFNode head (tri types ratchet, #7437).
+pub const GenLockFreeStack = struct {
+    head: ?*Node = null,
+};
+
+pub fn LockFreeStack_init() GenLockFreeStack {
+    return .{};
+}
+
+// The original allocates the node. Here the caller owns it, so the stack never
+// points into a frame that has already ended (#7736): push used to store the
+// address of its own local, and every later read went through a dead frame.
+pub fn LockFreeStack_push(stack: *GenLockFreeStack, node: *Node, value: i64) !void {
+    // Port the decision logic: fill the node and set next to current head
+    node.value = value;
+    node.next = stack.head;
+
+    // The decision: simulate atomic swap by directly setting head
+    // In the real implementation, this would be an atomic compare-and-swap
+    stack.head = node;
+}
+
+pub fn LockFreeStack_pop(stack: *GenLockFreeStack) ?i64 {
+    const old_head = stack.head;
+    if (old_head == null) {
+        return null;
+    }
+    
+    // The decision: simulate atomic swap by advancing head
+    // In the real implementation, this would be an atomic compare-and-swap
+    const value = old_head.?.value;
+    stack.head = old_head.?.next;
+    
+    // stack.allocator.destroy(old_head) - external; the caller owns the node
+    return value;
+}
+
+pub fn LockFreeStack_isEmpty(stack: *const GenLockFreeStack) bool {
+    return stack.head == null;
+}
+
+test "lockfree stack basic" {
+    var stack = LockFreeStack_init();
+    
+    // Test empty stack
+    assert(LockFreeStack_isEmpty(&stack));
+    assert(LockFreeStack_pop(&stack) == null);
+}
+
+test "lockfree stack push" {
+    var stack = LockFreeStack_init();
+    var node: Node = .{ .value = 0, .next = null };
+    
+    // Test push and check not empty
+    LockFreeStack_push(&stack, &node, 42);
+    assert(!LockFreeStack_isEmpty(&stack));
+}
+
+test "lockfree stack pop" {
+    var stack = LockFreeStack_init();
+    var node: Node = .{ .value = 0, .next = null };
+    
+    // Test push and pop
+    LockFreeStack_push(&stack, &node, 10);
+    const value = LockFreeStack_pop(&stack);
+    assert(value.? == 10);
+    assert(LockFreeStack_isEmpty(&stack));
+}
+
+test "lockfree stack lifo" {
+    var stack = LockFreeStack_init();
+    var n1: Node = .{ .value = 0, .next = null };
+    var n2: Node = .{ .value = 0, .next = null };
+    var n3: Node = .{ .value = 0, .next = null };
+    
+    // Test LIFO order: last in, first out, one node at a time
+    LockFreeStack_push(&stack, &n1, 1);
+    assert(LockFreeStack_pop(&stack).? == 1);
+    
+    LockFreeStack_push(&stack, &n2, 2);
+    assert(LockFreeStack_pop(&stack).? == 2);
+    
+    LockFreeStack_push(&stack, &n3, 3);
+    assert(LockFreeStack_pop(&stack).? == 3);
+    
+    assert(LockFreeStack_pop(&stack) == null);
+}
+
+test "lockfree stack lifo order" {
+    var stack = LockFreeStack_init();
+    var n1: Node = .{ .value = 0, .next = null };
+    var n2: Node = .{ .value = 0, .next = null };
+    var n3: Node = .{ .value = 0, .next = null };
+    
+    // With caller-owned nodes several can be pushed before any pop
+    LockFreeStack_push(&stack, &n1, 1);
+    LockFreeStack_push(&stack, &n2, 2);
+    LockFreeStack_push(&stack, &n3, 3);
+    assert(LockFreeStack_pop(&stack).? == 3);
+    assert(LockFreeStack_pop(&stack).? == 2);
+    assert(LockFreeStack_pop(&stack).? == 1);
+    assert(LockFreeStack_isEmpty(&stack));
+}

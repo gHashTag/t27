@@ -103,6 +103,8 @@ test no_label_keeps_the_listing_order {
     assert effective_level(LEVEL_NORMAL, false, 400) == LEVEL_NORMAL;
     assert outranks(LEVEL_NORMAL, LEVEL_NORMAL, 0, LEVEL_NORMAL, LEVEL_NORMAL, 1);
     assert outranks(LEVEL_NORMAL, LEVEL_NORMAL, 1, LEVEL_NORMAL, LEVEL_NORMAL, 0) == false;
+    // #7077: a strict order, so a sort can use it: no issue outranks itself
+    assert outranks(LEVEL_NORMAL, LEVEL_NORMAL, 4, LEVEL_NORMAL, LEVEL_NORMAL, 4) == false;
 }
 
 test critical_runs_before_a_newer_unlabelled_issue {
@@ -126,6 +128,9 @@ test an_aged_issue_loses_the_tie_to_a_real_one {
     var aged : u8 = effective_level(LEVEL_LOW, true, 28);
     assert outranks(aged, LEVEL_LOW, 0, LEVEL_NORMAL, LEVEL_NORMAL, 7) == false;
     assert outranks(LEVEL_NORMAL, LEVEL_NORMAL, 7, aged, LEVEL_LOW, 0);
+    // #7077: of two LOW labels the aged one goes first, whatever the listing says
+    assert outranks(aged, LEVEL_LOW, 5, LEVEL_LOW, LEVEL_LOW, 0);
+    assert outranks(LEVEL_LOW, LEVEL_LOW, 0, aged, LEVEL_LOW, 5) == false;
 }
 
 test the_fourth_critical_runs_as_high {

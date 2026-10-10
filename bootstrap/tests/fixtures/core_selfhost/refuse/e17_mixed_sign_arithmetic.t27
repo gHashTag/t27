@@ -1,0 +1,5 @@
+// u64 + i64: Zig has no type for the sum, C converts the i64 (#8075).
+module mixed_sign_arithmetic;
+fn msa_g(a: u64, b: i64) -> u64 {
+    return a + b;
+}

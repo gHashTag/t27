@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ecc705b95310461f0f0393575fc0adc7e115d522416184c19a265be05ac9116a",
+  "gen_hash_rust": "sha256:588302981d5ff9e522bd6acc967b0ebb1269f94e4304cc594524c37d64245d90",
+  "gen_hash_verilog": "sha256:82b697f4c759b3e0c83a8639e885323d98d190a1e009e36d5fc524922ccf68e5",
+  "gen_hash_zig": "sha256:ce5779c3b9c6ef823fec5fcfb01c6ffcf587357a583f462ce14fd878ab94a9fc",
+  "module": "gft_bitnet_neuron_jtag",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4477cafdd3a38aa6185d498075eda88478c251dbe9535f04665cc36af6f241fd",
+  "spec_path": "specs/port/fpga/verilog/gft_bitnet_neuron_jtag.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

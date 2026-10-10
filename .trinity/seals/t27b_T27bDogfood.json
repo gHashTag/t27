@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0a91cff6c7dba511e8c8d000ffd341552a9cdd6693164e4e70e23add93b4a19b",
+  "gen_hash_rust": "sha256:b819cbaad6cc8de377c60e233155634c8a22b0bed2fbd4891fb4fb6ecc0ff656",
+  "gen_hash_verilog": "sha256:38dc2e45ae042683b277183601f83528b1265692f7876cd853487e92d3b88978",
+  "gen_hash_zig": "sha256:4670f543f1a0bb95416d1ba34f439b3ced1f89395a8f279f7a58cb6f69536891",
+  "module": "T27bDogfood",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:34:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:88c0c53d847659688f3dbfc207628b4fdd28acb175682a8062e873144fcaa2fb",
+  "spec_path": "specs/tri/t27b/dogfood.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

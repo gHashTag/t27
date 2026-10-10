@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:dded3b797171901dc3dec1f3d16ac74e9eed9f1f5340479d536a004ab54ffcff",
-  "gen_hash_rust": "sha256:90adc28b67fd3ebd338bf14ca74d64b57104cf8a7aa91a47f116560ca94c04d9",
+  "gen_hash_rust": "sha256:474c9fa98773329a3b819cdbe9452eff3f230e32efc694ebb3c49d4fddb1748b",
   "gen_hash_verilog": "sha256:4519d57b2268683fe9191ba0970ce3fd72315212d3dc0bb79159ce5245366484",
   "gen_hash_zig": "sha256:0d4129c827921c7159af554d8552a8aaf9059870b87bd24463e3de2206d7ee85",
   "module": "TriKmp",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-06T13:02:32Z",
   "spec_hash": "sha256:ba510409570cbd15cfbb73e201d6fd2591707628e674e93ff7b0bf915dc459ff",
-  "spec_path": "specs/tri/search/knuth_morris_pratt.t27"
+  "spec_path": "specs/tri/search/knuth_morris_pratt.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-knuth_morris_pratt-3534445/spec.zig:28:31: error: incompatible types: 'struct { comptime comptime_int = 0 }' and 'usize'"
+  }
 }

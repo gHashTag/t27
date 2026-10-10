@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/const_div_plan.t27 -- when t27b folds `/` and `%` on two constants of one integer type to a
+; constant, as Zig does at compile time (t27b coverage epic #6063; written in t27 under the port epic #6198).
+; coerce_plan.t27 folds `+ - * & | ^` and leaves `/`, `%` and the shifts to run; this plan adds `/` and `%`, so
+; a module constant written as a quotient, `const CLK_DIV : u32 = CLK_HZ / (UART_BAUD * 16);`, is a constant.
+; The decision reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/const_div_plan.rs). The Rust glue in
+; cli/t27b/src/lower.rs (`binary`) computes the exact quotient or remainder of the two constants, reads whether
+; the divisor is 0, whether the type is signed and whether the result fits it, and asks `div_folds`. What does
+; not fold stays the run-time operation it was, as before this plan.
+; --
+; What the reference does (zig 0.16.0, the default x86_64 Debug backend `t27c test-report` builds with;
+; measured on the t27c lab and pinned by specs/tri/t27b/conformance/const_division.t27):
+;   - t27c's Zig backend prints `pub const C: u32 = A / B;` as written; Zig evaluates it at compile time.
+;     specs/port/fpga/vivado/gf16_uart_sim_bench.t27's `CLK_HZ / (UART_BAUD * 16)` is 175.
+;   - `/` on two signed constants is allowed there and truncates toward zero: `-7 / 2` is -3.
+;   - `%` on two signed constants is refused ("remainder division with 'i32' and 'i32': signed integers and
+;     floats must use @rem or @mod"); on unsigned ones it folds.
+;   - A zero divisor is refused ("division by zero here causes illegal behavior") in a constant something
+;     uses; a quotient that does not fit its type ("overflow of integer type") likewise.
+; --
+; What t27b does: `/` folds when the divisor is not 0 and the quotient fits the type; `%` folds on an unsigned
+; type under the same two conditions. Everything else is not folded and keeps its path: a module constant that
+; is not a constant is refused as `ConstDecl`, and an expression in a fn body runs, with its traps.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConstDivPlan;
+
+// `B_PERCENT`, the byte of `%`, is coerce_plan.t27's, not written twice.
+use tri::t27b::coerce_plan;
+
+/// The byte of `/` as the t27c parser spells it (its ASCII code).
+pub const B_SLASH : u8 = 47;
+
+/// Does `/` (first == B_SLASH) or `%` (first == B_PERCENT), an operator of `len` bytes, on two constants of one
+/// integer type fold to a constant? signed: the type is signed. zero: the divisor is 0. fits: the exact quotient
+/// or remainder fits the type.
+pub fn div_folds(first: u8, len: usize, signed: bool, zero: bool, fits: bool) -> bool {
+    if (len != 1 or zero or !fits) { return false; }
+    if (first == B_SLASH) { return true; }
+    if (first == B_PERCENT) { return !signed; }
+    return false;
+}
+
+// ---------------------------------------------------------------- tests
+
+test a_quotient_of_two_constants_folds {
+    // gf16_uart_sim_bench.t27's `CLK_HZ / (UART_BAUD * 16)`, two u32.
+    assert(div_folds(B_SLASH, 1, false, false, true));
+    // `-7 / 2` of two i32 is -3 at compile time.
+    assert(div_folds(B_SLASH, 1, true, false, true));
+}
+
+test a_remainder_folds_only_unsigned {
+    assert(div_folds(B_PERCENT, 1, false, false, true));
+    assert(!div_folds(B_PERCENT, 1, true, false, true));
+}
+
+test a_zero_divisor_or_a_result_that_does_not_fit_stays_as_it_was {
+    assert(!div_folds(B_SLASH, 1, false, true, true));
+    assert(!div_folds(B_PERCENT, 1, false, true, true));
+    // i32 MIN / -1.
+    assert(!div_folds(B_SLASH, 1, true, false, false));
+}
+
+test other_operators_are_not_this_plan_s {
+    assert(!div_folds(43, 1, false, false, true));
+    assert(!div_folds(B_SLASH, 2, false, false, true));
+    assert(!div_folds(B_PERCENT, 2, false, false, true));
+    assert(!div_folds(B_SLASH, 0, false, false, true));
+    // `/` and `%` are their ASCII codes, and `%` is coerce_plan.t27's.
+    assert(B_SLASH == 47 and B_PERCENT == 37);
+    assert(div_folds(47, 1, true, false, true));
+}

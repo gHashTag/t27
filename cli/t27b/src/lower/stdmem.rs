@@ -10,7 +10,8 @@
 //!   way) stays refused as `ExprCall(std.*)`.
 //!
 //! The element type must be the identifier `u8`, and both slices `str`
-//! (`[]const u8`); anything else stays refused.
+//! (`[]const u8`), or bytes in a buffer that Zig coerces to one: a `[]u8`
+//! (`buf[a:b]`) or a `*[N]u8` (`&buf`). Anything else stays refused.
 
 use super::{LTy, Lower, Val, R, STR_EQL};
 use crate::compiler::{Node, NodeKind};
@@ -56,6 +57,7 @@ impl<'a> Lower<'a> {
             return self.reject("ExprCall(std.*)", format!("call to `{}` other than (u8, str, str)", c.name));
         }
         let (x, y) = (self.expr(&a[1])?, self.expr(&a[2])?);
+        let (x, y) = (self.bytes_as_str(x)?, self.bytes_as_str(y)?);
         for v in [&x, &y] {
             if !self.is_str(v) {
                 let d = self.val_desc(v);
@@ -63,6 +65,23 @@ impl<'a> Lower<'a> {
             }
         }
         Ok((x, y))
+    }
+
+    /// Bytes in a buffer read as a string, as Zig coerces them to
+    /// `[]const u8`: a `[]u8` (`buf[a:b]` of a `var buf: [N]u8`) or a
+    /// `*[N]u8` (`&buf`). Any other value is returned unchanged.
+    fn bytes_as_str(&mut self, v: Val) -> R<Val> {
+        let u8_ty = LTy::S(Ty::U8);
+        let bytes = match &v {
+            Val::M(p) => matches!(&p.ty, LTy::Slice(t, true) if **t == u8_ty),
+            Val::P(_, LTy::Ptr(inner, _)) => matches!(&**inner, LTy::Arr(t, _) if **t == u8_ty),
+            _ => false,
+        };
+        if bytes {
+            self.coerce_to(v, &LTy::Str)
+        } else {
+            Ok(v)
+        }
     }
 
     /// The fns lowering synthesizes, after the source fns (ids `nfuncs`

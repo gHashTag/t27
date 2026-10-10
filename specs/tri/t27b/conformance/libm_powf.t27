@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/libm_powf.t27 -- `std.math.pow(f32, x, y)` against specs/tri/t27b/libm.t27's port of Zig
+; 0.16's std/math/pow.zig (gHashTag/t27#7823, part of #7746, a lane of #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; Under the reference each sweep holds the port (`use tri::t27b::libm;` brings it in) to Zig's `std.math.pow`, bit
+; for bit: the special cases, `@sqrt` for y = +-0.5, `expf(yf * logf(x))` for the fraction of y, the square-and-
+; multiply on `frexp(x)` for its integer part, and `ldexp`'s rounding of a subnormal result. Under t27b the call is
+; the same port under t27b's reserved name, so the fixed bits below hold it to the reference's.
+; A NaN from `@sqrt` of a negative x has the platform's bits; the port and Zig's pow make it with the same
+; operation on the same machine, so the sweeps agree on x86_64 and on aarch64 alike. The NaN pow returns itself is
+; `std.math.nan(f32)`, 0x7FC00000, on both.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceLibmPowf;
+
+use tri::t27b::libm;
+
+// Do the port and `std.math.pow` give the same bits for x and y?
+fn pw_same(x: f32, y: f32) -> bool {
+    return bits_of_f32(t27b_libm_powf(x, y)) == bits_of_f32(std.math.pow(f32, x, y));
+}
+
+// Points x = the bit patterns start, start + step, .. (n of them) where the port and `std.math.pow` differ, for each
+// of the exponents below: integers, halves (`@sqrt`), fractions (`expf` and `logf`), negatives, the
+// `yi >= 2^31` path, and powers that over- and underflow to infinities, zeros and subnormals.
+fn pw_misses_x(start: u32, step: u32, n: u32) -> u32 {
+    var ys: [16]f32 = undefined;
+    ys[0] = 2.0;
+    ys[1] = 3.0;
+    ys[2] = -1.0;
+    ys[3] = -2.0;
+    ys[4] = 0.5;
+    ys[5] = -0.5;
+    ys[6] = 0.25;
+    ys[7] = 1.5;
+    ys[8] = -2.5;
+    ys[9] = 7.0;
+    ys[10] = 0.1;
+    ys[11] = 30.0;
+    ys[12] = -30.0;
+    ys[13] = 100.5;
+    ys[14] = 3000000000.0;
+    ys[15] = -160.0;
+    var misses: u32 = 0;
+    var b: u32 = start;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f32 = f32_of(b);
+        var j: usize = 0;
+        while (j < 16) {
+            if (!pw_same(x, ys[j])) {
+                misses = misses + 1;
+            }
+            j = j + 1;
+        }
+        b = b + step;
+        i = i + 1;
+    }
+    return misses;
+}
+
+// Points y = the bit patterns start, start + step, .. (n of them) where the port and `std.math.pow` differ, for four
+// bases.
+fn pw_misses_y(start: u32, step: u32, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var b: u32 = start;
+    var i: u32 = 0;
+    while (i < n) {
+        const y: f32 = f32_of(b);
+        if (!pw_same(2.0, y)) { misses = misses + 1; }
+        if (!pw_same(0.7, y)) { misses = misses + 1; }
+        if (!pw_same(10.0, y)) { misses = misses + 1; }
+        if (!pw_same(-3.0, y)) { misses = misses + 1; }
+        b = b + step;
+        i = i + 1;
+    }
+    return misses;
+}
+
+fn pow_of(x: f32, y: f32) -> f32 {
+    return std.math.pow(f32, x, y);
+}
+
+test pow_agrees_with_zig_over_x {
+    // Both signs, every exponent, the infinities and the NaNs.
+    assert(pw_misses_x(0x00000001, 10737418, 200) == 0);
+    assert(pw_misses_x(0x80000001, 10737418, 200) == 0);
+    // 0.5 .. 1, densely, where the integer powers stay finite.
+    assert(pw_misses_x(0x3F000000, 83886, 100) == 0);
+}
+
+test pow_agrees_with_zig_over_y {
+    // y from the least subnormal up to 200, and down to -200: every exponent of y below that.
+    assert(pw_misses_y(0x00000001, 4515136, 250) == 0);
+    assert(pw_misses_y(0x80000001, 4515136, 250) == 0);
+}
+
+test pow_gives_the_reference_bits {
+    // Measured on the t27c lab, zig 0.16.0.
+    assert(bits_of_f32(pow_of(2.0, 3.0)) == 0x41000000);
+    assert(bits_of_f32(pow_of(2.0, 0.5)) == 0x3FB504F3);
+    assert(bits_of_f32(pow_of(10.0, -2.0)) == 0x3C23D70A);
+    assert(bits_of_f32(pow_of(1.5, 3.3)) == 0x4073F05D);
+    assert(bits_of_f32(pow_of(37.45, 3.3)) == 0x4818162D);
+    assert(bits_of_f32(pow_of(0.8923, 3.3)) == 0x3F2FC32C);
+    assert(bits_of_f32(pow_of(7.0, 0.1)) == 0x3F9B7F07);
+    assert(bits_of_f32(pow_of(123.456, 1.5)) == 0x44AB7753);
+    assert(bits_of_f32(pow_of(0.001, -0.25)) == 0x40B3F300);
+    assert(bits_of_f32(pow_of(5.5, 2.5)) == 0x428DE295);
+    assert(bits_of_f32(pow_of(2.0, 127.5)) == 0x7F3504F3);
+    assert(bits_of_f32(pow_of(1.0001, 100000.0)) == 0x46ABEB14);
+    assert(bits_of_f32(pow_of(-2.0, 3.0)) == 0xC1000000);
+    assert(bits_of_f32(pow_of(4.0, -0.5)) == 0x3F000000);
+    // ldexp rounds a subnormal result once, ties to even: 2^-149 is the least subnormal, 2^-150 a tie to 0.
+    assert(bits_of_f32(pow_of(2.0, -149.0)) == 0x00000001);
+    assert(bits_of_f32(pow_of(2.0, -150.0)) == 0x00000000);
+    assert(bits_of_f32(pow_of(3.0, -149.0)) == 0x00000000);
+}
+
+test pow_special_cases {
+    assert(bits_of_f32(pow_of(f32_of(0x00000000), -1.0)) == 0x7F800000);
+    assert(bits_of_f32(pow_of(f32_of(0x80000000), -1.0)) == 0xFF800000);
+    assert(bits_of_f32(pow_of(f32_of(0x80000000), 3.0)) == 0x80000000);
+    assert(bits_of_f32(pow_of(0.5, f32_of(0x7F800000))) == 0x00000000);
+    assert(bits_of_f32(pow_of(2.0, f32_of(0xFF800000))) == 0x00000000);
+    assert(bits_of_f32(pow_of(-1.0, f32_of(0x7F800000))) == 0x3F800000);
+    assert(bits_of_f32(pow_of(f32_of(0x7F800000), -1.0)) == 0x00000000);
+    assert(bits_of_f32(pow_of(f32_of(0xFF800000), 3.0)) == 0xFF800000);
+    assert(bits_of_f32(pow_of(f32_of(0xFF800000), -3.0)) == 0x80000000);
+    assert(bits_of_f32(pow_of(-8.0, 0.3333333)) == 0x7FC00000);
+    assert(bits_of_f32(pow_of(f32_of(0x7FC00000), 0.0)) == 0x3F800000);
+    assert(bits_of_f32(pow_of(1.0, f32_of(0x7FC00000))) == 0x3F800000);
+    assert(bits_of_f32(pow_of(f32_of(0xFF800001), 2.0)) == 0x7FC00000);
+    assert(bits_of_f32(pow_of(2.0, 10000000000.0)) == 0x7F800000);
+    assert(bits_of_f32(pow_of(0.999, 3000000000.0)) == 0x00000000);
+    // The port on the same points and more, against Zig's pow.
+    var xs: [12]u32 = undefined;
+    xs[0] = 0x00000000;
+    xs[1] = 0x80000000;
+    xs[2] = 0x3F800000;
+    xs[3] = 0xBF800000;
+    xs[4] = 0x3F000000;
+    xs[5] = 0x40000000;
+    xs[6] = 0xC0000000;
+    xs[7] = 0x7F800000;
+    xs[8] = 0xFF800000;
+    xs[9] = 0x7FC00000;
+    xs[10] = 0x00000001;
+    xs[11] = 0xC1000000;
+    var ys: [12]u32 = undefined;
+    ys[0] = 0x00000000;
+    ys[1] = 0x80000000;
+    ys[2] = 0x3F800000;
+    ys[3] = 0xBF800000;
+    ys[4] = 0x40400000;
+    ys[5] = 0xC0400000;
+    ys[6] = 0x40000000;
+    ys[7] = 0x3F000000;
+    ys[8] = 0xBF000000;
+    ys[9] = 0x7F800000;
+    ys[10] = 0xFF800000;
+    ys[11] = 0x7FC00000;
+    var i: usize = 0;
+    while (i < 12) {
+        var j: usize = 0;
+        while (j < 12) {
+            assert(pw_same(f32_of(xs[i]), f32_of(ys[j])));
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    // A subnormal x with an integer part of y: frexp's subnormal path (y in (0.5, 1) rounds yi up to 1).
+    assert(pw_same(f32_of(0x00000003), 0.9));
+    assert(pw_same(f32_of(0x00012345), 0.75));
+    assert(pw_same(f32_of(0x00400000), -0.75));
+    assert(pw_same(f32_of(0x007FFFFF), 0.6));
+    assert(pw_same(f32_of(0x00000001), -1.25));
+    // yi >= 2^31 takes `expf(y * logf(|x|))`; just below, the square-and-multiply: x a few ulps from 1 stays
+    // finite there.
+    assert(pw_same(f32_of(0x3F7FFFFF), 1073741824.0));
+    assert(pw_same(f32_of(0x3F7FFFFE), 1500000000.0));
+    assert(pw_same(f32_of(0x3F7FFFF8), 2000000000.0));
+    assert(pw_same(f32_of(0x3F7FFFFF), 3000000000.0));
+    assert(pw_same(f32_of(0xBF7FFFFF), 1073741824.0));
+    assert(pw_same(f32_of(0x80000000), -2.0));
+    assert(pw_same(f32_of(0x00000000), 0.5));
+    assert(pw_same(f32_of(0xFF800000), 0.5));
+    assert(pw_same(f32_of(0x7F800000), 0.0));
+    assert(pw_same(-1.0, f32_of(0xFF800000)));
+    assert(pw_same(f32_of(0x00000001), 0.5));
+    assert(pw_same(f32_of(0x00000003), 2.0));
+    assert(pw_same(-4.0, 0.5));
+}
+
+// The port's ldexp against Zig's `std.math.ldexp`, measured on the t27c lab (zig 0.16.0): pow passes it only a
+// normal a1, so the subnormal operands and the ties are asked here. A subnormal x scaled up stays subnormal while
+// its exponent plus n is at most 0, and becomes normal past it.
+test ldexp_gives_the_reference_bits {
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00200000), 1)) == 0x00400000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00000001), 22)) == 0x00400000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00000003), 21)) == 0x00600000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00012345), 3)) == 0x00091A28);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00000001), 23)) == 0x00800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00012345), 10)) == 0x0211A280);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00400000), 1)) == 0x00800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x007FFFFF), 1)) == 0x00FFFFFE);
+    // Down into the subnormals, rounded once, ties to even.
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3FC00000), -149)) == 0x00000002);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3F800000), -150)) == 0x00000000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3F800001), -150)) == 0x00000001);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3F800000), -151)) == 0x00000000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00800000), -24)) == 0x00000000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00800000), -23)) == 0x00000001);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00C00000), -23)) == 0x00000002);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3FFFFFFF), -127)) == 0x00800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3F3504F3), -126)) == 0x005A827A);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0xBF7FFFFF), -126)) == 0x80800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00000001), -1)) == 0x00000000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00000003), -1)) == 0x00000002);
+    // Out of range, and the values ldexp returns as they are.
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3F800000), 128)) == 0x7F800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x3F800000), 127)) == 0x7F000000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0xBFC00000), 200)) == 0xFF800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0xC0400000), -300)) == 0x80000000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x00000001), 300)) == 0x7F800000);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0x7F800001), 5)) == 0x7F800001);
+    assert(bits_of_f32(t27b_libm_ldexpf(f32_of(0xFF800000), -5)) == 0xFF800000);
+    // pow results that land in the subnormals.
+    assert(bits_of_f32(pow_of(2.0, -126.5)) == 0x005A827A);
+    assert(bits_of_f32(pow_of(3.0, -80.0)) == 0x0049AB74);
+    assert(bits_of_f32(pow_of(2.0, -127.0)) == 0x00400000);
+    assert(bits_of_f32(pow_of(0.5, 126.5)) == 0x005A827A);
+    assert(bits_of_f32(pow_of(10.0, -38.0)) == 0x006CE3EE);
+    assert(bits_of_f32(pow_of(7.0, -45.0)) == 0x0065C297);
+    assert(pw_same(2.0, -126.5));
+    assert(pw_same(3.0, -80.0));
+    assert(pw_same(10.0, -38.0));
+    assert(pw_same(7.0, -45.0));
+}
+
+// A `std.math.pow(f32, ..)` Zig folds at compile time gives the run-time bits (specs/tri/t27b/libm_plan.t27).
+test pow_of_compile_time_operands_has_the_run_time_bits {
+    const two: f32 = 2.0;
+    const third: f32 = 0.3333333;
+    assert(std.math.pow(f32, two, third) == pow_of(2.0, 0.3333333));
+    assert(std.math.pow(f32, 1.5, 3.3) == pow_of(1.5, 3.3));
+}

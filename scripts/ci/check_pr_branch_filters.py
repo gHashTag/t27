@@ -113,6 +113,7 @@ NOT_MERGE_CRITICAL = {
     "damage-negatives.yml": "not a required check for master branch protection",
     "documented-commands.yml": "not a required check for master branch protection",
     "corpus-ratchet.yml": "not a required check for master branch protection",
+    "t27b-native.yml": "not a required check for master branch protection; tri t27b ready reads it (#6444)",
     "withdrawn-live-gate.yml": "not a required check for master branch protection",
     "harness-scratch.yml": "not a required check for master branch protection",
     "dupe-ratchet.yml": "not a required check for master branch protection",

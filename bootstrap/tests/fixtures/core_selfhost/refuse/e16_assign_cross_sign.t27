@@ -1,0 +1,7 @@
+// typecheck refuses a u32 assigned to an i32: same rank, other sign.
+module assign_cross_sign;
+fn ac_g(v: u32) -> i32 {
+    var x: i32 = 0;
+    x = v;
+    return x;
+}

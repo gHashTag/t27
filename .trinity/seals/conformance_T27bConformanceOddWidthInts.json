@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4e37f84a8bb97a92df3c8b4cb25f6c44e882cf89fc9324e83065f81e426a8713",
+  "gen_hash_rust": "sha256:d38c787e2dfb40ae11be9f54c440c32bf70761816e898847c57253827d2ce2c5",
+  "gen_hash_verilog": "sha256:fbd8e621b14cc0e7e064d97d1c3932406b98d1c3b70f3514f0f287bc4f2f6239",
+  "gen_hash_zig": "sha256:9c5247a75338c2310622feb19eff3e57e694195b3f6885bb97c0cb790a28ae24",
+  "module": "T27bConformanceOddWidthInts",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e0ae99328f30f3c92eb64fc81fbc94ac4a730692dc40e53a941ce97fb7d65310",
+  "spec_path": "specs/tri/t27b/conformance/odd_width_int.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

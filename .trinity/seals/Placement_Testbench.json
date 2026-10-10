@@ -1,11 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/fpga/placement/Placement.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:78d8015e8c340cdd906903f84e61190badf8c0e7c3a2b8f64f769c8f1f4ff666",
   "gen_hash_rust": "sha256:215a60072054c69c00cf6d2a501a11f42c859251f6bebab999e5bfc587825bb1",
   "gen_hash_verilog": "sha256:0d8b59eb34c969a54cb75e6bfe487354ca26835dfdb0f87d64cbc027d8404cfc",
   "gen_hash_zig": "sha256:d131472e7f301d7ad18b651d64c577ac8ddcb49f16719bcfadd7ab7e971286d7",
   "module": "Placement_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:11Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T22:19:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:66b27e42d3329b265b960a642f43013d8641f4d91f02173be0d143785e948620",
   "spec_path": "specs/fpga/testbench/placement_tb.t27",
   "tests": {
@@ -14,5 +24,9 @@
     "forced": false,
     "passed": 9,
     "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

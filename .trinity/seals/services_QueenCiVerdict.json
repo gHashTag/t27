@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:723f28b972be1a6a4eba9fe5814b76c8c92f0f62a416e9568400e6a8c975417d",
-  "gen_hash_rust": "sha256:53e86d32f36b262869347dae865ed154a5319929864d179276aa7c3b55c0c536",
+  "gen_hash_rust": "sha256:c7eac605dc82cebac4c30529d183edd15dbff6a78f94218be5d4d36b9be64940",
   "gen_hash_verilog": "sha256:c1a01e9c5cf3335fa05ab9d6a27639cd27db8c18bcdb12687dd7054be1b029ff",
   "gen_hash_zig": "sha256:4591e736b611f8d8a2874e978caa4df366049fd3d1a2029b8f3f87ea2bd05682",
   "module": "QueenCiVerdict",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:11Z",
+  "sealed_at": "2026-10-06T13:02:27Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:af8422e6152b26b0d59ba349b437f3a4b0d8c8521e09c4215f4c49f8550b8b35",
   "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-queen-ci-verdict-32189/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "blocked": "does not compile: /tmp/t27c-test-report-queen-ci-verdict-3533269/spec.zig:68:16: error: no field or member function named 'starts_with' in '[]const u8'"
   }
 }

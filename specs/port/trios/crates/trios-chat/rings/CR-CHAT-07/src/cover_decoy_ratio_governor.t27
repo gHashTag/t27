@@ -1,0 +1,158 @@
+module port::cover_decoy_ratio_governor;
+
+// CR-CHAT-07 - Cover decoy ratio governor (Wave-70 Lane A).
+//
+// ANTI-CORRELATION - cover/real ratio must stay in [r_min, r_max], R-CHAT-10.
+//
+// The cover-traffic scheduler emits both real and decoy (cover) envelopes.
+// If the ratio of cover to real falls outside a safe window:
+//
+// * Ratio too low - too few cover messages; an observer can statistically
+//   identify real traffic bursts.
+// * Ratio too high - too much cover; the channel is easily distinguished
+//   from natural traffic by its high volume.
+// * No real traffic - all cover means the user is idle, which is itself
+//   a signal.
+//
+// trios-chat enforces 6 rules:
+//
+// 1. Cover/real ratio >= CDRG_MIN_RATIO_NUM / CDRG_MIN_RATIO_DEN.
+// 2. Cover/real ratio <= CDRG_MAX_RATIO_NUM / CDRG_MAX_RATIO_DEN.
+// 3. Window size >= CDRG_MIN_WINDOW.
+// 4. Window size <= CDRG_MAX_WINDOW.
+// 5. At least one real message in window.
+// 6. At least one cover message in window.
+//
+// Ported from crates/trios-chat/rings/CR-CHAT-07/src/cover_decoy_ratio_governor.rs
+// (gHashTag/trios at 8b229e9489ee). The Rust Result<(), DecoyRatioError>
+// verdict becomes an i32 code here: 0 is Ok, 1..6 are the DecoyRatioError
+// variants in declaration order (the CDRG_ERR_* constants below). The
+// decision is pure; the scheduler keeps the plumbing.
+
+// Minimum ratio numerator (cover/real).
+pub const CDRG_MIN_RATIO_NUM: u64 = 1;
+
+// Minimum ratio denominator.
+pub const CDRG_MIN_RATIO_DEN: u64 = 4;
+
+// Maximum ratio numerator.
+pub const CDRG_MAX_RATIO_NUM: u64 = 3;
+
+// Maximum ratio denominator.
+pub const CDRG_MAX_RATIO_DEN: u64 = 1;
+
+// Minimum window size (emissions).
+pub const CDRG_MIN_WINDOW: usize = 8;
+
+// Maximum window size (emissions).
+pub const CDRG_MAX_WINDOW: usize = 256;
+
+// All ways decoy ratio validation can fail, in declaration order. The
+// CDRG_ERR_* verdict codes below map onto these variants one to one.
+pub enum DecoyRatioError {
+    RatioTooLow,
+    RatioTooHigh,
+    WindowTooSmall,
+    WindowTooLarge,
+    NoRealTraffic,
+    NoCoverTraffic,
+}
+
+// Verdict of validate_decoy_ratio: 0 is Ok(()), 1..6 map onto the
+// DecoyRatioError variants above in declaration order.
+pub const CDRG_OK: i32 = 0;
+pub const CDRG_ERR_RATIO_TOO_LOW: i32 = 1;
+pub const CDRG_ERR_RATIO_TOO_HIGH: i32 = 2;
+pub const CDRG_ERR_WINDOW_TOO_SMALL: i32 = 3;
+pub const CDRG_ERR_WINDOW_TOO_LARGE: i32 = 4;
+pub const CDRG_ERR_NO_REAL_TRAFFIC: i32 = 5;
+pub const CDRG_ERR_NO_COVER_TRAFFIC: i32 = 6;
+
+// Validate cover/real ratio within a window. [VERIFIED]
+// Rust returned Result<(), DecoyRatioError>; here the verdict is an i32
+// code, CDRG_OK on success. Pure decision - the plumbing stays with the
+// caller.
+pub fn validate_decoy_ratio(cover_count: usize, real_count: usize) -> i32 {
+    const total: usize = cover_count + real_count;
+    if (total < CDRG_MIN_WINDOW) {
+        return CDRG_ERR_WINDOW_TOO_SMALL;
+    }
+    if (total > CDRG_MAX_WINDOW) {
+        return CDRG_ERR_WINDOW_TOO_LARGE;
+    }
+    if (real_count == 0) {
+        return CDRG_ERR_NO_REAL_TRAFFIC;
+    }
+    if (cover_count == 0) {
+        return CDRG_ERR_NO_COVER_TRAFFIC;
+    }
+    const cover64: u64 = cover_count as u64;
+    const real64: u64 = real_count as u64;
+    const ratio_num: u64 = cover64 * CDRG_MIN_RATIO_DEN;
+    const ratio_den: u64 = real64 * CDRG_MIN_RATIO_NUM;
+    if (ratio_num < ratio_den) {
+        return CDRG_ERR_RATIO_TOO_LOW;
+    }
+    const high_num: u64 = cover64 * CDRG_MAX_RATIO_DEN;
+    const high_den: u64 = real64 * CDRG_MAX_RATIO_NUM;
+    if (high_num > high_den) {
+        return CDRG_ERR_RATIO_TOO_HIGH;
+    }
+    return CDRG_OK;
+}
+
+// CDRG-01 - ratio too low rejected.
+test cdrg_01_ratio_low_rejected {
+    assert(validate_decoy_ratio(1, 10) == CDRG_ERR_RATIO_TOO_LOW);
+}
+
+// CDRG-02 - ratio too high rejected.
+test cdrg_02_ratio_high_rejected {
+    assert(validate_decoy_ratio(50, 1) == CDRG_ERR_RATIO_TOO_HIGH);
+}
+
+// CDRG-03 - window too small rejected.
+test cdrg_03_window_small_rejected {
+    assert(validate_decoy_ratio(2, 2) == CDRG_ERR_WINDOW_TOO_SMALL);
+}
+
+// CDRG-04 - window too large rejected.
+test cdrg_04_window_large_rejected {
+    assert(validate_decoy_ratio(200, 200) == CDRG_ERR_WINDOW_TOO_LARGE);
+}
+
+// CDRG-05 - no real traffic rejected.
+test cdrg_05_no_real_rejected {
+    assert(validate_decoy_ratio(20, 0) == CDRG_ERR_NO_REAL_TRAFFIC);
+}
+
+// CDRG-06 - no cover traffic rejected.
+test cdrg_06_no_cover_rejected {
+    assert(validate_decoy_ratio(0, 20) == CDRG_ERR_NO_COVER_TRAFFIC);
+}
+
+// CDRG-07 - balanced ratio accepted.
+test cdrg_07_balanced_accepted {
+    assert(validate_decoy_ratio(10, 10) == CDRG_OK);
+}
+
+// CDRG-08 - minimum cover ratio accepted.
+test cdrg_08_min_ratio_accepted {
+    assert(validate_decoy_ratio(2, 8) == CDRG_OK);
+}
+
+// CDRG-09 - maximum cover ratio accepted.
+test cdrg_09_max_ratio_accepted {
+    assert(validate_decoy_ratio(15, 5) == CDRG_OK);
+}
+
+// CDRG-10 - exact min window accepted.
+test cdrg_10_min_window_accepted {
+    assert(validate_decoy_ratio(2, 6) == CDRG_OK);
+}
+
+// Edge of rule 4: total == CDRG_MAX_WINDOW exactly is still accepted; only
+// a larger window is rejected.
+test max_window_exact_accepted {
+    assert(validate_decoy_ratio(128, 128) == CDRG_OK);
+}

@@ -7,8 +7,8 @@ Mirrors `specs/numeric/formats.t27` byte-for-byte.
 ## Primitives
 
 - **GF16 bit layout**: `SIGN_MASK=0x8000`, `EXP_MASK=0x7E00`, `MANT_MASK=0x01FF`, `BIAS=31`
-- **`gf16_to_f32(u16) -> f64`** — decode: handles signed zero, denormals, normals, Inf, NaN
-- **`f32_to_gf16(f64) -> u16`** — encode (round-to-nearest): handles signed zero, Inf, NaN, overflow, underflow
+- **`gf16_to_f32(u16) -> f64`** — decode: handles signed zero, normals (no denormals, #6940), Inf, NaN
+- **`f32_to_gf16(f64) -> u16`** — encode (round-to-nearest, ties toward zero, NaN -> 0xFE01, #6940): handles signed zero, Inf, NaN, overflow, underflow (flush to signed zero)
 - **`f32_to_ternary(f64) -> Trit`** — ternary quantization with threshold 0.5
 - **`ternary_to_f32(Trit) -> f64`** — convert ternary back to float
 - **`Format` enum** — `Fp32`, `Fp16`, `Bf16`, `Gf16`, `Ternary`

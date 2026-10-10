@@ -12,8 +12,11 @@
 //!     pass     saved, `tests.failed == 0` in the seal
 //!     BLOCKED  saved with a notice -- blocked is not failing
 //!
+//! With no zig on PATH nothing can run: the seal is refused unless --force
+//! (#7243), and the forced seal is BLOCKED with that reason on the record.
+//!
 //! The FAIL and pass cases need `zig`; without it every spec is BLOCKED, so
-//! those two say SKIP rather than report a pass they did not earn. The BLOCKED
+//! those two say SKIP rather than report a pass they did not earn. The no-zig
 //! case takes zig off PATH on purpose, so it runs everywhere.
 //!
 //! Each child gets its own working directory (`current_dir`), never
@@ -142,15 +145,22 @@ fn a_passing_spec_is_sealed() {
 }
 
 /// Blocked is not failing: with no zig nothing ran, so nothing failed -- even
-/// for a spec whose test WOULD fail. The seal is saved and says why.
+/// for a spec whose test WOULD fail. Since #7243 that seal needs --force, so
+/// "zig not on PATH" never replaces a measured record by accident; the forced
+/// seal is saved and says why.
 #[test]
 fn a_blocked_spec_is_sealed_with_a_notice() {
     let d = scratch("blocked", FAILING);
     let empty = d.join("empty-path");
     fs::create_dir_all(&empty).expect("empty PATH dir");
-    let out = save(&d, "blocked", Some(&empty), false);
+    let refused = save(&d, "blocked", Some(&empty), false);
+    let r = text(&refused);
+    assert_eq!(refused.status.code(), Some(1), "no zig must refuse without --force:\n{r}");
+    assert!(r.contains("zig not on PATH"), "the refusal must name the reason:\n{r}");
+    assert!(seals(&d).is_empty(), "a refused seal must write nothing");
+    let out = save(&d, "blocked", Some(&empty), true);
     let t = text(&out);
-    assert!(out.status.success(), "a BLOCKED spec must still seal:\n{t}");
+    assert!(out.status.success(), "a forced BLOCKED spec must still seal:\n{t}");
     assert!(t.contains("tests BLOCKED, not run"), "the notice is missing:\n{t}");
     assert!(t.contains("zig not on PATH"), "the reason is missing:\n{t}");
     let s = seals(&d);

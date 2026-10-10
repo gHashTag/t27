@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0aa34166df1268c6779527e070861477c2d4e153a22553ab889ab526be9b2c2a",
+  "gen_hash_rust": "sha256:6e9e01f8ba84c8c23a16535352bf1ebf5ae25f746e797b411c7c4b0fb947d73e",
+  "gen_hash_verilog": "sha256:0e4078207c7b7de0f82799f5b7c6af5fc03d5bbffc874e972536a350e6a53d99",
+  "gen_hash_zig": "sha256:6bbff101ae328bbc160b329a500a7936e0ad7fffba539addbe755eb250cf6476",
+  "module": "port::trios::crates::trios_ext::rings::SILVER_RING_EXT_00::src",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f3d0d2905c4f307b2931e47ab1f5337e9b51f4ae57c802b0be19f87a2d39429e",
+  "spec_path": "specs/port/trios/crates/trios-ext/rings/SILVER-RING-EXT-00/src/lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

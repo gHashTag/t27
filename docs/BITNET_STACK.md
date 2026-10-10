@@ -2,7 +2,7 @@
 
 A complete ternary (BitNet-class) compute path written as **spec-first `.t27`** — pure functions that `t27c gen-verilog` lowers to **synthesizable Verilog**, with every node verified **bit-exact** against an independent reference in iverilog + vvp. From a single neuron up to a multi-bit arithmetic datapath, with zero hand-written RTL.
 
-This is a differentiator no competitor has: a neural network (and a small ALU) generated from a **ternary-native spec-first compiler**, not hand-written RTL or a CPU kernel.
+This is a differentiator of the four projects surveyed here: a neural network (and a small ALU) generated from a **ternary-native spec-first compiler**, not hand-written RTL or a CPU kernel.
 
 See also: [`.claude/skills/spec-first-ternary-nn.md`](../.claude/skills/spec-first-ternary-nn.md) (authoring cookbook) and the visual roadmap artifact.
 
@@ -49,4 +49,4 @@ The next real step toward an **on-hardware MVP** (a network running on the AX720
 | bitnet.cpp | edge inference for ternary LLMs | no — CPU |
 | bitSMM | bit-serial matmul accelerator | no — hand RTL |
 
-None generates a network from a ternary-native spec-first compiler. That is this stack's unique position — the compute core is proven; the on-hardware MVP is Phases 2–4 of the roadmap, with the clocked datapath (#1764) as the crux.
+None of the four projects surveyed here generates a network from a ternary-native spec-first compiler. That is this stack's position relative to the surveyed projects — the compute core is proven; the on-hardware MVP is Phases 2–4 of the roadmap, with the clocked datapath (#1764) as the crux.

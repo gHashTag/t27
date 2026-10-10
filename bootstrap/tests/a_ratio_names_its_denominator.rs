@@ -58,18 +58,44 @@ fn the_dead_code_census_names_what_it_skipped() {
         text.contains("Dead ratio:") && text.contains("of") && text.contains("specs"),
         "the ratio must name the population it is over"
     );
-    // And the skipped count must be REAL here: this repository has specs that do
-    // not parse, and a zero would mean the counter is not wired.
-    let skipped: u64 = text
-        .lines()
-        .find(|l| l.contains("did not parse:"))
-        .and_then(|l| l.split_whitespace().last())
-        .and_then(|n| n.parse().ok())
-        .expect("a did-not-parse count");
-    assert!(
-        skipped > 0,
-        "this tree is known to hold specs that do not parse; a 0 means the counter never fires"
+    // And the skipped count must be REAL: proven by a fixture that does not
+    // parse, not by hoping this tree keeps holding one. The spec-fix waves
+    // finished, and on a clean tree (#7088) the live count reached 0, which
+    // this assertion read as "the counter never fires" -- a measurement of the
+    // tree dressed as a check of the tool.
+    let skipped_line = |t: &str| -> u64 {
+        t.lines()
+            .find(|l| l.contains("did not parse:"))
+            .and_then(|l| l.split_whitespace().last())
+            .and_then(|n| n.parse().ok())
+            .expect("a did-not-parse count")
+    };
+    let root = scratch("census-control");
+    std::fs::create_dir_all(root.join("specs")).expect("scratch");
+    std::fs::write(
+        root.join("specs/parseable.t27"),
+        "module m;\nfn f(a: i32) -> i32 { return a; }\ntest \"t\" { assert f(1) == 1; }\n",
+    )
+    .expect("write parseable fixture");
+    std::fs::write(root.join("specs/unparseable.t27"), "module m;\nfn f( { return; (((\n")
+        .expect("write unparseable fixture");
+    let (code, fixture_text) = t27c(&root, &["deadcode", "--repo"]);
+    assert_eq!(
+        code,
+        Some(0),
+        "{}",
+        &fixture_text[fixture_text.len().saturating_sub(400)..]
     );
+    assert_eq!(
+        skipped_line(&fixture_text),
+        1,
+        "the counter must fire on a spec that provably does not parse:\n{fixture_text}"
+    );
+    assert!(
+        fixture_text.contains("Specs counted:    1"),
+        "the parseable fixture must be the whole denominator:\n{fixture_text}"
+    );
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 /// `backlog` walks the same loop as `corpus` and must refuse the same way.

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a84c17afd22de0e36160e0b061db1a443dcd45e56069456ad5ee249620a4937e",
+  "gen_hash_rust": "sha256:04574827f3a25c02c78ae4b5dacde8fd2356d81dd16627ee7da6e4c86ecf9e83",
+  "gen_hash_verilog": "sha256:ede6bb7a00e6a9851659aa4d7bf879496ed6ed4abd08bd2c3f3bf5d343d78b46",
+  "gen_hash_zig": "sha256:8e17f2705ce32dffd3291d2957f5f8f5d0571dbf47e2aa59b656764923cb94b8",
+  "module": "specs::port::bootstrap::src::bridge",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:dc928a80a090553004d6928ef8d4a0d3672c1799036c449671519bd80d197f1e",
+  "spec_path": "specs/port/bootstrap/src/bridge.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

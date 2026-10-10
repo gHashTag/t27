@@ -40,3 +40,101 @@ pub const SAFE_PROBE : str = "{\"IncSum\": \"0.01\", \"inv_id\": \"e2e-safe-mode
 pub const PROBE_RESULT : str = "COMPLETED";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "The manifest carries no file, steps or retries for this function (its extractor did not resolve them); SERVICE, STEPS and RETRIES here were read from the same checkout, where retries is declared as 3 and onFailure is createInngestFailureHandler, which logs and messages the admin chat -- the manifest says on_failure log. Guard is amount-match: an amount matching no plan or option stops the run, which is why the 2026-09-09 probe with IncSum 0.01 COMPLETED without a balance change. 2026-09-17 (money loop, plan section 6 item 3): a claim-invoice step now sits between get-bot-config and update-user-balance (core/supabase/claimPendingInvoice.ts). The payments_v2 row must exist and its amount (parseFloat(OutSum), RUB) must equal the rounded IncSum, else NonRetriableError -- no credit, the onFailure handler messages the admin chat. The PENDING -> COMPLETED flip is a compare-and-set (.eq status PENDING, .select); a lost race or an already COMPLETED row returns {success:true, already_claimed:true} without crediting or notifying. A database error on the claim stays a plain Error so the 3 retries have it. Until then updateUserBalance set COMPLETED by inv_id unconditionally and returned true even when no row matched, and the event amount was never compared with the invoice. The Robokassa ResultURL route settles the same rows with the same compare-and-set, so between the two paths an invoice credits at most once. Not verified: the events for this function have no sender in the repo (orphan-events baseline); who sends them was not established. Test: 999-multibots-telegraf src/__tests__/money/paymentClaimInvoice.test.ts.";
+
+; The card held to the schema of specs/functions/README.md: the vocabularies of its fields,
+; what TRIGGER decides about EVENT, LEGACY_EVENTS and CRON, SERVICE as `file:line`, and a
+; SAFE_PROBE that agrees with its PROBE_RESULT.
+test id_is_domain_object_verb {
+    // ID is `<domain>-<object>-<verb>` with DOMAIN from the vocabulary of the README.
+    assert DOMAIN == "neuro" or DOMAIN == "reels" or DOMAIN == "training" or DOMAIN == "morph" or DOMAIN == "render" or DOMAIN == "payment" or DOMAIN == "broadcast" or DOMAIN == "instagram" or DOMAIN == "content" or DOMAIN == "monitoring" or DOMAIN == "analytics" or DOMAIN == "webhook" or DOMAIN == "welcome" or DOMAIN == "crm";
+    var i : usize = 0;
+    while (i < DOMAIN.len) {
+        assert ID[i] == DOMAIN[i];
+        i = i + 1;
+    }
+    assert ID[DOMAIN.len] == '-';
+    var dashes : u32 = 0;
+    var k : usize = DOMAIN.len + 1;
+    while (k < ID.len) {
+        assert (ID[k] >= 'a' and ID[k] <= 'z') or (ID[k] >= '0' and ID[k] <= '9') or ID[k] == '-';
+        if (ID[k] == '-') {
+            dashes = dashes + 1;
+        }
+        k = k + 1;
+    }
+    assert dashes >= 1;
+    assert ID[ID.len - 1] != '-';
+}
+test an_event_function_has_an_event_and_no_cron {
+    // TRIGGER `event`: EVENT is set and CRON is `""` (README; the generator fails otherwise).
+    assert TRIGGER == "event";
+    assert EVENT.len > 0;
+    assert CRON.len == 0;
+    // The canonical EVENT names the same three parts as ID: `<domain>/<object>.<verb>` against
+    // `<domain>-<object>-<verb>`, so one `/` and the last `.` stand where ID has a `-`.
+    assert EVENT.len == ID.len;
+    var last_dot : usize = 0;
+    var p : usize = 0;
+    while (p < EVENT.len) {
+        if (EVENT[p] == '.') {
+            last_dot = p;
+        }
+        p = p + 1;
+    }
+    assert EVENT[DOMAIN.len] == '/';
+    assert last_dot > DOMAIN.len;
+    var i : usize = 0;
+    while (i < EVENT.len) {
+        if (i == DOMAIN.len or i == last_dot) {
+            assert ID[i] == '-';
+        } else {
+            assert EVENT[i] == ID[i];
+        }
+        i = i + 1;
+    }
+}
+test fields_come_from_their_vocabularies {
+    assert KIND == "function";
+    assert REPO == "999-multibots-telegraf";
+    assert TZ == "UTC";
+    assert ON_FAILURE == "admin-telegram" or ON_FAILURE == "log" or ON_FAILURE == "refund+notify";
+    assert PROBE_RESULT == "COMPLETED" or PROBE_RESULT == "FAILED-at-guard" or PROBE_RESULT == "skipped" or PROBE_RESULT == "not-deployed";
+    assert CONTROL == "spec+code" or CONTROL == "spec-only" or CONTROL == "code-only" or CONTROL == "code-only/unregistered";
+    assert SIDE_EFFECTS.len > 0;
+    var i : usize = 0;
+    while (i < SIDE_EFFECTS.len) {
+        const e : str = SIDE_EFFECTS[i];
+        assert e == "charges-balance" or e == "paid-api" or e == "messages-user" or e == "messages-owners" or e == "messages-admin" or e == "db-write" or e == "external-webhook" or e == "none";
+        var j : usize = i + 1;
+        while (j < SIDE_EFFECTS.len) {
+            assert SIDE_EFFECTS[j] != e;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}
+test the_probe_sent_is_json_and_was_answered {
+    // SAFE_PROBE is the JSON object sent in the 2026-09-09 probe, so it reached the function:
+    // PROBE_RESULT is COMPLETED or FAILED-at-guard.
+    assert SAFE_PROBE[0] == '{';
+    assert SAFE_PROBE[SAFE_PROBE.len - 1] == '}';
+    assert PROBE_RESULT == "COMPLETED" or PROBE_RESULT == "FAILED-at-guard";
+}
+test service_is_file_and_line {
+    // SERVICE is `file:line` of inngest.createFunction( in REPO.
+    var colon : usize = 0;
+    var i : usize = 0;
+    while (i < SERVICE.len) {
+        if (SERVICE[i] == ':') {
+            colon = i;
+        }
+        i = i + 1;
+    }
+    assert colon > 0;
+    assert colon + 1 < SERVICE.len;
+    var d : usize = colon + 1;
+    while (d < SERVICE.len) {
+        assert SERVICE[d] >= '0' and SERVICE[d] <= '9';
+        d = d + 1;
+    }
+}

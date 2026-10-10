@@ -1,0 +1,133 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-01::src::key_package_expiry_guard;
+
+// CR-CHAT-01 — Key package expiry guard (Wave-65 Lane A).
+//
+// Ported from gHashTag/trios, crates/trios-chat/rings/CR-CHAT-01/src/key_package_expiry_guard.rs
+// (gHashTag/trios @ 8b229e9489ee) to .t27, so the code is generated from .t27
+// instead of written by hand. The original stays where it is.
+//
+// IDENTITY — key packages must have valid lifetime, R-CHAT-1.
+//
+// A key package with no expiry or a stale expiry allows an attacker to use a
+// compromised key indefinitely:
+//
+// * Expired package — key material may be compromised after expiry.
+// * Future-dated — `not_before` in the future rejects valid clients.
+// * Inverted lifetime — `not_after < not_before` is nonsensical.
+// * Zero lifetime — package that expires at creation is useless.
+//
+// trios-chat enforces 6 rules:
+//
+// 1. `not_before <= now <= not_after`.
+// 2. `not_before < not_after`.
+// 3. Lifetime <= `KPX_MAX_LIFETIME_SECS`.
+// 4. Lifetime >= `KPX_MIN_LIFETIME_SECS`.
+// 5. `not_before` not in the future (clock skew tolerance).
+// 6. `not_after` not in the past.
+//
+// Representation: the Rust original returns `Result<(), KeyPackageExpiryError>`
+// (line 57). .t27 has no `Result`, so the verdict is an `i32`: `KPX_OK` (0) is
+// `Ok(())`, and `KPX_EXPIRED` (1) through `KPX_ZERO_LIFETIME` (6) are the six
+// `KeyPackageExpiryError` variants in the original's declaration order
+// (Expired, NotYetValid, InvertedLifetime, LifetimeTooShort, LifetimeTooLong,
+// ZeroLifetime).
+//
+// Anchor: `phi^2 + phi^-2 = 3 * TRINITY * CHAT * KEY-PACKAGE-EXPIRY`
+
+// Minimum package lifetime (seconds).
+pub const KPX_MIN_LIFETIME_SECS: u64 = 60;
+
+// Maximum package lifetime (seconds): 30 * 24 * 3600.
+pub const KPX_MAX_LIFETIME_SECS: u64 = 2_592_000;
+
+// Verdict codes: 0 = Ok(()), 1..6 = KeyPackageExpiryError variants in the
+// original's declaration order.
+pub const KPX_OK: i32 = 0;
+pub const KPX_EXPIRED: i32 = 1;
+pub const KPX_NOT_YET_VALID: i32 = 2;
+pub const KPX_INVERTED_LIFETIME: i32 = 3;
+pub const KPX_LIFETIME_TOO_SHORT: i32 = 4;
+pub const KPX_LIFETIME_TOO_LONG: i32 = 5;
+pub const KPX_ZERO_LIFETIME: i32 = 6;
+
+// [VERIFIED] Validate key package lifetime window. Returns `KPX_OK` when
+// `not_before <= now_secs <= not_after` and
+// `KPX_MIN_LIFETIME_SECS <= not_after - not_before <= KPX_MAX_LIFETIME_SECS`;
+// otherwise the first failing rule's verdict code, checked in the original's
+// order: ZeroLifetime, InvertedLifetime, LifetimeTooShort, LifetimeTooLong,
+// NotYetValid, Expired.
+pub fn validate_key_package_expiry(now_secs: u64, not_before: u64, not_after: u64) -> i32 {
+    if (not_after == not_before) {
+        return KPX_ZERO_LIFETIME;
+    }
+    if (not_after < not_before) {
+        return KPX_INVERTED_LIFETIME;
+    }
+    var lifetime: u64 = not_after - not_before;
+    if (lifetime < KPX_MIN_LIFETIME_SECS) {
+        return KPX_LIFETIME_TOO_SHORT;
+    }
+    if (lifetime > KPX_MAX_LIFETIME_SECS) {
+        return KPX_LIFETIME_TOO_LONG;
+    }
+    if (now_secs < not_before) {
+        return KPX_NOT_YET_VALID;
+    }
+    if (now_secs > not_after) {
+        return KPX_EXPIRED;
+    }
+    return KPX_OK;
+}
+
+// The original's test clock: `const NOW: u64 = 1_000_000;`
+const NOW: u64 = 1_000_000;
+
+// **KPX-01** — expired rejected.
+test kpx_01_expired_rejected {
+    assert(validate_key_package_expiry(NOW, NOW - 200, NOW - 100) == KPX_EXPIRED);
+}
+
+// **KPX-02** — not yet valid rejected.
+test kpx_02_not_yet_valid_rejected {
+    assert(validate_key_package_expiry(NOW, NOW + 100, NOW + 3600) == KPX_NOT_YET_VALID);
+}
+
+// **KPX-03** — inverted lifetime rejected.
+test kpx_03_inverted_rejected {
+    assert(validate_key_package_expiry(NOW, NOW + 1000, NOW + 100) == KPX_INVERTED_LIFETIME);
+}
+
+// **KPX-04** — lifetime too short rejected.
+test kpx_04_too_short_rejected {
+    assert(validate_key_package_expiry(NOW, NOW - 10, NOW + 10) == KPX_LIFETIME_TOO_SHORT);
+}
+
+// **KPX-05** — lifetime too long rejected (NOW - 100, NOW + KPX_MAX_LIFETIME_SECS + 1).
+test kpx_05_too_long_rejected {
+    assert(validate_key_package_expiry(NOW, NOW - 100, NOW + KPX_MAX_LIFETIME_SECS + 1) == KPX_LIFETIME_TOO_LONG);
+}
+
+// **KPX-06** — zero lifetime rejected.
+test kpx_06_zero_lifetime_rejected {
+    assert(validate_key_package_expiry(NOW, NOW, NOW) == KPX_ZERO_LIFETIME);
+}
+
+// **KPX-07** — valid window accepted (NOW - 100, NOW + 3600).
+test kpx_07_valid_accepted {
+    assert(validate_key_package_expiry(NOW, NOW - 100, NOW + 3600) == KPX_OK);
+}
+
+// **KPX-08** — exact `not_before` boundary accepted.
+test kpx_08_exact_start_accepted {
+    assert(validate_key_package_expiry(NOW, NOW, NOW + 3600) == KPX_OK);
+}
+
+// **KPX-09** — exact `not_after` boundary accepted.
+test kpx_09_exact_end_accepted {
+    assert(validate_key_package_expiry(NOW, NOW - 3600, NOW) == KPX_OK);
+}
+
+// **KPX-10** — minimum lifetime accepted (NOW - 30, NOW + KPX_MIN_LIFETIME_SECS - 30).
+test kpx_10_min_lifetime_accepted {
+    assert(validate_key_package_expiry(NOW, NOW - 30, NOW + KPX_MIN_LIFETIME_SECS - 30) == KPX_OK);
+}

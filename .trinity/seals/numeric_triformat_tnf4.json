@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6dc4846fe05109fb8a4842f72aa5ae44144dd9c54c1e5e0481ee610f1a09f8ef",
   "gen_hash_rust": "sha256:9c0c38506df96f38efdfc49ca0ac3d01752a40bcb26fe3b513769a6e45b5101c",
   "gen_hash_verilog": "sha256:7854e79daae6f551e3e40a196018e7356ad56356daf1629ca0cf4afb191df93c",
   "gen_hash_zig": "sha256:4a7eccbcc900a4abab950ad22d3d3ab6aea81401a337ed03253dc73581203923",
   "module": "triformat_tnf4",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:11:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:db4d7a7e1787579f9b9894309188ac030a830066da5ed24b098910001788ea93",
-  "spec_path": "specs/numeric/tnf4.t27"
+  "spec_path": "specs/numeric/tnf4.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

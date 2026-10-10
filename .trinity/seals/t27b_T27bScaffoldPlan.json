@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f3875e1a43b7b6bbd4f3b45c3c2c05d7f4b39070b18223833dbd77402090e0d4",
+  "gen_hash_rust": "sha256:1cbbe8acebeaf71fe665f76628d4d2263d4dbdd5dc3b0c93e7aa5cba37203730",
+  "gen_hash_verilog": "sha256:ac030bd3a4eb1e1f359450f340ea54b8d88824443ba9138a4ebc684732ad03aa",
+  "gen_hash_zig": "sha256:33e3146d64e437f3e870e8b458b50d9fce5cd9b49e8ce584db38a46244519332",
+  "module": "T27bScaffoldPlan",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:ff5dd3ff88f18d6caf4ef432189f112890c22ed4e3f815f47e08ab252b19b41f",
+  "spec_path": "specs/tri/t27b/scaffold_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

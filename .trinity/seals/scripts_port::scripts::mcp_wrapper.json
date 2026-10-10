@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5d06e5c163174871a012ff2adefdf92cfe1a51c93330adae0ac4651b2aaf0607",
+  "gen_hash_rust": "sha256:9b3c1be8b162c7aa3c62cb0eda532dc16706ac369575ad7d5c1073109c56fd45",
+  "gen_hash_verilog": "sha256:b2ed88c749f96c4edcc84358674603114d216523f9aec71c702940bba3c8f3a6",
+  "gen_hash_zig": "sha256:733cc540a6c44a7d025c543e968e7d4879045ea24948a06924566e03e3bb3b40",
+  "module": "port::scripts::mcp_wrapper",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:16:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a302f786db6c04eb2cac6e7338a2bd2040960896afcca0e5ac71f5ab3f09a867",
+  "spec_path": "specs/port/scripts/mcp-wrapper.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

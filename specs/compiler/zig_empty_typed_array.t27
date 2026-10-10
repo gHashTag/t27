@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/compiler/zig_empty_typed_array.t27 -- an EMPTY typed array literal lowers to an empty Zig list.
+; --
+; The defect. `&[_]S{}` lowered to `&.{ _ }`: a typed literal keeps its DIMENSION in extra_size, and the
+; gen-zig emitter, finding no children, read extra_size as element text and printed the `_` as an
+; element. Zig refuses it ("'_' used as an identifier without @\"_\" syntax"). On 2026-10-10 that error
+; blocked 17 specs from compiling (bus/pubsub, lsp/client, lsp/server among them), so none of their
+; tests had ever run. A one-element literal `&[_]S{ S{ .a = 1 } }` was fine: its element is a child.
+; --
+; The rule. A typed literal stores its elements as children, never as text, so a typed literal with no
+; children is the empty list `.{}`, whatever its dimension says.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ZigEmptyTypedArray;
+
+pub const Pair = struct { a: u8, b: u8 };
+
+pub fn none() -> []const Pair {
+    return &[_]Pair{};
+}
+
+pub fn one() -> []const Pair {
+    return &[_]Pair{ Pair{ .a = 1, .b = 2 } };
+}
+
+pub fn count_a(xs: []const Pair) -> u32 {
+    var n : u32 = 0;
+    for (xs) |x| { n = n + x.a; }
+    return n;
+}
+
+test an_empty_typed_array_has_no_elements {
+    assert none().len == 0;
+    assert count_a(none()) == 0;
+}
+
+test a_one_element_typed_array_keeps_its_element {
+    assert one().len == 1;
+    assert one()[0].b == 2;
+    assert count_a(one()) == 1;
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:13b1d2ef72d327aaf760b1b12e2b04f5e245cf33cda7215b4910a6ff8b616b35",
+  "gen_hash_rust": "sha256:80a366251ce20bcef02a57801a7b8fba3516273b006b4a5bd95f8c226499b44f",
+  "gen_hash_verilog": "sha256:a5c3d847daaae9bab215fb918fbb521634b2ad23231fea28588529206e2b78f5",
+  "gen_hash_zig": "sha256:a744f66492cbe67554418892d8c66da6b11866514b6276faa57e16dc4a58e58a",
+  "module": "port::memory",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7e998597fddcb80103744cd5d7694417b7b436f231d8154b61d0e952a29c72fe",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/memory.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

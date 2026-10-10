@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:558974c9775c8afd224608730fc60ad97c17a494e890347692ece3b671fb1cfc",
-  "gen_hash_rust": "sha256:ab610d8411201ca90934a99d8b32e7c2b51d1acf9fe156344e75df3410a0e658",
+  "gen_hash_rust": "sha256:61c129c5d0f08620757d9216395b4b779d2a42f27b54d9c9f338f945df224f54",
   "gen_hash_verilog": "sha256:1f1bc8bcb1a74652239215569cab7131e96eebc805642407fbcd613ec95153d4",
   "gen_hash_zig": "sha256:9f9790aa71ed27e5edc4481e09449291a0cc54346e19428a0d514da041fd00ac",
   "module": "TriDisjointSet",

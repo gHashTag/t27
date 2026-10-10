@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:559b36fe29c9708ac28f56931b040a94ccb1884bf5cb381ea8c340d8ddc3dfbe",
-  "gen_hash_rust": "sha256:6f8f4e4c44545cc5ac590b54d87197aa39bfaefef8557c499451c0d849ef5e6f",
-  "gen_hash_verilog": "sha256:a8eaada3d2c59726715db98b560f8baf20240c6e2db207da21c0a78704a55027",
-  "gen_hash_zig": "sha256:a549da0f05d1351b4b142a6765408c67b018899c70aafd5d7a348247b99fb062",
+  "built_by": "t27c-bootstrap@0.5.0+20d20c9d2",
+  "gen_hash_c": "sha256:9b62b16eddc61a99dc2850fd78897196b247289dff1336b80b1de0c7c8a42d38",
+  "gen_hash_rust": "sha256:9aa0c7c9531e5222480b87512e3631c197cd8589e6affe666a869fafa0e8aa38",
+  "gen_hash_verilog": "sha256:33c6bbf3c0b221401a0e17f3cf6778b3790a00e69e87d619d4be9e4f840da645",
+  "gen_hash_zig": "sha256:575aa59e61b3339edd9894103eb185628cb3b423b1e8ea93473136747a77d697",
   "module": "depin.prove",
   "ring": 12,
-  "sealed_at": "2026-10-04T16:01:25Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:2421bb9cb4b45d3dd6870fe0bd27fabaede1fe277e01bfb6d88602c6b78accde",
+  "sealed_at": "2026-10-08T06:13:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:399edc0d7c3c0631ae4eab7918fbde7e5e2902db807bb59f19975b0743eee539",
   "spec_path": "specs/depin/prove.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-prove-79805/TriSha256.zig:1:1: error: unable to load 'TriSha256.zig': FileNotFound"
+    "blocked": "does not compile: TriSha256.zig:1:1: error: unable to load 'TriSha256.zig': FileNotFound"
   }
 }

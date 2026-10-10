@@ -129,6 +129,10 @@ Load these skills when their functionality matches the task.
 for the FPGA board, JTAG cable, host toolchain, and program/flash path. Read it
 before touching anything under `fpga/`. Non-negotiables:
 
+- **Measured 2026-10-08 (#7788): the bench board is an ALINX AX7203, `xc7a200tfbg484-2`** -- a
+  camera read "ALINX" off the PCB and the AX7203 gf8 bitstream answered 512/512 over its UART.
+  JTAG-only results stand; any design that uses package pins must target fbg484. The Wukong
+  text below is what the SSOT said before; HARDWARE_SSOT.md §2026-10-08 has the evidence.
 - Target board is **QMTech Wukong V1 / XC7A200T-FGG676** (`xc7a200tfgg676-1`),
   IDCODE `0x03636093`. Not the Arty A7 (`csg324`), and **not the 100T** — this
   file said `XC7A100T` / `0x13631093` until 2026-08-14, contradicting the SSOT

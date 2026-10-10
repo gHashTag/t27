@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:f0f24859ae937e913bf26bd7d47ee08f563cc87107fa8408009ae20e25c1fed8",
-  "gen_hash_rust": "sha256:73471140565139a76ba3fc3846cfd1f1459dde94ef21c422a285103c71adf3cc",
+  "gen_hash_rust": "sha256:706d8c2d394fa0c11fef572645bddeeb57ba058ac77ef93f69b774856b0b565f",
   "gen_hash_verilog": "sha256:e41ace918915eeeb176b7a1d9b32aaeea7ef2f3c93f4fd9334fcd2d6ce3c027a",
   "gen_hash_zig": "sha256:9022e2b532eb56e2716d71825f03d584982bdaeaa083c82eb38fdc31d244a428",
   "module": "ToolsRegistry",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:37Z",
+  "sealed_at": "2026-10-06T13:02:29Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:45bea1322d1fbc1b4fb10260d29a3c6b4d6208b51f1c457a2fb8541df6aebf2c",
   "spec_path": "specs/tools/registry.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-registry-37255/spec.zig:23:59: error: use of undeclared identifier 'Result'"
+    "blocked": "does not compile: /tmp/t27c-test-report-registry-3533857/spec.zig:23:59: error: use of undeclared identifier 'Result'"
   }
 }

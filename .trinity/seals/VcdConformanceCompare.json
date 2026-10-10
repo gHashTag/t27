@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:5ec03e928d92dea80ea8791af7fc920751a008d9f7600d3806a7b056062a5765",
-  "gen_hash_rust": "sha256:958735f9f5dba7492cbb843ceecaa5f2a926928832e9bf311626cae0b5d3e537",
+  "gen_hash_rust": "sha256:ab594cf24e0c5ae22a5c447cfbdc0ad18320b7c0f8fd26ccc0dfa5df9dfdaf48",
   "gen_hash_verilog": "sha256:9febe043c47e9fe7d4d48a9fe33664eaf6c3873e12ed8fb004d682b7dc4e55ca",
   "gen_hash_zig": "sha256:8d08b0774d1f8844d4c04bf566527669061aa77a6ed812c6442ed4dc80a2788c",
   "module": "VcdConformanceCompare",

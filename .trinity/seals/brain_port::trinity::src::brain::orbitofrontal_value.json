@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ce0adf50b4ce3fe391670a57afc36768a33db54060b63e22908d15cf1da22233",
+  "gen_hash_rust": "sha256:bf3466fe5ab603520966e1eac7deadfbc9983875324ec57eb055ca7d7f31b828",
+  "gen_hash_verilog": "sha256:2017e8136603f9c223c83b1bcd4e19de231bda95c024686d237de56eb7693f7f",
+  "gen_hash_zig": "sha256:cc85eccc472276841c88a8572d28e37cdf3ebe881bf4a2d9cba7609d4e997282",
+  "module": "port::trinity::src::brain::orbitofrontal_value",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b4bf475d4a5bb3fdda8ce4ebac327e29d8b61c359480e5ca8b0417bd5d8b14a2",
+  "spec_path": "specs/port/trinity/src/brain/orbitofrontal_value.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

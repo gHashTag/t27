@@ -39,3 +39,20 @@ pub const WHEN_TO_USE : str = "The competitor table against its own contract: ho
 pub const CAST : str = "term/t27-tri-competitors/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_constants {
+    assert KIND == "tool";
+    assert FAMILY == "tri-cli";
+    assert ID == "tri/competitors";
+    assert REPO == "gHashTag/t27";
+    assert QUALIFIED_ID == "gHashTag/t27:tri/competitors";
+    assert SCHEMA == 2;
+    assert COMMAND == "tri competitors";
+    assert VARIANT == "Commands::Competitors";
+    assert ENABLED == true;
+    assert AGENTS[0] == "T";
+    assert AGENTS[1] == "V";
+    assert ACTIONS[0] == "audit";
+    assert ACTIONS[1] == "freshness";
+    assert CAST == "term/t27-tri-competitors/session.cast";
+}

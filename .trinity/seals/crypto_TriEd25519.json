@@ -1,0 +1,36 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+cfe753c9c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/tri/crypto/sha512.t27",
+      "spec_hash": "sha256:1461baa66a894f586dcb17356847bec5933e6f6a42f6e3b7f59a628c66ce62b1"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fc57fca3fc2295b61c02e768dfbfa7070b348c0092ed4b2b0a8b0a615e912360",
+  "gen_hash_rust": "sha256:268b3f80e6edfea61534052ee5812879376b63eee7d1fbfdff2aa0ab4b2062c6",
+  "gen_hash_verilog": "sha256:7f5dfb6001952929d260afcb4f5c178dd31e3b2735d806dc55966568e4b1d2ad",
+  "gen_hash_zig": "sha256:e00ed98a354a4f5e9a788cbe2f49a19890bf6a77e1259bbf17087f2cd5529fc9",
+  "module": "TriEd25519",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:13:40Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:13915d74de7f5f3de9f13ce84ac87b964d8e183c31d2d5fc080a9994849b1617",
+  "spec_path": "specs/tri/crypto/ed25519.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 16,
+    "total": 16
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

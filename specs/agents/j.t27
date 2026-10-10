@@ -44,3 +44,17 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test test_agent_j_constants {
+  assert KIND == "agent";
+  assert ID == "t27/J";
+  assert LETTER == "J";
+  assert ORDINAL == 10;
+  assert LETTER_NAME == "Iota-extended";
+  assert NAME == "Iota-extended (Jobs)";
+  assert DOMAIN == "Jobs / Task Routing";
+  assert ARCHETYPE == "Hand with grip - dispatcher";
+  assert REGISTER == "R9";
+  assert LAYER == "Spiritual";
+  assert ENABLED == true;
+}

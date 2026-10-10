@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:a2af0ee8bbdd793211282a91050c62f2863ed6faae017f812c87b9b1e51117c4",
   "gen_hash_rust": "sha256:687d48006fa4d64284ece13b57ffebf8cd2ee931823afc0dbd1d4047c0cc13cb",
   "gen_hash_verilog": "sha256:c677e03a33e94e40d9f96151075a888d0503bb2459abe2d215f33a8fd5de2216",
-  "gen_hash_zig": "sha256:4f75158aecf129f70441b189d9165877ef26fa00b9cbb4df282cdc658039d768",
+  "gen_hash_zig": "sha256:33c84b845bab19f7a1e84f251e09083cf6494c6e7d297707ad61020fb7d6d57c",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:54Z",
+  "sealed_at": "2026-10-07T01:51:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:35ff4254d28de9a1a6638e6921e37eec4e0002fc27bd7d9d640476924ddbd028",
+  "spec_hash": "sha256:faea17de48c90b6911a15e298de8f7b0ca956328ca81f36dd561efd4950b4929",
   "spec_path": "specs/tri/encoding/bson.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-bson-2905512/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /tmp/t27c-test-report-bson-1848204/spec.zig:45:28: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

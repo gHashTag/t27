@@ -162,6 +162,8 @@ fn encoders_match_clang() {
         ("fdiv d3, d4, d5", fdiv(3, 4, 5), 0x1e65_1883),
         // FNEG (scalar) "FNEG <Dd>, <Dn>", data-processing (1 source) opc=10.
         ("fneg d16, d16", fneg(16, 16), 0x1e61_4210),
+        // FSQRT (scalar) "FSQRT <Dd>, <Dn>", data-processing (1 source) opcode=000011.
+        ("fsqrt d16, d16", fsqrt(16, 16), 0x1e61_c210),
         // FCMP "FCMP <Dn>, <Dm>", opc=00 (quiet, register form).
         ("fcmp d16, d17", fcmp(16, 17), 0x1e71_2200),
         // SCVTF / UCVTF (scalar, integer) "<op> <Dd>, <Wn>|<Xn>", rmode=00
@@ -194,6 +196,7 @@ fn encoders_match_clang() {
         ("fmul s16, s16, s17", single(fmul(16, 16, 17)), 0x1e31_0a10),
         ("fdiv s3, s4, s5", single(fdiv(3, 4, 5)), 0x1e25_1883),
         ("fneg s16, s16", single(fneg(16, 16)), 0x1e21_4210),
+        ("fsqrt s16, s16", single(fsqrt(16, 16)), 0x1e21_c210),
         ("fcmp s16, s17", single(fcmp(16, 17)), 0x1e31_2200),
         ("scvtf s16, w9", single(scvtf(false, 16, 9)), 0x1e22_0130),
         ("scvtf s16, x9", single(scvtf(true, 16, 9)), 0x9e22_0130),
@@ -207,7 +210,7 @@ fn encoders_match_clang() {
         }
     }
     assert!(bad.is_empty(), "encoder mismatches:\n{}", bad.join("\n"));
-    assert_eq!(cases.len(), 171);
+    assert_eq!(cases.len(), 173);
 }
 
 #[test]
@@ -257,6 +260,8 @@ fn disassembler_reads_back_the_subset() {
         fmul(16, 16, 17),
         fdiv(3, 4, 5),
         fneg(16, 16),
+        fsqrt(16, 16),
+        single(fsqrt(16, 16)),
         fcmp(16, 17),
         scvtf(false, 16, 9),
         ucvtf(true, 16, 9),

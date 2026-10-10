@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:67434e59f1556d0a1cc64e47393d5bc43cd8f11be9b14c4ad27a3d9eeefae7f5",
+  "gen_hash_rust": "sha256:c7e517aa3b3f8c16127f11e69149fc8e0da9ce5fc06af0c700be09cb973c999a",
+  "gen_hash_verilog": "sha256:e09d6d6c3d6eb97dcdf04d6f5a3b443c89b42442a14e268d658b8ea84bfd7873",
+  "gen_hash_zig": "sha256:9e43c5f8a5e89c34270f0c1baa10d68dbb83a3077681ebcee801a91936b5aba4",
+  "module": "T27bConformanceDivTruncPanic",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f977106d576605b75091103b31ff3f17749ccdc856bf5f4af9d307ae7005bd6c",
+  "spec_path": "specs/tri/t27b/conformance/div_trunc_panic.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

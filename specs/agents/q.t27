@@ -44,3 +44,20 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test agent_q_constants {
+  assert KIND == "agent";
+  assert ID == "t27/Q";
+  assert LETTER == "Q";
+  assert ORDINAL == 17;
+  assert LETTER_NAME == "Theta";
+  assert NAME == "Theta (Queue)";
+  assert DOMAIN == "Queue / Scheduling";
+  assert ARCHETYPE == "Needle's eye - bottleneck";
+  assert REGISTER == "R16";
+  assert LAYER == "Spiritual";
+  assert ENABLED == true;
+  assert CLARA_ROLE == "";
+  assert SKILLS[0] == "trinity/god-mode";
+  assert TOOLS[0] == "mcp/inngest-dev";
+}

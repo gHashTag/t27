@@ -44,3 +44,17 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test test_agent_i_constants {
+  assert KIND == "agent";
+  assert ID == "t27/I";
+  assert LETTER == "I";
+  assert ORDINAL == 9;
+  assert LETTER_NAME == "Iota";
+  assert NAME == "Iota (ISA)";
+  assert DOMAIN == "ISA / Registers";
+  assert ARCHETYPE == "Hand - action, point";
+  assert REGISTER == "R8";
+  assert LAYER == "Archetypal";
+  assert ENABLED == true;
+}

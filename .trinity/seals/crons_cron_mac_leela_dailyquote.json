@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4cbe4c20dd9c72afa246aff8007f4de50629c613de4975f4ead7b5ceae03e9ba",
+  "gen_hash_rust": "sha256:27dacbf73ddbeec2f5c06a53ca81462ac0b6924d9f487904f3b7ed24c0ebb29d",
+  "gen_hash_verilog": "sha256:e2f852632471e18faaa016b02e7c6204c1ba5e950571881eb384021e79c92b94",
+  "gen_hash_zig": "sha256:0d58692ca9e1ab66f74e139c23c86855a38ee8ca997fdd0dcbff13c3638d9ebb",
+  "module": "cron_mac_leela_dailyquote",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:34:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:87c9c39d1d5d845a74830e5abbef0324d8e5101c025db9ca95a0414173db714c",
+  "spec_path": "specs/crons/mac-leela-dailyquote.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

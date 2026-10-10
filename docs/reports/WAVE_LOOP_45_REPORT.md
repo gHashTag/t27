@@ -1,4 +1,6 @@
 # Wave Loop 45 Report — Trinity S³AI / t27
+Erratum (#5406): The deliverable `has_cycle_dfs` claimed as implemented in the runtime fixes section was never implemented in the source code. This identifier exists only in this report and is absent from all source files.
+
 **Date:** 2026-06-16
 **Agent:** Queen (Claude)
 **Suite Status:** 546/546 PASS (zero failures)

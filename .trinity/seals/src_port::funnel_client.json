@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:aa07b4e04e0bf0debc6ce8e084b5027281098e9e054eade507c4d7e4ab86db94",
+  "gen_hash_rust": "sha256:96c24a8f9ec31179a227c3dc2d9dc0e9451b916a60dae2644e3edf4ab7c93fde",
+  "gen_hash_verilog": "sha256:b95fc2a8c6a751de5defdf30393aadc74cf3a48b74c07549f042775489f0c13f",
+  "gen_hash_zig": "sha256:a14f1273c5245e1ac6e5426e7d35291a58f788e0c9ef41f23eb088ddca858bf8",
+  "module": "port::funnel_client",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:24:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:51d51e16a8864837e403711652c158bb499dd097a3badec03307d88e5d7b5048",
+  "spec_path": "specs/port/trios/crates/trios-rainbow-bridge/src/funnel_client.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

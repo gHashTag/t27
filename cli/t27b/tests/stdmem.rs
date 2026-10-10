@@ -78,3 +78,71 @@ fn std_mem_other_shapes_are_refused() {
         assert!(m.contains(detail), "{}: {}", body, m);
     }
 }
+
+/// The conformance spec `specs/tri/t27b/conformance/std_mem_byte_slice.t27`:
+/// `t27c test-report` gives 6 pass, 0 vacuous.
+#[test]
+fn byte_buffer_conformance_spec_passes() {
+    let src = include_str!("../../../specs/tri/t27b/conformance/std_mem_byte_slice.t27");
+    let ran = run(src);
+    let got = names_ok(&ran);
+    assert_eq!(got.len(), 6);
+    assert!(got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+}
+
+/// Bytes in a buffer compare by content, so a wrong expectation fails
+/// (`t27c test-report`: 1 pass, 2 fail).
+const BUF_SRC: &str = "module b;
+
+fn put(buf: []u8, pos: usize, s: []const u8) -> usize {
+    var i: usize = 0;
+    while (i < s.len) {
+        buf[pos + i] = s[i];
+        i += 1;
+    }
+    return pos + s.len;
+}
+
+test matches {
+    var buf: [8]u8 = undefined;
+    const n: usize = put(&buf, 0, \"abc\");
+    assert(std.mem.eql(u8, buf[0:n], \"abc\"));
+}
+
+test wrong_bytes {
+    var buf: [8]u8 = undefined;
+    const n: usize = put(&buf, 0, \"abc\");
+    assert(std.mem.eql(u8, buf[0:n], \"abd\"));
+}
+
+test wrong_whole_array {
+    var buf: [2]u8 = undefined;
+    const n: usize = put(&buf, 0, \"ab\");
+    assert(n == 2);
+    assert(std.mem.eql(u8, &buf, \"ba\"));
+}
+";
+
+#[test]
+fn byte_buffers_compare_by_content() {
+    assert_eq!(
+        names_ok(&run(BUF_SRC)),
+        vec![("matches", false, true), ("wrong_bytes", false, false), ("wrong_whole_array", false, false)]
+    );
+}
+
+/// Only bytes coerce to a string: a slice of, or a pointer to, any other
+/// element type stays refused.
+#[test]
+fn non_byte_buffers_are_refused() {
+    let head = "module a;\n\n";
+    let cases: &[&str] = &[
+        "test t { var w: [4]u32 = undefined; w[0] = 1; assert(std.mem.eql(u8, w[0:1], \"a\")); }",
+        "test t { var w: [4]u32 = undefined; w[0] = 1; assert(std.mem.eql(u8, &w, \"a\")); }",
+    ];
+    for body in cases {
+        let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with("t27b: unsupported construct ExprCall(std.*) at line"), "{}: {}", body, m);
+        assert!(m.contains("not a string"), "{}: {}", body, m);
+    }
+}

@@ -39,3 +39,20 @@ pub const WHEN_TO_USE : str = "Specs the compiler cannot read, ranked by the con
 pub const CAST : str = "term/t27-tri-census/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_constants {
+    assert KIND == "tool";
+    assert FAMILY == "tri-cli";
+    assert ID == "tri/census";
+    assert REPO == "gHashTag/t27";
+    assert QUALIFIED_ID == "gHashTag/t27:tri/census";
+    assert SCHEMA == 2;
+    assert COMMAND == "tri census";
+    assert VARIANT == "Commands::Census";
+    assert ENABLED == true;
+    assert AGENTS[0] == "T";
+    assert AGENTS[1] == "M";
+    assert ACTIONS[0] == "audit";
+    assert ACTIONS[1] == "pin";
+    assert CAST == "term/t27-tri-census/session.cast";
+}

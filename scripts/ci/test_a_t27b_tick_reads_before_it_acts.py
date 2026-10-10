@@ -392,10 +392,13 @@ with tempfile.TemporaryDirectory() as tmp:
                 gate(4, mergeable="CONFLICTING"), gate(5, base="claude/x"), gate(6, coverage="FAILURE"),
                 gate(7, gate_topology="FAILURE"), gate(8, state="MERGED", mergeable="UNKNOWN"),
                 gate(9, loop_tools_tracked="FAILURE"), gate(10, check_linked_issue="ABSENT"),
-                gate(11, mergeable="UNKNOWN"), gate(12, brand_new="FAILURE")]
+                gate(11, mergeable="UNKNOWN"), gate(12, brand_new="FAILURE"),
+                gate(13, t27b_native_linux="FAILURE"), gate(14, t27b_native_macos="IN_PROGRESS"),
+                gate(15, t27b_native_ratchet="FAILURE")]
     gx = os.path.join(tmp, "fx-gate")
     write_fixture(gx, {"prs.json": gate_prs,
-                       "master_checks.json": {"coverage": "SUCCESS", "gate-topology": "FAILURE", "validate": "SUCCESS"}})
+                       "master_checks.json": {"coverage": "SUCCESS", "gate-topology": "FAILURE", "validate": "SUCCESS",
+                                              "t27b-native-ratchet": "SUCCESS"}})
     def run_ready(fx, *nums):
         p = subprocess.run([sys.executable, TOOL, "ready", "--json", "--fixture", fx, *map(str, nums)],
                            capture_output=True, text=True)
@@ -403,9 +406,12 @@ with tempfile.TemporaryDirectory() as tmp:
             return p.returncode, {o["number"]: o["verdict"] for o in json.loads(p.stdout)}, p.stdout + p.stderr
         except ValueError:
             return p.returncode, None, p.stdout + p.stderr
-    code, got, out = run_ready(gx, *range(1, 13))
+    code, got, out = run_ready(gx, *range(1, 16))
+    # 13-15 (#6444): the native cargo-test checks are required once they report;
+    # the native ratchet is not, so a red one blocks only while master's is green.
     want = {1: "READY", 2: "WAIT", 3: "RED", 4: "CONFLICT", 5: "RETARGET", 6: "BLOCKED", 7: "READY",
-            8: "CLOSED", 9: "RED", 10: "WAIT", 11: "WAIT", 12: "READY"}
+            8: "CLOSED", 9: "RED", 10: "WAIT", 11: "WAIT", 12: "READY",
+            13: "RED", 14: "WAIT", 15: "BLOCKED"}
     check(code == 1 and got == want, f"ready: each verdict as planted, exit 1 ({code})\n        got  {got}\n        want {want}")
     code, got, out = run_ready(gx, 1, 7, 12)
     check(code == 0 and got == {1: "READY", 7: "READY", 12: "READY"},

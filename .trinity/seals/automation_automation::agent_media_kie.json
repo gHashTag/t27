@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:14c7495ee8aee92af3f0dc39a59dc7fba795b9371fbd94a2110cda5b9fff7efc",
+  "gen_hash_rust": "sha256:18932d4f93616710bf933754e3d63ec4335961608dd2ee28e90319621fc9d0dc",
+  "gen_hash_verilog": "sha256:7813630b8ad218449894309b4ef0ef345ee6bb093b30f21d04e7b39eac632efe",
+  "gen_hash_zig": "sha256:775834a302c53e78a293c22801d6036610048186a7decad2071460a629b80258",
+  "module": "automation::agent_media_kie",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:45:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:999efe3f323dfd0fe2e27010e8913d698322dc155b8e7a350ed0ea97611d51e4",
+  "spec_path": "specs/automation/agent-media-kie.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

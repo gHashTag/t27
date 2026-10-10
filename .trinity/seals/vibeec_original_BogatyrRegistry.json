@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:38b2089af3f54cf39986fe3ae0c304950d92add866c6f99b978dfe82c5f39492",
+  "gen_hash_rust": "sha256:f0a7fa3d99f6e8885080852e1a844f216e418d5abdf9bd630b65589a5fe32981",
+  "gen_hash_verilog": "sha256:027ed8aeae14ff95fd60e3f06de8521ba8b5093cf3814d5ebf4ac4289c45ee8a",
+  "gen_hash_zig": "sha256:7d278a8d6b4fa9d39eabf643c173ceff369250db87266d536e2addfd4d2bbd3d",
+  "module": "BogatyrRegistry",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:ce3f2f6fdbecd277c8fa63aaa9942c322fdedfdfa8c2e62c7146b1aaabf7ab53",
+  "spec_path": "specs/port/trinity/src/phi-engine/vibeec_original/bogatyrs_registry.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f9c9519273eb30102e022ee6f65d048e54a576ca300b1a896c92b751e375d091",
+  "gen_hash_rust": "sha256:665c6c78354561b61e0ed35ceb8b918dc431e1c72fe77eafb0029c36aa5798bd",
+  "gen_hash_verilog": "sha256:153158048132010eb2279cb730a5a58bd55696df8d4b7a951dfa6f7b91521e42",
+  "gen_hash_zig": "sha256:77fdb11301de7b5b1d4688e06a47b1006dead52c0ac094d846ec4c2f7dba3ab8",
+  "module": "port::print_pellis_seal_decimal",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:16:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4408147132c594291921681edd3bc1d494074eca27ed9e810ec3296881744952",
+  "spec_path": "specs/port/scripts/print_pellis_seal_decimal.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

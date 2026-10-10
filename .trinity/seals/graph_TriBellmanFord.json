@@ -1,12 +1,36 @@
 {
-  "gen_hash_c": "sha256:715054f3089b9ef955c89ac92d656483248e2bd75bd7f91d19ca701a7979cb2b",
-  "gen_hash_rust": "sha256:a4479e1266a59952e6e50ccf6e7f3407db6ae91c930edc3c79cd93895ceff1d5",
-  "gen_hash_verilog": "sha256:47a5b1636956fbb8553d2a7dbaa4344db497df25635df8143eb6027dfd9d6acb",
-  "gen_hash_zig": "sha256:6f022e4484d7202acc7bb034775e3c20c2e2d32fc2586c392374022e0ca20327",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c9e6ab833b24fcfa896a3ac67d162539edb1383ff2f19333d65a0c4cd0d8f655",
+  "gen_hash_rust": "sha256:c0e5318c094b6a5acb02588b5a0c2e22f448cc508e4180bfe90268d8068ce698",
+  "gen_hash_verilog": "sha256:0cb75a6bc3bf08ca38ad6ac8fdc8b2405d65aab0e94cd3233e2604bbd0c3ecbb",
+  "gen_hash_zig": "sha256:f08e15133349846e5af2ce70b8eb57c1e95a7fe707976c8d90d3f40d39c61656",
   "module": "TriBellmanFord",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:45Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:89a7740fd5e445abd9fa8e839ea57020591daa228f2a83719af15e3e82c15b68",
-  "spec_path": "specs/tri/graph/bellman_ford.t27"
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:552521e5efdc9d903b022994ccbd7190df4f1679388c010729de0bcb6047bbe6",
+  "spec_path": "specs/tri/graph/bellman_ford.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

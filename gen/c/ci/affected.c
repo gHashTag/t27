@@ -28,6 +28,9 @@
 #define SPEC_EXTS "t27,tri,$"
 #define PROSE_EXTS "md,txt,$"
 #define SPECS_ROOT "specs/,$"
+#define PROSE_ANYWHERE_EXTS "md,$"
+#define SEALS_ROOT ".trinity/seals/,$"
+#define SEAL_EXTS "json,$"
 #define KINDS "ACDMRT$"
 #define MARK_GRAPH "--graph$"
 #define MARK_CORPUS "--corpus$"
@@ -45,8 +48,6 @@ uint8_t lower(uint8_t c);
 bool in_list(uint8_t* list, uint8_t* s, size_t from, size_t to);
 size_t ext_dot(uint8_t* s, size_t from, size_t to);
 uint8_t path_class(uint8_t* s, size_t from, size_t to);
-size_t line_end(uint8_t* buf, size_t s, size_t n);
-size_t text_end(uint8_t* buf, size_t s, size_t e);
 bool line_is(uint8_t* buf, size_t s, size_t t, uint8_t* lit);
 size_t marker_at(uint8_t* buf, size_t n, size_t from, uint8_t* lit);
 size_t first_tab(uint8_t* buf, size_t s, size_t t);
@@ -62,6 +63,8 @@ uint32_t select_affected(uint8_t* buf, size_t n, uint8_t* set, size_t scap, uint
 bool has_prefix(uint8_t* list, uint8_t* s, size_t from, size_t to);
 bool is_letter_of(uint8_t* list, uint8_t c);
 uint8_t verdict(uint8_t r);
+size_t line_end(uint8_t* buf, size_t s, size_t n);
+size_t text_end(uint8_t* buf, size_t s, size_t e);
 
 /* -------------------------------------------------------
    Function implementations
@@ -125,10 +128,18 @@ uint8_t path_class(uint8_t* s, size_t from, size_t to) {
     if ((s[from] == '"')) {
         return C_ALL_UNREADABLE;
     }
+    size_t d = ext_dot(s, from, to);
     if ((has_prefix(SPECS_ROOT, s, from, to) == false)) {
+        if ((d < to)) {
+            if (in_list(PROSE_ANYWHERE_EXTS, s, (d + 1), to)) {
+                return C_NOTHING;
+            }
+            if ((has_prefix(SEALS_ROOT, s, from, to) && in_list(SEAL_EXTS, s, (d + 1), to))) {
+                return C_NOTHING;
+            }
+        }
         return C_ALL_OUTSIDE;
     }
-    size_t d = ext_dot(s, from, to);
     if ((d < to)) {
         if (in_list(SPEC_EXTS, s, (d + 1), to)) {
             return C_SEED;
@@ -138,21 +149,6 @@ uint8_t path_class(uint8_t* s, size_t from, size_t to) {
         }
     }
     return C_ALL_UNDER_SPECS;
-}
-
-size_t line_end(uint8_t* buf, size_t s, size_t n) {
-    size_t e = s;
-    while (((e < n) && (buf[e] != '\n'))) {
-        e += 1;
-    }
-    return e;
-}
-
-size_t text_end(uint8_t* buf, size_t s, size_t e) {
-    if (((e > s) && (buf[(e - 1)] == '\r'))) {
-        return (e - 1);
-    }
-    return e;
 }
 
 bool line_is(uint8_t* buf, size_t s, size_t t, uint8_t* lit) {
@@ -320,7 +316,7 @@ size_t closure(uint8_t* buf, size_t n, uint8_t* set, size_t scap) {
     while ((grew && (sn <= scap))) {
         grew = false;
         s = gs;
-        while ((s < c)) {
+        while (((s < c) && (sn <= scap))) {
             size_t e = line_end(buf, s, c);
             size_t t = text_end(buf, s, e);
             size_t p = first_tab(buf, s, t);
@@ -418,6 +414,21 @@ uint8_t verdict(uint8_t r) {
     return ALLOW;
 }
 
+size_t line_end(uint8_t* buf, size_t s, size_t n) {
+    size_t e = s;
+    while (((e < n) && (buf[e] != '\n'))) {
+        e += 1;
+    }
+    return e;
+}
+
+size_t text_end(uint8_t* buf, size_t s, size_t e) {
+    if (((e > s) && (buf[(e - 1)] == '\r'))) {
+        return (e - 1);
+    }
+    return e;
+}
+
 /* -------------------------------------------------------
    Invariants (compile-time assertions)
    ------------------------------------------------------- */
@@ -445,8 +456,9 @@ void test_negative_control_a_compiler_change_runs_everything(void) {
 void test_anything_outside_specs_runs_everything(void) {
     assert((path_class("cli/t27b/src/lower.rs", 0, 21) == C_ALL_OUTSIDE));
     assert((path_class(".github/workflows/ci.yml", 0, 24) == C_ALL_OUTSIDE));
-    assert((path_class("README.md", 0, 9) == C_ALL_OUTSIDE));
     assert((path_class("xspecs/a.t27", 0, 12) == C_ALL_OUTSIDE));
+    assert((path_class("tools/specs_generate_baseline.txt", 0, 33) == C_ALL_OUTSIDE));
+    assert((path_class("docs/reports/suite_expectations.json", 0, 36) == C_ALL_OUTSIDE));
     assert((run_all("M\tspecs/a.t27\nA\ttools/x.json\n--graph\n--corpus\n", 46) == true));
 }
 
@@ -554,6 +566,29 @@ void test_negative_control_a_set_or_output_that_does_not_fit_runs_everything(voi
     assert((select_affected(inp, 163, &set, 36, &out, 36) == 3));
 }
 
+void test_markdown_anywhere_and_a_seal_select_nothing(void) {
+    assert((path_class("README.md", 0, 9) == C_NOTHING));
+    assert((path_class("docs/now/2026-10-07.MD", 0, 22) == C_NOTHING));
+    assert((path_class(".trinity/seals/ci_CiAffected.json", 0, 33) == C_NOTHING));
+    uint8_t set[256] = {0};
+    uint8_t out[256] = {0};
+    const char* inp = "M\tdocs/NOW.md\nA\t.trinity/seals/x.json\nM\tspecs/b.t27\n--graph\nspecs/a.t27\tspecs/b.t27\n--corpus\nspecs/a.t27\nspecs/b.t27\nspecs/c.t27\n";
+    assert((select_affected(inp, 129, &set, 256, &out, 256) == 2));
+    assert((out[6] == 'a'));
+    assert((out[18] == 'b'));
+    assert((select_affected("M\tAGENTS.md\nD\t.trinity/seals/y.json\n--graph\n--corpus\nspecs/a.t27\n", 65, &set, 256, &out, 256) == 0));
+}
+
+void test_negative_control_the_seal_exception_is_only_seal_json(void) {
+    assert((path_class(".trinity/seals/x.txt", 0, 20) == C_ALL_OUTSIDE));
+    assert((path_class(".trinity/seals.json", 0, 19) == C_ALL_OUTSIDE));
+    assert((path_class(".trinity/state/queue.json", 0, 25) == C_ALL_OUTSIDE));
+    assert((path_class("gen/c/ci/affected.c", 0, 19) == C_ALL_OUTSIDE));
+    assert((path_class("docs/md", 0, 7) == C_ALL_OUTSIDE));
+    assert((diff_class("R100\tdocs/a.md\ttools/a.py", 0, 25) == C_ALL_OUTSIDE));
+    assert((diff_class("R100\ttools/a.py\tdocs/a.md", 0, 25) == C_ALL_OUTSIDE));
+}
+
 
 /* -------------------------------------------------------
    Test runner (compile with -DT27_TEST_MAIN to execute)
@@ -575,7 +610,9 @@ int main(void) {
     test_prose_only_and_an_empty_diff_select_nothing();
     test_a_crlf_line_end_is_dropped();
     test_negative_control_a_set_or_output_that_does_not_fit_runs_everything();
-    printf("All %d tests passed.\n", 13);
+    test_markdown_anywhere_and_a_seal_select_nothing();
+    test_negative_control_the_seal_exception_is_only_seal_json();
+    printf("All %d tests passed.\n", 15);
     return 0;
 }
 #endif /* T27_TEST_MAIN */

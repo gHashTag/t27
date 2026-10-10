@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/memory/graph/temporal.t27 -- when a fact is true, and how a newer fact retires an older one
+; Epic #7828, slice 1 (#7829). Read from graphiti_core/utils/maintenance/edge_operations.py: when a new
+; fact contradicts an old one, the old one gets invalid_at (true until then in the world) and
+; expired_at (this memory stopped believing it now). Nothing is deleted; history stays answerable.
+; These are pure functions over the four times of types.t27 (0 = UNSET there, read literally here), so the rules are tested without an LLM:
+; the LLM only decides THAT two facts contradict; WHAT that does to the times is decided here.
+
+module MemoryGraphTemporal;
+
+; Current: this memory still believes it, and it has not ended in the world as of `now`.
+pub fn fact_is_current(invalid_at: u64, expired_at: u64, now: u64) -> bool {
+    if (expired_at != 0 && expired_at <= now) { return false; }
+    if (invalid_at != 0 && invalid_at <= now) { return false; }
+    return true;
+}
+
+; True at world time t: started at or before t (or start unknown), not ended at or before t.
+pub fn fact_true_at(valid_at: u64, invalid_at: u64, t: u64) -> bool {
+    if (valid_at != 0 && valid_at > t) { return false; }
+    if (invalid_at != 0 && invalid_at <= t) { return false; }
+    return true;
+}
+
+; What a memory as of system time `as_of` believed: created by then, not yet expired then.
+pub fn known_as_of(created_at: u64, expired_at: u64, as_of: u64) -> bool {
+    if (created_at > as_of) { return false; }
+    if (expired_at != 0 && expired_at <= as_of) { return false; }
+    return true;
+}
+
+; A newer fact retires an older one only if the older is still believed, and the newer starts
+; after the older started (a fact about an earlier period does not retire a later one).
+pub fn may_invalidate(old_valid_at: u64, old_expired_at: u64, new_valid_at: u64) -> bool {
+    if (old_expired_at != 0) { return false; }
+    if (old_valid_at == 0 || new_valid_at == 0) { return true; }
+    return new_valid_at > old_valid_at;
+}
+
+; The old fact's new invalid_at: the newer fact's start, or `now` when that start is unknown;
+; an existing earlier end is kept.
+pub fn retired_invalid_at(old_invalid_at: u64, new_valid_at: u64, now: u64) -> u64 {
+    var end : u64 = new_valid_at;
+    if (end == 0) { end = now; }
+    if (old_invalid_at != 0 && old_invalid_at < end) { return old_invalid_at; }
+    return end;
+}
+
+test current_until_expired_or_ended {
+    assert fact_is_current(0, 0, 500);
+    assert fact_is_current(600, 0, 500);
+    assert !fact_is_current(500, 0, 500);
+    assert !fact_is_current(0, 400, 500);
+    assert fact_is_current(0, 501, 500);
+    assert !fact_is_current(0, 500, 500);
+}
+
+test true_inside_its_world_interval {
+    assert fact_true_at(100, 200, 100);
+    assert fact_true_at(100, 200, 199);
+    assert !fact_true_at(100, 200, 200);
+    assert !fact_true_at(100, 200, 99);
+    assert fact_true_at(0, 0, 5);
+    assert fact_true_at(0, 200, 5);
+}
+
+test belief_as_of_a_system_time {
+    assert known_as_of(10, 0, 10);
+    assert !known_as_of(10, 0, 9);
+    assert known_as_of(10, 20, 19);
+    assert !known_as_of(10, 20, 20);
+}
+
+test only_a_later_fact_retires_a_believed_one {
+    assert may_invalidate(100, 0, 200);
+    assert !may_invalidate(100, 0, 100);
+    assert !may_invalidate(200, 0, 100);
+    assert !may_invalidate(100, 50, 200);
+    assert may_invalidate(0, 0, 200);
+    assert may_invalidate(100, 0, 0);
+}
+
+test retirement_takes_the_earlier_end {
+    assert retired_invalid_at(0, 200, 900) == 200;
+    assert retired_invalid_at(0, 0, 900) == 900;
+    assert retired_invalid_at(150, 200, 900) == 150;
+    assert retired_invalid_at(250, 200, 900) == 200;
+}
+
+test a_retired_fact_is_history_not_gone {
+    var end : u64 = retired_invalid_at(0, 200, 900);
+    assert fact_true_at(100, end, 150);
+    assert !fact_true_at(100, end, 250);
+    assert !fact_is_current(end, 900, 900);
+    assert known_as_of(10, 900, 899);
+}

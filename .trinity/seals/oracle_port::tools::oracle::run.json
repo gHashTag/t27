@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d16c0f63f4163391118a81eb7407c9bd25277d645069fa67236764553c7a03c8",
+  "gen_hash_rust": "sha256:8bc817e7080119147286122f7b31bb0ddc22ec29f1a175b88c99a846d309c247",
+  "gen_hash_verilog": "sha256:ba48ca2acbf9a607dccb41e195d3c76d1288b5818135b3bb836dc7122d1bcf0d",
+  "gen_hash_zig": "sha256:5297ff13b3ead81a7b8b6bc7dd784abcdd3e98b7470e2ee2bced748b79130fcf",
+  "module": "port::tools::oracle::run",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:00635287d8889a41f470fc57286d5f9813cf7824f53f101bfb534e7a89fdc37c",
+  "spec_path": "specs/port/tools/oracle/run.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

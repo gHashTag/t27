@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2bc9ab93bb80979bec226477a390ed372dbd144402b16585626268d7af33c2e3",
+  "gen_hash_rust": "sha256:095a4781b052731b051279123325f498cae73a1e3baf2bb81d5b0feaa74d8a0a",
+  "gen_hash_verilog": "sha256:e8cc12e30fd544a6b480684042a91fa731e5d60ff051c47d5478f197ae6e1fd0",
+  "gen_hash_zig": "sha256:dcf5b5f408b9e4440afd04c692bc7fcf66b99eb333318cab7dfa412b9c71abd9",
+  "module": "BlogT27bProgress",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:26:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2b29bcc5f246648be7aa2b6e9b99b44877afb952d6863d3dc237fdb83a392f87",
+  "spec_path": "specs/blog/t27b_progress.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

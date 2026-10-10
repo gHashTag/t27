@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:910f59b1df737444078144084f9753afcee4dbc672392c215442c98ab1ff23aa",
+  "gen_hash_rust": "sha256:f43cd2e4094388fc4a3edfea277ca280bf954ecebe5b15fb09ca34ab875d8325",
+  "gen_hash_verilog": "sha256:768f14960bb596c91c747b1252118438d4b03a8c4bff53f70e8b0c48f3de5b18",
+  "gen_hash_zig": "sha256:0f4b8b1f8a8e8a834884090cd3b63beb54e7fda52bdcb20b3cc583a470703c25",
+  "module": "port::browseros::trios::agent_server::apps::server::src::api::services::openclaw::claw_session",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5021e04b2d0de2c5a4f9aca832d28fc6f7244a84106b389c9bd9ebb7844dbbf0",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/openclaw/claw-session.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,9 @@
+// #7961: gen-c writes `.{ ... }` as `(){ .x = 1 }`, which is not C.
+module struct_anonymous_literal;
+struct SaPair {
+    x: i64,
+}
+fn sa_x() -> i64 {
+    var p: SaPair = .{ .x = 1 };
+    return p.x;
+}

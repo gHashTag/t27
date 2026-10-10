@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5e1a20d2836b10167e18db59adb6d02443de5a0f5563d2b8987f444a5bb931af",
+  "gen_hash_rust": "sha256:ef107176ed4dd3f4279c5d2eda326c3d837d52f9a950e276ffcfa16e732bfa7c",
+  "gen_hash_verilog": "sha256:1bec0d746d79055319cbb08438f4b4bbc3086058bea3505687f78b544fa0be21",
+  "gen_hash_zig": "sha256:a91f5196601659b5a9095a8b8cd5c4bd9307eef2572b532089d41bd6116df9e2",
+  "module": "port::trinity::src::cli::railway_null_startcmd",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:52:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6ca5fe83978434ec0f43cc488fdb2cad2f2ff69cb83af97e0018fcafa29b8d3b",
+  "spec_path": "specs/port/trinity/src/cli/railway_null_startcmd.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

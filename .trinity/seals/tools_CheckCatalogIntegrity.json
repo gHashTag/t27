@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ef53a9b712e8fc90f10c69930af3debf8d8228dfa5c20a1cd0cd18b311307b39",
+  "gen_hash_rust": "sha256:2beb22b6926bef667a9069dac0b8d1adf084a48576cf5d6a74d75e387710a4db",
+  "gen_hash_verilog": "sha256:4a1b5f1cff3c510ee1e728f10b57260fdfb42f316deddaf553e57288b1422693",
+  "gen_hash_zig": "sha256:3cc4a9fbdb78c10e8dd8ed3d2f6f1a3d41be315e098394f6ec5065aa31f1fbee",
+  "module": "CheckCatalogIntegrity",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:37Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:75416ca1c7deaabf7160bf650ffe766189acf8495a2ede39336e9befd8f887d3",
+  "spec_path": "specs/port/tools/check_catalog_integrity.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,10 @@
+# NOW -- t27b: a module var written at the top of a test (2026-10-06)
+
+## module var in test (Closes #6911)
+
+- New conformance spec `specs/tri/t27b/conformance/module_var_in_test.t27`. Under `t27c test-report` it gives 6 pass, 13 runtime asserts and 0 vacuous. Under t27b it gives 6 pass with 13 runtime asserts. Three mutants fail in t27b: a wrong value, state leaked from an earlier test, and a sign flip.
+- Since #6295 the reference treats a top-level write to a module `var` in a test as a write to module state, not a fresh `const`. t27b still refused it as `StmtAssign(module var in test)`. The refusal is removed from `cli/t27b/src/lower.rs` (-11), and the write takes the store path a fn body already uses. One case in `tests/source.rs` moves from refused to passing (+2).
+- Still refused: a test-local `var` that shadows a module var, and a write to a module var in an invariant. A second write to a test-local `var` is `StmtAssign(reference redeclares)`, also stale since #6295 but a family of its own.
+- Lab numbers on branch 8aa626cda, with mismatch 0, jit_interp_mismatch 0 and reference_disagree 0: t27b passes 511 of the 825 specs the reference passes. Master 7e85f6d8d gives 486 when judged by the same reference verdicts. Of those 25, this change accounts for `formal_tb` and `vcd_trace_tb` (blocked to pass) and the new spec. The rest is master drift between 7e85f6d8d and the branch base (14 `specs/crons` specs and new `specs/port` files) plus 4 load timeouts that pass on re-run.
+- `integration_tb`, `spi_tb` and `ternary_isa_tb` go from blocked to fail, and their per-test verdicts match the reference's exactly. `dft_tb` goes from blocked to fail in t27b while the reference cannot compile it, because gen-zig prints `bool as u32` as `@intCast`. That is filed as #6964. t27b's failing test there is the spec's own: `bist_done` is never set.
+- The ledger `docs/reports/t27b_expectations.json` is edited by hand for the two testbenches, and the new spec is added. The cap goes from 57 to 55.

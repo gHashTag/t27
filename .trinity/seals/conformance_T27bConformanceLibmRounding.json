@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/libm.t27",
+      "spec_hash": "sha256:d4414973506e15dbe7e061ff41077da40fc844d55c4647c7ef970ff47192a378"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:afdbaa78df9aaeb454ab448c98e5ef6dc7e9b01d2f1051d7bd3cc2d54e818433",
+  "gen_hash_rust": "sha256:af62c5acd6c4fbf87e136e976cfbdd42417788f85ececc741146ae8e6ebb4c1a",
+  "gen_hash_verilog": "sha256:5d9822c0f36bdf6a68bb3578d44e160fd7f5ae57a4a589dd0aa6d89daf5765f1",
+  "gen_hash_zig": "sha256:7717c7922c14602ea131553af33bc84b8e7408d037b326c78c6a21d55cc7cdcb",
+  "module": "T27bConformanceLibmRounding",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:59:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8957bfba1bea5bfb90db4b913c081bc08f302b2b4446b1a107eaff8eed25ea88",
+  "spec_path": "specs/tri/t27b/conformance/libm_rounding.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

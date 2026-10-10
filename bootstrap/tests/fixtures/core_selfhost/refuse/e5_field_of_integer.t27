@@ -1,0 +1,5 @@
+// A field of an integer (#8087).
+module field_of_integer;
+fn foi_g(p: i64) -> i64 {
+    return p.x;
+}

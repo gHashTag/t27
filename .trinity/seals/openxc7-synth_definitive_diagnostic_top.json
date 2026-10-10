@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:47bb5a61d7eaaaad7c34a84890102b27adb44f9a122c4aefec8af37bd1062c51",
+  "gen_hash_rust": "sha256:0fe7a2db1801bb965e74ddd4e21073d28c3969d51f51fc505954f07b59c66b37",
+  "gen_hash_verilog": "sha256:a9b07586ed301c4483ba25127fa60b7a9f2648dc48f63d24f0e1e1bdedf7b421",
+  "gen_hash_zig": "sha256:65cb4aaeb413de2877d33428ea79fab46c5539f965ec7776cebd5d3412de99e7",
+  "module": "definitive_diagnostic_top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a410042a870c7c2e06a74af2a8523813856d0c9e5a768af2af1dd98a95391f3e",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/definitive_diagnostic_inv.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
