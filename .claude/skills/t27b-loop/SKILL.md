@@ -23,13 +23,16 @@ earlier tick, and it is cheap when nothing changed. Do the steps in order, and s
 Read the plan limits with `get_usage`.
 - **Weekly use >= 95%:** cancel the 15-minute cron and create a one-shot cron 5 minutes after the weekly reset that re-creates it. Write one ledger line, then stop. A loop that runs out of budget stops every session on the account, this one included.
 - **Weekly use >= 85%:** no new agents. Run steps 1-3 and the agents already running.
+- **Pace:** the week has 168 hours, so stay under about 0.6% per hour. If use exceeds `hours since reset x 0.6 + 5`, run no new agent this tick.
+  - On 2026-10-09, three agents burned about 4.5% per hour, and the loop hit 98% in two hours.
+  - Prefer one agent at a time, and a model whose separate weekly bucket has room (compare the `Weekly - <model>` windows in `get_usage`).
 - **Otherwise:** run at most 3-4 agents at once, each in its own fresh worktree.
 
 ## 1. Health, with self-repair (#8325)
 
 | check | healthy | repair |
 |---|---|---|
-| `git config --get core.hooksPath` (any worktree: they share the config) | `.githooks` (relative) | Set it back to `.githooks`. The absolute path runs the main checkout's uncommitted hooks, which need an unbuilt t27c and refuse every worktree commit. It flipped twice on 2026-10-09; the owner wants it relative. Agents never touch it; only the main session does. |
+| `git config --get core.hooksPath` (any worktree: they share the config) | `.githooks` (relative) | Set it back to `.githooks`. The absolute path runs the main checkout's uncommitted hooks, which need an unbuilt t27c and refuse every worktree commit. It flipped four times from 2026-10-09 to 2026-10-10; the owner wants it relative. Durable fix: right after every `git worktree add`, run `git -C <wt> config --worktree core.hooksPath .githooks`. `extensions.worktreeConfig` is on, so the worktree's own setting wins over the shared one. Agents never touch the shared config. |
 | failing checks on master's head commit | none, except Scorecard | Each red check makes every PR UNSTABLE, and GitHub then refuses `--auto`. Fix the cause in a small PR: #8277 (a type name defined twice), #8289 (ledger rows). |
 | t27b-lab `status.json` | `phase` moves, `updated` < 30 min old | If it is stale, read `ssh t27b-lab` logs before redeploying. A redeploy kills the run in flight, so time it right after a run publishes. |
 | t27b-lab `image.lab_py_sha` | equals `git hash-object` of master's `contrib/railway/t27b-lab/lab.py` | `railway up` from a clean `git archive` of `contrib/railway/t27b-lab` |
@@ -78,4 +81,5 @@ Append one line to the loop ledger memory (`t27b-loop-ledger.md`): the time, wha
 - **zsh treats `$n:r` as a modifier, which breaks refspecs.** Write `${n}`, and verify a push with `git ls-remote`.
 - **The classifier denies `gh pr merge --squash` in auto mode** ("Merge Without Review"). `--auto` passes.
 - **The lab drops a request whose head moved.** It also dropped requests it had not fetched yet; since #8320 those wait 30 min.
-- **An unrelated session can change shared `.git/config`.** Verify the setting; do not trust that it was restored.
+- **An unrelated session can change shared `.git/config`.** Verify the setting; do not trust that it was restored. Pin per worktree instead of fighting over the shared value.
+- **Other sessions' spec rewrites can turn master's native ratchet red with UNEXPECTED FAILURE**, even when t27b did not regress (c7570433e and c9d36f314 on 2026-10-10). Before suspecting t27b, check with `git log` whether the spec changed.
