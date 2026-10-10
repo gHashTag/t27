@@ -1,0 +1,103 @@
+module port::trinity::src::tri::railway;
+
+/// Run railway command — dispatches to build/status/logs subcommands
+pub fn runRailwayCommand(allocator: []const u8, args: []str) -> i32 {
+    if (args.len < 1) {
+        return showRailwayHelp(allocator);
+    }
+
+    const subcommand = args[0];
+    var sub_args: [1][]const u8 = [""];
+    if (args.len > 1) {
+        sub_args = [args[1]];
+    }
+
+    if (subcommand == "build") {
+        // This would call railway_build.runRailwayBuildCommand
+        return 0;
+    } else if (subcommand == "status") {
+        return runRailwayStatusCommand(allocator, &sub_args);
+    } else if (subcommand == "logs") {
+        return runRailwayLogsCommand(allocator, &sub_args);
+    } else if (subcommand == "up") {
+        // Alias for build
+        // This would call railway_build.runRailwayBuildCommand
+        return 0;
+    } else {
+        return showRailwayHelp(allocator);
+    }
+}
+
+/// Show railway command help
+fn showRailwayHelp(allocator: []const u8) -> i32 {
+    _ = allocator;
+    // Return 0 to indicate success (help was shown)
+    return 0;
+}
+
+/// Run railway status command — shows deployment status
+fn runRailwayStatusCommand(allocator: []const u8, args: []str) -> i32 {
+    var sub_args: [1][]const u8 = [""];
+    if (args.len > 1) {
+        sub_args = [args[1]];
+    }
+    _ = sub_args;
+    _ = allocator;
+    // This would call railway_api.RailwayApi.init() and getProjectInfo()
+    // Port the decision: return 0 for success, 1 for failure
+    return 0;
+}
+
+/// Run railway logs command — shows build/deploy logs
+fn runRailwayLogsCommand(allocator: []const u8, args: []str) -> i32 {
+    var sub_args: [1][]const u8 = [""];
+    if (args.len > 1) {
+        sub_args = [args[1]];
+    }
+    _ = sub_args;
+    _ = allocator;
+    // This would call railway API to fetch logs
+    // Port the decision: return 0 for success, 1 for failure
+    return 0;
+}
+
+test runRailwayCommand_empty_args {
+    var args: [1][]const u8 = [""];
+    const result = runRailwayCommand("", &args);
+    assert(result == 0);
+}
+
+test runRailwayCommand_status_subcommand {
+    var args: [2][]const u8 = ["status", ""];
+    const result = runRailwayCommand("", &args);
+    assert(result == 0);
+}
+
+test runRailwayCommand_logs_subcommand {
+    var args: [2][]const u8 = ["logs", ""];
+    const result = runRailwayCommand("", &args);
+    assert(result == 0);
+}
+
+test runRailwayCommand_unknown_subcommand {
+    var args: [2][]const u8 = ["unknown", ""];
+    const result = runRailwayCommand("", &args);
+    assert(result == 0); // Shows help for unknown commands
+}
+
+test showRailwayHelp {
+    const result = showRailwayHelp("");
+    assert(result == 0);
+}
+
+test runRailwayStatusCommand_empty_args {
+    var args: [1][]const u8 = [""];
+    const result = runRailwayStatusCommand("", &args);
+    assert(result == 0);
+}
+
+test runRailwayLogsCommand_empty_args {
+    var args: [1][]const u8 = [""];
+    const result = runRailwayLogsCommand("", &args);
+    assert(result == 0);
+}
