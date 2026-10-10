@@ -741,136 +741,258 @@ fn flow_runs(a: &[String]) -> i32 {
 
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
-    if a.first().map(|s| s.as_str()) == Some("--cor0") {
+    
+    // Handle help flags and empty arguments
+    let is_help = a.is_empty() || a.iter().any(|s| s == "-h" || s == "--help");
+    if is_help {
+        println!("bitwalk -- walk a 7-series .bit with the rules of specs/xilinx7/{packets,frames,far}.t27 and nothing else.
+  bitwalk FILE...                         report packets, CRC checks, FDRI, frame ECC, FAR walk, COR0, IDCODE
+  bitwalk --pins TILES FILE               for each line \"pin tile base frames offset words\" of TILES, does
+                                           the tile carry data in the frames the FAR walk assigns it?
+  bitwalk --bits SEGS FILE                is every set bit of FILE a bit some tile's segbits name, at the
+                                           frame the FAR walk assigns? SEGS: \"S type minor bit\" segbits,
+                                           \"T type base frames offset words\" tiles (shift: alias)
+  bitwalk --frame FILE [MIN]              print the sparsest frame with a nonzero ECC and >= MIN nonzero words
+  bitwalk --cor0 N [--no-reseal] IN OUT   rewrite COR0's OSCFSEL, re-seal the CRC words
+  bitwalk --write FRAMES OUT --part_file part.yaml --part_name NAME [--source S] [--generator G]
+           [--date D] [--time T]           write FRAMES (prjxray .frames text) as a .bit: frames placed
+                                           by the FAR walk, ECC sealed, packets as packets.t27's SEQ;
+                                           the header fields default to xc7frames2bit's
+  bitwalk --frames BIT OUT                write BIT's nonzero frames as .frames text, addresses from
+                                           the FAR walk (the inverse of --write)
+  bitwalk --fasm DIGEST FASM OUT [--strict]  FASM -> .frames text as prjxray's fasm2frames writes it (not
+                                           sparse); DIGEST is prjxray-db as fasm_digest.py (beside this
+                                           file) renders it; segbit positions from frames.t27; --strict
+                                           refuses a bit outside its tile's own words (fasm2frames writes it)
+  bitwalk --flow VECTORS.json             replay conformance vectors of flow.t27 ({{\"fn\", \"args\", \"expect\"}})
+  bitwalk --flow-runs RUNS [--ref TOOL]   \"file tool ms\" lines -> per file and tool: runs, best, worst,
+                                           speedup and verdict against TOOL (default: the first tool),
+                                           all by flow.t27; prints each verdict as a vector line too");
+        std::process::exit(0);
+    }
+    
+    let has_unknown_flag = a.iter().any(|s| s.starts_with("--") && 
+        !["--cor0", "--fasm", "--write", "--frames", "--pins", "--bits", "--frame", "--flow", "--flow-runs", "--no-reseal", "--part_file", "--part_name", "--source", "--generator", "--date", "--time", "--strict", "--ref"].contains(&s.as_str()));
+    if has_unknown_flag {
+        println!("Usage: bitwalk [OPTION]... [FILE]...");
+        println!("Try 'bitwalk --help' for more information.");
+        std::process::exit(2);
+    }
+    
+    let is_cor0 = a.first().map(|s| s.as_str()) == Some("--cor0");
+    if is_cor0 {
         let v: u32 = a[1].parse().expect("OSCFSEL 0..63");
         let reseal = !a.iter().any(|s| s == "--no-reseal");
         let files: Vec<&String> = a[2..].iter().filter(|s| !s.starts_with("--")).collect();
-        let mut b = std::fs::read(files[0]).unwrap();
-        let r = walk(&mut b, Some(v), reseal, 2);
-        std::fs::write(files[1], &b).unwrap();
-        println!("patched {} word(s), reseal={reseal}", r.patched);
+        match std::fs::read(files[0]) {
+            Ok(mut b) => {
+                let r = walk(&mut b, Some(v), reseal, 2);
+                match std::fs::write(files[1], &b) {
+                    Ok(()) => println!("patched {} word(s), reseal={reseal}", r.patched),
+                    Err(e) => {
+                        eprintln!("bitwalk: {}: {}", files[1], e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("bitwalk: {}: {}", files[0], e);
+                std::process::exit(1);
+            }
+        }
         return;
     }
-    if a.first().map(|s| s.as_str()) == Some("--fasm") {
+    
+    let is_fasm = a.first().map(|s| s.as_str()) == Some("--fasm");
+    if is_fasm {
         std::process::exit(fasm_frames(&a));
     }
-    if a.first().map(|s| s.as_str()) == Some("--flow") {
+    
+    let is_flow = a.first().map(|s| s.as_str()) == Some("--flow");
+    if is_flow {
         std::process::exit(flow_vectors(&a[1]));
     }
-    if a.first().map(|s| s.as_str()) == Some("--flow-runs") {
+    
+    let is_flow_runs = a.first().map(|s| s.as_str()) == Some("--flow-runs");
+    if is_flow_runs {
         std::process::exit(flow_runs(&a));
     }
-    if a.first().map(|s| s.as_str()) == Some("--write") {
+    
+    let is_write = a.first().map(|s| s.as_str()) == Some("--write");
+    if is_write {
         let rejected = write_bit(&a);
         std::process::exit(if rejected == 0 { 0 } else { 1 });
     }
-    if a.first().map(|s| s.as_str()) == Some("--frames") {
-        let mut b = std::fs::read(&a[1]).unwrap();
-        let r = walk(&mut b, None, false, 2);
-        let part = r.part();
-        assert!(part != w::PARTS, "IDCODE not in far.t27's part table");
-        let addrs = walk_addresses(part);
-        let mut text = String::new();
-        let mut n = 0;
-        for (fr, addr) in r.frames.iter().zip(addrs.iter()) {
-            let data = fr.iter().any(|&v| v != 0);
-            if let (true, Some(addr)) = (data, addr) {
-                let ws: Vec<String> = fr.iter().map(|v| format!("0x{v:08X}")).collect();
-                text.push_str(&format!("0x{addr:08X} {}\n", ws.join(",")));
-                n += 1;
-            }
-        }
-        std::fs::write(&a[2], text).unwrap();
-        println!("{}: {} frames with data", a[2], n);
-        return;
-    }
-    if a.first().map(|s| s.as_str()) == Some("--pins") {
-        let tiles = std::fs::read_to_string(&a[1]).unwrap();
-        let mut b = std::fs::read(&a[2]).unwrap();
-        let r = walk(&mut b, None, false, 2);
-        let (mut hit, mut total) = (0, 0);
-        for line in tiles.lines().filter(|l| !l.trim().is_empty()) {
-            let t: Vec<&str> = line.split_whitespace().collect();
-            let n: Vec<u32> = t[2..6].iter().map(|x| x.parse().unwrap()).collect();
-            let (base, nfr, off, nw) = (n[0], n[1], n[2] as usize, n[3] as usize);
-            let data = (0..nfr).map(|k| w::fdri_index(r.part(), base + k)).any(|i| {
-                i != w::NO_FRAME && r.frames.get(i as usize).map_or(false, |fr| fr[off..off + nw].iter().any(|&v| v != 0))
-            });
-            total += 1;
-            if data { hit += 1; } else { println!("  MISS {} {} base 0x{:08X}", t[0], t[1], base); }
-        }
-        println!("{} pins {}/{} land in frames with data", a[2], hit, total);
-        return;
-    }
-    if a.first().map(|s| s.as_str()) == Some("--bits") {
-        let segs = std::fs::read_to_string(&a[1]).unwrap();
-        let mut b = std::fs::read(&a[2]).unwrap();
-        let r = walk(&mut b, None, false, 2);
-        let part = r.part();
-        let mut bits: HashMap<&str, Vec<Vec<u32>>> = HashMap::new();
-        let (mut known, mut window) = (HashSet::new(), HashSet::new());
-        for line in segs.lines() {
-            let t: Vec<&str> = line.split_whitespace().collect();
-            let n: Vec<u32> = t[2..].iter().map(|x| x.parse().unwrap()).collect();
-            if t[0] == "S" {
-                let by_minor = bits.entry(t[1]).or_default();
-                if by_minor.len() <= n[0] as usize { by_minor.resize(n[0] as usize + 1, vec![]); }
-                by_minor[n[0] as usize].push(n[1]);
-                continue;
-            }
-            let (base, nfr, off, nw, shift) = (n[0], n[1], n[2], n[3], n[4]);
-            let (no_type, no_bits): (Vec<Vec<u32>>, Vec<u32>) = (vec![], vec![]);
-            let by_minor = bits.get(t[1]).unwrap_or(&no_type);
-            for k in 0..nfr {
-                let i = w::fdri_index(part, base + k);
-                let fr = match r.frames.get(i as usize) { Some(fr) if i != w::NO_FRAME => fr, _ => continue };
-                let quiet = fr[off as usize..(off + nw) as usize].iter().all(|&v| v == 0);
-                if quiet { continue; }
-                for wd in off..off + nw { window.insert((i, wd)); }
-                for &bit in by_minor.get(k as usize).unwrap_or(&no_bits) {
-                    let inside = f::seg_in_window(bit, shift, nw);
-                    if inside { known.insert((i, f::seg_pos(off, bit, shift))); }
+    
+    let is_frames = a.first().map(|s| s.as_str()) == Some("--frames");
+    if is_frames {
+        match std::fs::read(&a[1]) {
+            Ok(mut b) => {
+                let r = walk(&mut b, None, false, 2);
+                let part = r.part();
+                assert!(part != w::PARTS, "IDCODE not in far.t27's part table");
+                let addrs = walk_addresses(part);
+                let mut text = String::new();
+                let mut n = 0;
+                for (fr, addr) in r.frames.iter().zip(addrs.iter()) {
+                    let data = fr.iter().any(|&v| v != 0);
+                    if let (true, Some(addr)) = (data, addr) {
+                        let ws: Vec<String> = fr.iter().map(|v| format!("0x{v:08X}")).collect();
+                        text.push_str(&format!("0x{addr:08X} {}\n", ws.join(",")));
+                        n += 1;
+                    }
+                }
+                match std::fs::write(&a[2], text) {
+                    Ok(()) => println!("{}: {} frames with data", a[2], n),
+                    Err(e) => {
+                        eprintln!("bitwalk: {}", a[2], e);
+                        std::process::exit(1);
+                    }
                 }
             }
+            Err(e) => {
+                eprintln!("bitwalk: {}: {}", a[1], e);
+                std::process::exit(1);
+            }
         }
-        let (mut total, mut unknown, mut outside) = (0u32, 0u32, 0u32);
-        for (i, fr) in r.frames.iter().enumerate() {
-            for (wd, &v0) in fr.iter().enumerate() {
-                let mut v = if wd as u32 == f::ECC_WORD { v0 & f::ECC_KEEP } else { v0 };
-                while v != 0 {
-                    let bit = v.trailing_zeros();
-                    v &= v - 1;
-                    total += 1;
-                    let at = (i as u32, wd as u32);
-                    if !window.contains(&at) { outside += 1; continue; }
-                    if known.contains(&(at.0, at.1 * 32 + bit)) { continue; }
-                    unknown += 1;
-                    if unknown <= 5 { println!("  UNKNOWN frame {} word {} bit {}", at.0, at.1, bit); }
+        return;
+    }
+    
+    let is_pins = a.first().map(|s| s.as_str()) == Some("--pins");
+    if is_pins {
+        match std::fs::read_to_string(&a[1]) {
+            Ok(tiles) => {
+                match std::fs::read(&a[2]) {
+                    Ok(mut b) => {
+                        let r = walk(&mut b, None, false, 2);
+                        let (mut hit, mut total) = (0, 0);
+                        for line in tiles.lines().filter(|l| !l.trim().is_empty()) {
+                            let t: Vec<&str> = line.split_whitespace().collect();
+                            let n: Vec<u32> = t[2..6].iter().map(|x| x.parse().unwrap()).collect();
+                            let (base, nfr, off, nw) = (n[0], n[1], n[2] as usize, n[3] as usize);
+                            let data = (0..nfr).map(|k| w::fdri_index(r.part(), base + k)).any(|i| {
+                                i != w::NO_FRAME && r.frames.get(i as usize).map_or(false, |fr| fr[off..off + nw].iter().any(|&v| v != 0))
+                            });
+                            total += 1;
+                            if data { hit += 1; } else { println!("  MISS {} {} base 0x{:08X}", t[0], t[1], base); }
+                        }
+                        println!("{} pins {}/{} land in frames with data", a[2], hit, total);
+                    }
+                    Err(e) => {
+                        eprintln!("bitwalk: {}: {}", a[2], e);
+                        std::process::exit(1);
+                    }
                 }
             }
-        }
-        println!("{} bits {}/{} named by segbits (unknown {}, outside every tile {})",
-                 a[2], total - unknown - outside, total, unknown, outside);
-        return;
-    }
-    if a.first().map(|s| s.as_str()) == Some("--frame") {
-        let mut b = std::fs::read(&a[1]).unwrap();
-        let min_nz = a.get(2).map_or(2, |s| s.parse().expect("MIN nonzero words"));
-        let r = walk(&mut b, None, false, min_nz);
-        match r.sparse {
-            Some((n, nz, stored)) => {
-                println!("{} frame {} of the FDRI stream, stored ECC 0x{:04X}", a[1], n, stored);
-                for (k, v) in nz { println!("  word {:3} = 0x{:08X}", k, v); }
+            Err(e) => {
+                eprintln!("bitwalk: {}: {}", a[1], e);
+                std::process::exit(1);
             }
-            None => println!("{}: no frame with a nonzero ECC", a[1]),
         }
         return;
     }
+    
+    let is_bits = a.first().map(|s| s.as_str()) == Some("--bits");
+    if is_bits {
+        match std::fs::read_to_string(&a[1]) {
+            Ok(segs) => {
+                match std::fs::read(&a[2]) {
+                    Ok(mut b) => {
+                        let r = walk(&mut b, None, false, 2);
+                        let part = r.part();
+                        let mut bits: HashMap<&str, Vec<Vec<u32>>> = HashMap::new();
+                        let (mut known, mut window) = (HashSet::new(), HashSet::new());
+                        for line in segs.lines() {
+                            let t: Vec<&str> = line.split_whitespace().collect();
+                            let n: Vec<u32> = t[2..].iter().map(|x| x.parse().unwrap()).collect();
+                            if t[0] == "S" {
+                                let by_minor = bits.entry(t[1]).or_default();
+                                if by_minor.len() <= n[0] as usize { by_minor.resize(n[0] as usize + 1, vec![]); }
+                                by_minor[n[0] as usize].push(n[1]);
+                                continue;
+                            }
+                            let (base, nfr, off, nw, shift) = (n[0], n[1], n[2], n[3], n[4]);
+                            let (no_type, no_bits): (Vec<Vec<u32>>, Vec<u32>) = (vec![], vec![]);
+                            let by_minor = bits.get(t[1]).unwrap_or(&no_type);
+                            for k in 0..nfr {
+                                let i = w::fdri_index(part, base + k);
+                                let fr = match r.frames.get(i as usize) { Some(fr) if i != w::NO_FRAME => fr, _ => continue };
+                                let quiet = fr[off as usize..(off + nw) as usize].iter().all(|&v| v == 0);
+                                if quiet { continue; }
+                                for wd in off..off + nw { window.insert((i, wd)); }
+                                for &bit in by_minor.get(k as usize).unwrap_or(&no_bits) {
+                                    let inside = f::seg_in_window(bit, shift, nw);
+                                    if inside { known.insert((i, f::seg_pos(off, bit, shift))); }
+                                }
+                            }
+                        }
+                        let (mut total, mut unknown, mut outside) = (0u32, 0u32, 0u32);
+                        for (i, fr) in r.frames.iter().enumerate() {
+                            for (wd, &v0) in fr.iter().enumerate() {
+                                let mut v = if wd as u32 == f::ECC_WORD { v0 & f::ECC_KEEP } else { v0 };
+                                while v != 0 {
+                                    let bit = v.trailing_zeros();
+                                    v &= v - 1;
+                                    total += 1;
+                                    let at = (i as u32, wd as u32);
+                                    if !window.contains(&at) { outside += 1; continue; }
+                                    if known.contains(&(at.0, at.1 * 32 + bit)) { continue; }
+                                    unknown += 1;
+                                    if unknown <= 5 { println!("  UNKNOWN frame {} word {} bit {}", at.0, at.1, bit); }
+                                }
+                            }
+                        }
+                        println!("{} bits {}/{} named by segbits (unknown {}, outside every tile {})",
+                                 a[2], total - unknown - outside, total, unknown, outside);
+                    }
+                    Err(e) => {
+                        eprintln!("bitwalk: {}: {}", a[2], e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("bitwalk: {}: {}", a[1], e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+    
+    let is_frame = a.first().map(|s| s.as_str()) == Some("--frame");
+    if is_frame {
+        match std::fs::read(&a[1]) {
+            Ok(mut b) => {
+                let min_nz = a.get(2).map_or(2, |s| s.parse().expect("MIN nonzero words"));
+                let r = walk(&mut b, None, false, min_nz);
+                match r.sparse {
+                    Some((n, nz, stored)) => {
+                        println!("{} frame {} of the FDRI stream, stored ECC 0x{:04X}", a[1], n, stored);
+                        for (k, v) in nz { println!("  word {:3} = 0x{:08X}", k, v); }
+                    }
+                    None => println!("{}: no frame with a nonzero ECC", a[1]),
+                }
+            }
+            Err(e) => {
+                eprintln!("bitwalk: {}: {}", a[1], e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+    // Default behavior: walk each file as a .bit
     for path in &a {
-        let mut b = std::fs::read(path).unwrap();
-        let t = std::time::Instant::now();
-        let r = walk(&mut b, None, false, 2);
-        report(path, &r);
-        println!("  walked in {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
+        match std::fs::read(path) {
+            Ok(mut b) => {
+                let t = std::time::Instant::now();
+                let r = walk(&mut b, None, false, 2);
+                report(path, &r);
+                println!("  walked in {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
+            }
+            Err(e) => {
+                eprintln!("bitwalk: {}: {}", path, e);
+                std::process::exit(1);
+            }
+        }
     }
 }
