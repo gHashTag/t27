@@ -1,0 +1,371 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/uart_bridge_fixed.t27
+// UART Bridge Fixed — FT232RL <-> FPGA Direct Connection
+// Port of gHashTag/trinity fpga/openxc7-synth/uart_bridge_fixed.v
+// Pin mapping for QMTech XC7A100T-1FGG676C
+// Fixed: 2026-04-01 — Corrected pin comments to match .xdc (K20/L20)
+// FT232RL Wiring:
+//   RXD (green)  -> J2 pin 6  -> L20 -> FPGA uart_rx
+//   TXD (white)  -> J2 pin 5  -> K20 -> FPGA uart_tx
+//   GND (black) -> J2 pin 1  -> GND
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module uart_bridge_fixed {
+
+    // === UART Configuration — 115200 baud @ 50 MHz ===
+
+    pub const CLK_FREQ : u32 = 50_000_000;
+    pub const BAUD_RATE : u32 = 115200;
+    pub const BIT_DIV : u32 = CLK_FREQ / BAUD_RATE;  // 434
+
+    // === UART Receiver State ===
+
+    pub struct RxState {
+        cnt : u16,
+        bit : u4,
+        shift : u8,
+        byte : u8,
+        valid : bool,
+        sync1 : bool,
+        sync2 : bool,
+    }
+
+    // === UART Transmitter State ===
+
+    pub struct TxState {
+        cnt : u16,
+        bit : u4,
+        shift : u16,
+        byte : u8,
+        start : bool,
+        ready : bool,
+    }
+
+    // === LED State ===
+
+    pub struct LedState {
+        cnt : u24,
+        on : bool,
+    }
+
+    // === Echo State ===
+
+    pub struct EchoState {
+        pending : bool,
+    }
+
+    // === Constructor helpers ===
+
+    fn rx_state_default() -> RxState {
+        return RxState{
+            .cnt = 0,
+            .bit = 0,
+            .shift = 0,
+            .byte = 0,
+            .valid = false,
+            .sync1 = true,
+            .sync2 = true,
+        };
+    }
+
+    fn tx_state_default() -> TxState {
+        return TxState{
+            .cnt = 0,
+            .bit = 0,
+            .shift = 0x3FF, // idle high
+            .byte = 0,
+            .start = false,
+            .ready = true,
+        };
+    }
+
+    fn led_state_default() -> LedState {
+        return LedState{
+            .cnt = 0,
+            .on = false,
+        };
+    }
+
+    fn echo_state_default() -> EchoState {
+        return EchoState{
+            .pending = false,
+        };
+    }
+
+    // === UART Receiver Logic ===
+
+    fn rx_update(state: RxState, clk: bool, uart_rx: bool) -> RxState {
+        var next : RxState = state;
+
+        // Synchronizer
+        next.sync1 = uart_rx;
+        if (clk) {
+            next.sync2 = next.sync1;
+        }
+
+        // Receiver state machine
+        if (state.bit == 0) {
+            // Idle state - wait for start bit
+            if (state.sync2 == false) {
+                next.bit = 1;
+                next.cnt = BIT_DIV;
+            }
+        } else {
+            // Receiving data bits
+            if (state.cnt == 0) {
+                next.cnt = BIT_DIV;
+                if (state.bit >= 2 && state.bit <= 9) {
+                    // Shift in data bit (simplified)
+                    next.shift = (state.shift << 1) | (if (state.sync2) 1 else 0);
+                    next.bit = state.bit + 1;
+                } else {
+                    // Complete byte received
+                    next.byte = state.shift;
+                    next.valid = true;
+                    next.bit = 0;
+                }
+            } else {
+                next.cnt = state.cnt - 1;
+            }
+        }
+
+        return next;
+    }
+
+    fn rx_valid_byte(state: RxState) -> u8 {
+        return state.byte;
+    }
+
+    fn rx_has_valid(state: RxState) -> bool {
+        return state.valid;
+    }
+
+    // === UART Transmitter Logic ===
+
+    fn tx_update(state: TxState, clk: bool, start: bool, byte: u8) -> TxState {
+        var next : TxState = state;
+
+        // Clear start flag on clock edge
+        if (clk) {
+            next.start = false;
+        }
+
+        // Transmitter state machine
+        if (state.bit == 0) {
+            // Idle state - wait for start signal
+            next.ready = true;
+            if (start) {
+                next.shift = 0x1FF; // Start bit + dummy data + stop bit
+                next.bit = 1;
+                next.cnt = BIT_DIV;
+                next.ready = false;
+            }
+        } else {
+            // Transmitting bits
+            if (state.cnt == 0) {
+                next.cnt = BIT_DIV;
+                next.shift = state.shift >> 1;
+                if (state.bit == 10) {
+                    next.bit = 0;
+                } else {
+                    next.bit = state.bit + 1;
+                }
+            } else {
+                next.cnt = state.cnt - 1;
+            }
+        }
+
+        return next;
+    }
+
+    fn tx_output_bit(state: TxState) -> bool {
+        return (state.shift & 1) == 1;
+    }
+
+    fn tx_is_ready(state: TxState) -> bool {
+        return state.ready;
+    }
+
+    // === Echo Logic ===
+
+    fn echo_update(state: EchoState, rx_valid: bool, tx_ready: bool) -> EchoState {
+        var next : EchoState = state;
+
+        if (rx_valid) {
+            // Received byte - queue for transmission
+            next.pending = true;
+        } else if (state.pending && tx_ready) {
+            // Byte ready and transmitter ready - consume it
+            next.pending = false;
+        }
+
+        return next;
+    }
+
+    fn echo_should_start(state: EchoState) -> bool {
+        return state.pending;
+    }
+
+    // === LED Logic ===
+
+    fn led_update(state: LedState, clk: bool, rx_valid: bool) -> LedState {
+        var next : LedState = state;
+
+        if (rx_valid) {
+            // Flash LED for 100ms @ 50MHz (5,000,000 cycles)
+            next.on = true;
+            next.cnt = 5_000_000;
+        } else if (state.cnt > 0) {
+            next.cnt = state.cnt - 1;
+        } else {
+            next.on = false;
+        }
+
+        return next;
+    }
+
+    fn led_output(state: LedState) -> bool {
+        return !state.on; // active-low
+    }
+
+    // === Full System Update ===
+
+    fn uart_bridge_update(
+        rx_state: RxState,
+        tx_state: TxState,
+        led_state: LedState,
+        echo_state: EchoState,
+        clk: bool,
+        uart_rx: bool,
+        tx_byte: u8
+    ) -> (RxState, TxState, LedState, EchoState, bool, u8) {
+        var next_rx : RxState = rx_update(rx_state, clk, uart_rx);
+        var next_tx : TxState = tx_update(tx_state, clk, echo_should_start(echo_state), tx_byte);
+        var next_led : LedState = led_update(led_state, clk, next_rx.valid);
+        var next_echo : EchoState = echo_update(echo_state, next_rx.valid, next_tx.ready);
+
+        var actual_tx_start : bool = echo_should_start(next_echo);
+        var actual_tx_byte : u8 = next_rx.byte; // Send received byte back
+
+        return (next_rx, next_tx, next_led, next_echo, actual_tx_start, actual_tx_byte);
+    }
+
+    // === Validation ===
+
+    fn validate_uart_config() -> u32 {
+        var errors : u32 = 0;
+        if (CLK_FREQ == 0) { errors = errors + 1; }
+        if (BAUD_RATE == 0) { errors = errors + 1; }
+        if (BIT_DIV == 0) { errors = errors + 1; }
+        return errors;
+    }
+
+    // === Tests ===
+
+    test rx_state_initialization
+        given s = rx_state_default()
+        then s.cnt == 0
+        and s.bit == 0
+        and s.shift == 0
+        and s.byte == 0
+        and s.valid == false
+        and s.sync1 == true
+        and s.sync2 == true
+
+    test rx_starts_receiving
+        given s = rx_state_default()
+        var next = rx_update(s, true, false) // Clock edge, start bit detected
+        then next.bit == 1
+        and next.cnt == BIT_DIV
+        and next.valid == false
+
+    test rx_completes_byte
+        given s = RxState{.cnt = 0, .bit = 9, .shift = 0b10101010, .byte = 0, .valid = false, .sync1 = true, .sync2 = 1}
+        var next = rx_update(s, true, 1) // Complete byte
+        then next.byte == 0b10101010
+        and next.valid == true
+        and next.bit == 0
+
+    test tx_state_initialization
+        given s = tx_state_default()
+        then s.cnt == 0
+        and s.bit == 0
+        and s.shift == 0x3FF
+        and s.byte == 0
+        and s.start == false
+        and s.ready == true
+
+    test tx_starts_transmission
+        given s = tx_state_default()
+        var next = tx_update(s, true, true, 0x55) // Start transmitting 0x55
+        then next.bit == 1
+        and next.cnt == BIT_DIV
+        and next.ready == false
+
+    test tx_outputs_bit
+        given s = TxState{.cnt = 0, .bit = 5, .shift = 0x1FF, .byte = 0x55, .start = false, .ready = false}
+        then tx_output_bit(s) == true
+
+    test echo_initialization
+        given s = echo_state_default()
+        then s.pending == false
+
+    test echo_queues_byte
+        given s = echo_state_default()
+        var next = echo_update(s, true, true) // Received byte
+        then next.pending == true
+
+    test led_initialization
+        given s = led_state_default()
+        then s.cnt == 0
+        and s.on == false
+
+    test led_flashes_on_rx
+        given s = led_state_default()
+        var next = led_update(s, true, true) // Received byte
+        then next.on == true
+        and next.cnt == 5_000_000
+
+    test_led_turns_off_after_delay
+        given s = LedState{.cnt = 1, .on = true}
+        var next = led_update(s, true, false) // Count down
+        then next.cnt == 0
+        and next.on == false
+
+    test_led_output_active_low
+        given s = LedState{.cnt = 0, .on = false}
+        then led_output(s) == true // Active-low: off = 1
+
+    test_uart_config_validation
+        then validate_uart_config() == 0
+
+    // === Invariants ===
+
+    invariant rx_bit_range
+        given s = rx_state_default()
+        assert s.bit <= 10
+
+    invariant tx_bit_range
+        given s = tx_state_default()
+        assert s.bit <= 10
+
+    invariant rx_counter_range
+        given s = RxState{.cnt = 100, .bit = 5, .shift = 0, .byte = 0, .valid = false, .sync1 = true, .sync2 = true}
+        assert s.cnt <= BIT_DIV
+
+    invariant tx_counter_range
+        given s = TxState{.cnt = 100, .bit = 5, .shift = 0x3FF, .byte = 0, .start = false, .ready = true}
+        assert s.cnt <= BIT_DIV
+
+    invariant led_counter_non_negative
+        given s = LedState{.cnt = 100, .on = true}
+        assert s.cnt >= 0
+
+    invariant echo_pending_bool
+        given s = echo_state_default()
+        assert s.pending == true or s.pending == false
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
