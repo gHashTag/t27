@@ -44,16 +44,40 @@ module HostingCredit;
 
 use verified::payout::EXECUTOR_FEE;
 use verified::payout::CREDIT_TRANSFERABLE;
-use verified::payout::ATT_SOFTWARE_SIGNED;
-use verified::payout::ATT_REPRODUCED;
-use verified::payout::ATT_DEVICE_BOUND;
-use verified::payout::attestation_level;
-use verified::payout::testnet_credit_allowed;
-use verified::payout::value_flow_allowed;
 use trinet::node-work-credit::REWARD_PER_JOB_MTRI;
 use hosting::proof::SIDE_AGREED;
 use hosting::proof::SIDE_DISSENT;
 use hosting::proof::SIDE_NONE;
+
+; --- Attestation Levels (see research/attestation_prior_art.md and research/puf_tile_budget.md) ------
+
+/// Attestation levels for receipts, from lowest to highest trust
+/// SOFTWARE_SIGNED: Receipt signed by operator's software key (see research/attestation_prior_art.md)
+/// REPRODUCED: Receipt independently reproduced by k-of-n operators (see research/attestation_prior_art.md)  
+/// DEVICE_BOUND: Receipt bound to hardware identity (e.g., FPGA PUF on Artix-7, see research/puf_tile_budget.md)
+pub const ATT_SOFTWARE_SIGNED : u8 = 1;
+pub const ATT_REPRODUCED : u8 = 2;
+pub const ATT_DEVICE_BOUND : u8 = 3;
+
+/// Calculate attestation level from boolean flags
+pub fn attestation_level(software_signed: bool, reproduced: bool, device_bound: bool) -> u8 {
+    if (software_signed == false) { return 0; }
+    if (reproduced == false) { return ATT_SOFTWARE_SIGNED; }
+    if (device_bound == false) { return ATT_REPRODUCED; }
+    return ATT_DEVICE_BOUND;
+}
+
+/// Testnet credit requires both SOFTWARE_SIGNED and REPRODUCED attestation levels
+/// Implements FR-002: Testnet credit rules MUST require both SOFTWARE_SIGNED and REPRODUCED levels
+pub fn testnet_credit_allowed(level: u8) -> bool {
+    return level >= ATT_REPRODUCED;
+}
+
+/// Value flow requires DEVICE_BOUND attestation level per white paper
+/// Implements FR-003: Value flow rules MUST require DEVICE_BOUND level
+pub fn value_flow_allowed(level: u8) -> bool {
+    return level >= ATT_DEVICE_BOUND;
+}
 
 ; --- 1. Credit --------------------------------------------------------------------------------------
 
