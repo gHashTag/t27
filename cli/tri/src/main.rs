@@ -43,6 +43,7 @@ mod quant;
 mod red;
 #[path = "../../../gen/rust/tri/test/report.rs"] #[allow(dead_code, unused_parens)]
 mod report; // t27c gen-rust of specs/tri/test/report.t27 (#7369): every rule of reading `t27c test-report`
+#[path = "../../../gen/rust/tri/lab/receipt.rs"] #[allow(dead_code, unused_parens)] mod lab; // t27c gen-rust of specs/tri/lab/receipt.t27: every rule of `tri lab receipt`
 mod renum;
 mod reseal;
 mod rtl;
@@ -360,6 +361,14 @@ enum Commands {
     Vectors {
         #[command(subcommand)]
         action: vectors::VectorsCmd,
+    },
+    /// The t27b lab's verdict per spec (reference, t27b, tests, asserts) from its run; with two --sha, `t27c corpus-receipt compare` of their receipts (rules: specs/tri/lab/receipt.t27).
+    Lab {
+        #[arg(value_parser = ["receipt"])] action: String,
+        /// Show every spec whose path matches this glob ('*' any run, '?' one byte); without it only the RED and UNREAD ones are listed.
+        #[arg(long)] specs: Option<String>,
+        /// A full master commit sha: its run instead of the newest. Twice: compare the two commits' receipts.
+        #[arg(long)] sha: Vec<String>,
     },
 }
 
@@ -918,6 +927,36 @@ fn the_summary_line_names_what_the_report_names() {
     assert_eq!(report_summary("  BLOCKED  zig: error: x \n\n  A blocked spec\n"), "tests: 0, pass: 0, fail: 0, BLOCKED: zig: error: x");
 }
 
+/// `tri lab receipt`: curl the lab's run (or two receipts) and print what specs/tri/lab/receipt.t27 reads in it.
+fn cmd_lab(specs: Option<&str>, sha: &[String]) -> Result<u8> {
+    if sha.len() > lab::MAX_SHAS as usize { eprintln!("{}", lab::TOO_MANY_SHAS); return Ok(lab::EXIT_UNREAD); }
+    let get = |p: String| -> Result<&'static str> { let o = Command::new("curl").args(["-fsSL", "--max-time", "300", &format!("{}{p}", lab::LAB_URL)]).output()?; Ok(if o.status.success() { String::from_utf8_lossy(&o.stdout).into_owned().leak() } else { "" }) };
+    if let [a, b] = sha {
+        std::env::set_current_dir(find_trinity_root()?)?; // t27c reads the receipt keys' registry from the repository root
+        let f = |s: &String| -> Result<PathBuf> { let p = std::env::temp_dir().join(format!("tri-lab-{s}{}", lab::RECEIPT_EXT)); fs::write(&p, get(format!("{}{s}{}", lab::RUNS, lab::RECEIPT_EXT))?)?; Ok(p) };
+        let (pa, pb) = (f(a)?, f(b)?);
+        let rc = if lab::compare_runs(fs::metadata(&pa)?.len(), fs::metadata(&pb)?.len()) { Command::new(mutate::resolve_t27c(None)).args(["corpus-receipt", "compare"]).arg(pa).arg(pb).status()?.code().unwrap_or(-1) } else { -1 };
+        let x = lab::compare_exit(rc); println!("{}", lab::compare_why(x)); return Ok(x);
+    }
+    let t = get(sha.first().map_or(lab::LATEST.to_string(), |s| format!("{}{s}{}", lab::RUNS, lab::RUN_EXT)))?;
+    let pat: &'static str = specs.unwrap_or(lab::ALL_SPECS).to_string().leak();
+    println!("{}", (0..lab::HEAD_KEYS).map(|k| format!("{}={}", lab::head_key(k), &t[lab::head_from(t, k)..lab::head_to(t, k)])).collect::<Vec<_>>().join("  "));
+    let (mut n, mut o) = ([0u64; lab::CLASSES as usize], lab::next_object(t, lab::results_at(t)));
+    while o < t.len() {
+        let e = lab::object_end(t, o);
+        if lab::matches(t, o, e, pat) {
+            let v = lab::classify(t, o, e);
+            n[v as usize] += 1;
+            if lab::listed(v, specs.is_some()) { println!("{}  {}", (0..lab::COLUMNS).map(|k| format!("{}={}", lab::column(k), &t[lab::cell_from(t, o, e, k)..lab::cell_to(t, o, e, k)])).collect::<Vec<_>>().join(" "), lab::why(v)); }
+        }
+        o = lab::next_object(t, e);
+    }
+    println!("{}", (0..lab::CLASSES).map(|v| format!("{} {}", n[v as usize], lab::name(v))).collect::<Vec<_>>().join(", "));
+    let x = lab::exit_code(n.iter().sum(), n[lab::V_RED as usize], n[lab::V_UNREAD as usize]);
+    println!("{}", lab::exit_why(x));
+    Ok(x)
+}
+
 fn cmd_verdict(toxic: bool) -> Result<()> {
     run_t27c(&["validate-seals"])?;
     run_t27c(&["validate-phi-identity"])?;
@@ -1159,6 +1198,7 @@ fn main() -> Result<()> {
         Commands::Vsim { action } => vsim::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
+        Commands::Lab { specs, sha, .. } => std::process::exit(cmd_lab(specs.as_deref(), sha)? as i32),
     }
 
     Ok(())

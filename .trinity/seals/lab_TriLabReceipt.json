@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+be89bf41b",
+  "closure": [
+    {
+      "spec": "specs/verified/corpus_receipt.t27",
+      "spec_hash": "sha256:6a73dc9113c8bbcef29843651ac8dae34677ae44fb6d5613c4376ef07d447135"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:02d0bbd02813f81128d1671f705f6d2cffce38e935670335c2067ea46d9cb5c4",
+  "gen_hash_rust": "sha256:f9e2dc8d344f4f7f9f0f1575f309461f50b76a134aca50fb059a7c44d5ac4581",
+  "gen_hash_verilog": "sha256:2dbf8f710d68c45e43bf04a07dd784163ee13c0c8677d7d4a51280833e1557cc",
+  "gen_hash_zig": "sha256:463eeda7557f35ac3ce278899fe3bb3d5c4ef7c927955029bf75c9daedbe7854",
+  "module": "TriLabReceipt",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:22:42Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:00d9eec8d7be84dde596c9990b3a5574de24aff9f7a94579fc620eb585712441",
+  "spec_path": "specs/tri/lab/receipt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

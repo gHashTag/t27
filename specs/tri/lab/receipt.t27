@@ -1,0 +1,537 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/lab/receipt.t27 -- what `tri lab receipt` reads in a t27b lab run, and its verdict per spec
+; The t27b lab (contrib/railway/t27b-lab/lab.py) runs every master commit through the reference
+; (`t27c test-report`) and through t27b, and publishes the run at
+;   https://t27b-lab-production.up.railway.app/latest.json          the newest run
+;   https://t27b-lab-production.up.railway.app/runs/<sha>.json      the run of one commit
+;   https://t27b-lab-production.up.railway.app/runs/<sha>.receipt.json  its signed corpus receipt
+; Until this command, the night loop read a spec's line out of 1.3 MB of JSON by hand, each time.
+; This spec holds every decision of `tri lab receipt`: where the run is, how one result is read, which
+; columns are shown, how a result is judged, which rows are listed, and the exit code. The command
+; (cli/tri/src/main.rs, through `t27c gen-rust` in gen/rust/tri/lab/receipt.rs) is glue: it fetches
+; the text with curl, walks the results with the functions below and prints what they return.
+; With two commits it runs `t27c corpus-receipt compare` on their receipts; the comparison is
+; t27c's (specs/verified/corpus_receipt.t27, #7576), and only its exit code is mapped here.
+; The run is written by lab.py as `json.dumps(doc, indent=1)`: one key per line, a top-level key at
+; one space, a result object `  {` ... `  }` at two inside ` "results": [`, its keys at three, and
+; anything nested deeper. The reader below reads that layout and nothing else; text in any other
+; layout has no results, and no results is the UNREAD exit, never a pass (fail closed).
+; Fixtures are lines of the real run of master 891a9087a (2026-10-09T22:47:35Z), shortened.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriLabReceipt;
+
+// The lane verdicts of `t27c corpus-receipt compare` are its exit codes; they are read from its spec, not restated.
+use verified::corpus_receipt::LANE_EQUIVALENT;
+use verified::corpus_receipt::LANE_REGRESSED;
+use verified::corpus_receipt::LANE_IMPROVED_ONLY;
+use verified::corpus_receipt::LANE_NEUTRAL;
+
+// Where the lab publishes. The glue appends LATEST, or RUNS + sha + RUN_EXT (or RECEIPT_EXT).
+pub const LAB_URL : str = "https://t27b-lab-production.up.railway.app/";
+pub const LATEST : str = "latest.json";
+pub const RUNS : str = "runs/";
+pub const RUN_EXT : str = ".json";
+pub const RECEIPT_EXT : str = ".receipt.json";
+/// No --sha reads the newest run, one reads that commit's run, two compare their receipts.
+pub const MAX_SHAS : u8 = 2;
+pub const TOO_MANY_SHAS : str = "at most two --sha: one names a run, two compare their receipts";
+/// No --specs matches every spec, and then only the rows that move the exit are listed (`listed`).
+pub const ALL_SPECS : str = "*";
+
+// The verdict on one result. Only RED and UNREAD move the exit code.
+pub const V_VERIFIED : u8 = 0;
+pub const V_VACUOUS : u8 = 1;
+pub const V_BEHIND : u8 = 2;
+pub const V_BLOCKED : u8 = 3;
+pub const V_NOT_RUN : u8 = 4;
+pub const V_RED : u8 = 5;
+pub const V_UNREAD : u8 = 6;
+pub const CLASSES : u8 = 7;
+
+// The exit codes, in the order `t27c corpus-receipt compare` numbers its first three: 0 nothing to
+// report, 1 a finding (a red spec; a regressed receipt), 2 no verdict (nothing read, nothing matched;
+// a refused receipt).
+pub const EXIT_OK : u8 = 0;
+pub const EXIT_RED : u8 = 1;
+pub const EXIT_UNREAD : u8 = 2;
+
+// A row is the result's file, then COLUMNS - 1 more of its keys, printed `key=value`.
+pub const COLUMNS : u8 = 5;
+// The header is the run's own top-level keys, printed `key=value`.
+pub const HEAD_KEYS : u8 = 2;
+
+/// The numbering the glue and the tests below rely on.
+invariant the_verdicts_and_exits_are_numbered { assert V_VERIFIED == 0 and V_UNREAD == 6 and CLASSES == 7 and EXIT_UNREAD == 2 and COLUMNS == 5 and MAX_SHAS == 2; }
+
+/// The key of column k: 0 is the file, then what decides the verdict.
+pub fn column(k: u8) -> string {
+    if (k == 0) { return "file"; }
+    if (k == 1) { return "reference"; }
+    if (k == 2) { return "t27b"; }
+    if (k == 3) { return "tests"; }
+    return "asserts";
+}
+
+/// The run's top-level key k of the header.
+pub fn head_key(k: u8) -> string {
+    if (k == 0) { return "commit"; }
+    return "finished";
+}
+
+/// The end of the line that starts at `at`: the offset of its '\n', or text.len.
+pub fn line_end(text: string, at: usize) -> usize {
+    var k : usize = at;
+    while (k < text.len and text[k] != 10) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// Is text[from..to] byte for byte lit?
+pub fn span_is(text: string, from: usize, to: usize, lit: string) -> bool {
+    if (to < from or to - from != lit.len) { return false; }
+    var k : usize = 0;
+    while (k < lit.len) {
+        if (text[from + k] != lit[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Is the line text[at..end] `ind` spaces and then lit, with at most one ',' after it?
+pub fn line_is(text: string, at: usize, end: usize, ind: usize, lit: string) -> bool {
+    var e : usize = end;
+    if (e > at and text[e - 1] == 44) { e = e - 1; }
+    if (e < at + ind) { return false; }
+    var k : usize = 0;
+    while (k < ind) {
+        if (text[at + k] != 32) { return false; }
+        k = k + 1;
+    }
+    return span_is(text, at + ind, e, lit);
+}
+
+/// The value of key on the line text[at..end] when the line is `ind` spaces, '"', key, '"', ':' and one
+/// space: the offset of the value's first byte. end + 1 when the line is not that key's.
+pub fn key_value(text: string, at: usize, end: usize, ind: usize, key: string) -> usize {
+    const v : usize = at + ind + key.len + 4;
+    if (v > end) { return end + 1; }
+    var k : usize = 0;
+    while (k < ind) {
+        if (text[at + k] != 32) { return end + 1; }
+        k = k + 1;
+    }
+    if (text[at + ind] != 34) { return end + 1; }
+    if (span_is(text, at + ind + 1, at + ind + 1 + key.len, key) == false) { return end + 1; }
+    if (text[v - 3] != 34 or text[v - 2] != 58 or text[v - 1] != 32) { return end + 1; }
+    return v;
+}
+
+/// The offset of key's value on the first line of text[from..stop] that holds it at indent `ind`, or
+/// text.len + 1 when no line does.
+pub fn key_at(text: string, from: usize, stop: usize, ind: usize, key: string) -> usize {
+    var at : usize = from;
+    while (at < stop and at < text.len) {
+        const end : usize = line_end(text, at);
+        const v : usize = key_value(text, at, end, ind, key);
+        if (v <= end) { return v; }
+        at = end + 1;
+    }
+    return text.len + 1;
+}
+
+/// Where the value at v starts: past its opening '"' when it is a string. text.len when v is none.
+pub fn value_from(text: string, v: usize) -> usize {
+    if (v >= text.len) { return text.len; }
+    if (text[v] == 34) { return v + 1; }
+    return v;
+}
+
+/// Where the value at v ends: its line's end, less one ',' and then a closing '"' for a string.
+pub fn value_to(text: string, v: usize) -> usize {
+    if (v >= text.len) { return text.len; }
+    var e : usize = line_end(text, v);
+    if (e > v and text[e - 1] == 44) { e = e - 1; }
+    if (text[v] == 34 and e > v + 1 and text[e - 1] == 34) { e = e - 1; }
+    if (e < value_from(text, v)) { return value_from(text, v); }
+    return e;
+}
+
+/// The offset of the first line after ` "results": [`; text.len when the run has none.
+pub fn results_at(text: string) -> usize {
+    var at : usize = 0;
+    while (at < text.len) {
+        const end : usize = line_end(text, at);
+        if (line_is(text, at, end, 1, "\"results\": [")) { return end + 1; }
+        at = end + 1;
+    }
+    return text.len;
+}
+
+/// The offset of the next result object `  {` at or after `at`; text.len at the list's end ` ]`.
+pub fn next_object(text: string, at: usize) -> usize {
+    var k : usize = at;
+    while (k < text.len) {
+        const end : usize = line_end(text, k);
+        if (line_is(text, k, end, 2, "{")) { return k; }
+        if (line_is(text, k, end, 1, "]")) { return text.len; }
+        k = end + 1;
+    }
+    return text.len;
+}
+
+/// The offset just past the object that opens at `at`: past its `  }` line, or text.len.
+pub fn object_end(text: string, at: usize) -> usize {
+    var k : usize = line_end(text, at) + 1;
+    while (k < text.len) {
+        const end : usize = line_end(text, k);
+        if (line_is(text, k, end, 2, "}")) { return end; }
+        k = end + 1;
+    }
+    return text.len;
+}
+
+/// Where cell k of the object text[o..e] starts (its key at indent 3); text.len when it has none.
+pub fn cell_from(text: string, o: usize, e: usize, k: u8) -> usize {
+    return value_from(text, key_at(text, o, e, 3, column(k)));
+}
+
+/// Where cell k ends.
+pub fn cell_to(text: string, o: usize, e: usize, k: u8) -> usize {
+    return value_to(text, key_at(text, o, e, 3, column(k)));
+}
+
+/// Where the run's top-level header key k starts and ends (indent 1, before the results).
+pub fn head_from(text: string, k: u8) -> usize {
+    return value_from(text, key_at(text, 0, results_at(text), 1, head_key(k)));
+}
+
+pub fn head_to(text: string, k: u8) -> usize {
+    return value_to(text, key_at(text, 0, results_at(text), 1, head_key(k)));
+}
+
+/// Is cell k of the object exactly lit?
+pub fn cell_is(text: string, o: usize, e: usize, k: u8, lit: string) -> bool {
+    return span_is(text, cell_from(text, o, e, k), cell_to(text, o, e, k), lit);
+}
+
+/// Does the object have cell k at all?
+pub fn has_cell(text: string, o: usize, e: usize, k: u8) -> bool {
+    return key_at(text, o, e, 3, column(k)) <= text.len;
+}
+
+/// Cell k as a count: its decimal digits, or 0 for null, a missing key or anything that is not digits.
+pub fn cell_count(text: string, o: usize, e: usize, k: u8) -> u64 {
+    const from : usize = cell_from(text, o, e, k);
+    const to : usize = cell_to(text, o, e, k);
+    if (to <= from or to - from > 18) { return 0; }
+    var n : u64 = 0;
+    var i : usize = from;
+    while (i < to) {
+        if (text[i] < 48 or text[i] > 57) { return 0; }
+        n = n * 10 + ((text[i] as u64) - 48);
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Does the path s[from..to] match the glob pat: '*' any run of bytes ('/' too), '?' one byte, every
+/// other byte itself. The whole path must match.
+pub fn glob(pat: string, s: string, from: usize, to: usize) -> bool {
+    var p : usize = 0;
+    var i : usize = from;
+    var star : usize = pat.len;
+    var mark : usize = from;
+    while (i < to) {
+        if (p < pat.len and (pat[p] == 63 or pat[p] == s[i])) {
+            p = p + 1;
+            i = i + 1;
+        } else {
+            if (p < pat.len and pat[p] == 42) {
+                star = p;
+                mark = i;
+                p = p + 1;
+            } else {
+                if (star == pat.len) { return false; }
+                p = star + 1;
+                mark = mark + 1;
+                i = mark;
+            }
+        }
+    }
+    while (p < pat.len and pat[p] == 42) {
+        p = p + 1;
+    }
+    return p == pat.len;
+}
+
+/// Does the object's file match the pattern?
+pub fn matches(text: string, o: usize, e: usize, pat: string) -> bool {
+    return glob(pat, text, cell_from(text, o, e, 0), cell_to(text, o, e, 0));
+}
+
+/// The verdict on the result text[o..e].
+/// A reference that fails or times out is RED whatever t27b did. A reference the lab could not judge
+/// (any other word) is UNREAD. Then t27b: `pass` is VERIFIED with at least one runtime assert and
+/// VACUOUS with none; `pass_vacuous` and `pass_no_tests` are VACUOUS; `blocked` is BEHIND where the
+/// reference passes (the port's backlog) and BLOCKED where it does not; `not run` is NOT_RUN; every
+/// other word (fail, timeout, crash, mismatch, jit_interp_mismatch, codegen, frontend, ...) is RED.
+pub fn classify(text: string, o: usize, e: usize) -> u8 {
+    if (has_cell(text, o, e, 0) == false or has_cell(text, o, e, 1) == false or has_cell(text, o, e, 2) == false) { return V_UNREAD; }
+    if (cell_is(text, o, e, 1, "fail") or cell_is(text, o, e, 1, "timeout")) { return V_RED; }
+    const ref_pass : bool = cell_is(text, o, e, 1, "pass");
+    if (ref_pass == false and cell_is(text, o, e, 1, "blocked") == false) { return V_UNREAD; }
+    if (cell_is(text, o, e, 2, "pass")) {
+        if (cell_count(text, o, e, 4) > 0) { return V_VERIFIED; }
+        return V_VACUOUS;
+    }
+    if (cell_is(text, o, e, 2, "pass_vacuous") or cell_is(text, o, e, 2, "pass_no_tests")) { return V_VACUOUS; }
+    if (cell_is(text, o, e, 2, "blocked")) {
+        if (ref_pass) { return V_BEHIND; }
+        return V_BLOCKED;
+    }
+    if (cell_is(text, o, e, 2, "not run")) { return V_NOT_RUN; }
+    return V_RED;
+}
+
+/// Is the row listed? With --specs every matching row is. Without it only the rows that move the exit
+/// are: the whole corpus is the summary line, and a list of 1752 rows is not read.
+pub fn listed(v: u8, pattern_given: bool) -> bool {
+    if (pattern_given) { return true; }
+    return v == V_RED or v == V_UNREAD;
+}
+
+/// The short name of a verdict, for the summary line.
+pub fn name(v: u8) -> string {
+    if (v == V_VERIFIED) { return "verified"; }
+    if (v == V_VACUOUS) { return "vacuous"; }
+    if (v == V_BEHIND) { return "behind"; }
+    if (v == V_BLOCKED) { return "blocked"; }
+    if (v == V_NOT_RUN) { return "not-run"; }
+    if (v == V_RED) { return "RED"; }
+    return "UNREAD";
+}
+
+/// What a verdict means, printed at the end of its row.
+pub fn why(v: u8) -> string {
+    if (v == V_VERIFIED) { return "verified: t27b passes with runtime asserts"; }
+    if (v == V_VACUOUS) { return "vacuous: it passes with 0 runtime asserts"; }
+    if (v == V_BEHIND) { return "behind: the reference passes, t27b is blocked"; }
+    if (v == V_BLOCKED) { return "blocked: neither the reference nor t27b runs it"; }
+    if (v == V_NOT_RUN) { return "not run: the lab ran only the reference"; }
+    if (v == V_RED) { return "RED: a failure, timeout, crash or mismatch"; }
+    return "UNREAD: the lab's result for it cannot be read";
+}
+
+/// The exit code: UNREAD when nothing was read or matched, or a result could not be read; RED when a
+/// matching result is red; OK otherwise.
+pub fn exit_code(matched: u64, red: u64, unread: u64) -> u8 {
+    if (matched == 0 or unread > 0) { return EXIT_UNREAD; }
+    if (red > 0) { return EXIT_RED; }
+    return EXIT_OK;
+}
+
+/// The last line: what the exit code says.
+pub fn exit_why(x: u8) -> string {
+    if (x == EXIT_OK) { return "exit 0: no matching spec is red"; }
+    if (x == EXIT_RED) { return "exit 1: a matching spec is RED"; }
+    return "exit 2: no verdict -- no run was read (the lab publishes master commits; give the full sha), no spec matched, or a result could not be read";
+}
+
+/// Is there anything to compare? A receipt the lab does not have is fetched as nothing (curl -f), and
+/// t27c would then fail on an empty file with anyhow's exit 1, which reads as REGRESSED. So t27c runs
+/// only when both receipts were read; otherwise the comparison is no verdict.
+pub fn compare_runs(base_bytes: u64, head_bytes: u64) -> bool {
+    return base_bytes > 0 and head_bytes > 0;
+}
+
+/// `t27c corpus-receipt compare` exits with its lane verdict (specs/verified/corpus_receipt.t27): a lane
+/// may merge on EQUIVALENT, IMPROVED_ONLY or NEUTRAL, never on REGRESSED or REFUSED. REGRESSED is the
+/// finding; REFUSED, and anything else (t27c could not start, a signal), is no verdict.
+pub fn compare_exit(rc: i32) -> u8 {
+    if (rc == LANE_EQUIVALENT as i32 or rc == LANE_IMPROVED_ONLY as i32 or rc == LANE_NEUTRAL as i32) { return EXIT_OK; }
+    if (rc == LANE_REGRESSED as i32) { return EXIT_RED; }
+    return EXIT_UNREAD;
+}
+
+/// The last line of a comparison: what its exit code says.
+pub fn compare_why(x: u8) -> string {
+    if (x == EXIT_OK) { return "exit 0: EQUIVALENT, IMPROVED_ONLY or NEUTRAL -- a lane may merge on it"; }
+    if (x == EXIT_RED) { return "exit 1: REGRESSED"; }
+    return "exit 2: no verdict -- a receipt is missing (the lab signs master commits; give the full sha), or t27c refused one";
+}
+
+// A shortened run of master 891a9087a, laid out as lab.py writes it: a top_blockers object before the
+// results (it is not a result), a vacuous pass, a pass with asserts whose nested test_verdicts carry
+// keys named "file" and "t27b" (they are not the result's), and a blocked spec with asserts null.
+const RUN : string = "{\n \"lab\": \"t27b-lab\",\n \"commit\": \"891a9087afcbc45ca68c87c07a2e4ff0ae5db00c\",\n \"finished\": \"2026-10-09T22:47:35Z\",\n \"top_blockers\": [\n  {\n   \"construct\": \"ExprCall(undeclared fn)\",\n   \"file\": \"specs/x.t27\"\n  }\n ],\n \"results\": [\n  {\n   \"file\": \"specs/a/b_c.t27\",\n   \"reference\": \"pass\",\n   \"reference_detail\": \"\",\n   \"t27b\": \"pass_vacuous\",\n   \"tests\": 0,\n   \"invariants\": 0,\n   \"asserts\": 0,\n   \"blockers\": [],\n   \"test_verdicts\": {},\n   \"reference_disagree\": []\n  },\n  {\n   \"file\": \"specs/queen/actors.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"pass\",\n   \"tests\": 37,\n   \"asserts\": 2474,\n   \"test_verdicts\": {\n    \"file\": true,\n    \"t27b\": true\n   },\n   \"reference_disagree\": []\n  },\n  {\n   \"file\": \"specs/account/auth.t27\",\n   \"reference\": \"blocked\",\n   \"reference_detail\": \"does not compile: spec.zig:23:16: error: use of undeclared identifier 'Ok'\",\n   \"t27b\": \"blocked\",\n   \"tests\": 0,\n   \"asserts\": null,\n   \"blockers\": [\n    \"ExprFieldAccess\"\n   ],\n   \"detail\": \"ExprFieldAccess\"\n  }\n ]\n}\n";
+
+// Scenario: the walk finds the three results and only them, in order, and each object ends at its `  }`.
+test the_walk_finds_each_result_once {
+    const r : usize = results_at(RUN);
+    assert r < RUN.len;
+    const a : usize = next_object(RUN, r);
+    const ae : usize = object_end(RUN, a);
+    assert span_is(RUN, cell_from(RUN, a, ae, 0), cell_to(RUN, a, ae, 0), "specs/a/b_c.t27");
+    const b : usize = next_object(RUN, ae);
+    const be : usize = object_end(RUN, b);
+    assert span_is(RUN, cell_from(RUN, b, be, 0), cell_to(RUN, b, be, 0), "specs/queen/actors.t27");
+    const c : usize = next_object(RUN, be);
+    const ce : usize = object_end(RUN, c);
+    assert span_is(RUN, cell_from(RUN, c, ce, 0), cell_to(RUN, c, ce, 0), "specs/account/auth.t27");
+    assert next_object(RUN, ce) == RUN.len;
+    assert a == r and b == ae + 1 and c == be + 1;
+}
+
+// Scenario: each column of a row reads its own key at indent 3, never a nested one, and a count is read
+// as a number (null and a missing key as 0).
+test a_row_reads_its_own_keys {
+    const b : usize = next_object(RUN, object_end(RUN, next_object(RUN, results_at(RUN))));
+    const be : usize = object_end(RUN, b);
+    assert cell_is(RUN, b, be, 1, "pass");
+    assert cell_is(RUN, b, be, 2, "pass");
+    assert cell_is(RUN, b, be, 3, "37");
+    assert cell_count(RUN, b, be, 3) == 37;
+    assert cell_count(RUN, b, be, 4) == 2474;
+    assert span_is(column(3), 0, 5, "tests");
+    const c : usize = next_object(RUN, be);
+    const ce : usize = object_end(RUN, c);
+    assert cell_is(RUN, c, ce, 4, "null");
+    assert cell_count(RUN, c, ce, 4) == 0;
+    assert cell_count(RUN, c, ce, 3) == 0;
+    assert has_cell(RUN, c, ce, 2) == true;
+}
+
+// Scenario: the header is the run's own top-level commit and finished, not a nested key.
+test the_header_is_the_runs_commit_and_finish {
+    assert span_is(RUN, head_from(RUN, 0), head_to(RUN, 0), "891a9087afcbc45ca68c87c07a2e4ff0ae5db00c");
+    assert span_is(RUN, head_from(RUN, 1), head_to(RUN, 1), "2026-10-09T22:47:35Z");
+    assert head_from("", 0) == 0 and head_to("", 0) == 0;
+}
+
+// Scenario: the three results of the run, judged.
+test the_three_results_are_judged {
+    const a : usize = next_object(RUN, results_at(RUN));
+    const ae : usize = object_end(RUN, a);
+    const b : usize = next_object(RUN, ae);
+    const be : usize = object_end(RUN, b);
+    const c : usize = next_object(RUN, be);
+    const ce : usize = object_end(RUN, c);
+    assert classify(RUN, a, ae) == V_VACUOUS;
+    assert classify(RUN, b, be) == V_VERIFIED;
+    assert classify(RUN, c, ce) == V_BLOCKED;
+}
+
+// Scenario: every verdict from one object of the layout, each word in its place.
+test each_word_has_its_verdict {
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"pass\",\n   \"asserts\": 3\n  }", 0, 80) == V_VERIFIED;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"pass\",\n   \"asserts\": 0\n  }", 0, 80) == V_VACUOUS;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"pass\",\n   \"asserts\": null\n  }", 0, 83) == V_VACUOUS;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"blocked\",\n   \"t27b\": \"pass_no_tests\"\n  }", 0, 80) == V_VACUOUS;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"blocked\"\n  }", 0, 70) == V_BEHIND;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"not run\"\n  }", 0, 70) == V_NOT_RUN;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"crash\"\n  }", 0, 70) == V_RED;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\",\n   \"t27b\": \"mismatch\"\n  }", 0, 70) == V_RED;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"blocked\",\n   \"t27b\": \"fail\"\n  }", 0, 70) == V_RED;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"fail\",\n   \"t27b\": \"pass\",\n   \"asserts\": 9\n  }", 0, 80) == V_RED;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"timeout\",\n   \"t27b\": \"blocked\"\n  }", 0, 70) == V_RED;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"lab_error\",\n   \"t27b\": \"pass\"\n  }", 0, 70) == V_UNREAD;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"t27b\": \"pass\"\n  }", 0, 50) == V_UNREAD;
+    assert classify("  {\n   \"file\": \"s.t27\",\n   \"reference\": \"pass\"\n  }", 0, 50) == V_UNREAD;
+    assert classify("  {\n    \"file\": \"s.t27\",\n    \"reference\": \"pass\",\n    \"t27b\": \"pass\"\n  }", 0, 70) == V_UNREAD;
+}
+
+// Scenario: text in another layout has no results: compact JSON, an empty body (a 404 the glue read as
+// nothing), and results at the wrong indent. No results is the UNREAD exit.
+test another_layout_has_no_results {
+    assert results_at("{\"results\": [{\"file\": \"s.t27\"}]}") == 32;
+    assert next_object("{\"results\": [{\"file\": \"s.t27\"}]}", 0) == 32;
+    assert results_at("") == 0;
+    assert next_object("", 0) == 0;
+    assert next_object(" \"results\": [\n ]\n  {\n", 14) == 21;
+    assert results_at("\"results\": [\n") == 13;
+    assert next_object("\"results\": [\n {\n", 13) == 16;
+    assert exit_code(0, 0, 0) == EXIT_UNREAD;
+}
+
+// Scenario: --specs is a glob over the whole path.
+test the_pattern_is_a_glob_over_the_whole_path {
+    assert glob("specs/queen/*", "specs/queen/actors.t27", 0, 22) == true;
+    assert glob("specs/queen/*", "specs/queen/replay/a.t27", 0, 24) == true;
+    assert glob("*actors*", "specs/queen/actors_hw.t27", 0, 25) == true;
+    assert glob("specs/queen/actors.t27", "specs/queen/actors.t27", 0, 22) == true;
+    assert glob("specs/queen/actors.t27", "specs/queen/actors.t27x", 0, 23) == false;
+    assert glob("queen/actors.t27", "specs/queen/actors.t27", 0, 22) == false;
+    assert glob("specs/?/b_c.t27", "specs/a/b_c.t27", 0, 15) == true;
+    assert glob("specs/?/b_c.t27", "specs/ab/b_c.t27", 0, 16) == false;
+    assert glob("*", "", 0, 0) == true;
+    assert glob("", "", 0, 0) == true;
+    assert glob("", "a", 0, 1) == false;
+    assert glob("a*b*c", "axxbyyc", 0, 7) == true;
+    assert glob("a*b*c", "axxbyy", 0, 6) == false;
+    assert glob("*.t27", "xx specs/a.t27", 3, 14) == true;
+    assert glob("specs/*", "xx specs/a.t27", 0, 14) == false;
+}
+
+// Scenario: which rows are listed, and the exit code from the counts.
+test rows_and_exit_follow_the_verdicts {
+    assert listed(V_VERIFIED, true) == true;
+    assert listed(V_BLOCKED, true) == true;
+    assert listed(V_VERIFIED, false) == false;
+    assert listed(V_VACUOUS, false) == false;
+    assert listed(V_BEHIND, false) == false;
+    assert listed(V_NOT_RUN, false) == false;
+    assert listed(V_RED, false) == true;
+    assert listed(V_UNREAD, false) == true;
+    assert exit_code(3, 0, 0) == EXIT_OK;
+    assert exit_code(3, 1, 0) == EXIT_RED;
+    assert exit_code(3, 1, 1) == EXIT_UNREAD;
+    assert exit_code(3, 0, 1) == EXIT_UNREAD;
+    assert exit_code(0, 0, 0) == EXIT_UNREAD;
+    assert compare_exit(0) == EXIT_OK;
+    assert compare_exit(1) == EXIT_RED;
+    assert compare_exit(2) == EXIT_UNREAD;
+    assert compare_exit(3) == EXIT_OK;
+    assert compare_exit(4) == EXIT_OK;
+    assert compare_exit(5) == EXIT_UNREAD;
+    assert compare_exit(-1) == EXIT_UNREAD;
+    assert compare_exit(101) == EXIT_UNREAD;
+    assert compare_runs(431204, 430964) == true;
+    assert compare_runs(0, 430964) == false;
+    assert compare_runs(431204, 0) == false;
+    assert compare_runs(0, 0) == false;
+}
+
+// Scenario: each verdict and exit has its own words, and the readers hold on their edges.
+test the_words_and_the_edges {
+    assert span_is(name(V_VERIFIED), 0, 8, "verified");
+    assert span_is(name(V_RED), 0, 3, "RED");
+    assert span_is(name(V_UNREAD), 0, 6, "UNREAD");
+    assert why(V_VERIFIED)[0] == 118;
+    assert why(V_VACUOUS)[2] == 99;
+    assert why(V_BEHIND)[0] == 98;
+    assert why(V_BLOCKED)[2] == 111;
+    assert why(V_NOT_RUN)[0] == 110;
+    assert why(V_RED)[0] == 82;
+    assert why(V_UNREAD)[0] == 85;
+    assert exit_why(EXIT_OK)[5] == 48;
+    assert exit_why(EXIT_RED)[5] == 49;
+    assert exit_why(EXIT_UNREAD)[5] == 50;
+    assert compare_why(EXIT_OK)[5] == 48;
+    assert compare_why(EXIT_RED)[8] == 82;
+    assert compare_why(EXIT_UNREAD)[5] == 50;
+    assert line_is("  },", 0, 4, 2, "}") == true;
+    assert line_is("   },", 0, 5, 2, "}") == false;
+    assert line_is(" }", 0, 2, 2, "}") == false;
+    assert key_value("   \"t27b\": \"pass\",", 0, 18, 3, "t27b") == 11;
+    assert key_value("   \"t27b\":\"pass\",", 0, 17, 3, "t27b") == 18;
+    assert key_value("   \"t27bx\": \"pass\",", 0, 19, 3, "t27b") == 20;
+    assert key_value("    \"t27b\": \"pass\",", 0, 19, 3, "t27b") == 20;
+    assert key_value("   \"t2", 0, 6, 3, "t27b") == 7;
+    assert value_to("\"\",", 0) == 1;
+    assert value_from("\"\",", 0) == 1;
+    assert value_to("12,", 0) == 2;
+    assert value_from("x", 5) == 1;
+}
