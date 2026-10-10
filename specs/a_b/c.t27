@@ -12,3 +12,9 @@ module c_spec;
 pub fn dummy() -> bool {
     true
 }
+
+// The one value this module declares, captured in a binding and checked.
+test "c_dummy_value" {
+    let observed = dummy();
+    assert(observed == true);
+}
