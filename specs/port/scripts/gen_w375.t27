@@ -1,0 +1,166 @@
+module port::gen_w375;
+
+struct AppendResult {
+    has_wave_loops: bool,
+    last_wave: ?i32,
+    can_append: bool,
+    new_text: []const u8,
+    insert_pos: usize,
+}
+
+pub fn append_w375(text: []const u8) -> AppendResult {
+    // Simple check for wave loop 374
+    var has_wave_loops = false;
+    var last_wave: ?i32 = null;
+    var can_append = false;
+    
+    // Check if text contains "Wave Loop 374"
+    if (text.len >= 20) {
+        var i: usize = 0;
+        while (i < text.len - 19) {
+            if (text[i] == 'W' and text[i+1] == 'a' and text[i+2] == 'v' and 
+                text[i+3] == 'e' and text[i+4] == ' ' and text[i+5] == 'L' and 
+                text[i+6] == 'o' and text[i+7] == 'o' and text[i+8] == 'p' and 
+                text[i+9] == ' ' and text[i+10] == '3' and text[i+11] == '7' and 
+                text[i+12] == '4') {
+                
+                has_wave_loops = true;
+                last_wave = 374;
+                can_append = true;
+                break;
+            }
+            i += 1;
+        }
+    }
+    
+    // If we can append, create the new text
+    if (can_append) {
+        var new_text: [100]u8 = undefined;
+        var pos: usize = 0;
+        
+        // Copy original text (limit to reasonable size)
+        var copy_len = if (text.len > 50) 50 else text.len;
+        for (i in 0..copy_len) {
+            new_text[pos] = text[i];
+            pos += 1;
+        }
+        
+        // Add new block
+        new_text[pos] = '\n';
+        pos += 1;
+        new_text[pos] = '/';
+        pos += 1;
+        new_text[pos] = '/';
+        pos += 1;
+        new_text[pos] = ' ';
+        pos += 1;
+        new_text[pos] = 'W';
+        pos += 1;
+        new_text[pos] = 'a';
+        pos += 1;
+        new_text[pos] = 'v';
+        pos += 1;
+        new_text[pos] = 'e';
+        pos += 1;
+        new_text[pos] = ' ';
+        pos += 1;
+        new_text[pos] = 'L';
+        pos += 1;
+        new_text[pos] = 'o';
+        pos += 1;
+        new_text[pos] = 'o';
+        pos += 1;
+        new_text[pos] = 'p';
+        pos += 1;
+        new_text[pos] = ' ';
+        pos += 1;
+        new_text[pos] = '3';
+        pos += 1;
+        new_text[pos] = '7';
+        pos += 1;
+        new_text[pos] = '5';
+        pos += 1;
+        new_text[pos] = '\n';
+        pos += 1;
+        new_text[pos] = 'i';
+        pos += 1;
+        new_text[pos] = 'n';
+        pos += 1;
+        new_text[pos] = 'v';
+        pos += 1;
+        new_text[pos] = 'a';
+        pos += 1;
+        new_text[pos] = 'r';
+        pos += 1;
+        new_text[pos] = 'i';
+        pos += 1;
+        new_text[pos] = 'a';
+        pos += 1;
+        new_text[pos] = 'n';
+        pos += 1;
+        new_text[pos] = 't';
+        pos += 1;
+        new_text[pos] = ' ';
+        pos += 1;
+        new_text[pos] = 't';
+        pos += 1;
+        new_text[pos] = 'r';
+        pos += 1;
+        new_text[pos] = 'u';
+        pos += 1;
+        new_text[pos] = 'e';
+        pos += 1;
+        new_text[pos] = '\n';
+        pos += 1;
+        
+        return AppendResult{
+            .has_wave_loops = true,
+            .last_wave = 374,
+            .can_append = true,
+            .new_text = new_text[0..pos],
+            .insert_pos = copy_len,
+        };
+    }
+    
+    return AppendResult{
+        .has_wave_loops = has_wave_loops,
+        .last_wave = last_wave,
+        .can_append = false,
+        .new_text = "",
+        .insert_pos = 0,
+    };
+}
+
+test append_w375_no_match {
+    var text = "Hello world\n";
+    var result = append_w375(text);
+    assert(!result.has_wave_loops);
+    assert(result.last_wave == null);
+    assert(!result.can_append);
+    assert(result.new_text.len == 0);
+}
+
+test append_w375_can_append {
+    var text = "// Wave Loop 374\ninvariant true\n";
+    var result = append_w375(text);
+    assert(result.has_wave_loops);
+    assert(result.last_wave == 374);
+    assert(result.can_append);
+    assert(result.new_text.len > 0);
+    assert(result.insert_pos > 0);
+    
+    // Check that new text contains "Wave Loop 375"
+    var new_text = result.new_text;
+    var found_375 = false;
+    for (i in 0..new_text.len - 12) {
+        if (new_text[i] == 'W' and new_text[i+1] == 'a' and new_text[i+2] == 'v' and 
+            new_text[i+3] == 'e' and new_text[i+4] == ' ' and new_text[i+5] == 'L' and 
+            new_text[i+6] == 'o' and new_text[i+7] == 'o' and new_text[i+8] == 'p' and 
+            new_text[i+9] == ' ' and new_text[i+10] == '3' and new_text[i+11] == '7' and 
+            new_text[i+12] == '5') {
+            found_375 = true;
+            break;
+        }
+    }
+    assert(found_375);
+}
