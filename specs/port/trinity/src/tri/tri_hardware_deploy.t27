@@ -1,0 +1,137 @@
+module port::tri_hardware_deploy;
+
+pub const Platform = enum {
+    raspberry_pi,
+    macos,
+    linux,
+    unknown,
+};
+
+pub const Arch = enum {
+    arm64,
+    x86_64,
+    unknown,
+};
+
+pub const NodeConfig = struct {
+    port: u16 = 9001,
+    daemon: bool = true,
+    binary_path: []const u8 = "./zig-out/bin/tri",
+    pid_dir: []const u8 = ".trinity/multi",
+    max_nodes: u32 = 50,
+};
+
+pub const NodeStatus = struct {
+    id: u32,
+    port: u16,
+    pid: ?u32 = null,
+    running: bool = false,
+    healthy: bool = false,
+};
+
+/// FPGA benchmark configuration (theoretical calculations)
+pub const FpgaBenchConfig = struct {
+    vector_width: u32 = 256,
+    mac_units: u32 = 16,
+    clock_mhz: u32 = 100,
+    cycles_per_op: u32 = 13,
+};
+
+pub fn Platform_toString(self: Platform) -> str {
+    return switch (self) {
+        .raspberry_pi => "Raspberry Pi",
+        .macos => "macOS",
+        .linux => "Linux",
+        .unknown => "Unknown",
+    };
+}
+
+pub fn Arch_toString(self: Arch) -> str {
+    return switch (self) {
+        .arm64 => "arm64",
+        .x86_64 => "x86_64",
+        .unknown => "unknown",
+    };
+}
+
+/// Calculate theoretical FPGA throughput (ops/sec)
+pub fn fpgaThroughput(config: FpgaBenchConfig) -> f64 {
+    const ops_per_cycle = @as(f64, @floatFromInt(config.mac_units));
+    const clock = @as(f64, @floatFromInt(config.clock_mhz)) * 1e6;
+    const cycles = @as(f64, @floatFromInt(config.cycles_per_op));
+    return ops_per_cycle * clock / cycles;
+}
+
+/// Calculate CPU vs FPGA speedup factor
+pub fn speedupFactor(fpga_ops: f64, cpu_ops: f64) -> f64 {
+    if (cpu_ops == 0) {
+        return 0;
+    }
+    return fpga_ops / cpu_ops;
+}
+
+/// Detect host platform
+pub fn detectPlatform() -> Platform {
+    // This function accesses system state, so we return undefined
+    // The decision logic would be based on @import("builtin").os.tag
+    undefined;
+}
+
+/// Detect CPU architecture  
+pub fn detectArch() -> Arch {
+    // This function accesses system state, so we return undefined
+    // The decision logic would be based on @import("builtin").cpu.arch
+    undefined;
+}
+
+/// Generate port for node N (base_port + N)
+pub fn nodePort(base_port: u16, node_id: u32) -> u16 {
+    return base_port + @as(u16, @intCast(node_id));
+}
+
+test "fpga throughput" {
+    const config = FpgaBenchConfig{};
+    const throughput = fpgaThroughput(config);
+    // 16 MACs * 100MHz / 13 cycles ≈ 123M ops/s
+    assert(throughput > 1e8);
+}
+
+test "speedup factor" {
+    assert(speedupFactor(200.0, 10.0) == 20.0);
+    assert(speedupFactor(200.0, 0.0) == 0.0);
+}
+
+test "node port" {
+    assert(nodePort(9001, 0) == 9001);
+    assert(nodePort(9001, 4) == 9005);
+}
+
+test "detect platform" {
+    // This function returns undefined due to system dependency
+    // We test that it can be called without crashing
+    const platform = detectPlatform();
+    // Can't test actual value due to system dependency
+}
+
+test "detect architecture" {
+    // This function returns undefined due to system dependency
+    // We test that it can be called without crashing
+    const arch = detectArch();
+    // Can't test actual value due to system dependency
+}
+
+test "fpga throughput edge cases" {
+    const config_min = FpgaBenchConfig{ .mac_units = 1, .clock_mhz = 1, .cycles_per_op = 1 };
+    const throughput_min = fpgaThroughput(config_min);
+    assert(throughput_min == 1e6); // 1 * 1MHz / 1 = 1M ops/s
+    
+    const config_max = FpgaBenchConfig{ .mac_units = 1024, .clock_mhz = 1000, .cycles_per_op = 1 };
+    const throughput_max = fpgaThroughput(config_max);
+    assert(throughput_max > 1e9); // 1024 * 1GHz / 1 = >1B ops/s
+}
+
+test "speedup factor edge cases" {
+    assert(speedupFactor(0.0, 10.0) == 0.0);
+    assert(speedupFactor(100.0, 100.0) == 1.0);
+    assert(speedupFactor(300.0, 100.0) == 3.0);
+}
