@@ -2,12 +2,13 @@
 ; specs/verified/payout.t27 -- no verified result, no normal reward. Epic gHashTag/t27#6655, Phase I
 ; (network economy and provider settlement).
 ; --
-; The settlement ledger already exists and is not restated here:
+; The settlement ledger already exists and is not restated here: specs/trinet/ledger.t27, the port of
 ; gHashTag/trinity-fpga@65855047454a src/trinet/ledger.zig (law: specs/trinet/settlement_law.t27).
 ; Its settle() refuses identity theft, double billing (spent-nonce set keyed by node and nonce), a
 ; suspended node and a lie, and pays nothing and charges nothing for a damaged or unverifiable frame.
-; The OUT_* codes below are that file's `Outcome` enum in declaration order, so a caller passes the
-; ledger's own answer through unchanged.
+; The OUT_* codes below are ledger.zig's `Outcome` enum in declaration order, 0-5, then the one code
+; ledger.t27 appends, 6, for a (node, nonce) that already carries an outcome (see #8658). So a caller
+; passes the ledger's own answer through unchanged.
 ; --
 ; This file adds the one rule the ledger cannot see: whether the engineering pipeline verified the
 ; work the receipt is for. A credited receipt is a judged dot product; it is not a passed test, a
@@ -32,6 +33,9 @@ pub const OUT_CORRUPT_NOT_CHARGED : u8 = 2;
 pub const OUT_IDENTITY_MISMATCH : u8 = 3;
 pub const OUT_UNVERIFIABLE_NOT_CHARGED : u8 = 4;
 pub const OUT_NOT_ELIGIBLE : u8 = 5;
+/// specs/trinet/ledger.t27, appended after the six: a second bill, or any receipt for a (node, nonce)
+/// already credited or slashed. Nothing was charged, so it pays nothing and is not a slash.
+pub const OUT_ALREADY_SETTLED_NOT_CHARGED : u8 = 6;
 
 /// payout() answers.
 pub const PAY_NONE : u8 = 0;
@@ -218,10 +222,23 @@ test every_ledger_refusal_stays_a_refusal_even_when_verified {
     assert payout(OUT_IDENTITY_MISMATCH, true, true) == PAY_NONE;
     assert payout(OUT_UNVERIFIABLE_NOT_CHARGED, true, true) == PAY_NONE;
     assert payout(OUT_NOT_ELIGIBLE, true, true) == PAY_NONE;
+    assert payout(OUT_ALREADY_SETTLED_NOT_CHARGED, true, true) == PAY_NONE;
+}
+
+// A second bill is neither paid nor a slash (see #8658): the ledger's outcome says so on its own,
+// whatever the engineering verdict.
+test a_double_bill_is_not_paid_and_not_a_slash {
+    var m : u32 = 0;
+    while (m < 4) {
+        let pay : u8 = payout(OUT_ALREADY_SETTLED_NOT_CHARGED, (m & 1) != 0, (m & 2) != 0);
+        assert pay == PAY_NONE;
+        assert pay != PAY_SLASH_ONLY;
+        m = m + 1;
+    }
 }
 
 test an_unknown_outcome_fails_closed {
-    assert payout(6, true, true) == PAY_NONE;
+    assert payout(7, true, true) == PAY_NONE;
     assert payout(255, true, true) == PAY_NONE;
 }
 
@@ -248,6 +265,12 @@ test a_split_cannot_wrap_past_the_pool {
 invariant credited_is_the_first_outcome {
     assert OUT_CREDITED == 0;
     assert PAY_NONE == 0;
+}
+
+invariant ledger_outcomes_keep_their_order_and_six_is_appended {
+    assert OUT_REJECTED_AND_SLASHED == 1 and OUT_CORRUPT_NOT_CHARGED == 2 and OUT_IDENTITY_MISMATCH == 3;
+    assert OUT_UNVERIFIABLE_NOT_CHARGED == 4 and OUT_NOT_ELIGIBLE == 5;
+    assert OUT_ALREADY_SETTLED_NOT_CHARGED == 6;
 }
 
 test every_payment_is_a_kind_of_work_and_none_is_a_profit_share {

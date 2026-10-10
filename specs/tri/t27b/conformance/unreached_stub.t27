@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/unreached_stub.t27 -- a fn the `.tri` template left with no body, which nothing
+; analyzed reaches (gHashTag/t27#8717, a lane of #6063). Every test here passes `t27c test-report`; t27b must
+; give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints: a fn whose body has no statements as `@compileError("not yet implemented")`.
+; Zig raises it only when it analyzes the fn, so the three stubs here refuse nothing: `ur_hmac` is named by no
+; test, `ur_later` is `pub` (which makes no fn a root in `zig test`), and `ur_wrap` calls `ur_hmac` but is itself
+; reached by nothing. The reached case is specs/tri/crypto/crypto.t27, whose `hmac_basic_case` calls its stub
+; `hmac`: the reference does not compile that file, and t27b refuses it by the same words
+; (`FnDecl(reference not yet implemented)`, specs/tri/t27b/scaffold_plan.t27 `stub`). Each test reads a value
+; a call computes from a loop, so each has a runtime assert.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceUnreachedStub;
+
+/// crypto.t27's `hmac`, as the template writes it, called by no test.
+fn ur_hmac(key: []const u8) -> void {
+    // TODO: Implement from .tri spec
+}
+
+/// `pub` makes no fn a root.
+pub fn ur_later() -> void {
+}
+
+/// Calls the stub, and is called by nothing.
+fn ur_wrap(key: []const u8) -> void {
+    ur_hmac(key);
+}
+
+/// The sum of the bytes of `data`.
+fn ur_sum(data: []const u8) -> u32 {
+    var total : u32 = 0;
+    var i : usize = 0;
+    while (i < data.len) {
+        total = total + data[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+fn ur_twice(x: u32) -> u32 {
+    return x + x;
+}
+
+test a_file_with_unreached_stubs_runs_its_tests {
+    assert(ur_sum("abc") == 294);
+}
+
+test a_reached_fn_beside_the_stubs_keeps_its_value {
+    const s = ur_sum("ab");
+    assert(ur_twice(s) == 390);
+    assert(ur_sum("") == 0);
+}

@@ -5,26 +5,39 @@
 ; Port of gHashTag/trinity-fpga@65855047454a src/trinet/ledger.zig (sha1 53b03e4c486436b3798b9c7b3fa1896
 ; 8024c7e52; the same bytes at trinity-fpga main 09662bbc). Law: trinity-fpga specs/trinet/settlement_law.t27
 ; (constants, attacks identity_theft and double_billing, DAMAGED_FRAMES_ARE_NEITHER_PAID_NOR_CHARGED).
-; Consumer: specs/verified/payout.t27 reads OUT_* below in this order, unchanged.
+; Consumer: specs/verified/payout.t27 reads OUT_* below in this order: ledger.zig's six, 0-5, unchanged,
+; then OUT_ALREADY_SETTLED_NOT_CHARGED, 6, appended (see #8658).
 ; Companion: specs/trinet/node-work-credit.t27 (the durable (node, nonce) reservation across restarts).
 ; --
-; What settle() decides, in the order it decides it (the order is part of the law):
+; What settle() decides, in the order it decides it (the order is part of the law). Issue #8658 changed
+; three rules of ledger.zig, and a test below pins each change:
 ;   0. a node we never registered: an error, nothing moves;
 ;   1. a suspended or unreliable node: OUT_NOT_ELIGIBLE, nothing moves;
-;   2. a receipt that claims another identity than the node we dispatched to: OUT_IDENTITY_MISMATCH,
-;      credited to nobody and slashed against the sender;
-;   3. a damaged frame (V_CORRUPT): OUT_CORRUPT_NOT_CHARGED, no credit, no slash, no reputation mark;
+;   2. a (node, nonce) that already carries an outcome, credited or slashed: OUT_ALREADY_SETTLED_NOT_CHARGED,
+;      refused before its verdict is judged, and nothing moves. A second bill and a lie presented twice
+;      cost nothing more, so one key carries at most one outcome. (ledger.zig judged the verdict first,
+;      so it slashed a lie each time the lie came; and it answered a double bill OUT_REJECTED_AND_SLASHED
+;      with a zero slash.)
+;   3. a damaged frame (V_CORRUPT): OUT_CORRUPT_NOT_CHARGED, no credit, no slash, no reputation mark,
+;      whatever identity the frame claims: a damaged node_id field is damage, not theft;
 ;   4. a verdict that neither accepts nor indicts (V_UNVERIFIABLE, and any code this file does not
 ;      know): OUT_UNVERIFIABLE_NOT_CHARGED, no credit, no slash;
-;   5. a verdict that indicts (bad status, nonce mismatch, wrong result): a lie, OUT_REJECTED_AND_SLASHED;
-;   6. an accepted receipt for a (node, nonce) already paid: double billing, OUT_REJECTED_AND_SLASHED
-;      with a zero slash and nothing else moving (the Zig detail "receipt for an already-settled nonce");
-;   7. otherwise: OUT_CREDITED, one reward, and the (node, nonce) key joins the spent set.
+;      past this point the receipt gets an outcome, so its key joins the spent set; a full set is an
+;      error (ERR_OUT_OF_MEMORY) and nothing moves;
+;   5. a receipt that claims another identity than the node we dispatched to: OUT_IDENTITY_MISMATCH,
+;      credited to nobody and slashed against the sender. Real theft verifies V_OK, so judging identity
+;      after steps 3 and 4 lets no theft through. (ledger.zig judged identity first, so it slashed a
+;      damaged node_id field as theft.)
+;   6. a verdict that indicts (bad status, nonce mismatch, wrong result): a lie, OUT_REJECTED_AND_SLASHED;
+;   7. otherwise: OUT_CREDITED, one reward.
+; overturn() is the only way a key's outcome changes. When a fraud proof is upheld against a credited
+; receipt, it takes the credit back, charges the node once, and marks the key slashed.
 ; --
 ; Representation. The Zig hash maps become fixed-size arrays: MAX_NODES account slots and a spent set of
-; MAX_SPENT keys, each key (node << 32) | nonce exactly as ledger.zig builds it. A full spent set refuses
-; to credit (ERR_OUT_OF_MEMORY, the error the Zig `put` returns when it cannot grow), so a key is never
-; dropped. The verdict is an input: protocol.zig verify() is not ported here, and each test feeds the
+; MAX_SPENT keys, each key (node << 32) | nonce exactly as ledger.zig builds it. spent_slashed says which
+; keys were charged rather than credited. A full spent set refuses to credit or to charge (ERR_OUT_OF_MEMORY,
+; the error the Zig `put` returns when it cannot grow), so a key is never dropped and nothing is charged
+; twice. The verdict is an input: protocol.zig verify() is not ported here, and each test feeds the
 ; verdict that verify() returns for the Zig test's receipt. Owner names become owner ids. The Zig
 ; `detail` string becomes a WHY_* code, which is what tells a lie from a double bill. The Settlement a
 ; call returns is the LAST_* fields of the ledger it returns.
@@ -39,6 +52,9 @@ pub const OUT_CORRUPT_NOT_CHARGED : u8 = 2;
 pub const OUT_IDENTITY_MISMATCH : u8 = 3;
 pub const OUT_UNVERIFIABLE_NOT_CHARGED : u8 = 4;
 pub const OUT_NOT_ELIGIBLE : u8 = 5;
+/// Appended after ledger.zig's six (see #8658): the (node, nonce) already carries an outcome. Nothing
+/// is paid or charged, so the outcome alone says that no slash happened.
+pub const OUT_ALREADY_SETTLED_NOT_CHARGED : u8 = 6;
 /// No Settlement: the call returned an error instead (see last_err).
 pub const OUT_NONE : u8 = 255;
 
@@ -63,6 +79,8 @@ pub const ERR_UNKNOWN_NODE : u8 = 2;
 pub const ERR_DUPLICATE_NODE : u8 = 3;
 pub const ERR_INSUFFICIENT_STAKE : u8 = 4;
 pub const ERR_OUT_OF_MEMORY : u8 = 5;
+/// overturn() of a key this ledger never credited: there is no credit to take back.
+pub const ERR_NOT_CREDITED : u8 = 6;
 
 /// The Zig Settlement `detail`, as a code.
 pub const WHY_NONE : u8 = 0;
@@ -72,6 +90,8 @@ pub const WHY_UNRELIABLE : u8 = 3;
 pub const WHY_IDENTITY : u8 = 4;
 pub const WHY_VERDICT : u8 = 5;
 pub const WHY_ALREADY_SETTLED : u8 = 6;
+/// overturn(): a fraud proof upheld against a credited receipt.
+pub const WHY_OVERTURNED : u8 = 7;
 
 /// Capacity of the explicit state; the Ledger array fields are sized by these.
 pub const MAX_NODES : usize = 8;
@@ -120,6 +140,7 @@ pub struct Ledger {
     status: [MAX_NODES]u8,
     n_spent: usize,
     spent: [MAX_SPENT]u64,
+    spent_slashed: [MAX_SPENT]bool,
     total_credited_mtri: u64,
     total_slashed_mtri: u64,
     total_corrupted: u64,
@@ -196,6 +217,7 @@ pub fn ledger_init(p: Policy) -> Ledger {
         status: [0; MAX_NODES],
         n_spent: 0,
         spent: [0; MAX_SPENT],
+        spent_slashed: [false; MAX_SPENT],
         total_credited_mtri: 0,
         total_slashed_mtri: 0,
         total_corrupted: 0,
@@ -287,13 +309,55 @@ pub fn spent_key(node: u32, nonce: u32) -> u64 {
     return ((node as u64) << 32) | (nonce as u64);
 }
 
-pub fn is_spent(l: Ledger, key: u64) -> bool {
+/// The spent-set slot holding `key`, or MAX_SPENT when no slot does.
+pub fn spent_index(l: Ledger, key: u64) -> usize {
     var i : usize = 0;
     while (i < l.n_spent) {
-        if (l.spent[i] == key) { return true; }
+        if (l.spent[i] == key) { return i; }
         i += 1;
     }
-    return false;
+    return MAX_SPENT;
+}
+
+/// Whether `key` already carries an outcome, credited or slashed.
+pub fn is_spent(l: Ledger, key: u64) -> bool {
+    return spent_index(l, key) < MAX_SPENT;
+}
+
+/// Whether `key` carries a charge: slashed by settle(), or overturned after its credit.
+pub fn is_slashed_key(l: Ledger, key: u64) -> bool {
+    const i : usize = spent_index(l, key);
+    if (i >= MAX_SPENT) { return false; }
+    return l.spent_slashed[i];
+}
+
+/// Add `key` to the spent set; the caller has checked that a slot is free.
+pub fn record_spent(l: Ledger, key: u64, slashed: bool) -> Ledger {
+    var s : Ledger = l;
+    s.spent[s.n_spent] = key;
+    s.spent_slashed[s.n_spent] = slashed;
+    s.n_spent = s.n_spent + 1;
+    return s;
+}
+
+/// Each spent key is one credited receipt or one charged receipt. So the set holds exactly as many keys
+/// as the accounts hold accepted and rejected receipts, and its charged keys match the rejections.
+pub fn keys_match_outcomes(l: Ledger) -> bool {
+    var outcomes : u64 = 0;
+    var charges : u64 = 0;
+    var k : usize = 0;
+    while (k < l.n_nodes) {
+        outcomes = outcomes + l.accepted[k] + l.rejected[k];
+        charges = charges + l.rejected[k];
+        k += 1;
+    }
+    var slashed_keys : u64 = 0;
+    var i : usize = 0;
+    while (i < l.n_spent) {
+        if (l.spent_slashed[i]) { slashed_keys = slashed_keys + 1; }
+        i += 1;
+    }
+    return (l.n_spent as u64) == outcomes and slashed_keys == charges;
 }
 
 /// Whether no key appears twice in the spent set.
@@ -317,8 +381,8 @@ pub fn status_after_rejection(stake: u64, consecutive: u32, min_stake: u64, tole
     return ST_PROBATION;
 }
 
-/// The slash path that identity theft and a lie share: min(stake, slash) leaves the stake, one more
-/// rejection, and the status that follows.
+/// The slash path that identity theft, a lie and an upheld fraud proof share: min(stake, slash) leaves
+/// the stake, one more rejection, and the status that follows.
 pub fn charge(l: Ledger, k: usize) -> Ledger {
     var s : Ledger = l;
     var amount : u64 = s.slash_per_bad_receipt_mtri;
@@ -368,15 +432,17 @@ pub fn settle(l: Ledger, dispatched_to: u32, claimed_node: u32, nonce: u32, verd
         return s;
     }
 
-    // 2. Identity theft: credited to nobody, slashed against the sender.
-    if (claimed_node != dispatched_to) {
-        s = charge(s, k);
-        s.last_outcome = OUT_IDENTITY_MISMATCH;
-        s.last_why = WHY_IDENTITY;
+    // 2. One outcome per (node, nonce): a key already credited or slashed is refused before its verdict
+    //    is judged, so neither a second bill nor a lie presented twice moves anything.
+    const key : u64 = spent_key(dispatched_to, nonce);
+    if (is_spent(s, key)) {
+        s.last_outcome = OUT_ALREADY_SETTLED_NOT_CHARGED;
+        s.last_why = WHY_ALREADY_SETTLED;
         return s;
     }
 
-    // 3. A damaged frame is not evidence about the operator: no credit, no slash.
+    // 3. A damaged frame is not evidence about the operator, whatever identity it claims: no credit,
+    //    no slash.
     if (verdict == V_CORRUPT) {
         s.corrupted[k] = s.corrupted[k] + 1;
         s.consecutive_corruptions[k] = s.consecutive_corruptions[k] + 1;
@@ -398,29 +464,33 @@ pub fn settle(l: Ledger, dispatched_to: u32, claimed_node: u32, nonce: u32, verd
         return s;
     }
 
-    // 5. A lie: rejected and slashed.
+    // From here the receipt gets an outcome, and its key joins the spent set. A full set refuses, so no
+    // key is ever dropped to make room and nothing can be charged twice.
+    if (s.n_spent >= MAX_SPENT) {
+        s.last_err = ERR_OUT_OF_MEMORY;
+        return s;
+    }
+
+    // 5. Identity theft: credited to nobody, slashed against the sender. Real theft verifies V_OK.
+    if (claimed_node != dispatched_to) {
+        s = record_spent(s, key, true);
+        s = charge(s, k);
+        s.last_outcome = OUT_IDENTITY_MISMATCH;
+        s.last_why = WHY_IDENTITY;
+        return s;
+    }
+
+    // 6. A lie: rejected and slashed.
     if (verdict_accepted(verdict) == false) {
+        s = record_spent(s, key, true);
         s = charge(s, k);
         s.last_outcome = OUT_REJECTED_AND_SLASHED;
         s.last_why = WHY_VERDICT;
         return s;
     }
 
-    // 6. Pay once per nonce, per node.
-    const key : u64 = spent_key(dispatched_to, nonce);
-    if (is_spent(s, key)) {
-        s.last_outcome = OUT_REJECTED_AND_SLASHED;
-        s.last_why = WHY_ALREADY_SETTLED;
-        return s;
-    }
-    if (s.n_spent >= MAX_SPENT) {
-        s.last_err = ERR_OUT_OF_MEMORY;
-        return s;
-    }
-    s.spent[s.n_spent] = key;
-    s.n_spent = s.n_spent + 1;
-
-    // 7. Credit.
+    // 7. Credit, once per nonce, per node.
+    s = record_spent(s, key, false);
     const reward : u64 = s.reward_per_job_mtri;
     s.credit_mtri[k] = s.credit_mtri[k] + reward;
     s.accepted[k] = s.accepted[k] + 1;
@@ -433,6 +503,63 @@ pub fn settle(l: Ledger, dispatched_to: u32, claimed_node: u32, nonce: u32, verd
     s.last_outcome = OUT_CREDITED;
     s.last_credit_delta_mtri = reward;
     s.last_why = WHY_VERIFIED;
+    return s;
+}
+
+/// A fraud proof upheld against a receipt this ledger credited, for example a challenge that shows the
+/// credited answer was wrong. The proof is about a key that already carries an outcome, so it does not
+/// go through settle(), which refuses that key. It takes the credit back and charges the node once, as
+/// for a lie. The key stays spent and is marked slashed, so a second proof, or the receipt again, moves
+/// nothing. The same eligibility rule applies as in settle(): a suspended or unreliable node is not
+/// charged again.
+pub fn overturn(l: Ledger, node: u32, nonce: u32) -> Ledger {
+    var s : Ledger = l;
+    s.last_err = ERR_NONE;
+    s.last_outcome = OUT_NONE;
+    s.last_node = node;
+    s.last_credit_delta_mtri = 0;
+    s.last_slash_delta_mtri = 0;
+    s.last_why = WHY_NONE;
+    if (s.sound == false) {
+        s.last_err = ERR_UNSOUND_POLICY;
+        return s;
+    }
+    const k : usize = find(s, node);
+    if (k >= MAX_NODES) {
+        s.last_err = ERR_UNKNOWN_NODE;
+        return s;
+    }
+    if (s.status[k] == ST_SUSPENDED) {
+        s.last_outcome = OUT_NOT_ELIGIBLE;
+        s.last_why = WHY_SUSPENDED;
+        return s;
+    }
+    if (s.status[k] == ST_UNRELIABLE) {
+        s.last_outcome = OUT_NOT_ELIGIBLE;
+        s.last_why = WHY_UNRELIABLE;
+        return s;
+    }
+    const i : usize = spent_index(s, spent_key(node, nonce));
+    if (i >= MAX_SPENT) {
+        s.last_err = ERR_NOT_CREDITED;
+        return s;
+    }
+    if (s.spent_slashed[i]) {
+        s.last_outcome = OUT_ALREADY_SETTLED_NOT_CHARGED;
+        s.last_why = WHY_ALREADY_SETTLED;
+        return s;
+    }
+    // The credit this key paid comes back: the same reward, the same accepted receipt, the same
+    // silicon job. None of these can underflow, because the key's credit added each of them to slot k.
+    const reward : u64 = s.reward_per_job_mtri;
+    s.credit_mtri[k] = s.credit_mtri[k] - reward;
+    s.accepted[k] = s.accepted[k] - 1;
+    s.total_credited_mtri = s.total_credited_mtri - reward;
+    if (s.physical[k]) { s.jobs_on_silicon = s.jobs_on_silicon - 1; }
+    s.spent_slashed[i] = true;
+    s = charge(s, k);
+    s.last_outcome = OUT_REJECTED_AND_SLASHED;
+    s.last_why = WHY_OVERTURNED;
     return s;
 }
 
@@ -543,13 +670,15 @@ test zig_credit_for_another_nodes_identity_is_not_paid_to_anyone {
     assert(l.slashed_mtri[find(l, 0x4004)] > 0);
 }
 
-// Zig: "the same receipt cannot be settled twice".
+// Zig: "the same receipt cannot be settled twice". The Zig test expects rejected_and_slashed for the
+// second receipt; since #8658 its outcome is OUT_ALREADY_SETTLED_NOT_CHARGED, which says that the
+// slash is zero.
 test zig_the_same_receipt_cannot_be_settled_twice {
     var l = register_node(ledger_init(default_policy()), 0x5005, 6, true, 5000);
     l = settle(l, 0x5005, 0x5005, 42, V_OK);
     assert(l.last_outcome == OUT_CREDITED);
     l = settle(l, 0x5005, 0x5005, 42, V_OK);
-    assert(l.last_outcome == OUT_REJECTED_AND_SLASHED);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
     assert(l.credit_mtri[find(l, 0x5005)] == 1);
 }
 
@@ -649,7 +778,9 @@ test branch1_a_suspended_node_is_refused {
     assert(l.last_why == WHY_SUSPENDED);
     assert(l.credit_mtri[a] == 0);
     assert(l.stake_mtri[a] == stake_before);
-    assert(l.n_spent == 0);
+    // The three lies hold their keys; the refused receipt adds none.
+    assert(l.n_spent == 3);
+    assert(is_spent(l, spent_key(0x0303, 4)) == false);
     // A lie from a suspended node is not slashed again either.
     l = settle(l, 0x0303, 0x0303, 5, V_WRONG_RESULT);
     assert(l.last_outcome == OUT_NOT_ELIGIBLE);
@@ -673,50 +804,86 @@ test branch1_an_unreliable_node_is_refused {
     assert(l.stake_mtri[a] == 5000);
 }
 
-// Branch 2: identity theft. The sender is slashed and goes on probation; the claimed node gets nothing.
-test branch2_identity_theft_is_refused_and_slashed {
-    var l = register_node(ledger_init(default_policy()), 0x0505, 1, true, 5000);
-    l = register_node(l, 0x0606, 2, true, 5000);
-    l = settle(l, 0x0606, 0x0505, 9, V_OK);
-    const thief : usize = find(l, 0x0606);
-    const victim : usize = find(l, 0x0505);
-    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
-    assert(l.last_why == WHY_IDENTITY);
-    assert(l.last_node == 0x0606);
+// Branch 2: double billing. The outcome is OUT_ALREADY_SETTLED_NOT_CHARGED, the slash is zero and
+// nothing else moves; the key is (node, nonce), so the same nonce from another node is paid.
+test branch2_double_billing_is_refused_and_not_charged {
+    var l = register_node(ledger_init(default_policy()), 0x1111, 1, true, 5000);
+    l = register_node(l, 0x2222, 2, true, 5000);
+    l = settle(l, 0x1111, 0x1111, 42, V_OK);
+    assert(l.last_outcome == OUT_CREDITED);
+    const a : usize = find(l, 0x1111);
+    l = settle(l, 0x1111, 0x1111, 42, V_OK);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.last_err == ERR_NONE);
+    assert(l.last_why == WHY_ALREADY_SETTLED);
+    assert(l.last_slash_delta_mtri == 0);
     assert(l.last_credit_delta_mtri == 0);
+    assert(l.stake_mtri[a] == 5000);
+    assert(l.slashed_mtri[a] == 0);
+    assert(l.rejected[a] == 0);
+    assert(l.status[a] == ST_ACTIVE);
+    assert(l.credit_mtri[a] == 1);
+    assert(l.n_spent == 1);
+    assert(is_slashed_key(l, spent_key(0x1111, 42)) == false);
+    l = settle(l, 0x2222, 0x2222, 42, V_OK);
+    assert(l.last_outcome == OUT_CREDITED);
+    assert(l.n_spent == 2);
+    assert(spent_key(0x1111, 42) != spent_key(0x2222, 42));
+    assert(spent_key(1, 0) != spent_key(0, 1));
+    assert(spent_key(0xFFFFFFFF, 0xFFFFFFFF) == 18446744073709551615);
+}
+
+// Branch 2, a lie presented twice (#8658, found by the MVP v2 lane, see #8685): the first is slashed
+// and its key is spent; the same lie again, or any other receipt for that key, moves nothing.
+test branch2_a_lie_presented_twice_is_slashed_once {
+    var l = register_node(ledger_init(default_policy()), 0x1212, 1, true, 5000);
+    const a : usize = find(l, 0x1212);
+    l = settle(l, 0x1212, 0x1212, 9, V_WRONG_RESULT);
+    assert(l.last_outcome == OUT_REJECTED_AND_SLASHED);
     assert(l.last_slash_delta_mtri == 200);
-    assert(l.stake_mtri[thief] == 4800);
-    assert(l.slashed_mtri[thief] == 200);
-    assert(l.rejected[thief] == 1);
-    assert(l.consecutive_rejections[thief] == 1);
-    assert(l.status[thief] == ST_PROBATION);
+    assert(l.n_spent == 1);
+    assert(is_slashed_key(l, spent_key(0x1212, 9)));
+    l = settle(l, 0x1212, 0x1212, 9, V_WRONG_RESULT);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.last_why == WHY_ALREADY_SETTLED);
+    assert(l.last_slash_delta_mtri == 0);
+    assert(l.stake_mtri[a] == 4800);
+    assert(l.slashed_mtri[a] == 200);
+    assert(l.rejected[a] == 1);
+    assert(l.consecutive_rejections[a] == 1);
+    assert(l.status[a] == ST_PROBATION);
     assert(l.total_slashed_mtri == 200);
-    assert(l.stake_mtri[victim] == 5000);
-    assert(l.credit_mtri[victim] == 0);
-    assert(l.n_spent == 0);
+    // an honest answer for the slashed key is not paid either: the key carries its outcome
+    l = settle(l, 0x1212, 0x1212, 9, V_OK);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.credit_mtri[a] == 0);
+    assert(l.n_spent == 1);
+    // and identity theft presented twice is slashed once
+    l = settle(l, 0x1212, 0x1313, 10, V_OK);
+    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
+    l = settle(l, 0x1212, 0x1313, 10, V_OK);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.slashed_mtri[a] == 400);
+    assert(l.rejected[a] == 2);
+    assert(keys_match_outcomes(l));
 }
 
-// Branch 2, the min(): the slash never takes more than the stake, and a stake under the bond suspends.
-test branch2_the_slash_is_capped_at_the_stake {
-    const p : Policy = policy_of(1, 5000, 100);
-    var l = register_node(ledger_init(p), 0x0707, 1, false, 1000);
-    l = settle(l, 0x0707, 0x0808, 1, V_OK);
-    const a : usize = find(l, 0x0707);
-    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
-    assert(l.last_slash_delta_mtri == 1000);
-    assert(l.stake_mtri[a] == 0);
-    assert(l.status[a] == ST_SUSPENDED);
-}
-
-// Branch 2 comes before the verdict: a receipt whose node_id field differs is charged as identity
-// theft even when verify() called it a damaged frame (protocol.zig's own test: node_id +%= 7 on an
-// honest receipt verifies as corrupt). This pins ledger.zig as it is; see the PR for the finding.
-test branch2_identity_is_judged_before_the_verdict {
-    var l = register_node(ledger_init(default_policy()), 0x0909, 1, true, 5000);
-    l = settle(l, 0x0909, 0x0910, 1, V_CORRUPT);
-    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
-    assert(l.last_slash_delta_mtri == 200);
-    assert(l.corrupted[find(l, 0x0909)] == 0);
+// Branch 2 comes before the verdict: once a nonce is paid, a lie or a damaged frame for it is refused
+// unjudged. (ledger.zig slashed the lie and counted the damaged frame.)
+test branch2_a_lie_on_a_paid_nonce_is_refused {
+    var l = register_node(ledger_init(default_policy()), 0x0F0F, 1, true, 5000);
+    l = settle(l, 0x0F0F, 0x0F0F, 5, V_OK);
+    const a : usize = find(l, 0x0F0F);
+    l = settle(l, 0x0F0F, 0x0F0F, 5, V_WRONG_RESULT);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.last_why == WHY_ALREADY_SETTLED);
+    assert(l.last_slash_delta_mtri == 0);
+    assert(l.stake_mtri[a] == 5000);
+    l = settle(l, 0x0F0F, 0x0F0F, 5, V_CORRUPT);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.corrupted[a] == 0);
+    assert(l.credit_mtri[a] == 1);
+    assert(l.rejected[a] == 0);
 }
 
 // Branch 3: a damaged frame is neither paid nor charged, does not touch reputation, and counts toward
@@ -790,9 +957,102 @@ test branch4_an_unverifiable_frame_is_neither_paid_nor_charged {
     assert(l.unverifiable[a] == 2);
 }
 
-// Branch 5: each verdict that indicts is a lie. The first goes on probation, the third consecutive
+// Branch 5: identity theft. The sender is slashed and goes on probation; the claimed node gets nothing.
+test branch5_identity_theft_is_refused_and_slashed {
+    var l = register_node(ledger_init(default_policy()), 0x0505, 1, true, 5000);
+    l = register_node(l, 0x0606, 2, true, 5000);
+    l = settle(l, 0x0606, 0x0505, 9, V_OK);
+    const thief : usize = find(l, 0x0606);
+    const victim : usize = find(l, 0x0505);
+    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
+    assert(l.last_why == WHY_IDENTITY);
+    assert(l.last_node == 0x0606);
+    assert(l.last_credit_delta_mtri == 0);
+    assert(l.last_slash_delta_mtri == 200);
+    assert(l.stake_mtri[thief] == 4800);
+    assert(l.slashed_mtri[thief] == 200);
+    assert(l.rejected[thief] == 1);
+    assert(l.consecutive_rejections[thief] == 1);
+    assert(l.status[thief] == ST_PROBATION);
+    assert(l.total_slashed_mtri == 200);
+    assert(l.stake_mtri[victim] == 5000);
+    assert(l.credit_mtri[victim] == 0);
+    // the thief's key is spent and charged; the victim's is untouched
+    assert(l.n_spent == 1);
+    assert(is_slashed_key(l, spent_key(0x0606, 9)));
+    assert(is_spent(l, spent_key(0x0505, 9)) == false);
+}
+
+// Branch 5, the min(): the slash never takes more than the stake, and a stake under the bond suspends.
+test branch5_the_slash_is_capped_at_the_stake {
+    const p : Policy = policy_of(1, 5000, 100);
+    var l = register_node(ledger_init(p), 0x0707, 1, false, 1000);
+    l = settle(l, 0x0707, 0x0808, 1, V_OK);
+    const a : usize = find(l, 0x0707);
+    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
+    assert(l.last_slash_delta_mtri == 1000);
+    assert(l.stake_mtri[a] == 0);
+    assert(l.status[a] == ST_SUSPENDED);
+}
+
+// Branch 5 comes after the verdicts that accuse nobody (#8658; ledger.zig judged identity first). With
+// a claimed identity that differs: a damaged frame and an unverifiable one are not charged, and do not
+// spend the key. A verdict that accepts or indicts is identity theft, slashed once, never as a lie too.
+test branch5_identity_is_judged_after_the_verdict {
+    var l = register_node(ledger_init(default_policy()), 0x0909, 1, true, 5000);
+    const a : usize = find(l, 0x0909);
+    l = settle(l, 0x0909, 0x0910, 1, V_CORRUPT);
+    assert(l.last_outcome == OUT_CORRUPT_NOT_CHARGED);
+    l = settle(l, 0x0909, 0x0910, 2, V_UNVERIFIABLE);
+    assert(l.last_outcome == OUT_UNVERIFIABLE_NOT_CHARGED);
+    l = settle(l, 0x0909, 0x0910, 3, 9);
+    assert(l.last_outcome == OUT_UNVERIFIABLE_NOT_CHARGED);
+    assert(l.slashed_mtri[a] == 0);
+    assert(l.n_spent == 0);
+    l = settle(l, 0x0909, 0x0910, 4, V_OK);
+    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
+    assert(l.last_slash_delta_mtri == 200);
+    l = settle(l, 0x0909, 0x0910, 5, V_WRONG_RESULT);
+    assert(l.last_outcome == OUT_IDENTITY_MISMATCH);
+    assert(l.last_why == WHY_IDENTITY);
+    assert(l.last_slash_delta_mtri == 200);
+    assert(l.slashed_mtri[a] == 400);
+    assert(l.rejected[a] == 2);
+    assert(l.corrupted[a] == 1);
+    assert(l.unverifiable[a] == 2);
+    assert(l.n_spent == 2);
+}
+
+// Branch 5, the case #8658 was opened for: protocol.zig's own test changes node_id by 7 on an honest
+// receipt, and verify() calls it corrupt. That is a damaged frame: no slash, no reputation mark, and
+// the key stays free, so the honest frame sent again is paid.
+test branch5_a_damaged_identity_field_is_not_slashed_as_theft {
+    var l = register_node(ledger_init(default_policy()), 0x0909, 1, true, 5000);
+    l = settle(l, 0x0909, 0x0909 + 7, 1, V_CORRUPT);
+    const a : usize = find(l, 0x0909);
+    assert(l.last_err == ERR_NONE);
+    assert(l.last_outcome == OUT_CORRUPT_NOT_CHARGED);
+    assert(l.last_why == WHY_VERDICT);
+    assert(l.last_slash_delta_mtri == 0);
+    assert(l.last_credit_delta_mtri == 0);
+    assert(l.stake_mtri[a] == 5000);
+    assert(l.slashed_mtri[a] == 0);
+    assert(l.total_slashed_mtri == 0);
+    assert(l.rejected[a] == 0);
+    assert(l.corrupted[a] == 1);
+    assert(l.consecutive_corruptions[a] == 1);
+    assert(l.status[a] == ST_ACTIVE);
+    assert(reputation(l, a) == 1.0);
+    assert(l.n_spent == 0);
+    l = settle(l, 0x0909, 0x0909, 1, V_OK);
+    assert(l.last_outcome == OUT_CREDITED);
+    assert(l.credit_mtri[a] == 1);
+    assert(l.consecutive_corruptions[a] == 0);
+}
+
+// Branch 6: each verdict that indicts is a lie. The first goes on probation, the third consecutive
 // suspends.
-test branch5_a_lie_is_rejected_and_slashed {
+test branch6_a_lie_is_rejected_and_slashed {
     var l = register_node(ledger_init(default_policy()), 0x0D0D, 1, true, 5000);
     const a : usize = find(l, 0x0D0D);
     l = settle(l, 0x0D0D, 0x0D0D, 1, V_BAD_STATUS);
@@ -813,11 +1073,15 @@ test branch5_a_lie_is_rejected_and_slashed {
     assert(l.rejected[a] == 3);
     assert(l.credit_mtri[a] == 0);
     assert(l.total_slashed_mtri == 600);
-    assert(l.n_spent == 0);
+    // each lie holds its key, charged
+    assert(l.n_spent == 3);
+    assert(is_slashed_key(l, spent_key(0x0D0D, 1)));
+    assert(is_slashed_key(l, spent_key(0x0D0D, 3)));
+    assert(keys_match_outcomes(l));
 }
 
-// Branch 5, the other way to suspension: a stake that falls under the bond.
-test branch5_a_stake_under_the_bond_suspends {
+// Branch 6, the other way to suspension: a stake that falls under the bond.
+test branch6_a_stake_under_the_bond_suspends {
     var l = register_node(ledger_init(default_policy()), 0x0E0E, 1, true, 1100);
     l = settle(l, 0x0E0E, 0x0E0E, 1, V_WRONG_RESULT);
     const a : usize = find(l, 0x0E0E);
@@ -826,49 +1090,10 @@ test branch5_a_stake_under_the_bond_suspends {
     assert(l.status[a] == ST_SUSPENDED);
 }
 
-// Branch 5, the verdict comes before the spent set: a lie about a nonce already paid is still slashed.
-test branch5_a_lie_on_a_paid_nonce_is_still_slashed {
-    var l = register_node(ledger_init(default_policy()), 0x0F0F, 1, true, 5000);
-    l = settle(l, 0x0F0F, 0x0F0F, 5, V_OK);
-    l = settle(l, 0x0F0F, 0x0F0F, 5, V_WRONG_RESULT);
-    assert(l.last_outcome == OUT_REJECTED_AND_SLASHED);
-    assert(l.last_why == WHY_VERDICT);
-    assert(l.last_slash_delta_mtri == 200);
-    l = settle(l, 0x0F0F, 0x0F0F, 5, V_CORRUPT);
-    assert(l.last_outcome == OUT_CORRUPT_NOT_CHARGED);
-    assert(l.credit_mtri[find(l, 0x0F0F)] == 1);
-}
-
-// Branch 6: double billing. The outcome is OUT_REJECTED_AND_SLASHED but the slash is zero and nothing
-// else moves; the key is (node, nonce), so the same nonce from another node is paid.
-test branch6_double_billing_is_refused {
-    var l = register_node(ledger_init(default_policy()), 0x1111, 1, true, 5000);
-    l = register_node(l, 0x2222, 2, true, 5000);
-    l = settle(l, 0x1111, 0x1111, 42, V_OK);
-    assert(l.last_outcome == OUT_CREDITED);
-    const a : usize = find(l, 0x1111);
-    l = settle(l, 0x1111, 0x1111, 42, V_OK);
-    assert(l.last_outcome == OUT_REJECTED_AND_SLASHED);
-    assert(l.last_why == WHY_ALREADY_SETTLED);
-    assert(l.last_slash_delta_mtri == 0);
-    assert(l.last_credit_delta_mtri == 0);
-    assert(l.stake_mtri[a] == 5000);
-    assert(l.slashed_mtri[a] == 0);
-    assert(l.rejected[a] == 0);
-    assert(l.status[a] == ST_ACTIVE);
-    assert(l.credit_mtri[a] == 1);
-    assert(l.n_spent == 1);
-    l = settle(l, 0x2222, 0x2222, 42, V_OK);
-    assert(l.last_outcome == OUT_CREDITED);
-    assert(l.n_spent == 2);
-    assert(spent_key(0x1111, 42) != spent_key(0x2222, 42));
-    assert(spent_key(1, 0) != spent_key(0, 1));
-    assert(spent_key(0xFFFFFFFF, 0xFFFFFFFF) == 18446744073709551615);
-}
-
-// Branch 6, the Zig `try spent_nonces.put` failing: a full spent set refuses to credit and charges
-// nothing, so no key is ever dropped to make room.
-test branch6_a_full_spent_set_refuses_to_credit {
+// The spent set's capacity, the Zig `try spent_nonces.put` failing: a full set refuses to credit and to
+// charge, so no key is ever dropped to make room and nothing is charged without its key. A receipt that
+// needs no key (a damaged frame) and one whose key is held (a second bill) are judged as before.
+test a_full_spent_set_refuses_to_credit_or_charge {
     var l = register_node(ledger_init(default_policy()), 0x3333, 1, true, 5000);
     var n : u32 = 0;
     while (n < 128) {
@@ -884,10 +1109,22 @@ test branch6_a_full_spent_set_refuses_to_credit {
     assert(l.credit_mtri[a] == 128);
     assert(l.stake_mtri[a] == 5000);
     assert(l.n_spent == MAX_SPENT);
+    l = settle(l, 0x3333, 0x3333, 129, V_WRONG_RESULT);
+    assert(l.last_err == ERR_OUT_OF_MEMORY);
+    assert(l.last_outcome == OUT_NONE);
+    assert(l.last_slash_delta_mtri == 0);
+    l = settle(l, 0x3333, 0x4444, 130, V_OK);
+    assert(l.last_err == ERR_OUT_OF_MEMORY);
+    assert(l.stake_mtri[a] == 5000);
+    assert(l.rejected[a] == 0);
+    l = settle(l, 0x3333, 0x3333, 131, V_CORRUPT);
+    assert(l.last_outcome == OUT_CORRUPT_NOT_CHARGED);
     // A paid nonce is still refused as double billing when the set is full.
     l = settle(l, 0x3333, 0x3333, 7, V_OK);
-    assert(l.last_outcome == OUT_REJECTED_AND_SLASHED);
+    assert(l.last_err == ERR_NONE);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
     assert(l.last_why == WHY_ALREADY_SETTLED);
+    assert(l.n_spent == MAX_SPENT);
 }
 
 // Branch 7: a credit pays one reward, resets every consecutive counter, lifts probation, and counts as
@@ -917,7 +1154,89 @@ test branch7_a_credit_pays_and_clears_probation {
     assert(l.jobs_on_silicon == 0);
     assert(reputation(l, a) == 0.5);
     assert(is_spent(l, spent_key(0x4444, 4)));
-    assert(is_spent(l, spent_key(0x4444, 1)) == false);
+    assert(is_slashed_key(l, spent_key(0x4444, 4)) == false);
+    // the lie on nonce 1 holds its key, charged; the damaged and the unverifiable frames hold none
+    assert(is_slashed_key(l, spent_key(0x4444, 1)));
+    assert(is_spent(l, spent_key(0x4444, 2)) == false);
+    assert(is_spent(l, spent_key(0x4444, 3)) == false);
+    assert(l.n_spent == 2);
+    assert(keys_match_outcomes(l));
+}
+
+// overturn(): a fraud proof upheld against a credited receipt takes the credit back and charges once.
+// A second proof, the receipt again, a proof for a key never credited and a proof for a key already
+// charged move nothing.
+test overturn_takes_back_a_credit_and_charges_once {
+    var l = register_node(ledger_init(default_policy()), 0x5151, 1, true, 5000);
+    l = settle(l, 0x5151, 0x5151, 5, V_OK);
+    l = settle(l, 0x5151, 0x5151, 6, V_OK);
+    const a : usize = find(l, 0x5151);
+    assert(l.credit_mtri[a] == 2);
+    assert(l.jobs_on_silicon == 2);
+    l = overturn(l, 0x5151, 5);
+    assert(l.last_err == ERR_NONE);
+    assert(l.last_outcome == OUT_REJECTED_AND_SLASHED);
+    assert(l.last_why == WHY_OVERTURNED);
+    assert(l.last_node == 0x5151);
+    assert(l.last_slash_delta_mtri == 200);
+    assert(l.last_credit_delta_mtri == 0);
+    assert(l.credit_mtri[a] == 1);
+    assert(l.accepted[a] == 1);
+    assert(l.rejected[a] == 1);
+    assert(l.total_credited_mtri == 1);
+    assert(l.jobs_on_silicon == 1);
+    assert(l.stake_mtri[a] == 4800);
+    assert(l.total_slashed_mtri == 200);
+    assert(l.status[a] == ST_PROBATION);
+    assert(payout_of(l, 1) == 1);
+    assert(is_slashed_key(l, spent_key(0x5151, 5)));
+    assert(l.n_spent == 2);
+    assert(keys_match_outcomes(l));
+    // a second proof for the same key
+    l = overturn(l, 0x5151, 5);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    assert(l.last_slash_delta_mtri == 0);
+    // the receipt again
+    l = settle(l, 0x5151, 0x5151, 5, V_OK);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    // a key never credited
+    l = overturn(l, 0x5151, 77);
+    assert(l.last_err == ERR_NOT_CREDITED);
+    assert(l.last_outcome == OUT_NONE);
+    // a key a lie already charged
+    l = settle(l, 0x5151, 0x5151, 8, V_WRONG_RESULT);
+    l = overturn(l, 0x5151, 8);
+    assert(l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED);
+    // an unknown node
+    l = overturn(l, 0x5252, 6);
+    assert(l.last_err == ERR_UNKNOWN_NODE);
+    assert(l.stake_mtri[a] == 4600);
+    assert(l.slashed_mtri[a] == 400);
+    assert(l.credit_mtri[a] == 1);
+    assert(l.rejected[a] == 2);
+    assert(keys_match_outcomes(l));
+}
+
+// overturn() keeps settle()'s eligibility rule: a suspended node is not charged again, and its credit
+// stays. An unsound ledger refuses it like every other call.
+test overturn_refuses_a_suspended_node_and_an_unsound_ledger {
+    var l = register_node(ledger_init(default_policy()), 0x5353, 1, false, 5000);
+    l = settle(l, 0x5353, 0x5353, 1, V_OK);
+    l = settle(l, 0x5353, 0x5353, 2, V_WRONG_RESULT);
+    l = settle(l, 0x5353, 0x5353, 3, V_WRONG_RESULT);
+    l = settle(l, 0x5353, 0x5353, 4, V_WRONG_RESULT);
+    const a : usize = find(l, 0x5353);
+    assert(l.status[a] == ST_SUSPENDED);
+    l = overturn(l, 0x5353, 1);
+    assert(l.last_outcome == OUT_NOT_ELIGIBLE);
+    assert(l.last_why == WHY_SUSPENDED);
+    assert(l.credit_mtri[a] == 1);
+    assert(l.stake_mtri[a] == 4400);
+    assert(is_slashed_key(l, spent_key(0x5353, 1)) == false);
+    var u = ledger_init(policy_of(10, 5, 100));
+    u = overturn(u, 0x5353, 1);
+    assert(u.last_err == ERR_UNSOUND_POLICY);
+    assert(u.last_outcome == OUT_NONE);
 }
 
 // register(): the node table is fixed, and a full table refuses rather than overwrites.
@@ -972,7 +1291,7 @@ test verdict_predicates_match_protocol_zig {
 // ---------------------------------------------------------------------------------------------------
 
 /// Once (node, nonce) is paid, every later receipt for it, three times over under every verdict code
-/// 0..7, moves no credit.
+/// 0..7, moves no credit and no stake.
 pub fn nonce_is_never_credited_twice(node: u32, nonce: u32) -> bool {
     var l = register_node(ledger_init(default_policy()), node, 1, true, 100000);
     l = settle(l, node, node, nonce, V_OK);
@@ -984,12 +1303,46 @@ pub fn nonce_is_never_credited_twice(node: u32, nonce: u32) -> bool {
             l = settle(l, node, node, nonce, v);
             if (l.last_outcome == OUT_CREDITED) { return false; }
             if (l.last_credit_delta_mtri != 0) { return false; }
+            if (l.last_slash_delta_mtri != 0) { return false; }
             v += 1;
         }
         round += 1;
     }
     const a : usize = find(l, node);
-    return l.credit_mtri[a] == 1 and l.accepted[a] == 1 and l.n_spent == 1;
+    return l.credit_mtri[a] == 1 and l.accepted[a] == 1 and l.n_spent == 1 and l.stake_mtri[a] == 100000;
+}
+
+/// One (node, nonce), many receipts: a first one under verdict `first` (claiming another identity when
+/// `thief`), then three rounds of every verdict code 0..7, every other one claiming another identity.
+/// At most one of them gets an outcome that moves anything (a credit, a lie's slash, a theft's slash),
+/// at most one reward and one slash move, and every spent key is one such outcome.
+pub fn a_key_carries_at_most_one_outcome(node: u32, nonce: u32, first: u8, thief: bool) -> bool {
+    var l = register_node(ledger_init(default_policy()), node, 1, true, 100000);
+    var claimed : u32 = node;
+    if (thief) { claimed = node ^ 1; }
+    var moved : u32 = 0;
+    l = settle(l, node, claimed, nonce, first);
+    if (l.last_outcome == OUT_CREDITED or l.last_outcome == OUT_REJECTED_AND_SLASHED or l.last_outcome == OUT_IDENTITY_MISMATCH) { moved += 1; }
+    var round : u32 = 0;
+    while (round < 3) {
+        var v : u8 = 0;
+        while (v < 8) {
+            claimed = node;
+            if (((round + (v as u32)) % 2) == 1) { claimed = node ^ 1; }
+            const before : bool = is_spent(l, spent_key(node, nonce));
+            l = settle(l, node, claimed, nonce, v);
+            if (l.last_outcome == OUT_CREDITED or l.last_outcome == OUT_REJECTED_AND_SLASHED or l.last_outcome == OUT_IDENTITY_MISMATCH) { moved += 1; }
+            if (before and l.last_outcome != OUT_ALREADY_SETTLED_NOT_CHARGED) { return false; }
+            if (l.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED and (l.last_credit_delta_mtri != 0 or l.last_slash_delta_mtri != 0)) { return false; }
+            v += 1;
+        }
+        round += 1;
+    }
+    const a : usize = find(l, node);
+    if (moved != 1) { return false; }
+    if (l.credit_mtri[a] > REWARD_PER_JOB_MTRI) { return false; }
+    if (l.slashed_mtri[a] > SLASH_PER_BAD_RECEIPT_MTRI) { return false; }
+    return l.n_spent == 1 and keys_match_outcomes(l);
 }
 
 /// Nonces 0..count-1 each sent three times, interleaved: exactly count credits, and the spent set never
@@ -1051,7 +1404,22 @@ test refusals_pay_nothing_and_not_charged_costs_nothing_at_run_time {
     assert(refusals_pay_nothing(0x9339));
 }
 
+invariant a_lie_presented_twice_is_slashed_once {
+    assert(a_key_carries_at_most_one_outcome(0x9449, 31, V_WRONG_RESULT, false));
+}
+
+test a_key_carries_at_most_one_outcome_at_run_time {
+    var first : u8 = 0;
+    while (first < 8) {
+        assert(a_key_carries_at_most_one_outcome(0x9449, 31, first, false));
+        assert(a_key_carries_at_most_one_outcome(0x9449, 31, first, true));
+        assert(a_key_carries_at_most_one_outcome(0xFFFFFFFF, 0xFFFFFFFF, first, true));
+        first += 1;
+    }
+}
+
 invariant outcome_codes_keep_payout_t27_order {
     assert(OUT_CREDITED == 0 and OUT_REJECTED_AND_SLASHED == 1 and OUT_CORRUPT_NOT_CHARGED == 2);
     assert(OUT_IDENTITY_MISMATCH == 3 and OUT_UNVERIFIABLE_NOT_CHARGED == 4 and OUT_NOT_ELIGIBLE == 5);
+    assert(OUT_ALREADY_SETTLED_NOT_CHARGED == 6);
 }

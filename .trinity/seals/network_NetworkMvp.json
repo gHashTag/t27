@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+af4c8b8ac",
+  "built_by": "t27c-bootstrap@0.5.2+172e871ed",
   "closure": [
     {
       "spec": "specs/queen/actors.t27",
@@ -23,7 +23,7 @@
     },
     {
       "spec": "specs/verified/payout.t27",
-      "spec_hash": "sha256:cb4be92310f639e1e84aa505f07c4f9be22e3a928ac70e2ea1b088b261896ea8"
+      "spec_hash": "sha256:7b5e8bca72e68efd2050b469bb784d68b7ce5dd15907a5f44f0f132475fead87"
     },
     {
       "spec": "specs/verified/receipt.t27",
@@ -50,7 +50,7 @@
   "module": "NetworkMvp",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T14:08:25Z",
+  "sealed_at": "2026-10-10T17:53:57Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:51e31c123af313c862f6b15765e28a76a1a618ebb0ac02c7d795dbc15da04f23",
   "spec_path": "specs/network/mvp.t27",
@@ -59,7 +59,8 @@
     "failing": [],
     "forced": false,
     "passed": 11,
-    "total": 11
+    "total": 11,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

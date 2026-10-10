@@ -3,8 +3,8 @@
 ; epic #6198, under #6063 and #5980): an integer or a char literal's text, an array literal whose elements
 ; the parser kept as one text, a prose clause's label, and the line of a declaration's header in the source
 ; (a node the parser built from text has no line of its own). These rules were hand-written Rust in
-; cli/t27b/src/lower.rs (`parse_int`, `char_literal`, `int_lit_width`, `header_line`, `is_prose_clause` and
-; the element split of `text_lit`); they now reach cli/t27b only through `t27c gen-rust`
+; cli/t27b/src/lower.rs (`parse_int`, `char_literal`, `int_lit_width`, `header_line`, `decl_line`,
+; `is_prose_clause` and the element split of `text_lit`); they now reach cli/t27b only through `t27c gen-rust`
 ; (gen/rust/tri/t27b/source_text.rs, mounted as `st`).
 ; Trimming is type_text.t27's, Rust's `str::trim`.
 ; --
@@ -215,6 +215,20 @@ pub fn header_line(s: []const u8, keyword: []const u8, name: []const u8) -> u32 
     }
     if (header_at(s, a, s.len, keyword, name)) { return line; }
     return NO_LINE;
+}
+
+/// The earlier of two lines, NO_LINE counting as none.
+pub fn first_line(a: u32, b: u32) -> u32 {
+    if (a == NO_LINE) { return b; }
+    if (b == NO_LINE or a < b) { return a; }
+    return b;
+}
+
+/// The line (1-based) of the declaration of `name` in the source `s` (`decl_line`): its first `const`,
+/// `pub const`, `enum` or `pub enum` header; NO_LINE when there is none.
+pub fn decl_line(s: []const u8, name: []const u8) -> u32 {
+    const c : u32 = first_line(header_line(s, "const", name), header_line(s, "pub const", name));
+    return first_line(c, first_line(header_line(s, "enum", name), header_line(s, "pub enum", name)));
 }
 
 /// The label of a clause the front-end kept only as verbatim text (`is_prose_clause`): a word of ASCII
@@ -439,6 +453,19 @@ test the_header_line_counts_from_one {
     assert header_line("\n\n", "const", "X") == NO_LINE;
     assert header_line("a\nb\nenum E {}", "enum", "E") == 3;
     assert header_line("const X\nconst X", "const", "X") == 1;
+}
+
+test a_declaration_is_its_first_const_or_enum_header {
+    assert decl_line("const X = 1;\n", "X") == 1;
+    assert decl_line("// a\npub const X = 1;\n", "X") == 2;
+    assert decl_line("enum Y {}\nconst X = 1;\n", "X") == 2;
+    assert decl_line("pub enum X { a }\nconst X = 2;\n", "X") == 1;
+    assert decl_line("const XY = 1;\nvar X = 2;\n", "X") == NO_LINE;
+    assert decl_line("", "X") == NO_LINE;
+    assert first_line(NO_LINE, 3) == 3;
+    assert first_line(3, NO_LINE) == 3;
+    assert first_line(4, 2) == 2;
+    assert first_line(NO_LINE, NO_LINE) == NO_LINE;
 }
 
 test a_carriage_return_ends_a_line_only_before_a_newline {

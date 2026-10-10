@@ -68,8 +68,14 @@
 ; keyed stand-in over every digest word; key_id_of's halves are independent so the tests can build the
 ; 2^32-work collision a 32-bit id invites; at N 4, F 1 the safe quorum and n/2 + 1 are both 3, so only
 ; the quorum test over N 1..9 tells them apart; collusion that includes the reference worker is beyond
-; what the watcher here can catch; a double bill is refused but not slashed, ledger.t27's answer (see
-; #8658).
+; what the watcher here can catch; a double bill is refused but not slashed, ledger.t27's answer
+; OUT_ALREADY_SETTLED_NOT_CHARGED (see #8658), so "fraud nets worse than honesty" covers slashable fraud,
+; and a double bill nets zero.
+; The treasurer settles a claim under the nonce it issued for that job, ledger.t27's "the job's nonce".
+; Since #8658 the ledger refuses a spent (node, nonce) before it judges the verdict. A replayed receipt
+; therefore answers a fresh nonce with an old request id, and is slashed once as a nonce mismatch. An
+; upheld challenge against a credited claim goes through ledger.t27 overturn(), which takes the credit
+; back and charges it once.
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -901,12 +907,12 @@ pub fn books_flags(flags: u64, bk: Books, locked_now: u64, stakes_start: u64) ->
     return f;
 }
 
-/// The ledger and the MVP keep one account: every slash the ledger took, every credit it counted, every
-/// spent key distinct.
+/// The ledger and the MVP keep one account: every slash the ledger took, every credit it counted and did
+/// not take back, every spent key one credit or one charge, every spent key distinct.
 pub fn ledger_flags(flags: u64, lg: Ledger, ledger_slashed: u64, credited: u64, closing: bool) -> u64 {
     var drift : bool = lg.total_slashed_mtri != ledger_slashed;
     if (accepted_held(lg) != credited) { drift = true; }
-    if ((lg.n_spent as u64) != credited) { drift = true; }
+    if (keys_match_outcomes(lg) == false) { drift = true; }
     if (closing and spent_keys_are_distinct(lg) == false) { drift = true; }
     return flag(flags, I2_LEDGER_DRIFT, drift);
 }
@@ -966,7 +972,7 @@ pub struct NetV2 {
     marks_written: u64,
     double_bills: u64,
     double_refused: u64,
-    double_zero_slash: u64,
+    double_not_charged: u64,
     off_chain: u64,
     off_chain_refused: u64,
     bypass: u64,
@@ -991,7 +997,7 @@ pub fn net_v2_empty() -> NetV2 {
         executor_fees: 0, provider_fees: 0, verifier_fees: 0, royalties: 0, bounties: 0,
         challenges_upheld: 0, challenges_frivolous: 0, challenges_stale: 0, held_open: 0,
         jobs_finalized: 0, jobs_clawed: 0, challenger_paid: 0, griefer_burned: 0, disp_restarts: 0,
-        marks_written: 0, double_bills: 0, double_refused: 0, double_zero_slash: 0, off_chain: 0,
+        marks_written: 0, double_bills: 0, double_refused: 0, double_not_charged: 0, off_chain: 0,
         off_chain_refused: 0, bypass: 0, bypass_refused: 0, fraud_closed: 0, honest_closed: 0,
         lie_slash_seq: 0, lie_slash_pid: 0, replay_seq: 0, replay_pid: 0, double_seq: 0, double_pid: 0,
     };
@@ -1402,12 +1408,13 @@ pub fn network_v2(seed: u32, jobs: u32, base_rate: u64, halving_every: u64, unit
                                         if (reason == RV_BAD_COMPUTE) { r.bad_compute = r.bad_compute + 1; }
                                         if (reason == RV_OK) { r.accepted = r.accepted + 1; }
                                         if (reason != RV_BAD_SIG) {
-                                            // ledger.t27 settle: eligibility, identity, the verdict, once per (node, nonce)
+                                            // ledger.t27 settle under the job's nonce: eligibility, once per
+                                            // (node, nonce), the verdict, identity
                                             let verdict : u8 = claim_verdict(reason, has(leaf_present, si), ce.request_id == c_issued[k]);
-                                            lg = settle(lg, si + 1, node_of_key(ce.executor), ce.request_id, verdict);
+                                            lg = settle(lg, si + 1, node_of_key(ce.executor), c_issued[k], verdict);
                                             j_signers[jx] = j_signers[jx] | bit(si as u64);
                                             j_pids[x] = c_pid[k];
-                                            j_req[x] = ce.request_id;
+                                            j_req[x] = c_issued[k];
                                             j_cout[x] = ce.out;
                                             if (lg.last_outcome == OUT_CREDITED) {
                                                 r.credited = r.credited + 1;
@@ -1487,15 +1494,15 @@ pub fn network_v2(seed: u32, jobs: u32, base_rate: u64, halving_every: u64, unit
                                         r.double_pid = c_pid[0];
                                     }
                                     deliver_row(tr, c_pid[0], tre_pid, task, M_CLAIM);
-                                    lg = settle(lg, 1, 1, c_req[0], V_OK);
+                                    lg = settle(lg, 1, 1, c_issued[0], V_OK);
                                     if (lg.last_outcome == OUT_CREDITED) {
                                         r.flags = flag(r.flags, I2_PAID_TWICE, true);
                                         r.credited = r.credited + 1;
                                     } else {
                                         r.double_refused = r.double_refused + 1;
                                     }
-                                    // ledger.t27 answers a double bill with a zero slash (see #8658)
-                                    if (lg.last_slash_delta_mtri == 0) { r.double_zero_slash = r.double_zero_slash + 1; }
+                                    // ledger.t27 answers a double bill with its own outcome, and no slash (see #8658)
+                                    if (lg.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED and lg.last_slash_delta_mtri == 0) { r.double_not_charged = r.double_not_charged + 1; }
                                 }
                                 // v1's attack: the same run's credit asked on another chain
                                 if (off_chain_asked(seed, job_ix)) {
@@ -1569,10 +1576,12 @@ pub fn network_v2(seed: u32, jobs: u32, base_rate: u64, halving_every: u64, unit
                     }
                     let outcome : u8 = resolve(j_q_out[ju], j_t_out[ju]);
                     if (outcome == RESOLVE_SLASH) {
-                        // the executor's bond to the challenger (ledger.t27: a lie on a paid nonce is still slashed)
+                        // the executor's bond to the challenger (ledger.t27 overturn: the credit taken back,
+                        // one charge)
                         let x0 : usize = (j * SIGNERS) as usize;
                         if (has(j_signers[ju], SIGNER_EXECUTOR) and j_reason[x0] == RV_OK) {
-                            lg = settle(lg, 1, 1, j_req[x0], V_WRONG_RESULT);
+                            lg = overturn(lg, 1, j_req[x0]);
+                            if (lg.last_why == WHY_OVERTURNED) { r.credited = r.credited - 1; }
                             let bond : u64 = lg.last_slash_delta_mtri;
                             loss[x0] = loss[x0] + bond;
                             bk = take_stake(bk, j, 0, bond, lg.stake_mtri[0], true, jd);
@@ -1590,7 +1599,8 @@ pub fn network_v2(seed: u32, jobs: u32, base_rate: u64, halving_every: u64, unit
                             let x : usize = (j * SIGNERS + si) as usize;
                             if (has(j_signers[ju], si)) {
                                 if (j_reason[x] == RV_OK) {
-                                    lg = settle(lg, si + 1, si + 1, j_req[x], V_WRONG_RESULT);
+                                    lg = overturn(lg, si + 1, j_req[x]);
+                                    if (lg.last_why == WHY_OVERTURNED) { r.credited = r.credited - 1; }
                                     let taken2 : u64 = lg.last_slash_delta_mtri;
                                     burned2 = burned2 + taken2;
                                     loss[x] = loss[x] + taken2;
@@ -1949,10 +1959,15 @@ test replay_protection_is_a_spent_node_nonce_set_with_a_durable_mark {
             i = i + 1;
         }
         lg = settle(lg, nd, nd, 3, V_OK);
-        assert lg.last_outcome != OUT_CREDITED;
+        assert lg.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED;
         assert lg.last_why == WHY_ALREADY_SETTLED;
+        // a lie on a paid nonce is refused unjudged too: one key, one outcome (see #8658)
+        lg = settle(lg, nd, nd, 4, V_WRONG_RESULT);
+        assert lg.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED;
+        assert lg.last_slash_delta_mtri == 0;
         nd = nd + 1;
     }
+    assert keys_match_outcomes(lg);
     assert hwm_refused > 0;
     assert spent_keys_are_distinct(lg);
     // the mark: issue below the durable mark; a restart resumes at it, above all issued before
@@ -1983,6 +1998,7 @@ test replay_protection_is_a_spent_node_nonce_set_with_a_durable_mark {
         assert (w.flags & bit(I2_NONCE_REISSUED as u64)) == 0;
         assert (w.flags & bit(I2_PAID_TWICE as u64)) == 0;
         assert w.double_refused == w.double_bills;
+        assert w.double_not_charged == w.double_bills;
         restarts = restarts + w.disp_restarts;
         doubles = doubles + w.double_bills;
         replays = replays + w.replays;

@@ -51,12 +51,13 @@
 ; holds at least REPLICAS_K votes and a strict majority of the votes: network/mvp_v2.t27 quorum_needed
 ; with no fault allowance, floor(n/2) + 1. The k hosts disagree: one more host runs it (TIEBREAK), up to
 ; REPLICAS_MAX. Past that, the job is UNRESOLVED: nobody is credited and nobody is struck, because a
-; vote dissents only from a quorum that formed (network/mvp_v2.t27 verifier_dissented).
-; Those two rules are restated below, word for word, not imported: t27c splices the module a `use`
-; names, and pulls from it every declaration whose name appears anywhere in this file, comments
-; included; from mvp_v2.t27 that brings its SHA-256 (for the words of this header), which gen-c cannot
-; lower, so the card would not build. The test mvp_v2_rules_are_kept pins the restated pair to
-; mvp_v2.t27's own asserts.
+; vote dissents only from a quorum that formed (network/mvp_v2.t27 verifier_dissented, whose rule
+; side_of states for this card's verdicts).
+; quorum_needed is restated below, word for word, not imported: t27c splices the module a `use` names,
+; and pulls from it every declaration whose name appears anywhere in this file, comments included;
+; from mvp_v2.t27 that brings its SHA-256 (for the words of this header), which gen-c cannot lower, so
+; the card would not build. The test mvp_v2_rules_are_kept pins it, and side_of, to mvp_v2.t27's own
+; asserts.
 ; The honest ceiling: agreement shows that k keys reported the same bytes. k keys can be one person
 ; (placement.t27 spreads replicas over hosts and, for public hosts, over network origins, which slows
 ; that and does not stop it). It does not prove which machine computed anything.
@@ -207,11 +208,6 @@ pub fn quorum_needed(n: u32, f: u32) -> u32 {
     return ((n + f) / 2) + 1;
 }
 
-/// = network/mvp_v2.t27 verifier_dissented: a vote dissents only from a quorum that formed.
-pub fn verifier_dissented(vote: u32, quorum_value: u32, has_quorum: bool) -> bool {
-    if (has_quorum == false) { return false; }
-    return vote != quorum_value;
-}
 
 /// The job's state from its votes. votes: receipts that are votes. top and second: the two largest
 /// groups of votes with one output hash. wanted: how many replicas the job runs now. exhausted: the
@@ -248,10 +244,9 @@ pub const SIDE_NONE : u8 = 2;
 pub const TOP_GROUP : u32 = 0;
 
 pub fn side_of(verdict: u8, group: u32) -> u8 {
-    var agreed : bool = verdict == JV_AGREED;
-    if (verifier_dissented(group, TOP_GROUP, agreed)) { return SIDE_DISSENT; }
-    if (agreed) { return SIDE_AGREED; }
-    return SIDE_NONE;
+    if (verdict != JV_AGREED) { return SIDE_NONE; }
+    if (group == TOP_GROUP) { return SIDE_AGREED; }
+    return SIDE_DISSENT;
 }
 
 ; --- tests --------------------------------------------------------------------------------------------
@@ -376,10 +371,12 @@ test only_the_agreeing_side_is_on_the_right_side {
 }
 
 test mvp_v2_rules_are_kept {
-    // network/mvp_v2.t27's own asserts on the pair, unchanged: N 4, F 1 needs M 3
+    // network/mvp_v2.t27's own asserts, unchanged: N 4, F 1 needs M 3
     assert quorum_needed(4, 1) == 3;
-    assert verifier_dissented(1, 2, true);
-    assert verifier_dissented(1, 2, false) == false;
+    // verifier_dissented(1, 2, true) and (1, 2, false): a vote apart from a formed quorum dissents,
+    // and with no quorum nothing does
+    assert side_of(JV_AGREED, 1) == SIDE_DISSENT;
+    assert side_of(JV_UNRESOLVED, 1) == SIDE_NONE;
     // with no fault allowance it is a strict majority
     assert quorum_needed(1, 0) == 1;
     assert quorum_needed(2, 0) == 2;

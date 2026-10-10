@@ -31,6 +31,7 @@ mod loopclaim;
 mod misread;
 mod night;
 mod oneaway;
+mod payout;
 mod window;
 mod modreach;
 mod mutate;
@@ -396,6 +397,15 @@ enum Commands {
         #[arg(long, default_value_t = act::DEFAULT_BOUND)] bound: u32,
         /// Also read the decision log: list the records the sampling rule would refuse.
         #[arg(long)] replay: bool,
+    },
+    /// The AUTHOR_ROYALTY table of one epoch (a UTC day) from git history, GitHub's signature check and both labs' receipts, with SHA-256 digests of its facts and of the table; accounting only (rules: specs/tri/network/payout.t27 over specs/network/attribution.t27 and usage.t27).
+    Payout {
+        /// The epoch: unix time / 86400, so 2026-10-10 is 20736. Its commits are HEAD's first-parent commits of that day.
+        #[arg(long)] epoch: u64,
+        /// The epoch's AUTHOR_ROYALTY pool, in credits.
+        #[arg(long, default_value_t = payout::pay::DEFAULT_POOL)] pool: u64,
+        /// Print one JSON object instead of the table.
+        #[arg(long)] json: bool,
     },
 }
 
@@ -1246,6 +1256,7 @@ fn main() -> Result<()> {
         Commands::Hooks { action } => hooks::run(action)?,
         Commands::Lab { specs, sha, .. } => std::process::exit(cmd_lab(specs.as_deref(), sha)? as i32),
         Commands::Actors { url, bound, replay } => std::process::exit(cmd_actors(url, *bound, *replay)? as i32),
+        Commands::Payout { epoch, pool, json } => std::process::exit(payout::cmd(*epoch, *pool, *json)? as i32),
     }
 
     Ok(())
