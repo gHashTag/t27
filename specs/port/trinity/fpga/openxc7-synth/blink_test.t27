@@ -1,0 +1,83 @@
+module blink_test {
+
+    // Port of trinity/fpga/openxc7-synth/blink_test.v (Blink Test Module -
+    // simple LED flasher, no UART needed). Targets the QMTech XC7A100T-FGG676
+    // board via Xilinx DLC10 in JTAG mode (PID 0x0008, FPGA IDCODE 0x13631093,
+    // flashed with xc3sprog). The original's uart pin notes (TXD E21 to J2
+    // pin 6, RXD F21 to J2 pin 5) belong to uart_bridge_fixed.v, not to this
+    // module - it blinks an LED and moves nothing over a UART.
+
+    // 50MHz clock from the M22 oscillator (V1/V2 on the QMTech board).
+    pub const CLK_HZ : u32 = 50_000_000;
+
+    // reg [26:0] counter - 27 bits, reset to zero by the top bit.
+    pub const COUNTER_BITS : u32 = 27;
+
+    // The reset decision reads bit 26: the original counts up until the top
+    // bit is set, then goes back to zero on the next edge.
+    pub const RESET_BIT : u32 = 26;
+
+    // The LED follows bit 25: assign led = counter[25]
+    // (original note: bit 25 = LED ON, bit 24 = LED OFF).
+    pub const LED_BIT : u32 = 25;
+
+    // always @(posedge clk_50MHz): the original resets the counter when bit 26
+    // is already set, else it increments by 1'b1. The count therefore climbs
+    // 0 .. 2^26 and restarts, so bit 25 is set for the 2^25 counts from 2^25
+    // to 2^26 - 1 (original comment: "Bit period: 2^25 / 50MHz").
+    pub fn next_count(count: u32) -> u32 {
+        if (((count >> RESET_BIT) & 1) == 1) {
+            return 0;
+        }
+        return count + 1;
+    }
+
+    // assign led = counter[25] - the LED is on while bit LED_BIT is set.
+    pub fn led_value(count: u32) -> bool {
+        return ((count >> LED_BIT) & 1) == 1;
+    }
+
+    // Module state gives the clocked backend real registers and output ports.
+    // The u32 carries the 27-bit count; rst_n/en are backend control ports.
+    var counter: u32 = 0;
+    pub var led: bool = false;
+
+    // Both RTL assignments sample the old count. Evaluate the LED first so
+    // sequential host execution observes the same next count as nonblocking RTL.
+    fn on_clock() -> void {
+        led = led_value(next_count(counter));
+        counter = next_count(counter);
+    }
+
+    test next_count_increments {
+        assert(next_count(0) == 1);
+        assert(next_count(5) == 6);
+    }
+
+    test next_count_resets_when_bit_26_is_set {
+        // 0x3FFFFFF = 2^26 - 1 still has a clear top bit, so the original
+        // counts up once more; at 0x4000000 = 2^26 the top bit is set and the
+        // next edge restarts the count at zero.
+        assert(next_count(0x3FFFFFF) == 0x4000000);
+        assert(next_count(0x4000000) == 0);
+    }
+
+    test led_value_follows_bit_25 {
+        assert(!led_value(0));
+        assert(!led_value(0x1FFFFFF));
+        assert(led_value(0x2000000));
+        assert(!led_value(0x4000000));
+    }
+
+    test on_clock_advances_registered_state {
+        // reg [26:0] counter = 26'd0 - the register starts at zero.
+        assert(counter == 0);
+        assert(!led);
+        on_clock();
+        assert(counter == 1);
+        assert(!led);
+        on_clock();
+        assert(counter == 2);
+        assert(!led);
+    }
+}
