@@ -3,7 +3,7 @@
 ; (gHashTag/t27#6063 lane 4: ExprCall(@intCast)). Every test here passes `t27c test-report`; t27b must give the
 ; same verdict on each, or refuse the file.
 ; gen-zig prints `@intCast(x)` as written. Zig takes the integer type from the result location (`@as(T, ..)`,
-; a typed `const`, a `return`) and converts the value exactly: a narrower type, a wider one, or the other
+; a typed `const`, a `return`, an assignment to a typed `var`) and converts the value exactly: a narrower type, a wider one, or the other
 ; signedness. A value that does not fit is a safety panic in Debug, which is a failed test; the trap cases
 ; are in cli/t27b/tests/int_cast_traps.t27, since a conformance test must pass. A literal operand that does
 ; not fit is a compile error. What t27b decides is specs/tri/t27b/int_cast_plan.t27.
@@ -52,6 +52,13 @@ fn ic_span(x: u64, min: i32, max: i32) -> i32 {
     return @as(i32, @intCast(@as(i64, min) + ic_offset));
 }
 
+// type_text.t27's `hi = @intCast(semi)`: a plain assignment's destination is the result location (#8702).
+fn ic_assign(x: i64, keep: usize) -> usize {
+    var hi : usize = keep;
+    if (x >= 0) { hi = @intCast(x); }
+    return hi;
+}
+
 test ic_narrowing_keeps_a_value_that_fits {
     assert(ic_low_byte(0x1234) == 0x34);
     assert(ic_low_byte(255) == 255);
@@ -96,4 +103,10 @@ test ic_range_from_a_draw {
     assert(ic_span(7, -3, 3) == -3);
     assert(ic_span(18446744073709551615, -2147483648, 2147483647) == 2147483647);
     assert(ic_span(5, 4, 4) == 4);
+}
+
+test ic_an_assignment_converts_to_its_destination {
+    assert(ic_assign(7, 1) == 7);
+    assert(ic_assign(-1, 4) == 4);
+    assert(ic_assign(9223372036854775807, 0) == 9223372036854775807);
 }

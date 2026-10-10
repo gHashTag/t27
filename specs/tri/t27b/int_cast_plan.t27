@@ -23,6 +23,9 @@
 ;   Refused: any number of operands but one, a result type that is not an integer, and an operand that is
 ;   not an integer (a float, a bool, a comptime_float, an aggregate). `@intCast` with no result type never
 ;   reaches this plan: Zig refuses it, and t27b keeps refusing it as an `ExprCall(@intCast)`.
+;   A plain assignment `x = @intCast(e)` to a scalar var gives the call x's type, as a typed binding does
+;   (#8702, specs/tri/t27b/type_text.t27's `hi = @intCast(semi)`): Zig makes the destination of `=` the result
+;   location. `from_destination` names every builtin the glue gives that type to there.
 ;   An index `a[i]` and each bound of a slice `a[i..j]` give their operand Zig's result type `usize` (#7902,
 ;   specs/numeric/ocp_mx.t27): `a[@intCast(k)]` converts k as `@as(usize, @intCast(k))` would, by `plan`
 ;   with INDEX_TYPE as the result type, and the index is then bounds-checked as any index is.
@@ -67,6 +70,25 @@ pub const SITE : str = "@intCast";
 pub const INDEX_TYPE : str = "usize";
 pub const INDEX_BITS : u32 = 64;
 pub const INDEX_SIGNED : bool = false;
+
+/// Is the text exactly `w`?
+fn same(s: []const u8, w: str) -> bool {
+    if (s.len != w.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (s[k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Does a plain assignment `x = f(..)` to a scalar var give the builtin `f` x's type as its result type? Each
+/// builtin here takes its type from the result location: `@intCast` (by `plan`), `@floatFromInt`,
+/// `@intFromFloat`, `@floatCast` and `@bitCast`. Any other right-hand side is evaluated on its own.
+pub fn from_destination(name: []const u8) -> bool {
+    if (same(name, SITE) or same(name, "@bitCast")) { return true; }
+    return same(name, "@floatFromInt") or same(name, "@intFromFloat") or same(name, "@floatCast");
+}
 
 /// Can the call be lowered at all: one operand, an integer result type? The operand count is asked first.
 pub fn shape(operands: usize, result_is_int: bool) -> u8 {
@@ -289,4 +311,23 @@ test the_refusals_name_the_call_and_say_why {
     assert std.mem.eql(u8, why(REFUSE_LITERAL), "the literal does not fit the result type");
     assert why(FOLD).len == 0;
     assert why(CHECK).len == 0;
+}
+
+// type_text.t27's `hi = @intCast(semi)`: an assignment's destination is the result location, for `@intCast` as
+// for the four conversions the glue gave it before (#8702).
+test an_assignment_gives_its_destination_type {
+    assert from_destination("@intCast");
+    assert from_destination("@floatFromInt");
+    assert from_destination("@intFromFloat");
+    assert from_destination("@floatCast");
+    assert from_destination("@bitCast");
+    assert !from_destination("@truncate");
+    assert !from_destination("@as");
+    assert !from_destination("intCast");
+    assert !from_destination("@intCastx");
+    assert !from_destination("");
+    // The glue asks with the callee's name as bytes: a slice of the statement's text.
+    const text : []const u8 = "hi = @intCast(semi);";
+    assert from_destination(text[5 .. 13]);
+    assert !from_destination(text[5 .. 14]);
 }
