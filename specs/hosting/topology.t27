@@ -1,0 +1,1464 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/topology.t27 -- what runs where: every service of the Railway deployment, and the rules
+; for restoring it and for moving it off a provider
+; The owner, 2026-10-10 (translated): move everything into one repository, gHashTag/trios, managed
+; through .t27. Issue #8699. This is phase 2, item 7 of the disaster-recovery epic #8675, and the
+; topology card that slice 2 of gHashTag/trios#1756 asks for. It is the source of truth for the
+; deployment: a restore plan for a new account and the trios deploy definitions are generated from
+; it, never the other way round.
+; --
+; Where the rows come from. The GENERATED block below is written by gen_topology.py from the
+; secret-free inventory of 2026-10-10 (14 Railway projects, 59 services, 26 volumes). Both files are
+; kept together off GitHub, because the step reads variable NAMES to infer dependencies and to decide
+; has_vars. No name and no value is written here. The block's header carries both files' sha256.
+; Everything outside the block is hand-written: the vocabularies, the judgments the manifest cannot
+; hold (each entry with its reason, each checked against the rows by a test), and the rules.
+; --
+; What a row records, and how the step reads the manifest:
+; - key: <project>/<service>. Two projects are both named igla-judge, so each of them carries its id's
+;   first 8 hex digits. Rows are sorted by key, and S_<KEY> is a row's index.
+; - The source. For a repo or a template it is repo, path (the root directory), branch and the
+;   deployed commit. For an image it is the image and its digest. For a `railway up` upload it is the
+;   digest of the image Railway built from the folder, plus the folder's place in git when the
+;   inventory found it (found = FOUND_IN_GIT). A commit is pinned only when the finding names one
+;   first. "Older than X", "the PR branch before X" and "same as" are not pins.
+; - build: the builder of a service Railway builds. For an image or a function Railway pulls the
+;   image and ignores its builder setting, so the step records BUILD_NONE.
+; - port is 0 throughout. The manifest records no port. Railway injects PORT, and a domain's target
+;   port was not inventoried.
+; - start is the start-command override, or "" for the image's or the Dockerfile's own. The seven
+;   overrides refer to variables as `$NAME`, the way Railway's minio, Redis and Inngest templates set
+;   them; no value is in them. A function's inline source is not copied here; the recovered copy is
+;   kept beside the manifest.
+; - domain lists the custom domains. A railway.app hostname is only counted: a new account cannot
+;   claim it again, and several of them front admin surfaces (minio consoles, the browser pod).
+; - has_vars is true when the service has any variable names at all. It is the "holds secrets" bit,
+;   and it is deliberately coarse: a service whose only variable is PORT counts.
+; - cost_cents is the inventory's 30-day run-rate estimate, from the last 7 days of usage priced at
+;   the bill's unit rates.
+; - deploy is the state at the manifest's time. The stop of about 16:15Z that day came after it, so
+;   STOPPED below holds it.
+; - Dependency edges, from variable names only. Values were never read, so an edge says the names
+;   point there, not that a value does:
+;   - DEP_BY_NAME: the name spells a sibling service, or a source-read alias of one;
+;   - DEP_BY_STORE: a store connection name, in a project with one store of that engine;
+;   - DEP_STORE_CANDIDATE: the same, in a project with several, so there is an edge to each;
+;   - DEP_BY_CODE: hand-written in CODE_EDGES below, with the source file it was read in.
+;   Stores are never sources, because their variables are their own connection strings. Only edges
+;   inside one project are inferred.
+; --
+; The rules:
+; - A data store is a row whose engine is Postgres, Redis or minio. A service is stateful when a DATA
+;   volume is attached to it. A CACHE or MODEL volume is refilled from git or a model hub, so it
+;   leaves a service stateless.
+; - The restore order: data stores first, then the services, then the workers and crons. Inside a
+;   phase, a service follows everything it depends on, and ties go by row. Only what is deployed and
+;   not stopped is restored. The rest is recreated as config, or not at all.
+; - Tiers, by gHashTag/trios#1756:
+;   - owner: any workload;
+;   - trusted: named people, stateless services, secrets scoped to the service;
+;   - public: anyone, but only stateless, secret-free, PII-free work that is a deterministic job,
+;     because only such a job's result can be checked by agreement.
+;   A service that is stateful, or that can reach personal data at rest through its dependencies
+;   (any path of edges), is owner-only. Personal data that only passes through, such as a voice note
+;   being transcribed, still allows trusted, as #1756 itself proposes for gigaam and parakeet.
+;   UNKNOWN personal data counts as personal data.
+; --
+; What the rules compute today (each figure is held by a test below):
+; - 44 of 59 rows are restored: 9 stores, then 30 services, then 5 workers and crons. 10 rows are
+;   stopped, and 5 failed, crashed or never deployed.
+; - Tiers of the 44: 25 owner-only ($608.48 per 30 days), 19 trusted ($651.73), 0 public. The one
+;   public row is a finished nextpnr job with no deployment.
+; - The 30-day run-rate is $1,455.63: $1,260.21 restored, $190.57 stopped.
+; - 3 services exist only inside Railway, 16 DATA volumes hold 39,578 MB, and 48 rows hold secrets.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingTopology;
+
+; --- Vocabularies -------------------------------------------------------------------------------
+
+/// Where a service's code comes from.
+pub const SRC_NONE : u8 = 0;
+pub const SRC_REPO : u8 = 1;
+pub const SRC_TEMPLATE : u8 = 2;
+pub const SRC_IMAGE : u8 = 3;
+pub const SRC_UPLOAD : u8 = 4;
+pub const SRC_FUNCTION : u8 = 5;
+
+/// What the inventory's source search found for an upload or a function. FOUND_NA: the source is the
+/// manifest's own (a repo, a template or an image).
+pub const FOUND_NA : u8 = 0;
+pub const FOUND_IN_GIT : u8 = 1;
+pub const FOUND_MISSING : u8 = 2;
+pub const FOUND_NOTHING_TO_LOSE : u8 = 3;
+pub const FOUND_FUNCTION : u8 = 4;
+
+/// Whether the code's repository is public, private, or there is no repository.
+pub const CODE_NONE : u8 = 0;
+pub const CODE_PUBLIC : u8 = 1;
+pub const CODE_PRIVATE : u8 = 2;
+
+pub const BUILD_NONE : u8 = 0;
+pub const BUILD_DOCKERFILE : u8 = 1;
+pub const BUILD_NIXPACKS : u8 = 2;
+pub const BUILD_RAILPACK : u8 = 3;
+
+/// The deployment state at the manifest's time.
+pub const DEP_NONE : u8 = 0;
+pub const DEP_ACTIVE : u8 = 1;
+pub const DEP_CRASHED : u8 = 2;
+pub const DEP_FAILED : u8 = 3;
+
+pub const ENGINE_NONE : u8 = 0;
+pub const ENGINE_POSTGRES : u8 = 1;
+pub const ENGINE_REDIS : u8 = 2;
+pub const ENGINE_MINIO : u8 = 3;
+
+/// A volume's class: DATA must survive, CACHE is refilled from git, MODEL from a model hub.
+pub const VOL_DATA : u8 = 1;
+pub const VOL_CACHE : u8 = 2;
+pub const VOL_MODEL : u8 = 3;
+
+/// How an edge is known.
+pub const DEP_BY_NAME : u8 = 1;
+pub const DEP_BY_STORE : u8 = 2;
+pub const DEP_STORE_CANDIDATE : u8 = 3;
+pub const DEP_BY_CODE : u8 = 4;
+
+pub const PII_NO : u8 = 0;
+pub const PII_YES : u8 = 1;
+pub const PII_UNKNOWN : u8 = 2;
+
+/// Host tiers, widest trust first. A service of tier t may run on a host of tier h when t >= h.
+pub const TIER_OWNER : u8 = 0;
+pub const TIER_TRUSTED : u8 = 1;
+pub const TIER_PUBLIC : u8 = 2;
+
+pub const PHASE_STORE : u32 = 0;
+pub const PHASE_SERVICE : u32 = 1;
+pub const PHASE_WORKER : u32 = 2;
+
+/// Row capacity of the rules' working arrays; a volume with no service names NO_SERVICE.
+pub const MAX_SERVICES : u32 = 64;
+pub const NO_SERVICE : u32 = 255;
+
+pub struct Service {
+    key: str,
+    project: str,
+    name: str,
+    src: u8,
+    repo: str,
+    path: str,
+    branch: str,
+    commit: str,
+    image: str,
+    digest: str,
+    code: u8,
+    found: u8,
+    build: u8,
+    dockerfile: str,
+    config: str,
+    start: str,
+    port: u32,
+    healthcheck: str,
+    cron: str,
+    scheduled: bool,
+    region: str,
+    deploy: u8,
+    engine: u8,
+    domain: str,
+    custom_domains: u32,
+    railway_domains: u32,
+    has_vars: bool,
+    cost_cents: u32,
+}
+
+pub struct Volume {
+    service: u32,
+    project: str,
+    mount: str,
+    class: u8,
+    size_mb: u32,
+    used_mb: u32,
+}
+
+pub struct Edge {
+    from: u32,
+    to: u32,
+    basis: u8,
+}
+
+; ==== BEGIN GENERATED by gen_topology.py from the inventory manifest -- do not edit by hand ====
+; manifest.json generated_at 2026-10-10T16:09:09Z, sha256 718726e616a89221f3266181a1c97dad965d652e1565be5093d3f775c01e96e9
+; gen_topology.py sha256 2829ce6a56f1d96c7b51207f2c69332e8c26fe13099a6fab89816a62dec827ae
+pub const MANIFEST_GENERATED_AT : str = "2026-10-10T16:09:09Z";
+pub const MANIFEST_SHA256 : str = "718726e616a89221f3266181a1c97dad965d652e1565be5093d3f775c01e96e9";
+pub const PREVIOUS_PERIOD_CENTS : u32 = 69907;
+pub const SERVICE_COUNT : u32 = 59;
+pub const S_999_999_MULTIBOTS_TELEGRAF : u32 = 0;
+pub const S_999_AGENTS_ACCEPTANCE_ONCE : u32 = 1;
+pub const S_999_BROWSER_POD : u32 = 2;
+pub const S_999_BUCKET : u32 = 3;
+pub const S_999_CHECK_RUNNER : u32 = 4;
+pub const S_999_CI_BRIDGE : u32 = 5;
+pub const S_999_CONSOLE : u32 = 6;
+pub const S_999_CRM_DOOR_ONCE : u32 = 7;
+pub const S_999_GIGAAM : u32 = 8;
+pub const S_999_INNGEST_INNGEST : u32 = 9;
+pub const S_999_JOBSEARCH_CRON : u32 = 10;
+pub const S_999_MOUTH : u32 = 11;
+pub const S_999_PARAKEET : u32 = 12;
+pub const S_999_PGVECTOR : u32 = 13;
+pub const S_999_POSTGRES : u32 = 14;
+pub const S_999_POSTGRES_NFRQ : u32 = 15;
+pub const S_999_POSTGREST : u32 = 16;
+pub const S_999_QUEEN_PROXY : u32 = 17;
+pub const S_999_QUEEN_WATCH : u32 = 18;
+pub const S_999_REDIS : u32 = 19;
+pub const S_999_SKILLS_SITE : u32 = 20;
+pub const S_999_SUPABASE_GATEWAY : u32 = 21;
+pub const S_999_SUPABASE_STORAGE : u32 = 22;
+pub const S_999_T27_GITHUB_COLLAB : u32 = 23;
+pub const S_999_TELEGRAM_BOT_API : u32 = 24;
+pub const S_999_TRIOS_AGENT_SERVER : u32 = 25;
+pub const S_999_TRIOS_BEE_RUNNER_1 : u32 = 26;
+pub const S_999_TRIOS_BEE_RUNNER_2 : u32 = 27;
+pub const S_999_TRIOS_RAILWAY : u32 = 28;
+pub const S_999_VIBEE_EDITOR : u32 = 29;
+pub const S_999_VIBEE_RENDER : u32 = 30;
+pub const S_999_VISION : u32 = 31;
+pub const S_999_VOICE_CLONE : u32 = 32;
+pub const S_999_VOICE_CLONE_QWEN : u32 = 33;
+pub const S_999_WHISPER : u32 = 34;
+pub const S_999_ZEP : u32 = 35;
+pub const S_999_ZEP_NLP : u32 = 36;
+pub const S_BROWSEROS_BROWSEROS : u32 = 37;
+pub const S_DAYO64_XCHECK_BUILD : u32 = 38;
+pub const S_HEARTFELT_CAT_POSTGRES : u32 = 39;
+pub const S_HEARTFELT_CAT_TODO_API : u32 = 40;
+pub const S_IGLA_JUDGE_1A315000_BOARD : u32 = 41;
+pub const S_IGLA_JUDGE_1A315000_JUDGE : u32 = 42;
+pub const S_IGLA_JUDGE_1A315000_LOOP : u32 = 43;
+pub const S_IGLA_JUDGE_EC9020F4_JUDGE : u32 = 44;
+pub const S_LEELA_LEELA : u32 = 45;
+pub const S_OVERFLOWING_RENEWAL_TRINITY : u32 = 46;
+pub const S_PROJECT_BRAIN_POSTGRES : u32 = 47;
+pub const S_PROJECT_BRAIN_PROJECT_BRAIN : u32 = 48;
+pub const S_REMOTE_BROWSER_REMOTE_BROWSER : u32 = 49;
+pub const S_T27B_LAB_T27B_LAB : u32 = 50;
+pub const S_T27B_LAB_T27B_LAB_2 : u32 = 51;
+pub const S_T27C_LAB_T27C_LAB : u32 = 52;
+pub const S_TRIOS_RAILWAY_TRIOS_RAILWAY : u32 = 53;
+pub const S_WOODY_BUCKET : u32 = 54;
+pub const S_WOODY_CONSOLE : u32 = 55;
+pub const S_WOODY_POSTGRES : u32 = 56;
+pub const S_WOODY_TURBOBABY_BOT : u32 = 57;
+pub const S_WOODY_WOODY_WEED_BOT : u32 = 58;
+pub const SERVICES : [59]Service = [
+    // 0 999/999-multibots-telegraf
+    Service { .key = "999/999-multibots-telegraf", .project = "999", .name = "999-multibots-telegraf",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "", .branch = "main", .commit = "98d387fd2a08a32c4356e39876dba109bd21b2af", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile", .config = "/railway.toml", .start = "", .port = 0, .healthcheck = "/health", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 143 },
+    // 1 999/agents-acceptance-once
+    Service { .key = "999/agents-acceptance-once", .project = "999", .name = "agents-acceptance-once",
+        .src = SRC_FUNCTION, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp/function-bun:1.4.0", .digest = "sha256:bc9f0ffd8b84ee09f39eddc8b88dc43ae5d925c19cb2edfb6b59e76567382afb", .code = CODE_NONE, .found = FOUND_FUNCTION,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 1948 },
+    // 2 999/browser-pod
+    Service { .key = "999/browser-pod", .project = "999", .name = "browser-pod",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/remote-browser", .branch = "", .commit = "52c35d82c0", .image = "", .digest = "sha256:3b399b8ebd4c962f6f5c34152dc174ad7969b6c3e470295a547cc181c610ff5b", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "asia-southeast1-eqsg3a", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 5473 },
+    // 3 999/Bucket
+    Service { .key = "999/Bucket", .project = "999", .name = "Bucket",
+        .src = SRC_TEMPLATE, .repo = "railwayapp-templates/minio", .path = "", .branch = "main", .commit = "4a260461496f2ecd60944a51e6df6dabc073720f", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "/bin/sh -c \"exec minio server --address [::]:$MINIO_PRIVATE_PORT $RAILWAY_VOLUME_MOUNT_PATH\"", .port = 0, .healthcheck = "/minio/health/ready", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_MINIO, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 723 },
+    // 4 999/check-runner
+    Service { .key = "999/check-runner", .project = "999", .name = "check-runner",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/check-runner", .branch = "main", .commit = "98d387fd2a08a32c4356e39876dba109bd21b2af", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "/health", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 1264 },
+    // 5 999/ci-bridge
+    Service { .key = "999/ci-bridge", .project = "999", .name = "ci-bridge",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/ci-bridge", .branch = "main", .commit = "98d387fd2a08a32c4356e39876dba109bd21b2af", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 51 },
+    // 6 999/Console
+    Service { .key = "999/Console", .project = "999", .name = "Console",
+        .src = SRC_TEMPLATE, .repo = "railwayapp-templates/minio-console", .path = "", .branch = "main", .commit = "f2b900e6d097cc5383533f0e1f52acb9927ead1d", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "/bin/sh -c \"exec console server --host 0.0.0.0 --port $PORT\"", .port = 0, .healthcheck = "/login", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 42 },
+    // 7 999/crm-door-once
+    Service { .key = "999/crm-door-once", .project = "999", .name = "crm-door-once",
+        .src = SRC_FUNCTION, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp/function-bun:1.4.0", .digest = "sha256:bc9f0ffd8b84ee09f39eddc8b88dc43ae5d925c19cb2edfb6b59e76567382afb", .code = CODE_NONE, .found = FOUND_FUNCTION,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 1986 },
+    // 8 999/gigaam
+    Service { .key = "999/gigaam", .project = "999", .name = "gigaam",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/gigaam", .branch = "", .commit = "cfa6deab446c", .image = "", .digest = "sha256:9cf09c0a04bb4b82581114b1649ddd9cb1ff2d42124b106879dd42b42f373666", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 1539 },
+    // 9 999/inngest/inngest
+    Service { .key = "999/inngest/inngest", .project = "999", .name = "inngest/inngest",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/ghashtag/inngest:mcp-auth", .digest = "sha256:3c7bf24bc2bfb2076e0fff1706446cb08697e07d5d8aa9b8b6c5cf401f89718e", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "/bin/sh -c \"inngest start --postgres-uri $INNGEST_POSTGRES_URI\"", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 221 },
+    // 10 999/jobsearch-cron
+    Service { .key = "999/jobsearch-cron", .project = "999", .name = "jobsearch-cron",
+        .src = SRC_UPLOAD, .repo = "", .path = "", .branch = "", .commit = "", .image = "", .digest = "sha256:5866a5610dfee6ed9d5725eba3be45aa2c9a03b77f517bad523347bb62245ce5", .code = CODE_NONE, .found = FOUND_MISSING,
+        .build = BUILD_RAILPACK, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "cron.t27.ai", .custom_domains = 1, .railway_domains = 1, .has_vars = true, .cost_cents = 82 },
+    // 11 999/mouth
+    Service { .key = "999/mouth", .project = "999", .name = "mouth",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/mouth", .branch = "", .commit = "cb0ff6183e8c", .image = "", .digest = "sha256:29d80d03748293c39b8736a87dbbf50d2537add068232e88691054199cb7c81b", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 2165 },
+    // 12 999/parakeet
+    Service { .key = "999/parakeet", .project = "999", .name = "parakeet",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/gigaam", .branch = "", .commit = "cfa6deab446c", .image = "", .digest = "sha256:b4c1d155786acf1ed7577a41df7cdf46d8f1b682462a94a43b1b67d890b01b0a", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 1203 },
+    // 13 999/pgvector
+    Service { .key = "999/pgvector", .project = "999", .name = "pgvector",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ankane/pgvector", .digest = "sha256:956744bd14e9cbdf639c61c2a2a7c7c2c48a9c8cdd42f7de4ac034f4e96b90f8", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_POSTGRES, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 493 },
+    // 14 999/Postgres
+    Service { .key = "999/Postgres", .project = "999", .name = "Postgres",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp-templates/postgres-ssl:18", .digest = "sha256:17228329cc15c431e829a5dee5db42dd771637bcbb530055987cb9f223c51f51", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_POSTGRES, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 3161 },
+    // 15 999/Postgres-NFrq
+    Service { .key = "999/Postgres-NFrq", .project = "999", .name = "Postgres-NFrq",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp-templates/postgres-ssl:18", .digest = "sha256:17228329cc15c431e829a5dee5db42dd771637bcbb530055987cb9f223c51f51", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_POSTGRES, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 252 },
+    // 16 999/postgrest
+    Service { .key = "999/postgrest", .project = "999", .name = "postgrest",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "postgrest/postgrest:v12.2.3", .digest = "sha256:729bf65c733b73f5b52777f0e4b853f22ed73aa67a22d38269d289779b0a8401", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 380 },
+    // 17 999/queen-proxy
+    Service { .key = "999/queen-proxy", .project = "999", .name = "queen-proxy",
+        .src = SRC_UPLOAD, .repo = "gHashTag/trinity", .path = "apps/queen-proxy", .branch = "", .commit = "dfe63cdacc", .image = "", .digest = "sha256:4774ef18a84e12ef88bff826798ebcc78f9447b6c93e1fa2ed9f2e0e021e72f2", .code = CODE_PUBLIC, .found = FOUND_IN_GIT,
+        .build = BUILD_RAILPACK, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 58 },
+    // 18 999/queen-watch
+    Service { .key = "999/queen-watch", .project = "999", .name = "queen-watch",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "", .branch = "main", .commit = "d0cd79cce741a36d0fc27810f45e102df5d6069c", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "0 * * * *", .scheduled = true, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 10 },
+    // 19 999/Redis
+    Service { .key = "999/Redis", .project = "999", .name = "Redis",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "redis:8.2.1", .digest = "sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "/bin/sh -c \"rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH\"", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_REDIS, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 41 },
+    // 20 999/skills-site
+    Service { .key = "999/skills-site", .project = "999", .name = "skills-site",
+        .src = SRC_UPLOAD, .repo = "", .path = "", .branch = "", .commit = "", .image = "", .digest = "sha256:f5d8956577cb983b5c21983c390d8113495e31f1c803441d61f7dc965983a1ab", .code = CODE_NONE, .found = FOUND_MISSING,
+        .build = BUILD_RAILPACK, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "skills.t27.ai", .custom_domains = 1, .railway_domains = 1, .has_vars = true, .cost_cents = 59 },
+    // 21 999/supabase-gateway
+    Service { .key = "999/supabase-gateway", .project = "999", .name = "supabase-gateway",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "", .branch = "main", .commit = "d0cd79cce741a36d0fc27810f45e102df5d6069c", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "/healthz", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = false, .cost_cents = 54 },
+    // 22 999/supabase-storage
+    Service { .key = "999/supabase-storage", .project = "999", .name = "supabase-storage",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "supabase/storage-api:v1.79.30", .digest = "sha256:bdd393f6f4d341bcf35d6ed1c0f45e2b8b07802f4491141bbf4a4fcc9f6c6eee", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 170 },
+    // 23 999/t27-github-collab
+    Service { .key = "999/t27-github-collab", .project = "999", .name = "t27-github-collab",
+        .src = SRC_REPO, .repo = "gHashTag/t27-github-collab", .path = "", .branch = "main", .commit = "7ed4db65f00b472ad6610ab3381536c336a1ed29", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 2 },
+    // 24 999/telegram-bot-api
+    Service { .key = "999/telegram-bot-api", .project = "999", .name = "telegram-bot-api",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/telegram-bot-api", .branch = "", .commit = "f003a8c659", .image = "", .digest = "sha256:63341ec657df985a877f91dcde3dc27f6d92cf75b320e570196597c987cd1e07", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 102 },
+    // 25 999/trios-agent-server
+    Service { .key = "999/trios-agent-server", .project = "999", .name = "trios-agent-server",
+        .src = SRC_REPO, .repo = "gHashTag/trios", .path = "trios/agent-server", .branch = "queen", .commit = "56c5df785a797fcbecb74eb644b291d798780d48", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/trios/agent-server/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "api.t27.ai", .custom_domains = 1, .railway_domains = 1, .has_vars = true, .cost_cents = 14680 },
+    // 26 999/trios-bee-runner-1
+    Service { .key = "999/trios-bee-runner-1", .project = "999", .name = "trios-bee-runner-1",
+        .src = SRC_REPO, .repo = "gHashTag/trios", .path = "trios/agent-server", .branch = "queen-runners", .commit = "62719f686491885979c400554ec1b01cdb6a36aa", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/trios/agent-server/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 15186 },
+    // 27 999/trios-bee-runner-2
+    Service { .key = "999/trios-bee-runner-2", .project = "999", .name = "trios-bee-runner-2",
+        .src = SRC_REPO, .repo = "gHashTag/trios", .path = "trios/agent-server", .branch = "queen-runners", .commit = "62719f686491885979c400554ec1b01cdb6a36aa", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/trios/agent-server/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 16342 },
+    // 28 999/trios-railway
+    Service { .key = "999/trios-railway", .project = "999", .name = "trios-railway",
+        .src = SRC_REPO, .repo = "gHashTag/trios-railway", .path = "", .branch = "main", .commit = "42c5ebe6cf7054178fd0f28e5e5584a46976b488", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_RAILPACK, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 2 },
+    // 29 999/vibee-editor
+    Service { .key = "999/vibee-editor", .project = "999", .name = "vibee-editor",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "apps/vibee-editor", .branch = "main", .commit = "98d387fd2a08a32c4356e39876dba109bd21b2af", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile", .config = "/apps/vibee-editor/railway.toml", .start = "", .port = 0, .healthcheck = "/healthz", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "app.t27.ai", .custom_domains = 1, .railway_domains = 1, .has_vars = true, .cost_cents = 98 },
+    // 30 999/vibee-render
+    Service { .key = "999/vibee-render", .project = "999", .name = "vibee-render",
+        .src = SRC_REPO, .repo = "gHashTag/999-multibots-telegraf", .path = "", .branch = "main", .commit = "d0cd79cce741a36d0fc27810f45e102df5d6069c", .image = "", .digest = "", .code = CODE_PRIVATE, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "render/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "/health", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "auth.t27.ai", .custom_domains = 1, .railway_domains = 1, .has_vars = true, .cost_cents = 919 },
+    // 31 999/vision
+    Service { .key = "999/vision", .project = "999", .name = "vision",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/ggml-org/llama.cpp:server", .digest = "sha256:cbcdcb52d484e08e23bfc0135afa5beadd2d540513bbb7c65b233231fa033ff4", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 15510 },
+    // 32 999/voice-clone
+    Service { .key = "999/voice-clone", .project = "999", .name = "voice-clone",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/voice-clone", .branch = "", .commit = "96ff5136e2", .image = "", .digest = "sha256:81b46406a3ed8daafe21a8cd326e4bb0195560d4804de0a6d0124d76a7f82c43", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 9170 },
+    // 33 999/voice-clone-qwen
+    Service { .key = "999/voice-clone-qwen", .project = "999", .name = "voice-clone-qwen",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/voice-clone", .branch = "", .commit = "", .image = "", .digest = "sha256:68a9e58a2154464e324c5cf24b3e40e56850441c7b68bca6804bdc2c62190783", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 8158 },
+    // 34 999/whisper
+    Service { .key = "999/whisper", .project = "999", .name = "whisper",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu", .digest = "sha256:2163775b6df5e451a71200e8f675fed68dbd8ab184fc604453d549e486f22fd2", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 7088 },
+    // 35 999/zep
+    Service { .key = "999/zep", .project = "999", .name = "zep",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/getzep/zep-cloud:latest", .digest = "sha256:618b142a4e038bda73c251ab86872c00327df307b3bc91df9e8c14b428198d7b", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 145 },
+    // 36 999/zep-nlp
+    Service { .key = "999/zep-nlp", .project = "999", .name = "zep-nlp",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/getzep/zep-nlp-server:latest", .digest = "sha256:ef7a280a8c8a09b3ee4da7f67d4188444d5833fc84777b9a8483d1e20563d37c", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 5971 },
+    // 37 browseros/browseros
+    Service { .key = "browseros/browseros", .project = "browseros", .name = "browseros",
+        .src = SRC_UPLOAD, .repo = "gHashTag/BrowserOS", .path = "", .branch = "", .commit = "", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_IN_GIT,
+        .build = BUILD_RAILPACK, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_FAILED,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 0 },
+    // 38 dayo64-xcheck/build
+    Service { .key = "dayo64-xcheck/build", .project = "dayo64-xcheck", .name = "build",
+        .src = SRC_NONE, .repo = "", .path = "", .branch = "", .commit = "", .image = "", .digest = "", .code = CODE_NONE, .found = FOUND_NOTHING_TO_LOSE,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "", .deploy = DEP_NONE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 15 },
+    // 39 heartfelt-cat/Postgres
+    Service { .key = "heartfelt-cat/Postgres", .project = "heartfelt-cat", .name = "Postgres",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp-templates/postgres-ssl:18", .digest = "sha256:8dbbfcb7fafacc22c01dc0c425c38793b5d0449163a3d178d3e3767d43e6f3ee", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_POSTGRES, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 60 },
+    // 40 heartfelt-cat/todo-api
+    Service { .key = "heartfelt-cat/todo-api", .project = "heartfelt-cat", .name = "todo-api",
+        .src = SRC_FUNCTION, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp/function-bun:1.3.0", .digest = "sha256:c43d9177741d731b6aec8b875aa5e673fff7cd17a94015e43eaf6474066c19dd", .code = CODE_NONE, .found = FOUND_FUNCTION,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 20 },
+    // 41 igla-judge-1a315000/board
+    Service { .key = "igla-judge-1a315000/board", .project = "igla-judge-1a315000", .name = "board",
+        .src = SRC_UPLOAD, .repo = "gHashTag/igla-coder-gpu", .path = "board", .branch = "", .commit = "", .image = "", .digest = "sha256:3eaa06b96aca255f46a5452bb71cb6dffc1abc2b7d73fbbf9e517a37135fbb55", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 25 },
+    // 42 igla-judge-1a315000/judge
+    Service { .key = "igla-judge-1a315000/judge", .project = "igla-judge-1a315000", .name = "judge",
+        .src = SRC_UPLOAD, .repo = "", .path = "", .branch = "", .commit = "", .image = "", .digest = "", .code = CODE_NONE, .found = FOUND_NOTHING_TO_LOSE,
+        .build = BUILD_RAILPACK, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_FAILED,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 466 },
+    // 43 igla-judge-1a315000/loop
+    Service { .key = "igla-judge-1a315000/loop", .project = "igla-judge-1a315000", .name = "loop",
+        .src = SRC_UPLOAD, .repo = "gHashTag/igla-coder-gpu", .path = "remote/loop", .branch = "", .commit = "24543d3d7e", .image = "", .digest = "sha256:035ce6467d98aa912e81d9f5763c85d1376d3fb85782596645f362de00aa0f63", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 0 },
+    // 44 igla-judge-ec9020f4/judge
+    Service { .key = "igla-judge-ec9020f4/judge", .project = "igla-judge-ec9020f4", .name = "judge",
+        .src = SRC_NONE, .repo = "", .path = "", .branch = "", .commit = "", .image = "", .digest = "", .code = CODE_NONE, .found = FOUND_NOTHING_TO_LOSE,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "", .deploy = DEP_NONE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 0 },
+    // 45 Leela/leela
+    Service { .key = "Leela/leela", .project = "Leela", .name = "leela",
+        .src = SRC_REPO, .repo = "gHashTag/leela", .path = "", .branch = "main", .commit = "fa9eef46eb2e909ceda3ddcd551d4aa516df1ee7", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "apps/bot/Dockerfile", .config = "/railway.json", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 114 },
+    // 46 overflowing-renewal/trinity
+    Service { .key = "overflowing-renewal/trinity", .project = "overflowing-renewal", .name = "trinity",
+        .src = SRC_REPO, .repo = "gHashTag/trinity", .path = "apps/queen-web", .branch = "main", .commit = "d07bc6251fa3ea8792e16f68007449fd1412f57b", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_NIXPACKS, .dockerfile = "", .config = "/apps/queen-web/railway.json", .start = "npm start", .port = 0, .healthcheck = "/", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = false, .cost_cents = 68 },
+    // 47 project-brain/Postgres
+    Service { .key = "project-brain/Postgres", .project = "project-brain", .name = "Postgres",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp-templates/postgres-ssl:18", .digest = "sha256:780f59a418ba3f6de477b4045e18cdea08845c47f1f12550dc53e8890c425600", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_POSTGRES, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 328 },
+    // 48 project-brain/project-brain
+    Service { .key = "project-brain/project-brain", .project = "project-brain", .name = "project-brain",
+        .src = SRC_UPLOAD, .repo = "", .path = "", .branch = "", .commit = "", .image = "", .digest = "sha256:82311b3716c23b523664bee34730fcc34805427468c0ec781606d62ddccc1126", .code = CODE_NONE, .found = FOUND_MISSING,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 1156 },
+    // 49 remote-browser/remote-browser
+    Service { .key = "remote-browser/remote-browser", .project = "remote-browser", .name = "remote-browser",
+        .src = SRC_UPLOAD, .repo = "gHashTag/999-multibots-telegraf", .path = "deployment/remote-browser", .branch = "", .commit = "", .image = "", .digest = "sha256:75fc720423bd1b7d2c56be474e0c872dd563cd5a43bded97a223c57800d173b0", .code = CODE_PRIVATE, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = false, .cost_cents = 707 },
+    // 50 t27b-lab/t27b-lab
+    Service { .key = "t27b-lab/t27b-lab", .project = "t27b-lab", .name = "t27b-lab",
+        .src = SRC_UPLOAD, .repo = "gHashTag/t27", .path = "contrib/railway/t27b-lab", .branch = "", .commit = "ea44a17b59", .image = "", .digest = "sha256:99e8c08a03e93adb75637dafb3bde67b218eb10111a0b7a2a2d03cb3d7c5eb76", .code = CODE_PUBLIC, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 20979 },
+    // 51 t27b-lab/t27b-lab-2
+    Service { .key = "t27b-lab/t27b-lab-2", .project = "t27b-lab", .name = "t27b-lab-2",
+        .src = SRC_UPLOAD, .repo = "gHashTag/t27", .path = "contrib/railway/t27b-lab", .branch = "", .commit = "", .image = "", .digest = "sha256:f74b122685ae5410f490610e197fce37417680652449012e53dde0b330270b79", .code = CODE_PUBLIC, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 87 },
+    // 52 t27c-lab/t27c-lab
+    Service { .key = "t27c-lab/t27c-lab", .project = "t27c-lab", .name = "t27c-lab",
+        .src = SRC_UPLOAD, .repo = "gHashTag/t27", .path = "infra/t27c-lab", .branch = "", .commit = "c6517ffc28", .image = "", .digest = "sha256:c48a13d02fd9a6bce6a00a7be1ff3e0e8c6cacb889437e55dc9fabc2c43722d9", .code = CODE_PUBLIC, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 5830 },
+    // 53 trios-railway/trios-railway
+    Service { .key = "trios-railway/trios-railway", .project = "trios-railway", .name = "trios-railway",
+        .src = SRC_REPO, .repo = "gHashTag/trios-railway", .path = "", .branch = "main", .commit = "42c5ebe6cf7054178fd0f28e5e5584a46976b488", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "Dockerfile.mcp", .config = "/railway.json", .start = "", .port = 0, .healthcheck = "/healthz", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = false, .cost_cents = 2 },
+    // 54 woody/Bucket
+    Service { .key = "woody/Bucket", .project = "woody", .name = "Bucket",
+        .src = SRC_TEMPLATE, .repo = "railwayapp-templates/minio", .path = "", .branch = "main", .commit = "4a260461496f2ecd60944a51e6df6dabc073720f", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "/bin/sh -c \"exec minio server --address [::]:$MINIO_PRIVATE_PORT $RAILWAY_VOLUME_MOUNT_PATH\"", .port = 0, .healthcheck = "/minio/health/ready", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_MINIO, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 631 },
+    // 55 woody/Console
+    Service { .key = "woody/Console", .project = "woody", .name = "Console",
+        .src = SRC_TEMPLATE, .repo = "railwayapp-templates/minio-console", .path = "", .branch = "main", .commit = "f2b900e6d097cc5383533f0e1f52acb9927ead1d", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "/bin/sh -c \"exec console server --host 0.0.0.0 --port $PORT\"", .port = 0, .healthcheck = "/login", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 30 },
+    // 56 woody/Postgres
+    Service { .key = "woody/Postgres", .project = "woody", .name = "Postgres",
+        .src = SRC_IMAGE, .repo = "", .path = "", .branch = "", .commit = "", .image = "ghcr.io/railwayapp-templates/postgres-ssl:18", .digest = "sha256:61adc9b5bbb04aa5fd84b821c4914039b19b7b9537c0e7f7796777a687b61234", .code = CODE_NONE, .found = FOUND_NA,
+        .build = BUILD_NONE, .dockerfile = "", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_POSTGRES, .domain = "", .custom_domains = 0, .railway_domains = 0, .has_vars = true, .cost_cents = 121 },
+    // 57 woody/turbobaby-bot
+    Service { .key = "woody/turbobaby-bot", .project = "woody", .name = "turbobaby-bot",
+        .src = SRC_UPLOAD, .repo = "gHashTag/turbobaby-user-bot", .path = "", .branch = "", .commit = "", .image = "", .digest = "sha256:3865c7c98c3b433a6ee65a212874645d1cfddf8b1690207faa6988cbdf0c5f3b", .code = CODE_PUBLIC, .found = FOUND_IN_GIT,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "", .start = "", .port = 0, .healthcheck = "", .cron = "", .scheduled = false, .region = "sfo", .deploy = DEP_CRASHED,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 4 },
+    // 58 woody/woody-weed-bot
+    Service { .key = "woody/woody-weed-bot", .project = "woody", .name = "woody-weed-bot",
+        .src = SRC_REPO, .repo = "gHashTag/woody-weed-bot", .path = "", .branch = "main", .commit = "edb11a96b77604b483130503b61f8bc04fceba2e", .image = "", .digest = "", .code = CODE_PUBLIC, .found = FOUND_NA,
+        .build = BUILD_DOCKERFILE, .dockerfile = "/Dockerfile", .config = "/railway.toml", .start = "", .port = 0, .healthcheck = "/health", .cron = "", .scheduled = false, .region = "asia-southeast1-eqsg3a", .deploy = DEP_ACTIVE,
+        .engine = ENGINE_NONE, .domain = "", .custom_domains = 0, .railway_domains = 1, .has_vars = true, .cost_cents = 29 },
+];
+pub const VOLUME_COUNT : u32 = 26;
+pub const VOLUMES : [26]Volume = [
+    Volume { .service = S_999_BROWSER_POD, .project = "999", .mount = "/home/neko/.config/chromium", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1876 },
+    Volume { .service = S_999_BUCKET, .project = "999", .mount = "/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 12659 },
+    Volume { .service = S_999_CHECK_RUNNER, .project = "999", .mount = "/cache", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 17372 },
+    Volume { .service = S_999_PGVECTOR, .project = "999", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 2232 },
+    Volume { .service = S_999_POSTGRES, .project = "999", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 6345 },
+    Volume { .service = S_999_POSTGRES_NFRQ, .project = "999", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1421 },
+    Volume { .service = S_999_QUEEN_WATCH, .project = "999", .mount = "/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 799 },
+    Volume { .service = S_999_REDIS, .project = "999", .mount = "/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1485 },
+    Volume { .service = S_999_SKILLS_SITE, .project = "999", .mount = "/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 791 },
+    Volume { .service = S_999_TELEGRAM_BOT_API, .project = "999", .mount = "/var/lib/telegram-bot-api", .class = VOL_DATA, .size_mb = 50000, .used_mb = 808 },
+    Volume { .service = S_999_TRIOS_AGENT_SERVER, .project = "999", .mount = "/workspace", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 30772 },
+    Volume { .service = S_999_TRIOS_BEE_RUNNER_1, .project = "999", .mount = "/workspace", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 10070 },
+    Volume { .service = S_999_TRIOS_BEE_RUNNER_2, .project = "999", .mount = "/workspace", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 3776 },
+    Volume { .service = S_999_VISION, .project = "999", .mount = "/data", .class = VOL_MODEL, .size_mb = 50000, .used_mb = 5025 },
+    Volume { .service = S_999_WHISPER, .project = "999", .mount = "/home/ubuntu/.cache/huggingface/hub", .class = VOL_MODEL, .size_mb = 50000, .used_mb = 5879 },
+    Volume { .service = S_DAYO64_XCHECK_BUILD, .project = "dayo64-xcheck", .mount = "/work/chipdb", .class = VOL_CACHE, .size_mb = 2048, .used_mb = 368 },
+    Volume { .service = S_HEARTFELT_CAT_POSTGRES, .project = "heartfelt-cat", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1127 },
+    Volume { .service = S_LEELA_LEELA, .project = "Leela", .mount = "/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 841 },
+    Volume { .service = S_PROJECT_BRAIN_POSTGRES, .project = "project-brain", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1163 },
+    Volume { .service = S_PROJECT_BRAIN_PROJECT_BRAIN, .project = "project-brain", .mount = "/paperclip", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1430 },
+    Volume { .service = S_T27B_LAB_T27B_LAB, .project = "t27b-lab", .mount = "/srv", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 41661 },
+    Volume { .service = S_T27B_LAB_T27B_LAB_2, .project = "t27b-lab", .mount = "/srv", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 807 },
+    Volume { .service = S_T27C_LAB_T27C_LAB, .project = "t27c-lab", .mount = "/data", .class = VOL_CACHE, .size_mb = 50000, .used_mb = 46074 },
+    Volume { .service = NO_SERVICE, .project = "woody", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 996 },
+    Volume { .service = S_WOODY_BUCKET, .project = "woody", .mount = "/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 4438 },
+    Volume { .service = S_WOODY_POSTGRES, .project = "woody", .mount = "/var/lib/postgresql/data", .class = VOL_DATA, .size_mb = 50000, .used_mb = 1167 },
+];
+pub const NAME_EDGE_COUNT : u32 = 63;
+pub const NAME_EDGES : [63]Edge = [
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_INNGEST_INNGEST, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_REDIS, .basis = DEP_BY_STORE },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_SUPABASE_GATEWAY, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_999_MULTIBOTS_TELEGRAF, .to = S_999_TELEGRAM_BOT_API, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_CI_BRIDGE, .to = S_999_CHECK_RUNNER, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_CONSOLE, .to = S_999_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_999_INNGEST_INNGEST, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_INNGEST_INNGEST, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_INNGEST_INNGEST, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_INNGEST_INNGEST, .to = S_999_REDIS, .basis = DEP_BY_STORE },
+    Edge { .from = S_999_POSTGREST, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_POSTGREST, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_POSTGREST, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_QUEEN_WATCH, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_QUEEN_WATCH, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_QUEEN_WATCH, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_QUEEN_WATCH, .to = S_999_TELEGRAM_BOT_API, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_SUPABASE_STORAGE, .to = S_999_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_999_SUPABASE_STORAGE, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_SUPABASE_STORAGE, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_SUPABASE_STORAGE, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_SUPABASE_STORAGE, .to = S_999_POSTGREST, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_TRIOS_AGENT_SERVER, .to = S_999_INNGEST_INNGEST, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_TRIOS_AGENT_SERVER, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_AGENT_SERVER, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_AGENT_SERVER, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_1, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_1, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_1, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_2, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_2, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_2, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_BROWSER_POD, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_GIGAAM, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_INNGEST_INNGEST, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_MOUTH, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_PARAKEET, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_SUPABASE_GATEWAY, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_TELEGRAM_BOT_API, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_VISION, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_WHISPER, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_ZEP, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VOICE_CLONE, .to = S_999_WHISPER, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_VOICE_CLONE_QWEN, .to = S_999_WHISPER, .basis = DEP_BY_NAME },
+    Edge { .from = S_999_ZEP, .to = S_999_PGVECTOR, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_ZEP, .to = S_999_POSTGRES, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_ZEP, .to = S_999_POSTGRES_NFRQ, .basis = DEP_STORE_CANDIDATE },
+    Edge { .from = S_999_ZEP, .to = S_999_ZEP_NLP, .basis = DEP_BY_NAME },
+    Edge { .from = S_HEARTFELT_CAT_TODO_API, .to = S_HEARTFELT_CAT_POSTGRES, .basis = DEP_BY_STORE },
+    Edge { .from = S_PROJECT_BRAIN_PROJECT_BRAIN, .to = S_PROJECT_BRAIN_POSTGRES, .basis = DEP_BY_STORE },
+    Edge { .from = S_WOODY_CONSOLE, .to = S_WOODY_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_WOODY_TURBOBABY_BOT, .to = S_WOODY_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_WOODY_TURBOBABY_BOT, .to = S_WOODY_POSTGRES, .basis = DEP_BY_STORE },
+    Edge { .from = S_WOODY_WOODY_WEED_BOT, .to = S_WOODY_BUCKET, .basis = DEP_BY_STORE },
+    Edge { .from = S_WOODY_WOODY_WEED_BOT, .to = S_WOODY_POSTGRES, .basis = DEP_BY_STORE },
+];
+; ==== END GENERATED ====
+
+; --- Judgments the manifest cannot hold ----------------------------------------------------------
+; Each is a list of rows by index. A test below checks every entry against the generated rows.
+
+; The stop of 2026-10-10 about 16:15Z, on the owner's approval (#8675, comment "Stopped on the owner's
+; approval"). `railway down` removed each active deployment; config, variables and volumes stay.
+pub const STOPPED_COUNT : u32 = 10;
+pub const STOPPED : [10]u32 = [
+    S_999_VOICE_CLONE_QWEN,          // a duplicate of voice-clone
+    S_999_ZEP_NLP,
+    S_999_CRM_DOOR_ONCE,             // a finished one-shot function
+    S_999_AGENTS_ACCEPTANCE_ONCE,    // a finished one-shot function
+    S_REMOTE_BROWSER_REMOTE_BROWSER, // an old copy of browser-pod
+    S_999_ZEP,
+    S_OVERFLOWING_RENEWAL_TRINITY,
+    S_999_CONSOLE,                   // the minio UI
+    S_WOODY_CONSOLE,                 // the minio UI
+    S_999_TRIOS_RAILWAY,             // its own project keeps the live copy
+];
+
+; Personal data stored in the service or passing through it.
+pub const PERSONAL_DATA_COUNT : u32 = 32;
+pub const PERSONAL_DATA : [32]u32 = [
+    S_999_999_MULTIBOTS_TELEGRAF,    // the Telegram bots: users' messages and payments
+    S_999_AGENTS_ACCEPTANCE_ONCE,    // its recovered source asks the CRM agent about the owner's contacts
+    S_999_BROWSER_POD,               // the owner's logged-in Chromium profile
+    S_999_BUCKET,                    // users' media and uploads
+    S_999_CONSOLE,                   // the admin UI of that bucket
+    S_999_CRM_DOOR_ONCE,             // its recovered source names CRM clients
+    S_999_GIGAAM,                    // transcribes users' voice notes (Russian)
+    S_999_INNGEST_INNGEST,           // the bots' and render's event payloads
+    S_999_MOUTH,                     // speaks the replies sent to users
+    S_999_PARAKEET,                  // transcribes users' voice notes (English)
+    S_999_PGVECTOR,                  // Zep's memory of conversations
+    S_999_POSTGRES,                  // bots and CRM
+    S_999_POSTGRES_NFRQ,             // the bot's supabase-js tables, users among them (apps/supabase-gateway/README.md)
+    S_999_POSTGREST,                 // the REST door to Postgres-NFrq
+    S_999_REDIS,                     // bot sessions and queued events
+    S_999_SUPABASE_GATEWAY,          // the public door to postgrest and storage
+    S_999_SUPABASE_STORAGE,          // users' files
+    S_999_T27_GITHUB_COLLAB,         // visitors' GitHub OAuth identities
+    S_999_TELEGRAM_BOT_API,          // every bot update and file passes through it, and files stay on its volume
+    S_999_VIBEE_RENDER,              // CRM, agents, renders of clients' photos and voices
+    S_999_VISION,                    // reads users' photos
+    S_999_VOICE_CLONE,               // clones voices from users' samples
+    S_999_VOICE_CLONE_QWEN,          // the same
+    S_999_WHISPER,                   // transcribes users' voice notes
+    S_999_ZEP,                       // conversation memory
+    S_999_ZEP_NLP,                   // conversation memory, the NLP half
+    S_LEELA_LEELA,                   // a Telegram bot with a data volume
+    S_WOODY_BUCKET,                  // the woody bots' media
+    S_WOODY_CONSOLE,                 // the admin UI of that bucket
+    S_WOODY_POSTGRES,                // the woody bots' users
+    S_WOODY_TURBOBABY_BOT,           // a Telegram bot
+    S_WOODY_WOODY_WEED_BOT,          // a Telegram bot
+];
+
+; Not known, so counted as personal data.
+pub const PERSONAL_DATA_UNKNOWN_COUNT : u32 = 7;
+pub const PERSONAL_DATA_UNKNOWN : [7]u32 = [
+    S_999_JOBSEARCH_CRON,            // its code exists only inside Railway
+    S_999_QUEEN_PROXY,               // relays what site visitors type to a model
+    S_999_SKILLS_SITE,               // a "cloud profile" data dir; its code exists only inside Railway
+    S_999_TRIOS_AGENT_SERVER,        // holds contributor identities
+    S_PROJECT_BRAIN_POSTGRES,        // Paperclip's database
+    S_PROJECT_BRAIN_PROJECT_BRAIN,   // Paperclip, set up with the owner's own login
+    S_REMOTE_BROWSER_REMOTE_BROWSER, // a browser: whatever is signed in while it runs
+];
+
+; Deterministic jobs whose output two hosts can hash and compare (#1756, constraint 2).
+pub const CHECKABLE_COUNT : u32 = 4;
+pub const CHECKABLE : [4]u32 = [
+    S_DAYO64_XCHECK_BUILD,           // a nextpnr cross-check of a fixed netlist (trinity-fpga#850)
+    S_T27B_LAB_T27B_LAB,             // t27b corpus runs, already signed as corpus receipts
+    S_T27B_LAB_T27B_LAB_2,           // the same, a second lane
+    S_T27C_LAB_T27C_LAB,             // t27c runs per commit
+];
+
+; Edges read in source, which no variable name shows.
+pub const CODE_EDGE_COUNT : u32 = 9;
+pub const CODE_EDGES : [9]Edge = [
+    // apps/supabase-gateway/README.md and nginx.conf.template (999-multibots-telegraf main)
+    Edge { .from = S_999_SUPABASE_GATEWAY, .to = S_999_POSTGREST, .basis = DEP_BY_CODE },
+    Edge { .from = S_999_SUPABASE_GATEWAY, .to = S_999_SUPABASE_STORAGE, .basis = DEP_BY_CODE },
+    Edge { .from = S_999_POSTGREST, .to = S_999_POSTGRES_NFRQ, .basis = DEP_BY_CODE },
+    Edge { .from = S_999_SUPABASE_STORAGE, .to = S_999_POSTGRES_NFRQ, .basis = DEP_BY_CODE },
+    // apps/vibee-editor/render/src/agent/voice-clone-speak.ts: default http://voice-clone.railway.internal:8080
+    Edge { .from = S_999_VIBEE_RENDER, .to = S_999_VOICE_CLONE, .basis = DEP_BY_CODE },
+    // gHashTag/trios#1756: the bee runners pull their work from the Queen
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_1, .to = S_999_TRIOS_AGENT_SERVER, .basis = DEP_BY_CODE },
+    Edge { .from = S_999_TRIOS_BEE_RUNNER_2, .to = S_999_TRIOS_AGENT_SERVER, .basis = DEP_BY_CODE },
+    // the recovered sources of both one-shot functions call vibee-render
+    Edge { .from = S_999_AGENTS_ACCEPTANCE_ONCE, .to = S_999_VIBEE_RENDER, .basis = DEP_BY_CODE },
+    Edge { .from = S_999_CRM_DOOR_ONCE, .to = S_999_VIBEE_RENDER, .basis = DEP_BY_CODE },
+];
+
+; --- Rules: the rows -----------------------------------------------------------------------------
+
+pub fn is_stopped(i: u32) -> bool {
+    var k : u32 = 0;
+    while (k < STOPPED_COUNT) {
+        if (STOPPED[k] == i) { return true; }
+        k = k + 1;
+    }
+    return false;
+}
+
+pub fn pii_of(i: u32) -> u8 {
+    var k : u32 = 0;
+    while (k < PERSONAL_DATA_COUNT) {
+        if (PERSONAL_DATA[k] == i) { return PII_YES; }
+        k = k + 1;
+    }
+    k = 0;
+    while (k < PERSONAL_DATA_UNKNOWN_COUNT) {
+        if (PERSONAL_DATA_UNKNOWN[k] == i) { return PII_UNKNOWN; }
+        k = k + 1;
+    }
+    return PII_NO;
+}
+
+pub fn holds_pii(i: u32) -> bool {
+    return pii_of(i) != PII_NO;
+}
+
+pub fn is_checkable(i: u32) -> bool {
+    var k : u32 = 0;
+    while (k < CHECKABLE_COUNT) {
+        if (CHECKABLE[k] == i) { return true; }
+        k = k + 1;
+    }
+    return false;
+}
+
+pub fn is_store(i: u32) -> bool {
+    return SERVICES[i].engine != ENGINE_NONE;
+}
+
+/// What a restore deploys: a row with a working deployment that was not stopped.
+pub fn restores(i: u32) -> bool {
+    return SERVICES[i].deploy == DEP_ACTIVE and is_stopped(i) == false;
+}
+
+/// The code exists only inside Railway: a rebuild has nothing to build from.
+pub fn is_source_missing(i: u32) -> bool {
+    return SERVICES[i].found == FOUND_MISSING;
+}
+
+pub fn rebuilds_from_git(i: u32) -> bool {
+    let src : u8 = SERVICES[i].src;
+    if (src == SRC_REPO or src == SRC_TEMPLATE) { return true; }
+    return src == SRC_UPLOAD and SERVICES[i].found == FOUND_IN_GIT;
+}
+
+pub fn has_domain(i: u32) -> bool {
+    return SERVICES[i].custom_domains + SERVICES[i].railway_domains > 0;
+}
+
+pub fn data_volumes_of(i: u32) -> u32 {
+    var n : u32 = 0;
+    var v : u32 = 0;
+    while (v < VOLUME_COUNT) {
+        if (VOLUMES[v].service == i and VOLUMES[v].class == VOL_DATA) { n = n + 1; }
+        v = v + 1;
+    }
+    return n;
+}
+
+pub fn is_stateful(i: u32) -> bool {
+    return data_volumes_of(i) > 0;
+}
+
+pub fn holds_pii_at_rest(i: u32) -> bool {
+    return is_stateful(i) and holds_pii(i);
+}
+
+; --- Rules: dependencies -------------------------------------------------------------------------
+
+pub fn edge_count() -> u32 {
+    return NAME_EDGE_COUNT + CODE_EDGE_COUNT;
+}
+
+pub fn edge_from(e: u32) -> u32 {
+    if (e < NAME_EDGE_COUNT) { return NAME_EDGES[e].from; }
+    return CODE_EDGES[e - NAME_EDGE_COUNT].from;
+}
+
+pub fn edge_to(e: u32) -> u32 {
+    if (e < NAME_EDGE_COUNT) { return NAME_EDGES[e].to; }
+    return CODE_EDGES[e - NAME_EDGE_COUNT].to;
+}
+
+pub fn edge_basis(e: u32) -> u8 {
+    if (e < NAME_EDGE_COUNT) { return NAME_EDGES[e].basis; }
+    return CODE_EDGES[e - NAME_EDGE_COUNT].basis;
+}
+
+pub fn depends_on(s: u32, t: u32) -> bool {
+    var e : u32 = 0;
+    while (e < edge_count()) {
+        if (edge_from(e) == s and edge_to(e) == t) { return true; }
+        e = e + 1;
+    }
+    return false;
+}
+
+/// An edge between two rows a restore deploys.
+pub fn live_edge(e: u32) -> bool {
+    return restores(edge_from(e)) and restores(edge_to(e));
+}
+
+/// Live edges into a row: how many restored rows wait for it.
+pub fn inbound_edges(t: u32) -> u32 {
+    var n : u32 = 0;
+    var e : u32 = 0;
+    while (e < edge_count()) {
+        if (edge_to(e) == t and live_edge(e)) { n = n + 1; }
+        e = e + 1;
+    }
+    return n;
+}
+
+/// Personal data at rest anywhere downstream: a path of one or more edges (stopped rows included,
+/// since their config keeps the credentials) ends at a stateful row that holds personal data.
+pub fn reaches_pii_at_rest(i: u32) -> bool {
+    var r : [64]bool = [false] ** 64;
+    var changed : bool = true;
+    var round : u32 = 0;
+    while (changed and round <= SERVICE_COUNT) {
+        changed = false;
+        var e : u32 = 0;
+        while (e < edge_count()) {
+            let s : u32 = edge_from(e);
+            let t : u32 = edge_to(e);
+            if (r[s] == false and (holds_pii_at_rest(t) or r[t])) {
+                r[s] = true;
+                changed = true;
+            }
+            e = e + 1;
+        }
+        round = round + 1;
+    }
+    return r[i];
+}
+
+; --- Rules: the restore order --------------------------------------------------------------------
+
+/// A worker or a cron: it runs on a schedule, or nothing calls it and it has no domain, so it only
+/// pulls work. A store is neither. (The parameter is `exposed`, not `domain`: gen-zig compares any
+/// `domain == false` as a string once a struct has a str field of that name, see #8704.)
+pub fn worker_rule(store: bool, scheduled: bool, exposed: bool, inbound: u32) -> bool {
+    if (store) { return false; }
+    if (scheduled) { return true; }
+    return exposed == false and inbound == 0;
+}
+
+pub fn is_worker(i: u32) -> bool {
+    return worker_rule(is_store(i), SERVICES[i].scheduled, has_domain(i), inbound_edges(i));
+}
+
+pub fn phase_of(i: u32) -> u32 {
+    if (is_store(i)) { return PHASE_STORE; }
+    if (is_worker(i)) { return PHASE_WORKER; }
+    return PHASE_SERVICE;
+}
+
+/// The longest chain of live dependencies inside a row's phase. A cycle never settles, so the
+/// relaxation stops after SERVICE_COUNT rounds and has_cycle reports it.
+pub fn depth_of(i: u32) -> u32 {
+    var ph : [64]u32 = [0] ** 64;
+    var j : u32 = 0;
+    while (j < SERVICE_COUNT) {
+        ph[j] = phase_of(j);
+        j = j + 1;
+    }
+    var d : [64]u32 = [0] ** 64;
+    var changed : bool = true;
+    var round : u32 = 0;
+    while (changed and round <= SERVICE_COUNT) {
+        changed = false;
+        var e : u32 = 0;
+        while (e < edge_count()) {
+            let s : u32 = edge_from(e);
+            let t : u32 = edge_to(e);
+            if (live_edge(e) and ph[s] == ph[t] and d[t] + 1 > d[s]) {
+                d[s] = d[t] + 1;
+                changed = true;
+            }
+            e = e + 1;
+        }
+        round = round + 1;
+    }
+    return d[i];
+}
+
+pub fn has_cycle() -> bool {
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (depth_of(i) >= SERVICE_COUNT) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// The sort key: phase, then depth, then row. Rows < MAX_SERVICES and depths < 64 keep it exact.
+pub fn restore_key(i: u32) -> u32 {
+    return phase_of(i) * 4096 + depth_of(i) * 64 + i;
+}
+
+pub fn restore_count() -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (restores(i)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// The row restored k-th, or NO_SERVICE past the end.
+pub fn restore_at(k: u32) -> u32 {
+    var key : [64]u32 = [0] ** 64;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (restores(i)) { key[i] = restore_key(i); }
+        i = i + 1;
+    }
+    i = 0;
+    while (i < SERVICE_COUNT) {
+        if (restores(i)) {
+            var before : u32 = 0;
+            var j : u32 = 0;
+            while (j < SERVICE_COUNT) {
+                if (restores(j) and key[j] < key[i]) { before = before + 1; }
+                j = j + 1;
+            }
+            if (before == k) { return i; }
+        }
+        i = i + 1;
+    }
+    return NO_SERVICE;
+}
+
+; --- Rules: tiers --------------------------------------------------------------------------------
+
+pub fn tier_rule(stateful: bool, reaches_pii: bool, secrets: bool, pii: bool, checkable: bool) -> u8 {
+    if (stateful or reaches_pii) { return TIER_OWNER; }
+    if (secrets == false and pii == false and checkable) { return TIER_PUBLIC; }
+    return TIER_TRUSTED;
+}
+
+pub fn tier_of(i: u32) -> u8 {
+    return tier_rule(is_stateful(i), reaches_pii_at_rest(i), SERVICES[i].has_vars, holds_pii(i), is_checkable(i));
+}
+
+/// Whether a host of tier `host` may run row i.
+pub fn may_run_on(i: u32, host: u8) -> bool {
+    return tier_of(i) >= host;
+}
+
+; --- Rules: totals -------------------------------------------------------------------------------
+
+pub fn total_cost_cents() -> u32 {
+    var c : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        c = c + SERVICES[i].cost_cents;
+        i = i + 1;
+    }
+    return c;
+}
+
+pub fn restored_cost_cents() -> u32 {
+    var c : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (restores(i)) { c = c + SERVICES[i].cost_cents; }
+        i = i + 1;
+    }
+    return c;
+}
+
+pub fn stopped_cost_cents() -> u32 {
+    var c : u32 = 0;
+    var k : u32 = 0;
+    while (k < STOPPED_COUNT) {
+        c = c + SERVICES[STOPPED[k]].cost_cents;
+        k = k + 1;
+    }
+    return c;
+}
+
+/// Restored rows of a tier, and what they cost per 30 days.
+pub fn tier_count(t: u8) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (restores(i) and tier_of(i) == t) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+pub fn tier_cost_cents(t: u8) -> u32 {
+    var c : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (restores(i) and tier_of(i) == t) { c = c + SERVICES[i].cost_cents; }
+        i = i + 1;
+    }
+    return c;
+}
+
+pub fn volume_count(class: u8) -> u32 {
+    var n : u32 = 0;
+    var v : u32 = 0;
+    while (v < VOLUME_COUNT) {
+        if (VOLUMES[v].class == class) { n = n + 1; }
+        v = v + 1;
+    }
+    return n;
+}
+
+pub fn volume_used_mb(class: u8) -> u32 {
+    var m : u32 = 0;
+    var v : u32 = 0;
+    while (v < VOLUME_COUNT) {
+        if (VOLUMES[v].class == class) { m = m + VOLUMES[v].used_mb; }
+        v = v + 1;
+    }
+    return m;
+}
+
+pub fn count_source_missing() -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (is_source_missing(i)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+pub fn count_with_secrets() -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (SERVICES[i].has_vars) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+pub fn count_stateful() -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (is_stateful(i)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+pub fn count_stores() -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (is_store(i)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+; --- The restore order, pinned ---------------------------------------------------------------------
+; An independent re-implementation of the rules above, run over the same rows (scratch, not kept),
+; computed this order. The test the_restore_order holds restore_at to it, so a change in the rows or
+; the rules that moves the order shows up in review as a change of this list.
+pub const RESTORE_COUNT : u32 = 44;
+pub const RESTORE_ORDER : [44]u32 = [
+    S_999_BUCKET,
+    S_999_PGVECTOR,
+    S_999_POSTGRES,
+    S_999_POSTGRES_NFRQ,
+    S_999_REDIS,
+    S_HEARTFELT_CAT_POSTGRES,
+    S_PROJECT_BRAIN_POSTGRES,
+    S_WOODY_BUCKET,
+    S_WOODY_POSTGRES,
+    S_999_BROWSER_POD,
+    S_999_CHECK_RUNNER,
+    S_999_GIGAAM,
+    S_999_INNGEST_INNGEST,
+    S_999_JOBSEARCH_CRON,
+    S_999_MOUTH,
+    S_999_PARAKEET,
+    S_999_POSTGREST,
+    S_999_QUEEN_PROXY,
+    S_999_SKILLS_SITE,
+    S_999_T27_GITHUB_COLLAB,
+    S_999_TELEGRAM_BOT_API,
+    S_999_VIBEE_EDITOR,
+    S_999_VISION,
+    S_999_WHISPER,
+    S_HEARTFELT_CAT_TODO_API,
+    S_IGLA_JUDGE_1A315000_BOARD,
+    S_LEELA_LEELA,
+    S_PROJECT_BRAIN_PROJECT_BRAIN,
+    S_T27B_LAB_T27B_LAB,
+    S_T27B_LAB_T27B_LAB_2,
+    S_T27C_LAB_T27C_LAB,
+    S_TRIOS_RAILWAY_TRIOS_RAILWAY,
+    S_WOODY_WOODY_WEED_BOT,
+    S_999_SUPABASE_STORAGE,
+    S_999_TRIOS_AGENT_SERVER,
+    S_999_VOICE_CLONE,
+    S_999_SUPABASE_GATEWAY,
+    S_999_999_MULTIBOTS_TELEGRAF,
+    S_999_VIBEE_RENDER,
+    S_999_CI_BRIDGE,
+    S_999_QUEEN_WATCH,
+    S_999_TRIOS_BEE_RUNNER_1,
+    S_999_TRIOS_BEE_RUNNER_2,
+    S_IGLA_JUDGE_1A315000_LOOP,
+];
+
+invariant the_rows_fit_the_working_arrays { SERVICE_COUNT <= MAX_SERVICES }
+invariant no_service_is_a_row { NO_SERVICE >= MAX_SERVICES }
+invariant the_restore_order_fits { RESTORE_COUNT <= SERVICE_COUNT }
+
+; --- Tests -----------------------------------------------------------------------------------------
+
+; The generated rows hold together: the inventory's counts, each key opens with its project, and
+; the step's normalisations held on every row.
+test the_rows_are_the_inventory {
+    assert SERVICE_COUNT == 59;
+    assert VOLUME_COUNT == 26;
+    assert NAME_EDGE_COUNT == 63;
+    assert edge_count() == 72;
+    assert PREVIOUS_PERIOD_CENTS == 69907;
+    assert SERVICES[S_999_POSTGRES].key == "999/Postgres";
+    assert SERVICES[S_999_INNGEST_INNGEST].name == "inngest/inngest";
+    assert SERVICES[S_TRIOS_RAILWAY_TRIOS_RAILWAY].key == "trios-railway/trios-railway";
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        let s : Service = SERVICES[i];
+        var c : usize = 0;
+        while (c < s.project.len) {
+            assert s.key[c] == s.project[c];
+            c = c + 1;
+        }
+        assert s.key[s.project.len] == '/';
+        assert s.key.len == s.project.len + 1 + s.name.len;
+        assert s.port == 0;
+        assert s.scheduled == (s.cron.len > 0);
+        let pulled : bool = s.src == SRC_IMAGE or s.src == SRC_FUNCTION or s.src == SRC_NONE;
+        assert pulled == (s.build == BUILD_NONE);
+        if (s.src == SRC_REPO or s.src == SRC_TEMPLATE) { assert s.commit.len == 40; }
+        if (s.src == SRC_IMAGE) {
+            assert s.image.len > 0;
+            assert s.digest.len == 71;
+            assert s.digest[6] == ':';
+        }
+        assert s.custom_domains == 0 or s.domain.len > 0;
+        i = i + 1;
+    }
+}
+
+; Every hand-written judgment names a real row, once.
+test every_judgment_names_a_real_row {
+    var k : u32 = 0;
+    while (k < STOPPED_COUNT) {
+        assert STOPPED[k] < SERVICE_COUNT;
+        var j : u32 = k + 1;
+        while (j < STOPPED_COUNT) { assert STOPPED[j] != STOPPED[k]; j = j + 1; }
+        k = k + 1;
+    }
+    k = 0;
+    while (k < PERSONAL_DATA_COUNT) {
+        assert PERSONAL_DATA[k] < SERVICE_COUNT;
+        var j : u32 = k + 1;
+        while (j < PERSONAL_DATA_COUNT) { assert PERSONAL_DATA[j] != PERSONAL_DATA[k]; j = j + 1; }
+        var u : u32 = 0;
+        while (u < PERSONAL_DATA_UNKNOWN_COUNT) { assert PERSONAL_DATA_UNKNOWN[u] != PERSONAL_DATA[k]; u = u + 1; }
+        k = k + 1;
+    }
+    k = 0;
+    while (k < PERSONAL_DATA_UNKNOWN_COUNT) {
+        assert PERSONAL_DATA_UNKNOWN[k] < SERVICE_COUNT;
+        k = k + 1;
+    }
+    k = 0;
+    while (k < CHECKABLE_COUNT) {
+        assert CHECKABLE[k] < SERVICE_COUNT;
+        k = k + 1;
+    }
+    k = 0;
+    while (k < CODE_EDGE_COUNT) {
+        assert CODE_EDGES[k].from < SERVICE_COUNT and CODE_EDGES[k].to < SERVICE_COUNT;
+        assert CODE_EDGES[k].basis == DEP_BY_CODE;
+        k = k + 1;
+    }
+    assert SERVICES[STOPPED[0]].key == "999/voice-clone-qwen";
+    assert SERVICES[STOPPED[9]].key == "999/trios-railway";
+    assert pii_of(S_999_POSTGRES) == PII_YES;
+    assert pii_of(S_999_SKILLS_SITE) == PII_UNKNOWN;
+    assert pii_of(S_999_CHECK_RUNNER) == PII_NO;
+    assert holds_pii(S_999_SKILLS_SITE);
+    assert is_checkable(S_DAYO64_XCHECK_BUILD);
+    assert is_checkable(S_999_WHISPER) == false;
+}
+
+; The ten services stopped on 2026-10-10 were running, held no data, and cost $190.57 per 30 days.
+test the_stop_of_2026_10_10 {
+    var k : u32 = 0;
+    while (k < STOPPED_COUNT) {
+        let i : u32 = STOPPED[k];
+        assert is_stopped(i);
+        assert SERVICES[i].deploy == DEP_ACTIVE;
+        assert restores(i) == false;
+        assert is_stateful(i) == false;
+        k = k + 1;
+    }
+    assert is_stopped(S_999_VOICE_CLONE) == false;
+    assert stopped_cost_cents() == 19057;
+}
+
+; skills-site, jobsearch-cron and project-brain exist only inside Railway. All three still run, so
+; their running files must be copied out before a restore can rebuild them.
+test three_services_exist_only_inside_railway {
+    assert count_source_missing() == 3;
+    assert is_source_missing(S_999_SKILLS_SITE);
+    assert is_source_missing(S_999_JOBSEARCH_CRON);
+    assert is_source_missing(S_PROJECT_BRAIN_PROJECT_BRAIN);
+    assert restores(S_999_SKILLS_SITE) and restores(S_999_JOBSEARCH_CRON) and restores(S_PROJECT_BRAIN_PROJECT_BRAIN);
+    assert rebuilds_from_git(S_999_SKILLS_SITE) == false;
+    assert rebuilds_from_git(S_PROJECT_BRAIN_PROJECT_BRAIN) == false;
+    // A function's code is inline in Railway, a finished job has nothing to lose: neither is missing.
+    assert is_source_missing(S_999_CRM_DOOR_ONCE) == false;
+    assert is_source_missing(S_DAYO64_XCHECK_BUILD) == false;
+    // An upload found in git rebuilds from it; an image is pulled.
+    assert rebuilds_from_git(S_999_BROWSER_POD);
+    assert SERVICES[S_999_BROWSER_POD].code == CODE_PRIVATE;
+    assert rebuilds_from_git(S_999_BUCKET);
+    assert rebuilds_from_git(S_999_POSTGRES) == false;
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (rebuilds_from_git(i)) { n = n + 1; }
+        i = i + 1;
+    }
+    assert n == 36;
+}
+
+; Nine stores, fifteen stateful services, and the volume classes of the inventory.
+test stores_volumes_and_state {
+    assert count_stores() == 9;
+    assert count_stateful() == 15;
+    assert volume_count(VOL_DATA) == 16;
+    assert volume_used_mb(VOL_DATA) == 39578;
+    assert volume_count(VOL_CACHE) == 8;
+    assert volume_used_mb(VOL_CACHE) == 150900;
+    assert volume_count(VOL_MODEL) == 2;
+    assert volume_used_mb(VOL_MODEL) == 10904;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        if (is_store(i)) { assert is_stateful(i); }
+        i = i + 1;
+    }
+    // A CACHE or MODEL volume leaves a service stateless.
+    assert data_volumes_of(S_999_POSTGRES) == 1;
+    assert data_volumes_of(S_999_TRIOS_AGENT_SERVER) == 0;
+    assert is_stateful(S_999_TRIOS_AGENT_SERVER) == false;
+    assert holds_pii_at_rest(S_999_POSTGRES);
+    assert holds_pii_at_rest(S_999_WHISPER) == false;
+    assert has_domain(S_999_BUCKET);
+    assert has_domain(S_999_WHISPER) == false;
+    assert is_stateful(S_999_WHISPER) == false;
+    assert is_stateful(S_999_BROWSER_POD);
+    // The unattached old copy of woody's Postgres is DATA with no service.
+    var unattached : u32 = 0;
+    var v : u32 = 0;
+    while (v < VOLUME_COUNT) {
+        if (VOLUMES[v].service == NO_SERVICE) {
+            unattached = unattached + 1;
+            assert VOLUMES[v].class == VOL_DATA;
+        } else {
+            assert VOLUMES[v].service < SERVICE_COUNT;
+        }
+        v = v + 1;
+    }
+    assert unattached == 1;
+}
+
+; Edges stay inside a project, never start at a store, never loop on themselves.
+test dependencies {
+    var e : u32 = 0;
+    while (e < edge_count()) {
+        let s : u32 = edge_from(e);
+        let t : u32 = edge_to(e);
+        assert s != t;
+        assert is_store(s) == false;
+        assert SERVICES[s].project == SERVICES[t].project;
+        assert edge_basis(e) >= DEP_BY_NAME and edge_basis(e) <= DEP_BY_CODE;
+        e = e + 1;
+    }
+    assert depends_on(S_999_VIBEE_RENDER, S_999_GIGAAM);
+    assert depends_on(S_999_VIBEE_RENDER, S_999_VOICE_CLONE);
+    assert depends_on(S_999_SUPABASE_STORAGE, S_999_POSTGREST);
+    assert depends_on(S_999_999_MULTIBOTS_TELEGRAF, S_999_REDIS);
+    assert depends_on(S_999_ZEP, S_999_ZEP_NLP);
+    assert depends_on(S_999_WHISPER, S_999_VIBEE_RENDER) == false;
+    assert inbound_edges(S_999_WHISPER) == 2;
+    assert inbound_edges(S_999_ZEP_NLP) == 0;
+    // render still names zep, but zep is stopped: the edge is config, not something to wait for.
+    assert depends_on(S_999_VIBEE_RENDER, S_999_ZEP);
+    assert inbound_edges(S_999_ZEP) == 0;
+}
+
+; The two decision rules on their own, over the cases the rows do not happen to contain.
+test the_worker_and_tier_rules {
+    assert worker_rule(true, true, false, 0) == false;
+    assert worker_rule(false, true, true, 3);
+    assert worker_rule(false, false, false, 0);
+    assert worker_rule(false, false, true, 0) == false;
+    assert worker_rule(false, false, false, 1) == false;
+    assert tier_rule(true, false, false, false, true) == TIER_OWNER;
+    assert tier_rule(false, true, false, false, true) == TIER_OWNER;
+    assert tier_rule(false, false, false, false, true) == TIER_PUBLIC;
+    assert tier_rule(false, false, true, false, true) == TIER_TRUSTED;
+    assert tier_rule(false, false, false, true, true) == TIER_TRUSTED;
+    assert tier_rule(false, false, false, false, false) == TIER_TRUSTED;
+    assert tier_rule(false, false, true, true, false) == TIER_TRUSTED;
+}
+
+; Stores first, then services, then workers and crons; every live dependency before its dependent.
+test the_restore_order {
+    assert restore_count() == RESTORE_COUNT;
+    assert has_cycle() == false;
+    var k : u32 = 0;
+    var last : u32 = 0;
+    while (k < RESTORE_COUNT) {
+        let i : u32 = restore_at(k);
+        assert i == RESTORE_ORDER[k];
+        assert restores(i);
+        assert phase_of(i) >= last;
+        last = phase_of(i);
+        if (k < 9) { assert is_store(i); }
+        k = k + 1;
+    }
+    assert restore_at(RESTORE_COUNT) == NO_SERVICE;
+    var e : u32 = 0;
+    while (e < edge_count()) {
+        if (live_edge(e)) { assert restore_key(edge_to(e)) < restore_key(edge_from(e)); }
+        e = e + 1;
+    }
+    assert is_worker(S_999_QUEEN_WATCH);
+    assert is_worker(S_999_TRIOS_BEE_RUNNER_1);
+    assert is_worker(S_999_MOUTH) == false;
+    assert depth_of(S_999_VIBEE_RENDER) == 3;
+}
+
+; Tiers by gHashTag/trios#1756, and which host may run what.
+test tiers {
+    assert tier_count(TIER_OWNER) == 25;
+    assert tier_cost_cents(TIER_OWNER) == 60848;
+    assert tier_count(TIER_TRUSTED) == 19;
+    assert tier_cost_cents(TIER_TRUSTED) == 65173;
+    assert tier_count(TIER_PUBLIC) == 0;
+    assert tier_cost_cents(TIER_PUBLIC) == 0;
+    // The one public row is a finished deterministic job with no deployment.
+    assert tier_of(S_DAYO64_XCHECK_BUILD) == TIER_PUBLIC;
+    assert restores(S_DAYO64_XCHECK_BUILD) == false;
+    // Secret-free, PII-free and stateless is not enough: a long-running service stays trusted.
+    assert SERVICES[S_TRIOS_RAILWAY_TRIOS_RAILWAY].has_vars == false;
+    assert tier_of(S_TRIOS_RAILWAY_TRIOS_RAILWAY) == TIER_TRUSTED;
+    // A lab is a checkable job, but as deployed it holds secrets. The corpus-shard job of #1756 is
+    // the same work with the host's own key instead, and that job is public.
+    assert tier_of(S_T27B_LAB_T27B_LAB) == TIER_TRUSTED;
+    // #1756's own slice-2 candidates: voice passes through, nothing is kept.
+    assert tier_of(S_999_GIGAAM) == TIER_TRUSTED;
+    assert tier_of(S_999_PARAKEET) == TIER_TRUSTED;
+    // Stateful, or a path to personal data at rest.
+    assert tier_of(S_999_BROWSER_POD) == TIER_OWNER;
+    assert reaches_pii_at_rest(S_999_VIBEE_RENDER);
+    assert tier_of(S_999_VIBEE_RENDER) == TIER_OWNER;
+    assert reaches_pii_at_rest(S_999_SUPABASE_GATEWAY);
+    assert reaches_pii_at_rest(S_999_TRIOS_BEE_RUNNER_1);
+    assert reaches_pii_at_rest(S_999_WHISPER) == false;
+    assert may_run_on(S_DAYO64_XCHECK_BUILD, TIER_PUBLIC);
+    assert may_run_on(S_999_GIGAAM, TIER_TRUSTED);
+    assert may_run_on(S_999_GIGAAM, TIER_PUBLIC) == false;
+    assert may_run_on(S_999_POSTGRES, TIER_TRUSTED) == false;
+    var i : u32 = 0;
+    while (i < SERVICE_COUNT) {
+        assert may_run_on(i, TIER_OWNER);
+        if (tier_of(i) == TIER_PUBLIC) {
+            assert is_stateful(i) == false and SERVICES[i].has_vars == false and holds_pii(i) == false;
+        }
+        if (tier_of(i) == TIER_OWNER) { assert is_stateful(i) or reaches_pii_at_rest(i); }
+        i = i + 1;
+    }
+}
+
+; The 30-day run-rate: $1,455.63 in all, $1,260.21 of it restored, $190.57 stopped.
+test totals {
+    assert total_cost_cents() == 145563;
+    assert restored_cost_cents() == 126021;
+    assert stopped_cost_cents() == 19057;
+    assert tier_cost_cents(TIER_OWNER) + tier_cost_cents(TIER_TRUSTED) + tier_cost_cents(TIER_PUBLIC) == restored_cost_cents();
+    assert tier_count(TIER_OWNER) + tier_count(TIER_TRUSTED) + tier_count(TIER_PUBLIC) == restore_count();
+    // What is neither restored nor stopped: failed, crashed or never deployed.
+    assert total_cost_cents() - restored_cost_cents() - stopped_cost_cents() == 485;
+    assert count_with_secrets() == 48;
+}

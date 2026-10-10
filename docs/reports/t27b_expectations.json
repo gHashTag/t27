@@ -345,6 +345,7 @@
   {"path": "specs/functions/webhook-generation-validate.t27", "t27b": "pass"},
   {"path": "specs/functions/welcome-avatar-generate.t27", "t27b": "pass"},
   {"path": "specs/github/auth.t27", "t27b": "pass"},
+  {"path": "specs/hosting/topology.t27", "t27b": "pass"},
   {"path": "specs/i18n/agents-ru.t27", "t27b": "pass"},
   {"path": "specs/i18n/blog-ru.t27", "t27b": "pass"},
   {"path": "specs/i18n/docs-ru.t27", "t27b": "pass"},

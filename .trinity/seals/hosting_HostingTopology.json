@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:e0609899377dd1e0b30d27f7706da40fe0af48d30859401984f64327a5201ca8",
+  "gen_hash_rust": "sha256:9274f9b9c760e68877ca330f157457da3b357e29782914932b0aa049758d425d",
+  "gen_hash_verilog": "sha256:1022412c0293ae1677c9099e4db1b1c4a60125b935073ec93f81931c9e9b037a",
+  "gen_hash_zig": "sha256:8a4fdffbd59339645b7f35211f953cf4e7c5dd796bb4833cf557b7f5e1ee49b9",
+  "module": "HostingTopology",
+  "ring": 12,
+  "sealed_at": "2026-10-10T17:04:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:f166b850b65a11fa1b9cf9cf66983a75b4555246ed596bac7ca7e5d80975273c",
+  "spec_path": "specs/hosting/topology.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
+}
