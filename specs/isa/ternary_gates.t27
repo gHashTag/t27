@@ -372,12 +372,12 @@ module TernaryGates {
     bench ternary_min_performance
         // Measure: cycles to compute 1000 MIN operations
         // Target: < 1000 cycles
-        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        const vals : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
         var result : i32 = 0;
         var i : u32 = 0;
         while i < 1000 {
-            var idx : u32 = (result + 1) % 3;
-            result = ternary_min(result, vals[idx]);
+            const idx : u32 = @intCast(result + 1);
+            result = ternary_min(result, vals[idx % 3]);
             i = i + 1;
         }
         _ = result;
@@ -385,12 +385,12 @@ module TernaryGates {
     bench ternary_max_performance
         // Measure: cycles to compute 1000 MAX operations
         // Target: < 1000 cycles
-        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        const vals : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
         var result : i32 = 0;
         var i : u32 = 0;
         while i < 1000 {
-            var idx : u32 = (result + 1) % 3;
-            result = ternary_max(result, vals[idx]);
+            const idx : u32 = @intCast(result + 1);
+            result = ternary_max(result, vals[idx % 3]);
             i = i + 1;
         }
         _ = result;
@@ -398,7 +398,7 @@ module TernaryGates {
     bench ternary_consensus_performance
         // Measure: cycles to compute 1000 CONSENSUS operations
         // Target: < 2000 cycles
-        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        const vals : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
         var result : i32 = 0;
         var idx : u32 = 0;
         var i : u32 = 0;

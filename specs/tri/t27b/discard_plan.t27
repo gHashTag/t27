@@ -16,14 +16,19 @@
 ;     `if` traps), and drops the value, void or not.
 ;   - At the top level of a test, t27c's test-binding form prints `const _ = e;`, and Zig refuses it ("'_' used
 ;     as an identifier without @"_" syntax").
+;   - At the top level of a bench, t27c's gen_bench_block prints every `_ = e;` as written: the first through
+;     its W608 discard spelling, each later one through gen_stmt. Each is Zig's discard, whatever e's type, in
+;     an uncalled `fn bench_<name>() void` Zig never analyzes. specs/fpga/boards/arty_a7_integration.t27
+;     discards a u32, a u32, then a bool there (see #8195, #8546).
 ;   - specs/port/bootstrap/src/compiler/collect_type_decls.t27 writes `_ = process(node);` (a void fn) at the top
 ;     of a body, `_ = "literal";` in the arms of an `if`, and a trailing `_ = "literal";` that is deleted.
 ; --
 ; What t27b does. DELETED: at the top level of a fn body, an e with no call is not lowered at all, as the
 ; reference deletes it. EVALUATE: anywhere else, e is lowered and evaluated for its effects and its traps, and
 ; its value is dropped. NOT_MINE: a bare name (`_ = p;`, t27b's parameter-discard path, which models Zig's
-; pointless-discard rule), and any `_ = e;` at the top level of a test, invariant or bench (t27b's test-binding
-; path, left as it was).
+; pointless-discard rule), and any `_ = e;` at the top level of a test or invariant (t27b's test-binding path,
+; left as it was). At the top level of a bench that path bound `_` as a variable of the first e's type and
+; refused a later e of another type (`type mismatch`); there a discard is EVALUATE too, compiled, never run.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -35,11 +40,11 @@ pub const DELETED : u8 = 1;
 pub const EVALUATE : u8 = 2;
 
 /// The decision for one `_ = e;`. name: e is a bare name. test_top: the statement is at the top level of a test,
-/// invariant or bench. fn_top: it is at the top level of a fn body, where the reference's dead-store pass runs.
-/// call: e holds a call anywhere in it.
-pub fn plan(name: bool, test_top: bool, fn_top: bool, call: bool) -> u8 {
+/// invariant or bench. in_bench: it is in a bench body. fn_top: it is at the top level of a fn body, where the
+/// reference's dead-store pass runs. call: e holds a call anywhere in it.
+pub fn plan(name: bool, test_top: bool, in_bench: bool, fn_top: bool, call: bool) -> u8 {
     if (name) { return NOT_MINE; }
-    if (test_top) { return NOT_MINE; }
+    if (test_top and !in_bench) { return NOT_MINE; }
     if (fn_top and !call) { return DELETED; }
     return EVALUATE;
 }
@@ -55,28 +60,43 @@ pub fn runs(act: u8) -> bool {
 
 test a_call_discarded_at_the_top_of_a_fn_runs {
     // collect_type_decls.t27's `_ = process_node_for_types(node);`: kept by keep_call_discards.
-    assert(plan(false, false, true, true) == EVALUATE);
+    assert(plan(false, false, false, true, true) == EVALUATE);
     assert(runs(EVALUATE));
 }
 
 test a_discard_with_no_call_at_the_top_of_a_fn_is_deleted {
     // collect_type_decls.t27's trailing `_ = "children_processed";`, and `_ = a + b;`, which then cannot trap.
-    assert(plan(false, false, true, false) == DELETED);
+    assert(plan(false, false, false, true, false) == DELETED);
     assert(!runs(DELETED));
 }
 
 test a_nested_discard_runs_with_or_without_a_call {
     // collect_type_decls.t27's `_ = "struct_fields_collected";` in an arm of an `if`; a nested
     // `_ = a + b;` traps on overflow, as the reference's does.
-    assert(plan(false, false, false, false) == EVALUATE);
-    assert(plan(false, false, false, true) == EVALUATE);
+    assert(plan(false, false, false, false, false) == EVALUATE);
+    assert(plan(false, false, false, false, true) == EVALUATE);
 }
 
 test a_bare_name_and_a_test_binding_are_left_alone {
-    assert(plan(true, false, true, false) == NOT_MINE);
-    assert(plan(true, false, false, true) == NOT_MINE);
-    assert(plan(true, true, false, true) == NOT_MINE);
-    assert(plan(false, true, false, true) == NOT_MINE);
-    assert(plan(false, true, false, false) == NOT_MINE);
+    assert(plan(true, false, false, true, false) == NOT_MINE);
+    assert(plan(true, false, false, false, true) == NOT_MINE);
+    assert(plan(true, true, false, false, true) == NOT_MINE);
+    assert(plan(false, true, false, false, true) == NOT_MINE);
+    assert(plan(false, true, false, false, false) == NOT_MINE);
     assert(!runs(NOT_MINE));
+}
+
+test every_discard_at_the_top_of_a_bench_runs {
+    // arty_a7_integration.t27's bench_integration_config: `_ = calc_baud_divisor(..);` (a u32), then
+    // `_ = verify_pin_config(..);` (a bool), each its own discard.
+    assert(plan(false, true, true, false, true) == EVALUATE);
+    assert(plan(false, true, true, false, false) == EVALUATE);
+    assert(runs(plan(false, true, true, false, true)));
+}
+
+test a_nested_discard_in_a_bench_runs_and_a_bare_name_there_is_left_alone {
+    assert(plan(false, false, true, false, true) == EVALUATE);
+    assert(plan(false, false, true, false, false) == EVALUATE);
+    // ternary_gates.t27's `_ = result;` closing each bench.
+    assert(plan(true, true, true, false, false) == NOT_MINE);
 }

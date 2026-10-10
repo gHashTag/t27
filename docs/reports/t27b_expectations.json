@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 27,
+ "max_not_pass": 25,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass"},
   {"path": "specs/a_b/c.t27", "t27b": "pass"},
@@ -263,7 +263,7 @@
   {"path": "specs/docs/system.t27", "t27b": "pass"},
   {"path": "specs/fpga/adapter.t27", "t27b": "pass"},
   {"path": "specs/fpga/assembler.t27", "t27b": "pass"},
-  {"path": "specs/fpga/boards/arty_a7_integration.t27", "t27b": "blocked", "blocker": "type mismatch", "reason": "unimplemented"},
+  {"path": "specs/fpga/boards/arty_a7_integration.t27", "t27b": "pass"},
   {"path": "specs/fpga/boards/qmtech_a100t_integration.t27", "t27b": "pass"},
   {"path": "specs/fpga/bootrom.t27", "t27b": "pass"},
   {"path": "specs/fpga/bpsk.t27", "t27b": "pass"},
@@ -355,7 +355,7 @@
   {"path": "specs/isa/t27a.t27", "t27b": "pass"},
   {"path": "specs/isa/t27a_mnemonics.t27", "t27b": "pass"},
   {"path": "specs/isa/ternary_encoding.t27", "t27b": "pass"},
-  {"path": "specs/isa/ternary_gates.t27", "t27b": "blocked", "blocker": "type mismatch", "reason": "unimplemented"},
+  {"path": "specs/isa/ternary_gates.t27", "t27b": "pass"},
   {"path": "specs/isa/ternary_graph.t27", "t27b": "pass"},
   {"path": "specs/isa/tri27_bytecode.t27", "t27b": "pass"},
   {"path": "specs/isa/tri27_machine.t27", "t27b": "pass"},

@@ -2523,7 +2523,7 @@ impl<'a> Lower<'a> {
         if name == "_" && (op.is_empty() || op == "=") {
             let (mut calls, top) = (Vec::new(), self.scopes.len() == 1);
             calls_in(std::slice::from_ref(rhs), &mut calls);
-            match dp::plan(rhs.kind == NodeKind::ExprIdentifier, self.in_test && top, !self.in_test && top, !calls.is_empty()) {
+            match dp::plan(rhs.kind == NodeKind::ExprIdentifier, self.in_test && top, self.in_bench, !self.in_test && top, !calls.is_empty()) {
                 dp::DELETED => return Ok(()),
                 dp::EVALUATE => return self.discard_value(rhs, out),
                 _ => {}
