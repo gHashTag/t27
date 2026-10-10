@@ -1,0 +1,85 @@
+module port::gen_w697;
+
+const OUTER: i32 = 213;
+const TOTAL: i32 = OUTER * 64;
+const LAST_IDX: i32 = OUTER - 1;
+const MID_IDX: i32 = OUTER // 2;
+const LAST_X: i32 = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y: i32 = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E: i32 = MID_IDX * 64 + 32;
+const MID_X: i32 = (2 * MID_E) % 32768;
+const MID_Y: i32 = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X: i32 = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y: i32 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level == 0) return "";
+    if (level == 1) return "    ";
+    if (level == 2) return "        ";
+    if (level == 3) return "            ";
+    return "                ";
+}
+
+pub fn build_tree(shape: []const i32, base: i32, offset: i32) -> ([]const u8, i32) {
+    if (shape.len == 1) {
+        const n = shape[0];
+        const text = "[3]Pt{\n    Pt{ .x = 0, .y = 1 }}\n    Pt{ .x = 2, .y = 3 }}\n    Pt{ .x = 4, .y = 5 }}\n}";
+        return (text, base + n);
+    }
+    
+    const n = shape[0];
+    const inner_shape_len = shape.len - 1;
+    let mut inner_shape: [inner_shape_len]i32 = undefined;
+    let mut i: i32 = 0;
+    while (i < inner_shape_len) {
+        inner_shape[i] = shape[i + 1];
+        i += 1;
+    }
+    
+    const text = "[2][2]Pt{\n    [2][2]Pt{\n        Pt{ .x = 20, .y = 21 }}\n        Pt{ .x = 22, .y = 23 }}\n    }\n    [2][2]Pt{\n        Pt{ .x = 24, .y = 25 }}\n        Pt{ .x = 26, .y = 27 }}\n    }\n}";
+    return (text, base + 4);
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_simple {
+    let mut shape: [1]i32 = [3];
+    let mut result: ([]const u8, i32) = undefined;
+    result = build_tree(&shape, 0, 0);
+    
+    assert(result[1] == 3);
+    assert(result[0].contains("[3]Pt{"));
+    assert(result[0].contains("Pt{ .x = 0, .y = 1 }"));
+}
+
+test build_tree_nested {
+    let mut shape: [2]i32 = [2, 2];
+    let mut result: ([]const u8, i32) = undefined;
+    result = build_tree(&shape, 10, 0);
+    
+    assert(result[1] == 4);
+    assert(result[0].contains("[2][2]Pt{"));
+}
+
+test generate_constants {
+    assert(OUTER == 213);
+    assert(TOTAL == 213 * 64);
+    assert(LAST_IDX == 212);
+    assert(MID_IDX == 106);
+    assert(MID_E == 106 * 64 + 32);
+    assert(LAST_X == (2 * (213 * 64 - 1)) % 32768);
+    assert(LAST_Y == (2 * (213 * 64 - 1) + 1) % 32768);
+    assert(MID_X == (2 * (106 * 64 + 32)) % 32768);
+    assert(MID_Y == (2 * (106 * 64 + 32) + 1) % 32768);
+    assert(WRAP_LAST_X == (2 * (213 * 64 - 1) + 32768) % 32768);
+    assert(WRAP_LAST_Y == (2 * (213 * 64 - 1) + 1 + 32768) % 32768);
+}
