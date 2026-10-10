@@ -1,0 +1,406 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/statement.t27 -- the hosts' epoch statement: what each host key was credited and slashed
+; in one epoch, by kind, under one signed Merkle root any host can check its own leaf against
+; gHashTag/trios#1761 (slice 1b of gHashTag/trios#1756), lane B. The owner's decision of 2026-10-10
+; (gHashTag/t27#8613, see #8607 and #8618): the network pays for work, by kind; credits are
+; non-transferable until counsel opens a value gate; TON is the one chain of record.
+; --
+; Reused, not restated:
+; - network/mvp.t27: the roles and the kind a role earns (fee_kind_of: the executor's receipt earns
+;   EXECUTOR_FEE, a verifier's VERIFIER_FEE) and the slash entry (ENTRY_SLASH, not a payment kind).
+; - verified/payout.t27: the payment kinds, payment_kind_known, CREDIT_TRANSFERABLE false.
+; - verified/corpus_receipt.t27: the tree. RFC 6962 section 2.1, LEAF_PREFIX and NODE_PREFIX, split
+;   at split_point(n); verified/corpus_merkle.t27 pins it with SHA-256 vectors.
+; - verified/signed_receipt.t27: the message layout (a domain line, then name=value per field).
+; - trinet/tri-bridge.t27: CHAIN_OF_RECORD is CHAIN_TON, the only minter.
+; - hosting/credit.t27: SETTLEMENT_ENABLED false and TOKEN_VALUE_CLAIMED false.
+; --
+; Who earns which kind for a shard. The agreeing receipts of a job, in the order they arrived, are its
+; signers: the first is the executor and every later one re-ran it as a verifier (fee_kind_of). A job
+; with a known answer (hosting/sybil.t27: a lab row or a canary) was executed before it was leased, so
+; every agreeing receipt on it is a verifier's. A service's uptime, checked by challenge probes, is
+; the provider's work and earns PROVIDER_FEE (slice 2 runs services; slice 1b has no such row). A
+; disagreeing receipt is slashed (sybil.t27). BOUNTY and AUTHOR_ROYALTY are paid for pull requests and
+; authorship (network/attribution.t27 and usage.t27), never to a host for a shard, so no leaf has them.
+; --
+; The epoch. EPOCH_SECONDS long, numbered from EPOCH_ORIGIN_UNIX (2026-10-10T00:00:00Z, the day of
+; the decision). A ledger row belongs to the epoch of its time. Epoch n closes once the clock is past
+; its end, in order (n is the next unclosed epoch), exactly once: the store keeps one statement per n
+; and the Queen closes under its transaction lock. A closed epoch admits no row. The first epoch is the
+; epoch of the first ledger row; every later one closes, empty or not, so the chain of statements has
+; no gap.
+; --
+; The leaf: one per (host, kind) that has rows in the epoch, sorted by host key id and then by kind.
+; Its text is signed_receipt.t27's layout: the domain line LEAF_DOMAIN, then `name=value` per
+; LEAF_FIELDS, every value as JSON, every line ending in a newline. `mtri` is the sum of the rows;
+; `receipts` the sorted ids of the receipts (leases) behind them. The leaf hash is SHA-256 of
+; LEAF_PREFIX followed by that text; a node is SHA-256 of NODE_PREFIX, the left hash and the right.
+; --
+; The statement: the domain line STATEMENT_DOMAIN, then `name=value` per STATEMENT_FIELDS, signed with
+; the Queen's Ed25519 key. `prev` is the SHA-256 of the previous statement's signed text (GENESIS_PREV
+; for the first), so a statement cannot be rewritten without breaking every later one. `chain` names
+; the chain of record a settlement would use; `settlement` is "shut" and `transferable` false.
+; --
+; How a host checks its own credit (verify_code, in this order): the statement's signature verifies
+; under the Queen's published key; the leaf names this host; the proof has the shape audit_path_len
+; gives for (index, size); hashing the leaf up the path, each sibling on the side sibling_left names,
+; gives the statement's root.
+; --
+; Settlement is defined and shut. No function here moves a balance between keys, and nothing calls a
+; chain: the statement is a record of work, not a transfer. settlement_gate_open is false until
+; VALUE_GATE_OPEN is set by a spec change after counsel, and SETTLEMENT_ENABLED with it.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingStatement;
+
+use network::mvp::fee_kind_of;
+use network::mvp::role_of;
+use network::mvp::ROLE_EXECUTOR;
+use network::mvp::ROLE_VERIFIER;
+use network::mvp::SIGNER_EXECUTOR;
+use network::mvp::ENTRY_SLASH;
+use verified::payout::BOUNTY;
+use verified::payout::EXECUTOR_FEE;
+use verified::payout::PROVIDER_FEE;
+use verified::payout::VERIFIER_FEE;
+use verified::payout::AUTHOR_ROYALTY;
+use verified::payout::payment_kind_known;
+use verified::payout::CREDIT_TRANSFERABLE;
+use verified::corpus_receipt::LEAF_PREFIX;
+use verified::corpus_receipt::NODE_PREFIX;
+use verified::corpus_receipt::split_point;
+use trinet::tri-bridge::CHAIN_OF_RECORD;
+use trinet::tri-bridge::CHAIN_TON;
+use hosting::credit::SETTLEMENT_ENABLED;
+use hosting::credit::TOKEN_VALUE_CLAIMED;
+use hosting::host::WC_SHARD;
+use hosting::host::WC_SERVICE;
+
+; --- 1. The kinds ---------------------------------------------------------------------------------------
+
+/// The kind one agreeing receipt earns. index: its place among the job's agreeing receipts, by
+/// arrival, from 0. A known answer was the execution, so every receipt on it verifies.
+pub fn shard_kind(known_answer: bool, index: u32) -> u8 {
+    if (known_answer) { return fee_kind_of(index + 1); }
+    return fee_kind_of(index);
+}
+
+/// The kind a host's work earns, by workload class.
+pub fn work_kind(class: u8, known_answer: bool, index: u32) -> u8 {
+    if (class == WC_SERVICE) { return PROVIDER_FEE; }
+    if (class == WC_SHARD) { return shard_kind(known_answer, index); }
+    return 0;
+}
+
+/// The kinds a host's leaf may carry: the three fees, and the slash.
+pub fn leaf_kind_known(kind: u8) -> bool {
+    if (kind == ENTRY_SLASH) { return true; }
+    if (payment_kind_known(kind) == false) { return false; }
+    return kind != BOUNTY and kind != AUTHOR_ROYALTY;
+}
+
+/// The word a kind is written as in a leaf, indexed by kind.
+pub const KIND_WORDS : [10]str = ["", "bounty", "executor_fee", "provider_fee", "verifier_fee", "author_royalty", "", "", "", "slash"];
+
+/// A slash entry subtracts; every fee adds. A balance never goes below zero.
+pub fn balance_after_entry(balance: u64, kind: u8, mtri: u64) -> u64 {
+    if (kind == ENTRY_SLASH) {
+        if (mtri > balance) { return 0; }
+        return balance - mtri;
+    }
+    if (mtri > 18446744073709551615 - balance) { return 18446744073709551615; }
+    return balance + mtri;
+}
+
+; --- 2. Epochs ------------------------------------------------------------------------------------------
+
+/// One day.
+pub const EPOCH_SECONDS : u64 = 86400;
+/// 2026-10-10T00:00:00Z.
+pub const EPOCH_ORIGIN_UNIX : u64 = 1791590400;
+/// The most epochs one call closes, so a Queen back after a long stop catches up in steps.
+pub const CLOSES_PER_CALL_MAX : u32 = 64;
+
+pub fn epoch_of(unix: u64) -> u64 {
+    if (unix < EPOCH_ORIGIN_UNIX) { return 0; }
+    return (unix - EPOCH_ORIGIN_UNIX) / EPOCH_SECONDS;
+}
+
+pub fn epoch_from(n: u64) -> u64 {
+    return EPOCH_ORIGIN_UNIX + (n * EPOCH_SECONDS);
+}
+
+/// The first second after epoch n.
+pub fn epoch_to(n: u64) -> u64 {
+    return epoch_from(n + 1);
+}
+
+/// The epoch to close next: after the last closed one, or the epoch of the first ledger row.
+pub fn next_to_close(any_closed: bool, last_closed: u64, first_row_epoch: u64) -> u64 {
+    if (any_closed) { return last_closed + 1; }
+    return first_row_epoch;
+}
+
+/// Whether epoch n closes now: it is the next to close, and the clock is past its end.
+pub fn epoch_closes(n: u64, next: u64, now_epoch: u64, has_rows: bool, any_closed: bool) -> bool {
+    if (any_closed == false and has_rows == false) { return false; }
+    if (n != next) { return false; }
+    return n < now_epoch;
+}
+
+/// Whether a row may be written into epoch n: only while n has not closed.
+pub fn row_epoch_open(n: u64, next: u64, any_closed: bool) -> bool {
+    if (any_closed == false) { return true; }
+    return n >= next;
+}
+
+; --- 3. The leaf and the statement ------------------------------------------------------------------------
+
+pub const LEAF_DOMAIN : str = "t27-hosting-epoch-leaf-v1";
+pub const LEAF_FIELDS : [5]str = ["epoch", "host", "kind", "mtri", "receipts"];
+pub const LEAF_FIELD_COUNT : u8 = 5;
+
+pub const STATEMENT_DOMAIN : str = "t27-hosting-epoch-v1";
+pub const STATEMENT_FIELDS : [11]str = ["epoch", "from_unix", "to_unix", "leaves", "root", "prev", "credit_mtri", "slash_mtri", "chain", "settlement", "transferable"];
+pub const STATEMENT_FIELD_COUNT : u8 = 11;
+/// The prev of the first statement.
+pub const GENESIS_PREV : str = "0000000000000000000000000000000000000000000000000000000000000000";
+/// tri-bridge.t27's chain of record, as a statement names it.
+pub const CHAIN_WORD : str = "ton";
+pub const SETTLEMENT_SHUT_WORD : str = "shut";
+
+/// Whether leaf a sorts before leaf b: host_order is the byte order of their host key ids (negative,
+/// zero or positive, as the caller compared them), then the kind.
+pub fn leaf_before(host_order: i32, kind_a: u8, kind_b: u8) -> bool {
+    if (host_order < 0) { return true; }
+    if (host_order > 0) { return false; }
+    return kind_a < kind_b;
+}
+
+; --- 4. The inclusion proof -------------------------------------------------------------------------------
+
+/// The siblings on the path from leaf m to the root of a tree of n leaves (RFC 6962 2.1.1).
+pub fn audit_path_len(m: u32, n: u32) -> u32 {
+    var len : u32 = 0;
+    var at : u32 = m;
+    var size : u32 = n;
+    while (size > 1) {
+        let k : u32 = split_point(size);
+        if (at < k) {
+            size = k;
+        } else {
+            at = at - k;
+            size = size - k;
+        }
+        len = len + 1;
+    }
+    return len;
+}
+
+/// Whether the i-th sibling up from leaf m (i = 0 is the leaf's own) is the left operand of its node.
+/// The walk goes down from the root; the sibling i up is the one met at step len - 1 - i.
+pub fn sibling_left(m: u32, n: u32, i: u32) -> bool {
+    let len : u32 = audit_path_len(m, n);
+    if (i >= len) { return false; }
+    let target : u32 = len - 1 - i;
+    var step : u32 = 0;
+    var at : u32 = m;
+    var size : u32 = n;
+    while (size > 1) {
+        let k : u32 = split_point(size);
+        let right_side : bool = at >= k;
+        if (step == target) { return right_side; }
+        if (right_side) {
+            at = at - k;
+            size = size - k;
+        } else {
+            size = k;
+        }
+        step = step + 1;
+    }
+    return false;
+}
+
+/// verify_code() answers, in the order a host checks.
+pub const VF_OK : u8 = 0;
+pub const VF_BAD_SIGNATURE : u8 = 1;
+pub const VF_NOT_MY_LEAF : u8 = 2;
+pub const VF_BAD_SHAPE : u8 = 3;
+pub const VF_ROOT_MISMATCH : u8 = 4;
+
+pub fn proof_shape_ok(m: u32, n: u32, path_len: u32) -> bool {
+    if (n == 0 or m >= n) { return false; }
+    return path_len == audit_path_len(m, n);
+}
+
+/// The first check a host's own leaf fails, or VF_OK.
+pub fn verify_code(signature_ok: bool, leaf_is_mine: bool, shape_ok: bool, root_matches: bool) -> u8 {
+    if (signature_ok == false) { return VF_BAD_SIGNATURE; }
+    if (leaf_is_mine == false) { return VF_NOT_MY_LEAF; }
+    if (shape_ok == false) { return VF_BAD_SHAPE; }
+    if (root_matches == false) { return VF_ROOT_MISMATCH; }
+    return VF_OK;
+}
+
+; --- 5. Settlement: defined and shut ----------------------------------------------------------------------
+
+/// Counsel's value gate. A spec change sets it, never a flag or an environment variable.
+pub const VALUE_GATE_OPEN : bool = false;
+
+/// Whether any statement may be settled on the chain of record. While this is false, a statement is a
+/// record and nothing more.
+pub fn settlement_gate_open(counsel_cleared: bool, chain: u8) -> bool {
+    if (VALUE_GATE_OPEN == false) { return false; }
+    if (SETTLEMENT_ENABLED == false) { return false; }
+    if (counsel_cleared == false) { return false; }
+    return chain == CHAIN_OF_RECORD;
+}
+
+; --- tests ------------------------------------------------------------------------------------------------
+
+test the_executor_and_the_verifiers_are_paid_by_kind {
+    assert shard_kind(false, 0) == EXECUTOR_FEE;
+    assert shard_kind(false, 1) == VERIFIER_FEE;
+    assert shard_kind(false, 2) == VERIFIER_FEE;
+    // a known answer was the execution
+    assert shard_kind(true, 0) == VERIFIER_FEE;
+    assert shard_kind(true, 1) == VERIFIER_FEE;
+    // the same kinds the network MVP pays, from its own roles
+    assert shard_kind(false, SIGNER_EXECUTOR) == fee_kind_of(SIGNER_EXECUTOR);
+    assert role_of(SIGNER_EXECUTOR) == ROLE_EXECUTOR;
+    assert role_of(1) == ROLE_VERIFIER;
+    assert work_kind(WC_SERVICE, false, 0) == PROVIDER_FEE;
+    assert work_kind(WC_SHARD, false, 0) == EXECUTOR_FEE;
+    assert work_kind(WC_SHARD, true, 0) == VERIFIER_FEE;
+    assert work_kind(7, false, 0) == 0;
+}
+
+test a_leaf_carries_fees_and_slashes_only {
+    assert leaf_kind_known(EXECUTOR_FEE) == true;
+    assert leaf_kind_known(PROVIDER_FEE) == true;
+    assert leaf_kind_known(VERIFIER_FEE) == true;
+    assert leaf_kind_known(ENTRY_SLASH) == true;
+    assert leaf_kind_known(BOUNTY) == false;
+    assert leaf_kind_known(AUTHOR_ROYALTY) == false;
+    assert leaf_kind_known(0) == false;
+    assert leaf_kind_known(6) == false;
+    assert payment_kind_known(ENTRY_SLASH) == false;
+}
+
+test a_slash_subtracts_and_a_balance_never_goes_negative {
+    assert balance_after_entry(10, EXECUTOR_FEE, 1) == 11;
+    assert balance_after_entry(10, VERIFIER_FEE, 5) == 15;
+    assert balance_after_entry(10, ENTRY_SLASH, 4) == 6;
+    assert balance_after_entry(3, ENTRY_SLASH, 4) == 0;
+    assert balance_after_entry(18446744073709551615, EXECUTOR_FEE, 1) == 18446744073709551615;
+}
+
+test an_epoch_is_a_day_from_the_decision {
+    assert epoch_of(EPOCH_ORIGIN_UNIX) == 0;
+    assert epoch_of(EPOCH_ORIGIN_UNIX + EPOCH_SECONDS - 1) == 0;
+    assert epoch_of(EPOCH_ORIGIN_UNIX + EPOCH_SECONDS) == 1;
+    assert epoch_of(EPOCH_ORIGIN_UNIX - 1) == 0;
+    assert epoch_from(1) == EPOCH_ORIGIN_UNIX + EPOCH_SECONDS;
+    assert epoch_to(0) == epoch_from(1);
+    assert epoch_of(epoch_to(5) - 1) == 5;
+}
+
+test an_epoch_closes_once_in_order_after_its_end {
+    // nothing to close before the first row
+    assert epoch_closes(0, 0, 3, false, false) == false;
+    // the first row's epoch closes once the clock is past it
+    assert next_to_close(false, 0, 2) == 2;
+    assert epoch_closes(2, 2, 3, true, false) == true;
+    assert epoch_closes(2, 2, 2, true, false) == false;
+    // later epochs close in order, empty or not
+    assert next_to_close(true, 2, 0) == 3;
+    assert epoch_closes(3, 3, 9, false, true) == true;
+    assert epoch_closes(4, 3, 9, false, true) == false;
+    assert epoch_closes(2, 3, 9, true, true) == false;
+    // a closed epoch admits no row
+    assert row_epoch_open(2, 3, true) == false;
+    assert row_epoch_open(3, 3, true) == true;
+    assert row_epoch_open(0, 0, false) == true;
+}
+
+test leaves_sort_by_host_then_kind {
+    assert leaf_before(-1, VERIFIER_FEE, EXECUTOR_FEE) == true;
+    assert leaf_before(1, EXECUTOR_FEE, VERIFIER_FEE) == false;
+    assert leaf_before(0, EXECUTOR_FEE, VERIFIER_FEE) == true;
+    assert leaf_before(0, ENTRY_SLASH, VERIFIER_FEE) == false;
+    assert leaf_before(0, EXECUTOR_FEE, EXECUTOR_FEE) == false;
+}
+
+test the_path_is_rfc_6962s {
+    // one leaf: no siblings
+    assert audit_path_len(0, 1) == 0;
+    // two leaves
+    assert audit_path_len(0, 2) == 1;
+    assert sibling_left(0, 2, 0) == false;
+    assert sibling_left(1, 2, 0) == true;
+    // five leaves split 4 + 1: leaf 4's only sibling is the left four
+    assert audit_path_len(4, 5) == 1;
+    assert sibling_left(4, 5, 0) == true;
+    // leaf 0 of five: three siblings, all on the right
+    assert audit_path_len(0, 5) == 3;
+    assert sibling_left(0, 5, 0) == false;
+    assert sibling_left(0, 5, 1) == false;
+    assert sibling_left(0, 5, 2) == false;
+    // leaf 3 of five: D[2] on the left, then D[0..2] on the left, then D[4] on the right
+    assert audit_path_len(3, 5) == 3;
+    assert sibling_left(3, 5, 0) == true;
+    assert sibling_left(3, 5, 1) == true;
+    assert sibling_left(3, 5, 2) == false;
+    // leaf 6 of seven (4 + 3, then 2 + 1)
+    assert audit_path_len(6, 7) == 2;
+    assert sibling_left(6, 7, 0) == true;
+    assert sibling_left(6, 7, 1) == true;
+    // past the path
+    assert sibling_left(3, 5, 3) == false;
+    assert split_point(5) == 4;
+}
+
+test a_host_checks_its_leaf_in_order {
+    assert verify_code(true, true, true, true) == VF_OK;
+    assert verify_code(false, true, true, true) == VF_BAD_SIGNATURE;
+    assert verify_code(true, false, true, true) == VF_NOT_MY_LEAF;
+    assert verify_code(true, true, false, true) == VF_BAD_SHAPE;
+    assert verify_code(true, true, true, false) == VF_ROOT_MISMATCH;
+    assert verify_code(false, false, false, false) == VF_BAD_SIGNATURE;
+    assert proof_shape_ok(3, 5, 3) == true;
+    assert proof_shape_ok(3, 5, 2) == false;
+    assert proof_shape_ok(5, 5, 0) == false;
+    assert proof_shape_ok(0, 0, 0) == false;
+    assert proof_shape_ok(0, 1, 0) == true;
+}
+
+test settlement_stays_shut {
+    assert settlement_gate_open(true, CHAIN_TON) == false;
+    assert settlement_gate_open(false, CHAIN_TON) == false;
+    assert settlement_gate_open(true, 3) == false;
+    assert CHAIN_OF_RECORD == CHAIN_TON;
+}
+
+/// A record of work, never a transfer: no value moves, and no second supply exists.
+invariant nothing_moves_value {
+    assert VALUE_GATE_OPEN == false;
+    assert SETTLEMENT_ENABLED == false;
+    assert CREDIT_TRANSFERABLE == false;
+    assert TOKEN_VALUE_CLAIMED == false;
+    assert CHAIN_OF_RECORD == CHAIN_TON;
+}
+/// The tree's prefixes and the message shapes.
+invariant the_formats_are_fixed {
+    assert LEAF_PREFIX == 0 and NODE_PREFIX == 1;
+    assert LEAF_FIELD_COUNT == 5;
+    assert STATEMENT_FIELD_COUNT == 11;
+    assert EPOCH_SECONDS == 86400;
+    assert VF_OK == 0 and VF_BAD_SIGNATURE == 1 and VF_NOT_MY_LEAF == 2 and VF_BAD_SHAPE == 3 and VF_ROOT_MISMATCH == 4;
+}
+/// The kinds are the payout's, and a slash is none of them.
+invariant the_kinds_are_reused {
+    assert EXECUTOR_FEE == 2 and PROVIDER_FEE == 3 and VERIFIER_FEE == 4;
+    assert ENTRY_SLASH == 9;
+    assert CLOSES_PER_CALL_MAX > 0;
+}

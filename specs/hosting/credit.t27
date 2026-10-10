@@ -2,14 +2,14 @@
 ; specs/hosting/credit.t27 -- what a verified shard earns its host: TRI credit, off-chain, only on the
 ; agreeing side, once; strikes; and the settlement that stays off
 ; gHashTag/trios#1756, constraint 3: TRI accrues off-chain in the MVP. The ledger is keyed by host key.
-; On-chain settlement needs a host identity the pool accepts and the legal review FACTS.md requires;
+; On-chain settlement needs a device-bound host identity and counsel's value gate (hosting/statement.t27);
 ; the MVP pays nothing on-chain and claims no token value.
 ; --
-; Facts this card is held to (gHashTag/golden-chain-international FACTS.md section 6): TriToken lives on
-; Base Sepolia, a testnet; all of its supply sits in MiningPool, and both contracts' ownership is
-; renounced; a token leaves the pool only as a reward for a verified compute proof from a registered
-; chip; any promise of token income for hardware or compute needs legal review first. A host here is a
-; key on a computer, not a registered chip, so nothing here can be a claim on that pool.
+; The chain of record (the owner, 2026-10-10, gHashTag/t27#8618): TON, through trinet/tri-bridge.t27, the
+; one minter. The Base Sepolia TriToken that gHashTag/golden-chain-international FACTS.md section 6
+; describes is not a second supply, and nothing here is a claim on it or on its pool. Any promise of
+; token income for hardware or compute needs legal review first. A host here is a key on a computer,
+; not a registered chip.
 ; --
 ; Reused, not restated:
 ; - verified/payout.t27: the payment kinds (a shard's credit is an EXECUTOR_FEE), CREDIT_TRANSFERABLE
@@ -28,12 +28,15 @@
 ;   (host, job, kind): a host is credited for a job once, and struck for it at most once.
 ; --
 ; Strikes (host.t27 suspended): a receipt this host's key signed that proof.t27 calls tampered, or a vote
-; on the losing side of an agreed job. A host is never struck when no quorum formed. Nothing is ever
-; taken from a balance: with no stake there is nothing to slash, and a strike only stops placement.
+; on the losing side of an agreed job. A host is never struck when no quorum formed. Since slice 1b
+; (gHashTag/trios#1761), a disagreeing receipt is also slashed (hosting/sybil.t27): the key forfeits its
+; credit of the current epoch, up to its cap, and nothing moves to another key. The kind each credit is
+; paid as, executor's or verifier's, is hosting/statement.t27's.
 ; --
 ; The ledger: append-only rows (host, job, kind, mTRI, time); a balance is the sum of a host's credit
-; rows. The public read shows each host's key id, tier, balance, credited jobs and strikes, and the
-; settlement state; never an address, an origin or a key file.
+; rows less its slash rows (statement.t27 balance_after_entry). The public read shows each host's key
+; id, tier, balance, credited jobs and strikes, and the settlement state; never an address, an origin
+; or a key file.
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -54,7 +57,7 @@ use hosting::proof::SIDE_NONE;
 
 ; --- 1. Credit --------------------------------------------------------------------------------------
 
-/// A shard's credit is paid as this kind (payout.t27).
+/// The kind slice 1 paid every agreeing vote as (payout.t27); statement.t27 names the kind per vote.
 pub const CREDIT_KIND : u8 = 2;
 
 /// The attestation a host's vote reaches: its key signed it; it is reproduced when it is on the agreeing
@@ -83,7 +86,9 @@ pub fn strike_due(attributable_tamper: bool, side: u8, already_struck: bool) -> 
 
 pub const LE_CREDIT : u8 = 0;
 pub const LE_STRIKE : u8 = 1;
-pub const LEDGER_KINDS : u8 = 2;
+/// Slice 1b: a slash row, once per (host, job), carrying the mTRI the key forfeited (sybil.t27).
+pub const LE_SLASH : u8 = 2;
+pub const LEDGER_KINDS : u8 = 3;
 
 pub const BALANCE_MAX : u64 = 18446744073709551615;
 
@@ -137,6 +142,8 @@ test a_job_is_credited_once {
     assert row_admitted(LE_CREDIT, true) == false;
     assert row_admitted(LE_STRIKE, false) == true;
     assert row_admitted(LE_STRIKE, true) == false;
+    assert row_admitted(LE_SLASH, false) == true;
+    assert row_admitted(LE_SLASH, true) == false;
     assert row_admitted(LEDGER_KINDS, false) == false;
 }
 
@@ -189,5 +196,5 @@ invariant credit_is_off_chain {
 invariant the_rate_and_kind_are_reused {
     assert CREDIT_KIND == EXECUTOR_FEE;
     assert REWARD_PER_JOB_MTRI == 1;
-    assert LE_CREDIT == 0 and LE_STRIKE == 1 and LEDGER_KINDS == 2;
+    assert LE_CREDIT == 0 and LE_STRIKE == 1 and LE_SLASH == 2 and LEDGER_KINDS == 3;
 }
