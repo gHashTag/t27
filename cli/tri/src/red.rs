@@ -530,6 +530,26 @@ fn streak(repo: &str, id: &str, branch: &str, deep: bool) -> Result<(usize, Stri
     Ok((n, since, bounded))
 }
 
+/// Check if a workflow name matches any of the dormant workflow patterns
+fn is_dormant_workflow(workflow_name: &str) -> bool {
+    const DORMANT_PATTERNS: [&str; 5] = [
+        "AX7203 Corona Compute *",
+        "FPGA HSLM Bitstream", 
+        "FPGA Bitstream Generation",
+        "FPGA Docker Build",
+        "Orphaned artefacts"
+    ];
+    
+    DORMANT_PATTERNS.iter().any(|pattern| {
+        if pattern.ends_with('*') {
+            let prefix = &pattern[..pattern.len() - 1];
+            workflow_name.starts_with(prefix)
+        } else {
+            workflow_name == pattern
+        }
+    })
+}
+
 fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
     let mut reds: Vec<Red> = Vec::new();
     for repo in repos {
@@ -557,6 +577,12 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
                 (Some(a), Some(b)) => (a, b),
                 _ => continue,
             };
+            
+            // Skip dormant workflows that should be filtered out
+            if is_dormant_workflow(name) {
+                continue;
+            }
+            
             // The same one request now also returns WHEN. It cost nothing to
             // ask, and without it this command cannot tell "failing now" from
             // "last seen failing on a branch that no longer exists".
@@ -690,6 +716,26 @@ fn now(repos: &[String], include_cancelled: bool, deep: bool) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn is_dormant_workflow_identifies_dormant_patterns() {
+        // Test exact matches
+        assert!(super::is_dormant_workflow("FPGA HSLM Bitstream"));
+        assert!(super::is_dormant_workflow("FPGA Bitstream Generation"));
+        assert!(super::is_dormant_workflow("FPGA Docker Build"));
+        assert!(super::is_dormant_workflow("Orphaned artefacts"));
+        
+        // Test prefix matches for patterns ending with *
+        assert!(super::is_dormant_workflow("AX7203 Corona Compute TF32-MUL"));
+        assert!(super::is_dormant_workflow("AX7203 Corona Compute FP32-ADD"));
+        assert!(super::is_dormant_workflow("AX7203 Corona Compute INT8-CVT"));
+        
+        // Test that non-matching workflows are not identified as dormant
+        assert!(!super::is_dormant_workflow("S³AI Brain CI"));
+        assert!(!super::is_dormant_workflow("Orphaned files")); // Different from "Orphaned artefacts"
+        assert!(!super::is_dormant_workflow("FPGA Build Script")); // Different from "FPGA Docker Build"
+        assert!(!super::is_dormant_workflow("Regular workflow"));
+    }
 
     #[test]
     fn a_streak_with_two_causes_is_two_incidents() {

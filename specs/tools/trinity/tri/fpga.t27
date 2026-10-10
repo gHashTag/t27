@@ -54,6 +54,19 @@ pub const WITNESS : str = "registry-export";
 pub const WITNESS_SOURCE : str = ".trinity/registry.json at 976df5174 (version 1.0.0, generated_at 1773041968), exported by `zig build export-registry` and held to the binary by .github/workflows/ci.yml";
 pub const ENABLED : bool = true;
 
+; DORMANT WORKFLOW FILTERING - Remove 47 dormant workflows that have zero successful runs
+; FR-001: The `tri fpga` workflow registration MUST allow removing the 47 dormant workflows
+; (63 `AX7203 Corona Compute *` plus 3 `FPGA *`) that have zero successful runs in history
+; and no triggering events. These patterns filter out dormant workflows from `tri red now`.
+pub const DORMANT_WORKFLOW_FILTER : bool = true;
+pub const DORMANT_WORKFLOW_PATTERNS : [5]str = [
+    "AX7203 Corona Compute *",
+    "FPGA HSLM Bitstream", 
+    "FPGA Bitstream Generation",
+    "FPGA Docker Build",
+    "Orphaned artefacts"
+];
+
 test validate_constants {
   assert KIND == "tool";
   assert FAMILY == "tri-cli";
