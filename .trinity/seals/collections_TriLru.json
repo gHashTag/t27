@@ -1,29 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
-  "closure": [
-    {
-      "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
-    },
-    {
-      "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
-    }
-  ],
+  "built_by": "t27c-bootstrap@0.5.2+unknown",
+  "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:4c6c766c3224c193a1c33e9573190895d2f19d75567d1322c0b1474787ef7729",
-  "gen_hash_rust": "sha256:f59360c1fc5df4c38fca429c1e52286e41dddda259c0c55b57d726433d3c1c5c",
-  "gen_hash_verilog": "sha256:21c70743b2818f829a0f9009ee641d64fbc8dd8830401f711ff9d23ea87c8a2c",
-  "gen_hash_zig": "sha256:542fced445f98fa90c670efe0470f507103b1607d4fbfa45c98f573b4dbcd18c",
+  "gen_hash_c": "sha256:8a01e0c4afada8534ac573a21692317289678178d2f3a4a95dd09ae5997d809f",
+  "gen_hash_rust": "sha256:7477bb9446552e88ab657abda3cfe54b068391a73c1782a9d7a73d3108c8382a",
+  "gen_hash_verilog": "sha256:5072890ae7d439d238287ee2e2faf1b0ca40bb8441f8b4dd4d4c702e0e7bac97",
+  "gen_hash_zig": "sha256:20a8d01cee36b1574828bf9aea7393c8d719646e93726d1abcfb6daee37746bb",
   "module": "TriLru",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T15:02:27Z",
+  "sealed_at": "2026-10-10T18:58:54Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:9db7b9aae9df933cfa9bffb07a24966ba99f4f39e795c642d8bea66cb3ffdfbc",
+  "spec_hash": "sha256:91a857c0744d7ded5c97858df3435a471c0b5396e147e8453581696178706739",
   "spec_path": "specs/tri/collections/lru.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:22:26: error: use of undeclared identifier 'K'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

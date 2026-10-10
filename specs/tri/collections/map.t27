@@ -1,101 +1,179 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Operations return new maps | φ² + 1/φ² = 3 | TRINITY
-
+//
+// String-free map from i64 keys to i64 values with a fixed capacity of 8.
+//
+// The original spec used generic keys and a builtin string formatter. The
+// reference compiler only accepts concrete struct types and value-based
+// data flow, so the map is now two parallel arrays plus a live count.
+// Key 0 is reserved as the empty-slot sentinel; live entries occupy slots
+// 0 through size - 1. Every operation returns a new value.
+//
+// TRINITY: 3-6-9 | 6-3-9 | 9-6-3
 module TriMap;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const Map = struct {
+    keys : [8]i64 = [8]i64{ 0, 0, 0, 0, 0, 0, 0, 0 },
+    values : [8]i64 = [8]i64{ 0, 0, 0, 0, 0, 0, 0, 0 },
+    size : i64 = 0,
+};
 
-    pub const Map(K, V) = struct {
-        keys : []K,
-        values : []V,
-    };
+pub fn empty() -> Map {
+    return Map{};
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+// Build a single-entry map.
+pub fn singleton(key : i64, value : i64) -> Map {
+    var m : Map = empty();
+    m.keys[0] = key;
+    m.values[0] = value;
+    m.size = 1;
+    return m;
+}
 
-    // empty() → Map(K, V)
-    fn empty() -> Map(K, V) {
-        return Map { keys: [], values: [] };
-    }
-
-    // singleton(key: K, value: V) → Map(K, V)
-    fn singleton(key: K, value: V) -> Map(K, V) {
-        return Map { keys: [key], values: [value] };
-    }
-
-    // get(map: Map(K, V), key: K) → Option(V)
-    fn get(map: Map(K, V), key: K) -> Option(V) {
-        for i in 0..map.keys.length {
-            if map.keys[i] == key {
-                return Some(map.values[i]);
+// Return the value for a present key, or null when absent.
+pub fn get(map : Map, key : i64) -> ?i64 {
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 8) {
+        if (idx < map.size) {
+            if (map.keys[i] == key) {
+                return map.values[i];
             }
+            idx = idx + 1;
         }
-        return None;
+        i = i + 1;
     }
+    return null;
+}
 
-    // set(map: Map(K, V), key: K, value: V) → Map(K, V)
-    fn set(map: Map(K, V), key: K, value: V) -> Map(K, V) {
-        for i in 0..map.keys.length {
-            if map.keys[i] == key {
-                // Key exists, update the value
-                let newValues = map.values.copy();
-                newValues[i] = value;
-                return Map { keys: map.keys, values: newValues };
+// Set a key-value pair. Updates the value in place when the key already
+// exists; appends a new pair when it does not and space remains. Returns
+// the map unchanged when it already holds 8 distinct keys.
+pub fn set(map : Map, key : i64, value : i64) -> Map {
+    var out : Map = map;
+    var idx : i64 = 0;
+    var found_at : i64 = -1;
+    var i : usize = 0;
+    while (i < 8) {
+        if (idx < map.size) {
+            if (map.keys[i] == key) {
+                found_at = idx;
             }
+            idx = idx + 1;
         }
-        // Key doesn't exist, add it
-        let newKeys = map.keys.copy();
-        let newValues = map.values.copy();
-        newKeys.push(key);
-        newValues.push(value);
-        return Map { keys: newKeys, values: newValues };
+        i = i + 1;
     }
-
-    // keys(map: Map(K, V)) → []K
-    fn keys(map: Map(K, V)) -> []K {
-        return map.keys.copy();
+    if (found_at >= 0) {
+        var slot : i64 = 0;
+        var j : usize = 0;
+        while (j < 8) {
+            if (slot == found_at) {
+                out.values[j] = value;
+            }
+            slot = slot + 1;
+            j = j + 1;
+        }
+        return out;
     }
-
-    // values(map: Map(K, V)) → []V
-    fn values(map: Map(K, V)) -> []V {
-        return map.values.copy();
+    if (map.size >= 8) {
+        return map;
     }
+    var slot2 : i64 = 0;
+    var k : usize = 0;
+    while (k < 8) {
+        if (slot2 == map.size) {
+            out.keys[k] = key;
+            out.values[k] = value;
+        }
+        slot2 = slot2 + 1;
+        k = k + 1;
+    }
+    out.size = map.size + 1;
+    return out;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+// Return the live keys in insertion order, oldest first.
+pub fn keys(map : Map) -> [8]i64 {
+    return map.keys;
+}
 
-    test empty_basic_case
-        when result = empty()
-        then result != undefined
+// Return the live values in insertion order, oldest first.
+pub fn values(map : Map) -> [8]i64 {
+    return map.values;
+}
 
-    test singleton_basic_case
-        when result = singleton("test", 42)
-        then result != undefined
+test "empty map holds nothing" {
+    const m = empty();
+    assert(m.size == 0);
+    assert(get(m, 5) == null);
+}
 
-    test get_basic_case
-        let map = singleton("key", "value");
-        when result = get(map, "key")
-        then result != undefined
+test "singleton holds one pair" {
+    const m = singleton(5, 50);
+    assert(m.size == 1);
+    assert(get(m, 5).? == 50);
+    assert(get(m, 6) == null);
+}
 
-    test set_basic_case
-        let map = empty();
-        when result = set(map, "key", "value")
-        then result != undefined
+test "get returns values for stored keys" {
+    var m = empty();
+    m = set(m, 5, 50);
+    m = set(m, 7, 70);
+    assert(get(m, 5).? == 50);
+    assert(get(m, 7).? == 70);
+    assert(get(m, 8) == null);
+}
 
-    test keys_basic_case
-        let map = singleton("key1", "value1");
-        when result = keys(map)
-        then result != undefined
+test "set updates an existing key in place" {
+    var m = empty();
+    m = set(m, 5, 50);
+    m = set(m, 7, 70);
+    m = set(m, 5, 55);
+    assert(m.size == 2);
+    assert(m.values[0] == 55);
+    assert(get(m, 5).? == 55);
+    assert(get(m, 7).? == 70);
+}
 
-    test values_basic_case
-        let map = singleton("key1", "value1");
-        when result = values(map)
-        then result != undefined
+test "set appends new keys in insertion order" {
+    var m = empty();
+    m = set(m, 5, 50);
+    m = set(m, 7, 70);
+    m = set(m, 9, 90);
+    assert(m.size == 3);
+    assert(m.keys[0] == 5);
+    assert(m.keys[1] == 7);
+    assert(m.keys[2] == 9);
+    assert(m.values[2] == 90);
+}
 
+test "set beyond capacity returns the map unchanged" {
+    var m = empty();
+    m = set(m, 1, 10);
+    m = set(m, 2, 20);
+    m = set(m, 3, 30);
+    m = set(m, 4, 40);
+    m = set(m, 5, 50);
+    m = set(m, 6, 60);
+    m = set(m, 7, 70);
+    m = set(m, 8, 80);
+    const full = set(m, 9, 90);
+    assert(full.size == 8);
+    assert(get(full, 9) == null);
+    assert(get(full, 8).? == 80);
+}
+
+test "keys and values expose the live entries in order" {
+    var m = empty();
+    m = set(m, 5, 50);
+    m = set(m, 7, 70);
+    m = set(m, 9, 90);
+    const ks = keys(m);
+    const vs = values(m);
+    assert(ks[0] == 5);
+    assert(ks[1] == 7);
+    assert(ks[2] == 9);
+    assert(vs[0] == 50);
+    assert(vs[1] == 70);
+    assert(vs[2] == 90);
+}
