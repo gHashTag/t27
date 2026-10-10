@@ -1,0 +1,104 @@
+module port::trinity::tri::dns_mail;
+
+/// Supported mail providers
+pub enum MailProvider {
+    zoho,
+    gmail,
+    proton,
+    migadu,
+    outlook,
+    custom,
+}
+
+/// Get display name for mail provider
+pub fn displayName(provider: MailProvider) -> str {
+    switch (provider) {
+        .zoho => "Zoho Mail",
+        .gmail => "Google Workspace (Gmail)",
+        .proton => "Proton Mail",
+        .migadu => "Migadu",
+        .outlook => "Microsoft 365 (Outlook)",
+        .custom => "Custom",
+    }
+}
+
+/// Get signup URL for mail provider
+pub fn signupUrl(provider: MailProvider) -> str {
+    switch (provider) {
+        .zoho => "https://www.zoho.com/mail/",
+        .gmail => "https://workspace.google.com/",
+        .proton => "https://proton.me/mail/",
+        .migadu => "https://dashboard.migadu.com/",
+        .outlook => "https://www.microsoft.com/en-us/microsoft-365",
+        .custom => "https://your-provider.com",
+    }
+}
+
+/// Get free tier limit information (empty string if no free tier)
+pub fn freeTierLimit(provider: MailProvider) -> str {
+    switch (provider) {
+        .zoho => "5 mailboxes",
+        .proton => "1 mailbox",
+        else => "",
+    }
+}
+
+/// Parse mail provider from string
+pub fn fromString(s: []const u8) -> MailProvider {
+    if (s == "zoho") return .zoho;
+    if (s == "gmail") return .gmail;
+    if (s == "google") return .gmail;
+    if (s == "gsuite") return .gmail;
+    if (s == "proton") return .proton;
+    if (s == "migadu") return .migadu;
+    if (s == "outlook") return .outlook;
+    if (s == "microsoft") return .outlook;
+    if (s == "office365") return .outlook;
+    return .custom;
+}
+
+/// List all supported providers (for direct use, not from tri cloud)
+pub fn listProviders() -> void {
+    undefined;
+}
+
+test displayName_correct {
+    assert(displayName(.zoho) == "Zoho Mail");
+    assert(displayName(.gmail) == "Google Workspace (Gmail)");
+    assert(displayName(.proton) == "Proton Mail");
+    assert(displayName(.migadu) == "Migadu");
+    assert(displayName(.outlook) == "Microsoft 365 (Outlook)");
+    assert(displayName(.custom) == "Custom");
+}
+
+test signupUrl_correct {
+    assert(signupUrl(.zoho) == "https://www.zoho.com/mail/");
+    assert(signupUrl(.gmail) == "https://workspace.google.com/");
+    assert(signupUrl(.proton) == "https://proton.me/mail/");
+    assert(signupUrl(.migadu) == "https://dashboard.migadu.com/");
+    assert(signupUrl(.outlook) == "https://www.microsoft.com/en-us/microsoft-365");
+    assert(signupUrl(.custom) == "https://your-provider.com");
+}
+
+test freeTierLimit_correct {
+    assert(freeTierLimit(.zoho) == "5 mailboxes");
+    assert(freeTierLimit(.proton) == "1 mailbox");
+    assert(freeTierLimit(.gmail) == "");
+    assert(freeTierLimit(.migadu) == "");
+    assert(freeTierLimit(.outlook) == "");
+    assert(freeTierLimit(.custom) == "");
+}
+
+test fromString_mappings {
+    assert(fromString("zoho") == .zoho);
+    assert(fromString("gmail") == .gmail);
+    assert(fromString("google") == .gmail);
+    assert(fromString("gsuite") == .gmail);
+    assert(fromString("proton") == .proton);
+    assert(fromString("migadu") == .migadu);
+    assert(fromString("outlook") == .outlook);
+    assert(fromString("microsoft") == .outlook);
+    assert(fromString("office365") == .outlook);
+    assert(fromString("unknown") == .custom);
+    assert(fromString("") == .custom);
+}
