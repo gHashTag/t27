@@ -6,9 +6,9 @@
   "gen_hash_zig": "sha256:d2ace9d3a6f4964538a90681da5f9cff74cdcb1adac66842e5d2ffe7cd1081a0",
   "module": "HostingStatement",
   "ring": 12,
-  "sealed_at": "2026-10-10T19:12:32Z",
+  "sealed_at": "2026-10-10T20:07:34Z",
   "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:2d5c88fce2c7b7a630c139ea915fbfc51b1639ce810948e17185941f6095eec6",
+  "spec_hash": "sha256:9db949be0089d5b6a8a3f7f2398b4b37ffea74fe661a10ef76852a8b11533479",
   "spec_path": "specs/hosting/statement.t27",
   "tests": {
     "failed": 0,

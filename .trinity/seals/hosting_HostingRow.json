@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+cf42584c9",
+  "closure": [
+    {
+      "spec": "specs/hosting/proof.t27",
+      "spec_hash": "sha256:275c597fed67898846a8f25939462d8af15d69ae5eeb5b0b24dd4195eec6c04f"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b486ecc53704b5289891f74d3c28e7bbaf9ad3cee5e598de8b8bf36f09d8be16",
+  "gen_hash_rust": "sha256:59fca4eff067d360602f3a7bec2aa56b89a0cdc3f6e20052e72bdf0401f03be4",
+  "gen_hash_verilog": "sha256:7b591face9fe33d774809b0fc2f713f76d47e3a0daef59316fba23bf225a29e5",
+  "gen_hash_zig": "sha256:268d2899acf3e7bf8677d4c4b2e7b86a72fea2fafa8c01f7fe37d274dcd592a8",
+  "module": "HostingRow",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:00:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6196b8ce1dbb733bbdd731add000d69dfcc880e6c59bc4772615aad14d6680f4",
+  "spec_path": "specs/hosting/row.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

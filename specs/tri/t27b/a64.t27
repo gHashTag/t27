@@ -424,6 +424,45 @@ pub fn mov_imm_at(sf: bool, rd: u8, value: u64, k: u32) -> u32 {
     return movn(sf, rd, 0, 0);
 }
 
+// ---------------------------------------------- subtracting a constant
+//
+// sub_const is how t27b steps a register down by a constant: sp in a
+// prologue, and x29 to the address of a frame slot. It is the split LLVM's
+// AArch64 frame lowering makes. A constant below 4096, or a multiple of 4096
+// below SUB_CONST_REACH, is one SUB (immediate). Any other constant below
+// SUB_CONST_REACH is SUB #hi, LSL #12 and then SUB #lo, the second one from rd.
+// LLVM puts a constant at or past SUB_CONST_REACH in a scratch register
+// first. t27b has no such frame: cli/t27b/src/codegen.rs refuses a fn whose
+// slots do not all lie closer than SUB_CONST_REACH to x29, as
+// FnDecl(frame size). The words are sub_const_at(.., 0) ..
+// sub_const_at(.., len - 1) with len = sub_const_len(..).
+
+/// The smallest constant that SUB #hi, LSL #12 and SUB #lo cannot subtract:
+/// both immediates are 12 bits, so together they reach 24 bits.
+pub const SUB_CONST_REACH : u64 = 16777216;
+
+/// How many words sub_const emits for `value` (below SUB_CONST_REACH): 1 or 2.
+pub fn sub_const_len(value: u64) -> u32 {
+    if ((value < 4096) or ((value & 0xfff) == 0)) {
+        return 1;
+    }
+    return 2;
+}
+
+/// Word k (0 <= k < sub_const_len) of rd = rn - value, in X registers. Rd and
+/// Rn 31 are SP. Word 1 reads rd, which word 0 wrote, so rn may equal rd.
+pub fn sub_const_at(rd: u8, rn: u8, value: u64, k: u32) -> u32 {
+    const hi: u32 = ((value >> 12) & 0xfff) as u32;
+    const lo: u32 = (value & 0xfff) as u32;
+    if (hi == 0) {
+        return sub_imm(true, rd, rn, lo);
+    }
+    if (k == 0) {
+        return addsub_imm(true, true, false, rd, rn, hi, true);
+    }
+    return sub_imm(true, rd, rd, lo);
+}
+
 // ------------------------------------------------- data processing, 2 and 3
 
 fn dp2(sf: bool, opcode: u32, rd: u8, rn: u8, rm: u8) -> u32 {
@@ -1771,4 +1810,77 @@ test a64_mov_imm_sequences {
     assert_eq(mov_imm_at(false, 5, 0xdeadbeef00001234, 0), 0x52824685);
     // movn w5, #1
     assert_eq(mov_imm_at(false, 5, 0xfffffffe, 0), 0x12800025);
+}
+
+/// The constant a SUB (immediate) word subtracts: imm12, times 4096 when
+/// bit 22 (LSL #12) is set.
+fn sub_amount(w: u32) -> u64 {
+    const imm: u64 = ((w >> 10) & 0xfff) as u64;
+    if (((w >> 22) & 1) == 1) {
+        return imm << 12;
+    }
+    return imm;
+}
+
+/// What sub_const's words for sp = sp - v subtract together, after checking
+/// that each one is SUB (immediate), 64-bit, no flags, sp from sp.
+fn sub_const_total(v: u64) -> u64 {
+    var total: u64 = 0;
+    var k: u32 = 0;
+    while (k < sub_const_len(v)) {
+        const w: u32 = sub_const_at(SP, SP, v, k);
+        assert_eq(w & 0xff8003ff, sub_imm(true, SP, SP, 0));
+        total = total + sub_amount(w);
+        k = k + 1;
+    }
+    return total;
+}
+
+test a64_sub_const_words {
+    // The words are LLVM's (aarch64-linux-gnu-as, then objdump -d).
+    // sub x0, x29, #0x10
+    assert_eq(sub_const_len(16), 1);
+    assert_eq(sub_const_at(0, FP, 16, 0), 0xd10043a0);
+    // sub x0, x29, #0x0: the slot at x29 itself is a move.
+    assert_eq(sub_const_len(0), 1);
+    assert_eq(sub_const_at(0, FP, 0, 0), 0xd10003a0);
+    // sub sp, sp, #0xfff
+    assert_eq(sub_const_at(SP, SP, 4095, 0), 0xd13fffff);
+    // A multiple of 4096 is one word. sub sp, sp, #0x4, lsl #12
+    assert_eq(sub_const_len(16384), 1);
+    assert_eq(sub_const_at(SP, SP, 16384, 0), 0xd14013ff);
+    // sub x0, x29, #0x1, lsl #12; sub x0, x0, #0x1
+    assert_eq(sub_const_len(4097), 2);
+    assert_eq(sub_const_at(0, FP, 4097, 0), 0xd14007a0);
+    assert_eq(sub_const_at(0, FP, 4097, 1), 0xd1000400);
+    // The farthest a frame slot may lie: 16 below SUB_CONST_REACH.
+    // sub x9, x29, #0xfff, lsl #12; sub x9, x9, #0xff0
+    assert_eq(sub_const_len(SUB_CONST_REACH - 16), 2);
+    assert_eq(sub_const_at(9, FP, SUB_CONST_REACH - 16, 0), 0xd17fffa9);
+    assert_eq(sub_const_at(9, FP, SUB_CONST_REACH - 16, 1), 0xd13fc129);
+}
+
+test a64_sub_const_subtracts_the_value {
+    // Walk the reach in a stride that is not a multiple of 4096, so both
+    // halves of the split take many values.
+    var v: u64 = 1;
+    var walked: u32 = 0;
+    while (v < SUB_CONST_REACH) {
+        assert_eq(sub_const_total(v), v);
+        // Two words only when one cannot do it.
+        assert((sub_const_len(v) == 2) == ((v >= 4096) and ((v & 0xfff) != 0)));
+        v = v + 3989;
+        walked = walked + 1;
+    }
+    assert(walked > 4000);
+    // Every value at the top of the reach.
+    v = SUB_CONST_REACH - 300;
+    while (v < SUB_CONST_REACH) {
+        assert_eq(sub_const_total(v), v);
+        v = v + 1;
+    }
+    // The second word steps rd on from where the first one left it.
+    assert_eq((sub_const_at(9, FP, 70000, 0) >> 5) & 31, FP);
+    assert_eq((sub_const_at(9, FP, 70000, 1) >> 5) & 31, 9);
+    assert_eq(sub_amount(sub_const_at(9, FP, 70000, 0)) + sub_amount(sub_const_at(9, FP, 70000, 1)), 70000);
 }

@@ -1,0 +1,198 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/big_frame.t27 -- fns and tests whose local aggregates take more than 1 MiB of
+; stack, as the reference runs them (gHashTag/t27#8758, t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; The corpus shape is specs/compiler/lexer.t27: its Lexer holds a [65536]u8, every helper takes and returns
+; one by value, and next_token keeps one 64 KiB result per call, 3344848 bytes in all. t27b refused it as
+; FnDecl(frame size), because its cap on a frame's aggregates was 1 MiB (#7367).
+; The cap is now what the frame's code can reach: t27b lays the aggregates out below x29 and forms a slot's
+; address as x29 minus its distance, SUB #hi, LSL #12 then SUB #lo (sub_const in specs/tri/t27b/a64.t27), so
+; every slot must lie less than 16 MiB below x29. The slot laid out first is the farthest one, at the bottom
+; of the frame, next to sp; the stores and loads below hit its first and last bytes.
+; Covered: a fn holding twenty 64 KiB values (the lexer's shape), a fn with two 600000-byte arrays written and
+; read at both ends, a test body with 1100000 bytes whose callee's frame lies below it, and a recursion two
+; frames deep at 1200000 bytes each, the outer frame checked after the inner one returned. Also a recursion
+; six frames deep at 10000 bytes each: a frame that size is not probed, and its prologue lowers sp with the
+; same two SUB words.
+; Not here: a frame of 16 MiB or more (t27b refuses it as FnDecl(frame size)), and a frame larger than the
+; stack, which crashes both backends.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceBigFrame;
+
+// 64 KiB of cells and a cursor, passed and returned by value like the lexer's Lexer.
+struct Tape {
+    cells: [65536]u8;
+    pos: u32;
+    sum: u32;
+}
+
+fn tape_new(seed: u8) -> Tape {
+    var t: Tape = Tape{ cells = [0; 65536], pos = 0, sum = 0 };
+    t.cells[0] = seed;
+    t.cells[65535] = seed + 1;
+    return t;
+}
+
+// Write one cell at the cursor, add it to the sum, and move on.
+fn step(t: Tape, v: u8) -> Tape {
+    var n = t;
+    n.cells[n.pos] = v;
+    n.sum = n.sum + v;
+    n.pos = n.pos + 1;
+    return n;
+}
+
+// Twenty calls, each with its own 64 KiB result in this frame: more than 1 MiB, as in next_token.
+fn twenty_steps(t: Tape) -> Tape {
+    var a = step(t, 1);
+    a = step(a, 2);
+    a = step(a, 3);
+    a = step(a, 4);
+    a = step(a, 5);
+    a = step(a, 6);
+    a = step(a, 7);
+    a = step(a, 8);
+    a = step(a, 9);
+    a = step(a, 10);
+    a = step(a, 11);
+    a = step(a, 12);
+    a = step(a, 13);
+    a = step(a, 14);
+    a = step(a, 15);
+    a = step(a, 16);
+    a = step(a, 17);
+    a = step(a, 18);
+    a = step(a, 19);
+    a = step(a, 20);
+    return a;
+}
+
+// Two arrays of 600000 bytes. `low` is declared first, so it lies at the far end of the frame.
+// Every 4096th byte of each gets seed + m (m counts the marks, back to 0 after 49), one more in `high`, and
+// the last byte of each its own value; the result adds back all that was read.
+fn far_ends(seed: u8) -> u32 {
+    var low: [600000]u8 = undefined;
+    var high: [600000]u8 = undefined;
+    var i: usize = 0;
+    var m: u8 = 0;
+    while (i < 600000) {
+        low[i] = seed + m;
+        high[i] = seed + m + 1;
+        m = m + 1;
+        if (m == 50) {
+            m = 0;
+        }
+        i = i + 4096;
+    }
+    low[599999] = 7;
+    high[599999] = 9;
+    var sum: u32 = 0;
+    i = 0;
+    m = 0;
+    while (i < 600000) {
+        if (low[i] != seed + m or high[i] != seed + m + 1) {
+            return 0;
+        }
+        sum = sum + low[i] + high[i];
+        m = m + 1;
+        if (m == 50) {
+            m = 0;
+        }
+        i = i + 4096;
+    }
+    return sum + low[599999] + high[599999];
+}
+
+// 1200000 bytes per frame. Each level marks its array every 1000 bytes, calls the next level down, and then
+// checks every mark: if the two frames overlapped, the deeper level's marks would show through.
+fn deep_big(depth: u8) -> u32 {
+    var block: [1200000]u8 = undefined;
+    var i: usize = 0;
+    while (i < 1200000) {
+        block[i] = depth + 1;
+        i = i + 1000;
+    }
+    block[1199999] = depth + 100;
+    var below: u32 = 0;
+    if (depth > 0) {
+        below = deep_big(depth - 1);
+    }
+    i = 0;
+    while (i < 1200000) {
+        if (block[i] != depth + 1) {
+            return 0;
+        }
+        i = i + 1000;
+    }
+    if (block[1199999] != depth + 100) {
+        return 0;
+    }
+    return below + 1;
+}
+
+// 10000 bytes per frame: more than 4096 and not a multiple of it, so sp goes down by SUB #2, LSL #12 and then
+// SUB #lo. Each level marks its array every 100 bytes and checks the marks after the deeper levels returned.
+fn mid_frames(depth: u8) -> u32 {
+    var block: [10000]u8 = undefined;
+    var i: usize = 0;
+    while (i < 10000) {
+        block[i] = depth + 1;
+        i = i + 100;
+    }
+    var below: u32 = 0;
+    if (depth > 0) {
+        below = mid_frames(depth - 1);
+    }
+    i = 0;
+    while (i < 10000) {
+        if (block[i] != depth + 1) {
+            return 0;
+        }
+        i = i + 100;
+    }
+    return below + 1;
+}
+
+test twenty_tape_values_in_one_frame {
+    const t = twenty_steps(tape_new(40));
+    // The cursor started at 0 and moved once per step; the steps wrote 1 to 20 over cells 0 to 19.
+    assert(t.pos == 20);
+    assert(t.sum == 210);
+    assert(t.cells[0] == 1);
+    assert(t.cells[19] == 20);
+    assert(t.cells[20] == 0);
+    // The far end of the 64 KiB array came through twenty copies.
+    assert(t.cells[65535] == 41);
+}
+
+test two_arrays_written_and_read_at_both_ends {
+    const a = far_ends(0);
+    const b = far_ends(1);
+    assert(a != 0);
+    assert(b != 0);
+    // Each array has a mark at 0, 4096, ..., 598016: 147 of them. Seed 1 raises all 294 marks by one, and
+    // the two last bytes are the same for both seeds.
+    assert(b == a + 294);
+}
+
+test a_test_body_holds_more_than_a_mebibyte {
+    var big: [1100000]u8 = undefined;
+    big[0] = 11;
+    big[550000] = 22;
+    big[1099999] = 33;
+    // far_ends' frame lies below this one; it must not reach into big.
+    assert(far_ends(0) != 0);
+    assert(big[0] == 11);
+    assert(big[550000] == 22);
+    assert(big[1099999] == 33);
+}
+
+test two_frames_of_twelve_hundred_thousand_bytes {
+    assert(deep_big(1) == 2);
+    assert(deep_big(0) == 1);
+}
+
+test six_frames_between_four_and_sixteen_kib {
+    assert(mid_frames(5) == 6);
+}

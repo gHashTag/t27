@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+501944e7d",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:724a02aefce65fbe24fa64ee9eb20b2fe62235ba45dc09068d9493bd9e3d4f7c",
@@ -9,16 +9,17 @@
   "module": "T27bConformanceLargeFrame",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:33:14Z",
+  "sealed_at": "2026-10-10T19:18:07Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:d734fc6f77a3e75a390ba3926b672c38e81c80bba8778854ad59bc7f3e46c5af",
+  "spec_hash": "sha256:5cdfc14019bf6f17fb6d523a16aa247c717a5cbeaba9d1b1e3dc1a0d92240ad0",
   "spec_path": "specs/tri/t27b/conformance/large_frame.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
     "passed": 4,
-    "total": 4
+    "total": 4,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

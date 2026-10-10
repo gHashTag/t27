@@ -21,8 +21,14 @@
 ;   test=<pass|FAIL> <runtime asserts> <name>                    (one line per test, in report order)
 ; every line ending in a newline; a test the asserts table does not list is written with `-` for its
 ; count. A verdict that lists no tests (lists_tests: blocked, timeout, host_error) is the first three
-; lines and nothing else: a blocked report's reason names files of the machine it ran on, and a run cut
-; short has no counts. A host that ran out of time or of processes reports a verdict word too, but that
+; lines, then, for blocked, one more:
+;   reason=<why, as the lab writes it>                           (reason_of; at most REASON_MAX_BYTES)
+; and nothing else: a run cut short has no counts. The reason is the lab's `reference_detail`, so the
+; row a host makes can equal the lab's (hosting/row.t27); v1 of this output left it out, on the guess
+; that a reason names files of the machine it ran on. Measured on the lab's run of master cf42584c9:
+; 0 of its 462 blocked reasons holds a '/' (they read "does not compile: spec.zig:23:16: error: ..."). A
+; reason that does name the job's own directory is withheld (reason_kept), so two honest hosts still
+; write one text. A host that ran out of time or of processes reports a verdict word too, but that
 ; word is about the host that minute, not about the spec (lab.py: "never cached"), so it is not a vote.
 ; --
 ; The receipt. tri-net's DePIN Compute arm proves (model_hash, input_hash, output_hash, ops); a shard
@@ -71,7 +77,7 @@ use verified::signed_receipt::KEY_ID_HEX_LEN;
 
 ; --- 1. The shard's output, normalized ---------------------------------------------------------------
 
-pub const SHARD_DOMAIN : str = "t27-hosting-shard-v1";
+pub const SHARD_DOMAIN : str = "t27-hosting-shard-v2";
 pub const SHARD_COUNT_KEYS : [5]str = ["tests", "fail", "invariants", "asserts", "vacuous"];
 pub const SHARD_SPEC_KEY : str = "spec";
 pub const SHARD_VERDICT_KEY : str = "verdict";
@@ -113,9 +119,40 @@ pub fn verdict_votes(verdict: u8) -> bool {
     return verdict == VW_PASS or verdict == VW_FAIL or verdict == VW_BLOCKED;
 }
 
-/// Whether a BLOCKED report keeps its per-test lines: never, the reason names the host's files.
+/// Whether a report keeps its per-test lines: a pass or a fail. A blocked spec ran no test.
 pub fn lists_tests(verdict: u8) -> bool {
     return verdict == VW_PASS or verdict == VW_FAIL;
+}
+
+/// The reason line of a blocked verdict: the key, its longest text (lab.py cuts each reason at 300),
+/// and the words of the two reasons that are not t27c's own BLOCKED line.
+pub const SHARD_REASON_KEY : str = "reason";
+pub const REASON_MAX_BYTES : u32 = 300;
+/// "t27c test-report exited <code>: <first line of stderr>"
+pub const REASON_EXIT_WORDS : [2]str = ["t27c test-report exited ", ": "];
+pub const REASON_UNREADABLE : str = "unreadable test-report output";
+/// What is written in place of a reason that names the job's directory.
+pub const REASON_WITHHELD : str = "withheld: it names the host's job directory";
+
+/// reason_of() answers.
+pub const RS_NONE : u8 = 0;
+pub const RS_EXIT : u8 = 1;
+pub const RS_BLOCKED_LINE : u8 = 2;
+pub const RS_UNREADABLE : u8 = 3;
+
+/// lab.py reference_one and parse_test_report, in their order: a run that did not exit zero is
+/// blocked for its exit; then a BLOCKED line is the reason; then a report without its counts is
+/// unreadable. A verdict that is not blocked has no reason.
+pub fn reason_of(verdict: u8, exited_zero: bool, blocked_line: bool) -> u8 {
+    if (verdict != VW_BLOCKED) { return RS_NONE; }
+    if (exited_zero == false) { return RS_EXIT; }
+    if (blocked_line) { return RS_BLOCKED_LINE; }
+    return RS_UNREADABLE;
+}
+
+/// Whether a reason is written as it is: unless it names the directory this host ran the job in.
+pub fn reason_kept(names_job_dir: bool) -> bool {
+    return names_job_dir == false;
 }
 
 ; --- 2. The receipt ----------------------------------------------------------------------------------
@@ -131,7 +168,8 @@ pub const REQUEST_DOMAIN : str = "t27-hosting-request-v1";
 pub const REQUEST_SIGNED_FIELDS : [6]str = ["method", "path", "host", "incarnation", "utc_unix", "body_sha256"];
 /// A registration is signed with the key it registers (proof of possession), before a host id exists.
 pub const REGISTER_DOMAIN : str = "t27-hosting-register-v1";
-pub const REGISTER_SIGNED_FIELDS : [5]str = ["public_key", "tier_claim", "slots", "platform", "utc_unix"];
+/// isolation: the level the host measured (host.t27 section 8), signed with the rest.
+pub const REGISTER_SIGNED_FIELDS : [6]str = ["public_key", "tier_claim", "slots", "platform", "isolation", "utc_unix"];
 
 /// receipt_code() answers, in judgment order.
 pub const RC_OK : u8 = 0;
@@ -278,6 +316,23 @@ test only_a_verdict_about_the_spec_votes {
     assert lists_tests(VW_TIMEOUT) == false;
 }
 
+test a_blocked_verdict_carries_the_labs_reason {
+    // the lab's order: the exit first, then the BLOCKED line, then an unreadable report
+    assert reason_of(VW_BLOCKED, false, true) == RS_EXIT;
+    assert reason_of(VW_BLOCKED, true, true) == RS_BLOCKED_LINE;
+    assert reason_of(VW_BLOCKED, true, false) == RS_UNREADABLE;
+    // a verdict that is not blocked has none
+    assert reason_of(VW_PASS, true, false) == RS_NONE;
+    assert reason_of(VW_FAIL, true, false) == RS_NONE;
+    assert reason_of(VW_TIMEOUT, false, false) == RS_NONE;
+    assert reason_of(VW_HOST_ERROR, false, true) == RS_NONE;
+    // run_verdict blocks a run that did not exit zero, so its reason is the exit
+    assert reason_of(run_verdict(true, false, false, false, VW_PASS), false, false) == RS_EXIT;
+    assert reason_kept(false) == true;
+    assert reason_kept(true) == false;
+    assert REASON_MAX_BYTES == 300;
+}
+
 test a_receipt_is_judged_in_order {
     assert receipt_code(true, true, true, false, false, false, true, true, true) == RC_OK;
     assert receipt_code(false, false, false, false, false, true, false, false, false) == RC_UNKNOWN_HOST;
@@ -402,4 +457,5 @@ invariant the_codes_are_distinct {
     assert RC_MODEL_MISMATCH == 8 and RC_OUTPUT_MISMATCH == 9;
     assert JV_PENDING == 0 and JV_AGREED == 1 and JV_TIEBREAK == 2 and JV_UNRESOLVED == 3;
     assert VW_PASS == 0 and VW_FAIL == 1 and VW_BLOCKED == 2 and VW_TIMEOUT == 3 and VW_HOST_ERROR == 4;
+    assert RS_NONE == 0 and RS_EXIT == 1 and RS_BLOCKED_LINE == 2 and RS_UNREADABLE == 3;
 }
