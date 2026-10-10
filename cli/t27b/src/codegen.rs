@@ -74,8 +74,8 @@ const X17: Reg = 17;
 const TEMP_REGS: usize = 7; // x9..x15
 const CALLEE_SAVED: [Reg; 10] = [19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 const MAX_SLOT_BYTES: u32 = 32760;
-/// Largest aggregate area of one frame (#7367).
-pub const MAX_AGG_BYTES: u32 = 1 << 20;
+/// Largest aggregate area of one frame: each slot is then at most two SUB words below x29 (a64::sub_const).
+pub const MAX_AGG_BYTES: u32 = (a64::SUB_CONST_REACH - 16) as u32;
 /// Largest frame the prologue allocates in one step. It is kept below the
 /// stack guard size, so such a frame never reaches past the guard page
 /// without touching it. A larger frame is allocated in `PROBE_STEP` steps,
@@ -649,13 +649,8 @@ impl<'a> Gen<'a> {
                     pro.push(a64::str_x(ZR, SP, 0));
                 }
             } else if frame_bytes > 0 {
-                if frame_bytes < 4096 {
-                    pro.push(a64::sub_imm(true, SP, SP, frame_bytes as u32));
-                } else if frame_bytes <= (MAX_SLOT_BYTES + 16 + self.agg_bytes) as usize {
-                    a64::mov_imm(true, X16, frame_bytes as u64, &mut pro);
-                    pro.push(a64::addsub_ext(true, true, false, SP, SP, X16, Ext::Uxtx, 0));
-                } else {
-                    self.fail(format!("frame larger than {} bytes", MAX_SLOT_BYTES));
+                for i in 0..a64::sub_const_len(frame_bytes as u64) {
+                    pro.push(a64::sub_const_at(SP, SP, frame_bytes as u64, i));
                 }
             }
             let base = 8 * self.nvar_slots;
@@ -985,14 +980,9 @@ impl<'a> Gen<'a> {
 
     /// `d = address of slot k` (x29 minus its distance below the frame pointer).
     fn slot_addr(&mut self, d: Reg, k: u32) {
-        let n = self.agg_bytes - self.agg_off[k as usize];
-        if n < 4096 {
-            self.emit(a64::sub_imm(true, d, FP, n));
-        } else {
-            self.emit(a64::addsub_imm(true, true, false, d, FP, n >> 12, true));
-            if n & 0xfff != 0 {
-                self.emit(a64::sub_imm(true, d, d, n & 0xfff));
-            }
+        let n = (self.agg_bytes - self.agg_off[k as usize]) as u64;
+        for i in 0..a64::sub_const_len(n) {
+            self.emit(a64::sub_const_at(d, FP, n, i));
         }
     }
 

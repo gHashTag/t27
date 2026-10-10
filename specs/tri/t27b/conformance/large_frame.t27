@@ -8,7 +8,7 @@
 ; Covered: a test body with a 20000-byte array, a fn with a 48000-byte array called twice, a fn with two
 ; arrays whose sum is just over 16 KiB, and a recursion 12 frames deep with 20000 bytes in each frame, every
 ; byte of which is checked after the deeper frames returned.
-; Not here: a frame over 1 MiB (t27b refuses it as FnDecl(frame size)) and a recursion deep enough to
+; Not here: a frame over 1 MiB (conformance/big_frame.t27 has those) and a recursion deep enough to
 ; overflow the stack, which crashes both backends.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
