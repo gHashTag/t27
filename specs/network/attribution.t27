@@ -18,11 +18,13 @@
 ;           F_SEAL_GREEN  `t27c seal --verify` matched and the spec's tests passed at that commit.
 ; --
 ; The rules:
-; - A row is credited to its signer only when GitHub verified the signature and the commit declares
-;   no agent. Every other row -- unsigned, unverified, an agent committing under the owner's
-;   account, no account at all -- is credited to POOL_ID, the declared pool, never to a person.
-;   Nothing guesses an author: a name in a commit header, a Co-Authored-By trailer or a committer
-;   field is never read as one, so no one can claim another's work by typing their name.
+; - Each row gets a status:
+;   - CONFIRMED: the commit's own author signed it, and GitHub verified that signature.
+;   - DISPUTED: the commit is unsigned, or the signature is not the author's (a web-flow merge
+;     signature, for example). The author is kept and their share is held, not paid, until confirmed.
+;   - AGENT: a declared agent or bee. Its share goes to POOL_ID.
+; - Rows name the original commit authors and their human Co-authored-by trailers, never the merge
+;   or squash signer.
 ; - A row's score is W_LINE per line, plus W_TEST per test only when the seal was kept green: the
 ;   seal is how the corpus knows a test passes. Both counts are clamped (LINES_MAX, TESTS_MAX), so
 ;   no table can overflow the arithmetic. Rows credited to one id add up.
@@ -54,6 +56,11 @@ pub const NO_AUTHOR : u64 = 0;
 /// The declared pool: every row no verified human signed is credited here. No GitHub account id is it.
 pub const POOL_ID : u64 = 18446744073709551615;
 
+/// Row status values.
+pub const CONFIRMED : u8 = 1;
+pub const DISPUTED : u8 = 2;
+pub const AGENT : u8 = 3;
+
 /// Row flags.
 pub const F_VERIFIED : u8 = 1;
 pub const F_AGENT : u8 = 2;
@@ -76,13 +83,19 @@ pub fn attr_clamp(v: u64, top: u64) -> u64 {
     return v;
 }
 
-/// Who a row is credited to: its signer when GitHub verified the signature and the commit declares
-/// no agent; the pool otherwise. The author field of an unverified row is never read.
+/// A row's status: CONFIRMED, DISPUTED, or AGENT based on signature verification and author identity.
+pub fn row_status(author: u64, flags: u8) -> u8 {
+    if (attr_flag(flags, F_AGENT)) { return AGENT; }
+    if (attr_flag(flags, F_VERIFIED) == false) { return DISPUTED; }
+    if (author == NO_AUTHOR) { return DISPUTED; }
+    return CONFIRMED;
+}
+
+/// Who a row is credited to: its author when confirmed, POOL_ID otherwise.
+/// The author field of a disputed or agent row is never paid but may be held.
 pub fn credited_to(author: u64, flags: u8) -> u64 {
-    if (attr_flag(flags, F_VERIFIED) == false) { return POOL_ID; }
-    if (attr_flag(flags, F_AGENT)) { return POOL_ID; }
-    if (author == NO_AUTHOR) { return POOL_ID; }
-    return author;
+    if (row_status(author, flags) == CONFIRMED) { return author; }
+    return POOL_ID;
 }
 
 /// A row's score: its lines, and its tests only when the seal was kept green.
@@ -205,15 +218,15 @@ pub fn weights_sum(specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]
 ; --- The worked example (the PR body shows the same numbers) ------------------------------------
 ; Accounts: alice 101, bob 202, carol 303, dave 404, the owner 900 (Claude and the Queen bees
 ; commit under it). Specs 0, 1, 2 have rows; spec 3 has none.
-;   row spec author lines tests flags                score  credited to
-;   0   0    alice  300   10    verified, green      500    alice
-;   1   0    bob    100   5     verified, green      200    bob
-;   2   0    owner  200   5     verified, agent, grn 300    POOL (an agent commit)
-;   3   1    carol  120   3     verified, green      180    carol
-;   4   1    dave   80    4     verified, seal red   80     dave (the tests do not count)
-;   5   1    alice  100   2     NOT verified, green  140    POOL (a typed name claims nothing)
-;   6   1    carol  30    0     verified, green      30     carol
-;   7-9 2    alice, dave, bob: 50 lines, 1 test, verified, green: 70 each
+;   row spec author lines tests flags                status  score  credited to
+;   0   0    alice  300   10    verified, green      CONFIRMED 500    alice
+;   1   0    bob    100   5     verified, green      CONFIRMED 200    bob
+;   2   0    owner  200   5     verified, agent, grn AGENT    300    POOL
+;   3   1    carol  120   3     verified, green      CONFIRMED 180    carol
+;   4   1    dave   80    4     verified, seal red   CONFIRMED 80     dave (the tests do not count)
+;   5   1    alice  100   2     NOT verified, green  DISPUTED  140    POOL (share held)
+;   6   1    carol  30    0     verified, green      CONFIRMED 30     carol
+;   7-9 2    alice, dave, bob: 50 lines, 1 test, verified, green: CONFIRMED 70 each
 ; spec 0: total 1000 -> alice 5000, bob 2000, POOL 3000 (exact).
 ; spec 1: total 430 -> floors carol 4883 (rem 310), dave 1860 (rem 200), POOL 3255 (rem 350);
 ;         2 points left: POOL and carol -> carol 4884, dave 1860, POOL 3256.
@@ -254,25 +267,54 @@ pub const AE_LINES : [16]u64 = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 99999
 pub const AE_TESTS : [16]u64 = [0, 1, 0, 2, 3, 0, 5, 1, 0, 2, 2, 9, 1, 3000000, 0, 1];
 pub const AE_FLAGS : [16]u8 = [5, 5, 1, 4, 7, 5, 5, 3, 5, 1, 5, 5, 5, 5, 0, 5];
 
+/// The row_status cases: author, flags, expected status.
+pub const RS_AUTHOR : [8]u64 = [101, 101, 101, 101, 0, 900, 900, 202];
+pub const RS_FLAGS : [8]u8 = [1, 0, 3, 5, 1, 7, 5, 4];
+pub const RS_EXPECT : [8]u8 = [1, 2, 3, 1, 2, 3, 1, 2];
+
 /// The credited_to cases: author, flags, expected id.
 pub const CT_AUTHOR : [8]u64 = [101, 101, 101, 101, 0, 900, 900, 202];
 pub const CT_FLAGS : [8]u8 = [1, 0, 3, 5, 1, 7, 5, 4];
-pub const CT_EXPECT : [8]u64 = [101, 18446744073709551615, 18446744073709551615, 101, 18446744073709551615, 18446744073709551615, 900, 18446744073709551615];
+pub const CT_EXPECT : [8]u64 = [101, 18446744073709551615, 18446744073709551615, 101, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615];
 
 /// The row_score cases: lines, tests, flags, expected score.
-pub const RS_LINES : [8]u64 = [0, 10, 10, 10, 20000000, 0, 7, 3];
-pub const RS_TESTS : [8]u64 = [0, 0, 2, 2, 0, 2000000, 1, 1];
-pub const RS_FLAGS : [8]u8 = [5, 5, 5, 1, 1, 4, 0, 6];
-pub const RS_EXPECT : [8]u64 = [0, 10, 50, 10, 16777216, 20971520, 7, 23];
+pub const SCORE_LINES : [8]u64 = [0, 10, 10, 10, 20000000, 0, 7, 3];
+pub const SCORE_TESTS : [8]u64 = [0, 0, 2, 2, 0, 2000000, 1, 1];
+pub const SCORE_FLAGS : [8]u8 = [5, 5, 5, 1, 1, 4, 0, 6];
+pub const SCORE_EXPECT : [8]u64 = [0, 10, 50, 10, 16777216, 20971520, 7, 23];
 
-test only_a_verified_human_signer_is_credited {
+test row_status_assigns_correct_status {
+    var i : u32 = 0;
+    while (i < 8) {
+        let s : u8 = row_status(RS_AUTHOR[i], RS_FLAGS[i]);
+        assert s == RS_EXPECT[i];
+        // CONFIRMED requires verified signature and no agent
+        if (s == CONFIRMED) {
+            assert attr_flag(RS_FLAGS[i], F_VERIFIED);
+            assert attr_flag(RS_FLAGS[i], F_AGENT) == false;
+            assert RS_AUTHOR[i] != NO_AUTHOR;
+        }
+        // DISPUTED for unsigned, unverified, or NO_AUTHOR
+        if (s == DISPUTED) {
+            assert attr_flag(RS_FLAGS[i], F_VERIFIED) == false or RS_AUTHOR[i] == NO_AUTHOR;
+        }
+        // AGENT for declared agents
+        if (s == AGENT) {
+            assert attr_flag(RS_FLAGS[i], F_AGENT);
+        }
+        i = i + 1;
+    }
+}
+
+test only_a_confirmed_human_signer_is_credited {
     var i : u32 = 0;
     var people : u32 = 0;
     while (i < 8) {
         let c : u64 = credited_to(CT_AUTHOR[i], CT_FLAGS[i]);
         assert c == CT_EXPECT[i];
         if (c != POOL_ID) {
-            // a person only through a verified signature and no agent declared
+            // a person only through confirmed status
+            assert row_status(CT_AUTHOR[i], CT_FLAGS[i]) == CONFIRMED;
             assert attr_flag(CT_FLAGS[i], F_VERIFIED);
             assert attr_flag(CT_FLAGS[i], F_AGENT) == false;
             assert c == CT_AUTHOR[i];
@@ -286,12 +328,12 @@ test only_a_verified_human_signer_is_credited {
 test a_test_counts_only_while_the_seal_is_green {
     var i : u32 = 0;
     while (i < 8) {
-        let s : u64 = row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i]);
-        assert s == RS_EXPECT[i];
+        let s : u64 = row_score(SCORE_LINES[i], SCORE_TESTS[i], SCORE_FLAGS[i]);
+        assert s == SCORE_EXPECT[i];
         // a red seal scores the lines alone, whatever the tests
-        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] & 3) == attr_clamp(RS_LINES[i], LINES_MAX) * W_LINE;
+        assert row_score(SCORE_LINES[i], SCORE_TESTS[i], SCORE_FLAGS[i] & 3) == attr_clamp(SCORE_LINES[i], LINES_MAX) * W_LINE;
         // the score is the row's, whoever it is credited to
-        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] | F_AGENT) == s;
+        assert row_score(SCORE_LINES[i], SCORE_TESTS[i], SCORE_FLAGS[i] | F_AGENT) == s;
         i = i + 1;
     }
 }
@@ -313,7 +355,7 @@ test the_worked_example_weighs_as_the_table_says {
     assert spec_ids(AX_SPEC, AX_AUTHOR, AX_FLAGS, 1) == 3;
 }
 
-test a_typed_name_and_an_agent_commit_go_to_the_pool {
+test a_disputed_share_is_held_and_an_agent_share_goes_to_pool {
     // row 5 names alice without a verified signature: alice gets nothing in spec 1
     assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 1, 101) == 0;
     // row 2 is the owner's account with an agent declared: the owner gets nothing anywhere
