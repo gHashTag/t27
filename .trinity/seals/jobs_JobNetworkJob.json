@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+ddb84c5f5",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:cd2f0e9c3ed99c4084e72a555b86051d87acb0b2bee77862d7926b0382dbe26b",
+  "gen_hash_rust": "sha256:6138e125d400932215e60f082ff562bb149b8035ad77914ca468271429138a90",
+  "gen_hash_verilog": "sha256:58927be6ef5412fc74758a1601aa31cda4ea231f2090038bda1e3c89e14b5fa7",
+  "gen_hash_zig": "sha256:d0a5499f3b4d63de899eb0a950b340655c402845e945eede40ffde69986c2397",
+  "module": "JobNetworkJob",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T20:34:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:215213b66997eac942088e8f8cc51b3e239283385241d797b82fb34d64f09202",
+  "spec_path": "specs/jobs/network_job.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

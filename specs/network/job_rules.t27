@@ -1,0 +1,497 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/job_rules.t27 -- the decisions of one network job (specs/jobs/network_job.t27): is a lab's
+; corpus receipt authentic for this job, do the receipts agree, how many independent votes they are, what
+; the trusted quorum says, what trinet/ledger.t27 settle() pays, and when the credit is final. The network
+; MVP's steps d to f, on real receipts; see #8613 and #8685.
+; --
+; Compiled to wasm (`t27c gen` to Zig, then `zig build-exe -target wasm32-freestanding`), the Queen's job
+; runner calls these functions with the receipt's bytes and nothing else: no answer below is a bool the
+; runner was handed. What is NOT restated here:
+; - verified/corpus_receipt.t27: the message (CORPUS_DOMAIN, then signed_receipt's `name=value` line per
+;   CORPUS_SIGNED_FIELDS field, each value the field's JSON text), request_name_ok;
+; - verified/signed_receipt.t27: the judgment order auth_first_missing and receipt_level, the hex digits;
+; - tri/crypto/ed25519.t27: verify, RFC 8032 strict;
+; - trinet/ledger.t27: settle(), its outcomes and its one-outcome-per-(node, nonce) rule.
+; --
+; The rules:
+; - A receipt is the message bytes the runner rebuilt from it, its key's registered public key (hex, from
+;   KEY_DIR; empty when no such file), its signature (hex) and its key id. receipt_auth() judges, in order:
+;   the bytes are a corpus message (message_well_formed: the domain line, then exactly the eight signed
+;   fields in order, nothing after); its commit is the job's; then signed_receipt.t27's order, where the key
+;   is registered when the card lists its id (KEY_IDS) and a key was found for it, and the signature is
+;   ed25519 verify() of those bytes. The challenge is given only for a lab the job challenged; then the
+;   nonce must be the challenge. A runner that rebuilt the bytes wrongly gets a bad signature, never a pass.
+; - Two receipts agree when the commit, the three roots and the totals lines are byte-equal
+;   (AGREE_FIELDS). The binaries' hashes may differ: two labs build t27c and t27b each for themselves.
+; - Votes. The authenticated, agreeing receipts' key ids are deduplicated by key, then by operator
+;   (network_job.t27 KEY_OPERATOR): a repeat by one signer, or two signers of one operator, is one vote.
+; - The quorum is the trusted N, F and M: N signers, at most F faulty, M = floor((N + F) / 2) + 1 to admit
+;   (network/mvp_v2.t27 NET_N, NET_F, NET_M). TEMP: a copy of mvp_v2's 4, 1 and 3, until the network MVP
+;   hardening lane fixes them in one place. quorum_verdict() answers QV_QUORUM at M votes or more;
+;   QV_BELOW_QUORUM for at least one vote but fewer than M, which may earn a TEST credit and never more;
+;   QV_NO_VOTE for none; QV_SPLIT when authenticated receipts disagree. The live network has one operator,
+;   so today every job is QV_BELOW_QUORUM: one independent vote of three.
+; - Settlement. A fresh ledger (default_policy) registers the operator's node with the minimum stake and
+;   settles the job at nonce job_nonce(sha): V_OK for QV_QUORUM and QV_BELOW_QUORUM, V_UNVERIFIABLE
+;   otherwise. When the journal already holds this job's settlement, the job is settled twice and the
+;   second answer is returned: OUT_ALREADY_SETTLED_NOT_CHARGED, so a replayed event pays nothing.
+; - A credited job is PENDING until CHALLENGE_WINDOW_MINUTES have passed since it settled with no
+;   challenge open, then FINAL; a job that was not credited is VOID.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkJobRules;
+
+use jobs::network_job;
+use verified::signed_receipt;
+use verified::corpus_receipt;
+use tri::crypto::ed25519;
+use trinet::ledger;
+
+/// receipt_auth() answers beyond signed_receipt.t27's AUTH_* codes, judged before them.
+pub const AUTH_MALFORMED : u8 = 16;
+pub const AUTH_WRONG_COMMIT : u8 = 17;
+
+/// The fields two agreeing receipts share, byte for byte.
+pub const AGREE_FIELDS : [5]str = ["commit", "input_root", "verdict_root", "output_root", "totals"];
+pub const AGREE_FIELD_COUNT : u32 = 5;
+
+/// What a value search answers when the message has no such line.
+pub const NO_LINE : u32 = 4294967295;
+
+/// TEMP: the trusted quorum, a copy of network/mvp_v2.t27 NET_N, NET_F and NET_M.
+pub const TRUSTED_N : u32 = 4;
+pub const TRUSTED_F : u32 = 1;
+pub const TRUSTED_M : u32 = 3;
+/// The fewest independent votes a TEST credit needs.
+pub const TEST_CREDIT_MIN_VOTES : u32 = 1;
+
+/// quorum_verdict() answers.
+pub const QV_QUORUM : u8 = 0;
+pub const QV_BELOW_QUORUM : u8 = 1;
+pub const QV_NO_VOTE : u8 = 2;
+pub const QV_SPLIT : u8 = 3;
+pub const QV_NAMES : [4]str = ["QUORUM", "BELOW_QUORUM", "NO_VOTE", "SPLIT"];
+
+/// credit_state() answers.
+pub const CS_PENDING : u8 = 0;
+pub const CS_FINAL : u8 = 1;
+pub const CS_VOID : u8 = 2;
+pub const CS_NAMES : [3]str = ["PENDING", "FINAL", "VOID"];
+
+pub const CH_QUOTE : u32 = 34;
+
+; --- 1. The message ------------------------------------------------------------------------------------
+
+/// Where the line starting at `at` ends: the index of its newline, or the message length.
+pub fn line_end(msg: string, at: u32) -> u32 {
+    var k : u32 = at;
+    while (k < (msg.len as u32)) {
+        if ((msg[k] as u32) == CH_NEWLINE) { return k; }
+        k = k + 1;
+    }
+    return msg.len as u32;
+}
+
+/// Whether the line starting at `at` begins with `name` and `=`.
+pub fn line_is_field(msg: string, at: u32, name: string) -> bool {
+    var n : u32 = name.len as u32;
+    if (at + n + 1 > (msg.len as u32)) { return false; }
+    if (part_is(msg, at, at + n, name) == false) { return false; }
+    return (msg[at + n] as u32) == CH_EQUALS;
+}
+
+/// Where the value of field `name` starts, or NO_LINE. Only whole lines after the domain line count.
+pub fn value_at(msg: string, name: string) -> u32 {
+    var at : u32 = corpus_domain_line_len();
+    while (at < (msg.len as u32)) {
+        if (line_is_field(msg, at, name)) { return at + (name.len as u32) + 1; }
+        at = line_end(msg, at) + 1;
+    }
+    return NO_LINE;
+}
+
+/// The bytes are a corpus message: the domain line, then exactly CORPUS_SIGNED_FIELD_COUNT lines, the
+/// i-th one CORPUS_SIGNED_FIELDS[i] `=` value newline, and nothing after.
+pub fn message_well_formed(msg: string) -> bool {
+    var d : u32 = corpus_domain_line_len();
+    if ((msg.len as u32) < d) { return false; }
+    var k : u32 = 0;
+    while (k < d) {
+        if ((msg[k] as u32) != corpus_domain_line_char(k)) { return false; }
+        k = k + 1;
+    }
+    var at : u32 = d;
+    var i : u32 = 0;
+    while (i < (CORPUS_SIGNED_FIELD_COUNT as u32)) {
+        if (line_is_field(msg, at, CORPUS_SIGNED_FIELDS[i]) == false) { return false; }
+        var e : u32 = line_end(msg, at);
+        if (e >= (msg.len as u32)) { return false; }
+        at = e + 1;
+        i = i + 1;
+    }
+    return at == (msg.len as u32);
+}
+
+/// The value of field `name` is exactly the JSON string of `want`: a quote, want, a quote.
+pub fn value_is_text(msg: string, name: string, want: string) -> bool {
+    var v : u32 = value_at(msg, name);
+    if (v == NO_LINE) { return false; }
+    var e : u32 = line_end(msg, v);
+    var n : u32 = want.len as u32;
+    if (e - v != n + 2) { return false; }
+    if ((msg[v] as u32) != CH_QUOTE) { return false; }
+    if ((msg[e - 1] as u32) != CH_QUOTE) { return false; }
+    return part_is(msg, v + 1, e - 1, want);
+}
+
+/// The nonce's size in bytes: half its hex digits when it is a JSON string of hex, else 0 (null, absent,
+/// or not hex). Capped at 255.
+pub fn nonce_bytes(msg: string) -> u8 {
+    var v : u32 = value_at(msg, "nonce");
+    if (v == NO_LINE) { return 0; }
+    var e : u32 = line_end(msg, v);
+    if (e - v < 2) { return 0; }
+    if ((msg[v] as u32) != CH_QUOTE) { return 0; }
+    if ((msg[e - 1] as u32) != CH_QUOTE) { return 0; }
+    var k : u32 = v + 1;
+    while (k < e - 1) {
+        if (hex_digit_value(msg[k] as u32) == HEX_NOT_A_DIGIT) { return 0; }
+        k = k + 1;
+    }
+    var digits : u32 = e - v - 2;
+    if (digits / 2 > 255) { return 255; }
+    return (digits / 2) as u8;
+}
+
+/// Field `name` is byte-equal in two messages.
+pub fn values_equal(a: string, b: string, name: string) -> bool {
+    var va : u32 = value_at(a, name);
+    var vb : u32 = value_at(b, name);
+    if (va == NO_LINE or vb == NO_LINE) { return false; }
+    var ea : u32 = line_end(a, va);
+    var eb : u32 = line_end(b, vb);
+    if (ea - va != eb - vb) { return false; }
+    var k : u32 = 0;
+    while (va + k < ea) {
+        if ((a[va + k] as u32) != (b[vb + k] as u32)) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Two receipts' results agree: every AGREE_FIELDS line is byte-equal.
+pub fn results_agree(a: string, b: string) -> bool {
+    var i : u32 = 0;
+    while (i < AGREE_FIELD_COUNT) {
+        if (values_equal(a, b, AGREE_FIELDS[i]) == false) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+; --- 2. The signature ----------------------------------------------------------------------------------
+
+/// Exactly 2 * bytes hex digits.
+pub fn hex_exact(h: string, bytes: u32) -> bool {
+    if ((h.len as u32) != bytes * 2) { return false; }
+    var k : u32 = 0;
+    while (k < (h.len as u32)) {
+        if (hex_digit_value(h[k] as u32) == HEX_NOT_A_DIGIT) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+pub fn hex_byte(h: string, i: u32) -> u8 {
+    return ((hex_digit_value(h[2 * i] as u32) * 16) + hex_digit_value(h[(2 * i) + 1] as u32)) as u8;
+}
+
+pub fn key_bytes(h: string) -> [32]u8 {
+    var out : [32]u8 = [0] ** 32;
+    var i : u32 = 0;
+    while (i < 32) {
+        out[i] = hex_byte(h, i);
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn signature_bytes(h: string) -> [64]u8 {
+    var out : [64]u8 = [0] ** 64;
+    var i : u32 = 0;
+    while (i < 64) {
+        out[i] = hex_byte(h, i);
+        i = i + 1;
+    }
+    return out;
+}
+
+/// Ed25519 (RFC 8032, strict) over exactly these bytes, under this key. Malformed hex never verifies.
+pub fn signature_valid(msg: string, key_hex: string, sig_hex: string) -> bool {
+    if (hex_exact(key_hex, 32) == false) { return false; }
+    if (hex_exact(sig_hex, 64) == false) { return false; }
+    return verify(key_bytes(key_hex), msg, signature_bytes(sig_hex));
+}
+
+; --- 3. The receipt ------------------------------------------------------------------------------------
+
+/// The operator a key belongs to (network_job.t27 KEY_OPERATOR), 0 for a key the card does not list.
+pub fn key_operator(key_id: string) -> u32 {
+    var i : u32 = 0;
+    while (i < KEY_COUNT) {
+        if (text_is(KEY_IDS[i], key_id)) { return KEY_OPERATOR[i]; }
+        i = i + 1;
+    }
+    return 0;
+}
+
+/// The first fact that keeps this receipt from authenticating this job, or AUTH_MISSING_NONE.
+/// challenge: the job's challenge for a lab it challenged, empty for a lab with no request path.
+pub fn receipt_auth(msg: string, job: string, key_id: string, key_hex: string, sig_hex: string, challenge: string) -> u8 {
+    if (message_well_formed(msg) == false) { return AUTH_MALFORMED; }
+    if (value_is_text(msg, "commit", job) == false) { return AUTH_WRONG_COMMIT; }
+    var registered : bool = key_operator(key_id) != 0 and (key_hex.len as u32) > 0;
+    var given : bool = (challenge.len as u32) > 0;
+    return auth_first_missing((sig_hex.len as u32) > 0, registered, signature_valid(msg, key_hex, sig_hex), given, nonce_bytes(msg), value_is_text(msg, "nonce", challenge));
+}
+
+/// The level the receipt reaches for this job (signed_receipt.t27 LEVEL_*); none when malformed or for
+/// another commit.
+pub fn receipt_auth_level(msg: string, job: string, key_id: string, key_hex: string, sig_hex: string, challenge: string) -> u8 {
+    if (message_well_formed(msg) == false) { return LEVEL_NONE; }
+    if (value_is_text(msg, "commit", job) == false) { return LEVEL_NONE; }
+    var registered : bool = key_operator(key_id) != 0 and (key_hex.len as u32) > 0;
+    var given : bool = (challenge.len as u32) > 0;
+    return receipt_level((sig_hex.len as u32) > 0, registered, signature_valid(msg, key_hex, sig_hex), given, nonce_bytes(msg), value_is_text(msg, "nonce", challenge));
+}
+
+/// A challenge is a request name's spelling: 40 lowercase hex digits, 20 bytes, above NONCE_MIN_BYTES.
+pub fn challenge_ok(ch: string) -> bool {
+    return request_name_ok(ch);
+}
+
+; --- 4. Votes and the quorum ---------------------------------------------------------------------------
+
+/// keys: the key ids of the authenticated, agreeing receipts, each followed by a newline. The count of
+/// distinct operators among the listed keys the card knows: a key twice, or two keys of one operator,
+/// is one vote. Operators are numbered below 32.
+pub fn independent_votes(keys: string) -> u32 {
+    var seen : u32 = 0;
+    var votes : u32 = 0;
+    var at : u32 = 0;
+    while (at < (keys.len as u32)) {
+        var e : u32 = line_end(keys, at);
+        var i : u32 = 0;
+        while (i < KEY_COUNT) {
+            if (part_is(keys, at, e, KEY_IDS[i])) {
+                var op : u32 = KEY_OPERATOR[i];
+                if (op > 0 and op < 32) {
+                    var bit : u32 = 1 << op;
+                    if ((seen & bit) == 0) {
+                        seen = seen | bit;
+                        votes = votes + 1;
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        at = e + 1;
+    }
+    return votes;
+}
+
+/// The distinct registered keys among the listed ones (what the votes were before the operator dedupe).
+pub fn distinct_keys(keys: string) -> u32 {
+    var seen : u32 = 0;
+    var count : u32 = 0;
+    var at : u32 = 0;
+    while (at < (keys.len as u32)) {
+        var e : u32 = line_end(keys, at);
+        var i : u32 = 0;
+        while (i < KEY_COUNT) {
+            if (part_is(keys, at, e, KEY_IDS[i])) {
+                var bit : u32 = 1 << i;
+                if ((seen & bit) == 0) {
+                    seen = seen | bit;
+                    count = count + 1;
+                }
+            }
+            i = i + 1;
+        }
+        at = e + 1;
+    }
+    return count;
+}
+
+/// floor((n + f) / 2) + 1, network/mvp_v2.t27 quorum_needed.
+pub fn trusted_quorum(n: u32, f: u32) -> u32 {
+    return ((n + f) / 2) + 1;
+}
+
+/// The job's quorum, from its independent votes and whether every authenticated receipt agreed.
+pub fn quorum_verdict(votes: u32, agree: bool) -> u8 {
+    if (agree == false) { return QV_SPLIT; }
+    if (votes >= trusted_quorum(TRUSTED_N, TRUSTED_F)) { return QV_QUORUM; }
+    if (votes >= TEST_CREDIT_MIN_VOTES) { return QV_BELOW_QUORUM; }
+    return QV_NO_VOTE;
+}
+
+; --- 5. Settlement and finality ------------------------------------------------------------------------
+
+/// The ledger nonce of a job: the first eight hex digits of its sha.
+pub fn job_nonce(sha: string) -> u32 {
+    if ((sha.len as u32) < 8) { return 0; }
+    var n : u32 = 0;
+    var k : u32 = 0;
+    while (k < 8) {
+        var d : u32 = hex_digit_value(sha[k] as u32);
+        if (d == HEX_NOT_A_DIGIT) { return 0; }
+        n = (n * 16) + d;
+        k = k + 1;
+    }
+    return n;
+}
+
+/// The verdict settle() is given: a quorum, or a test credit's one vote, is accepted; nothing else indicts
+/// or accepts.
+pub fn settle_verdict(qv: u8) -> u8 {
+    if (qv == QV_QUORUM or qv == QV_BELOW_QUORUM) { return V_OK; }
+    return V_UNVERIFIABLE;
+}
+
+/// The ledger after this job settles on a fresh ledger that registers the operator's node. prior: the
+/// journal already holds this job's settlement, so the job is settled twice.
+pub fn job_ledger(qv: u8, operator: u32, nonce: u32, prior: bool) -> Ledger {
+    var l : Ledger = register_node(ledger_init(default_policy()), operator, operator, false, MIN_STAKE_MTRI);
+    if (prior) { l = settle(l, operator, operator, nonce, settle_verdict(qv)); }
+    return settle(l, operator, operator, nonce, settle_verdict(qv));
+}
+
+pub fn settle_outcome(qv: u8, operator: u32, nonce: u32, prior: bool) -> u8 {
+    return job_ledger(qv, operator, nonce, prior).last_outcome;
+}
+
+pub fn settle_credit_mtri(qv: u8, operator: u32, nonce: u32, prior: bool) -> u64 {
+    return job_ledger(qv, operator, nonce, prior).last_credit_delta_mtri;
+}
+
+/// A credit's state, minutes after it settled.
+pub fn credit_state(outcome: u8, minutes_since: u32, challenge_open: bool) -> u8 {
+    if (outcome != OUT_CREDITED) { return CS_VOID; }
+    if (challenge_open) { return CS_PENDING; }
+    if (minutes_since >= CHALLENGE_WINDOW_MINUTES) { return CS_FINAL; }
+    return CS_PENDING;
+}
+
+; --- Tests ---------------------------------------------------------------------------------------------
+
+/// Real bytes: t27b-lab's signed corpus receipt of master ddb84c5f5 (2026-10-10, key a05db80f53c317f6,
+/// no challenge), its message rebuilt as corpus_receipt.t27 says, and t27b-lab-2's (key fed03daa6459a7fa).
+pub const REAL_JOB : str = "ddb84c5f58994da8afe3d59185f3ef121ae7065f";
+pub const REAL_MSG_1 : str = "t27-corpus-receipt-v1\ncommit=\"ddb84c5f58994da8afe3d59185f3ef121ae7065f\"\nt27b_sha256=\"fea8400a8aad4a3ea58ece120e6e949c4664ada5f19f50004e5455284a4a4604\"\nt27c_sha256=\"1929dee2902b49ff71d5f425767726aa35610e796525902c811864f19c510dde\"\ninput_root=\"155954794e23c2f2543eab11f9ea723ad62f4e48cae405deeec4f0fc3df658c2\"\nverdict_root=\"640bd9393d3b72c229941188d770c82d214021096914395a2b5769f50dc5c6ab\"\noutput_root=\"bc1e021d3ee03bd84ca48e1ed208aa644ae521b83018bd130339bdf4fbea5210\"\ntotals={\"crash\":0,\"files\":1830,\"jit_interp_mismatch\":0,\"mismatch\":0,\"reference_compared\":1349,\"reference_disagree\":0,\"reference_disagree_tests\":0,\"reference_lab_error\":0,\"reference_pass\":1342,\"t27b_fail\":22,\"t27b_pass\":1329,\"t27b_pass_vacuous\":6,\"t27b_pass_vacuous_where_reference_passes\":5,\"t27b_pass_where_reference_does_not\":3,\"t27b_pass_where_reference_passes\":1326,\"timeout\":4}\nnonce=null\n";
+pub const REAL_SIG_1 : str = "294ae618b8f93168629430fb30e5691375615710da976d4519a51d289d133a0e8ed76f66f281f12e7b16eb38387557299beecf8080e7f9c789ff261d686ba105";
+pub const REAL_KEY_1 : str = "f711a6833cf81d4e860c43202bfdf21ea4528a81482cce8d25750d9014ec3760";
+pub const REAL_MSG_2 : str = "t27-corpus-receipt-v1\ncommit=\"ddb84c5f58994da8afe3d59185f3ef121ae7065f\"\nt27b_sha256=\"fea8400a8aad4a3ea58ece120e6e949c4664ada5f19f50004e5455284a4a4604\"\nt27c_sha256=\"95ec0b436088face0ca868b0ec9a5c05cb8d7a47851ac61c87bced41725fd682\"\ninput_root=\"155954794e23c2f2543eab11f9ea723ad62f4e48cae405deeec4f0fc3df658c2\"\nverdict_root=\"640bd9393d3b72c229941188d770c82d214021096914395a2b5769f50dc5c6ab\"\noutput_root=\"bc1e021d3ee03bd84ca48e1ed208aa644ae521b83018bd130339bdf4fbea5210\"\ntotals={\"crash\":0,\"files\":1830,\"jit_interp_mismatch\":0,\"mismatch\":0,\"reference_compared\":1349,\"reference_disagree\":0,\"reference_disagree_tests\":0,\"reference_lab_error\":0,\"reference_pass\":1342,\"t27b_fail\":22,\"t27b_pass\":1329,\"t27b_pass_vacuous\":6,\"t27b_pass_vacuous_where_reference_passes\":5,\"t27b_pass_where_reference_does_not\":3,\"t27b_pass_where_reference_passes\":1326,\"timeout\":4}\nnonce=null\n";
+pub const REAL_SIG_2 : str = "70bc442275bf8f568d5e106ddeaaec789a28fbddfc358dad1513d1b879243e7d4a6df2bde920985bfad6cc0a483e084fa7c0ed8bce345b697624eeb1a2346805";
+pub const REAL_KEY_2 : str = "aae82ba50a1bbeafb7f11742ca638595af9b5bec5df526fdf1aa53edc0e449e5";
+/// REAL_MSG_1 with its totals' first digit after `"crash":` changed from 0 to 1.
+pub const TAMPERED_MSG_1 : str = "t27-corpus-receipt-v1\ncommit=\"ddb84c5f58994da8afe3d59185f3ef121ae7065f\"\nt27b_sha256=\"fea8400a8aad4a3ea58ece120e6e949c4664ada5f19f50004e5455284a4a4604\"\nt27c_sha256=\"1929dee2902b49ff71d5f425767726aa35610e796525902c811864f19c510dde\"\ninput_root=\"155954794e23c2f2543eab11f9ea723ad62f4e48cae405deeec4f0fc3df658c2\"\nverdict_root=\"640bd9393d3b72c229941188d770c82d214021096914395a2b5769f50dc5c6ab\"\noutput_root=\"bc1e021d3ee03bd84ca48e1ed208aa644ae521b83018bd130339bdf4fbea5210\"\ntotals={\"crash\":1,\"files\":1830,\"jit_interp_mismatch\":0,\"mismatch\":0,\"reference_compared\":1349,\"reference_disagree\":0,\"reference_disagree_tests\":0,\"reference_lab_error\":0,\"reference_pass\":1342,\"t27b_fail\":22,\"t27b_pass\":1329,\"t27b_pass_vacuous\":6,\"t27b_pass_vacuous_where_reference_passes\":5,\"t27b_pass_where_reference_does_not\":3,\"t27b_pass_where_reference_passes\":1326,\"timeout\":4}\nnonce=null\n";
+pub const CHALLENGE_A : str = "00112233445566778899aabbccddeeff00112233";
+
+test a_real_receipt_authenticates_under_its_registered_key {
+    assert message_well_formed(REAL_MSG_1);
+    assert value_is_text(REAL_MSG_1, "commit", REAL_JOB);
+    assert signature_valid(REAL_MSG_1, REAL_KEY_1, REAL_SIG_1);
+    assert receipt_auth(REAL_MSG_1, REAL_JOB, "a05db80f53c317f6", REAL_KEY_1, REAL_SIG_1, "") == AUTH_MISSING_NONE;
+    assert receipt_auth_level(REAL_MSG_1, REAL_JOB, "a05db80f53c317f6", REAL_KEY_1, REAL_SIG_1, "") == LEVEL_AUTHOR;
+    assert receipt_auth(REAL_MSG_2, REAL_JOB, "fed03daa6459a7fa", REAL_KEY_2, REAL_SIG_2, "") == AUTH_MISSING_NONE;
+}
+
+test a_tampered_result_or_a_borrowed_key_does_not_verify {
+    assert message_well_formed(TAMPERED_MSG_1);
+    assert signature_valid(TAMPERED_MSG_1, REAL_KEY_1, REAL_SIG_1) == false;
+    assert receipt_auth(TAMPERED_MSG_1, REAL_JOB, "a05db80f53c317f6", REAL_KEY_1, REAL_SIG_1, "") == AUTH_BAD_SIGNATURE;
+    // lab 2's key does not verify lab 1's bytes
+    assert receipt_auth(REAL_MSG_1, REAL_JOB, "fed03daa6459a7fa", REAL_KEY_2, REAL_SIG_1, "") == AUTH_BAD_SIGNATURE;
+    // a key the card does not list is not registered, even with the right bytes
+    assert receipt_auth(REAL_MSG_1, REAL_JOB, "0000000000000000", REAL_KEY_1, REAL_SIG_1, "") == AUTH_KEY_NOT_REGISTERED;
+    // a key id with no key file found
+    assert receipt_auth(REAL_MSG_1, REAL_JOB, "a05db80f53c317f6", "", REAL_SIG_1, "") == AUTH_KEY_NOT_REGISTERED;
+    assert receipt_auth(REAL_MSG_1, REAL_JOB, "a05db80f53c317f6", REAL_KEY_1, "", "") == AUTH_UNSIGNED;
+}
+
+test a_replayed_receipt_does_not_answer_a_challenge {
+    // the master receipt carries no nonce: against a challenge it is authored, not fresh
+    assert nonce_bytes(REAL_MSG_1) == 0;
+    assert receipt_auth(REAL_MSG_1, REAL_JOB, "a05db80f53c317f6", REAL_KEY_1, REAL_SIG_1, CHALLENGE_A) == AUTH_NO_NONCE;
+    assert receipt_auth_level(REAL_MSG_1, REAL_JOB, "a05db80f53c317f6", REAL_KEY_1, REAL_SIG_1, CHALLENGE_A) == LEVEL_AUTHOR;
+    // the receipt of one commit is not a receipt of another
+    assert receipt_auth(REAL_MSG_1, "cd569e3e0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "a05db80f53c317f6", REAL_KEY_1, REAL_SIG_1, "") == AUTH_WRONG_COMMIT;
+    assert challenge_ok(CHALLENGE_A);
+    assert challenge_ok("00112233") == false;
+}
+
+test a_message_is_the_eight_fields_in_order_and_nothing_else {
+    assert message_well_formed("t27-corpus-receipt-v1\ncommit=1\nt27b_sha256=2\nt27c_sha256=3\ninput_root=4\nverdict_root=5\noutput_root=6\ntotals={}\nnonce=null\n");
+    // a field out of order
+    assert message_well_formed("t27-corpus-receipt-v1\nt27b_sha256=2\ncommit=1\nt27c_sha256=3\ninput_root=4\nverdict_root=5\noutput_root=6\ntotals={}\nnonce=null\n") == false;
+    // a line after the nonce
+    assert message_well_formed("t27-corpus-receipt-v1\ncommit=1\nt27b_sha256=2\nt27c_sha256=3\ninput_root=4\nverdict_root=5\noutput_root=6\ntotals={}\nnonce=null\nx=1\n") == false;
+    // another domain
+    assert message_well_formed("t27-receipt-v1\ncommit=1\n") == false;
+    assert nonce_bytes("t27-corpus-receipt-v1\nnonce=\"00112233445566778899aabbccddeeff00112233\"\n") == 20;
+    assert value_is_text("t27-corpus-receipt-v1\nnonce=\"ab\"\n", "nonce", "ab");
+    assert value_is_text("t27-corpus-receipt-v1\nnonce=\"ab\"\n", "nonce", "a") == false;
+}
+
+test the_two_labs_agree_and_are_one_vote {
+    assert results_agree(REAL_MSG_1, REAL_MSG_2);
+    assert results_agree(REAL_MSG_1, TAMPERED_MSG_1) == false;
+    assert distinct_keys("a05db80f53c317f6\nfed03daa6459a7fa\n") == 2;
+    assert independent_votes("a05db80f53c317f6\nfed03daa6459a7fa\n") == 1;
+    // a repeat by one signer is one vote; an unknown key is none
+    assert independent_votes("a05db80f53c317f6\na05db80f53c317f6\n") == 1;
+    assert independent_votes("0000000000000000\n") == 0;
+    assert independent_votes("") == 0;
+}
+
+test the_trusted_quorum_needs_three_independent_votes {
+    assert trusted_quorum(TRUSTED_N, TRUSTED_F) == TRUSTED_M;
+    // the rule that separates 2M > N + F from n/2 + 1 (N 5, F 2: 4 against 3)
+    assert trusted_quorum(5, 2) == 4;
+    assert quorum_verdict(3, true) == QV_QUORUM;
+    assert quorum_verdict(1, true) == QV_BELOW_QUORUM;
+    assert quorum_verdict(2, true) == QV_BELOW_QUORUM;
+    assert quorum_verdict(0, true) == QV_NO_VOTE;
+    assert quorum_verdict(3, false) == QV_SPLIT;
+    assert text_is(QV_NAMES[QV_BELOW_QUORUM], "BELOW_QUORUM");
+}
+
+test settle_pays_one_job_once {
+    var nonce : u32 = job_nonce(REAL_JOB);
+    assert nonce == 3719842911;
+    assert settle_outcome(QV_BELOW_QUORUM, 1, nonce, false) == OUT_CREDITED;
+    assert settle_credit_mtri(QV_BELOW_QUORUM, 1, nonce, false) == REWARD_PER_JOB_MTRI;
+    // a replay of the same job: settled before, so nothing moves
+    assert settle_outcome(QV_BELOW_QUORUM, 1, nonce, true) == OUT_ALREADY_SETTLED_NOT_CHARGED;
+    assert settle_credit_mtri(QV_BELOW_QUORUM, 1, nonce, true) == 0;
+    // no vote, or a split: unverifiable, neither paid nor charged
+    assert settle_outcome(QV_NO_VOTE, 1, nonce, false) == OUT_UNVERIFIABLE_NOT_CHARGED;
+    assert settle_outcome(QV_SPLIT, 1, nonce, false) == OUT_UNVERIFIABLE_NOT_CHARGED;
+    assert settle_credit_mtri(QV_SPLIT, 1, nonce, false) == 0;
+}
+
+test a_credit_is_final_after_the_window_and_never_while_challenged {
+    assert credit_state(OUT_CREDITED, 0, false) == CS_PENDING;
+    assert credit_state(OUT_CREDITED, CHALLENGE_WINDOW_MINUTES - 1, false) == CS_PENDING;
+    assert credit_state(OUT_CREDITED, CHALLENGE_WINDOW_MINUTES, false) == CS_FINAL;
+    assert credit_state(OUT_CREDITED, CHALLENGE_WINDOW_MINUTES * 10, true) == CS_PENDING;
+    assert credit_state(OUT_UNVERIFIABLE_NOT_CHARGED, CHALLENGE_WINDOW_MINUTES, false) == CS_VOID;
+    assert credit_state(OUT_ALREADY_SETTLED_NOT_CHARGED, 0, false) == CS_VOID;
+}
+
+invariant the_trusted_quorum_is_safe_against_its_fault_bound {
+    assert 2 * TRUSTED_M > TRUSTED_N + TRUSTED_F;
+    assert TRUSTED_M <= TRUSTED_N;
+    assert TEST_CREDIT_MIN_VOTES < TRUSTED_M;
+}
