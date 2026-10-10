@@ -1,0 +1,176 @@
+module port::trios::crates::trios_server::src::rainbow_routes;
+
+// Rainbow Bridge route mount — re-export of `trios-rainbow-bridge` (L13 / INV-8).
+//
+// ONE SHOT: https://github.com/gHashTag/trios/issues/267 §6 deliverable 7.
+// Coq source: trinity-clara/proofs/igla/rainbow_bridge_consistency.v
+// Anchor: φ² + φ⁻² = 3 (Zenodo DOI 10.5281/zenodo.19227877).
+//
+// Ported from crates/trios-server/src/rainbow_routes.rs at 8b229e9489ee
+
+// Constants imported from trios_rainbow_bridge crate - ported as decision logic
+const LATENCY_P95_MS: i64 = 2000;
+const HEARTBEAT_MAX_S: i64 = 14400;
+const CHANNEL_COUNT: i64 = 7;
+const LAYER_COUNT: i64 = 3;
+
+// Structs for JSON response types
+struct Anchors {
+    latency_p95_ms: i64,
+    heartbeat_max_s: i64,
+    channel_count: i64,
+    layer_count: i64,
+}
+
+struct RainbowStatus {
+    service: str,
+    lane: str,
+    invariant_id: str,
+    trinity_identity: str,
+    anchors: Anchors,
+    doi: str,
+    one_shot: str,
+    coq_source: str,
+    rust_source: str,
+}
+
+struct ErrorResponse {
+    error: str,
+    channel: str,
+    reason: str,
+    one_shot: str,
+    lane: str,
+    invariant_id: str,
+}
+
+/// Build the `/rainbow/*` sub-router. Mount with `app.merge(rainbow_routes())`.
+/// Router creation is plumbing - decision logic is in the route handlers.
+fn rainbow_routes() -> i32 {
+    0 // Router creation is plumbing - return dummy value
+}
+
+/// `GET /rainbow/status` — L-R14 numeric anchors from `trios-rainbow-bridge`.
+///
+/// The values are imported as Rust constants from the crate, so they are
+/// pinned to `assertions/igla_assertions.json::INV-8.numeric_anchor` and to
+/// `rainbow_bridge_consistency.v` by the build-time `anchors_match_coq`
+/// test in the bridge crate.
+fn rainbow_status() -> RainbowStatus {
+    RainbowStatus {
+        .service = "rainbow-bridge",
+        .lane = "L13",
+        .invariant_id = "INV-8",
+        .trinity_identity = "phi^2 + phi^-2 = 3",
+        .anchors = Anchors {
+            .latency_p95_ms = LATENCY_P95_MS,
+            .heartbeat_max_s = HEARTBEAT_MAX_S,
+            .channel_count = CHANNEL_COUNT,
+            .layer_count = LAYER_COUNT,
+        },
+        .doi = "10.5281/zenodo.19227877",
+        .one_shot = "https://github.com/gHashTag/trios/issues/267",
+        .coq_source = "trinity-clara/proofs/igla/rainbow_bridge_consistency.v",
+        .rust_source = "crates/trios-rainbow-bridge/",
+    }
+}
+
+fn not_implemented(channel: str) -> (i32, ErrorResponse) {
+    (
+        501, // HTTP 501 Not Implemented
+        ErrorResponse {
+            .error = "not_implemented",
+            .channel = channel,
+            .reason = "Live tailnet transport is a follow-up; in-process bridge is operational via the trios-rainbow-bridge crate API.",
+            .one_shot = "https://github.com/gHashTag/trios/issues/267",
+            .lane = "L13",
+            .invariant_id = "INV-8",
+        },
+    )
+}
+
+fn rainbow_ws_stub() -> (i32, ErrorResponse) {
+    not_implemented("ws")
+}
+
+fn rainbow_sse_stub() -> (i32, ErrorResponse) {
+    not_implemented("sse")
+}
+
+fn rainbow_publish_stub() -> (i32, ErrorResponse) {
+    not_implemented("publish")
+}
+
+test rainbow_routes_dummy {
+    // Router creation is plumbing - function returns dummy value
+    const result = rainbow_routes();
+    assert(result == 0);
+}
+
+test rainbow_status_constants {
+    // Mirror: rainbow_bridge_consistency.v (numeric anchors).
+    assert(LATENCY_P95_MS == 2000);
+    assert(HEARTBEAT_MAX_S == 14400);
+    assert(CHANNEL_COUNT == 7);
+    assert(LAYER_COUNT == 3);
+}
+
+test rainbow_status_response_structure {
+    const response = rainbow_status();
+    assert(response.service == "rainbow-bridge");
+    assert(response.lane == "L13");
+    assert(response.invariant_id == "INV-8");
+    assert(response.trinity_identity == "phi^2 + phi^-2 = 3");
+    assert(response.doi == "10.5281/zenodo.19227877");
+    assert(response.one_shot == "https://github.com/gHashTag/trios/issues/267");
+    assert(response.coq_source == "trinity-clara/proofs/igla/rainbow_bridge_consistency.v");
+    assert(response.rust_source == "crates/trios-rainbow-bridge/");
+}
+
+test rainbow_status_anchors {
+    const response = rainbow_status();
+    assert(response.anchors.latency_p95_ms == 2000);
+    assert(response.anchors.heartbeat_max_s == 14400);
+    assert(response.anchors.channel_count == 7);
+    assert(response.anchors.layer_count == 3);
+}
+
+test not_implemented_ws {
+    const (status, json) = not_implemented("ws");
+    assert(status == 501); // HTTP 501 Not Implemented
+    assert(json.error == "not_implemented");
+    assert(json.channel == "ws");
+    assert(json.reason != undefined);
+    assert(json.one_shot == "https://github.com/gHashTag/trios/issues/267");
+    assert(json.lane == "L13");
+    assert(json.invariant_id == "INV-8");
+}
+
+test not_implemented_sse {
+    const (status, json) = not_implemented("sse");
+    assert(status == 501); // HTTP 501 Not Implemented
+    assert(json.error == "not_implemented");
+    assert(json.channel == "sse");
+    assert(json.reason != undefined);
+    assert(json.one_shot == "https://github.com/gHashTag/trios/issues/267");
+    assert(json.lane == "L13");
+    assert(json.invariant_id == "INV-8");
+}
+
+test stub_functions_call_not_implemented {
+    // Test that all stub functions call not_implemented with the correct channel
+    const (ws_status, ws_json) = rainbow_ws_stub();
+    const (sse_status, sse_json) = rainbow_sse_stub();
+    const (pub_status, pub_json) = rainbow_publish_stub();
+    
+    assert(ws_status == 501);
+    assert(sse_status == 501);
+    assert(pub_status == 501);
+    
+    assert(ws_json.channel == "ws");
+    assert(sse_json.channel == "sse");
+    assert(pub_json.channel == "publish");
+    
+    assert(ws_json.error == "not_implemented");
+    assert(sse_json.error == "not_implemented");
+    assert(pub_json.error == "not_implemented");
+}
