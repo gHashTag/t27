@@ -42,14 +42,14 @@ module SpecWriter;
 
     // The writer's declared record shapes hold their values (#8475): a field
     // keeps the type name it was built with, and a clean write result carries
-    // both paths and no error.
+    // both paths, a passing compile flag, and no error.
     test writer_records_round_trip {
-        const f = SpecField { field_type : "u32" };
+        var f = SpecField { field_type : "u32" };
         assert(f.field_type == "u32");
-        const r = WriteResult { spec_path : "specs/demo.t27", generated_path : "gen/demo.zig", compile_ok : "true", error_msg : null };
+        var r = WriteResult { spec_path : "specs/demo.t27", generated_path : "gen/demo.zig", compile_ok : true, error_msg : null };
+        assert(r.spec_path == "specs/demo.t27");
+        assert(r.generated_path == "gen/demo.zig");
         assert(r.error_msg == null);
-        assert(r.spec_path.len == 14);
-        assert(r.generated_path.len == 12);
-        assert(r.compile_ok == "true");
+        assert(r.compile_ok == true);
     }
 
