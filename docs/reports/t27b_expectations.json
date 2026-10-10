@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 25,
+ "max_not_pass": 24,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass"},
   {"path": "specs/a_b/c.t27", "t27b": "pass"},
@@ -376,7 +376,7 @@
   {"path": "specs/memory/tmem/session.t27", "t27b": "pass"},
   {"path": "specs/memory/tmem/types.t27", "t27b": "pass"},
   {"path": "specs/mesh_routing.t27", "t27b": "pass"},
-  {"path": "specs/ml/activation/sigmoid_activation.t27", "t27b": "blocked", "blocker": "ExprCall(@sizeOf)", "reason": "unimplemented"},
+  {"path": "specs/ml/activation/sigmoid_activation.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/conv2d_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/residual_connection.t27", "t27b": "pass"},
@@ -1170,6 +1170,7 @@
   {"path": "specs/tri/t27b/conformance/scope_exit.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scoped_gf16.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/shadow_module_var.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/size_of.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/static_slice_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/str_module_var.t27", "t27b": "pass"},

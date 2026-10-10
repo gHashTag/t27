@@ -88,7 +88,7 @@ use std::collections::{HashMap, HashSet};
 #[path = "lower_float.rs"]
 mod float;
 #[path = "../../../gen/rust/tri/t27b/builtin_plan.rs"] #[allow(dead_code, unused_parens)]
-mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
+pub(crate) mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e, @sizeOf; `abi_bytes` serves ir.rs
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 pub(crate) mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type; `widens` serves ir.rs
 #[path = "../../../gen/rust/tri/t27b/ptr_eq_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -3536,6 +3536,12 @@ impl<'a> Lower<'a> {
             },
             NodeKind::ExprCall if matches!(n.name.as_str(), "@abs" | "@max" | "@min" | "@divTrunc") => self.builtin_plan(n),
             NodeKind::ExprCall if xp::BUILTINS.split(' ').any(|b| b == n.name) => self.libm_call(n),
+            NodeKind::ExprCall if n.name == "@sizeOf" => { // a comptime_int: the bytes t27b lays T out in, where builtin_plan.t27 says they are Zig's
+                let t = if n.children.len() == 1 { self.lty(&n.children[0].name)? } else { LTy::Str };
+                let (size, k) = (self.size_align(&t)?.0, match t { LTy::S(_) => bp::Z_SCALAR, LTy::Struct(_) => bp::Z_STRUCT, _ => bp::Z_OTHER });
+                let a = bp::size_of(n.children.len(), k, size);
+                if a == bp::Z_SIZE { Ok(Val::Ct(size as i128)) } else { self.reject(bp::SIZE_OF, format!("`@sizeOf({})`: {}", n.children.first().map_or("", |c| c.name.as_str()), bp::size_of_why(a))) }
+            }
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 // An identifier is printed as a value (`gf16.GF16`), not

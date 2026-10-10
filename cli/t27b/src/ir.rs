@@ -132,16 +132,9 @@ impl Ty {
         matches!(self, Ty::F64 | Ty::F32)
     }
 
-    /// Size in memory: a load or store of this type moves this many bytes.
+    /// Size in memory: a load or store of this type moves this many bytes, Zig's ABI size (specs/tri/t27b/builtin_plan.t27).
     pub fn bytes(self) -> u32 {
-        match self {
-            Ty::Bool => 1,
-            // Zig's ABI size: the next power-of-two byte count.
-            Ty::UN(n) | Ty::IN(n) if n <= 8 => 1,
-            Ty::UN(n) | Ty::IN(n) if n <= 16 => 2,
-            Ty::UN(_) | Ty::IN(_) => 4,
-            _ => self.bits() / 8,
-        }
+        crate::lower::bp::abi_bytes(self.bits())
     }
 
     /// Width in bits. `Bool` reports 8 (it is stored as a 0/1 byte value).

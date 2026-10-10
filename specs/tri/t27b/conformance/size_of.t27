@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/size_of.t27 -- `@sizeOf(T)`, as the reference runs it (gHashTag/t27#7817, t27b
+; coverage epic #6063: ExprCall(@sizeOf) in specs/ml/activation/sigmoid_activation.t27). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. gen-zig prints `@sizeOf(T)` as
+; written, and Zig answers a comptime_int, T's ABI size in bytes:
+; - an integer, bool or float type takes the least power of two of bytes that holds its bits;
+; - a struct whose fields are all `void` or such structs takes no bytes.
+; Each size reaches an assert through a fn parameter, so the comparison runs at run time.
+; Not here (t27b refuses them by name, specs/tri/t27b/builtin_plan.t27): a struct with bytes in it, whose fields
+; Zig reorders, and any other type.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceSizeOf;
+
+const SzNone = struct {
+    none : void,
+};
+
+const SzNested = struct {
+    inner : SzNone,
+    also : void,
+};
+
+fn sz_id(n: u64) -> u64 {
+    return n;
+}
+
+test integer_types_take_a_power_of_two_of_bytes {
+    assert sz_id(@sizeOf(u1)) == 1;
+    assert sz_id(@sizeOf(u7)) == 1;
+    assert sz_id(@sizeOf(u8)) == 1;
+    assert sz_id(@sizeOf(i8)) == 1;
+    assert sz_id(@sizeOf(u12)) == 2;
+    assert sz_id(@sizeOf(i16)) == 2;
+    assert sz_id(@sizeOf(u24)) == 4;
+    assert sz_id(@sizeOf(i31)) == 4;
+    assert sz_id(@sizeOf(u32)) == 4;
+    assert sz_id(@sizeOf(i64)) == 8;
+    assert sz_id(@sizeOf(u64)) == 8;
+    assert sz_id(@sizeOf(usize)) == 8;
+}
+
+test bool_and_float_types {
+    assert sz_id(@sizeOf(bool)) == 1;
+    assert sz_id(@sizeOf(f32)) == 4;
+    assert sz_id(@sizeOf(f64)) == 8;
+}
+
+test a_struct_of_void_fields_takes_no_bytes {
+    assert sz_id(@sizeOf(SzNone)) == 0;
+    assert sz_id(@sizeOf(SzNested)) == 0;
+}
+
+test the_size_is_a_comptime_int {
+    const n = @sizeOf(f64);
+    assert sz_id(n * 2) == 16;
+    assert sz_id(@sizeOf(u24) + @sizeOf(u12)) == 6;
+}
