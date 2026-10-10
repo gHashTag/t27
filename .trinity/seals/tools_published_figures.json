@@ -1,15 +1,23 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+d2c750b54",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a052addfc58427b5eee84a8bcb311d3badf729c95814188ea554141bcf8685e9",
   "gen_hash_rust": "sha256:83c09a724372e7b143506f55146cc290e5a56ea59487a0969105d4f50586e4bd",
   "gen_hash_verilog": "sha256:e5898774e51d2cbaa2315391ba6cd59b70e730cfa46db7ceade636a67ba8ce51",
-  "gen_hash_zig": "sha256:49da89c3106523311d92234a8374d15bafcd8b5b78d4382fdb9e001163065795",
+  "gen_hash_zig": "sha256:caa468abb75805476a73d3b415444d3089b1c7e35b144b31cade4b028ce3df67",
   "module": "published_figures",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:27Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:42:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9833481e81a55d03e63dbc294692d66ad1bdc8b33ffa6720754245e65c2c8d8f",
   "spec_path": "specs/port/tools/published_figures.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-published_figures-3533326/spec.zig:56:36: error: use of undeclared identifier 'string'"
+    "blocked": "does not compile: spec.zig:56:36: error: use of undeclared identifier 'string'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

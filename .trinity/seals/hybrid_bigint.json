@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:016bb76e312aa1db5c905bed7e2c705fd8a1f55155544e0dc63234ad502d5425",
   "gen_hash_rust": "sha256:aa5db8b3e2a9169c0fdae53ad35fa6c0d8bdd099005d32f328344ac30ec8ff80",
   "gen_hash_verilog": "sha256:72c49ed3f111af5dc4b098314a7d4c1ebd3a45c593d925e2320fa76838cebd3c",
-  "gen_hash_zig": "sha256:68a5fdb81be9c7d18497f52b87bc8ab72b5d313505b282fd615598dbeb0e8959",
+  "gen_hash_zig": "sha256:d67d67b80fc86f55b22c1409ac33d9675a69aeb3a68c5cc3c1a09604c7323e78",
   "module": "hybrid_bigint",
   "ring": 12,
-  "sealed_at": "2026-10-08T06:15:21Z",
+  "sealed_at": "2026-10-10T12:42:46Z",
   "spec_hash": "sha256:0c6a410bd57a3c1490b4754dc41e2bcbadd163164aef083225e809a857c3dbea",
   "spec_path": "specs/ternary/hybrid_bigint.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:278:13: error: pointless discard of local constant"
+    "blocked": "does not compile: spec.zig:599:11: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

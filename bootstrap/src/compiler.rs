@@ -23170,7 +23170,7 @@ impl Compiler {
         for i in (0..lines.len()).rev() {
             block_end[i] = next_top;
             let l = lines[i];
-            if !l.is_empty() && !l.starts_with(' ') && !l.starts_with('}') {
+            if !l.is_empty() && !l.starts_with(' ') && !l.starts_with('}') && !matches!(l, "break;" | "continue;") { // #8565: an unindented break is not a new top-level block
                 next_top = i;
             }
         }

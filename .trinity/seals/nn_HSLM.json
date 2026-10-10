@@ -1,15 +1,48 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+d2c750b54",
+  "closure": [
+    {
+      "spec": "specs/base/ops.t27",
+      "spec_hash": "sha256:8e6c6168f64ff2d654a3b276d7f3ceee4fbd408d334590ce03467b1f3aaa68b3"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    },
+    {
+      "spec": "specs/math/sacred_physics.t27",
+      "spec_hash": "sha256:6f0c02de93fc908bcae88bd48037b8b06c54efe3fc0105ab09288fb2102e74d9"
+    },
+    {
+      "spec": "specs/nn/attention.t27",
+      "spec_hash": "sha256:be83d2a916a15957502d6afa4d6eff7ab07d0373e81555704ee842500db47187"
+    },
+    {
+      "spec": "specs/numeric/gf16.t27",
+      "spec_hash": "sha256:2a33d77db23966331716955924d08e30d12a3af361067da0a2c7072b7f4b7b0d"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:981dd040e1a428a855b49a70a1057b15aec8b1ae983665ab56a12cf4dfebbe9b",
   "gen_hash_rust": "sha256:7ddc1fd7e157a82c262e7c7216c41091173141c42d0f2bd5843698f99c890321",
   "gen_hash_verilog": "sha256:b0fe9634a4234ef800d3351a47f89f20e884a4bc6e164a5cd20e0c0ae752c855",
   "gen_hash_zig": "sha256:08a78e88ef14412a7c59ff9cc7de62e70ac207dcb1d1b5ee4f685621b7139d18",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:35Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:42:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2056290affb21128c3fec58c0b04a3999569434cbfb2513ae7a58866026de4bf",
   "spec_path": "specs/nn/hslm.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-hslm-36417/spec.zig:54:31: error: use of undeclared identifier 'Trit'"
+    "blocked": "does not compile: spec.zig:177:26: error: use of undeclared identifier 'tanh'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
