@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "built_by": "t27c-bootstrap@0.5.2+af4c8b8ac",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7b15ca5f216f1b21eaf7075ea2967afe0c2359eaa09dd608625d6c721494d9e9",
   "gen_hash_rust": "sha256:efe9600385e9d5d761d3767c065899c728578db0d54384f2cfec330f47025056",
   "gen_hash_verilog": "sha256:3cea55ffd82685902350528e780c9ad95becb6ee6abf4f53ab0d80a98d27ff44",
-  "gen_hash_zig": "sha256:f58d36816f3cfdd35582472514bc2473480f3442102e0ba498b9462ffa8e598c",
+  "gen_hash_zig": "sha256:825d1c1c352ab555edcf550612fb8f87e90d620dc9a1a44530e3463ccf5a6c19",
   "module": "runtime-process",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T23:18:15Z",
+  "sealed_at": "2026-10-10T13:59:05Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:77fd1ee5e9cf0b38c1f140a325f4a72e1ebfc3c2c79d2f03a76d5e2b3155495d",
   "spec_path": "specs/runtime/process.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:158:22: error: expected expression, found '.'"
+    "blocked": "does not compile: spec.zig:226:49: error: '_' used as an identifier without @\"_\" syntax"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

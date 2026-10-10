@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "built_by": "t27c-bootstrap@0.5.2+af4c8b8ac",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c56333cb83cb6a28d8accb1c373f74c912a0e7eaabcb83113f8abd5e832520ea",
   "gen_hash_rust": "sha256:f0e7c9f2537304ea488818e6f986c73aee99dd8018947076a0cdbe1a6a3f82f6",
   "gen_hash_verilog": "sha256:035564e7ff464d6cdb5ad69acc8648266e23c0e68812ae93f2ce2ae866694d9f",
-  "gen_hash_zig": "sha256:6904be197623dea6b5899c374e982abdbdacb63620a0f47e085acd6175f24cf9",
+  "gen_hash_zig": "sha256:2d54dd7ec72fee6cf17741bdc282f08129d854a6ed592f353227f041774cad0d",
   "module": "runtime-execute",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T23:18:14Z",
+  "sealed_at": "2026-10-10T13:59:00Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7dee6cb1f54765664856caf60eee62b426e0c0e61a2cc9b5572a7201175ba29c",
   "spec_path": "specs/runtime/execute.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:115:59: error: expected expression, found '.'"
+    "blocked": "does not compile: spec.zig:184:42: error: use of undeclared identifier 'TaskModification'"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

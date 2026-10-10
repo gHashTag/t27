@@ -10360,7 +10360,7 @@ impl Codegen {
             }
             NodeKind::ExprEnumValue => {
                 self.write(".");
-                self.write(&node.name);
+                self.write(&Self::zig_ident(&node.name));
             }
             NodeKind::ExprCall => {
                 // W572: a method call whose receiver could not be folded into
@@ -10817,7 +10817,7 @@ impl Codegen {
                             if is_numeric {
                                 self.write(&case_node.name);
                             } else {
-                                self.write(&format!(".{}", case_node.name));
+                                self.write(&format!(".{}", Self::zig_ident(&case_node.name))); // #8621: `.error` is `.@"error"`
                             }
                         } else {
                             self.write("else");
