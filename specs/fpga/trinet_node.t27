@@ -60,6 +60,7 @@ var c_n : u32 = 0
 var c_w : u64 = 0
 var c_x : u64 = 0
 var c_len : u16 = 0
+var rq : u8 = 0
 var j_op : u8 = 0
 var j_n : u32 = 0
 var j_w : u64 = 0
@@ -188,28 +189,32 @@ fn is_req(a: u8, b5: u8, len: u16) -> u8 {
     return 0;
 }
 
-// A job starts when an accepted frame ends with a request and the engine is idle.
-fn start(dn: u8, okf: u8, a: u8, b5: u8, len: u16, m: u8) -> u8 {
+// A job starts when an accepted frame ends with a request and the engine is idle. rq is
+// is_req registered on every clock, so the job start reads one flip-flop instead of a
+// 16-bit length compare: that start drives the enables of about 170 job registers and the next
+// step code. rq holds the final length one clock after the last payload byte; EthRx raises
+// done at least five clocks after it (four FCS bytes, then the end of the frame).
+fn start_r(dn: u8, okf: u8, r: u8, m: u8) -> u8 {
     if (dn == 1) {
         if (okf == 1) {
-            if (m == 0) { return is_req(a, b5, len); }
+            if (m == 0) { return r; }
         }
     }
     return 0;
 }
 
-fn busy_drop(dn: u8, okf: u8, a: u8, b5: u8, len: u16, m: u8) -> u8 {
+fn busy_r(dn: u8, okf: u8, r: u8, m: u8) -> u8 {
     if (dn == 1) {
         if (okf == 1) {
-            if (m != 0) { return is_req(a, b5, len); }
+            if (m != 0) { return r; }
         }
     }
     return 0;
 }
 
-fn not_req(dn: u8, okf: u8, a: u8, b5: u8, len: u16) -> u8 {
+fn not_req_r(dn: u8, okf: u8, r: u8) -> u8 {
     if (dn == 1) {
-        if (okf == 1) { return 1 - is_req(a, b5, len); }
+        if (okf == 1) { return 1 - r; }
     }
     return 0;
 }
@@ -380,6 +385,28 @@ fn next_ms(m: u16, st: u8) -> u16 {
     return m + 1;
 }
 
+// The step code of the next clock, straight from the current (md, blk, sub): the same value as
+// t_of(next_ms(m, st)) without the increment of ms or the subtraction in step(), so tq, fa and
+// fs come out of a few comparisons. A test walks every reachable state against the long form.
+fn next_step(m: u16, st: u8) -> u8 {
+    if (md_of(m) == 0) {
+        if (st == 1) { return 1; }
+        return 0;
+    }
+    if (md_of(m) == 1) { return 2; }
+    if (md_of(m) == 2) {
+        if (sub_of(m) == 9) {
+            if (blk_of(m) == 3) { return 6; }
+            return 2;
+        }
+        if (sub_of(m) == 8) { return 5; }
+        return half_step(sub_of(m) & 3);
+    }
+    if (sub_of(m) == 17) { return 0; }
+    if (sub_of(m) == 16) { return 7; }
+    return half_step(sub_of(m) & 3);
+}
+
 // One bank holds the SipHash state. Every step changes a word from its own old value and the
 // registered sums only, so no word is read after another one was written in the same clock.
 fn ke0_of(m: u16, op: u8, lk: u8, w: u64, k: u64) -> u64 { return sel64(setting(md_of(m), op, lk), w, k); }
@@ -408,20 +435,21 @@ fn on_clock(pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) {
     key0 = sel64(setting(md_of(ms), j_op, locked), j_w, key0);
     key1 = sel64(setting(md_of(ms), j_op, locked), j_x, key1);
     locked = locked | setting(md_of(ms), j_op, locked);
-    n_req = n_req + (start(dn, okf, c_a, c_5, c_len, md_of(ms)) as u32);
-    n_busy = n_busy + (busy_drop(dn, okf, c_a, c_5, c_len, md_of(ms)) as u32);
-    n_bad = n_bad + (not_req(dn, okf, c_a, c_5, c_len) as u32);
-    j_go = start(dn, okf, c_a, c_5, c_len, md_of(ms));
-    j_op = sel8(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_op, j_op);
-    j_n = sel32(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_n, j_n);
-    j_w = sel64(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_w, j_w);
-    j_x = sel64(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_x, j_x);
+    n_req = n_req + (start_r(dn, okf, rq, md_of(ms)) as u32);
+    n_busy = n_busy + (busy_r(dn, okf, rq, md_of(ms)) as u32);
+    n_bad = n_bad + (not_req_r(dn, okf, rq) as u32);
+    j_go = start_r(dn, okf, rq, md_of(ms));
+    j_op = sel8(start_r(dn, okf, rq, md_of(ms)), c_op, j_op);
+    j_n = sel32(start_r(dn, okf, rq, md_of(ms)), c_n, j_n);
+    j_w = sel64(start_r(dn, okf, rq, md_of(ms)), c_w, j_w);
+    j_x = sel64(start_r(dn, okf, rq, md_of(ms)), c_x, j_x);
     // The step code is decoded one clock early and held in tq, so the operand selects in front
     // of the sum adder read a register instead of the decode of ms.
-    tq = t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms))));
-    fa = eqb(t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)))), 8);
-    fs = is_sum(t_of(next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)))));
-    ms = next_ms(ms, start(dn, okf, c_a, c_5, c_len, md_of(ms)));
+    tq = next_step(ms, start_r(dn, okf, rq, md_of(ms)));
+    fa = eqb(next_step(ms, start_r(dn, okf, rq, md_of(ms))), 8);
+    fs = is_sum(next_step(ms, start_r(dn, okf, rq, md_of(ms))));
+    ms = next_ms(ms, start_r(dn, okf, rq, md_of(ms)));
+    rq = is_req(c_a, c_5, c_len);
     c_a = cap8(pv, pi, 0, eqb(pb, 170), dn, c_a);
     c_5 = cap8(pv, pi, 1, eqb(pb, 85), dn, c_5);
     c_op = cap8(pv, pi, 2, pb, 0, c_op);
@@ -568,7 +596,7 @@ test the_dot_product_matches_protocol_zig {
 }
 
 test seven_jobs_give_the_receipts_protocol_zig_gives {
-    ms = 0; tq = 0; fa = 0; fs = 0; locked = 0; key0 = 0; key1 = 0; resp_v = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; rq = 0; locked = 0; key0 = 0; key1 = 0; resp_v = 0;
     c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var i : u8 = 0;
     var k : u16 = 0;
@@ -580,6 +608,7 @@ test seven_jobs_give_the_receipts_protocol_zig_gives {
             on_clock(1, v_byte(i, k), k, 0, 0);
             k = k + 1;
         }
+        on_clock(0, 0, 0, 0, 0);
         on_clock(0, 0, 0, 1, 1);
         t = 0;
         seen = 0;
@@ -604,30 +633,33 @@ test seven_jobs_give_the_receipts_protocol_zig_gives {
 }
 
 test a_request_while_busy_is_dropped_and_counted {
-    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; rq = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var k : u16 = 0;
     while (k < 24) {
         on_clock(1, v_byte(2, k), k, 0, 0);
         k = k + 1;
     }
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 1);
     k = 0;
     while (k < 24) {
         on_clock(1, v_byte(2, k), k, 0, 0);
         k = k + 1;
     }
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 1);
     assert_eq(n_req, 1);
     assert_eq(n_busy, 1);
 }
 
 test a_datagram_without_magic_or_too_short_is_not_a_request {
-    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; rq = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var k : u16 = 0;
     while (k < 24) {
         on_clock(1, 1, k, 0, 0);
         k = k + 1;
     }
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 1);
     assert_eq(n_bad, 1);
     k = 0;
@@ -635,6 +667,7 @@ test a_datagram_without_magic_or_too_short_is_not_a_request {
         on_clock(1, v_byte(2, k), k, 0, 0);
         k = k + 1;
     }
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 1);
     assert_eq(n_bad, 2);
     assert_eq(n_req, 0);
@@ -642,12 +675,13 @@ test a_datagram_without_magic_or_too_short_is_not_a_request {
 }
 
 test a_frame_that_eth_rx_rejected_starts_nothing {
-    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; rq = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0;
     var k : u16 = 0;
     while (k < 24) {
         on_clock(1, v_byte(2, k), k, 0, 0);
         k = k + 1;
     }
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 0);
     assert_eq(n_req, 0);
     assert_eq(n_bad, 0);
@@ -656,7 +690,7 @@ test a_frame_that_eth_rx_rejected_starts_nothing {
 }
 
 test j_go_rises_exactly_when_a_job_starts {
-    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0; j_go = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; rq = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0; j_go = 0;
     var k : u16 = 0;
     var t : u32 = 0;
     var seen_go : u8 = 0;
@@ -667,7 +701,8 @@ test j_go_rises_exactly_when_a_job_starts {
         k = k + 1;
     }
     
-    // End the frame with ok=1 (accepted)
+    // End the frame with ok=1 (accepted): the job starts on this clock, so j_go is 1 after it
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 1);
 
     // j_go is registered on the accept edge, so the strobe is high in exactly the
@@ -692,7 +727,7 @@ test j_go_rises_exactly_when_a_job_starts {
 }
 
 test j_go_stays_low_for_non_requests {
-    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0; j_go = 0;
+    ms = 0; tq = 0; fa = 0; fs = 0; rq = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0; j_go = 0;
     var k : u16 = 0;
     var t : u32 = 0;
     var seen_go : u8 = 0;
@@ -704,6 +739,7 @@ test j_go_stays_low_for_non_requests {
     }
     
     // End the frame with ok=1 (but it's not a request)
+    on_clock(0, 0, 0, 0, 0);
     on_clock(0, 0, 0, 1, 1);
     
     // Check that j_go never rises
@@ -721,4 +757,17 @@ test j_go_stays_low_for_non_requests {
     assert_eq(n_req, 0);
     assert_eq(n_busy, 0);
     assert_eq(n_bad, 1);
+}
+
+test next_step_equals_the_step_after_next_ms_in_every_reachable_state {
+    var m : u16 = 1024;
+    var n : u32 = 0;
+    assert_eq(next_step(0, 0), t_of(next_ms(0, 0)));
+    assert_eq(next_step(0, 1), t_of(next_ms(0, 1)));
+    while (m != 0) {
+        assert_eq(next_step(m, 0), t_of(next_ms(m, 0)));
+        m = next_ms(m, 0);
+        n = n + 1;
+    }
+    assert_eq(n, 59);
 }

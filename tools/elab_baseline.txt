@@ -46,6 +46,7 @@
 # branch that merged master. Both elaborate clean; a 0 row hides nothing.
 # `eth_rx 0` (#8333) arrives with its spec; it elaborates clean too.
 # `trinet_node 0` (#8356) arrives with its spec; it elaborates clean too.
+# `eth_reply 0` (#8530) arrives with its spec; it elaborates clean too.
 adapter 0
 apb_bridge 4
 assembler 4
@@ -61,6 +62,7 @@ dft 6
 e2e_demo 2
 eth_beacon 0
 eth_crc 0
+eth_reply 0
 eth_rx 0
 fifo 2
 formal 20
