@@ -27,6 +27,15 @@
 ; reference never had: a callee whose body names that parameter at all (READ_BY_CALLEE), any other mention
 ; of x in the body (READ_ELSEWHERE), a `var` (REFUSE_VAR) and a typed local (REFUSE_TYPED). A local that is
 ; not the reference's scaffold (no declared fn is passed it, or not a helper) is NOT_MINE: lowered as written.
+; --
+; A fn the template left with no body (issue #8717). The `.tri` template writes `fn f(..) -> void { // TODO }`
+; beside these tests, and t27c's Zig backend prints a fn whose body has no statements after its optimizer as
+; `@compileError("not yet implemented")`. Zig raises that only when it analyzes the fn: one a test, invariant or
+; constant reaches fails the whole file's compile (specs/tri/crypto/crypto.t27, whose `hmac_basic_case` calls
+; `hmac`), and one nothing reaches refuses nothing (pinned by specs/tri/t27b/conformance/unreached_stub.t27).
+; t27b lowered both as a fn that does nothing, so it ran crypto.t27's tests where the reference has no binary.
+; REFUSE_STUB: a reached fn with no body is refused by the reference's own words, so t27b blocks where the
+; reference blocks. Every other fn is NOT_MINE. "Reached" is ast_shape.t27's `analyzed`.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -42,6 +51,7 @@ pub const REFUSE_VAR : u8 = 2;
 pub const REFUSE_TYPED : u8 = 3;
 pub const READ_ELSEWHERE : u8 = 4;
 pub const READ_BY_CALLEE : u8 = 5;
+pub const REFUSE_STUB : u8 = 6;
 
 /// The decision for one local. helper: its initializer is a call of a name in HELPERS. scaffold: the body binds
 /// the name to such a call with no arguments and passes the name as a bare argument to a declared fn (the
@@ -56,9 +66,16 @@ pub fn plan(helper: bool, scaffold: bool, mutable: bool, typed: bool, elsewhere:
     return SCAFFOLD;
 }
 
+/// The decision for one fn declaration. empty: its body has no statements once t27c's optimizer has run, the
+/// reference's test for `@compileError`. analyzed: a test, invariant or constant reaches it.
+pub fn stub(empty: bool, analyzed: bool) -> u8 {
+    if (empty and analyzed) { return REFUSE_STUB; }
+    return NOT_MINE;
+}
+
 /// Is the answer a refusal? Its construct is `what`, its words `why`.
 pub fn refuses(act: u8) -> bool {
-    return act >= REFUSE_VAR and act <= READ_BY_CALLEE;
+    return act >= REFUSE_VAR and act <= REFUSE_STUB;
 }
 
 /// The construct a refusal names.
@@ -67,6 +84,7 @@ pub fn what(act: u8) -> str {
     if (act == REFUSE_TYPED) { return "StmtLocal(scaffold typed)"; }
     if (act == READ_ELSEWHERE) { return "StmtLocal(scaffold read)"; }
     if (act == READ_BY_CALLEE) { return "StmtLocal(scaffold read by callee)"; }
+    if (act == REFUSE_STUB) { return "FnDecl(reference not yet implemented)"; }
     return "";
 }
 
@@ -83,6 +101,9 @@ pub fn why(act: u8) -> str {
     }
     if (act == READ_BY_CALLEE) {
         return "the reference passes `undefined` for this local, never calling the helper, to a parameter its callee reads";
+    }
+    if (act == REFUSE_STUB) {
+        return "a test reaches this fn and its body is empty; the reference prints it as `@compileError`, which Zig raises";
     }
     return "";
 }
@@ -147,4 +168,22 @@ test refusals_and_their_words_are_distinct {
     assert(std.mem.eql(u8, why(NOT_MINE), ""));
     assert(std.mem.indexOf(u8, HELPERS, "default_input") != null);
     assert(std.mem.indexOf(u8, HELPERS, "valid_input") != null);
+}
+
+test a_reached_fn_with_no_body_is_refused_as_the_reference_refuses_it {
+    // crypto.t27's `fn hmac(key: []const u8) -> void { // TODO: Implement from .tri spec }`, which its test
+    // `hmac_basic_case` calls: the reference reports `error: not yet implemented` and builds no binary.
+    assert(stub(true, true) == REFUSE_STUB);
+    assert(refuses(REFUSE_STUB));
+    assert(std.mem.eql(u8, what(REFUSE_STUB), "FnDecl(reference not yet implemented)"));
+    assert(std.mem.indexOf(u8, why(REFUSE_STUB), "@compileError") != null);
+}
+
+test a_stub_nothing_reaches_and_a_fn_with_a_body_are_left_alone {
+    // unreached_stub.t27's `hmac` and `pub fn later`: Zig never analyzes them, so the reference passes.
+    assert(stub(true, false) == NOT_MINE);
+    assert(stub(false, true) == NOT_MINE);
+    assert(stub(false, false) == NOT_MINE);
+    assert(!refuses(stub(true, false)));
+    assert(!std.mem.eql(u8, what(REFUSE_STUB), what(READ_BY_CALLEE)));
 }

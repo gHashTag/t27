@@ -883,12 +883,9 @@ fn header_line(src: &str, keyword: &str, name: &str) -> Option<u32> {
 }
 
 /// Line (1-based) of the declaration of `name`: `const`, `pub const`,
-/// `enum` or `pub enum`.
+/// `enum` or `pub enum` (source_text.t27's `decl_line`).
 fn decl_line(src: &str, name: &str) -> Option<u32> {
-    ["const", "pub const", "enum", "pub enum"]
-        .iter()
-        .filter_map(|k| header_line(src, k, name))
-        .min()
+    Some(st::decl_line(src.as_bytes(), name.as_bytes())).filter(|l| *l != st::NO_LINE)
 }
 
 /// t27c reads `const U = union(enum) { ... };` as a `ConstDecl` with no value
@@ -1001,6 +998,8 @@ impl<'a> Lower<'a> {
                     }
                 }
                 NodeKind::FnDecl => {
+                    let stub = sc::stub(item.children.is_empty(), self.analyzed.contains(&item.name)); // #8717: scaffold_plan.t27
+                    if sc::refuses(stub) { found.push((item.line, sc::what(stub), format!("fn `{}`: {}", item.name, sc::why(stub)))); }
                     if let Some(name) = cse_hoist_defect(item) {
                         found.push((
                             item.line,

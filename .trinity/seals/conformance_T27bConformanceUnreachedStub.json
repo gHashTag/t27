@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+172e871ed",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3da5fa0958761fcf4510ef7865b6dce10654251d95fbb76db8c1af0245f737df",
+  "gen_hash_rust": "sha256:d84770c0b9a3b7175b5fa62abba0df065cf1644e4a925c4fa6dec4084b9ce423",
+  "gen_hash_verilog": "sha256:ef44ccfbe94dbac42836a623e1ce7ce95aad8ba37aeb2d5cb641701cfa3bc463",
+  "gen_hash_zig": "sha256:b18be3fcd2ca0b57ffc02794eb05c48e91fc810f8007bdb284c623807f450c75",
+  "module": "T27bConformanceUnreachedStub",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T17:53:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d0f3157343570b5a3415b4a5968765cb957527bcb50747dc556a2c14d68571d4",
+  "spec_path": "specs/tri/t27b/conformance/unreached_stub.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1196,6 +1196,7 @@
   {"path": "specs/tri/t27b/conformance/type_void.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/undefined_arg.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/undefined_module_var.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/unreached_stub.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/unread_anytype.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/unresolved_signature.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
