@@ -1,21 +1,21 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/fifo/Fifo.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/fifo.t27",
+      "spec_hash": "sha256:9988e4ba66ce159c60fcf384d153cd0819729c109768529d978dd6463fa69393"
     },
     {
-      "spec": "specs/fpga/gf16_accel/Gf16Accel.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/gf16_accel.t27",
+      "spec_hash": "sha256:5ff83b222f25bcc76c64b469ec36441be9d44750b4dc3e7d8e17a343450a9f8a"
     },
     {
-      "spec": "specs/fpga/memory/Memory.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/memory.t27",
+      "spec_hash": "sha256:5847d80ee4a4f2fc5b812078febf793a17aa56e2e4ad3bd6ea158c2d218f0b84"
     },
     {
-      "spec": "specs/fpga/top_level/ZeroDSP_TopLevel.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/top_level.t27",
+      "spec_hash": "sha256:e4f761f7f844035f09927d70e0c77f09ce539102e94ce2d50ebcea0a07776ce8"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",

@@ -52,14 +52,14 @@ pub const carry_table : [9]i8 = [1, 0, 0, 0, 0, 0, 0, 0, -1];
 // trit_multiply_table(a: Trit, b: Trit) → Trit
 // Fast trit multiplication using lookup table
 pub fn trit_multiply_table(a: Trit, b: Trit) Trit {
-    const idx = (@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1);
+    const idx: usize = @as(usize, @intCast((@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1)));
     return @as(Trit, @enumFromInt(mult_table[idx]));
 }
 
 // trit_add_table(a: Trit, b: Trit) → Trit
 // Fast trit addition using lookup table
 pub fn trit_add_table(a: Trit, b: Trit) Trit {
-    const idx = (@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1);
+    const idx: usize = @as(usize, @intCast((@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1)));
     return @as(Trit, @enumFromInt(add_table[idx]));
 }
 
@@ -67,7 +67,7 @@ pub fn trit_add_table(a: Trit, b: Trit) Trit {
 // Fast carry computation using lookup table
 // Returns carry value for trit addition: -1 if a+b < -1, +1 if a+b > +1, else 0
 pub fn trit_carry_table(a: Trit, b: Trit) Trit {
-    const idx = (@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1);
+    const idx: usize = @as(usize, @intCast((@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1)));
     return @as(Trit, @enumFromInt(carry_table[idx]));
 }
 
@@ -83,36 +83,17 @@ pub struct AddResult {
 // carry_out = -1 if result < -1, +1 if result > +1, else 0
 // result is normalized to [-1, 0, +1]
 pub fn trit_add_with_carry(a: Trit, b: Trit, carry_in: Trit) AddResult {
-    // First: a + b
-    var sum: i8 = @intFromEnum(a) + @intFromEnum(b);
-    var carry: Trit = .zero;
-    var result: Trit = .zero;
-
-    // Check for overflow
+    // a + b + carry_in lies in [-3, 3]. The digit is that sum folded into {-1, 0, +1} and the carry is
+    // (sum - digit) / 3. Two chained single-trit adds lost the first add's carry: +1 + +1 returned
+    // carry 0 (#8239).
+    const sum: i8 = @intFromEnum(a) + @intFromEnum(b) + @intFromEnum(carry_in);
     if (sum > 1) {
-        result = .neg;
-        carry = .pos;
-    } else if (sum < -1) {
-        result = .pos;
-        carry = .neg;
-    } else {
-        result = @as(Trit, @enumFromInt(sum));
+        return AddResult{ .result = @as(Trit, @enumFromInt(sum - 3)), .carry_out = .pos };
     }
-
-    // Add carry_in
-    sum = @intFromEnum(result) + @intFromEnum(carry_in);
-    if (sum > 1) {
-        result = .neg;
-        carry = .pos;
-    } else if (sum < -1) {
-        result = .pos;
-        carry = .neg;
-    } else {
-        result = @as(Trit, @enumFromInt(sum));
-        carry = .zero;
+    if (sum < -1) {
+        return AddResult{ .result = @as(Trit, @enumFromInt(sum + 3)), .carry_out = .neg };
     }
-
-    return AddResult{ .result = result, .carry_out = carry };
+    return AddResult{ .result = @as(Trit, @enumFromInt(sum)), .carry_out = .zero };
 }
 
 // trit_compare(a: Trit, b: Trit) → i8
@@ -358,7 +339,7 @@ test "test_trit_multiply_table_all_combinations" {
 
 test "test_trit_multiply_table_commutative" {
     // Verify: trit_multiply_table(a, b) == trit_multiply_table(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             try std.testing.expectEqual(trit_multiply_table(a, b), trit_multiply_table(b, a));
@@ -398,7 +379,7 @@ test "test_trit_add_table_pos_plus_pos" {
 
 test "test_trit_add_table_commutative" {
     // Verify: trit_add_table(a, b) == trit_add_table(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             try std.testing.expectEqual(trit_add_table(a, b), trit_add_table(b, a));
@@ -445,7 +426,7 @@ test "test_trit_carry_table_pos_plus_pos" {
 
 test "test_trit_carry_table_commutative" {
     // Verify: trit_carry_table(a, b) == trit_carry_table(b, a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             try std.testing.expectEqual(trit_carry_table(a, b), trit_carry_table(b, a));
@@ -481,9 +462,24 @@ test "test_trit_add_with_carry_propagation" {
     try std.testing.expectEqual(@as(Trit, .pos), result.carry_out);
 }
 
+test "test_trit_add_with_carry_is_exact_for_all_27_inputs" {
+    // Oracle: digit + 3 * carry == a + b + carry_in for every input (#8239)
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            for (trits) |c| {
+                const r = trit_add_with_carry(a, b, c);
+                const lhs: i8 = @intFromEnum(r.result) + 3 * @intFromEnum(r.carry_out);
+                const rhs: i8 = @intFromEnum(a) + @intFromEnum(b) + @intFromEnum(c);
+                try std.testing.expectEqual(rhs, lhs);
+            }
+        }
+    }
+}
+
 test "test_trit_add_with_carry_result_in_range" {
     // Verify: trit_add_with_carry result is always in {-1, 0, +1}
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             for (trits) |c| {
@@ -496,7 +492,7 @@ test "test_trit_add_with_carry_result_in_range" {
 
 test "test_trit_add_with_carry_carry_in_range" {
     // Verify: trit_add_with_carry carry_out is always in {-1, 0, +1}
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             for (trits) |c| {
@@ -580,11 +576,12 @@ test "test_trit_max_idempotent" {
 }
 
 test "test_trit_min_max_antisymmetric" {
-    // Verify: trit_min(a, b) == trit_max(b, a) for all a, b
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    // Verify: min is max under negation, min(a, b) == -max(-a, -b), for all a, b. The old claim,
+    // min(a, b) == max(b, a), is false: min(-1, +1) = -1 but max(+1, -1) = +1 (#8239).
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
-            try std.testing.expectEqual(trit_min(a, b), trit_max(b, a));
+            try std.testing.expectEqual(trit_min(a, b), trit_negate(trit_max(trit_negate(a), trit_negate(b))));
         }
     }
 }
@@ -616,7 +613,7 @@ test "test_trit_subtract_zero_from_neg" {
 
 test "test_trit_subtract_all_combinations" {
     // Verify: a - b == a + (-b) for all a, b
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             try std.testing.expectEqual(trit_subtract(a, b), trit_add_table(a, trit_negate(b)));
@@ -641,7 +638,7 @@ test "test_trit_sign_positive" {
 
 test "test_trit_sign_matches_enum_value" {
     // Verify: trit_sign(a) == @intFromEnum(a)
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         try std.testing.expectEqual(@intFromEnum(a), trit_sign(a));
     }
@@ -659,7 +656,7 @@ test "test_trit_clamp_above_max" {
 
 test "test_trit_clamp_in_range" {
     // Verify: trit_clamp(a, -1, +1) = a for all a
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         try std.testing.expectEqual(a, trit_clamp(a, .neg, .pos));
     }
@@ -706,7 +703,7 @@ test "test_trit_is_positive_false_for_others" {
 
 test "test_trit_equal_same_values" {
     // Verify: trit_equal(a, a) = true for all a
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         try std.testing.expect(trit_equal(a, a));
     }
@@ -721,7 +718,7 @@ test "test_trit_equal_different_values_false" {
 
 test "test_trit_not_equal_same_values_false" {
     // Verify: trit_not_equal(a, a) = false for all a
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         try std.testing.expect(!trit_not_equal(a, a));
     }
@@ -788,20 +785,20 @@ test "test_trit_comparison_consistency" {
 test "test_trit_multiply_with_carry_basic" {
     // Verify: 1 * 1 + 0 = 1
     const result = trit_multiply_with_carry(.pos, .pos, .zero);
-    try std.testing.expectEqual(@as(Trit, .neg), result.result);  // 1*1=1, but 1+1 overflows
-    try std.testing.expectEqual(@as(Trit, .pos), result.carry_out);
+    try std.testing.expectEqual(@as(Trit, .pos), result.result);  // 1*1 + 0 = 1: no overflow (#8239)
+    try std.testing.expectEqual(@as(Trit, .zero), result.carry_out);
 }
 
 test "test_trit_multiply_with_carry_with_carry" {
-    // Verify: 1 * 1 + 1 = 0 with carry 1
+    // Verify: 1 * 1 + 1 = 2 = -1 + 3 * 1, so digit -1 with carry +1 (the old "0 with carry 1" is 3)
     const result = trit_multiply_with_carry(.pos, .pos, .pos);
-    try std.testing.expectEqual(@as(Trit, .zero), result.result);
+    try std.testing.expectEqual(@as(Trit, .neg), result.result);
     try std.testing.expectEqual(@as(Trit, .pos), result.carry_out);
 }
 
 test "test_trit_multiply_with_carry_zero_annihilates" {
     // Verify: 0 * x + 0 = 0
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |t| {
         const result = trit_multiply_with_carry(.zero, t, .zero);
         try std.testing.expectEqual(@as(Trit, .zero), result.result);
@@ -906,7 +903,7 @@ test "test_trit_to_bool_from_bool_roundtrip" {
 
 test "test_trit_abs_diff_equal" {
     // Verify: |a - a| = 0
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         try std.testing.expectEqual(.zero, trit_abs_diff(a, a));
     }
@@ -921,7 +918,7 @@ test "test_trit_abs_diff_different" {
 
 test "test_trit_abs_diff_commutative" {
     // Verify: |a - b| = |b - a|
-    const trits = [_]Trit{ .neg, .zero, .pos };
+    const trits: [3]Trit = [3]Trit{ .neg, .zero, .pos };
     for (trits) |a| {
         for (trits) |b| {
             try std.testing.expectEqual(trit_abs_diff(a, b), trit_abs_diff(b, a));
@@ -931,7 +928,7 @@ test "test_trit_abs_diff_commutative" {
 
 test "test_trit_cond_swap_condition_true" {
     // Verify: cond_swap(+1, a, b) = b
-    try std.testing.expectEqual(.neg, trit_cond_swap(.pos, .neg, .zero));
+    try std.testing.expectEqual(.zero, trit_cond_swap(.pos, .neg, .zero));  // b, as the comment says (#8239)
     try std.testing.expectEqual(.pos, trit_cond_swap(.pos, .zero, .pos));
 }
 

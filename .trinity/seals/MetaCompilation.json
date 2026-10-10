@@ -1,11 +1,36 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "closure": [
+    {
+      "spec": "specs/compiler/lexer.t27",
+      "spec_hash": "sha256:4bc5143fba34174835090dd6b44f8b82feeb5462e3c52407d60d85efb3d6988a"
+    },
+    {
+      "spec": "specs/compiler/parser.t27",
+      "spec_hash": "sha256:8b617c8818b6b456fdbf9040c24b415a2c8e65f597dadf08f5586835e3b7fbc4"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:cb5c74d819b71160e0b5f54cc9458f3146adfef382ce9120824d7a28d4ead8ca",
   "gen_hash_rust": "sha256:71e37190495eda77004f96b1b41288f6406c228fd8d08098e9becd55bf8e3886",
   "gen_hash_verilog": "sha256:ee3721001780f751870ab837a55aa17893cd64e838e1cbd6d9b566c7f8f34a3f",
   "gen_hash_zig": "sha256:827f1856bc566ed2c72567ecee9d15f89bc986cf5640632a8bab25e6a9c5f3ee",
   "module": "MetaCompilation",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:06:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7b16ea29ae644a0ff54968ea37806543ba823c4bfeddd82f64c66485efec33b1",
-  "spec_path": "specs/compiler/meta_compile.t27"
+  "spec_path": "specs/compiler/meta_compile.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

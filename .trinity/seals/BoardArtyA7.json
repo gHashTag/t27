@@ -1,11 +1,25 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "closure": [
+    {
+      "spec": "specs/base/ops.t27",
+      "spec_hash": "sha256:ef25280bdd4c1cc8dac5b84533ba73f686c70dcdc5797828490eab07465e9c23"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9cd81920cd60e96407568ccf145062128932e11541bfa8312251e864694cbf6b",
   "gen_hash_rust": "sha256:d1878a3813e3a44b3e3ae7d6745d3f1027fadd6ffd3a7e8ef34f9bf9b0d224ce",
   "gen_hash_verilog": "sha256:dc8e28662cb3c560dad5dda0bba17421fe6cb01ee30695d996a0ee0c1291a1aa",
   "gen_hash_zig": "sha256:b40fb788b8e0b9ec55c4155be8af3ad997d2ec8d366a32f8cd5a77667aa8a561",
   "module": "BoardArtyA7",
   "ring": 12,
-  "sealed_at": "2026-10-04T03:17:12Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:06:20Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3a7453191d3d155eda5b7cbeb6bfa3aaed22444e1edbc66a2b534ea203510379",
   "spec_path": "specs/boards/arty_a7.t27",
   "tests": {
@@ -14,5 +28,9 @@
     "forced": false,
     "passed": 23,
     "total": 23
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

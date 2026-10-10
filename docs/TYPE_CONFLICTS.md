@@ -30,7 +30,7 @@ against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
 spec (`LockFreeStack`, `RTree`, `Point`).
 
     DRIFT     51
-    DISTINCT  37
+    DISTINCT  36
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
 file is the summary; that file is the record.
@@ -128,7 +128,7 @@ has had it: `tri types dup` no longer reports the name, and its row is gone.
 
 Every remaining DRIFT row needs a decision about which module owns the concept.
 
-## DISTINCT -- 37 names
+## DISTINCT -- 36 names
 
 Two concepts that met on a name. Nothing to converge; the question is only
 whether to rename.
@@ -156,7 +156,6 @@ whether to rename.
 | `Node` | 2 | 2 files | Leave both; if the type namespace is ever flattened, rename the cache one to LruEntry. |
 | `OscillatorState` | 2 | 2 files | No defect. RingOscState / LutCascadeState if a single namespace is ever needed. |
 | `Outputs` | 3 | 3 files | No defect. Prefix per module if names must resolve across specs. |
-| `Pair` | 3 | 3 files | Nothing to converge. `Pair` is generic enough that each local meaning is clear at its site; rename only if a reader ever imports two. |
 | `ParseError` | 2 | 2 files | Delete specs/tri/pipeline/codegen.t27 or give it a real body; nothing consumes its ParseError. |
 | `Parser` | 2 | 2 files | None needed; if flattened, PinsParser is the natural rename for the pins one (it is already t... |
 | `PipelineConfig` | 3 | 3 files | Delete specs/igla/coder/_tmp_pipeline_import.t27 — it is a temp import artifact that duplicat... |

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d9cd5c66bca9cf0b984369653194e6c1b0e63188e80a011e01b21c0b36b3aac5",

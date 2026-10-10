@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/test_framework/runner/str_contains.t27",
-      "spec_hash": "missing"
+      "spec": "specs/test_framework/runner.t27",
+      "spec_hash": "sha256:430bfca8d5891151528caf595b22e48b2a3a3db77bfd14eb48056cff2fe150b2"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -14,7 +14,7 @@
   "module": "QueenReviewLog",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:21:17Z",
+  "sealed_at": "2026-10-10T12:19:23Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f5ff9bae05a7fcda8da587457268f8e79247066e59e75d7dada1e0a7b00707f0",
   "spec_path": "specs/queen/review_log.t27",

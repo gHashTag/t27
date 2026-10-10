@@ -109,6 +109,10 @@ mod test_report_exit;
 #[path = "../gen/rust/verified/seal_identity.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod seal_identity;
+// specs/verified/verdict_audit.t27 (#8542): which reused verdicts `frontier --audit` reruns.
+#[path = "../gen/rust/verified/verdict_audit.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod verdict_audit;
 // specs/verified/silicon_queue.t27 (#8095 step 5): the bench queue and the reseal guard.
 #[path = "../gen/rust/verified/silicon_queue.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
@@ -363,7 +367,8 @@ enum Commands {
     /// #8095: every spec, REUSE or the reason to rebuild (specs/verified/seal_identity.t27).
     Frontier { /// Also print each spec that must be rebuilt, with its reason code.
         #[arg(long)] list: bool, /// Seal again each spec with a stale part; keep only a seal remint_keeps allows.
-        #[arg(long)] reseal: bool },
+        #[arg(long)] reseal: bool, /// Rerun the reused specs verdict_audit.t27 picks for this round; exit 1 on a disagreement.
+        #[arg(long)] audit: Option<u32> },
     /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
     SiliconQueue,
     /// #8153: the agent next to a board (specs/verified/bench_agent.t27). Runs owner-approved jobs (open
@@ -12007,7 +12012,7 @@ async fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
-        Commands::Frontier { list, reseal } => service::run_frontier(list, reseal)?,
+        Commands::Frontier { list, reseal, audit } => service::run_frontier(list, reseal, audit)?,
         Commands::SiliconQueue => service::run_silicon_queue()?,
         Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
@@ -12442,7 +12447,7 @@ fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
-        Commands::Frontier { list, reseal } => service::run_frontier(list, reseal)?,
+        Commands::Frontier { list, reseal, audit } => service::run_frontier(list, reseal, audit)?,
         Commands::SiliconQueue => service::run_silicon_queue()?,
         Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {

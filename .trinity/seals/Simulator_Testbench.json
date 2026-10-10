@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/simulator/Simulator.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/simulator.t27",
+      "spec_hash": "sha256:ad7383f40e9e5093f67303daa1016104fdfd21e99dd0adfca2f863dcc23d1ead"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",

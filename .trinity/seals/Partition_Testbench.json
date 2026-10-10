@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/partition/Partition.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/partition.t27",
+      "spec_hash": "sha256:f64a46db3dc305a8630002e5a252817b66330ff302b6692600017c62119a3134"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",

@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/power/Power.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/power.t27",
+      "spec_hash": "sha256:3bfcd496768923e7c1193ff8b2b2f2c296fad56a54b087f0ec093a11331bd1b5"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",

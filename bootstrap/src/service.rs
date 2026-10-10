@@ -5650,16 +5650,19 @@ mod unresolved_is_not_a_rejection {
 
 /// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
 /// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
-pub fn run_frontier(list: bool, reseal: bool) -> anyhow::Result<()> {
-    use crate::seal_identity as si;
+pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Result<()> {
+    use crate::{seal_identity as si, verdict_audit as va};
     let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
     while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
+    fn seal_of(p: &str, src: &str) -> serde_json::Value {
+        let module = crate::extract_module_name(src).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
+        [crate::seal_file_path(&module, p), std::path::Path::new(".trinity/seals").join(format!("{module}.json"))].iter()
+            .find_map(|f| std::fs::read_to_string(f).ok().and_then(|s| serde_json::from_str(&s).ok())).unwrap_or_default()
+    }
     fn decide(p: &str, tc: &serde_json::Value, memo: &mut std::collections::HashMap<String, u8>, depth: u32) -> Option<u8> {
         if let Some(d) = memo.get(p) { return Some(*d); }
         let src = std::fs::read_to_string(p).ok().filter(|_| depth < 64)?;
-        let module = crate::extract_module_name(&src).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
-        let seal: serde_json::Value = [crate::seal_file_path(&module, p), std::path::Path::new(".trinity/seals").join(format!("{module}.json"))].iter()
-            .find_map(|f| std::fs::read_to_string(f).ok().and_then(|s| serde_json::from_str(&s).ok())).unwrap_or_default();
+        let seal = seal_of(p, &src);
         let g = |k: &str| seal.pointer(k).and_then(|v| v.as_str()).map(String::from);
         let t = |k: &str| tc.get(k).and_then(|v| v.as_str()).map(String::from);
         let (mut rebuilt, mut missing) = (false, false);
@@ -5702,6 +5705,17 @@ pub fn run_frontier(list: bool, reseal: bool) -> anyhow::Result<()> {
         println!("{} {p}", if keep { "resealed" } else { "kept the old seal" });
     }
     let _ = std::fs::remove_dir_all(&zc);
+    // --audit ROUND (#8542): rerun the REUSE specs verdict_audit.t27 picks; a disagreement poisons the seal.
+    let mut poisoned = 0;
+    for p in specs.iter().filter(|p| audit.is_some() && memo.get(p.as_str()) == Some(&si::REUSE)) {
+        let src = std::fs::read_to_string(p)?;
+        if !va::audit_pick(u32::from_str_radix(&crate::sha256_hex(src.as_bytes())[..8], 16).unwrap_or(0), audit.unwrap_or(0)) { continue }
+        let (r, sealed) = (crate::test_report::run(Path::new(p), Path::new("specs")), seal_of(p, &src).pointer("/tests/total").and_then(|v| v.as_u64()).unwrap_or(0) as u32);
+        let bad = va::audit_result(r.blocked.is_none(), r.failed as u32, r.total as u32, sealed) == va::AUDIT_POISONED;
+        poisoned += bad as u32;
+        println!("{} {p}: rerun {} of {} failed, sealed {}{}", if bad { "POISONED" } else { "agrees" }, r.failed, r.total, sealed, r.blocked.map(|b| format!(", blocked: {}", b.lines().next().unwrap_or(""))).unwrap_or_default());
+    }
+    if poisoned > 0 { anyhow::bail!("{poisoned} reused verdict(s) disagree with their rerun (specs/verified/verdict_audit.t27)") }
     Ok(())
 }
 

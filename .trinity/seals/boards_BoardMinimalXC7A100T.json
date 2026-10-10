@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
       "spec": "specs/base/ops.t27",
@@ -7,7 +7,7 @@
     },
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -18,7 +18,7 @@
   "module": "BoardMinimalXC7A100T",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:46:58Z",
+  "sealed_at": "2026-10-10T12:06:24Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0a5a2fd4d418235a976748b76bf5d503b4a17e6b41e0c721fc696c17fad8d71d",
   "spec_path": "specs/boards/xc7a100t_minimal.t27",

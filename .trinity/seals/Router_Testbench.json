@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/router/Router.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/router.t27",
+      "spec_hash": "sha256:8bcacd8470ff17c5693596c2f560e3772c19a66b7b07abe92d162ff2a13fe4ca"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
