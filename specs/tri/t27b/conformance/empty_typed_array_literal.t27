@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/empty_typed_array_literal.t27 -- a typed array literal with no elements, and an `&` of
+; one returned as a const slice, as the reference runs them (gHashTag/t27#8633, t27b coverage epic #6063:
+; ExprArrayLiteral(reference empty typed) in specs/compiler/zig_empty_typed_array.t27 and queen-lease.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; - A typed literal with no elements is the empty list whatever its dimension says: gen-zig prints `[4]u8{}`
+;   returned as a slice and `[3]u8{}` / `[_]u8{}` for a slice field as `@constCast(&[_]u8{  })`, and
+;   `[_]u8{}` for a `[0]u8` local as `.{}`.
+; - `return &[_]P{ ... };` from a fn returning `[]const P` is `return &.{ ... };`: a pointer to a constant Zig
+;   interns, so every call returns the same elements, and they outlive the call.
+; Not here (Zig refuses it, so no passing spec can hold it): `&[_]P{ ... }` returned as a mutable `[]P`.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceEmptyTypedArrayLiteral;
+
+pub const EtaPair = struct { a: u8, b: u8 };
+pub const EtaHolder = struct { xs: []const u8, n: u32 };
+
+fn eta_empty_dim() -> []const u8 {
+    return [4]u8{};
+}
+
+fn eta_empty_addr() -> []const EtaPair {
+    return &[_]EtaPair{};
+}
+
+fn eta_one() -> []const EtaPair {
+    return &[_]EtaPair{ EtaPair{ .a = 3, .b = 4 } };
+}
+
+fn eta_two() -> []const EtaPair {
+    return &[_]EtaPair{ EtaPair{ .a = 5, .b = 6 }, EtaPair{ .a = 7, .b = 8 } };
+}
+
+fn eta_held_dim() -> EtaHolder {
+    return EtaHolder{ .xs = [3]u8{}, .n = 1 };
+}
+
+fn eta_held_under() -> EtaHolder {
+    return EtaHolder{ .xs = [_]u8{}, .n = 2 };
+}
+
+fn eta_sum_a(xs: []const EtaPair) -> u32 {
+    var s : u32 = 0;
+    for (xs) |x| { s = s + x.a; }
+    return s;
+}
+
+test an_empty_typed_literal_returned_as_a_slice_has_no_elements {
+    assert eta_empty_dim().len == 0;
+    assert eta_empty_addr().len == 0;
+    assert eta_sum_a(eta_empty_addr()) == 0;
+}
+
+test an_empty_typed_literal_for_a_slice_field_has_no_elements {
+    assert eta_held_dim().xs.len == 0;
+    assert eta_held_under().xs.len == 0;
+    assert eta_held_dim().n + eta_held_under().n == 3;
+}
+
+test an_empty_typed_literal_for_a_zero_length_array_local {
+    var d : [0]u8 = [_]u8{};
+    assert d.len + eta_empty_dim().len == 0;
+}
+
+test an_addressed_literal_outlives_the_call_that_returns_it {
+    const a = eta_one();
+    const b = eta_two();
+    const c = eta_one();
+    assert a.len == 1 and b.len == 2;
+    assert a[0].a == 3 and a[0].b == 4;
+    assert b[1].a == 7 and b[1].b == 8;
+    assert c[0].a == a[0].a;
+    assert eta_sum_a(b) == 12;
+}

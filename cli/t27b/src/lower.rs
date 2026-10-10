@@ -1027,7 +1027,6 @@ impl<'a> Lower<'a> {
                 _ => {}
             }
         }
-        zig_syntax_defects(&opt.children, 0, &mut found);
         found.sort_by_key(|f| f.0);
         for (line, construct, detail) in found {
             if line != 0 {
@@ -7739,35 +7738,6 @@ fn ref_mutable_names(ns: &[Node], out: &mut HashSet<String>) {
 /// a path, or a method call on it. Errs toward yes: a yes refuses nothing.
 fn zig_mutates(ns: &[Node], name: &str) -> bool {
     let (a, t) = flat(ns); aw::zig_mutates(&a, &t, name.as_bytes())
-}
-
-/// Syntax the reference prints that Zig cannot parse: a childless typed
-/// array literal (`[_]T{}`), whose dimension t27c prints as its element.
-/// (A field named for a Zig keyword is not one: since #6451 t27c's
-/// `zig_ident` writes it `@"align"` in the literal and the access too.)
-fn zig_syntax_defects(ns: &[Node], line: u32, found: &mut Vec<(u32, &'static str, String)>) {
-    for n in ns {
-        // Expressions carry no line; report the enclosing statement's.
-        let at = if n.line != 0 { n.line } else { line };
-        match n.kind {
-            NodeKind::ExprArrayLiteral
-                if n.children.is_empty() && !n.extra_type.trim().is_empty() && !n.extra_size.trim().is_empty() =>
-            {
-                found.push((
-                    at,
-                    "ExprArrayLiteral(reference empty typed)",
-                    format!(
-                        "`[{}]{}{{}}`: t27c's Zig backend prints the dimension `{}` as the literal's only element",
-                        n.extra_size.trim(),
-                        n.extra_type.trim(),
-                        n.extra_size.trim()
-                    ),
-                ));
-            }
-            _ => {}
-        }
-        zig_syntax_defects(&n.children, at, found);
-    }
 }
 
 /// `x.len()` and `len(x)` lower as the length FIELD, as t27c's Zig backend

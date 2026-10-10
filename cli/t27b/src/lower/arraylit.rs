@@ -19,7 +19,7 @@
 //! nothing names is never analyzed by the reference, so it is skipped
 //! (`unreferenced_tuple_const`), not evaluated.
 //!
-//! `return [ ... ];` in a fn returning a slice, or a slice field's literal, is
+//! `return [ ... ];` (or `&[_]E{ ... }` for a const slice) in a fn returning a slice, or a slice field's literal, is
 //! `@constCast(&[_]E{ ... })` (`slice_lit`, plan `specs/tri/t27b/slice_lit_plan.t27`); one whose
 //! elements hold a str is a global written at entry (`entry_static`, #8091).
 //! A write through it is undefined behaviour in Zig, so it is refused
@@ -171,6 +171,7 @@ impl<'a> Lower<'a> {
     /// slice of the one static of its type and value (Zig interns it), which
     /// only reads (`literal_writes`). False for NOT_MINE.
     pub(super) fn slice_lit(&mut self, at: u8, named: bool, c: &Node, dst: &Place, out: &mut Vec<Stmt>) -> R<bool> {
+        let c = if is_addr_lit(c) && sl::takes_addr(matches!(dst.ty, LTy::Slice(_, true))) { &c.children[0] } else { c };
         if c.kind != NodeKind::ExprArrayLiteral || !matches!(dst.ty, LTy::Slice(..) | LTy::Str) {
             return Ok(false);
         }
