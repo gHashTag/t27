@@ -1,0 +1,207 @@
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-05/src/store_revision_monotonicity_guard.rs
+// (gHashTag/trios at 8b229e9489ee, 187 lines) for roadmap stage 6, goal #4548.
+//
+// CR-CHAT-05 - Store revision monotonicity guard (Wave-78 Lane A).
+// PERSISTENCE - store revision numbers must be strictly monotone, R-CHAT-5.
+// The persistence store assigns a revision number to each write. trios-chat
+// enforces 6 rules:
+//
+//   1. Revisions are strictly increasing (no regression).
+//   2. No duplicate revisions.
+//   3. No gaps in revision sequence.
+//   4. First revision >= SRVM_MIN_REVISION.
+//   5. Last revision <= SRVM_MAX_REVISION.
+//   6. Revision count <= SRVM_MAX_REVISIONS.
+//
+// The original returns Result<(), RevisionError>. This port carries the same
+// decision as a SrvmVerdict struct: `ok` mirrors Ok(()), and `code` carries
+// the RevisionError variant mapped onto named SRVM_* constants, with the
+// offending revision in `value` and, for a Gap, the skipped revision in
+// `expected`:
+//
+//   Ok(())                  -> SRVM_OK                     (0)
+//   TooManyRevisions        -> SRVM_ERR_TOO_MANY_REVISIONS (1)
+//   BelowMinimum(v)         -> SRVM_ERR_BELOW_MINIMUM      (2)
+//   AboveMaximum(v)         -> SRVM_ERR_ABOVE_MAXIMUM      (3)
+//   Duplicate(v)            -> SRVM_ERR_DUPLICATE          (4)
+//   Regression(v)           -> SRVM_ERR_REGRESSION         (5)
+//   Gap { expected, found } -> SRVM_ERR_GAP                (6)
+//
+// Tests SRVM-01..10 plus the single-revision-above-maximum edge.
+//
+// Anchor: phi^2 + phi^-2 = 3 * TRINITY * CHAT * STORE-REV-MONOTONE
+
+module port::store_revision_monotonicity_guard;
+
+/// Minimum starting revision.
+pub const SRVM_MIN_REVISION: u64 = 1;
+
+/// Maximum revision.
+pub const SRVM_MAX_REVISION: u64 = 1_000_000;
+
+/// Maximum revisions in a batch.
+pub const SRVM_MAX_REVISIONS: usize = 1024;
+
+pub const SRVM_OK: i32 = 0;
+pub const SRVM_ERR_TOO_MANY_REVISIONS: i32 = 1;
+pub const SRVM_ERR_BELOW_MINIMUM: i32 = 2;
+pub const SRVM_ERR_ABOVE_MAXIMUM: i32 = 3;
+pub const SRVM_ERR_DUPLICATE: i32 = 4;
+pub const SRVM_ERR_REGRESSION: i32 = 5;
+pub const SRVM_ERR_GAP: i32 = 6;
+
+/// Verdict of a validation run: `ok` mirrors Ok(()); `code` mirrors the
+/// RevisionError variant; `value` is the offending revision; `expected` is
+/// the revision a gap skipped (0 when unused).
+pub struct SrvmVerdict {
+    ok: bool,
+    code: i32,
+    value: u64,
+    expected: u64,
+}
+
+/// [VERIFIED] Validate that store revisions are strictly monotone with no gaps.
+pub fn validate_revision_monotonicity(revisions: []const u64) -> SrvmVerdict {
+    if (revisions.len > SRVM_MAX_REVISIONS) {
+        return SrvmVerdict { ok: false, code: SRVM_ERR_TOO_MANY_REVISIONS, value: 0, expected: 0 };
+    }
+    if (revisions.len == 0) {
+        return SrvmVerdict { ok: true, code: SRVM_OK, value: 0, expected: 0 };
+    }
+    const first: u64 = revisions[0];
+    if (first < SRVM_MIN_REVISION) {
+        return SrvmVerdict { ok: false, code: SRVM_ERR_BELOW_MINIMUM, value: first, expected: 0 };
+    }
+    var prev: u64 = first;
+    var i: usize = 1;
+    while (i < revisions.len) {
+        const cur: u64 = revisions[i];
+        if (cur > SRVM_MAX_REVISION) {
+            return SrvmVerdict { ok: false, code: SRVM_ERR_ABOVE_MAXIMUM, value: cur, expected: 0 };
+        }
+        if (cur == prev) {
+            return SrvmVerdict { ok: false, code: SRVM_ERR_DUPLICATE, value: cur, expected: 0 };
+        }
+        if (cur < prev) {
+            return SrvmVerdict { ok: false, code: SRVM_ERR_REGRESSION, value: cur, expected: 0 };
+        }
+        if (cur != prev + 1) {
+            return SrvmVerdict { ok: false, code: SRVM_ERR_GAP, value: cur, expected: prev + 1 };
+        }
+        prev = cur;
+        i += 1;
+    }
+    // The original re-checks the first revision against the maximum only
+    // after the loop: a single revision above the maximum is reported here,
+    // and a batch whose earlier elements already failed reports their error.
+    if (first > SRVM_MAX_REVISION) {
+        return SrvmVerdict { ok: false, code: SRVM_ERR_ABOVE_MAXIMUM, value: first, expected: 0 };
+    }
+    return SrvmVerdict { ok: true, code: SRVM_OK, value: 0, expected: 0 };
+}
+
+// SRVM-01 - regression rejected.
+test srvm_01_regression_rejected {
+    var revs: [4]u64 = [1, 2, 3, 2];
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_REGRESSION);
+    assert(v.value == 2);
+}
+
+// SRVM-02 - duplicate rejected.
+test srvm_02_duplicate_rejected {
+    var revs: [4]u64 = [1, 2, 2, 3];
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_DUPLICATE);
+    assert(v.value == 2);
+}
+
+// SRVM-03 - gap rejected.
+test srvm_03_gap_rejected {
+    var revs: [3]u64 = [1, 2, 5];
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_GAP);
+    assert(v.expected == 3);
+    assert(v.value == 5);
+}
+
+// SRVM-04 - below minimum rejected.
+test srvm_04_below_min_rejected {
+    var revs: [3]u64 = [0, 1, 2];
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_BELOW_MINIMUM);
+    assert(v.value == 0);
+}
+
+// SRVM-05 - above maximum rejected.
+test srvm_05_above_max_rejected {
+    var revs: [2]u64 = [1_000_000, 1_000_001];
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_ABOVE_MAXIMUM);
+    assert(v.value == 1_000_001);
+}
+
+// SRVM-06 - too many revisions rejected. Content is irrelevant here: the
+// length check fires before any value check.
+test srvm_06_too_many_rejected {
+    var revs: [1025]u64 = [_]u64{0} ** 1025;
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_TOO_MANY_REVISIONS);
+}
+
+// SRVM-07 - valid revisions accepted.
+test srvm_07_valid_accepted {
+    var revs: [5]u64 = [1, 2, 3, 4, 5];
+    const v = validate_revision_monotonicity(&revs);
+    assert(v.ok);
+    assert(v.code == SRVM_OK);
+}
+
+// SRVM-08 - empty accepted.
+test srvm_08_empty_accepted {
+    var revs: [0]u64 = [_]u64{};
+    const v = validate_revision_monotonicity(&revs);
+    assert(v.ok);
+    assert(v.code == SRVM_OK);
+}
+
+// SRVM-09 - single revision accepted.
+test srvm_09_single_accepted {
+    var revs: [1]u64 = [1];
+    const v = validate_revision_monotonicity(&revs);
+    assert(v.ok);
+    assert(v.code == SRVM_OK);
+}
+
+// SRVM-10 - max revisions accepted: exactly SRVM_MAX_REVISIONS revisions
+// 1..=1024 form one valid batch.
+test srvm_10_max_accepted {
+    var revs: [1024]u64 = [_]u64{0} ** 1024;
+    var i: usize = 0;
+    var nxt: u64 = 1;
+    while (i < 1024) {
+        revs[i] = nxt;
+        i += 1;
+        nxt += 1;
+    }
+    const v = validate_revision_monotonicity(&revs);
+    assert(v.ok);
+    assert(v.code == SRVM_OK);
+}
+
+// The original checks the first revision against SRVM_MAX_REVISION only
+// after the loop, so a one-element batch above the maximum still reports
+// AboveMaximum.
+test srvm_11_single_above_max_rejected {
+    var revs: [1]u64 = [1_000_001];
+    const v = validate_revision_monotonicity(&revs);
+    assert(!v.ok);
+    assert(v.code == SRVM_ERR_ABOVE_MAXIMUM);
+    assert(v.value == 1_000_001);
+}
