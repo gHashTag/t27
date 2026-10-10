@@ -1,0 +1,98 @@
+module port::gen_w682;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level <= 0) {
+        return "";
+    } else if (level == 1) {
+        return "    ";
+    } else if (level == 2) {
+        return "        ";
+    } else if (level == 3) {
+        return "            ";
+    } else if (level == 4) {
+        return "                ";
+    } else if (level == 5) {
+        return "                    ";
+    } else if (level == 6) {
+        return "                        ";
+    } else if (level == 7) {
+        return "                            ";
+    } else {
+        return "                                ";
+    }
+}
+
+pub fn build_tree(shape: [7]usize, shape_len: usize, base: usize, offset: usize) -> (usize, usize) {
+    if (shape_len == 1) {
+        const n = shape[0];
+        // For 1D array: return the number of elements processed
+        return (n, base + n);
+    }
+    
+    const n = shape[0];
+    var inner_shape: [6]i32 = undefined;
+    var i: usize = 0;
+    while (i < @as(usize, shape_len) - 1) {
+        inner_shape[i] = shape[i + 1];
+        i += 1;
+    }
+    
+    var total_processed: i32 = 0;
+    var current_base: i32 = base;
+    var j: usize = 0;
+    while (j < @as(usize, n)) {
+        const inner_result = build_tree(inner_shape, shape_len - 1, current_base, offset);
+        total_processed += inner_result[0];
+        current_base = inner_result[1];
+        j += 1;
+    }
+    
+    return (total_processed, current_base);
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_1d {
+    var shape: [7]usize = [5, 0, 0, 0, 0, 0, 0];
+    const result = build_tree(shape, 1, 0, 0);
+    const processed = result[0];
+    const next_base = result[1];
+    assert(processed == 5);
+    assert(next_base == 5);
+}
+
+test build_tree_2d {
+    var shape: [7]usize = [2, 3, 0, 0, 0, 0, 0];
+    const result = build_tree(shape, 2, 10, 5);
+    const processed = result[0];
+    const next_base = result[1];
+    assert(processed == 6);  // 2 * 3 = 6 elements total
+    assert(next_base == 16); // 2 * 3 + 10 = 16
+}
+
+test build_tree_3d {
+    var shape: [7]usize = [2, 2, 2, 0, 0, 0, 0];
+    const result = build_tree(shape, 3, 0, 0);
+    const processed = result[0];
+    const next_base = result[1];
+    assert(processed == 8);  // 2 * 2 * 2 = 8 elements total
+    assert(next_base == 8);  // 8 + 0 = 8
+}
+
+test build_tree_offset {
+    var shape: [7]usize = [3, 0, 0, 0, 0, 0, 0];
+    const result = build_tree(shape, 1, 5, 10);
+    const processed = result[0];
+    const next_base = result[1];
+    assert(processed == 3);
+    assert(next_base == 8);  // 5 + 3 = 8
+}
