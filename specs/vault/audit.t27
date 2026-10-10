@@ -1,0 +1,388 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/vault/audit.t27 -- what the vault writes down: one event per lease, deny, put, rotate, export and
+; every other act, on the existing events bus, with names, scopes and hashes and never a value
+; gHashTag/trios#1759, design rule 6 (translated): every lease, deny, put, rotate and export becomes an
+; event on the existing events bus; each event carries names, scopes and hashes, never values.
+; The bus is queen/events.t27's log: one gapless numbered stream per name, read back past a cursor. The
+; vault writes its own stream, AUDIT_STREAM, so a reader of the Queen's board never sees it and the
+; vault's kinds never collide with the control card's.
+; What an event may carry is a closed list, decided here:
+; - AUDIT_FIELDS names every field any event may have. KIND_FIELDS says which of them each kind may
+;   carry, and KIND_REQUIRED which it must. The runtime builds an event, asks event_code, and refuses to
+;   write one with a field outside its kind's list or without a required one. An event it refuses to
+;   write is an act that does not happen (policy.t27 deliver_code);
+; - a text field holds a token: letters, digits and `.`, `_`, `-`, `:`, `/`, at most TEXT_MAX. A name,
+;   an id, a scope, a source label, a class word, a key id and a hex digest are all tokens;
+; - the hashes are of things that are not secret: a ciphertext (`ct`), a request body (`req`), the
+;   owner's break-glass reason (`reason_sha`). Each is the first HASH_HEX_LEN hex characters of a SHA-256.
+;   There is no field for a hash of a value: a hash of a short or guessable secret is the secret, to
+;   anyone who can try guesses offline.
+; Reading the log is the owner's (policy.t27 OP_AUDIT): it says which service holds which names.
+; A refusal is written when policy.t27 deny_recorded says so: always for a key the vault knows, never
+; for a stranger's request, which would only let anyone grow the log.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VaultAudit;
+
+use vault::policy::CODE_OK;
+use vault::policy::CODES;
+use vault::policy::ID_MAX;
+use vault::policy::token_char;
+
+pub const AUDIT_STREAM : str = "vault";
+
+; --- 1. Kinds -------------------------------------------------------------------------------------
+
+pub const EV_LEASE : u8 = 0;
+pub const EV_RENEW : u8 = 1;
+pub const EV_REVOKE : u8 = 2;
+pub const EV_EXPIRE : u8 = 3;
+pub const EV_DENY : u8 = 4;
+pub const EV_PUT : u8 = 5;
+pub const EV_ROTATE : u8 = 6;
+pub const EV_IMPORT : u8 = 7;
+pub const EV_EXPORT : u8 = 8;
+pub const EV_GRANT : u8 = 9;
+pub const EV_BREAK_GLASS : u8 = 10;
+pub const EV_ROTATION_DUE : u8 = 11;
+pub const EV_DEDUP : u8 = 12;
+pub const EV_MERGE : u8 = 13;
+pub const EV_AUDIT_READ : u8 = 14;
+pub const EV_CLASS : u8 = 15;
+pub const EV_BIND : u8 = 16;
+pub const KINDS : u8 = 17;
+pub const EVENT_NAMES : [17]str = ["vault.lease", "vault.renew", "vault.revoke", "vault.expire", "vault.deny", "vault.put", "vault.rotate", "vault.import", "vault.export", "vault.grant", "vault.break_glass", "vault.rotation_due", "vault.dedup", "vault.merge", "vault.audit_read", "vault.class", "vault.bind"];
+
+; --- 2. Fields ------------------------------------------------------------------------------------
+; A field's number is its bit in the masks below.
+; - op: the operation a deny refused (policy.t27 OP_NAMES_TEXT); key: the signer's key id; tier: its tier;
+; - scope: a scope, or the scopes a put binds; ids: the secret ids the act touched; count: how many;
+; - lease: a lease id; expires: when it ends, unix seconds; renewals: how many it has used;
+; - code: a policy.t27 code; class: a class word; input: tty or stdin (policy.t27 INPUT_NAMES);
+; - ct, req, reason_sha: hashes (above); reason_len: the reason's length in bytes;
+; - source, format, skipped: an import's label, format and the platform names it left out;
+; - groups, conflicts: what a dedup report found; canonical, aliases, discarded: what a merge did;
+; - age_days: a due name's age; subject: the key id a grant is for;
+; - env: the environment variable name a binding gives; mode: a binding's mode (policy.t27
+;   BIND_MODE_NAMES).
+
+pub const F_OP : u8 = 0;
+pub const F_KEY : u8 = 1;
+pub const F_TIER : u8 = 2;
+pub const F_SCOPE : u8 = 3;
+pub const F_IDS : u8 = 4;
+pub const F_COUNT : u8 = 5;
+pub const F_LEASE : u8 = 6;
+pub const F_EXPIRES : u8 = 7;
+pub const F_RENEWALS : u8 = 8;
+pub const F_CODE : u8 = 9;
+pub const F_CLASS : u8 = 10;
+pub const F_INPUT : u8 = 11;
+pub const F_CT : u8 = 12;
+pub const F_REQ : u8 = 13;
+pub const F_REASON_SHA : u8 = 14;
+pub const F_REASON_LEN : u8 = 15;
+pub const F_SOURCE : u8 = 16;
+pub const F_FORMAT : u8 = 17;
+pub const F_SKIPPED : u8 = 18;
+pub const F_GROUPS : u8 = 19;
+pub const F_CONFLICTS : u8 = 20;
+pub const F_CANONICAL : u8 = 21;
+pub const F_ALIASES : u8 = 22;
+pub const F_AGE_DAYS : u8 = 23;
+pub const F_DISCARDED : u8 = 24;
+pub const F_SUBJECT : u8 = 25;
+pub const F_ENV : u8 = 26;
+pub const F_MODE : u8 = 27;
+pub const FIELDS : u8 = 28;
+pub const AUDIT_FIELDS : [28]str = ["op", "key", "tier", "scope", "ids", "count", "lease", "expires", "renewals", "code", "class", "input", "ct", "req", "reason_sha", "reason_len", "source", "format", "skipped", "groups", "conflicts", "canonical", "aliases", "age_days", "discarded", "subject", "env", "mode"];
+
+; Which fields each kind may carry, and which it must, as bit masks over the field numbers. Each mask is
+; spelled out field by field in the tests below.
+;   lease        key tier scope ids count lease expires req              required: key scope ids lease
+;   renew        key scope lease expires renewals                        required: key lease
+;   revoke       key scope lease                                         required: lease
+;   expire       key scope lease renewals                                required: lease
+;   deny         op key tier scope ids code lease req                    required: op code
+;   put, rotate  key scope ids class input ct                            required: key ids class ct
+;   import       key scope ids count class input source format skipped   required: key count source format
+;   export       key ids count ct                                        required: key count ct
+;   grant        key tier scope subject                                  required: key tier subject
+;   break_glass  key ids count lease expires reason_sha reason_len       required: key ids lease reason_sha
+;   rotation_due ids class age_days                                      required: ids class
+;   dedup        key count groups conflicts                              required: key groups conflicts
+;   merge        key ids class ct canonical aliases discarded            required: key canonical aliases
+;   audit_read   key count                                               required: key
+;   class        key ids class                                           required: key ids class
+;   bind         key scope ids env mode                                  required: key scope env mode
+
+pub const KIND_FIELDS : [17]u32 = [8446, 458, 74, 330, 8799, 7194, 7194, 461882, 4146, 33554446, 49394, 8389648, 1572898, 23073810, 34, 1042, 201326618];
+pub const KIND_REQUIRED : [17]u32 = [90, 66, 64, 64, 513, 5138, 5138, 196642, 4130, 33554438, 16466, 1040, 1572866, 6291458, 2, 1042, 201326602];
+
+pub fn field_allowed(kind: u8, field: u8) -> bool {
+    if (kind >= KINDS or field >= FIELDS) { return false; }
+    return ((KIND_FIELDS[kind] >> (field as u32)) & 1) == 1;
+}
+
+pub fn field_required(kind: u8, field: u8) -> bool {
+    if (kind >= KINDS or field >= FIELDS) { return false; }
+    return ((KIND_REQUIRED[kind] >> (field as u32)) & 1) == 1;
+}
+
+pub const EVC_OK : u8 = 0;
+pub const EVC_UNKNOWN_KIND : u8 = 1;
+pub const EVC_FOREIGN_FIELD : u8 = 2;
+pub const EVC_MISSING_FIELD : u8 = 3;
+pub const EVC_BAD_CODE : u8 = 4;
+
+/// Whether an event of `kind` whose fields are the bits of `fields` may be written. A deny must name a
+/// refusal, never CODE_OK; every other kind leaves `code` out (its mask says so).
+pub fn event_code(kind: u8, fields: u32, code: u8) -> u8 {
+    if (kind >= KINDS) { return EVC_UNKNOWN_KIND; }
+    if ((fields & (KIND_FIELDS[kind] ^ 4294967295)) != 0) { return EVC_FOREIGN_FIELD; }
+    if ((fields & KIND_REQUIRED[kind]) != KIND_REQUIRED[kind]) { return EVC_MISSING_FIELD; }
+    if (kind == EV_DENY and (code == CODE_OK or code >= CODES)) { return EVC_BAD_CODE; }
+    return EVC_OK;
+}
+
+; --- 3. Text --------------------------------------------------------------------------------------
+
+pub const TEXT_MAX : usize = 192;
+pub const HASH_HEX_LEN : usize = 16;
+
+/// A text field: a token of policy.t27's characters, `:` and `/` included, at most TEXT_MAX bytes.
+pub fn text_ok(buf: []const u8, n: usize) -> bool {
+    if (n == 0 or n > TEXT_MAX) { return false; }
+    var i : usize = 0;
+    while (i < n) {
+        var c : u8 = buf[i];
+        if (c != 47 and token_char(c, true) == false) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn hash_ok(buf: []const u8, n: usize) -> bool {
+    if (n != HASH_HEX_LEN) { return false; }
+    var i : usize = 0;
+    while (i < n) {
+        var c : u8 = buf[i];
+        var digit : bool = c >= 48 and c <= 57;
+        var lower : bool = c >= 97 and c <= 102;
+        if (digit == false and lower == false) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+; --- 4. Reading -----------------------------------------------------------------------------------
+
+pub const AUDIT_PAGE_DEFAULT : u32 = 100;
+pub const AUDIT_PAGE_MAX : u32 = 500;
+
+pub fn audit_page(asked: u32) -> u32 {
+    if (asked == 0) { return AUDIT_PAGE_DEFAULT; }
+    if (asked > AUDIT_PAGE_MAX) { return AUDIT_PAGE_MAX; }
+    return asked;
+}
+
+; --- tests ----------------------------------------------------------------------------------------
+
+test every_kind_carries_exactly_its_fields {
+    // lease
+    assert field_allowed(EV_LEASE, F_KEY) == true;
+    assert field_allowed(EV_LEASE, F_TIER) == true;
+    assert field_allowed(EV_LEASE, F_SCOPE) == true;
+    assert field_allowed(EV_LEASE, F_IDS) == true;
+    assert field_allowed(EV_LEASE, F_COUNT) == true;
+    assert field_allowed(EV_LEASE, F_LEASE) == true;
+    assert field_allowed(EV_LEASE, F_EXPIRES) == true;
+    assert field_allowed(EV_LEASE, F_REQ) == true;
+    assert field_allowed(EV_LEASE, F_CT) == false;
+    assert field_allowed(EV_LEASE, F_CODE) == false;
+    // renew, revoke, expire
+    assert field_allowed(EV_RENEW, F_KEY) == true;
+    assert field_allowed(EV_RENEW, F_SCOPE) == true;
+    assert field_allowed(EV_RENEW, F_LEASE) == true;
+    assert field_allowed(EV_RENEW, F_EXPIRES) == true;
+    assert field_allowed(EV_RENEW, F_RENEWALS) == true;
+    assert field_allowed(EV_RENEW, F_IDS) == false;
+    assert field_allowed(EV_REVOKE, F_KEY) == true;
+    assert field_allowed(EV_REVOKE, F_SCOPE) == true;
+    assert field_allowed(EV_REVOKE, F_LEASE) == true;
+    assert field_allowed(EV_REVOKE, F_EXPIRES) == false;
+    assert field_allowed(EV_EXPIRE, F_KEY) == true;
+    assert field_allowed(EV_EXPIRE, F_SCOPE) == true;
+    assert field_allowed(EV_EXPIRE, F_LEASE) == true;
+    assert field_allowed(EV_EXPIRE, F_RENEWALS) == true;
+    // deny
+    assert field_allowed(EV_DENY, F_OP) == true;
+    assert field_allowed(EV_DENY, F_KEY) == true;
+    assert field_allowed(EV_DENY, F_TIER) == true;
+    assert field_allowed(EV_DENY, F_SCOPE) == true;
+    assert field_allowed(EV_DENY, F_IDS) == true;
+    assert field_allowed(EV_DENY, F_CODE) == true;
+    assert field_allowed(EV_DENY, F_LEASE) == true;
+    assert field_allowed(EV_DENY, F_REQ) == true;
+    assert field_allowed(EV_DENY, F_CT) == false;
+    // put and rotate
+    assert field_allowed(EV_PUT, F_KEY) == true;
+    assert field_allowed(EV_PUT, F_SCOPE) == true;
+    assert field_allowed(EV_PUT, F_IDS) == true;
+    assert field_allowed(EV_PUT, F_CLASS) == true;
+    assert field_allowed(EV_PUT, F_INPUT) == true;
+    assert field_allowed(EV_PUT, F_CT) == true;
+    assert field_allowed(EV_PUT, F_LEASE) == false;
+    assert KIND_FIELDS[EV_ROTATE] == KIND_FIELDS[EV_PUT];
+    // import
+    assert field_allowed(EV_IMPORT, F_KEY) == true;
+    assert field_allowed(EV_IMPORT, F_SCOPE) == true;
+    assert field_allowed(EV_IMPORT, F_IDS) == true;
+    assert field_allowed(EV_IMPORT, F_COUNT) == true;
+    assert field_allowed(EV_IMPORT, F_CLASS) == true;
+    assert field_allowed(EV_IMPORT, F_INPUT) == true;
+    assert field_allowed(EV_IMPORT, F_SOURCE) == true;
+    assert field_allowed(EV_IMPORT, F_FORMAT) == true;
+    assert field_allowed(EV_IMPORT, F_SKIPPED) == true;
+    assert field_allowed(EV_IMPORT, F_CT) == false;
+    // export, grant
+    assert field_allowed(EV_EXPORT, F_KEY) == true;
+    assert field_allowed(EV_EXPORT, F_IDS) == true;
+    assert field_allowed(EV_EXPORT, F_COUNT) == true;
+    assert field_allowed(EV_EXPORT, F_CT) == true;
+    assert field_allowed(EV_EXPORT, F_SCOPE) == false;
+    assert field_allowed(EV_GRANT, F_KEY) == true;
+    assert field_allowed(EV_GRANT, F_TIER) == true;
+    assert field_allowed(EV_GRANT, F_SCOPE) == true;
+    assert field_allowed(EV_GRANT, F_SUBJECT) == true;
+    assert field_allowed(EV_GRANT, F_IDS) == false;
+    // break-glass
+    assert field_allowed(EV_BREAK_GLASS, F_KEY) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_IDS) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_COUNT) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_LEASE) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_EXPIRES) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_REASON_SHA) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_REASON_LEN) == true;
+    assert field_allowed(EV_BREAK_GLASS, F_SCOPE) == false;
+    // rotation due, dedup, merge, audit read, class
+    assert field_allowed(EV_ROTATION_DUE, F_IDS) == true;
+    assert field_allowed(EV_ROTATION_DUE, F_CLASS) == true;
+    assert field_allowed(EV_ROTATION_DUE, F_AGE_DAYS) == true;
+    assert field_allowed(EV_ROTATION_DUE, F_KEY) == false;
+    assert field_allowed(EV_DEDUP, F_KEY) == true;
+    assert field_allowed(EV_DEDUP, F_COUNT) == true;
+    assert field_allowed(EV_DEDUP, F_GROUPS) == true;
+    assert field_allowed(EV_DEDUP, F_CONFLICTS) == true;
+    assert field_allowed(EV_DEDUP, F_IDS) == false;
+    assert field_allowed(EV_MERGE, F_KEY) == true;
+    assert field_allowed(EV_MERGE, F_IDS) == true;
+    assert field_allowed(EV_MERGE, F_CLASS) == true;
+    assert field_allowed(EV_MERGE, F_CT) == true;
+    assert field_allowed(EV_MERGE, F_CANONICAL) == true;
+    assert field_allowed(EV_MERGE, F_ALIASES) == true;
+    assert field_allowed(EV_MERGE, F_DISCARDED) == true;
+    assert field_allowed(EV_MERGE, F_SCOPE) == false;
+    assert field_allowed(EV_AUDIT_READ, F_KEY) == true;
+    assert field_allowed(EV_AUDIT_READ, F_COUNT) == true;
+    assert field_allowed(EV_AUDIT_READ, F_IDS) == false;
+    assert field_allowed(EV_CLASS, F_KEY) == true;
+    assert field_allowed(EV_CLASS, F_IDS) == true;
+    assert field_allowed(EV_CLASS, F_CLASS) == true;
+    assert field_allowed(EV_CLASS, F_CT) == false;
+    assert field_allowed(EV_BIND, F_KEY) == true;
+    assert field_allowed(EV_BIND, F_SCOPE) == true;
+    assert field_allowed(EV_BIND, F_IDS) == true;
+    assert field_allowed(EV_BIND, F_ENV) == true;
+    assert field_allowed(EV_BIND, F_MODE) == true;
+    assert field_allowed(EV_BIND, F_CT) == false;
+    assert field_required(EV_BIND, F_IDS) == false;
+    assert field_allowed(EV_LEASE, F_ENV) == false;
+    // nothing outside the tables
+    assert field_allowed(KINDS, F_KEY) == false;
+    assert field_allowed(EV_LEASE, FIELDS) == false;
+}
+
+/// Every mask, recounted bit by bit: a mask with a bit the comment table above does not list fails here.
+test the_masks_hold_the_listed_bits_and_no_others {
+    var k : u8 = 0;
+    var allowed : u32 = 0;
+    var required : u32 = 0;
+    while (k < KINDS) {
+        var f : u8 = 0;
+        while (f < FIELDS) {
+            if (field_allowed(k, f)) { allowed = allowed + 1; }
+            if (field_required(k, f)) {
+                required = required + 1;
+                // a required field is always an allowed one
+                assert field_allowed(k, f) == true;
+            }
+            f = f + 1;
+        }
+        k = k + 1;
+    }
+    // 8 + 5 + 3 + 4 + 8 + 6 + 6 + 9 + 4 + 4 + 7 + 3 + 4 + 7 + 2 + 3 + 5
+    assert allowed == 88;
+    // 4 + 2 + 1 + 1 + 2 + 4 + 4 + 4 + 3 + 3 + 4 + 2 + 3 + 3 + 1 + 3 + 4
+    assert required == 48;
+}
+
+test an_event_with_a_foreign_or_missing_field_is_not_written {
+    var lease_fields : u32 = (1 << 1) | (1 << 3) | (1 << 4) | (1 << 6);
+    assert event_code(EV_LEASE, lease_fields, 0) == EVC_OK;
+    assert event_code(EV_LEASE, lease_fields | (1 << 7), 0) == EVC_OK;
+    // a ciphertext hash has no place in a lease event
+    assert event_code(EV_LEASE, lease_fields | (1 << 12), 0) == EVC_FOREIGN_FIELD;
+    // a lease event without its lease id
+    assert event_code(EV_LEASE, (1 << 1) | (1 << 3) | (1 << 4), 0) == EVC_MISSING_FIELD;
+    // a deny names the refusal, and never CODE_OK
+    var deny_fields : u32 = (1 << 0) | (1 << 9);
+    assert event_code(EV_DENY, deny_fields, 5) == EVC_OK;
+    assert event_code(EV_DENY, deny_fields, 0) == EVC_BAD_CODE;
+    assert event_code(EV_DENY, deny_fields, CODES) == EVC_BAD_CODE;
+    assert event_code(EV_DENY, 1 << 0, 5) == EVC_MISSING_FIELD;
+    // a field past the table is foreign to every kind
+    assert event_code(EV_AUDIT_READ, (1 << 1) | (1 << 28), 0) == EVC_FOREIGN_FIELD;
+    assert event_code(EV_BIND, (1 << 1) | (1 << 3) | (1 << 26) | (1 << 27), 0) == EVC_OK;
+    assert event_code(EV_BIND, (1 << 1) | (1 << 3) | (1 << 26), 0) == EVC_MISSING_FIELD;
+    assert event_code(KINDS, 0, 0) == EVC_UNKNOWN_KIND;
+    assert event_code(EV_AUDIT_READ, 1 << 1, 0) == EVC_OK;
+    assert event_code(EV_AUDIT_READ, 0, 0) == EVC_MISSING_FIELD;
+}
+
+test text_fields_are_tokens_and_hashes_are_short_hex {
+    assert text_ok("OPENAI_API_KEY", 14) == true;
+    assert text_ok("railway:999/ai-server/DATABASE_URL", 34) == true;
+    assert text_ok("provider-api-key", 16) == true;
+    assert text_ok("", 0) == false;
+    assert text_ok("a b", 3) == false;
+    assert text_ok("a=b", 3) == false;
+    assert text_ok("sk+x", 4) == false;
+    assert text_ok("p@ss", 4) == false;
+    assert text_ok("$X", 2) == false;
+    assert hash_ok("0123456789abcdef", 16) == true;
+    assert hash_ok("0123456789ABCDEF", 16) == false;
+    assert hash_ok("0123456789abcde", 15) == false;
+    assert hash_ok("0123456789abcdeg", 16) == false;
+    assert audit_page(0) == AUDIT_PAGE_DEFAULT;
+    assert audit_page(7) == 7;
+    assert audit_page(AUDIT_PAGE_MAX + 1) == AUDIT_PAGE_MAX;
+}
+
+invariant the_tables_are_complete {
+    assert KINDS == 17 and FIELDS == 28;
+    assert FIELDS <= 32;
+    assert HASH_HEX_LEN <= TEXT_MAX and ID_MAX <= TEXT_MAX;
+    assert AUDIT_PAGE_DEFAULT <= AUDIT_PAGE_MAX;
+}
+/// A required field is an allowed one, kind by kind, as whole masks.
+invariant required_is_within_allowed {
+    assert (KIND_REQUIRED[0] & KIND_FIELDS[0]) == KIND_REQUIRED[0];
+    assert (KIND_REQUIRED[4] & KIND_FIELDS[4]) == KIND_REQUIRED[4];
+    assert (KIND_REQUIRED[5] & KIND_FIELDS[5]) == KIND_REQUIRED[5];
+    assert (KIND_REQUIRED[7] & KIND_FIELDS[7]) == KIND_REQUIRED[7];
+    assert (KIND_REQUIRED[10] & KIND_FIELDS[10]) == KIND_REQUIRED[10];
+    assert (KIND_REQUIRED[13] & KIND_FIELDS[13]) == KIND_REQUIRED[13];
+    assert (KIND_REQUIRED[16] & KIND_FIELDS[16]) == KIND_REQUIRED[16];
+}

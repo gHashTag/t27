@@ -1,0 +1,8 @@
+# NOW -- specs/vault: our own key store, decided in three cards (2026-10-11)
+
+## specs/vault/{policy,audit,merge}.t27 (Closes #8761; gHashTag/trios#1759)
+
+- An agent leases a scope by name with an Ed25519-signed request (host.t27's skew window, signed_receipt.t27's nonce size). The answer is sealed to a one-lease age key, and `run` puts the values only into its child's environment. A lease is all or nothing, and host.t27 `eligible` is the public-tier and personal-data gate. The lease TTL is 900 s, with 96 renewals. Rotation, rebinding and re-classing end leases at their next renewal. Export goes to the recovery recipient only. Break-glass is owner-only and makes the names it touched due for rotation.
+- audit.t27 is the closed list of what an event may carry: 17 kinds and 28 fields, as bit masks. No field holds a value or a hash of one, and a stranger's refused request writes nothing. merge.t27 reads the owner's Infisical dotenv and Railway `### service` streams, PEM blocks included. It reports copies and conflicts by name only, merges only by the owner's plan, where a conflict needs `keep=`, and reads the vault's own export back.
+- Starting inside the server (policy.t27 section 13): off means off. On needs `TRIOS_VAULT_IDENTITY`, `TRIOS_VAULT_RECOVERY`, `TRIOS_VAULT_OWNER_KEYS`, a database and `age`, and refuses a store sealed under another identity or recovery key.
+- `t27c test-report`: 27 tests, 0 FAIL, 0 vacuous, 520 runtime asserts, 8 invariants. 55 negative controls: 53 FAIL by name, 2 blocked by an invariant. Runtime: gHashTag/trios#1765 on `vault-mvp`, behind `TRIOS_VAULT=on`.

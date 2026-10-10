@@ -1,0 +1,37 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+32d97946e",
+  "closure": [
+    {
+      "spec": "specs/hosting/host.t27",
+      "spec_hash": "sha256:f2ac0265cc5b43920bea8859f7984b74321de21a736392fd18ae27eefc717628"
+    },
+    {
+      "spec": "specs/verified/signed_receipt.t27",
+      "spec_hash": "sha256:20728477c97dc10f66c47391e1418aff63769660c180b3912765a86f322fdb61"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:73ca576069e6be867c99f715f96b0964c2236d8f69fe1bbd97012fa3600e9716",
+  "gen_hash_rust": "sha256:d462e17ca968fc6a5aa1efe8df05caed116412ddf3bdf94a3003a0fe83189ea7",
+  "gen_hash_verilog": "sha256:3b13fbc3b023c2dd05038c7f08cca758ebe38853c13286497a87ddaa943400a5",
+  "gen_hash_zig": "sha256:c74b9ef3d455df8ec59f8b3ded477c0aa73ff6a76bec24aca6fd821e77493dcf",
+  "module": "VaultPolicy",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T20:07:40Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c956a0986b6e676732ea03fbf72d9586bfd19e9cee4c96ddb061fe749296d680",
+  "spec_path": "specs/vault/policy.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
