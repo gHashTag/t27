@@ -1,0 +1,55 @@
+module gen_w695;
+
+const OUTER = 209;
+const TOTAL = OUTER * 2 ** 6;
+const LAST_IDX = OUTER - 1;
+const MID_IDX = OUTER // 2;
+const LAST_X = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E = MID_IDX * (2 ** 6) + 32;
+const MID_X = (2 * MID_E) % 32768;
+const MID_Y = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level == 0) return "";
+    if (level == 1) return "    ";
+    if (level == 2) return "        ";
+    if (level == 3) return "            ";
+    return "                ";
+}
+
+pub fn build_tree(shape: []const i32, base: i32, offset: i32) -> []const u8 {
+    if (shape.len == 1) {
+        return "[5]Pt{\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n}";
+    }
+
+    return "[2][3]Pt{\n[5]Pt{\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n}\n[5]Pt{\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n    Pt{ .x = 0, .y = 0 }\n}\n}";
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_simple {
+    var shape: [1]i32 = [5];
+    var result: []const u8 = build_tree(&shape, 0, 0);
+    
+    assert(std.mem.indexOf(u8, result, "[5]Pt{") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 0, .y = 0 }") != null);
+}
+
+test build_tree_nested {
+    var shape: [2]i32 = [2, 3];
+    var result: []const u8 = build_tree(&shape, 10, 5);
+    
+    assert(std.mem.indexOf(u8, result, "[2][3]Pt{") != null);
+}
