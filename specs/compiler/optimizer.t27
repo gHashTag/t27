@@ -322,15 +322,15 @@ module Optimization {
     test dead_store_elim_preserves_side_effecting_calls
         ; Test that dead_store_elim does not delete expressions containing function calls
         ; even when the result is unused
-        given 
-            var result = true ; Placeholder for actual test implementation
-        then result == true ; This test documents the requirement - calls should be preserved
+        given
+            var result = true ; Placeholder until an implementation lands
+        then result == true ; This comment documents the requirement - calls should be preserved
 
-    test dead_store_elim_counts_field_writes_as_reads  
+    test dead_store_elim_counts_field_writes_as_reads
         ; Test that dead_store_elim recognizes field writes as reads of the base variable
-        given 
-            var result = true ; Placeholder for actual test implementation
-        then result == true ; This test documents the requirement - field writes should preserve declarations
+        given
+            var result = true ; Placeholder until an implementation lands
+        then result == true ; This comment documents the requirement - field writes should preserve declarations
 
     test loop_unroll_has_precondition
         given result = get_precondition(LoopUnroll)
