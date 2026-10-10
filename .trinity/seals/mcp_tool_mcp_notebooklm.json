@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:cc3485d253869b95c1ee882c30b909fc4587601705f4f1828270cbd95535b79d",
+  "gen_hash_rust": "sha256:87512ff28111292ef19ba7c2e886974b25d839e30a644ad706faf243edd85a0e",
+  "gen_hash_verilog": "sha256:ee7c6a8140e76d8bdbed39976774fa3266cb6bc741b49c9b5bf236860f701afe",
+  "gen_hash_zig": "sha256:33ef061d399244f32283f9441f72c6d8c65ddc08cdf134d270dcf21d0952da9f",
+  "module": "tool_mcp_notebooklm",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4cc0503a0da189c101964f6f14f9f7d8fc67f5ef9d1bc982d3f6d9ec2d341de8",
+  "spec_path": "specs/tools/mcp/notebooklm.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

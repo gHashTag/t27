@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9a8b7594da85d5a5b80c3bc0903a0c1190421cfb1115cf2adce91d5785ce4ded",
+  "gen_hash_rust": "sha256:cb2a8a108834423d2966741ad33c9bafa91abf6b993e4a782ccca97287e66173",
+  "gen_hash_verilog": "sha256:c948b7374deca8861126820e4f7a98081eca3724c11422fe604fcd815914f66e",
+  "gen_hash_zig": "sha256:ed544f18dc3ad4cce47ee3a1a8c7ca0b6b23ae3ef32d6f12ab72c6e6c6252fd6",
+  "module": "tool_mcp_needle",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b250d53e3b85a6f10134f63b8de6cb4cc6cba445e431ae81fa6b3a5881ff7755",
+  "spec_path": "specs/tools/mcp/needle.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

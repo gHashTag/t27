@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:45f180a58f1cbaac48329312b6c14ac15158085e199b9590691957f97724117b",
+  "gen_hash_rust": "sha256:e610d3b4872d944a41c5cad8f18bc484866e6fe640aca2cfbf01c011d385551e",
+  "gen_hash_verilog": "sha256:3c4e2ef42617fd4d9681313fd70fb59f90c140a2c481411df3dec8b2f41e8e25",
+  "gen_hash_zig": "sha256:ce80de8fda90526702521ed9301ccac56a58d78f3ae0f53ca7306d013f0ee0ef",
+  "module": "skill_t27_wave_audit",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:38:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:245d1f7183deb5e7a5b4c6eff37439a168e3473ad53487ec208e7a2bd5944ef4",
+  "spec_path": "specs/skills/t27-wave-audit.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

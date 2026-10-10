@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b528162e0d14cf9dcdb8e3180051859f388eec5d4d67a8dfb131f68e83aae6fa",
+  "gen_hash_rust": "sha256:d90380abf66a63416e035578346bd79b5a3d4930039542b824f9d0bfbf29824c",
+  "gen_hash_verilog": "sha256:4ac8af3bf9ae14c2b288f20df6b9bf00e32baa8e87e4f2b0e4fbb6fc562ce371",
+  "gen_hash_zig": "sha256:4d14477cf4e2dfa8ef272c87a5379580ddb8bfa0f243da36d474c01ecde01aef",
+  "module": "tool_mcp_neon",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c9bd0b369e10ae999d5f206eb4fbd9c1dd90682399cd5eb853ab9337182b8382",
+  "spec_path": "specs/tools/mcp/neon.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

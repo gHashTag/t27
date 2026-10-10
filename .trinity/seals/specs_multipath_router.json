@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5fd1d2782ea489ac59c9cef13e37c53e78a90e41a013e64407bf3ae9f35b52fe",
+  "gen_hash_rust": "sha256:65b159d47fba2c40151194b89677b50b09a18766934e0a42374f1d234f431b40",
+  "gen_hash_verilog": "sha256:991bf552e08c4912503b14458b9213f6e1aa130bd254bd7daca2d0eb5ba26269",
+  "gen_hash_zig": "sha256:352f4f2e0ce204267a40c30b509f3a29b75fe961337685c2cedf51f2484a08dc",
+  "module": "multipath_router",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:26:00Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:789afc0a91c0907c1b3dcead743efb27826efe866b1cfb2989a00b7470b09933",
+  "spec_path": "specs/multipath_router.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

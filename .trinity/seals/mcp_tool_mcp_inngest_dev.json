@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9aeb98e4c079187423a3e59713bd58619a7538771bb70456fc0bc39c285ad528",
+  "gen_hash_rust": "sha256:060edb2f5c422551f67afc12ca02bc776d65522bb2578966456e925ac9015457",
+  "gen_hash_verilog": "sha256:2f6ef9ba087c241586237b8237967b4c444d936f1698f262585cddb0c15227bd",
+  "gen_hash_zig": "sha256:3f7803da85a1efea0356b2f571574342e5f9063600170e06b9870907bb7e7601",
+  "module": "tool_mcp_inngest_dev",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3cc6e20f489052396c7be3953e41c636a94e970da746b5d845b24d6801728552",
+  "spec_path": "specs/tools/mcp/inngest-dev.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:34ff0a0a88e52ddbc15e0b1075f71ed9ffef728aba18144250634bd7115aeeda",
+  "gen_hash_rust": "sha256:6df62e80b57da8ae158baf08e464b3d01cd843f3094e628904fded5985ecd9dc",
+  "gen_hash_verilog": "sha256:0ccc218d51e750448a4652ec05500d29768b962715dc710cb8664e89209041b0",
+  "gen_hash_zig": "sha256:4d0a4b74175498d6db92030931127f093920cc0df9a0f9193d44b920b22175b4",
+  "module": "tool_trinity_tri_needle",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:40:09Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4e24d8c2297ba631ec61eb294a57e7414f084a1e39e5259671ee65869d883004",
+  "spec_path": "specs/tools/trinity/tri/needle.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

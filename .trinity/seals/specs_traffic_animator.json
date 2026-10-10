@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a15f69c225a7b0354e039e66575ac0921acd7d6920cadc53d2fe71ecb0ea7400",
+  "gen_hash_rust": "sha256:5f4b09ece5fbeab855affcf10f82e794b56abe7b9847f8fe8f360172a82684fe",
+  "gen_hash_verilog": "sha256:76338bbcc6e67a1e39fcd96ac6a51c52f7e97b07a21f1e9f0cb5bd188ce296f5",
+  "gen_hash_zig": "sha256:810ff0312a2656d197a1062a6cfc8fdf9395f27481f4e421d8dd2fb30452aa62",
+  "module": "traffic_animator",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:40:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:db39379e48eacb0c61f09889b2619386f202726f507ddbdf27dc865c52713b99",
+  "spec_path": "specs/traffic_animator.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

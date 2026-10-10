@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b9e92165ef25989b12bdbdb9725d719068006f21f79e81602e0bba34743f9eae",
+  "gen_hash_rust": "sha256:d7f513d54f677fa6d130919948a22e6afbdf6c326cf4ef580849fdcf261c9b5b",
+  "gen_hash_verilog": "sha256:67775a6a9189bcadf7cd8118bb7e789367a73851dbe3b3dce2dea06b493ee156",
+  "gen_hash_zig": "sha256:48a4477104e0210bfd77007a8e9c112e4e6767a71622744614facf6ec11e2732",
+  "module": "envelope_size_distribution_uniformity",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:35:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:fd2acdd9d07cd707494aafc2344f7cf44cecfec928fa893801d052d675a76381",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-05/src/envelope_size_distribution_uniformity.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

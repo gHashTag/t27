@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:635bf90b041b45cef2791be5c2839ab65cb4b76c87b8c47aa72c66aa50ae9d1d",
+  "gen_hash_rust": "sha256:edba82b3049ab65d97fb99c4e5c0dda0cb645221c96eaa8b0847ab0e288dddaa",
+  "gen_hash_verilog": "sha256:f926a7cdfa9c65559822ee1c7a25f7df7fe2ec8edd42bddb4e02e2ad5d69dcde",
+  "gen_hash_zig": "sha256:c8c5cacda64746fb3453fcbae115fbafc0294aafec32e1afe60119ca3c834c8a",
+  "module": "port::bogatyrs_spec_structure",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:34:01Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:748aafafd4d5fa97641409b4431d0c4f8a70be999c36ee11587c374082b508e4",
+  "spec_path": "specs/port/trinity/src/phi-engine/vibeec_original/bogatyrs_spec_structure.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

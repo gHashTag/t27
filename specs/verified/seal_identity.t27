@@ -91,11 +91,14 @@ pub fn checks_pass(failed_zero: bool, forced: bool, tests_total: u32, invariants
 
 /// The re-mint: `t27c frontier --reseal` seals again every spec remint_wants() names, and keeps the new
 /// seal only when remint_keeps() allows it; otherwise the old seal is written back. A stale part (spec,
-/// closure, toolchain, config, verdict) is cured by sealing again. MISSING is not: no seal, or an import
-/// with none, needs the spec itself fixed -- on 2026-10-10, 391 of 524 unsealed specs did not compile.
-pub fn remint_wants(decision: u8) -> bool {
+/// closure, toolchain, config, verdict) is cured by sealing again, and so may a MISSING spec with no seal.
+/// A MISSING spec that has never been sealed is tried too: on 2026-10-10, 44 of the 101 specs with no seal
+/// at all passed their tests and had simply never been sealed (#8691). A MISSING spec that HAS a seal is
+/// missing only through an import, and sealing it again changes nothing.
+pub fn remint_wants(decision: u8, has_seal: bool) -> bool {
     if (decision == REUSE) { return false; }
-    return decision != REBUILD_MISSING;
+    if (decision == REBUILD_MISSING) { return has_seal == false; }
+    return true;
 }
 
 /// A re-mint shares one zig cache and wipes it after every REMINT_CACHE_EVERY specs. A cold cache
@@ -232,13 +235,20 @@ test checks_pass_needs_at_least_one_check {
 }
 
 test remint_wants_only_a_stale_part {
-    assert remint_wants(REUSE) == false;
-    assert remint_wants(REBUILD_MISSING) == false;
-    assert remint_wants(REBUILD_SPEC) == true;
-    assert remint_wants(REBUILD_CLOSURE) == true;
-    assert remint_wants(REBUILD_TOOLCHAIN) == true;
-    assert remint_wants(REBUILD_CONFIG) == true;
-    assert remint_wants(REBUILD_VERDICT) == true;
+    assert remint_wants(REUSE, true) == false;
+    assert remint_wants(REUSE, false) == false;
+    assert remint_wants(REBUILD_SPEC, true) == true;
+    assert remint_wants(REBUILD_CLOSURE, true) == true;
+    assert remint_wants(REBUILD_TOOLCHAIN, true) == true;
+    assert remint_wants(REBUILD_CONFIG, true) == true;
+    assert remint_wants(REBUILD_VERDICT, true) == true;
+}
+
+test remint_wants_a_never_sealed_spec_but_not_an_import_gap {
+    // never sealed: try it, remint_keeps decides
+    assert remint_wants(REBUILD_MISSING, false) == true;
+    // sealed, missing only through an import: resealing it changes nothing
+    assert remint_wants(REBUILD_MISSING, true) == false;
 }
 
 test remint_keeps_a_v2_seal_whose_checks_ran {

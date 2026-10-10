@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f77a03ba5f87cbe01ee67aff0ebeef77d9369c4ba2d338d2dbdc9676b4f71663",
+  "gen_hash_rust": "sha256:ddb01cb14212df2b2a3ad202c5fa0ed4d7e60fbd164947a74409d28904f3e3bb",
+  "gen_hash_verilog": "sha256:8dd2e1decd6573838b389d4efdfac844133acb161389bdc8a3640c99e3b227b4",
+  "gen_hash_zig": "sha256:04a83e89f4d578e5241bb036e19645b9062c63cf546c69c8ba125db7de81ba20",
+  "module": "tool_mcp_t27_traceability",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:9975d40c2636afeb0b2054cebfa39aeece92d19d9f21141f3e01d49ff7fe1b96",
+  "spec_path": "specs/tools/mcp/t27-traceability.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

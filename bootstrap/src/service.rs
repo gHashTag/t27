@@ -5690,7 +5690,7 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
     let mut twins: std::collections::HashMap<String, Vec<std::path::PathBuf>> = Default::default();
     for e in std::fs::read_dir(".trinity/seals").into_iter().flatten().flatten().filter(|_| reseal) { if let Some(s) = std::fs::read_to_string(e.path()).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()).and_then(|v| v["spec_path"].as_str().map(String::from)) { twins.entry(s).or_default().push(e.path()) } }
     let zc = std::env::temp_dir().join(format!("t27c-reseal-{}", std::process::id()));
-    for (i, p) in specs.iter().filter(|p| reseal && memo.get(p.as_str()).map_or(false, |d| si::remint_wants(*d))).enumerate() {
+    for (i, p) in specs.iter().filter(|p| reseal && memo.get(p.as_str()).map_or(false, |d| si::remint_wants(*d, twins.contains_key(p.as_str())))).enumerate() {
         let src = std::fs::read_to_string(p)?;
         let primary = crate::seal_file_path(&crate::extract_module_name(&src).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()), p);
         let mut old: Vec<(std::path::PathBuf, String, bool)> = twins.get(p.as_str()).into_iter().flatten().filter_map(|f| Some((f.clone(), std::fs::read_to_string(f).ok()?, true))).collect();

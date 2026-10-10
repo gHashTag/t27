@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:060e3ea82ba4895935feccd7444076efa2a6bafcfed96570dbda98a1e60969da",
+  "gen_hash_rust": "sha256:612654a3af8f43c6a9e25fa5931106bbffdb06a0164276b1772a4034c54946e9",
+  "gen_hash_verilog": "sha256:a63db4f495b8dc773cfcf17277b947f9aa4203a47d04c62844afa44282af2e98",
+  "gen_hash_zig": "sha256:5533c9f28702c314ed249c0cb9220e12d13ad8c25082575d00826a454462f27d",
+  "module": "port::unmerged_leaves_bound_guard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:35:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d3b9cf2d038f67ae91f5f5148b3999e47d93864376ca19b2fe415729c1840e7f",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/unmerged_leaves_bound_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ae1cbac2b218cfb157f1c939d8a522d2c3fa4edd6b2ac33322f957f03546b149",
+  "gen_hash_rust": "sha256:9b22ea42df0ec8fbe0d8c2e40a58d3f8e6caf775303fb10cff2188b1c167ade2",
+  "gen_hash_verilog": "sha256:88a906ef837d0f3c2684d05fa2677273a7710e6181984a3e2655d442e0a26969",
+  "gen_hash_zig": "sha256:b40f4727c22ed64da8a63952593597091c3c7743e805d701035b928d0ffe0020",
+  "module": "automation::inngest_queen_scheduler",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:10:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a62f0ccb44eab95f73132ef6a2d72f7277b3da9e5e9a9da5e53a79e3ab20eba7",
+  "spec_path": "specs/automation/inngest-queen-scheduler.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

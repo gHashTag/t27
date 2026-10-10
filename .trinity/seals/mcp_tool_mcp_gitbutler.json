@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ca1db6a64b7d26bded1f8427475b8b9234abc226921639da13c7643b9072d756",
+  "gen_hash_rust": "sha256:e01275635e55240c0b63fe49b07fc0ccf397730977ceac56415723eab557f850",
+  "gen_hash_verilog": "sha256:264773047785c6cf01eb1cb891efff4dde33432a971a2755dc3d9bce918840a3",
+  "gen_hash_zig": "sha256:36c2090cb427291261813040743d2fd7b74e5d2061333d35a7570018f31afd96",
+  "module": "tool_mcp_gitbutler",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:45d10f886ad151ca70728563e176ca2625a99f78922352e935b0a1b93501df3a",
+  "spec_path": "specs/tools/mcp/gitbutler.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

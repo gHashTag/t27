@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b454d6038472236627aa7be08ff3bb5c99f43180265b5c5ab20286e14bc24e35",
+  "gen_hash_rust": "sha256:0d16df93762876676f6713e4dc2a621bc398e36ec79a60c5b01e378c30c16239",
+  "gen_hash_verilog": "sha256:2d4e8bd364a6011e807f580d27d1cb0cd8b987ed20447edd40d8e27d014b5b24",
+  "gen_hash_zig": "sha256:d42b2e123dcaeefaba2a49166cfc1e753501c6adb380cbeae94a746ef7994775",
+  "module": "mesh_routing",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:25:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f075427f722b02a39dcb9be912d5dc80997f409301007f1d609d6c6407ce5c78",
+  "spec_path": "specs/mesh_routing.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

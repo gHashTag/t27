@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a1175e491d4f9a316e98cf48aeff55329578a750408991b1f7c51a547c6e060e",
+  "gen_hash_rust": "sha256:c269f6a2e038218ac078b3124894e908c80f98cf793b1ad30cc800606045177f",
+  "gen_hash_verilog": "sha256:a17373873ea1b276002ed9f3260bc74ef467a327d79fa2e4dedada52fe4747fb",
+  "gen_hash_zig": "sha256:4729d94d64aa3dd2cb054ab5d170dfb92d7528397641e7871f4044b350c25463",
+  "module": "tool_mcp_railway_mcp_server",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:39:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4f692a14034d1827c8962639759fa92c42e206bdad1dd17ecdd6d5be21e12f13",
+  "spec_path": "specs/tools/mcp/railway-mcp-server.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

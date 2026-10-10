@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:63e42de4d5111d2045c3858f454d2a91120f9e379e58e07b244939b2c8c439e5",
+  "gen_hash_rust": "sha256:51107670638ca693a7d83590015c23754081b9591ed055b180e45440e1d68cc6",
+  "gen_hash_verilog": "sha256:4acd20d9e973dc08cd1002178d8a8229cf743a5062afb985f4a5c040abf3145b",
+  "gen_hash_zig": "sha256:e2a9482fc5c1290b1e7682aa75399cf150ae4cd150a519354f5413522a148e79",
+  "module": "port::browseros::trios::agent-server::apps::server::src::api::routes::queen_lease",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:27:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:893dfc70d109c1f72adbeeb1fe9dfc01c2a76f74a35a38efe651955cc9cace64",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-lease.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

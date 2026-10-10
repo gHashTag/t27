@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:863fb30a8ea55f44be950461cdc84683e579c4b7ea7e08a80d881b0e70e6e462",
+  "gen_hash_rust": "sha256:d6375e596830a3c5697e61d0a256145c1ce13350d53b5cf12b25c0fb11b43dcc",
+  "gen_hash_verilog": "sha256:49964db17268067293c0385b17cd8b9074067a28dd3e3b23ecbb94c66688cbea",
+  "gen_hash_zig": "sha256:f6f1ec80ffcd551d585b8be6c0f3e1c4b26eb25b530e5f2a46dc05e097537045",
+  "module": "port::trinity::src::vibeec::trinity_tokenizer",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:35:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:42f37fcf1817959b5243e9facafeb01c481e714a103d703d182a84aad7ae474d",
+  "spec_path": "specs/port/trinity/src/vibeec/trinity_tokenizer.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

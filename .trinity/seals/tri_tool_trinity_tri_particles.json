@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+270f47dfb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:51b12d210181eed4dbdc25cdc56381fd124b983fb39032d6724ddb7be114bf8f",
+  "gen_hash_rust": "sha256:47ce34ed10744737985e6cedf15506978605d144892b3e5f9134998e0052ecfd",
+  "gen_hash_verilog": "sha256:870d2f98a3436e54e77267082080b8c7562d0f6508a61aab9d5d3cf61362c77d",
+  "gen_hash_zig": "sha256:408b6a3f2e8ca3e72d8b75852083b3d6aacd8f147177ac18a19a41f9352839d9",
+  "module": "tool_trinity_tri_particles",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:40:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6d3ee6e28a6239b0e8367037c5be24d3ef628518367e7f2ce58e58ac3adfca88",
+  "spec_path": "specs/tools/trinity/tri/particles.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
