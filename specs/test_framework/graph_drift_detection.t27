@@ -524,6 +524,11 @@ module GraphDriftDetection {
         then results.length() >= 1
         and   all_results_have_claim_ids(results)
     
+    test log_error_functionality
+        given category = "test_category"
+        and   message = "test error message"
+        then log_error(category, message)  // Should not panic and should print error
+    
     invariant drift_config_valid
         assert default_drift_config().threshold > 0.0
         and   default_drift_config().window_size > 0
@@ -644,6 +649,7 @@ fn create_modified_test_graph() -> DriftGraph {
 
 fn log_error(category: string, message: string) {
     // Implementation would log error message
+    print("[ERROR] {}: {}", category, message);
 }
 
 fn parse_tolerance_tier(tier_str: string) -> ToleranceTier {
