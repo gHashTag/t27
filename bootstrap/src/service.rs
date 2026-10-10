@@ -5650,7 +5650,7 @@ mod unresolved_is_not_a_rejection {
 
 /// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
 /// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
-pub fn run_frontier(list: bool) -> anyhow::Result<()> {
+pub fn run_frontier(list: bool, reseal: bool) -> anyhow::Result<()> {
     use crate::seal_identity as si;
     let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
     while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
@@ -5679,7 +5679,85 @@ pub fn run_frontier(list: bool) -> anyhow::Result<()> {
     }
     let mut counts = [0u32; 7];
     specs.sort();
-    for p in &specs { let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); counts[d as usize] += 1; if list && d != si::REUSE { println!("{d} {p}") } }
+    for p in &specs { 
+        let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); 
+        counts[d as usize] += 1; 
+        if list && d != si::REUSE { println!("{d} {p}") }
+        
+        // Reseal logic
+        if reseal && si::remint_wants(d) {
+            println!("resealing: {p}");
+            let module = std::fs::read_to_string(p).ok().and_then(|s| crate::extract_module_name(&s)).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
+            let seal_path = crate::seal_file_path(&module, p);
+            let old_seal: serde_json::Value = std::fs::read_to_string(&seal_path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+            
+            // Run t27c seal --save as child process
+            let mut cmd = std::process::Command::new(std::env::current_exe()?);
+            cmd.args(["seal", "--save", p]);
+            let (code, out, err) = run(&mut cmd);
+            
+            if code == Some(0) {
+                let new_seal: serde_json::Value = std::fs::read_to_string(&seal_path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+                
+                // Check if seal differs only in sealed_at
+                let is_sealed_at_diff = 
+                    old_seal["sealed_at"] != new_seal["sealed_at"] &&
+                    old_seal.get("spec_hash") == new_seal.get("spec_hash") &&
+                    old_seal.get("gen_hash_zig") == new_seal.get("gen_hash_zig") &&
+                    old_seal.get("gen_hash_verilog") == new_seal.get("gen_hash_verilog") &&
+                    old_seal.get("gen_hash_c") == new_seal.get("gen_hash_c") &&
+                    old_seal.get("gen_hash_rust") == new_seal.get("gen_hash_rust") &&
+                    old_seal.get("tests") == new_seal.get("tests") &&
+                    old_seal.get("toolchain") == new_seal.get("toolchain") &&
+                    old_seal.get("config") == new_seal.get("config") &&
+                    old_seal.get("closure") == new_seal.get("closure");
+                
+                if is_sealed_at_diff {
+                    // Write old seal back unchanged
+                    std::fs::write(&seal_path, serde_json::to_string(&old_seal)?)?;
+                    println!("reseal: only sealed_at changed, reverted");
+                } else {
+                    // Check if new seal should be kept
+                    let schema = new_seal.get("seal_schema").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+                    let failed_zero = new_seal.get("tests").and_then(|t| t.get("failed")).and_then(|v| v.as_u64()) == Some(0);
+                    let forced = new_seal.get("tests").and_then(|t| t.get("forced")).and_then(|v| v.as_bool()) == Some(true);
+                    let tests_total = new_seal.get("tests").and_then(|t| t.get("total")).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                    let invariants = 0; // TODO: extract from spec if needed
+                    
+                    if si::remint_keeps(schema, failed_zero, forced, tests_total, invariants) {
+                        // Keep the new seal and copy to twins
+                        println!("reseal: kept new seal");
+                        
+                        // Find and update twin seals
+                        let seals_dir = std::path::Path::new(".trinity/seals");
+                        if seals_dir.exists() {
+                            for entry in std::fs::read_dir(seals_dir)? {
+                                if let Ok(entry) = entry {
+                                    let twin_path = entry.path();
+                                    if twin_path.is_file() && twin_path.extension().and_then(|s| s.to_str()) == Some("json") {
+                                        if let Ok(twin_content) = std::fs::read_to_string(&twin_path) {
+                                            if let Ok(mut twin_seal) = serde_json::from_str::<serde_json::Value>(&twin_content) {
+                                                if twin_seal.get("spec_path") == new_seal.get("spec_path") {
+                                                    std::fs::write(&twin_path, serde_json::to_string(&new_seal)?)?;
+                                                    println!("reseal: updated twin seal: {}", twin_path.display());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Revert to old seal and remove new file
+                        std::fs::write(&seal_path, serde_json::to_string(&old_seal)?)?;
+                        println!("reseal: new seal not kept, reverted");
+                    }
+                }
+            } else {
+                println!("reseal: failed to reseal {}: {}", p, err);
+            }
+        }
+    }
     let total = specs.len() as u32;
     println!("frontier: reused {} of {} ({} permille); rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
     Ok(())

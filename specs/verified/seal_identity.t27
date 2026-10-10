@@ -109,6 +109,22 @@ pub fn node_decision(spec: u8, any_import_rebuilt: bool, any_import_missing: boo
     return seal_decision(spec, closure_part(any_import_rebuilt, any_import_missing), toolchain, config, tests_pass, needs_silicon, hw);
 }
 
+/// Whether a spec should be resealed based on its decision status.
+/// Returns true for specs whose part is stale (spec, closure, toolchain, config, verdict) 
+/// and false for MISSING specs that need the spec fixed first.
+pub fn remint_wants(decision: u8) -> bool {
+    // Only resealed if not MISSING and needs rebuilding (not REUSE)
+    return decision != REBUILD_MISSING && decision != REUSE;
+}
+
+/// Whether a new seal should be kept based on its properties.
+/// Returns true only for a v2 seal whose checks ran and passed (checks_pass).
+pub fn remint_keeps(schema: u8, failed_zero: bool, forced: bool, tests_total: u32, invariants: u32) -> bool {
+    // Only keep v2 seals with passing checks
+    if (schema != 2) { return false; }
+    return checks_pass(failed_zero, forced, tests_total, invariants);
+}
+
 /// The share of artifacts reused, in permille, rounded half up. Nothing to judge is 0, not 1000.
 pub fn reused_permille(reused: u32, total: u32) -> u32 {
     if (total == 0) { return 0; }
@@ -201,6 +217,37 @@ test the_reused_share_is_a_number {
     assert reused_permille(2, 3) == 667;
     assert reused_permille(5, 5) == 1000;
     assert reused_permille(9, 5) == 1000;
+}
+
+test remint_wants_excludes_missing_specs {
+    // MISSING specs should not be resealed
+    assert remint_wants(REBUILD_MISSING) == false;
+    // REUSE specs should not be resealed  
+    assert remint_wants(REUSE) == false;
+    // Specs that need rebuilding should be resealed
+    assert remint_wants(REBUILD_SPEC) == true;
+    assert remint_wants(REBUILD_CLOSURE) == true;
+    assert remint_wants(REBUILD_TOOLCHAIN) == true;
+    assert remint_wants(REBUILD_CONFIG) == true;
+    assert remint_wants(REBUILD_VERDICT) == true;
+}
+
+test remint_keeps_only_passing_v2_seals {
+    // Non-v2 seals are not kept
+    assert remint_keeps(1, true, false, 5, 2) == false;
+    assert remint_keeps(0, true, false, 5, 2) == false;
+    
+    // V2 seals with failing tests are not kept
+    assert remint_keeps(2, false, false, 5, 2) == false;
+    assert remint_keeps(2, true, true, 5, 2) == false;
+    
+    // V2 seals with no checks are not kept
+    assert remint_keeps(2, true, false, 0, 0) == false;
+    
+    // V2 seals with passing checks are kept
+    assert remint_keeps(2, true, false, 5, 0) == true;
+    assert remint_keeps(2, true, false, 0, 2) == true;
+    assert remint_keeps(2, true, false, 3, 4) == true;
 }
 
 invariant the_silicon_bar_is_three_distinct_dies {

@@ -362,7 +362,9 @@ enum Commands {
     /// reference. Collects the facts, never repairs the record.
     /// #8095: every spec, REUSE or the reason to rebuild (specs/verified/seal_identity.t27).
     Frontier { /// Also print each spec that must be rebuilt, with its reason code.
-        #[arg(long)] list: bool },
+        #[arg(long)] list: bool,
+        /// Reseal specs that need rebuilding (FR-003, FR-004, FR-005)
+        #[arg(long)] reseal: bool },
     /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
     SiliconQueue,
     /// #8153: the agent next to a board (specs/verified/bench_agent.t27). Runs owner-approved jobs (open
@@ -12006,7 +12008,7 @@ async fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
-        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::Frontier { list, reseal } => service::run_frontier(list, reseal)?,
         Commands::SiliconQueue => service::run_silicon_queue()?,
         Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
@@ -12441,7 +12443,7 @@ fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
-        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::Frontier { list, reseal } => service::run_frontier(list, reseal)?,
         Commands::SiliconQueue => service::run_silicon_queue()?,
         Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
