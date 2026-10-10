@@ -1,0 +1,158 @@
+module port::trios::padding_metadata_leak_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_metadata_leak_guard.rs
+// (CR-CHAT-04 - Padding metadata leak guard, Wave-57 Lane B, requirement R-CHAT-9).
+//
+// Padding scheme: | len: u32 BE | payload | zeros |. When the length prefix is
+// exactly the payload length, an attacker combining the class and the prefix
+// narrows the plaintext space. The defence: the reported length is rounded up
+// into [payload_len, class_size - 4].
+//
+// The original returns Result<(), PadMetaLeakError>. There is no Result here,
+// so the verdict is an i32 code: PMLG_OK is Ok(()), and the six PMLG_ERR_*
+// codes are PadMetaLeakError's six variants in declaration order.
+
+// Length prefix size.
+pub const PMLG_PREFIX: usize = 4;
+
+// Canonical padding classes.
+pub const PMLG_CLASSES: [4]usize = [256, 1024, 4096, 16384];
+
+// Verdict codes: Ok(()) and PadMetaLeakError's variants, in declaration order.
+pub const PMLG_OK: i32 = 0;
+pub const PMLG_ERR_ZERO_PAYLOAD: i32 = 1;
+pub const PMLG_ERR_PAYLOAD_TOO_LARGE: i32 = 2;
+pub const PMLG_ERR_REPORTED_TOO_SMALL: i32 = 3;
+pub const PMLG_ERR_REPORTED_TOO_LARGE: i32 = 4;
+pub const PMLG_ERR_NON_CANONICAL_CLASS: i32 = 5;
+pub const PMLG_ERR_EXACT_LENGTH_LEAK: i32 = 6;
+
+// The original asks PMLG_CLASSES.contains(&class_size); there is no contains()
+// in this language, so the decision is a loop over the four canonical classes.
+pub fn is_canonical_class(class_size: usize) -> bool {
+    for c in PMLG_CLASSES {
+        if (c == class_size) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate padding metadata for leak resistance. Returns PMLG_OK
+// when the metadata resists the length-prefix leak, otherwise the PMLG_ERR_*
+// code for the first violated rule, checked in the original's order: zero
+// payload, canonical class, payload fits in class, reported >= payload,
+// reported <= class_size - prefix, reported != payload (no early exit based
+// on payload length, no exact-length leak).
+pub fn validate_padding_metadata(payload_len: usize, reported_len: usize, class_size: usize) -> i32 {
+    if (payload_len == 0) {
+        return PMLG_ERR_ZERO_PAYLOAD;
+    }
+    if (!is_canonical_class(class_size)) {
+        return PMLG_ERR_NON_CANONICAL_CLASS;
+    }
+    const max_payload: usize = class_size - PMLG_PREFIX;
+    if (payload_len > max_payload) {
+        return PMLG_ERR_PAYLOAD_TOO_LARGE;
+    }
+    if (reported_len < payload_len) {
+        return PMLG_ERR_REPORTED_TOO_SMALL;
+    }
+    if (reported_len > max_payload) {
+        return PMLG_ERR_REPORTED_TOO_LARGE;
+    }
+    if (reported_len == payload_len) {
+        return PMLG_ERR_EXACT_LENGTH_LEAK;
+    }
+    return PMLG_OK;
+}
+
+// **PMLG-01** - zero payload rejected.
+test pmlg_01_zero_rejected {
+    const result = validate_padding_metadata(0, 10, 256);
+    assert(result == PMLG_ERR_ZERO_PAYLOAD);
+}
+
+// **PMLG-02** - payload too large rejected: 300 does not fit in 256 - 4.
+test pmlg_02_payload_large_rejected {
+    const result = validate_padding_metadata(300, 300, 256);
+    assert(result == PMLG_ERR_PAYLOAD_TOO_LARGE);
+}
+
+// **PMLG-03** - reported too small rejected.
+test pmlg_03_reported_small_rejected {
+    const result = validate_padding_metadata(100, 50, 256);
+    assert(result == PMLG_ERR_REPORTED_TOO_SMALL);
+}
+
+// **PMLG-04** - reported too large rejected.
+test pmlg_04_reported_large_rejected {
+    const result = validate_padding_metadata(10, 300, 256);
+    assert(result == PMLG_ERR_REPORTED_TOO_LARGE);
+}
+
+// **PMLG-05** - non-canonical class rejected: 512 is not one of the four classes.
+test pmlg_05_non_canonical_rejected {
+    const result = validate_padding_metadata(10, 50, 512);
+    assert(result == PMLG_ERR_NON_CANONICAL_CLASS);
+}
+
+// **PMLG-06** - exact length leak rejected: reported == payload narrows the plaintext space.
+test pmlg_06_exact_leak_rejected {
+    const result = validate_padding_metadata(100, 100, 256);
+    assert(result == PMLG_ERR_EXACT_LENGTH_LEAK);
+}
+
+// **PMLG-07** - good metadata accepted.
+test pmlg_07_good_accepted {
+    const result = validate_padding_metadata(50, 100, 256);
+    assert(result == PMLG_OK);
+}
+
+// **PMLG-08** - max reported boundary accepted: reported == class_size - prefix.
+test pmlg_08_max_reported_accepted {
+    const max: usize = 256 - PMLG_PREFIX;
+    const result = validate_padding_metadata(10, max, 256);
+    assert(result == PMLG_OK);
+}
+
+// **PMLG-09** - min reported boundary accepted: payload + 1 is the smallest non-leaking report.
+test pmlg_09_min_reported_accepted {
+    const result = validate_padding_metadata(10, 11, 256);
+    assert(result == PMLG_OK);
+}
+
+// **PMLG-10** - large class accepted.
+test pmlg_10_large_class_accepted {
+    const result = validate_padding_metadata(100, 500, 4096);
+    assert(result == PMLG_OK);
+}
+
+// is_canonical_class accepts exactly the four canonical classes.
+test is_canonical_class_cases {
+    assert(is_canonical_class(256));
+    assert(is_canonical_class(1024));
+    assert(is_canonical_class(4096));
+    assert(is_canonical_class(16384));
+    assert(!is_canonical_class(512));
+    assert(!is_canonical_class(0));
+    assert(!is_canonical_class(255));
+}
+
+// Rule order is the original's: zero payload is checked before class
+// canonicality, payload size after it.
+test rule_order_matches_original {
+    const r1 = validate_padding_metadata(0, 10, 512);
+    const r2 = validate_padding_metadata(300, 300, 512);
+    assert(r1 == PMLG_ERR_ZERO_PAYLOAD);
+    assert(r2 == PMLG_ERR_NON_CANONICAL_CLASS);
+}
+
+// Payload at the class boundary: 252 fits (256 - 4) but no valid report exists
+// above it, so the exact report leaks and one past the boundary is too large.
+test payload_boundary {
+    const exact = validate_padding_metadata(252, 252, 256);
+    const over = validate_padding_metadata(253, 300, 256);
+    assert(exact == PMLG_ERR_EXACT_LENGTH_LEAK);
+    assert(over == PMLG_ERR_PAYLOAD_TOO_LARGE);
+}
