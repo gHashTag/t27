@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+3d1a4fe8b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e11cb694d8ebb19f46859ace68149619809ffef94cbfa296d3034b226b83ddb7",
+  "gen_hash_rust": "sha256:5a94489573c09ef3a5a8d423be5d5f5ce4c7c21c974b78c111a3411bbf59e681",
+  "gen_hash_verilog": "sha256:f06f450ad53fe678cbf9bd1ccf2862a984e47b55c7cfbc992d4b97f4307abb77",
+  "gen_hash_zig": "sha256:ffde308d61b8e9daf7f9e50f19aae5cd8dd8a41e95d9a5de490859f6bb18f7b4",
+  "module": "JtagStatus",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:45:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f39d139a4f87c59a91d3da7e2ebb20edf13b65c1625d98acbcfcf96e215a7226",
+  "spec_path": "specs/fpga/jtag_status.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

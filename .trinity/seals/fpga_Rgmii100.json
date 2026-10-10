@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+3d1a4fe8b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0be0ea74377bc5252727fb4cf1ce3c1b7b642e45b3ff372ecbdfecb6bbd3f2e4",
+  "gen_hash_rust": "sha256:0c47eb763eb7a970888abf36c3b2087876aef342b53927011b56a300883601c2",
+  "gen_hash_verilog": "sha256:172f3107de79fb56c4a899b7e45647ed2bf5a2b29be2835f96cfafa7bdd5f496",
+  "gen_hash_zig": "sha256:edeaacbe8b266901a462029b8686416a8bb31f43a2fa4c8953660917f4bb4aef",
+  "module": "Rgmii100",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:45:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:41ed6505df76d16b5addb352773903fbf2f9712dcd4a92b68159c4b5c0cfef79",
+  "spec_path": "specs/fpga/rgmii_100.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

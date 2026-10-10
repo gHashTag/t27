@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+3d1a4fe8b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fe9c3a1e28f0a7d175d9cf7cbb188ec4125da853e1fb94b4822f18c828a50e45",
+  "gen_hash_rust": "sha256:c9ecb99e1533482488445171e2d3b183263d830adc645f4968e6054a3257a726",
+  "gen_hash_verilog": "sha256:4fc231520bdc9650aa53e188e3d6b53ae4de899ffa75d14de33404adede203d9",
+  "gen_hash_zig": "sha256:00ad84b3c156c57d5339f566ec95cb5456d41414d06c514ed78e06465cfb10fb",
+  "module": "Mdio100m",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:50:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5ff61fcc986a3db084e769e33f811434816fad9ebb83ba92a2b97503c8d4b23f",
+  "spec_path": "specs/fpga/mdio_100m.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

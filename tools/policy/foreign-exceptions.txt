@@ -247,6 +247,13 @@ fpga/verilog/poc_slot_b_jtag.v
 fpga/verilog/eth_beacon_top.v
 fpga/verilog/eth_beacon_top.xdc
 
+# owner 2026-10-10, chat (approving the plan "the logic, MDIO and the RGMII nibble pairing, moves to t27; only the
+# Xilinx primitives, PLL, I/O buffers and BSCANE2, stay in the exception", translated), issue #8770: the TRI-NET
+# node at 100 Mb/s on the AX7203. Every decision is t27 (specs/fpga/{mdio_100m,rgmii_100,eth_rx,trinet_node,
+# eth_reply,jtag_status}.t27); the wrapper holds IBUFDS, BUFG, PLLE2_ADV, ODDR and BSCANE2 only.
+fpga/verilog/trinet_eth_top.v
+fpga/verilog/trinet_eth_top.xdc
+
 # owner 2026-10-06, epic #6971 / issue #6993 (label owner-approved-foreign on #6993; standing approval "add
 # the label yourself and do the foreign part, never ask about labels", translated): `tri mutate spec` --
 # guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
