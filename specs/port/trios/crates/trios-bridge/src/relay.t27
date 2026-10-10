@@ -1,0 +1,348 @@
+module port::trios::bridge::relay;
+
+// Data structures ported from the original Rust types
+
+struct RelayState {
+    server: BridgeServer,
+}
+
+struct DispatchRequest {
+    agent_id: str,
+    task: str,
+    issue: ?u64,
+    branch: ?str,
+}
+
+struct DispatchResponse {
+    ok: bool,
+    message: str,
+}
+
+struct HealthResponse {
+    status: str,
+    agents_count: usize,
+}
+
+struct AgentState {
+    id: str,
+    status: str,
+}
+
+struct BridgeServer {
+    // Opaque handle - actual implementation is external
+}
+
+struct Router {
+    // Opaque handle - actual implementation is external
+}
+
+// External functions with undefined bodies (plumbing not ported)
+
+fn BridgeServer_router(server: BridgeServer) -> Router {
+    undefined;
+}
+
+fn Router_list(router: Router) -> []AgentState {
+    undefined;
+}
+
+fn Router_is_registered(router: Router, agent_id: str) -> bool {
+    undefined;
+}
+
+fn Router_claim_issue(router: Router, agent_id: str, issue: u64, branch: str) {
+    undefined;
+}
+
+fn Router_update_status(router: Router, agent_id: str, status: str, task: str) {
+    undefined;
+}
+
+fn BridgeServer_subscribe(server: BridgeServer) -> BroadcastReceiver {
+    undefined;
+}
+
+fn BridgeServer_broadcast_message(server: BridgeServer, msg: BridgeMessage) -> bool {
+    undefined;
+}
+
+struct BroadcastReceiver {
+    // Opaque
+}
+
+struct BridgeMessage {
+    // Opaque
+}
+
+fn BridgeMessage_send_command(agent_id: str, task: str, flag: bool) -> BridgeMessage {
+    undefined;
+}
+
+// Pure decision functions (ported logic, testable)
+
+// Decision: which routes to register and their HTTP methods
+pub fn relay_app_routes() -> RouteTable {
+    var routes: [4]RouteEntry = [
+        RouteEntry { path: "/events", method: "GET", handler: "sse_events" },
+        RouteEntry { path: "/agents", method: "GET", handler: "list_agents" },
+        RouteEntry { path: "/dispatch", method: "POST", handler: "dispatch_task" },
+        RouteEntry { path: "/health", method: "GET", handler: "health_check" },
+    ];
+    return RouteTable { entries: routes, count: 4 };
+}
+
+struct RouteEntry {
+    path: str,
+    method: str,
+    handler: str,
+}
+
+struct RouteTable {
+    entries: [4]RouteEntry,
+    count: usize,
+}
+
+// Decision: dispatch logic - returns a DispatchPlan that the caller executes
+pub fn dispatch_task_plan(req: DispatchRequest, router: Router, server: BridgeServer) -> DispatchPlan {
+    if (req.agent_id == "broadcast") {
+        let msg = BridgeMessage_send_command("broadcast", req.task, false);
+        let broadcast_ok = BridgeServer_broadcast_message(server, msg);
+        return DispatchPlan {
+            kind: .Broadcast,
+            ok: broadcast_ok,
+            message: if (broadcast_ok) "Task broadcast to all agents" else "Broadcast failed",
+        };
+    } else {
+        if (!Router_is_registered(router, req.agent_id)) {
+            return DispatchPlan {
+                kind: .Specific,
+                ok: false,
+                message: "Agent '" + req.agent_id + "' not registered",
+            };
+        }
+        
+        var claim_issue: bool = false;
+        var claim_issue_num: u64 = 0;
+        var claim_branch: str = "";
+        if (req.issue != null and req.branch != null) {
+            claim_issue = true;
+            claim_issue_num = req.issue.?;
+            claim_branch = req.branch.?;
+        }
+        
+        Router_update_status(router, req.agent_id, "Working", req.task);
+        
+        let msg = BridgeMessage_send_command(req.agent_id, req.task, false);
+        let dispatch_ok = BridgeServer_broadcast_message(server, msg);
+        
+        return DispatchPlan {
+            kind: .Specific,
+            ok: dispatch_ok,
+            message: if (dispatch_ok) "Task dispatched to agent '" + req.agent_id + "'" else "Dispatch failed",
+            claim_issue: claim_issue,
+            claim_issue_num: claim_issue_num,
+            claim_branch: claim_branch,
+        };
+    }
+}
+
+enum DispatchKind {
+    Broadcast,
+    Specific,
+}
+
+struct DispatchPlan {
+    kind: DispatchKind,
+    ok: bool,
+    message: str,
+    claim_issue: bool,
+    claim_issue_num: u64,
+    claim_branch: str,
+}
+
+// Decision: health check response computation
+pub fn health_check_response(agents: []AgentState) -> HealthResponse {
+    return HealthResponse {
+        status: "ok",
+        agents_count: agents.len,
+    };
+}
+
+// Decision: SSE stream setup - returns configuration
+pub fn sse_events_config() -> SseConfig {
+    return SseConfig {
+        keep_alive: true,
+        filter_lagged: true,
+    };
+}
+
+struct SseConfig {
+    keep_alive: bool,
+    filter_lagged: bool,
+}
+
+// Original function signatures with undefined bodies (plumbing)
+
+pub fn relay_app(state: RelayState) -> Router {
+    undefined;
+}
+
+pub fn serve_relay(server: BridgeServer, addr: str) -> bool {
+    undefined;
+}
+
+pub fn sse_events(state: RelayState) -> SseConfig {
+    undefined;
+}
+
+pub fn list_agents(state: RelayState) -> []AgentState {
+    undefined;
+}
+
+pub fn dispatch_task(state: RelayState, req: DispatchRequest) -> DispatchResponse {
+    undefined;
+}
+
+pub fn health_check(state: RelayState) -> HealthResponse {
+    undefined;
+}
+
+// Tests
+
+test relay_app_routes_structure {
+    let routes = relay_app_routes();
+    assert(routes.count == 4);
+    assert(routes.entries[0].path == "/events");
+    assert(routes.entries[0].method == "GET");
+    assert(routes.entries[0].handler == "sse_events");
+    assert(routes.entries[1].path == "/agents");
+    assert(routes.entries[1].method == "GET");
+    assert(routes.entries[1].handler == "list_agents");
+    assert(routes.entries[2].path == "/dispatch");
+    assert(routes.entries[2].method == "POST");
+    assert(routes.entries[2].handler == "dispatch_task");
+    assert(routes.entries[3].path == "/health");
+    assert(routes.entries[3].method == "GET");
+    assert(routes.entries[3].handler == "health_check");
+}
+
+test dispatch_task_plan_broadcast_success {
+    let req = DispatchRequest {
+        agent_id: "broadcast",
+        task: "test task",
+        issue: null,
+        branch: null,
+    };
+    let router = Router {};
+    let server = BridgeServer {};
+    let plan = dispatch_task_plan(req, router, server);
+    assert(plan.kind == .Broadcast);
+    assert(plan.ok == true); // assumes broadcast_message returns true in test
+    assert(plan.message == "Task broadcast to all agents");
+}
+
+test dispatch_task_plan_broadcast_failure {
+    // Note: we can't easily test failure path without mocking broadcast_message
+    // This test documents the expected structure
+    let req = DispatchRequest {
+        agent_id: "broadcast",
+        task: "test task",
+        issue: null,
+        branch: null,
+    };
+    let router = Router {};
+    let server = BridgeServer {};
+    let plan = dispatch_task_plan(req, router, server);
+    assert(plan.kind == .Broadcast);
+    // plan.ok depends on broadcast_message result
+}
+
+test dispatch_task_plan_specific_agent_not_registered {
+    let req = DispatchRequest {
+        agent_id: "unknown-agent",
+        task: "test task",
+        issue: null,
+        branch: null,
+    };
+    let router = Router {};
+    let server = BridgeServer {};
+    let plan = dispatch_task_plan(req, router, server);
+    assert(plan.kind == .Specific);
+    assert(plan.ok == false);
+    assert(plan.message == "Agent 'unknown-agent' not registered");
+}
+
+test dispatch_task_plan_specific_with_issue_and_branch {
+    let req = DispatchRequest {
+        agent_id: "agent-1",
+        task: "work on issue",
+        issue: 123,
+        branch: "feature/123",
+    };
+    let router = Router {};
+    let server = BridgeServer {};
+    let plan = dispatch_task_plan(req, router, server);
+    assert(plan.kind == .Specific);
+    assert(plan.claim_issue == true);
+    assert(plan.claim_issue_num == 123);
+    assert(plan.claim_branch == "feature/123");
+}
+
+test dispatch_task_plan_specific_without_issue_or_branch {
+    let req = DispatchRequest {
+        agent_id: "agent-1",
+        task: "simple task",
+        issue: null,
+        branch: null,
+    };
+    let router = Router {};
+    let server = BridgeServer {};
+    let plan = dispatch_task_plan(req, router, server);
+    assert(plan.kind == .Specific);
+    assert(plan.claim_issue == false);
+}
+
+test health_check_response_empty_agents {
+    let agents: [0]AgentState = [];
+    let response = health_check_response(&agents);
+    assert(response.status == "ok");
+    assert(response.agents_count == 0);
+}
+
+test health_check_response_with_agents {
+    var agents: [2]AgentState = [
+        AgentState { id: "agent-1", status: "Idle" },
+        AgentState { id: "agent-2", status: "Working" },
+    ];
+    let response = health_check_response(&agents);
+    assert(response.status == "ok");
+    assert(response.agents_count == 2);
+}
+
+test sse_events_config_defaults {
+    let config = sse_events_config();
+    assert(config.keep_alive == true);
+    assert(config.filter_lagged == true);
+}
+
+test dispatch_request_struct_fields {
+    let req = DispatchRequest {
+        agent_id: "test",
+        task: "do work",
+        issue: 42,
+        branch: "main",
+    };
+    assert(req.agent_id == "test");
+    assert(req.task == "do work");
+    assert(req.issue == 42);
+    assert(req.branch == "main");
+}
+
+test dispatch_response_struct_fields {
+    let resp = DispatchResponse {
+        ok: true,
+        message: "success",
+    };
+    assert(resp.ok == true);
+    assert(resp.message == "success");
+}
