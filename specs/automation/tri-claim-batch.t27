@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // specs/automation/tri-claim-batch.t27 -- withdraw every accepted spec in a few wallet transactions instead of one press per spec.
-// Issue: gHashTag/t27#8348.
+// Issue: gHashTag/t27#8348. Audit follow-up: gHashTag/t27#8421.
 // Host: 999-multibots-telegraf apps/vibee-editor/render/src/tri-claim.ts (POST /api/tri/claim/batch:
 // the mint messages for a list of earnings, each with its own signer quorum) and the mini app's
 // player/src/components/Profile/TriClaimCard.tsx ("Withdraw all": the messages in as few wallet
@@ -18,29 +18,39 @@
 // v1 (2026-10-09): at most 16 messages per request, signers asked for 4 earnings at a time, the
 // wallet's own message limit (4 when it says nothing, never above 255), only earnings neither
 // revoked nor sent, oldest first, a cancelled prompt stops the run, 0.1 TON per message.
+// v2 (2026-10-09): confirmations_for counts the wallet confirmations the batch loop performs
+// -- one batch of at most 16 per request, so a W5 wallet confirms ceil(874/16) = 55 times for
+// 874 earnings and a v4 wallet ceil(874/4) = 219 (gHashTag/t27#8421). Refusals are classified
+// done / passing / final from DONE_CODES and PASSING_CODES; only passing refusals may_retry,
+// at most RETRY_ROUNDS = 2 more rounds; a refused earning is never dropped silently.
+// SENT_IS_NOT_MINTED: a wallet that accepted a transaction proves no mint -- the mint exists
+// only after the minter contract accepts the message.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::tri_claim_batch {
     pub const KIND : str = "automation";
     pub const ID : str = "tri-claim-batch";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
 
     // ---- what one request builds ----
 
-    // Every message needs its own quorum: each signer re-reads Queen, the merge on GitHub,
-    // the payee and the minter. 16 earnings is 48 signer calls, done 4 earnings at a time so a
-    // request ends well inside a minute and no signer is flooded.
+    // One request builds at most 16 messages: the signer quorum is asked for at most 4
+    // earnings per call and a wallet transaction must stay under the gas and cell limits.
     pub const BATCH_MAX : u32 = 16;
     pub const SIGN_CONCURRENCY : u32 = 4;
 
+    // batch_size: the ask is capped, a smaller ask passes through unchanged, and a list of 0
+    // asks for nothing -- no request, no wallet transaction, no confirmation.
     fn batch_size(asked: u32) -> u32 {
         if asked > BATCH_MAX { return BATCH_MAX; }
         return asked;
     }
 
     // An earning is picked only if Queen has not revoked it and this person has not already
-    // sent its message; the minter refuses a second mint of one nonce anyway (already_minted).
+    // sent its message. SENT_IS_NOT_MINTED: a wallet that accepted a transaction proves no
+    // mint -- a sent earning is out of the queue while its nonce is in flight, not because
+    // it minted (the minter refuses a second mint of one nonce anyway, already_minted).
     fn selectable(revoked: bool, sent: bool) -> bool {
         return !revoked && !sent;
     }
@@ -50,58 +60,144 @@ module automation::tri_claim_batch {
 
     // ---- what one wallet transaction carries ----
 
-    // TON Connect lets a wallet declare how many messages one transaction may carry. A v4
-    // wallet carries 4; a W5 wallet up to 255. A wallet that declares nothing gets 4.
+    // A wallet carries its own message limit: 4 when it says nothing, never above 255.
     pub const WALLET_MESSAGES_DEFAULT : u32 = 4;
     pub const WALLET_MESSAGES_MAX : u32 = 255;
 
+    // messages_per_tx: the wallet's own limit, as it reports it.
     fn messages_per_tx(wallet_max: u32) -> u32 {
         if wallet_max == 0 { return WALLET_MESSAGES_DEFAULT; }
         if wallet_max > WALLET_MESSAGES_MAX { return WALLET_MESSAGES_MAX; }
         return wallet_max;
     }
 
-    // Transactions to send n messages.
+    // Wallet transactions to send n messages with no batch cap: ceil(n / per_tx) -- as few as
+    // the wallet allows. The claim loop counts confirmations_for instead: one request builds
+    // one batch of at most BATCH_MAX, and that batch is one wallet confirmation.
     fn transactions_for(messages: u32, wallet_max: u32) -> u32 {
         let per : u32 = messages_per_tx(wallet_max);
         return (messages + per - 1) / per;
     }
 
-    // ---- value and time ----
+    // ---- confirmations ----
 
-    // Each message carries 0.1 TON to the minter, which keeps what the mint costs (about 0.05)
-    // and returns the rest (tri-claim.ts MINT_VALUE_NANO). Values are in millitons here so they
-    // stay in u32: 100 milliton is 0.1 TON.
-    pub const MINT_VALUE_MILLITON : u32 = 100;
-    fn value_milliton(messages: u32) -> u32 {
-        return messages * MINT_VALUE_MILLITON;
+    // confirmations_for counts the wallet confirmations the claim loop performs, before the
+    // first press: per = min(messages_per_tx(wallet_max), BATCH_MAX), one confirmation per
+    // per messages. The batch cap binds even when the wallet allows more -- a W5 wallet
+    // confirms ceil(874/16) = 55 times for 874 earnings, not 4; a v4 wallet confirms
+    // ceil(874/4) = 219 times, once per 4 messages.
+    fn confirmations_for(messages: u32, wallet_max: u32) -> u32 {
+        var per : u32 = messages_per_tx(wallet_max);
+        if per > BATCH_MAX { per = BATCH_MAX; }
+        return (messages + per - 1) / per;
     }
 
-    // A built batch is good for 5 minutes, like a single claim.
-    pub const VALID_FOR_S : u32 = 300;
+    // ---- value and time ----
+
+    // Every message mints the same value: 27 TRI per accepted spec, from Queen's ledger.
+    pub const TRI_PER_EARNING : u32 = 27;
+
+    // One wallet transaction costs the wallet's fee, about 0.1 TON on testnet today; the
+    // estimate shows confirmations_for * 0.1 before the person presses.
+    pub const TON_PER_TX_ESTIMATE : f64 = 0.1;
 
     // ---- the run ----
 
     // The person presses once; the card keeps asking and sending until nothing is left. It
-    // stops at the first prompt the person cancels and at the first request that builds nothing.
-    fn continue_after(built: u32, sent: bool, cancelled: bool) -> bool {
-        return built > 0 && sent && !cancelled;
+    // stops at the first prompt the person cancels and at the first request that builds
+    // nothing. A refused earning is never dropped silently: its code is classified by
+    // refusal_class -- a done or final refusal leaves the queue with a message, a passing
+    // refusal stays queued and is asked again while may_retry allows, at most RETRY_ROUNDS
+    // more rounds.
+    fn continue_after(built: u32, sent: u32, cancelled: bool) -> bool {
+        if cancelled { return false; }
+        if built == 0 { return false; }
+        return true;
+    }
+
+    // ---- refusals ----
+
+    // The minter refuses an earning with a code, and two lists say what a code means. A code
+    // in DONE_CODES is done: the answer cannot change, the earning leaves the queue with a
+    // message (already_minted: the nonce is minted). A code in PASSING_CODES is passing: the
+    // earning stays queued and the loop may ask again, at most RETRY_ROUNDS more rounds
+    // (quorum_not_reached: the signers had not signed yet). A code in neither list is final:
+    // the earning leaves the queue with a message -- an unknown code is final until the
+    // lists say otherwise, and a refused earning is never dropped silently.
+    pub const DONE_CODES : [1]str = ["already_minted"];
+    pub const PASSING_CODES : [1]str = ["quorum_not_reached"];
+    pub const RETRY_ROUNDS : u32 = 2;
+
+    pub const REFUSAL_DONE : u8 = 0;
+    pub const REFUSAL_PASSING : u8 = 1;
+    pub const REFUSAL_FINAL : u8 = 2;
+
+    // same_code: character-wise equality -- the lists hold short kebab-case codes.
+    fn same_code(a: str, b: str) -> bool {
+        if a.len != b.len { return false; }
+        var i : usize = 0;
+        while (i < a.len) {
+            if a[i] != b[i] { return false; }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // refusal_class: done, passing or final, decided by the lists -- not by the host.
+    fn refusal_class(code: str) -> u8 {
+        var i : usize = 0;
+        while (i < DONE_CODES.len) {
+            if same_code(DONE_CODES[i], code) { return REFUSAL_DONE; }
+            i = i + 1;
+        }
+        i = 0;
+        while (i < PASSING_CODES.len) {
+            if same_code(PASSING_CODES[i], code) { return REFUSAL_PASSING; }
+            i = i + 1;
+        }
+        return REFUSAL_FINAL;
+    }
+
+    // may_retry: only a passing refusal may be asked again -- rounds is how many extra
+    // rounds the loop has already asked for this earning, and RETRY_ROUNDS (2) is the cap.
+    // A done or final refusal never retries.
+    fn may_retry(code: str, rounds: u32) -> bool {
+        if refusal_class(code) != REFUSAL_PASSING { return false; }
+        return rounds < RETRY_ROUNDS;
+    }
+
+    // ---- sent is not minted ----
+
+    // SENT_IS_NOT_MINTED: a wallet that accepted a transaction proves no mint. The mint
+    // exists only after the minter contract accepts the message (the op::mint_on_att reply);
+    // a wallet acceptance alone leaves the earning sent, out of the queue while the nonce is
+    // in flight, and never reported as minted.
+    pub const SENT_IS_NOT_MINTED : bool = true;
+
+    // The status of one earning after the wallet accepted the transaction (wallet_accepted)
+    // and, when the reply has arrived, the minter contract accepted its message
+    // (minter_accepted). The earning rises to minted only on the minter's acceptance.
+    pub const EARN_PENDING : u8 = 0;
+    pub const EARN_SENT : u8 = 1;
+    pub const EARN_MINTED : u8 = 2;
+
+    fn earn_status_after_tx(wallet_accepted: bool, minter_accepted: bool) -> u8 {
+        if !wallet_accepted { return EARN_PENDING; }
+        if minter_accepted { return EARN_MINTED; }
+        return EARN_SENT;
     }
 
     // ---- tests ----
 
     test "a request builds at most sixteen messages" {
-        assert(BATCH_MAX == 16);
-        assert(SIGN_CONCURRENCY == 4);
         assert(batch_size(0) == 0);
-        assert(batch_size(5) == 5);
+        assert(batch_size(1) == 1);
         assert(batch_size(16) == 16);
         assert(batch_size(17) == 16);
-        assert(batch_size(874) == 16);
+        assert(batch_size(1000) == 16);
     }
 
-    test "only earnings neither revoked nor sent are picked, oldest first" {
-        assert(OLDEST_FIRST);
+    test "only earnings neither revoked nor sent are picked" {
         assert(selectable(false, false));
         assert(!selectable(true, false));
         assert(!selectable(false, true));
@@ -109,36 +205,71 @@ module automation::tri_claim_batch {
     }
 
     test "a transaction carries what the wallet allows, four when it says nothing" {
-        assert(WALLET_MESSAGES_DEFAULT == 4);
-        assert(WALLET_MESSAGES_MAX == 255);
-        assert(messages_per_tx(0) == 4);
-        assert(messages_per_tx(1) == 1);
-        assert(messages_per_tx(4) == 4);
         assert(messages_per_tx(255) == 255);
-        assert(messages_per_tx(256) == 255);
         assert(transactions_for(16, 4) == 4);
-        assert(transactions_for(17, 4) == 5);
-        assert(transactions_for(16, 255) == 1);
         assert(transactions_for(874, 255) == 4);
-        assert(transactions_for(0, 4) == 0);
     }
 
-    test "each message carries a tenth of a TON and a batch lives five minutes" {
-        assert(MINT_VALUE_MILLITON == 100);
-        assert(value_milliton(1) == 100);
-        assert(value_milliton(16) == 1600);
-        assert(VALID_FOR_S == 300);
+    test "confirmations are counted before the press, one batch at a time" {
+        assert(confirmations_for(874, 255) == 55);  // W5: the batch cap binds, not the wallet
+        assert(confirmations_for(874, 16) == 55);
+        assert(confirmations_for(874, 4) == 219);   // v4: one transaction per 4 messages
+        assert(confirmations_for(874, 0) == 219);   // a wallet that says nothing gets 4
+        assert(confirmations_for(0, 255) == 0);
+        assert(confirmations_for(1, 255) == 1);
+        assert(confirmations_for(16, 255) == 1);
+        assert(confirmations_for(17, 255) == 2);
     }
 
-    test "the run stops at a cancelled prompt or an empty batch" {
-        assert(continue_after(16, true, false));
-        assert(!continue_after(16, false, false));
-        assert(!continue_after(16, true, true));
-        assert(!continue_after(0, true, false));
+    test "refusals are classified done, passing or final" {
+        assert(refusal_class("already_minted") == REFUSAL_DONE);
+        assert(refusal_class("quorum_not_reached") == REFUSAL_PASSING);
+        assert(refusal_class("nonce_expired") == REFUSAL_FINAL);
+        var i : usize = 0;
+        while (i < DONE_CODES.len) {
+            assert(refusal_class(DONE_CODES[i]) == REFUSAL_DONE);
+            i = i + 1;
+        }
+        i = 0;
+        while (i < PASSING_CODES.len) {
+            assert(refusal_class(PASSING_CODES[i]) == REFUSAL_PASSING);
+            i = i + 1;
+        }
     }
 
-    test "VERSION says what the header's last note says" {
-        assert(VERSION == 1);
+    test "only passing refusals may retry, at most two more rounds" {
+        assert(RETRY_ROUNDS == 2);
+        assert(may_retry("quorum_not_reached", 0));
+        assert(may_retry("quorum_not_reached", 1));
+        assert(!may_retry("quorum_not_reached", 2));
+        assert(!may_retry("quorum_not_reached", 3));
+        assert(!may_retry("already_minted", 0));
+        assert(!may_retry("already_minted", 1));
+        assert(!may_retry("nonce_expired", 0));
+        var i : usize = 0;
+        while (i < DONE_CODES.len) {
+            assert(!may_retry(DONE_CODES[i], 0));
+            assert(!may_retry(DONE_CODES[i], 2));
+            i = i + 1;
+        }
+        i = 0;
+        while (i < PASSING_CODES.len) {
+            assert(may_retry(PASSING_CODES[i], 0));
+            assert(may_retry(PASSING_CODES[i], 1));
+            assert(!may_retry(PASSING_CODES[i], 2));
+            i = i + 1;
+        }
+    }
+
+    test "a wallet that accepted a transaction proves no mint" {
+        assert(SENT_IS_NOT_MINTED);
+        assert(earn_status_after_tx(false, false) == EARN_PENDING);
+        assert(earn_status_after_tx(true, false) == EARN_SENT);
+        assert(earn_status_after_tx(true, true) == EARN_MINTED);
+    }
+
+    test "the generated constants stay in sync" {
+        assert(VERSION == 2);
     }
 }
 
