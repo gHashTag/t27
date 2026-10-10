@@ -502,11 +502,12 @@ pub fn blockers_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>)
 }
 
 fn lower_mode<'a>(
-    ast: &'a Node,
+    orig: &'a Node,
     mode: OverflowMode,
     src: Option<&'a str>,
     recover: bool,
 ) -> Result<Program, Vec<Reject>> {
+    let ast = &instances(orig);
     let mut l = Lower {
         mode,
         sites: vec![Site {
@@ -636,7 +637,7 @@ fn lower_mode<'a>(
     }
     misprinted_ifs(ast, &mut l.misprinted_if);
     l.shifted_muls.extend(marked(items.iter().copied(), sh::strength_reduced).map(|n| n as *const Node as usize));
-    l.reference_defects(ast);
+    l.reference_defects(orig);
 
     // Pass 1: signatures and constant declarations.
     let mut fn_nodes: Vec<&Node> = Vec::new();
@@ -7136,7 +7137,7 @@ impl<'a> Lower<'a> {
                 );
             }
         }
-        zero_lines(&mut e);
+        each(&mut e, &mut 0, &mut |c, _| c.line = 0); // parsed from text, it has no line of its own: `see` keeps the literal's
         Ok(e)
     }
 
@@ -7343,15 +7344,6 @@ fn simple_repeat_elem(n: &Node) -> bool {
 /// The names a repeat element reads (the first segment of a dotted path).
 fn repeat_names(n: &Node, out: &mut Vec<String>) {
     out.extend(marked(std::slice::from_ref(n), sh::idents).map(|c| c.name[..sh::head_len(c.name.as_bytes())].to_string()));
-}
-
-/// Parsed from text, a node has no line of its own; `see` then keeps the
-/// line of the literal it came from.
-fn zero_lines(n: &mut Node) {
-    n.line = 0;
-    for c in &mut n.children {
-        zero_lines(c);
-    }
 }
 
 /// Names a statement list binds to an array literal (`collect_array_locals`
@@ -7616,6 +7608,44 @@ fn unread_any(f: &Node, p: &str, t: &str) -> bool {
     ap::param(ls::is_anytype(t.trim().as_bytes()), name_mentions(&f.children, p.trim()) > 0) == ap::VOID_PARAM
 }
 
+/// Each node under `n` once, its children first, with its preorder index (`flat`'s): `f` may rewrite what it gets.
+fn each(n: &mut Node, i: &mut usize, f: &mut dyn FnMut(&mut Node, usize)) {
+    let at = *i; *i += 1; n.children.iter_mut().for_each(|c| each(c, i, f)); f(n, at)
+}
+
+/// The module as Zig compiles it (specs/tri/t27b/any_param_plan.t27): a fn whose body reads an `anytype` parameter
+/// replaced by one instance per argument type at its calls, each call naming its own, and in each instance
+/// `@TypeOf(p) == T` folded and the branch Zig never analyses dropped.
+fn instances(ast: &Node) -> Node {
+    let mut m = ast.clone();
+    for g in ast.children.iter().filter(|g| g.kind == NodeKind::FnDecl) {
+        let read: Vec<usize> = (0..g.params.len()).filter(|&k| ap::param(ls::is_anytype(g.params[k].1.trim().as_bytes()), name_mentions(&g.children, g.params[k].0.trim()) > 0) == ap::INSTANCE_PARAM).collect();
+        if read.is_empty() { continue; }
+        let (mut next, mut keys, mut calls, mut unknown) = (m.clone(), Vec::<Vec<u8>>::new(), 0, 0);
+        each(&mut next, &mut 0, &mut |n, _| if n.kind == NodeKind::ExprCall && n.name == g.name && read.len() == 1 && n.children.len() == g.params.len() {
+            let ((a, t), mut key) = (flat([&n.children[read[0]]]), vec![0u8; ap::KEY_MAX]);
+            let len = ap::key(&a, &t, 0, &mut key); key.truncate(len);
+            (calls, unknown) = (calls + 1, unknown + key.is_empty() as usize);
+            n.name = format!("{}{}{}", g.name, ap::SEP, keys.iter().position(|k| *k == key).unwrap_or_else(|| { keys.push(key); keys.len() - 1 }));
+        });
+        if ap::plan(read.len(), calls, unknown, ast.children.iter().filter(|c| c.kind == NodeKind::FnDecl && c.name == g.name).count()) == ap::LEAVE { continue; }
+        let at = next.children.iter().position(|c| c.kind == NodeKind::FnDecl && c.name == g.name).unwrap();
+        let made: Vec<Node> = keys.iter().enumerate().map(|(o, key)| {
+            let (mut f, p) = (next.children[at].clone(), g.params[read[0]].0.trim());
+            f.name = format!("{}{}{}", g.name, ap::SEP, o);
+            if ap::typed(key) { f.params[read[0]].1 = String::from_utf8_lossy(key).into(); }
+            let ((a, t), i) = (flat(&f.children), &mut 0);
+            let mut marks = vec![ap::KEEP; a.len() / aw::REC];
+            ap::instance(&a, &t, p.as_bytes(), key, &mut marks);
+            f.children.iter_mut().for_each(|c| each(c, i, &mut |n, j| match marks[j] { ap::KEEP => {} ap::DROP => n.children.clear(), v => *n = Node { kind: NodeKind::ExprLiteral, value: ap::literal(v).into(), ..Node::default() } }));
+            f
+        }).collect();
+        next.children.splice(at..=at, made);
+        m = next;
+    }
+    m
+}
+
 fn mentions(ns: &[Node], name: &str) -> bool {
     let (a, t) = flat(ns); aw::mentions(&a, &t, name.as_bytes())
 }
@@ -7625,21 +7655,7 @@ fn mentions(ns: &[Node], name: &str) -> bool {
 /// when the declaration is top-level, the body's only one of the name, and
 /// nothing before it (its own initializer included) mentions the name.
 fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<String> {
-    fn decls(ns: &[Node], name: &str) -> usize {
-        let (a, t) = flat(ns); aw::decl_count(&a, &t, name.as_bytes())
-    }
-    let mut ok = HashSet::new();
-    for (i, s) in body.iter().enumerate() {
-        if s.kind == NodeKind::StmtLocal
-            && mod_vars.contains_key(&s.name)
-            && !mentions(&body[..i], &s.name)
-            && !mentions(&s.children, &s.name)
-            && decls(body, &s.name) == 1
-        {
-            ok.insert(s.name.clone());
-        }
-    }
-    ok
+    marked(body, ax::shadow_locals).filter(|s| mod_vars.contains_key(&s.name)).map(|s| s.name.clone()).collect()
 }
 
 /// The reference's `collect_mutable_names`: is `name` the target (or the base
@@ -7677,33 +7693,7 @@ fn undeclared_field_type(ty: &str, declared: &HashSet<&str>) -> Option<String> {
 /// the very top of the fn body. One that reads a local of the body then
 /// names it before its declaration: "use of undeclared identifier".
 fn cse_hoist_defect(f: &Node) -> Option<String> {
-    fn locals<'n>(ns: &'n [Node], out: &mut HashSet<&'n str>) {
-        for n in ns {
-            if n.kind == NodeKind::StmtLocal && !n.name.starts_with("_cse") && !n.name.is_empty() {
-                out.insert(n.name.as_str());
-            }
-            locals(&n.children, out);
-        }
-    }
-    fn first_ident<'n>(ns: &'n [Node], names: &HashSet<&str>) -> Option<&'n str> {
-        ns.iter().find_map(|n| {
-            if n.kind == NodeKind::ExprIdentifier && names.contains(n.name.as_str()) {
-                Some(n.name.as_str())
-            } else {
-                first_ident(&n.children, names)
-            }
-        })
-    }
-    let mut ls = HashSet::new();
-    locals(&f.children, &mut ls);
-    for (p, _) in &f.params {
-        ls.remove(p.as_str());
-    }
-    f.children
-        .iter()
-        .filter(|s| s.kind == NodeKind::StmtLocal && s.name.starts_with("_cse"))
-        .find_map(|s| first_ident(&s.children, &ls))
-        .map(str::to_string)
+    marked(&f.children, ax::cse_reads).find(|n| !f.params.iter().any(|(p, _)| *p == n.name)).map(|n| n.name.clone())
 }
 
 /// The reference's `collect_mutable_names`, exactly: assignment targets that

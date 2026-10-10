@@ -1,40 +1,84 @@
 // SPDX-License-Identifier: Apache-2.0
-; specs/tri/t27b/any_param_plan.t27 -- how t27b lowers an `anytype` parameter that the fn's body never names,
-; and the argument a call passes for it (issue #7876, t27b coverage epic #6063; written in t27 under the port
-; epic #6198). The decisions reach cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/any_param_plan.rs); the
-; Rust glue in cli/t27b/src/lower.rs (`signature`, `call`) gathers the facts below and asks.
+; specs/tri/t27b/any_param_plan.t27 -- how t27b lowers an `anytype` parameter: one the fn's body never names
+; (issue #7876), and one the body reads, which Zig compiles once per argument type (issue #8713); t27b coverage
+; epic #6063, written in t27 under the port epic #6198. The decisions reach cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/any_param_plan.rs); the Rust glue in cli/t27b/src/lower.rs (`signature`, `call`,
+; `instances`) gathers the facts below and asks.
 ; --
 ; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
-; specs/tri/t27b/conformance/unread_anytype.t27): t27c prints `fn isNotFoundError(err: anytype) bool` with
-; `_ = err; // unused by the spec body`, and each call as written. Zig instantiates the fn once per argument type
-; (`*const [6:0]u8` for "ENOENT", `@TypeOf(null)` for null, `comptime_int` for 7), and as the body never reads the
-; parameter, every instance computes the same thing from the other parameters. The corpus has the shape in
-; identity.t27 (`isNotFoundError("ENOENT")`, `isNotFoundError(null)`).
+; specs/tri/t27b/conformance/unread_anytype.t27 and anytype_typeof.t27): t27c prints the fn as written, and Zig
+; instantiates it once per argument type (`*const [6:0]u8` for "ENOENT", `@TypeOf(null)` for null,
+; `comptime_int` for 7, `i64` for `@as(i64, 5)`). In each instance `@TypeOf(v)` is that type, so
+; `@TypeOf(v) == i64` is a compile-time bool, and Zig never analyses a branch whose condition is compile-time
+; false (nor the else of one that is true): `return v;` under `if (@TypeOf(v) == i64)` is no type error in the
+; instance for a string. The corpus has both shapes: identity.t27 (`isNotFoundError(err: anytype)`, which never
+; reads `err`) and queen-public-agents.t27 (`heartbeatTime(value: anytype)`, called with an i64, a string and
+; null).
 ; --
-; What t27b does. Such a parameter (VOID_PARAM) is t27b's `void`, the struct with no fields (#7267), so one body
+; A parameter the body never names (VOID_PARAM) is t27b's `void`, the struct with no fields (#7267), so one body
 ; stands for every instance. An argument for it is taken (TAKE) when evaluating it runs nothing: `null`, or a
 ; value t27b's own lowering folds at compile time to an integer or a string (a literal, a constant's name). Its
 ; value is void's, which nobody reads. Any other argument (a call, a run-time value) is refused by name (REFUSE):
 ; evaluating it may run code, and its type is not one t27b checks here.
-; Not covered: an `anytype` parameter the body names. Zig then compiles the body once per argument type, and the
-; body may dispatch on `@TypeOf(value)` (queen-public-agents.t27's `heartbeatTime`); that keeps `type anytype`.
+; --
+; A parameter the body names (INSTANCE_PARAM): before lowering, t27b does what Zig does, on the module's nodes
+; (ast_walk.t27's bytes):
+;   the key        each call's argument for it is keyed by Zig's type for that argument, spelled canonically
+;                  (`key`): `@as(T, e)` with T a type Zig declares itself is T; `true` and `false` are bool;
+;                  `null` is @TypeOf(null); a string literal of N bytes is *const [N:0]u8; a decimal integer
+;                  literal is comptime_int. Any other argument has no key t27b knows before lowering.
+;   the instances  a fn declared once, with exactly one such parameter, at least one call and a key for every
+;                  call is replaced by one instance per distinct key (`plan`); any other keeps its refusal, `type
+;                  anytype` (with no call, lazy_sig_plan.t27's rule; declared twice, `FnDecl(duplicate)`). Instance k is named for the fn, SEP, then k
+;                  (`h__anytype0`), k counting the keys in the order of their first call in the file (preorder);
+;                  each call names its own instance.
+;   the parameter  is declared with its key as the type when that is a type t27b names (`typed`: i64, bool).
+;                  Otherwise it stays `anytype`: VOID_PARAM above once the instance's body no longer names it,
+;                  still refused as `type anytype` when it does.
+;   the fold       `@TypeOf(p) == T` or `!=`, either way round, with T a name of a type Zig declares itself, is
+;                  the literal true or false in each instance, as the key spells T or not (`fold`). An alias or
+;                  a struct T is a name t27b cannot resolve before lowering, so that `@TypeOf` stays, refused.
+;   the skip       an `if` statement whose condition folded loses, unanalysed, the block Zig never analyses
+;                  (`instance`): the then block when the condition folded false, the else block when true. A
+;                  branch that is no block is kept, and lowered.
+; Not covered, each keeping a refusal: two parameters read in one fn, an argument that is a name or a call, a
+; `@TypeOf` outside such a comparison or under `and`/`or`, an `if` expression.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module T27bAnyParamPlan;
 
+use tri::t27b::ast_walk;
+
 // What a parameter is.
 pub const NOT_MINE : u8 = 0;
 pub const VOID_PARAM : u8 = 1;
+pub const INSTANCE_PARAM : u8 = 4;
 
 // What an argument for a VOID_PARAM is.
 pub const TAKE : u8 = 2;
 pub const REFUSE : u8 = 3;
 
+// What becomes of a fn with INSTANCE_PARAMs.
+pub const LEAVE : u8 = 0;
+pub const MONO : u8 = 1;
+
+// What becomes of a node of an instance's body.
+pub const KEEP : u8 = 0;
+pub const FOLD_TRUE : u8 = 1;
+pub const FOLD_FALSE : u8 = 2;
+pub const DROP : u8 = 3;
+
+/// The bytes a key may take: `*const [N:0]u8` with N of up to 20 digits is 33.
+pub const KEY_MAX : usize = 64;
+/// What joins a fn's name and the ordinal of its instance.
+pub const SEP : str = "__anytype";
+
 /// A parameter. is_anytype: its type is the keyword `anytype`. named: the fn's body names it.
 pub fn param(is_anytype: bool, named: bool) -> u8 {
-    if (is_anytype and !named) { return VOID_PARAM; }
-    return NOT_MINE;
+    if (!is_anytype) { return NOT_MINE; }
+    if (named) { return INSTANCE_PARAM; }
+    return VOID_PARAM;
 }
 
 /// The argument a call passes for a VOID_PARAM. pure: it is `null`, or t27b's own lowering folds it at compile
@@ -54,18 +98,176 @@ pub fn why() -> str {
     return "an argument for an `anytype` parameter the body never reads is taken only when evaluating it runs nothing (null, a compile-time integer or string)";
 }
 
-// ----------------------------------------------------------------------------------------------------------
-// Tests: the corpus shape, then what is left alone.
-// ----------------------------------------------------------------------------------------------------------
-
-test an_anytype_parameter_nobody_reads_is_void {
-    // identity.t27's `isNotFoundError(err: anytype) bool { return false; }`.
-    assert(param(true, false) == VOID_PARAM);
+/// A fn declared `decls` times, with `n` INSTANCE_PARAMs and `calls` calls, `unknown` of them with no key: replaced
+/// by its instances (MONO), or left as it is (LEAVE). A second declaration keeps its refusal, which replacing the
+/// first would hide.
+pub fn plan(n: usize, calls: usize, unknown: usize, decls: usize) -> u8 {
+    if (n == 1 and calls > 0 and unknown == 0 and decls == 1) { return MONO; }
+    return LEAVE;
 }
 
-test a_named_or_typed_parameter_is_left_alone {
+/// Writes the bytes of `w` into out from `at`; where they end.
+pub fn put_text(out: []u8, at: usize, w: str) -> usize {
+    var k : usize = 0;
+    while (k < w.len) {
+        out[at + k] = w[k];
+        k = k + 1;
+    }
+    return at + w.len;
+}
+
+/// Writes n in decimal into out from `at`; where it ends.
+pub fn put_digits(out: []u8, at: usize, n: usize) -> usize {
+    var len : usize = 1;
+    var rest : usize = n / 10;
+    while (rest > 0) {
+        len = len + 1;
+        rest = rest / 10;
+    }
+    var v : usize = n;
+    var k : usize = len;
+    while (k > 0) {
+        k = k - 1;
+        out[at + k] = @intCast(48 + v % 10);
+        v = v / 10;
+    }
+    return at + len;
+}
+
+/// Copies text[a .. b] into out from 0; its length, or 0 when it is longer than KEY_MAX.
+pub fn put_span(out: []u8, text: []const u8, a: usize, b: usize) -> usize {
+    if (b - a > KEY_MAX) { return 0; }
+    var k : usize = 0;
+    while (a + k < b) {
+        out[k] = text[a + k];
+        k = k + 1;
+    }
+    return b - a;
+}
+
+/// Is text[a .. b] a decimal integer literal: a digit, then digits and `_`?
+pub fn decimal(text: []const u8, a: usize, b: usize) -> bool {
+    if (b <= a) { return false; }
+    if (!digit(text[a])) { return false; }
+    var k : usize = a;
+    while (k < b) {
+        if (!digit(text[k]) and text[k] != B_UNDERSCORE) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The instance key of argument node i, written into out (KEY_MAX bytes): Zig's type for the argument, spelled
+/// canonically. Its length; 0 when t27b cannot know that type before lowering.
+pub fn key(nodes: []const u8, text: []const u8, i: usize, out: []u8) -> usize {
+    const k : u8 = kind(nodes, i);
+    if (k == K_EXPR_CALL and field_eq(nodes, text, i, F_NAME, "@as") and children(nodes, i) == 2) {
+        const t : usize = i + 1;
+        const a : usize = lo(nodes, t, F_NAME);
+        const b : usize = hi(nodes, t, F_NAME);
+        if (kind(nodes, t) != K_EXPR_IDENTIFIER or children(nodes, t) != 0) { return 0; }
+        if (!zig_type_name(text[a .. b])) { return 0; }
+        return put_span(out, text, a, b);
+    }
+    if (k == K_EXPR_IDENTIFIER and field_eq(nodes, text, i, F_NAME, "null")) { return put_text(out, 0, "@TypeOf(null)"); }
+    if (k != K_EXPR_LITERAL) { return 0; }
+    const va : usize = lo(nodes, i, F_VALUE);
+    const vb : usize = hi(nodes, i, F_VALUE);
+    if (field_eq(nodes, text, i, F_KIND, "string")) {
+        const w0 : usize = put_text(out, 0, "*const [");
+        const w1 : usize = put_digits(out, w0, vb - va);
+        return put_text(out, w1, ":0]u8");
+    }
+    if (field_eq(nodes, text, i, F_VALUE, "true") or field_eq(nodes, text, i, F_VALUE, "false")) { return put_text(out, 0, "bool"); }
+    if (decimal(text, va, vb)) { return put_text(out, 0, "comptime_int"); }
+    return 0;
+}
+
+/// Is an instance's parameter declared with its key as the type: is the key a type Zig declares itself that is
+/// no comptime type? Otherwise it stays `anytype`.
+pub fn typed(key: []const u8) -> bool {
+    if (!zig_type_name(key)) { return false; }
+    return !starts(key, 0, key.len, "comptime_");
+}
+
+/// Is node i `@TypeOf(p)`: a call of `@TypeOf` whose one child is the childless identifier p?
+pub fn type_of(nodes: []const u8, text: []const u8, i: usize, p: []const u8) -> bool {
+    if (kind(nodes, i) != K_EXPR_CALL or children(nodes, i) != 1) { return false; }
+    if (!field_eq(nodes, text, i, F_NAME, "@TypeOf")) { return false; }
+    return ident_is(nodes, text, i + 1, p) and children(nodes, i + 1) == 0;
+}
+
+/// What node i of the instance whose parameter p has key `key` folds to: `@TypeOf(p) == T` or `!=`, either way
+/// round, with T a childless identifier naming a type Zig declares itself, is FOLD_TRUE or FOLD_FALSE as the key
+/// spells T or not. Anything else is KEEP.
+pub fn fold(nodes: []const u8, text: []const u8, i: usize, p: []const u8, key: []const u8) -> u8 {
+    if (kind(nodes, i) != K_EXPR_BINARY or children(nodes, i) != 2) { return KEEP; }
+    const eq : bool = field_eq(nodes, text, i, F_OP, "==");
+    if (!eq and !field_eq(nodes, text, i, F_OP, "!=")) { return KEEP; }
+    const a : usize = i + 1;
+    const b : usize = end(nodes, a);
+    var t : usize = b;
+    if (type_of(nodes, text, b, p)) {
+        t = a;
+    } else if (!type_of(nodes, text, a, p)) {
+        return KEEP;
+    }
+    if (kind(nodes, t) != K_EXPR_IDENTIFIER or children(nodes, t) != 0) { return KEEP; }
+    if (!zig_type_name(text[lo(nodes, t, F_NAME) .. hi(nodes, t, F_NAME)])) { return KEEP; }
+    const spelled : bool = field_is(nodes, text, t, F_NAME, key);
+    if ((spelled and eq) or (!spelled and !eq)) { return FOLD_TRUE; }
+    return FOLD_FALSE;
+}
+
+/// The marks of an instance's body (the fn's statements) whose parameter p has key `key`: each node `fold`
+/// folds, and DROP on the block Zig never analyses under an `if` statement whose condition folded -- the then
+/// block when it folded false, the else block when it folded true. A branch that is no block is kept.
+pub fn instance(nodes: []const u8, text: []const u8, p: []const u8, key: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const f : u8 = fold(nodes, text, i, p, key);
+        if (f != KEEP) { marks[i] = f; }
+        if (kind(nodes, i) == K_STMT_IF and children(nodes, i) >= 2) {
+            const c : u8 = fold(nodes, text, i + 1, p, key);
+            var d : usize = end(nodes, i + 1);
+            if (c == FOLD_TRUE) { d = end(nodes, d); }
+            if (c != KEEP and d < end(nodes, i)) {
+                if (kind(nodes, d) == K_MODULE) { marks[d] = DROP; }
+            }
+        }
+        i = i + 1;
+    }
+}
+
+/// The literal a node marked FOLD_TRUE or FOLD_FALSE becomes.
+pub fn literal(mark: u8) -> str {
+    if (mark == FOLD_TRUE) { return "true"; }
+    return "false";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shapes, then what is left alone. Trees are built with ast_walk.t27's `node` and `set`;
+// their texts are slices of PLAN_TEXT:
+//   0..7 `@TypeOf`, 7..10 `@as`, 10..13 `i64`, 13 `v`, 14..16 `==`, 16..18 `!=`, 18..22 `null`, 22..26 `true`,
+//   26..31 `false`, 31..37 `string`, 37..39 `xy`, 39..42 `1_0`, 42..44 `u8`, 44 `T`, 45 `w`, 46..49 `1.5`.
+// ----------------------------------------------------------------------------------------------------------
+
+const PLAN_TEXT : str = "@TypeOf@asi64v==!=nulltruefalsestringxy1_0u8Tw1.5";
+
+/// Clears every mark.
+fn clear_marks(marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < marks.len) {
+        marks[i] = 0;
+        i = i + 1;
+    }
+}
+
+test an_anytype_parameter_nobody_reads_is_void_and_one_the_body_reads_is_instantiated {
+    // identity.t27's `isNotFoundError(err: anytype) bool { return false; }`.
+    assert(param(true, false) == VOID_PARAM);
     // queen-public-agents.t27's `heartbeatTime(value: anytype)` reads `@TypeOf(value)`.
-    assert(param(true, true) == NOT_MINE);
+    assert(param(true, true) == INSTANCE_PARAM);
     assert(param(false, false) == NOT_MINE);
     assert(param(false, true) == NOT_MINE);
 }
@@ -77,8 +279,169 @@ test a_literal_argument_is_taken_and_any_other_is_refused {
     assert(arg(false) == REFUSE);
 }
 
-test the_answers_are_distinct_and_the_refusal_is_named {
+test a_fn_is_instantiated_only_with_one_read_parameter_and_a_key_for_every_call {
+    // heartbeatTime: declared once, one parameter read, four calls, every key known.
+    assert(plan(1, 4, 0, 1) == MONO);
+    assert(plan(1, 4, 1, 1) == LEAVE);
+    assert(plan(2, 4, 0, 1) == LEAVE);
+    assert(plan(1, 0, 0, 1) == LEAVE);
+    assert(plan(0, 4, 0, 1) == LEAVE);
+    assert(plan(1, 4, 0, 2) == LEAVE);
+}
+
+test each_argument_shape_has_its_key {
+    // 0 Call @as { 1 Ident i64, 2 Lit 1_0 }
+    var buf : [216]u8 = undefined;
+    var out : [64]u8 = undefined;
+    node(buf[0 .. 216], 0, K_EXPR_CALL, 3, 7, 10);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 10, 13);
+    node(buf[0 .. 216], 2, K_EXPR_LITERAL, 3, 0, 0);
+    set(buf[0 .. 216], 2, F_VALUE, 39, 42);
+    const ns : []const u8 = buf[0 .. 216];
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 3);
+    assert(same(out[0 .. 3], "i64"));
+    assert(key(ns, PLAN_TEXT, 2, out[0 .. 64]) == 12);
+    assert(same(out[0 .. 12], "comptime_int"));
+    // `@as(T, 1_0)`: T is a name t27b cannot resolve here.
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 44, 45);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 0);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 42, 44);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 2);
+    assert(same(out[0 .. 2], "u8"));
+    // null
+    node(buf[0 .. 216], 0, K_EXPR_IDENTIFIER, 1, 18, 22);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 13);
+    assert(same(out[0 .. 13], "@TypeOf(null)"));
+    // the string "xy"
+    node(buf[0 .. 216], 0, K_EXPR_LITERAL, 1, 0, 0);
+    set(buf[0 .. 216], 0, F_VALUE, 37, 39);
+    set(buf[0 .. 216], 0, F_KIND, 31, 37);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 14);
+    assert(same(out[0 .. 14], "*const [2:0]u8"));
+    // true, then false
+    node(buf[0 .. 216], 0, K_EXPR_LITERAL, 1, 0, 0);
+    set(buf[0 .. 216], 0, F_VALUE, 22, 26);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 4);
+    assert(same(out[0 .. 4], "bool"));
+    set(buf[0 .. 216], 0, F_VALUE, 26, 31);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 4);
+    // a float literal and a name have no key
+    set(buf[0 .. 216], 0, F_VALUE, 46, 49);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 0);
+    node(buf[0 .. 216], 0, K_EXPR_IDENTIFIER, 1, 45, 46);
+    assert(key(ns, PLAN_TEXT, 0, out[0 .. 64]) == 0);
+}
+
+test a_string_of_many_bytes_spells_its_length {
+    var out : [64]u8 = undefined;
+    assert(put_digits(out[0 .. 64], 0, 0) == 1);
+    assert(out[0] == 48);
+    assert(put_digits(out[0 .. 64], 2, 1207) == 6);
+    assert(same(out[2 .. 6], "1207"));
+    assert(decimal(PLAN_TEXT, 39, 42));
+    assert(!decimal(PLAN_TEXT, 46, 49));
+    assert(!decimal(PLAN_TEXT, 39, 39));
+}
+
+test a_parameter_is_typed_by_a_runtime_key_only {
+    assert(typed("i64"));
+    assert(typed("bool"));
+    assert(typed("u8"));
+    assert(!typed("comptime_int"));
+    assert(!typed("*const [12:0]u8"));
+    assert(!typed("@TypeOf(null)"));
+}
+
+test the_type_comparison_folds_by_the_key {
+    // 0 Binary == { 1 Call @TypeOf { 2 Ident v }, 3 Ident i64 }
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_EXPR_BINARY, 4, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 14, 16);
+    node(buf[0 .. 288], 1, K_EXPR_CALL, 3, 0, 7);
+    node(buf[0 .. 288], 2, K_EXPR_IDENTIFIER, 3, 13, 14);
+    node(buf[0 .. 288], 3, K_EXPR_IDENTIFIER, 4, 10, 13);
+    const ns : []const u8 = buf[0 .. 288];
+    assert(type_of(ns, PLAN_TEXT, 1, "v"));
+    assert(!type_of(ns, PLAN_TEXT, 1, "w"));
+    assert(fold(ns, PLAN_TEXT, 0, "v", "i64") == FOLD_TRUE);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "*const [12:0]u8") == FOLD_FALSE);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "@TypeOf(null)") == FOLD_FALSE);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "comptime_int") == FOLD_FALSE);
+    assert(fold(ns, PLAN_TEXT, 0, "w", "i64") == KEEP);
+    assert(fold(ns, PLAN_TEXT, 1, "v", "i64") == KEEP);
+    // `!=`
+    set(buf[0 .. 288], 0, F_OP, 16, 18);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "i64") == FOLD_FALSE);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "bool") == FOLD_TRUE);
+    // `<` folds nothing
+    set(buf[0 .. 288], 0, F_OP, 0, 0);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "i64") == KEEP);
+    // T an alias: kept, so `@TypeOf` stays refused
+    set(buf[0 .. 288], 0, F_OP, 14, 16);
+    node(buf[0 .. 288], 3, K_EXPR_IDENTIFIER, 4, 44, 45);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "i64") == KEEP);
+    // either way round: 0 Binary == { 1 Ident u8, 2 Call @TypeOf { 3 Ident v } }
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 42, 44);
+    node(buf[0 .. 288], 2, K_EXPR_CALL, 4, 0, 7);
+    node(buf[0 .. 288], 3, K_EXPR_IDENTIFIER, 4, 13, 14);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "u8") == FOLD_TRUE);
+    assert(fold(ns, PLAN_TEXT, 0, "v", "i64") == FOLD_FALSE);
+}
+
+test the_branch_zig_never_analyses_is_dropped {
+    // 0 StmtIf { 1 Binary == { 2 Call @TypeOf { 3 Ident v }, 4 Ident i64 }, 5 Module { 6 Ident v }, 7 Module { 8 Lit } },
+    // 9 StmtIf { 10 Ident v, 11 Module }
+    var buf : [864]u8 = undefined;
+    var m : [12]u8 = undefined;
+    node(buf[0 .. 864], 0, K_STMT_IF, 9, 0, 0);
+    node(buf[0 .. 864], 1, K_EXPR_BINARY, 5, 0, 0);
+    set(buf[0 .. 864], 1, F_OP, 14, 16);
+    node(buf[0 .. 864], 2, K_EXPR_CALL, 4, 0, 7);
+    node(buf[0 .. 864], 3, K_EXPR_IDENTIFIER, 4, 13, 14);
+    node(buf[0 .. 864], 4, K_EXPR_IDENTIFIER, 5, 10, 13);
+    node(buf[0 .. 864], 5, K_MODULE, 7, 0, 0);
+    node(buf[0 .. 864], 6, K_EXPR_IDENTIFIER, 7, 13, 14);
+    node(buf[0 .. 864], 7, K_MODULE, 9, 0, 0);
+    node(buf[0 .. 864], 8, K_EXPR_LITERAL, 9, 0, 0);
+    node(buf[0 .. 864], 9, K_STMT_IF, 12, 0, 0);
+    node(buf[0 .. 864], 10, K_EXPR_IDENTIFIER, 11, 13, 14);
+    node(buf[0 .. 864], 11, K_MODULE, 12, 0, 0);
+    const ns : []const u8 = buf[0 .. 864];
+    // i64: the condition is true, the else block goes.
+    clear_marks(m[0 .. 12]);
+    instance(ns, PLAN_TEXT, "v", "i64", m[0 .. 12]);
+    assert(m[1] == FOLD_TRUE and m[7] == DROP);
+    assert(m[0] == KEEP and m[5] == KEEP and m[9] == KEEP and m[11] == KEEP);
+    // a string: the condition is false, the then block goes.
+    clear_marks(m[0 .. 12]);
+    instance(ns, PLAN_TEXT, "v", "*const [1:0]u8", m[0 .. 12]);
+    assert(m[1] == FOLD_FALSE and m[5] == DROP);
+    assert(m[7] == KEEP and m[11] == KEEP);
+    // another parameter's instance folds nothing.
+    clear_marks(m[0 .. 12]);
+    instance(ns, PLAN_TEXT, "w", "i64", m[0 .. 12]);
+    assert(m[1] == KEEP and m[5] == KEEP and m[7] == KEEP);
+    // a branch that is no block is kept: `if (@TypeOf(v) == i64) v;`
+    node(buf[0 .. 864], 5, K_STMT_EXPR, 7, 0, 0);
+    clear_marks(m[0 .. 12]);
+    instance(ns, PLAN_TEXT, "v", "bool", m[0 .. 12]);
+    assert(m[1] == FOLD_FALSE and m[5] == KEEP);
+    // with no else, a true condition drops nothing.
+    node(buf[0 .. 864], 0, K_STMT_IF, 7, 0, 0);
+    node(buf[0 .. 864], 7, K_STMT_EXPR, 9, 0, 0);
+    clear_marks(m[0 .. 12]);
+    instance(ns, PLAN_TEXT, "v", "i64", m[0 .. 12]);
+    assert(m[1] == FOLD_TRUE and m[5] == KEEP and m[7] == KEEP);
+}
+
+test the_answers_are_distinct_and_named {
     assert(NOT_MINE != VOID_PARAM and VOID_PARAM != TAKE and TAKE != REFUSE and NOT_MINE != REFUSE);
+    assert(INSTANCE_PARAM != NOT_MINE and INSTANCE_PARAM != VOID_PARAM and INSTANCE_PARAM != TAKE and INSTANCE_PARAM != REFUSE);
+    assert(LEAVE != MONO);
+    assert(KEEP != FOLD_TRUE and FOLD_TRUE != FOLD_FALSE and FOLD_FALSE != DROP and KEEP != DROP and KEEP != FOLD_FALSE);
     assert(std.mem.eql(u8, what(), "ExprCall(anytype argument)"));
     assert(std.mem.indexOf(u8, why(), "runs nothing") != null);
+    assert(std.mem.eql(u8, literal(FOLD_TRUE), "true"));
+    assert(std.mem.eql(u8, literal(FOLD_FALSE), "false"));
+    assert(std.mem.eql(u8, SEP, "__anytype"));
 }
