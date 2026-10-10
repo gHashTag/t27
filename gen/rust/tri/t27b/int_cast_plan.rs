@@ -42,20 +42,6 @@ pub const INDEX_BITS: u32 = 64;
 
 pub const INDEX_SIGNED: bool = false;
 
-pub fn same(s: &[u8], w: &'static str) -> bool {
-    if (s.len() != w.len()) {
-        return false;
-    }
-    let mut k: usize = 0;
-    while (k < w.len()) {
-        if (s[(k) as usize] != w.as_bytes()[(k) as usize]) {
-            return false;
-        }
-        k = (k + 1);
-    }
-    return true;
-}
-
 pub fn from_destination(name: &[u8]) -> bool {
     if (same(name, SITE) || same(name, "@bitCast")) {
         return true;
@@ -154,5 +140,19 @@ pub fn icp_bits(i: u32) -> u32 {
 
 pub fn icp_signed(i: u32) -> bool {
     return (i >= 4);
+}
+
+pub fn same(s: &[u8], w: &'static str) -> bool {
+    if (s.len() != w.len()) {
+        return false;
+    }
+    let mut k: usize = 0;
+    while (k < w.len()) {
+        if (s[(k) as usize] != w.as_bytes()[(k) as usize]) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return true;
 }
 

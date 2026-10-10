@@ -229,3 +229,17 @@ pub fn widens(from_bits: u32, from_signed: bool, to_bits: u32, to_signed: bool) 
     return (to_signed && (to_bits > from_bits));
 }
 
+pub fn same(s: &'static str, w: &'static str) -> bool {
+    if (s.len() != w.len()) {
+        return false;
+    }
+    let mut k: usize = 0;
+    while (k < w.len()) {
+        if (s.as_bytes()[(k) as usize] != w.as_bytes()[(k) as usize]) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return true;
+}
+

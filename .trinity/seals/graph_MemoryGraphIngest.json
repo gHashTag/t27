@@ -1,0 +1,41 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+1c72b2786",
+  "closure": [
+    {
+      "spec": "specs/memory/graph/scope.t27",
+      "spec_hash": "sha256:10369b02a460abcf6f8ea37d1044850e64a442b3932c66759a2db79ffbcda50b"
+    },
+    {
+      "spec": "specs/memory/graph/temporal.t27",
+      "spec_hash": "sha256:f1742b445b704609175217318a66693b5cd19eac3e1e99922a827cc1878bffdc"
+    },
+    {
+      "spec": "specs/memory/graph/types.t27",
+      "spec_hash": "sha256:1949fa1d3c8ed27d04c0a70ad328ec1a06c14a225ddf0b0e8a2ad918cd770ce3"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2794c3cde2a166b9403a5420bdd48412d2753a3eea6dcfacf664c281997eb791",
+  "gen_hash_rust": "sha256:cd910c492634bdc15969652a336efc48a77ef3550859c15f9612865661bc04bf",
+  "gen_hash_verilog": "sha256:b0ed2cd6eaa9a016fb72d0c318241e41f65c096c0321865ac50def95b663a49e",
+  "gen_hash_zig": "sha256:b8d7c95641dc7feaa58bf521006b182fee44da2857009556169d2346f6838735",
+  "module": "MemoryGraphIngest",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T18:59:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a5b4350410639e5939bb8a4a154bfa58889b0ca95f231f618c84fad06d60c794",
+  "spec_path": "specs/memory/graph/ingest.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
