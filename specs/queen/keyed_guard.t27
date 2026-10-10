@@ -1,0 +1,409 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/keyed_guard.t27 -- keyed actors that hold up: the claim's holder, a crashed admission, a cycle at any slot
+; Owner's night loop, 2026-10-10 (translated): "find the weak spots of the actor-model work and
+; implement all of it" (gHashTag/trios#1729, item 7). The keyed actors and the bee dispatcher MVP
+; (gHashTag/t27#8286, gHashTag/trios#1723) reported three gaps in their own PR:
+; 1. In production the claim's holder is the Queen's process name, not the actor's pid that keyed.t27
+;    claim_is_mine asks for, because the round renews leases by that name. A claim lands again for its
+;    own holder (control.t27 claim_lands), so under one name every claim "renews" every other: a new
+;    incarnation of an issue's actor would renew the claim of the old one's bee (only the admission's
+;    lane table stood between them), and two dispatchers under one name claim as one. Measured on the
+;    two-node simulation (trios#1723, 58/h for 4 h, 32 lanes): 0 duplicate pickups with the pid as the
+;    holder, 273 with the process. The pid alone is not enough either: two replicas under one process
+;    name draw their pids alike, and the same input gave 16 and 17 duplicate pickups in two runs.
+; 2. The admission actor that counts the lanes in use ran with no supervisor. One crash ended every
+;    later admission (each call met a dead pid), and an admission restarted with its own memory would
+;    start a bee on every lane again beside the bees still running.
+; 3. actors.t27 chain_has and chain_add carry a call's chain as one bit per slot, slots 0..63
+;    (CHAIN_SLOTS). The runtime hands out slots in order and never reuses one: a restart keeps its
+;    slot, a new process takes the next, and every call takes one for its alias. So past the 63rd
+;    process every call passes the check, and a cycle among keyed actors waits out its timeout.
+; How others do it:
+; - OTP: a supervisor restarts a crashed child with what its init/1 builds. State that must outlive a
+;   process is kept by one that outlives it: an ETS table with an heir.
+; - OTP gen_server refuses a call to itself at once (calling_self); a longer cycle waits out its
+;   timeout. actors.t27 section 2 goes further and refuses any call back into its chain; this card
+;   keeps that rule and makes the chain name processes instead of slots.
+; This card, one section per gap:
+; 1. a holder is a process and a pid in it; a claim lands again only for the very holder, and the
+;    round renews and releases for its process and every actor in it (claim_lands_for, round_renews,
+;    end_releases);
+; 2. the admission is a permanent child of a one_for_one supervisor, and its lanes and its waiting
+;    issues live on a board that outlives it (admit_answer, grant_lands, after_admission,
+;    lane_outlives_holder);
+; 3. a call's chain is its callers' pids, and a call to any of them is a cycle (on_chain,
+;    call_admit_chain).
+; Reused, not restated: actors.t27 (NO_PID, pid_of, the call outcomes, CALL_MAX_DEPTH, the restart
+; types and strategies, the domain intensity, and call_admit and chain_add for the test that shows the
+; slot chain missing a cycle) and keyed.t27 (claim_is_mine, lane_free). gen-c compiles them in.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenKeyedGuard;
+
+use queen::actors::NO_PID;
+use queen::actors::pid_of;
+use queen::actors::CALL_PENDING;
+use queen::actors::CALL_REPLY;
+use queen::actors::CALL_DOWN;
+use queen::actors::CALL_TIMEOUT;
+use queen::actors::CALL_CYCLE;
+use queen::actors::CALL_TOO_DEEP;
+use queen::actors::CALL_MAX_DEPTH;
+use queen::actors::call_admit;
+use queen::actors::chain_add;
+use queen::actors::RESTART_PERMANENT;
+use queen::actors::STRAT_ONE_FOR_ONE;
+use queen::actors::DOMAIN_MAX_RESTARTS;
+use queen::actors::DOMAIN_PERIOD_SECONDS;
+use queen::keyed::claim_is_mine;
+use queen::keyed::lane_free;
+
+; --- 1. The claim's holder: a process, and a pid in it -----------------------------------------------
+; A holder in the store names a process and, for an actor's claim, the actor's pid in that process.
+; The process is one boot of it: the name the Queen's lease uses (queenHolderName) and a number drawn
+; when the process starts. netlink.t27 takes that number from the store for a linked node (its
+; incarnation); the bee dispatcher runs without a node lease, so the runtime draws it. A pid alone
+; names nothing in the store: pids start again at slot 1 in every process.
+; The store applies these rules inside its statements (control.t27 claim_lands is one INSERT ... ON
+; CONFLICT, the renewal one UPDATE), and t27c has no SQL backend. So the statements mirror the functions,
+; and a live test holds them equal at their edges, as netlink.t27 write_admitted does.
+
+/// The process itself: a claim the round made, not an actor.
+pub const HOLDER_PROCESS : u64 = 0;
+
+/// control.t27 claim_lands, with a holder that is a pair. A lease that is not live lands for anyone. A
+/// live one lands again only for the holder that took it, the same process and the same pid: a
+/// renewal. Another actor of the same process is another holder (keyed.t27 claim_is_mine). So a new
+/// incarnation of an issue's actor cannot renew the old one's claim while the old one's bee runs, and
+/// neither can the round, whose own claims are HOLDER_PROCESS.
+pub fn claim_lands_for(live: bool, same_process: bool, holder_pid: u64, my_pid: u64) -> bool {
+    if (live == false) { return true; }
+    if (same_process == false) { return false; }
+    if (my_pid == HOLDER_PROCESS) { return holder_pid == HOLDER_PROCESS; }
+    return claim_is_mine(holder_pid, my_pid);
+}
+
+/// The round is the heartbeat of every lease its process holds (control.t27 section 2), its actors'
+/// included. A bee runs on a runner, so it outlives the actor that started it, and its lease must not
+/// lapse under it while its task is in flight, or another process takes the issue and starts a second
+/// bee. A lease of another process is never renewed here, and a task no longer in flight is not.
+pub fn round_renews(same_process: bool, in_flight: bool) -> bool {
+    if (same_process == false) { return false; }
+    return in_flight;
+}
+
+/// When a task's row ends, its process gives back the lease that it or any of its actors holds. The
+/// row is the issue's and does not record which actor of the process started it. A lease another
+/// process took over after this one's lapsed is not given away.
+pub fn end_releases(same_process: bool) -> bool {
+    return same_process;
+}
+
+; --- 2. The admission: supervised, with its lanes on a board that outlives it ------------------------
+; The admission answers one call per ready issue (a lane, wait, or refused) and wakes the waiting
+; issues when a lane frees. It is a permanent child of a one_for_one supervisor (actors.t27 section 4),
+; with the intensity of a Queen domain. What it knows is kept where its crash cannot take it: on the
+; dispatcher's lane board, which outlives it as an ETS table with an heir outlives its owner. The board
+; holds, per issue, the token of the lane it holds, and the issues waiting for one. A restarted
+; admission reads the board and wakes the waiting issues at once, so the lanes freed while it was down
+; go to them.
+; Every write keeps the board true without the admission:
+; - a grant is written in the turn that answers the call, and taken back in that turn when the answer
+;   reaches nobody (grant_lands);
+; - a holder takes its own entry off the board when it gives its lane back, then tells the admission,
+;   so a give-back sent while the admission is down is not lost;
+; - an issue's actor that ends holding a lane gives it back, unless its bee still runs; then the bee's
+;   end gives it back (lane_outlives_holder);
+; - an issue whose call finds no admission waits on the board, and the restarted admission wakes it
+;   (after_admission).
+
+/// actors.t27 RESTART_PERMANENT, STRAT_ONE_FOR_ONE, DOMAIN_MAX_RESTARTS and DOMAIN_PERIOD_SECONDS, as
+/// literals: gen-c and gen-ts print a const before the ones it imports, so a const that reads an
+/// imported one does not compile. The invariant the_admission_is_supervised_as_a_domain pins them.
+pub const ADMISSION_RESTART : u8 = 0;
+pub const ADMISSION_STRATEGY : u8 = 0;
+pub const ADMISSION_MAX_RESTARTS : u32 = 3;
+pub const ADMISSION_PERIOD_SECONDS : u32 = 300;
+
+/// The admission's answer to one call.
+/// AD_ASK: ask the policy (queend in production), then decide again with its word.
+/// AD_GRANT: a new lane. AD_KEEP: the issue keeps the lane it held (a restart at once,
+/// keyed.t27 keeps_lane_after_end). AD_WAIT: no lane free, the issue waits on the board.
+/// AD_REFUSED: the policy said no, or the issue already holds a lane.
+/// AD_GIVE_BACK: the policy refused a restart, and the lane the issue kept goes back.
+pub const AD_ASK : u8 = 0;
+pub const AD_GRANT : u8 = 1;
+pub const AD_KEEP : u8 = 2;
+pub const AD_WAIT : u8 = 3;
+pub const AD_REFUSED : u8 = 4;
+pub const AD_GIVE_BACK : u8 = 5;
+
+/// `kept`: the call names a lane token, and the board says the issue holds that very token.
+/// `holds_lane`: the board names a lane for the issue. `lane_free`: keyed.t27 lane_free on the board's
+/// count, read again after the policy answered, since the lane count may move while it is asked.
+/// `asked`: the policy was asked, and `policy_ok` is its word. The policy is asked only when its word
+/// can change the answer, because each ask is a queend call.
+pub fn admit_answer(kept: bool, holds_lane: bool, lane_free: bool, asked: bool, policy_ok: bool) -> u8 {
+    if (kept) {
+        if (asked == false) { return AD_ASK; }
+        if (policy_ok) { return AD_KEEP; }
+        return AD_GIVE_BACK;
+    }
+    if (holds_lane) { return AD_REFUSED; }
+    if (asked == false) {
+        if (lane_free) { return AD_ASK; }
+        return AD_WAIT;
+    }
+    if (policy_ok == false) { return AD_REFUSED; }
+    if (lane_free == false) { return AD_WAIT; }
+    return AD_GRANT;
+}
+
+/// Whether the answer takes the board's lane count up by one.
+pub fn answer_takes_lane(answer: u8) -> bool {
+    return answer == AD_GRANT;
+}
+
+/// Whether the answer puts the issue on the board's waiting list.
+pub fn answer_waits(answer: u8) -> bool {
+    return answer == AD_WAIT;
+}
+
+/// A grant stands only if its answer reached the caller. A call that ended first (its `after` ran out
+/// while the policy was asked) has a dead alias (actors.t27 live_alias), the reply reaches nobody, and
+/// the lane goes back in the same turn. In trios#1723 such a lane stayed in use for good.
+pub fn grant_lands(delivered: bool) -> bool {
+    return delivered;
+}
+
+/// What an issue does once its call to the admission ends (actors.t27 call_outcome).
+/// IA_START: it holds a lane; claim and start. IA_WAIT: it waits on the board until the admission
+/// wakes it. IA_IDLE: refused; idle until its next ready.
+/// A call that met no admission (CALL_DOWN: it was down, or restarting) or none in time (CALL_TIMEOUT)
+/// is a wait, not a refusal: the admission, restarted or done with its turn, wakes it from the board.
+/// A call that never went out (CALL_CYCLE, CALL_TOO_DEEP) is a refusal.
+pub const IA_START : u8 = 0;
+pub const IA_WAIT : u8 = 1;
+pub const IA_IDLE : u8 = 2;
+
+pub fn after_admission(outcome: u8, answer: u8) -> u8 {
+    if (outcome == CALL_REPLY) {
+        if (answer == AD_GRANT or answer == AD_KEEP) { return IA_START; }
+        if (answer == AD_WAIT) { return IA_WAIT; }
+        return IA_IDLE;
+    }
+    if (outcome == CALL_DOWN or outcome == CALL_TIMEOUT) { return IA_WAIT; }
+    return IA_IDLE;
+}
+
+/// An issue's actor ended while the board names a lane for its issue. The lane stays held only while
+/// the bee it started still runs: the bee's end gives it back. Otherwise it goes back now. In
+/// trios#1723 an actor that crashed between its grant and its start held its lane for good.
+pub fn lane_outlives_holder(bee_running: bool) -> bool {
+    return bee_running;
+}
+
+/// How many waiting issues a wake starts asking: keyed.t27 lane_free over the board's count, one lane
+/// at a time, never more than wait. `waiting` is the board's waiting list's length.
+pub fn wake_count(in_use: u32, lanes: u32, waiting: u32) -> u32 {
+    var n : u32 = 0;
+    while (n < waiting and lane_free(in_use + n, lanes)) {
+        n = n + 1;
+    }
+    return n;
+}
+
+; --- 3. A call chain of pids: a cycle among any processes is caught ----------------------------------
+; The chain is the pids of the callers blocked on a call, oldest first. A call admitted at depth d is
+; served by a process that passes on the d callers and itself; a call deeper than CALL_MAX_DEPTH is
+; refused, so no admitted call is served with more than CALL_MAX_DEPTH callers on its chain, and no
+; call is ever checked against more than CALL_MAX_DEPTH + 1 = CHAIN_CALLERS. The callers come one
+; argument each, NO_PID past the last, so the whole chain crosses into the card and the rule is the
+; card's alone.
+; The pid, not the slot: a pid names one incarnation (actors.t27 section 1), so a caller that died and
+; whose slot came back is not on the chain, and a slot past 63 is on it like any other.
+; As in actors.t27, a cycle is named before the depth.
+
+pub const CHAIN_CALLERS : u32 = 9;
+
+/// Whether `callee` is one of the callers. NO_PID is nobody's pid: it fills the chain past its last
+/// caller and is never on it.
+pub fn on_chain(callee: u64, c0: u64, c1: u64, c2: u64, c3: u64, c4: u64, c5: u64, c6: u64, c7: u64, c8: u64) -> bool {
+    if (callee == NO_PID) { return false; }
+    if (callee == c0 or callee == c1 or callee == c2) { return true; }
+    if (callee == c3 or callee == c4 or callee == c5) { return true; }
+    return callee == c6 or callee == c7 or callee == c8;
+}
+
+/// actors.t27 call_admit over the callers' pids. CALL_PENDING admits the call.
+pub fn call_admit_chain(depth: u32, callee: u64, c0: u64, c1: u64, c2: u64, c3: u64, c4: u64, c5: u64, c6: u64, c7: u64, c8: u64) -> u8 {
+    if (on_chain(callee, c0, c1, c2, c3, c4, c5, c6, c7, c8)) { return CALL_CYCLE; }
+    if (depth > CALL_MAX_DEPTH) { return CALL_TOO_DEEP; }
+    return CALL_PENDING;
+}
+
+; --- 4. Tests ------------------------------------------------------------------------------------------
+
+test a_claim_lands_again_only_for_the_very_holder {
+    let a : u64 = pid_of(7, 1);
+    let a2 : u64 = pid_of(7, 2);
+    let b : u64 = pid_of(9, 1);
+    // a lease that is not live lands for anyone: another process, another actor, the round
+    assert claim_lands_for(false, false, a, b) == true;
+    assert claim_lands_for(false, true, a, b) == true;
+    assert claim_lands_for(false, true, a, HOLDER_PROCESS) == true;
+    // a live lease of another process never lands, whatever the pids say
+    assert claim_lands_for(true, false, a, a) == false;
+    assert claim_lands_for(true, false, HOLDER_PROCESS, HOLDER_PROCESS) == false;
+    // the very holder renews: the same process and the same pid
+    assert claim_lands_for(true, true, a, a) == true;
+    // another actor of the same process does not, nor does a later incarnation in the same slot
+    assert claim_lands_for(true, true, a, b) == false;
+    assert claim_lands_for(true, true, a, a2) == false;
+    // the round renews its own claims and never an actor's, and an actor never the round's
+    assert claim_lands_for(true, true, HOLDER_PROCESS, HOLDER_PROCESS) == true;
+    assert claim_lands_for(true, true, a, HOLDER_PROCESS) == false;
+    assert claim_lands_for(true, true, HOLDER_PROCESS, a) == false;
+}
+
+test the_process_renews_and_releases_for_its_actors_and_nobody_else {
+    assert round_renews(true, true) == true;
+    assert round_renews(true, false) == false;
+    assert round_renews(false, true) == false;
+    assert round_renews(false, false) == false;
+    assert end_releases(true) == true;
+    assert end_releases(false) == false;
+    // a renewal keeps a lease live, and a live lease of an actor still refuses the round's own claim:
+    // renewing for an actor is not claiming for it
+    assert round_renews(true, true) and claim_lands_for(true, true, pid_of(7, 1), HOLDER_PROCESS) == false;
+}
+
+test the_admission_asks_the_policy_only_when_its_word_matters {
+    // a free lane and no lane held: ask, then grant or refuse by the policy's word
+    assert admit_answer(false, false, true, false, false) == AD_ASK;
+    assert admit_answer(false, false, true, true, true) == AD_GRANT;
+    assert admit_answer(false, false, true, true, false) == AD_REFUSED;
+    // no lane free: wait, without asking
+    assert admit_answer(false, false, false, false, false) == AD_WAIT;
+    // the lanes filled while the policy was asked: wait; a refusal still refuses
+    assert admit_answer(false, false, false, true, true) == AD_WAIT;
+    assert admit_answer(false, false, false, true, false) == AD_REFUSED;
+    // an issue that already holds a lane is refused a second one, asked or not
+    assert admit_answer(false, true, true, false, false) == AD_REFUSED;
+    assert admit_answer(false, true, true, true, true) == AD_REFUSED;
+    // a restart at once on the kept lane: asked even with no lane free, kept or given back
+    assert admit_answer(true, true, false, false, false) == AD_ASK;
+    assert admit_answer(true, true, false, true, true) == AD_KEEP;
+    assert admit_answer(true, true, false, true, false) == AD_GIVE_BACK;
+    // only a grant takes a lane; only a wait waits
+    assert answer_takes_lane(AD_GRANT) == true;
+    assert answer_takes_lane(AD_KEEP) == false;
+    assert answer_takes_lane(AD_WAIT) == false;
+    assert answer_takes_lane(AD_REFUSED) == false;
+    assert answer_waits(AD_WAIT) == true;
+    assert answer_waits(AD_GRANT) == false;
+    assert answer_waits(AD_REFUSED) == false;
+    assert answer_waits(AD_GIVE_BACK) == false;
+}
+
+test a_grant_that_reaches_nobody_goes_back_and_a_missing_admission_is_a_wait {
+    assert grant_lands(true) == true;
+    assert grant_lands(false) == false;
+    // a reply decides by its answer
+    assert after_admission(CALL_REPLY, AD_GRANT) == IA_START;
+    assert after_admission(CALL_REPLY, AD_KEEP) == IA_START;
+    assert after_admission(CALL_REPLY, AD_WAIT) == IA_WAIT;
+    assert after_admission(CALL_REPLY, AD_REFUSED) == IA_IDLE;
+    assert after_admission(CALL_REPLY, AD_GIVE_BACK) == IA_IDLE;
+    // no admission, or none in time: wait on the board, whatever answer was read
+    assert after_admission(CALL_DOWN, AD_GRANT) == IA_WAIT;
+    assert after_admission(CALL_DOWN, AD_REFUSED) == IA_WAIT;
+    assert after_admission(CALL_TIMEOUT, AD_ASK) == IA_WAIT;
+    // a call that never went out is refused
+    assert after_admission(CALL_CYCLE, AD_GRANT) == IA_IDLE;
+    assert after_admission(CALL_TOO_DEEP, AD_GRANT) == IA_IDLE;
+    assert after_admission(CALL_PENDING, AD_GRANT) == IA_IDLE;
+    // a holder that ends: the lane stays only with a bee that runs
+    assert lane_outlives_holder(true) == true;
+    assert lane_outlives_holder(false) == false;
+}
+
+test a_wake_asks_one_waiting_issue_per_free_lane {
+    assert wake_count(0, 4, 10) == 4;
+    assert wake_count(3, 4, 10) == 1;
+    assert wake_count(4, 4, 10) == 0;
+    assert wake_count(5, 4, 10) == 0;
+    assert wake_count(0, 4, 2) == 2;
+    assert wake_count(0, 4, 0) == 0;
+    assert wake_count(0, 0, 3) == 0;
+    assert wake_count(69, 70, 4294967295) == 1;
+}
+
+test a_cycle_at_any_slot_is_refused_at_once {
+    // A (slot 100) calls B (slot 101); B serves it and calls A back
+    let a : u64 = pid_of(100, 1);
+    let b : u64 = pid_of(101, 1);
+    let c : u64 = pid_of(4000, 3);
+    assert call_admit_chain(1, b, a, 0, 0, 0, 0, 0, 0, 0, 0) == CALL_PENDING;
+    assert call_admit_chain(2, a, a, b, 0, 0, 0, 0, 0, 0, 0) == CALL_CYCLE;
+    assert call_admit_chain(2, b, a, b, 0, 0, 0, 0, 0, 0, 0) == CALL_CYCLE;
+    assert call_admit_chain(2, c, a, b, 0, 0, 0, 0, 0, 0, 0) == CALL_PENDING;
+    // the slot chain of actors.t27 misses the same cycle: both slots are past 63
+    assert call_admit(chain_add(chain_add(0, 100), 101), 2, 100) == CALL_PENDING;
+    // a call to itself (gen_server's calling_self), at a slot past the model
+    assert call_admit_chain(1, c, c, 0, 0, 0, 0, 0, 0, 0, 0) == CALL_CYCLE;
+    // every one of the nine places is read
+    assert on_chain(c, c, 1, 2, 3, 4, 5, 6, 7, 8) == true;
+    assert on_chain(c, 1, 2, 3, 4, 5, 6, 7, 8, c) == true;
+    assert on_chain(c, 1, 2, 3, 4, c, 5, 6, 7, 8) == true;
+    assert on_chain(c, 1, 2, 3, 4, 5, 6, 7, 8, 9) == false;
+    // NO_PID fills the chain and is nobody
+    assert on_chain(NO_PID, 0, 0, 0, 0, 0, 0, 0, 0, 0) == false;
+}
+
+test a_new_incarnation_is_not_on_its_old_pids_chain {
+    // slot 5's first process is a caller; its slot came back with generation 2, which is another pid
+    let old : u64 = pid_of(5, 1);
+    let new : u64 = pid_of(5, 2);
+    assert call_admit_chain(1, new, old, 0, 0, 0, 0, 0, 0, 0, 0) == CALL_PENDING;
+    assert call_admit_chain(1, old, old, 0, 0, 0, 0, 0, 0, 0, 0) == CALL_CYCLE;
+}
+
+test the_chain_is_bounded_and_a_cycle_is_named_first {
+    let p1 : u64 = pid_of(201, 1);
+    let p2 : u64 = pid_of(202, 1);
+    let p3 : u64 = pid_of(203, 1);
+    let p4 : u64 = pid_of(204, 1);
+    let p5 : u64 = pid_of(205, 1);
+    let p6 : u64 = pid_of(206, 1);
+    let p7 : u64 = pid_of(207, 1);
+    let p8 : u64 = pid_of(208, 1);
+    let p9 : u64 = pid_of(209, 1);
+    let x : u64 = pid_of(300, 1);
+    // eight callers blocked is the most; the ninth caller's call is refused
+    assert call_admit_chain(8, x, p1, p2, p3, p4, p5, p6, p7, p8, 0) == CALL_PENDING;
+    assert call_admit_chain(9, x, p1, p2, p3, p4, p5, p6, p7, p8, p9) == CALL_TOO_DEEP;
+    // a cycle back to the first caller at the ninth call is named before the depth
+    assert call_admit_chain(9, p1, p1, p2, p3, p4, p5, p6, p7, p8, p9) == CALL_CYCLE;
+    assert call_admit_chain(9, p9, p1, p2, p3, p4, p5, p6, p7, p8, p9) == CALL_CYCLE;
+    assert call_admit_chain(CALL_MAX_DEPTH + 7, x, p1, p2, p3, p4, p5, p6, p7, p8, p9) == CALL_TOO_DEEP;
+}
+
+invariant the_answers_never_move {
+    assert HOLDER_PROCESS == 0;
+    assert AD_ASK == 0 and AD_GRANT == 1 and AD_KEEP == 2 and AD_WAIT == 3 and AD_REFUSED == 4 and AD_GIVE_BACK == 5;
+    assert IA_START == 0 and IA_WAIT == 1 and IA_IDLE == 2;
+}
+
+invariant the_chain_holds_every_caller_an_admitted_call_can_have {
+    assert CHAIN_CALLERS == CALL_MAX_DEPTH + 1;
+}
+
+invariant the_admission_is_supervised_as_a_domain {
+    assert ADMISSION_RESTART == RESTART_PERMANENT;
+    assert ADMISSION_STRATEGY == STRAT_ONE_FOR_ONE;
+    assert ADMISSION_MAX_RESTARTS == DOMAIN_MAX_RESTARTS and ADMISSION_PERIOD_SECONDS == DOMAIN_PERIOD_SECONDS;
+    // the process that holds nothing as an actor is not an actor's pid
+    assert HOLDER_PROCESS == NO_PID;
+}

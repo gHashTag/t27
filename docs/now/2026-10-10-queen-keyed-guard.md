@@ -1,0 +1,7 @@
+# NOW -- keyed_guard.t27: the claim holder is the actor, the admission survives a crash, a call cycle is caught at any slot (2026-10-10)
+
+## specs/queen/keyed_guard.t27 (Closes #8632; night loop gHashTag/trios#1729, item 7)
+
+- The keyed actors' MVP (#8286, gHashTag/trios#1723) left three gaps. A claim's holder is now a process boot and a pid (`claim_lands_for`), and the round renews and releases for its process and every actor in it (`round_renews`, `end_releases`). The admission is a permanent one_for_one child with a domain's intensity, and its lanes and waiting issues live on a board that outlives it (`admit_answer`, moved out of TypeScript, plus `grant_lands`, `after_admission`, `lane_outlives_holder`, `wake_count`). A call's chain is its callers' pids, at most `CALL_MAX_DEPTH + 1` (`on_chain`, `call_admit_chain`); actors.t27 `chain_has` saw slots 0..63 only.
+- `t27c test-report`: 8 of 8 pass, 3 invariants, 0 vacuous; parse, typecheck and gen-c/rust/verilog/js/ts exit 0. 32 negative controls, all caught: 28 FAIL a test, 4 are BLOCKED by an invariant. Seal saved.
+- Runtime and benchmark in gHashTag/trios#1745 on `actors-next-2`, numbers on #7851. Two dispatchers under one process name: 16-17 duplicate pickups with the pid alone, 0 with boot + pid (273 with the process holder). Three admission crashes in an 8 h lane-bound run: 63 issues done before (the dispatcher stopped at the first), 352 after, the same as with no crash. A cycle past slot 63: answered after 5000 ms (timeout) before, 0 ms (CALL_CYCLE) after.

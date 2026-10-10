@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:356e1d1e322e571b843dd6361f327f671aafed83d93fec633bef2d789ecb090b",
+  "gen_hash_rust": "sha256:a7b098b3e3c7ecd11e239edd0ef51b0ecefbd5446904956b6ad4d49ea2e3908b",
+  "gen_hash_verilog": "sha256:586a7f3ef62cefba70c09604f50a3dd11cf497ffbf445b68647352f9d654ffdf",
+  "gen_hash_zig": "sha256:00465bcbf8be974561e1c9765f9f8d56e2bbf7843aa525a0847dac4cbe94d8cc",
+  "module": "QueenKeyedGuard",
+  "ring": 12,
+  "sealed_at": "2026-10-10T14:06:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:b76136cb283f2374d681b77316138d96fddeb3fd1bff5316879461ba79a409f8",
+  "spec_path": "specs/queen/keyed_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}
