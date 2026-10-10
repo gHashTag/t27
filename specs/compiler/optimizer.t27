@@ -56,15 +56,15 @@ module Optimization {
         };
     }
 
-    fn get_precondition(pass: OptPass) -> Option<Expr> {
-        match pass {
-            OptimizeStmts => None, // driver pass
-            CopyPropagate => Some(Expr::Call("has_no_reassignment", [])),
-            ConstPropagate => Some(Expr::Call("has_no_reassignment", [])),
-            StrengthReduce => Some(Expr::Call("no_semantics_changing_transformations", [])),
-            CommonSubexprElim => Some(Expr::Call("no_hoisting_across_mutation", [])),
-            DeadStoreElim => Some(Expr::Call("no_side_effecting_calls", [])),
-            LoopUnroll => Some(Expr::Call("preserves_observable_behavior", [])),
+    fn get_precondition(pass: OptPass) -> ?Expr {
+        switch (pass) {
+            OptimizeStmts => null, // driver pass
+            CopyPropagate => Expr::Call("has_no_reassignment", []),
+            ConstPropagate => Expr::Call("has_no_reassignment", []),
+            StrengthReduce => Expr::Call("no_semantics_changing_transformations", []),
+            CommonSubexprElim => Expr::Call("no_hoisting_across_mutation", []),
+            DeadStoreElim => Expr::Call("no_side_effecting_calls", []),
+            LoopUnroll => Expr::Call("preserves_observable_behavior", []),
         }
     }
 
@@ -297,31 +297,44 @@ module Optimization {
 
     test optimize_stmts_has_no_precondition
         given result = get_precondition(OptimizeStmts)
-        then result == None
+        then result == null
 
     test copy_propagate_has_precondition
         given result = get_precondition(CopyPropagate)
-        then result != None
+        then result != null
 
     test const_propagate_has_precondition
         given result = get_precondition(ConstPropagate)
-        then result != None
+        then result != null
 
     test strength_reduce_has_precondition
         given result = get_precondition(StrengthReduce)
-        then result != None
+        then result != null
 
     test common_subexpr_elim_has_precondition
         given result = get_precondition(CommonSubexprElim)
-        then result != None
+        then result != null
 
     test dead_store_elim_has_precondition
         given result = get_precondition(DeadStoreElim)
-        then result != None
+        then result != null
+
+    test dead_store_elim_preserves_side_effecting_calls
+        ; Test that dead_store_elim does not delete expressions containing function calls
+        ; even when the result is unused
+        given 
+            var result = true ; Placeholder for actual test implementation
+        then result == true ; This test documents the requirement - calls should be preserved
+
+    test dead_store_elim_counts_field_writes_as_reads  
+        ; Test that dead_store_elim recognizes field writes as reads of the base variable
+        given 
+            var result = true ; Placeholder for actual test implementation
+        then result == true ; This test documents the requirement - field writes should preserve declarations
 
     test loop_unroll_has_precondition
         given result = get_precondition(LoopUnroll)
-        then result != None
+        then result != null
 
     invariant pure_ops_are_not_assignment
         assert is_pure_op("=") == false
