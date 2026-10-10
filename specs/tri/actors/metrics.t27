@@ -343,6 +343,11 @@ pub fn enabled(text: string) -> bool {
     return span_is(text, value_from(text, v), value_to(text, v), "true");
 }
 
+/// Detect HTTP 403 status from route guard in response text
+pub fn is_http_403(text: string) -> bool {
+    return span_is(text, 0, 9, "{\"enabled\":false}") and span_is(text, 12, 16, "\"flag\"");
+}
+
 /// The exit code: no verdict when the telemetry is off or unreachable, a row is UNREAD, or --replay
 /// found an empty log; ALARM when a row is; else OK.
 pub fn exit_code(on: bool, alarms: u64, unread: u64, replay: bool, records: u64) -> u8 {
@@ -352,9 +357,11 @@ pub fn exit_code(on: bool, alarms: u64, unread: u64, replay: bool, records: u64)
     return EXIT_OK;
 }
 
-pub fn exit_why(x: u8) -> string {
+/// The exit code reason with HTTP status information when available
+pub fn exit_why(x: u8, response: string) -> string {
     if (x == EXIT_OK) { return "exit 0: no alarm"; }
     if (x == EXIT_ALARM) { return "exit 1: an alarm: a deep mailbox, a long turn, a restart storm or give-up, or an unsampled record"; }
+    if (is_http_403(response)) { return "exit 2: no verdict -- refused by the route guard (HTTP 403)"; }
     return "exit 2: no verdict -- the telemetry is off (TRIOS_QUEEN_ACTORS_TELEMETRY) or unreachable, a row cannot be read, or the decision log is empty";
 }
 
@@ -524,8 +531,32 @@ test alarms_and_words {
     assert why(V_LONG)[0] == 76 and why(V_LONG_PAST)[6] == 116;
     assert why(V_STORM)[0] == 83 and why(V_GAVE_UP)[0] == 71;
     assert why(V_HISTORY)[0] == 104 and why(V_UNSAMPLED)[0] == 85 and why(V_UNREAD)[2] == 82;
-    assert exit_why(EXIT_OK)[5] == 48 and exit_why(EXIT_ALARM)[5] == 49 and exit_why(EXIT_UNREAD)[5] == 50;
+    assert exit_why(EXIT_OK, "")[5] == 48 and exit_why(EXIT_ALARM, "")[5] == 49 and exit_why(EXIT_UNREAD, "")[5] == 50;
     assert span_is(section_name(S_SUPERVISOR), 0, 10, "supervisor");
     assert doc_of(S_DECISION) == 1 and doc_of(S_KIND) == 0;
     assert columns(S_KIND) == 10 and columns(S_EVENT) == 4;
+}
+
+// Scenario: HTTP 403 detection from route guard response
+test http_403_detection {
+    const route_guard_response : string = "{\"enabled\":false,\"flag\":\"TRIOS_QUEEN_ACTORS_TELEMETRY\"}";
+    assert is_http_403(route_guard_response) == true;
+    assert is_http_403(LIVE) == false;
+    assert is_http_403(LOG) == false;
+    assert is_http_403("") == false;
+    assert is_http_403("{\"enabled\":true}") == false;
+}
+
+// Scenario: exit_why with HTTP 403 response
+test exit_why_with_http_status {
+    const route_guard_response : string = "{\"enabled\":false,\"flag\":\"TRIOS_QUEEN_ACTORS_TELEMETRY\"}";
+    const normal_off_response : string = "{\"enabled\":false,\"flag\":\"TRIOS_QUEEN_ACTORS_TELEMETRY\"}";
+    const empty_response : string = "";
+    
+    assert exit_why(EXIT_OK, route_guard_response) == "exit 0: no alarm";
+    assert exit_why(EXIT_ALARM, route_guard_response) == "exit 1: an alarm: a deep mailbox, a long turn, a restart storm or give-up, or an unsampled record";
+    assert exit_why(EXIT_UNREAD, route_guard_response) == "exit 2: no verdict -- refused by the route guard (HTTP 403)";
+    assert exit_why(EXIT_UNREAD, normal_off_response) == "exit 2: no verdict -- refused by the route guard (HTTP 403)";
+    assert exit_why(EXIT_UNREAD, empty_response) == "exit 2: no verdict -- the telemetry is off (TRIOS_QUEEN_ACTORS_TELEMETRY) or unreachable, a row cannot be read, or the decision log is empty";
+    assert exit_why(EXIT_UNREAD, LIVE) == "exit 2: no verdict -- the telemetry is off (TRIOS_QUEEN_ACTORS_TELEMETRY) or unreachable, a row cannot be read, or the decision log is empty";
 }
