@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+c26639789",
+  "built_by": "t27c-bootstrap@0.5.2+172e871ed",
   "closure": [
     {
       "spec": "specs/network/mvp.t27",
@@ -31,7 +31,7 @@
     },
     {
       "spec": "specs/trinet/ledger.t27",
-      "spec_hash": "sha256:c1879562fd7a265b0fd054fa6cc3b605e0e7262080d023231c9b1b63e6866dbf"
+      "spec_hash": "sha256:97660e545fbefc6fa5bcc7fc031bc08e1bda586fd6fb8c3b657e37b5dbac0e3f"
     },
     {
       "spec": "specs/trinet/node-work-credit.t27",
@@ -47,7 +47,7 @@
     },
     {
       "spec": "specs/verified/payout.t27",
-      "spec_hash": "sha256:cb4be92310f639e1e84aa505f07c4f9be22e3a928ac70e2ea1b088b261896ea8"
+      "spec_hash": "sha256:7b5e8bca72e68efd2050b469bb784d68b7ce5dd15907a5f44f0f132475fead87"
     },
     {
       "spec": "specs/verified/run_record.t27",
@@ -63,23 +63,24 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:6409e2db70e891897b94b12fb2836a028264ae7c42a1426be2a87cf9a01db7dc",
-  "gen_hash_rust": "sha256:8bef8325cad2a407c853924d517cb41842349cb4e2f1ff3834883244199c2589",
-  "gen_hash_verilog": "sha256:91d239c9a8584a0e3577d40e11339f37481d8166b37aa0fce2d62175b985b1c8",
-  "gen_hash_zig": "sha256:8a8857c72f91a362c2eabc661eb8dde7ccbc80390d5fb52040774f3776f60a12",
+  "gen_hash_c": "sha256:f92ba65d27a203b7e39dac282ab1cf5ad514492a6a340b339614e070ae5e78bc",
+  "gen_hash_rust": "sha256:11ba357a1aa3a0d7da3bbbd5e492be0c95b6c37224fa22784cf3ea0c5e4effb8",
+  "gen_hash_verilog": "sha256:317969e3fe014e6cef26efea12f1ac1550278985fd41b6150ebdacffa4821bd6",
+  "gen_hash_zig": "sha256:e5cbe7ff6c4e88c1a8ae63e1c6b0c540e13829583631121b430e8bd88f946c8b",
   "module": "NetworkMvpV2",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T15:40:26Z",
+  "sealed_at": "2026-10-10T17:53:58Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:f854c6593d50be002c84418d4731917bd77ff6c328ac659177b7b725b2209962",
+  "spec_hash": "sha256:d4feb75fa7806a36d0aabe1f80c39faf2cce19c8c4c50ac2a55436e653b8122c",
   "spec_path": "specs/network/mvp_v2.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
     "passed": 12,
-    "total": 12
+    "total": 12,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
