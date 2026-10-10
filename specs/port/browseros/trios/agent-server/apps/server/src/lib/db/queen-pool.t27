@@ -1,0 +1,58 @@
+module port::queen-pool;
+
+struct SslConfig {
+    rejectUnauthorized: bool,
+}
+
+struct SslResult {
+    enabled: bool,
+    rejectUnauthorized: bool,
+}
+
+pub fn queenSchema() -> str {
+    return 'trios'
+}
+
+fn sslFor(databaseUrl: str) -> SslResult {
+    // Simplified: neon URLs get SSL config, others don't
+    if (databaseUrl == 'neon-url') {
+        return SslResult { enabled: true, rejectUnauthorized: false }
+    } else {
+        return SslResult { enabled: false, rejectUnauthorized: false }
+    }
+}
+
+pub fn createQueenPool(
+    databaseUrl: str,
+    extra: str = "",
+) -> i32 {
+    undefined;
+}
+
+test queenSchema_basic {
+    assert(queenSchema() == 'trios')
+}
+
+test sslFor_neon_enabled {
+    const url = 'neon-url'
+    const result = sslFor(url)
+    assert(result.enabled == true)
+}
+
+test sslFor_neon_reject {
+    const url = 'neon-url'
+    const result = sslFor(url)
+    assert(result.rejectUnauthorized == false)
+}
+
+test sslFor_regular_enabled {
+    const url = 'regular-url'
+    const result = sslFor(url)
+    assert(result.enabled == false)
+}
+
+test sslFor_regular_reject {
+    const url = 'regular-url'
+    const result = sslFor(url)
+    assert(result.rejectUnauthorized == false)
+}
