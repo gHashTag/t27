@@ -1,0 +1,205 @@
+// Port of trios/agent-server/apps/server/src/lib/agents/hermes/hermes-provider-map.ts
+// (gHashTag/BrowserOS at 879799a8bfb2, 86 lines of hand-written TypeScript).
+//
+// The original is the decision table from BrowserOS LLM provider types (the
+// values that live in LlmProviderConfig.type on the extension side) to Hermes
+// runtime configuration: which provider key to write into `model.provider` in
+// config.yaml, which env var carries the API key, and whether an explicit
+// baseUrl is required. The whole file is a decision - one fixed table, two
+// lookups - so both exported functions are ported with real bodies; there is
+// no plumbing and no function body is left undefined.
+//
+// Three shape changes the language forces, documented rather than faked:
+// - The original imports HERMES_SUPPORTED_BROWSEROS_PROVIDER_TYPES from
+//   @browseros/shared/constants/hermes. That set is exactly the keys of the
+//   original's HERMES_PROVIDER_MAP (the original type-checks that every
+//   supported type has a mapping), so the four values are inlined here as
+//   the decision they carry.
+// - The original's optional `defaultBaseUrl?` field becomes hasDefaultBaseUrl
+//   plus defaultBaseUrl ("" when absent). In the original the field is only
+//   read when hermesProvider is "custom" and the caller passed no baseUrl.
+// - The original's `HermesProviderMapping | undefined` return becomes a
+//   verdict struct: ok == false is the original's `undefined`, i.e. agent
+//   creation rejects the type and no mapping exists for it.
+
+pub struct HermesProviderMapping {
+    // Hermes' own provider key, written into `model.provider` in config.yaml.
+    hermesProvider: []const u8,
+    // Env var Hermes reads the API key from.
+    envVarName: []const u8,
+    // True when the harness must require an explicit baseUrl from input.
+    requiresBaseUrl: bool,
+    // True when the original mapping carries a defaultBaseUrl.
+    hasDefaultBaseUrl: bool,
+    defaultBaseUrl: []const u8,
+}
+
+pub struct HermesMappingResult {
+    // False is the original's `undefined`: unsupported provider type.
+    ok: bool,
+    mapping: HermesProviderMapping,
+}
+
+// The original's HERMES_SUPPORTED_BROWSEROS_PROVIDER_TYPES.includes(providerType):
+// a case-sensitive membership test over the shared constant, whose values are
+// exactly the keys of the original's HERMES_PROVIDER_MAP. Inlined here as
+// literal comparisons.
+pub fn isHermesSupportedProviderType(providerType: []const u8) -> bool {
+    if (providerType == "anthropic") {
+        return true;
+    }
+    if (providerType == "openai") {
+        return true;
+    }
+    if (providerType == "openrouter") {
+        return true;
+    }
+    if (providerType == "openai-compatible") {
+        return true;
+    }
+    return false;
+}
+
+// The zero mapping, standing in for an absent table entry.
+fn hermes_mapping_empty() -> HermesProviderMapping {
+    return HermesProviderMapping { hermesProvider: "", envVarName: "", requiresBaseUrl: false, hasDefaultBaseUrl: false, defaultBaseUrl: "" };
+}
+
+// HERMES_PROVIDER_MAP.anthropic: pass-through, no base URL involved.
+fn hermes_mapping_anthropic() -> HermesProviderMapping {
+    return HermesProviderMapping { hermesProvider: "anthropic", envVarName: "ANTHROPIC_API_KEY", requiresBaseUrl: false, hasDefaultBaseUrl: false, defaultBaseUrl: "" };
+}
+
+// HERMES_PROVIDER_MAP.openai: the original rewrites this to Hermes' custom
+// provider shape and carries the OpenAI base URL as the default.
+fn hermes_mapping_openai() -> HermesProviderMapping {
+    return HermesProviderMapping { hermesProvider: "custom", envVarName: "OPENAI_API_KEY", requiresBaseUrl: false, hasDefaultBaseUrl: true, defaultBaseUrl: "https://api.openai.com/v1" };
+}
+
+// HERMES_PROVIDER_MAP.openrouter: pass-through, no base URL involved.
+fn hermes_mapping_openrouter() -> HermesProviderMapping {
+    return HermesProviderMapping { hermesProvider: "openrouter", envVarName: "OPENROUTER_API_KEY", requiresBaseUrl: false, hasDefaultBaseUrl: false, defaultBaseUrl: "" };
+}
+
+// HERMES_PROVIDER_MAP["openai-compatible"]: custom provider shape, and the
+// caller must supply the base URL explicitly.
+fn hermes_mapping_openai_compatible() -> HermesProviderMapping {
+    return HermesProviderMapping { hermesProvider: "custom", envVarName: "OPENAI_API_KEY", requiresBaseUrl: true, hasDefaultBaseUrl: false, defaultBaseUrl: "" };
+}
+
+// The original's getHermesProviderMapping: the table entry for a supported
+// provider type, `undefined` when it is not supported. ok == false carries
+// the `undefined`; the zero mapping it arrives with must not be read as a
+// real entry.
+pub fn getHermesProviderMapping(providerType: []const u8) -> HermesMappingResult {
+    if (!isHermesSupportedProviderType(providerType)) {
+        return HermesMappingResult { ok: false, mapping: hermes_mapping_empty() };
+    }
+    if (providerType == "anthropic") {
+        return HermesMappingResult { ok: true, mapping: hermes_mapping_anthropic() };
+    }
+    if (providerType == "openai") {
+        return HermesMappingResult { ok: true, mapping: hermes_mapping_openai() };
+    }
+    if (providerType == "openrouter") {
+        return HermesMappingResult { ok: true, mapping: hermes_mapping_openrouter() };
+    }
+    // Only "openai-compatible" is left: the guard above rejects everything
+    // else, so this fall-through mirrors the original's table index.
+    return HermesMappingResult { ok: true, mapping: hermes_mapping_openai_compatible() };
+}
+
+// The four supported BrowserOS provider types: exactly the shared constant
+// the original imports, i.e. the keys of the original's table.
+test is_supported_provider_types {
+    assert(isHermesSupportedProviderType("anthropic"));
+    assert(isHermesSupportedProviderType("openai"));
+    assert(isHermesSupportedProviderType("openrouter"));
+    assert(isHermesSupportedProviderType("openai-compatible"));
+}
+
+// The original's check is case-sensitive (a plain string includes over the
+// constant) and whitespace-significant; anything else yields no mapping.
+test rejects_unsupported_provider_types {
+    assert(!isHermesSupportedProviderType("gemini"));
+    assert(!isHermesSupportedProviderType("Anthropic"));
+    assert(!isHermesSupportedProviderType("openai_compatible"));
+    assert(!isHermesSupportedProviderType(" openai"));
+    assert(!isHermesSupportedProviderType(""));
+}
+
+// Each entry of the original's HERMES_PROVIDER_MAP, field by field.
+test mapping_entries {
+    const anthropic = hermes_mapping_anthropic();
+    assert(anthropic.hermesProvider == "anthropic");
+    assert(anthropic.envVarName == "ANTHROPIC_API_KEY");
+    assert(!anthropic.requiresBaseUrl);
+    assert(!anthropic.hasDefaultBaseUrl);
+
+    const openai = hermes_mapping_openai();
+    assert(openai.hermesProvider == "custom");
+    assert(openai.envVarName == "OPENAI_API_KEY");
+    assert(!openai.requiresBaseUrl);
+    assert(openai.hasDefaultBaseUrl);
+    assert(openai.defaultBaseUrl == "https://api.openai.com/v1");
+
+    const openrouter = hermes_mapping_openrouter();
+    assert(openrouter.hermesProvider == "openrouter");
+    assert(openrouter.envVarName == "OPENROUTER_API_KEY");
+    assert(!openrouter.requiresBaseUrl);
+    assert(!openrouter.hasDefaultBaseUrl);
+
+    const compatible = hermes_mapping_openai_compatible();
+    assert(compatible.hermesProvider == "custom");
+    assert(compatible.envVarName == "OPENAI_API_KEY");
+    assert(compatible.requiresBaseUrl);
+    assert(!compatible.hasDefaultBaseUrl);
+}
+
+// The zero mapping that stands in for an absent entry: empty strings, no
+// default base URL.
+test mapping_empty {
+    const m = hermes_mapping_empty();
+    assert(m.hermesProvider == "");
+    assert(m.envVarName == "");
+    assert(!m.requiresBaseUrl);
+    assert(!m.hasDefaultBaseUrl);
+    assert(m.defaultBaseUrl == "");
+}
+
+// The public lookup for supported types: ok with the table's entry.
+test get_mapping_supported {
+    const a = getHermesProviderMapping("anthropic");
+    assert(a.ok);
+    assert(a.mapping.hermesProvider == "anthropic");
+    assert(a.mapping.envVarName == "ANTHROPIC_API_KEY");
+    assert(!a.mapping.requiresBaseUrl);
+
+    const o = getHermesProviderMapping("openai");
+    assert(o.ok);
+    assert(o.mapping.hermesProvider == "custom");
+    assert(o.mapping.envVarName == "OPENAI_API_KEY");
+    assert(o.mapping.hasDefaultBaseUrl);
+    assert(o.mapping.defaultBaseUrl == "https://api.openai.com/v1");
+
+    const r = getHermesProviderMapping("openrouter");
+    assert(r.ok);
+    assert(r.mapping.hermesProvider == "openrouter");
+    assert(r.mapping.envVarName == "OPENROUTER_API_KEY");
+
+    const c = getHermesProviderMapping("openai-compatible");
+    assert(c.ok);
+    assert(c.mapping.hermesProvider == "custom");
+    assert(c.mapping.requiresBaseUrl);
+    assert(!c.mapping.hasDefaultBaseUrl);
+}
+
+// Unsupported types get the original's `undefined`: ok == false.
+test get_mapping_unsupported {
+    const g = getHermesProviderMapping("gemini");
+    assert(!g.ok);
+    const blank = getHermesProviderMapping("");
+    assert(!blank.ok);
+    const cased = getHermesProviderMapping("Anthropic");
+    assert(!cased.ok);
+}
