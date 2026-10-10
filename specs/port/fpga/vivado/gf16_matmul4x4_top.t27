@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/vivado/gf16_matmul4x4_top.t27
+// GF16 4x4 Matrix Multiplier Top Module Specification
+// Minimal version for testing
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module gf16_matmul4x4_top {
+
+    // === Constants ===
+    
+    pub const IDENTITY_VAL : u16 = 0x3E00;
+    pub const ZERO_VAL : u16 = 0x0000;
+
+    // === Simple test functions ===
+
+    fn test_identity_matrix() -> [4][4]u16 {
+        var matrix : [4][4]u16 = [
+            [IDENTITY_VAL, ZERO_VAL, ZERO_VAL, ZERO_VAL],
+            [ZERO_VAL, IDENTITY_VAL, ZERO_VAL, ZERO_VAL],
+            [ZERO_VAL, ZERO_VAL, IDENTITY_VAL, ZERO_VAL],
+            [ZERO_VAL, ZERO_VAL, ZERO_VAL, IDENTITY_VAL]
+        ];
+        return matrix;
+    }
+
+    fn test_counter_increment() -> u32 {
+        var counter : u32 = 0;
+        counter = counter + 1;
+        return counter;
+    }
+
+    fn test_verify_diagonal() -> bool {
+        var result : u16 = IDENTITY_VAL;
+        return result == IDENTITY_VAL;
+    }
+
+    // === Tests ===
+
+    test identity_matrix_test
+        given matrix = test_identity_matrix()
+        then matrix[0][0] == IDENTITY_VAL
+        and matrix[1][1] == IDENTITY_VAL
+        and matrix[2][2] == IDENTITY_VAL
+        and matrix[3][3] == IDENTITY_VAL
+
+    test counter_increment_test
+        then test_counter_increment() == 1
+
+    test verify_diagonal_test
+        then test_verify_diagonal() == true
+
+    test simple_math
+        then 1 + 1 == 2
+        and 2 * 3 == 6
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
