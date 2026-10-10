@@ -1,0 +1,290 @@
+module port::trinity::src::tri::gen_skiplist_impl;
+
+// Port of gHashTag/trinity src/tri/gen_skiplist_impl.zig @ d07bc6251fa3
+// (issue #8467). The original is pointer-and-allocator Zig: SkipNode holds a
+// `forward: []?*SkipNode` tower and SkipList a head pointer plus an
+// allocator. .t27 has neither pointers nor a heap, so the list lives in a
+// fixed node pool and every pointer becomes a node index. Slot 0 stands for
+// the null pointer and is never a node, so a link of 0 can never be
+// mistaken for one:
+//
+//   original                               here
+//   -------------------------------------  ------------------------------
+//   SkipNode.value: i64                    values[i]
+//   SkipNode.level: usize                  levels[i]
+//   SkipNode.forward: []?*SkipNode         forward[i][lvl] (0 = null)
+//   SkipList.head: *SkipNode               slot 1 (level 15, 16 null links)
+//   SkipList.max_level = 16                max_level
+//   SkipList.p = 0.5                       p
+//   SkipList.allocator                     the pool itself (plumbing)
+//
+// The walk, the splice and the search are the original's, step for step;
+// only the memory management is dropped. The original's PRNG (a
+// DefaultPrng re-seeded with 0 on every randomLevel call) is the `flips`
+// parameter the caller passes.
+
+const SKIP_CAP: usize = 32;         // pool slots: 0 = null, 1 = head, 2.. = nodes
+const SKIP_W: usize = 16;           // forward links per node (= max_level)
+const SKIP_HEAD_LEVEL: usize = 15;  // the head's level (max_level - 1)
+const SKIP_P: f64 = 0.5;            // the original's level-up probability
+
+pub struct SkipList {
+    values: [32]i64,
+    levels: [32]usize,
+    forward: [32][16]usize,
+    len: usize,          // highest slot in use; the head is 1
+    max_level: usize,
+    p: f64,
+}
+
+// init(allocator: std.mem.Allocator) !SkipList: the allocator is plumbing (a
+// str stand-in, as in gen_cache.t27). The decision is the shape it builds:
+// max_level 16, p 0.5, and a head node at slot 1 with level 15 and 16
+// all-null forward links — the head's level is set after the zeroed store,
+// exactly as the original builds head_node.* with .level = HEAD_LEVEL.
+pub fn SkipList_init(allocator: str) -> SkipList {
+    var list = SkipList{
+        .values = [_]i64{0} ** 32,
+        .levels = [_]usize{0} ** 32,
+        .forward = [_][16]usize{[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]} ** 32,
+        .len = 1,
+        .max_level = 16,
+        .p = 0.5,
+    };
+    list.levels[1] = SKIP_HEAD_LEVEL;
+    return list;
+}
+
+// randomLevel(list: *const SkipList) usize: the original ignores its `list`
+// argument (`_ = list;`) and draws coin flips from a DefaultPrng re-seeded
+// with 0 on every call — randomness is plumbing, so the flips it would read
+// are a parameter. The decision is kept exactly: start at level 0, and
+// while the level is below 15 (the head's level, one below max_level) and
+// the next flip is below p = 0.5, climb one level.
+pub fn SkipList_randomLevel(flips: []const f64) -> usize {
+    var level: usize = 0;
+    var k: usize = 0;
+    while (level < SKIP_HEAD_LEVEL and k < flips.len and flips[k] < SKIP_P) {
+        level += 1;
+        k += 1;
+    }
+    return level;
+}
+
+// insert(list: *SkipList, value: i64) !void: the tower walk and the splice
+// are the original's, step for step. The allocator calls are gone (the pool
+// is the store) and the PRNG is the `flips` parameter. The original's
+// `!void` error is its allocation failing; here the updated list is
+// returned by value (no pointers), and when the pool is full it comes back
+// unchanged.
+pub fn SkipList_insert(list: SkipList, value: i64, flips: []const f64) -> SkipList {
+    var out: SkipList = list;
+    if (out.len + 1 >= SKIP_CAP) {
+        return out;
+    }
+
+    // update[idx] = the deepest node at level idx whose value is below the
+    // new one: where the splice hangs the new node. The walk starts at the
+    // head's level and each climb stops at the first node with value >= the
+    // new one.
+    var update: [16]usize = [_]usize{0} ** 16;
+    var curr: usize = 1;
+    var i: i64 = out.levels[1] as i64;
+    while (i >= 0) {
+        var idx: usize = i as usize;
+        var next: usize = out.forward[curr][idx];
+        while (next != 0 and out.values[next] < value) {
+            curr = next;
+            next = out.forward[curr][idx];
+        }
+        update[idx] = curr;
+        i -= 1;
+    }
+
+    var level: usize = SkipList_randomLevel(flips);
+    if (level > SKIP_HEAD_LEVEL) {
+        // randomLevel never returns more than 15; the clamp keeps a caller
+        // passing a longer flip list inside the update vector.
+        level = SKIP_HEAD_LEVEL;
+    }
+
+    out.len += 1;
+    var node: usize = out.len;
+    out.values[node] = value;
+    out.levels[node] = level;
+    var j: usize = 0;
+    while (j < SKIP_W) {
+        out.forward[node][j] = 0;   // @memset(node.forward, null)
+        j += 1;
+    }
+
+    // Splice: the new node inherits each predecessor's link and the
+    // predecessor takes the new node, for levels 0..=level.
+    j = 0;
+    while (j <= level) {
+        out.forward[node][j] = out.forward[update[j]][j];
+        out.forward[update[j]][j] = node;
+        j += 1;
+    }
+    return out;
+}
+
+// contains(list: *const SkipList, value: i64) bool: the original's search,
+// step for step. From the head's level down: advance while the next node's
+// value is below the wanted one, answer true the moment a link lands on the
+// value, else drop one level.
+pub fn SkipList_contains(list: SkipList, value: i64) -> bool {
+    var curr: usize = 1;
+    var i: i64 = list.levels[1] as i64;
+    while (i >= 0) {
+        var idx: usize = i as usize;
+        var next: usize = list.forward[curr][idx];
+        while (next != 0 and list.values[next] < value) {
+            curr = next;
+            next = list.forward[curr][idx];
+        }
+        if (next != 0 and list.values[next] == value) {
+            return true;
+        }
+        i -= 1;
+    }
+    return false;
+}
+
+// deinit(list: *SkipList) void: the original only walks the level-0 chain
+// freeing nodes and the head — allocator plumbing with no decision to
+// carry, and this model holds no heap to free. The name is kept with an
+// `undefined;` body; no test calls it. (As written the original's own
+// deinit does not typecheck: it assigns a `?*SkipNode` to its `*SkipNode`
+// cursor.)
+pub fn SkipList_deinit(list: SkipList) -> void {
+    undefined;
+}
+
+// ---- tests ----
+
+// The original's own test "skiplist init": after init the head exists with
+// forward slots. Here: max_level 16, p 0.5, head at slot 1 with level 15
+// and 16 null links, len 1.
+test SkipList_init_builds_head {
+    var list = SkipList_init("test_allocator");
+    assert_eq(list.p, 0.5);
+    assert(list.max_level == 16);
+    assert(list.len == 1);
+    assert(list.levels[1] == 15);
+    assert(list.values[1] == 0);
+    var lvl: usize = 0;
+    while (lvl < SKIP_W) {
+        assert(list.forward[1][lvl] == 0);
+        lvl += 1;
+    }
+}
+
+// The original's own test "skiplist insert search": insert 5, 10, 3, then
+// contains answers for the inserted values and not for the rest. Every
+// node lands at level 0 (first flip 0.9 is not below 0.5).
+test SkipList_insert_search {
+    var list = SkipList_init("test_allocator");
+    var flat: [1]f64 = [0.9];
+    list = SkipList_insert(list, 5, &flat);
+    list = SkipList_insert(list, 10, &flat);
+    list = SkipList_insert(list, 3, &flat);
+    assert(SkipList_contains(list, 5));
+    assert(SkipList_contains(list, 10));
+    assert(SkipList_contains(list, 3));
+    assert(!SkipList_contains(list, 99));
+    assert(!SkipList_contains(list, 7));
+}
+
+// Insert keeps the level-0 chain sorted: after 5, 10, 3 it reads
+// head -> 3 -> 5 -> 10, the tail link is null, and len grew to 4.
+test SkipList_insert_orders_level0 {
+    var list = SkipList_init("test_allocator");
+    var flat: [1]f64 = [0.9];
+    list = SkipList_insert(list, 5, &flat);
+    list = SkipList_insert(list, 10, &flat);
+    list = SkipList_insert(list, 3, &flat);
+    assert(list.len == 4);
+    var n: usize = list.forward[1][0];
+    assert(list.values[n] == 3);
+    n = list.forward[n][0];
+    assert(list.values[n] == 5);
+    n = list.forward[n][0];
+    assert(list.values[n] == 10);
+    assert(list.forward[n][0] == 0);
+}
+
+// The original has no duplicate check (the walk stops at `n.value >=
+// value`), so an equal value is spliced in front of the existing one and
+// both stay reachable.
+test SkipList_insert_keeps_duplicates {
+    var list = SkipList_init("test_allocator");
+    var flat: [1]f64 = [0.9];
+    list = SkipList_insert(list, 5, &flat);
+    list = SkipList_insert(list, 5, &flat);
+    assert(SkipList_contains(list, 5));
+    var first: usize = list.forward[1][0];
+    var second: usize = list.forward[first][0];
+    assert(list.values[first] == 5);
+    assert(list.values[second] == 5);
+    assert(second != first);
+}
+
+// randomLevel's decision: a flip below p = 0.5 climbs, the boundary 0.5
+// itself does not (the original tests `< 0.5`), and the level is the count
+// of climbs.
+test SkipList_randomLevel_counts_flips {
+    var stop_first: [1]f64 = [0.5];
+    assert(SkipList_randomLevel(&stop_first) == 0);
+    var climb_two: [3]f64 = [0.25, 0.49, 0.75];
+    assert(SkipList_randomLevel(&climb_two) == 2);
+    var climb_all: [4]f64 = [0.1, 0.2, 0.3, 0.4];
+    assert(SkipList_randomLevel(&climb_all) == 4);
+}
+
+// The climb is capped at 15 (the original guards `level < 15`): sixteen
+// straight sub-p flips still give level 15, never 16.
+test SkipList_randomLevel_caps_at_head_level {
+    var flips: [16]f64 = [_]f64{0.1} ** 16;
+    assert(SkipList_randomLevel(&flips) == 15);
+}
+
+// A tower whose flips climb to level 3 is linked at levels 0..=3: the head
+// takes it at level 3, its own links hand over to the level-0 chain, and
+// the search reaches every value through the tower.
+test SkipList_insert_tower_links {
+    var list = SkipList_init("test_allocator");
+    var flat: [1]f64 = [0.9];
+    var climb: [4]f64 = [0.1, 0.1, 0.1, 0.9];
+    list = SkipList_insert(list, 10, &flat);
+    list = SkipList_insert(list, 20, &flat);
+    list = SkipList_insert(list, 5, &climb);
+    assert(list.levels[4] == 3);
+    assert(list.forward[1][3] == 4);
+    assert(list.forward[4][3] == 0);
+    assert(list.forward[4][0] == 2);
+    assert(SkipList_contains(list, 5));
+    assert(SkipList_contains(list, 10));
+    assert(SkipList_contains(list, 20));
+}
+
+// Values are i64: negatives order below the positives.
+test SkipList_insert_negative_values {
+    var list = SkipList_init("test_allocator");
+    var flat: [1]f64 = [0.9];
+    list = SkipList_insert(list, 5, &flat);
+    list = SkipList_insert(list, -3, &flat);
+    assert(SkipList_contains(list, -3));
+    assert(SkipList_contains(list, 5));
+    assert(!SkipList_contains(list, -4));
+    var head_next: usize = list.forward[1][0];
+    assert(list.values[head_next] == -3);
+}
+
+// A fresh list (head only, every link null) contains nothing — the walk
+// only ever looks at linked nodes, never at the head's own value 0.
+test SkipList_contains_empty {
+    var list = SkipList_init("test_allocator");
+    assert(!SkipList_contains(list, 0));
+    assert(!SkipList_contains(list, 5));
+}
