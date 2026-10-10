@@ -7087,7 +7087,7 @@ impl<'a> Lower<'a> {
             let txt = n.extra_size.trim();
             let Some((v, c)) = txt.rsplit_once(';') else { return Ok(None) };
             let k = self.array_len(&tn, c.trim())?;
-            let e = self.text_elem(v.trim(), txt)?;
+            let e = self.text_elem(&v.trim()[..lp::repeat_value_len(v.trim().as_bytes())], txt)?; // gen-zig drops a width suffix (#7813)
             (vec![e], k)
         } else {
             return Ok(None);

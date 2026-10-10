@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/repeat_width_suffix.t27 -- an array repeat whose value carries a Rust width suffix,
+; `[0i32; 2]`, as the reference runs it (issue #7813, t27b coverage epic #6063). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; The t27c parser keeps `[v; n]` as the text "v;n". gen-zig prints the value through strip_rust_num_suffix
+; (#6451): the suffix is dropped, so `[0i32; 2]` is `.{ 0 } ** 2` and the array type gives the width. The rule
+; is specs/tri/t27b/literal_plan.t27 (`repeat_value_len`).
+; Not here: a module-level `const R = 0i32;` (gen-zig prints it as written and Zig refuses it), and the
+; suffixes the t27c lexer does not read (`u128`, `i128`, `f16`).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceRepeatWidthSuffix;
+
+fn sum_i64(xs: []const i64) -> i64 {
+    var s: i64 = 0;
+    var i: usize = 0;
+    while (i < xs.len) {
+        s = s + xs[i];
+        i = i + 1;
+    }
+    return s;
+}
+
+test suffix_usize {
+    var a: [3]usize = [7usize; 3];
+    a[1] = 1;
+    assert(a[0] + a[1] + a[2] == 15);
+}
+
+test suffix_isize {
+    var a: [2]isize = [-3isize; 2];
+    a[0] = a[0] - 1;
+    assert(a[0] + a[1] == -7);
+}
+
+test suffix_u64 {
+    var a: [2]u64 = [4000000000u64; 2];
+    a[1] = a[1] + 1;
+    assert(a[0] + a[1] == 8000000001);
+}
+
+test suffix_i64 {
+    var a: [4]i64 = [-5i64; 4];
+    a[3] = 20;
+    assert(sum_i64(&a) == 5);
+}
+
+test suffix_u32 {
+    var a: [2]u32 = [9u32; 2];
+    a[0] = a[0] + 1;
+    assert(a[0] * a[1] == 90);
+}
+
+test suffix_i32 {
+    var xs: [2]i32 = [0i32; 2];
+    xs[1] = 5;
+    assert(xs[0] + xs[1] == 5);
+}
+
+test suffix_u16 {
+    var a: [3]u16 = [300u16; 3];
+    a[0] = 1;
+    assert(a[0] + a[2] == 301);
+}
+
+test suffix_i16 {
+    var a: [2]i16 = [-300i16; 2];
+    a[1] = 0;
+    assert(a[0] - a[1] == -300);
+}
+
+test suffix_f64 {
+    var a: [3]f64 = [1.5f64; 3];
+    a[2] = 0.5;
+    assert(a[0] + a[1] + a[2] == 3.5);
+}
+
+test suffix_f32 {
+    var a: [2]f32 = [0.25f32; 2];
+    a[0] = 0.5;
+    assert(a[0] + a[1] == 0.75);
+}
+
+test suffix_u8 {
+    var a: [4]u8 = [255u8; 4];
+    a[0] = 0;
+    assert(a[0] == 0);
+    assert(a[3] == 255);
+}
+
+test suffix_i8 {
+    var a: [64]i8 = [1i8; 64];
+    var b: [64]i8 = [-1i8; 64];
+    a[0] = 2;
+    b[63] = 0;
+    assert(a[63] + b[0] == 0);
+    assert(a[0] + b[63] == 2);
+}
+
+test a_negated_value_keeps_its_minus {
+    var a: [2]i32 = [-1i32; 2];
+    a[0] = -a[0];
+    assert(a[0] == 1);
+    assert(a[1] == -1);
+}
+
+test a_count_from_a_name {
+    var a: [N]u8 = [2u8; N];
+    a[0] = 3;
+    assert(a[0] + a[N - 1] == 5);
+}
+
+const N: usize = 5;

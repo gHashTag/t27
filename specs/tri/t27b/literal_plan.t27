@@ -15,6 +15,12 @@
 ;   An integer literal with a folded minus was already read so (#6352); this plan does not change it.
 ;   A lone `-`, or a minus in front of anything that is not a decimal digit, is no number (NOT_A_NUMBER):
 ;   the glue keeps its refusal.
+; Array repeats (#7813): the t27c parser keeps `[v; n]` as the text "v;n", and gen-zig prints the value through
+; strip_rust_num_suffix (#6451), which drops a Rust width suffix: `[0i32; 2]` is `.{ 0 } ** 2`, and the array
+; type gives the width. It tries WIDTH_SUFFIXES in that order; the first one the text ends with whose remainder
+; (one `_` before the suffix dropped, then one leading `-` skipped) starts with a digit and holds only digits,
+; `.` and `_` is cut (repeat_value_len). Anywhere else a suffix that reaches t27b in a literal's text (a
+; module-level `const R = 0i32;`) is printed as written, Zig refuses it, and so does t27b.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -24,6 +30,11 @@ module T27bLiteralPlan;
 pub const B_MINUS : u8 = 45;
 pub const B_ZERO : u8 = 48;
 pub const B_NINE : u8 = 57;
+pub const B_DOT : u8 = 46;
+pub const B_UNDERSCORE : u8 = 95;
+
+// gen-zig's Rust width suffixes, in the order strip_rust_num_suffix tries them.
+pub const WIDTH_SUFFIXES : [14]str = ["usize", "isize", "u128", "i128", "u64", "i64", "u32", "i32", "u16", "i16", "f64", "f32", "u8", "i8"];
 
 // How the text of a float literal starts (float_sign).
 pub const FLOAT_PLAIN : u8 = 0;
@@ -48,6 +59,45 @@ pub fn float_sign(first: u8, second: u8, len: usize) -> u8 {
 pub fn skip(sign: u8) -> usize {
     if (sign == FLOAT_NEGATED) { return 1; }
     return 0;
+}
+
+/// Does the text end with `w`?
+pub fn ends_with(t: []const u8, w: str) -> bool {
+    if (t.len < w.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (t[t.len - w.len + k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Is the text a number gen-zig cuts a suffix from: one `-` skipped, then a digit, then digits, `.` and `_`?
+pub fn number_text(t: []const u8) -> bool {
+    var i : usize = 0;
+    if (t.len > 0 and t[0] == B_MINUS) { i = 1; }
+    if (i >= t.len or !is_digit(t[i])) { return false; }
+    while (i < t.len) {
+        if (!is_digit(t[i]) and t[i] != B_DOT and t[i] != B_UNDERSCORE) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// How many bytes of an array repeat's value text gen-zig prints: the text without the suffix it cuts, or all
+/// of it when it cuts none. The glue parses back that much.
+pub fn repeat_value_len(t: []const u8) -> usize {
+    var k : usize = 0;
+    while (k < 14) {
+        const w = WIDTH_SUFFIXES[k];
+        if (ends_with(t, w)) {
+            var n : usize = t.len - w.len;
+            if (n > 0 and t[n - 1] == B_UNDERSCORE) { n = n - 1; }
+            if (number_text(t[0 .. n])) { return n; }
+        }
+        k = k + 1;
+    }
+    return t.len;
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -84,4 +134,40 @@ test the_bytes_are_their_ascii_codes {
     assert B_NINE == 57;
     assert is_digit(48) and is_digit(57) and is_digit(53);
     assert !is_digit(47) and !is_digit(58) and !is_digit(45);
+}
+
+test a_repeat_value_loses_its_width_suffix {
+    // zig_field_syntax.t27: `[0i32; 2]`; trinity_loss: `[1i8; 64]`, `[-1i8; 64]`.
+    assert repeat_value_len("0i32") == 1;
+    assert repeat_value_len("1i8") == 1;
+    assert repeat_value_len("-1i8") == 2;
+    assert repeat_value_len("7usize") == 1;
+    assert repeat_value_len("255u8") == 3;
+    assert repeat_value_len("1.5f64") == 3;
+    assert repeat_value_len("0.25f32") == 4;
+    assert repeat_value_len("12u128") == 2;
+}
+
+test one_underscore_before_the_suffix_goes_with_it {
+    assert repeat_value_len("1_000_u32") == 5;
+    assert repeat_value_len("3_i64") == 1;
+}
+
+test a_value_with_no_suffix_or_no_number_is_kept {
+    assert repeat_value_len("0") == 1;
+    assert repeat_value_len("SEED") == 4;
+    assert repeat_value_len("xi8") == 3;
+    assert repeat_value_len("i8") == 2;
+    assert repeat_value_len("-i8") == 3;
+    assert repeat_value_len("x1u8") == 4;
+    assert repeat_value_len("0x10u8") == 6;
+    assert repeat_value_len("") == 0;
+}
+
+test the_first_suffix_that_fits_is_cut {
+    // `u8` is tried before `i8`, `u64` before `i64`; "18u8" ends with "u8" only.
+    assert repeat_value_len("18u8") == 2;
+    assert ends_with("1i64", "i64") and !ends_with("1i64", "u64");
+    assert number_text("-1.5_") and !number_text("-") and !number_text("-.5");
+    assert !number_text("1e5") and !number_text("");
 }

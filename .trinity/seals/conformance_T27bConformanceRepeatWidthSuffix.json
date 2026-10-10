@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+c26639789",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:359015ddbb719cde82fe7850946595cd5a68cc6f6384f80f4f6f689bf485b0e7",
+  "gen_hash_rust": "sha256:4348b4821be8a54497fc6bfbc4ead7df3654e2e7b586bc72d34bf719f82908a3",
+  "gen_hash_verilog": "sha256:48d14faf24efe4d91c8f72fc37314d8249060ebc0dede940324eaf903b627da2",
+  "gen_hash_zig": "sha256:59a4082059165da2e22c380ea2e5da403fbef206fde17d1726f04366898bc41d",
+  "module": "T27bConformanceRepeatWidthSuffix",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T15:59:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2f8485f558981003d333e2bcc9701337140b5514ead54d718b61cc57f42d4361",
+  "spec_path": "specs/tri/t27b/conformance/repeat_width_suffix.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
