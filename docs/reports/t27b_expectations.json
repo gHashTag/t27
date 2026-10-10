@@ -1329,6 +1329,7 @@
   {"path": "specs/verified/device_dna.t27", "t27b": "pass"},
   {"path": "specs/verified/device_evidence.t27", "t27b": "pass"},
   {"path": "specs/verified/die_binding.t27", "t27b": "pass"},
+  {"path": "specs/verified/digest_cache.t27", "t27b": "pass"},
   {"path": "specs/verified/evidence_chain.t27", "t27b": "pass"},
   {"path": "specs/verified/failure_loop.t27", "t27b": "pass"},
   {"path": "specs/verified/frontier.t27", "t27b": "pass"},

@@ -121,6 +121,10 @@ mod verdict_audit;
 #[path = "../gen/rust/verified/gen_hash_cache.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod gen_hash_cache;
+// specs/verified/digest_cache.t27 (#8805): when a large file's sha256 may come from the stat-keyed cache.
+#[path = "../gen/rust/verified/digest_cache.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod digest_cache;
 // specs/verified/watch.t27 (#8737 H5): what `frontier --watch` reruns after a save.
 #[path = "../gen/rust/verified/watch.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
