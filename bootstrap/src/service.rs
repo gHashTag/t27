@@ -5705,6 +5705,7 @@ pub fn run_bench_agent(repo_root: &Path, busdev: String, wrong_part: String, onc
     let mark = format!("bench-agent {}/{busdev}:", who.trim());
     loop {
         let (_, out, _) = run(Command::new("gh").args(["issue", "list", "--repo", ba::JOB_REPO, "--label", ba::JOB_LABEL, "--state", "open", "--json", "number,author,body,comments"]));
+        let mut pre: Vec<Vec<String>> = Vec::new(); // #8792: owner's jobs built before their approval
         for j in serde_json::from_str::<Vec<serde_json::Value>>(&out).unwrap_or_default() {
             let n = j["number"].as_u64().unwrap_or(0).to_string();
             let cs = j["comments"].as_array().cloned().unwrap_or_default();
@@ -5719,6 +5720,13 @@ pub fn run_bench_agent(repo_root: &Path, busdev: String, wrong_part: String, onc
             let paused = std::env::temp_dir().join("t27-bench-agent-paused").exists();
             let act = ba::job_action(!paused, approved, det.contains("idcode"), det.contains(ba::BOARD_IDCODE), busy, field("flash:").is_some());
             println!("bench-agent: #{n} on {busdev}: {}", ["run", "wait", "refuse"][act as usize]);
+            let tried = std::env::temp_dir().join(format!("t27-bench-prebuilt-{n}-{}", &crate::sha256_hex(format!("{spec}|{top}|{:?}", field("seed:")).as_bytes())[..16]));
+            if ba::job_prebuild(!paused, j["author"]["login"] == ba::OWNER_LOGIN, approved, field("flash:").is_some(), tried.exists(), pre.len() as u32) {
+                std::fs::write(&tried, "")?; // tried once even if it fails: the approved run builds and reports it
+                let mut a: Vec<String> = ["silicon", spec.as_str(), "--top", top.as_str(), "--skip-hardware"].map(String::from).to_vec();
+                a.extend(field("seed:").map(|s| ["--pnr-seed".to_string(), s]).into_iter().flatten());
+                pre.push(a);
+            }
             if act != ba::JOB_RUN { continue; }
             let mut cmd = Command::new(std::env::current_exe()?);
             cmd.current_dir(repo_root).args(["silicon", &spec, "--top", &top, "--busdev-num", &busdev, "--wrong-part", &wrong_part]);
@@ -5731,6 +5739,10 @@ pub fn run_bench_agent(repo_root: &Path, busdev: String, wrong_part: String, onc
             let o = ba::run_outcome(has("A1 wrong part", "Done Some(0)"), has("B1 our bitstream", "Done Some(1)"), sout.contains("\nPASS --"), dna);
             let say = format!("{mark} {}\n\n```json\n{}```\n", ["receipt", "the spec FAILED", "BENCH problem, not the spec's"][o as usize], receipt.unwrap_or_else(|| format!("no receipt -- {}\n", sout.lines().last().unwrap_or(""))));
             run(Command::new("gh").args(["issue", "comment", &n, "--repo", ba::JOB_REPO, "--body", &say]));
+        }
+        for a in pre {
+            let (c, _, _) = run_bounded(Command::new(std::env::current_exe()?).current_dir(repo_root).args(&a), Duration::from_secs(3600));
+            println!("bench-agent: prebuilt {} for its approval (no cable touched): exit {c:?}", a[1]);
         }
         if once { return Ok(()); }
         std::thread::sleep(Duration::from_secs(ba::POLL_SECONDS as u64));

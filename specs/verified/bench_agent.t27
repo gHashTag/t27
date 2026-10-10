@@ -21,6 +21,20 @@
 ; never post APPROVE_WORD without the owner's word in chat. A signed approval is the follow-up.
 ; The operator's word. A paused agent takes nothing: the board is the operator's, and so is its window.
 ; --
+; The build before the word (#8792, hot reload #8737). A job the owner opened waits for APPROVE_WORD, and
+; until now the agent built its bitstream only after it: the board waited for yosys and nextpnr (30 s for
+; ternary_link, 400-550 s for gft_signed_mac, measured 2026-10-11) before anything loaded. job_prebuild()
+; lets the agent build such a job while it waits, with `t27c silicon --skip-hardware`: that returns before
+; the hardware section, so the cable is not touched, and it stores the bitstream in the reuse cache
+; (bitstream_reuse.t27), whose key holds only build inputs -- no nonce, no board, no cable. The approved
+; run then reads REUSE and spends its time on the board alone. Only the owner's own jobs are built (anyone
+; else's would be CPU on the operator's host for a job that will never run), never one that asks for
+; non-volatile memory, never twice (a failed prebuild is left for the approved run to build and report),
+; and nothing while the agent is paused. "Twice" is judged on the job's build fields (spec, top, seed), not
+; its text: the Queen rewrites job bodies, and measured on #8794 a marker keyed on the body built the same
+; job again on the next poll. At most PREBUILDS_PER_POLL per poll, after the approved runs, so
+; a long build delays an approved one by at most one build.
+; --
 ; Not a decision here: whether JTAG crosses a network. A USB/IP cable looks local from inside the host,
 ; so the agent cannot measure it. Installing one agent per board, on that board's own host, is the rule.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
@@ -63,6 +77,21 @@ pub fn job_action(window_open: bool, job_approved: bool, board_present: bool, id
 /// own Verilog (gen_hash_verilog) by that seal's producer (run_record.t27, RUN_PRODUCER_MISMATCH).
 pub fn image_matches(built_verilog_equal: bool, toolchain_equal: bool) -> bool {
     return built_verilog_equal and toolchain_equal;
+}
+
+/// How many jobs one poll builds ahead of their approval.
+pub const PREBUILDS_PER_POLL : u32 = 1;
+
+/// Build a job's bitstream before its approval (`t27c silicon --skip-hardware`, which never touches the
+/// cable), so the approved run reads it from the reuse cache.
+pub fn job_prebuild(window_open: bool, opened_by_owner: bool, job_approved: bool, writes_nonvolatile: bool, tried_before: bool, taken_this_poll: u32) -> bool {
+    if (window_open == false) { return false; }
+    if (taken_this_poll >= PREBUILDS_PER_POLL) { return false; }
+    if (opened_by_owner == false) { return false; }
+    // an approved job is run, not prebuilt
+    if (job_approved) { return false; }
+    if (writes_nonvolatile) { return false; }
+    return tried_before == false;
 }
 
 /// What one finished run says, and to whom.
@@ -133,6 +162,22 @@ test run_outcome_tells_the_bench_from_the_spec {
     assert run_outcome(true, true, true, false) == OUT_BENCH;
 }
 
+test job_prebuild_builds_only_the_owners_waiting_jobs_once {
+    assert job_prebuild(true, true, false, false, false, 0) == true;
+    // someone else's job: never built on the operator's host
+    assert job_prebuild(true, false, false, false, false, 0) == false;
+    // approved: job_action runs it instead
+    assert job_prebuild(true, true, true, false, false, 0) == false;
+    // flash, eFUSE or BBRAM: refused, so not built either
+    assert job_prebuild(true, true, false, true, false, 0) == false;
+    // tried once already, even if the build failed
+    assert job_prebuild(true, true, false, false, true, 0) == false;
+    // a paused agent takes nothing, not even CPU
+    assert job_prebuild(false, true, false, false, false, 0) == false;
+    // one build per poll, so an approved run waits for at most one
+    assert job_prebuild(true, true, false, false, false, 1) == false;
+}
+
 test agent_health_goes_stale_then_offline {
     assert agent_health(0) == AG_ONLINE;
     assert agent_health(AG_STALE_AFTER_S) == AG_ONLINE;
@@ -143,6 +188,7 @@ test agent_health_goes_stale_then_offline {
 
 invariant a_run_is_never_mistaken_for_a_poll {
     assert POLL_SECONDS < AG_STALE_AFTER_S and AG_STALE_AFTER_S < AG_OFFLINE_AFTER_S;
+    assert PREBUILDS_PER_POLL >= 1;
     assert JOB_RUN == 0 and JOB_WAIT == 1 and JOB_REFUSE == 2;
     assert OUT_RECEIPT == 0 and OUT_FAIL == 1 and OUT_BENCH == 2;
 }
