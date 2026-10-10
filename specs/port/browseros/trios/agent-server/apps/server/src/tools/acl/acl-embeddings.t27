@@ -1,0 +1,107 @@
+module port::acl_embeddings;
+
+pub fn getModelName() -> str {
+  // Port the decision: return model name from environment or default
+  const default_model = "Xenova/bge-small-en-v1.5";
+  return default_model;
+}
+
+pub fn isSemanticDisabled() -> bool {
+  // Port the decision: check if semantic processing is disabled
+  return false; // Environment variable check would be external dependency
+}
+
+pub fn disposeSemanticPipeline() -> void {
+  // This function has external dependencies (process, logger)
+  // Port the decision, not the plumbing
+  undefined;
+}
+
+pub fn registerPipelineCleanup() -> void {
+  // This function has external dependencies (process)
+  // Port the decision, not the plumbing
+  undefined;
+}
+
+pub fn ensurePipeline() -> void {
+  // This function has external dependencies (import, Date.now, logger)
+  // Port the decision, not the plumbing
+  undefined;
+}
+
+pub fn cosineSimilarity(a: [3]f32, b: [3]f32) -> f32 {
+  // Port the pure mathematical logic
+  if (a.len != b.len) return 0.0;
+  
+  var dot: f32 = 0.0;
+  var normA: f32 = 0.0;
+  var normB: f32 = 0.0;
+  
+  for (i in 0..a.len) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  
+  // Avoid division by zero
+  if (normA == 0.0 or normB == 0.0) return 0.0;
+  
+  const denom = sqrt_f32(normA) * sqrt_f32(normB);
+  return dot / denom;
+}
+
+pub fn computeSemanticSimilarity(left: str, right: str) -> void {
+  // This function has external dependencies (ensurePipeline, logger)
+  // Port the decision, not the plumbing
+  undefined;
+}
+
+fn sqrt_f32(x: f32) -> f32 {
+  // Simple sqrt implementation using Newton's method
+  if (x < 0.0) return 0.0;
+  if (x == 0.0) return 0.0;
+  
+  var guess: f32 = x;
+  for (i in 0..10) { // 10 iterations should be enough for our purposes
+    guess = (guess + x / guess) / 2.0;
+  }
+  return guess;
+}
+
+test getModelName_default {
+  const name = getModelName();
+  assert(name == "Xenova/bge-small-en-v1.5");
+}
+
+test isSemanticDisabled_default {
+  const disabled = isSemanticDisabled();
+  assert(disabled == false);
+}
+
+test cosineSimilarity_identical {
+  const a = [1.0, 2.0, 3.0];
+  const b = [1.0, 2.0, 3.0];
+  const score = cosineSimilarity(a, b);
+  assert(score == 1.0);
+}
+
+test cosineSimilarity_orthogonal {
+  const a = [1.0, 0.0, 0.0];
+  const b = [0.0, 1.0, 0.0];
+  const score = cosineSimilarity(a, b);
+  assert(score == 0.0);
+}
+
+test cosineSimilarity_zero {
+  const a = [0.0, 0.0, 0.0];
+  const b = [1.0, 1.0, 1.0];
+  const score = cosineSimilarity(a, b);
+  assert(score == 0.0);
+}
+
+test cosineSimilarity_negative {
+  const a = [1.0, 2.0, 1.0];
+  const b = [-1.0, -2.0, -1.0];
+  const score = cosineSimilarity(a, b);
+  assert(score == -1.0);
+}
