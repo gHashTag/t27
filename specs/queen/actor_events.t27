@@ -1,0 +1,396 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/actor_events.t27 -- what the actor runtime writes on the event bus, and what anyone may read of it
+; Owner, 2026-10-10 (translated, gHashTag/t27#8615): "visualize the actors (as in Erlang/BEAM: addresses,
+; mailboxes, supervisors) and the messages inside, and show them on the kanban board as tasks". The view
+; is actor_view.t27 (#8615); this card is its feed (gHashTag/trios#1744, night loop trios#1729 item 16).
+; Measured before this card (gHashTag/trios trios/agent-server, branch actors-next-2):
+; - no actor transition reaches anyone outside the process. The runtime counts (telemetry.t27) and logs
+;   card decisions for the operator at /queen/actors, behind the trusted-origin guard; spawn, exit, DOWN,
+;   restart and deliver are never written anywhere.
+; - the runtime's own bench passes 100 000 messages in under a second. One bus row per message would
+;   swamp a Postgres log; spawn, exit, DOWN and restart are rare.
+; The shape was agreed on trios#1744 with the view's author:
+; - spawn, exit, DOWN and restart: every one is written.
+; - a deliver that names a task (an offer, a result, a cancel) is written one by one, so a task's
+;   timeline on its card has no hole; the exit or DOWN that ends a task names it too.
+; - every other deliver is counted per sender and receiver per window into one event: count, dropped
+;   (deliver() said no), max_depth (the receiver's mailbox), first_seq and last_seq.
+; - every event: seq, at, kind, from_pid, to_pid, and task_ref (kind, repo, number or id, as tasks.t27)
+;   when there is one. spawn and restart: parent_pid, restart_count. exit and DOWN: reason_class.
+;   Never a payload, a message's arguments or a card's arguments: those can carry issue text.
+; How others publish the same thing: Akka Insights emits actor-failure and dead-letter events and samples
+; mailbox size; Orleans counts dropped messages per grain type; Erlang's sys and recon never print what a
+; mailbox holds. Discord's actor tracing samples by fan-out; here a send has one receiver, so a window
+; per pair bounds the volume instead, as telemetry.t27 bounds its samples per window.
+; Reused, not restated: events.t27 (the stream, the kinds, next_seq, cursor_read, page_size, token_ok),
+; actors.t27 (exit reasons, deliver's verdicts, strategies, intensities), tasks.t27 (task kinds).
+; Not here: the hooks, the buffer, the writes, the route (the runtime, gHashTag/trios).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenActorEvents;
+
+use queen::events::EV_ACTOR_SPAWN;
+use queen::events::EV_ACTOR_EXIT;
+use queen::events::EV_ACTOR_DOWN;
+use queen::events::EV_ACTOR_RESTART;
+use queen::events::EV_ACTOR_DELIVER;
+use queen::events::EV_ACTOR_DELIVERS;
+use queen::events::ACTOR_KINDS;
+use queen::actors::X_NORMAL;
+use queen::actors::X_SHUTDOWN;
+use queen::actors::X_KILL;
+use queen::actors::X_KILLED;
+use queen::actors::X_CRASH;
+use queen::actors::X_NOPROC;
+use queen::actors::X_NOCONNECTION;
+use queen::actors::X_NONE;
+use queen::actors::D_QUEUED;
+use queen::actors::D_DROPPED_DEAD;
+use queen::actors::D_DROPPED_FULL;
+use queen::actors::MAILBOX_CAP;
+use queen::actors::STRAT_ONE_FOR_ONE;
+use queen::actors::DOMAIN_MAX_RESTARTS;
+use queen::actors::DOMAIN_PERIOD_SECONDS;
+use queen::tasks::TASK_KINDS;
+use queen::tasks::TK_ISSUE;
+use queen::tasks::TK_JOB;
+
+; --- 1. Which deliver is written one by one ------------------------------------------------------------
+
+/// A message names a task when the runtime can read a task of a kind tasks.t27 knows from it: an offer,
+/// a result, a cancel. NO_TASK is "it names none" (a heartbeat, a wake, an "I am up").
+pub const NO_TASK : u8 = 255;
+
+pub fn carries_task(task_kind: u8) -> bool {
+    return task_kind < TASK_KINDS;
+}
+
+/// The event one deliver makes: its own EV_ACTOR_DELIVER when it names a task, else a count in its
+/// pair's EV_ACTOR_DELIVERS. A sampled stream would leave holes in exactly the timelines the view
+/// draws, and one task makes a handful of messages, so a task's messages are never thinned.
+pub fn deliver_kind(task_kind: u8) -> u8 {
+    if (carries_task(task_kind)) { return EV_ACTOR_DELIVER; }
+    return EV_ACTOR_DELIVERS;
+}
+
+/// An exit, and each DOWN it sends, names the task of the turn it cut: the pid was in a turn on a
+/// message that named a task, and the turn had not ended. An exit between turns ends no task.
+pub fn exit_task(task_kind: u8, in_turn: bool) -> bool {
+    return in_turn and carries_task(task_kind);
+}
+
+/// deliver() said no: the receiver was dead (D_DROPPED_DEAD) or its mailbox full (D_DROPPED_FULL).
+pub fn is_dropped(verdict: u8) -> bool {
+    return verdict != D_QUEUED;
+}
+
+; --- 2. Why a process ended, as anyone may read it ------------------------------------------------------
+
+/// Three classes, no more: the view colours a chip by them, and a reason code is the runtime's.
+/// normal: the process finished. shutdown: it was asked to stop (a supervisor's stop, a give-up, an
+/// auto-shutdown; actors.t27 sends all three as X_SHUTDOWN). crash: anything else - a crash, a turn
+/// killed at its bound (X_KILLED), a monitor that found no process (X_NOPROC) or lost its node
+/// (X_NOCONNECTION), and any code this card does not know.
+pub const RC_NORMAL : u8 = 0;
+pub const RC_SHUTDOWN : u8 = 1;
+pub const RC_CRASH : u8 = 2;
+pub const REASON_CLASSES : u8 = 3;
+pub const RC_NAMES : [3]str = ["normal", "shutdown", "crash"];
+
+pub fn reason_class(reason: u8) -> u8 {
+    if (reason == X_NORMAL) { return RC_NORMAL; }
+    if (reason == X_SHUTDOWN) { return RC_SHUTDOWN; }
+    return RC_CRASH;
+}
+
+; --- 3. Counting the other delivers ----------------------------------------------------------------------
+
+/// One count per (from, to) pair per window. A window opens at the pair's first deliver and lasts
+/// ACTOR_WINDOW_MS: one follower read of events.t27 (FOLLOW_MS), so a board that reads every
+/// READ_PAUSE_MS sees each pair's traffic at most two windows late. At most AGG_PAIRS_MAX pairs are
+/// open at once, so a sender that fans out to many receivers cannot grow the runtime's memory.
+pub const ACTOR_WINDOW_MS : u32 = 1000;
+pub const AGG_PAIRS_MAX : u32 = 256;
+
+/// What an event does to the open counts before it is written.
+/// OR_NONE: nothing (a spawn or a restart names a new pid, which has no count yet).
+/// OR_PAIR: the count of its own pair is written first (a deliver that names a task, a DOWN).
+/// OR_PID: every count with its pid at either end is written first (an exit).
+/// So on the bus, the messages of each pair stay in the order they were sent, counted or not
+/// (actors.t27 section 2: FIFO per sender and receiver), and a pid's last messages come before its exit.
+pub const OR_NONE : u8 = 0;
+pub const OR_PAIR : u8 = 1;
+pub const OR_PID : u8 = 2;
+
+pub fn ordering(kind: u8) -> u8 {
+    if (kind == EV_ACTOR_DELIVER or kind == EV_ACTOR_DOWN) { return OR_PAIR; }
+    if (kind == EV_ACTOR_EXIT) { return OR_PID; }
+    return OR_NONE;
+}
+
+/// Whether a new pair finds the table full; then every open count is written first.
+pub fn table_full(open_pairs: u32) -> bool {
+    return open_pairs >= AGG_PAIRS_MAX;
+}
+
+/// When an open count is written. FL_KEEP: not yet. FL_STOP: the runtime stops, so every count goes.
+/// FL_ORDER: an event about to be written must come after it (ordering). FL_FULL: a new pair needs
+/// room. FL_WINDOW: its window is over; the host asks at the pair's next deliver and on a sweep every
+/// ACTOR_WINDOW_MS, so a pair that went quiet is not left unwritten.
+pub const FL_KEEP : u8 = 0;
+pub const FL_WINDOW : u8 = 1;
+pub const FL_ORDER : u8 = 2;
+pub const FL_FULL : u8 = 3;
+pub const FL_STOP : u8 = 4;
+
+pub fn flush_reason(elapsed_ms: u32, ordered: bool, full: bool, stopping: bool) -> u8 {
+    if (stopping) { return FL_STOP; }
+    if (ordered) { return FL_ORDER; }
+    if (full) { return FL_FULL; }
+    if (elapsed_ms >= ACTOR_WINDOW_MS) { return FL_WINDOW; }
+    return FL_KEEP;
+}
+
+/// first_seq and last_seq number messages, not bus rows: every deliver a runtime makes takes the next
+/// number of that runtime, from 1. A deliver written one by one carries its own as msg_seq. So in one
+/// pair, first_seq <= last_seq, count <= last_seq - first_seq + 1, and the numbers increase in the
+/// order the messages were sent. max_depth is the receiver's mailbox length right after each deliver:
+/// what it holds once queued, or what it held when refused (MAILBOX_CAP when full).
+
+; --- 4. Between the runtime and the bus -----------------------------------------------------------------
+
+/// Events wait in the runtime until the bus has taken them, in order, one writer per runtime. While the
+/// store cannot write, at most PUBLISH_BUFFER_MAX wait; a newer event finds no room, is counted as
+/// lost, and the count is shown with the feed. Bounded memory beats a runtime that dies of its log.
+pub const PUBLISH_BUFFER_MAX : u32 = 4096;
+
+pub fn buffer_admits(buffered: u32) -> bool {
+    return buffered < PUBLISH_BUFFER_MAX;
+}
+
+; --- 5. What anyone may read ----------------------------------------------------------------------------
+
+/// The public projection keeps only these payload keys, numbers as they are and a string only when
+/// events.t27 token_ok passes it, exactly as events.t27 PUBLIC_KEYS does for the Queen's stream.
+/// Pids are u64 (actors.t27 pid_of: slot << 32 | gen) and travel as decimal strings, which token_ok
+/// passes: a JSON number loses a pid past 2^53. A payload, a message, a card's arguments, a reason's
+/// text or an issue title have no key here, whatever the runtime put next to them.
+pub const ACTOR_PUBLIC_KEYS : [22]str = [
+    "from_pid", "to_pid", "parent_pid", "restart_count", "reason_class", "task_kind", "task_repo",
+    "task_number", "task_id", "count", "dropped", "max_depth", "first_seq", "last_seq", "msg_seq",
+    "depth", "actor", "strategy", "max_restarts", "period_seconds", "at_ms", "supervisor"
+];
+
+; --- 6. A trace to replay until the actors publish -------------------------------------------------------
+
+/// The network MVP (#8610) is to emit a seeded trace of its actors; specs/network/mvp.t27 does not exist
+/// yet. Until it does, the feed can replay this one, written by hand from #8610's description: a root
+/// supervisor (one_for_one, the domain's intensity), a dispatcher, a reference worker (t27c's verdict),
+/// a native worker (t27b's verdict), a third worker, a verifier and a treasurer. Job 1 is offered to two
+/// workers, both receipts reach the verifier, and the treasurer is told to pay. Job 2 goes to the
+/// reference worker and the third worker, which crashes mid-turn; its supervisor restarts it, the
+/// dispatcher (which monitors it) offers the job again, and the verifier refuses the lying receipt. Two
+/// counted windows: heartbeats to the verifier, and a burst to the treasurer that finds its mailbox
+/// full. One row per event, columns by index; pids as slot and generation (actors.t27 pid_of). When
+/// mvp.t27 emits its own trace, it replaces this table.
+pub const REPLAY_EVENTS : u32 = 24;
+pub const REPLAY_T0_MS : u64 = 1791590400000;
+pub const REPLAY_REPO : str = "gHashTag/t27";
+/// Literals, each pinned to its home by the_replay_names_its_homes: `t27c gen-ts` cannot emit a const
+/// that reads an imported one, and the replay's host reads these from the generated module.
+pub const REPLAY_TASK_KIND : u8 = 2;
+pub const REPLAY_JOB_IDS : [2]str = ["mvp-job-1", "mvp-job-2"];
+/// Slot s is REPLAY_ACTOR_NAMES[s - 1]; slot 1 is the root supervisor.
+pub const REPLAY_ACTOR_NAMES : [7]str = [
+    "mvp-root", "dispatcher", "worker-ref", "worker-native", "worker", "verifier", "treasurer"
+];
+pub const REPLAY_SUPERVISOR_SLOT : u32 = 1;
+pub const REPLAY_STRATEGY : u8 = 0;
+pub const REPLAY_MAX_RESTARTS : u32 = 3;
+pub const REPLAY_PERIOD_SECONDS : u32 = 300;
+pub const REPLAY_KIND : [24]u8 = [0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 1, 2, 3, 4, 5, 4, 4, 4, 5, 1];
+pub const REPLAY_FROM_SLOT : [24]u32 = [0, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4, 6, 2, 2, 5, 5, 1, 2, 2, 5, 3, 6, 2, 4];
+pub const REPLAY_FROM_GEN : [24]u32 = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1];
+pub const REPLAY_TO_SLOT : [24]u32 = [1, 2, 3, 4, 5, 6, 7, 3, 4, 6, 6, 7, 3, 5, 1, 2, 5, 5, 6, 6, 6, 2, 7, 1];
+pub const REPLAY_TO_GEN : [24]u32 = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1];
+/// actors.t27 exit reasons for an exit or a DOWN; X_NONE elsewhere.
+pub const REPLAY_REASON : [24]u8 = [99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 4, 4, 99, 99, 99, 99, 99, 99, 99, 0];
+/// 0: no task; j: REPLAY_JOB_IDS[j - 1].
+pub const REPLAY_TASK : [24]u8 = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 0, 2, 0, 2, 2, 2, 0, 0];
+pub const REPLAY_RESTARTS : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
+pub const REPLAY_COUNT : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 10, 1, 1, 1, 4, 0];
+pub const REPLAY_DROPPED : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+/// depth for a single deliver, max_depth for a count.
+pub const REPLAY_DEPTH : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 1, 1, 1, 2, 1, 256, 0];
+/// msg_seq for a single deliver (first = last), first_seq and last_seq for a count; 0 elsewhere.
+pub const REPLAY_FIRST : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 8, 9, 19, 20, 21, 22, 0];
+pub const REPLAY_LAST : [24]u32 = [0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 8, 18, 19, 20, 21, 25, 0];
+pub const REPLAY_AT_MS : [24]u32 = [0, 1, 2, 3, 4, 5, 6, 100, 101, 350, 420, 430, 495, 500, 900, 900, 1905, 1910, 2000, 2300, 2310, 2400, 3000, 3500];
+
+test a_deliver_naming_a_task_is_written_one_by_one {
+    assert carries_task(TK_ISSUE) == true;
+    assert carries_task(TK_JOB) == true;
+    assert carries_task(TASK_KINDS - 1) == true;
+    assert carries_task(TASK_KINDS) == false;
+    assert carries_task(NO_TASK) == false;
+    assert deliver_kind(TK_ISSUE) == EV_ACTOR_DELIVER;
+    assert deliver_kind(TK_JOB) == EV_ACTOR_DELIVER;
+    assert deliver_kind(NO_TASK) == EV_ACTOR_DELIVERS;
+    assert deliver_kind(TASK_KINDS) == EV_ACTOR_DELIVERS;
+}
+
+test an_exit_names_the_task_of_the_turn_it_cut {
+    assert exit_task(TK_ISSUE, true) == true;
+    assert exit_task(TK_JOB, true) == true;
+    // between turns, or in a turn on a heartbeat, no task ends
+    assert exit_task(TK_ISSUE, false) == false;
+    assert exit_task(NO_TASK, true) == false;
+    assert exit_task(NO_TASK, false) == false;
+}
+
+test a_refused_deliver_is_counted_as_dropped {
+    assert is_dropped(D_QUEUED) == false;
+    assert is_dropped(D_DROPPED_DEAD) == true;
+    assert is_dropped(D_DROPPED_FULL) == true;
+}
+
+test every_exit_reason_has_one_of_three_classes {
+    assert reason_class(X_NORMAL) == RC_NORMAL;
+    assert reason_class(X_SHUTDOWN) == RC_SHUTDOWN;
+    assert reason_class(X_KILL) == RC_CRASH;
+    assert reason_class(X_KILLED) == RC_CRASH;
+    assert reason_class(X_CRASH) == RC_CRASH;
+    assert reason_class(X_NOPROC) == RC_CRASH;
+    assert reason_class(X_NOCONNECTION) == RC_CRASH;
+    assert reason_class(X_NONE) == RC_CRASH;
+    var r : u32 = 0;
+    while (r < 256) {
+        assert reason_class(r as u8) < REASON_CLASSES;
+        r = r + 1;
+    }
+}
+
+test an_event_writes_the_counts_it_must_follow {
+    assert ordering(EV_ACTOR_DELIVER) == OR_PAIR;
+    assert ordering(EV_ACTOR_DOWN) == OR_PAIR;
+    assert ordering(EV_ACTOR_EXIT) == OR_PID;
+    assert ordering(EV_ACTOR_SPAWN) == OR_NONE;
+    assert ordering(EV_ACTOR_RESTART) == OR_NONE;
+    assert ordering(EV_ACTOR_DELIVERS) == OR_NONE;
+    assert ordering(ACTOR_KINDS) == OR_NONE;
+}
+
+test a_count_is_written_at_its_window_or_before_what_follows_it {
+    assert flush_reason(0, false, false, false) == FL_KEEP;
+    assert flush_reason(ACTOR_WINDOW_MS - 1, false, false, false) == FL_KEEP;
+    assert flush_reason(ACTOR_WINDOW_MS, false, false, false) == FL_WINDOW;
+    assert flush_reason(4000000000, false, false, false) == FL_WINDOW;
+    // an event that must come after it, at once, whatever the window says
+    assert flush_reason(0, true, false, false) == FL_ORDER;
+    assert flush_reason(ACTOR_WINDOW_MS, true, false, false) == FL_ORDER;
+    // a full table makes room before a new pair opens
+    assert flush_reason(0, false, true, false) == FL_FULL;
+    // stopping writes everything
+    assert flush_reason(0, false, false, true) == FL_STOP;
+    assert flush_reason(0, true, true, true) == FL_STOP;
+    assert table_full(0) == false;
+    assert table_full(AGG_PAIRS_MAX - 1) == false;
+    assert table_full(AGG_PAIRS_MAX) == true;
+}
+
+test the_buffer_is_bounded {
+    assert buffer_admits(0) == true;
+    assert buffer_admits(PUBLISH_BUFFER_MAX - 1) == true;
+    assert buffer_admits(PUBLISH_BUFFER_MAX) == false;
+}
+
+test the_replay_trace_is_one_the_view_can_read {
+    // every row is an actor kind; a deliver names a task exactly when the card says it is one by one
+    var i : u32 = 0;
+    var spawned : u32 = 0;
+    var last_msg : u32 = 0;
+    var last_at : u32 = 0;
+    while (i < REPLAY_EVENTS) {
+        let k : u8 = REPLAY_KIND[i];
+        assert k < ACTOR_KINDS;
+        assert REPLAY_AT_MS[i] >= last_at;
+        last_at = REPLAY_AT_MS[i];
+        var tk : u8 = NO_TASK;
+        if (REPLAY_TASK[i] > 0) { tk = REPLAY_TASK_KIND; }
+        if (k == EV_ACTOR_DELIVER or k == EV_ACTOR_DELIVERS) {
+            assert deliver_kind(tk) == k;
+            // messages are numbered in the order they were sent
+            assert REPLAY_FIRST[i] > last_msg;
+            assert REPLAY_FIRST[i] <= REPLAY_LAST[i];
+            assert REPLAY_COUNT[i] >= 1;
+            assert REPLAY_COUNT[i] <= REPLAY_LAST[i] - REPLAY_FIRST[i] + 1;
+            assert REPLAY_DROPPED[i] <= REPLAY_COUNT[i];
+            assert REPLAY_DEPTH[i] <= MAILBOX_CAP;
+            last_msg = REPLAY_LAST[i];
+        }
+        if (k == EV_ACTOR_DELIVER) {
+            assert REPLAY_COUNT[i] == 1 and REPLAY_FIRST[i] == REPLAY_LAST[i];
+        }
+        if (k == EV_ACTOR_EXIT or k == EV_ACTOR_DOWN) {
+            assert REPLAY_REASON[i] != X_NONE;
+        } else {
+            assert REPLAY_REASON[i] == X_NONE;
+        }
+        if (k == EV_ACTOR_SPAWN) {
+            // spawned in slot order, each by the root supervisor (slot 1 by no one)
+            spawned = spawned + 1;
+            assert REPLAY_TO_SLOT[i] == spawned and REPLAY_TO_GEN[i] == 1;
+            if (spawned == REPLAY_SUPERVISOR_SLOT) { assert REPLAY_FROM_SLOT[i] == 0; }
+            else { assert REPLAY_FROM_SLOT[i] == REPLAY_SUPERVISOR_SLOT; }
+        } else {
+            // every other row names pids already spawned
+            assert REPLAY_FROM_SLOT[i] >= 1 and REPLAY_FROM_SLOT[i] <= spawned;
+            assert REPLAY_TO_SLOT[i] >= 1 and REPLAY_TO_SLOT[i] <= spawned;
+        }
+        if (k == EV_ACTOR_RESTART) {
+            assert REPLAY_FROM_SLOT[i] == REPLAY_SUPERVISOR_SLOT;
+            assert REPLAY_RESTARTS[i] >= 1 and REPLAY_RESTARTS[i] <= REPLAY_MAX_RESTARTS;
+        }
+        i = i + 1;
+    }
+    assert spawned == 7;
+}
+
+test the_replay_crash_ends_its_task_and_comes_back {
+    // row 15: worker 5.1 crashes in its turn on job 2; row 16: the dispatcher hears DOWN on job 2
+    assert REPLAY_KIND[14] == EV_ACTOR_EXIT and reason_class(REPLAY_REASON[14]) == RC_CRASH;
+    assert exit_task(REPLAY_TASK_KIND, true) == true and REPLAY_TASK[14] == 2;
+    assert REPLAY_KIND[15] == EV_ACTOR_DOWN and REPLAY_FROM_SLOT[15] == 5 and REPLAY_TO_SLOT[15] == 2;
+    assert REPLAY_TASK[15] == REPLAY_TASK[14];
+    // row 17: restarted in the same slot, one generation on; row 18: offered job 2 again
+    assert REPLAY_KIND[16] == EV_ACTOR_RESTART and REPLAY_TO_SLOT[16] == 5 and REPLAY_TO_GEN[16] == 2;
+    assert REPLAY_KIND[17] == EV_ACTOR_DELIVER and REPLAY_TO_GEN[17] == 2 and REPLAY_TASK[17] == 2;
+    // job 2 went to two workers, as job 1 did: the reference worker (slot 3) and slot 5
+    assert REPLAY_TO_SLOT[12] == 3 and REPLAY_TASK[12] == 2;
+    assert REPLAY_TO_SLOT[13] == 5 and REPLAY_TASK[13] == 2;
+    // the last row: the native worker ends normally, between turns, on no task
+    assert REPLAY_KIND[23] == EV_ACTOR_EXIT and reason_class(REPLAY_REASON[23]) == RC_NORMAL;
+    assert REPLAY_TASK[23] == 0;
+    // the burst to the treasurer found its mailbox full once
+    assert REPLAY_KIND[22] == EV_ACTOR_DELIVERS and REPLAY_DROPPED[22] == 1;
+    assert REPLAY_DEPTH[22] == MAILBOX_CAP;
+}
+
+invariant the_window_is_one_follower_read {
+    assert ACTOR_WINDOW_MS == 1000;
+    assert AGG_PAIRS_MAX >= 64;
+    assert PUBLISH_BUFFER_MAX >= AGG_PAIRS_MAX;
+}
+
+invariant three_reason_classes {
+    assert REASON_CLASSES == 3 and RC_CRASH == REASON_CLASSES - 1;
+    assert NO_TASK >= TASK_KINDS;
+}
+
+invariant the_replay_names_its_homes {
+    assert REPLAY_TASK_KIND == TK_JOB;
+    assert REPLAY_STRATEGY == STRAT_ONE_FOR_ONE;
+    assert REPLAY_MAX_RESTARTS == DOMAIN_MAX_RESTARTS;
+    assert REPLAY_PERIOD_SECONDS == DOMAIN_PERIOD_SECONDS;
+}

@@ -198,6 +198,36 @@ pub fn prune_through(newest: u64) -> u64 {
     return newest - KEEP_AT_LEAST;
 }
 
+; --- 6. The actors' own stream ---------------------------------------------------------------------
+
+/// The actor runtime (actors.t27) publishes what its processes do on a stream of its own, ACTOR_STREAM,
+/// of this same log: the same counter row and next_seq, the same cursor_read, delta_action, page_size
+/// and prune_through. One sequence per stream, so a reader of the actors' feed can still tell
+/// "nothing happened" from "I missed something" (section 1). A stream of its own, and not more kinds
+/// on the Queen's, for two reasons: every process follows the Queen's stream (section 4), and actor
+/// traffic must neither wake her nor bring her task events closer to the prune floor (section 5).
+/// Kinds on that stream (gHashTag/trios#1744, agreed with the view of gHashTag/t27#8615). Index into
+/// ACTOR_EVENT_NAMES. spawn, exit, DOWN and restart are rare and every one is written. A deliver that
+/// names a task is written one by one (EV_ACTOR_DELIVER); every other deliver is counted into one
+/// EV_ACTOR_DELIVERS per sender and receiver per window. actor_events.t27 decides which is which.
+pub const ACTOR_STREAM : str = "actors";
+pub const EV_ACTOR_SPAWN : u8 = 0;
+pub const EV_ACTOR_EXIT : u8 = 1;
+pub const EV_ACTOR_DOWN : u8 = 2;
+pub const EV_ACTOR_RESTART : u8 = 3;
+pub const EV_ACTOR_DELIVER : u8 = 4;
+pub const EV_ACTOR_DELIVERS : u8 = 5;
+pub const ACTOR_KINDS : u8 = 6;
+pub const ACTOR_EVENT_NAMES : [6]str = [
+    "actor.spawn", "actor.exit", "actor.down", "actor.restart", "actor.deliver", "actor.delivers"
+];
+
+/// Whether a kind is one the actors' stream carries. A row of any other kind on that stream is not
+/// projected: it was not written by this card's rules.
+pub fn actor_kind_ok(kind: u8) -> bool {
+    return kind < ACTOR_KINDS;
+}
+
 test numbers_follow_one_another {
     assert next_seq(0) == 1;
     assert next_seq(41) == 42;
@@ -344,4 +374,20 @@ invariant one_row_per_kind {
     assert KEEP_SECONDS == 72 * 3600;
     assert READ_PAUSE_MS < FOLLOW_MS * 5;
     assert SNAPSHOT_EVERY_SECONDS * 1000 > READ_PAUSE_MS;
+}
+
+test the_actors_have_kinds_of_their_own {
+    assert actor_kind_ok(EV_ACTOR_SPAWN) == true;
+    assert actor_kind_ok(EV_ACTOR_EXIT) == true;
+    assert actor_kind_ok(EV_ACTOR_DOWN) == true;
+    assert actor_kind_ok(EV_ACTOR_RESTART) == true;
+    assert actor_kind_ok(EV_ACTOR_DELIVER) == true;
+    assert actor_kind_ok(EV_ACTOR_DELIVERS) == true;
+    assert actor_kind_ok(ACTOR_KINDS) == false;
+    assert actor_kind_ok(255) == false;
+}
+
+invariant the_actor_kinds_are_numbered_in_order {
+    assert EV_ACTOR_SPAWN == 0 and EV_ACTOR_DELIVERS == ACTOR_KINDS - 1;
+    assert ACTOR_KINDS == 6;
 }

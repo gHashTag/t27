@@ -1,0 +1,7 @@
+# NOW -- actor_events.t27: actor transitions on the event bus, and what anyone may read of them (2026-10-10)
+
+## specs/queen/actor_events.t27 and events.t27 section 6 (Closes #8640; gHashTag/trios#1744, night loop trios#1729 item 16)
+
+- The actor runtime gets its own stream, `actors`, on the events.t27 log, with the same counter, next_seq, cursor and page rules. It has six kinds: spawn, exit, DOWN, restart, deliver (one by one) and delivers (a count). The shape was agreed on trios#1744 with the view of #8615. A deliver that names a task is written one by one, never sampled. Every other deliver is counted per sender and receiver per ACTOR_WINDOW_MS = 1000, with count, dropped, max_depth, first_seq and last_seq. A count is written before any event that must follow it, so each pair's messages keep their send order on the bus. Exit reasons fold to normal, shutdown or crash. The public projection keeps only `ACTOR_PUBLIC_KEYS`, numbers or token_ok strings, never a payload.
+- `t27c test-report`: actor_events.t27 has 9 tests, 0 FAIL, 0 vacuous and 3 invariants; events.t27 has 13 tests, 0 FAIL and 0 vacuous. Negative controls: 22 mutants. 18 FAIL a test by name and 4 are BLOCKED by an invariant.
+- The network MVP's trace (#8610) does not exist yet. A hand-written stand-in of its network (24 rows) lets the feed replay until specs/network/mvp.t27 emits its own. Runtime: gHashTag/trios `actors-next-2` behind `TRIOS_QUEEN_ACTOR_EVENTS=on`, at `GET /queen/public-actors?since=<seq>`. Per-message cost with the flag off and on goes to #7851.
