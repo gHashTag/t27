@@ -3,17 +3,17 @@
  "generated_by": "tools/trinity_manifest.py check",
  "consumer": {
   "repo": "gHashTag/trinity",
-  "sha": "976df517419f918f05b78e73767e2fdf4aad14be",
-  "committed_at": "2026-09-12T08:40:38Z"
+  "sha": "7530b27b2ff98b4b52f9d3e2f918c83ab72546dc",
+  "committed_at": "2026-10-10T19:17:29+07:00"
  },
  "canonical_specs": {
-  "t27_files_in_trinity_outside_the_mirror_and_the_vendored_contracts": 31,
+  "t27_files_in_trinity_outside_the_mirror_and_the_vendored_contracts": 35,
   "tri_files": 764,
   "vibee_files": 1981,
   "note": "files of three dialects; only .t27 is compiled by t27c, counts cannot be added into a generation claim"
  },
  "mirrored_files": {
-  "t27_mirror": 1044,
+  "t27_mirror": 1577,
   "prefix": "apps/website/public/t27/files/",
   "note": "vendored copies of other repositories' specs; never canonical"
  },
@@ -24,11 +24,11 @@
  },
  "catalog_snapshot": {
   "note": "counts of the vendored website catalog at this revision; a snapshot, never implementation coverage",
-  "manifest_specs": 856,
+  "manifest_specs": 1577,
   "manifest_repos": [
    {
     "repo": "t27",
-    "specs": 575
+    "specs": 1109
    },
    {
     "repo": "tri-net",
@@ -40,7 +40,7 @@
    },
    {
     "repo": "trinity",
-    "specs": 3
+    "specs": 6
    },
    {
     "repo": "tt-trinity-corona",
@@ -48,21 +48,37 @@
    },
    {
     "repo": "dmitrii-f-t27/trinity-memory",
-    "specs": 37
+    "specs": 93
+   },
+   {
+    "repo": "agent-mail-mcp",
+    "specs": 1
    },
    {
     "repo": "trios",
     "specs": 58
    },
    {
+    "repo": "tt-trinity-euler",
+    "specs": 49
+   },
+   {
     "repo": "tt-trinity-gamma",
+    "specs": 33
+   },
+   {
+    "repo": "tt-trinity-phi",
     "specs": 1
+   },
+   {
+    "repo": "turbobaby-user-bot",
+    "specs": 45
    }
   ],
-  "atlas_at": "2026-09-12T04:15:45.736Z",
-  "atlas_worlds": 8,
-  "atlas_specs": 856,
-  "atlas_issues": 1030
+  "atlas_at": "2026-09-24T17:24:32.420Z",
+  "atlas_worlds": 12,
+  "atlas_specs": 1577,
+  "atlas_issues": 1238
  },
  "build": {
   "BUILD_EXECUTABLES": 51,
@@ -73,9 +89,9 @@
   "INSTALLED_GUARDED": 3
  },
  "zig_unreachable": {
-  "count": 2082,
+  "count": 2073,
   "by_dir": {
-   "src/tri": 499,
+   "src/tri": 497,
    "src/vibeec": 375,
    "deploy": 258,
    "src/phi-engine": 216,
@@ -85,10 +101,10 @@
    "src/brain": 43,
    "src/consciousness": 43,
    "src/b2t": 37,
-   "tests": 29,
    "tools": 28,
    "src/cli": 27,
    "src/tvc": 27,
+   "tests": 27,
    "src/tri27": 26,
    "archive": 24,
    "trinity": 23,
@@ -107,7 +123,6 @@
    "src/depin": 6,
    "examples": 5,
    "src/bsd": 5,
-   "src/clara": 5,
    "src/common": 5,
    "src/cosmos": 5,
    "src/forge": 5,
@@ -389,6 +404,10 @@
   {
    "code": "UNKNOWN_TARGET",
    "message": "brain.regions.t27: TARGETS test:src/brain/stress_test.zig matches nothing build.zig defines"
+  },
+  {
+   "code": "ABSENT_PATH",
+   "message": "fpga.adapter.t27: IMPLEMENTATION tools/trinity_fpga_adapter.py does not exist in the pinned tree"
   }
  ]
 }

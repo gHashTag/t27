@@ -1,23 +1,28 @@
+Using SSH key from file /Users/playra/.ssh/id_ed25519_codex_queen.pub: codex-queen-volume-audit
 {
   "built_by": "t27c-bootstrap@0.5.2+b9cf73e",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:2655b96118e2f2383c39fe5215c1e2490736ae8cdbe29aa3d266af208b8be591",
-  "gen_hash_rust": "sha256:e0a7c42ac9d981306209ecbc8cb3362ef6c3ce94a70249cb850b451f4de7d208",
-  "gen_hash_verilog": "sha256:3b1f7eae260537a32b614c1f28fcb37a244d94c78a6d097ea304af630ddf7679",
-  "gen_hash_zig": "sha256:df2cfd623f97fc9a4d77c26d1128edfc06779f80ffaca5ad3edb36a663d60cee",
+  "gen_hash_c": "sha256:400008d7b1f3591782d6aad152f534f2623e7124584439dae8dcfe6ba50ec6f7",
+  "gen_hash_rust": "sha256:75e7832af9371dbb8e306da516c38dc079aea95a7db5ffebdea8df4a8f6cb681",
+  "gen_hash_verilog": "sha256:5ec2c295816a35082da8fdf21c60c9bb1a13a954dec7f1c15d418ffd573e1d2c",
+  "gen_hash_zig": "sha256:d2de49d2c25c6928de9cb10c92293a430a609628b78849aeeb7e7105ab3cfb35",
   "module": "agent_c",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T10:34:31Z",
+  "sealed_at": "2026-10-10T12:32:36Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:c98305cf98c55dcffcf9bb1d74508db356d31274451aff52d6009a4fc09d14e7",
+  "spec_hash": "sha256:279a32045fbb5b40ba98d1b8d05858327669d0534a8ee2a09b041003c6974a2b",
   "spec_path": "specs/agents/c.t27",
   "tests": {
-    "blocked": "zig not on PATH"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
   },
   "toolchain": {
-    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
-    "zig": "missing"
+    "test_runner": "missing",
+    "zig": "0.16.0"
   }
 }

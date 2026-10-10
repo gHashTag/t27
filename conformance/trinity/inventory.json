@@ -2,26 +2,26 @@
  "version": 1,
  "generated_by": "tools/trinity_manifest.py inventory",
  "repo": "gHashTag/trinity",
- "sha": "976df517419f918f05b78e73767e2fdf4aad14be",
+ "sha": "7530b27b2ff98b4b52f9d3e2f918c83ab72546dc",
  "dirty": false,
- "committed_at": "2026-09-12T08:40:38Z",
- "tracked_files": 14050,
+ "committed_at": "2026-10-10T19:17:29+07:00",
+ "tracked_files": 14721,
  "top_level": {
-  "deploy": 3213,
-  "src": 2623,
-  "apps": 1825,
+  "deploy": 3224,
+  "src": 2614,
+  "apps": 2495,
   "specs": 1167,
   "zig-pkg": 1061,
   "fpga": 909,
-  "docs": 874,
-  ".trinity": 776,
+  "docs": 866,
+  ".trinity": 775,
   "tools": 324,
   "targets": 251,
   "archive": 250,
   "hardware": 201,
-  ".github": 96,
-  ".claude": 75,
-  "tests": 73,
+  ".github": 99,
+  ".claude": 76,
+  "tests": 71,
   "examples": 46,
   "data": 41,
   "t27": 34,
@@ -29,9 +29,9 @@
   "lab": 23,
   "release": 21,
   ".zig-cache-new": 17,
+  "scripts": 14,
   "external": 8,
   "fpga-network": 8,
-  "scripts": 8,
   ".claude-plugin": 7,
   "tapes": 5,
   "vscode-trinity-swe": 5,
@@ -100,15 +100,19 @@
   "vercel.json": 1
  },
  "dialects": {
-  "t27_canonical": 31,
-  "t27_mirror": 1044,
+  "t27_canonical": 35,
+  "t27_mirror": 1577,
   "t27_vendored": 0,
   "tri": 764,
   "vibee": 1981,
-  "zig": 2830,
+  "zig": 2819,
   "mirror_prefix": "apps/website/public/t27/files/",
   "vendored_prefix": "external/t27/",
   "t27_canonical_files": [
+   "apps/website/public/agents.t27",
+   "apps/website/public/queen/wars.t27",
+   "apps/website/specs/catalog/onboarding.t27",
+   "apps/website/specs/queen/wars.t27",
    "specs/physics/gamma_conjecture.t27",
    "src/tri27/cache_w/tiny_lfu.t27",
    "src/tri27/locus_coeruleus_backoff.t27",
@@ -2114,11 +2118,11 @@
   }
  ],
  "zig_reachability": {
-  "zig_files": 2830,
-  "reachable": 748,
-  "unreachable": 2082,
+  "zig_files": 2819,
+  "reachable": 746,
+  "unreachable": 2073,
   "unreachable_by_dir": {
-   "src/tri": 499,
+   "src/tri": 497,
    "src/vibeec": 375,
    "deploy": 258,
    "src/phi-engine": 216,
@@ -2128,10 +2132,10 @@
    "src/brain": 43,
    "src/consciousness": 43,
    "src/b2t": 37,
-   "tests": 29,
    "tools": 28,
    "src/cli": 27,
    "src/tvc": 27,
+   "tests": 27,
    "src/tri27": 26,
    "archive": 24,
    "trinity": 23,
@@ -2150,7 +2154,6 @@
    "src/depin": 6,
    "examples": 5,
    "src/bsd": 5,
-   "src/clara": 5,
    "src/common": 5,
    "src/cosmos": 5,
    "src/forge": 5,
@@ -2725,11 +2728,6 @@
    "src/bsd/test_parser.zig",
    "src/bsd/vsa_fpga.zig",
    "src/btc_mining_mvp.zig",
-   "src/clara/baselines.zig",
-   "src/clara/bounded.zig",
-   "src/clara/explain.zig",
-   "src/clara/kill_web.zig",
-   "src/clara/rules.zig",
    "src/cli/exit_codes.zig",
    "src/cli/find_island.zig",
    "src/cli/find_island_simple.zig",
@@ -3228,7 +3226,6 @@
    "src/tri/cell_trends.zig",
    "src/tri/channel.zig",
    "src/tri/checker.zig",
-   "src/tri/clara/verification.zig",
    "src/tri/collections.zig",
    "src/tri/command_interface.zig",
    "src/tri/commands/issue_github.zig",
@@ -3649,7 +3646,6 @@
    "src/tri/tree.zig",
    "src/tri/tri_agent_daemon.zig",
    "src/tri/tri_arrow_time.zig",
-   "src/tri/tri_clara_stub.zig",
    "src/tri/tri_cli_commands.zig",
    "src/tri/tri_cli_integration.zig",
    "src/tri/tri_cli_parse.zig",
@@ -4182,8 +4178,6 @@
    "tests/needle/fixtures/valid_zig.zig",
    "tests/needle/test_helpers.zig",
    "tests/snapshots_json_tests.zig",
-   "tests/unit/test/clara_integration.zig",
-   "tests/unit/test/clara_polynomial.zig",
    "tools/bench_brain.zig",
    "tools/bindings/python/igla_lib.zig",
    "tools/bindings/wasm/igla.zig",
@@ -4360,11 +4354,11 @@
  },
  "catalog_snapshot": {
   "note": "counts of the vendored website catalog at this revision; a snapshot, never implementation coverage",
-  "manifest_specs": 856,
+  "manifest_specs": 1577,
   "manifest_repos": [
    {
     "repo": "t27",
-    "specs": 575
+    "specs": 1109
    },
    {
     "repo": "tri-net",
@@ -4376,7 +4370,7 @@
    },
    {
     "repo": "trinity",
-    "specs": 3
+    "specs": 6
    },
    {
     "repo": "tt-trinity-corona",
@@ -4384,21 +4378,37 @@
    },
    {
     "repo": "dmitrii-f-t27/trinity-memory",
-    "specs": 37
+    "specs": 93
+   },
+   {
+    "repo": "agent-mail-mcp",
+    "specs": 1
    },
    {
     "repo": "trios",
     "specs": 58
    },
    {
+    "repo": "tt-trinity-euler",
+    "specs": 49
+   },
+   {
     "repo": "tt-trinity-gamma",
+    "specs": 33
+   },
+   {
+    "repo": "tt-trinity-phi",
     "specs": 1
+   },
+   {
+    "repo": "turbobaby-user-bot",
+    "specs": 45
    }
   ],
-  "atlas_at": "2026-09-12T04:15:45.736Z",
-  "atlas_worlds": 8,
-  "atlas_specs": 856,
-  "atlas_issues": 1030
+  "atlas_at": "2026-09-24T17:24:32.420Z",
+  "atlas_worlds": 12,
+  "atlas_specs": 1577,
+  "atlas_issues": 1238
  },
  "tree": {
   "": [
@@ -4549,6 +4559,9 @@
   ".claude/skills/cloud": [
    "SKILL.md"
   ],
+  ".claude/skills/connect-accounts": [
+   "SKILL.md"
+  ],
   ".claude/skills/doctor": [
    "SKILL.md"
   ],
@@ -4676,11 +4689,11 @@
    "agent-queue-drain.yml",
    "agent-spawn-pool.yml",
    "benchmark-tests.yml",
+   "board-release.yml",
    "brain-ci.yml",
    "build-compiler-release.yml",
    "build-paths-check.yml",
    "build-paths.yml",
-   "build-release.yml",
    "ci-runner.yml",
    "ci.yml",
    "claude-code-review.yml",
@@ -4712,6 +4725,9 @@
    "lint-specs.yml",
    "nexus-build.yml",
    "pages-health-check.yml",
+   "pr-blog-author.yml",
+   "pr-blog-report.yml",
+   "pr-blog-tests.yml",
    "pre-commit-check.yml",
    "project-auto-add.yml",
    "project-auto-status.yml",
@@ -4724,8 +4740,8 @@
    "signal-health.yml",
    "simd-bench.yml",
    "site-live-gate.yml",
+   "t27-media-schedules.yml",
    "t27-world-scan.yml",
-   "trinity-binary-release.yml",
    "verify-request.yml",
    "vibee-production-swarm.yml",
    "wave9-deploy.yml",
@@ -5620,9 +5636,6 @@
   ".trinity/tasks": [
    ".gitkeep"
   ],
-  ".trinity/templates": [
-   "clara-partnership.md"
-  ],
   ".trinity/tmux/layouts": [
    "ralph-dashboard.conf"
   ],
@@ -5697,6 +5710,7 @@
   ],
   "apps/queen-proxy": [
    "RESTORE.md",
+   "caller.mjs",
    "package.json",
    "server.mjs"
   ],
@@ -6017,11 +6031,13 @@
   ],
   "apps/website/public": [
    "404.html",
+   "agents.t27",
    "apple-touch-icon.png",
    "cv.pdf",
    "favicon-16x16.png",
    "favicon-32x32.png",
    "favicon.svg",
+   "llms.txt",
    "manifest.json",
    "og-image.png",
    "trinity-logo-with-label.svg"
@@ -6077,6 +6093,8 @@
    "structure-dropped-256.png",
    "structure-review-256.png",
    "structure-running-256.png",
+   "wars.json",
+   "wars.t27",
    "wright-256.png",
    "wright-archon-256.png",
    "wright-artisan-256.png",
@@ -6085,6 +6103,50 @@
   ],
   "apps/website/public/queen/models": [
    "README.txt"
+  ],
+  "apps/website/public/queen/runs/campaign-20260926": [
+   "base-4613.txt",
+   "base-4614.txt",
+   "base-4695.txt"
+  ],
+  "apps/website/public/queen/runs/campaign-20260926/judge": [
+   "accept.py",
+   "mutate.py"
+  ],
+  "apps/website/public/queen/runs/t27-4613-bee-baseline-20260926T185257Z": [
+   "acceptance.txt",
+   "mutants.txt",
+   "patch.diff"
+  ],
+  "apps/website/public/queen/runs/t27-4613-bee-tri-20260926T185257Z": [
+   "acceptance.txt",
+   "mutants.txt",
+   "patch.diff"
+  ],
+  "apps/website/public/queen/runs/t27-4614-bee-baseline-20260926T185257Z": [
+   "acceptance.txt",
+   "mutants.txt",
+   "patch.diff"
+  ],
+  "apps/website/public/queen/runs/t27-4614-bee-tri-20260926T185257Z": [
+   "acceptance.txt",
+   "mutants.txt",
+   "patch.diff"
+  ],
+  "apps/website/public/queen/runs/t27-4695-bee-baseline-20260926T185257Z": [
+   "acceptance.txt",
+   "mutants.txt",
+   "patch.diff"
+  ],
+  "apps/website/public/queen/runs/t27-4695-bee-tri-20260926T185257Z": [
+   "acceptance.txt",
+   "mutants.txt",
+   "patch.diff"
+  ],
+  "apps/website/public/roadmap": [
+   "goals.json",
+   "spec-authors.json",
+   "stack.json"
   ],
   "apps/website/public/skills": [
    "bindings.json",
@@ -6119,6 +6181,9 @@
    "SKILL.md"
   ],
   "apps/website/public/skills/files/trinity/cloud": [
+   "SKILL.md"
+  ],
+  "apps/website/public/skills/files/trinity/connect-accounts": [
    "SKILL.md"
   ],
   "apps/website/public/skills/files/trinity/doctor": [
@@ -6179,64 +6244,132 @@
    "universe-atlas.json"
   ],
   "apps/website/public/t27/files": [
+   ".mcp.json",
    "AGENTS.md",
    "CLAUDE.md",
    "README-ZENODO.md",
    "SOUL.md",
    "test_highlight.t27"
   ],
+  "apps/website/public/t27/files/.claude": [
+   "mcp.json"
+  ],
+  "apps/website/public/t27/files/.claude/mcp/tri-ssot": [
+   "manifest.json"
+  ],
+  "apps/website/public/t27/files/.github/workflows": [
+   "pr-dashboard.yml"
+  ],
+  "apps/website/public/t27/files/agent-mail-mcp/spec": [
+   "agent_mail.t27"
+  ],
   "apps/website/public/t27/files/bootstrap/specs/physics": [
    "formula_registry.t27"
   ],
-  "apps/website/public/t27/files/chips/euler/specs/fpga": [
-   "avs_controller_48.t27",
-   "avs_controller_96.t27",
-   "avs_reconf.t27",
-   "dfs_gate.t27",
-   "drowsy_ret.t27",
-   "fbb_active_path.t27",
-   "fp8_e4m3.t27",
-   "fp8_e5m2.t27",
-   "gf128.t27",
-   "gf16_to_fp16.t27",
-   "gf16_to_posit16.t27",
-   "gf256.t27",
-   "gf32_to_fp32.t27",
-   "gf64.t27",
-   "holo_mux_x4.t27",
-   "int4.t27",
-   "int8.t27",
-   "lane_l_precheck.t27",
-   "lut_npu_81_entry.t27",
-   "nf4.t27",
-   "null_pe.t27",
-   "posit16.t27",
-   "purkinje_thermal_gate.t27",
-   "sparse_mask.t27",
-   "sparse_skip.t27",
-   "spec_exit.t27",
-   "stoch_round.t27",
-   "subth_clk.t27"
+  "apps/website/public/t27/files/bootstrap/src": [
+   "codegen_python.t27"
   ],
-  "apps/website/public/t27/files/chips/euler/specs/numeric": [
-   "binary16.t27",
-   "formats.t27",
-   "gf12.t27",
-   "gf128.t27",
-   "gf16.t27",
-   "gf20.t27",
-   "gf24.t27",
-   "gf256.t27",
-   "gf32.t27",
-   "gf4.t27",
-   "gf64.t27",
-   "gf8.t27",
-   "goldenfloat_family.t27",
-   "int4.t27",
-   "int8.t27",
-   "nf4.t27",
-   "phi_ratio.t27",
-   "tri_net_formats.t27"
+  "apps/website/public/t27/files/bootstrap/tests/fixtures/damage": [
+   "damage_class_01.t27",
+   "damage_class_02.t27",
+   "damage_class_03.t27",
+   "damage_class_04.t27",
+   "damage_class_05.t27",
+   "damage_class_06.t27",
+   "damage_class_07.t27",
+   "damage_class_08.t27",
+   "damage_class_09.t27",
+   "damage_class_10.t27",
+   "damage_class_11.t27",
+   "damage_class_12.t27",
+   "damage_class_13.t27",
+   "damage_class_14.t27",
+   "damage_class_15.t27"
+  ],
+  "apps/website/public/t27/files/bootstrap/tests/fixtures/damage_negative": [
+   "neg_01_latency_bound.t27",
+   "neg_02_match_arms.t27",
+   "neg_03_multiline_array.t27",
+   "neg_04_fn_signature.t27",
+   "neg_05_raw_string.t27",
+   "neg_06_intact_field.t27"
+  ],
+  "apps/website/public/t27/files/bootstrap/tests/fixtures/generic_const": [
+   "neg_01_empty_params.t27",
+   "neg_02_trailing_comma.t27",
+   "neg_03_type_expr_param.t27",
+   "neg_04_constrained_param.t27",
+   "neg_05_enum_rhs.t27",
+   "neg_06_value_rhs.t27",
+   "neg_07_no_rhs.t27",
+   "pos_01_single_param.t27",
+   "pos_02_two_params.t27",
+   "pos_03_three_params.t27",
+   "pos_04_no_pub.t27",
+   "pos_05_no_semicolon.t27",
+   "pos_06_alongside_plain.t27"
+  ],
+  "apps/website/public/t27/files/bootstrap/tests/fixtures/terminator": [
+   "eof_generic.t27",
+   "eof_hazard.t27",
+   "field_swallow.t27",
+   "nested_types.t27",
+   "semicolon_phantom.t27",
+   "tuple_type.t27",
+   "unbalanced.t27"
+  ],
+  "apps/website/public/t27/files/bootstrap/tests/fixtures/trinity_matrix": [
+   "adapters_declared.t27",
+   "arrays.t27",
+   "clocked_state.t27",
+   "control_flow.t27",
+   "enums.t27",
+   "errors.t27",
+   "functions.t27",
+   "imports.t27",
+   "invariants.t27",
+   "module_state.t27",
+   "neg_bodyless_fn.t27",
+   "neg_dropped_module.t27",
+   "neg_false_assert.t27",
+   "neg_invalid_annotation.t27",
+   "neg_unresolved_import.t27",
+   "scalars.t27",
+   "strings.t27",
+   "structs.t27"
+  ],
+  "apps/website/public/t27/files/bootstrap/tests/goldring": [
+   "0006_adamw_block.t27",
+   "0006_array_then_when.t27",
+   "0006_forged_brace_negative.t27",
+   "0006_typed_forms_alive.t27",
+   "0007_and_not_folded.t27",
+   "0007_bare_call_given.t27",
+   "0007_bench_measure_target.t27",
+   "0007_gherkin_and_roles.t27",
+   "0008_ptr_split_negative.t27",
+   "0008_semicolonless_const_pair.t27",
+   "0009_no_prose_in_tests.t27",
+   "0009_two_clauses_one_line.t27",
+   "0011_in_membership.t27",
+   "0012_p2_coltie_module_const.t27",
+   "0012_statement_clauses.t27",
+   "0013_kf.t27",
+   "0013_lv.t27",
+   "0013_un.t27",
+   "0013_vn.t27",
+   "0014_comprehension_suffix.t27",
+   "0014_inline_lambda.t27",
+   "bdd_probe.t27",
+   "cap_ok.t27",
+   "cap_test.t27",
+   "diff_probe.t27",
+   "expr_probe.t27",
+   "greedy_probe.t27",
+   "r_combo.t27",
+   "r_mulassign.t27",
+   "r_op.t27",
+   "repro_range.t27"
   ],
   "apps/website/public/t27/files/compiler": [
    "ast.t27"
@@ -6272,8 +6405,60 @@
   "apps/website/public/t27/files/compiler/skill": [
    "registry.t27"
   ],
+  "apps/website/public/t27/files/conformance": [
+   "fpga_spi.json"
+  ],
   "apps/website/public/t27/files/contrib/backend/zig/legacy": [
    "main_zig_handwritten.t27"
+  ],
+  "apps/website/public/t27/files/dmitrii-f-t27/trinity-memory/reports/fpga/layout-study-2026-09-23-a548df3": [
+   "reference_g8_8.t27",
+   "reference_g8_8_8_8.t27",
+   "w18_g10_8.t27",
+   "w18_g13_5.t27",
+   "w18_g16_2.t27",
+   "w18_g8_5_5.t27",
+   "w18_g8_8_2.t27",
+   "w36_g10_10_8_8.t27",
+   "w36_g10_8_8_5_5.t27",
+   "w36_g10_8_8_8_2.t27",
+   "w36_g12_8_8_8.t27",
+   "w36_g13_10_8_5.t27",
+   "w36_g13_13_10.t27",
+   "w36_g13_13_5_5.t27",
+   "w36_g13_13_8_2.t27",
+   "w36_g13_8_5_5_5.t27",
+   "w36_g13_8_8_5_2.t27",
+   "w36_g13_8_8_7.t27",
+   "w36_g15_13_8.t27",
+   "w36_g15_8_8_5.t27",
+   "w36_g16_10_10.t27",
+   "w36_g16_10_5_5.t27",
+   "w36_g16_10_8_2.t27",
+   "w36_g16_12_8.t27",
+   "w36_g16_13_5_2.t27",
+   "w36_g16_13_7.t27",
+   "w36_g16_15_5.t27",
+   "w36_g16_16_2_2.t27",
+   "w36_g16_16_4.t27",
+   "w36_g16_5_5_5_5.t27",
+   "w36_g16_8_5_5_2.t27",
+   "w36_g16_8_7_5.t27",
+   "w36_g16_8_8_2_2.t27",
+   "w36_g16_8_8_4.t27",
+   "w36_g8_8_5_5_5_5.t27",
+   "w36_g8_8_8_5_5_2.t27",
+   "w36_g8_8_8_7_5.t27",
+   "w36_g8_8_8_8_2_2.t27",
+   "w36_g8_8_8_8_4.t27"
+  ],
+  "apps/website/public/t27/files/dmitrii-f-t27/trinity-memory/specs/formats": [
+   "bitnet_cpp.t27",
+   "hf_bitnet.t27",
+   "llama_cpp.t27",
+   "mlx.t27",
+   "onnx.t27",
+   "prismml.t27"
   ],
   "apps/website/public/t27/files/dmitrii-f-t27/trinity-memory/specs/memory": [
    "bridge.t27",
@@ -6291,9 +6476,12 @@
    "compute.t27",
    "container.t27",
    "experiments.t27",
+   "formats.t27",
    "http.t27",
    "json.t27",
    "json_writer.t27",
+   "matrix.t27",
+   "matvec.t27",
    "python_api.t27",
    "random.t27",
    "reports.t27",
@@ -6301,12 +6489,20 @@
    "sparsity.t27",
    "tensorpack.t27",
    "tensorpack_cli.t27",
-   "tensorpack_json.t27"
+   "tensorpack_json.t27",
+   "ternary_contract.t27"
   ],
   "apps/website/public/t27/files/dmitrii-f-t27/trinity-memory/t27/rtl": [
    "baseline5_decoder.t27",
+   "bram_trit_codec.t27",
+   "bram_trit_engine.t27",
+   "bram_trit_matvec.t27",
+   "bram_trit_rom.t27",
    "dense5_decoder.t27",
    "dot_stream.t27",
+   "fpga_bram_bench.t27",
+   "fpga_ddr3_pattern.t27",
+   "fpga_ddr3_status.t27",
    "fpga_edge_argmax.t27",
    "fpga_line_emitter.t27",
    "fpga_reset.t27",
@@ -6342,6 +6538,17 @@
   ],
   "apps/website/public/t27/files/examples/fpga/qmtech_minimal": [
    "design.t27"
+  ],
+  "apps/website/public/t27/files/specs": [
+   "mesh_routing.t27",
+   "multipath_router.t27",
+   "traffic_animator.t27"
+  ],
+  "apps/website/public/t27/files/specs/a": [
+   "b_c.t27"
+  ],
+  "apps/website/public/t27/files/specs/a_b": [
+   "c.t27"
   ],
   "apps/website/public/t27/files/specs/account": [
    "auth.t27",
@@ -6379,6 +6586,7 @@
    "z.t27"
   ],
   "apps/website/public/t27/files/specs/api": [
+   "c_abi.t27",
    "c_api_contract.t27",
    "sdk_contract.t27",
    "tri_net_api.t27"
@@ -6397,6 +6605,15 @@
    "config.t27"
   ],
   "apps/website/public/t27/files/specs/automation": [
+   "agent-provider-chain.t27",
+   "crm-client-ownership.t27",
+   "crm-client-workspace.t27",
+   "crm-duet.t27",
+   "crm-lead-magnet.t27",
+   "crm-sellers.t27",
+   "inngest-probe-suite.t27",
+   "inngest-queen-scheduler.t27",
+   "leela-agent-link.t27",
    "wrapup-auto.t27"
   ],
   "apps/website/public/t27/files/specs/base": [
@@ -6417,6 +6634,7 @@
   ],
   "apps/website/public/t27/files/specs/boards": [
    "arty_a7.t27",
+   "wukong_v1.t27",
    "xc7a100t_full.t27",
    "xc7a100t_minimal.t27"
   ],
@@ -6505,7 +6723,6 @@
    "prove.t27"
   ],
   "apps/website/public/t27/files/specs/docs": [
-   "README.md",
    "system.t27"
   ],
   "apps/website/public/t27/files/specs/docs/chapters": [
@@ -6531,6 +6748,7 @@
    "assembler.t27",
    "axi4.t27",
    "bootrom.t27",
+   "bpsk.t27",
    "bridge.t27",
    "clock_domain.t27",
    "crossopt.t27",
@@ -6554,6 +6772,7 @@
    "spi.t27",
    "stdlib.t27",
    "ternary_isa.t27",
+   "ternary_link.t27",
    "testbench.t27",
    "timing.t27",
    "top_level.t27",
@@ -6601,7 +6820,6 @@
    "build_verify.t27"
   ],
   "apps/website/public/t27/files/specs/functions": [
-   "README.md",
    "analytics-sales-advise.t27",
    "analytics-skills-detect.t27",
    "broadcast-message-send.t27",
@@ -6653,9 +6871,64 @@
    "forward_pass.t27"
   ],
   "apps/website/public/t27/files/specs/i18n": [
-   "README.md",
    "agents-ru.t27",
    "docs-ru.t27"
+  ],
+  "apps/website/public/t27/files/specs/igla": [
+   "w535_bounded_while_module.t27"
+  ],
+  "apps/website/public/t27/files/specs/igla/coder": [
+   "_tmp_pipeline_import.t27",
+   "arch.t27",
+   "bench_proxy.t27",
+   "benchmark.t27",
+   "dataset.t27",
+   "eval.t27",
+   "pipeline.t27",
+   "prm.t27",
+   "tokenizer.t27",
+   "training.t27",
+   "weights.t27"
+  ],
+  "apps/website/public/t27/files/specs/igla/evaluation": [
+   "multi_lang_harness.t27"
+  ],
+  "apps/website/public/t27/files/specs/igla/integration": [
+   "publication.t27"
+  ],
+  "apps/website/public/t27/files/specs/igla/race": [
+   "adder_tree.t27",
+   "backend.t27",
+   "bram_weights.t27",
+   "cordic.t27",
+   "cordic_fixed.t27",
+   "cordic_top.t27",
+   "eda.t27",
+   "formal.t27",
+   "gemm.t27",
+   "mvp_ternary_classifier.t27",
+   "opcodes.t27",
+   "phi_accumulator_growth.t27",
+   "phi_gain_freedom.t27",
+   "phi_weights.t27",
+   "rtl.t27",
+   "systolic_array.t27",
+   "systolic_ternary.t27",
+   "ternary_dot_sw.t27",
+   "ternary_gemm.t27",
+   "ternary_inference.t27",
+   "ternary_lut_table.t27",
+   "ternary_mac.t27",
+   "ternary_mac_group.t27",
+   "ternary_node.t27",
+   "unit_weights_node.t27",
+   "yosys.t27"
+  ],
+  "apps/website/public/t27/files/specs/igla/training": [
+   "low_bit_ternary.t27",
+   "pilot_pretraining.t27",
+   "roadmap.t27",
+   "scale_up.t27"
   ],
   "apps/website/public/t27/files/specs/interop": [
    "gf_cross_language.t27"
@@ -6676,7 +6949,9 @@
    "ternary_set.t27",
    "ternary_shift.t27",
    "ternary_sorting.t27",
-   "ternary_tree.t27"
+   "ternary_tree.t27",
+   "tri27_bytecode.t27",
+   "tri27_machine.t27"
   ],
   "apps/website/public/t27/files/specs/jit": [
    "jit.t27"
@@ -6705,6 +6980,18 @@
    "memory_primitives.t27",
    "notebooklm.t27",
    "semantic_search.t27"
+  ],
+  "apps/website/public/t27/files/specs/memory/tmem": [
+   "bridge.t27",
+   "conformance.t27",
+   "edge_demo.t27",
+   "session.t27",
+   "stream_compute.t27",
+   "tensorpack.t27",
+   "types.t27"
+  ],
+  "apps/website/public/t27/files/specs/ml": [
+   "igla_champion_capsule.t27"
   ],
   "apps/website/public/t27/files/specs/ml/activation": [
    "elu_activation.t27",
@@ -6744,6 +7031,7 @@
    "adamw.t27",
    "lamb.t27",
    "lr_scheduler.t27",
+   "race_config.t27",
    "rmsprop.t27",
    "sgd.t27",
    "sgd_momentum.t27"
@@ -6787,33 +7075,76 @@
   ],
   "apps/website/public/t27/files/specs/nn": [
    "attention.t27",
+   "gla.t27",
    "hslm.t27",
    "phi_rope.t27",
    "sacred_attention.t27"
   ],
   "apps/website/public/t27/files/specs/numeric": [
    "bigint.t27",
+   "bnf1024.t27",
+   "bnf128.t27",
+   "bnf16.t27",
+   "bnf256.t27",
+   "bnf32.t27",
+   "bnf512.t27",
+   "bnf64.t27",
+   "bnf8.t27",
+   "e8m0.t27",
    "formats.t27",
+   "formats_catalog.t27",
+   "gf10.t27",
+   "gf1024.t27",
    "gf12.t27",
+   "gf128.t27",
+   "gf14.t27",
    "gf16.t27",
    "gf20.t27",
    "gf24.t27",
+   "gf256.t27",
    "gf32.t27",
    "gf4.t27",
+   "gf48.t27",
+   "gf512.t27",
+   "gf6.t27",
+   "gf64.t27",
    "gf8.t27",
+   "gf96.t27",
    "gf_competitive.t27",
+   "gft1024.t27",
+   "gft128.t27",
+   "gft16.t27",
+   "gft256.t27",
+   "gft32.t27",
+   "gft4.t27",
+   "gft512.t27",
+   "gft64.t27",
+   "gft8.t27",
+   "gfternary.t27",
+   "golden_sieve.t27",
    "goldenfloat_family.t27",
+   "lucas_accumulator.t27",
    "pellis_verify.t27",
    "phi_ratio.t27",
+   "posit_ladder_control.t27",
    "requant_boundary.t27",
    "tf3.t27",
+   "tnf1024.t27",
+   "tnf128.t27",
+   "tnf16.t27",
+   "tnf17.t27",
+   "tnf256.t27",
+   "tnf32.t27",
+   "tnf4.t27",
+   "tnf512.t27",
+   "tnf64.t27",
+   "tnf8.t27",
    "trinity_numeric_surface.t27"
   ],
   "apps/website/public/t27/files/specs/physics": [
    "chimera_best_gamma.t27",
    "e8_lqg_bridge.t27",
    "formula_discovery.t27",
-   "formula_registry.t27",
    "gamma-conflict.t27",
    "gamma_conjecture.t27",
    "gi1_analysis.t27",
@@ -6837,6 +7168,45 @@
    "e2e_test.t27",
    "experience_save.t27"
   ],
+  "apps/website/public/t27/files/specs/port/tools": [
+   "_prereq.t27",
+   "builtin_parity_table.t27",
+   "check_assertionless_spec_tests.t27",
+   "check_conflict_markers.t27",
+   "check_coq_in_build.t27",
+   "check_damage_negatives.t27",
+   "check_duplicate_agreement.t27",
+   "check_duplicate_declarations.t27",
+   "check_fix_carries_source.t27",
+   "check_graph_law8.t27",
+   "check_json_parses.t27",
+   "check_ring_spec_drift.t27",
+   "check_seal_currency.t27",
+   "check_specs_parse.t27",
+   "check_sync_repo_root.t27",
+   "check_vector_data.t27",
+   "check_withdrawn_live.t27",
+   "dedupe_identical_tests.t27",
+   "diagnostic_capacity.t27",
+   "gft_deep_demo.t27",
+   "gft_generalize_demo.t27",
+   "gft_train_demo.t27",
+   "published_figures.t27",
+   "rename_duplicate_tests.t27",
+   "ring_spec_differential.t27",
+   "run_conformance_vvp.t27",
+   "ternary_model.t27",
+   "trinity_c_abi.t27",
+   "verify_multitarget.t27",
+   "verify_trainer_c.t27",
+   "wp18_gate_selfconsistent_selftest.t27"
+  ],
+  "apps/website/public/t27/files/specs/port/tools/jtag": [
+   "link_relay.t27",
+   "mpsse_jtag.t27",
+   "read_user1.t27",
+   "read_verdict.t27"
+  ],
   "apps/website/public/t27/files/specs/portable": [
    "relay_observer.t27"
   ],
@@ -6850,6 +7220,9 @@
    "brain_summaries.t27",
    "lotus.t27",
    "task_analysis.t27"
+  ],
+  "apps/website/public/t27/files/specs/rings": [
+   "ring_103_phi_sgd.t27"
   ],
   "apps/website/public/t27/files/specs/runtime": [
    "execute.t27",
@@ -6932,11 +7305,74 @@
    "index.t27",
    "schema.t27"
   ],
+  "apps/website/public/t27/files/specs/system": [
+   "unified-agent-operations.t27"
+  ],
   "apps/website/public/t27/files/specs/ternary": [
+   "activation_quantizer.t27",
    "bigint.t27",
+   "bitnet_layer.t27",
+   "bitnet_majority.t27",
+   "bitnet_mlp.t27",
+   "bitnet_mlp3.t27",
+   "bitnet_neuron.t27",
+   "bitnet_neuron_nchunk.t27",
+   "clocked_counter.t27",
+   "comb_bitnet_layer.t27",
+   "comb_bitnet_neuron.t27",
+   "comb_ternary_dot.t27",
+   "gft_add_rne.t27",
+   "gft_argmax4.t27",
+   "gft_axpy.t27",
+   "gft_bitnet_neuron.t27",
+   "gft_classifier4.t27",
+   "gft_classify.t27",
+   "gft_classify3.t27",
+   "gft_dot2.t27",
+   "gft_dot2_rne.t27",
+   "gft_dot4.t27",
+   "gft_dot4_rne.t27",
+   "gft_dot8.t27",
+   "gft_exp2.t27",
+   "gft_hidden2.t27",
+   "gft_layer2.t27",
+   "gft_layer3.t27",
+   "gft_layer4.t27",
+   "gft_log2.t27",
+   "gft_logistic.t27",
+   "gft_madd.t27",
+   "gft_mlp2.t27",
+   "gft_mlp3.t27",
+   "gft_mul_rne.t27",
+   "gft_neuron_full.t27",
+   "gft_nll.t27",
+   "gft_recip.t27",
+   "gft_relu.t27",
+   "gft_sadd.t27",
+   "gft_sgd_step.t27",
+   "gft_signed_dot4.t27",
+   "gft_signed_mac.t27",
+   "gft_smul.t27",
+   "gft_softmax4.t27",
+   "gft_softmax_grad4.t27",
+   "gft_train1.t27",
+   "gft_train2.t27",
+   "gft_train2relu.t27",
+   "gft_xorbp.t27",
+   "gft_xorbp2.t27",
+   "gft_xornet.t27",
+   "gft_xorpercep.t27",
+   "gft_xorpercep3.t27",
+   "gft_xorpercep4.t27",
+   "gft_xortrain.t27",
    "hybrid_arithmetic.t27",
    "hybrid_bigint.t27",
-   "packed_trit.t27"
+   "packed_trit.t27",
+   "stream_ternary_mac.t27",
+   "ternary_full_adder.t27",
+   "ternary_mac.t27",
+   "ternary_ripple_adder.t27",
+   "ternary_xor.t27"
   ],
   "apps/website/public/t27/files/specs/test_framework": [
    "core.t27",
@@ -6947,12 +7383,15 @@
   ],
   "apps/website/public/t27/files/specs/tools": [
    "README.md",
+   "catalog.t27",
+   "mcp_protocol.t27",
    "registry.t27",
    "schema.t27",
    "tri_to_t27_converter.t27"
   ],
   "apps/website/public/t27/files/specs/tools/mcp": [
    "gitbutler.t27",
+   "inngest-dev.t27",
    "needle.t27",
    "neon.t27",
    "notebooklm.t27",
@@ -7016,6 +7455,37 @@
    "vsim.t27",
    "window.t27",
    "worktrees.t27"
+  ],
+  "apps/website/public/t27/files/specs/tools/trinity/tri": [
+   "bench.t27",
+   "bio.t27",
+   "blindspots.t27",
+   "conscious.t27",
+   "constants.t27",
+   "cosmos.t27",
+   "dashboard.t27",
+   "fib.t27",
+   "fpga.t27",
+   "gematria.t27",
+   "govern.t27",
+   "hardware.t27",
+   "identity.t27",
+   "lucas.t27",
+   "mesh.t27",
+   "needle-check.t27",
+   "needle-search.t27",
+   "needle.t27",
+   "omega.t27",
+   "particles.t27",
+   "phi.t27",
+   "quantum.t27",
+   "reputation.t27",
+   "sacred-const.t27",
+   "spiral.t27",
+   "swarm.t27",
+   "test.t27",
+   "vsa.t27",
+   "wallet.t27"
   ],
   "apps/website/public/t27/files/specs/tri/agent": [
    "agent_run.t27",
@@ -7193,6 +7663,66 @@
    "utf8.t27",
    "version.t27"
   ],
+  "apps/website/public/t27/files/specs/trinet": [
+   "etx.t27"
+  ],
+  "apps/website/public/t27/files/specs/trinity": [
+   "build_graph.t27",
+   "compiler_matrix.t27",
+   "project.t27"
+  ],
+  "apps/website/public/t27/files/specs/trinity/capabilities": [
+   "abi.c-api.t27",
+   "agent.daemons.t27",
+   "agent.phi-loop.t27",
+   "agent.tri-api.t27",
+   "api.http-server.t27",
+   "archive.legacy.t27",
+   "bench.suite.t27",
+   "bot.tri-bot.t27",
+   "catalog.spec-mirror.t27",
+   "catalog.world-scan.t27",
+   "cli.tri.t27",
+   "convert.b2t.t27",
+   "examples.zig.t27",
+   "ext.vscode-swe.t27",
+   "fpga.in-repo.t27",
+   "lib.trinity.t27",
+   "llm.firebird.t27",
+   "llm.igla-chat.t27",
+   "mcp.needle-mcp.t27",
+   "mcp.trinity-mcp.t27",
+   "native.canvas.t27",
+   "native.node-gui.t27",
+   "native.queen-app.t27",
+   "node.trinity-node.t27",
+   "numeric.golden-float.t27",
+   "ops.deploy-infra.t27",
+   "ops.railway-cli.t27",
+   "pkg.vendored-cache.t27",
+   "queen.lib.t27",
+   "registry.commands.t27",
+   "release.packaging.t27",
+   "research.nexus-docs.t27",
+   "research.programs.t27",
+   "research.unreferenced-sources.t27",
+   "search.vsa-index.t27",
+   "specs.t27-vendored-compiler.t27",
+   "specs.tri-corpus.t27",
+   "specs.vibee-corpus.t27",
+   "state.trinity-dir.t27",
+   "test.graph.t27",
+   "tools.scripts.t27",
+   "train.hslm.t27",
+   "training.targets.t27",
+   "tri27.programs.t27",
+   "tri27.toolchain.t27",
+   "vibee.compiler.t27",
+   "vsa.zig-hdc.t27",
+   "web.docsite.t27",
+   "web.queen-web.t27",
+   "web.site.t27"
+  ],
   "apps/website/public/t27/files/specs/tutorial": [
    "01_values_and_types.t27",
    "02_functions.t27",
@@ -7207,7 +7737,8 @@
    "viewport.t27"
   ],
   "apps/website/public/t27/files/specs/vm": [
-   "jit_semantics.t27"
+   "jit_semantics.t27",
+   "trinity_vm.t27"
   ],
   "apps/website/public/t27/files/specs/vsa": [
    "jones_polynomial.t27",
@@ -7216,6 +7747,7 @@
    "sdk.t27",
    "sequence_hdc.t27",
    "similarity_search.t27",
+   "trinity_compat.t27",
    "vsa_core.t27"
   ],
   "apps/website/public/t27/files/tests": [
@@ -7441,6 +7973,15 @@
   "apps/website/public/t27/files/trinity-fpga/t27/specs/vsa": [
    "ops.t27"
   ],
+  "apps/website/public/t27/files/trinity/apps/website/public": [
+   "agents.t27"
+  ],
+  "apps/website/public/t27/files/trinity/apps/website/public/queen": [
+   "wars.t27"
+  ],
+  "apps/website/public/t27/files/trinity/apps/website/specs/catalog": [
+   "onboarding.t27"
+  ],
   "apps/website/public/t27/files/trinity/src/tri27": [
    "matmul.t27",
    "sha256.t27"
@@ -7521,8 +8062,147 @@
    "protocol.t27",
    "rom_layout.t27"
   ],
-  "apps/website/public/t27/files/tt-trinity-gamma/specs/numeric": [
+  "apps/website/public/t27/files/tt-trinity-euler/specs/fpga": [
+   "avs_controller_48.t27",
+   "avs_controller_96.t27",
+   "avs_reconf.t27",
+   "dfs_gate.t27",
+   "drowsy_ret.t27",
+   "fbb_active_path.t27",
+   "fp8_e4m3.t27",
+   "fp8_e5m2.t27",
+   "gf128.t27",
+   "gf16_to_fp16.t27",
+   "gf16_to_posit16.t27",
+   "gf256.t27",
+   "gf32_to_fp32.t27",
+   "gf64.t27",
+   "holo_mux_x4.t27",
+   "int4.t27",
+   "int8.t27",
+   "lane_l_precheck.t27",
+   "lut_npu_81_entry.t27",
+   "nf4.t27",
+   "null_pe.t27",
+   "posit16.t27",
+   "purkinje_thermal_gate.t27",
+   "sparse_mask.t27",
+   "sparse_skip.t27",
+   "spec_exit.t27",
+   "stoch_round.t27",
+   "subth_clk.t27"
+  ],
+  "apps/website/public/t27/files/tt-trinity-euler/specs/numeric": [
+   "binary16.t27",
+   "formats.t27",
+   "fp8_e4m3.t27",
+   "fp8_e5m2.t27",
+   "gf12.t27",
+   "gf128.t27",
+   "gf16.t27",
+   "gf20.t27",
+   "gf24.t27",
+   "gf256.t27",
+   "gf32.t27",
+   "gf4.t27",
+   "gf64.t27",
+   "gf8.t27",
+   "goldenfloat_family.t27",
+   "int4.t27",
+   "int8.t27",
+   "nf4.t27",
+   "phi_ratio.t27",
+   "posit16.t27",
    "tri_net_formats.t27"
+  ],
+  "apps/website/public/t27/files/tt-trinity-gamma/specs/fpga": [
+   "avs_controller_48.t27",
+   "avs_controller_96.t27",
+   "avs_reconf.t27",
+   "dfs_gate.t27",
+   "drowsy_ret.t27",
+   "fbb_active_path.t27",
+   "gf128.t27",
+   "gf16_to_fp16.t27",
+   "gf16_to_posit16.t27",
+   "gf256.t27",
+   "gf32_to_fp32.t27",
+   "holo_mux_x4.t27",
+   "int4.t27",
+   "int8.t27",
+   "lane_l_precheck.t27",
+   "lut_npu_81_entry.t27",
+   "nf4.t27",
+   "null_pe.t27",
+   "purkinje_thermal_gate.t27",
+   "sparse_mask.t27",
+   "sparse_skip.t27",
+   "spec_exit.t27",
+   "stoch_round.t27",
+   "subth_clk.t27"
+  ],
+  "apps/website/public/t27/files/tt-trinity-gamma/specs/numeric": [
+   "formats.t27",
+   "gf128.t27",
+   "gf256.t27",
+   "gf64.t27",
+   "goldenfloat_family.t27",
+   "int4.t27",
+   "int8.t27",
+   "nf4.t27",
+   "tri_net_formats.t27"
+  ],
+  "apps/website/public/t27/files/tt-trinity-phi/specs/numeric": [
+   "tri_net_formats.t27"
+  ],
+  "apps/website/public/t27/files/turbobaby-user-bot/specs/agents": [
+   "turbobaby.t27"
+  ],
+  "apps/website/public/t27/files/turbobaby-user-bot/specs/turbobaby": [
+   "ai_assist.t27",
+   "api_surface.t27",
+   "availability.t27",
+   "bike_catalog.t27",
+   "bot_surface.t27",
+   "cart_persistence.t27",
+   "catalog_api.t27",
+   "catalog_write.t27",
+   "checkout_contact.t27",
+   "client_errors.t27",
+   "commerce.t27",
+   "customer_surface.t27",
+   "deeplink.t27",
+   "delivery_terms.t27",
+   "deposit_tiers.t27",
+   "events_booking.t27",
+   "game_score.t27",
+   "happy_hour.t27",
+   "http_cache.t27",
+   "legacy_retirement.t27",
+   "locale_policy.t27",
+   "loyalty_ledger.t27",
+   "market_profile.t27",
+   "notification_queue.t27",
+   "observability.t27",
+   "order_money.t27",
+   "order_presentation.t27",
+   "order_status.t27",
+   "person_naming.t27",
+   "pricing_honesty.t27",
+   "promo_broadcast.t27",
+   "publication.t27",
+   "rate_limit.t27",
+   "referral_program.t27",
+   "rental_terms.t27",
+   "request_identity.t27",
+   "ride_game.t27",
+   "ride_runtime.t27",
+   "runtime_config.t27",
+   "schema_provenance.t27",
+   "star_award.t27",
+   "upload_media.t27",
+   "validation_bounds.t27",
+   "webapp_bridge.t27"
   ],
   "apps/website/public/t27/files/vscode-trinity-swe": [
    "test_highlight.t27"
@@ -7535,24 +8215,36 @@
   ],
   "apps/website/qa": [
    "agents-spec-contract.mjs",
+   "app-session-identity-contract.mjs",
    "browser-audit.mjs",
    "clients-console-contract.mjs",
+   "clients-filter-contract.mjs",
    "crons-catalog-contract.mjs",
    "docs-spec-contract.mjs",
    "explorer-language-contract.mjs",
    "explorer-viewport-contract.mjs",
+   "hive-board-contract.mjs",
    "lang_audit.mjs",
    "language-exceptions.json",
    "mobile_audit.mjs",
+   "passport-figures.mjs",
    "queen-bar-probe.mjs",
+   "queen-browser-contract.mjs",
    "queen-castle-contract.mjs",
    "queen-catalog-hive.mjs",
+   "queen-chat-gate-contract.mjs",
+   "queen-chat-tabs-contract.mjs",
    "queen-construction-game-contract.mjs",
    "queen-continuous-map.mjs",
+   "queen-contrast-contract.mjs",
    "queen-coverage-contract.mjs",
    "queen-cycle-geometry.mjs",
+   "queen-direction-contract.mjs",
+   "queen-directives-contract.mjs",
+   "queen-embed-address-contract.mjs",
    "queen-engine-spike.mjs",
    "queen-factory-contract.mjs",
+   "queen-fallback-parity.mjs",
    "queen-foundation-contract.mjs",
    "queen-hardware-foundry-contract.mjs",
    "queen-hive-display-contract.mjs",
@@ -7561,9 +8253,13 @@
    "queen-hive-status-fill.mjs",
    "queen-honesty-contract.mjs",
    "queen-honey-probe.mjs",
+   "queen-identity-contract.mjs",
+   "queen-idle-layout-contract.mjs",
+   "queen-idle-reason-contract.mjs",
    "queen-language-contract.mjs",
    "queen-pick-contract.mjs",
    "queen-placement-contract.mjs",
+   "queen-redirect-contract.mjs",
    "queen-repository-worlds.mjs",
    "queen-research-city-contract.mjs",
    "queen-responsive.mjs",
@@ -7574,16 +8270,34 @@
    "queen-stale-contract.mjs",
    "queen-starfield-contract.mjs",
    "queen-touch-contract.mjs",
+   "queen-tri-contract.mjs",
    "queen-universe-atlas.mjs",
    "queen-viewport-contract.mjs",
    "queen-void-contract.mjs",
+   "queen-wars-contract.mjs",
    "queen-windows-contract.mjs",
+   "roadmap-game-contract.mjs",
    "ru_audit.mjs",
    "shared-spec-core.mjs",
    "skills-catalog-contract.mjs",
    "spec-catalog-contract.mjs",
+   "subpath-safe-urls-contract.mjs",
+   "t27-evolution-contract.mjs",
    "t27-world-discovery.mjs",
-   "tools-spec-contract.mjs"
+   "tools-site-contract.mjs",
+   "tools-spec-contract.mjs",
+   "traffic-arrival-contract.mjs",
+   "tri-identity-contract.mjs",
+   "tri-screens-contract.mjs"
+  ],
+  "apps/website/qa/fixtures": [
+   "identity-world.mjs"
+  ],
+  "apps/website/qa/fixtures/queen-status": [
+   "healthy-idle-2026-09-15T1250Z.json",
+   "working-2026-09-15T1400Z.json",
+   "working-capacity12-2026-09-15T1533Z.json",
+   "working-refused-2026-09-15T1350Z.json"
   ],
   "apps/website/scripts": [
    "agents-from-specs.mjs",
@@ -7592,6 +8306,7 @@
    "aria-refs-check.mjs",
    "blog-cover-accessibility.test.mjs",
    "blog-cover-versions.test.mjs",
+   "catalog-work-report.mjs",
    "check-silicon-coverage.mjs",
    "crons-annotations.json",
    "crons-lib.mjs",
@@ -7600,12 +8315,17 @@
    "docs-from-specs.mjs",
    "docs-from-specs.test.mjs",
    "import-hyg.mjs",
+   "onboarding-from-spec.mjs",
    "queen-kie-assets.mjs",
+   "queen-wars-from-spec.mjs",
+   "queen-wars-from-spec.test.mjs",
    "railway-services.json",
    "render-check.mjs",
+   "roadmap-stack.mjs",
    "service-entry-check.mjs",
    "skills-core.mjs",
    "skills-core.test.mjs",
+   "spec-authors.mjs",
    "spec-core.mjs",
    "sync-agents-experience.mjs",
    "sync-crons.mjs",
@@ -7614,11 +8334,18 @@
    "sync-skills.test.mjs",
    "sync-t27-specs.mjs",
    "t27-corpus.mjs",
+   "t27-wasm-tag.ts",
    "typecheck-ratchet.mjs",
    "universe-atlas.mjs",
    "update-blog-cover-versions.mjs",
    "viewport-from-spec.mjs",
    "viewport-from-spec.test.mjs"
+  ],
+  "apps/website/specs/catalog": [
+   "onboarding.t27"
+  ],
+  "apps/website/specs/queen": [
+   "wars.t27"
   ],
   "apps/website/specs/tri": [
    "autonomous_evolution.vibee",
@@ -7627,7 +8354,6 @@
    "sacred_math_api.vibee"
   ],
   "apps/website/src": [
-   "App.css",
    "App.tsx",
    "index.css",
    "main.tsx"
@@ -7636,12 +8362,16 @@
    "AgentMuDashboard.tsx",
    "AgentMuWidget.tsx",
    "AgentSpecPanel.tsx",
+   "AgiGameBlock.css",
+   "AgiGameBlock.tsx",
    "BlogCover.tsx",
    "CommunityRuns.tsx",
    "ConformanceEvidence.tsx",
    "ExampleReport.tsx",
    "ExplorerHeader.tsx",
    "ExplorerLibrary.tsx",
+   "FaqBlock.css",
+   "FaqBlock.tsx",
    "Footer.tsx",
    "GameHero.css",
    "GameHero.tsx",
@@ -7655,20 +8385,28 @@
    "ModulesBlock.css",
    "ModulesBlock.tsx",
    "Navigation.tsx",
+   "PassportFigures.tsx",
    "PhiStarfield.tsx",
    "PlayBlock.css",
    "PlayBlock.tsx",
+   "PlayLine.css",
+   "PlayLine.tsx",
    "ProductionDashboard.tsx",
    "QuantumBackground.tsx",
    "QuantumCanvas.tsx",
    "QueenAgents.tsx",
+   "QueenBrowser.css",
+   "QueenBrowser.tsx",
    "QueenCatalogHive.css",
    "QueenCatalogHive.tsx",
-   "QueenCatalogInspector.tsx",
+   "QueenCatalogSpec.tsx",
+   "QueenCellStage.css",
+   "QueenCellStage.tsx",
    "QueenChat.css",
    "QueenChat.tsx",
    "QueenComb.tsx",
    "QueenCombBabylon.tsx",
+   "QueenCombEmbedded.css",
    "QueenCommand.tsx",
    "QueenContext.css",
    "QueenContext.tsx",
@@ -7676,21 +8414,35 @@
    "QueenHeroBlock.css",
    "QueenHeroBlock.tsx",
    "QueenHiveDisplays.tsx",
+   "QueenIdentity.tsx",
    "QueenIntel.css",
    "QueenIntel.tsx",
+   "QueenLadder.tsx",
+   "QueenLanes.css",
+   "QueenLanes.tsx",
+   "QueenLeaderboard.css",
+   "QueenLeaderboard.tsx",
    "QueenLoading.css",
    "QueenLoading.tsx",
-   "QueenMinimap.css",
-   "QueenMinimap.tsx",
+   "QueenMcp.css",
+   "QueenMcp.tsx",
+   "QueenPeople.css",
+   "QueenPeople.tsx",
    "QueenResearchCity.tsx",
+   "QueenRoadmap.tsx",
+   "QueenRoadmapGame.tsx",
    "QueenSharedCore.css",
    "QueenSharedCore.tsx",
    "QueenSpecTreasury.css",
    "QueenSpecTreasury.tsx",
    "QueenSpecs.tsx",
    "QueenStarfield.tsx",
+   "QueenTri.css",
+   "QueenTri.tsx",
    "QueenUniverseAtlas.css",
    "QueenUniverseAtlas.tsx",
+   "QueenWars.css",
+   "QueenWars.tsx",
    "SacredFormulaBadge.tsx",
    "SacredIntelligenceProductionDashboard.tsx",
    "SampleBadge.tsx",
@@ -7720,6 +8472,7 @@
    "TrinityStatusWidget.tsx",
    "VerificationDiagram.tsx",
    "queenCatalogData.ts",
+   "queenChatNetwork.ts",
    "queenConstructionModel.ts",
    "queenHardwareRegistry.ts",
    "queenHiveDisplay.ts",
@@ -7729,7 +8482,11 @@
    "queenRepositoryWorld.ts",
    "queenResearchCityModel.ts",
    "queenResearchCityScene.ts",
-   "queenStarProjection.ts"
+   "queenRoadmap.css",
+   "queenRoadmapGame.css",
+   "queenRoadmapScene.ts",
+   "queenStarProjection.ts",
+   "useQueenExplorerFrame.ts"
   ],
   "apps/website/src/components/TechTree": [
    "TechConnections.tsx",
@@ -7815,6 +8572,9 @@
    "tnf.css"
   ],
   "apps/website/src/content": [
+   "passport.ts",
+   "passportExamples.ts",
+   "passportRecords.ts",
    "tnf.ts"
   ],
   "apps/website/src/data": [
@@ -7855,11 +8615,13 @@
    "a-gate-that-rejected-its-own-users.ts",
    "a-health-snapshot-changed-its-denominator.ts",
    "a-multiplicity-correction-changed-the-deployment-reading.ts",
+   "a-partial-module-needs-its-own-verdict.ts",
    "a-red-gate-was-missing-its-input.ts",
    "a-repair-reaches-only-the-copy-it-lands-in.ts",
+   "a-small-agent-needs-an-exact-judge.ts",
    "a-suite-that-runs-nothing-exits-zero.ts",
    "an-inert-filter-is-safest-until-it-works.ts",
-   "clara-proposal-submitted-not-reviewed.ts",
+   "an-invitation-in-the-language-it-describes.ts",
    "context-length-resonance-not-power-law.ts",
    "each-half-imported-the-other.ts",
    "eight-theorems-audited.ts",
@@ -7873,8 +8635,10 @@
    "four-languages-one-tri-extension.ts",
    "fourteen-rows-agreed-one-did-not.ts",
    "frame-length-margin-law.ts",
+   "golden-ratio-weights-ran-on-the-board.ts",
    "green-ci-does-not-mean-usable.ts",
    "half-the-build-is-bitstream-generation.ts",
+   "how-to-join-the-swarm.ts",
    "i-wrote-the-post-then-did-the-thing.ts",
    "merge-diff-ci-boundaries.ts",
    "ninety-tests-were-unreachable.ts",
@@ -7885,6 +8649,7 @@
    "phi-identity-machine-checked.ts",
    "phi-is-a-scale-not-information.ts",
    "physical-width-changed-the-question.ts",
+   "queen-browser-actions-you-can-follow.ts",
    "queen-foundation-snapshot-contract.ts",
    "queen-phone-orientation-gate.ts",
    "queen-review-lifecycle-queues.ts",
@@ -7898,6 +8663,7 @@
    "the-auditor-made-the-mistake-it-audits.ts",
    "the-control-that-could-not-fail.ts",
    "the-experiment-that-could-not-answer.ts",
+   "the-fpga-row-was-corrected.ts",
    "the-full-adder-made-the-cost-claim-comparable.ts",
    "the-gate-was-right-and-nothing-stopped.ts",
    "the-generated-file-was-three-years-old.ts",
@@ -7909,7 +8675,9 @@
    "the-silence-was-a-saturated-readout.ts",
    "the-tail-that-had-never-run.ts",
    "thirty-epochs-exposed-a-failure-rate-blind-spot.ts",
+   "trained-weights-ran-receipts-were-not-checked.ts",
    "tri-claw-an-agent-you-can-audit.ts",
+   "tri-mined-not-sold.ts",
    "twenty-merged-in-three-days.ts",
    "twenty-three-reference-models.ts",
    "two-bitstreams-one-bit-apart.ts"
@@ -7924,6 +8692,7 @@
   "apps/website/src/lib": [
    "agentSpecs.ts",
    "agentsCatalog.ts",
+   "appSessionIdentity.ts",
    "crmClient.ts",
    "crmModel.ts",
    "cronsCatalog.ts",
@@ -7932,16 +8701,35 @@
    "functionsCatalog.ts",
    "functionsStatus.ts",
    "highlight.ts",
+   "hiveBoard.ts",
+   "legacyQueenRedirect.ts",
+   "mcpAnswer.ts",
+   "motto.ts",
+   "queenApi.ts",
+   "queenBrowser.ts",
+   "queenCollab.ts",
+   "queenDirection.ts",
+   "queenDirectives.ts",
+   "queenEmbed.ts",
+   "queenFrame.ts",
+   "queenIssueLive.ts",
    "queenModules.ts",
+   "queenPeople.ts",
    "queenSpecTreasury.ts",
    "queenUniverseAtlas.ts",
+   "queenWars.generated.ts",
+   "roadmapGame.ts",
    "sharedSpecCore.ts",
    "skillsCatalog.ts",
    "skillsLoader.ts",
    "specCatalog.ts",
    "systemDocs.ts",
    "t27Compiler.ts",
+   "t27Evolution.ts",
    "toolsCatalog.ts",
+   "trafficArrival.ts",
+   "triIdentity.ts",
+   "triScreens.ts",
    "useViewport.ts",
    "viewport.generated.ts"
   ],
@@ -7960,6 +8748,7 @@
    "GFT.tsx",
    "HardwareVerification.tsx",
    "Licensing.tsx",
+   "Passport.tsx",
    "Playground.tsx",
    "Proof.tsx",
    "QuantumLab.tsx",
@@ -7976,6 +8765,7 @@
    "ToolExplorer.tsx",
    "Trinity.tsx",
    "TrinityCanvas.tsx",
+   "passport.css",
    "queen-phone.css",
    "queenReviewLifecycle.ts"
   ],
@@ -7985,6 +8775,7 @@
    "queenModel.ts"
   ],
   "apps/website/src/styles": [
+   "card.css",
    "explorer-viewport.css",
    "viewport.generated.css"
   ],
@@ -9801,7 +10592,8 @@
    "ASSETS_CHECKLIST.md",
    "PRIVACY_POLICY.md",
    "SCREENSHOT_GUIDE.md",
-   "STORE_LISTING.md"
+   "STORE_LISTING.md",
+   "manifest.json"
   ],
   "deploy/trinity-nexus/extensions/chrome/background": [
    "service-worker.js"
@@ -9809,6 +10601,14 @@
   "deploy/trinity-nexus/extensions/chrome/content": [
    "content.js",
    "inject.js"
+  ],
+  "deploy/trinity-nexus/extensions/chrome/icons": [
+   "icon128.png",
+   "icon128.svg",
+   "icon16.png",
+   "icon16.svg",
+   "icon48.png",
+   "icon48.svg"
   ],
   "deploy/trinity-nexus/extensions/chrome/popup": [
    "popup.html",
@@ -9819,12 +10619,20 @@
    "neodetect-loader.js",
    "neodetect.wasm"
   ],
+  "deploy/trinity-nexus/extensions/firefox": [
+   "manifest.json"
+  ],
   "deploy/trinity-nexus/extensions/firefox/background": [
    "background.js"
   ],
   "deploy/trinity-nexus/extensions/firefox/content": [
    "content.js",
    "inject.js"
+  ],
+  "deploy/trinity-nexus/extensions/firefox/icons": [
+   "icon128.png",
+   "icon16.png",
+   "icon48.png"
   ],
   "deploy/trinity-nexus/extensions/firefox/popup": [
    "popup.html",
@@ -12231,6 +13039,7 @@
    "OPERATIONAL_PLAN.md",
    "PERFORMANCE.md",
    "PRODUCTION_BENCHMARKS.md",
+   "PR_BLOG_AUTOMATION.md",
    "QUEEN_CATALOG_COLLABORATION_QA_2026-09-07.md",
    "QUEEN_CATALOG_HIVE.md",
    "QUEEN_CENTRAL_SPEC_CATALOG_2026-09-07.md",
@@ -12281,7 +13090,6 @@
    "api_reference.md",
    "brain-architecture.md",
    "brain_profiling_results.md",
-   "clara_demo.md",
    "command_registry.md",
    "contributing.html",
    "cytoplasm_integration_tests.md",
@@ -13017,14 +13825,6 @@
   "docs/proposals": [
    "BAEZ_OUTREACH.md",
    "BENCH_001_SCIENTIFIC_RESULTS.md",
-   "CLARA_APPLICATION_SCENARIOS.md",
-   "CLARA_COMPLEXITY_ANALYSIS.md",
-   "CLARA_FOREIGN_JUSTIFICATION.md",
-   "CLARA_PRIOR_WORK_COMPARISON.md",
-   "CLARA_SECURITY_PLAN.md",
-   "CLARA_SUBMISSION_CHECKLIST.md",
-   "DARPA_CLARA_PROPOSAL.md",
-   "DARPA_CLARA_TECHNICAL_APPENDIX.md",
    "FRENKEL_OUTREACH.md",
    "HOSSENFELDER_OUTREACH.md"
   ],
@@ -14680,7 +15480,13 @@
    "gue_surmise_reference.py",
    "height_extrapolation.py",
    "khinchin_finite_sample.py",
+   "pr_blog_author_guard.py",
+   "pr_blog_dispatch.py",
+   "pr_blog_report.py",
    "recompute_zeta_percentiles.py",
+   "test_pr_blog_author_guard.py",
+   "test_pr_blog_dispatch.py",
+   "test_pr_blog_report.py",
    "test_reachability.py",
    "unfolding_test.py"
   ],
@@ -16314,13 +17120,6 @@
    "verify_bsd.zig",
    "verify_lmfdb.zig",
    "vsa_fpga.zig"
-  ],
-  "src/clara": [
-   "baselines.zig",
-   "bounded.zig",
-   "explain.zig",
-   "kill_web.zig",
-   "rules.zig"
   ],
   "src/cli": [
    "cell.tri",
@@ -18057,8 +18856,6 @@
    "tri_cell_dispatch.zig",
    "tri_chemistry.zig",
    "tri_chimera.zig",
-   "tri_clara.zig",
-   "tri_clara_stub.zig",
    "tri_cli_commands.zig",
    "tri_cli_integration.zig",
    "tri_cli_parse.zig",
@@ -18166,7 +18963,6 @@
    "zenodo_v17_environmental.zig",
    "zenodo_v17_fair.zig",
    "zenodo_v17_reproducibility.zig",
-   "zenodo_v18_clara.zig",
    "zenodo_v18_iclr.zig",
    "zenodo_v18_jsonld.zig",
    "zenodo_v18_neurips.zig",
@@ -18304,9 +19100,6 @@
   ],
   "src/tri/cells/workflow": [
    "cell.tri"
-  ],
-  "src/tri/clara": [
-   "verification.zig"
   ],
   "src/tri/commands": [
    "issue_github.zig",
@@ -19733,10 +20526,6 @@
   ],
   "tests/tri27": [
    "golden_test_template.tasm"
-  ],
-  "tests/unit/test": [
-   "clara_integration.zig",
-   "clara_polynomial.zig"
   ],
   "tools": [
    "README.md",
