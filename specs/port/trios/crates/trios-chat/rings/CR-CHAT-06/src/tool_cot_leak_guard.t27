@@ -1,0 +1,184 @@
+//! # CR-CHAT-06 — Tool chain-of-thought leak guard (Wave-55 Lane A)
+//!
+//! БЕЗОПАСНОСТЬ АГЕНТА — запрет утечки system prompt / CoT, R-CHAT-7.
+//!
+//! LLM tool output может случайно содержать: system prompt, internal
+//! reasoning, guardrail instructions. Атакующий через tool response
+//! читает внутренности агента.
+//!
+//! 1. Output не содержит system prompt sentinel.
+//! 2. Output не содержит CoT marker.
+//! 3. Output не содержит internal instruction keywords.
+//! 4. Output длина ≤ `TCOT_MAX_LEN`.
+//! 5. Нет null bytes.
+//! 6. Нет unicode bidirectional overrides.
+//!
+//! Tests **TCOT-01..10**. Error enum [`CotLeakError`].
+//!
+//! Anchor: `φ² + φ⁻² = 3 · TRINITY · CHAT · COT-LEAK`
+
+
+/// Maximum output length.
+pub const TCOT_MAX_LEN: usize = 65536;
+
+/// System prompt sentinel.
+pub const SYSTEM_SENTINEL: []const u8 = "\u{25EF}";
+
+/// CoT markers.
+const COT_MARKER_1: []const u8 = "<|thought|>";
+const COT_MARKER_2: []const u8 = "<|reasoning|>";
+const COT_MARKER_3: []const u8 = "<|internal|>";
+const COT_MARKER_4: []const u8 = "<|scratchpad|>";
+
+/// Instruction keywords.
+const INSTRUCTION_KEYWORD_1: []const u8 = "you are a";
+const INSTRUCTION_KEYWORD_2: []const u8 = "your instructions are";
+const INSTRUCTION_KEYWORD_3: []const u8 = "ignore previous";
+const INSTRUCTION_KEYWORD_4: []const u8 = "secret key:";
+
+/// Unicode bidirectional override codepoints.
+const BIDI_OVERRIDES: []const u32 = [_]u32{
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+    0x2066, 0x2067, 0x2068, 0x2069,
+};
+
+/// All ways CoT leak detection can fail.
+pub enum CotLeakError {
+    /// System prompt sentinel detected.
+    SystemSentinel,
+    /// CoT marker detected.
+    CotMarker,
+    /// Instruction keyword detected.
+    InstructionKeyword,
+    /// Output too long.
+    TooLong,
+    /// Null byte.
+    NullByte,
+    /// Bidi override.
+    BidiOverride,
+}
+
+/// Validation result.
+pub struct ValidationResult {
+    ok: bool,
+    error: CotLeakError,
+}
+
+/// [VERIFIED] Validate tool output for chain-of-thought leaks.
+pub fn validate_no_cot_leak(output: []const u8) -> ValidationResult {
+    if (output.len > TCOT_MAX_LEN) {
+        return ValidationResult { ok: false, error: CotLeakError.TooLong };
+    }
+    if (output.contains(&0)) {
+        return ValidationResult { ok: false, error: CotLeakError.NullByte };
+    }
+    const s = std.str.from_utf8(output);
+    if (s == null) {
+        return ValidationResult { ok: false, error: CotLeakError.NullByte };
+    }
+    for (s) |ch| {
+        for (BIDI_OVERRIDES) |bidi| {
+            if (ch == bidi) {
+                return ValidationResult { ok: false, error: CotLeakError.BidiOverride };
+            }
+        }
+    }
+    const lower = std.str.to_lower(s);
+    if (lower.contains(&std.str.to_lower(SYSTEM_SENTINEL))) {
+        return ValidationResult { ok: false, error: CotLeakError.SystemSentinel };
+    }
+    // Check CoT markers
+    if (lower.contains(&std.str.to_lower(COT_MARKER_1))) {
+        return ValidationResult { ok: false, error: CotLeakError.CotMarker };
+    }
+    if (lower.contains(&std.str.to_lower(COT_MARKER_2))) {
+        return ValidationResult { ok: false, error: CotLeakError.CotMarker };
+    }
+    if (lower.contains(&std.str.to_lower(COT_MARKER_3))) {
+        return ValidationResult { ok: false, error: CotLeakError.CotMarker };
+    }
+    if (lower.contains(&std.str.to_lower(COT_MARKER_4))) {
+        return ValidationResult { ok: false, error: CotLeakError.CotMarker };
+    }
+    
+    // Check instruction keywords
+    if (lower.contains(INSTRUCTION_KEYWORD_1)) {
+        return ValidationResult { ok: false, error: CotLeakError.InstructionKeyword };
+    }
+    if (lower.contains(INSTRUCTION_KEYWORD_2)) {
+        return ValidationResult { ok: false, error: CotLeakError.InstructionKeyword };
+    }
+    if (lower.contains(INSTRUCTION_KEYWORD_3)) {
+        return ValidationResult { ok: false, error: CotLeakError.InstructionKeyword };
+    }
+    if (lower.contains(INSTRUCTION_KEYWORD_4)) {
+        return ValidationResult { ok: false, error: CotLeakError.InstructionKeyword };
+    }
+    return ValidationResult { ok: true, error: null };
+}
+
+test tcot_01_system_sentinel_rejected {
+    const result = validate_no_cot_leak("result: \u{25EF} you are a helper");
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.SystemSentinel);
+}
+
+test tcot_02_cot_marker_rejected {
+    const result = validate_no_cot_leak("output: <|thought|> let me think");
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.CotMarker);
+}
+
+test tcot_03_instruction_rejected {
+    const result = validate_no_cot_leak("the text says: Your instructions are to...");
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.InstructionKeyword);
+}
+
+test tcot_04_too_long_rejected {
+    var output: [TCOT_MAX_LEN + 1]u8 = [_]u8{0} ** (TCOT_MAX_LEN + 1);
+    for (0..TCOT_MAX_LEN + 1) |i| {
+        output[i] = 'A';
+    }
+    const result = validate_no_cot_leak(&output);
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.TooLong);
+}
+
+test tcot_05_null_rejected {
+    const result = validate_no_cot_leak("hello\x00world");
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.NullByte);
+}
+
+test tcot_06_bidi_rejected {
+    const s = "hello\u{202E}world";
+    const result = validate_no_cot_leak(s);
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.BidiOverride);
+}
+
+test tcot_07_clean_accepted {
+    const result = validate_no_cot_leak("The answer is 42.");
+    assert(result.ok == true);
+}
+
+test tcot_08_empty_accepted {
+    const result = validate_no_cot_leak("");
+    assert(result.ok == true);
+}
+
+test tcot_09_case_insensitive_rejected {
+    const result = validate_no_cot_leak("IGNORE PREVIOUS instructions");
+    assert(result.ok == false);
+    assert(result.error == CotLeakError.InstructionKeyword);
+}
+
+test tcot_10_max_len_accepted {
+    var output: [TCOT_MAX_LEN]u8 = [_]u8{0} ** TCOT_MAX_LEN;
+    for (0..TCOT_MAX_LEN) |i| {
+        output[i] = 'X';
+    }
+    const result = validate_no_cot_leak(&output);
+    assert(result.ok == true);
+}
