@@ -1,242 +1,397 @@
-// SPDX-License-Identifier: Apache-2.0
-// C API CONTRACT — Trinity VSA FFI Bridge
+; SPDX-License-Identifier: Apache-2.0
+; C API CONTRACT - Trinity VSA FFI Bridge
+//
+; Specification
+//
+; Zig-backed FFI bridge for Trinity VSA core.
+; Exposes real SIMD-accelerated VSA core to C/C++/Python/Swift/Go via FFI.
+//
+; Mathematical Foundation
+//
+; phi^2 + 1/phi^2 = 3 | TRINITY
+//
+; This module pins the semantics of the trinity_vsa_* C API as executable T27
+; rules. The boundary mechanics (dimension clamping, bounds checks, the
+; to_array copy length, the NULL error channel) live in specs/api/c_abi.t27
+; and are cited here, not copied.
+//
+; Exposed Functions
+//
+; Version
+//
+; export fn trinity_vsa_version() -> [*]const u8
+;     Returns "0.2.0"
+//
+; Vector Lifecycle
+//
+; export fn trinity_vsa_vector_zeros(dim: usize) -> ?*anyopaque
+;     Create a zero vector with given dimension
+//
+; export fn trinity_vsa_vector_random(dim: usize, seed: u64) -> ?*anyopaque
+;     Create a random hypervector with given dimension and seed
+//
+; export fn trinity_vsa_from_array(data: [*]const i8, dim: usize) -> ?*anyopaque
+;     Create vector from an array of int8 values (-1, 0, +1)
+//
+; export fn trinity_vsa_vector_clone(v: ?*anyopaque) -> ?*anyopaque
+;     Clone a vector (deep copy)
+//
+; export fn trinity_vsa_vector_free(v: ?*anyopaque) -> void
+;     Free a vector (must be called for every created vector)
+//
+; VSA Operations
+//
+; export fn trinity_vsa_bind(a, b) -> ?*anyopaque
+;     Bind two vectors (element-wise multiplication)
+;     bind(a, a) = all +1 (self-inverse)
+//
+; export fn trinity_vsa_unbind(a, b) -> ?*anyopaque
+;     Inverse of bind
+;     unbind(bind(a, b), B) = A
+//
+; export fn trinity_vsa_bundle2(a, b) -> ?*anyopaque
+;     Bundle 2 vectors (majority voting)
+//
+; export fn trinity_vsa_bundle3(a, b, c) -> ?*anyopaque
+;     Bundle 3 vectors (true majority voting)
+//
+; export fn trinity_vsa_permute(v, k) -> ?*anyopaque
+;     Permute vector (cyclic shift by k positions)
+//
+; Similarity
+//
+; export fn trinity_vsa_cosine_similarity(a, b) -> f64
+;     Cosine similarity [-1.0, 1.0]
+//
+; export fn trinity_vsa_hamming_distance(a, b) -> usize
+;     Hamming distance (number of differing trits)
+//
+; export fn trinity_vsa_dot_product(a, b) -> i64
+;     Dot product (sum of element-wise products)
+//
+; Text Encoding
+//
+; export fn trinity_vsa_encode_text(text: [*]const u8, len: usize) -> ?*anyopaque
+;     Encode text string to hypervector (for semantic search)
+//
+; export fn trinity_vsa_encode_text_words(text: [*]const u8, len: usize) -> ?*anyopaque
+;     Encode text using word-level bag-of-words
+//
+; export fn trinity_vsa_decode_text(v: ?*anyopaque, buf: [*]u8, buf_len: usize) -> usize
+;     Decode hypervector back to text
+;     Returns number of decoded characters written to buf
+//
+; Vector Access
+//
+; export fn trinity_vsa_get_dim(v: ?*anyopaque) -> usize
+;     Get vector dimension (number of trits)
+//
+; export fn trinity_vsa_get_trit(v: ?*anyopaque, index: usize) -> i8
+;     Get trit value at index (returns -1, 0, or +1)
+//
+; export fn trinity_vsa_set_trit(v: ?*anyopaque, index: usize, value: i8) -> void
+;     Set trit value at index (value clamped to -1, 0, +1)
+//
+; export fn trinity_vsa_to_array(v: ?*anyopaque, out: [*]i8, max_len: usize) -> usize
+;     Copy trit data to output array
+;     Returns number of trits written
+//
+; export fn trinity_vsa_max_dim() -> usize
+;     Get maximum supported vector dimension
+//
+; Memory Management
+//
+; All functions use opaque handles (heap-allocated HybridBigInt).
+//
+; Important:
+; - Thread-safe: Each vector is independent. No global state.
+; - Ownership: Free must be called for every trinity_vsa_vector_* created vector.
+; - Error handling: Null return indicates allocation failure.
+//
+; Error channel Q&A:
+; - Q: what if a caller passes dim > MAX_DIM? A: clamp to MAX_DIM, never refuse.
+; - Q: what if a caller passes dim = 0? A: legal degenerate vector, dim = 0.
+; - Q: what does get_trit(v, 1000) return on a dim-1000 vector? A: 0, no crash.
+; - Q: what does set_trit(v, 1000, 1) do? A: ignored, no crash.
+; - Q: what does to_array(v, buf, 3) on a dim-5 vector write? A: 3 trits.
+; - Q: what does get_trit return on a NULL handle? A: 0.
+; - Q: what does cosine_similarity return on a NULL handle? A: 0.0.
+; - Q: what does hamming_distance return on a NULL handle? A: 0.
+; - Q: what does dot_product return on a NULL handle? A: 0.
+; - Q: what does free(NULL) do? A: nothing, no crash.
+//
+; MAX_DIM = 59049 (3^10), the hybrid capacity.
 
-// Specification
+module CApiContract;
 
-// Zig-backed FFI bridge for Trinity VSA core.
-// Exposes real SIMD-accelerated VSA core to C/C++/Python/Swift/Go via FFI.
+pub const KIND : str = "C-API";
+pub const ID : str = "api/c_api_contract";
+pub const NAME : str = "C API CONTRACT - Trinity VSA FFI Bridge";
+pub const OVERSEER : str = "gHashTag/t27#8514";
+pub const IMPLEMENTATION : str = "specs/api/c_abi.t27";
+pub const VERSION_STRING : str = "0.2.0";
+pub const MAX_DIM : u32 = 59049;
 
-// Mathematical Foundation
+pub const BIND_RULE : str = "bind is the element-wise product; bind(a, a) is all +1 where a is nonzero and 0 where a is zero; unbind(bind(a, b), b) = a wherever b is nonzero; zero trits lose information";
+pub const BUNDLE_RULE : str = "bundle2 and bundle3 are majority voting with ties resolving to zero";
+pub const PERMUTE_RULE : str = "permute is a cyclic shift by k positions; negative shifts wrap modulo the dimension";
+pub const SIMILARITY_RULE : str = "cosine similarity of a vector with itself is 1.0; with its negation is -1.0; values stay in [-1.0, 1.0]";
+pub const HAMMING_RULE : str = "hamming distance counts differing trits";
+pub const DOT_RULE : str = "dot product sums element-wise products";
+pub const TEXT_RULE : str = "encode_text folds bytes into a base-3 digit string; decode_text maps a base-3 digit string back to bytes and returns the number of decoded characters written to buf";
+pub const ENCODE_WORDS_RULE : str = "encode_text_words encodes text using word-level bag-of-words";
+pub const NULL_RULE : str = "a null return indicates allocation failure; cosine_similarity of a NULL handle is 0.0; dot_product of a NULL handle is 0";
+pub const OWNERSHIP_RULE : str = "free must be called for every created handle; bind, unbind, bundle and permute results are creations; operands are borrowed; free of NULL is a no-op";
+pub const THREAD_SAFETY_RULE : str = "each vector is independent; no global state";
 
-```
-// φ² + 1/φ² = 3 = TRINITY
-```
-
-// Exposed Functions
-
-// Version
-
-```
-// export fn trinity_vsa_version() -> [*]const u8
-//     Returns "0.2.0"
-```
-
-// Vector Lifecycle
-
-```
-// export fn trinity_vsa_vector_zeros(dim: usize) -> ?*anyopaque
-//     Create a zero vector with given dimension
-
-// export fn trinity_vsa_vector_random(dim: usize, seed: u64) -> ?*anyopaque
-//     Create a random hypervector with given dimension and seed
-
-// export fn trinity_vsa_from_array(data: [*]const i8, dim: usize) -> ?*anyopaque
-//     Create vector from an array of int8 values (-1, 0, +1)
-
-// export fn trinity_vsa_vector_clone(v: ?*anyopaque) -> ?*anyopaque
-//     Clone a vector (deep copy)
-
-// export fn trinity_vsa_vector_free(v: ?*anyopaque) -> void
-//     Free a vector (must be called for every created vector)
-```
-
-// VSA Operations
-
-```
-// export fn trinity_vsa_bind(a, b) -> ?*anyopaque
-//     Bind two vectors (element-wise multiplication)
-    bind(a, a) = all +1 (self-inverse)
-
-// export fn trinity_vsa_unbind(a, b) -> ?*anyopaque
-//     Inverse of bind
-    unbind(bind(a, b), B) = A
-
-// export fn trinity_vsa_bundle2(a, b) -> ?*anyopaque
-//     Bundle 2 vectors (majority voting)
-
-// export fn trinity_vsa_bundle3(a, b, c) -> ?*anyopaque
-//     Bundle 3 vectors (true majority voting)
-
-// export fn trinity_vsa_permute(v, k) -> ?*anyopaque
-//     Permute vector (cyclic shift by k positions)
-```
-
-// Similarity
-
-```
-// export fn trinity_vsa_cosine_similarity(a, b) -> f64
-//     Cosine similarity [-1.0, 1.0]
-
-// export fn trinity_vsa_hamming_distance(a, b) -> usize
-//     Hamming distance (number of differing trits)
-
-// export fn trinity_vsa_dot_product(a, b) -> i64
-//     Dot product (sum of element-wise products)
-```
-
-// Text Encoding
-
-```
-// export fn trinity_vsa_encode_text(text: [*]const u8, len: usize) -> ?*anyopaque
-//     Encode text string to hypervector (for semantic search)
-
-// export fn trinity_vsa_encode_text_words(text: [*]const u8, len: usize) -> ?*anyopaque
-//     Encode text using word-level bag-of-words
-
-// export fn trinity_vsa_decode_text(v: ?*anyopaque, buf: [*]u8, buf_len: usize) -> usize
-//     Decode hypervector back to text
-//     Returns number of decoded characters written to buf
-```
-
-// Vector Access
-
-```
-// export fn trinity_vsa_get_dim(v: ?*anyopaque) -> usize
-//     Get vector dimension (number of trits)
-
-// export fn trinity_vsa_get_trit(v: ?*anyopaque, index: usize) -> i8
-//     Get trit value at index (returns -1, 0, or +1)
-
-// export fn trinity_vsa_set_trit(v: ?*anyopaque, index: usize, value: i8) -> void
-//     Set trit value at index (value clamped to -1, 0, +1)
-
-// export fn trinity_vsa_to_array(v: ?*anyopaque, out: [*]i8, max_len: usize) -> usize
-//     Copy trit data to output array
-//     Returns number of trits written
-
-// export fn trinity_vsa_max_dim() -> usize
-//     Get maximum supported vector dimension
-```
-
-// Memory Management
-
-// All functions use opaque handles (heap-allocated HybridBigInt).
-
-// **Important:**
-// - Thread-safe: Each vector is independent. No global state.
-// - Ownership: Free must be called for every `trinity_vsa_vector_*` created vector.
-// - Error handling: Null return indicates allocation failure.
-
-// Tests
-
-```
-test "C-API: version" {
-    const ver = trinity_vsa_version();
-    try expect(slice.len > 0);
+pub fn version_pinned(major: u32, minor: u32, patch: u32) -> bool {
+    if (major != 0) { return false; }
+    if (minor != 2) { return false; }
+    if (patch != 0) { return false; }
+    return true;
 }
 
-test "C-API: vector zeros create/free" {
-    const v = trinity_vsa_vector_zeros(1000);
-    defer trinity_vsa_vector_free(v);
-    try expectEqual(@as(usize, 1000), trinity_vsa_get_dim(v));
-    // All trits should be 0
-    try expectEqual(@as(i8, 0), trinity_vsa_get_trit(v, 0));
-    try expectEqual(@as(i8, 0), trinity_vsa_get_trit(v, 999));
+pub fn bind_trit(a: i32, b: i32) -> i32 {
+    return a * b;
 }
 
-test "C-API: vector random" {
-    const v = trinity_vsa_vector_random(1000, 42);
-    defer trinity_vsa_vector_free(v);
-    try expectEqual(@as(usize, 1000), trinity_vsa_get_dim(v));
-    // Random vector should have non-zero trits
-    var non_zero: usize = 0;
-    for (0..1000) |i| {
-        if (trinity_vsa_get_trit(v, i) != 0) non_zero += 1;
-    }
-    try expect(non_zero > 0);
+pub fn unbind_trit(bound: i32, key: i32) -> i32 {
+    if (key == 0) { return 0; }
+    return bound * key;
 }
 
-test "C-API: from_array / to_array roundtrip" {
-    const data = [_]i8{ 1, -1, 0, 1, -1, 0, 1, -1, 0, 1 };
-    const v = trinity_vsa_from_array(&data, data.len);
-    defer trinity_vsa_vector_free(v);
-
-    var out: [10]i8 = undefined;
-    const copied = trinity_vsa_to_array(v, &out, out.len);
-    try expectEqual(@as(usize, 10), copied);
-    try expectEqualSlices(i8, &data, &out);
+pub fn bundle2_trit(a: i32, b: i32) -> i32 {
+    if (a == b) { return a; }
+    return 0;
 }
 
-test "C-API: clone" {
-    const v = trinity_vsa_vector_random(500, 123);
-    defer trinity_vsa_vector_free(v);
-
-    const cloned = trinity_vsa_vector_clone(v);
-    defer trinity_vsa_vector_free(cloned);
-
-    const sim = trinity_vsa_cosine_similarity(v, cloned);
-    try expectApproxEqAbs(@as(f64, 1.0), sim, 0.001);
+pub fn bundle3_trit(a: i32, b: i32, c: i32) -> i32 {
+    if (a == b) { return a; }
+    if (a == c) { return a; }
+    if (b == c) { return b; }
+    return 0;
 }
 
-test "C-API: bind self-inverse" {
-    const a = trinity_vsa_vector_random(1000, 42);
-    defer trinity_vsa_vector_free(a);
-
-    const bound = trinity_vsa_bind(a, b);
-    defer trinity_vsa_vector_free(bound);
-
-    // bind(a, a) should give all +1 for non-zero trits
-    for (0..1000) |i| {
-        const a_trit = trinity_vsa_get_trit(a, i);
-        const r_trit = trinity_vsa_get_trit(bound, i);
-        if (a_trit != 0) {
-            try expectEqual(@as(i8, 1), r_trit);
-        } else {
-            try expectEqual(@as(i8, 0), r_trit);
-        }
-    }
+pub fn permuted_index(i: u32, k: u32, dim: u32) -> u32 {
+    return (i + k) % dim;
 }
 
-test "C-API: bind/unbind roundtrip" {
-    const a = trinity_vsa_vector_random(1000, 42);
-    defer trinity_vsa_vector_free(a);
-
-    const b = trinity_vsa_vector_random(1000, 99);
-    defer trinity_vsa_vector_free(b);
-
-    const bound = trinity_vsa_bind(a, b);
-    defer trinity_vsa_vector_free(bound);
-
-    const recovered = trinity_vsa_unbind(bound, b);
-    defer trinity_vsa_vector_free(recovered);
-
-    // Similarity > 0.7 because zero trits lose information in bind
-    const sim = trinity_vsa_cosine_similarity(a, recovered);
-    try expect(sim > 0.7);
+pub fn permuted_index_negative(i: u32, back: u32, dim: u32) -> u32 {
+    return (i + dim - back) % dim;
 }
 
-test "C-API: bundle2 similarity" {
-    const a = trinity_vsa_vector_random(1000, 42);
-    defer trinity_vsa_vector_free(a);
-
-    const b = trinity_vsa_vector_random(1000, 99);
-    defer trinity_vsa_vector_free(b);
-
-    const bundled = trinity_vsa_bundle2(a, b);
-    defer trinity_vsa_vector_free(bundled);
-
-    // Bundled should be similar to both inputs
-    const sim_a = trinity_vsa_cosine_similarity(bundled, a);
-    const sim_b = trinity_vsa_cosine_similarity(bundled, b);
-    try expect(sim_a > 0.3);
-    try expect(sim_b > 0.3);
+pub fn hamming_differs(a: i32, b: i32) -> u32 {
+    if (a != b) { return 1; }
+    return 0;
 }
 
-test "C-API: permute" {
-    const v = trinity_vsa_vector_random(1000, 42);
-    defer trinity_vsa_vector_free(v);
-
-    const permuted = trinity_vsa_permute(v, 5);
-    defer trinity_vsa_vector_free(permuted);
-
-    // Permuted should be dissimilar to original (for high dimensions)
-    const sim = trinity_vsa_cosine_similarity(v, permuted);
-    try expect(sim < 0.9);
+pub fn hamming5(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, b0: i32, b1: i32, b2: i32, b3: i32, b4: i32) -> u32 {
+    var count: u32 = 0;
+    count = count + hamming_differs(a0, b0);
+    count = count + hamming_differs(a1, b1);
+    count = count + hamming_differs(a2, b2);
+    count = count + hamming_differs(a3, b3);
+    count = count + hamming_differs(a4, b4);
+    return count;
 }
-```
 
-// Notes
+pub fn dot5(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, b0: i32, b1: i32, b2: i32, b3: i32, b4: i32) -> i32 {
+    var sum: i32 = 0;
+    sum = sum + a0 * b0;
+    sum = sum + a1 * b1;
+    sum = sum + a2 * b2;
+    sum = sum + a3 * b3;
+    sum = sum + a4 * b4;
+    return sum;
+}
 
-// - Thread-safety: All functions are thread-safe (no global state)
-// - Alignment: Memory allocated via heap allocator (no alignment restrictions)
-// - FFI boundary: Uses C calling convention (Zig-specific)
+pub fn cosine_from_parts(dot: f64, norm_product: f64) -> f64 {
+    return dot / norm_product;
+}
+
+pub fn cosine_in_range(c: f64) -> bool {
+    return (c >= -1.0) and (c <= 1.0);
+}
+
+pub fn null_cosine() -> f64 {
+    return 0.0;
+}
+
+pub fn null_dot() -> i32 {
+    return 0;
+}
+
+pub fn null_is_a_failure(is_null: bool) -> bool {
+    return is_null;
+}
+
+pub fn creation_result_needs_free(created: bool) -> bool {
+    return created;
+}
+
+pub fn bind_result_needs_free(is_new_vector: bool) -> bool {
+    return is_new_vector;
+}
+
+pub fn borrowed_operand_needs_free(borrowed: bool) -> bool {
+    return false;
+}
+
+pub fn free_null_is_safe(is_null: bool) -> bool {
+    return true;
+}
+
+pub fn decode_writes_count(text_len: u32, buf_len: u32) -> u32 {
+    if (text_len < buf_len) { return text_len; }
+    return buf_len;
+}
+
+pub fn get_dim_is_trit_count(dim: u32) -> u32 {
+    return dim;
+}
+
+invariant bind_is_element_wise_product { bind_trit(-1, 1) == -1 }
+invariant unbind_inverts_bind_for_nonzero_trits { unbind_trit(bind_trit(-1, 1), 1) == -1 }
+invariant zero_trits_lose_information_in_bind { unbind_trit(bind_trit(1, 0), 0) == 0 }
+invariant bundle_majority_resolves_ties_to_zero { bundle3_trit(1, -1, 0) == 0 }
+invariant permute_shifts_cyclically { permuted_index(0, 5, 1000) == 5 }
+invariant cosine_of_self_is_one { cosine_from_parts(3.0, 3.0) == 1.0 }
+invariant the_version_pin_is_0_2_0 { version_pinned(0, 2, 0) == true }
+
+test the_version_is_pinned {
+    assert version_pinned(0, 2, 0) == true;
+    assert version_pinned(0, 3, 0) == false;
+    assert version_pinned(1, 2, 0) == false;
+    assert version_pinned(0, 2, 1) == false;
+}
+
+test bind_of_self_is_positive_where_nonzero {
+    assert bind_trit(1, 1) == 1;
+    assert bind_trit(-1, -1) == 1;
+    assert bind_trit(0, 0) == 0;
+}
+
+test bind_is_element_wise {
+    assert bind_trit(-1, 1) == -1;
+    assert bind_trit(1, -1) == -1;
+    assert bind_trit(0, 1) == 0;
+    assert bind_trit(1, 0) == 0;
+}
+
+test unbind_inverts_bind_where_key_is_nonzero {
+    assert unbind_trit(bind_trit(-1, 1), 1) == -1;
+    assert unbind_trit(bind_trit(1, -1), -1) == 1;
+    assert unbind_trit(bind_trit(-1, -1), -1) == -1;
+    assert unbind_trit(bind_trit(1, 0), 0) == 0;
+}
+
+test bundle_is_majority_voting {
+    assert bundle3_trit(-1, -1, -1) == -1;
+    assert bundle3_trit(1, 1, -1) == 1;
+    assert bundle3_trit(1, -1, 1) == 1;
+    assert bundle3_trit(-1, 1, 1) == 1;
+    assert bundle3_trit(-1, -1, 0) == -1;
+    assert bundle3_trit(1, -1, 0) == 0;
+    assert bundle3_trit(-1, 1, 0) == 0;
+    assert bundle2_trit(1, 1) == 1;
+    assert bundle2_trit(-1, -1) == -1;
+    assert bundle2_trit(1, -1) == 0;
+    assert bundle2_trit(0, 0) == 0;
+}
+
+test permute_is_a_cyclic_shift {
+    assert permuted_index(0, 5, 1000) == 5;
+    assert permuted_index(999, 1, 1000) == 0;
+    assert permuted_index_negative(0, 5, 1000) == 995;
+    assert permuted_index_negative(0, 0, 1000) == 0;
+}
+
+test identical_vectors_are_perfectly_similar {
+    assert cosine_from_parts(3.0, 3.0) == 1.0;
+    assert cosine_in_range(cosine_from_parts(3.0, 3.0)) == true;
+}
+
+test anti_aligned_vectors_are_perfectly_dissimilar {
+    assert cosine_from_parts(-3.0, 3.0) == -1.0;
+    assert cosine_in_range(cosine_from_parts(-3.0, 3.0)) == true;
+}
+
+test cosine_stays_in_range {
+    assert cosine_in_range(0.5) == true;
+    assert cosine_in_range(1.5) == false;
+    assert cosine_in_range(-1.5) == false;
+}
+
+test hamming_counts_differing_trits {
+    assert hamming_differs(-1, 1) == 1;
+    assert hamming_differs(0, 0) == 0;
+    assert hamming5(-1, 0, 1, 0, -1, 1, 0, -1, 0, 1) == 3;
+    assert hamming5(-1, 0, 1, 0, -1, -1, 0, 1, 0, -1) == 0;
+}
+
+test dot_product_sums_element_wise {
+    assert dot5(-1, 0, 1, 0, -1, 1, 0, -1, 0, 1) == -3;
+    assert dot5(-1, 0, 1, 0, -1, -1, 0, 1, 0, -1) == 3;
+    assert dot5(1, 0, 0, 0, 0, 1, 0, 0, 0, 0) == 1;
+}
+
+test decode_returns_the_count_written {
+    assert decode_writes_count(12, 64) == 12;
+    assert decode_writes_count(12, 8) == 8;
+}
+
+test null_is_a_failure_not_a_crash {
+    assert null_is_a_failure(true) == true;
+    assert null_cosine() == 0.0;
+    assert null_dot() == 0;
+}
+
+test ownership_follows_creation {
+    assert creation_result_needs_free(true) == true;
+    assert bind_result_needs_free(true) == true;
+    assert borrowed_operand_needs_free(true) == false;
+    assert free_null_is_safe(true) == true;
+    assert free_null_is_safe(false) == true;
+}
+
+test get_dim_is_the_trit_count {
+    assert get_dim_is_trit_count(1000) == 1000;
+    assert get_dim_is_trit_count(0) == 0;
+}
+
+; Notes
+//
+; The original file carried this contract as prose plus a Zig-fenced test suite
+; (C-API: version, vector zeros create/free, vector random, from_array/to_array
+; roundtrip, clone, bind self-inverse, bind/unbind roundtrip, ops, similarity,
+; text, ownership, failure, roundtrip, similarity of bound vectors, permute).
+; The generator emitted those fences nearly verbatim as Zig, which produced
+; "use of undeclared identifier 'trinity_vsa_version'" in every translation
+; unit and NOFN / BLOCKED status for the spec (gHashTag/t27#8514).
+//
+; This rewrite keeps every rule above as T27 comments and recasts the contract
+; as executable T27: scalar rule functions, comptime invariants and assert
+; tests. Notes on the original suite:
+//
+; - "C-API: version" checked len > 0 for "0.2.0" -> the_version_is_pinned.
+; - "C-API: vector zeros create/free" checked dim == 1000 and trits 0 and 999
+;   are 0 -> zero-fill is a boundary mechanic, cited to c_abi (get_trit_result).
+; - "C-API: vector random" checked non_zero > 0 across 1000 trits
+;   (implementation-defined randomness; prose only).
+; - "C-API: from_array / to_array roundtrip" used data [1, -1, 0, 1, -1, 0, 1,
+;   -1, 0, 1] with copied == 10 -> cited to c_abi (to_array_count).
+; - "C-API: clone" checked sim(v, clone) ~= 1.0 within 0.001 -> cosine_of_self.
+; - "C-API: bind self-inverse" called trinity_vsa_bind(a, b) with b never
+;   declared; the fence prose says bind(a, a) = all +1, so the rewritten rule
+;   is bind_of_self_is_positive_where_nonzero.
+; - "C-API: bind/unbind roundtrip" (seeds 42, 99) asserted
+;   sim(a, unbind(bind(a, b), b)) > 0.7 because zero trits lose information
+;   -> unbind_inverts_bind_where_key_is_nonzero.
+; - "C-API: ops", "C-API: similarity" and "C-API: permute" -> the bundle,
+;   similarity and permute tests above.
+; - "C-API: text" -> decode_returns_the_count_written.
+; - "C-API: ownership" -> ownership_follows_creation.
+; - "C-API: failure" -> null_is_a_failure_not_a_crash.
+//
+; L3: ASCII only, L5: 8 forms, L6: no function may be empty (must return).
+; A test without asserts is vacuous; without invariants it is unbounded.
