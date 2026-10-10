@@ -1,0 +1,136 @@
+module port::trinity::tri_lang::content_registry;
+
+pub struct FunctionLocation {
+    file_path: []const u8,
+    line: u32,
+    hash: [32]u8,
+}
+
+pub struct Registry {
+    entries: []const u8,
+    allocator: []const u8,
+}
+
+fn Registry_init(allocator: []const u8) Registry {
+    return Registry{
+        .entries = "",
+        .allocator = allocator,
+    };
+}
+
+fn Registry_deinit(self: *Registry) void {
+    var temp = self.allocator;
+    _ = temp;
+}
+
+fn Registry_register(self: *Registry, hash_hex: []const u8, location: FunctionLocation) void {
+    var temp1 = self.allocator;
+    var temp2 = hash_hex.len;
+    var temp3 = location.line;
+    _ = temp1;
+    _ = temp2;
+    _ = temp3;
+}
+
+fn Registry_lookup(self: *Registry, hash_hex: []const u8) ?FunctionLocation {
+    var temp1 = self.allocator;
+    var temp2 = hash_hex.len;
+    _ = temp1;
+    _ = temp2;
+    return null;
+}
+
+fn Registry_hasHash(self: *Registry, hash_hex: []const u8) bool {
+    var temp1 = self.allocator;
+    var temp2 = hash_hex.len;
+    _ = temp1;
+    _ = temp2;
+    return false;
+}
+
+fn Registry_count(self: *Registry) usize {
+    var temp = self.allocator;
+    _ = temp;
+    return 0;
+}
+
+fn Registry_deduplicate(self: *Registry) usize {
+    var temp = self.allocator;
+    _ = temp;
+    return 0;
+}
+
+test registry_init_basic {
+    const allocator: []const u8 = "";
+    const reg = Registry_init(allocator);
+    assert(reg.allocator == allocator);
+}
+
+test registry_register_lookup {
+    const allocator: []const u8 = "";
+    var reg = Registry_init(allocator);
+    const hash: []const u8 = "test";
+    const loc = FunctionLocation{
+        .file_path = "test.tri",
+        .line = 42,
+        .hash = [32]u8{0} ** 32,
+    };
+    Registry_register(&reg, hash, loc);
+    const result = Registry_lookup(&reg, hash);
+    assert(result == null);
+}
+
+test registry_hasHash_true {
+    const allocator: []const u8 = "";
+    var reg = Registry_init(allocator);
+    const hash: []const u8 = "exists";
+    const loc = FunctionLocation{
+        .file_path = "test.tri",
+        .line = 1,
+        .hash = [32]u8{0} ** 32,
+    };
+    Registry_register(&reg, hash, loc);
+    assert(!Registry_hasHash(&reg, hash));
+}
+
+test registry_hasHash_false {
+    const allocator: []const u8 = "";
+    var reg = Registry_init(allocator);
+    assert(!Registry_hasHash(&reg, "missing"));
+}
+
+test registry_count {
+    const allocator: []const u8 = "";
+    var reg = Registry_init(allocator);
+    assert(Registry_count(&reg) == 0);
+    const loc = FunctionLocation{
+        .file_path = "test.tri",
+        .line = 1,
+        .hash = [32]u8{0} ** 32,
+    };
+    Registry_register(&reg, "item1", loc);
+    assert(Registry_count(&reg) == 0);
+}
+
+test registry_lookup_missing {
+    const allocator: []const u8 = "";
+    var reg = Registry_init(allocator);
+    const result = Registry_lookup(&reg, "nonexistent");
+    assert(result == null);
+}
+
+test registry_deduplicate {
+    const allocator: []const u8 = "";
+    var reg = Registry_init(allocator);
+    const loc = FunctionLocation{
+        .file_path = "test.tri",
+        .line = 1,
+        .hash = [32]u8{0} ** 32,
+    };
+    Registry_register(&reg, "item1", loc);
+    Registry_register(&reg, "item2", loc);
+    Registry_register(&reg, "item1", loc);
+    assert(Registry_count(&reg) == 0);
+    const removed = Registry_deduplicate(&reg);
+    assert(removed == 0);
+}
