@@ -1,0 +1,230 @@
+module port::trios::crates::trios_agent_harness::rings::AH_01;
+
+// Port of crates/trios-agent-harness/rings/AH-01/src/lib.rs — the AH-01
+// adapter catalog ring. The ring is pure: it maps static, declarative data
+// (the catalog of supported agent adapters, their default models and their
+// reasoning-effort options) with no runtime side effects, so every decision
+// in the original Rust is carried into t27 directly.
+//
+// Dialect notes:
+// - Growable Rust vectors become fixed-capacity list structs
+//   ({ items: [N]T, len: usize }) because this dialect has no growable
+//   lists; callers only ever read the first len entries.
+// - The original imports AgentAdapter from the AH-00 ring. Cross-module
+//   reuse does not compile in this dialect, so the enum is declared locally
+//   with exactly the variants the catalog and its callers exercise.
+
+// Selects how a per-agent model override is interpreted at runtime.
+enum ModelControl { RuntimeSupported, BestEffort, }
+
+// Identifies an agent adapter in the harness.
+enum AgentAdapter { Claude, Codex, Openclaw, Hermes, }
+
+// One selectable catalog entry: a stable id, a human-readable label, and an
+// optional recommendation marker (null = not recommended).
+pub struct CatalogOption {
+    id: str,
+    label: str,
+    recommended: ?bool,
+}
+
+// Fixed-capacity stand-in for a growable option list.
+pub struct CatalogOptionList {
+    items: [8]CatalogOption,
+    len: usize,
+}
+
+// One adapter's full descriptor: identity, defaults, model-control policy,
+// and the selectable model and reasoning-effort option lists.
+pub struct AdapterDescriptor {
+    id: AgentAdapter,
+    name: str,
+    default_model_id: str,
+    default_reasoning_effort: str,
+    model_control: ModelControl,
+    models: CatalogOptionList,
+    reasoning_efforts: CatalogOptionList,
+}
+
+// Fixed-capacity stand-in for a growable descriptor list.
+pub struct AdapterDescriptorList {
+    items: [4]AdapterDescriptor,
+    len: usize,
+}
+
+// Plain catalog entry with no recommendation marker.
+pub fn CatalogOption_new(id: str, label: str) -> CatalogOption {
+    return CatalogOption { id: id, label: label, recommended: null };
+}
+
+// Catalog entry flagged as recommended.
+pub fn CatalogOption_recommended(id: str, label: str) -> CatalogOption {
+    return CatalogOption { id: id, label: label, recommended: true };
+}
+
+// Empty option list for adapters with no configured models.
+fn empty_options() -> CatalogOptionList {
+    return CatalogOptionList { items: [_]CatalogOption{undefined} ** 8, len: 0 };
+}
+
+// Shared reasoning-effort ordering for every adapter, low through max;
+// medium is flagged as recommended only when the caller says so.
+fn efforts_low_to_max(recommended_medium: bool) -> CatalogOptionList {
+    var result: CatalogOptionList = CatalogOptionList { items: [_]CatalogOption{undefined} ** 8, len: 5 };
+    result.items[0] = CatalogOption_new("low", "Low");
+    if (recommended_medium) {
+        result.items[1] = CatalogOption_recommended("medium", "Medium");
+    } else {
+        result.items[1] = CatalogOption_new("medium", "Medium");
+    }
+    result.items[2] = CatalogOption_new("high", "High");
+    result.items[3] = CatalogOption_new("xhigh", "Extra high");
+    result.items[4] = CatalogOption_new("max", "Max");
+    return result;
+}
+
+// The full adapter catalog, in adapter order: Claude, Codex, Openclaw,
+// Hermes.
+pub fn catalog() -> AdapterDescriptorList {
+    var claude_models: CatalogOptionList = CatalogOptionList { items: [_]CatalogOption{undefined} ** 8, len: 3 };
+    claude_models.items[0] = CatalogOption_new("opus", "Opus (latest)");
+    claude_models.items[1] = CatalogOption_new("sonnet", "Sonnet (latest)");
+    claude_models.items[2] = CatalogOption_recommended("haiku", "Haiku (latest)");
+
+    var codex_models: CatalogOptionList = CatalogOptionList { items: [_]CatalogOption{undefined} ** 8, len: 1 };
+    codex_models.items[0] = CatalogOption_recommended("gpt-5.5", "GPT-5.5");
+
+    var result: AdapterDescriptorList = AdapterDescriptorList { items: [_]AdapterDescriptor{undefined} ** 4, len: 4 };
+    result.items[0] = AdapterDescriptor { id: AgentAdapter.Claude, name: "Claude Code", default_model_id: "haiku", default_reasoning_effort: "medium", model_control: ModelControl.BestEffort, models: claude_models, reasoning_efforts: efforts_low_to_max(true) };
+    result.items[1] = AdapterDescriptor { id: AgentAdapter.Codex, name: "Codex", default_model_id: "gpt-5.5", default_reasoning_effort: "medium", model_control: ModelControl.BestEffort, models: codex_models, reasoning_efforts: efforts_low_to_max(true) };
+    result.items[2] = AdapterDescriptor { id: AgentAdapter.Openclaw, name: "OpenClaw", default_model_id: "default", default_reasoning_effort: "medium", model_control: ModelControl.BestEffort, models: empty_options(), reasoning_efforts: efforts_low_to_max(true) };
+    result.items[3] = AdapterDescriptor { id: AgentAdapter.Hermes, name: "Hermes", default_model_id: "default", default_reasoning_effort: "medium", model_control: ModelControl.BestEffort, models: empty_options(), reasoning_efforts: efforts_low_to_max(true) };
+    return result;
+}
+
+// Looks up the descriptor for one adapter; null when the catalog has no
+// entry for it.
+pub fn descriptor_for(adapter: AgentAdapter) -> ?AdapterDescriptor {
+    const list: AdapterDescriptorList = catalog();
+    var i: usize = 0;
+    while (i < list.len) {
+        if (list.items[i].id == adapter) {
+            return list.items[i];
+        }
+        i += 1;
+    }
+    return null;
+}
+
+// The catalog exposes exactly the four adapters the ring serves, and every
+// one of them resolves through descriptor_for.
+test catalog_has_all_adapters {
+    const c = catalog();
+    assert(c.len == 4);
+    assert(descriptor_for(AgentAdapter.Claude) != null);
+    assert(descriptor_for(AgentAdapter.Codex) != null);
+    assert(descriptor_for(AgentAdapter.Openclaw) != null);
+    assert(descriptor_for(AgentAdapter.Hermes) != null);
+}
+
+// Defaults mirror the catalog the ring was built against: Claude Code runs
+// haiku at medium, Codex runs gpt-5.5 at medium, Openclaw and Hermes keep
+// the default placeholder id at medium.
+test defaults_match_catalog {
+    const claude_opt = descriptor_for(AgentAdapter.Claude);
+    const claude = claude_opt.?;
+    assert(claude.default_model_id == "haiku");
+    assert(claude.default_reasoning_effort == "medium");
+    const codex_opt = descriptor_for(AgentAdapter.Codex);
+    const codex = codex_opt.?;
+    assert(codex.default_model_id == "gpt-5.5");
+    assert(codex.default_reasoning_effort == "medium");
+    const openclaw_opt = descriptor_for(AgentAdapter.Openclaw);
+    const openclaw = openclaw_opt.?;
+    assert(openclaw.default_model_id == "default");
+    const hermes_opt = descriptor_for(AgentAdapter.Hermes);
+    const hermes = hermes_opt.?;
+    assert(hermes.default_model_id == "default");
+}
+
+// Claude's model list is opus, sonnet, haiku in that order, with haiku
+// recommended and the other two plain entries.
+test claude_models_recommend_haiku {
+    const claude_opt = descriptor_for(AgentAdapter.Claude);
+    const claude = claude_opt.?;
+    assert(claude.models.len == 3);
+    assert(claude.models.items[0].id == "opus");
+    assert(claude.models.items[0].label == "Opus (latest)");
+    assert(claude.models.items[0].recommended == null);
+    assert(claude.models.items[1].id == "sonnet");
+    assert(claude.models.items[1].recommended == null);
+    assert(claude.models.items[2].id == "haiku");
+    assert(claude.models.items[2].recommended == true);
+}
+
+// Codex carries a single recommended model.
+test codex_models_single_recommended {
+    const codex_opt = descriptor_for(AgentAdapter.Codex);
+    const codex = codex_opt.?;
+    assert(codex.models.len == 1);
+    assert(codex.models.items[0].id == "gpt-5.5");
+    assert(codex.models.items[0].recommended == true);
+}
+
+// Openclaw and Hermes ship with no configured models until runtime config
+// overrides the empty list.
+test openclaw_and_hermes_have_empty_models {
+    const openclaw_opt = descriptor_for(AgentAdapter.Openclaw);
+    const openclaw = openclaw_opt.?;
+    assert(openclaw.models.len == 0);
+    const hermes_opt = descriptor_for(AgentAdapter.Hermes);
+    const hermes = hermes_opt.?;
+    assert(hermes.models.len == 0);
+}
+
+// Effort ordering is low through max with medium recommended when asked.
+test efforts_low_to_max_recommends_medium {
+    const e = efforts_low_to_max(true);
+    assert(e.len == 5);
+    assert(e.items[0].id == "low");
+    assert(e.items[0].label == "Low");
+    assert(e.items[1].id == "medium");
+    assert(e.items[1].label == "Medium");
+    assert(e.items[1].recommended == true);
+    assert(e.items[2].id == "high");
+    assert(e.items[3].id == "xhigh");
+    assert(e.items[4].id == "max");
+}
+
+// Without the recommendation flag, medium stays plain: every option in the
+// list carries the not-recommended marker.
+test efforts_low_to_max_medium_plain_when_not_recommended {
+    const e = efforts_low_to_max(false);
+    assert(e.len == 5);
+    assert(e.items[0].recommended == null);
+    assert(e.items[1].id == "medium");
+    assert(e.items[1].recommended == null);
+    assert(e.items[2].recommended == null);
+    assert(e.items[4].recommended == null);
+}
+
+// Every adapter resolves to its own descriptor with model control routed
+// through the runtime's best-effort path.
+test descriptor_for_returns_matching_descriptor {
+    const claude_opt = descriptor_for(AgentAdapter.Claude);
+    const claude = claude_opt.?;
+    assert(claude.name == "Claude Code");
+    assert(claude.model_control == ModelControl.BestEffort);
+    const codex_opt = descriptor_for(AgentAdapter.Codex);
+    const codex = codex_opt.?;
+    assert(codex.name == "Codex");
+    assert(codex.model_control == ModelControl.BestEffort);
+    const openclaw_opt = descriptor_for(AgentAdapter.Openclaw);
+    const openclaw = openclaw_opt.?;
+    assert(openclaw.name == "OpenClaw");
+    assert(openclaw.model_control == ModelControl.BestEffort);
+    const hermes_opt = descriptor_for(AgentAdapter.Hermes);
+    const hermes = hermes_opt.?;
+    assert(hermes.name == "Hermes");
+    assert(hermes.model_control == ModelControl.BestEffort);
+}
