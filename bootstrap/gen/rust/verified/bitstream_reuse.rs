@@ -4,7 +4,7 @@
 // This backend emits declarations only. The spec's checks live in
 // the Zig and Verilog outputs; do not read this file as verified.
 
-pub const BIT_RECIPE: u32 = 1;
+pub const BIT_RECIPE: u32 = 2;
 
 pub const BIT_REUSE: u8 = 0;
 
