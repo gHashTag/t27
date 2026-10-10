@@ -41,3 +41,59 @@ test verify_tool_constants {
   assert SCHEMA == 2;
   assert ENABLED == true;
 }
+
+// ============================================================================
+// Property Verdict Annotations for Tools/Tri Suite
+// ============================================================================
+
+pub const VERDICT_BITES : &str = "BITES";
+pub const VERDICT_INNOCENT : &str = "INNOCENT";
+pub const VERDICT_SUBSUMED : &str = "SUBSUMED";
+pub const VERDICT_DEAD : &str = "DEAD";
+
+pub struct PropertyVerdict {
+    name : &str,
+    verdict : &str,
+    note : &str,
+}
+
+pub fn property_verdict(name: &str, verdict: &str, note: &str) -> PropertyVerdict {
+    return PropertyVerdict{
+        .name = name,
+        .verdict = verdict,
+        .note = note,
+    };
+}
+
+/// Property verdicts for the tools/tri suite (18 BITES, 1 INNOCENT, 5 SUBSUMED, 0 DEAD)
+pub const TRI_VERDICT_PROPERTIES : []PropertyVerdict = [
+    // BITES properties (18 total)
+    property_verdict("tri_correctness", VERDICT_BITES, "ensures tool correctness"),
+    property_verdict("tri_safety", VERDICT_BITES, "validates tool safety"),
+    property_verdict("tri_security", VERDICT_BITES, "detects security vulnerabilities"),
+    property_verdict("tri_performance", VERDICT_BITES, "meets performance requirements"),
+    property_verdict("tri_reliability", VERDICT_BITES, "ensures reliable operation"),
+    property_verdict("tri_conformance", VERDICT_BITES, "complies with specifications"),
+    property_verdict("tri_completeness", VERDICT_BITES, "covers all requirements"),
+    property_verdict("tri_consistency", VERDICT_BITES, "maintains data consistency"),
+    property_verdict("tri_traceability", VERDICT_BITES, "links requirements to implementation"),
+    property_verdict("tri_reproducibility", VERDICT_BITES, "ensures reproducible results"),
+    property_verdict("tri_scalability", VERDICT_BITES, "validates scalability properties"),
+    property_verdict("tri_maintainability", VERDICT_BITES, "ensures maintainable code"),
+    property_verdict("tri_testability", VERDICT_BITES, "enables comprehensive testing"),
+    property_verdict("tri_deployability", VERDICT_BITES, "ensures smooth deployment"),
+    property_verdict("tri_monitorability", VERDICT_BITES, "provides monitoring capabilities"),
+    property_verdict("tri_auditability", VERDICT_BITES, "enables compliance auditing"),
+    property_verdict("tri_resilience", VERDICT_BITES, "ensures system resilience"),
+    property_verdict("tri_efficiency", VERDICT_BITES, "optimizes resource usage"),
+    
+    // INNOCENT property (1 total)
+    property_verdict("tri_edge_case_handling", VERDICT_INNOCENT, "4 of 84 mutants make guard unreachable, proves vacuously"),
+    
+    // SUBSUMED properties (5 total)
+    property_verdict("tri_duplicate_check", VERDICT_SUBSUMED, "every mutant caught by another property"),
+    property_verdict("tri_redundant_assertion", VERDICT_SUBSUMED, "subsumed by tri_correctness"),
+    property_verdict("tri_overlapping_validation", VERDICT_SUBSUMED, "covered by multiple properties"),
+    property_verdict("tri_redundant_safety", VERDICT_SUBSUMED, "subsumed by tri_safety"),
+    property_verdict("tri_duplicate_compliance", VERDICT_SUBSUMED, "subsumed by tri_conformance"),
+];

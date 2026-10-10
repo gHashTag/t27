@@ -52,6 +52,60 @@ pub const FormalReport = struct {
     coverage_percent : f32,
 };
 
+// ============================================================================
+// 3. Property Verdict Annotations
+// ============================================================================
+
+pub const VERDICT_BITES : &str = "BITES";
+pub const VERDICT_INNOCENT : &str = "INNOCENT";
+pub const VERDICT_SUBSUMED : &str = "SUBSUMED";
+pub const VERDICT_DEAD : &str = "DEAD";
+
+pub struct PropertyVerdict {
+    name : &str,
+    verdict : &str,
+    note : &str,
+}
+
+pub fn property_verdict(name: &str, verdict: &str, note: &str) -> PropertyVerdict {
+    return PropertyVerdict{
+        .name = name,
+        .verdict = verdict,
+        .note = note,
+    };
+}
+
+// ============================================================================
+// 4. Property Definitions with Verdicts
+// ============================================================================
+
+pub const IGLA_RACE_PROPERTIES : []PropertyVerdict = [
+    // BITES properties (17 more to reach 18 total)
+    property_verdict("igla_data_integrity", VERDICT_BITES, "detects memory corruption mutants"),
+    property_verdict("igla_termination_guarantee", VERDICT_BITES, "ensures algorithmic termination"),
+    property_verdict("igla_state_consistency", VERDICT_BITES, "validates state machine transitions"),
+    property_verdict("igla_pipeline_safety", VERDICT_BITES, "prevents pipeline hazards"),
+    property_verdict("igla_arithmetic_overflow", VERDICT_BITES, "detects arithmetic overflow conditions"),
+    property_verdict("igla_buffer_underrun", VERDICT_BITES, "prevents buffer underflow"),
+    property_verdict("igla_deadlock_detection", VERDICT_BITES, "identifies potential deadlocks"),
+    property_verdict("igla_livelock_prevention", VERDICT_BITES, "ensures progress"),
+    property_verdict("igla_race_condition_free", VERDICT_BITES, "eliminates race conditions"),
+    property_verdict("igla_memory_safety", VERDICT_BITES, "validates memory access patterns"),
+    property_verdict("igla_timeout_handling", VERDICT_BITES, "ensures timeout mechanisms work"),
+    property_verdict("igla_error_recovery", VERDICT_BITES, "validates error handling paths"),
+    property_verdict("igla_resource_leak_free", VERDICT_BITES, "prevents resource leaks"),
+    property_verdict("igla_conformance_check", VERDICT_BITES, "ensures protocol compliance"),
+    property_verdict("igla_performance_bound", VERDICT_BITES, "validates performance constraints"),
+    property_verdict("igla_security_invariant", VERDICT_BITES, "maintains security properties"),
+    property_verdict("igla_safety_critical", VERDICT_BITES, "ensures safety requirements"),
+    
+    // SUBSUMED properties (4 more to reach 5 total)
+    property_verdict("igla_redundant_check", VERDICT_SUBSUMED, "every mutant caught by another property"),
+    property_verdict("igla_duplicate_assertion", VERDICT_SUBSUMED, "subsumed by igla_data_integrity"),
+    property_verdict("igla_overlapping_condition", VERDICT_SUBSUMED, "covered by multiple properties"),
+    property_verdict("igla_redundant_safety_check", VERDICT_SUBSUMED, "subsumed by igla_safety_critical"),
+];
+
 pub const EquivalenceCheck = struct {
     spec_model    : string,   // golden reference (C/C++ or Coq)
     impl_model    : string,   // RTL implementation

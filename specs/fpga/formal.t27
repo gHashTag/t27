@@ -8,6 +8,36 @@
 
 module Formal {
 
+    // === Property Verdict Annotations ===
+
+    pub const VERDICT_BITES : &str = "BITES";
+    pub const VERDICT_INNOCENT : &str = "INNOCENT";
+    pub const VERDICT_SUBSUMED : &str = "SUBSUMED";
+    pub const VERDICT_DEAD : &str = "DEAD";
+
+    pub struct PropertyVerdict {
+        name : &str,
+        verdict : &str,
+        note : &str,
+    }
+
+    pub fn property_verdict(name: &str, verdict: &str, note: &str) -> PropertyVerdict {
+        return PropertyVerdict{
+            .name = name,
+            .verdict = verdict,
+            .note = note,
+        };
+    }
+
+    // === Property Definitions with Verdicts ===
+
+    pub const FPGA_PROPERTIES : []PropertyVerdict = [
+        property_verdict("a_awvalid_stable", VERDICT_BITES, "detects mutants uniquely"),
+        property_verdict("a_wvalid_stable", VERDICT_INNOCENT, "4 of 84 mutants make its guard unreachable"),
+        property_verdict("a_read_burst_not_abandoned", VERDICT_SUBSUMED, "regression witness for defect Prop. 9 fixed"),
+        // Additional FPGA properties would go here
+    ];
+
     // === Assertion kind ===
 
     pub const AssertKind = enum(i8) {
