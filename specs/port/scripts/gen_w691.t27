@@ -1,0 +1,206 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w691.t27
+// Port of scripts/gen_w691.py to t27
+
+// The script generates specs/scratch/w691_bench_module_201x2p6_aos_var_call_write.t27:
+// a [201,2,2,2,2,2,2]Pt grid whose element i carries the i16 pair
+// (2*i % 32768, 2*i+1 % 32768), plus the test and bench blocks that check it.
+//
+// WHAT THIS PORT DELIBERATELY DOES NOT CONTAIN
+//
+// The text assembly. The original builds the generated spec as a string --
+// f-strings, "\n".join over entries, the header and footer templates (original
+// lines 35-58 and 61-131) -- and t27 cannot express string building: no
+// f-strings, no join, no concatenation. Faking the text would be worse than
+// omitting it, so what is ported is every decision the assembly consumes: the
+// per-element coordinate formula, the base advancement of the recursive
+// literal builder, the indentation rule, the bench constants and the ASCII
+// gate. The file write and the print (original lines 138-141) are plumbing;
+// `generate` below keeps the name with an undefined body and no test calls it.
+
+module port::scripts::gen_w691 {
+    // ------------------------------------------------------------------
+    // The bench constants (original lines 9-21)
+    // ------------------------------------------------------------------
+
+    // The grid is [OUTER, 2, 2, 2, 2, 2, 2] -- OUTER outer entries of 64
+    // elements each, 7 dimensions, 201*2**6 elements in total.
+    const OUTER: i64 = 201;
+    const TOTAL: i64 = OUTER * 64; // OUTER * 2 ** 6
+    const LAST_IDX: i64 = OUTER - 1;
+    // OUTER // 2. The original's trailing comment says 99; 201 // 2 is 100.
+    const MID_IDX: i64 = OUTER / 2;
+    // The last element [LAST_IDX][1][1][1][1][1][1] is element TOTAL - 1.
+    const LAST_X: i64 = (2 * (TOTAL - 1)) % 32768;
+    const LAST_Y: i64 = (2 * (TOTAL - 1) + 1) % 32768;
+    // Index [MID_IDX][1][0][0][0][0][0] corresponds to element number
+    // MID_IDX * 64 + 1*32 + 0*16 + 0*8 + 0*4 + 0*2 + 0 = MID_IDX*64 + 32.
+    const MID_E: i64 = MID_IDX * 64 + 32;
+    const MID_X: i64 = (2 * MID_E) % 32768;
+    const MID_Y: i64 = (2 * MID_E + 1) % 32768;
+    // The generated spec checks make_grid(32768) as well: 32768 is a multiple
+    // of the modulus, so folding it in must not move a coordinate.
+    const WRAP_LAST_X: i64 = (2 * (TOTAL - 1) + 32768) % 32768;
+    const WRAP_LAST_Y: i64 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+    // ------------------------------------------------------------------
+    // indent (original line 24)
+    // ------------------------------------------------------------------
+
+    // Python: return "    " * level. String repetition is not expressible in
+    // t27, so this returns a prefix of a fixed table of spaces: indent(1) is
+    // "    ", indent(2) is "        ", indent(0) is "".
+    const SPACES: [256]u8 = [_]u8{' '} ** 256;
+
+    pub fn indent(level: usize) -> []const u8 {
+        const n: usize = level * 4;
+        return SPACES[0..n];
+    }
+
+    // ------------------------------------------------------------------
+    // build_tree (original line 28)
+    // ------------------------------------------------------------------
+
+    // Python returns (text, next_base). The text half is f-string and join
+    // assembly, which t27 cannot express (see the top of this file); what is
+    // carried is the base-advancement decision: a single-dimension leaf
+    // returns base + shape[0] (original line 46), a deeper tree accumulates
+    // the base through shape[0] recursive visits and hands it back unchanged
+    // itself (original lines 53-58). The offset exists in the original only
+    // to reach the text, so it is threaded through unchanged.
+    pub fn build_tree(shape: []usize, base: i64, offset: i64) -> i64 {
+        if (shape.len == 1) {
+            return base + (shape[0] as i64);
+        }
+        var b: i64 = base;
+        var i: usize = 0;
+        while (i < shape[0]) {
+            b = build_tree_rest(shape, 1, b, offset);
+            i += 1;
+        }
+        return b;
+    }
+
+    fn build_tree_rest(shape: []usize, start: usize, base: i64, offset: i64) -> i64 {
+        if (shape.len - start == 1) {
+            return base + (shape[start] as i64);
+        }
+        var b: i64 = base;
+        var i: usize = 0;
+        while (i < shape[start]) {
+            b = build_tree_rest(shape, start + 1, b, offset);
+            i += 1;
+        }
+        return b;
+    }
+
+    // ------------------------------------------------------------------
+    // The per-element formula (original lines 40-42)
+    // ------------------------------------------------------------------
+
+    // The leaf writes one Pt per element: for element e = base + i,
+    // x = (2*e + offset) % 32768 and y = (2*e + offset + 1) % 32768. These
+    // are the i16 .x/.y values every entry of the generated grid carries,
+    // and the modulo is the whole wrap story: an offset of 32768 folds back
+    // to 0..1.
+    fn entry_coords(e: i64, offset: i64) -> (i16, i16) {
+        const x: i16 = ((2 * e + offset) % 32768) as i16;
+        const y: i16 = ((2 * e + offset + 1) % 32768) as i16;
+        return (x, y);
+    }
+
+    // ------------------------------------------------------------------
+    // The ASCII gate (original lines 135-136)
+    // ------------------------------------------------------------------
+
+    // generate writes with encoding="ascii" and raises ValueError when any
+    // character of the text is outside 0..127. The scan is the decision; the
+    // raise is the caller's side.
+    fn is_ascii(text: []const u8) -> bool {
+        for c in text {
+            if (c >= 128) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // generate (original line 61)
+    // ------------------------------------------------------------------
+
+    // Python assembles the spec text (see the top of this file: not
+    // expressible here) and writes it to
+    // specs/scratch/w691_bench_module_201x2p6_aos_var_call_write.t27. The
+    // write and the print are plumbing; the body is undefined and no test
+    // calls it.
+    pub fn generate() -> void {
+        undefined;
+    }
+
+    // ==================================================================
+    // Tests
+    // ==================================================================
+
+    test "indent is four spaces per level"
+        assert(indent(0) == "");
+        assert(indent(1) == "    ");
+        assert(indent(2) == "        ");
+
+    test "build_tree advances the base by the shape it builds"
+        var leaf: [1]usize = [3];
+        // A single-dimension leaf returns base + shape[0] (original line 46).
+        assert_eq(build_tree(&leaf, 5, 7), 8);
+        var inner: [2]usize = [2, 3];
+        // A deeper tree accumulates the base through its visits (lines 53-58).
+        assert_eq(build_tree(&inner, 10, 0), 16);
+        // The bench shape [201,2,2,2,2,2,2] advances by TOTAL (lines 9-10).
+        var full: [7]usize = [201, 2, 2, 2, 2, 2, 2];
+        assert_eq(build_tree(&full, 0, 0), 12864);
+        // The offset reaches the text, never the base (original lines 53-54).
+        var wrapped: [2]usize = [2, 3];
+        assert_eq(build_tree(&wrapped, 0, 32768), 6);
+
+    test "element coords fold through % 32768"
+        const (x0, y0) = entry_coords(0, 0);
+        assert_eq(x0, 0);
+        assert_eq(y0, 1);
+        // The last element of the bench grid, e = TOTAL - 1 = 12863.
+        const (xl, yl) = entry_coords(12863, 0);
+        assert_eq(xl, 25726);
+        assert_eq(yl, 25727);
+        // Just below the modulus, and wrapping over it.
+        const (xa, ya) = entry_coords(16383, 0);
+        assert_eq(xa, 32766);
+        assert_eq(ya, 32767);
+        const (xb, yb) = entry_coords(16384, 0);
+        assert_eq(xb, 0);
+        assert_eq(yb, 1);
+        // An offset of 32768 is a multiple of the modulus: nothing moves.
+        const (xo, yo) = entry_coords(0, 32768);
+        assert_eq(xo, 0);
+        assert_eq(yo, 1);
+        const (xw, yw) = entry_coords(12863, 32768);
+        assert_eq(xw, 25726);
+        assert_eq(yw, 25727);
+
+    test "the generated spec is ASCII only"
+        // The header line the original writes, and a newline, are in range.
+        assert(is_ascii("module w691_bench_module_201x2p6_aos_var_call_write\n"));
+        // A byte outside 0..127 refuses. Escapes beyond \n \t \\ \" are not in
+        // the lexer, so the out-of-range byte is written numerically.
+        var bad: [2]u8 = [97, 200];
+        assert(!is_ascii(&bad));
+
+    test "the bench constants the footer asserts against"
+        assert_eq(TOTAL, 12864);
+        assert_eq(LAST_IDX, 200);
+        assert_eq(MID_IDX, 100);
+        assert_eq(LAST_X, 25726);
+        assert_eq(LAST_Y, 25727);
+        assert_eq(MID_X, 12864);
+        assert_eq(MID_Y, 12865);
+        // Folding offset 32768 in moves nothing: WRAP == LAST.
+        assert_eq(WRAP_LAST_X, LAST_X);
+        assert_eq(WRAP_LAST_Y, LAST_Y);
+}
