@@ -1,0 +1,214 @@
+// Port of gHashTag/trinity src/tri/tri_cli_integration.zig @ aa30f374eee0
+// (84 lines, hand-written Zig). Original: TRI CLI INTEGRATION - integrates
+// generated CLI commands. Usage: tri integrate cli. Reads specs/cli/*-v3.tri
+// and patches tri_utils.zig and main.zig.
+//
+// The original mixes three decisions with side effects: which subcommand was
+// asked for, which commands to integrate (a static table of four CliCommand
+// values, only "reputation" carrying the alias "rep"), and which help text
+// to print in which color. Those decisions are ported below as pure
+// functions and asserted by tests. The side effects - colored stdout
+// printing and CliPatcher rewriting Zig files on disk - are plumbing: the
+// caller does them, guided by the values these functions return. The two
+// functions that in the original only move data in or out keep their names
+// with `undefined;` bodies that no test calls.
+
+module port::tri_cli_integration;
+
+// What runIntegrateCommand decides to do. The original returns !void and
+// acts inline; here the caller acts on the returned code.
+pub const ACT_HELP: i32 = 0;      // no subcommand: print the help, done
+pub const ACT_INTEGRATE: i32 = 1; // subcommand "cli": integrate the commands
+pub const ACT_UNKNOWN: i32 = 2;   // anything else: report it, print the help
+
+// The original's static table holds exactly four commands.
+pub const COMMAND_COUNT: usize = 4;
+
+// The original's help output is exactly four lines.
+pub const HELP_LINE_COUNT: usize = 4;
+
+// The colors the original prints with, numbered in the order its palette
+// is used.
+pub const COLOR_YELLOW: i32 = 0;
+pub const COLOR_CYAN: i32 = 1;
+pub const COLOR_WHITE: i32 = 2;
+
+// One command to integrate - only the facts the original reads. The
+// original carries an alias slice per command; every command in its table
+// has at most one alias, so one field stands for the slice ("" means none).
+pub struct CliCommand {
+    name: []const u8,
+    enum_name: []const u8,
+    alias: []const u8,
+}
+
+// The name of the command at index i of the original's table, i < COMMAND_COUNT.
+pub fn command_name(i: usize) -> []const u8 {
+    if (i == 0) {
+        return "mesh";
+    }
+    if (i == 1) {
+        return "wallet";
+    }
+    if (i == 2) {
+        return "reputation";
+    }
+    return "hardware";
+}
+
+// The original repeats every command name as its enum_name.
+pub fn command_enum_name(i: usize) -> []const u8 {
+    return command_name(i);
+}
+
+// Only "reputation" carries an alias in the original: "rep". The other
+// commands carry empty alias slices.
+pub fn command_alias(i: usize) -> []const u8 {
+    if (i == 2) {
+        return "rep";
+    }
+    return "";
+}
+
+// The CliCommand value at index i, as the original builds them before
+// handing the table to CliPatcher.
+pub fn command_at(i: usize) -> CliCommand {
+    return CliCommand { name: command_name(i), enum_name: command_enum_name(i), alias: command_alias(i) };
+}
+
+// The red message the original prints for an unknown subcommand, up to the
+// offending word; the caller appends the subcommand and a newline.
+pub fn unknown_subcommand_prefix() -> []const u8 {
+    return "Unknown integrate subcommand: ";
+}
+
+// Help line i (i < HELP_LINE_COUNT), without the newline the printer adds.
+pub fn help_line(i: usize) -> []const u8 {
+    if (i == 0) {
+        return "INTEGRATE COMMAND HELP";
+    }
+    if (i == 1) {
+        return "Usage: tri integrate <subcommand>";
+    }
+    if (i == 2) {
+        return "Subcommands:";
+    }
+    return "  cli    - Integrate CLI commands from specs";
+}
+
+// The color the original prints help line i in.
+pub fn help_line_color(i: usize) -> i32 {
+    if (i == 0) {
+        return COLOR_YELLOW;
+    }
+    if (i == 3) {
+        return COLOR_WHITE;
+    }
+    return COLOR_CYAN;
+}
+
+// The original's runIntegrateCommand(allocator, args) dispatched on args[0]
+// and then printed and patched inline. The allocator took no part in the
+// decision, and the printing and patching it triggered are the caller's job
+// now; what is left is exactly the decision - help when no subcommand was
+// given, integrate on "cli", report-unknown-then-help on anything else.
+pub fn runIntegrateCommand(args: []str) -> i32 {
+    if (args.len < 1) {
+        return ACT_HELP;
+    }
+    if (args[0] == "cli") {
+        return ACT_INTEGRATE;
+    }
+    return ACT_UNKNOWN;
+}
+
+// In the original this prints the cyan banner, builds the four-command
+// table, applies CliPatcher (which reads specs/cli/*-v3.tri and rewrites
+// tri_utils.zig and main.zig on disk) and prints the green summary. The
+// table and the count it reports are ported above (command_at,
+// COMMAND_COUNT); the file patching and the printing are plumbing.
+fn integrateCliCommands() void {
+    undefined;
+}
+
+// In the original this writes four colored lines to stdout. The lines and
+// their colors are ported above (help_line, help_line_color); the writing
+// itself is the caller's job.
+fn printIntegrateHelp() void {
+    undefined;
+}
+
+test runIntegrateCommand_dispatch {
+    // No subcommand: the original prints the help and returns.
+    var none: [0][]const u8 = [];
+    assert(runIntegrateCommand(&none) == ACT_HELP);
+
+    // "cli" is the one subcommand that integrates.
+    var cli: [1][]const u8 = ["cli"];
+    assert(runIntegrateCommand(&cli) == ACT_INTEGRATE);
+
+    // The match is exact: "CLI" is not "cli".
+    var upper: [1][]const u8 = ["CLI"];
+    assert(runIntegrateCommand(&upper) == ACT_UNKNOWN);
+
+    // Any other word is reported as unknown and gets the help.
+    var bogus: [1][]const u8 = ["wallet"];
+    assert(runIntegrateCommand(&bogus) == ACT_UNKNOWN);
+}
+
+test command_table_matches_original {
+    assert(COMMAND_COUNT == 4);
+    assert(command_name(0) == "mesh");
+    assert(command_name(1) == "wallet");
+    assert(command_name(2) == "reputation");
+    assert(command_name(3) == "hardware");
+}
+
+test command_enum_names_match_original {
+    assert(command_enum_name(0) == "mesh");
+    assert(command_enum_name(1) == "wallet");
+    assert(command_enum_name(2) == "reputation");
+    assert(command_enum_name(3) == "hardware");
+}
+
+test command_aliases_match_original {
+    // The original gives empty alias slices to mesh, wallet and hardware,
+    // and "rep" to reputation.
+    assert(command_alias(0) == "");
+    assert(command_alias(1) == "");
+    assert(command_alias(2) == "rep");
+    assert(command_alias(3) == "");
+}
+
+test command_at_builds_struct {
+    // Mirrors the original's own test: a CliCommand carries a name, an
+    // enum_name and aliases (one alias here, "" for none).
+    const rep = command_at(2);
+    assert(rep.name == "reputation");
+    assert(rep.enum_name == "reputation");
+    assert(rep.alias == "rep");
+
+    const mesh = command_at(0);
+    assert(mesh.name == "mesh");
+    assert(mesh.enum_name == "mesh");
+    assert(mesh.alias == "");
+}
+
+test help_lines_match_original {
+    assert(HELP_LINE_COUNT == 4);
+    assert(help_line(0) == "INTEGRATE COMMAND HELP");
+    assert(help_line(1) == "Usage: tri integrate <subcommand>");
+    assert(help_line(2) == "Subcommands:");
+    assert(help_line(3) == "  cli    - Integrate CLI commands from specs");
+}
+
+test help_colors_match_original {
+    assert(help_line_color(0) == COLOR_YELLOW);
+    assert(help_line_color(1) == COLOR_CYAN);
+    assert(help_line_color(2) == COLOR_CYAN);
+    assert(help_line_color(3) == COLOR_WHITE);
+}
+
+test unknown_subcommand_message_matches_original {
+    assert(unknown_subcommand_prefix() == "Unknown integrate subcommand: ");
+}
