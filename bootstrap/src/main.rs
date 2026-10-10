@@ -113,6 +113,10 @@ mod seal_identity;
 #[path = "../gen/rust/verified/verdict_audit.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod verdict_audit;
+// specs/verified/gen_hash_cache.t27 (#8737): when frontier may take a spec's gen hashes from its cache.
+#[path = "../gen/rust/verified/gen_hash_cache.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod gen_hash_cache;
 // specs/verified/silicon_queue.t27 (#8095 step 5): the bench queue and the reseal guard.
 #[path = "../gen/rust/verified/silicon_queue.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]

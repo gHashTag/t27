@@ -5651,8 +5651,9 @@ mod unresolved_is_not_a_rejection {
 /// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
 /// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
 pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Result<()> {
-    use crate::{seal_identity as si, verdict_audit as va};
-    let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
+    use crate::{gen_hash_cache as gc, seal_identity as si, verdict_audit as va};
+    let (mut tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
+    tc["gen_cache_bin"] = std::fs::read(std::env::current_exe()?).map(|b| crate::sha256_hex(&b)).unwrap_or_default().into(); // #8737: the generator's identity
     while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
     fn seal_of(p: &str, src: &str) -> serde_json::Value {
         let module = crate::extract_module_name(src).unwrap_or_else(|| Path::new(p).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default());
@@ -5670,7 +5671,12 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
             match decide(&crate::use_spec_path(u), tc, memo, depth + 1) { Some(d) => rebuilt |= d != si::REUSE, None => missing = true }
         }
         let spec = si::recorded_part(g("/spec_hash").is_some(), g("/spec_hash") == Some(format!("sha256:{}", crate::sha256_hex(src.as_bytes()))));
-        let cur = crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]);
+        thread_local!(static DIG: std::cell::RefCell<std::collections::HashMap<String, String>> = Default::default());
+        fn digest(p: &str, d: u32) -> String { if let Some(x) = DIG.with(|m| m.borrow().get(p).cloned()) { return x } let src = std::fs::read_to_string(p).unwrap_or_default(); let mut h = src.clone(); for u in src.lines().filter_map(|l| l.trim().strip_prefix("use ")).filter(|_| d < 64) { h.push_str(&digest(&crate::use_spec_path(u), d + 1)) } let x = crate::sha256_hex(h.as_bytes()); DIG.with(|m| m.borrow_mut().insert(p.into(), x.clone())); x }
+        let file = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/t27/genhash").join(crate::sha256_hex(format!("{}{}{}", digest(p, 0), tc["gen_cache_bin"].as_str().unwrap_or(""), gc::GEN_CACHE_VERSION).as_bytes()));
+        let hit: Option<[String; 4]> = std::fs::read_to_string(&file).ok().and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok()).filter(|v| gc::gen_cache_use(true, v.len() as u32)).map(|v| [v[0].clone(), v[1].clone(), v[2].clone(), v[3].clone()]);
+        let cur = hit.clone().or_else(|| crate::compute_seal_hashes(p).ok().map(|h| [h.gen_hash_zig, h.gen_hash_verilog, h.gen_hash_c, h.gen_hash_rust]));
+        if let Some(c) = cur.as_ref().filter(|_| gc::gen_cache_store(true, hit.is_some())) { let _ = std::fs::create_dir_all(file.parent().unwrap_or(Path::new("."))); let _ = std::fs::write(&file, serde_json::to_string(c).unwrap_or_default()); }
         let out = ["/gen_hash_zig", "/gen_hash_verilog", "/gen_hash_c", "/gen_hash_rust"].map(|k| g(k));
         let tools = ["test_runner", "zig"].map(|k| (g(&format!("/toolchain/{k}")), t(k)));
         let tool = si::toolchain_part(out.iter().all(|o| o.is_some()), cur.map_or(false, |c| out.iter().zip(c.iter()).all(|(o, c)| o.as_deref() == Some(c.as_str()))), tools.iter().all(|(r, _)| r.is_some()), tools.iter().all(|(r, c)| r == c));

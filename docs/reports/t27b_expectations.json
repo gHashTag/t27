@@ -1319,6 +1319,7 @@
   {"path": "specs/verified/evidence_chain.t27", "t27b": "pass"},
   {"path": "specs/verified/failure_loop.t27", "t27b": "pass"},
   {"path": "specs/verified/frontier.t27", "t27b": "pass"},
+  {"path": "specs/verified/gen_hash_cache.t27", "t27b": "pass"},
   {"path": "specs/verified/independence.t27", "t27b": "pass"},
   {"path": "specs/verified/payout.t27", "t27b": "pass"},
   {"path": "specs/verified/poc/a/slot.t27", "t27b": "pass"},

@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/gen_hash_cache.t27 -- when `t27c frontier` may take a spec's four generated-code hashes from
+; a cache instead of generating them again. Epic gHashTag/t27#8095, issue #8737 (hot reload, step H1).
+; --
+; Why. frontier judges a seal's toolchain part by OUTPUT: it regenerates the Zig, Verilog, C and Rust of
+; every spec and compares their hashes with the seal's (seal_identity.t27). Measured 2026-10-11: a frontier
+; walk over 1813 specs took 55 s, almost all of it generating code that had not changed since the last walk.
+; --
+; The key. A cached entry is named by one hash over every input of the generator:
+;   the spec's own source, and the source of every spec in its `use` closure -- measured: changing the value
+;   of a constant in specs/verified/reuse.t27 changes the Zig generated for seal_identity.t27, which imports
+;   it, because constants are inlined across imports;
+;   the bytes of the t27c binary that generates -- any rebuild of the compiler is a different generator;
+;   GEN_CACHE_VERSION, bumped by hand when the entry's format or the key's composition changes.
+; A different key is a different entry, so a changed input is a miss and never a hit.
+; --
+; What an entry must hold: all four hashes. An entry that cannot be read, or holds fewer, is not used; the
+; hashes are generated again and the entry is written again. A generation that failed is never written: a
+; cache that keeps a failure serves the failure forever (the same rule as bitstream_reuse.t27 may_store).
+; --
+; What it does NOT change. The verdict identity: a cached hash is the hash the same generator would print
+; for the same inputs, so every frontier decision is the same with or without the cache. The cache lives
+; under the user's cache directory, not in the repository, and holds nothing a seal records.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedGenHashCache;
+
+/// Bumped by hand when the entry format or the key's composition changes.
+pub const GEN_CACHE_VERSION : u32 = 1;
+
+/// The number of generated outputs an entry holds: Zig, Verilog, C, Rust.
+pub const GEN_OUTPUTS : u32 = 4;
+
+/// Use a cached entry only when it was found and holds every output.
+pub fn gen_cache_use(entry_found: bool, outputs_read: u32) -> bool {
+    if (entry_found == false) { return false; }
+    return outputs_read == GEN_OUTPUTS;
+}
+
+/// Write an entry only for a generation that succeeded, and never over one this walk already read.
+pub fn gen_cache_store(generated_ok: bool, served_from_cache: bool) -> bool {
+    if (served_from_cache) { return false; }
+    return generated_ok;
+}
+
+test gen_cache_use_needs_a_complete_entry {
+    assert gen_cache_use(true, 4) == true;
+    assert gen_cache_use(false, 4) == false;
+    // a truncated or foreign entry is regenerated, never half-used
+    assert gen_cache_use(true, 3) == false;
+    assert gen_cache_use(true, 0) == false;
+    assert gen_cache_use(true, 5) == false;
+}
+
+test gen_cache_store_keeps_only_a_fresh_success {
+    assert gen_cache_store(true, false) == true;
+    // a failed generation is never cached
+    assert gen_cache_store(false, false) == false;
+    // an entry served from the cache is not written back
+    assert gen_cache_store(true, true) == false;
+}
+
+invariant the_cache_shape_never_moves_silently {
+    assert GEN_CACHE_VERSION >= 1;
+    assert GEN_OUTPUTS == 4;
+}
