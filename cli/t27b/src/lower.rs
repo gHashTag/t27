@@ -1175,14 +1175,6 @@ impl<'a> Lower<'a> {
     /// each such type distinct, so it is interned per fn; values come from
     /// `return .{ .a = .. }` and from calls.
     fn anon_struct_ret(&mut self, f: &str, rt: &str) -> R<LTy> {
-        // Zig's keywords: printed bare here, as a field name they do not parse.
-        const ANON_FIELD_KEYWORDS: &[&str] = &[
-            "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv",
-            "catch", "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export",
-            "extern", "fn", "for", "if", "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque",
-            "or", "orelse", "packed", "pub", "resume", "return", "struct", "suspend", "switch", "test",
-            "threadlocal", "try", "union", "unreachable", "usingnamespace", "var", "volatile", "while",
-        ];
         let key =format!("{} (result of `{}`)", rt, f);
         if let Some(&id) = self.struct_ids.get(&key) {
             return Ok(LTy::Struct(id));
@@ -1207,9 +1199,7 @@ impl<'a> Lower<'a> {
                 return self.reject("type (anonymous struct)", format!("`{}`: field `{}`", rt, p));
             };
             let name = name.trim();
-            let ident = name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-            if !ident || ANON_FIELD_KEYWORDS.contains(&name) {
+            if !tt::ident(name.as_bytes()) || tt::zig_keyword(name.as_bytes()) {
                 return self.reject("type (anonymous struct)", format!("`{}`: field name `{}`", rt, name));
             }
             if fields.iter().any(|g| g.name == name) {
@@ -4585,25 +4575,30 @@ impl<'a> Lower<'a> {
         self.reject(&construct, detail)
     }
 
-    /// The length of array type `t`, spelled `len`.
+    /// The length of array type `t`, spelled `len`: an integer expression, its names first replaced by the
+    /// compile-time integers they name (specs/tri/t27b/type_text.t27, `len_value`).
     fn array_len(&mut self, t: &str, len: &str) -> R<u32> {
-        let v = if let Some(c) = parse_int(len) {
-            Some(c)
-        } else if len.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && !len.starts_with(|c: char| c.is_ascii_digit()) && len != "_" {
-            let v = match self.lookup(len) {
+        let (b, mut text, mut at, mut v) = (len.as_bytes(), String::new(), 0, parse_int(len));
+        while v.is_none() {
+            let lo = tt::name_lo(b, at);
+            text += &len[at..lo];
+            if lo == len.len() {
+                v = Some(tt::len_value(text.as_bytes())).filter(|v| *v != tt::LEN_NONE).map(i128::from);
+                break;
+            }
+            at = tt::name_hi(b, lo);
+            let c = match self.lookup(&len[lo..at]) {
                 Some(Binding::Const(v)) => Some(v),
                 Some(_) => None,
-                None => self.global(len)?,
+                None => self.global(&len[lo..at])?,
             };
-            match v {
+            match c {
                 Some(Val::Poison) => return Err(()),
-                Some(Val::Ct(c)) => Some(c),
-                Some(Val::E(Expr { kind: ExprKind::Const(c), ty })) if ty.is_int() => Some(c),
-                _ => None,
+                Some(Val::Ct(c)) => text += &format!("({})", c),
+                Some(Val::E(Expr { kind: ExprKind::Const(c), ty })) if ty.is_int() => text += &format!("({})", c),
+                _ => break,
             }
-        } else {
-            None
-        };
+        }
         match v {
             Some(c) if (0..=u32::MAX as i128).contains(&c) => Ok(c as u32),
             Some(c) => self.reject("type [N]T", format!("`{}`: length {} out of range", t, c)),

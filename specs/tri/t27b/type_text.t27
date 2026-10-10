@@ -27,9 +27,15 @@ pub const B_TAB : u8 = 9;
 pub const B_CR : u8 = 13;
 pub const B_SPACE : u8 = 32;
 pub const B_BANG : u8 = 33;
+pub const B_PERCENT : u8 = 37;
 pub const B_AMP : u8 = 38;
 pub const B_LPAREN : u8 = 40;
+pub const B_RPAREN : u8 = 41;
 pub const B_STAR : u8 = 42;
+pub const B_PLUS : u8 = 43;
+pub const B_MINUS : u8 = 45;
+pub const B_DOT : u8 = 46;
+pub const B_SLASH : u8 = 47;
 pub const B_COLON : u8 = 58;
 pub const B_SEMI : u8 = 59;
 pub const B_LT : u8 = 60;
@@ -58,6 +64,8 @@ pub const ZIG_NAMES : [21]str = ["bool", "void", "type", "anyerror", "anyframe",
 pub const MAPPED_NAMES : [8]str = ["str", "string", "float", "double", "int", "uint", "GF16", "gf16"];
 /// The return types that are no value.
 pub const NO_VALUE_NAMES : [4]str = ["", "void", "noreturn", "()"];
+/// Zig's keywords: printed bare, they are no field name of an anonymous struct (`anon_struct_ret`).
+pub const ZIG_KEYWORDS : [48]str = ["align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv", "catch", "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export", "extern", "fn", "for", "if", "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque", "or", "orelse", "packed", "pub", "resume", "return", "struct", "suspend", "switch", "test", "threadlocal", "try", "union", "unreachable", "usingnamespace", "var", "volatile", "while"];
 
 /// Is the byte an ASCII letter?
 pub fn alpha(c: u8) -> bool {
@@ -300,6 +308,182 @@ pub fn returns_value(s: []const u8) -> bool {
         k = k + 1;
     }
     return true;
+}
+
+/// Is the text one of Zig's keywords?
+pub fn zig_keyword(s: []const u8) -> bool {
+    var k : usize = 0;
+    while (k < 48) {
+        if (same(s, ZIG_KEYWORDS[k])) { return true; }
+        k = k + 1;
+    }
+    return false;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// An array's length (issue #8657). Zig reads the text between `[` and `]` of `[N]T` as a comptime usize
+// expression, and gen-zig prints it as written: memory.t27's `[MAX_CONTENT_LENGTH+1]u8` and types.t27's
+// `[TRITS_PER_WORD+1]Trit` are 50001 and 28 elements long. t27b reads the integer expressions of this grammar:
+//     sum  := prod (('+' | '-') prod)*
+//     prod := atom (('*' | '/' | '%') atom)*
+//     atom := digits | '(' sum ')' | '-' atom
+// The glue holds the lookups: it finds each name (`name_lo`, `name_hi`), replaces it by the value of the
+// compile-time integer it names, in parentheses, and asks `len_value` for the answer. A value, an operand or a
+// result outside +-LEN_LIMIT is no length; nor is a `/` or `%` with a negative operand or a zero divisor, which
+// Zig refuses for comptime integers; nor is anything else (a call, `@sizeOf`, a hex or float literal).
+// ----------------------------------------------------------------------------------------------------------
+
+/// The answer for a text that is no integer expression this file reads.
+pub const LEN_NONE : i64 = -4611686018427387904;
+/// The largest magnitude `len_value` works with, 2^36; a length is below 2^32.
+pub const LEN_LIMIT : i64 = 68719476736;
+/// A reading returns its value and the position it stopped at as one i64: (value + LEN_LIMIT) * LEN_SHIFT +
+/// position. A text is shorter than LEN_SHIFT, 2^24 bytes. LEN_NONE is no reading.
+pub const LEN_SHIFT : i64 = 16777216;
+
+/// The end of the run of letters, digits and `_` that starts at s[i].
+fn word_end(s: []const u8, i: usize) -> usize {
+    var k : usize = i;
+    while (k < s.len and word(s[k])) { k = k + 1; }
+    return k;
+}
+
+/// The start of the first name in s at or after `from`; s.len when there is none. A token that starts with a
+/// digit is a number and is skipped whole (`0x10` holds no name).
+pub fn name_lo(s: []const u8, from: usize) -> usize {
+    var i : usize = from;
+    while (i < s.len) {
+        const c : u8 = s[i];
+        if (digit(c)) {
+            i = word_end(s, i);
+        } else if (alpha(c) or c == B_UNDERSCORE) {
+            return i;
+        } else {
+            i = i + 1;
+        }
+    }
+    return s.len;
+}
+
+/// The end of the name that starts at s[lo]: words joined by `.` (`a.b`).
+pub fn name_hi(s: []const u8, lo: usize) -> usize {
+    var k : usize = word_end(s, lo);
+    while (k + 1 < s.len and s[k] == B_DOT and word(s[k + 1])) {
+        k = word_end(s, k + 1);
+    }
+    return k;
+}
+
+/// The first byte at or after i that is no space.
+fn len_skip(s: []const u8, i: usize) -> usize {
+    var k : usize = i;
+    while (k < s.len and s[k] == B_SPACE) { k = k + 1; }
+    return k;
+}
+
+/// The magnitude of v.
+fn len_abs(v: i64) -> i64 {
+    if (v < 0) { return 0 - v; }
+    return v;
+}
+
+/// The reading of value v that stopped at position pos.
+fn len_pack(v: i64, pos: usize) -> i64 {
+    const p : i64 = @intCast(pos);
+    return (v + LEN_LIMIT) * LEN_SHIFT + p;
+}
+
+/// The value of a reading.
+fn len_val(r: i64) -> i64 {
+    return @divTrunc(r, LEN_SHIFT) - LEN_LIMIT;
+}
+
+/// The position a reading stopped at.
+fn len_pos(r: i64) -> usize {
+    const q : i64 = r - @divTrunc(r, LEN_SHIFT) * LEN_SHIFT;
+    return @intCast(q);
+}
+
+/// atom := digits | '(' sum ')' | '-' atom, read from position `at`.
+fn len_atom(s: []const u8, at: usize) -> i64 {
+    const i : usize = len_skip(s, at);
+    if (i >= s.len) { return LEN_NONE; }
+    const c : u8 = s[i];
+    if (c == B_LPAREN) {
+        const w : i64 = len_sum(s, i + 1);
+        if (w == LEN_NONE) { return LEN_NONE; }
+        const j : usize = len_skip(s, len_pos(w));
+        if (j >= s.len or s[j] != B_RPAREN) { return LEN_NONE; }
+        return len_pack(len_val(w), j + 1);
+    }
+    if (c == B_MINUS) {
+        const m : i64 = len_atom(s, i + 1);
+        if (m == LEN_NONE) { return LEN_NONE; }
+        return len_pack(0 - len_val(m), len_pos(m));
+    }
+    if (!digit(c)) { return LEN_NONE; }
+    var v : i64 = 0;
+    var k : usize = i;
+    while (k < s.len and word(s[k])) {
+        if (!digit(s[k])) { return LEN_NONE; }
+        v = v * 10 + @as(i64, s[k] - 48);
+        if (v > LEN_LIMIT) { return LEN_NONE; }
+        k = k + 1;
+    }
+    return len_pack(v, k);
+}
+
+/// prod := atom (('*' | '/' | '%') atom)*.
+fn len_prod(s: []const u8, at: usize) -> i64 {
+    var r : i64 = len_atom(s, at);
+    while (r != LEN_NONE) {
+        const i : usize = len_skip(s, len_pos(r));
+        if (i >= s.len) { return r; }
+        const op : u8 = s[i];
+        if (op != B_STAR and op != B_SLASH and op != B_PERCENT) { return r; }
+        const q : i64 = len_atom(s, i + 1);
+        if (q == LEN_NONE) { return LEN_NONE; }
+        const a : i64 = len_val(r);
+        const b : i64 = len_val(q);
+        if (op == B_STAR) {
+            if (b != 0 and len_abs(a) > @divTrunc(LEN_LIMIT, len_abs(b))) { return LEN_NONE; }
+            r = len_pack(a * b, len_pos(q));
+        } else if (a < 0 or b <= 0) {
+            return LEN_NONE;
+        } else if (op == B_SLASH) {
+            r = len_pack(@divTrunc(a, b), len_pos(q));
+        } else {
+            r = len_pack(a - b * @divTrunc(a, b), len_pos(q));
+        }
+    }
+    return LEN_NONE;
+}
+
+/// sum := prod (('+' | '-') prod)*.
+fn len_sum(s: []const u8, at: usize) -> i64 {
+    var r : i64 = len_prod(s, at);
+    while (r != LEN_NONE) {
+        const i : usize = len_skip(s, len_pos(r));
+        if (i >= s.len) { return r; }
+        const op : u8 = s[i];
+        if (op != B_PLUS and op != B_MINUS) { return r; }
+        const q : i64 = len_prod(s, i + 1);
+        if (q == LEN_NONE) { return LEN_NONE; }
+        var v : i64 = len_val(r) + len_val(q);
+        if (op == B_MINUS) { v = len_val(r) - len_val(q); }
+        if (v > LEN_LIMIT or v < 0 - LEN_LIMIT) { return LEN_NONE; }
+        r = len_pack(v, len_pos(q));
+    }
+    return LEN_NONE;
+}
+
+/// The value of the integer expression s, which holds no names; LEN_NONE when it is not one this file reads.
+pub fn len_value(s: []const u8) -> i64 {
+    if (s.len >= LEN_SHIFT) { return LEN_NONE; }
+    const r : i64 = len_sum(s, 0);
+    if (r == LEN_NONE) { return LEN_NONE; }
+    if (len_skip(s, len_pos(r)) != s.len) { return LEN_NONE; }
+    return len_val(r);
 }
 
 /// The shape a type outside the subset is refused as, by its first bytes (`type_construct`, after the
@@ -656,4 +840,98 @@ test shape_names_are_the_refusal_constructs {
     assert same(shape_name(SHAPE_ANON_STRUCT), "type (anonymous struct)");
     assert same(shape_name(SHAPE_GENERIC), "type (generic)");
     assert same(shape_name(SHAPE_UNDECLARED), "type (undeclared)");
+}
+
+test zig_keywords_are_no_field_names {
+    assert zig_keyword("fn") and zig_keyword("align") and zig_keyword("while") and zig_keyword("usingnamespace");
+    assert zig_keyword("test") and zig_keyword("error") and zig_keyword("or") and zig_keyword("anytype");
+    assert !zig_keyword("Fn") and !zig_keyword("") and !zig_keyword("f") and !zig_keyword("whiles");
+    assert !zig_keyword("type") and !zig_keyword("null") and !zig_keyword("undefined") and !zig_keyword("bool");
+    assert ZIG_KEYWORDS.len == 48;
+}
+
+test a_length_is_an_integer_expression {
+    assert len_value("28") == 28;
+    assert len_value("0") == 0;
+    assert len_value("27+1") == 28;
+    assert len_value(" 27 + 1 ") == 28;
+    assert len_value("(27)+(1)") == 28;
+    assert len_value("50000+1") == 50001;
+    assert len_value("2*3+4") == 10;
+    assert len_value("2+3*4") == 14;
+    assert len_value("(2+3)*4") == 20;
+    assert len_value("100/7") == 14;
+    assert len_value("100%7") == 2;
+    assert len_value("10-4-3") == 3;
+    assert len_value("100/5/2") == 10;
+    assert len_value("-3+5") == 2;
+    assert len_value("2*-3") == -6;
+    assert len_value("(-3)") == -3;
+    assert len_value("3-5") == -2;
+    assert len_value("((7))") == 7;
+}
+
+test a_text_that_is_no_length_expression_is_none {
+    assert len_value("") == LEN_NONE;
+    assert len_value("  ") == LEN_NONE;
+    assert len_value("1+") == LEN_NONE;
+    assert len_value("+1") == LEN_NONE;
+    assert len_value("(1") == LEN_NONE;
+    assert len_value("1)") == LEN_NONE;
+    assert len_value("()") == LEN_NONE;
+    assert len_value("1 2") == LEN_NONE;
+    assert len_value("1+*2") == LEN_NONE;
+    assert len_value("N+1") == LEN_NONE;
+    assert len_value("0x10") == LEN_NONE;
+    assert len_value("12abc") == LEN_NONE;
+    assert len_value("1.5") == LEN_NONE;
+    assert len_value("1e3") == LEN_NONE;
+    assert len_value("f(1)") == LEN_NONE;
+}
+
+test the_comptime_integer_rules_of_division_are_zigs {
+    assert len_value("1/0") == LEN_NONE;
+    assert len_value("1%0") == LEN_NONE;
+    assert len_value("(-7)/2") == LEN_NONE;
+    assert len_value("(-7)%2") == LEN_NONE;
+    assert len_value("7/(-2)") == LEN_NONE;
+    assert len_value("0/5") == 0;
+    assert len_value("7/7") == 1;
+}
+
+test a_length_stays_within_the_limit {
+    assert len_value("68719476736") == LEN_LIMIT;
+    assert len_value("68719476737") == LEN_NONE;
+    assert len_value("68719476736+1") == LEN_NONE;
+    assert len_value("68719476736*1") == LEN_LIMIT;
+    assert len_value("68719476736*2") == LEN_NONE;
+    assert len_value("262144*262144") == LEN_LIMIT;
+    assert len_value("262144*262145") == LEN_NONE;
+    assert len_value("0*68719476736") == 0;
+    assert len_value("99999999999999999999999999") == LEN_NONE;
+    assert len_value("68719476736-68719476736") == 0;
+    assert len_value("0-68719476736") == 0 - LEN_LIMIT;
+    assert len_value("0-68719476737") == LEN_NONE;
+}
+
+test the_names_of_a_length_are_found_in_order {
+    assert name_lo("A+1", 0) == 0;
+    assert name_hi("A+1", 0) == 1;
+    assert name_lo("A+1", 1) == 3;
+    assert name_lo("2*N", 0) == 2;
+    assert name_hi("2*N", 2) == 3;
+    assert name_lo("MAX_LEN*B_2", 0) == 0;
+    assert name_hi("MAX_LEN*B_2", 0) == 7;
+    assert name_lo("MAX_LEN*B_2", 7) == 8;
+    assert name_hi("MAX_LEN*B_2", 8) == 11;
+    assert name_lo("(_x+1)", 0) == 1;
+    assert name_lo("28", 0) == 2;
+    assert name_lo("", 0) == 0;
+    assert name_lo("0x10+N", 0) == 5;
+    assert name_lo("12abc", 0) == 5;
+    assert name_lo("1.5e3", 0) == 5;
+    assert name_hi("a.b_c+1", 0) == 5;
+    assert name_hi("a.+1", 0) == 1;
+    assert name_hi("a.", 0) == 1;
+    assert name_hi("a.b.c", 0) == 5;
 }

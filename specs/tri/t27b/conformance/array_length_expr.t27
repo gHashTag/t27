@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/array_length_expr.t27 -- an array type whose length is a compile-time integer
+; expression, as the reference runs it (gHashTag/t27#8657, t27b coverage epic #6063: `type [N]T` in
+; specs/port/browseros/trios/agent-server/apps/server/src/api/routes/memory.t27 and specs/base/types.t27).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints the length as written (`[MAX_CONTENT_LENGTH+1]u8`) and Zig evaluates it at compile time, so
+; the array has that many elements: a name of a module or local constant, an integer literal, `+ - * / %`
+; and parentheses over them. specs/tri/t27b/type_text.t27 (`len_value`) is the reading of the text; the
+; lookups of the names stay in cli/t27b/src/lower.rs.
+; Not here: a length Zig cannot evaluate to a usize, which the reference does not compile.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceArrayLengthExpr;
+
+const ALE_MAX = 50000;
+pub const ALE_TRITS : u8 = 27;
+const ALE_W = 3;
+const ALE_H = 5;
+
+struct AleRow {
+    cells: [ALE_W + 1]u32,
+    tag: u8,
+}
+
+/// A length read through a slice is a run-time value, which the reference counts as an assert it ran.
+fn ale_len(xs: []u8) -> usize {
+    return xs.len;
+}
+
+fn ale_fill(n: usize) -> u32 {
+    var buf: [ALE_W + 1]u32 = undefined;
+    var i: usize = 0;
+    while (i < buf.len) {
+        buf[i] = @intCast(i + n);
+        i += 1;
+    }
+    return buf[0] + buf[1] + buf[2] + buf[3];
+}
+
+fn ale_sum(xs: [ALE_W * 2]u32) -> u32 {
+    var total: u32 = 0;
+    var i: usize = 0;
+    while (i < xs.len) {
+        total += xs[i];
+        i += 1;
+    }
+    return total;
+}
+
+fn ale_make() -> [ALE_W * 2]u32 {
+    var out: [ALE_W * 2]u32 = undefined;
+    var i: usize = 0;
+    while (i < out.len) {
+        out[i] = @intCast(i + 1);
+        i += 1;
+    }
+    return out;
+}
+
+test a_name_plus_one {
+    var long_content: [ALE_MAX + 1]u8 = undefined;
+    assert(ale_len(&long_content) == 50001);
+    long_content[ALE_MAX] = 7;
+    assert(long_content[ALE_MAX] == 7);
+}
+
+test a_typed_constant_plus_one {
+    var src: [ALE_TRITS + 1]i8 = undefined;
+    assert(src.len == 28);
+    var i: usize = 0;
+    while (i < src.len) {
+        src[i] = 1;
+        i += 1;
+    }
+    assert(src[27] == 1);
+}
+
+test a_product_of_two_names {
+    var grid: [ALE_W * ALE_H]u8 = undefined;
+    assert(ale_len(&grid) == 15);
+}
+
+test a_difference_a_quotient_and_a_remainder {
+    var a: [ALE_H - 1]u8 = undefined;
+    var b: [(ALE_H + 3) / 4]u8 = undefined;
+    var c: [ALE_H % ALE_W + 1]u8 = undefined;
+    assert(ale_len(&a) == 4);
+    assert(ale_len(&b) == 2);
+    assert(ale_len(&c) == 3);
+}
+
+test parentheses_and_precedence {
+    var a: [2 + ALE_W * 2]u8 = undefined;
+    var b: [(2 + ALE_W) * 2]u8 = undefined;
+    assert(ale_len(&a) == 8);
+    assert(ale_len(&b) == 10);
+}
+
+test a_local_constant_in_the_length {
+    const k = 3;
+    var a: [k * 2 + 1]u8 = undefined;
+    assert(ale_len(&a) == 7);
+}
+
+test the_elements_are_laid_out {
+    assert(ale_fill(10) == 10 + 11 + 12 + 13);
+}
+
+test an_array_parameter_and_result {
+    assert(ale_sum(ale_make()) == 21);
+}
+
+test an_array_field {
+    var row = AleRow { cells: [1, 2, 3, 4], tag: 9 };
+    assert(row.cells.len == 4);
+    assert(row.cells[3] == 4);
+    assert(row.tag == 9);
+}
