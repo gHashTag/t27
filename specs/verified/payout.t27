@@ -59,6 +59,148 @@ pub fn split_fits(pool: u64, executor: u64, provider: u64, contributor: u64) -> 
     return true;
 }
 
+; --- Payment for work (owner, 2026-10-10; the network MVP, see #8610, and its epic, see #8613) -------
+; Payouts are payment for work, never a share of profit. Each kind below pays for one piece of work and
+; is tied to a verified receipt:
+;   BOUNTY          a fixed reward posted on an issue or spec task, paid once, when the PR that closes it
+;                   is merged and its verdict verified;
+;   EXECUTOR_FEE    for running an admitted job;
+;   PROVIDER_FEE    for the hardware that ran it;
+;   VERIFIER_FEE    for a receipt that agrees with the admitted k-of-n run; an attributable, fresh
+;                   receipt that disagrees with it is slashed;
+;   AUTHOR_ROYALTY  for the author of the spec, each time an admitted run uses it.
+; A receipt that proves no author (unsigned, unregistered key, bad signature) or answers a stale
+; challenge earns nothing and is not slashed: no one can be held to it. split_fits and payout() above
+; are unchanged: the four run fees are one pool, judged by split_fits on what the verifier fee leaves,
+; and a slash goes through payout() as the ledger's OUT_REJECTED_AND_SLASHED.
+; Price (see #8619): price = units x rate. The units are fixed when the job is issued and carried in
+; its billing nonce, so no later claim changes them; the rate follows the emission, halved once per
+; halving_every units emitted. Every number is a parameter: this file chooses no rate and no unit.
+; Attestation (see #8620): SOFTWARE_SIGNED, then REPRODUCED (k of n independent re-runs agree), then
+; DEVICE_BOUND (a hardware identity). Testnet credit needs REPRODUCED; any value flow needs
+; DEVICE_BOUND, which nothing reaches today (signed_receipt.t27 DEVICE_ROOTED_LEVELS is 0).
+; Credits are ledger entries, credited or slashed, never moved: there is no transfer.
+
+/// The payment kinds. 0 is no kind, so an unset kind is never a payment.
+pub const BOUNTY : u8 = 1;
+pub const EXECUTOR_FEE : u8 = 2;
+pub const PROVIDER_FEE : u8 = 3;
+pub const VERIFIER_FEE : u8 = 4;
+pub const AUTHOR_ROYALTY : u8 = 5;
+pub const PAYMENT_KINDS : u8 = 5;
+
+/// Every payment is one of the kinds above; there is no profit share among them.
+pub fn payment_kind_known(kind: u8) -> bool {
+    return kind >= BOUNTY and kind <= PAYMENT_KINDS;
+}
+
+/// Credits move nowhere: no rule in this file, or anywhere, transfers one.
+pub const CREDIT_TRANSFERABLE : bool = false;
+
+/// A bounty is paid once: the PR closes the task, it is merged, its verdict is verified.
+pub fn bounty_payable(closes_task: bool, merged: bool, verified: bool, already_paid: bool) -> bool {
+    if (already_paid) { return false; }
+    if (closes_task == false) { return false; }
+    if (merged == false) { return false; }
+    return verified;
+}
+
+/// receipt_award() answers.
+pub const AWARD_NONE : u8 = 0;
+pub const AWARD_FEE : u8 = 1;
+pub const AWARD_SLASH : u8 = 2;
+
+/// What one receipt earns from a run. Only an admitted run awards anything; a receipt no one can be
+/// held to earns nothing either way; an attributable, fresh receipt earns its fee when it agrees
+/// with the admitted run and is slashed when it does not.
+pub fn receipt_award(run_admitted: bool, attributable_fresh: bool, agrees_with_run: bool) -> u8 {
+    if (run_admitted == false) { return AWARD_NONE; }
+    if (attributable_fresh == false) { return AWARD_NONE; }
+    if (agrees_with_run) { return AWARD_FEE; }
+    return AWARD_SLASH;
+}
+
+/// The ledger outcome an award stands for, so payout() decides the payment as it always has.
+pub fn award_outcome(award: u8) -> u8 {
+    if (award == AWARD_FEE) { return OUT_CREDITED; }
+    if (award == AWARD_SLASH) { return OUT_REJECTED_AND_SLASHED; }
+    return OUT_NOT_ELIGIBLE;
+}
+
+/// Whether the four run fees fit in one pool: split_fits on what the verifier fee leaves, so no fee
+/// near the top of u64 can wrap the sum back under the pool.
+pub fn fees_fit(pool: u64, executor_fee: u64, provider_fee: u64, verifier_fee: u64, author_royalty: u64) -> bool {
+    if (verifier_fee > pool) { return false; }
+    return split_fits(pool - verifier_fee, executor_fee, provider_fee, author_royalty);
+}
+
+/// A slash takes the bond from the slashed signer's credit, never more than the credit it holds.
+pub fn slash_taken(bond: u64, credit: u64) -> u64 {
+    if (bond > credit) { return credit; }
+    return bond;
+}
+
+/// A billing nonce carries its job's units in the low UNIT_BITS bits and the issue serial above them.
+pub const UNIT_BITS : u64 = 24;
+pub const UNIT_MASK : u64 = 16777215;
+
+/// A job whose units do not fit the nonce is not issued, rather than issued with fewer units.
+pub fn units_issuable(units: u64) -> bool {
+    return units <= UNIT_MASK;
+}
+
+pub fn issue_nonce(serial: u64, units: u64) -> u64 {
+    return (serial << UNIT_BITS) | (units & UNIT_MASK);
+}
+
+pub fn nonce_units(nonce: u64) -> u64 {
+    return nonce & UNIT_MASK;
+}
+
+pub fn nonce_serial(nonce: u64) -> u64 {
+    return nonce >> UNIT_BITS;
+}
+
+/// The rate once `emitted` units have been emitted: base_rate halved once per halving_every; 0 after
+/// 64 halvings, and 0 with no schedule at all (fail closed).
+pub fn rate_at(base_rate: u64, emitted: u64, halving_every: u64) -> u64 {
+    if (halving_every == 0) { return 0; }
+    let halvings : u64 = emitted / halving_every;
+    if (halvings >= 64) { return 0; }
+    return base_rate >> halvings;
+}
+
+/// price = units x rate, or PRICE_OVERFLOW when the product does not fit in u64.
+pub const PRICE_OVERFLOW : u64 = 18446744073709551615;
+
+pub fn job_price(units: u64, rate: u64) -> u64 {
+    if (rate == 0) { return 0; }
+    if (units > PRICE_OVERFLOW / rate) { return PRICE_OVERFLOW; }
+    return units * rate;
+}
+
+/// Attestation levels, lowest first; each needs the one below it.
+pub const ATT_NONE : u8 = 0;
+pub const ATT_SOFTWARE_SIGNED : u8 = 1;
+pub const ATT_REPRODUCED : u8 = 2;
+pub const ATT_DEVICE_BOUND : u8 = 3;
+
+pub fn attestation_level(software_signed: bool, reproduced: bool, device_bound: bool) -> u8 {
+    if (software_signed == false) { return ATT_NONE; }
+    if (reproduced == false) { return ATT_SOFTWARE_SIGNED; }
+    if (device_bound == false) { return ATT_REPRODUCED; }
+    return ATT_DEVICE_BOUND;
+}
+
+/// Testnet credit needs a reproduced run; any value flow needs a device-bound identity.
+pub fn testnet_credit_allowed(level: u8) -> bool {
+    return level >= ATT_REPRODUCED;
+}
+
+pub fn value_flow_allowed(level: u8) -> bool {
+    return level >= ATT_DEVICE_BOUND;
+}
+
 test a_credited_verified_referenced_receipt_is_paid {
     assert payout(OUT_CREDITED, true, true) == PAY_NORMAL;
 }
@@ -106,4 +248,116 @@ test a_split_cannot_wrap_past_the_pool {
 invariant credited_is_the_first_outcome {
     assert OUT_CREDITED == 0;
     assert PAY_NONE == 0;
+}
+
+test every_payment_is_a_kind_of_work_and_none_is_a_profit_share {
+    var k : u32 = 0;
+    var kinds : u32 = 0;
+    while (k < 256) {
+        if (payment_kind_known(k as u8)) { kinds = kinds + 1; }
+        k = k + 1;
+    }
+    assert kinds == (PAYMENT_KINDS as u32);
+    assert payment_kind_known(0) == false;
+    assert payment_kind_known(BOUNTY);
+    assert payment_kind_known(AUTHOR_ROYALTY);
+    assert CREDIT_TRANSFERABLE == false;
+}
+
+test a_bounty_is_paid_once_for_a_merged_verified_pr_that_closes_its_task {
+    var m : u32 = 0;
+    while (m < 16) {
+        let closes : bool = (m & 1) != 0;
+        let merged : bool = (m & 2) != 0;
+        let verified : bool = (m & 4) != 0;
+        let paid : bool = (m & 8) != 0;
+        let all_four : bool = closes and merged and verified and (paid == false);
+        assert bounty_payable(closes, merged, verified, paid) == all_four;
+        m = m + 1;
+    }
+}
+
+test an_agreeing_receipt_earns_its_fee_and_a_disagreeing_one_is_slashed {
+    var m : u32 = 0;
+    while (m < 8) {
+        let admitted : bool = (m & 1) != 0;
+        let fresh : bool = (m & 2) != 0;
+        let agrees : bool = (m & 4) != 0;
+        let award : u8 = receipt_award(admitted, fresh, agrees);
+        if (admitted and fresh) {
+            if (agrees) { assert award == AWARD_FEE; } else { assert award == AWARD_SLASH; }
+        } else {
+            assert award == AWARD_NONE;
+        }
+        m = m + 1;
+    }
+    // through payout(), unchanged: a fee is a normal payment, a slash stays a slash
+    var verified : u32 = 0;
+    while (verified < 2) {
+        assert payout(award_outcome(AWARD_SLASH), verified == 1, true) == PAY_SLASH_ONLY;
+        assert payout(award_outcome(AWARD_NONE), verified == 1, true) == PAY_NONE;
+        verified = verified + 1;
+    }
+    assert payout(award_outcome(AWARD_FEE), true, true) == PAY_NORMAL;
+    assert payout(award_outcome(AWARD_FEE), false, true) == PAY_NONE;
+}
+
+test the_four_run_fees_fit_one_pool_or_are_refused {
+    var p : u64 = 0;
+    while (p <= 12) {
+        var v : u64 = 0;
+        while (v <= 4) {
+            assert fees_fit(p, 2, 3, v, 1) == (2 + 3 + v + 1 <= p);
+            v = v + 1;
+        }
+        // a slash never takes more than the credit holds
+        assert slash_taken(5, p) <= p;
+        assert slash_taken(5, p) <= 5;
+        p = p + 1;
+    }
+    assert fees_fit(10, 18446744073709551615, 0, 0, 0) == false;
+    assert fees_fit(10, 0, 0, 18446744073709551615, 0) == false;
+    assert fees_fit(10, 0, 18446744073709551615, 1, 18446744073709551615) == false;
+}
+
+test the_units_are_bound_into_the_nonce_and_the_rate_halves_with_the_emission {
+    var u : u64 = 1;
+    while (u < 100000) {
+        let n : u64 = issue_nonce(7, u);
+        assert nonce_units(n) == u;
+        assert nonce_serial(n) == 7;
+        assert units_issuable(u);
+        u = u * 3;
+    }
+    assert units_issuable(UNIT_MASK + 1) == false;
+    var e : u64 = 0;
+    var last : u64 = 18446744073709551615;
+    while (e < 10) {
+        let r : u64 = rate_at(64, e * 100, 100);
+        assert r <= last;
+        assert job_price(5, r) == 5 * r;
+        last = r;
+        e = e + 1;
+    }
+    assert rate_at(64, 0, 100) == 64;
+    assert rate_at(64, 100, 100) == 32;
+    assert rate_at(64, 99, 100) == 64;
+    assert rate_at(64, 0, 0) == 0;
+    assert rate_at(64, 6400, 100) == 0;
+    assert job_price(18446744073709551615, 2) == PRICE_OVERFLOW;
+}
+
+test testnet_credit_needs_a_reproduced_run_and_value_a_device_bound_one {
+    var m : u32 = 0;
+    while (m < 8) {
+        let signed : bool = (m & 1) != 0;
+        let reproduced : bool = (m & 2) != 0;
+        let device : bool = (m & 4) != 0;
+        let level : u8 = attestation_level(signed, reproduced, device);
+        assert testnet_credit_allowed(level) == (signed and reproduced);
+        assert value_flow_allowed(level) == (signed and reproduced and device);
+        m = m + 1;
+    }
+    assert attestation_level(true, false, true) == ATT_SOFTWARE_SIGNED;
+    assert ATT_NONE < ATT_SOFTWARE_SIGNED and ATT_SOFTWARE_SIGNED < ATT_REPRODUCED and ATT_REPRODUCED < ATT_DEVICE_BOUND;
 }

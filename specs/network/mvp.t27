@@ -1,0 +1,1195 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/mvp.t27 -- the network MVP: one deterministic network in which actors dispatch work,
+; t27c and t27b both judge it, receipts are verified and the people who did the work are paid for it.
+; Issue gHashTag/t27#8610, epic gHashTag/t27#8613. Owner, 2026-10-10 (translated): "a minimal working
+; MVP where everything works together -- t27c, t27b, actors and payouts for work to network
+; participants -- all written 100% in t27"; then "add the verifiers' share and the penalty"; then
+; "safer to pay for the work itself: bounties, a fee to the executor, a royalty to the author".
+; --
+; This file composes rules that already exist and restates none of them:
+;   specs/queen/actors.t27            pids (pid_of, next_gen, reaches), the mailbox model (deliver,
+;                                     mbox_push, receive, receive_outcome), the supervisor
+;                                     (on_child_exit, DOMAIN_MAX_RESTARTS)
+;   specs/queen/jobs.t27              the job and step machine (step_action, job_state_after,
+;                                     step_after, effect_may_run)
+;   specs/queen/simulation.t27        the seeded PRNG (sim_roll, run_seed, pick_between, mix32)
+;   specs/verified/receipt.t27        a receipt is complete (receipt_complete, verdict_word_known)
+;   specs/verified/signed_receipt.t27 a receipt's level and a run's (receipt_level, run_level_with,
+;                                     citable_at)
+;   specs/verified/run_record.t27     when receipts are one run (run_first_missing, placements_needed)
+;   specs/verified/payout.t27         payout(), split_fits(), and the payment-for-work rules: the
+;                                     kinds (BOUNTY, EXECUTOR_FEE, PROVIDER_FEE, VERIFIER_FEE,
+;                                     AUTHOR_ROYALTY), receipt_award, fees_fit, slash_taken, the
+;                                     price (issue_nonce, rate_at, job_price), attestation levels
+;   specs/trinet/node-work-credit.t27 may_credit(): once per nonce
+;   specs/trinet/tri-bridge.t27       mints_new_supply(): TON is the chain of record, the one minter
+; What this file adds is only the wiring: who the actors are, which message goes where, the draws,
+; and the observer that judges the invariants after every step.
+; --
+; The network. A dispatcher, three workers, a verifier (with a re-run of its own), a treasurer and the
+; signers' supervisor, each a pid with a mailbox; they talk only by message. A message is a tag in the
+; receiver's mailbox (actors.t27's model) and a body, written once by the sender and read once by the
+; receiver after it takes the tag.
+;   1. A job is one spec to check. The dispatcher issues it with a billing nonce that carries its
+;      units (fixed at issue); the verifier issues a fresh challenge (M_CHALLENGE); the dispatcher
+;      offers the job with it (M_TASK_OFFER) to four signers: the executor (a native worker, t27b's
+;      verdict) and three verifiers who re-run it -- the reference worker (t27c's verdict), a second
+;      native worker, and the verifier's own re-run.
+;   2. Each signer answers with a receipt (M_RECEIPT): verdict word, verdict digest, key id, nonce.
+;   3. The verifier admits the run only with k = placements_needed() agreeing receipts of n = 4, each
+;      complete, signed by a registered key and fresh for this challenge (citable at LEVEL_FRESH).
+;   4. The treasurer credits only on the chain of record, only a reproduced run, only a nonce it has
+;      not settled (may_credit). It pays by kind, through payout(): EXECUTOR_FEE, PROVIDER_FEE,
+;      VERIFIER_FEE (each agreeing verifier), AUTHOR_ROYALTY (per admitted run), all from one pool
+;      priced units x rate (fees_fit), and the BOUNTY posted on one task of the run, once, when the PR
+;      that closes it is merged and verified. A disagreeing signer is slashed (receipt_award).
+;      Credits are ledger entries: credited or slashed, never transferred.
+;   5. Faults are drawn from the seed: a lying signer, an unsigned receipt, a replayed nonce, a crashed
+;      signer restarted by its supervisor (its notice to the dispatcher sometimes late), fees that
+;      overrun the pool, a settlement replayed, a credit asked on another chain, and a single
+;      software-signed receipt claimed for credit with no reproduction.
+;   6. Invariants, after every step: paid <= emitted; no payout without a verified run; a liar is never
+;      paid; no nonce paid twice; the credits balance; the fees never exceed the pool; a slashed signer
+;      is never paid for that job; no credit without REPRODUCED; no credit off the chain of record; a
+;      bounty is paid once and only when earned; no fee for an unsigned or replayed receipt. And the
+;      same seed run twice gives the same ledger.
+; Liars here do not collude: each liar's digest is its own. k signers that collude defeat any k-of-n
+; rule; that is a limit of the rule, not something this model hides.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkMvp;
+
+use queen::actors;
+use queen::jobs;
+use queen::simulation;
+use verified::verdict;
+use verified::receipt;
+use verified::signed_receipt;
+use verified::run_record;
+use verified::payout;
+use trinet::node-work-credit;
+use trinet::tri-bridge;
+
+; --- 1. The actors ----------------------------------------------------------------------------------
+
+/// Slots (actors.t27 section 1: a pid is a slot and a generation). Workers are slots 2, 3 and 4; the
+/// verifier's re-run is slot 8, a child the supervisor restarts like the workers.
+pub const SLOT_DISPATCHER : u64 = 1;
+pub const SLOT_WORKER_BASE : u64 = 2;
+pub const SLOT_VERIFIER : u64 = 5;
+pub const SLOT_TREASURER : u64 = 6;
+pub const SLOT_SUPERVISOR : u64 = 7;
+pub const SLOT_RERUN : u64 = 8;
+pub const ACTOR_SLOTS : u64 = 8;
+
+/// n: four signers judge every job. Signer 0 is the executor; signers 1..3 re-run it as verifiers.
+pub const SIGNERS : u32 = 4;
+pub const WORKERS : u32 = 3;
+pub const VERIFIERS : u32 = 3;
+pub const SIGNER_EXECUTOR : u32 = 0;
+/// The reference worker (t27c's verdict); every other signer runs the native path (t27b's).
+pub const W_REFERENCE : u32 = 1;
+pub const SIGNER_RERUN : u32 = 3;
+
+pub const BACKEND_T27C : u8 = 0;
+pub const BACKEND_T27B : u8 = 1;
+pub const ROLE_EXECUTOR : u8 = 0;
+pub const ROLE_VERIFIER : u8 = 1;
+
+pub fn backend_of(signer: u32) -> u8 {
+    if (signer == W_REFERENCE) { return BACKEND_T27C; }
+    return BACKEND_T27B;
+}
+
+pub fn role_of(signer: u32) -> u8 {
+    if (signer == SIGNER_EXECUTOR) { return ROLE_EXECUTOR; }
+    return ROLE_VERIFIER;
+}
+
+/// The payment kind a signer's agreeing receipt earns.
+pub fn fee_kind_of(signer: u32) -> u8 {
+    if (role_of(signer) == ROLE_EXECUTOR) { return EXECUTOR_FEE; }
+    return VERIFIER_FEE;
+}
+
+pub fn signer_slot(signer: u32) -> u64 {
+    if (signer == SIGNER_RERUN) { return SLOT_RERUN; }
+    return SLOT_WORKER_BASE + (signer as u64);
+}
+
+/// The key id a signer signs with; ids 1..SIGNERS are the registered ones (signed_receipt.t27 KEY_DIR).
+pub fn key_of(signer: u32) -> u8 {
+    return (signer + 1) as u8;
+}
+
+pub fn key_registered(key_id: u8) -> bool {
+    if (key_id == 0) { return false; }
+    return (key_id as u32) <= SIGNERS;
+}
+
+/// Message tags (actors.t27 mailbox model: tags 1..255). The job offer is actors.t27's M_TASK_OFFER.
+pub const M_CHALLENGE : u64 = 20;
+pub const M_RECEIPT : u64 = 21;
+pub const M_RUN : u64 = 22;
+pub const M_CLAIM : u64 = 23;
+/// One tag per signer: a restart notice from the supervisor to the dispatcher. A restart is always
+/// the next generation (actors.t27 next_gen), so the notice needs no body.
+pub const M_CHILD_UP_BASE : u64 = 30;
+
+/// How long the verifier waits for a receipt (receive ... after).
+pub const RECEIPT_AFTER_MS : u32 = 60000;
+
+/// Small counters packed in one word: lane i holds bits [16 i, 16 i + 16), four lanes.
+pub const LANE_BITS : u64 = 16;
+pub const LANE_MASK : u64 = 65535;
+
+pub fn lane(word: u64, i: u32) -> u64 {
+    return (word >> ((i as u64) * LANE_BITS)) & LANE_MASK;
+}
+
+pub fn with_lane(word: u64, i: u32, v: u64) -> u64 {
+    let s : u64 = (i as u64) * LANE_BITS;
+    let old : u64 = lane(word, i) << s;
+    return (word - old) | ((v & LANE_MASK) << s);
+}
+
+pub fn pick4(i: u32, a: u64, b: u64, c: u64, d: u64) -> u64 {
+    if (i == 0) { return a; }
+    if (i == 1) { return b; }
+    if (i == 2) { return c; }
+    return d;
+}
+
+pub fn has(mask: u64, i: u32) -> bool {
+    return (mask & bit(i as u64)) != 0;
+}
+
+; --- 2. The draws: one sim_roll per purpose, streams apart from the Queen gate's 1..9 ----------------
+
+pub const NET_STREAM_VERDICT : u32 = 20;
+pub const NET_STREAM_FAULT : u32 = 21;
+pub const NET_STREAM_NOTICE : u32 = 22;
+pub const NET_STREAM_SHARE : u32 = 23;
+pub const NET_STREAM_REPLAY : u32 = 24;
+pub const NET_STREAM_UNITS : u32 = 25;
+pub const NET_STREAM_ATTACK : u32 = 26;
+pub const NET_STREAM_BOUNTY : u32 = 27;
+
+/// What one signer does with one offer.
+pub const NF_HONEST : u8 = 0;
+pub const NF_LIE : u8 = 1;
+pub const NF_UNSIGNED : u8 = 2;
+pub const NF_REPLAY : u8 = 3;
+pub const NF_CRASH : u8 = 4;
+
+/// Fault bands out of FAULT_SPAN; the rest of the span is honest work.
+pub const FAULT_SPAN : u32 = 100;
+pub const W_LIE : u32 = 5;
+pub const W_UNSIGNED : u32 = 3;
+pub const W_REPLAY : u32 = 3;
+pub const W_CRASH : u32 = 4;
+
+pub fn fault_of(roll: u32) -> u8 {
+    let r : u32 = pick_between(roll, 0, FAULT_SPAN - 1);
+    var edge : u32 = W_LIE;
+    if (r < edge) { return NF_LIE; }
+    edge = edge + W_UNSIGNED;
+    if (r < edge) { return NF_UNSIGNED; }
+    edge = edge + W_REPLAY;
+    if (r < edge) { return NF_REPLAY; }
+    edge = edge + W_CRASH;
+    if (r < edge) { return NF_CRASH; }
+    return NF_HONEST;
+}
+
+/// The index of one draw: job, attempt (below 8) and signer or part (below 8).
+pub fn draw_index(job_ix: u32, try_ix: u32, part: u32) -> u32 {
+    return (job_ix * 64) + (try_ix * 8) + part;
+}
+
+pub fn fault_draw(seed: u32, job_ix: u32, try_ix: u32, signer: u32) -> u8 {
+    return fault_of(sim_roll(seed, NET_STREAM_FAULT, draw_index(job_ix, try_ix, signer)));
+}
+
+/// One spec in eight fails its tests: an honest FAIL run is a complete run that earns no fee.
+pub fn true_word(seed: u32, job_ix: u32) -> u8 {
+    if (pick_between(sim_roll(seed, NET_STREAM_VERDICT, job_ix), 0, 7) == 0) { return FAIL; }
+    return PASS;
+}
+
+pub fn other_word(word: u8) -> u8 {
+    if (word == PASS) { return FAIL; }
+    return PASS;
+}
+
+/// The work units of one job, as the run measures them (#8619: for a spec check, the runtime asserts
+/// it executes), at least 1 and at most units_max. Fixed when the job is issued.
+pub fn units_draw(seed: u32, job_ix: u32, units_max: u64) -> u64 {
+    return pick_between(sim_roll(seed, NET_STREAM_UNITS, job_ix), 1, units_max as u32) as u64;
+}
+
+/// A restart notice reaches the dispatcher one turn late in one restart of three.
+pub fn notice_late(seed: u32, job_ix: u32, try_ix: u32, signer: u32) -> bool {
+    return pick_between(sim_roll(seed, NET_STREAM_NOTICE, draw_index(job_ix, try_ix, signer)), 0, 2) == 0;
+}
+
+/// A settled job's M_RUN is replayed to the treasurer in one job of four.
+pub fn settle_replayed(seed: u32, job_ix: u32) -> bool {
+    return pick_between(sim_roll(seed, NET_STREAM_REPLAY, job_ix), 0, 3) == 0;
+}
+
+/// Attacks on the treasurer: a credit asked on another chain (one job in six), and one signer's
+/// receipt claimed for credit straight away, with no reproduction (one job in five).
+pub fn off_chain_asked(seed: u32, job_ix: u32) -> bool {
+    return pick_between(sim_roll(seed, NET_STREAM_ATTACK, draw_index(job_ix, 0, 0)), 0, 5) == 0;
+}
+
+pub fn bypass_claimed(seed: u32, job_ix: u32) -> bool {
+    return pick_between(sim_roll(seed, NET_STREAM_ATTACK, draw_index(job_ix, 0, 1)), 0, 4) == 0;
+}
+
+/// The bounty of a run is posted on one of its jobs; the PR that closes it is merged in three of four.
+pub fn bounty_job_of(seed: u32, jobs: u32) -> u32 {
+    if (jobs == 0) { return 0; }
+    return pick_between(sim_roll(seed, NET_STREAM_BOUNTY, 0), 0, jobs - 1);
+}
+
+pub fn bounty_merged(seed: u32) -> bool {
+    return pick_between(sim_roll(seed, NET_STREAM_BOUNTY, 1), 0, 3) != 0;
+}
+
+/// The digest of a verdict over one spec. An honest digest is below 2^32 (mix32 keeps 32 bits); a
+/// liar's carries its own mark above that, so no lie matches the truth and no two liars match.
+pub fn verdict_digest(job_ix: u32, word: u8) -> u64 {
+    return mix32(((job_ix as u64) * 256) + (word as u64) + 1);
+}
+
+pub fn lie_digest(job_ix: u32, word: u8, signer: u32) -> u64 {
+    return verdict_digest(job_ix, word) + (((signer as u64) + 1) << 32);
+}
+
+/// One fee of a pool, drawn in thousandths of it. These maxima bound the simulated world, they are not
+/// economics: they sum past the whole pool, so fees_fit is tested on both sides.
+pub const FEE_PARTS : u64 = 1000;
+pub const EXECUTOR_PARTS_MAX : u64 = 600;
+pub const PROVIDER_PARTS_MAX : u64 = 300;
+pub const VERIFIER_PARTS_MAX : u64 = 300;
+pub const AUTHOR_PARTS_MAX : u64 = 200;
+
+pub fn fee_draw(seed: u32, job_ix: u32, settle_ix: u32, part: u32, pool: u64, parts_max: u64) -> u64 {
+    let roll : u32 = sim_roll(seed, NET_STREAM_SHARE, draw_index(job_ix, settle_ix, part));
+    let parts : u64 = pick_between(roll, 0, parts_max as u32) as u64;
+    return (pool * parts) / FEE_PARTS;
+}
+
+/// The dispatcher issues serials 1..jobs; the treasurer credits only a nonce the dispatcher issued.
+pub fn bill_issued(bill: u64, jobs: u32) -> bool {
+    let serial : u64 = nonce_serial(bill);
+    return serial >= 1 and serial <= (jobs as u64);
+}
+
+; --- 3. The rules the actors apply, all borrowed --------------------------------------------------
+
+/// The verifier: k = placements_needed() agreeing, complete receipts from the producers the seal
+/// names, at LEVEL_FRESH (every receipt signed by a registered key over this challenge).
+pub fn run_admitted(receipts: u32, complete: bool, agree: bool, producers: bool, run_level: u8) -> bool {
+    let code : u8 = run_first_missing(receipts as u8, complete, agree, producers);
+    return citable_at(code, run_level, LEVEL_FRESH);
+}
+
+/// The treasurer: the chain of record only (tri-bridge), a reproduced run only (payout.t27's
+/// attestation), an accepted verdict on a nonce it issued, once (node-work-credit).
+pub fn treasurer_accepts(chain: u8, verdict_accepted: bool, nonce_issued: bool, nonce_spent: bool, attestation: u8) -> bool {
+    if (mints_new_supply(chain) == false) { return false; }
+    if (testnet_credit_allowed(attestation) == false) { return false; }
+    return may_credit(verdict_accepted, true, nonce_issued, nonce_spent, true);
+}
+
+/// The two steps of a job card: judge (a CHECK: the run is admitted) and settle (an EFFECT: pay).
+pub const STEP_JUDGE : u32 = 0;
+pub const STEP_SETTLE : u32 = 1;
+pub const JOB_STEPS : u32 = 2;
+
+pub fn step_kind(job_step: u32) -> u8 {
+    if (job_step == STEP_JUDGE) { return SK_CHECK; }
+    return SK_EFFECT;
+}
+
+/// Ledger holders: the four signers, the compute provider and the spec's author.
+pub const H_PROVIDER : u64 = 4;
+pub const H_AUTHOR : u64 = 5;
+/// A slash entry's kind (not a payment kind: payment_kind_known refuses it).
+pub const ENTRY_SLASH : u8 = 9;
+
+/// The ledger digest folds every entry (holder, kind, amount) and every job's end through mix32.
+pub const LEDGER_START : u64 = 2654435769;
+
+pub fn ledger_fold(digest: u64, value: u64) -> u64 {
+    return mix32(digest ^ (value & MASK32));
+}
+
+pub fn ledger_entry(digest: u64, holder: u64, kind: u8, amount: u64) -> u64 {
+    return ledger_fold(ledger_fold(digest, (holder * 16) + (kind as u64)), amount);
+}
+
+; --- 4. The observer: invariants, judged after every step -----------------------------------------
+
+pub const INV_OK : u8 = 0;
+pub const INV_PAID_OVER_EMITTED : u8 = 1;
+pub const INV_PAID_WITHOUT_RUN : u8 = 2;
+pub const INV_LIAR_PAID : u8 = 3;
+pub const INV_PAID_TWICE : u8 = 4;
+pub const INV_UNBALANCED : u8 = 5;
+pub const INV_OVER_POOL : u8 = 6;
+pub const INV_SLASHED_PAID : u8 = 7;
+pub const INV_UNREPRODUCED_CREDIT : u8 = 8;
+pub const INV_OFF_CHAIN_CREDIT : u8 = 9;
+pub const INV_BOUNTY_UNEARNED : u8 = 10;
+pub const INV_STALE_PAID : u8 = 11;
+pub const INV_KINDS : u8 = 12;
+
+/// The first invariant broken so far, from the observer's flags (bit i: invariant i broke); once
+/// broken it stays the answer.
+pub fn first_broken(already: u8, flags: u64) -> u8 {
+    if (already != INV_OK) { return already; }
+    var i : u8 = 1;
+    while (i < INV_KINDS) {
+        if ((flags & bit(i as u64)) != 0) { return i; }
+        i = i + 1;
+    }
+    return INV_OK;
+}
+
+pub fn flag(flags: u64, inv: u8, broke: bool) -> u64 {
+    if (broke) { return flags | bit(inv as u64); }
+    return flags;
+}
+
+; --- 5. One run of the network ----------------------------------------------------------------------
+
+/// What network_report answers. The R_* that pack four counts put count i in bits [16 i, 16 i + 16).
+pub const R_DIGEST : u8 = 0;
+pub const R_PAID : u8 = 1;
+pub const R_EMITTED : u8 = 2;
+pub const R_BROKEN : u8 = 3;
+/// emitted - paid, or HEADROOM_OVERRUN when paid is over emitted.
+pub const R_HEADROOM : u8 = 4;
+/// the observer's flags: 0 when every invariant held after every step
+pub const R_FLAGS : u8 = 5;
+/// lies, unsigned receipts, replayed nonces, crashes.
+pub const R_FAULTS : u8 = 6;
+/// runs refused, receipt timeouts, offers dropped at a dead pid, replayed settlements refused.
+pub const R_CAUGHT : u8 = 7;
+/// restarts, supervisor give-ups, settlements replayed, fee splits refused.
+pub const R_SUPERVISOR : u8 = 8;
+/// jobs done, jobs failed, FAIL verdicts admitted, jobs paid.
+pub const R_JOBS : u8 = 9;
+/// slashes, verifier fees paid, bounties paid, author royalties paid.
+pub const R_ECONOMY : u8 = 10;
+/// off-chain asks, off-chain refusals, unreproduced claims, unreproduced refusals.
+pub const R_ATTACKS : u8 = 11;
+/// the rate after the run's emission (payout.t27 rate_at).
+pub const R_RATE : u8 = 12;
+/// restart notices that reached the dispatcher a turn late.
+pub const R_LATE : u8 = 13;
+pub const HEADROOM_OVERRUN : u64 = 18446744073709551615;
+
+pub fn pack4(a: u64, b: u64, c: u64, d: u64) -> u64 {
+    return (a & 65535) | ((b & 65535) << 16) | ((c & 65535) << 32) | ((d & 65535) << 48);
+}
+
+pub fn field16(word: u64, i: u32) -> u64 {
+    return (word >> ((i as u64) * 16)) & 65535;
+}
+
+/// Run `jobs` jobs (at most 64: the treasurer's spent set is one bit per job) under `seed`, and answer
+/// `what`. The price is a parameter (base_rate, halving_every, units_max), as are the slash bond and
+/// the bounty. Every actor keeps its own state; the observer only reads the draws and the ledger.
+pub fn network_report(seed: u32, jobs: u32, base_rate: u64, halving_every: u64, units_max: u64, bond: u64, bounty: u64, what: u8) -> u64 {
+    // supervisor: each signer's live generation and restarts, the signers it gave up on, and the
+    // restart notices it holds back one turn (per-signer lanes)
+    var sup_gens : u64 = 0;
+    var sup_restarts : u64 = 0;
+    var sup_down : u64 = 0;
+    var sup_held : u64 = 0;
+    var sup_held_next : u64 = 0;
+    // dispatcher: the generation it believes each signer is at, its mailbox, its issue serial
+    var disp_gens : u64 = 0;
+    var disp_box : u64 = 0;
+    var disp_serial : u64 = 0;
+    // verifier: its challenge counter and its mailbox
+    var ver_challenge : u64 = 0;
+    var ver_box : u64 = 0;
+    // treasurer: mailbox, spent set, emission, payments, slashes, credits, ledger
+    var tre_box : u64 = 0;
+    var tre_spent : u64 = 0;
+    var tre_minted : u64 = 0;
+    var tre_emitted : u64 = 0;
+    var tre_paid : u64 = 0;
+    var tre_slashed : u64 = 0;
+    var cr0 : u64 = 0;
+    var cr1 : u64 = 0;
+    var cr2 : u64 = 0;
+    var cr3 : u64 = 0;
+    var cr_provider : u64 = 0;
+    var cr_author : u64 = 0;
+    var tre_bounty_paid : bool = false;
+    var tre_ledger : u64 = LEDGER_START;
+    // the bounty: a poster escrows it with the treasurer for one task of this run
+    let bounty_job : u32 = bounty_job_of(seed, jobs);
+    let bounty_pr_merged : bool = bounty_merged(seed);
+    if (jobs > 0) { tre_emitted = tre_emitted + bounty; }
+    // observer
+    var obs_flags : u64 = 0;
+    var obs_broken : u8 = INV_OK;
+    var obs_pass_runs : u64 = 0;
+    var n_lies : u64 = 0;
+    var n_unsigned : u64 = 0;
+    var n_replays : u64 = 0;
+    var n_crashes : u64 = 0;
+    var n_refused_runs : u64 = 0;
+    var n_timeouts : u64 = 0;
+    var n_dropped : u64 = 0;
+    var n_double_refused : u64 = 0;
+    var n_restarts : u64 = 0;
+    var n_late : u64 = 0;
+    var n_gave_up : u64 = 0;
+    var n_settle_replays : u64 = 0;
+    var n_split_refused : u64 = 0;
+    var n_done : u64 = 0;
+    var n_failed : u64 = 0;
+    var n_fail_runs : u64 = 0;
+    var n_paid_jobs : u64 = 0;
+    var n_slashes : u64 = 0;
+    var n_verifier_fees : u64 = 0;
+    var n_bounties : u64 = 0;
+    var n_royalties : u64 = 0;
+    var n_off_chain : u64 = 0;
+    var n_off_chain_refused : u64 = 0;
+    var n_bypass : u64 = 0;
+    var n_bypass_refused : u64 = 0;
+
+    var job_ix : u32 = 0;
+    while (job_ix < jobs) {
+        let job_truth : u8 = true_word(seed, job_ix);
+        let job_units : u64 = units_draw(seed, job_ix, units_max);
+        let job_bit : u64 = bit(job_ix as u64);
+        // the dispatcher issues the job: its units go into the billing nonce, fixed from here on
+        disp_serial = disp_serial + 1;
+        let job_bill : u64 = issue_nonce(disp_serial, job_units);
+        var job_state : u8 = J_RUNNING;
+        if (units_issuable(job_units) == false) { job_state = J_FAILED; }
+        var job_step : u32 = STEP_JUDGE;
+        var step_runs : u32 = 0;
+        var try_ix : u32 = 0;
+        var settle_ix : u32 = 0;
+        var run_ok : bool = false;
+        var run_word : u8 = FAIL;
+        var run_liars : u64 = 0;
+        var run_stale : u64 = 0;
+        var run_awards : u64 = 0;
+        var job_paid : u64 = 0;
+        // an attack: one signer's own PASS receipt claimed for credit at once: signed, its verdict
+        // vouched for by the claimant, but not reproduced by anyone
+        if (bypass_claimed(seed, job_ix)) {
+            n_bypass = n_bypass + 1;
+            if (deliver(true, mbox_len(tre_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                tre_box = mbox_push(tre_box, M_CLAIM);
+            }
+            if (mbox_find(tre_box, M_CLAIM) != NO_MATCH) {
+                tre_box = receive(tre_box, M_CLAIM);
+                let claim_att : u8 = attestation_level(true, false, false);
+                if (treasurer_accepts(CHAIN_OF_RECORD, true, bill_issued(job_bill, jobs), has(tre_spent, job_ix), claim_att)) {
+                    obs_flags = flag(obs_flags, INV_UNREPRODUCED_CREDIT, true);
+                } else {
+                    n_bypass_refused = n_bypass_refused + 1;
+                }
+            }
+        }
+        while (job_state == J_RUNNING) {
+            step_runs = step_runs + 1;
+            var step_outcome : u8 = O_FAIL;
+            if (job_step == STEP_JUDGE) {
+                // dispatcher's turn: take every restart notice; each one is the next generation
+                var si : u32 = 0;
+                while (si < SIGNERS) {
+                    let up_tag : u64 = M_CHILD_UP_BASE + (si as u64);
+                    while (mbox_find(disp_box, up_tag) != NO_MATCH) {
+                        disp_box = receive(disp_box, up_tag);
+                        disp_gens = with_lane(disp_gens, si, next_gen(lane(disp_gens, si)));
+                    }
+                    si = si + 1;
+                }
+                // verifier: a fresh challenge for this attempt, sent to the dispatcher
+                ver_challenge = ver_challenge + 1;
+                if (deliver(true, mbox_len(disp_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                    disp_box = mbox_push(disp_box, M_CHALLENGE);
+                }
+                var offered : u64 = 0;
+                if (mbox_find(disp_box, M_CHALLENGE) != NO_MATCH) {
+                    disp_box = receive(disp_box, M_CHALLENGE);
+                    offered = ver_challenge;
+                }
+                // the verifier's copy of this attempt's receipts
+                var rd0 : u64 = 0;
+                var rd1 : u64 = 0;
+                var rd2 : u64 = 0;
+                var rd3 : u64 = 0;
+                var rx_words : u64 = 0;
+                var rx_fresh : u64 = 0;
+                var rx_complete : u64 = 0;
+                var rx_producer : u64 = 0;
+                var try_liars : u64 = 0;
+                var try_stale : u64 = 0;
+                si = 0;
+                while (si < SIGNERS) {
+                    let s_bit : u64 = bit(si as u64);
+                    let s_slot : u64 = signer_slot(si);
+                    let addressed : u64 = pid_of(s_slot, lane(disp_gens, si));
+                    var live_pid : u64 = pid_of(s_slot, lane(sup_gens, si));
+                    if ((sup_down & s_bit) != 0) { live_pid = NO_PID; }
+                    // the signer took its last message on its last turn, so its mailbox is empty
+                    var s_box : u64 = 0;
+                    // the receipt in flight: its body
+                    var r_word : u8 = PASS;
+                    var r_digest : u64 = 0;
+                    var r_key : u8 = 0;
+                    var r_nonce : u64 = 0;
+                    var r_signed : bool = false;
+                    if (deliver(reaches(addressed, live_pid), mbox_len(s_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                        s_box = mbox_push(s_box, M_TASK_OFFER);
+                        // the signer's turn
+                        if (mbox_find(s_box, M_TASK_OFFER) != NO_MATCH) {
+                            s_box = receive(s_box, M_TASK_OFFER);
+                            let s_fault : u8 = fault_draw(seed, job_ix, try_ix, si);
+                            if (s_fault == NF_CRASH) {
+                                // it dies holding the job; its supervisor decides
+                                n_crashes = n_crashes + 1;
+                                let sup_answer : u8 = on_child_exit(RESTART_PERMANENT, X_CRASH, lane(sup_restarts, si) as u32, DOMAIN_MAX_RESTARTS);
+                                if (sup_answer == SUP_RESTART) {
+                                    sup_gens = with_lane(sup_gens, si, next_gen(lane(sup_gens, si)));
+                                    sup_restarts = with_lane(sup_restarts, si, lane(sup_restarts, si) + 1);
+                                    n_restarts = n_restarts + 1;
+                                    if (notice_late(seed, job_ix, try_ix, si)) {
+                                        n_late = n_late + 1;
+                                        sup_held_next = with_lane(sup_held_next, si, lane(sup_held_next, si) + 1);
+                                    } else {
+                                        if (deliver(true, mbox_len(disp_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                                            disp_box = mbox_push(disp_box, M_CHILD_UP_BASE + (si as u64));
+                                        }
+                                    }
+                                } else {
+                                    sup_down = sup_down | s_bit;
+                                    n_gave_up = n_gave_up + 1;
+                                }
+                            } else {
+                                r_word = job_truth;
+                                r_digest = verdict_digest(job_ix, job_truth);
+                                r_key = key_of(si);
+                                r_nonce = offered;
+                                r_signed = true;
+                                if (s_fault == NF_LIE) {
+                                    r_word = other_word(job_truth);
+                                    r_digest = lie_digest(job_ix, r_word, si);
+                                    n_lies = n_lies + 1;
+                                    try_liars = try_liars | s_bit;
+                                }
+                                if (s_fault == NF_UNSIGNED) {
+                                    r_signed = false;
+                                    n_unsigned = n_unsigned + 1;
+                                    try_stale = try_stale | s_bit;
+                                }
+                                if (s_fault == NF_REPLAY) {
+                                    // its receipt for the previous challenge, offered again
+                                    r_nonce = offered - 1;
+                                    n_replays = n_replays + 1;
+                                    try_stale = try_stale | s_bit;
+                                }
+                                if (deliver(true, mbox_len(ver_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                                    ver_box = mbox_push(ver_box, M_RECEIPT);
+                                }
+                            }
+                        }
+                    } else {
+                        n_dropped = n_dropped + 1;
+                    }
+                    // the verifier's turn: receive M_RECEIPT after RECEIPT_AFTER_MS
+                    let got : bool = mbox_find(ver_box, M_RECEIPT) != NO_MATCH;
+                    if (receive_outcome(got, RECEIPT_AFTER_MS, RECEIPT_AFTER_MS) == RCV_MATCH) {
+                        ver_box = receive(ver_box, M_RECEIPT);
+                        if (si == 0) { rd0 = r_digest; }
+                        if (si == 1) { rd1 = r_digest; }
+                        if (si == 2) { rd2 = r_digest; }
+                        if (si == 3) { rd3 = r_digest; }
+                        rx_words = with_lane(rx_words, si, r_word as u64);
+                        if (receipt_complete(true, true, verdict_word_known(r_word), true, true, true)) { rx_complete = rx_complete | s_bit; }
+                        if (producer_matches(r_key, key_of(si))) { rx_producer = rx_producer | s_bit; }
+                        let r_level : u8 = receipt_level(r_signed, key_registered(r_key), r_signed, true, NONCE_MIN_BYTES, r_nonce == offered);
+                        if (r_level == LEVEL_FRESH) { rx_fresh = rx_fresh | s_bit; }
+                    } else {
+                        n_timeouts = n_timeouts + 1;
+                    }
+                    si = si + 1;
+                }
+                // the run: the largest group of fresh receipts that agree on word and digest
+                var best_ix : u32 = 0;
+                var best_count : u32 = 0;
+                si = 0;
+                while (si < SIGNERS) {
+                    if (has(rx_fresh, si)) {
+                        var same : u32 = 0;
+                        var sj : u32 = 0;
+                        while (sj < SIGNERS) {
+                            if (has(rx_fresh, sj)) {
+                                if (pick4(si, rd0, rd1, rd2, rd3) == pick4(sj, rd0, rd1, rd2, rd3) and lane(rx_words, si) == lane(rx_words, sj)) { same = same + 1; }
+                            }
+                            sj = sj + 1;
+                        }
+                        if (same > best_count) {
+                            best_count = same;
+                            best_ix = si;
+                        }
+                    }
+                    si = si + 1;
+                }
+                var group : u64 = 0;
+                var g_level : u8 = run_level_start();
+                var g_complete : bool = true;
+                var g_producers : bool = true;
+                si = 0;
+                while (si < SIGNERS) {
+                    if (has(rx_fresh, si) and best_count > 0) {
+                        if (pick4(si, rd0, rd1, rd2, rd3) == pick4(best_ix, rd0, rd1, rd2, rd3) and lane(rx_words, si) == lane(rx_words, best_ix)) {
+                            group = group | bit(si as u64);
+                            g_level = run_level_with(g_level, LEVEL_FRESH);
+                            if (has(rx_complete, si) == false) { g_complete = false; }
+                            if (has(rx_producer, si) == false) { g_producers = false; }
+                        }
+                    }
+                    si = si + 1;
+                }
+                let admitted : bool = run_admitted(best_count, g_complete, true, g_producers, g_level);
+                if (admitted) {
+                    step_outcome = O_PASS;
+                    run_ok = true;
+                    run_word = lane(rx_words, best_ix) as u8;
+                    run_liars = try_liars;
+                    run_stale = try_stale;
+                    // each signer's award: a fee for agreeing, a slash for a fresh disagreeing receipt
+                    run_awards = 0;
+                    si = 0;
+                    while (si < SIGNERS) {
+                        run_awards = with_lane(run_awards, si, receipt_award(true, has(rx_fresh, si), has(group, si)) as u64);
+                        si = si + 1;
+                    }
+                    if (run_word == PASS) {
+                        obs_pass_runs = obs_pass_runs | job_bit;
+                    } else {
+                        n_fail_runs = n_fail_runs + 1;
+                    }
+                } else {
+                    n_refused_runs = n_refused_runs + 1;
+                }
+                try_ix = try_ix + 1;
+                // supervisor: last turn's late notices go out now; this turn's wait for the next
+                si = 0;
+                while (si < SIGNERS) {
+                    var held_n : u64 = lane(sup_held, si);
+                    while (held_n > 0) {
+                        if (deliver(true, mbox_len(disp_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                            disp_box = mbox_push(disp_box, M_CHILD_UP_BASE + (si as u64));
+                        }
+                        held_n = held_n - 1;
+                    }
+                    si = si + 1;
+                }
+                sup_held = sup_held_next;
+                sup_held_next = 0;
+            } else {
+                settle_ix = settle_ix + 1;
+                if (effect_may_run(false, run_ok, run_ok) == E_RUN) {
+                    // the verifier's M_RUN to the treasurer; body: the job, its nonce, the word, the
+                    // awards, the chain of record and the run's attestation
+                    if (deliver(true, mbox_len(tre_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                        tre_box = mbox_push(tre_box, M_RUN);
+                    }
+                    let run_att : u8 = attestation_level(true, run_ok, false);
+                    if (mbox_find(tre_box, M_RUN) != NO_MATCH) {
+                        // the treasurer's turn
+                        tre_box = receive(tre_box, M_RUN);
+                        var ledger_answer : u8 = OUT_NOT_ELIGIBLE;
+                        if (treasurer_accepts(CHAIN_OF_RECORD, run_ok, bill_issued(job_bill, jobs), has(tre_spent, job_ix), run_att)) {
+                            ledger_answer = OUT_CREDITED;
+                        }
+                        let verified : bool = run_word == PASS;
+                        let pay : u8 = payout(ledger_answer, verified, true);
+                        var settled : bool = false;
+                        var pool : u64 = 0;
+                        var ex : u64 = 0;
+                        var pv : u64 = 0;
+                        var vf : u64 = 0;
+                        var au : u64 = 0;
+                        if (pay == PAY_NORMAL) {
+                            pool = job_price(nonce_units(job_bill), rate_at(base_rate, tre_minted, halving_every));
+                            ex = fee_draw(seed, job_ix, settle_ix, 0, pool, EXECUTOR_PARTS_MAX);
+                            pv = fee_draw(seed, job_ix, settle_ix, 1, pool, PROVIDER_PARTS_MAX);
+                            vf = fee_draw(seed, job_ix, settle_ix, 2, pool, VERIFIER_PARTS_MAX);
+                            au = fee_draw(seed, job_ix, settle_ix, 3, pool, AUTHOR_PARTS_MAX);
+                            if (fees_fit(pool, ex, pv, vf, au)) {
+                                settled = true;
+                            } else {
+                                n_split_refused = n_split_refused + 1;
+                            }
+                        } else {
+                            // accepted, nothing owed (a FAIL verdict): settled; refused: not settled
+                            settled = ledger_answer == OUT_CREDITED;
+                        }
+                        if (settled) {
+                            // the pool is minted when the job settles, once
+                            tre_minted = tre_minted + pool;
+                            tre_emitted = tre_emitted + pool;
+                            let each_verifier : u64 = vf / (VERIFIERS as u64);
+                            var fees_paid : u64 = 0;
+                            var slashed : u64 = 0;
+                            var si : u32 = 0;
+                            while (si < SIGNERS) {
+                                let award : u8 = lane(run_awards, si) as u8;
+                                let s_pay : u8 = payout(award_outcome(award), verified, true);
+                                var amount : u64 = 0;
+                                if (s_pay == PAY_NORMAL) {
+                                    amount = each_verifier;
+                                    if (fee_kind_of(si) == EXECUTOR_FEE) { amount = ex; }
+                                    if (si == 0) { cr0 = cr0 + amount; }
+                                    if (si == 1) { cr1 = cr1 + amount; }
+                                    if (si == 2) { cr2 = cr2 + amount; }
+                                    if (si == 3) { cr3 = cr3 + amount; }
+                                    fees_paid = fees_paid + amount;
+                                    if (fee_kind_of(si) == VERIFIER_FEE) { n_verifier_fees = n_verifier_fees + 1; }
+                                    tre_ledger = ledger_entry(tre_ledger, si as u64, fee_kind_of(si), amount);
+                                    obs_flags = flag(obs_flags, INV_LIAR_PAID, has(run_liars, si));
+                                    obs_flags = flag(obs_flags, INV_STALE_PAID, has(run_stale, si));
+                                }
+                                if (s_pay == PAY_SLASH_ONLY) {
+                                    var taken : u64 = 0;
+                                    if (si == 0) { taken = slash_taken(bond, cr0); cr0 = cr0 - taken; }
+                                    if (si == 1) { taken = slash_taken(bond, cr1); cr1 = cr1 - taken; }
+                                    if (si == 2) { taken = slash_taken(bond, cr2); cr2 = cr2 - taken; }
+                                    if (si == 3) { taken = slash_taken(bond, cr3); cr3 = cr3 - taken; }
+                                    tre_slashed = tre_slashed + taken;
+                                    slashed = slashed | bit(si as u64);
+                                    n_slashes = n_slashes + 1;
+                                    tre_ledger = ledger_entry(tre_ledger, si as u64, ENTRY_SLASH, taken);
+                                }
+                                // the observer: one signer, one award; a slashed signer earns nothing
+                                obs_flags = flag(obs_flags, INV_SLASHED_PAID, has(slashed, si) and amount > 0);
+                                si = si + 1;
+                            }
+                            if (pay == PAY_NORMAL) {
+                                // the provider of the hardware the executor ran on, and the spec's author
+                                if (lane(run_awards, SIGNER_EXECUTOR) == (AWARD_FEE as u64)) {
+                                    cr_provider = cr_provider + pv;
+                                    fees_paid = fees_paid + pv;
+                                    tre_ledger = ledger_entry(tre_ledger, H_PROVIDER, PROVIDER_FEE, pv);
+                                }
+                                cr_author = cr_author + au;
+                                fees_paid = fees_paid + au;
+                                n_royalties = n_royalties + 1;
+                                tre_ledger = ledger_entry(tre_ledger, H_AUTHOR, AUTHOR_ROYALTY, au);
+                                obs_flags = flag(obs_flags, INV_OVER_POOL, fees_paid > pool);
+                                obs_flags = flag(obs_flags, INV_PAID_WITHOUT_RUN, has(obs_pass_runs, job_ix) == false);
+                                obs_flags = flag(obs_flags, INV_UNREPRODUCED_CREDIT, testnet_credit_allowed(run_att) == false);
+                                n_paid_jobs = n_paid_jobs + 1;
+                            }
+                            // the bounty on this task: the PR that closes it is merged, and its run verified
+                            let closes_task : bool = job_ix == bounty_job;
+                            if (bounty_payable(closes_task, bounty_pr_merged, verified and pay == PAY_NORMAL, tre_bounty_paid)) {
+                                cr_author = cr_author + bounty;
+                                fees_paid = fees_paid + bounty;
+                                tre_bounty_paid = true;
+                                n_bounties = n_bounties + 1;
+                                tre_ledger = ledger_entry(tre_ledger, H_AUTHOR, BOUNTY, bounty);
+                                obs_flags = flag(obs_flags, INV_BOUNTY_UNEARNED, n_bounties > 1 or job_ix != bounty_job or bounty_pr_merged == false or verified == false);
+                            }
+                            job_paid = fees_paid;
+                            tre_paid = tre_paid + fees_paid;
+                            tre_spent = tre_spent | job_bit;
+                            step_outcome = O_PASS;
+                        }
+                        if (step_outcome == O_PASS) {
+                            // a replay: the same M_RUN reaches the treasurer again
+                            if (settle_replayed(seed, job_ix)) {
+                                n_settle_replays = n_settle_replays + 1;
+                                if (deliver(true, mbox_len(tre_box) as u32, MBOX_SLOTS as u32) == D_QUEUED) {
+                                    tre_box = mbox_push(tre_box, M_RUN);
+                                }
+                                if (mbox_find(tre_box, M_RUN) != NO_MATCH) {
+                                    tre_box = receive(tre_box, M_RUN);
+                                    if (treasurer_accepts(CHAIN_OF_RECORD, run_ok, bill_issued(job_bill, jobs), has(tre_spent, job_ix), run_att)) {
+                                        obs_flags = flag(obs_flags, INV_PAID_TWICE, true);
+                                    } else {
+                                        n_double_refused = n_double_refused + 1;
+                                    }
+                                }
+                            }
+                            // an attack: the same run's credit asked on another chain
+                            if (off_chain_asked(seed, job_ix)) {
+                                n_off_chain = n_off_chain + 1;
+                                if (treasurer_accepts(CHAIN_EVM, run_ok, bill_issued(job_bill, jobs), false, run_att)) {
+                                    obs_flags = flag(obs_flags, INV_OFF_CHAIN_CREDIT, true);
+                                } else {
+                                    n_off_chain_refused = n_off_chain_refused + 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            let step_act : u8 = step_action(step_kind(job_step), step_outcome, step_runs, 0);
+            job_state = job_state_after(step_act, job_step, JOB_STEPS);
+            let step_next : u32 = step_after(step_act, job_step);
+            if (step_next != job_step) { step_runs = 0; }
+            job_step = step_next;
+            // the observer, after every step
+            let credits : u64 = cr0 + cr1 + cr2 + cr3 + cr_provider + cr_author;
+            obs_flags = flag(obs_flags, INV_PAID_OVER_EMITTED, tre_paid > tre_emitted);
+            obs_flags = flag(obs_flags, INV_UNBALANCED, credits + tre_slashed != tre_paid);
+            obs_broken = first_broken(obs_broken, obs_flags);
+        }
+        if (job_state == J_DONE) { n_done = n_done + 1; } else { n_failed = n_failed + 1; }
+        tre_ledger = ledger_fold(tre_ledger, (job_ix as u64) * 16 + (job_state as u64));
+        tre_ledger = ledger_fold(tre_ledger, job_paid);
+        job_ix = job_ix + 1;
+    }
+
+    if (what == R_DIGEST) { return tre_ledger; }
+    if (what == R_PAID) { return tre_paid; }
+    if (what == R_EMITTED) { return tre_emitted; }
+    if (what == R_BROKEN) { return obs_broken as u64; }
+    if (what == R_HEADROOM) {
+        if (tre_paid > tre_emitted) { return HEADROOM_OVERRUN; }
+        return tre_emitted - tre_paid;
+    }
+    if (what == R_FLAGS) { return obs_flags; }
+    if (what == R_FAULTS) { return pack4(n_lies, n_unsigned, n_replays, n_crashes); }
+    if (what == R_CAUGHT) { return pack4(n_refused_runs, n_timeouts, n_dropped, n_double_refused); }
+    if (what == R_SUPERVISOR) { return pack4(n_restarts, n_gave_up, n_settle_replays, n_split_refused); }
+    if (what == R_JOBS) { return pack4(n_done, n_failed, n_fail_runs, n_paid_jobs); }
+    if (what == R_ECONOMY) { return pack4(n_slashes, n_verifier_fees, n_bounties, n_royalties); }
+    if (what == R_ATTACKS) { return pack4(n_off_chain, n_off_chain_refused, n_bypass, n_bypass_refused); }
+    if (what == R_RATE) { return rate_at(base_rate, tre_minted, halving_every); }
+    return n_late;
+}
+
+; --- 6. Tests: every one loops over seeds, signers or cases, so its asserts run at run time --------
+
+/// The test world's parameters: inputs of these tests, not the economy's constants (the Green Paper's
+/// D1 and D2 decide those, see #8619).
+pub const NET_SEEDS : u32 = 8;
+pub const JOBS_PER_RUN : u32 = 12;
+pub const TEST_BASE_RATE : u64 = 8;
+pub const TEST_HALVING_EVERY : u64 = 2000;
+pub const TEST_UNITS_MAX : u64 = 100;
+pub const TEST_BOND : u64 = 25;
+pub const TEST_BOUNTY : u64 = 300;
+
+pub fn world(seed: u32, jobs: u32, what: u8) -> u64 {
+    return network_report(seed, jobs, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOND, TEST_BOUNTY, what);
+}
+
+test the_actors_are_distinct_pids_and_a_restart_is_a_new_one {
+    var s : u64 = 1;
+    while (s <= ACTOR_SLOTS) {
+        let p : u64 = pid_of(s, 0);
+        assert p != NO_PID;
+        assert slot_of(p) == s;
+        // a restart is the next generation: the old pid reaches nobody, an offer to it is dropped
+        let q : u64 = pid_of(s, next_gen(0));
+        assert q != p;
+        assert reaches(p, q) == false;
+        assert deliver(reaches(p, q), 0, MBOX_SLOTS as u32) == D_DROPPED_DEAD;
+        assert deliver(reaches(q, q), 0, MBOX_SLOTS as u32) == D_QUEUED;
+        var t : u64 = s + 1;
+        while (t <= ACTOR_SLOTS) {
+            assert pid_of(t, 0) != p;
+            t = t + 1;
+        }
+        s = s + 1;
+    }
+}
+
+test one_executor_three_verifiers_and_the_reference_is_t27c {
+    var si : u32 = 0;
+    var t27c_signers : u32 = 0;
+    var executors : u32 = 0;
+    var slots : u64 = 0;
+    while (si < SIGNERS) {
+        if (backend_of(si) == BACKEND_T27C) { t27c_signers = t27c_signers + 1; }
+        if (role_of(si) == ROLE_EXECUTOR) { executors = executors + 1; }
+        assert payment_kind_known(fee_kind_of(si));
+        assert key_registered(key_of(si));
+        // no two signers share a slot, and none is the verifier, treasurer or dispatcher
+        assert (slots & bit(signer_slot(si))) == 0;
+        slots = slots | bit(signer_slot(si));
+        assert signer_slot(si) != SLOT_VERIFIER and signer_slot(si) != SLOT_TREASURER and signer_slot(si) != SLOT_DISPATCHER;
+        si = si + 1;
+    }
+    assert t27c_signers == 1;
+    assert executors == 1;
+    assert SIGNERS - executors == VERIFIERS;
+    assert backend_of(W_REFERENCE) == BACKEND_T27C;
+    assert backend_of(SIGNER_EXECUTOR) == BACKEND_T27B;
+    assert key_registered(0) == false;
+    assert key_registered(key_of(SIGNERS)) == false;
+}
+
+test the_verifier_admits_only_k_fresh_agreeing_receipts {
+    var n : u32 = 0;
+    while (n <= SIGNERS) {
+        let enough : bool = n >= (placements_needed() as u32);
+        assert run_admitted(n, true, true, true, LEVEL_FRESH) == enough;
+        // one disagreeing, incomplete or foreign receipt, or a stale or unsigned run, is refused
+        assert run_admitted(n, true, false, true, LEVEL_FRESH) == false;
+        assert run_admitted(n, false, true, true, LEVEL_FRESH) == false;
+        assert run_admitted(n, true, true, false, LEVEL_FRESH) == false;
+        assert run_admitted(n, true, true, true, LEVEL_AUTHOR) == false;
+        assert run_admitted(n, true, true, true, LEVEL_NONE) == false;
+        n = n + 1;
+    }
+    // the levels the faults reach: a replayed nonce is authored but not fresh; unsigned is nothing
+    var c : u64 = 1;
+    while (c < 4) {
+        assert receipt_level(true, true, true, true, NONCE_MIN_BYTES, true) == LEVEL_FRESH;
+        assert receipt_level(true, true, true, true, NONCE_MIN_BYTES, c - 1 == c) == LEVEL_AUTHOR;
+        assert receipt_level(false, true, false, true, NONCE_MIN_BYTES, true) == LEVEL_NONE;
+        c = c + 1;
+    }
+}
+
+test a_lie_never_matches_the_truth_or_another_lie {
+    var j : u32 = 0;
+    while (j < JOBS_PER_RUN) {
+        let honest_pass : u64 = verdict_digest(j, PASS);
+        let honest_fail : u64 = verdict_digest(j, FAIL);
+        assert honest_pass != honest_fail;
+        var si : u32 = 0;
+        while (si < SIGNERS) {
+            assert lie_digest(j, FAIL, si) != honest_fail;
+            assert lie_digest(j, FAIL, si) != honest_pass;
+            assert lie_digest(j, PASS, si) != honest_pass;
+            var sk : u32 = si + 1;
+            while (sk < SIGNERS) {
+                assert lie_digest(j, FAIL, si) != lie_digest(j, FAIL, sk);
+                sk = sk + 1;
+            }
+            si = si + 1;
+        }
+        j = j + 1;
+    }
+}
+
+test the_invariants_hold_after_every_step_of_every_seed {
+    var i : u32 = 0;
+    while (i < NET_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, i);
+        // network_report judges the invariants after every step; every prefix is judged again here
+        assert world(seed, JOBS_PER_RUN, R_FLAGS) == 0;
+        assert world(seed, JOBS_PER_RUN, R_BROKEN) == (INV_OK as u64);
+        var k : u32 = 0;
+        while (k <= JOBS_PER_RUN) {
+            assert world(seed, k, R_HEADROOM) != HEADROOM_OVERRUN;
+            k = k + 1;
+        }
+        i = i + 1;
+    }
+}
+
+test the_same_seed_twice_gives_the_same_ledger {
+    var i : u32 = 0;
+    var last : u64 = 0;
+    while (i < NET_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, i);
+        let first_run : u64 = world(seed, JOBS_PER_RUN, R_DIGEST);
+        let second_run : u64 = world(seed, JOBS_PER_RUN, R_DIGEST);
+        assert first_run == second_run;
+        assert world(seed, JOBS_PER_RUN, R_PAID) == world(seed, JOBS_PER_RUN, R_PAID);
+        // and another seed is another world
+        if (i > 0) { assert first_run != last; }
+        last = first_run;
+        i = i + 1;
+    }
+}
+
+test work_is_paid_by_kind_and_liars_and_the_slashed_are_not {
+    var i : u32 = 0;
+    var lies : u64 = 0;
+    var paid_jobs : u64 = 0;
+    var slashes : u64 = 0;
+    var verifier_fees : u64 = 0;
+    var bounties : u64 = 0;
+    var royalties : u64 = 0;
+    while (i < NET_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, i);
+        let flags : u64 = world(seed, JOBS_PER_RUN, R_FLAGS);
+        assert (flags & bit(INV_LIAR_PAID as u64)) == 0;
+        assert (flags & bit(INV_SLASHED_PAID as u64)) == 0;
+        assert (flags & bit(INV_PAID_WITHOUT_RUN as u64)) == 0;
+        assert (flags & bit(INV_OVER_POOL as u64)) == 0;
+        assert (flags & bit(INV_BOUNTY_UNEARNED as u64)) == 0;
+        assert (flags & bit(INV_STALE_PAID as u64)) == 0;
+        let jobs_word : u64 = world(seed, JOBS_PER_RUN, R_JOBS);
+        assert field16(jobs_word, 0) + field16(jobs_word, 1) == (JOBS_PER_RUN as u64);
+        assert field16(jobs_word, 3) <= field16(jobs_word, 0);
+        let economy : u64 = world(seed, JOBS_PER_RUN, R_ECONOMY);
+        // at most one bounty per run, and one royalty per paid run
+        assert field16(economy, 2) <= 1;
+        assert field16(economy, 3) == field16(jobs_word, 3);
+        assert world(seed, JOBS_PER_RUN, R_PAID) <= world(seed, JOBS_PER_RUN, R_EMITTED);
+        lies = lies + field16(world(seed, JOBS_PER_RUN, R_FAULTS), 0);
+        paid_jobs = paid_jobs + field16(jobs_word, 3);
+        slashes = slashes + field16(economy, 0);
+        verifier_fees = verifier_fees + field16(economy, 1);
+        bounties = bounties + field16(economy, 2);
+        royalties = royalties + field16(economy, 3);
+        i = i + 1;
+    }
+    // not vacuous: liars lied and were slashed, and every kind of work was paid
+    assert lies > 0;
+    assert slashes > 0;
+    assert paid_jobs > 0;
+    assert verifier_fees > 0;
+    assert bounties > 0;
+    assert royalties > 0;
+}
+
+test every_fault_and_attack_is_drawn_and_each_is_caught {
+    var i : u32 = 0;
+    var unsigned_receipts : u64 = 0;
+    var replays : u64 = 0;
+    var crashes : u64 = 0;
+    var restarts : u64 = 0;
+    var dropped : u64 = 0;
+    var settle_replays : u64 = 0;
+    var split_refused : u64 = 0;
+    var fail_runs : u64 = 0;
+    var off_chain : u64 = 0;
+    var bypass : u64 = 0;
+    var late_notices : u64 = 0;
+    while (i < NET_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, i);
+        let faults : u64 = world(seed, JOBS_PER_RUN, R_FAULTS);
+        let caught : u64 = world(seed, JOBS_PER_RUN, R_CAUGHT);
+        let sup : u64 = world(seed, JOBS_PER_RUN, R_SUPERVISOR);
+        let attacks : u64 = world(seed, JOBS_PER_RUN, R_ATTACKS);
+        // a crash is restarted unless the intensity is spent; a crashed signer sends no receipt
+        assert field16(sup, 0) + field16(sup, 1) == field16(faults, 3);
+        assert field16(caught, 1) >= field16(faults, 3);
+        // every replayed settlement, off-chain ask and unreproduced claim is refused
+        assert field16(caught, 3) == field16(sup, 2);
+        assert field16(attacks, 1) == field16(attacks, 0);
+        assert field16(attacks, 3) == field16(attacks, 2);
+        // an offer reaches a dead pid only after a late restart notice, once per notice at most
+        let late : u64 = world(seed, JOBS_PER_RUN, R_LATE);
+        assert field16(caught, 2) <= late;
+        late_notices = late_notices + late;
+        unsigned_receipts = unsigned_receipts + field16(faults, 1);
+        replays = replays + field16(faults, 2);
+        crashes = crashes + field16(faults, 3);
+        restarts = restarts + field16(sup, 0);
+        dropped = dropped + field16(caught, 2);
+        settle_replays = settle_replays + field16(sup, 2);
+        split_refused = split_refused + field16(sup, 3);
+        fail_runs = fail_runs + field16(world(seed, JOBS_PER_RUN, R_JOBS), 2);
+        off_chain = off_chain + field16(attacks, 0);
+        bypass = bypass + field16(attacks, 2);
+        i = i + 1;
+    }
+    assert unsigned_receipts > 0;
+    assert replays > 0;
+    assert crashes > 0;
+    assert restarts > 0;
+    // a late restart notice sends one offer to the dead pid
+    assert dropped > 0;
+    assert late_notices >= dropped;
+    assert settle_replays > 0;
+    assert split_refused > 0;
+    assert fail_runs > 0;
+    assert off_chain > 0;
+    assert bypass > 0;
+}
+
+test the_rate_follows_the_emission_and_the_units_stay_as_issued {
+    var i : u32 = 0;
+    var halved : u32 = 0;
+    while (i < NET_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, i);
+        let rate_end : u64 = world(seed, JOBS_PER_RUN, R_RATE);
+        assert rate_end <= TEST_BASE_RATE;
+        if (rate_end < TEST_BASE_RATE) { halved = halved + 1; }
+        // no emission, no halving; a schedule of 0 pays nothing at all
+        assert world(seed, 0, R_RATE) == TEST_BASE_RATE;
+        assert network_report(seed, JOBS_PER_RUN, TEST_BASE_RATE, 0, TEST_UNITS_MAX, TEST_BOND, 0, R_PAID) == 0;
+        var j : u32 = 0;
+        while (j < JOBS_PER_RUN) {
+            let units : u64 = units_draw(seed, j, TEST_UNITS_MAX);
+            assert units >= 1 and units <= TEST_UNITS_MAX;
+            assert nonce_units(issue_nonce((j as u64) + 1, units)) == units;
+            assert bill_issued(issue_nonce((j as u64) + 1, units), JOBS_PER_RUN);
+            j = j + 1;
+        }
+        assert bill_issued(issue_nonce(0, 1), JOBS_PER_RUN) == false;
+        assert bill_issued(issue_nonce((JOBS_PER_RUN as u64) + 1, 1), JOBS_PER_RUN) == false;
+        i = i + 1;
+    }
+    assert halved > 0;
+}
+
+test the_treasurer_credits_only_reproduced_runs_on_the_chain_of_record_once {
+    var m : u32 = 0;
+    while (m < 32) {
+        let on_record : bool = (m & 1) != 0;
+        let reproduced : bool = (m & 2) != 0;
+        let issued : bool = (m & 4) != 0;
+        let spent : bool = (m & 8) != 0;
+        let device : bool = (m & 16) != 0;
+        var credit_chain : u8 = CHAIN_EVM;
+        if (on_record) { credit_chain = CHAIN_OF_RECORD; }
+        let att : u8 = attestation_level(true, reproduced, device);
+        let want : bool = on_record and reproduced and issued and (spent == false);
+        assert treasurer_accepts(credit_chain, true, issued, spent, att) == want;
+        // and a verdict nobody accepted is never credited, whatever else holds
+        assert treasurer_accepts(credit_chain, false, issued, spent, att) == false;
+        // and no value moves until a device-bound identity exists
+        assert value_flow_allowed(att) == (reproduced and device);
+        m = m + 1;
+    }
+    assert CHAIN_OF_RECORD == CHAIN_TON;
+    assert CREDIT_TRANSFERABLE == false;
+    assert payment_kind_known(ENTRY_SLASH) == false;
+}
+
+test a_crashed_signer_is_restarted_until_the_intensity_is_spent {
+    var r : u32 = 0;
+    while (r <= DOMAIN_MAX_RESTARTS + 1) {
+        let answer : u8 = on_child_exit(RESTART_PERMANENT, X_CRASH, r, DOMAIN_MAX_RESTARTS);
+        if (r < DOMAIN_MAX_RESTARTS) { assert answer == SUP_RESTART; } else { assert answer == SUP_GIVE_UP; }
+        r = r + 1;
+    }
+}
+
+invariant the_network_is_k_of_n_with_one_reference_judge {
+    assert (placements_needed() as u32) < SIGNERS;
+    assert W_REFERENCE < SIGNERS and SIGNER_RERUN < SIGNERS;
+    assert JOBS_PER_RUN <= 64;
+    assert INV_KINDS < 64;
+}
+
+invariant the_fault_bands_fit_the_span {
+    assert W_LIE + W_UNSIGNED + W_REPLAY + W_CRASH < FAULT_SPAN;
+    assert W_LIE >= 1 and W_UNSIGNED >= 1 and W_REPLAY >= 1 and W_CRASH >= 1;
+}
+
+invariant the_draw_bounds_overrun_the_pool_so_fees_fit_is_tested {
+    assert NET_STREAM_VERDICT > STREAM_STORE;
+    assert EXECUTOR_PARTS_MAX + PROVIDER_PARTS_MAX + VERIFIER_PARTS_MAX + AUTHOR_PARTS_MAX > FEE_PARTS;
+}
