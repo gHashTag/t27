@@ -65,7 +65,9 @@ Take the first unchecked item of epic #8326 that is not already claimed, either 
   - a fresh `git worktree add --detach /data/w-<topic> FETCH_HEAD` from the lab clone;
   - `cargo build --release -p t27c` with a shared `CARGO_TARGET_DIR`.
 - **Bring the files back to a sparse worktree on the Mac.** `git worktree add --no-checkout`, `git sparse-checkout set --no-cone <paths>`, then copy each file with `ssh ... cat`. `gen/` is gitignored: use `git add -f`.
-- **Every new spec in a PR also gets its row** in `docs/reports/t27b_expectations.json`. A missing row turns master's `t27b-native-ratchet` red for everyone (UNLISTED). That happened 6 times in 30 minutes on 2026-10-09.
+- **Ledger rows: the steward writes them.** The t27b ledger steward (`specs/jobs/t27b_ledger_steward.t27`, rules in `specs/tri/t27b/ledger_steward.t27`, #8654) adds the row from master's next run after a spec PR merges, and opens one ledger PR with auto-merge. Once the Queen runs that card (see gHashTag/trios#1751), spec PRs leave `docs/reports/t27b_expectations.json` alone.
+  - **Until then, every new spec in a PR still gets its row.** A missing row turns master's `t27b-native-ratchet` red for everyone (UNLISTED). That happened 6 times in 30 minutes on 2026-10-09.
+  - **The steward refuses** UNEXPECTED FAILURE, MOVED, BAD REASON, OVER CAP, a defect where the reference passes, a cap rise larger than the new rows, and more than 16 STALE rows. For a refused run it opens one issue labelled `t27b-ledger-steward` and no PR. Those issues are this loop's to read.
 - **Receipts:** while master moves every 10-20 minutes, compare a lane's squash commit on master against its parent after the merge:
   - `cd /work/t27 && /work/t27c-master corpus-receipt compare BASE.receipt.json HEAD.receipt.json --challenge-head <nonce>` on t27b-lab;
   - a master receipt carries no nonce and is accepted as BASE;

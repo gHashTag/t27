@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+1f6fc41",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:72ca5df2218d82823997f642a18d727aa41c4936e01d52971bb465b821c0179d",
+  "gen_hash_rust": "sha256:8b4c5128ce826a3c21681106cb53e1d8e961ebba90fb53058f7620564828687e",
+  "gen_hash_verilog": "sha256:dd9ba68e48927c0b86db10884b40a30c6d1c9ee034dac7d34193b758e2264bd2",
+  "gen_hash_zig": "sha256:a5a930fdd1dc6d4fcd7dfb16425e315747e0625cfb575a9996e6c2a683502cfe",
+  "module": "RoRace",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:42:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a7771ce653fd4e4d94aea931f4e908610ffdabe137f21d36d8cfa80ef278878c",
+  "spec_path": "specs/fpga/ro_race.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

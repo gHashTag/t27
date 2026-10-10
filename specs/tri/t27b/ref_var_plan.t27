@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/ref_var_plan.t27 -- which locals t27b lowers as a `var`, as gen-zig declares them (issue
+; #8653, t27b coverage epic #6063; written in t27 under the port epic #6198).
+; gen-zig declares a local `var` when the source writes `var`, and also when the fn or test body assigns it
+; anywhere -- the name itself (`x = ..`, `x += ..`), an element (`x[i] = ..`) or a field (`x.f = ..`), at
+; the top of the body or inside if / while / for (`mut_names`, filled by `collect_mutable_names` in
+; bootstrap/src/compiler.rs). So `let i = 0; ... i += 1;` is `var i: u32 = 0;` in the reference's Zig,
+; `const c = 5; c = c + 1;` is `var c: u32 = 5;`, and `let r = f(x); if (n) { r = 1.0 / r; }` is
+; `var r = f(x);`. t27b collects the same set per body (cli/t27b/src/lower/refvars.rs, `ref_vars`); before
+; this plan it used it for arrays and structs only, and bound a scalar `let` to a constant, refusing the
+; assignment as `StmtAssign`: specs/math/constants.t27 (`pow`) and specs/ml/activation/sigmoid_activation.t27
+; (`forward_batch`) stopped there.
+; Everything t27b decides here is `is_var` and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/ref_var_plan.rs, mounted as `rv`). A local it answers true for takes the path a written
+; `var` takes: an untyped one set to an integer literal is pinned to u32, or u64 when the literal does not
+; fit (#6967), and one set to any other compile-time value is refused, as Zig refuses `var f = 1.5;`.
+; --
+; Measured on the t27c lab (`t27c test-report`, zig 0.16.0, x86_64 Debug): `let i = 0;` then `i += 1` in a
+; loop, `let k: u8 = 1; k = k * 2;`, `const c = 5; c = c + 1;`, `let b = 5000000000; b += 1;` (u64),
+; `let r = f(x); r = 1.0 / r;` (f64) and `let i = 0; i += 2;` in a test body pass; `let u = 0; u = u - 1;`
+; fails its test (a u32 overflows); `let f = 1.5; f = 2.0;` does not compile.
+; specs/tri/t27b/conformance/let_reassigned.t27 pins the passing shapes. Invariant and bench bodies are left
+; alone: t27b collects nothing for them.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bRefVarPlan;
+
+/// Is a local a `var` in the reference? declared_var: the source writes `var`. assigned: the fn or test
+/// body assigns the name, an element of it or a field of it (`ref_vars`).
+pub fn is_var(declared_var: bool, assigned: bool) -> bool {
+    if (declared_var) { return true; }
+    return assigned;
+}
+
+test a_written_var_is_a_var {
+    assert is_var(true, false);
+    assert is_var(true, true);
+}
+
+test a_let_or_const_the_body_assigns_is_a_var {
+    // sigmoid_activation.t27: `let i = 0;` then `i += 1;` in the while body.
+    assert is_var(false, true);
+}
+
+test a_let_or_const_the_body_never_assigns_stays_a_constant {
+    assert !is_var(false, false);
+}

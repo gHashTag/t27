@@ -1,0 +1,104 @@
+module port::bogatyrs_spec_structure;
+
+// VIBEE BOGATYR - Spec Structure Validator
+// Checks withto .tri withandtoand
+// φ² + 1/φ² = 3 | PHOENIX = 999
+
+const NAME = "spec_structure";
+const VERSION = "1.0.0";
+const CATEGORY = "syntax";
+const PRIORITY = 1;
+
+pub fn validateSpecStructure(ctx: []const u8) -> bool {
+    var has_name = false;
+    var has_version = false;
+    var has_language = false;
+    var has_module = false;
+
+    // Simple line-by-line processing without Zig-specific syntax
+    var line_ptr: usize = 0;
+    var ctx_len: usize = ctx.len;
+    
+    while (line_ptr < ctx_len) {
+        // Find next newline
+        var line_end: usize = line_ptr;
+        while (line_end < ctx_len and ctx[line_end] != '\n') {
+            line_end += 1;
+        }
+        
+        var line: []const u8 = ctx[line_ptr..line_end];
+        line_ptr = line_end + 1;
+        
+        // Skip empty lines and comments
+        var trimmed = std.mem.trim(u8, line, " \t\r");
+        if (trimmed.len == 0 or trimmed[0] == '#') continue;
+
+        // Check for colon separator
+        var colon_idx = std.mem.indexOfScalar(u8, trimmed, ':');
+        if (colon_idx != null and colon_idx.? > 0) {
+            var key = std.mem.trim(u8, trimmed[0..colon_idx.?], " ");
+
+            if (std.mem.eql(u8, key, "name")) has_name = true;
+            if (std.mem.eql(u8, key, "version")) has_version = true;
+            if (std.mem.eql(u8, key, "language")) has_language = true;
+            if (std.mem.eql(u8, key, "module")) has_module = true;
+        }
+    }
+
+    return has_name and has_version and has_language and has_module;
+}
+
+test "spec structure - valid spec" {
+    const valid_spec = "name: test_spec\nversion: \"1.0.0\"\nlanguage: zig\nmodule: test_spec";
+
+    const result = validateSpecStructure(valid_spec);
+    assert(result == true);
+}
+
+test "spec structure - missing name" {
+    const invalid_spec = "version: \"1.0.0\"\nlanguage: zig\nmodule: test_spec";
+
+    const result = validateSpecStructure(invalid_spec);
+    assert(result == false);
+}
+
+test "spec structure - missing version" {
+    const invalid_spec = "name: test_spec\nlanguage: zig\nmodule: test_spec";
+
+    const result = validateSpecStructure(invalid_spec);
+    assert(result == false);
+}
+
+test "spec structure - missing language" {
+    const invalid_spec = "name: test_spec\nversion: \"1.0.0\"\nmodule: test_spec";
+
+    const result = validateSpecStructure(invalid_spec);
+    assert(result == false);
+}
+
+test "spec structure - missing module" {
+    const invalid_spec = "name: test_spec\nversion: \"1.0.0\"\nlanguage: zig";
+
+    const result = validateSpecStructure(invalid_spec);
+    assert(result == false);
+}
+
+test "spec structure - empty lines and comments" {
+    const spec_with_comments = "name: test_spec\n# This is a comment\nversion: \"1.0.0\"\n\nlanguage: zig\nmodule: test_spec";
+
+    const result = validateSpecStructure(spec_with_comments);
+    assert(result == true);
+}
+
+test "spec structure - whitespace handling" {
+    const spec_with_whitespace = "  name  :  test_spec  \nversion:\"1.0.0\"\n  language:zig\nmodule:test_spec";
+
+    const result = validateSpecStructure(spec_with_whitespace);
+    assert(result == true);
+}
+
+test "phi constant" {
+    const phi: f64 = (1.0 + @sqrt(5.0)) / 2.0;
+    const result = phi * phi + 1.0 / (phi * phi);
+    assert(std.math.approxEqAbs(f64, 3.0, result, 0.0001));
+}

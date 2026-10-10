@@ -1,0 +1,157 @@
+//! # CR-CHAT-05 — Envelope size distribution uniformity guard (Wave-59 Lane A)
+//!
+//! PERSISTENCE — stored envelope sizes must not leak active/idle, R-CHAT-1.
+//!
+//! If real envelopes are always 1024 bytes and cover are 256, an attacker
+//! with read access to the store can determine active/idle via a size
+//! histogram. All stored envelopes must share a single padding class.
+//!
+//! 1. All envelopes share one class.
+//! 2. Class is in the canonical set.
+//! 3. Min envelopes for statistics >= `ESDU_MIN_ENVELOPES`.
+//! 4. No envelope shorter than `ESDU_MIN_SIZE`.
+//! 5. Standard deviation of sizes = 0 (all identical).
+//! 6. Store size <= `ESDU_MAX_STORE`.
+//!
+//! Tests **ESDU-01..10**. Error enum [`SizeDistributionError`].
+//!
+//! Anchor: `φ² + φ⁻² = 3 · TRINITY · CHAT · SIZE-UNIFORMITY`
+
+/// Canonical envelope sizes.
+pub const ESDU_CLASSES: [usize; 4] = [256, 1024, 4096, 16384];
+
+/// Minimum envelopes for statistical analysis.
+pub const ESDU_MIN_ENVELOPES: usize = 4;
+
+/// Minimum single envelope size.
+pub const ESDU_MIN_SIZE: usize = 256;
+
+/// Maximum store size.
+pub const ESDU_MAX_STORE: usize = 4096;
+
+/// All ways size distribution validation can fail.
+pub enum SizeDistributionError {
+    /// Multiple size classes detected.
+    MultipleClasses,
+    /// Non-canonical size.
+    NonCanonicalSize,
+    /// Too few envelopes.
+    TooFewEnvelopes,
+    /// Envelope too small.
+    EnvelopeTooSmall,
+    /// Store too large.
+    StoreTooLarge,
+    /// Zero-size envelope.
+    ZeroSize,
+}
+
+/// `[VERIFIED]` Validate that all stored envelopes share a single
+/// padding class.
+pub fn validate_size_uniformity(sizes: []const usize) -> ?SizeDistributionError {
+    if (sizes.len > ESDU_MAX_STORE) {
+        return SizeDistributionError.StoreTooLarge;
+    }
+    if (sizes.len == 0) {
+        return null;
+    }
+    var class: ?usize = null;
+    for (sizes) |s| {
+        if (s == 0) {
+            return SizeDistributionError.ZeroSize;
+        }
+        if (s < ESDU_MIN_SIZE) {
+            return SizeDistributionError.EnvelopeTooSmall;
+        }
+        var found: bool = false;
+        for (ESDU_CLASSES) |canonical| {
+            if (canonical == s) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return SizeDistributionError.NonCanonicalSize;
+        }
+        if (class == null) {
+            class = s;
+        } else if (class.? != s) {
+            return SizeDistributionError.MultipleClasses;
+        }
+    }
+    if (sizes.len < ESDU_MIN_ENVELOPES) {
+        return SizeDistributionError.TooFewEnvelopes;
+    }
+    return null;
+}
+
+test esdu_01_multiple_classes_rejected {
+    var sizes: [4]usize = [1024, 1024, 256, 1024];
+    const result = validate_size_uniformity(&sizes);
+    assert(result == SizeDistributionError.MultipleClasses);
+}
+
+test esdu_02_non_canonical_rejected {
+    var sizes: [4]usize = [512, 512, 512, 512];
+    const result = validate_size_uniformity(&sizes);
+    assert(result == SizeDistributionError.NonCanonicalSize);
+}
+
+test esdu_03_too_few_rejected {
+    var sizes: [3]usize = [1024, 1024, 1024];
+    const result = validate_size_uniformity(&sizes);
+    assert(result == SizeDistributionError.TooFewEnvelopes);
+}
+
+test esdu_04_too_small_rejected {
+    var sizes: [4]usize = [64, 64, 64, 64];
+    const result = validate_size_uniformity(&sizes);
+    assert(result == SizeDistributionError.EnvelopeTooSmall);
+}
+
+test esdu_05_store_large_rejected {
+    var sizes: [4097]usize = undefined;
+    for (0..sizes.len) |i| {
+        sizes[i] = 1024;
+    }
+    const result = validate_size_uniformity(&sizes);
+    assert(result == SizeDistributionError.StoreTooLarge);
+}
+
+test esdu_06_zero_rejected {
+    var sizes: [4]usize = [0, 1024, 1024, 1024];
+    const result = validate_size_uniformity(&sizes);
+    assert(result == SizeDistributionError.ZeroSize);
+}
+
+test esdu_07_uniform_accepted {
+    var sizes: [8]usize = undefined;
+    for (0..sizes.len) |i| {
+        sizes[i] = 1024;
+    }
+    const result = validate_size_uniformity(&sizes);
+    assert(result == null);
+}
+
+test esdu_08_empty_accepted {
+    var sizes: [0]usize = undefined;
+    const result = validate_size_uniformity(&sizes);
+    assert(result == null);
+}
+
+test esdu_09_exact_min_accepted {
+    var sizes: [4]usize = undefined;
+    for (0..sizes.len) |i| {
+        sizes[i] = 256;
+    }
+    const result = validate_size_uniformity(&sizes);
+    assert(result == null);
+}
+
+test esdu_10_large_class_accepted {
+    var sizes: [10]usize = undefined;
+    for (0..sizes.len) |i| {
+        sizes[i] = 16384;
+    }
+    const result = validate_size_uniformity(&sizes);
+    assert(result == null);
+}

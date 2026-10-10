@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/let_reassigned.t27 -- a `let` or `const` scalar local the body assigns, as the
+; reference runs it (gHashTag/t27#8653, t27b coverage epic #6063: StmtAssign in specs/math/constants.t27 and
+; specs/ml/activation/sigmoid_activation.t27). Every test here passes `t27c test-report`; t27b must give the
+; same verdict on each, or refuse the file.
+; gen-zig declares such a local `var` (`mut_names`): an untyped one set to an integer literal is a u32, or a
+; u64 when the literal does not fit; a typed one keeps its type; one set from a call or an expression keeps
+; that value's type. The assignment may sit at any depth of if / while / for, and the local may be one a test
+; body declares. specs/tri/t27b/ref_var_plan.t27 is the rule.
+; Not here: a u32 that the body takes below zero (the reference's test fails: integer overflow), and an
+; untyped float (`var f = 1.5;` does not compile).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceLetReassigned;
+
+/// sigmoid_activation.t27's `forward_batch`: an untyped counter over a slice, the slice written in place.
+fn lr_double_all(input: []f32) -> []f32 {
+    let i = 0;
+    while (i < input.len) {
+        input[i] = input[i] * 2.0;
+        i += 1;
+    }
+    return input;
+}
+
+fn lr_count(n: u32) -> u32 {
+    let i = 0;
+    while (i < n) {
+        i += 1;
+    }
+    return i;
+}
+
+fn lr_typed() -> u8 {
+    let k: u8 = 1;
+    k = k * 2;
+    k = k + 5;
+    return k;
+}
+
+fn lr_const() -> u32 {
+    const c = 5;
+    c = c + 1;
+    return c;
+}
+
+fn lr_big() -> u64 {
+    let b = 5000000000;
+    b += 1;
+    return b;
+}
+
+fn lr_nested(flag: bool) -> u32 {
+    let total = 10;
+    if (flag) {
+        total = total * 3;
+    } else {
+        total = total + 1;
+    }
+    return total;
+}
+
+/// A u32 counter that wraps would trap; this one only counts down to zero.
+fn lr_down(n: u32) -> u32 {
+    let left = n;
+    let steps = 0;
+    while (left > 0) {
+        left = left - 1;
+        steps += 1;
+    }
+    return steps;
+}
+
+fn lr_exp(x: f64) -> f64 {
+    return x * 2.0;
+}
+
+/// constants.t27's `pow`: a local set from a call, then inverted on one branch.
+fn lr_pow_like(x: f64, negative: bool) -> f64 {
+    let result = lr_exp(x);
+    if negative {
+        result = 1.0 / result;
+    }
+    return result;
+}
+
+test a_counter_over_a_slice {
+    var xs: [3]f32 = [1.0, -2.5, 4.0];
+    const out = lr_double_all(&xs);
+    assert(out.len == 3);
+    assert(xs[0] == 2.0);
+    assert(xs[1] == -5.0);
+    assert(xs[2] == 8.0);
+}
+
+test an_untyped_counter_is_a_u32 {
+    assert(lr_count(4) == 4);
+    assert(lr_count(0) == 0);
+}
+
+test a_typed_let_keeps_its_type {
+    assert(lr_typed() == 7);
+}
+
+test a_reassigned_const_is_a_var {
+    assert(lr_const() == 6);
+}
+
+test a_literal_past_u32_makes_a_u64 {
+    assert(lr_big() == 5000000001);
+}
+
+test an_assignment_inside_an_if {
+    assert(lr_nested(true) == 30);
+    assert(lr_nested(false) == 11);
+}
+
+test a_local_set_from_a_parameter {
+    assert(lr_down(5) == 5);
+}
+
+test a_local_set_from_a_call {
+    assert(lr_pow_like(2.0, false) == 4.0);
+    assert(lr_pow_like(2.0, true) == 0.25);
+}
+
+test a_local_of_the_test_body {
+    let i = 0;
+    i += 2;
+    i = i * 3;
+    assert(i == 6);
+}

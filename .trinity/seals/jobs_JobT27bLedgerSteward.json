@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+55eb214ac",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ac9254171852a74a08f26cee469556437586afc64ff5d04662493e1b07fd122b",
+  "gen_hash_rust": "sha256:ed77d5abb6c3a351e727532d015617c31ea4ee337554970c03adcabc187398f4",
+  "gen_hash_verilog": "sha256:34d6ca3be4983dbdcea17448983cd327c17e8032a9108e06e263af180a84d899",
+  "gen_hash_zig": "sha256:18a382e630aa893eb6da3f1885b5eb72f705fe28491e6461e64b62643e8ae0a8",
+  "module": "JobT27bLedgerSteward",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:43:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:869202696ec9a11cd45189276828631c767967d44ee6ba7f91404ba214e43a27",
+  "spec_path": "specs/jobs/t27b_ledger_steward.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
