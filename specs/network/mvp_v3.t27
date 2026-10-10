@@ -1,0 +1,1671 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/mvp_v3.t27 -- the network MVP, v3: one chain on which every attack of the acceptance
+; brief runs, a treasurer whose state is rebuilt from a durable journal, an idempotent event consumer,
+; one vote per operator, and a pool with an explicit source and limit. Issue gHashTag/t27#8788 (network
+; MVP hardening, epic see #8613). v1 (specs/network/mvp.t27, see #8610) and v2 (mvp_v2.t27, see #8685)
+; are unchanged and used through `use`. From v2 it takes the receipt envelope, its digest (the fold),
+; the keyed fold signature sig_of, the admission order and the challenge rules; from v1 the draws.
+; --
+; What it adds, and where each rule lives:
+;   specs/network/quorum.t27   the trusted N, F and M and the validator set (key id, operator id); a
+;                              vote counts once per key and once per operator; quorum_admits
+;   specs/network/pool.t27     the job pool's sources (the requester's escrow, the emission schedule, a
+;                              bounty) and its limit; the base verifier fee; the slash bonus on top
+;   specs/trinet/ledger.t27    settle() for every authenticated claim, overturn() for a challenge upheld
+;   specs/network/mvp_v3_ed25519.t27  the same votes signed and verified with Ed25519 on real bytes
+; This file holds the chain, the journal, the treasurer and the observer.
+; --
+; The chain. A dispatcher issues each key a nonce per job. Each key's node signs a receipt (v2's
+; Envelope: request id, key id, task, input, result, epoch, the journal head it saw) and sends it as a
+; vote to the verifier and as a claim to the treasurer. The verifier counts a vote only when it names
+; the key of the node that sent it, its signature checks over its digest, and it answers this job's
+; nonce. Valid votes that agree on the result and the head they saw form a group; a group is admitted
+; when quorum.t27's operator votes reach M. Two admitted groups for one job are a fork, which the
+; observer flags. The admitted run becomes an event for the treasurer.
+; The treasurer. It is a consumer of events (admit, refuse, challenge, tick). For each event it makes a
+; plan from the state before the event: the requester's deposit, one ledger settle() per claim whose
+; signature and request vouch for it, the pool's shares, the slash bonus, the refund, then a finalize
+; or a clawback in later ticks. Every step is appended to the journal before it is applied, and its
+; state is a fold of the journal and nothing else. An event already done is dropped, so a re-delivery
+; changes nothing. A treasurer that dies in the middle of an event is restarted with the state rebuilt
+; from the journal; the event comes again, the plan is made again from the state before it, and only
+; the steps the journal does not hold yet are appended, so nothing is paid twice. A challenge filed
+; inside CHALLENGE_WINDOW holds the job open; an upheld one overturns every credited claim through
+; ledger.t27 overturn(), pays the executor's bond to the challenger and the burned verifier stake to the
+; operators that told the truth, and claws the job's pending credits back to their sources.
+; --
+; The attacks, one per job, on one chain (and drawn from the seed in the sweep): a forged signature, a
+; tampered result, a receipt replay, a treasurer restart mid-settlement, an event re-delivery, collusion
+; beyond F caught by a challenge inside the window, a frivolous challenge, a stale challenge, a lie, two
+; operators offline, and (under the N 5, F 2 set) a fork: equivocating faulty operators and an honest
+; operator on a stale head. Every honest admitted job ends with exactly one finalize; an overturned or
+; refused job with none. The observer checks after every event: the books balance (deposits + bounties
+; + emission + stakes = spendable + pending + held + locked + burned and unpaid); no job finalizes twice,
+; while challenged or once clawed back; no fork; no admission under M operator votes; no job's pool pays
+; past its limit; an operator earns one base fee per job however many keys it holds; the ledger and the
+; books agree. At the end the journal rebuilt from nothing gives the same state, and the same chain with
+; the restart and the re-delivery taken out gives the same journal and the same balances.
+; --
+; The limits, said and not hidden: the signature here is v2's keyed fold over every digest word, keyed
+; on a public stand-in for the key; it binds every word to the key but keeps no secret. Ed25519 runs in
+; mvp_v3_ed25519.t27 (two verifies already spend t27b's interpreter fuel for a whole file), and this
+; file checks that every trusted key id is the SHA-256 of its public key's bytes. The treasurer's
+; knowledge of the true result in a challenge is the watcher's re-run, as in v2. A job pays its check
+; whether the spec passes or fails: the requester buys the verdict, not a pass.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkMvpV3;
+
+use network::mvp_v2;
+use network::mvp;
+use network::quorum;
+use network::pool;
+use trinet::ledger;
+use verified::payout;
+use tri::crypto::sha256;
+
+; --- 1. Keys: real bytes, and the fold's stand-in ------------------------------------------------
+
+pub fn hex_nibble_v3(c: u8) -> u8 {
+    if (c >= 97) { return c - 87; }
+    return c - 48;
+}
+
+/// The 32 bytes of trusted row `row`'s public key (quorum.t27 TRUSTED_PUBKEY).
+pub fn trusted_pubkey_bytes(row: u32) -> [32]u8 {
+    var o : [32]u8 = [0; 32];
+    let s : str = TRUSTED_PUBKEY[row as usize];
+    var i : usize = 0;
+    while (i < 32 and 2 * i + 1 < s.len) {
+        o[i] = hex_nibble_v3(s[2 * i]) * 16 + hex_nibble_v3(s[2 * i + 1]);
+        i = i + 1;
+    }
+    return o;
+}
+
+/// signed_receipt.t27's key id: the first KEY_ID_HEX_LEN hex digits (8 bytes) of SHA-256(public key).
+pub fn key_id_of_pubkey(pk: [32]u8) -> u64 {
+    let h : [32]u8 = hash(pk[0..32]);
+    var id : u64 = 0;
+    var i : usize = 0;
+    while (i < 8) {
+        id = (id << 8) | (h[i] as u64);
+        i = i + 1;
+    }
+    return id;
+}
+
+/// The fold's stand-in for a key: public, derived from the key id.
+pub fn fold_key(key_id: u64) -> u64 {
+    return (mix32(key_id >> 32) << 32) | mix32((key_id & MASK32) ^ 2654435769);
+}
+
+pub fn vote_digest(e: Envelope) -> [8]u32 {
+    return receipt_digest(e, false);
+}
+
+pub fn fold_sign(key_id: u64, e: Envelope) -> u64 {
+    return sig_of(fold_key(key_id), vote_digest(e));
+}
+
+/// The verifier's and the treasurer's check: the signature over the digest of exactly these fields,
+/// under the key the envelope names.
+pub fn fold_verify(e: Envelope, sig: u64) -> bool {
+    return sig_of(fold_key(e.executor), vote_digest(e)) == sig;
+}
+
+; --- 2. The chain's constants ----------------------------------------------------------------------
+
+pub const C3_JOBS_MAX : u32 = 16;
+pub const C3_ROWS : u32 = 8;
+pub const C3_VOTES_MAX : u32 = 16;
+pub const C3_HOLDERS : u32 = 16;
+
+/// Holders: 0 the requester; operators 1..8 by their id; then the provider, the author, the watcher
+/// and the griefer.
+pub const HV_REQUESTER : u32 = 0;
+pub const HV_PROVIDER : u32 = 9;
+pub const HV_AUTHOR : u32 = 10;
+pub const HV_WATCHER : u32 = 11;
+pub const HV_GRIEFER : u32 = 12;
+
+/// The executor is row 2: the trusted set's simulated operator 2.
+pub const EXEC_ROW : u32 = 2;
+
+/// The economy of the tests: each job's escrow, its units for the emission, the schedule, one bounty.
+pub const C3_ESCROW : u64 = 6000;
+pub const C3_UNITS : u64 = 1000;
+pub const C3_BASE_RATE : u64 = 4;
+pub const C3_HALVING : u64 = 20000;
+pub const C3_BOUNTY : u64 = 500;
+pub const C3_BOUNTY_JOB : u32 = 0;
+pub const C3_DRAIN : u32 = 4;
+/// A challenge resolves this many epochs after it opens; one filed late in the window is still open
+/// when the window ends, and holds the job.
+pub const C3_RESOLVE : u32 = 2;
+
+/// The attacks, one per job.
+pub const AT_NONE : u8 = 0;
+pub const AT_FORGED_SIG : u8 = 1;
+pub const AT_TAMPERED_RESULT : u8 = 2;
+pub const AT_REPLAY : u8 = 3;
+pub const AT_RESTART : u8 = 4;
+pub const AT_REDELIVER : u8 = 5;
+pub const AT_COLLUDE : u8 = 6;
+pub const AT_GRIEF : u8 = 7;
+pub const AT_STALE_CHALLENGE : u8 = 8;
+pub const AT_LIE : u8 = 9;
+pub const AT_OFFLINE : u8 = 10;
+pub const AT_FORK : u8 = 11;
+pub const AT_KINDS : u8 = 12;
+
+/// Who filed a challenge.
+pub const BY_NOBODY : u8 = 0;
+pub const BY_THE_WATCHER : u8 = 1;
+pub const BY_THE_GRIEFER : u8 = 2;
+
+/// A job's state in the books, and its challenge.
+pub const JS_NONE : u8 = 0;
+pub const JS_PENDING : u8 = 1;
+pub const JS_FINAL : u8 = 2;
+pub const JS_CLAWED : u8 = 3;
+pub const JS_REFUSED : u8 = 4;
+pub const JC_NONE : u8 = 0;
+pub const JC_OPEN : u8 = 1;
+pub const JC_DONE : u8 = 2;
+
+/// Claims the treasurer refuses before the ledger: v2's RV_BAD_SIG, and a stale one (a receipt for
+/// another job's nonce, a replay).
+pub const RV3_STALE : u32 = 4;
+
+/// The nonce the dispatcher issues key row `row` for job `job`: distinct per (node, job).
+pub fn issued_nonce(job: u32, row: u32) -> u32 {
+    return job * 16 + row + 1;
+}
+
+; --- 3. The journal ---------------------------------------------------------------------------------
+
+/// Journal ops. Each one balances the books on its own, so the observer may judge after any of them.
+pub const JO_DEPOSIT : u8 = 1;
+pub const JO_BOUNTY_POST : u8 = 2;
+pub const JO_SETTLE : u8 = 3;
+pub const JO_PENDING : u8 = 4;
+pub const JO_REFUND : u8 = 5;
+pub const JO_SETTLED : u8 = 6;
+pub const JO_REFUSED : u8 = 7;
+pub const JO_CH_OPEN : u8 = 8;
+pub const JO_CH_STALE : u8 = 9;
+pub const JO_OVERTURN : u8 = 10;
+pub const JO_FINAL_PAY : u8 = 11;
+pub const JO_GRIEF_BURN : u8 = 12;
+pub const JO_CLAWBACK : u8 = 13;
+pub const JO_CH_DONE : u8 = 14;
+pub const JO_FINALIZE : u8 = 15;
+pub const JO_DONE : u8 = 16;
+
+/// One step: the event it belongs to, the op, the job, a row or holder, a nonce, kind or epoch, an
+/// amount (or the claimed node of a settle), and a verdict or source.
+pub struct Entry {
+    ev: u64,
+    op: u8,
+    job: u32,
+    who: u32,
+    arg: u32,
+    amt: u64,
+    src: u8,
+}
+
+pub fn entry_of(ev: u64, op: u8, job: u32, who: u32, arg: u32, amt: u64, src: u8) -> Entry {
+    return Entry { ev: ev, op: op, job: job, who: who, arg: arg, amt: amt, src: src };
+}
+
+pub const JOURNAL_CAP : u32 = 384;
+
+pub struct Journal {
+    len: u32,
+    overflow: u32,
+    head: u32,
+    ev: [384]u64,
+    op: [384]u8,
+    job: [384]u32,
+    who: [384]u32,
+    arg: [384]u32,
+    amt: [384]u64,
+    src: [384]u8,
+}
+
+pub fn journal_empty() -> Journal {
+    return Journal { len: 0, overflow: 0, head: 0, ev: [0; 384], op: [0; 384], job: [0; 384], who: [0; 384], arg: [0; 384], amt: [0; 384], src: [0; 384] };
+}
+
+/// The running digest of the steps applied, the same for the journal and the state folded from it.
+pub fn head_after(head: u32, e: Entry) -> u32 {
+    let a : u64 = mix32(((head as u64) << 8) ^ (e.op as u64) ^ ((e.job as u64) << 16) ^ ((e.src as u64) << 24));
+    let b : u64 = mix32(a ^ (e.who as u64) ^ ((e.arg as u64) << 32));
+    return mix32(b ^ (e.amt & MASK32) ^ (e.amt >> 32) ^ (e.ev & MASK32) ^ (e.ev >> 32)) as u32;
+}
+
+pub fn journal_append(jr: *Journal, e: Entry) -> void {
+    if (jr.len >= JOURNAL_CAP) {
+        jr.overflow = jr.overflow + 1;
+        return;
+    }
+    let i : usize = jr.len as usize;
+    jr.ev[i] = e.ev;
+    jr.op[i] = e.op;
+    jr.job[i] = e.job;
+    jr.who[i] = e.who;
+    jr.arg[i] = e.arg;
+    jr.amt[i] = e.amt;
+    jr.src[i] = e.src;
+    jr.head = head_after(jr.head, e);
+    jr.len = jr.len + 1;
+}
+
+pub fn journal_at(jr: *Journal, i: u32) -> Entry {
+    let k : usize = i as usize;
+    return Entry { ev: jr.ev[k], op: jr.op[k], job: jr.job[k], who: jr.who[k], arg: jr.arg[k], amt: jr.amt[k], src: jr.src[k] };
+}
+
+/// How many of the journal's steps belong to event `ev`, and where the first one is.
+pub fn journal_count_ev(jr: *Journal, ev: u64) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < jr.len) {
+        if (jr.ev[i as usize] == ev) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+pub fn journal_first_ev(jr: *Journal, ev: u64) -> u32 {
+    var i : u32 = 0;
+    while (i < jr.len) {
+        if (jr.ev[i as usize] == ev) { return i; }
+        i = i + 1;
+    }
+    return jr.len;
+}
+
+; --- 4. The treasurer's state: a fold of the journal ------------------------------------------------
+
+pub const C3_DONE_CAP : u32 = 64;
+
+/// What apply() saw that no step may do: bit 0 a finalize while challenged, 1 a finalize of a job
+/// clawed back or refused, 2 a second finalize, 3 a step on a job past C3_JOBS_MAX.
+pub struct Treasury {
+    lg: Ledger,
+    fin: [16]u64,
+    pend: [256]u64,
+    pend_h: [16]u64,
+    j_state: [16]u8,
+    j_settled_at: [16]u32,
+    j_finals: [16]u32,
+    j_escrow: [16]u64,
+    j_minted: [16]u64,
+    j_slash: [16]u64,
+    j_bounty: [16]u64,
+    j_pool_paid: [16]u64,
+    j_limit: [16]u64,
+    j_ch: [16]u8,
+    j_ch_by: [16]u8,
+    j_ch_at: [16]u32,
+    j_vfee: [256]u32,
+    deposits: u64,
+    bounties_posted: u64,
+    escrow_held: u64,
+    bounty_held: u64,
+    granted: u64,
+    emitted: u64,
+    refunded: u64,
+    slashed: u64,
+    ledger_slashed: u64,
+    paid_from_slashed: u64,
+    griefer_locked: u64,
+    griefer_posted: u64,
+    stakes_start: u64,
+    done: [64]u64,
+    n_done: u32,
+    applied: u32,
+    head: u32,
+    violations: u64,
+}
+
+pub fn treasury_open(c: QuorumConfig) -> Treasury {
+    var lg : Ledger = ledger_init(policy_of(1, TEST_SLASH, 100));
+    var r : u32 = 0;
+    while (r < c.keys) {
+        lg = register_node(lg, r + 1, c.operator[r as usize], false, TEST_STAKE);
+        r = r + 1;
+    }
+    return Treasury {
+        lg: lg, fin: [0; 16], pend: [0; 256], pend_h: [0; 16], j_state: [0; 16], j_settled_at: [0; 16],
+        j_finals: [0; 16], j_escrow: [0; 16], j_minted: [0; 16], j_slash: [0; 16], j_bounty: [0; 16],
+        j_pool_paid: [0; 16], j_limit: [0; 16], j_ch: [0; 16], j_ch_by: [0; 16], j_ch_at: [0; 16],
+        j_vfee: [0; 256], deposits: 0, bounties_posted: 0, escrow_held: 0, bounty_held: 0, granted: 0,
+        emitted: 0, refunded: 0, slashed: 0, ledger_slashed: 0, paid_from_slashed: 0,
+        griefer_locked: GRIEFER_STAKE, griefer_posted: 0,
+        stakes_start: ((c.keys as u64) * TEST_STAKE) + WATCHER_STAKE + GRIEFER_STAKE,
+        done: [0; 64], n_done: 0, applied: 0, head: 0, violations: 0,
+    };
+}
+
+/// Apply one journal step. The only way the treasurer's state changes.
+pub fn apply(t: *Treasury, e: Entry) -> void {
+    t.applied = t.applied + 1;
+    t.head = head_after(t.head, e);
+    if (e.op == JO_DONE) {
+        if (t.n_done < C3_DONE_CAP) {
+            t.done[t.n_done as usize] = e.ev;
+            t.n_done = t.n_done + 1;
+        }
+        return;
+    }
+    if (e.job >= C3_JOBS_MAX) {
+        t.violations = t.violations | 8;
+        return;
+    }
+    let jx : usize = e.job as usize;
+    if (e.op == JO_DEPOSIT) {
+        t.deposits = t.deposits + e.amt;
+        t.escrow_held = t.escrow_held + e.amt;
+    }
+    if (e.op == JO_BOUNTY_POST) {
+        t.bounties_posted = t.bounties_posted + e.amt;
+        t.bounty_held = t.bounty_held + e.amt;
+    }
+    if (e.op == JO_SETTLE) {
+        t.lg = settle(t.lg, e.who + 1, e.amt as u32, e.arg, e.src);
+        t.slashed = t.slashed + t.lg.last_slash_delta_mtri;
+        t.ledger_slashed = t.ledger_slashed + t.lg.last_slash_delta_mtri;
+    }
+    if (e.op == JO_PENDING) {
+        let x : usize = jx * 16 + (e.who as usize);
+        t.pend[x] = t.pend[x] + e.amt;
+        t.pend_h[e.who as usize] = t.pend_h[e.who as usize] + e.amt;
+        if (e.src == SRC_ESCROW) {
+            t.escrow_held = t.escrow_held - e.amt;
+            t.j_escrow[jx] = t.j_escrow[jx] + e.amt;
+            t.j_pool_paid[jx] = t.j_pool_paid[jx] + e.amt;
+        }
+        if (e.src == SRC_EMISSION) {
+            t.granted = t.granted + e.amt;
+            t.j_minted[jx] = t.j_minted[jx] + e.amt;
+            t.j_pool_paid[jx] = t.j_pool_paid[jx] + e.amt;
+        }
+        if (e.src == SRC_SLASHED) {
+            t.paid_from_slashed = t.paid_from_slashed + e.amt;
+            t.j_slash[jx] = t.j_slash[jx] + e.amt;
+        }
+        if (e.src == SRC_BOUNTY) {
+            t.bounty_held = t.bounty_held - e.amt;
+            t.j_bounty[jx] = t.j_bounty[jx] + e.amt;
+        }
+        if (e.arg == (VERIFIER_FEE as u32) and e.src != SRC_SLASHED) { t.j_vfee[x] = t.j_vfee[x] + 1; }
+    }
+    if (e.op == JO_REFUND) {
+        t.escrow_held = t.escrow_held - e.amt;
+        t.fin[HV_REQUESTER as usize] = t.fin[HV_REQUESTER as usize] + e.amt;
+        t.refunded = t.refunded + e.amt;
+    }
+    if (e.op == JO_SETTLED) {
+        t.j_state[jx] = JS_PENDING;
+        t.j_settled_at[jx] = e.arg;
+        t.j_limit[jx] = e.amt;
+    }
+    if (e.op == JO_REFUSED) { t.j_state[jx] = JS_REFUSED; }
+    if (e.op == JO_CH_OPEN) {
+        t.j_ch[jx] = JC_OPEN;
+        t.j_ch_by[jx] = e.src;
+        t.j_ch_at[jx] = e.arg;
+        if (e.src == BY_THE_GRIEFER) {
+            t.griefer_locked = t.griefer_locked - CHALLENGE_STAKE;
+            t.griefer_posted = t.griefer_posted + CHALLENGE_STAKE;
+        }
+    }
+    if (e.op == JO_OVERTURN) {
+        t.lg = overturn(t.lg, e.who + 1, e.arg);
+        t.slashed = t.slashed + t.lg.last_slash_delta_mtri;
+        t.ledger_slashed = t.ledger_slashed + t.lg.last_slash_delta_mtri;
+    }
+    if (e.op == JO_FINAL_PAY) {
+        t.fin[e.who as usize] = t.fin[e.who as usize] + e.amt;
+        t.paid_from_slashed = t.paid_from_slashed + e.amt;
+    }
+    if (e.op == JO_GRIEF_BURN) {
+        t.griefer_posted = t.griefer_posted - e.amt;
+        t.slashed = t.slashed + e.amt;
+    }
+    if (e.op == JO_CH_DONE) { t.j_ch[jx] = JC_DONE; }
+    if (e.op == JO_CLAWBACK or e.op == JO_FINALIZE) {
+        if (e.op == JO_FINALIZE) {
+            if (t.j_ch[jx] == JC_OPEN) { t.violations = t.violations | 1; }
+            if (t.j_state[jx] != JS_PENDING) { t.violations = t.violations | 2; }
+            if (t.j_finals[jx] > 0) { t.violations = t.violations | 4; }
+        }
+        var h : u32 = 0;
+        while (h < C3_HOLDERS) {
+            let x : usize = jx * 16 + (h as usize);
+            let a : u64 = t.pend[x];
+            t.pend[x] = 0;
+            t.pend_h[h as usize] = t.pend_h[h as usize] - a;
+            if (e.op == JO_FINALIZE) { t.fin[h as usize] = t.fin[h as usize] + a; }
+            h = h + 1;
+        }
+        if (e.op == JO_FINALIZE) {
+            t.emitted = t.emitted + t.j_minted[jx];
+            t.j_finals[jx] = t.j_finals[jx] + 1;
+            t.j_state[jx] = JS_FINAL;
+        } else {
+            // every pending credit back to its source: the escrow to the requester, the grant
+            // unminted, the slash bonus back to the burned stake, the bounty back to its deposit
+            t.fin[HV_REQUESTER as usize] = t.fin[HV_REQUESTER as usize] + t.j_escrow[jx];
+            t.refunded = t.refunded + t.j_escrow[jx];
+            t.granted = t.granted - t.j_minted[jx];
+            t.paid_from_slashed = t.paid_from_slashed - t.j_slash[jx];
+            t.bounty_held = t.bounty_held + t.j_bounty[jx];
+            t.j_escrow[jx] = 0;
+            t.j_minted[jx] = 0;
+            t.j_slash[jx] = 0;
+            t.j_bounty[jx] = 0;
+            t.j_state[jx] = JS_CLAWED;
+        }
+    }
+}
+
+/// The state the journal's first `upto` steps give, from nothing.
+pub fn rebuild(jr: *Journal, upto: u32, c: QuorumConfig) -> Treasury {
+    var t : Treasury = treasury_open(c);
+    var i : u32 = 0;
+    while (i < upto and i < jr.len) {
+        apply(&t, journal_at(jr, i));
+        i = i + 1;
+    }
+    return t;
+}
+
+pub fn is_done(t: *Treasury, ev: u64) -> bool {
+    var i : u32 = 0;
+    while (i < t.n_done) {
+        if (t.done[i as usize] == ev) { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+pub fn sum16(a: [16]u64) -> u64 {
+    var s : u64 = 0;
+    var i : usize = 0;
+    while (i < 16) {
+        s = s + a[i];
+        i = i + 1;
+    }
+    return s;
+}
+
+/// The books balance: deposits + bounties + the emission granted + the stakes at the start =
+/// spendable + pending + escrow held + bounties held + stake locked + stake burned and not paid out.
+pub fn treasury_conserved(t: *Treasury) -> bool {
+    if (t.paid_from_slashed > t.slashed) { return false; }
+    let sources : u64 = t.deposits + t.bounties_posted + t.granted + t.stakes_start;
+    let locked : u64 = stakes_held(t.lg) + WATCHER_STAKE + t.griefer_locked + t.griefer_posted;
+    let held : u64 = sum16(t.fin) + sum16(t.pend_h) + t.escrow_held + t.bounty_held + locked + (t.slashed - t.paid_from_slashed);
+    return sources == held;
+}
+
+/// Two states are the same state: every balance, every job, the ledger's totals, the done set.
+pub fn same_treasury(a: *Treasury, b: *Treasury) -> bool {
+    if (a.head != b.head or a.applied != b.applied or a.n_done != b.n_done or a.violations != b.violations) { return false; }
+    if (a.deposits != b.deposits or a.granted != b.granted or a.emitted != b.emitted or a.refunded != b.refunded) { return false; }
+    if (a.slashed != b.slashed or a.paid_from_slashed != b.paid_from_slashed or a.escrow_held != b.escrow_held) { return false; }
+    if (a.lg.total_credited_mtri != b.lg.total_credited_mtri or a.lg.total_slashed_mtri != b.lg.total_slashed_mtri or a.lg.n_spent != b.lg.n_spent) { return false; }
+    var i : usize = 0;
+    while (i < 16) {
+        if (a.fin[i] != b.fin[i] or a.pend_h[i] != b.pend_h[i]) { return false; }
+        if (a.j_state[i] != b.j_state[i] or a.j_finals[i] != b.j_finals[i] or a.j_ch[i] != b.j_ch[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+; --- 5. What the network hands the treasurer -------------------------------------------------------
+
+/// Per job: the admitted result and the true one (the watcher's re-run), the batch, and each row's
+/// claim as the treasurer received it (index job * 8 + row). Per job, the challenge filed against it.
+pub struct Net3 {
+    q_out: [16]u32,
+    t_out: [16]u32,
+    admitted: [16]bool,
+    leaf_present: [16]u64,
+    leaf: [1024]u32,
+    c_present: [128]bool,
+    c_req: [128]u32,
+    c_key: [128]u64,
+    c_task: [128]u32,
+    c_in: [128]u32,
+    c_out: [128]u32,
+    c_epoch: [128]u32,
+    c_prev: [128]u32,
+    c_sig: [128]u64,
+    ch_at: [16]u32,
+    ch_by: [16]u8,
+}
+
+pub fn net3_empty() -> Net3 {
+    return Net3 {
+        q_out: [0; 16], t_out: [0; 16], admitted: [false; 16], leaf_present: [0; 16], leaf: [0; 1024],
+        c_present: [false; 128], c_req: [0; 128], c_key: [0; 128], c_task: [0; 128], c_in: [0; 128],
+        c_out: [0; 128], c_epoch: [0; 128], c_prev: [0; 128], c_sig: [0; 128], ch_at: [0; 16], ch_by: [0; 16],
+    };
+}
+
+pub fn claim_env(rec: *Net3, x: usize) -> Envelope {
+    return Envelope { request_id: rec.c_req[x], device_id: DEVICE_SOFTWARE, executor: rec.c_key[x], task: rec.c_task[x], in_hash: rec.c_in[x], out: rec.c_out[x], epoch: rec.c_epoch[x], prev_head: rec.c_prev[x] };
+}
+
+pub fn leaf_of(rec: *Net3, job: u32, row: u32) -> [8]u32 {
+    var o : [8]u32 = [0; 8];
+    var w : usize = 0;
+    while (w < 8) {
+        o[w] = rec.leaf[((job * 8 + row) as usize) * 8 + w];
+        w = w + 1;
+    }
+    return o;
+}
+
+/// The treasurer's judgment of row `row`'s claim for `job`, in tri_receipt_verify's order with the
+/// stale check after the signature: who (the key named is the row's and the signature checks), which
+/// request (this job's nonce), membership (the batch's leaf), correctness (the admitted result).
+pub fn claim_reason3(rec: *Net3, c: QuorumConfig, job: u32, row: u32) -> u32 {
+    let x : usize = (job * 8 + row) as usize;
+    let e : Envelope = claim_env(rec, x);
+    if (key_row(c, e.executor) != row or fold_verify(e, rec.c_sig[x]) == false) { return RV_BAD_SIG; }
+    if (e.request_id != issued_nonce(job, row) or e.task != job + 1) { return RV3_STALE; }
+    if (has(rec.leaf_present[job as usize], row) == false or same8(leaf_of(rec, job, row), vote_digest(e)) == false) { return RV_NOT_IN_BATCH; }
+    if (e.out != rec.q_out[job as usize]) { return RV_BAD_COMPUTE; }
+    return RV_OK;
+}
+
+; --- 6. Events and plans -------------------------------------------------------------------------
+
+pub const EV3_ADMIT : u64 = 1;
+pub const EV3_REFUSE : u64 = 2;
+pub const EV3_CHALLENGE : u64 = 3;
+pub const EV3_TICK : u64 = 4;
+
+pub fn ev_id(kind: u64, job: u32, by: u8, epoch: u32) -> u64 {
+    return (kind << 56) | ((by as u64) << 48) | ((job as u64) << 24) | (epoch as u64);
+}
+
+pub fn ev_kind(ev: u64) -> u64 { return ev >> 56; }
+pub fn ev_job(ev: u64) -> u32 { return ((ev >> 24) & 16777215) as u32; }
+pub fn ev_by(ev: u64) -> u8 { return ((ev >> 48) & 255) as u8; }
+pub fn ev_epoch(ev: u64) -> u32 { return (ev & 16777215) as u32; }
+
+pub const PLAN_CAP : u32 = 48;
+
+pub struct Plan {
+    n: u32,
+    overflow: u32,
+    ev: [48]u64,
+    op: [48]u8,
+    job: [48]u32,
+    who: [48]u32,
+    arg: [48]u32,
+    amt: [48]u64,
+    src: [48]u8,
+}
+
+pub fn plan_empty() -> Plan {
+    return Plan { n: 0, overflow: 0, ev: [0; 48], op: [0; 48], job: [0; 48], who: [0; 48], arg: [0; 48], amt: [0; 48], src: [0; 48] };
+}
+
+pub fn plan_at(p: *Plan, i: u32) -> Entry {
+    let k : usize = i as usize;
+    return Entry { ev: p.ev[k], op: p.op[k], job: p.job[k], who: p.who[k], arg: p.arg[k], amt: p.amt[k], src: p.src[k] };
+}
+
+/// Add a step to the plan, and apply it to the plan's scratch state, so later steps see it.
+pub fn plan_push(p: *Plan, s: *Treasury, e: Entry) -> void {
+    if (p.n >= PLAN_CAP) {
+        p.overflow = p.overflow + 1;
+        return;
+    }
+    let k : usize = p.n as usize;
+    p.ev[k] = e.ev;
+    p.op[k] = e.op;
+    p.job[k] = e.job;
+    p.who[k] = e.who;
+    p.arg[k] = e.arg;
+    p.amt[k] = e.amt;
+    p.src[k] = e.src;
+    p.n = p.n + 1;
+    apply(s, e);
+}
+
+/// A pending step's arg is the payment kind; SHARE_CONTINUED marks the emission half of a share the
+/// escrow could not cover alone, so one share is one fee however many steps it takes.
+pub const SHARE_CONTINUED : u32 = 256;
+
+/// One pool share: from the escrow while it lasts, then from the emission. Returns the escrow left.
+pub fn pay_share(p: *Plan, s: *Treasury, ev: u64, job: u32, holder: u32, kind: u8, amt: u64, escrow_left: u64) -> u64 {
+    var from_escrow : u64 = amt;
+    if (from_escrow > escrow_left) { from_escrow = escrow_left; }
+    if (from_escrow > 0) { plan_push(p, s, entry_of(ev, JO_PENDING, job, holder, kind as u32, from_escrow, SRC_ESCROW)); }
+    var arg : u32 = kind as u32;
+    if (from_escrow > 0) { arg = arg | SHARE_CONTINUED; }
+    if (amt > from_escrow) { plan_push(p, s, entry_of(ev, JO_PENDING, job, holder, arg, amt - from_escrow, SRC_EMISSION)); }
+    return escrow_left - from_escrow;
+}
+
+/// The admitted job's settlement: the deposit, one settle per claim the signature and the request
+/// vouch for, the pool's shares (one base verifier fee per agreeing operator besides the executor's),
+/// the slash bonus on top, the bounty, the refund, and the window opened.
+pub fn plan_admit(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan {
+    var p : Plan = plan_empty();
+    var s : Treasury = before;
+    let job : u32 = ev_job(ev);
+    plan_push(&p, &s, entry_of(ev, JO_DEPOSIT, job, HV_REQUESTER, 0, C3_ESCROW, SRC_ESCROW));
+    if (job == C3_BOUNTY_JOB) { plan_push(&p, &s, entry_of(ev, JO_BOUNTY_POST, job, HV_AUTHOR, 0, C3_BOUNTY, SRC_BOUNTY)); }
+    var credited : u64 = 0;
+    var burned : u64 = 0;
+    var r : u32 = 0;
+    while (r < c.keys) {
+        let x : usize = (job * 8 + r) as usize;
+        if (rec.c_present[x]) {
+            let reason : u32 = claim_reason3(rec, c, job, r);
+            if (reason != RV_BAD_SIG and reason != RV3_STALE) {
+                let verdict : u8 = claim_verdict(reason, has(rec.leaf_present[job as usize], r), true);
+                let claimed : u32 = key_row(c, rec.c_key[x]) + 1;
+                plan_push(&p, &s, entry_of(ev, JO_SETTLE, job, r, issued_nonce(job, r), claimed as u64, verdict));
+                if (s.lg.last_outcome == OUT_CREDITED) { credited = credited | bit(r as u64); }
+                if (s.lg.last_outcome == OUT_REJECTED_AND_SLASHED) { burned = burned + s.lg.last_slash_delta_mtri; }
+            }
+        }
+        r = r + 1;
+    }
+    // the agreeing verifier operators: one per operator, the executor's own left out
+    let exec_op : u32 = c.operator[EXEC_ROW as usize];
+    let exec_paid : bool = has(credited, EXEC_ROW);
+    var ops : [8]u32 = [0; 8];
+    var n_ops : u32 = 0;
+    r = 0;
+    while (r < c.keys) {
+        let op : u32 = c.operator[r as usize];
+        if (has(credited, r) and op != exec_op) {
+            var seen : bool = false;
+            var k : u32 = 0;
+            while (k < n_ops) {
+                if (ops[k as usize] == op) { seen = true; }
+                k = k + 1;
+            }
+            if (seen == false) {
+                ops[n_ops as usize] = op;
+                n_ops = n_ops + 1;
+            }
+        }
+        r = r + 1;
+    }
+    let cap : u64 = emission_cap(C3_BASE_RATE, C3_HALVING);
+    let grant : u64 = emission_grant(emission_want(C3_UNITS, C3_BASE_RATE, s.granted, C3_HALVING), s.granted, cap);
+    let split : JobSplit = job_split(JobPool { escrow: C3_ESCROW, emission: grant }, n_ops as u64, exec_paid);
+    var esc : u64 = split.from_escrow;
+    if (exec_paid) {
+        esc = pay_share(&p, &s, ev, job, exec_op, EXECUTOR_FEE, split.executor, esc);
+        esc = pay_share(&p, &s, ev, job, HV_PROVIDER, PROVIDER_FEE, split.provider, esc);
+    }
+    esc = pay_share(&p, &s, ev, job, HV_AUTHOR, AUTHOR_ROYALTY, split.author, esc);
+    var k2 : u32 = 0;
+    while (k2 < n_ops) {
+        esc = pay_share(&p, &s, ev, job, ops[k2 as usize], VERIFIER_FEE, split.verifier_each, esc);
+        k2 = k2 + 1;
+    }
+    // the slash bonus, on top of the pool, out of the stake burned for this job
+    let bonus : u64 = slash_bonus_each(burned, n_ops as u64);
+    k2 = 0;
+    while (k2 < n_ops and bonus > 0) {
+        plan_push(&p, &s, entry_of(ev, JO_PENDING, job, ops[k2 as usize], VERIFIER_FEE as u32, bonus, SRC_SLASHED));
+        k2 = k2 + 1;
+    }
+    if (job == C3_BOUNTY_JOB and bounty_payable(true, true, exec_paid, false)) {
+        plan_push(&p, &s, entry_of(ev, JO_PENDING, job, HV_AUTHOR, BOUNTY as u32, bounty_paid(C3_BOUNTY, true), SRC_BOUNTY));
+    }
+    if (split.refund > 0) { plan_push(&p, &s, entry_of(ev, JO_REFUND, job, HV_REQUESTER, 0, split.refund, SRC_ESCROW)); }
+    plan_push(&p, &s, entry_of(ev, JO_SETTLED, job, 0, job, split.limit, 0));
+    return p;
+}
+
+/// A refused job: the deposit and its refund, and the job closed.
+pub fn plan_refuse(before: Treasury, ev: u64) -> Plan {
+    var p : Plan = plan_empty();
+    var s : Treasury = before;
+    let job : u32 = ev_job(ev);
+    plan_push(&p, &s, entry_of(ev, JO_DEPOSIT, job, HV_REQUESTER, 0, C3_ESCROW, SRC_ESCROW));
+    plan_push(&p, &s, entry_of(ev, JO_REFUND, job, HV_REQUESTER, 0, C3_ESCROW, SRC_ESCROW));
+    plan_push(&p, &s, entry_of(ev, JO_REFUSED, job, 0, 0, 0, 0));
+    return p;
+}
+
+/// A challenge: open inside the window, against a job still pending and not already challenged, by
+/// the watcher or by a griefer with stake to post; stale otherwise.
+pub fn plan_challenge(before: Treasury, ev: u64) -> Plan {
+    var p : Plan = plan_empty();
+    var s : Treasury = before;
+    let job : u32 = ev_job(ev);
+    let by : u8 = ev_by(ev);
+    let now : u32 = ev_epoch(ev);
+    let jx : usize = job as usize;
+    var opens : bool = s.j_state[jx] == JS_PENDING and s.j_ch[jx] == JC_NONE and dispute_in_window(s.j_settled_at[jx], now, CHALLENGE_WINDOW);
+    if (by == BY_THE_GRIEFER and s.griefer_locked < CHALLENGE_STAKE) { opens = false; }
+    if (opens) {
+        plan_push(&p, &s, entry_of(ev, JO_CH_OPEN, job, 0, now, 0, by));
+    } else {
+        plan_push(&p, &s, entry_of(ev, JO_CH_STALE, job, 0, now, 0, by));
+    }
+    return p;
+}
+
+/// The epoch's tick: open challenges resolve C3_RESOLVE epochs after they open; then every pending job
+/// whose window has passed and that no challenge holds finalizes.
+pub fn plan_tick(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan {
+    var p : Plan = plan_empty();
+    var s : Treasury = before;
+    let now : u32 = ev_epoch(ev);
+    var j : u32 = 0;
+    while (j < C3_JOBS_MAX) {
+        let jx : usize = j as usize;
+        if (s.j_state[jx] == JS_PENDING and s.j_ch[jx] == JC_OPEN and now >= s.j_ch_at[jx] + C3_RESOLVE) {
+            let outcome : u8 = resolve(rec.q_out[jx], rec.t_out[jx]);
+            if (outcome == RESOLVE_SLASH) {
+                // every credited claim of the job is overturned through the ledger
+                var bond : u64 = 0;
+                var burned : u64 = 0;
+                var r : u32 = 0;
+                while (r < c.keys) {
+                    let key : u64 = spent_key(r + 1, issued_nonce(j, r));
+                    if (is_spent(s.lg, key) and is_slashed_key(s.lg, key) == false) {
+                        plan_push(&p, &s, entry_of(ev, JO_OVERTURN, j, r, issued_nonce(j, r), 0, 0));
+                        if (r == EXEC_ROW) { bond = bond + s.lg.last_slash_delta_mtri; } else { burned = burned + s.lg.last_slash_delta_mtri; }
+                    }
+                    r = r + 1;
+                }
+                var to : u32 = HV_WATCHER;
+                if (s.j_ch_by[jx] == BY_THE_GRIEFER) { to = HV_GRIEFER; }
+                let reward : u64 = challenger_reward(bond, outcome);
+                if (reward > 0) { plan_push(&p, &s, entry_of(ev, JO_FINAL_PAY, j, to, VERIFIER_FEE as u32, reward, SRC_SLASHED)); }
+                // the operators whose claims told the truth share the verifiers' burned stake
+                var ops : [8]u32 = [0; 8];
+                var n_ops : u32 = 0;
+                r = 0;
+                while (r < c.keys) {
+                    let x : usize = (j * 8 + r) as usize;
+                    let op : u32 = c.operator[r as usize];
+                    if (rec.c_present[x] and claim_reason3(rec, c, j, r) == RV_BAD_COMPUTE and rec.c_out[x] == rec.t_out[jx]) {
+                        var seen : bool = false;
+                        var k : u32 = 0;
+                        while (k < n_ops) {
+                            if (ops[k as usize] == op) { seen = true; }
+                            k = k + 1;
+                        }
+                        if (seen == false) {
+                            ops[n_ops as usize] = op;
+                            n_ops = n_ops + 1;
+                        }
+                    }
+                    r = r + 1;
+                }
+                let share : u64 = slash_bonus_each(burned, n_ops as u64);
+                var k3 : u32 = 0;
+                while (k3 < n_ops and share > 0) {
+                    plan_push(&p, &s, entry_of(ev, JO_FINAL_PAY, j, ops[k3 as usize], VERIFIER_FEE as u32, share, SRC_SLASHED));
+                    k3 = k3 + 1;
+                }
+                plan_push(&p, &s, entry_of(ev, JO_CLAWBACK, j, 0, now, 0, 0));
+            } else {
+                if (s.j_ch_by[jx] == BY_THE_GRIEFER) {
+                    let kept : u64 = challenger_stake_after(CHALLENGE_STAKE, outcome);
+                    plan_push(&p, &s, entry_of(ev, JO_GRIEF_BURN, j, HV_GRIEFER, now, CHALLENGE_STAKE - kept, 0));
+                }
+            }
+            plan_push(&p, &s, entry_of(ev, JO_CH_DONE, j, 0, now, 0, outcome));
+        }
+        j = j + 1;
+    }
+    j = 0;
+    while (j < C3_JOBS_MAX) {
+        let jx : usize = j as usize;
+        if (s.j_state[jx] == JS_PENDING and may_finalize(s.j_settled_at[jx], now, CHALLENGE_WINDOW, s.j_ch[jx] == JC_OPEN, false)) {
+            plan_push(&p, &s, entry_of(ev, JO_FINALIZE, j, 0, now, 0, 0));
+        }
+        j = j + 1;
+    }
+    return p;
+}
+
+pub fn plan_of(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan {
+    let kind : u64 = ev_kind(ev);
+    if (kind == EV3_ADMIT) { return plan_admit(before, ev, rec, c); }
+    if (kind == EV3_REFUSE) { return plan_refuse(before, ev); }
+    if (kind == EV3_CHALLENGE) { return plan_challenge(before, ev); }
+    return plan_tick(before, ev, rec, c);
+}
+
+; --- 7. The consumer ------------------------------------------------------------------------------
+
+/// consume() answers.
+pub const CS_APPLIED : u8 = 0;
+pub const CS_DUPLICATE : u8 = 1;
+pub const CS_CRASHED : u8 = 2;
+
+pub struct Consumed {
+    t: Treasury,
+    status: u8,
+    resumed_from: u32,
+    overflow: u32,
+}
+
+/// Consume one event: drop it when the journal says it is done; otherwise make its plan from the state
+/// before it (rebuilt from the journal when some of its steps are already there), and append and apply
+/// only the steps the journal does not hold. crash_after (a step index, or PLAN_CAP for none) stops it
+/// before that step, as a treasurer dying mid-settlement does.
+pub fn consume(t: Treasury, jr: *Journal, ev: u64, rec: *Net3, c: QuorumConfig, crash_after: u32) -> Consumed {
+    var out : Consumed = Consumed { t: t, status: CS_APPLIED, resumed_from: 0, overflow: 0 };
+    if (is_done(&out.t, ev)) {
+        out.status = CS_DUPLICATE;
+        return out;
+    }
+    let k : u32 = journal_count_ev(jr, ev);
+    out.resumed_from = k;
+    var before : Treasury = t;
+    if (k > 0) { before = rebuild(jr, journal_first_ev(jr, ev), c); }
+    var p : Plan = plan_of(before, ev, rec, c);
+    out.overflow = p.overflow;
+    var i : u32 = k;
+    while (i < p.n) {
+        if (i == crash_after) {
+            out.status = CS_CRASHED;
+            return out;
+        }
+        let e : Entry = plan_at(&p, i);
+        journal_append(jr, e);
+        apply(&out.t, e);
+        i = i + 1;
+    }
+    let done : Entry = entry_of(ev, JO_DONE, 0, 0, 0, 0, 0);
+    journal_append(jr, done);
+    apply(&out.t, done);
+    return out;
+}
+
+; --- 8. The observer ------------------------------------------------------------------------------
+
+pub const I3_OK : u8 = 0;
+pub const I3_NOT_CONSERVED : u8 = 1;
+pub const I3_FINAL_TWICE : u8 = 2;
+pub const I3_FINAL_WHILE_CHALLENGED : u8 = 3;
+pub const I3_CLAWED_FINALIZED : u8 = 4;
+pub const I3_FORK : u8 = 5;
+pub const I3_UNSAFE_ADMIT : u8 = 6;
+pub const I3_POOL_OVER_LIMIT : u8 = 7;
+pub const I3_STALE_SETTLED : u8 = 8;
+pub const I3_FORGED_COUNTED : u8 = 9;
+pub const I3_TWO_FEES_ONE_OPERATOR : u8 = 10;
+pub const I3_LEDGER_DRIFT : u8 = 11;
+pub const I3_JOURNAL_DRIFT : u8 = 12;
+pub const I3_OVER_SOURCES : u8 = 13;
+pub const I3_OVERFLOW : u8 = 14;
+pub const I3_PENDING_LEFT : u8 = 15;
+pub const I3_KINDS : u8 = 16;
+
+/// The observer, after every event.
+pub fn treasury_flags(flags: u64, t: *Treasury) -> u64 {
+    var f : u64 = flag(flags, I3_NOT_CONSERVED, treasury_conserved(t) == false);
+    f = flag(f, I3_FINAL_WHILE_CHALLENGED, (t.violations & 1) != 0);
+    f = flag(f, I3_CLAWED_FINALIZED, (t.violations & 2) != 0);
+    f = flag(f, I3_FINAL_TWICE, (t.violations & 4) != 0);
+    f = flag(f, I3_OVERFLOW, (t.violations & 8) != 0);
+    var drift : bool = t.lg.total_slashed_mtri != t.ledger_slashed;
+    if (keys_match_outcomes(t.lg) == false or spent_keys_are_distinct(t.lg) == false) { drift = true; }
+    f = flag(f, I3_LEDGER_DRIFT, drift);
+    var j : usize = 0;
+    while (j < 16) {
+        f = flag(f, I3_POOL_OVER_LIMIT, t.j_pool_paid[j] > t.j_limit[j] and t.j_state[j] != JS_NONE);
+        f = flag(f, I3_FINAL_TWICE, t.j_finals[j] > 1);
+        var h : usize = 0;
+        while (h < 16) {
+            f = flag(f, I3_TWO_FEES_ONE_OPERATOR, t.j_vfee[j * 16 + h] > 1);
+            h = h + 1;
+        }
+        j = j + 1;
+    }
+    // everything paid out came from an escrow, the emission, a bounty or burned stake
+    let paid : u64 = sum16(t.fin) + sum16(t.pend_h);
+    let escrow_used : u64 = t.deposits - t.escrow_held;
+    let bounty_used : u64 = t.bounties_posted - t.bounty_held;
+    f = flag(f, I3_OVER_SOURCES, paid_within_sources(paid, escrow_used, t.granted, bounty_used, t.paid_from_slashed) == false);
+    return f;
+}
+
+; --- 9. One run of the chain ----------------------------------------------------------------------
+
+pub struct Run3 {
+    flags: u64,
+    broken: u8,
+    t: Treasury,
+    journal_len: u32,
+    journal_head: u32,
+    admitted: u64,
+    refused: u64,
+    forks: u64,
+    groups_admitted: u64,
+    votes_valid: u64,
+    votes_bad_sig: u64,
+    votes_stale: u64,
+    claims_bad_sig: u64,
+    claims_stale: u64,
+    claims_settled: u64,
+    restarts: u64,
+    resumed_steps: u64,
+    duplicates_dropped: u64,
+    challenges: u64,
+    upheld: u64,
+    frivolous: u64,
+    stale_challenges: u64,
+    wrong_admitted: u64,
+    held_open: u64,
+    attacks_seen: u64,
+}
+
+pub fn first_broken3(flags: u64) -> u8 {
+    var i : u8 = 1;
+    while (i < I3_KINDS) {
+        if ((flags & bit(i as u64)) != 0) { return i; }
+        i = i + 1;
+    }
+    return I3_OK;
+}
+
+/// Deliver one event: a crash restarts the treasurer from the journal and the event comes again; a
+/// re-delivery after it was applied is dropped.
+pub fn deliver_event(r: *Run3, jr: *Journal, ev: u64, rec: *Net3, c: QuorumConfig, crash_after: u32, again: bool) -> void {
+    var res : Consumed = consume(r.t, jr, ev, rec, c, crash_after);
+    r.flags = flag(r.flags, I3_OVERFLOW, res.overflow > 0);
+    if (res.status == CS_CRASHED) {
+        // the treasurer is gone; its successor knows only the journal
+        r.restarts = r.restarts + 1;
+        r.t = rebuild(jr, jr.len, c);
+        r.flags = treasury_flags(r.flags, &r.t);
+        res = consume(r.t, jr, ev, rec, c, PLAN_CAP);
+        r.resumed_steps = r.resumed_steps + (res.resumed_from as u64);
+    }
+    r.t = res.t;
+    r.flags = treasury_flags(r.flags, &r.t);
+    if (again) {
+        let dup : Consumed = consume(r.t, jr, ev, rec, c, PLAN_CAP);
+        if (dup.status == CS_DUPLICATE) { r.duplicates_dropped = r.duplicates_dropped + 1; }
+        r.t = dup.t;
+        r.flags = treasury_flags(r.flags, &r.t);
+    }
+}
+
+/// Run `jobs` jobs (at most C3_JOBS_MAX) with attack attacks[j] on job j, under quorum `c` and `seed`.
+/// crash_at[j] is the plan step the treasurer dies before when job j's attack is AT_RESTART.
+pub fn chain_v3(c: QuorumConfig, seed: u32, jobs: u32, attacks: [16]u8, crash_at: [16]u32) -> Run3 {
+    var r : Run3 = Run3 {
+        flags: 0, broken: 0, t: treasury_open(c), journal_len: 0, journal_head: 0, admitted: 0, refused: 0,
+        forks: 0, groups_admitted: 0, votes_valid: 0, votes_bad_sig: 0, votes_stale: 0, claims_bad_sig: 0,
+        claims_stale: 0, claims_settled: 0, restarts: 0, resumed_steps: 0, duplicates_dropped: 0,
+        challenges: 0, upheld: 0, frivolous: 0, stale_challenges: 0, wrong_admitted: 0, held_open: 0, attacks_seen: 0,
+    };
+    var jr : Journal = journal_empty();
+    var rec : Net3 = net3_empty();
+    var prev_present : u64 = 0;
+    var prev_env : [8]Envelope = envelopes8();
+    var prev_sig : [8]u64 = [0; 8];
+    var now : u32 = 0;
+    while (now < jobs + C3_DRAIN) {
+        if (now < jobs) {
+            let jb : u32 = now;
+            var attack : u8 = attacks[jb as usize];
+            if (attack == AT_REPLAY and has(prev_present, 1) == false) { attack = AT_NONE; }
+            r.attacks_seen = r.attacks_seen | bit(attack as u64);
+            let truth : u8 = true_word(seed, jb);
+            let t_out : u32 = true_out(jb, truth);
+            let view : u32 = jr.head;
+            // the votes: up to two per row (an equivocator signs two heads)
+            var vn : u32 = 0;
+            var v_row : [16]u32 = [0; 16];
+            var v_env : [16]Envelope = envelopes16();
+            var v_sig : [16]u64 = [0; 16];
+            var v_bad : [16]bool = [false; 16];
+            var row : u32 = 0;
+            while (row < c.keys) {
+                let offline : bool = attack == AT_OFFLINE and row >= 3;
+                if (offline == false) {
+                    var e : Envelope = Envelope { request_id: issued_nonce(jb, row), device_id: DEVICE_SOFTWARE, executor: c.key_id[row as usize], task: jb + 1, in_hash: spec_in_hash(jb), out: t_out, epoch: jb, prev_head: view };
+                    if (attack == AT_COLLUDE and row >= 2) { e.out = collusion_out(jb, truth); }
+                    if (attack == AT_LIE and row == 4) { e.out = lie_out(jb, truth, row); }
+                    if (attack == AT_FORK and row == 2) { e.prev_head = view ^ 1; }
+                    var sig : u64 = fold_sign(c.key_id[row as usize], e);
+                    var bad : bool = false;
+                    if (attack == AT_FORGED_SIG and row == 4) {
+                        sig = fold_sign(c.key_id[3], e);
+                        bad = true;
+                    }
+                    if (attack == AT_TAMPERED_RESULT and row == 3) {
+                        e.out = e.out ^ 1;
+                        bad = true;
+                    }
+                    if (attack == AT_REPLAY and row == 1) {
+                        e = prev_env[1];
+                        sig = prev_sig[1];
+                    }
+                    v_row[vn as usize] = row;
+                    v_env[vn as usize] = e;
+                    v_sig[vn as usize] = sig;
+                    v_bad[vn as usize] = bad;
+                    vn = vn + 1;
+                    if (attack == AT_FORK and row >= 3) {
+                        var e2 : Envelope = e;
+                        e2.prev_head = view ^ 1;
+                        v_row[vn as usize] = row;
+                        v_env[vn as usize] = e2;
+                        v_sig[vn as usize] = fold_sign(c.key_id[row as usize], e2);
+                        vn = vn + 1;
+                    }
+                    // the claim to the treasurer is the row's first vote
+                    let x : usize = (jb * 8 + row) as usize;
+                    rec.c_present[x] = true;
+                    rec.c_req[x] = e.request_id;
+                    rec.c_key[x] = e.executor;
+                    rec.c_task[x] = e.task;
+                    rec.c_in[x] = e.in_hash;
+                    rec.c_out[x] = e.out;
+                    rec.c_epoch[x] = e.epoch;
+                    rec.c_prev[x] = e.prev_head;
+                    rec.c_sig[x] = sig;
+                    if (attack != AT_REPLAY or row != 1) {
+                        prev_env[row as usize] = e;
+                        prev_sig[row as usize] = sig;
+                        prev_present = prev_present | bit(row as u64);
+                    }
+                }
+                row = row + 1;
+            }
+            // the verifier: a vote counts when it names the sender's key, its signature checks, and it
+            // answers this job's nonce
+            var valid : [16]bool = [false; 16];
+            var i : u32 = 0;
+            while (i < vn) {
+                let e : Envelope = v_env[i as usize];
+                let vr : u32 = v_row[i as usize];
+                if (key_row(c, e.executor) != vr or fold_verify(e, v_sig[i as usize]) == false) {
+                    r.votes_bad_sig = r.votes_bad_sig + 1;
+                } else {
+                    if (e.request_id != issued_nonce(jb, vr) or e.task != jb + 1) {
+                        r.votes_stale = r.votes_stale + 1;
+                    } else {
+                        valid[i as usize] = true;
+                        r.votes_valid = r.votes_valid + 1;
+                        r.flags = flag(r.flags, I3_FORGED_COUNTED, v_bad[i as usize]);
+                    }
+                }
+                i = i + 1;
+            }
+            // groups: valid votes that agree on the result and the head; each admitted by operator votes
+            var leader : u32 = C3_VOTES_MAX;
+            var groups : u32 = 0;
+            i = 0;
+            while (i < vn) {
+                if (valid[i as usize]) {
+                    var first : bool = true;
+                    var keys : [8]u64 = [0; 8];
+                    var nk : u32 = 0;
+                    var k : u32 = 0;
+                    while (k < vn) {
+                        let same : bool = valid[k as usize] and v_env[k as usize].out == v_env[i as usize].out and v_env[k as usize].prev_head == v_env[i as usize].prev_head;
+                        if (same and k < i) { first = false; }
+                        if (same and nk < 8) {
+                            keys[nk as usize] = v_env[k as usize].executor;
+                            nk = nk + 1;
+                        }
+                        k = k + 1;
+                    }
+                    if (first) {
+                        let ov : u32 = operator_votes(c, keys, nk);
+                        if (quorum_admits(c, ov)) {
+                            groups = groups + 1;
+                            r.flags = flag(r.flags, I3_UNSAFE_ADMIT, ov < c.m or config_safe(c) == false);
+                            if (leader == C3_VOTES_MAX) { leader = i; }
+                        }
+                    }
+                }
+                i = i + 1;
+            }
+            r.groups_admitted = r.groups_admitted + (groups as u64);
+            if (groups > 1) {
+                r.forks = r.forks + 1;
+                r.flags = flag(r.flags, I3_FORK, true);
+            }
+            let jx : usize = jb as usize;
+            rec.t_out[jx] = t_out;
+            var ev : u64 = ev_id(EV3_REFUSE, jb, BY_NOBODY, jb);
+            if (leader < C3_VOTES_MAX) {
+                let lead : Envelope = v_env[leader as usize];
+                rec.admitted[jx] = true;
+                rec.q_out[jx] = lead.out;
+                // the batch: every valid vote, one leaf per row (an equivocator's in the admitted group)
+                i = 0;
+                while (i < vn) {
+                    let vr : u32 = v_row[i as usize];
+                    let in_lead : bool = v_env[i as usize].out == lead.out and v_env[i as usize].prev_head == lead.prev_head;
+                    if (valid[i as usize] and (has(rec.leaf_present[jx], vr) == false or in_lead)) {
+                        let d : [8]u32 = vote_digest(v_env[i as usize]);
+                        var w : usize = 0;
+                        while (w < 8) {
+                            rec.leaf[((jb * 8 + vr) as usize) * 8 + w] = d[w];
+                            w = w + 1;
+                        }
+                        rec.leaf_present[jx] = rec.leaf_present[jx] | bit(vr as u64);
+                    }
+                    i = i + 1;
+                }
+                ev = ev_id(EV3_ADMIT, jb, BY_NOBODY, jb);
+                r.admitted = r.admitted + 1;
+                if (lead.out != t_out) {
+                    r.wrong_admitted = r.wrong_admitted + 1;
+                    rec.ch_at[jx] = jb;
+                    rec.ch_by[jx] = BY_THE_WATCHER;
+                }
+                if (attack == AT_GRIEF) {
+                    rec.ch_at[jx] = jb + 1;
+                    rec.ch_by[jx] = BY_THE_GRIEFER;
+                }
+                if (attack == AT_STALE_CHALLENGE) {
+                    rec.ch_at[jx] = jb + CHALLENGE_WINDOW;
+                    rec.ch_by[jx] = BY_THE_GRIEFER;
+                }
+            } else {
+                r.refused = r.refused + 1;
+            }
+            // what the treasurer will refuse before the ledger, counted by the observer
+            row = 0;
+            while (row < c.keys) {
+                let x : usize = (jb * 8 + row) as usize;
+                if (rec.c_present[x] and leader < C3_VOTES_MAX) {
+                    let why : u32 = claim_reason3(&rec, c, jb, row);
+                    if (why == RV_BAD_SIG) { r.claims_bad_sig = r.claims_bad_sig + 1; }
+                    if (why == RV3_STALE) { r.claims_stale = r.claims_stale + 1; }
+                    if (why != RV_BAD_SIG and why != RV3_STALE) { r.claims_settled = r.claims_settled + 1; }
+                }
+                row = row + 1;
+            }
+            var crash : u32 = PLAN_CAP;
+            if (attack == AT_RESTART) { crash = crash_at[jx]; }
+            deliver_event(&r, &jr, ev, &rec, c, crash, attack == AT_REDELIVER);
+        }
+        // the challenges filed this epoch, then the tick
+        var j : u32 = 0;
+        while (j < jobs) {
+            let jx : usize = j as usize;
+            if (rec.ch_by[jx] != BY_NOBODY and rec.ch_at[jx] == now) {
+                let before_open : bool = r.t.j_ch[jx] == JC_OPEN;
+                deliver_event(&r, &jr, ev_id(EV3_CHALLENGE, j, rec.ch_by[jx], now), &rec, c, PLAN_CAP, false);
+                r.challenges = r.challenges + 1;
+                if (before_open == false and r.t.j_ch[jx] != JC_OPEN) { r.stale_challenges = r.stale_challenges + 1; }
+            }
+            j = j + 1;
+        }
+        let upheld_before : u64 = count_state(&r.t, JS_CLAWED);
+        let ch_done_before : u64 = count_ch(&r.t, JC_DONE);
+        var again : bool = false;
+        j = 0;
+        while (j < jobs) {
+            if (attacks[j as usize] == AT_REDELIVER and now == j + CHALLENGE_WINDOW) { again = true; }
+            j = j + 1;
+        }
+        deliver_event(&r, &jr, ev_id(EV3_TICK, 0, BY_NOBODY, now), &rec, c, PLAN_CAP, again);
+        let upheld_now : u64 = count_state(&r.t, JS_CLAWED) - upheld_before;
+        // a job whose window has passed and that a challenge still holds open
+        j = 0;
+        while (j < jobs) {
+            let jx : usize = j as usize;
+            if (r.t.j_state[jx] == JS_PENDING and r.t.j_ch[jx] == JC_OPEN and is_final(r.t.j_settled_at[jx], now, CHALLENGE_WINDOW)) { r.held_open = r.held_open + 1; }
+            j = j + 1;
+        }
+        r.upheld = r.upheld + upheld_now;
+        r.frivolous = r.frivolous + (count_ch(&r.t, JC_DONE) - ch_done_before) - upheld_now;
+        now = now + 1;
+    }
+    // the end: nothing pending, no escrow held; the journal rebuilt from nothing is this state; no
+    // stale claim ever reached the ledger
+    r.flags = flag(r.flags, I3_PENDING_LEFT, sum16(r.t.pend_h) != 0 or r.t.escrow_held != 0);
+    var rb : Treasury = rebuild(&jr, jr.len, c);
+    r.flags = flag(r.flags, I3_JOURNAL_DRIFT, same_treasury(&rb, &r.t) == false or rb.head != jr.head);
+    var k : u32 = 0;
+    while (k < jr.len) {
+        let e : Entry = journal_at(&jr, k);
+        if (e.op == JO_SETTLE) {
+            let x : usize = (e.job * 8 + e.who) as usize;
+            r.flags = flag(r.flags, I3_STALE_SETTLED, rec.c_req[x] != issued_nonce(e.job, e.who));
+        }
+        k = k + 1;
+    }
+    r.flags = flag(r.flags, I3_OVERFLOW, jr.overflow > 0);
+    r.broken = first_broken3(r.flags);
+    r.journal_len = jr.len;
+    r.journal_head = jr.head;
+    return r;
+}
+
+pub fn envelope_zero() -> Envelope {
+    return Envelope { request_id: 0, device_id: 0, executor: 0, task: 0, in_hash: 0, out: 0, epoch: 0, prev_head: 0 };
+}
+
+pub fn envelopes8() -> [8]Envelope {
+    let z : Envelope = envelope_zero();
+    return [z, z, z, z, z, z, z, z];
+}
+
+pub fn envelopes16() -> [16]Envelope {
+    let z : Envelope = envelope_zero();
+    return [z, z, z, z, z, z, z, z, z, z, z, z, z, z, z, z];
+}
+
+pub fn count_state(t: *Treasury, st: u8) -> u64 {
+    var n : u64 = 0;
+    var j : usize = 0;
+    while (j < 16) {
+        if (t.j_state[j] == st) { n = n + 1; }
+        j = j + 1;
+    }
+    return n;
+}
+
+pub fn count_ch(t: *Treasury, st: u8) -> u64 {
+    var n : u64 = 0;
+    var j : usize = 0;
+    while (j < 16) {
+        if (t.j_ch[j] == st) { n = n + 1; }
+        j = j + 1;
+    }
+    return n;
+}
+
+; --- 10. The scripts ------------------------------------------------------------------------------
+
+/// Every attack of the brief on one chain, in this order, then two plain jobs.
+pub const SCRIPT_JOBS : u32 = 12;
+pub const SCRIPT : [16]u8 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 0, 0, 0, 0];
+/// The same chain with the restart and the re-delivery taken out.
+pub const SCRIPT_TWIN : [16]u8 = [0, 1, 2, 3, 0, 0, 6, 7, 8, 9, 10, 0, 0, 0, 0, 0];
+pub const SCRIPT_HONEST : [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+/// The treasurer of job 4 dies before plan step 3: the deposit and two settles are in the journal.
+pub const SCRIPT_CRASH : [16]u32 = [48, 48, 48, 48, 3, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48];
+/// What each job of SCRIPT ends as: one finalize, except the collusion (clawed back) and the
+/// offline job (refused).
+pub const SCRIPT_STATE : [16]u8 = [2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 4, 2, 0, 0, 0, 0];
+
+/// The N 5, F 2 set: every job a fork attempt, one job with two operators silent.
+pub const FORK_JOBS : u32 = 5;
+pub const FORK_SCRIPT : [16]u8 = [11, 11, 11, 10, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+pub const NO_CRASH : [16]u32 = [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48];
+
+/// The seeded sweep's draws: stream 40 picks a job's attack (no fork: the trusted set), 41 its crash step.
+pub const NET3_STREAM_ATTACK : u32 = 40;
+pub const NET3_STREAM_CRASH : u32 = 41;
+pub const SWEEP_SEEDS : u32 = 6;
+
+pub fn sweep_attacks(seed: u32) -> [16]u8 {
+    var a : [16]u8 = [0; 16];
+    var j : u32 = 0;
+    while (j < JOBS_PER_RUN) {
+        a[j as usize] = pick_between(sim_roll(seed, NET3_STREAM_ATTACK, j), 0, (AT_FORK as u32) - 1) as u8;
+        j = j + 1;
+    }
+    return a;
+}
+
+pub fn sweep_crashes(seed: u32) -> [16]u32 {
+    var a : [16]u32 = [48; 16];
+    var j : u32 = 0;
+    while (j < JOBS_PER_RUN) {
+        a[j as usize] = pick_between(sim_roll(seed, NET3_STREAM_CRASH, j), 0, 6);
+        j = j + 1;
+    }
+    return a;
+}
+
+/// A script with the restart and the re-delivery taken out.
+pub fn twin_of(a: [16]u8) -> [16]u8 {
+    var t : [16]u8 = a;
+    var j : usize = 0;
+    while (j < 16) {
+        if (t[j] == AT_RESTART or t[j] == AT_REDELIVER) { t[j] = AT_NONE; }
+        j = j + 1;
+    }
+    return t;
+}
+
+; --- 11. Tests ------------------------------------------------------------------------------------
+
+test every_trusted_key_id_is_the_sha256_of_its_public_key {
+    let c : QuorumConfig = trusted_config();
+    var r : u32 = 0;
+    while (r < c.keys) {
+        assert key_id_of_pubkey(trusted_pubkey_bytes(r)) == c.key_id[r as usize];
+        r = r + 1;
+    }
+    // the labs' key ids are the .trinity/keys file names
+    assert LAB1_KEY_ID == hex_u64_v3("a05db80f53c317f6");
+    assert LAB2_KEY_ID == hex_u64_v3("fed03daa6459a7fa");
+    // one byte of a public key changed: another key id
+    var pk : [32]u8 = trusted_pubkey_bytes(0);
+    pk[31] = pk[31] ^ 1;
+    assert key_id_of_pubkey(pk) != LAB1_KEY_ID;
+}
+
+pub fn hex_u64_v3(s: str) -> u64 {
+    var n : u64 = 0;
+    var i : usize = 0;
+    while (i < s.len) {
+        n = n * 16 + (hex_nibble_v3(s[i]) as u64);
+        i = i + 1;
+    }
+    return n;
+}
+
+test the_fold_signature_binds_every_word_and_its_key {
+    let c : QuorumConfig = trusted_config();
+    var r : u32 = 0;
+    while (r < c.keys) {
+        let e : Envelope = Envelope { request_id: issued_nonce(3, r), device_id: DEVICE_SOFTWARE, executor: c.key_id[r as usize], task: 4, in_hash: spec_in_hash(3), out: true_out(3, PASS), epoch: 3, prev_head: 99 };
+        let s : u64 = fold_sign(c.key_id[r as usize], e);
+        assert fold_verify(e, s);
+        // a tampered result, another request, another head: the check fails
+        var e2 : Envelope = e;
+        e2.out = e.out ^ 1;
+        assert fold_verify(e2, s) == false;
+        e2 = e;
+        e2.request_id = e.request_id + 16;
+        assert fold_verify(e2, s) == false;
+        e2 = e;
+        e2.prev_head = 98;
+        assert fold_verify(e2, s) == false;
+        // signed under another key, or claimed for another key
+        let other : u32 = (r + 1) % c.keys;
+        assert fold_verify(e, fold_sign(c.key_id[other as usize], e)) == false;
+        e2 = e;
+        e2.executor = c.key_id[other as usize];
+        assert fold_verify(e2, s) == false;
+        r = r + 1;
+    }
+    // the v3 receipt is v2's envelope, word for word
+    let e3 : Envelope = Envelope { request_id: 5, device_id: DEVICE_SOFTWARE, executor: LAB1_KEY_ID, task: 1, in_hash: 2, out: 3, epoch: 4, prev_head: 6 };
+    assert digest_pre(4, e3) == hi32(LAB1_KEY_ID) and digest_pre(5, e3) == lo32(LAB1_KEY_ID);
+    assert same8(vote_digest(e3), receipt_digest(e3, false));
+}
+
+// The acceptance scenario: every attack of the brief on ONE chain. Each honest job ends with exactly
+// one finalize and the balances converge.
+test one_chain_every_attack_one_final_credit_per_honest_job {
+    let r : Run3 = chain_v3(trusted_config(), 1, SCRIPT_JOBS, SCRIPT, SCRIPT_CRASH);
+    assert r.flags == 0;
+    assert r.broken == I3_OK;
+    var j : u32 = 0;
+    while (j < SCRIPT_JOBS) {
+        let jx : usize = j as usize;
+        assert r.t.j_state[jx] == SCRIPT_STATE[jx];
+        if (SCRIPT_STATE[jx] == JS_FINAL) { assert r.t.j_finals[jx] == 1; } else { assert r.t.j_finals[jx] == 0; }
+        j = j + 1;
+    }
+    // every attack ran, and each was caught where it should be
+    var a : u8 = 0;
+    while (a < AT_FORK) {
+        assert (r.attacks_seen & bit(a as u64)) != 0;
+        a = a + 1;
+    }
+    // the forged signature and the tampered result: refused votes and refused claims
+    assert r.votes_bad_sig == 2 and r.claims_bad_sig == 2;
+    // the replay: a stale vote and a stale claim, neither ever settled (I3_STALE_SETTLED is clear)
+    assert r.votes_stale == 1 and r.claims_stale == 1;
+    // the treasurer died once and resumed after the three steps the journal held
+    assert r.restarts == 1 and r.resumed_steps == 3;
+    // the re-delivered admission and the re-delivered tick were both dropped
+    assert r.duplicates_dropped == 2;
+    // the collusion was admitted, challenged inside the window and overturned; the grief and the
+    // stale challenge changed nothing
+    assert r.wrong_admitted == 1 and r.upheld == 1;
+    assert r.challenges == 3 and r.frivolous == 1 and r.stale_challenges == 1;
+    assert r.admitted == 11 and r.refused == 1 and r.forks == 0;
+    // the frivolous challenge, filed late in the window, held its job open past the window
+    assert r.held_open == 1;
+    // the replayed receipt's own key was settled in its own job, so the ledger would refuse it too
+    let replayed : Ledger = settle(r.t.lg, 2, 2, issued_nonce(2, 1), V_OK);
+    assert replayed.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED and replayed.last_credit_delta_mtri == 0;
+    // the balances converged: nothing pending, no escrow held, the books balance, the journal rebuilt
+    // gives this state (the observer's flags above), and each source paid only what it holds
+    assert sum16(r.t.pend_h) == 0 and r.t.escrow_held == 0;
+    assert r.t.emitted == r.t.granted;
+    assert r.t.deposits == (SCRIPT_JOBS as u64) * C3_ESCROW;
+    assert r.t.bounties_posted == C3_BOUNTY and r.t.fin[HV_AUTHOR as usize] > 0;
+    // the overturned job: the ledger took every credit back and charged each colluder once
+    var row : u32 = 2;
+    while (row < 5) {
+        let key : u64 = spent_key(row + 1, issued_nonce(6, row));
+        assert is_slashed_key(r.t.lg, key);
+        row = row + 1;
+    }
+    assert r.t.j_ch[6] == JC_DONE;
+    // the griefer lost the stake it posted, once; the watcher earned the executor's bond
+    assert r.t.griefer_locked + r.t.griefer_posted == GRIEFER_STAKE - CHALLENGE_STAKE;
+    assert r.t.fin[HV_WATCHER as usize] == TEST_SLASH;
+    assert r.t.fin[HV_GRIEFER as usize] == 0;
+}
+
+// The restart and the re-delivery are invisible in the end: the same journal, step for step, and the
+// same balances as the chain without them.
+test a_treasurer_restart_and_an_event_redelivery_change_nothing {
+    let a : Run3 = chain_v3(trusted_config(), 1, SCRIPT_JOBS, SCRIPT, SCRIPT_CRASH);
+    let b : Run3 = chain_v3(trusted_config(), 1, SCRIPT_JOBS, SCRIPT_TWIN, NO_CRASH);
+    assert a.flags == 0 and b.flags == 0;
+    assert a.restarts == 1 and b.restarts == 0;
+    assert a.duplicates_dropped == 2 and b.duplicates_dropped == 0;
+    assert a.journal_len == b.journal_len;
+    assert a.journal_head == b.journal_head;
+    var h : usize = 0;
+    while (h < 16) {
+        assert a.t.fin[h] == b.t.fin[h];
+        assert a.t.j_finals[h] == b.t.j_finals[h];
+        h = h + 1;
+    }
+    assert a.t.lg.total_credited_mtri == b.t.lg.total_credited_mtri;
+    assert a.t.lg.n_spent == b.t.lg.n_spent;
+    // a crash before every step of an admission resumes to the same journal
+    var step : u32 = 0;
+    while (step < 12) {
+        var crash : [16]u32 = NO_CRASH;
+        crash[4] = step;
+        let x : Run3 = chain_v3(trusted_config(), 1, 6, SCRIPT, crash);
+        let y : Run3 = chain_v3(trusted_config(), 1, 6, SCRIPT_TWIN, NO_CRASH);
+        assert x.flags == 0;
+        assert x.journal_head == y.journal_head and x.journal_len == y.journal_len;
+        assert x.resumed_steps == (step as u64);
+        step = step + 3;
+    }
+}
+
+// A challenge inside the window: collusion of three operators (beyond F) is admitted, the watcher
+// challenges, and ledger.t27 overturn() takes every credit back. The labs, who told the truth, end at
+// or above zero; every colluder ends below it.
+test a_challenge_inside_the_window_overturns_through_the_ledger {
+    var only : [16]u8 = [0; 16];
+    only[0] = AT_COLLUDE;
+    let r : Run3 = chain_v3(trusted_config(), 1, 1, only, NO_CRASH);
+    assert r.flags == 0;
+    assert r.wrong_admitted == 1 and r.upheld == 1;
+    assert r.t.j_state[0] == JS_CLAWED and r.t.j_finals[0] == 0;
+    // the labs (rows 0 and 1, operator 1) were slashed for the truth at settlement, and got the
+    // colluding verifiers' burned stake back as the truthful operator
+    assert r.t.lg.slashed_mtri[0] == TEST_SLASH and r.t.lg.slashed_mtri[1] == TEST_SLASH;
+    assert r.t.fin[OPERATOR_OWNER as usize] == 2 * TEST_SLASH;
+    // the colluders: overturned once each, credits taken back, nothing paid
+    var row : u32 = 2;
+    while (row < 5) {
+        assert r.t.lg.slashed_mtri[row as usize] == TEST_SLASH;
+        assert r.t.lg.accepted[row as usize] == 0;
+        assert r.t.fin[trusted_config().operator[row as usize] as usize] == 0;
+        row = row + 1;
+    }
+    // the requester got its whole escrow back; nothing was minted
+    assert r.t.fin[HV_REQUESTER as usize] == C3_ESCROW;
+    assert r.t.emitted == 0 and r.t.granted == 0;
+    // the same challenge one window late is stale and moves nothing
+    var late : Treasury = r.t;
+    var stale : Plan = plan_challenge(late, ev_id(EV3_CHALLENGE, 0, BY_THE_WATCHER, CHALLENGE_WINDOW));
+    assert stale.n == 1 and stale.op[0] == JO_CH_STALE;
+    // a second overturn of the same key charges nothing more
+    let again : Ledger = overturn(r.t.lg, 3, issued_nonce(0, 2));
+    assert again.last_slash_delta_mtri == 0;
+}
+
+// A lie: the liar's signed receipt verifies, disagrees, and is slashed once through the ledger; its
+// stake pays each honest verifier operator a bonus on top of its base fee from the pool.
+test a_lie_is_slashed_once_and_pays_the_bonus_on_top_of_the_base_fee {
+    var only : [16]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    only[1] = AT_LIE;
+    let r : Run3 = chain_v3(trusted_config(), 1, 2, only, NO_CRASH);
+    assert r.flags == 0;
+    assert r.t.j_finals[1] == 1;
+    assert r.t.lg.slashed_mtri[4] == TEST_SLASH and r.t.slashed == TEST_SLASH;
+    // job 1's verifier operators besides the executor: 1 and 3; operator 4 lied
+    let base1 : u64 = part_of(r.t.j_limit[1], VERIFIER_BASE_PARTS) / 2;
+    let base0 : u64 = part_of(r.t.j_limit[0], VERIFIER_BASE_PARTS) / 3;
+    let bonus : u64 = slash_bonus_each(TEST_SLASH, 2);
+    assert bonus == 100;
+    assert r.t.fin[1] == base0 + base1 + bonus;
+    assert r.t.fin[3] == base0 + base1 + bonus;
+    assert r.t.fin[4] == base0;
+    assert r.t.paid_from_slashed == 2 * bonus;
+}
+
+// Two keys of one operator are one vote and one fee: in an honest chain the owner's two lab keys earn
+// exactly one base verifier fee per job.
+test two_keys_of_one_operator_are_one_vote_and_one_fee {
+    let c : QuorumConfig = trusted_config();
+    let r : Run3 = chain_v3(c, 1, 8, SCRIPT_HONEST, NO_CRASH);
+    assert r.flags == 0;
+    var j : u32 = 0;
+    var expect : u64 = 0;
+    while (j < 8) {
+        assert r.t.j_vfee[(j as usize) * 16 + (OPERATOR_OWNER as usize)] == 1;
+        assert r.t.j_finals[j as usize] == 1;
+        // three verifier operators besides the executor's: 1 (two keys), 3 and 4
+        expect = expect + part_of(r.t.j_limit[j as usize], VERIFIER_BASE_PARTS) / 3;
+        j = j + 1;
+    }
+    assert r.t.fin[OPERATOR_OWNER as usize] == expect;
+    assert r.t.fin[3] == expect and r.t.fin[4] == expect;
+    // with the labs alone the job is not admitted: one operator's vote
+    assert operator_votes(c, [LAB1_KEY_ID, LAB2_KEY_ID, 0, 0, 0, 0, 0, 0], 2) == 1;
+}
+
+// N 5, F 2: n/2 + 1 = 3 would admit both heads of a fork; the chain's 2M > N + F (M 4) admits one.
+// The N 5, F 2 set is safe and not live: two silent operators stall a job, they never fork it.
+test at_n5_f2_the_chain_admits_one_head_and_never_forks {
+    let fork : QuorumConfig = one_key_each(5, 2, 4);
+    let r : Run3 = chain_v3(fork, 1, FORK_JOBS, FORK_SCRIPT, NO_CRASH);
+    assert r.flags == 0;
+    assert r.forks == 0;
+    // four fork attempts, each one admitted head; the job with two silent operators refused
+    assert r.groups_admitted == 4;
+    assert r.admitted == 4 and r.refused == 1;
+    var j : u32 = 0;
+    while (j < FORK_JOBS) {
+        if (FORK_SCRIPT[j as usize] == AT_FORK) {
+            assert r.t.j_finals[j as usize] == 1;
+        } else {
+            assert r.t.j_state[j as usize] == JS_REFUSED;
+        }
+        j = j + 1;
+    }
+    // the stale head's group had 3 operator votes: what the majority would admit
+    assert majority_threshold_of(5) == 3 and quorum_admits(fork, 3) == false;
+}
+
+// No violator, no slash: v2's VERIFIER_FEE from burned stake is 0; the base fee from the pool pays.
+test the_pool_pays_verifiers_in_an_honest_network {
+    let r : Run3 = chain_v3(trusted_config(), 2, 8, SCRIPT_HONEST, NO_CRASH);
+    assert r.flags == 0;
+    assert r.t.slashed == 0 and r.t.paid_from_slashed == 0;
+    assert verifier_reward(r.t.slashed, 3) == 0;
+    var j : u32 = 0;
+    var paid_verifiers : u64 = 0;
+    while (j < 8) {
+        let jx : usize = j as usize;
+        assert r.t.j_pool_paid[jx] <= r.t.j_limit[jx];
+        assert r.t.j_limit[jx] >= C3_ESCROW;
+        j = j + 1;
+    }
+    var op : u32 = 1;
+    while (op <= 4) {
+        if (op != 2) { paid_verifiers = paid_verifiers + r.t.fin[op as usize]; }
+        op = op + 1;
+    }
+    assert paid_verifiers > 0;
+    // the pool's two sources: the escrow first, the emission tops it up, never past its cap
+    assert r.t.granted > 0 and r.t.granted <= emission_cap(C3_BASE_RATE, C3_HALVING);
+    assert r.t.deposits == 8 * C3_ESCROW;
+}
+
+// The sweep: attacks, crash steps and head views drawn from the seed, on the digest fold. Every seed
+// keeps every invariant, and the twin without restarts and re-deliveries ends in the same state.
+test the_sweep_keeps_every_invariant_on_every_seed {
+    var seen : u64 = 0;
+    var upheld : u64 = 0;
+    var restarts : u64 = 0;
+    var dups : u64 = 0;
+    var s : u32 = 0;
+    while (s < SWEEP_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, s);
+        let at : [16]u8 = sweep_attacks(seed);
+        let r : Run3 = chain_v3(trusted_config(), seed, JOBS_PER_RUN, at, sweep_crashes(seed));
+        assert r.flags == 0;
+        let twin : Run3 = chain_v3(trusted_config(), seed, JOBS_PER_RUN, twin_of(at), NO_CRASH);
+        assert twin.flags == 0;
+        assert r.journal_head == twin.journal_head and r.journal_len == twin.journal_len;
+        var j : u32 = 0;
+        while (j < JOBS_PER_RUN) {
+            let jx : usize = j as usize;
+            if (r.t.j_state[jx] == JS_FINAL) { assert r.t.j_finals[jx] == 1; } else { assert r.t.j_finals[jx] == 0; }
+            assert r.t.j_state[jx] == JS_FINAL or r.t.j_state[jx] == JS_CLAWED or r.t.j_state[jx] == JS_REFUSED;
+            j = j + 1;
+        }
+        assert r.upheld == r.wrong_admitted;
+        seen = seen | r.attacks_seen;
+        upheld = upheld + r.upheld;
+        restarts = restarts + r.restarts;
+        dups = dups + r.duplicates_dropped;
+        s = s + 1;
+    }
+    // not vacuous: every attack was drawn somewhere
+    var a : u8 = 0;
+    while (a < AT_FORK) {
+        assert (seen & bit(a as u64)) != 0;
+        a = a + 1;
+    }
+    assert upheld > 0 and restarts > 0 and dups > 0;
+}
+
+invariant the_v3_chain_fits {
+    assert C3_JOBS_MAX * 16 <= 256;
+    assert JOBS_PER_RUN <= C3_JOBS_MAX;
+    assert SCRIPT_JOBS <= C3_JOBS_MAX;
+    assert I3_KINDS < 64;
+    assert C3_ROWS == QUORUM_ROWS;
+    assert HV_GRIEFER < C3_HOLDERS;
+    assert TRUSTED_KEYS > EXEC_ROW;
+    assert (AT_KINDS as u32) < 64;
+}

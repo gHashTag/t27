@@ -1,0 +1,356 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/pool.t27 -- where the network MVP's payments come from, and how much one job may pay.
+; Issue gHashTag/t27#8788 (network MVP hardening, epic see #8613). Accounting only: credits are
+; non-transferable and minted only on the chain of record (specs/verified/payout.t27,
+; specs/trinet/tri-bridge.t27). The payment kinds, fees_fit, rate_at and job_price are payout.t27's,
+; used as they are.
+; --
+; The sources, each with its own limit:
+; - SRC_ESCROW: the requester's deposit for one job, paid when the job is issued. Nothing pays from it
+;   but that job, and what the job does not pay goes back to the requester.
+; - SRC_EMISSION: credits the emission schedule mints for one job: units x rate_at(base_rate, minted,
+;   halving_every). The rate halves each time halving_every credits are minted and reaches 0 after
+;   bit_length(base_rate) halvings, so the schedule never mints more than emission_cap(); a grant is
+;   cut at the cap, so the total is never passed.
+; - SRC_BOUNTY: a bounty's deposit, posted on one task and paid once (payout.t27 bounty_payable).
+; - SRC_SLASHED: stake the ledger burned from a violator. It pays the slash bonus and a challenger's
+;   reward, on top of the job pool, never more than was burned. The floor division's dust stays burned.
+; One job's pool is its escrow plus its emission grant; that sum is the job's LIMIT. A job pays from
+; its escrow first and mints only what the escrow does not cover, so emission tops a deposit up and
+; never replaces one.
+; --
+; The split of one admitted, verified job, in parts of POOL_PARTS: EXECUTOR_PARTS for the executor,
+; PROVIDER_PARTS for its hardware, AUTHOR_PARTS for the spec's author, VERIFIER_BASE_PARTS shared
+; equally by the agreeing verifier operators (one share per operator, specs/network/quorum.t27). The
+; parts add up to POOL_PARTS, every share is a floor, and so executor + provider + author + every
+; base verifier fee <= the limit (payout.t27 fees_fit agrees for every split). A refused claim's
+; share and the floors' remainder go back to the requester; an unminted grant is never minted.
+; --
+; Why a base verifier fee: tri-net's VERIFIER_FEE is the burned stake split among the honest
+; verifiers (mvp_v2.t27 verifier_reward). In an honest network nothing is burned, so that fee is 0 and
+; verifying earns nothing. Here every agreeing verifier operator earns its base share from the job
+; pool, and the slash bonus comes on top of it when a violator was slashed.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkPool;
+
+use verified::payout;
+
+/// Where a payment comes from. 0 is no source.
+pub const SRC_NONE : u8 = 0;
+pub const SRC_ESCROW : u8 = 1;
+pub const SRC_EMISSION : u8 = 2;
+pub const SRC_BOUNTY : u8 = 3;
+pub const SRC_SLASHED : u8 = 4;
+pub const SOURCES : u8 = 4;
+
+/// The split of one job's pool, in parts of POOL_PARTS. A spec file's parameters: changing them is a
+/// PR like any other.
+pub const POOL_PARTS : u64 = 1000;
+pub const EXECUTOR_PARTS : u64 = 450;
+pub const PROVIDER_PARTS : u64 = 150;
+pub const AUTHOR_PARTS : u64 = 100;
+pub const VERIFIER_BASE_PARTS : u64 = 300;
+
+pub const AMOUNT_MAX : u64 = 18446744073709551615;
+
+pub fn source_known(src: u8) -> bool {
+    return src >= SRC_ESCROW and src <= SOURCES;
+}
+
+/// floor(amount x parts / POOL_PARTS), exact for every u64 amount and parts up to POOL_PARTS, with
+/// no product that can overflow. More parts than POOL_PARTS is no share at all (fail closed).
+pub fn part_of(amount: u64, parts: u64) -> u64 {
+    if (parts > POOL_PARTS) { return 0; }
+    return (amount / POOL_PARTS) * parts + ((amount % POOL_PARTS) * parts) / POOL_PARTS;
+}
+
+/// One job's pool: the requester's escrow and the emission schedule's grant.
+pub struct JobPool {
+    escrow: u64,
+    emission: u64,
+}
+
+/// A pool whose two sources do not fit one u64 is no pool: its limit is 0, so it pays nothing and
+/// refunds the escrow.
+pub fn pool_sound(p: JobPool) -> bool {
+    return p.emission <= AMOUNT_MAX - p.escrow;
+}
+
+pub fn pool_limit(p: JobPool) -> u64 {
+    if (pool_sound(p) == false) { return 0; }
+    return p.escrow + p.emission;
+}
+
+pub fn bit_length(x: u64) -> u64 {
+    var n : u64 = 0;
+    var v : u64 = x;
+    while (v > 0) {
+        n = n + 1;
+        v = v >> 1;
+    }
+    return n;
+}
+
+/// The most the schedule ever mints: rate_at is 0 once halving_every x bit_length(base_rate) credits
+/// are minted. No schedule (halving_every 0) mints nothing; a cap past u64 is u64's top.
+pub fn emission_cap(base_rate: u64, halving_every: u64) -> u64 {
+    if (halving_every == 0) { return 0; }
+    let b : u64 = bit_length(base_rate);
+    if (b == 0) { return 0; }
+    if (halving_every > AMOUNT_MAX / b) { return AMOUNT_MAX; }
+    return halving_every * b;
+}
+
+/// What the schedule would mint for `units` after `minted`: units x the rate at that point.
+pub fn emission_want(units: u64, base_rate: u64, minted: u64, halving_every: u64) -> u64 {
+    return job_price(units, rate_at(base_rate, minted, halving_every));
+}
+
+/// The grant: the want, cut at what the cap leaves.
+pub fn emission_grant(want: u64, minted: u64, cap: u64) -> u64 {
+    if (minted >= cap) { return 0; }
+    if (want > cap - minted) { return cap - minted; }
+    return want;
+}
+
+/// What one admitted, verified job pays, and from where. `verifiers` is the number of agreeing
+/// verifier operators other than the executor's own; executor_paid says whether the executor's
+/// claim was paid (a refused claim's share goes back to the requester).
+pub struct JobSplit {
+    limit: u64,
+    executor: u64,
+    provider: u64,
+    author: u64,
+    verifier_each: u64,
+    verifiers: u64,
+    pool_paid: u64,
+    from_escrow: u64,
+    minted: u64,
+    refund: u64,
+}
+
+pub fn job_split(p: JobPool, verifiers: u64, executor_paid: bool) -> JobSplit {
+    let limit : u64 = pool_limit(p);
+    var s : JobSplit = JobSplit { limit: limit, executor: 0, provider: 0, author: 0, verifier_each: 0, verifiers: verifiers, pool_paid: 0, from_escrow: 0, minted: 0, refund: 0 };
+    if (executor_paid) {
+        s.executor = part_of(limit, EXECUTOR_PARTS);
+        s.provider = part_of(limit, PROVIDER_PARTS);
+    }
+    s.author = part_of(limit, AUTHOR_PARTS);
+    if (verifiers > 0) { s.verifier_each = part_of(limit, VERIFIER_BASE_PARTS) / verifiers; }
+    s.pool_paid = s.executor + s.provider + s.author + s.verifier_each * verifiers;
+    // the escrow first; the emission only for what the escrow does not cover
+    if (s.pool_paid <= p.escrow) {
+        s.from_escrow = s.pool_paid;
+    } else {
+        s.from_escrow = p.escrow;
+        s.minted = s.pool_paid - p.escrow;
+    }
+    s.refund = p.escrow - s.from_escrow;
+    return s;
+}
+
+/// A job no quorum admitted, or one a challenge overturned: the escrow goes back, nothing is minted.
+pub fn refused_split(p: JobPool) -> JobSplit {
+    return JobSplit { limit: pool_limit(p), executor: 0, provider: 0, author: 0, verifier_each: 0, verifiers: 0, pool_paid: 0, from_escrow: 0, minted: 0, refund: p.escrow };
+}
+
+/// The slash bonus: each honest verifier operator's floor share of the stake burned for one job.
+pub fn slash_bonus_each(burned: u64, honest: u64) -> u64 {
+    if (honest == 0) { return 0; }
+    return burned / honest;
+}
+
+/// What the floor leaves of the burned stake: it stays burned, never minted.
+pub fn slash_dust(burned: u64, honest: u64) -> u64 {
+    return burned - slash_bonus_each(burned, honest) * honest;
+}
+
+/// A bounty pays its deposit once, when payout.t27 says it is payable, and nothing else.
+pub fn bounty_paid(posted: u64, payable: bool) -> u64 {
+    if (payable) { return posted; }
+    return 0;
+}
+
+/// The network-wide limit: everything paid comes from an escrow, an emission grant, a bounty or burned
+/// stake. Subtracts instead of adding, so no sum can wrap.
+pub fn paid_within_sources(paid: u64, escrow_used: u64, minted: u64, bounties: u64, burned_paid: u64) -> bool {
+    if (escrow_used > paid) { return false; }
+    var left : u64 = paid - escrow_used;
+    if (minted > left) { return false; }
+    left = left - minted;
+    if (bounties > left) { return false; }
+    left = left - bounties;
+    return left == burned_paid;
+}
+
+; --- Fixtures ----------------------------------------------------------------------------------
+
+pub const PX_ESCROW : [8]u64 = [0, 1, 999, 1000, 6000, 123456789, 9223372036854775807, 18446744073709551615];
+pub const PX_EMISSION : [8]u64 = [0, 4000, 1, 18446744073709551615, 999, 1000, 9223372036854775808, 7];
+
+test the_parts_add_up_and_every_share_is_an_exact_floor {
+    assert EXECUTOR_PARTS + PROVIDER_PARTS + AUTHOR_PARTS + VERIFIER_BASE_PARTS == POOL_PARTS;
+    assert part_of(AMOUNT_MAX, POOL_PARTS) == AMOUNT_MAX;
+    assert part_of(AMOUNT_MAX, 0) == 0;
+    assert part_of(999, 1) == 0;
+    assert part_of(1000, 1) == 1;
+    assert part_of(10000, EXECUTOR_PARTS) == 4500;
+    assert part_of(18446744073709551615, 500) == 9223372036854775807;
+    assert part_of(5, POOL_PARTS + 1) == 0;
+    var a : u64 = 0;
+    while (a < 5000) {
+        var p : u64 = 0;
+        while (p <= POOL_PARTS) {
+            // the same floor as the plain product, which fits here
+            assert part_of(a, p) == (a * p) / POOL_PARTS;
+            p = p + 125;
+        }
+        a = a + 397;
+    }
+    var s : u8 = 0;
+    var known : u8 = 0;
+    while (s < 8) {
+        if (source_known(s)) { known = known + 1; }
+        s = s + 1;
+    }
+    assert known == SOURCES;
+    assert source_known(SRC_NONE) == false;
+}
+
+test a_job_never_pays_past_its_limit_and_pays_from_its_escrow_first {
+    var i : u32 = 0;
+    var minted_any : bool = false;
+    var refunded_any : bool = false;
+    while (i < 8) {
+        var j : u32 = 0;
+        while (j < 8) {
+            let p : JobPool = JobPool { escrow: PX_ESCROW[i], emission: PX_EMISSION[j] };
+            var v : u64 = 0;
+            while (v <= 5) {
+                var e : u32 = 0;
+                while (e < 2) {
+                    let s : JobSplit = job_split(p, v, e == 1);
+                    assert s.limit == pool_limit(p);
+                    assert s.pool_paid <= s.limit;
+                    assert fees_fit(s.limit, s.executor, s.provider, s.verifier_each * v, s.author);
+                    assert s.from_escrow + s.minted == s.pool_paid;
+                    assert s.from_escrow + s.refund == p.escrow;
+                    assert s.minted <= p.emission;
+                    // the emission tops the escrow up and never replaces it
+                    if (s.minted > 0) {
+                        assert s.from_escrow == p.escrow;
+                        minted_any = true;
+                    }
+                    if (s.refund > 0) { refunded_any = true; }
+                    if (e == 0) { assert s.executor == 0 and s.provider == 0; }
+                    if (v == 0) { assert s.verifier_each == 0; }
+                    e = e + 1;
+                }
+                v = v + 1;
+            }
+            // a pool whose sources do not fit pays nothing and refunds the escrow
+            if (pool_sound(p) == false) {
+                let bad : JobSplit = job_split(p, 3, true);
+                assert bad.limit == 0 and bad.pool_paid == 0 and bad.refund == p.escrow;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    assert minted_any and refunded_any;
+    assert pool_sound(JobPool { escrow: AMOUNT_MAX, emission: 1 }) == false;
+    // one worked job: escrow 6000, grant 4000, executor paid, three verifier operators
+    let w : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, 3, true);
+    assert w.limit == 10000;
+    assert w.executor == 4500 and w.provider == 1500 and w.author == 1000 and w.verifier_each == 1000;
+    assert w.pool_paid == 10000 and w.from_escrow == 6000 and w.minted == 4000 and w.refund == 0;
+    // the executor refused: its two shares go back to the requester, and nothing is minted
+    let r : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, 3, false);
+    assert r.pool_paid == 4000 and r.minted == 0 and r.refund == 2000;
+    // a refused job: the whole escrow back, nothing minted
+    let n : JobSplit = refused_split(JobPool { escrow: 6000, emission: 4000 });
+    assert n.pool_paid == 0 and n.minted == 0 and n.refund == 6000;
+}
+
+// No violator, no slash: the fee from burned stake is 0, and the base fee from the pool is not.
+test an_honest_network_pays_its_verifiers_from_the_pool {
+    var v : u64 = 1;
+    while (v <= 4) {
+        let s : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, v, true);
+        assert slash_bonus_each(0, v) == 0;
+        assert slash_dust(0, v) == 0;
+        assert s.verifier_each > 0;
+        assert s.verifier_each == 3000 / v;
+        assert s.verifier_each * v <= part_of(s.limit, VERIFIER_BASE_PARTS);
+        v = v + 1;
+    }
+    // with no agreeing verifier the base share is not paid: the escrow goes first, so it is not minted
+    let none : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, 0, true);
+    assert none.verifier_each == 0 and none.refund == 0 and none.pool_paid == 7000 and none.minted == 1000;
+}
+
+// A violator slashed: the bonus comes on top of the base fee, out of the burned stake, not the pool.
+test the_slash_bonus_rides_on_top_of_the_base_fee {
+    var burned : u64 = 0;
+    while (burned <= 1200) {
+        var h : u64 = 0;
+        while (h <= 4) {
+            let each : u64 = slash_bonus_each(burned, h);
+            assert each * h + slash_dust(burned, h) == burned;
+            if (h > 0) { assert slash_dust(burned, h) < h; } else { assert each == 0; }
+            // the pool's split does not move with the burned stake
+            let s : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, h, true);
+            assert s.pool_paid <= s.limit;
+            assert paid_within_sources(s.pool_paid + each * h, s.from_escrow, s.minted, 0, each * h);
+            h = h + 1;
+        }
+        burned = burned + 200;
+    }
+    // one liar slashed 200, two honest verifier operators: 1500 base + 100 bonus each
+    let s2 : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, 2, true);
+    assert s2.verifier_each + slash_bonus_each(200, 2) == 1600;
+    assert bounty_paid(500, true) == 500 and bounty_paid(500, false) == 0;
+    assert paid_within_sources(10, 3, 3, 3, 1);
+    assert paid_within_sources(10, 3, 3, 3, 2) == false;
+    assert paid_within_sources(10, 11, 0, 0, 0) == false;
+}
+
+test the_emission_schedule_has_a_cap_and_grants_never_pass_it {
+    assert bit_length(0) == 0 and bit_length(1) == 1 and bit_length(4) == 3 and bit_length(AMOUNT_MAX) == 64;
+    assert emission_cap(4, 20000) == 60000;
+    assert emission_cap(0, 20000) == 0;
+    assert emission_cap(4, 0) == 0;
+    assert emission_cap(AMOUNT_MAX, AMOUNT_MAX) == AMOUNT_MAX;
+    var base : u64 = 1;
+    while (base <= 64) {
+        var halving : u64 = 50;
+        while (halving <= 2000) {
+            let cap : u64 = emission_cap(base, halving);
+            // the rate is 0 exactly from the cap on
+            assert rate_at(base, cap, halving) == 0;
+            assert rate_at(base, cap - 1, halving) > 0;
+            // grants of 37 units at a time reach the cap and never pass it
+            var minted : u64 = 0;
+            var steps : u32 = 0;
+            while (steps < 400) {
+                let g : u64 = emission_grant(emission_want(37, base, minted, halving), minted, cap);
+                minted = minted + g;
+                assert minted <= cap;
+                steps = steps + 1;
+            }
+            assert minted == cap;
+            assert emission_grant(1, minted, cap) == 0;
+            halving = halving * 3;
+        }
+        base = base * 4;
+    }
+    assert emission_grant(PRICE_OVERFLOW, 0, 60000) == 60000;
+}
+
+invariant the_split_is_one_pool {
+    assert EXECUTOR_PARTS + PROVIDER_PARTS + AUTHOR_PARTS + VERIFIER_BASE_PARTS == POOL_PARTS;
+    assert SRC_ESCROW == 1 and SRC_EMISSION == 2 and SRC_BOUNTY == 3 and SRC_SLASHED == 4;
+}

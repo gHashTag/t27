@@ -1,0 +1,387 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/mvp_v3_ed25519.t27 -- the network MVP's votes signed and verified with Ed25519 on real
+; bytes. Issue gHashTag/t27#8788 (network MVP hardening, epic see #8613). Companion of
+; specs/network/mvp_v3.t27, which runs the whole adversarial chain.
+; --
+; Nothing here is a flag standing in for a signature. Every vote is checked by specs/tri/crypto/
+; ed25519.t27 verify(), over the bytes of specs/verified/corpus_receipt.t27's signed message: the domain
+; line, then `name=<JSON text>` for each of CORPUS_SIGNED_FIELDS. That is the message the labs sign
+; and `t27c corpus-receipt compare` checks. The public key is the one the trusted set registers for
+; the vote's key id (specs/network/quorum.t27). A vote counts when verify() accepts it AND
+; signed_receipt.t27 receipt_level() gives it the level the job asks of that key: LEVEL_FRESH when the
+; job issued the key a challenge, LEVEL_AUTHOR otherwise. Votes that agree on the commit, the roots
+; and the totals are counted once per key and once per operator (quorum.t27), and admitted by
+; quorum_admits. Each authenticated vote is then settled once through specs/trinet/ledger.t27 settle(),
+; and paid by specs/network/pool.t27.
+; --
+; The real bytes:
+; - The two labs' receipts for master a16231329, as they publish them (runs/<sha>.receipt.json). Lab 1
+;   (key a05db80f53c317f6) signed with the challenge its request carried; lab 2 (fed03daa6459a7fa)
+;   signed the master run with no nonce. Both verify here under their registered keys, and both carry
+;   the same roots and totals: the 2-of-2 EQUIVALENT that corpus-receipt compare reports. Both keys
+;   belong to the owner, so this is ONE operator's vote.
+; - The MVP's simulated operators 2, 3 and 4 sign the same message with their test seeds. Their public
+;   keys are derived here from the seeds and must equal quorum.t27's; each signature equals the one
+;   RFC 8032 gives (computed with Python cryptography 47 when the test was written).
+; Refused by verify() itself: a flipped signature bit, a signature made with another key, a tampered
+; result (lab 2's real receipt with another verdict root), and a replay whose nonce is rewritten to a
+; new challenge. A replay sent as it is still verifies; the job refuses it because its nonce is not
+; the challenge the job issued (LEVEL_AUTHOR where LEVEL_FRESH is asked).
+; --
+; The split, said and not hidden: Ed25519 in t27 costs about 80 ms per verify in t27b's JIT under
+; qemu, and two verifies already spend t27b's interpreter fuel for a whole file (check_budget.t27
+; FILE_FUEL), so t27b reports this file's runtime asserts as unknown and its JIT verdict stands. The
+; many-seed sweep in mvp_v3.t27 therefore runs on v2's keyed digest fold (sig_of), and the real
+; verify runs here, in these dedicated tests. Key ids are SHA-256 of the public key; this file cannot
+; also use tri/crypto/sha256.t27 beside sha512.t27 (their helper names collide in the flat `use`
+; splice), so mvp_v3.t27 checks the key ids on the same public key bytes.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkMvpV3Ed25519;
+
+use tri::crypto::ed25519;
+use verified::corpus_receipt;
+use network::quorum;
+use network::pool;
+use trinet::ledger;
+
+; --- 1. The signed message ---------------------------------------------------------------------
+
+/// corpus_receipt.t27's message for a receipt with these eight field values (CORPUS_SIGNED_FIELDS
+/// order, each its JSON text). The labs' messages are 861 and 899 bytes.
+pub const MSG_CAP : usize = 1024;
+
+pub struct SignedMessage {
+    bytes: [1024]u8,
+    len: usize,
+}
+
+pub fn signed_message(v: [8]str) -> SignedMessage {
+    var m : SignedMessage = SignedMessage { bytes: [0; 1024], len: 0 };
+    var k : u32 = 0;
+    while (k < corpus_domain_line_len()) {
+        m.bytes[m.len] = corpus_domain_line_char(k) as u8;
+        m.len = m.len + 1;
+        k = k + 1;
+    }
+    var f : usize = 0;
+    while (f < 8) {
+        let n : u32 = field_line_len(CORPUS_SIGNED_FIELDS[f], v[f]);
+        k = 0;
+        while (k < n and m.len < MSG_CAP) {
+            m.bytes[m.len] = field_line_char(CORPUS_SIGNED_FIELDS[f], v[f], k) as u8;
+            m.len = m.len + 1;
+            k = k + 1;
+        }
+        f = f + 1;
+    }
+    return m;
+}
+
+/// The field positions in CORPUS_SIGNED_FIELDS.
+pub const F_COMMIT : usize = 0;
+pub const F_INPUT_ROOT : usize = 3;
+pub const F_VERDICT_ROOT : usize = 4;
+pub const F_OUTPUT_ROOT : usize = 5;
+pub const F_TOTALS : usize = 6;
+pub const F_NONCE : usize = 7;
+
+/// A vote: the key id it names, its eight field values and its signature.
+pub struct SignedVote {
+    key_id: u64,
+    fields: [8]str,
+    sig: [64]u8,
+}
+
+pub fn text_eq(a: str, b: str) -> bool {
+    if (a.len != b.len) { return false; }
+    var i : usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// A nonce's JSON text: `null`, or a quoted hex string. Its length in bytes, as receipt_level reads it.
+pub fn nonce_bytes_of(nonce: str) -> u8 {
+    if (nonce.len < 2 or text_eq(nonce, "null")) { return 0; }
+    let n : usize = (nonce.len - 2) / 2;
+    if (n > 255) { return 255; }
+    return n as u8;
+}
+
+/// The registered public key of a key id, from the trusted set; all zero for a key outside it.
+pub fn registered_pubkey(c: QuorumConfig, key_id: u64) -> [32]u8 {
+    let r : u32 = key_row(c, key_id);
+    if (r >= QUORUM_ROWS) { return [0; 32]; }
+    return hex32(TRUSTED_PUBKEY[r as usize]);
+}
+
+/// Ed25519 verify() of the vote's message under the key its key id registers.
+pub fn vote_verifies(c: QuorumConfig, v: SignedVote) -> bool {
+    if (key_row(c, v.key_id) >= QUORUM_ROWS) { return false; }
+    let m : SignedMessage = signed_message(v.fields);
+    return verify(registered_pubkey(c, v.key_id), m.bytes[0..m.len], v.sig);
+}
+
+/// signed_receipt.t27's level of a vote for a job that issued `challenge` to its key (the JSON text
+/// of the challenge, or "null" when none was issued).
+pub fn vote_level(c: QuorumConfig, v: SignedVote, challenge: str) -> u8 {
+    let registered : bool = key_row(c, v.key_id) < QUORUM_ROWS;
+    let given : bool = text_eq(challenge, "null") == false;
+    let nonce : str = v.fields[F_NONCE];
+    return receipt_level(true, registered, vote_verifies(c, v), given, nonce_bytes_of(nonce), given and text_eq(nonce, challenge));
+}
+
+/// The level the job asks of a key: FRESH when it issued the key a challenge.
+pub fn level_asked(challenge: str) -> u8 {
+    if (text_eq(challenge, "null")) { return LEVEL_AUTHOR; }
+    return LEVEL_FRESH;
+}
+
+/// Two votes say the same thing: the same commit, the same three roots, the same totals.
+pub fn votes_agree(a: SignedVote, b: SignedVote) -> bool {
+    return text_eq(a.fields[F_COMMIT], b.fields[F_COMMIT]) and text_eq(a.fields[F_INPUT_ROOT], b.fields[F_INPUT_ROOT]) and text_eq(a.fields[F_VERDICT_ROOT], b.fields[F_VERDICT_ROOT]) and text_eq(a.fields[F_OUTPUT_ROOT], b.fields[F_OUTPUT_ROOT]) and text_eq(a.fields[F_TOTALS], b.fields[F_TOTALS]);
+}
+
+; --- 2. The real receipts of a16231329 ---------------------------------------------------------
+
+pub const R_COMMIT : str = "\"a16231329d134aaaf8922cd7b65ef8890084ac77\"";
+pub const R_T27B : str = "\"c7bc076f4e44035318270cb628db11fbeed05d5790ba503eded8f056a8a897b5\"";
+pub const R_T27C : str = "\"fd85587468422f43bc80669ecc79bcf474bda07c9860d62090e597d4d4e05cc0\"";
+pub const R_INPUT : str = "\"5aa97d70f895c3454f46a428c3eae9259d353e001cf0a0124035d51327f00f9a\"";
+pub const R_VERDICT : str = "\"dac9eb29752d0b90668f47f4eb2af1fc0619f6d73ce8845709c1ecc0356ebdbe\"";
+pub const R_OUTPUT : str = "\"9e7f322cf74c737fcd2fa0204a7b1687e9f98761600f736ec8e3b65484a99c82\"";
+pub const R_TOTALS : str = "{\"crash\":0,\"files\":1787,\"jit_interp_mismatch\":0,\"mismatch\":0,\"reference_compared\":1290,\"reference_disagree\":0,\"reference_disagree_tests\":0,\"reference_lab_error\":0,\"reference_pass\":1299,\"t27b_fail\":20,\"t27b_pass\":1270,\"t27b_pass_vacuous\":6,\"t27b_pass_vacuous_where_reference_passes\":5,\"t27b_pass_where_reference_does_not\":2,\"t27b_pass_where_reference_passes\":1268,\"timeout\":4}";
+/// Lab 1's request carried this challenge; lab 2 was given none.
+pub const R_NONCE_LAB1 : str = "\"6b393ac06f32aadb4fbf2e83a6dbe5f2a625dad6\"";
+pub const R_SIG_LAB1 : str = "7274c9eca0e0d1b2a4c11992d7ac50b35a0dcf6806eafc49cbaf77c6c2009f52078c04ae62367d8e2a2aab747a8ca7fa455ef832cd7d51fb0bbdcd261f187c08";
+pub const R_SIG_LAB2 : str = "32d4739e2371dfca685cb5a1b617c8e4cf5d9405ddff11594442519a2ebcaf18cdf436e9ff275f0a3b28db154d2c897a91a49818ee559f0b80c1420c4a4a2c06";
+
+pub fn fields_with(nonce: str, verdict_root: str) -> [8]str {
+    return [R_COMMIT, R_T27B, R_T27C, R_INPUT, verdict_root, R_OUTPUT, R_TOTALS, nonce];
+}
+
+pub fn lab1_vote() -> SignedVote {
+    return SignedVote { key_id: LAB1_KEY_ID, fields: fields_with(R_NONCE_LAB1, R_VERDICT), sig: hex64(R_SIG_LAB1) };
+}
+
+pub fn lab2_vote() -> SignedVote {
+    return SignedVote { key_id: LAB2_KEY_ID, fields: fields_with("null", R_VERDICT), sig: hex64(R_SIG_LAB2) };
+}
+
+; --- 3. The simulated operators ----------------------------------------------------------------
+
+/// The test seed of trusted row 2, 3 or 4: byte i is ((i x i + row) x 73 + 11) mod 256. Public, so
+/// these keys prove nothing outside the tests.
+pub fn sim_seed(row: u32) -> [32]u8 {
+    var s : [32]u8 = [0; 32];
+    var i : u32 = 0;
+    while (i < 32) {
+        s[i as usize] = ((((i * i + row) * 73) + 11) % 256) as u8;
+        i = i + 1;
+    }
+    return s;
+}
+
+/// The challenges the job issued rows 2, 3 and 4, a later challenge for lab 1, and a liar's root.
+pub const C_ROW2 : str = "\"742fdb8f26f3c7a8853480e5f5f2a779cd6fa0a6\"";
+pub const C_ROW3 : str = "\"093f2cd8f5882d50ab7e924c6dd7bccc30106a71\"";
+pub const C_ROW4 : str = "\"84bb5386d42a9d24d767001547d38defb2fa421f\"";
+pub const C_LAB1_LATER : str = "\"4780d5cba2183484fb6355f4ace2288f97d8fd63\"";
+pub const LIAR_VERDICT : str = "\"2b3795bb3971a9b8383b1251274e38dd4ab110c7656b8cf6acc31443e06929a0\"";
+
+/// RFC 8032 signatures of rows 2, 3 (honest) and 4 (the liar's root), and row 2's signature over
+/// row 3's message, as Python cryptography computed them.
+pub const SIG_ROW2 : str = "8c14853e6e1d03958a294b45d1c399659d5291d1b24e7ad1c9d1cf05c41089b21fe04ef05050dd4e21cf6ba676190f9d55739f0ede1f82e8e95fcd2d3d1c7303";
+pub const SIG_ROW3 : str = "150251ffe51de9ed837b07ccd3bd9517b04300fe1c1ab871ba49ddbdbef978e8b25e3116b8b776342c1f291b42f5f19b757bf929ac865b227e104fcc89fc1501";
+pub const SIG_ROW4 : str = "b3707ec17064aa50a1a12aae61996ce4eaabb7cd69bcdf0d04890614ed8afb72399cb3d8319a25ddefb4352106532b71df95ab47a6ebd416cb55c4ad2c45a009";
+pub const SIG_ROW2_OVER_ROW3 : str = "2f8dedba382234752131acdf280cca0edc7cae623ab576cbf5ccf378fc018e96ee8f9645c20b4372404da8e8acb1791f6b7791da812a658960099033f9485807";
+
+/// A simulated operator's vote, signed here with ed25519.t27 sign().
+pub fn sim_vote(row: u32, nonce: str, verdict_root: str) -> SignedVote {
+    let f : [8]str = fields_with(nonce, verdict_root);
+    let m : SignedMessage = signed_message(f);
+    return SignedVote { key_id: TRUSTED_KEY_ID[row as usize], fields: f, sig: sign(sim_seed(row), m.bytes[0..m.len]) };
+}
+
+; --- 4. One job, judged and settled --------------------------------------------------------------
+
+/// The job's votes: up to QUORUM_ROWS, each with the challenge the job issued its key.
+pub const JOB_NONCE : u32 = 7;
+pub const E_STAKE : u64 = 10000;
+pub const E_SLASH : u64 = 200;
+
+pub struct Judged {
+    counted: u32,
+    agreeing_keys: u32,
+    agreeing_operators: u32,
+    admitted: bool,
+    credited: u32,
+    slashed: u32,
+    burned: u64,
+    lg: Ledger,
+}
+
+/// Judge `count` votes against the result of vote `lead`: authenticate each at the level asked, count
+/// the agreeing ones per key and per operator, admit under the trusted quorum, and settle every
+/// authenticated vote once through ledger.t27 (agreeing: V_OK; disagreeing: V_WRONG_RESULT).
+pub fn judge(c: QuorumConfig, votes: [8]SignedVote, asked: [8]str, count: u32, lead: u32) -> Judged {
+    var lg : Ledger = ledger_init(policy_of(1, E_SLASH, 100));
+    var r : u32 = 0;
+    while (r < c.keys) {
+        lg = register_node(lg, r + 1, c.operator[r as usize], false, E_STAKE);
+        r = r + 1;
+    }
+    var j : Judged = Judged { counted: 0, agreeing_keys: 0, agreeing_operators: 0, admitted: false, credited: 0, slashed: 0, burned: 0, lg: lg };
+    var ok : [8]bool = [false; 8];
+    var agree : [8]u64 = [0; 8];
+    var n_agree : u32 = 0;
+    var i : u32 = 0;
+    while (i < count) {
+        let v : SignedVote = votes[i as usize];
+        ok[i as usize] = vote_level(c, v, asked[i as usize]) >= level_asked(asked[i as usize]);
+        if (ok[i as usize]) {
+            j.counted = j.counted + 1;
+            if (votes_agree(v, votes[lead as usize])) {
+                agree[n_agree as usize] = v.key_id;
+                n_agree = n_agree + 1;
+            }
+        }
+        i = i + 1;
+    }
+    j.agreeing_keys = key_votes(c, agree, n_agree);
+    j.agreeing_operators = operator_votes(c, agree, n_agree);
+    j.admitted = quorum_admits(c, j.agreeing_operators);
+    if (j.admitted) {
+        i = 0;
+        while (i < count) {
+            if (ok[i as usize]) {
+                let node : u32 = key_row(c, votes[i as usize].key_id) + 1;
+                var verdict : u8 = V_WRONG_RESULT;
+                if (votes_agree(votes[i as usize], votes[lead as usize])) { verdict = V_OK; }
+                j.lg = settle(j.lg, node, node, JOB_NONCE, verdict);
+                if (j.lg.last_outcome == OUT_CREDITED) { j.credited = j.credited + 1; }
+                if (j.lg.last_outcome == OUT_REJECTED_AND_SLASHED) {
+                    j.slashed = j.slashed + 1;
+                    j.burned = j.burned + j.lg.last_slash_delta_mtri;
+                }
+            }
+            i = i + 1;
+        }
+    }
+    return j;
+}
+
+; --- 5. Tests -------------------------------------------------------------------------------------
+
+test the_labs_real_receipts_verify_and_are_one_vote {
+    let c : QuorumConfig = trusted_config();
+    let a : SignedVote = lab1_vote();
+    let b : SignedVote = lab2_vote();
+    let ma : SignedMessage = signed_message(a.fields);
+    let mb : SignedMessage = signed_message(b.fields);
+    assert ma.len == 899 and mb.len == 861;
+    assert ma.bytes[0] == 116 and ma.bytes[21] == 10;
+    // each under its own registered key, over corpus_receipt.t27's message
+    assert vote_verifies(c, a);
+    assert vote_verifies(c, b);
+    // one lab's signature under the other lab's key is not a vote
+    var swapped : SignedVote = a;
+    swapped.key_id = LAB2_KEY_ID;
+    assert vote_verifies(c, swapped) == false;
+    // the same commit, roots and totals: an EQUIVALENT pair
+    assert votes_agree(a, b);
+    assert text_eq(a.fields[F_NONCE], b.fields[F_NONCE]) == false;
+    // lab 1 is fresh for its request's challenge; lab 2 was given none and is an author
+    assert vote_level(c, a, R_NONCE_LAB1) == LEVEL_FRESH;
+    assert level_asked("null") == LEVEL_AUTHOR;
+    assert nonce_bytes_of(R_NONCE_LAB1) == 20 and nonce_bytes_of("null") == 0;
+    // two keys, one operator: one vote, which the trusted quorum (M 3 of N 4) does not admit
+    let keys : [8]u64 = [a.key_id, b.key_id, 0, 0, 0, 0, 0, 0];
+    assert key_votes(c, keys, 2) == 2;
+    assert operator_votes(c, keys, 2) == 1;
+    assert quorum_admits(c, 1) == false;
+    assert operator_votes(labs_only_config(), keys, 2) == 1;
+}
+
+test a_forged_signature_a_tampered_result_and_a_replay_are_refused_by_verify {
+    let c : QuorumConfig = trusted_config();
+    // one flipped bit of lab 1's real signature
+    var flipped : SignedVote = lab1_vote();
+    flipped.sig[40] = flipped.sig[40] ^ 4;
+    assert vote_verifies(c, flipped) == false;
+    // a tampered result: lab 2's real receipt with another verdict root
+    var tampered : SignedVote = lab2_vote();
+    tampered.fields[F_VERDICT_ROOT] = LIAR_VERDICT;
+    assert vote_verifies(c, tampered) == false;
+    // a forged signature: row 2 signs row 3's message, and the vote names row 3's key
+    let forged_fields : [8]str = fields_with(C_ROW3, R_VERDICT);
+    let fm : SignedMessage = signed_message(forged_fields);
+    let forged_sig : [64]u8 = sign(sim_seed(2), fm.bytes[0..fm.len]);
+    assert bytes64_eq(forged_sig, hex64(SIG_ROW2_OVER_ROW3));
+    let forged : SignedVote = SignedVote { key_id: TRUSTED_KEY_ID[3], fields: forged_fields, sig: forged_sig };
+    assert vote_verifies(c, forged) == false;
+    assert vote_level(c, forged, C_ROW3) == LEVEL_NONE;
+    // a replay of lab 1's receipt for a later challenge: as sent it verifies but is not fresh; with its
+    // nonce rewritten to the new challenge its signature no longer verifies
+    let replay : SignedVote = lab1_vote();
+    assert vote_level(c, replay, C_LAB1_LATER) == LEVEL_AUTHOR;
+    assert vote_level(c, replay, C_LAB1_LATER) < level_asked(C_LAB1_LATER);
+    var rewritten : SignedVote = lab1_vote();
+    rewritten.fields[F_NONCE] = C_LAB1_LATER;
+    assert vote_verifies(c, rewritten) == false;
+    // a key outside the set is never checked, and never a vote
+    var outsider : SignedVote = lab1_vote();
+    outsider.key_id = 77;
+    assert vote_verifies(c, outsider) == false;
+}
+
+test real_votes_admit_one_job_through_the_trusted_quorum_and_settle_once {
+    let c : QuorumConfig = trusted_config();
+    // the simulated operators' keys come from their seeds
+    var row : u32 = 2;
+    while (row < 5) {
+        assert bytes32_eq(public_key(sim_seed(row)), hex32(TRUSTED_PUBKEY[row as usize]));
+        row = row + 1;
+    }
+    // rows 2 and 3 sign the true result, row 4 a wrong verdict root; each as RFC 8032 says
+    let v2 : SignedVote = sim_vote(2, C_ROW2, R_VERDICT);
+    let v3 : SignedVote = sim_vote(3, C_ROW3, R_VERDICT);
+    let v4 : SignedVote = sim_vote(4, C_ROW4, LIAR_VERDICT);
+    assert bytes64_eq(v2.sig, hex64(SIG_ROW2));
+    assert bytes64_eq(v3.sig, hex64(SIG_ROW3));
+    assert bytes64_eq(v4.sig, hex64(SIG_ROW4));
+    let votes : [8]SignedVote = [lab1_vote(), lab2_vote(), v2, v3, v4, v4, v4, v4];
+    let asked : [8]str = [R_NONCE_LAB1, "null", C_ROW2, C_ROW3, C_ROW4, "null", "null", "null"];
+    let j : Judged = judge(c, votes, asked, 5, 0);
+    // all five verify: the liar's signature is genuine, its result is not
+    assert j.counted == 5;
+    assert j.agreeing_keys == 4;
+    assert j.agreeing_operators == 3;
+    assert j.admitted;
+    // settled once each: four credits, one slash of the liar
+    assert j.credited == 4 and j.slashed == 1 and j.burned == E_SLASH;
+    assert keys_match_outcomes(j.lg) and spent_keys_are_distinct(j.lg);
+    // the receipt presented again moves nothing
+    let again : Ledger = settle(j.lg, 1, 1, JOB_NONCE, V_OK);
+    assert again.last_outcome == OUT_ALREADY_SETTLED_NOT_CHARGED and again.last_credit_delta_mtri == 0;
+    // the pay: row 2 executes; the agreeing verifier operators besides it are 1 (both labs) and 3
+    let s : JobSplit = job_split(JobPool { escrow: 6000, emission: 4000 }, 2, true);
+    let bonus : u64 = slash_bonus_each(j.burned, 2);
+    assert s.verifier_each == 1500 and bonus == 100;
+    // operator 1 voted with two keys and is paid one verifier fee, not two
+    assert operator_votes(c, [LAB1_KEY_ID, LAB2_KEY_ID, 0, 0, 0, 0, 0, 0], 2) == 1;
+    assert s.pool_paid <= s.limit;
+    // without the simulated operators the labs alone admit nothing
+    let labs : Judged = judge(c, votes, asked, 2, 0);
+    assert labs.counted == 2 and labs.agreeing_operators == 1 and labs.admitted == false;
+    assert labs.credited == 0 and labs.slashed == 0;
+    // row 3's vote replaced by row 2's forgery under row 3's key: two operators agree, no quorum
+    var with_forgery : [8]SignedVote = votes;
+    with_forgery[3] = SignedVote { key_id: TRUSTED_KEY_ID[3], fields: fields_with(C_ROW3, R_VERDICT), sig: hex64(SIG_ROW2_OVER_ROW3) };
+    let jf : Judged = judge(c, with_forgery, asked, 5, 0);
+    assert jf.counted == 4 and jf.agreeing_operators == 2 and jf.admitted == false;
+}

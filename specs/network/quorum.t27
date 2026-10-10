@@ -1,0 +1,403 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/quorum.t27 -- the trusted quorum configuration of the network MVP, in one place: N, F
+; and M, and the validator set as (key id, operator id). Issue gHashTag/t27#8788 (network MVP
+; hardening, epic see #8613). The chain (specs/network/mvp_v3.t27), the votes checked with Ed25519
+; (specs/network/mvp_v3_ed25519.t27) and the hosting cards read it from here and restate none of it.
+; It uses no hash and no signature scheme, so any spec can import it.
+; --
+; The rules:
+; - A vote is a receipt the verifier has authenticated. It counts once per KEY and once per
+;   OPERATOR. Of the keys that agree on one result, a key outside the set counts for nothing, a key
+;   named twice counts once, and two keys of one operator are one vote. N is the number of distinct
+;   operators in the set, never the number of keys.
+; - The quorum is specs/trinet/tri-bridge.t27's: 2M > N + F (safe) and M <= N - F (live).
+;   quorum_admits() admits a result only under a safe configuration, and only with M to N operator
+;   votes. The majority n/2 + 1 is not a rule here: it is safe only when F is 0.
+; - The set. The two lab keys are t27b-lab's a05db80f53c317f6 and t27b-lab-2's fed03daa6459a7fa.
+;   They belong to ONE operator, the owner, who also holds every other key under .trinity/keys. So
+;   today the network has one independent validator: the labs' 2-of-2 EQUIVALENT receipts (for
+;   example on a16231329) are one vote. The MVP's operators 2, 3 and 4 are simulated. Their keys are
+;   test fixtures whose seeds are public (mvp_v3_ed25519.t27), so they stand for operators nobody
+;   runs yet and prove nothing outside the tests. With them the set has 5 keys, N 4, F 1 and M 3.
+; - Key ids are KEY_ID_HEX_LEN (16) hex digits of the SHA-256 of the public key
+;   (specs/verified/signed_receipt.t27). mvp_v3.t27 checks that for every row on the public key's
+;   bytes, and mvp_v3_ed25519.t27 derives each simulated public key from its seed.
+; --
+; Not decided here: whose receipts reach the verifier (the chain), what a vote earns
+; (specs/network/pool.t27), and whether a key is still bonded (specs/trinet/ledger.t27).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkQuorum;
+
+use trinet::tri-bridge;
+
+/// The fixed size of a validator set. Rows at and past `keys` are empty: key id 0, operator 0.
+pub const QUORUM_ROWS : u32 = 8;
+
+/// No key, and no operator. Neither is ever a vote.
+pub const NO_KEY : u64 = 0;
+pub const NO_OPERATOR : u32 = 0;
+
+/// The owner, who runs both labs and holds every registered key today.
+pub const OPERATOR_OWNER : u32 = 1;
+
+/// The two lab keys (.trinity/keys/a05db80f53c317f6.pub and fed03daa6459a7fa.pub), as numbers.
+pub const LAB1_KEY_ID : u64 = 11555594594871875574;
+pub const LAB2_KEY_ID : u64 = 18361243482826844154;
+
+/// The trusted set: rows 0 and 1 are the labs (operator 1); rows 2, 3 and 4 are the MVP's simulated
+/// operators 2, 3 and 4. The public keys are lowercase hex, 32 bytes each.
+pub const TRUSTED_KEYS : u32 = 5;
+pub const TRUSTED_KEY_ID : [8]u64 = [11555594594871875574, 18361243482826844154, 15776013309385153006, 13358137152186148066, 4983814946434347896, 0, 0, 0];
+pub const TRUSTED_OPERATOR : [8]u32 = [1, 1, 2, 3, 4, 0, 0, 0];
+pub const TRUSTED_PUBKEY : [8]str = [
+    "f711a6833cf81d4e860c43202bfdf21ea4528a81482cce8d25750d9014ec3760",
+    "aae82ba50a1bbeafb7f11742ca638595af9b5bec5df526fdf1aa53edc0e449e5",
+    "3a54a58768ee3f50e85b94fb02636ad775b88d657208ad2afa8d01320bf1ba16",
+    "77f28aa803635192009113ab32ac55574bc86768e689c2f9ad2f01179717ccd7",
+    "c63d43ade7217f77624c55191f0f19b70b5c1227ff90ab312cca720db8b1a1d8",
+    "", "", ""
+];
+pub const TRUSTED_N : u32 = 4;
+pub const TRUSTED_F : u32 = 1;
+pub const TRUSTED_M : u32 = 3;
+
+/// A validator set and its quorum. The trusted one is trusted_config(); the others are test cases.
+pub struct QuorumConfig {
+    keys: u32,
+    key_id: [8]u64,
+    operator: [8]u32,
+    n: u32,
+    f: u32,
+    m: u32,
+}
+
+pub fn trusted_config() -> QuorumConfig {
+    return QuorumConfig { keys: TRUSTED_KEYS, key_id: TRUSTED_KEY_ID, operator: TRUSTED_OPERATOR, n: TRUSTED_N, f: TRUSTED_F, m: TRUSTED_M };
+}
+
+/// The live network today: the two lab keys and nobody else. One operator, so N 1, F 0, M 1.
+pub fn labs_only_config() -> QuorumConfig {
+    return QuorumConfig { keys: 2, key_id: [11555594594871875574, 18361243482826844154, 0, 0, 0, 0, 0, 0], operator: [1, 1, 0, 0, 0, 0, 0, 0], n: 1, f: 0, m: 1 };
+}
+
+/// A set of `ops` operators with one key each (key id 1000 + row), and the given F and M.
+pub fn one_key_each(ops: u32, f: u32, m: u32) -> QuorumConfig {
+    var c : QuorumConfig = QuorumConfig { keys: ops, key_id: [0; 8], operator: [0; 8], n: ops, f: f, m: m };
+    var i : u32 = 0;
+    while (i < ops and i < QUORUM_ROWS) {
+        c.key_id[i as usize] = 1000 + (i as u64);
+        c.operator[i as usize] = i + 1;
+        i = i + 1;
+    }
+    return c;
+}
+
+/// The smallest safe M for N and F: floor((N + F) / 2) + 1.
+pub fn safe_m(n: u32, f: u32) -> u32 {
+    return ((n + f) / 2) + 1;
+}
+
+/// The row of `key_id` in the set, or QUORUM_ROWS when no row holds it.
+pub fn key_row(c: QuorumConfig, key_id: u64) -> u32 {
+    if (key_id == NO_KEY) { return QUORUM_ROWS; }
+    var i : u32 = 0;
+    while (i < c.keys and i < QUORUM_ROWS) {
+        if (c.key_id[i as usize] == key_id) { return i; }
+        i = i + 1;
+    }
+    return QUORUM_ROWS;
+}
+
+/// The operator a key belongs to, or NO_OPERATOR for a key outside the set.
+pub fn operator_of_key(c: QuorumConfig, key_id: u64) -> u32 {
+    let r : u32 = key_row(c, key_id);
+    if (r >= QUORUM_ROWS) { return NO_OPERATOR; }
+    return c.operator[r as usize];
+}
+
+/// The number of distinct operators the set names.
+pub fn operators_in(c: QuorumConfig) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < c.keys and i < QUORUM_ROWS) {
+        let op : u32 = c.operator[i as usize];
+        var first : bool = op != NO_OPERATOR;
+        var j : u32 = 0;
+        while (j < i) {
+            if (c.operator[j as usize] == op) { first = false; }
+            j = j + 1;
+        }
+        if (first) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// The keys a set's operator holds.
+pub fn keys_of_operator(c: QuorumConfig, op: u32) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < c.keys and i < QUORUM_ROWS) {
+        if (op != NO_OPERATOR and c.operator[i as usize] == op) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// The set itself is well formed: 1 to QUORUM_ROWS keys, each with a nonzero id named once and a
+/// nonzero operator, empty rows after them, and N the number of distinct operators.
+pub fn config_well_formed(c: QuorumConfig) -> bool {
+    if (c.keys == 0 or c.keys > QUORUM_ROWS) { return false; }
+    var i : u32 = 0;
+    while (i < QUORUM_ROWS) {
+        let k : usize = i as usize;
+        if (i < c.keys) {
+            if (c.key_id[k] == NO_KEY or c.operator[k] == NO_OPERATOR) { return false; }
+            var j : u32 = 0;
+            while (j < i) {
+                if (c.key_id[j as usize] == c.key_id[k]) { return false; }
+                j = j + 1;
+            }
+        } else {
+            if (c.key_id[k] != NO_KEY or c.operator[k] != NO_OPERATOR) { return false; }
+        }
+        i = i + 1;
+    }
+    return c.n == operators_in(c);
+}
+
+/// A configuration the chain may admit under: well formed and safe (2M > N + F).
+pub fn config_safe(c: QuorumConfig) -> bool {
+    return config_well_formed(c) and quorum_safe(c.m, c.n, c.f);
+}
+
+/// A configuration the network may be trusted to run: safe and live (M <= N - F).
+pub fn config_trusted(c: QuorumConfig) -> bool {
+    return config_well_formed(c) and quorum_valid(c.m, c.n, c.f);
+}
+
+/// Of the first `count` key ids in `voters`, the distinct keys of the set: one vote per key.
+pub fn key_votes(c: QuorumConfig, voters: [8]u64, count: u32) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < count and i < QUORUM_ROWS) {
+        var first : bool = key_row(c, voters[i as usize]) < QUORUM_ROWS;
+        var j : u32 = 0;
+        while (j < i) {
+            if (voters[j as usize] == voters[i as usize]) { first = false; }
+            j = j + 1;
+        }
+        if (first) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Of the same keys, the distinct operators: one vote per operator. This is the count the quorum reads.
+pub fn operator_votes(c: QuorumConfig, voters: [8]u64, count: u32) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    while (i < count and i < QUORUM_ROWS) {
+        let op : u32 = operator_of_key(c, voters[i as usize]);
+        var first : bool = op != NO_OPERATOR;
+        var j : u32 = 0;
+        while (j < i) {
+            if (operator_of_key(c, voters[j as usize]) == op) { first = false; }
+            j = j + 1;
+        }
+        if (first) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Whether `votes` operator votes admit a result: only under a safe configuration, with M to N votes.
+pub fn quorum_admits(c: QuorumConfig, votes: u32) -> bool {
+    if (config_safe(c) == false) { return false; }
+    return votes >= c.m and votes <= c.n;
+}
+
+; --- Fixtures ----------------------------------------------------------------------------------
+; The vote lists below name key ids; 77 is a key outside every set.
+
+/// The labs alone, the labs and operator 2, and every trusted key.
+pub const V_LABS : [8]u64 = [11555594594871875574, 18361243482826844154, 0, 0, 0, 0, 0, 0];
+pub const V_LABS_K3 : [8]u64 = [11555594594871875574, 18361243482826844154, 15776013309385153006, 0, 0, 0, 0, 0];
+pub const V_LABS_K3_K4 : [8]u64 = [11555594594871875574, 18361243482826844154, 15776013309385153006, 13358137152186148066, 0, 0, 0, 0];
+pub const V_ALL : [8]u64 = [11555594594871875574, 18361243482826844154, 15776013309385153006, 13358137152186148066, 4983814946434347896, 0, 0, 0];
+/// The same key three times, and an outsider beside two of the set's keys.
+pub const V_TRIPLE : [8]u64 = [15776013309385153006, 15776013309385153006, 15776013309385153006, 0, 0, 0, 0, 0];
+pub const V_OUTSIDER : [8]u64 = [77, 15776013309385153006, 77, 13358137152186148066, 0, 0, 0, 0];
+/// All five trusted keys in reverse order, with lab 2 named again.
+pub const V_ALL_REVERSED : [8]u64 = [4983814946434347896, 13358137152186148066, 15776013309385153006, 18361243482826844154, 11555594594871875574, 18361243482826844154, 0, 0];
+
+/// The N 5, F 2 fork: honest operators 1 and 2 see one view, honest operator 3 a stale one, and the
+/// faulty 4 and 5 sign both. Key ids 1000 + row (one_key_each).
+pub const V_VIEW_FRESH : [8]u64 = [1000, 1001, 1003, 1004, 0, 0, 0, 0];
+pub const V_VIEW_STALE : [8]u64 = [1002, 1003, 1004, 0, 0, 0, 0, 0];
+
+test the_trusted_set_is_sound_and_n_counts_operators_not_keys {
+    let c : QuorumConfig = trusted_config();
+    assert config_well_formed(c);
+    assert config_trusted(c);
+    assert c.keys == 5;
+    assert operators_in(c) == 4;
+    assert c.n == operators_in(c);
+    assert c.m == safe_m(c.n, c.f);
+    assert faults_tolerated(c.m, c.n) == c.f;
+    assert keys_of_operator(c, OPERATOR_OWNER) == 2;
+    assert key_row(c, LAB1_KEY_ID) == 0 and key_row(c, LAB2_KEY_ID) == 1;
+    assert operator_of_key(c, LAB1_KEY_ID) == OPERATOR_OWNER and operator_of_key(c, LAB2_KEY_ID) == OPERATOR_OWNER;
+    var r : u32 = 0;
+    while (r < QUORUM_ROWS) {
+        if (r < c.keys) {
+            assert TRUSTED_PUBKEY[r as usize].len == 64;
+            assert operator_of_key(c, c.key_id[r as usize]) == c.operator[r as usize];
+        } else {
+            assert TRUSTED_PUBKEY[r as usize].len == 0;
+        }
+        r = r + 1;
+    }
+    // a set that counts keys as operators is not well formed
+    var bad : QuorumConfig = c;
+    bad.n = c.keys;
+    assert config_well_formed(bad) == false;
+    // a key named twice, a zero key, an operator 0 or a row past `keys` are refused
+    bad = c;
+    bad.key_id[4] = LAB1_KEY_ID;
+    assert config_well_formed(bad) == false;
+    bad = c;
+    bad.operator[2] = NO_OPERATOR;
+    assert config_well_formed(bad) == false;
+    bad = c;
+    bad.key_id[6] = 9;
+    assert config_well_formed(bad) == false;
+    assert key_row(c, NO_KEY) == QUORUM_ROWS;
+    assert operator_of_key(c, 77) == NO_OPERATOR;
+}
+
+test a_vote_counts_once_per_key_and_once_per_operator {
+    let c : QuorumConfig = trusted_config();
+    assert key_votes(c, V_LABS, 2) == 2;
+    assert operator_votes(c, V_LABS, 2) == 1;
+    assert key_votes(c, V_LABS_K3, 3) == 3;
+    assert operator_votes(c, V_LABS_K3, 3) == 2;
+    assert key_votes(c, V_LABS_K3_K4, 4) == 4;
+    assert operator_votes(c, V_LABS_K3_K4, 4) == 3;
+    assert key_votes(c, V_ALL, 5) == 5;
+    assert operator_votes(c, V_ALL, 5) == 4;
+    assert key_votes(c, V_TRIPLE, 3) == 1 and operator_votes(c, V_TRIPLE, 3) == 1;
+    assert key_votes(c, V_OUTSIDER, 4) == 2 and operator_votes(c, V_OUTSIDER, 4) == 2;
+    // the order of the votes and a key named again change nothing
+    assert key_votes(c, V_ALL_REVERSED, 6) == 5 and operator_votes(c, V_ALL_REVERSED, 6) == 4;
+    // three keys agree, but they are two operators: under M 3 that is no quorum
+    assert quorum_admits(c, operator_votes(c, V_LABS_K3, 3)) == false;
+    assert quorum_admits(c, operator_votes(c, V_LABS_K3_K4, 4));
+    var k : u32 = 0;
+    while (k <= 5) {
+        assert operator_votes(c, V_ALL, k) <= key_votes(c, V_ALL, k);
+        assert key_votes(c, V_ALL, k) == k;
+        k = k + 1;
+    }
+    // only the count given is read
+    assert operator_votes(c, V_ALL, 0) == 0;
+    assert operator_votes(c, V_ALL, 1) == 1 and operator_votes(c, V_ALL, 2) == 1;
+}
+
+// The two real labs, one operator: their 2-of-2 EQUIVALENT receipts are one independent vote.
+test the_two_lab_keys_are_one_independent_vote {
+    let live : QuorumConfig = labs_only_config();
+    assert config_trusted(live);
+    assert live.n == 1 and live.f == 0;
+    assert key_votes(live, V_LABS, 2) == 2;
+    assert operator_votes(live, V_LABS, 2) == 1;
+    // counted per key they would pose as a 2-of-2 that stands one fault; they are one operator, so
+    // the set is N 1, and no F above 0 is safe
+    assert faults_tolerated(2, 2) == 1;
+    assert quorum_safe(1, 1, 1) == false;
+    var f : u32 = 1;
+    while (f < 3) {
+        var bad : QuorumConfig = live;
+        bad.f = f;
+        assert config_safe(bad) == false;
+        f = f + 1;
+    }
+    // in the trusted set the labs alone are one vote of the three a result needs
+    let c : QuorumConfig = trusted_config();
+    assert operator_votes(c, V_LABS, 2) == 1;
+    assert quorum_admits(c, operator_votes(c, V_LABS, 2)) == false;
+}
+
+// N 5, F 2: n/2 + 1 is 3, but 2M > N + F needs M 4. Two quorums of 3 among 5 can meet in one faulty
+// operator, so two views can both be admitted; two quorums of 4 meet in 3 > F. M 4 is safe and not
+// live against two silent faults (4 > N - F = 3): the chain stalls rather than forks.
+test at_n5_f2_the_majority_is_unsafe_and_m_must_be_4 {
+    assert majority_threshold_of(5) == 3;
+    assert safe_m(5, 2) == 4;
+    assert quorum_safe(3, 5, 2) == false;
+    assert quorum_safe(4, 5, 2);
+    assert quorum_live(4, 5, 2) == false;
+    let fork : QuorumConfig = one_key_each(5, 2, 4);
+    assert config_safe(fork);
+    assert config_trusted(fork) == false;
+    let fresh : u32 = operator_votes(fork, V_VIEW_FRESH, 4);
+    let stale : u32 = operator_votes(fork, V_VIEW_STALE, 3);
+    assert fresh == 4 and stale == 3;
+    // the faulty 4 and 5 are in both groups: the groups overlap in 2 = F operators
+    assert fresh + stale - fork.n == fork.f;
+    assert quorum_admits(fork, fresh);
+    assert quorum_admits(fork, stale) == false;
+    // the majority as M: an unsafe configuration admits nothing at all, not both views
+    let majority : QuorumConfig = one_key_each(5, 2, majority_threshold_of(5));
+    assert config_safe(majority) == false;
+    assert quorum_admits(majority, fresh) == false;
+    assert quorum_admits(majority, stale) == false;
+    // at N 4, F 1 the two rules agree, which is why the network v2 could not tell them apart
+    assert majority_threshold_of(4) == safe_m(4, 1);
+}
+
+test the_admission_rule_over_every_small_configuration {
+    var unsafe_majorities : u32 = 0;
+    var n : u32 = 1;
+    while (n <= QUORUM_ROWS) {
+        var f : u32 = 0;
+        while (f < n) {
+            var m : u32 = 1;
+            while (m <= n) {
+                let c : QuorumConfig = one_key_each(n, f, m);
+                assert config_well_formed(c);
+                assert config_safe(c) == ((m * 2) > (n + f));
+                var v : u32 = 0;
+                while (v <= n) {
+                    assert quorum_admits(c, v) == (((m * 2) > (n + f)) and v >= m);
+                    // two admitted groups of one job always share more than F operators
+                    var w : u32 = 0;
+                    while (w <= n) {
+                        if (quorum_admits(c, v) and quorum_admits(c, w)) { assert v + w > n + f; }
+                        w = w + 1;
+                    }
+                    v = v + 1;
+                }
+                m = m + 1;
+            }
+            if (quorum_safe(majority_threshold_of(n), n, f) == false) { unsafe_majorities = unsafe_majorities + 1; }
+            f = f + 1;
+        }
+        n = n + 1;
+    }
+    assert unsafe_majorities > 0;
+}
+
+/// tri_compute_challenge.t27's floor(n/2) + 1, kept only to be refuted.
+pub fn majority_threshold_of(n: u32) -> u32 {
+    return (n >> 1) + 1;
+}
+
+invariant the_trusted_quorum_is_valid {
+    assert config_trusted(trusted_config());
+    assert TRUSTED_KEYS <= QUORUM_ROWS;
+    assert TRUSTED_M == safe_m(TRUSTED_N, TRUSTED_F);
+    assert TRUSTED_M <= TRUSTED_N - TRUSTED_F;
+}
