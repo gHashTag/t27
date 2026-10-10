@@ -1,0 +1,354 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/src/phi-engine/vibeec_original/bbv_optimizer.t27
+//
+// Port of gHashTag/trinity src/phi-engine/vibeec_original/bbv_optimizer.zig
+// (source-of-record: gHashTag/trinity@aa30f374eee0).
+//
+// PAS DAEMON V41 - VIBEEC, based on POPL 2021 basic block versioning.
+// Patterns involved: HSH - type context hashing - and D&C - block splitting.
+// Roadmap stage 5 of 9 (goal #4547), issue #8803.
+//
+// The eight functions keep their names and their decisions:
+//   BBVContext_push, BBVContext_pop, BBVContext_hash,
+//   BBVersion_init, BBVersion_deinit,
+//   BBVOptimizer_init, BBVOptimizer_deinit, BBVOptimizer_getOrCreate.
+//
+// Port notes:
+// - The decisions are pure functions on values. Allocators, the ArrayList(u8)
+//   code buffer and the AutoHashMap(u64, BBVersion) are memory plumbing: the
+//   buffer becomes a fixed-capacity array, the map a fixed-capacity slot array
+//   scanned by context hash.
+// - The original methods take their receiver by pointer and mutate it; .t27
+//   passes structs by value, so push/pop/getOrCreate take the receiver by
+//   value and return the updated state.
+// - The original hash wraps every step (*%, +%). With depth <= 8 and tag
+//   values <= 8 the largest reachable hash is far below 2^64, so plain
+//   arithmetic agrees with the original on every state a context can reach.
+// - BBVersion_deinit and BBVOptimizer_deinit only release memory. There is no
+//   allocator in this port, so their bodies are `undefined;` and no test
+//   calls them.
+//
+// phi^2 + 1/phi^2 = 3
+
+module port::bbv_optimizer;
+
+// From the original file: the golden-ratio constants its own test checks.
+pub const PHI: f64 = 1.618033988749895;
+pub const GOLDEN_IDENTITY: f64 = 3.0;
+
+// ---------------------------------------------------------------------------
+// TypeTag - the type tags recorded in a type context. The original declares
+// `enum(u8)`, so discriminants are declaration order, 0..8.
+// ---------------------------------------------------------------------------
+
+pub enum TypeTag { unknown, int64, float64, bool_t, string, object, phi_t, pi_t, e_t, }
+
+// @intFromEnum of the original enum(u8).
+pub fn type_tag_value(t: TypeTag) -> u64 {
+    return switch (t) {
+        .unknown => 0,
+        .int64 => 1,
+        .float64 => 2,
+        .bool_t => 3,
+        .string => 4,
+        .object => 5,
+        .phi_t => 6,
+        .pi_t => 7,
+        .e_t => 8,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// BBVContext - a fixed window of 8 recorded type tags: the type context whose
+// hash keys versions. The original holds `[8]TypeTag` plus `depth: u8`.
+// ---------------------------------------------------------------------------
+
+pub struct BBVContext {
+    types: [8]TypeTag,
+    depth: usize,
+}
+
+// A context with nothing recorded. (The original zero-initialises the array
+// through struct defaults; .t27 builds it explicitly.)
+pub fn BBVContext_make() -> BBVContext {
+    var types: [8]TypeTag = [_]TypeTag{.unknown} ** 8;
+    return BBVContext { types: types, depth: 0, };
+}
+
+// push: record t on top of the window. Past 8 entries the tag is dropped
+// (original: `if (self.depth < self.types.len) { ... }`).
+pub fn BBVContext_push(self: BBVContext, t: TypeTag) -> BBVContext {
+    var out = self;
+    if (out.depth < 8) {
+        out.types[out.depth] = t;
+        out.depth += 1;
+    }
+    return out;
+}
+
+// pop: remove the top tag and return it together with the updated context.
+// Popping an empty context yields .unknown and leaves the context unchanged
+// (original: `if (self.depth == 0) return .unknown;`).
+pub fn BBVContext_pop(self: BBVContext) -> (BBVContext, TypeTag) {
+    if (self.depth > 0) {
+        var out = self;
+        out.depth -= 1;
+        const top = self.types[out.depth];
+        return (out, top);
+    }
+    return (self, TypeTag.unknown);
+}
+
+// hash: the type-context hash - h = h*31 + tag over the recorded window.
+// An empty context hashes to 0; the order of the tags changes the hash.
+pub fn BBVContext_hash(self: BBVContext) -> u64 {
+    var h: u64 = 0;
+    var i: usize = 0;
+    while (i < self.depth) {
+        h = h * 31 + type_tag_value(self.types[i]);
+        i += 1;
+    }
+    return h;
+}
+
+// ---------------------------------------------------------------------------
+// BBVersion - a specialized version of a block: its type context, the code
+// generated for it, and how often it ran. The original's code is a growable
+// ArrayList(u8); here it is a fixed-capacity buffer with a length.
+// ---------------------------------------------------------------------------
+
+pub struct BBVersion {
+    ctx: BBVContext,
+    code: [64]u8,
+    code_len: usize,
+    exec_count: u64,
+}
+
+// init: a fresh version for ctx starts with an empty code buffer and a zero
+// execution count. The original takes an allocator; nothing is allocated here.
+pub fn BBVersion_init(ctx: BBVContext) -> BBVersion {
+    var code: [64]u8 = [_]u8{0} ** 64;
+    return BBVersion { ctx: ctx, code: code, code_len: 0, exec_count: 0, };
+}
+
+// deinit: releases the version's code buffer. With no allocator in the port
+// there is nothing to free: plumbing only, so no test calls this.
+pub fn BBVersion_deinit(_self: BBVersion) { undefined; }
+
+// ---------------------------------------------------------------------------
+// BBVOptimizer - stores one version per type-context hash and counts hits and
+// misses. The original's map is a growable AutoHashMap(u64, BBVersion) keyed
+// by the context hash; here it is a fixed-capacity slot array scanned by hash.
+// ---------------------------------------------------------------------------
+
+pub struct BBVOptimizer {
+    slots: [16]BBVersion,
+    slot_count: usize,
+    hits: u64,
+    misses: u64,
+    versions: u64,
+}
+
+// init: an optimizer with no stored versions and zeroed stats. The original
+// takes an allocator; nothing is allocated here.
+pub fn BBVOptimizer_init() -> BBVOptimizer {
+    const empty = BBVersion_init(BBVContext_make());
+    var slots: [16]BBVersion = [_]BBVersion{empty} ** 16;
+    return BBVOptimizer { slots: slots, slot_count: 0, hits: 0, misses: 0, versions: 0, };
+}
+
+// deinit: frees every version and the map. With no allocator in the port
+// there is nothing to free: plumbing only, so no test calls this.
+pub fn BBVOptimizer_deinit(_self: BBVOptimizer) { undefined; }
+
+pub struct BBVGetOrCreateResult {
+    optimizer: BBVOptimizer,
+    version: BBVersion,
+    created: bool,
+}
+
+// getOrCreate: hash the context; on a hit bump `hits` and the stored version's
+// exec_count and return that version; on a miss bump `misses` and `versions`
+// and store a fresh version keyed by the same hash. The original returns a
+// pointer into the map and can fail on allocation; the port returns the
+// updated map and the version by value and cannot fail. If all 16 slots are
+// taken the miss is still counted and the fresh version is returned unstored
+// (the original would have grown the map).
+pub fn BBVOptimizer_getOrCreate(self: BBVOptimizer, ctx: BBVContext) -> BBVGetOrCreateResult {
+    const h = BBVContext_hash(ctx);
+    var i: usize = 0;
+    while (i < self.slot_count) {
+        const slot = self.slots[i];
+        if (BBVContext_hash(slot.ctx) == h) {
+            var opt = self;
+            var found = slot;
+            found.exec_count += 1;
+            opt.slots[i] = found;
+            opt.hits += 1;
+            return BBVGetOrCreateResult { optimizer: opt, version: found, created: false, };
+        }
+        i += 1;
+    }
+    var opt2 = self;
+    const fresh = BBVersion_init(ctx);
+    opt2.misses += 1;
+    opt2.versions += 1;
+    if (opt2.slot_count < 16) {
+        opt2.slots[opt2.slot_count] = fresh;
+        opt2.slot_count += 1;
+    }
+    return BBVGetOrCreateResult { optimizer: opt2, version: fresh, created: true, };
+}
+
+// phi^2 + 1/phi^2 - the identity the original file's test checks.
+pub fn golden_identity_sum() -> f64 {
+    const phi_sq = PHI * PHI;
+    return phi_sq + 1.0 / phi_sq;
+}
+
+// ---------------------------------------------------------------------------
+// tests
+// ---------------------------------------------------------------------------
+
+test type_tag_discriminants {
+    assert(type_tag_value(.unknown) == 0);
+    assert(type_tag_value(.int64) == 1);
+    assert(type_tag_value(.float64) == 2);
+    assert(type_tag_value(.bool_t) == 3);
+    assert(type_tag_value(.string) == 4);
+    assert(type_tag_value(.object) == 5);
+    assert(type_tag_value(.phi_t) == 6);
+    assert(type_tag_value(.pi_t) == 7);
+    assert(type_tag_value(.e_t) == 8);
+    assert(type_tag_value(TypeTag.int64) == 1);
+}
+
+test bbv_push_increments_depth {
+    var ctx = BBVContext_make();
+    assert(ctx.depth == 0);
+    ctx = BBVContext_push(ctx, .int64);
+    assert(ctx.depth == 1);
+    ctx = BBVContext_push(ctx, .float64);
+    assert(ctx.depth == 2);
+    assert(BBVContext_hash(ctx) == 33);
+}
+
+test bbv_pop_returns_last_pushed {
+    var ctx = BBVContext_make();
+    ctx = BBVContext_push(ctx, .int64);
+    ctx = BBVContext_push(ctx, .float64);
+    const (ctx2, top) = BBVContext_pop(ctx);
+    assert(type_tag_value(top) == 2 and ctx2.depth == 1);
+    const (ctx3, next) = BBVContext_pop(ctx2);
+    assert(type_tag_value(next) == 1 and ctx3.depth == 0);
+}
+
+test bbv_pop_empty_yields_unknown {
+    const ctx = BBVContext_make();
+    const (ctx2, top) = BBVContext_pop(ctx);
+    assert(type_tag_value(top) == 0 and ctx2.depth == 0);
+    assert(BBVContext_hash(ctx2) == 0);
+}
+
+test bbv_push_drops_past_capacity {
+    var ctx = BBVContext_make();
+    ctx = BBVContext_push(ctx, .int64);
+    ctx = BBVContext_push(ctx, .float64);
+    ctx = BBVContext_push(ctx, .bool_t);
+    ctx = BBVContext_push(ctx, .string);
+    ctx = BBVContext_push(ctx, .object);
+    ctx = BBVContext_push(ctx, .phi_t);
+    ctx = BBVContext_push(ctx, .pi_t);
+    ctx = BBVContext_push(ctx, .e_t);
+    assert(ctx.depth == 8);
+    ctx = BBVContext_push(ctx, .int64);
+    assert(ctx.depth == 8);
+    const (ctx2, top) = BBVContext_pop(ctx);
+    assert(type_tag_value(top) == 8 and ctx2.depth == 7);
+}
+
+test bbv_hash_empty_is_zero {
+    const ctx = BBVContext_make();
+    assert(BBVContext_hash(ctx) == 0);
+}
+
+test bbv_hash_is_order_sensitive_polynomial {
+    const a = BBVContext_push(BBVContext_push(BBVContext_make(), .int64), .float64);
+    const b = BBVContext_push(BBVContext_push(BBVContext_make(), .float64), .int64);
+    assert(BBVContext_hash(a) == 33);
+    assert(BBVContext_hash(b) == 63);
+    assert(BBVContext_hash(a) != BBVContext_hash(b));
+    const c = BBVContext_push(BBVContext_make(), .string);
+    assert(BBVContext_hash(c) == 4);
+}
+
+test bbv_hash_equal_contexts_hash_equal {
+    const a = BBVContext_push(BBVContext_push(BBVContext_make(), .int64), .float64);
+    const b = BBVContext_push(BBVContext_push(BBVContext_make(), .int64), .float64);
+    assert(BBVContext_hash(a) == BBVContext_hash(b));
+    assert(a.depth == b.depth);
+}
+
+test golden_identity {
+    const s = golden_identity_sum();
+    assert(s > GOLDEN_IDENTITY - 0.0001 and s < GOLDEN_IDENTITY + 0.0001);
+}
+
+test bbversion_init_starts_empty {
+    const ctx = BBVContext_push(BBVContext_make(), .int64);
+    const v = BBVersion_init(ctx);
+    assert(v.ctx.depth == 1);
+    assert(BBVContext_hash(v.ctx) == 1);
+    assert(v.exec_count == 0);
+    assert(v.code_len == 0);
+}
+
+test bbv_optimizer_init_zeroed {
+    const opt = BBVOptimizer_init();
+    assert(opt.slot_count == 0 and opt.hits == 0);
+    assert(opt.misses == 0 and opt.versions == 0);
+}
+
+test getOrCreate_first_call_creates {
+    const opt = BBVOptimizer_init();
+    const ctx = BBVContext_push(BBVContext_make(), .int64);
+    const r = BBVOptimizer_getOrCreate(opt, ctx);
+    assert(r.created == true);
+    assert(r.version.exec_count == 0);
+    assert(BBVContext_hash(r.version.ctx) == 1);
+    assert(r.optimizer.versions == 1 and r.optimizer.misses == 1);
+    assert(r.optimizer.hits == 0 and r.optimizer.slot_count == 1);
+}
+
+test getOrCreate_same_context_hits {
+    const opt = BBVOptimizer_init();
+    const ctx = BBVContext_push(BBVContext_make(), .int64);
+    const r1 = BBVOptimizer_getOrCreate(opt, ctx);
+    const r2 = BBVOptimizer_getOrCreate(r1.optimizer, ctx);
+    assert(r1.created == true and r2.created == false);
+    assert(r2.optimizer.hits == 1 and r2.optimizer.misses == 1);
+    assert(r2.version.exec_count == 1 and r2.optimizer.versions == 1);
+}
+
+test getOrCreate_different_context_misses {
+    const opt = BBVOptimizer_init();
+    const a = BBVContext_push(BBVContext_make(), .int64);
+    const b = BBVContext_push(BBVContext_make(), .string);
+    const r1 = BBVOptimizer_getOrCreate(opt, a);
+    const r2 = BBVOptimizer_getOrCreate(r1.optimizer, b);
+    assert(r2.created == true);
+    assert(r2.optimizer.versions == 2 and r2.optimizer.misses == 2);
+    assert(r2.optimizer.hits == 0 and r2.optimizer.slot_count == 2);
+    assert(BBVContext_hash(r2.version.ctx) == 4);
+}
+
+test getOrCreate_tag_order_splits_versions {
+    const opt = BBVOptimizer_init();
+    const a = BBVContext_push(BBVContext_push(BBVContext_make(), .int64), .float64);
+    const b = BBVContext_push(BBVContext_push(BBVContext_make(), .float64), .int64);
+    const r1 = BBVOptimizer_getOrCreate(opt, a);
+    const r2 = BBVOptimizer_getOrCreate(r1.optimizer, b);
+    assert(r2.created == true);
+    assert(r2.optimizer.versions == 2);
+    assert(BBVContext_hash(r2.version.ctx) == 63);
+}
