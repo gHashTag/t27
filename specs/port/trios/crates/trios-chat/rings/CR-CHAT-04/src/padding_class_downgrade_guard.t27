@@ -1,0 +1,177 @@
+module padding_class_downgrade_guard;
+
+//! # CR-CHAT-04 — Padding class downgrade guard (Wave-53 Lane B)
+//!
+//! ПАДДИНГ — запрет downgrade класса, R-CHAT-9.
+//!
+//! Если в рамках сессии pad class переходит с большим на меньший
+//! (например, 4096 → 256), атакующий по размеру пакета определяет,
+//! что plaintext стал короче. Это泄露ает информацию о содержании.
+//!
+//! trios-chat enforces **6 rules**:
+//!
+//! 1. Class index is non-decreasing.
+//! 2. Class is a member of the canonical set.
+//! 3. No duplicate class entries in a transition log.
+//! 4. Maximum transitions ≤ `PCDG_MAX_TRANSITIONS`.
+//! 5. First class must be the smallest.
+//! 6. Final class must be the largest.
+//!
+//! Tests **PCDG-01..10**. Error enum [`PadDowngradeError`].
+//!
+//! Anchor: `φ² + φ⁻² = 3 · TRINITY · CHAT · PAD-DOWNGRADE`
+
+/// Canonical padding classes.
+pub const PCDG_CLASSES: [usize; 4] = [256, 1024, 4096, 16384];
+
+/// Maximum transitions in a log.
+pub const PCDG_MAX_TRANSITIONS: usize = 1024;
+
+/// All ways padding downgrade detection can fail.
+pub enum PadDowngradeError {
+    /// Class decreased (downgrade).
+    ClassDowngraded,
+    /// Non-canonical class.
+    NonCanonicalClass,
+    /// Duplicate entry in log.
+    DuplicateEntry,
+    /// Too many transitions.
+    TooManyTransitions,
+    /// First class is not smallest.
+    FirstNotSmallest,
+    /// Final class is not largest.
+    FinalNotLargest,
+}
+
+fn class_index(cls: usize) -> ?usize {
+    var i: usize = 0;
+    for c in PCDG_CLASSES {
+        if c == cls {
+            return i;
+        }
+        i += 1;
+    }
+    return null;
+}
+
+/// `[VERIFIED]` Validate a sequence of padding class transitions.
+pub fn validate_padding_downgrade(
+    transitions: []const usize,
+) -> struct { ok: bool, err: ?PadDowngradeError } {
+    if (transitions.len > PCDG_MAX_TRANSITIONS) {
+        return .{ .ok = false, .err = .TooManyTransitions };
+    }
+    if (transitions.len == 0) {
+        return .{ .ok = true, .err = null };
+    }
+    
+    var seen_indices: [PCDG_MAX_TRANSITIONS]usize = undefined;
+    var seen_classes: [PCDG_MAX_TRANSITIONS]usize = undefined;
+    var seen_count: usize = 0;
+    
+    var i: usize = 0;
+    while (i < transitions.len) {
+        const cls = transitions[i];
+        const idx = class_index(cls);
+        if (idx == null) {
+            return .{ .ok = false, .err = .NonCanonicalClass };
+        }
+        
+        // Check for duplicates
+        var j: usize = 0;
+        while (j < seen_count) {
+            if (seen_indices[j] == i and seen_classes[j] == cls) {
+                return .{ .ok = false, .err = .DuplicateEntry };
+            }
+            j += 1;
+        }
+        seen_indices[seen_count] = i;
+        seen_classes[seen_count] = cls;
+        seen_count += 1;
+        
+        if (i > 0) {
+            const prev_idx = class_index(transitions[i - 1]);
+            if (prev_idx == null) {
+                return .{ .ok = false, .err = .NonCanonicalClass };
+            }
+            if (idx.? < prev_idx.?) {
+                return .{ .ok = false, .err = .ClassDowngraded };
+            }
+        }
+        
+        i += 1;
+    }
+    
+    const first_idx = class_index(transitions[0]);
+    if (first_idx == null or first_idx.? != 0) {
+        return .{ .ok = false, .err = .FirstNotSmallest };
+    }
+    
+    const last_idx = class_index(transitions[transitions.len - 1]);
+    if (last_idx == null or last_idx.? != PCDG_CLASSES.len - 1) {
+        return .{ .ok = false, .err = .FinalNotLargest };
+    }
+    
+    return .{ .ok = true, .err = null };
+}
+
+test class_index_basic {
+    assert(class_index(256) == 0);
+    assert(class_index(1024) == 1);
+    assert(class_index(4096) == 2);
+    assert(class_index(16384) == 3);
+}
+
+test class_index_nonexistent {
+    assert(class_index(128) == null);
+    assert(class_index(512) == null);
+    assert(class_index(2048) == null);
+}
+
+test validate_padding_downgrade_basic {
+    // Full progression accepted
+    var full_progression: [4]usize = [256, 1024, 4096, 16384];
+    const result = validate_padding_downgrade(&full_progression);
+    assert(result.ok == true);
+    assert(result.err == null);
+}
+
+test validate_padding_downgrade_downgrade {
+    // Downgrade rejected
+    var downgrade: [3]usize = [256, 1024, 256];
+    const result = validate_padding_downgrade(&downgrade);
+    assert(result.ok == false);
+    assert(result.err == .ClassDowngraded);
+}
+
+test validate_padding_downgrade_non_canonical {
+    // Non-canonical rejected
+    var non_canonical: [1]usize = [512];
+    const result = validate_padding_downgrade(&non_canonical);
+    assert(result.ok == false);
+    assert(result.err == .NonCanonicalClass);
+}
+
+test validate_padding_downgrade_empty {
+    // Empty accepted
+    var empty: [0]usize = [_]usize{0} ** 0;
+    const result = validate_padding_downgrade(&empty);
+    assert(result.ok == true);
+    assert(result.err == null);
+}
+
+test validate_padding_downgrade_first_not_smallest {
+    // First not smallest rejected
+    var bad_first: [3]usize = [1024, 4096, 16384];
+    const result = validate_padding_downgrade(&bad_first);
+    assert(result.ok == false);
+    assert(result.err == .FirstNotSmallest);
+}
+
+test validate_padding_downgrade_final_not_largest {
+    // Final not largest rejected
+    var bad_final: [2]usize = [256, 1024];
+    const result = validate_padding_downgrade(&bad_final);
+    assert(result.ok == false);
+    assert(result.err == .FinalNotLargest);
+}
