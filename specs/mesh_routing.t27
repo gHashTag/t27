@@ -19,5 +19,5 @@ test mesh_routing_wrapping_arithmetic {
     
     const max_value = 4294967295;  // u32 max
     const wrapped_result = n1_finite(max_value);
-    assert wrapped_result == true;  // wrapping add should not overflow
+    assert wrapped_result == false;  // #8474 repair: wrapping +1 gives 0, and 0 > 0 is false
 }

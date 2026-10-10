@@ -13,3 +13,13 @@ test tri_test_runs_the_suite {
     assert OWN_COMMANDS[4] == "help";
     assert PASSED_TO_T27C[1] == "seal";
 }
+
+; #8474: both asserts above compare constants the compilers fold away, so the
+; test runs zero checks at run time. Reading the same tables through run-time
+; indices keeps the lookups real.
+test help_is_the_last_own_command {
+    var help_at : u8 = 4;
+    assert OWN_COMMANDS[help_at] == "help";
+    var sealed_to : u8 = 1;
+    assert PASSED_TO_T27C[sealed_to] == "seal";
+}
