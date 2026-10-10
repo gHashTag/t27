@@ -360,6 +360,30 @@ module FPGA_Bridge;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // Verdict Marking (mark_mode) -- host 999 bees app, t27#8328
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    // How the verdict of one run is written back to the host. A token with no permission map (a
+    // personal token) is taken to write statuses. The live app on 999 may write neither commit
+    // statuses nor check runs (issues and pull_requests: write), so the mark falls through to a
+    // PR comment: MARK_COMMENT is ordered after the status and check run modes, and the mark
+    // channel is the first one the app is actually allowed to write. Mirrors the mark_mode of
+    // specs/automation/ci-bridge.t27; the enum lives here too so the verdict-as-comment flow has
+    // a home in this bridge spec (t27#8328).
+    pub const MARK_NONE : u8 = 0;
+    pub const MARK_STATUS : u8 = 1;
+    pub const MARK_CHECK : u8 = 2;
+    pub const MARK_COMMENT : u8 = 3;
+
+    fn mark_mode(has_perm_map: bool, statuses_write: bool, checks_write: bool, comments_write: bool) -> u8 {
+        if !has_perm_map { return MARK_STATUS; }
+        if statuses_write { return MARK_STATUS; }
+        if checks_write { return MARK_CHECK; }
+        if comments_write { return MARK_COMMENT; }
+        return MARK_NONE;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
     // TDD-Inside-Spec: Tests and Invariants for FPGA_Bridge
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
@@ -460,6 +484,10 @@ module FPGA_Bridge;
         and   rx_buffer[bridge.rx_tail + 1] == 8
         and   bridge_handle_mac_op()
         then mac_get_accumulator(0) == 0
+
+    test bridge_mark_mode_comment_when_only_comments_allowed
+        given mode = mark_mode(true, false, false, true)
+        then mode == MARK_COMMENT
 
     invariant bridge_states_valid
         given state = bridge.state
