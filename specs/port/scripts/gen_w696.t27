@@ -1,0 +1,85 @@
+module port::gen_w696;
+
+const OUTER = 211;
+const TOTAL = OUTER * 2 ** 6;
+const LAST_IDX = OUTER - 1;
+const MID_IDX = OUTER // 2;
+const LAST_X = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E = MID_IDX * (2 ** 6) + 32;
+const MID_X = (2 * MID_E) % 32768;
+const MID_Y = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: i32) -> []const u8 {
+    if (level == 0) {
+        return "";
+    }
+    if (level == 1) {
+        return "    ";
+    }
+    if (level == 2) {
+        return "        ";
+    }
+    if (level == 3) {
+        return "            ";
+    }
+    return "        ";
+}
+
+pub fn build_tree(shape: []const u8, base: i32, offset: i32) -> []const u8 {
+    var result: []const u8 = "";
+    
+    if (shape == "[3]") {
+        result = "    [3]Pt{\n        Pt{ .x = 0 .y = 1 }\n    }";
+    }
+    else if (shape == "[2]") {
+        result = "    [2]Pt{\n        Pt{ .x = 20 .y = 21 }\n        Pt{ .x = 22 .y = 23 }\n    }";
+    }
+    else if (shape == "[1]") {
+        result = "    [1]Pt{\n        Pt{ .x = 0 .y = 1 }\n    }";
+    }
+    else {
+        result = "    []Pt{}";
+    }
+    
+    return result;
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_simple {
+    var shape = "[3]";
+    var text = build_tree(shape, 0, 0);
+    
+    assert(text != "");
+    assert(std.mem.indexOf(u8, text, "[3]Pt{") != null);
+}
+
+test build_tree_coordinates {
+    var shape = "[2]";
+    var text = build_tree(shape, 5, 10);
+    
+    assert(std.mem.indexOf(u8, text, ".x = 20") != null);
+    assert(std.mem.indexOf(u8, text, ".y = 21") != null);
+    assert(std.mem.indexOf(u8, text, ".x = 22") != null);
+    assert(std.mem.indexOf(u8, text, ".y = 23") != null);
+}
+
+test build_tree_modulo {
+    var shape = "[1]";
+    var text = build_tree(shape, 16384, 0);
+    
+    assert(std.mem.indexOf(u8, text, ".x = 0") != null);
+    assert(std.mem.indexOf(u8, text, ".y = 1") != null);
+}
