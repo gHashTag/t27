@@ -375,7 +375,7 @@
   {"path": "specs/isa/tri27_machine.t27", "t27b": "pass"},
   {"path": "specs/jobs/release_t27c.t27", "t27b": "pass"},
   {"path": "specs/jobs/t27b_ledger_steward.t27", "t27b": "pass"},
-  {"path": "specs/lsp/language.t27", "t27b": "pass_vacuous"},
+  
   {"path": "specs/math/constants.t27", "t27b": "blocked", "blocker": "ExprCall(@cos)", "reason": "unimplemented"},
   {"path": "specs/math/gf_competitive.t27", "t27b": "pass"},
   {"path": "specs/memory/graph/crypt.t27", "t27b": "pass"},
@@ -451,7 +451,7 @@
   {"path": "specs/physics/gamma-conflict.t27", "t27b": "pass"},
   {"path": "specs/physics/hslm_benchmark.t27", "t27b": "pass"},
   {"path": "specs/physics/lqg_cs_bridge.t27", "t27b": "pass"},
-  {"path": "specs/physics/lqg_entropy.t27", "t27b": "pass_vacuous"},
+  
   {"path": "specs/policy/issue_shape.t27", "t27b": "pass"},
   {"path": "specs/policy/l2_generation.t27", "t27b": "pass"},
   {"path": "specs/policy/lang_en.t27", "t27b": "pass"},
@@ -1249,9 +1249,9 @@
   {"path": "specs/tri/t27b/wide_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/test/report.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/args.t27", "t27b": "pass"},
-  {"path": "specs/tri/utils/error.t27", "t27b": "pass_vacuous"},
+  
   {"path": "specs/tri/utils/exit_codes.t27", "t27b": "pass"},
-  {"path": "specs/tri/utils/string.t27", "t27b": "pass_vacuous"},
+  {"path": "specs/tri/utils/string.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/template.t27", "t27b": "pass"},
   {"path": "specs/trinet/etx.t27", "t27b": "pass"},
   {"path": "specs/trinet/ledger.t27", "t27b": "pass"},

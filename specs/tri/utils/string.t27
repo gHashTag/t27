@@ -6,7 +6,66 @@ module TriString;
     use base::types;
     use math::constants;
 
+    // String length calculation
+    pub fn str_length(s: text) i32 {
+        var count = 0i32;
+        for c in s {
+            count = count + 1i32;
+        }
+        return count;
+    }
+
+    // Check if string is empty
+    pub fn is_empty(s: text) bool {
+        return str_length(s) == 0i32;
+    }
+
+    // Concatenate two strings
+    pub fn concat(s1: text, s2: text) text {
+        var result = "";
+        for c in s1 {
+            result = result + c;
+        }
+        for c in s2 {
+            result = result + c;
+        }
+        return result;
+    }
+
+    // Get first character of string (if not empty)
+    pub fn first_char(s: text) text {
+        if (is_empty(s)) {
+            return "";
+        }
+        return s[0:1];
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test string_length_empty
+        assert str_length("") == 0i32
+
+    test string_length_nonempty
+        assert str_length("hello") == 5i32
+        assert str_length("φ² + 1/φ² = 3") == 11i32
+
+    test is_empty_true
+        assert is_empty("") == true
+
+    test is_empty_false
+        assert is_empty("not empty") == false
+
+    test concat_basic
+        assert concat("hello", " world") == "hello world"
+        assert concat("a", "b") == "ab"
+        assert concat("", "test") == "test"
+        assert concat("test", "") == "test"
+
+    test first_char_normal
+        assert first_char("hello") == "h"
+        assert first_char("a") == "a"
+
+    test first_char_empty
+        assert first_char("") == ""
