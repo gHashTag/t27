@@ -5700,7 +5700,13 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>, watch: bool) -
     if poisoned > 0 { anyhow::bail!("{poisoned} reused verdict(s) disagree with their rerun (specs/verified/verdict_audit.t27)") }
     // --watch (#8737 H5): rerun every spec whose closure digest changed since the last look (watch.t27).
     let mut last: std::collections::HashMap<String, String> = Default::default();
+    // #8821: stat every file the last walk read, before walking, and walk only when one moved (watch_walk)
+    let stat = |p: &str| { use std::os::unix::fs::MetadataExt; std::fs::metadata(p).map(|m| (m.mtime(), m.mtime_nsec(), m.len(), m.ino())).unwrap_or_default() };
+    let mut seen: std::collections::HashMap<String, (i64, i64, u64, u64)> = Default::default();
     while watch {
+        let looked: std::collections::HashMap<String, (i64, i64, u64, u64)> = specs.iter().cloned().chain(DIG.with(|m| m.borrow().keys().cloned().collect::<Vec<_>>())).map(|p| { let s = stat(&p); (p, s) }).collect();
+        if !wt::watch_walk(last.is_empty(), looked != seen) { std::thread::sleep(std::time::Duration::from_millis(wt::WATCH_POLL_MS as u64)); continue; }
+        seen = looked;
         DIG.with(|m| m.borrow_mut().clear());
         let now: Vec<(String, String)> = specs.iter().map(|p| (p.clone(), digest(p, 0))).collect();
         let changed: Vec<&(String, String)> = now.iter().filter(|(p, d)| wt::watch_rerun(last.contains_key(p), last.get(p) != Some(d))).collect();

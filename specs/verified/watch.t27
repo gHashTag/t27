@@ -15,6 +15,12 @@
 ; test time (about an hour) before the first useful answer; the first pass records each digest, and a
 ; spec is rerun only when its digest differs from one already seen.
 ; --
+; The idle look (#8821). Recomputing every closure digest every WATCH_POLL_MS cost about a third of a core
+; while nothing was edited (6.66 s of CPU in 20 s, measured 2026-10-11). A look now stats every file the last
+; walk read -- each spec and each member of its closure -- and walks the digests only when one of those stats
+; (mtime to the nanosecond, size, inode) moved, or on the first look. The stats are taken BEFORE the walk, so
+; an edit that lands during a walk moves a stat the next look sees.
+; --
 ; The batch. A save to a hub (types.t27 is imported by hundreds of specs) changes many digests at once. At
 ; most WATCH_BATCH specs are rerun per look, in path order, and the rest are counted and stay changed, so
 ; the next look takes them; the loop never goes quiet on a change it has not rerun.
@@ -34,6 +40,12 @@ pub fn watch_rerun(seen_before: bool, digest_changed: bool) -> bool {
     return digest_changed;
 }
 
+/// Walk the closure digests on this look: the first look always, later only when a tracked file's stat moved.
+pub fn watch_walk(first_look: bool, a_stat_moved: bool) -> bool {
+    if (first_look) { return true; }
+    return a_stat_moved;
+}
+
 /// How many of `affected` specs this look reruns; the rest wait for the next look.
 pub fn watch_take(affected: u32) -> u32 {
     if (affected > WATCH_BATCH) { return WATCH_BATCH; }
@@ -46,6 +58,14 @@ test watch_rerun_only_a_changed_spec_seen_before {
     // the first look records, it never reruns the corpus
     assert watch_rerun(false, true) == false;
     assert watch_rerun(false, false) == false;
+}
+
+test watch_walk_only_when_a_file_moved {
+    assert watch_walk(true, false) == true;
+    assert watch_walk(true, true) == true;
+    // nothing edited since the last look: no reading, no hashing
+    assert watch_walk(false, false) == false;
+    assert watch_walk(false, true) == true;
 }
 
 test watch_take_caps_a_hub_save {
