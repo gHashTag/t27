@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:c5b26a01ee60a0c3b1814d4dc14bcea77b47a8692af75d107ac87642af481389",
-  "gen_hash_rust": "sha256:f0b184fa9774f0c648af253941aefc1ca323ab9d07719c707177725bf3277be2",
-  "gen_hash_verilog": "sha256:08b7913a9894e82e56a1959eac4defe6f1427fa1a02d88ae65a0b086d35aeddc",
-  "gen_hash_zig": "sha256:e246038991923858ef69e7b1289ccfb78f738a44d897edec2139869ebcf1b2cb",
+  "gen_hash_c": "sha256:d3fde78fc40ef7e72364a01d1655fa9ef1c6b6dd8255af035683cdb10ebbed6d",
+  "gen_hash_rust": "sha256:324462aee16212f9cfc93eeeb9d0a57b1e33e61f5c29a46060940edd59deb3d9",
+  "gen_hash_verilog": "sha256:5209453943008e4f059320d9b48268cc63ffeb3c4dd40ebfa370d9166f429f1c",
+  "gen_hash_zig": "sha256:7dcee741e3f5f37fc14ab87b4dc8ab5a6e3aeec4ecddec6b7ba28653c205c648",
   "module": "Optimization",
   "ring": 12,
-  "sealed_at": "2026-10-10T12:32:56Z",
-  "spec_hash": "sha256:3c568754711a7064dd056ce9375fa16d08e9ef6dc554086f42561a196899cbd4",
+  "sealed_at": "2026-10-10T13:08:48Z",
+  "spec_hash": "sha256:9a46d144db087e38eaaea51e0b3a79b102942951824597edfaf9a7aa414951df",
   "spec_path": "specs/compiler/optimizer.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:21:5: error: duplicate enum member name 'String'"
