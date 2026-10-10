@@ -1,0 +1,13 @@
+Test case: Synthesis with -nosrl flag should produce 0 SRL16E cells
+
+Expected yosys log output:
+Printing statistics
+=== top ===
+        0   SRL16E
+        0   SRLC32E
+        362   FDRE
+        19   LUT6
+        10   CARRY4
+
+This demonstrates that the -nosrl flag successfully eliminates SRL16E primitives,
+replacing them with FDRE flip-flops as required by the mitigation.

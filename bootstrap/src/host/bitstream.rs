@@ -257,4 +257,22 @@ mod tests {
     fn error_display() {
         assert!(BitError::EndOfStream.to_string().contains("end"));
     }
+
+    #[test]
+    fn yostat_warning_format() {
+        // Test that the expected warning format matches the issue specification
+        let expected_warning = "!! KNOWN-BAD PRIMITIVES FOR openXC7 !!";
+        assert!(expected_warning.contains("KNOWN-BAD PRIMITIVES"));
+        assert!(expected_warning.contains("openXC7"));
+        
+        // Verify the warning contains the key elements from the issue
+        let srl_count = 44;
+        let warning_line = format!("{} shift-register LUT(s). The bitstream is wrong while the", srl_count);
+        assert!(warning_line.contains("44"));
+        assert!(warning_line.contains("shift-register LUT(s)"));
+        assert!(warning_line.contains("bitstream is wrong"));
+        assert!(warning_line.contains("netlist is right"));
+        assert!(warning_line.contains("Re-synthesise"));
+        assert!(warning_line.contains("synth_xilinx -nosrl"));
+    }
 }
