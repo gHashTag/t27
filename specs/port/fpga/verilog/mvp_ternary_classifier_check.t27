@@ -1,0 +1,223 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/verilog/mvp_ternary_classifier_check.t27
+// MVP Ternary Classifier Check Specification
+// Ports the decision logic from mvp_ternary_classifier_check.v
+// Reference values computed independently before implementation ran
+// Invariant: argmax over three classes cannot return anything but 0, 1 or 2
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module mvp_ternary_classifier_check {
+
+    // Module parameter
+    pub const PRESCALE_BITS : u32 = 24;
+
+    // Reference values computed independently before implementation ran
+    // These are the ten reference inputs from the spec header
+    pub struct ReferenceValue {
+        input_val : u8,
+        expected_class : u8,
+    }
+
+    // Array of reference values
+    pub const REFERENCE_VALUES : [10]ReferenceValue = [
+        ReferenceValue{ .input_val = 0,   .expected_class = 0 },
+        ReferenceValue{ .input_val = 7,   .expected_class = 0 },
+        ReferenceValue{ .input_val = 60,  .expected_class = 1 },
+        ReferenceValue{ .input_val = 224, .expected_class = 2 },
+        ReferenceValue{ .input_val = 255, .expected_class = 0 },
+        ReferenceValue{ .input_val = 3,   .expected_class = 0 },
+        ReferenceValue{ .input_val = 24,  .expected_class = 1 },
+        ReferenceValue{ .input_val = 192, .expected_class = 2 },
+        ReferenceValue{ .input_val = 15,  .expected_class = 0 },
+        ReferenceValue{ .input_val = 240, .expected_class = 2 },
+    ];
+
+    // Check if an input value has a reference expectation
+    fn has_reference_expectation(input_val: u8) -> bool {
+        for ref_val in REFERENCE_VALUES {
+            if ref_val.input_val == input_val {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Get the expected class for an input value
+    fn get_expected_class(input_val: u8) -> u8 {
+        for ref_val in REFERENCE_VALUES {
+            if ref_val.input_val == input_val {
+                return ref_val.expected_class;
+            }
+        }
+        return 0; // Default for non-reference inputs
+    }
+
+    // Check if result is in valid range (0, 1, or 2)
+    fn is_result_in_range(result: u8) -> bool {
+        return result <= 2;
+    }
+
+    // Check if a specific input matches its expected class
+    fn input_matches_expectation(input_val: u8, result: u8) -> bool {
+        if (!has_reference_expectation(input_val)) {
+            return true; // Non-reference inputs don't have specific expectations
+        }
+        const expected = get_expected_class(input_val);
+        return result == expected;
+    }
+
+    // Main verdict function: returns true if all checks pass
+    fn compute_verdict(input_val: u8, result: u8) -> bool {
+        // Check 1: result must be in valid range (0, 1, or 2)
+        const in_range = is_result_in_range(result);
+        if (!in_range) {
+            return false;
+        }
+
+        // Check 2: if this input has a reference expectation, it must match
+        const matches = input_matches_expectation(input_val, result);
+        if (!matches) {
+            return false;
+        }
+
+        // All checks passed
+        return true;
+    }
+
+    // Heartbeat counter (simulates the prescale logic)
+    fn compute_heartbeat_counter(prescale: u32) -> bool {
+        return (prescale & (1 << (PRESCALE_BITS - 1))) != 0;
+    }
+
+    // LED output functions
+    fn compute_led_r23(heartbeat: bool, verdict: bool) -> bool {
+        return heartbeat and verdict;
+    }
+
+    fn compute_led_t23(verdict: bool) -> bool {
+        return !verdict;
+    }
+
+    // Test functions for the decision logic
+
+    test has_reference_expectation_known_values
+        then has_reference_expectation(0) == true
+        and has_reference_expectation(7) == true
+        and has_reference_expectation(60) == true
+        and has_reference_expectation(255) == true
+        and has_reference_expectation(128) == false
+
+    test get_expected_class_reference_values
+        then get_expected_class(0) == 0
+        and get_expected_class(7) == 0
+        and get_expected_class(60) == 1
+        and get_expected_class(224) == 2
+        and get_expected_class(255) == 0
+
+    test is_result_in_range_valid
+        then is_result_in_range(0) == true
+        and is_result_in_range(1) == true
+        and is_result_in_range(2) == true
+        and is_result_in_range(3) == false
+        and is_result_in_range(255) == false
+
+    test input_matches_expectation_reference_inputs
+        then input_matches_expectation(0, 0) == true   // 0 -> 0
+        and input_matches_expectation(0, 1) == false  // 0 -> 1 (wrong)
+        and input_matches_expectation(60, 1) == true  // 60 -> 1
+        and input_matches_expectation(60, 2) == false  // 60 -> 2 (wrong)
+        and input_matches_expectation(128, 0) == true  // 128 -> 0 (no expectation)
+
+    test input_matches_expectation_non_reference
+        then input_matches_expectation(128, 0) == true
+        and input_matches_expectation(128, 1) == true
+        and input_matches_expectation(128, 2) == true
+
+    test compute_verdict_valid_cases
+        then compute_verdict(0, 0) == true    // 0 -> 0
+        and compute_verdict(7, 0) == true     // 7 -> 0
+        and compute_verdict(60, 1) == true    // 60 -> 1
+        and compute_verdict(224, 2) == true   // 224 -> 2
+        and compute_verdict(255, 0) == true   // 255 -> 0
+
+    test compute_verdict_invalid_results
+        then compute_verdict(0, 3) == false   // 0 -> 3 (invalid range)
+        and compute_verdict(60, 4) == false   // 60 -> 4 (invalid range)
+        and compute_verdict(128, 3) == false  // 128 -> 3 (invalid range)
+
+    test compute_verdict_wrong_reference
+        then compute_verdict(0, 1) == false   // 0 -> 1 (should be 0)
+        and compute_verdict(60, 0) == false   // 60 -> 0 (should be 1)
+        and compute_verdict(224, 0) == false  // 224 -> 0 (should be 2)
+
+    test compute_heartbeat_counter
+        then compute_heartbeat_counter(0) == false
+        and compute_heartbeat_counter(1 << (PRESCALE_BITS - 1)) == true
+        and compute_heartbeat_counter((1 << (PRESCALE_BITS - 1)) - 1) == false
+        and compute_heartbeat_counter((1 << (PRESCALE_BITS - 1)) + 1) == true
+
+    test compute_led_outputs
+        then compute_led_r23(true, true) == true    // heartbeat + verdict = on
+        and compute_led_r23(true, false) == false   // heartbeat + no verdict = off
+        and compute_led_r23(false, true) == false   // no heartbeat + verdict = off
+        and compute_led_r23(false, false) == false  // no heartbeat + no verdict = off
+        and compute_led_t23(true) == false          // verdict = true -> LED off
+        and compute_led_t23(false) == true          // verdict = false -> LED on
+
+    // Test specific reference cases from the original Verilog
+    test reference_case_0
+        then compute_verdict(0, 0) == true
+
+    test reference_case_7
+        then compute_verdict(7, 0) == true
+
+    test reference_case_60
+        then compute_verdict(60, 1) == true
+
+    test reference_case_224
+        then compute_verdict(224, 2) == true
+
+    test reference_case_255
+        then compute_verdict(255, 0) == true
+
+    test reference_case_3
+        then compute_verdict(3, 0) == true
+
+    test reference_case_24
+        then compute_verdict(24, 1) == true
+
+    test reference_case_192
+        then compute_verdict(192, 2) == true
+
+    test reference_case_15
+        then compute_verdict(15, 0) == true
+
+    test reference_case_240
+        then compute_verdict(240, 2) == true
+
+    // Test invariant: all outputs must be 0, 1, or 2
+    test invariant_output_range
+        then is_result_in_range(0) == true
+        and is_result_in_range(1) == true
+        and is_result_in_range(2) == true
+        and is_result_in_range(3) == false
+        and is_result_in_range(4) == false
+        and is_result_in_range(255) == false
+
+    // Test that non-reference inputs pass as long as result is in range
+    test non_reference_inputs_pass_with_valid_range
+        then compute_verdict(1, 0) == true
+        and compute_verdict(2, 1) == true
+        and compute_verdict(4, 2) == true
+        and compute_verdict(100, 0) == true
+        and compute_verdict(200, 1) == true
+
+    // Test that non-reference inputs fail if result is out of range
+    test non_reference_inputs_fail_with_invalid_range
+        then compute_verdict(1, 3) == false
+        and compute_verdict(2, 4) == false
+        and compute_verdict(4, 5) == false
+        and compute_verdict(100, 255) == false
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
