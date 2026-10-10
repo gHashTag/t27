@@ -8,6 +8,10 @@
 
 module Formal {
 
+    // Import zero-size properties
+    use zero_size_props::*;
+    use wp_props::*;
+
     // === Assertion kind ===
 
     pub const AssertKind = enum(i8) {
@@ -344,11 +348,80 @@ pub struct FormalAssume {
         given cfg = formal_config("inv", "M", "clk", "rst_n")
         assert validate_config(cfg) >= 0
 
+    // === Zero-size property configurations ===
+
+    pub const ZS_PREFETCH_GATE : FormalConfig = with_depth(
+        formal_config("zs_prefetch", "PrefetchUnit", "clk", "rst_n"), 
+        50
+    );
+    
+    pub const ZS_LAYER_GATE : FormalConfig = with_depth(
+        formal_config("zs_layer", "LayerUnit", "clk", "rst_n"), 
+        50
+    );
+    
+    pub const ZS_DMA_GATE : FormalConfig = with_depth(
+        formal_config("zs_dma", "DMAUnit", "clk", "rst_n"), 
+        50
+    );
+    
+    pub const ZS_MULTILAYER_GATE : FormalConfig = with_depth(
+        formal_config("zs_multilayer", "MultilayerUnit", "clk", "rst_n"), 
+        50
+    );
+
+    // === Wrapper properties gate ===
+    
+    pub const WP_PROPS_GATE : FormalConfig = WP_CONFIG_INDIVIDUAL;
+
+    // === Property collections for CI gates ===
+    
+    pub const ZS_PREFETCH_SUITE : [4]FormalAssert = ZS_PREFETCH_PROPS;
+    pub const ZS_LAYER_SUITE : [4]FormalAssert = ZS_LAYER_PROPS;
+    pub const ZS_DMA_SUITE : [4]FormalAssert = ZS_DMA_PROPS;
+    pub const ZS_MULTILAYER_SUITE : [4]FormalAssert = ZS_MULTILAYER_PROPS;
+    pub const WP_PROPS_SUITE : [3]FormalAssert = WP_PROPS_INDIVIDUAL;
+
+    // === Validation ===
+
+    fn validate_zero_size_gates() -> u32 {
+        var errors : u32 = 0;
+        errors = errors + validate_config(ZS_PREFETCH_GATE);
+        errors = errors + validate_config(ZS_LAYER_GATE);
+        errors = errors + validate_config(ZS_DMA_GATE);
+        errors = errors + validate_config(ZS_MULTILAYER_GATE);
+        return errors;
+    }
+
     // === Benchmarks ===
 
     bench validate_latency
         measure: nanoseconds to validate_assertion(immediate_assert("b", "x > 0", 2, "d"))
         target: < 100ns
+
+    // === Tests for zero-size gates ===
+
+    test all_zero_size_gates_valid
+        given errors = validate_zero_size_gates()
+        then errors == 0
+
+    test zero_size_property_counts
+        assert ZS_PREFETCH_SUITE.len == 4
+        and ZS_LAYER_SUITE.len == 4
+        and ZS_DMA_SUITE.len == 4
+        and ZS_MULTILAYER_SUITE.len == 4
+
+    // === Invariants ===
+
+    invariant zero_size_gates_positive_depth
+        given errors = validate_zero_size_gates()
+        assert errors == 0
+
+    invariant all_zero_size_suites_have_four_properties
+        assert ZS_PREFETCH_SUITE.len == 4
+        and ZS_LAYER_SUITE.len == 4
+        and ZS_DMA_SUITE.len == 4
+        and ZS_MULTILAYER_SUITE.len == 4
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY

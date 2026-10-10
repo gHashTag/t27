@@ -9,6 +9,7 @@
 module igla-race-formal;
 use base::types;
 use math::constants;
+use wp_props::*;
 
 // ============================================================================
 // 1. Proof Obligation Categories
