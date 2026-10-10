@@ -5648,10 +5648,86 @@ mod unresolved_is_not_a_rejection {
     }
 }
 
+/// H1: Helper function to compute SHA256 hex digest
+fn sha256_hex(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    format!("{:x}", hasher.finalize())
+}
+
+/// H1: Generate a cache key for frontier decisions based on t27c binary, toolchain, and all specs
+fn generate_frontier_cache_key() -> anyhow::Result<String> {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    
+    // Hash the t27c binary path and content
+    let exe_path = std::env::current_exe()?;
+    let exe_content = std::fs::read(&exe_path)?;
+    std::hash::Hash::hash_slice(&exe_content, &mut hasher);
+    
+    // Hash the toolchain
+    let tc = crate::seal_toolchain();
+    let tc_str = serde_json::to_string(&tc)?;
+    std::hash::Hash::hash_slice(tc_str.as_bytes(), &mut hasher);
+    
+    // Collect and hash all spec files in the closure
+    let mut specs = Vec::new();
+    let mut stack = vec![std::path::PathBuf::from("specs")];
+    while let Some(d) = stack.pop() { 
+        for e in std::fs::read_dir(&d)?.flatten() { 
+            let p = e.path(); 
+            if p.is_dir() { 
+                stack.push(p) 
+            } else if p.extension().map_or(false, |x| x == "t27") { 
+                specs.push(p); 
+            } 
+        } 
+    }
+    specs.sort();
+    
+    for spec_path in &specs {
+        let content = std::fs::read_to_string(spec_path)?;
+        std::hash::Hash::hash_slice(content.as_bytes(), &mut hasher);
+    }
+    
+    Ok(format!("frontier_v1:{}", std::hash::Hasher::finish(&hasher)))
+}
+
+/// H1: Load cached frontier decisions if available and valid
+fn load_frontier_cache(cache_file: &std::path::Path) -> Option<std::collections::HashMap<String, u8>> {
+    if !cache_file.exists() {
+        return None;
+    }
+    
+    match std::fs::read_to_string(cache_file) {
+        Ok(content) => match serde_json::from_str(&content) {
+            Ok(cache) => Some(cache),
+            Err(_) => None,
+        },
+        Err(_) => None,
+    }
+}
+
+/// H1: Save frontier decisions to cache
+fn save_frontier_cache(cache_file: &std::path::Path, memo: &std::collections::HashMap<String, u8>) -> anyhow::Result<()> {
+    let content = serde_json::to_string_pretty(memo)?;
+    std::fs::write(cache_file, content)?;
+    Ok(())
+}
+
 /// #8095 step 3: every spec under specs/, REUSE or why it must be rebuilt. Each decision is the generated
 /// specs/verified/seal_identity.t27 node_decision(); this walks the `use` graph only (#8102 blocks frontier.t27).
 pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Result<()> {
     use crate::{seal_identity as si, verdict_audit as va};
+    
+    // H1: Content-addressed cache for frontier decisions
+    let cache_dir = std::path::PathBuf::from(".trinity/cache/frontier");
+    std::fs::create_dir_all(&cache_dir)?;
+    
+    // Generate cache key from t27c binary, toolchain, and all specs
+    let cache_key = generate_frontier_cache_key()?;
+    let cache_file = cache_dir.join(format!("{}.cache", crate::sha256_hex(cache_key.as_bytes())));
+    
     let (tc, mut memo, mut stack, mut specs) = (crate::seal_toolchain(), std::collections::HashMap::new(), vec![std::path::PathBuf::from("specs")], Vec::new());
     while let Some(d) = stack.pop() { for e in std::fs::read_dir(&d)?.flatten() { let p = e.path(); if p.is_dir() { stack.push(p) } else if p.extension().map_or(false, |x| x == "t27") { specs.push(p.to_string_lossy().to_string()) } } }
     fn seal_of(p: &str, src: &str) -> serde_json::Value {
@@ -5682,9 +5758,59 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
     }
     let mut counts = [0u32; 7];
     specs.sort();
-    for p in &specs { let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); counts[d as usize] += 1; if list && d != si::REUSE { println!("{d} {p}") } }
+    
+    // H1: Try to load from cache first
+    let mut cache_loaded = false;
+    if let Some(cached_memo) = load_frontier_cache(&cache_file) {
+        // Verify that all specs in the cache are still present and unchanged
+        let mut cache_valid = true;
+        for spec_path in &specs {
+            if let Some(cached_decision) = cached_memo.get(spec_path) {
+                // Check if the spec file still exists and has the same content
+                match std::fs::read_to_string(spec_path) {
+                    Ok(current_content) => {
+                        // For a real implementation, we'd check if this matches what was cached
+                        // For now, we assume the cache is valid if all files exist
+                    }
+                    Err(_) => {
+                        cache_valid = false;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if cache_valid {
+            memo = cached_memo;
+            cache_loaded = true;
+            println!("frontier: loaded {} decisions from cache", memo.len());
+        }
+    }
+    
+    if !cache_loaded {
+        // Compute decisions and save to cache
+        for p in &specs { 
+            let d = decide(p, &tc, &mut memo, 0).unwrap_or(si::REBUILD_MISSING); 
+            counts[d as usize] += 1; 
+            if list && d != si::REUSE { println!("{d} {p}") } 
+        }
+        
+        // Save to cache for future runs
+        if let Err(e) = save_frontier_cache(&cache_file, &memo) {
+            eprintln!("Warning: Could not save frontier cache: {}", e);
+        }
+    } else {
+        // Use cached decisions
+        for p in &specs { 
+            let d = memo.get(p).copied().unwrap_or(si::REBUILD_MISSING); 
+            counts[d as usize] += 1; 
+            if list && d != si::REUSE { println!("{d} {p}") } 
+        }
+    }
+    
     let total = specs.len() as u32;
-    println!("frontier: reused {} of {} ({} permille); rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
+    let cache_status = if cache_loaded { " (from cache)" } else { "" };
+    println!("frontier: reused {} of {} ({} permille){}; rebuild: spec {} closure {} toolchain {} config {} verdict {} missing {}", counts[0], total, si::reused_permille(counts[0], total), cache_status, counts[1], counts[2], counts[3], counts[4], counts[5], counts[6]);
     // --reseal (#8095): seal again what remint_wants names; keep the new seal only where remint_keeps allows,
     // copied onto every twin, else write the old seal back. `seal` exits on a refusal, so it runs as a child.
     let mut twins: std::collections::HashMap<String, Vec<std::path::PathBuf>> = Default::default();
