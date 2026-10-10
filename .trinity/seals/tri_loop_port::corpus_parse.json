@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4543671978293a60d271bfe925a7a454fbd34291061f3ab6fae0f13d922cd7c9",
+  "gen_hash_rust": "sha256:ff07dc9e6949a6b8d372e8ab822baf02cc9d53cc0e5d1da97a51d7d629720b24",
+  "gen_hash_verilog": "sha256:b71a8ff2c39c83fb7c4be1cf0679e558b7bb36f7bcf10ae09772b5ac05d2dc23",
+  "gen_hash_zig": "sha256:a3484ae987806e5bc09188dafacaecd469fe99caa185f03271e4de22f2ad6023",
+  "module": "port::corpus_parse",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5a876fb664a225e71782706d9909e437310b6fbbdeb77edcc50f4a298167fff8",
+  "spec_path": "specs/port/scripts/tri_loop/corpus_parse.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

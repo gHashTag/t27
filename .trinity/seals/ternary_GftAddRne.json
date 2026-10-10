@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d4d6485cdd9e3c5b0a22a35f51c63a777b2450c3b4ef7049ada992ef33f176e1",
   "gen_hash_rust": "sha256:67d185d8c1c3571f66e5cd5086e9e6e48b4af981091ce0742f17625c5dac8ec2",
   "gen_hash_verilog": "sha256:0509e3609bdf17a12b15aa2e149812081670e46775699432964c0c89ea474a9e",
   "gen_hash_zig": "sha256:07645d91d4a326722a433fd828bc321d426a71c875987833fb50afa6bf1346ea",
   "module": "GftAddRne",
   "ring": 12,
-  "sealed_at": "2026-08-30T17:06:05Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:29:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e900a1f93f9d85ab1c55a4492f61134eee0720787e2cc59a88890e6120a7ee87",
-  "spec_path": "specs/ternary/gft_add_rne.t27"
+  "spec_path": "specs/ternary/gft_add_rne.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

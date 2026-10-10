@@ -1,0 +1,724 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
+  "closure": [
+    {
+      "spec": "specs/queen/actors/ACT_DIE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ACT_IGNORE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ACT_MESSAGE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/AFTER_INFINITY.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/AGENT_SHUTDOWN_MS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/AUTO_ALL_SIGNIFICANT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/AUTO_ANY_SIGNIFICANT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/AUTO_NEVER.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/AUTO_SHUTDOWN_REASON.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/BACKOFF_BASE_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/BACKOFF_CAP_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_CYCLE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_DOWN.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_MAX_DEPTH.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_PENDING.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_REPLY.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_TIMEOUT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CALL_TOO_DEEP.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CHAIN_SLOTS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/CTL_TAGS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/D_COALESCED.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/D_DROPPED_DEAD.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/D_DROPPED_FULL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/D_QUEUED.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/EDIT_APPEND.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/EDIT_LINES.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/EDIT_WHOLE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/FA_ADMIT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/FA_QUEUE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/FA_REFUSE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/FILE_OWNER_SLOTS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/FILE_SLOT_BASE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/FILE_WAIT_MAX_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/GEN_MASK.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/GIVE_UP_REASON.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ISO_LOOP.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ISO_PROCESS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ISO_THREAD.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/JITTER_PERCENT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/KILL_ABANDONS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/KILL_STOPS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/LANE_CONTROL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/LANE_DATA.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/LANE_NONE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/LOCAL_SLOT_BITS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/LOCAL_SLOT_MASK.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/MAILBOX_CAP.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/MAX_NODE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/MBOX_SLOTS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/M_CANCEL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/M_HEARTBEAT_DUE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/M_TASK_OFFER.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/NODE_BITS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/NODE_HEARTBEAT_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/NODE_TTL_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/NO_MATCH.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/NO_PID.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/PHI_HASH.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/QK_AGENT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/QK_DOMAIN_SUP.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/QK_INTAKE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/QK_NONE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/QK_RECONCILER.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/RCV_MATCH.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/RCV_TIMEOUT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/RCV_WAIT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/RESTART_PERMANENT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/RESTART_TEMPORARY.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/RESTART_TRANSIENT.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SHUTDOWN_BRUTAL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SHUTDOWN_INFINITY.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SLICE_MICROS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SLICE_TURNS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SLOT_BITS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/STABLE_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/START_MAX_CHILDREN.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/START_OK.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/STRAT_ONE_FOR_ALL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/STRAT_ONE_FOR_ONE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/STRAT_REST_FOR_ONE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SUP_GIVE_UP.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SUP_NOTHING.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/SUP_RESTART.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/TAG_MASK.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/TURN_MAX_SECONDS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/UNSTABLE_GIVE_UP.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/WORKER_SHUTDOWN_MS.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_CRASH.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_KILL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_KILLED.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_NOCONNECTION.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_NONE.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_NOPROC.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_NORMAL.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/X_SHUTDOWN.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/affected.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/attach_answer.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/auto_shutdown_after_exit.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/auto_shutdown_sticks.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/backoff_seconds.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/bit.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/call_admit.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/call_outcome.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/chain_add.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/chain_has.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/child_spec_valid.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/children_after_exit.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ctl_next.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ctl_pending.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ctl_post.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ctl_take.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/death_reason.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/deliver.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/deliver_control.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/down_left_after_demonitor.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/edit_still_holds.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/edits_meet.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/file_admit.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/file_owner_slot.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/gen_of.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/holds_after_kill.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/hung_turn_signal.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/in_period.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/intensity_exceeded.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/is_dead_letter.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/is_remote.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/jittered_seconds.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/kill_effect.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/lane_of.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/links_after_link.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/live_alias.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/local_of.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/mbox_find.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/mbox_len.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/mbox_push.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/mbox_remove.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/mbox_tag.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/monitors_after_monitor.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/next_gen.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/next_lane.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/node_of.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/node_pid.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/node_up.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/on_child_exit.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/on_exit_signal.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/ordered.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/pid_of.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/place_before.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/queen_restart_type.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/queen_shutdown_ms.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/reaches.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/receive.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/receive_outcome.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/reclaim_wait_seconds.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/refusal_gives_up.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/remote_down.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/restarted.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/root_child_kind.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/root_children.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/seed_hash.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/send_remote.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/should_restart.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/slice_spent.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/slot_of.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/start_answer.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/stop_rank.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/stop_signal.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/stopped_by_restart.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/stops_inside_the_lease.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/takes_a_lane.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/turn_isolation.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/turn_signal.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/unstable_streak.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/queen/actors/with_backoff.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e4cf0584f7e5a27ec0c85da8dbd6dd10f51480ee83bbdabb0e0bfd527d1ce9cb",
+  "gen_hash_rust": "sha256:39c4f6e7389cb44d3ebc29f8cc128a76ca3afdbba16ee2597626eec40e6037dd",
+  "gen_hash_verilog": "sha256:cf0f7853ed5b20d18b310d8bbaaa54b4516eec034e0640dfdebd76c5dffa0f32",
+  "gen_hash_zig": "sha256:5c100018ddefbf992dacedfe1bcc955acbfb6ba0a109221eca9001cb55ea6aed",
+  "module": "QueenActorsHw",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T22:21:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e6a11cd9844c279672a8c02603381814133ba8a4f7fdd3978cc189c1180c1fb3",
+  "spec_path": "specs/queen/actors_hw.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 17,
+    "total": 17
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

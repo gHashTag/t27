@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9bc325687a4d8a82482226f1d330b192d3bc5649344507405bbd69b4343dc08f",
   "gen_hash_rust": "sha256:c4a65e4e59c3d3393e21b3ffd81022ef957eadffcde15f9ad351a683209001a7",
   "gen_hash_verilog": "sha256:7d662eaaf34d5d56c7c96d096e71e5e3210408c321a656c60cab9c2167b191ec",
   "gen_hash_zig": "sha256:10a0fc9af1cf22a349fd8f32c5765dc2396bf639fe1817f917589d4c09e8ac9c",
   "module": "brain-phi-timing",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:27:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e1a15b5274f87ba8f036b4ae07c3d13db419ad79f6ec90e62d8351f71e322f6d",
-  "spec_path": "specs/brain/phi_timing.t27"
+  "spec_path": "specs/brain/phi_timing.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

@@ -396,6 +396,7 @@ def reference_one(worker, file, tests=None):
     env["ZIG_GLOBAL_CACHE_DIR"] = str(scratch / "zig-global")
     env["ZIG_LOCAL_CACHE_DIR"] = str(scratch / "zig-local")
     env["TMPDIR"] = str(tmp)
+    env["T27C_TEST_REPORT_EXIT_ZERO"] = "1"  # #7370: the verdict is read from the words below
     for attempt in range(3):
         try:
             out = run_group(
@@ -708,6 +709,7 @@ def lab_run(sha, log, challenge=SRV / "challenge", master=True):
             % (CORPUS_DIR, REF_JOBS, REF_TIMEOUT_S),
             "totals": tot,
             "cache": cache,
+            "reused": "%d of %d" % (cache["hits"], sum(cache.values())),  # #8095
         }
 
     if have_t27c:
@@ -747,7 +749,7 @@ def lab_run(sha, log, challenge=SRV / "challenge", master=True):
                 "command": "python3 scripts/tri_loop/t27b.py fuzz --cases %d --seed %d --jobs %d"
                 % (FUZZ_CASES, seed, REF_JOBS)}
 
-    if have_t27b and have_t27c and FUZZ_CASES > 0:
+    if have_t27b and have_t27c and FUZZ_CASES > 0 and master:  # #8267: a lane request is judged by its receipt
         step("fuzz", fuzz)
 
     def receipt():  # #7576: sign the run with T27_RECEIPT_SEED (trust NAMED); the nonce is the challenge file's text, if any

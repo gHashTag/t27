@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ae7d4a51c9d8e434bf9924b372506422e26a7109576c8fc2f471bd67a1c1cec8",
+  "gen_hash_rust": "sha256:6588e90e771f6454c5d2f2eb65dac1e7184afec4359304c2c64e83d9da5d598b",
+  "gen_hash_verilog": "sha256:5e9113b8801a66a218fdc0deadf9e8e08758336f77e0718936ade1f2d03dbd93",
+  "gen_hash_zig": "sha256:3d956cb8cc48e62a16b5fd8718cf488fe347015a0085ab6d5dc462d36ec35776",
+  "module": "port::trios::crates::trios_trainer::validation",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:25:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3b7fd9ee653114d070408a0c2b2593085908d48d3b4328e93bb08e12cc528a1f",
+  "spec_path": "specs/port/trios/crates/trios-trainer/src/validation.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

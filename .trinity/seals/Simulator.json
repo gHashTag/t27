@@ -1,11 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:989cba96aef954986a5e273035a8063a8cec6283f7914aaa0d3de048db92addf",
   "gen_hash_rust": "sha256:2c55e4bbea6dbcc4c655da93e26847e9e45022a4bc262c41983d3b7c6ca1b3a1",
   "gen_hash_verilog": "sha256:dcf5f09db3af4d6597b426feb0fb8648827d89a62db63e9518afea685969fbc3",
   "gen_hash_zig": "sha256:82add3388be8866285b28d59219662ea51421420f8284ff9054238dd2d5c633e",
   "module": "Simulator",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:43:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ad7383f40e9e5093f67303daa1016104fdfd21e99dd0adfca2f863dcc23d1ead",
-  "spec_path": "specs/fpga/simulator.t27"
+  "spec_path": "specs/fpga/simulator.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

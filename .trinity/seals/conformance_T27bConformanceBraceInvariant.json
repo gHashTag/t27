@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e7f35fd0da3122b248706b554bc751e4d3d755e1a295c7149864edf6824fc4de",
+  "gen_hash_rust": "sha256:0d247fe4887423788bcf4532e15671230a9830dd7c493b7ec100b0d5c9f3d0f8",
+  "gen_hash_verilog": "sha256:8fffd167e80276e0d48c208bb3b222ea8808681537b20efd42baf389882fa369",
+  "gen_hash_zig": "sha256:0aec25ca4c438e8f44f5e8e2ff77cdecd942d83c554f910434240cea96ad71f5",
+  "module": "T27bConformanceBraceInvariant",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:32:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:713c5a1eb25c0fa30ca5971d38fd3c3295fb218ca4060139da6635fb2c645334",
+  "spec_path": "specs/tri/t27b/conformance/brace_invariant.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -127,6 +127,10 @@
 ;         one-dimension array, a shift amount below the shifted width, a
 ;         divisor is not zero; a negative one is not compared with an
 ;         unsigned int or wider, which C converts (#8076)
+;   LAWS: t27c checks L3 (ASCII source) in a name only, and L4 (a test, an
+;         invariant or a bench) nowhere before codegen (#8101). The core
+;         does the same, and under strict_laws refuses a byte past ASCII
+;         anywhere and an untested module (E_LAW)
 ;   number: 1_000  0x1F_FF  0b1010_0101  (`_` between digits; no leading 0)
 
 ; With no string literals, fixed text is packed 64-bit words: w(word, n) emits
@@ -187,6 +191,10 @@ const E_CHECK: i64 = 16;
 ; What t27c's typecheck lets through and C reads otherwise than Zig; each
 ; case names its typecheck defect.
 const E_UNSOUND: i64 = 17;
+; A constitutional law t27c does not check before codegen, refused only under
+; strict_laws (#8101): L3, a byte past ASCII, in a comment too; L4, a
+; module with no test, invariant or bench.
+const E_LAW: i64 = 18;
 
 ; t27c's TypeInfo, as typecheck infers it (compiler.rs `infer_expr`): 0 is
 ; Unknown, which every rule accepts; a type t27c spells as `Custom` (usize,
@@ -456,6 +464,9 @@ var dep_p: i64 = 0;
 var uses_strlen: bool = false;
 var str_ctx: bool = false;
 var sym_len: i64 = 0;
+; Set by the caller: compile then checks L3 and L4 (E_LAW). Unset, the core
+; takes what gen-c takes, as t27c runs neither check.
+var strict_laws: bool = false;
 
 ; ---------------------------------------------------------------- output
 
@@ -4584,6 +4595,27 @@ fn check_operand(op: i64, e: i64, t: i64, right: bool) -> void {
     }
 }
 
+; ---------------------------------------------------------------- laws
+
+; L3 and L4 as the constitution states them (docs/T27-CONSTITUTION.md):
+; every byte of the input is ASCII, a comment's too, and the module carries
+; a test, an invariant or a bench. t27c's lexer refuses a non-ASCII name
+; only (E_LEX here too), and nothing refuses an untested module (#8101).
+fn check_laws(n: i64) -> void {
+    var i: i64 = 0;
+    while (i < n) {
+        var c: i64 = src[i as usize] as i64;
+        if (c > '~' or (c < ' ' and c != '\n' and c != '\t' and c != '\r')) {
+            fail(E_LAW, i);
+            return;
+        }
+        i = i + 1;
+    }
+    if (count_kind(D_TEST, D_INV, D_BENCH) == 0) {
+        fail(E_LAW, 0);
+    }
+}
+
 ; ---------------------------------------------------------------- names
 
 ; typecheck resolves no name (#8087): an undeclared name, a duplicate and
@@ -6785,6 +6817,9 @@ pub fn compile(n: i64) -> i64 {
     if (!failed) {
         check();
     }
+    if (!failed and strict_laws) {
+        check_laws(n);
+    }
     if (!failed) {
         emit_module();
     }
@@ -8084,6 +8119,62 @@ test long_product_is_written {
     assert(out_at(517) == '4');
     assert(out_at(528) == '*');
     assert(out_at(530) == '2');
+}
+
+; "module m;fn g() -> i64 {return 1;}" under strict_laws: no test, invariant
+; or bench (L4, #8101).
+test strict_laws_refuse_an_untested_module {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x20292867206e663b, 8, n1);
+    var n3: i64 = feed(0x7b20343669203e2d, 8, n2);
+    var n4: i64 = feed(0x31206e7275746572, 8, n3);
+    var n5: i64 = feed(0x7d3b, 2, n4);
+    strict_laws = true;
+    var r: i64 = compile(n5);
+    strict_laws = false;
+    assert(r == -1);
+    assert(err_code == E_LAW);
+}
+
+; "module m;// <U+03C6>\ntest t {assert(true);}" under strict_laws: a byte
+; past ASCII in a comment (L3, #8101).
+test strict_laws_refuse_a_non_ascii_comment {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x740a86cf202f2f3b, 8, n1);
+    var n3: i64 = feed(0x617b207420747365, 8, n2);
+    var n4: i64 = feed(0x7274287472657373, 8, n3);
+    var n5: i64 = feed(0x7d3b296575, 5, n4);
+    strict_laws = true;
+    var r: i64 = compile(n5);
+    strict_laws = false;
+    assert(r == -1);
+    assert(err_code == E_LAW);
+}
+
+; The same input without strict_laws: taken as gen-c takes it, 1053 bytes.
+test non_ascii_comment_is_taken_as_gen_c_takes_it {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x740a86cf202f2f3b, 8, n1);
+    var n3: i64 = feed(0x617b207420747365, 8, n2);
+    var n4: i64 = feed(0x7274287472657373, 8, n3);
+    var n5: i64 = feed(0x7d3b296575, 5, n4);
+    assert(compile(n5) == 1053);
+    assert(out_at(664) == 't');
+    assert(out_at(941) == 't');
+}
+
+; "module m;test t {assert(true);}" under strict_laws: ASCII and tested, 1053
+; bytes.
+test strict_laws_take_a_tested_ascii_module {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x207420747365743b, 8, n1);
+    var n3: i64 = feed(0x287472657373617b, 8, n2);
+    var n4: i64 = feed(0x7d3b2965757274, 7, n3);
+    strict_laws = true;
+    var r: i64 = compile(n4);
+    strict_laws = false;
+    assert(r == 1053);
+    assert(out_at(664) == 't');
 }
 
 test put_int_writes_decimal {

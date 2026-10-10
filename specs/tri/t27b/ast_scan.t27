@@ -1,0 +1,523 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/ast_scan.t27 -- the scans cli/t27b/src/lower.rs makes of a list of t27c AST nodes to collect
+; some of them (port epic #6198, under #6063 and #5980). They were hand-written Rust recursions over
+; `compiler::Node` (`names_in`, `array_locals`, `decls_of`, `calls_in`, `scan_addr_taken`, `count_assigns`,
+; `ref_mutable_names`, `misprinted_ifs` and `mark_tail_returns`); they now reach cli/t27b only through
+; `t27c gen-rust` (gen/rust/tri/t27b/ast_scan.rs, mounted as `ax`).
+; --
+; The nodes arrive as ast_walk.t27's bytes: a record per node in preorder, then the text. A scan writes 1 into
+; marks[i] for each node i it collects and leaves every other entry as it found it (the glue passes zeros).
+; The glue then takes, in preorder, the nodes marked: their names, their addresses, or the nodes themselves.
+; Order is preorder, the order the recursions pushed in.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bAstScan;
+
+use tri::t27b::ast_walk;
+
+/// The value a scan writes for a node it collects. A cast index is bound to a typed local first: gen-rust
+/// cannot infer `marks[@intCast(f)]` (#8259).
+pub const MARK : u8 = 1;
+
+/// The last of the siblings that run from `lo` to `hi` (each sibling's subtree end naming the next); NO_NODE
+/// when the list is empty.
+pub fn last_of_list(nodes: []const u8, lo: usize, hi: usize) -> i64 {
+    var last : i64 = NO_NODE;
+    var c : usize = lo;
+    while (c < hi) {
+        const ci : i64 = @intCast(c);
+        last = ci;
+        c = end(nodes, c);
+    }
+    return last;
+}
+
+/// Every node with a name (`names_in`): an over-approximation of what a subtree references.
+pub fn named(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (hi(nodes, i, F_NAME) > lo(nodes, i, F_NAME)) { marks[i] = MARK; }
+        i = i + 1;
+    }
+}
+
+/// Every local or assignment with a name whose first child is an array literal (`array_locals`, t27c's
+/// `collect_array_locals`).
+pub fn array_locals(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const k : u8 = kind(nodes, i);
+        const f : i64 = first_child(nodes, i);
+        if ((k == K_STMT_LOCAL or k == K_STMT_ASSIGN) and hi(nodes, i, F_NAME) > lo(nodes, i, F_NAME) and f != NO_NODE) {
+            if (kind(nodes, @intCast(f)) == K_EXPR_ARRAY_LITERAL) { marks[i] = MARK; }
+        }
+        i = i + 1;
+    }
+}
+
+/// Every local or assignment of `name`, at any depth (`decls_of`).
+pub fn decls_of(nodes: []const u8, text: []const u8, name: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const k : u8 = kind(nodes, i);
+        if ((k == K_STMT_LOCAL or k == K_STMT_ASSIGN) and field_is(nodes, text, i, F_NAME, name)) { marks[i] = MARK; }
+        i = i + 1;
+    }
+}
+
+/// Every call (`calls_in`).
+pub fn calls(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (kind(nodes, i) == K_EXPR_CALL) { marks[i] = MARK; }
+        i = i + 1;
+    }
+}
+
+/// Every identifier whose address is taken: the first child of a unary `&` (`scan_addr_taken`).
+pub fn addr_taken(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const f : i64 = first_child(nodes, i);
+        if (kind(nodes, i) == K_EXPR_UNARY and field_eq(nodes, text, i, F_OP, "&") and f != NO_NODE) {
+            const fi : usize = @intCast(f);
+            if (kind(nodes, fi) == K_EXPR_IDENTIFIER) { marks[fi] = MARK; }
+        }
+        i = i + 1;
+    }
+}
+
+/// Every identifier that is an assignment's target, its first child (`count_assigns` counts them by name).
+pub fn assign_targets(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        const f : i64 = first_child(nodes, i);
+        if (kind(nodes, i) == K_STMT_ASSIGN and f != NO_NODE) {
+            const fi : usize = @intCast(f);
+            if (kind(nodes, fi) == K_EXPR_IDENTIFIER) { marks[fi] = MARK; }
+        }
+        i = i + 1;
+    }
+}
+
+/// The reference's `collect_mutable_names` over the statements from `lo` to `hi` (`ref_mutable_names`): an
+/// assignment's target when it is a name, or the name an index or field target starts from; the bodies of
+/// `if`, `while` and `for` are scanned too (a `Module` child as its statements, any other child as one), and
+/// nothing else is.
+pub fn mutable_in(nodes: []const u8, text: []const u8, lo: usize, hi: usize, marks: []u8) -> void {
+    var c : usize = lo;
+    while (c < hi) {
+        const k : u8 = kind(nodes, c);
+        const t : i64 = first_child(nodes, c);
+        if (k == K_STMT_ASSIGN and t != NO_NODE) {
+            const ti : usize = @intCast(t);
+            const tk : u8 = kind(nodes, ti);
+            if (tk == K_EXPR_IDENTIFIER) { marks[ti] = MARK; }
+            if (tk == K_EXPR_INDEX or tk == K_EXPR_FIELD_ACCESS) {
+                const b : i64 = first_child(nodes, ti);
+                if (b != NO_NODE) {
+                    const bi : usize = @intCast(b);
+                    if (kind(nodes, bi) == K_EXPR_IDENTIFIER) { marks[bi] = MARK; }
+                }
+            }
+        }
+        if (k == K_STMT_IF or k == K_STMT_WHILE or k == K_STMT_FOR or k == K_STMT_FOR_RANGE) {
+            var d : usize = c + 1;
+            while (d < end(nodes, c)) {
+                if (kind(nodes, d) == K_MODULE) {
+                    mutable_in(nodes, text, d + 1, end(nodes, d), marks);
+                } else {
+                    mutable_in(nodes, text, d, end(nodes, d), marks);
+                }
+                d = end(nodes, d);
+            }
+        }
+        c = end(nodes, c);
+    }
+}
+
+/// `mutable_in` over the whole list.
+pub fn mutable_names(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    mutable_in(nodes, text, 0, count(nodes), marks);
+}
+
+/// The ifs below node i that t27c's Zig backend prints without the parentheses Zig needs: the first child of a
+/// binary operator, a field access or an index, when it is an if expression. A struct literal's field
+/// values are scanned, but its fields are no field access of their own (`misprinted_ifs`).
+pub fn misprinted_at(nodes: []const u8, text: []const u8, i: usize, marks: []u8) -> void {
+    const k : u8 = kind(nodes, i);
+    const f : i64 = first_child(nodes, i);
+    if ((k == K_EXPR_BINARY or k == K_EXPR_FIELD_ACCESS or k == K_EXPR_INDEX) and f != NO_NODE) {
+        const fi : usize = @intCast(f);
+        if (kind(nodes, fi) == K_EXPR_IF) { marks[fi] = MARK; }
+    }
+    var c : usize = i + 1;
+    while (c < end(nodes, i)) {
+        if (k == K_EXPR_STRUCT_LIT and kind(nodes, c) == K_EXPR_FIELD_ACCESS) {
+            var v : usize = c + 1;
+            while (v < end(nodes, c)) {
+                misprinted_at(nodes, text, v, marks);
+                v = end(nodes, v);
+            }
+        } else {
+            misprinted_at(nodes, text, c, marks);
+        }
+        c = end(nodes, c);
+    }
+}
+
+/// `misprinted_at` from each node of the top-level list.
+pub fn misprinted_ifs(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var r : usize = 0;
+    while (r < count(nodes)) {
+        misprinted_at(nodes, text, r, marks);
+        r = end(nodes, r);
+    }
+}
+
+/// Is a call named `name` one of the actions a tail statement is left as (`assert`, `assert_eq`, `panic`,
+/// `unreachable`, `print`, `println`)?
+pub fn tail_action(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    if (field_eq(nodes, text, i, F_NAME, "assert") or field_eq(nodes, text, i, F_NAME, "assert_eq")) { return true; }
+    if (field_eq(nodes, text, i, F_NAME, "panic") or field_eq(nodes, text, i, F_NAME, "unreachable")) { return true; }
+    return field_eq(nodes, text, i, F_NAME, "print") or field_eq(nodes, text, i, F_NAME, "println");
+}
+
+/// #6315, t27c `zig_tail_returns` over the statements from `lo` to `hi` (`mark_tail_returns`): the last one,
+/// when it is an expression statement of one child that is neither a `return` nor an action call, and
+/// through an if/else that is last (three children), the last statement of each branch.
+pub fn tail_in(nodes: []const u8, text: []const u8, lo: usize, hi: usize, marks: []u8) -> void {
+    const at : i64 = last_of_list(nodes, lo, hi);
+    if (at == NO_NODE) { return; }
+    const s : usize = @intCast(at);
+    const k : u8 = kind(nodes, s);
+    if (k == K_STMT_EXPR and children(nodes, s) == 1) {
+        const e : usize = s + 1;
+        const ek : u8 = kind(nodes, e);
+        // Not written `!(a and b)`: gen (Zig) prints that as `!a and b` (#8228).
+        const action : bool = ek == K_EXPR_RETURN or (ek == K_EXPR_CALL and tail_action(nodes, text, e));
+        if (!action) { marks[s] = MARK; }
+    }
+    if (k == K_STMT_IF and children(nodes, s) == 3) {
+        const th : usize = end(nodes, s + 1);
+        const el : usize = end(nodes, th);
+        tail_in(nodes, text, th + 1, end(nodes, th), marks);
+        tail_in(nodes, text, el + 1, end(nodes, el), marks);
+    }
+}
+
+/// `tail_in` over the whole list.
+pub fn tail_returns(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    tail_in(nodes, text, 0, count(nodes), marks);
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. The expected values are what the hand-written Rust of lower.rs (master f21a0b39c) returns on the
+// same trees, built with ast_walk.t27's `node` and `set`. Their texts are slices of SCAN_TEXT:
+//   0 `x`, 1 `&`, 2..8 `assert`, 2..11 `assert_eq`, 11..16 `print`, 11..18 `println`, 18 `f`, 19 `-`,
+//   20..25 `panic`, 25..36 `unreachable`, 36 `y`.
+// ----------------------------------------------------------------------------------------------------------
+
+const SCAN_TEXT : str = "x&assert_eqprintlnf-panicunreachabley";
+
+/// Clears the first n marks.
+fn clear(marks: []u8, n: usize) -> void {
+    var i : usize = 0;
+    while (i < n) {
+        marks[i] = 0;
+        i = i + 1;
+    }
+}
+
+/// How many of the first n marks are set, and which: bit i of the result for mark i.
+fn mask(marks: []u8, n: usize) -> u32 {
+    var m : u32 = 0;
+    var bit : u32 = 1;
+    var i : usize = 0;
+    while (i < n) {
+        if (marks[i] == MARK) { m = m + bit; }
+        bit = bit * 2;
+        i = i + 1;
+    }
+    return m;
+}
+
+test the_last_sibling_is_found_by_subtree_ends {
+    var buf : [360]u8 = undefined;
+    node(buf[0 .. 360], 0, K_STMT_IF, 3, 0, 0);
+    node(buf[0 .. 360], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 360], 2, K_EXPR_LITERAL, 3, 0, 0);
+    node(buf[0 .. 360], 3, K_STMT_EXPR, 5, 0, 0);
+    node(buf[0 .. 360], 4, K_EXPR_CALL, 5, 0, 0);
+    const ns : []const u8 = buf[0 .. 360];
+    assert last_of_list(ns, 0, 5) == 3;
+    assert last_of_list(ns, 1, 3) == 2;
+    assert last_of_list(ns, 1, 2) == 1;
+    assert last_of_list(ns, 4, 5) == 4;
+    assert last_of_list(ns, 3, 3) == NO_NODE;
+}
+
+test names_locals_calls_and_declarations_are_marked {
+    // Local `x` = [..], Assign `y` = [..], Local `` = [..], Local `x` = 1, Call `f`, Local `x`
+    var buf : [648]u8 = undefined;
+    var m : [9]u8 = undefined;
+    node(buf[0 .. 648], 0, K_STMT_LOCAL, 2, 0, 1);
+    node(buf[0 .. 648], 1, K_EXPR_ARRAY_LITERAL, 2, 0, 0);
+    node(buf[0 .. 648], 2, K_STMT_ASSIGN, 4, 36, 37);
+    node(buf[0 .. 648], 3, K_EXPR_ARRAY_LITERAL, 4, 0, 0);
+    node(buf[0 .. 648], 4, K_STMT_LOCAL, 6, 0, 0);
+    node(buf[0 .. 648], 5, K_EXPR_ARRAY_LITERAL, 6, 0, 0);
+    node(buf[0 .. 648], 6, K_STMT_LOCAL, 8, 0, 1);
+    node(buf[0 .. 648], 7, K_EXPR_LITERAL, 8, 18, 19);
+    node(buf[0 .. 648], 8, K_EXPR_CALL, 9, 18, 19);
+    const ns : []const u8 = buf[0 .. 648];
+    clear(m[0 .. 9], 9);
+    named(ns, SCAN_TEXT, m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 453;
+    clear(m[0 .. 9], 9);
+    array_locals(ns, SCAN_TEXT, m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 5;
+    clear(m[0 .. 9], 9);
+    decls_of(ns, SCAN_TEXT, "x", m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 65;
+    clear(m[0 .. 9], 9);
+    decls_of(ns, SCAN_TEXT, "y", m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 4;
+    clear(m[0 .. 9], 9);
+    decls_of(ns, SCAN_TEXT, "", m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 16;
+    clear(m[0 .. 9], 9);
+    calls(ns, SCAN_TEXT, m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 256;
+    node(buf[0 .. 648], 0, K_STMT_LOCAL, 1, 0, 1);
+    clear(m[0 .. 9], 9);
+    array_locals(buf[0 .. 72], SCAN_TEXT, m[0 .. 9]);
+    assert mask(m[0 .. 9], 9) == 0;
+}
+
+test the_address_of_a_name_and_an_assignment_target_are_marked {
+    // `&x`, `-y`, `&f(..)`, `&` alone, `x = ..`, `y[..] = ..`, a childless assignment
+    var buf : [792]u8 = undefined;
+    var m : [11]u8 = undefined;
+    node(buf[0 .. 792], 0, K_EXPR_UNARY, 2, 0, 0);
+    set(buf[0 .. 792], 0, F_OP, 1, 2);
+    node(buf[0 .. 792], 1, K_EXPR_IDENTIFIER, 2, 0, 1);
+    node(buf[0 .. 792], 2, K_EXPR_UNARY, 4, 0, 0);
+    set(buf[0 .. 792], 2, F_OP, 19, 20);
+    node(buf[0 .. 792], 3, K_EXPR_IDENTIFIER, 4, 36, 37);
+    node(buf[0 .. 792], 4, K_EXPR_UNARY, 6, 0, 0);
+    set(buf[0 .. 792], 4, F_OP, 1, 2);
+    node(buf[0 .. 792], 5, K_EXPR_CALL, 6, 18, 19);
+    node(buf[0 .. 792], 6, K_EXPR_UNARY, 7, 0, 0);
+    set(buf[0 .. 792], 6, F_OP, 1, 2);
+    node(buf[0 .. 792], 7, K_STMT_ASSIGN, 9, 0, 0);
+    node(buf[0 .. 792], 8, K_EXPR_IDENTIFIER, 9, 0, 1);
+    node(buf[0 .. 792], 9, K_STMT_ASSIGN, 11, 0, 0);
+    node(buf[0 .. 792], 10, K_EXPR_INDEX, 11, 0, 0);
+    const ns : []const u8 = buf[0 .. 792];
+    clear(m[0 .. 11], 11);
+    addr_taken(ns, SCAN_TEXT, m[0 .. 11]);
+    assert mask(m[0 .. 11], 11) == 2;
+    clear(m[0 .. 11], 11);
+    assign_targets(ns, SCAN_TEXT, m[0 .. 11]);
+    assert mask(m[0 .. 11], 11) == 256;
+    clear(m[0 .. 11], 11);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 11]);
+    assert mask(m[0 .. 11], 11) == 256;
+}
+
+test mutable_names_look_into_control_bodies_only {
+    // 0 StmtIf { 1 cond, 2 Module { 3 Assign { 4 x[..] { 5 y } } }, 6 Assign { 7 x } }
+    // 8 StmtLocal { 9 Assign { 10 y } }, 11 StmtWhile { 12 Module { 13 StmtFor { 14 Module { 15 Assign { 16 f } } } } }
+    var buf : [1224]u8 = undefined;
+    var m : [17]u8 = undefined;
+    node(buf[0 .. 1224], 0, K_STMT_IF, 8, 0, 0);
+    node(buf[0 .. 1224], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 1224], 2, K_MODULE, 6, 0, 0);
+    node(buf[0 .. 1224], 3, K_STMT_ASSIGN, 6, 0, 0);
+    node(buf[0 .. 1224], 4, K_EXPR_INDEX, 6, 0, 0);
+    node(buf[0 .. 1224], 5, K_EXPR_IDENTIFIER, 6, 36, 37);
+    node(buf[0 .. 1224], 6, K_STMT_ASSIGN, 8, 0, 0);
+    node(buf[0 .. 1224], 7, K_EXPR_IDENTIFIER, 8, 0, 1);
+    node(buf[0 .. 1224], 8, K_STMT_LOCAL, 11, 0, 0);
+    node(buf[0 .. 1224], 9, K_STMT_ASSIGN, 11, 0, 0);
+    node(buf[0 .. 1224], 10, K_EXPR_IDENTIFIER, 11, 36, 37);
+    node(buf[0 .. 1224], 11, K_STMT_WHILE, 17, 0, 0);
+    node(buf[0 .. 1224], 12, K_MODULE, 17, 0, 0);
+    node(buf[0 .. 1224], 13, K_STMT_FOR, 17, 0, 0);
+    node(buf[0 .. 1224], 14, K_MODULE, 17, 0, 0);
+    node(buf[0 .. 1224], 15, K_STMT_ASSIGN, 17, 0, 0);
+    node(buf[0 .. 1224], 16, K_EXPR_FIELD_ACCESS, 17, 18, 19);
+    const ns : []const u8 = buf[0 .. 1224];
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 160;
+    node(buf[0 .. 1224], 16, K_EXPR_IDENTIFIER, 17, 18, 19);
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 65696;
+    node(buf[0 .. 1224], 13, K_STMT_FOR_RANGE, 17, 0, 0);
+    node(buf[0 .. 1224], 11, K_STMT_IF, 17, 0, 0);
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 65696;
+    node(buf[0 .. 1224], 13, K_STMT_EXPR, 17, 0, 0);
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 160;
+    node(buf[0 .. 1224], 4, K_EXPR_FIELD_ACCESS, 6, 0, 0);
+    node(buf[0 .. 1224], 0, K_STMT_WHILE, 8, 0, 0);
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 160;
+    node(buf[0 .. 1224], 4, K_EXPR_CALL, 6, 0, 0);
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 128;
+    node(buf[0 .. 1224], 0, K_STMT_LOCAL, 8, 0, 0);
+    node(buf[0 .. 1224], 4, K_EXPR_INDEX, 6, 0, 0);
+    clear(m[0 .. 17], 17);
+    mutable_names(ns, SCAN_TEXT, m[0 .. 17]);
+    assert mask(m[0 .. 17], 17) == 0;
+}
+
+test an_if_first_under_an_operator_is_misprinted {
+    // 0 Binary { 1 If { 2 Index { 3 If } }, 4 StructLit { 5 FieldAccess `f` { 6 If } , 7 FieldAccess `f` { 8 Binary { 9 If } } } }
+    var buf : [720]u8 = undefined;
+    var m : [10]u8 = undefined;
+    node(buf[0 .. 720], 0, K_EXPR_BINARY, 10, 0, 0);
+    node(buf[0 .. 720], 1, K_EXPR_IF, 4, 0, 0);
+    node(buf[0 .. 720], 2, K_EXPR_INDEX, 4, 0, 0);
+    node(buf[0 .. 720], 3, K_EXPR_IF, 4, 0, 0);
+    node(buf[0 .. 720], 4, K_EXPR_STRUCT_LIT, 10, 0, 0);
+    node(buf[0 .. 720], 5, K_EXPR_FIELD_ACCESS, 7, 18, 19);
+    node(buf[0 .. 720], 6, K_EXPR_IF, 7, 0, 0);
+    node(buf[0 .. 720], 7, K_EXPR_FIELD_ACCESS, 10, 18, 19);
+    node(buf[0 .. 720], 8, K_EXPR_BINARY, 10, 0, 0);
+    node(buf[0 .. 720], 9, K_EXPR_IF, 10, 0, 0);
+    const ns : []const u8 = buf[0 .. 720];
+    clear(m[0 .. 10], 10);
+    misprinted_ifs(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 522;
+    node(buf[0 .. 720], 4, K_EXPR_TUPLE, 10, 0, 0);
+    clear(m[0 .. 10], 10);
+    misprinted_ifs(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 586;
+    node(buf[0 .. 720], 0, K_EXPR_CALL, 10, 0, 0);
+    clear(m[0 .. 10], 10);
+    misprinted_ifs(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 584;
+    node(buf[0 .. 720], 0, K_EXPR_FIELD_ACCESS, 10, 0, 0);
+    clear(m[0 .. 10], 10);
+    misprinted_ifs(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 586;
+}
+
+test misprinted_ifs_scan_every_top_level_node {
+    var buf : [288]u8 = undefined;
+    var m : [4]u8 = undefined;
+    node(buf[0 .. 288], 0, K_STMT_EXPR, 1, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_INDEX, 3, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_IF, 3, 0, 0);
+    node(buf[0 .. 288], 3, K_EXPR_INDEX, 4, 0, 0);
+    clear(m[0 .. 4], 4);
+    misprinted_ifs(buf[0 .. 288], SCAN_TEXT, m[0 .. 4]);
+    assert mask(m[0 .. 4], 4) == 4;
+}
+
+test a_tail_statement_returns_unless_it_is_an_action {
+    // 0 StmtExpr { 1 Call }
+    var buf : [216]u8 = undefined;
+    var m : [3]u8 = undefined;
+    node(buf[0 .. 216], 0, K_STMT_EXPR, 2, 0, 0);
+    node(buf[0 .. 216], 1, K_EXPR_CALL, 2, 18, 19);
+    const ns : []const u8 = buf[0 .. 144];
+    clear(m[0 .. 3], 3);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 1;
+    node(buf[0 .. 216], 1, K_EXPR_CALL, 2, 2, 8);
+    clear(m[0 .. 3], 3);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 0;
+    node(buf[0 .. 216], 1, K_EXPR_CALL, 2, 2, 7);
+    clear(m[0 .. 3], 3);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 1;
+    node(buf[0 .. 216], 1, K_EXPR_RETURN, 2, 18, 19);
+    clear(m[0 .. 3], 3);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 0;
+    node(buf[0 .. 216], 1, K_EXPR_BINARY, 2, 2, 8);
+    clear(m[0 .. 3], 3);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 1;
+    node(buf[0 .. 216], 0, K_STMT_EXPR, 3, 0, 0);
+    node(buf[0 .. 216], 1, K_EXPR_BINARY, 2, 2, 8);
+    node(buf[0 .. 216], 2, K_EXPR_BINARY, 3, 2, 8);
+    clear(m[0 .. 3], 3);
+    tail_returns(buf[0 .. 216], SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 0;
+    node(buf[0 .. 216], 0, K_STMT_EXPR, 1, 0, 0);
+    clear(m[0 .. 3], 3);
+    tail_returns(buf[0 .. 72], SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 0;
+    clear(m[0 .. 3], 3);
+    tail_returns(buf[0 .. 0], SCAN_TEXT, m[0 .. 3]);
+    assert mask(m[0 .. 3], 3) == 0;
+}
+
+test every_action_call_stays_an_action {
+    var buf : [144]u8 = undefined;
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 2, 8);
+    const ns : []const u8 = buf[0 .. 144];
+    assert tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 2, 11);
+    assert tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 20, 25);
+    assert tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 25, 36);
+    assert tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 11, 16);
+    assert tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 11, 18);
+    assert tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 11, 17);
+    assert !tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 2, 7);
+    assert !tail_action(ns, SCAN_TEXT, 0);
+    node(buf[0 .. 144], 0, K_EXPR_CALL, 1, 18, 19);
+    assert !tail_action(ns, SCAN_TEXT, 0);
+}
+
+test a_tail_if_else_marks_each_branch {
+    // 0 StmtIf { 1 cond, 2 Module { 3 StmtExpr { 4 Call f } }, 5 Module { 6 StmtExpr { 7 Call assert }, 8 StmtExpr { 9 Call f } } }
+    var buf : [720]u8 = undefined;
+    var m : [10]u8 = undefined;
+    node(buf[0 .. 720], 0, K_STMT_IF, 10, 0, 0);
+    node(buf[0 .. 720], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 720], 2, K_MODULE, 5, 0, 0);
+    node(buf[0 .. 720], 3, K_STMT_EXPR, 5, 0, 0);
+    node(buf[0 .. 720], 4, K_EXPR_CALL, 5, 18, 19);
+    node(buf[0 .. 720], 5, K_MODULE, 10, 0, 0);
+    node(buf[0 .. 720], 6, K_STMT_EXPR, 8, 0, 0);
+    node(buf[0 .. 720], 7, K_EXPR_CALL, 8, 2, 8);
+    node(buf[0 .. 720], 8, K_STMT_EXPR, 10, 0, 0);
+    node(buf[0 .. 720], 9, K_EXPR_CALL, 10, 18, 19);
+    const ns : []const u8 = buf[0 .. 720];
+    clear(m[0 .. 10], 10);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 264;
+    node(buf[0 .. 720], 9, K_EXPR_CALL, 10, 11, 18);
+    clear(m[0 .. 10], 10);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 8;
+    node(buf[0 .. 720], 0, K_STMT_WHILE, 10, 0, 0);
+    clear(m[0 .. 10], 10);
+    tail_returns(ns, SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 0;
+    node(buf[0 .. 720], 0, K_STMT_IF, 5, 0, 0);
+    clear(m[0 .. 10], 10);
+    tail_returns(buf[0 .. 360], SCAN_TEXT, m[0 .. 10]);
+    assert mask(m[0 .. 10], 10) == 0;
+}

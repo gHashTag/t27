@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:de44f10f999e7604b9d1d28b203a9f8a44170963d03a1f03728f19effe9d0fac",
+  "gen_hash_rust": "sha256:265669d5f04a6b49ac2561831e20557893bd7084d36a93be45a8beefeffa4a24",
+  "gen_hash_verilog": "sha256:b1f2136ed8357ad3785759a78ed962959b6af3f33f9f3da84f1f93fbc9ca8967",
+  "gen_hash_zig": "sha256:5f6e83c998986640ea7f7d041ad0651b089ba6645c324d837fc917edf6fc9bec",
+  "module": "automation::leela_agent_link",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5d6525d3d20a69056421b4f5190ba1449801baa2a7ce27308734f846653eca22",
+  "spec_path": "specs/automation/leela-agent-link.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

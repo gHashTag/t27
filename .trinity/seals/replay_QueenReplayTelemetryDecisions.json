@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:53a66bedd5af50271751378c938785d0f9ea24840f24b015b9fdfdf39ee6547a",
+  "gen_hash_rust": "sha256:e2de2dc7fb2a2a45e776da64f837b40a79cb0d584fbd2fdfac4e05658b12cb18",
+  "gen_hash_verilog": "sha256:33a23d457718bdfdf7cb71f3908cb5331108f757f204ba374d97df4a467757e2",
+  "gen_hash_zig": "sha256:c75d12c4371ff429c30fd6369d3d531f5370ae3286b11789274cc962d919e4ea",
+  "module": "QueenReplayTelemetryDecisions",
+  "ring": 12,
+  "sealed_at": "2026-10-09T20:00:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:a018f8f68074ab137cae726e2a098b867e1b355e5fa1fa1392e1ff189ab62c5c",
+  "spec_path": "specs/queen/replay/telemetry_decisions.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
+  }
+}

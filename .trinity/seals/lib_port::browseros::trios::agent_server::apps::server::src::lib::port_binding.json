@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b6e350ba88dd3f3d2218b77fc5d8b43dbfbefc93100a7f0ace1f64a7dfd1a9c7",
+  "gen_hash_rust": "sha256:63461d6f95e8b8a48a928bd92f7a66f2188c7cf1b2fefbdc4dbf1fee0be43fd4",
+  "gen_hash_verilog": "sha256:01057f144d0d030b8ce8430d9c04ea23288406b552fa4cb3b0fbed77d6c180e9",
+  "gen_hash_zig": "sha256:f32c093f91ee87280ea585148036f42371d842b146e18d07faac81f3a43c0bea",
+  "module": "port::browseros::trios::agent_server::apps::server::src::lib::port_binding",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:020d44aeac130de2bb99ffdb3abf1f75085c90775d2c8e537dfadd40edaf40b4",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/port-binding.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

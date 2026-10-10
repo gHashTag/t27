@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e56f401b7d39cc6e30560b1cf1e51c5b4b2d820d491d15a49145ff2a679fc085",
+  "gen_hash_rust": "sha256:cb39ca68501b9b9e69b81e92cba823f0e28f8c6efb1d5bdec0bb23c95f801542",
+  "gen_hash_verilog": "sha256:987b92de30803a46198518c0b6f93a60fd91d5534b11e8f47ea8443b4ce1e350",
+  "gen_hash_zig": "sha256:e1f02bc2180e32b80ad9e34773fe6fa4b0a75499db5deee31dd033bee0c945ad",
+  "module": "catalog",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:9e56cb2d2385e2dee89ff3b392e056819799d4b8949d0cc0bcbd8e8ac8de2144",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/skills/catalog.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

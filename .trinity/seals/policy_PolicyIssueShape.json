@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b10fa5614aff513a86d6c03f7c2092ad0e5e119b306d6e0e5688bf7f2771c93e",
+  "gen_hash_rust": "sha256:e261de07afc4ce692ce2266d70b54042e037099e76bbe79869d17fd93d07ab60",
+  "gen_hash_verilog": "sha256:effadfde15e06df8259722e08d9b6c89a83f77945ead74f90b0572de7f7cdafe",
+  "gen_hash_zig": "sha256:7f8b7c3b176fc4c3a31acaf5f66f0909aa099d9d8852c0756dfd5270a44ba310",
+  "module": "PolicyIssueShape",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:27af8ee0e0cf3cb3706e1919e6215d128e9a0bf04fdde985ad46b6413c4b7896",
+  "spec_path": "specs/policy/issue_shape.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

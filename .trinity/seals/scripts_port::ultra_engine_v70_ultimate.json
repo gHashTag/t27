@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:1c4d4307c3a14afa164dca798bf57b592e979137dba7294d93859fadbcac379a",
+  "gen_hash_rust": "sha256:5ed7a23d51289de624b42806ca2f2e8d7dbb9aed1b40fc4298210da3149077ea",
+  "gen_hash_verilog": "sha256:d3e6b751dc0afde735f06f1b07d24b9a0d3000ee62091bb03102e88fc391860c",
+  "gen_hash_zig": "sha256:93c1d094325c996dbb2e44741b1557310dc35a44b47b91a34800a430c198cf71",
+  "module": "port::ultra_engine_v70_ultimate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1920645a6bca9cc58d92382fab02d2a1704e8fcea07a379cf99c5f33c13133e5",
+  "spec_path": "specs/port/scripts/ultra_engine_v70_ultimate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

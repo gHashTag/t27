@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:270634bd6faa631d945d697873b8a4ef3b0bcff8722d70782d80e3a455c33330",
+  "gen_hash_rust": "sha256:29aa4d1670e0edc54ddab50916fbc893c06e40082da9ace6f6efe7fa11cba2b6",
+  "gen_hash_verilog": "sha256:823b97fe23c0f296a9005a8ac411be565b6daf487bf052b1c2aec3dc1f3f0796",
+  "gen_hash_zig": "sha256:6c4a032e41cbed00c3154ed2f109b88167a54d52008a80b3de38137779c4aa27",
+  "module": "TriMutateCensus",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:31:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6e1ce68de2cf1a5360a89e33eebfa9cb1212201e12259dbda7dd923597f967c6",
+  "spec_path": "specs/tri/mutate/census.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 17,
+    "total": 17
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

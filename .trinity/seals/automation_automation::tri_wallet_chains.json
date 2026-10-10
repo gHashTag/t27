@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b9d22d0f4",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3a2b7f91f89891a006f855bc3882212c40407d993689058884f8b8940e3447fb",
+  "gen_hash_rust": "sha256:f6e0188b8b82ced88f790ddc0b4567d86028e1d7605fc59428020d864a8bec42",
+  "gen_hash_verilog": "sha256:c445e18dc67bbdb2d91f3533d212f0a53e39b9e67c9c3e8926687a03bd4492e5",
+  "gen_hash_zig": "sha256:d98f7182cca93005691a7e0c70d0ff597a1d9640077a66273d7a1cca144b7e1f",
+  "module": "automation::tri_wallet_chains",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:35:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8650dd8110fa847aa2a6e45a43a209d6ac1aaf66027497c67c7a9388a23a5bff",
+  "spec_path": "specs/automation/tri-wallet-chains.t27",
+  "tests": {
+    "blocked": "does not compile: runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.15.2"
+  }
+}

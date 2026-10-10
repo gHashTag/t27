@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a23b5f644d73f9d1ad7e6de44d83dd4487a88f9a7f8ec77db11f5ff472c70267",
+  "gen_hash_rust": "sha256:f6124e4d6788597e8ca9db90375dcf1fa80947582d4687fb9538970b4c8723e1",
+  "gen_hash_verilog": "sha256:88c3b8ea6f93b4b19d94262345ae1d4ba4d5166c39d26d7b0a18e2d105e48300",
+  "gen_hash_zig": "sha256:48091cffb264cbbd7431d8f84b0088baccc0c09bcf1eba0f289d328fb2af6f2e",
+  "module": "cron_999_multibots_telegraf_taskCache_L27",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:33:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:ef3c306e7c60d93ff885c8de3477849fc2cd6cbf131998bf77628663c99ade24",
+  "spec_path": "specs/crons/999-multibots-telegraf-taskCache-L27.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

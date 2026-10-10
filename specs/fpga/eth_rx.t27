@@ -1,0 +1,744 @@
+// SPDX-License-Identifier: Apache-2.0
+module EthRx;
+// specs/fpga/eth_rx.t27 -- E2a of the Ethernet job link (#8333, part of #8327): the receive
+// half of a TRI-NET node on the ALINX AX7203. It takes the GMII-style byte stream of one PHY
+// (a valid flag and one byte per 125 MHz clock; turning RGMII nibbles into these bytes is E2d)
+// and accepts exactly the UDP datagrams addressed to the node.
+//
+// What it accepts:
+//   destination MAC 02:27:00:00:00:01 (the node; the same address EthBeacon sends from) or
+//   ff:ff:ff:ff:ff:ff; EtherType 0x0800; IPv4 with IHL 5, not a fragment, a correct header
+//   checksum; protocol 17; destination 192.168.1.227, the subnet broadcast 192.168.1.255 or
+//   255.255.255.255; UDP destination port 27028; a UDP length that agrees with the IP length;
+//   a UDP length of at most 1480 (a 1518-byte frame, no jumbo frames); a frame of at least 64
+//   bytes and of the length the UDP header needs, whose CRC-32 over data plus FCS leaves the
+//   residue 0xDEBB20E3. Padding after the datagram is legal and is not payload.
+// A host therefore needs no ARP entry: it may send to the broadcast address, and the node
+// answers the sender it latched here (E2c), whose MAC/IP/port arrive in the request itself.
+//
+// Interface, per clock:
+//   on_clock(dv, b)   dv = 1 while the PHY delivers a byte b; the frame ends when dv drops.
+//   pay_v, pay_b, pay_i   a UDP payload byte, valid for one clock, with its index from 0.
+//                     Emitted while no defect has been seen yet, so a consumer must buffer
+//                     the bytes and use them only when the frame ends with ok = 1.
+//   done              1 for one clock when a frame ends; ok and why hold the verdict until
+//                     the next frame ends: why = 0 accepted, otherwise the first defect:
+//                     1 MAC, 2 EtherType/version/IHL, 3 protocol, 4 destination IP,
+//                     5 destination port, 6 FCS, 7 runt or truncated, 8 IPv4 checksum,
+//                     9 fragment, 10 UDP length.
+//   src_mac, src_ip, src_port, udp_len   the sender and the datagram length, latched.
+//   n_ok, n_drop      frames accepted and dropped since reset; they count one clock after done.
+//
+// The canonical test frame and its reference values were computed independently (Python
+// struct, the RFC 791 sum and zlib.crc32) before this spec was written: 66 data bytes,
+// IPv4 checksum 0xB620, FCS 30 2B 9B E2, payload byte sum 2199.
+//
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at
+// most once on each path, and every statement reads values from before the edge -- a var is
+// never read after it was written in the same call, which is why on_clock writes pos last.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+const CRC_INIT : u32 = 4294967295
+const CRC_POLY : u32 = 3988292384
+const CRC_RESIDUE : u32 = 3736805603
+const OUR_IP : u32 = 3232236003
+const SUBNET_BCAST : u32 = 3232236031
+const ALL_ONES : u32 = 4294967295
+const RX_PORT : u32 = 27028
+const MAC_MASK : u64 = 281474976710655
+const MIN_FRAME : u16 = 64
+const POS_CAP : u16 = 2047
+const IP_POS : u16 = 14
+const UDP_POS : u16 = 34
+const PAY_POS : u16 = 42
+const SETTLE_POS : u16 = 40
+const MAX_UDP : u16 = 1480
+
+var st : u8 = 0
+var pos : u16 = 0
+var crc : u32 = 4294967295
+var bad : u8 = 0
+var mbc : u8 = 1
+var mus : u8 = 1
+var pb : u8 = 0
+var ipsum : u32 = 0
+var ip_len : u16 = 0
+var udp_len : u16 = 0
+var src_mac : u64 = 0
+var src_ip : u32 = 0
+var dst_ip : u32 = 0
+var src_port : u16 = 0
+var pay_v : u8 = 0
+var pay_b : u8 = 0
+var pay_i : u16 = 0
+var done : u8 = 0
+var ok : u8 = 0
+var why : u8 = 0
+var n_ok : u32 = 0
+var n_drop : u32 = 0
+var ipl20 : u16 = 0
+var pay_end : u16 = 0
+var need_len : u16 = 65535
+var ipok : u8 = 0
+
+fn crc_step(c: u32) -> u32 {
+    if ((c & 1) == 1) { return (c >> 1) ^ CRC_POLY; }
+    return c >> 1;
+}
+
+fn crc_byte(c: u32, b: u8) -> u32 {
+    return crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(c ^ (b as u32)))))))));
+}
+
+fn eqb(a: u8, b: u8) -> u8 {
+    if (a == b) { return 1; }
+    return 0;
+}
+
+fn is_zero(r: u8) -> u8 {
+    if (r == 0) { return 1; }
+    return 0;
+}
+
+fn our_mac_byte(k: u16) -> u8 {
+    if (k == 0) { return 2; }
+    if (k == 1) { return 39; }
+    if (k == 5) { return 1; }
+    return 0;
+}
+
+// The destination-MAC flags after byte i: still broadcast, still ours.
+fn mac_bc_next(i: u16, b: u8, f: u8) -> u8 {
+    if (i < 6) { return f & eqb(b, 255); }
+    return f;
+}
+
+fn mac_us_next(i: u16, b: u8, f: u8) -> u8 {
+    if (i < 6) { return f & eqb(b, our_mac_byte(i)); }
+    return f;
+}
+
+fn word(hi: u8, lo: u8) -> u32 {
+    return ((hi as u32) << 8) | (lo as u32);
+}
+
+// RFC 791: the IPv4 header is bytes 14..33; a word ends on every odd index.
+fn ipsum_next(i: u16, prev: u8, b: u8, s: u32) -> u32 {
+    if (i > IP_POS) {
+        if (i < UDP_POS) {
+            if ((i & 1) == 1) { return s + word(prev, b); }
+        }
+    }
+    return s;
+}
+
+// A sum over a correct header, checksum included, folds to 0xFFFF.
+fn fold16(s: u32) -> u32 {
+    const a : u32 = (s & 65535) + (s >> 16);
+    return (a & 65535) + (a >> 16);
+}
+
+fn dst_ok(d: u32) -> u8 {
+    if (d == OUR_IP) { return 1; }
+    if (d == SUBNET_BCAST) { return 1; }
+    if (d == ALL_ONES) { return 1; }
+    return 0;
+}
+
+// A big-endian 16-bit field at bytes at, at+1.
+fn latch16(i: u16, at: u16, v: u16, b: u8) -> u16 {
+    if (i == at) { return (word((v & 255) as u8, b) & 65535) as u16; }
+    if (i == at + 1) { return (word((v & 255) as u8, b) & 65535) as u16; }
+    return v;
+}
+
+// A big-endian 32-bit field at bytes at..at+3: four shifts replace every bit.
+fn latch32(i: u16, at: u16, v: u32, b: u8) -> u32 {
+    if (i >= at) {
+        if (i < at + 4) { return (v << 8) | (b as u32); }
+    }
+    return v;
+}
+
+// The source MAC, bytes 6..11, masked to 48 bits.
+fn latch_mac(i: u16, v: u64, b: u8) -> u64 {
+    if (i >= 6) {
+        if (i < 12) { return ((v << 8) | (b as u64)) & MAC_MASK; }
+    }
+    return v;
+}
+
+// The first defect visible at byte i, or 0. nbc/nus are the MAC flags including this byte;
+// ipl20v is the IP total length minus 20, latched at byte 21; dip holds destination-IP bytes 30..32 at i == 33.
+fn reason_at(i: u16, b: u8, prev: u8, nbc: u8, nus: u8, ipl20v: u16, dip: u32) -> u8 {
+    if (i == 5) {
+        if ((nbc | nus) == 0) { return 1; }
+    }
+    if (i == 12) {
+        if (b != 8) { return 2; }
+    }
+    if (i == 13) {
+        if (b != 0) { return 2; }
+    }
+    if (i == 14) {
+        if (b != 69) { return 2; }
+    }
+    if (i == 20) {
+        if ((b & 63) != 0) { return 9; }
+    }
+    if (i == 21) {
+        if (b != 0) { return 9; }
+    }
+    if (i == 23) {
+        if (b != 17) { return 3; }
+    }
+    if (i == 33) {
+        if (dst_ok((dip << 8) | (b as u32)) == 0) { return 4; }
+    }
+    if (i == 37) {
+        if (word(prev, b) != RX_PORT) { return 5; }
+    }
+    if (i == 39) {
+        if (word(prev, b) < 8) { return 10; }
+        if (word(prev, b) > (MAX_UDP as u32)) { return 10; }
+        if ((ipl20v as u32) != word(prev, b)) { return 10; }
+    }
+    return 0;
+}
+
+fn in_payload(i: u16, pend: u16) -> u8 {
+    if (i >= PAY_POS) {
+        if (i < pend) { return 1; }
+    }
+    return 0;
+}
+
+// A payload byte goes out only while the frame is still clean, including this byte.
+fn pay_gate(old_bad: u8, now: u8, i: u16, pend: u16) -> u8 {
+    if (old_bad != 0) { return 0; }
+    if (now != 0) { return 0; }
+    return in_payload(i, pend);
+}
+
+fn pay_index(i: u16) -> u16 {
+    if (i >= PAY_POS) { return i - PAY_POS; }
+    return 0;
+}
+
+// The verdict when the frame ends after n bytes (FCS included). Only comparisons: every sum
+// it needs (IPv4 checksum fold, required length) was settled at byte SETTLE_POS, so no adder
+// chain sits between the last byte and the verdict (125 MHz).
+fn verdict(r: u8, n: u16, need: u16, iok: u8, c: u32) -> u8 {
+    if (r != 0) { return r; }
+    if (n < MIN_FRAME) { return 7; }
+    if (n < need) { return 7; }
+    if (iok == 0) { return 8; }
+    if (c != CRC_RESIDUE) { return 6; }
+    return 0;
+}
+
+fn eq32(a: u32, b: u32) -> u8 {
+    if (a == b) { return 1; }
+    return 0;
+}
+
+// ip_len - 20 modulo 2^16: evaluated on every clock, so it must not trap while ip_len is
+// still 0 (the Zig test runner checks unsigned underflow; the RTL wraps the same way).
+fn sub20(v: u16) -> u16 {
+    return (((v as u32) + 65516) & 65535) as u16;
+}
+
+// Where the payload ends and how many bytes the frame needs (FCS included), from the UDP
+// length. Both are evaluated on every clock, with whatever udp_len holds then (half-latched at
+// byte 38, a previous frame's, or 0xFFFF), so the sums run only below MAX_UDP: 34 + 0xFFEB
+// would wrap to 13 in 16 bits and let a 70-byte frame pass the length check. Above the bound
+// byte 39 has already set reason 10, and a need of 65535 is above POS_CAP, so it fails too.
+fn pay_end_of(u: u16) -> u16 {
+    if (u > MAX_UDP) { return PAY_POS; }
+    return UDP_POS + u;
+}
+
+fn need_of(u: u16) -> u16 {
+    if (u > MAX_UDP) { return 65535; }
+    return UDP_POS + u + 4;
+}
+
+// Take nv at byte at, keep v otherwise.
+fn at16(i: u16, at: u16, nv: u16, v: u16) -> u16 {
+    if (i == at) { return nv; }
+    return v;
+}
+
+fn at8(i: u16, at: u16, nv: u8, v: u8) -> u8 {
+    if (i == at) { return nv; }
+    return v;
+}
+
+// Counters move one clock after the verdict, so the verdict and an adder are never chained.
+fn inc_if(n: u32, d: u8, f: u8) -> u32 {
+    if (d == 1) { return n + (f as u32); }
+    return n;
+}
+
+fn on_clock(dv: u8, b: u8) {
+    if (st == 0) {
+        n_ok = inc_if(n_ok, done, ok);
+        n_drop = inc_if(n_drop, done, 1 - ok);
+        done = 0;
+        pay_v = 0;
+        if (dv == 1) {
+            if (b == 213) {
+                st = 1;
+                pos = 0;
+                crc = CRC_INIT;
+                bad = 0;
+                mbc = 1;
+                mus = 1;
+                ipsum = 0;
+                pay_end = 0;
+                need_len = 65535;
+                ipok = 0;
+            }
+        }
+    } else {
+        if (dv == 1) {
+            done = 0;
+            pay_v = pay_gate(bad, reason_at(pos, b, pb, mac_bc_next(pos, b, mbc), mac_us_next(pos, b, mus), ipl20, dst_ip), pos, pay_end);
+            pay_b = b;
+            pay_i = pay_index(pos);
+            if (bad == 0) {
+                bad = reason_at(pos, b, pb, mac_bc_next(pos, b, mbc), mac_us_next(pos, b, mus), ipl20, dst_ip);
+            }
+            ipl20 = at16(pos, 21, sub20(ip_len), ipl20);
+            pay_end = at16(pos, SETTLE_POS, pay_end_of(udp_len), pay_end);
+            need_len = at16(pos, SETTLE_POS, need_of(udp_len), need_len);
+            ipok = at8(pos, SETTLE_POS, eq32(fold16(ipsum), 65535), ipok);
+            ipsum = ipsum_next(pos, pb, b, ipsum);
+            ip_len = latch16(pos, 16, ip_len, b);
+            udp_len = latch16(pos, 38, udp_len, b);
+            src_port = latch16(pos, 34, src_port, b);
+            src_ip = latch32(pos, 26, src_ip, b);
+            dst_ip = latch32(pos, 30, dst_ip, b);
+            src_mac = latch_mac(pos, src_mac, b);
+            mbc = mac_bc_next(pos, b, mbc);
+            mus = mac_us_next(pos, b, mus);
+            crc = crc_byte(crc, b);
+            pb = b;
+            if (pos < POS_CAP) { pos = pos + 1; }
+        } else {
+            why = verdict(bad, pos, need_len, ipok, crc);
+            ok = is_zero(verdict(bad, pos, need_len, ipok, crc));
+            done = 1;
+            pay_v = 0;
+            st = 0;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The canonical test frame: 192.168.1.101:50000 (MAC 02:00:00:00:00:99) to
+// 192.168.1.227:27028, a 24-byte TRI-NET request as payload. Variant v breaks exactly one
+// thing: 1 wrong destination MAC, 2 broadcast MAC (accepted), 3 EtherType 0x86DD,
+// 4 destination port 27029, 5 destination IP .228, 6 protocol 6, 7 MF fragment,
+// 8 wrong IPv4 checksum, 9 UDP length 30, 10 destination IP .255 (accepted).
+// Length variants (gen_vectors.py computed the same frames with struct, RFC 791 and zlib):
+// 11 IP length 0xFFFF and UDP length 0xFFEB in a 70-byte frame, 12 a 2-byte payload padded to
+// 60 data bytes (accepted), 13 UDP length 1480 in a 1518-byte frame (accepted), 14 UDP length
+// 1481, 15 IP length 19 with UDP length 0xFFFF, 16 the canonical frame cut to 60 data bytes.
+// Only tests call these.
+
+fn t_iplen(v: u8) -> u32 {
+    if (v == 11) { return 65535; }
+    if (v == 12) { return 30; }
+    if (v == 13) { return 1500; }
+    if (v == 14) { return 1501; }
+    if (v == 15) { return 19; }
+    return 52;
+}
+
+fn t_udplen(v: u8) -> u32 {
+    if (v == 9) { return 30; }
+    if (v == 11) { return 65515; }
+    if (v == 12) { return 10; }
+    if (v == 13) { return 1480; }
+    if (v == 14) { return 1481; }
+    if (v == 15) { return 65535; }
+    return 32;
+}
+
+// Data bytes before the FCS.
+fn t_n(v: u8) -> u16 {
+    if (v == 12) { return 60; }
+    if (v == 13) { return 1514; }
+    if (v == 14) { return 1515; }
+    if (v == 16) { return 60; }
+    return 66;
+}
+
+fn t_pay(j: u16) -> u8 {
+    if (j == 0) { return 170; }
+    if (j == 1) { return 85; }
+    if (j == 2) { return 1; }
+    if (j == 3) { return 1; }
+    if (j < 7) { return 0; }
+    return ((((j as u32) << 5) + ((j as u32) << 2) + (j as u32) + 11) & 255) as u8;
+}
+
+fn t_proto(v: u8) -> u32 {
+    if (v == 6) { return 6; }
+    return 17;
+}
+
+fn t_frag(v: u8) -> u32 {
+    if (v == 7) { return 8192; }
+    return 16384;
+}
+
+fn t_dst_lo(v: u8) -> u32 {
+    if (v == 5) { return 484; }
+    if (v == 10) { return 511; }
+    return 483;
+}
+
+fn t_csum(v: u8) -> u32 {
+    const s : u32 = 17664 + t_iplen(v) + t_frag(v) + 16384 + t_proto(v) + 49320 + 357 + 49320 + t_dst_lo(v);
+    const c : u32 = (fold16(s) ^ 65535) & 65535;
+    if (v == 8) { return (c + 1) & 65535; }
+    return c;
+}
+
+fn t_byte(i: u16, v: u8) -> u8 {
+    if (i < 6) {
+        if (v == 2) { return 255; }
+        if (i == 5) {
+            if (v == 1) { return 2; }
+        }
+        return our_mac_byte(i);
+    }
+    if (i == 6) { return 2; }
+    if (i < 11) { return 0; }
+    if (i == 11) { return 153; }
+    if (i == 12) {
+        if (v == 3) { return 134; }
+        return 8;
+    }
+    if (i == 13) {
+        if (v == 3) { return 221; }
+        return 0;
+    }
+    if (i == 14) { return 69; }
+    if (i == 15) { return 0; }
+    if (i == 16) { return ((t_iplen(v) >> 8) & 255) as u8; }
+    if (i == 17) { return (t_iplen(v) & 255) as u8; }
+    if (i < 20) { return 0; }
+    if (i == 20) { return ((t_frag(v) >> 8) & 255) as u8; }
+    if (i == 21) { return 0; }
+    if (i == 22) { return 64; }
+    if (i == 23) { return t_proto(v) as u8; }
+    if (i == 24) { return ((t_csum(v) >> 8) & 255) as u8; }
+    if (i == 25) { return (t_csum(v) & 255) as u8; }
+    if (i == 26) { return 192; }
+    if (i == 27) { return 168; }
+    if (i == 28) { return 1; }
+    if (i == 29) { return 101; }
+    if (i == 30) { return 192; }
+    if (i == 31) { return 168; }
+    if (i == 32) { return 1; }
+    if (i == 33) { return (t_dst_lo(v) & 255) as u8; }
+    if (i == 34) { return 195; }
+    if (i == 35) { return 80; }
+    if (i == 36) { return 105; }
+    if (i == 37) {
+        if (v == 4) { return 149; }
+        return 148;
+    }
+    if (i == 38) { return ((t_udplen(v) >> 8) & 255) as u8; }
+    if (i == 39) { return (t_udplen(v) & 255) as u8; }
+    if (i < 42) { return 0; }
+    if (v == 12) {
+        if (i >= 44) { return 0; }
+    }
+    return t_pay(i - 42);
+}
+
+fn t_expect(v: u8) -> u8 {
+    if (v == 1) { return 1; }
+    if (v == 3) { return 2; }
+    if (v == 4) { return 5; }
+    if (v == 5) { return 4; }
+    if (v == 6) { return 3; }
+    if (v == 7) { return 9; }
+    if (v == 8) { return 8; }
+    if (v == 9) { return 10; }
+    if (v == 11) { return 10; }
+    if (v == 14) { return 10; }
+    if (v == 15) { return 10; }
+    if (v == 16) { return 7; }
+    return 0;
+}
+
+fn t_npay(v: u8) -> u32 {
+    if (v == 12) { return 2; }
+    if (v == 13) { return 1472; }
+    return 0;
+}
+
+fn t_sum(v: u8) -> u32 {
+    if (v == 12) { return 255; }
+    if (v == 13) { return 186763; }
+    return 0;
+}
+
+fn fcs_byte(c: u32, k: u8) -> u8 {
+    return (((c ^ CRC_INIT) >> ((8 * k) as u32)) & 255) as u8;
+}
+
+invariant the_payload_follows_the_udp_header {
+    assert_eq(UDP_POS, IP_POS + 20);
+    assert_eq(PAY_POS, UDP_POS + 8);
+    assert_eq(UDP_POS + MAX_UDP + 4, 1518);
+}
+
+test the_canonical_frame_matches_the_independent_oracle {
+    assert_eq(t_csum(0), 46624);
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    var sum : u32 = 0;
+    while (i < 66) {
+        c = crc_byte(c, t_byte(i, 0));
+        i = i + 1;
+    }
+    assert_eq(fcs_byte(c, 0), 48);
+    assert_eq(fcs_byte(c, 1), 43);
+    assert_eq(fcs_byte(c, 2), 155);
+    assert_eq(fcs_byte(c, 3), 226);
+    i = 0;
+    while (i < 24) {
+        sum = sum + (t_pay(i) as u32);
+        i = i + 1;
+    }
+    assert_eq(sum, 2199);
+}
+
+test the_crc_residue_over_data_and_fcs_is_debb20e3 {
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    var f : u32 = 0;
+    while (i < 66) {
+        c = crc_byte(c, t_byte(i, 0));
+        i = i + 1;
+    }
+    f = c;
+    c = crc_byte(c, fcs_byte(f, 0));
+    c = crc_byte(c, fcs_byte(f, 1));
+    c = crc_byte(c, fcs_byte(f, 2));
+    c = crc_byte(c, fcs_byte(f, 3));
+    assert_eq(c, CRC_RESIDUE);
+}
+
+test a_datagram_to_the_node_is_accepted_and_its_payload_comes_out_in_order {
+    st = 0; done = 0; ok = 0; why = 0; n_ok = 0; n_drop = 0; pay_v = 0;
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    var k : u8 = 0;
+    var n : u32 = 0;
+    var sum : u32 = 0;
+    var first : u16 = 99;
+    var last : u16 = 0;
+    while (k < 7) {
+        on_clock(1, 85);
+        k = k + 1;
+    }
+    on_clock(1, 213);
+    assert_eq(st, 1);
+    while (i < 66) {
+        on_clock(1, t_byte(i, 0));
+        c = crc_byte(c, t_byte(i, 0));
+        if (pay_v == 1) {
+            if (n == 0) { first = pay_i; }
+            n = n + 1;
+            sum = sum + (pay_b as u32);
+            last = pay_i;
+        }
+        i = i + 1;
+    }
+    on_clock(1, fcs_byte(c, 0));
+    assert_eq(pay_v, 0);
+    on_clock(1, fcs_byte(c, 1));
+    on_clock(1, fcs_byte(c, 2));
+    on_clock(1, fcs_byte(c, 3));
+    assert_eq(done, 0);
+    on_clock(0, 0);
+    assert_eq(done, 1);
+    assert_eq(why, 0);
+    assert_eq(ok, 1);
+    assert_eq(n_ok, 0);
+    assert_eq(n, 24);
+    assert_eq(first, 0);
+    assert_eq(last, 23);
+    assert_eq(sum, 2199);
+    assert_eq(src_mac, 2199023255705);
+    assert_eq(src_ip, 3232235877);
+    assert_eq(src_port, 50000);
+    assert_eq(udp_len, 32);
+    on_clock(0, 0);
+    assert_eq(done, 0);
+    assert_eq(ok, 1);
+    assert_eq(n_ok, 1);
+    assert_eq(n_drop, 0);
+}
+
+test every_defect_is_dropped_with_its_own_reason_and_broadcast_is_accepted {
+    st = 0; done = 0; ok = 0; why = 0; n_ok = 0; n_drop = 0; pay_v = 0;
+    var v : u8 = 1;
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    var k : u8 = 0;
+    var leaked : u32 = 0;
+    while (v < 11) {
+        c = CRC_INIT;
+        i = 0;
+        k = 0;
+        while (k < 7) {
+            on_clock(1, 85);
+            k = k + 1;
+        }
+        on_clock(1, 213);
+        while (i < 66) {
+            on_clock(1, t_byte(i, v));
+            c = crc_byte(c, t_byte(i, v));
+            if (pay_v == 1) {
+                if (t_expect(v) != 0) {
+                    if (t_expect(v) != 8) { leaked = leaked + 1; }
+                }
+            }
+            i = i + 1;
+        }
+        on_clock(1, fcs_byte(c, 0));
+        on_clock(1, fcs_byte(c, 1));
+        on_clock(1, fcs_byte(c, 2));
+        on_clock(1, fcs_byte(c, 3));
+        on_clock(0, 0);
+        assert_eq(done, 1);
+        assert_eq(why, t_expect(v));
+        assert_eq(ok, is_zero(t_expect(v)));
+        on_clock(0, 0);
+        v = v + 1;
+    }
+    assert_eq(n_ok, 2);
+    assert_eq(n_drop, 8);
+    assert_eq(leaked, 0);
+}
+
+test a_corrupted_fcs_is_dropped_as_reason_6 {
+    st = 0; done = 0; ok = 0; why = 0; n_ok = 0; n_drop = 0;
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    on_clock(1, 85);
+    on_clock(1, 213);
+    while (i < 66) {
+        on_clock(1, t_byte(i, 0));
+        c = crc_byte(c, t_byte(i, 0));
+        i = i + 1;
+    }
+    on_clock(1, fcs_byte(c, 0));
+    on_clock(1, fcs_byte(c, 1));
+    on_clock(1, fcs_byte(c, 2));
+    on_clock(1, fcs_byte(c, 3) ^ 1);
+    on_clock(0, 0);
+    assert_eq(why, 6);
+    assert_eq(ok, 0);
+    on_clock(0, 0);
+    assert_eq(n_drop, 1);
+}
+
+test a_runt_is_dropped_as_reason_7 {
+    st = 0; done = 0; ok = 0; why = 0; n_ok = 0; n_drop = 0;
+    var i : u16 = 0;
+    on_clock(1, 85);
+    on_clock(1, 213);
+    while (i < 50) {
+        on_clock(1, t_byte(i, 0));
+        i = i + 1;
+    }
+    on_clock(0, 0);
+    assert_eq(done, 1);
+    assert_eq(why, 7);
+    on_clock(0, 0);
+    assert_eq(n_drop, 1);
+}
+
+test noise_before_the_sfd_is_ignored_and_frames_follow_back_to_back {
+    st = 0; done = 0; ok = 0; why = 0; n_ok = 0; n_drop = 0;
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    var r : u8 = 0;
+    on_clock(0, 213);
+    on_clock(1, 7);
+    on_clock(1, 85);
+    assert_eq(st, 0);
+    while (r < 2) {
+        c = CRC_INIT;
+        i = 0;
+        on_clock(1, 85);
+        on_clock(1, 213);
+        while (i < 66) {
+            on_clock(1, t_byte(i, 0));
+            c = crc_byte(c, t_byte(i, 0));
+            i = i + 1;
+        }
+        on_clock(1, fcs_byte(c, 0));
+        on_clock(1, fcs_byte(c, 1));
+        on_clock(1, fcs_byte(c, 2));
+        on_clock(1, fcs_byte(c, 3));
+        on_clock(0, 0);
+        assert_eq(ok, 1);
+        r = r + 1;
+    }
+    on_clock(0, 0);
+    assert_eq(n_ok, 2);
+    assert_eq(n_drop, 0);
+}
+
+test length_fields_that_wrap_16_bits_or_pass_the_bound_are_dropped_and_padding_is_kept {
+    st = 0; done = 0; ok = 0; why = 0; n_ok = 0; n_drop = 0; pay_v = 0;
+    assert_eq(t_csum(11), 46676);
+    var v : u8 = 11;
+    var c : u32 = CRC_INIT;
+    var i : u16 = 0;
+    var n : u32 = 0;
+    var sum : u32 = 0;
+    while (v < 17) {
+        c = CRC_INIT;
+        i = 0;
+        n = 0;
+        sum = 0;
+        on_clock(1, 85);
+        on_clock(1, 213);
+        while (i < t_n(v)) {
+            on_clock(1, t_byte(i, v));
+            c = crc_byte(c, t_byte(i, v));
+            if (pay_v == 1) {
+                n = n + 1;
+                sum = sum + (pay_b as u32);
+            }
+            i = i + 1;
+        }
+        on_clock(1, fcs_byte(c, 0));
+        on_clock(1, fcs_byte(c, 1));
+        on_clock(1, fcs_byte(c, 2));
+        on_clock(1, fcs_byte(c, 3));
+        on_clock(0, 0);
+        assert_eq(done, 1);
+        assert_eq(why, t_expect(v));
+        assert_eq(ok, is_zero(t_expect(v)));
+        if (ok == 1) {
+            assert_eq(n, t_npay(v));
+            assert_eq(sum, t_sum(v));
+        }
+        on_clock(0, 0);
+        v = v + 1;
+    }
+    assert_eq(n_ok, 2);
+    assert_eq(n_drop, 4);
+}

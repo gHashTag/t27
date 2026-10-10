@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9b5e1a225dc567c4757eeb2760646254951e53e91ce1ab02b4548641334398d8",
+  "gen_hash_rust": "sha256:88631afb636663989eb9b6df781a57ab1f93e10b0ed6e56a5330a091bd136c02",
+  "gen_hash_verilog": "sha256:1b9e2e843a7a3a82da09aadc407eb29532d94c313e622ecaa6f24fcccf5040ec",
+  "gen_hash_zig": "sha256:f8cfe2b97c360c5967156ccca2e89cb3eeaf2e2d0ac8388fe0727391a15b7a91",
+  "module": "RustEnumOrder",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:29:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3282814082c67736ede52550ecb653fb884dbf9c6034003194d50d7c0051f2f3",
+  "spec_path": "specs/compiler/rust_enum_order.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

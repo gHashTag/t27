@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:880a800007e3123d5726b381458cb45d0f99b36180c2bbd7daed95cf5f8f4198",
+  "gen_hash_rust": "sha256:66cfff17c55fe405ab82f75c228b48492a52325da546a8a8667024cf5bdf3130",
+  "gen_hash_verilog": "sha256:bda671b2cf6d10933ba1633beab26b7aec8256426d420dc7ffd89bf4950d0a3c",
+  "gen_hash_zig": "sha256:4292225639e90c159213d8902aebe5386075151cb020d7e8521073eab4382565",
+  "module": "port::envelope",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1f00e97cd340d3fbe69b8e9e367ee7ecbc1de497246c52b2b6f559c7b915e87c",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/monitoring/envelope.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

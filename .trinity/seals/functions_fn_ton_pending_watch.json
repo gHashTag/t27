@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:94b2f260931b33e9bfded809f90f11875c98b5cef63877c15a45a5762ccd86e5",
+  "gen_hash_rust": "sha256:7a1171f5c074506038d3356397026daa5b6a5ca21983c30b45c66e5e644e18e6",
+  "gen_hash_verilog": "sha256:a314b002247e750863146300a375406567201bde638ebe2b57c38d0fe3094b32",
+  "gen_hash_zig": "sha256:9a7a90453cbe1ea4b2828b083685a96d0290c4e0ed6bc4eb4ddc5ca7321643d5",
+  "module": "fn_ton_pending_watch",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f28983effb130187b8b1289392cc4a9179e950e3c5338ffa28d52685bf1c96f2",
+  "spec_path": "specs/functions/ton-pending-watch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

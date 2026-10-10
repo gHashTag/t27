@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:bc4a0fd6041e297fe5642e8502675a7e019779cdcb3996241142597ab59eb461",
+  "gen_hash_rust": "sha256:815a29a23e5b48769388537a59525e6c813c4e1a4b7d034cdd0d8285b99e49c6",
+  "gen_hash_verilog": "sha256:1776d2bf84a579bdfb96f143f110712efed058927bc987486925910f71410bea",
+  "gen_hash_zig": "sha256:a90bbdd68e5455a3f106ad65e3b991fcd6e843d4c9fdf2cfcbfeb487bb9cb44f",
+  "module": "skill_t27_measure_corpus",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:68accef751dc30f6216cf336c15163a8c909cda06292d2b667671e11b5b053c0",
+  "spec_path": "specs/skills/t27-measure-corpus.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

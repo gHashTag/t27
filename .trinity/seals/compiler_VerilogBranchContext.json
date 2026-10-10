@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:79cf87da7b21c9ba9b94221a2513cb9be9a468d1a482a5d7928caeb46feb1823",
   "gen_hash_rust": "sha256:9653bcd4d74f193a5edaf8e68e8a2924a8c4761aa41a054734b48a93c27ec05e",
   "gen_hash_verilog": "sha256:de355aee322d8f0a38e44e49614410e1789c8dd14c68e0b6afc9fecc2472426e",
   "gen_hash_zig": "sha256:9b6e177bc5a7bf67099479b349005635a72563235bd7d98193825f4c9697051d",
   "module": "VerilogBranchContext",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:09:32Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a68acece31381fe19048fe60af22d53ae69f9281f71520b6d89be73e077c31d7",
   "spec_path": "specs/compiler/verilog_branch_context.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 2,
     "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

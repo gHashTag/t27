@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ee41b4339a02ffe1b5282bfb6704f538c8e0bc1a637876d55863150ec41a915c",
+  "gen_hash_rust": "sha256:1f0ad35d7a9ad2bb77e6d133e0ac29f2a666d7cc47fba4cf151a9223495b4958",
+  "gen_hash_verilog": "sha256:bcc7a420c9e5719af001cd33c5dd34cd5f08a97f6530a8dd50dc46f374eb70d2",
+  "gen_hash_zig": "sha256:ffef7808182b79c6f5d34c816b07c098d93f72103be7a655f34c367f041032bd",
+  "module": "cron_999_multibots_telegraf_daily_sales_advisor",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:15484b78dda78c35b6250c881618ab715ce9d6fffba6caeca3273fbadc05777e",
+  "spec_path": "specs/crons/999-multibots-telegraf-daily-sales-advisor.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

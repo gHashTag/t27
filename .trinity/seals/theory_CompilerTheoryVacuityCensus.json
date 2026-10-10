@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:37002507b21033927692c4f9c235d9d1ea9f4469d574b1bd2f3ccd6e3b3f1221",
+  "gen_hash_rust": "sha256:0931032532098ff5cc436fe79389cf45b09ddf0ec55d0684acb247fb54087afa",
+  "gen_hash_verilog": "sha256:9e34015e475d49c8f8379925bdae74ef99ca231edb75c000143409f0b54564a5",
+  "gen_hash_zig": "sha256:a64ca92a34e17277d71c73ecf1f21843cfda2f1f917f360551aa6da3fc59d19d",
+  "module": "CompilerTheoryVacuityCensus",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:30:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:38ed3cc9ede28016f9db71b1ebbcdcd06fd5939a68ec69abeead6b1f93ac4ba1",
+  "spec_path": "specs/compiler/theory/vacuity_census.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0a9ece739af1097a88c48bd286a812b4c93e0e0aa55efaf6e2bb3459ab59f706",
+  "gen_hash_rust": "sha256:40964e15af37b2affa592aaeb219eb06facb26671ada155f20f6e30ef7eb4a48",
+  "gen_hash_verilog": "sha256:c9a677925b3b0214630a9e08df4f71272c95f97b87a5dc651e1b92e88c39891d",
+  "gen_hash_zig": "sha256:088fc23c872232e6cb0e1e1a96064ac8bef793d06394508123c2ecf91669fa20",
+  "module": "cron_999_multibots_telegraf_video_task_store_L156",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:33:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:77facc79a062a4f30717a064d6138c78e7784684e8e52cabd98cb210c394f520",
+  "spec_path": "specs/crons/999-multibots-telegraf-video-task-store-L156.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

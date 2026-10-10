@@ -110,13 +110,17 @@ pub const REQ_EXPIRED: u8 = 3;
 
 pub const REQ_NOT_ON_ORIGIN: u8 = 4;
 
-pub const REQUEST_NAMES: [&'static str; 5] = ["ADMIT", "BAD_NAME", "QUEUE_FULL", "EXPIRED", "NOT_ON_ORIGIN"];
+pub const REQ_WAIT_ORIGIN: u8 = 5;
+
+pub const REQUEST_NAMES: [&'static str; 6] = ["ADMIT", "BAD_NAME", "QUEUE_FULL", "EXPIRED", "NOT_ON_ORIGIN", "WAIT_ORIGIN"];
 
 pub const REQUEST_SHA_LEN: u32 = 40;
 
 pub const REQUEST_QUEUE_MAX: u32 = 4;
 
 pub const REQUEST_AGE_MAX_S: u32 = 21600;
+
+pub const REQUEST_ORIGIN_GRACE_S: u32 = 1800;
 
 pub fn corpus_domain_line_len() -> u32 {
     return ((CORPUS_DOMAIN.len() as u32) + 1);
@@ -436,6 +440,9 @@ pub fn request_verdict(name: &'static str, age_s: u32, index: u32, on_origin: bo
     if (age_s > REQUEST_AGE_MAX_S) {
         return REQ_EXPIRED;
     }
+    if ((on_origin == false) && (age_s <= REQUEST_ORIGIN_GRACE_S)) {
+        return REQ_WAIT_ORIGIN;
+    }
     if (on_origin == false) {
         return REQ_NOT_ON_ORIGIN;
     }
@@ -445,6 +452,9 @@ pub fn request_verdict(name: &'static str, age_s: u32, index: u32, on_origin: bo
 pub fn request_exit(verdict: u8) -> u8 {
     if (verdict == REQ_ADMIT) {
         return 0;
+    }
+    if (verdict == REQ_WAIT_ORIGIN) {
+        return 2;
     }
     return 1;
 }

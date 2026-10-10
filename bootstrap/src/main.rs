@@ -101,10 +101,26 @@ mod run_record;
 #[path = "../gen/rust/verified/independence.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod independence;
+// specs/compiler/test_report_exit.t27 (#7370): the exit code of `t27c test-report <spec>`.
+#[path = "../gen/rust/compiler/test_report_exit.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod test_report_exit;
 // specs/verified/seal_identity.t27 (#8095): seal v2 identity, SEAL_CONFIG, the per-node reuse decision.
 #[path = "../gen/rust/verified/seal_identity.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod seal_identity;
+// specs/verified/silicon_queue.t27 (#8095 step 5): the bench queue and the reseal guard.
+#[path = "../gen/rust/verified/silicon_queue.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod silicon_queue;
+// specs/verified/bench_agent.t27 (#8153): what the agent next to a board does with a job.
+#[path = "../gen/rust/verified/bench_agent.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bench_agent;
+// specs/verified/bitstream_reuse.t27 (#8095): when `t27c silicon` loads a bitstream it built before.
+#[path = "../gen/rust/verified/bitstream_reuse.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bitstream_reuse;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -347,6 +363,18 @@ enum Commands {
     /// #8095: every spec, REUSE or the reason to rebuild (specs/verified/seal_identity.t27).
     Frontier { /// Also print each spec that must be rebuilt, with its reason code.
         #[arg(long)] list: bool },
+    /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
+    SiliconQueue,
+    /// #8153: the agent next to a board (specs/verified/bench_agent.t27). Runs owner-approved jobs (open
+    /// issues labelled bench-job) with `t27c silicon` on the local cable, SRAM only, and answers each with
+    /// its receipt. Outbound only. Pause it by creating $TMPDIR/t27-bench-agent-paused.
+    BenchAgent {
+        /// The local cable, from `t27c boards`
+        #[arg(long)] busdev_num: String,
+        /// The control: a bitstream for the WRONG PART, which the die must refuse
+        #[arg(long)] wrong_part: String,
+        /// Look at the jobs once and exit
+        #[arg(long)] once: bool },
     RunRecord {
         /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
         input: String,
@@ -539,6 +567,9 @@ enum Commands {
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
+    ///
+    /// One spec exits 1 when a test FAILs and 2 when it is BLOCKED (#7370,
+    /// specs/compiler/test_report_exit.t27); T27C_TEST_REPORT_EXIT_ZERO=1 exits 0.
     TestReport {
         /// The .t27 spec to measure. Omit with --all to measure the tree.
         #[arg(default_value = "")]
@@ -3912,7 +3943,7 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         println!();
         println!("  A blocked spec is not a failing one. It never produced a");
         println!("  binary, so it has no per-test result to report.");
-        return Ok(());
+        return test_report_exit_now(&r);
     }
     for o in &r.outcomes {
         if !o.passed {
@@ -3945,6 +3976,17 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         for l in lines {
             println!("{}", l);
         }
+    }
+    test_report_exit_now(&r)
+}
+
+/// #7370: exit as specs/compiler/test_report_exit.t27 says, once the report is printed.
+fn test_report_exit_now(r: &test_report::Report) -> anyhow::Result<()> {
+    let var: &'static str = Box::leak(std::env::var(test_report_exit::OPT_OUT_VAR).unwrap_or_default().into());
+    let code = test_report_exit::exit_with(r.blocked.is_some(), r.failed as u64, test_report_exit::opted_out(var));
+    if code != test_report_exit::EXIT_GREEN {
+        std::io::Write::flush(&mut std::io::stdout())?;
+        std::process::exit(code as i32);
     }
     Ok(())
 }
@@ -5788,14 +5830,26 @@ fn seal_toolchain() -> serde_json::Value {
 }
 
 /// Seal v2 closure (seal_identity.t27): every `use` import and its spec hash, sorted; unreadable is "missing".
+/// The spec a `use` names: `use a::b;`, `use a::b::item;` and `use a::b::{X, Y};` all name specs/a/b.t27
+/// (#8351, #8384). An item path that is itself a file wins; otherwise the last segment is an item.
+pub(crate) fn use_spec_path(u: &str) -> String {
+    let m = u.trim_end_matches(';').trim().split("::{").next().unwrap_or("").replace("::", "/");
+    [format!("specs/{m}.t27"), format!("specs/{}.t27", m.rsplit_once('/').map_or(m.as_str(), |x| x.0))].into_iter().find(|f| Path::new(f).exists()).unwrap_or_else(|| format!("specs/{m}.t27"))
+}
+
 fn seal_closure(spec_path: &str) -> serde_json::Value {
     let src = fs::read_to_string(spec_path).unwrap_or_default();
-    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use "))
-        .map(|u| format!("specs/{}.t27", u.trim_end_matches(';').trim().replace("::", "/")))
+    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use ")).map(use_spec_path)
         .map(|p| { let h = fs::read(&p).map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into()); (p, h) })
         .collect();
-    v.sort();
+    v.sort(); v.dedup();
     serde_json::json!(v.into_iter().map(|(p, h)| serde_json::json!({ "spec": p, "spec_hash": h })).collect::<Vec<_>>())
+}
+
+/// The silicon receipts (.trinity/receipts/*.json, the current run) that name this spec.
+fn spec_receipts(spec_path: &str) -> usize {
+    fs::read_dir(".trinity/receipts").into_iter().flatten().flatten().map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |x| x == "json") && fs::read_to_string(p).map_or(false, |s| s.contains(&format!("\"{spec_path}\"")))).count()
 }
 
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
@@ -5901,6 +5955,12 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
         // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
         // holding. Same machinery as `t27c test-report`, so the two cannot
         // disagree about what failed.
+        // #8095 step 5 (silicon_queue.t27 reseal_allowed): a new producer orphans the spec's silicon run.
+        let old_by = fs::read_to_string(seal_file_path(&hashes.module, &hashes.spec_path)).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()).and_then(|v| v.get("built_by")?.as_str().map(String::from));
+        if !silicon_queue::reseal_allowed(spec_receipts(&hashes.spec_path) > 0, old_by.as_deref() == Some(producer_identity().as_str()), force) {
+            eprintln!("refusing to seal {}: its silicon receipts name {}; a new producer orphans that run (run-record: RUN_PRODUCER_MISMATCH). --force to do it on purpose.", hashes.spec_path, old_by.unwrap_or_default());
+            std::process::exit(1);
+        }
         let report = test_report::run(Path::new(input_path), Path::new("specs"));
         let verdict = test_report::seal_verdict(&report, force);
         match &verdict {
@@ -11947,6 +12007,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -12380,6 +12442,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }

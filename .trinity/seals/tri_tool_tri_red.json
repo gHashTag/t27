@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:8a4e26ba654844c222a0ad206cbc14c80bddf0b85eb3f7da650ce90cf69a8d63",
   "gen_hash_rust": "sha256:147aa569ec2f16a8e4a73744b4c4f7b650ab7271d6799a51c42505dbb134bc6c",
   "gen_hash_verilog": "sha256:449692ef6b68a8f4d40f9941006a347466e0cdd4bcadeffda80f1df8718081d3",
   "gen_hash_zig": "sha256:43310a61129cbfe58b29d7cbfce54ed012036b122fd14b35c326b9bd817db0a5",
   "module": "tool_tri_red",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:24:12Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:55:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ae125f46a211b9fb7ddb28d1c37108684ab7266155e6a266eb8a4c7981464bba",
   "spec_path": "specs/tools/tri/red.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:424e1c6817813fed451859e50070b757137b6ecfa802853586737ebb15e13fdc",
+  "gen_hash_rust": "sha256:0039db763815e2960ec8c300c75e1549aef49724aa6b26fae5cb0faa32cd9315",
+  "gen_hash_verilog": "sha256:8bd2c73a2c0987ed028b32e39381c44ac90051bf6489ed217e1369850ffac88e",
+  "gen_hash_zig": "sha256:407b8ceec1d8f8af7e639ddde4e0b1a7be4469aeb0ae98187408e500930f2a49",
+  "module": "port::trios-physics",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:24:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:72ba4b6154146928d2438e4973496307aaefc1404c593af85d4f27a23c0d3276",
+  "spec_path": "specs/port/trios/crates/trios-physics/src/lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

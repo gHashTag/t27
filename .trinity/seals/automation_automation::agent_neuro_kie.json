@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+7c88448",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:358d7b1cf479cf94d9386ec74e444cc46d9e2905960eea8d72d4226cca213f18",
   "gen_hash_rust": "sha256:09c1470375b36244f2edb23fcd0de98272bb081b97a89936a6c7b51152c1c2df",
   "gen_hash_verilog": "sha256:cb0ed46e466eef27ec11cad07cc04a053d1d31c98b05ea5c1185466ee022f74d",
   "gen_hash_zig": "sha256:c93074bb1f8284ced9454967e51c145d535cddd92973542d7b980d6dd0322ce2",
   "module": "automation::agent_neuro_kie",
   "ring": 12,
-  "sealed_at": "2026-10-09T09:47:54Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:45:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1468164046d2cba9ea0e6b3e04aa7bbb0ba72ebb5896193c444c85a7d6caf827",
   "spec_path": "specs/automation/agent-neuro-kie.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

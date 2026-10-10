@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:29128c87b3aa60769cdc52fa5b581a22048551a7b67137a640a40c5c6f430d3c",
+  "gen_hash_rust": "sha256:208a3d68907a0f0d119f170a1358277bac7f7525430b4330ae712e17c85a93b2",
+  "gen_hash_verilog": "sha256:08a32dc58ff3a2281c7846f646692996f461a0ebee2fc8754dcc1de9747c26e6",
+  "gen_hash_zig": "sha256:1226b0b85277cfc516412f64f96d18ae5df6410871dd775ebe8e86fc90aad14f",
+  "module": "T27bCheckBudget",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:32:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a4bd0df4c8514df5b8fab420aafbab0f3a985ce5f721a8e56377d4f9c86bd599",
+  "spec_path": "specs/tri/t27b/check_budget.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

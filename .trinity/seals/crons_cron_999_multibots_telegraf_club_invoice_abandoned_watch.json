@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3b560c542e7edcc8929fdffaf2af6f4442858e232b742f319f50c3615b0051ee",
+  "gen_hash_rust": "sha256:3dea26e12b78887466213c67d13166e59299512d037be6a724c4024f46d71cb8",
+  "gen_hash_verilog": "sha256:8dc142152d2a9a0a39f1fe05513d05bebd7653ce2ceaa62a08f347861da4d958",
+  "gen_hash_zig": "sha256:47cfdb3b5c8ffcabe3fa8b68d284d267565d20066965a00ee3f22c739513000b",
+  "module": "cron_999_multibots_telegraf_club_invoice_abandoned_watch",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b596bcae6851cce8fa7b0c036478dcbc68c2acd879b0f0b89c17d493f9fb8054",
+  "spec_path": "specs/crons/999-multibots-telegraf-club-invoice-abandoned-watch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

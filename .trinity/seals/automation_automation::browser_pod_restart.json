@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0585ee50f16eb11b7b9eb30807779a2ecb29054dedb72ca877e14bc50672cf5a",
+  "gen_hash_rust": "sha256:30cfe36fe889c1947b52bc7347ab01073b3ff85b1cf71df9e33b0f79e553affb",
+  "gen_hash_verilog": "sha256:a84a86b950fbab7e98e670234e351aa18daeb5688698fac31cd28411ed6313f2",
+  "gen_hash_zig": "sha256:bf7aad4e2f155322d40c58454ea56062c862a634d678e51309122f507bfc4cab",
+  "module": "automation::browser_pod_restart",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cad76068ec6ecdc3061d6672725348c57b82434b14c4c7d97ecd8b654800c89d",
+  "spec_path": "specs/automation/browser-pod-restart.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

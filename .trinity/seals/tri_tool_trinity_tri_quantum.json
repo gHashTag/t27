@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6ae4612788717b0caaa765fe41bcc039c116815c288b3e85ddd1acc6bf55f62c",
   "gen_hash_rust": "sha256:d48f427fbcc29eb2cd13bbb06bd910433d31ece301a8d9eb949c8ecf38addd04",
   "gen_hash_verilog": "sha256:3d7c9c06f21650281f53166969c6e41e6c7f86d3814a4ff6ffe975a5213f4513",
   "gen_hash_zig": "sha256:27c3333e470e951eba1956e14af9ac3f2bf71a3311ab01ed01c8fd984ffb4c84",
   "module": "tool_trinity_tri_quantum",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:13:44Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:57:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b21ea5d9c70ebde7dacbf83a0025812a72b1a781f310c96312e6b13f38435487",
   "spec_path": "specs/tools/trinity/tri/quantum.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

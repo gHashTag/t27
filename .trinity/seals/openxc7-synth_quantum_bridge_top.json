@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:1f02cabd64be28d18d315f551edb367863b13d0387a4f1431cec8b30fb612bb9",
+  "gen_hash_rust": "sha256:fb0be2eb4c911fbe28229d046b4fc0e8d72e4422866da35d3b28679b622d7b39",
+  "gen_hash_verilog": "sha256:b3d9250a028e4da39e7134750b209b5bda746082d142f794b96d9424e60a51b3",
+  "gen_hash_zig": "sha256:546e3e16543a916cba0d6d0f582d6b050fd361305123a835272612805eb18b44",
+  "module": "quantum_bridge_top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a9f3c7cfa1277c7eb94c16efad1e0e379d264f7d5b73be845e98cfc1f0ba4acb",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/quantum_bridge_top.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

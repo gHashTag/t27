@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f0fbafc0f4e8cbe3a7c0582a2fe31de6a3d1c85828c44356f9ff43af49c3881e",
+  "gen_hash_rust": "sha256:27399ff1575851a119ecc0bc4ca1fc2527a4bf089ad0831e157233a61859835f",
+  "gen_hash_verilog": "sha256:0106474aed29dd3fb7a4219740db0c13948962af87cdfe4da710ba48de442807",
+  "gen_hash_zig": "sha256:706040b134a2f24e0641e5e73d70c690a9d560c9f7c5f0b69f09029b517cdd90",
+  "module": "port::cover_decoy_ratio_governor",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:38Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6623c0b910846c034a66b69bb08d11342fbd8b480cdc7235a56e6c76b0e3c802",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-07/src/cover_decoy_ratio_governor.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b9d22d0f4",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0eaa909cbda7279bbdd2c38d5bc3440edefef063db2de6552e92f167a79d98b2",
+  "gen_hash_rust": "sha256:c6cf7fd74c505d318ccf79761c5918c1cd920db6cbf264a087c9cdc24886176e",
+  "gen_hash_verilog": "sha256:c03abe6c97ab51438c3f302e6bd69547d9f2058d28404261045f54b09e782266",
+  "gen_hash_zig": "sha256:6bcbe5c70eaf80e5adece7cda3fb7ff28ba0b0490e036127d9a8087e9104c1c2",
+  "module": "automation::tri_claim_batch",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T23:43:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:33f052bcbb1c754e12062ccd17b25d22853eecda7fe06cf8b158805447047c47",
+  "spec_path": "specs/automation/tri-claim-batch.t27",
+  "tests": {
+    "blocked": "does not compile: runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.15.2"
+  }
+}

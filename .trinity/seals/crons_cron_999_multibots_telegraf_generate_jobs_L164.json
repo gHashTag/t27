@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fb9af4f7ae159946449eb7f8c09ab2a4b7d096ac4329b0e59642b470238f53ed",
+  "gen_hash_rust": "sha256:22878102e172e442c868a5f78134a5c8dcf92698457fcbb0c1eb724ccb95f79b",
+  "gen_hash_verilog": "sha256:612c6a16aabc2536ad0cbe9f1bbbd241f4e2d2f1b04e17615a88edf0fea66fad",
+  "gen_hash_zig": "sha256:20287f11ee92ed0c42c2856dfe8271f79b3eeda2b522b44528fc728c8b6831a5",
+  "module": "cron_999_multibots_telegraf_generate_jobs_L164",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:10dd064c2debf3f115824394cea01884de12dd4bbd0a93546118d2381b85f71d",
+  "spec_path": "specs/crons/999-multibots-telegraf-generate-jobs-L164.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

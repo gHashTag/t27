@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+cde548ecd",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3fa714113116adad50bec29602e8c92e38995625182271ab498739fd67a4c1eb",
+  "gen_hash_rust": "sha256:59564a66cbc7a44200532743a01bb42175f2e55e4f39e3ac97dd3de5d456d8ea",
+  "gen_hash_verilog": "sha256:b4cbd71bc4f138a5fc8d6e1ae0c237630dfd4b57a2d20b46984605950615159d",
+  "gen_hash_zig": "sha256:ce0d9f534e22afeaca0fa116a53aa1dbbd76aa8ae11912105f1943e1afe2e850",
+  "module": "T27bArithOp",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T18:39:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:51a7c67d67fb49f147071a464562e5644693fad4e2b107a759d1a9f9bf6e97a6",
+  "spec_path": "specs/tri/t27b/arith_op.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
