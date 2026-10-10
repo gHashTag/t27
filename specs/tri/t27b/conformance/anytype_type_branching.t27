@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/anytype_type_branching.t27 -- test for anytype parameter read via @TypeOf and branched on
+; This is the minimal repro for gHashTag/t27#8713. The reference passes 1/1 with 3 asserts.
+; t27b must monomorphize functions with anytype parameters that are read via @TypeOf,
+; creating one instance per distinct argument type at call sites with deterministic names.
+; @TypeOf(param) == T must fold at compile time per instance, and branches whose condition
+; folds to false must be skipped, not lowered.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module AnyTypeOfRepro;
+
+fn h(v: anytype) -> ?i64 {
+    if (@TypeOf(v) == i64) {
+        return v;
+    }
+    return null;
+}
+
+test reads_by_type {
+    assert(h(@as(i64, 5)) == 5);
+    assert(h(null) == null);
+    assert(h("x") == null);
+}

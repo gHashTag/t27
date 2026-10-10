@@ -44,16 +44,7 @@ pub fn agentKind(id: []const u8) -> []const u8 {
     return "external";
 }
 
-pub fn heartbeatTime(value: anytype) -> ?i64 {
-    // Handle different input types
-    if (@TypeOf(value) == i64) {
-        const num_val = value;
-        if (num_val >= 0) {
-            return num_val;
-        }
-    }
-    return null;
-}
+
 
 pub fn projectAgent(
     row: anytype,
@@ -91,22 +82,3 @@ test agentKind_external {
     assert(agentKind("external-test") == "external");
 }
 
-test heartbeatTime_validNumber {
-    const result = heartbeatTime(@as(i64, 1000));
-    assert(result == 1000);
-}
-
-test heartbeatTime_invalidNumber {
-    const result = heartbeatTime(@as(i64, -1));
-    assert(result == null);
-}
-
-test heartbeatTime_invalidString {
-    const result = heartbeatTime("invalid-date");
-    assert(result == null);
-}
-
-test heartbeatTime_nullInput {
-    const result = heartbeatTime(null);
-    assert(result == null);
-}

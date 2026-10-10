@@ -479,7 +479,7 @@
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/memory.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-lease.t27", "t27b": "blocked", "blocker": "ExprArrayLiteral(reference empty typed)", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-needs-you.t27", "t27b": "pass"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-public-agents.t27", "t27b": "blocked", "blocker": "type anytype", "reason": "unimplemented"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-public-agents.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-registry.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-report.t27", "t27b": "pass"},
