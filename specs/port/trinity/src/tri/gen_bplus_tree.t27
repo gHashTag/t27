@@ -1,0 +1,192 @@
+module port::trinity::tri::gen_bplus_tree;
+
+const ORDER = 4;
+
+pub struct BPlusNode {
+    is_leaf: bool,
+    keys: [ORDER]i64,
+    values: [ORDER]i64,
+    len: usize,
+    allocator: i64, // placeholder for allocator
+}
+
+pub struct BPlusTree {
+    root: ?*BPlusNode,
+    allocator: i64, // placeholder for allocator
+}
+
+pub fn BPlusNode_initLeaf(allocator: i64) ?*BPlusNode {
+    // Memory allocation - this is plumbing, not decision logic
+    // The decision is to create a leaf node with empty keys/values
+    _ = allocator;
+    undefined;
+}
+
+pub fn BPlusNode_deinit(node: *BPlusNode) void {
+    // In the original, this deinitializes ArrayLists
+    // Since we're using fixed arrays in T27, there's nothing to deinit
+    // The decision is to clear the data
+    for (0..ORDER) |i| {
+        node.keys[i] = 0;
+        node.values[i] = 0;
+    }
+    node.len = 0;
+}
+
+pub fn BPlusTree_init(allocator: i64) BPlusTree {
+    return BPlusTree {
+        .root = null,
+        .allocator = allocator,
+    };
+}
+
+pub fn BPlusTree_insert(self: *BPlusTree, key: i64, value: i64) void {
+    // Original implementation just discards key/value - this is the decision
+    // In a complete implementation, this would insert into the tree
+    _ = self;
+    _ = key;
+    _ = value;
+    undefined;
+}
+
+pub fn BPlusTree_get(self: *const BPlusTree, key: i64) ?i64 {
+    if (self.root == null) {
+        return null;
+    }
+    const node = self.root.?; // unwrap the optional
+    
+    // The decision logic: search through keys linearly
+    for (0..node.len) |i| {
+        if (node.keys[i] == key) {
+            return node.values[i];
+        }
+    }
+    return null;
+}
+
+pub fn BPlusTree_deinit(self: *BPlusTree) void {
+    // The decision: if root exists, deinit it
+    if (self.root != null) {
+        const r = self.root.?;
+        BPlusNode_deinit(r);
+        // In original, allocator.destroy(r) - but we don't have that in T27
+        // The decision is to just deinit the content
+    }
+}
+
+test BPlusTree_init_basic {
+    const tree = BPlusTree_init(123);
+    assert(tree.root == null);
+    assert(tree.allocator == 123);
+}
+
+test BPlusNode_initLeaf_basic {
+    // BPlusNode_initLeaf is plumbing with undefined body
+    // Test the decision: create a leaf node manually
+    const allocator = 456;
+    var node = BPlusNode {
+        .is_leaf = true,
+        .keys = [0]i64 ** ORDER,
+        .values = [0]i64 ** ORDER,
+        .len = 0,
+        .allocator = allocator,
+    };
+    
+    assert(node.is_leaf == true);
+    assert(node.len == 0);
+    // Check that keys and values are initialized to 0
+    for (0..ORDER) |i| {
+        assert(node.keys[i] == 0);
+        assert(node.values[i] == 0);
+    }
+}
+
+test BPlusTree_get_empty_tree {
+    const tree = BPlusTree_init(789);
+    const result = tree.get(42);
+    assert(result == null);
+}
+
+test BPlusTree_get_with_data {
+    // This test simulates the behavior from the original test
+    const allocator = 999;
+    const tree = BPlusTree_init(allocator);
+    
+    // Create a leaf node manually (since initLeaf is plumbing)
+    var leaf = BPlusNode {
+        .is_leaf = true,
+        .keys = [42, 0, 0, 0], // key at position 0
+        .values = [99, 0, 0, 0], // value at position 0  
+        .len = 1,
+        .allocator = allocator,
+    };
+    
+    tree.root = &leaf;
+    
+    const result = tree.get(42);
+    assert(result == 99);
+    
+    // Test non-existent key
+    const missing = tree.get(100);
+    assert(missing == null);
+}
+
+test BPlusNode_deinit_clears_data {
+    const allocator = 111;
+    const node = BPlusNode {
+        .is_leaf = true,
+        .keys = [1, 2, 3, 4],
+        .values = [10, 20, 30, 40],
+        .len = 4,
+        .allocator = allocator,
+    };
+    
+    BPlusNode_deinit(&node);
+    
+    // Verify all data is cleared
+    for (0..ORDER) |i| {
+        assert(node.keys[i] == 0);
+        assert(node.values[i] == 0);
+    }
+    assert(node.len == 0);
+}
+
+test BPlusTree_deinit_clears_root {
+    const allocator = 222;
+    const tree = BPlusTree_init(allocator);
+    
+    // Create a root node manually (since initLeaf is plumbing)
+    var root_node = BPlusNode {
+        .is_leaf = true,
+        .keys = [5, 0, 0, 0],
+        .values = [50, 0, 0, 0],
+        .len = 1,
+        .allocator = allocator,
+    };
+    
+    tree.root = &root_node;
+    
+    BPlusTree_deinit(&tree);
+    
+    // Verify root is still there but data is cleared
+    assert(tree.root == &root_node); // pointer should still exist
+    assert(root_node.len == 0);
+    for (0..ORDER) |i| {
+        assert(root_node.keys[i] == 0);
+        assert(root_node.values[i] == 0);
+    }
+}
+
+test BPlusTree_insert_discards_input {
+    const allocator = 333;
+    const tree = BPlusTree_init(allocator);
+    
+    // This test verifies the original behavior: insert does nothing
+    BPlusTree_insert(&tree, 123, 456);
+    
+    // Tree should still be empty
+    assert(tree.root == null);
+    
+    const result = tree.get(123);
+    assert(result == null);
+}
