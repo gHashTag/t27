@@ -123,6 +123,8 @@ mod dv; // t27c gen-rust of specs/tri/t27b/const_div_plan.t27: `/` and `%` of tw
 mod bc; // t27c gen-rust of specs/tri/t27b/bit_cast_plan.t27: `@bitCast` of a scalar, `@intFromBool`
 #[path = "../../../gen/rust/tri/t27b/literal_plan.rs"] #[allow(dead_code, unused_parens)]
 mod lp; // t27c gen-rust of specs/tri/t27b/literal_plan.t27: a literal's text as the t27c parser keeps it
+#[path = "../../../gen/rust/tri/t27b/ref_var_plan.rs"] #[allow(dead_code, unused_parens)]
+mod rv; // t27c gen-rust of specs/tri/t27b/ref_var_plan.t27: a local the body assigns is a `var`, scalars too
 #[path = "../../../gen/rust/tri/t27b/discard_plan.rs"] #[allow(dead_code, unused_parens)]
 mod dp; // t27c gen-rust of specs/tri/t27b/discard_plan.t27: `_ = e;`, deleted where the reference deletes it
 #[path = "../../../gen/rust/tri/t27b/lazy_sig_plan.rs"] #[allow(dead_code, unused_parens)]
@@ -2279,7 +2281,7 @@ impl<'a> Lower<'a> {
     }
 
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
-        let mutable = n.extra_mutable;
+        let mutable = rv::is_var(n.extra_mutable, self.ref_vars.contains(&name));
         let init = n.children.first().filter(|i| !is_undefined(i));
         let helper = init.is_some_and(|i| i.kind == NodeKind::ExprCall && sc::HELPERS.split(' ').any(|h| h == i.name));
         let s = self.scaffold.get(&name).cloned();
@@ -2313,7 +2315,6 @@ impl<'a> Lower<'a> {
             if is_agg(&t) || self.addr_taken.contains(&name) {
                 // In memory; the name is bound only after its initializer.
                 let k = self.new_slot(&t)?;
-                let mutable = mutable || self.ref_var_agg(&t, &name);
                 let dst = Place { addr: slot_expr(k), off: 0, ty: t, mutable, temp: None };
                 match init {
                     Some(i) => self.init(i, dst.clone(), true, out)?,
@@ -2404,7 +2405,6 @@ impl<'a> Lower<'a> {
                 self.bind(&name, Binding::Const(Val::Cf(q)));
             }
             v => {
-                let mutable = mutable || matches!(&v, Val::M(p) if self.ref_var_agg(&p.ty, &name));
                 self.bind_value(&name, v, mutable, out)?
             }
         }
