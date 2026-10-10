@@ -1,0 +1,225 @@
+module specs::port::browseros::trios::agent-server::apps::server::src::lib::container;
+
+fn ImageLoader_ensureImageLoaded(
+    ref: []const u8,
+    onLog: ?fn([]const u8) -> void,
+    imageExists: fn([]const u8) -> bool,
+    pullImage: fn([]const u8, ?fn([]const u8) -> void) -> ?i32
+) -> ?i32 {
+    if (imageExists(ref)) {
+        return null;
+    }
+    const pull_err = pullImage(ref, onLog);
+    if (pull_err != null) {
+        return pull_err;
+    }
+    if (!imageExists(ref)) {
+        return 1;
+    }
+    return null;
+}
+
+fn ImageLoader_ensureAgentImageLoaded(
+    name: []const u8,
+    onLog: ?fn([]const u8) -> void,
+    openclaw_agent_name: []const u8,
+    openclaw_image: []const u8,
+    hermes_agent_name: []const u8,
+    hermes_image: []const u8,
+    pullImage: fn([]const u8, ?fn([]const u8) -> void) -> ?i32
+) -> ?([]const u8) {
+    let image_ref: []const u8;
+    if (name == openclaw_agent_name) {
+        image_ref = openclaw_image;
+    } else if (name == hermes_agent_name) {
+        image_ref = hermes_image;
+    } else {
+        return null;
+    }
+    const pull_err = pullImage(image_ref, onLog);
+    if (pull_err != null) {
+        return pull_err;
+    }
+    return image_ref;
+}
+
+// Tests for ImageLoader_ensureImageLoaded
+test ensureImageLoaded_imageExists_returnsSuccess {
+    // Mock imageExists that returns true
+    var called: bool = false;
+    fn mock_imageExists(ref: []const u8) -> bool {
+        called = true;
+        return true;
+    }
+    // Mock pullImage that should not be called
+    var pull_called: bool = false;
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        pull_called = true;
+        return 99; // error to detect if called
+    }
+    const result = ImageLoader_ensureImageLoaded(
+        "test-ref",
+        null,
+        mock_imageExists,
+        mock_pullImage
+    );
+    assert(called == true);
+    assert(pull_called == false);
+    assert(result == null);
+}
+
+test ensureImageLoaded_pullFails_returnsPullError {
+    // Mock imageExists that returns false
+    var imageExists_called: bool = false;
+    fn mock_imageExists(ref: []const u8) -> bool {
+        imageExists_called = true;
+        return false;
+    }
+    // Mock pullImage that returns an error
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        return 42;
+    }
+    const result = ImageLoader_ensureImageLoaded(
+        "test-ref",
+        null,
+        mock_imageExists,
+        mock_pullImage
+    );
+    assert(imageExists_called == true);
+    assert(result == 42);
+}
+
+test ensureImageLoaded_pullSucceedsButImageNotPresent_returnsError {
+    // Mock imageExists that returns false initially and after pull
+    var imageExists_call_count: i32 = 0;
+    fn mock_imageExists(ref: []const u8) -> bool {
+        imageExists_call_count += 1;
+        return false;
+    }
+    // Mock pullImage that returns success
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        return null;
+    }
+    const result = ImageLoader_ensureImageLoaded(
+        "test-ref",
+        null,
+        mock_imageExists,
+        mock_pullImage
+    );
+    assert(imageExists_call_count == 2);
+    assert(result == 1);
+}
+
+test ensureImageLoaded_pullSucceedsAndImagePresent_returnsSuccess {
+    // Mock imageExists that returns false then true
+    var imageExists_call_count: i32 = 0;
+    fn mock_imageExists(ref: []const u8) -> bool {
+        imageExists_call_count += 1;
+        return imageExists_call_count == 2;
+    }
+    // Mock pullImage that returns success
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        return null;
+    }
+    const result = ImageLoader_ensureImageLoaded(
+        "test-ref",
+        null,
+        mock_imageExists,
+        mock_pullImage
+    );
+    assert(imageExists_call_count == 2);
+    assert(result == null);
+}
+
+// Tests for ImageLoader_ensureAgentImageLoaded
+test ensureAgentImageLoaded_openclawName_returnsOpenclawImage {
+    // Mock pullImage that returns success
+    var pull_called: bool = false;
+    var pull_ref: []const u8 = [];
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        pull_called = true;
+        pull_ref = ref;
+        return null;
+    }
+    const openclaw_name: []const u8 = "openclaw-agent";
+    const openclaw_img: []const u8 = "openclaw-image:latest";
+    const hermes_name: []const u8 = "hermes-agent";
+    const hermes_img: []const u8 = "hermes-image:latest";
+    const result = ImageLoader_ensureAgentImageLoaded(
+        openclaw_name,
+        null,
+        openclaw_name,
+        openclaw_img,
+        hermes_name,
+        hermes_img,
+        mock_pullImage
+    );
+    assert(pull_called == true);
+    assert(mem.eql(pull_ref, openclaw_img));
+    assert(mem.eql(result, openclaw_img));
+}
+
+test ensureAgentImageLoaded_hermesName_returnsHermesImage {
+    // Mock pullImage that returns success
+    var pull_called: bool = false;
+    var pull_ref: []const u8 = [];
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        pull_called = true;
+        pull_ref = ref;
+        return null;
+    }
+    const openclaw_name: []const u8 = "openclaw-agent";
+    const openclaw_img: []const u8 = "openclaw-image:latest";
+    const hermes_name: []const u8 = "hermes-agent";
+    const hermes_img: []const u8 = "hermes-image:latest";
+    const result = ImageLoader_ensureAgentImageLoaded(
+        hermes_name,
+        null,
+        openclaw_name,
+        openclaw_img,
+        hermes_name,
+        hermes_img,
+        mock_pullImage
+    );
+    assert(pull_called == true);
+    assert(mem.eql(pull_ref, hermes_img));
+    assert(mem.eql(result, hermes_img));
+}
+
+test ensureAgentImageLoaded_unknownName_returnsNull {
+    const openclaw_name: []const u8 = "openclaw-agent";
+    const openclaw_img: []const u8 = "openclaw-image:latest";
+    const hermes_name: []const u8 = "hermes-agent";
+    const hermes_img: []const u8 = "hermes-image:latest";
+    const result = ImageLoader_ensureAgentImageLoaded(
+        "unknown-agent",
+        null,
+        openclaw_name,
+        openclaw_img,
+        hermes_name,
+        hermes_img,
+        fn(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 { return null; }
+    );
+    assert(result == null);
+}
+
+test ensureAgentImageLoaded_pullFails_returnsPullError {
+    // Mock pullImage that returns an error
+    fn mock_pullImage(ref: []const u8, onLog: ?fn([]const u8) -> void) -> ?i32 {
+        return 42;
+    }
+    const openclaw_name: []const u8 = "openclaw-agent";
+    const openclaw_img: []const u8 = "openclaw-image:latest";
+    const hermes_name: []const u8 = "hermes-agent";
+    const hermes_img: []const u8 = "hermes-image:latest";
+    const result = ImageLoader_ensureAgentImageLoaded(
+        openclaw_name,
+        null,
+        openclaw_name,
+        openclaw_img,
+        hermes_name,
+        hermes_img,
+        mock_pullImage
+    );
+    assert(result == 42);
+}
