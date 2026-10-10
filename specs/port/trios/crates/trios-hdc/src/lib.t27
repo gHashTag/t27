@@ -1,0 +1,40 @@
+module port::trios_hdc_lib;
+
+// Port of gHashTag/trios crates/trios-hdc/src/lib.rs (8b229e9489ee), the
+// #[cfg(not(has_zig_lib))] stub shape: without the Zig vendor library the
+// space carries no FFI pointer, and its dimensions read as 0.
+
+pub const DEFAULT_DIMENSIONS: usize = 10_000;
+
+// The stub HdcSpace (Rust lines 146-150: `struct HdcSpace { _priv: () }`):
+// no vendor state, only a marker that it exists and the dimension count the
+// stub drops.
+pub struct HdcSpace {
+    stub: bool,
+    dimensions: usize,
+}
+
+// Rust line 153: pub fn new(_dimensions: usize) -> Self { HdcSpace { _priv: () } }
+// ffi::hdc_space_create is plumbing; in the stub the space is empty and the
+// requested count is ignored, so dimensions() reads 0 whatever was asked for.
+pub fn HdcSpace_new(_dimensions: usize) -> HdcSpace {
+    return HdcSpace { stub: true, dimensions: 0 };
+}
+
+// Rust line 156: pub fn dimensions(&self) -> usize { 0 }  (stub config)
+pub fn HdcSpace_dimensions(space: HdcSpace) -> usize {
+    return space.dimensions;
+}
+
+test hdc_space_new_default {
+    var space = HdcSpace_new(DEFAULT_DIMENSIONS);
+    assert(HdcSpace_dimensions(space) == 0);
+    assert(space.stub);
+}
+
+test hdc_space_new_ignores_dimensions {
+    var small = HdcSpace_new(0);
+    var large = HdcSpace_new(1_000_000);
+    assert(HdcSpace_dimensions(small) == 0);
+    assert(HdcSpace_dimensions(large) == 0);
+}
