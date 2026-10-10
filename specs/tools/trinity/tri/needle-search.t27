@@ -53,3 +53,11 @@ pub const WHEN_TO_USE : str = "Needle search";
 pub const WITNESS : str = "registry-export";
 pub const WITNESS_SOURCE : str = ".trinity/registry.json at 976df5174 (version 1.0.0, generated_at 1773041968), exported by `zig build export-registry` and held to the binary by .github/workflows/ci.yml";
 pub const ENABLED : bool = true;
+
+test needle_search_constants {
+  assert COMMAND == "tri needle-search";
+  assert ABOUT == "Needle search";
+  assert MCP_DISPLAY_NAME == "Needle Search";
+  assert MCP_ENABLED == true;
+  assert CATEGORY == "dev";
+}
