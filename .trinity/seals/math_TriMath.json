@@ -1,12 +1,36 @@
 {
-  "gen_hash_c": "sha256:a0d1ae6d6b889af498166a1b0b2df9c8abbe95bd3ac9099b148b0729be094690",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:2b329fbd0bc25be71f101207263833afcb94b43651f5f7008eeda527f94baf02",
-  "gen_hash_zig": "sha256:ac65e34877d46c40cea9632ef7c44d243956e4c6337d3e9738d11d7d0823f76a",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c22e25fe2126265fc9be20a1840adcc7e9d8097480ce1e65b43fd592e2fc23f1",
+  "gen_hash_rust": "sha256:f97d4b72202043c95f43c83d3a6afcb5f00f9acaa1d85779f6ce40ae622d16e2",
+  "gen_hash_verilog": "sha256:b67dbb6cbc2fac2ceaf85f053a820d5a8e68ffa8c5177fb442ad65a2f8198fa5",
+  "gen_hash_zig": "sha256:d9fcd3182f7c4953bc41daf05888def341df84f8adf38d55d4e1fadcab7a5cb2",
   "module": "TriMath",
   "ring": 12,
-  "sealed_at": "2026-08-19T13:19:48Z",
-  "sealed_by": "t27c-bootstrap@0.1.0",
-  "spec_hash": "sha256:7acc3ed7813ca1bf6b8aa5e0836279f1221cb7beab5596b9c03feae7e141857f",
-  "spec_path": "specs/tri/math/math.t27"
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:33:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:70dde84fdfb9647676fc55e77f3e5ef9a88fe288404b660a2a1cc5d6bb54600e",
+  "spec_path": "specs/tri/math/math.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

@@ -1,15 +1,28 @@
 {
-  "gen_hash_c": "sha256:6d1f5abed3e7aeaea59d4620f87758d40cdac0897b7b7b74e9beff39715fce41",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e20dcc4e7fc93252fa3aa9f7aa5707f3a1be31465ca28e3c2e9422c1e2789b82",
   "gen_hash_rust": "sha256:b1680927f6f3c66abab5b42b6804cb0a9252f6f39ffda1ef5d20132ff0f0edd8",
   "gen_hash_verilog": "sha256:236229e71fbb8b38dc87846a5dacff3d163293265bf53e3128ba9bbc1953e37c",
   "gen_hash_zig": "sha256:1b985cfd394a01deb9773a5dd77e49c9a40ca2b7a3fb482831852e2e5ec37415",
   "module": "TernarySearch",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:28Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:984f2e0cacd78b57edaadfdf2044948512060e52e98a2499bd669847ac482d5f",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:33:01Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2b398719972f572f86fe255bac5565dd1d23fd1e11c90c7f223ac3c1f4c73fee",
   "spec_path": "specs/isa/ternary_search.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-ternary_search-3666097/spec.zig:132:9: error: use of undeclared identifier 'eq'"
+    "blocked": "does not compile: spec.zig:132:9: error: use of undeclared identifier 'eq'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

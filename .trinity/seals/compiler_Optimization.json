@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [
     {
       "spec": "specs/compiler/parser.t27",
@@ -7,23 +7,19 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:046166d08a31b294ab345163015666357ce8b336ad4959bc5d0405ff5dd5ff9c",
-  "gen_hash_rust": "sha256:a682f9fe1ec5ae6e93c6cb0de717998fe403675be71594f44591a7a22a6e0d53",
-  "gen_hash_verilog": "sha256:113fb9929b21760730fc6ed7973115aaddd4900904d6e4b1078edc784d17f98b",
-  "gen_hash_zig": "sha256:5acb0d31fe19f747401fa30ef64f21765b7307633fea853aea0764e5fde5c144",
+  "gen_hash_c": "sha256:c5b26a01ee60a0c3b1814d4dc14bcea77b47a8692af75d107ac87642af481389",
+  "gen_hash_rust": "sha256:f0b184fa9774f0c648af253941aefc1ca323ab9d07719c707177725bf3277be2",
+  "gen_hash_verilog": "sha256:08b7913a9894e82e56a1959eac4defe6f1427fa1a02d88ae65a0b086d35aeddc",
+  "gen_hash_zig": "sha256:e246038991923858ef69e7b1289ccfb78f738a44d897edec2139869ebcf1b2cb",
   "module": "Optimization",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:47:02Z",
+  "sealed_at": "2026-10-10T12:32:56Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:98ba1a67d94856b42f06d5db6c3c2a8499bcf955d74c5543c9cb630797815d4a",
+  "spec_hash": "sha256:3c568754711a7064dd056ce9375fa16d08e9ef6dc554086f42561a196899cbd4",
   "spec_path": "specs/compiler/optimizer.t27",
   "tests": {
-    "failed": 0,
-    "failing": [],
-    "forced": false,
-    "passed": 14,
-    "total": 14
+    "blocked": "does not compile: spec.zig:21:5: error: duplicate enum member name 'String'"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

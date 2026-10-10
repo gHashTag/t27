@@ -1,22 +1,22 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [
     {
-      "spec": "specs/fpga/power/Power.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/power.t27",
+      "spec_hash": "sha256:3bfcd496768923e7c1193ff8b2b2f2c296fad56a54b087f0ec093a11331bd1b5"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:ccfac9ff43d767fd4e790c44895c708cb335c4a70e470531da008d86407b8bec",
+  "gen_hash_c": "sha256:e1b3a5d96a7c5f43e8992c8bd17a21eed1b86d324d7f9994d44689a868b5403a",
   "gen_hash_rust": "sha256:250f1c57d259aca5b3be88048a6525f450de0aa8d372bf4f1e5ec170ddd3b4ac",
   "gen_hash_verilog": "sha256:c40a8826fa861b5587abfcae959324b175d352a290eca9daa0e332afccfb02a7",
   "gen_hash_zig": "sha256:4b9e8d1fbbdb7a80f17e6cb4bc598be5e7ce0ac59192f4acc90dee9dca4fff3f",
   "module": "Power_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:19:05Z",
+  "sealed_at": "2026-10-10T12:33:07Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:d9f8564784c91385026526b8bc1fa19900b604b87f0c126add8cd33eb8214373",
+  "spec_hash": "sha256:ad056879b04e553bdda171e32ea329d48f9840ae2afd9cae970463024f51e342",
   "spec_path": "specs/fpga/testbench/power_tb.t27",
   "tests": {
     "failed": 0,

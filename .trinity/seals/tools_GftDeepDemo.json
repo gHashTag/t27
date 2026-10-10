@@ -1,24 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:9973b1bd68bb844293e3670f897083cc7da9a153571e73c2b8430382782adaa6",
-  "gen_hash_rust": "sha256:bfcd0a4a9f767b7dfc8f0668e70d8db4204a68245c29af1c81869f5721722a92",
-  "gen_hash_verilog": "sha256:3094f5278c62c354b405dec89973c35ef8eba5c02761188a852bfd067ea6fe4c",
-  "gen_hash_zig": "sha256:50c0964c57751ad90580b2e8f683c9e25d3ec50c59e473b36f6cb407a26e0270",
+  "gen_hash_c": "sha256:ee71cd314f24e270df25be65a6fd78e951ccff399cbe0d7b2a5a746aa72e932a",
+  "gen_hash_rust": "sha256:504886d5f2d42720aa50543e78b07fdad53f78428eaab94c707238dcf896ddfa",
+  "gen_hash_verilog": "sha256:4342ae4bb980ce20672917fd64438fa5f274112ff32c5da854877d9de8681d17",
+  "gen_hash_zig": "sha256:ead3319cf35b59dca8442597f28cbb33acafd73fb562339f38607a1dd95f01aa",
   "module": "GftDeepDemo",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:17:57Z",
+  "sealed_at": "2026-10-10T12:33:08Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:7c522cd20fa575a9beffc176605e5e3c1bfeffce83099f34d18f4c232aab9b96",
+  "spec_hash": "sha256:9e8d8cccd608464dda9904ab4685bc10e08ca6cc5fe2366a0ca8bc30ed05b104",
   "spec_path": "specs/port/tools/gft_deep_demo.t27",
   "tests": {
-    "failed": 0,
-    "failing": [],
-    "forced": false,
-    "passed": 2,
-    "total": 2
+    "blocked": "does not compile: spec.zig:608:33: error: expected ')', found ','"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

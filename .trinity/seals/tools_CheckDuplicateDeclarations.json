@@ -1,15 +1,27 @@
 {
-  "gen_hash_c": "sha256:b8ddb76336fcba042885c56c28e1064f1d01ed1c89b8c197fefe7006e2edd013",
-  "gen_hash_rust": "sha256:ba5ad55606db912ad5f68627bb76214a2c83faaa536f5cb3d87ac57a2055f0cb",
-  "gen_hash_verilog": "sha256:2aed3e1726f0afb34f1d62c7ba8477162795af4be72b99ba65dbeffb5e63f6c3",
-  "gen_hash_zig": "sha256:2a3febe516978de05909869387464bc6059ab11e496ea55cbcbf3d56d9ee0a5a",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d8ffa9e373e6104938a55b18bdb674be7a6aa42dc99ee31a10cee9f32c1f61f7",
+  "gen_hash_rust": "sha256:7d9bbd9caad0755d99329c8266d93fff6a39ba5d3c9a3d326bb8c5893d5eebca",
+  "gen_hash_verilog": "sha256:5ebe03df9c95c3a685fc47e8ea63860b364ea74729fa73e71d9e4e4ab850116a",
+  "gen_hash_zig": "sha256:24f40020f30bc63c28b258775092af2e8e6952f142135c59ac5acec58fae5e34",
   "module": "CheckDuplicateDeclarations",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:13Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:483b947ae13c683e8137d7cdec728532c4665ef26de31214aeb935139f0ca8be",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:33:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:ef58da0aa9c2ba0377dc7905619667cf85ba72bbe18f5da443daeae2e9592b00",
   "spec_path": "specs/port/tools/check_duplicate_declarations.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-check_duplicate_declarations-32271/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

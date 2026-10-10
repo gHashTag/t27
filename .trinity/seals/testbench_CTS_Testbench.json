@@ -1,22 +1,22 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [
     {
-      "spec": "specs/fpga/cts/CTS.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/cts.t27",
+      "spec_hash": "sha256:84753bf2bec3f9c744cac4ce527210e87fd55d1843aecc8f533e52e25641cbea"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:086532de541e3fd163a9a44e45658692c38e90e6d30df897c63c702a76872ae8",
+  "gen_hash_c": "sha256:af6f426665eab01099e646b64c19df0eda2d54d47cf91d5d6f797e9347d2fe26",
   "gen_hash_rust": "sha256:e5dee072b8c59353f1e54f8fef8a1d933a2b869399b0be9aefa7cbb703a14a93",
   "gen_hash_verilog": "sha256:2ea3d3e5b4be1298c716176c398672e6be6d281f2ae411f405443f32eed30a14",
   "gen_hash_zig": "sha256:62a9dcef8fb4d31d1cc5a52851f730216adfbaffdc1c2db43d180700e0fdb2d4",
   "module": "CTS_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:18:54Z",
+  "sealed_at": "2026-10-10T12:33:06Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:29c22a22710c6a70cf3d3a51de84528976f50cdd92c8400af5933eb2c04b41c7",
+  "spec_hash": "sha256:0fb944015b643a0c24980d5707c13c2d7b1971bacec6e74daaffb91c7dcda59c",
   "spec_path": "specs/fpga/testbench/cts_tb.t27",
   "tests": {
     "failed": 0,

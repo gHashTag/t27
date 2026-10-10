@@ -1,33 +1,33 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     },
     {
       "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:c9e6ab833b24fcfa896a3ac67d162539edb1383ff2f19333d65a0c4cd0d8f655",
-  "gen_hash_rust": "sha256:c0e5318c094b6a5acb02588b5a0c2e22f448cc508e4180bfe90268d8068ce698",
-  "gen_hash_verilog": "sha256:0cb75a6bc3bf08ca38ad6ac8fdc8b2405d65aab0e94cd3233e2604bbd0c3ecbb",
-  "gen_hash_zig": "sha256:f08e15133349846e5af2ce70b8eb57c1e95a7fe707976c8d90d3f40d39c61656",
+  "gen_hash_c": "sha256:1fcff7acd32c06d535562a2b7cb107559247fa786db1cc23a04dd40e575f3a71",
+  "gen_hash_rust": "sha256:bd3828edd3948b067772ad1543cc1d290983a576ddd0f2b79ec1c45fd08255a0",
+  "gen_hash_verilog": "sha256:75f8eeb95114fd735ab8007d5bdee1446d0e974497853ce8baf48d7df1c81894",
+  "gen_hash_zig": "sha256:90009ea508f748129d03a4c0eb8f94332c945ea8b5991922b61cfb48c63399c4",
   "module": "TriBellmanFord",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:58:04Z",
+  "sealed_at": "2026-10-10T12:32:58Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:552521e5efdc9d903b022994ccbd7190df4f1679388c010729de0bcb6047bbe6",
+  "spec_hash": "sha256:1b9766720b1360dbef46ff8c9a4b4346685b965cb2e21cd159c2e4136b236c01",
   "spec_path": "specs/tri/graph/bellman_ford.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 2,
-    "total": 2
+    "passed": 3,
+    "total": 3
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

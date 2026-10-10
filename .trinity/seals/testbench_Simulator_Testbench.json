@@ -1,22 +1,22 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [
     {
-      "spec": "specs/fpga/simulator/Simulator.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/simulator.t27",
+      "spec_hash": "sha256:ad7383f40e9e5093f67303daa1016104fdfd21e99dd0adfca2f863dcc23d1ead"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:e39f134b5adc6d175e381ca724628b7b88a772a20f41bbeb9383e202306ee59b",
+  "gen_hash_c": "sha256:0ca966db40cdd0d8795ba3d443849f746b81e8c47d204adc05a79536d85c2385",
   "gen_hash_rust": "sha256:e120959c06137034188e39d499c2eb281b525fe71d70279c0fb5ebaaf6185193",
   "gen_hash_verilog": "sha256:2b88685645eaf6db4cff7ac0275dbad46f5d01b31b9e39077e1b9080bee14dc6",
   "gen_hash_zig": "sha256:0848743e10089c1f102fb1cb6bb984f776560003189b7a92ba4c83c09c2db832",
   "module": "Simulator_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:19:11Z",
+  "sealed_at": "2026-10-10T12:33:08Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:69dfde195e9294cbe1a7dec908d04fb3c8f2de72498d4df8f400f48eb6b2289b",
+  "spec_hash": "sha256:37851eeeb0a85c821c91410c097979c44b4ce8460d4b47e5f90cb8115d442759",
   "spec_path": "specs/fpga/testbench/simulator_tb.t27",
   "tests": {
     "failed": 0,

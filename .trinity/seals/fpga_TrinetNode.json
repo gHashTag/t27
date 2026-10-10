@@ -1,24 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+88813772c",
+  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:4a2e80c468ca6dc65347ed164f97768c80cf78cab34e097dd7b0078f9e93c454",
-  "gen_hash_rust": "sha256:70f9587faed731aaf3a2aaf54fc0431d35673b46b916bccaba855fd860bc34f5",
-  "gen_hash_verilog": "sha256:ead9d72e2d99ecfb0b3ae759af8b238200d0ae2a19620af1329195fe2bdc9c00",
-  "gen_hash_zig": "sha256:71f58d3c22a6b97d038fb1f4d65aa82b9f3040c3813d8c3e69bf6f7a65af2374",
+  "gen_hash_c": "sha256:97462056be5362fadfb11fe80441c5da964ae405cb9b6ddde8fe87f3a4271de4",
+  "gen_hash_rust": "sha256:df5e3bbfdb187ae5d7c86a5ffd3c339eac82c72f09b375ce4c4fdb71e0cac974",
+  "gen_hash_verilog": "sha256:a51a1ddb270f582dbf8c333ae918978d8308ae357304f7355355b14c19b56c3c",
+  "gen_hash_zig": "sha256:ea727fddc07112ba837505abf76386ad37cdb8401107829b097a97f28340edc8",
   "module": "TrinetNode",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:53:07Z",
+  "sealed_at": "2026-10-10T12:32:57Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:b82da9f0a241d0aceba828de9fe41c7fccf82e7f16d4853440086bc0d9d080b6",
+  "spec_hash": "sha256:0497858fbe6c7b1acde8daa77b5ee79623538af560bd7638213d019a6204f5a4",
   "spec_path": "specs/fpga/trinet_node.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 6,
-    "total": 6
+    "passed": 8,
+    "total": 8
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
