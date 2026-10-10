@@ -118,6 +118,15 @@ pub fn remint_keeps(schema: u32, failed_zero: bool, forced: bool, tests_total: u
     return checks_pass(failed_zero, forced, tests_total, invariants);
 }
 
+/// May `seal --save` record a spec as blocked over a seal that recorded it passing? Not without --force: the
+/// spec compiled and passed before and does not compile now. That is a regression, and resealing it writes
+/// the regression into the record as truth. `tri seals drift --fix` did exactly that to two specs on
+/// 2026-10-10 (#8552), and only a person diffing every changed seal caught it.
+pub fn blocked_reseal_allowed(old_passed: bool, force: bool) -> bool {
+    if (force) { return true; }
+    return old_passed == false;
+}
+
 /// The verdict part: the recorded tests passed, and, when the artifact needs silicon, its hardware
 /// step is VERIFIED.
 pub fn verdict_pass(tests_pass: bool, needs_silicon: bool, hw: u8) -> bool {
@@ -246,6 +255,15 @@ test remint_keeps_a_v2_seal_whose_checks_ran {
     assert remint_keeps(3, true, false, 6, 0, true) == false;
     // a seal file another spec owns (a name collision) is never kept, however good the seal
     assert remint_keeps(2, true, false, 6, 1, false) == false;
+}
+
+test blocked_reseal_allowed_refuses_a_regression {
+    // passed before, blocked now: a regression, refused
+    assert blocked_reseal_allowed(true, false) == false;
+    // blocked before and blocked now, or never sealed: the record stays true
+    assert blocked_reseal_allowed(false, false) == true;
+    // on purpose, with the failure on the record
+    assert blocked_reseal_allowed(true, true) == true;
 }
 
 test the_reused_share_is_a_number {

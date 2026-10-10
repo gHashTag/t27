@@ -6008,6 +6008,8 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                 std::process::exit(1);
             }
             test_report::SealVerdict::Blocked(why) => {
+                let old_passed = fs::read_to_string(seal_file_path(&hashes.module, &hashes.spec_path)).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()).map_or(false, |v| v.pointer("/tests/failed").and_then(|x| x.as_u64()) == Some(0) && v.pointer("/tests/total").and_then(|x| x.as_u64()).unwrap_or(0) > 0);
+                if !seal_identity::blocked_reseal_allowed(old_passed, force) { eprintln!("refusing to seal {}: its seal records a pass and it no longer compiles ({}). A regression is not a reseal: fix the spec, or --force.", hashes.spec_path, why.lines().next().unwrap_or("")); std::process::exit(1); }
                 // Not a failure: no binary was produced, so no test ran. Said
                 // out loud because "sealed" must not be read as "tested".
                 println!(
