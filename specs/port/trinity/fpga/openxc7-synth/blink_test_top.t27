@@ -1,0 +1,76 @@
+module blink_test_top {
+
+    // FPGA component for Trinity S3AI - port of
+    // trinity/fpga/openxc7-synth/blink_test_top.v (Blink Test Top).
+    // Board clock: 50 MHz on U22; the LED on T23 is active-low.
+
+    // 50_000_000 / 2^27 = 0.37 Hz blink: bit 26 (and thus the LED) toggles
+    // half as often as the old 0.74 Hz design.
+    pub const CLK_HZ : u32 = 50_000_000;
+
+    // reg [26:0] slow_counter - 27 bits, so the count wraps at 2^27.
+    pub const SLOW_COUNTER_BITS : u32 = 27;
+
+    // The wrap point of the 27-bit counter: 2^27 - 1.
+    pub const SLOW_COUNT_MAX : u32 = 0x7FFFFFF;
+
+    // The bit the LED inverts: led <= ~slow_counter[26].
+    pub const LED_BIT : u32 = 26;
+
+    // always @(posedge clk): slow_counter <= slow_counter + 1'b1.
+    // The hardware register is SLOW_COUNTER_BITS wide, so it wraps to 0.
+    pub fn next_count(counter: u32) -> u32 {
+        return (counter + 1) & SLOW_COUNT_MAX;
+    }
+
+    // led <= ~slow_counter[26] - the LED on T23 is active-low: the pin is
+    // driven 0 (LED lit) when bit LED_BIT is set, and 1 (LED dark) when clear.
+    pub fn led_value(counter: u32) -> bool {
+        return ((counter >> LED_BIT) & 1) == 0;
+    }
+
+    // Module state gives the clocked backend real registers and output ports.
+    // u32 carries the masked 27-bit value; rst_n/en are backend control ports.
+    var slow_counter: u32 = 0;
+    pub var led: bool = false;
+
+    // Both RTL assignments sample the old count. Evaluate the LED from the
+    // current count before incrementing so sequential host execution observes
+    // the same pre-edge sample as nonblocking RTL.
+    fn on_clock() -> void {
+        led = led_value(slow_counter);
+        slow_counter = next_count(slow_counter);
+    }
+
+    test next_count_increments {
+        assert(next_count(0) == 1);
+        assert(next_count(5) == 6);
+        assert(next_count(0x7FFFFE) == 0x7FFFFF);
+    }
+
+    test next_count_wraps_at_27_bits {
+        assert(next_count(0x7FFFFFF) == 0);
+        assert(next_count(0x7FFFFFE) == 0x7FFFFFF);
+    }
+
+    test led_value_inverts_bit_26 {
+        assert(led_value(0));
+        assert(!led_value(0x4000000));
+        assert(led_value(0x3FFFFFF));
+        assert(!led_value(0x7FFFFFF));
+    }
+
+    test on_clock_advances_registered_state {
+        assert(slow_counter == 0);
+        assert(!led);
+        on_clock();
+        assert(slow_counter == 1);
+        assert(led);
+        on_clock();
+        assert(slow_counter == 2);
+        assert(led);
+        on_clock();
+        assert(slow_counter == 3);
+        assert(led);
+    }
+}
