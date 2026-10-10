@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/carried_container.t27 -- a `std.ArrayList(T)` and a `std.StringHashMap(V)` that are
+; held and passed on but never opened, as the reference runs them (gHashTag/t27#8701, a lane of #6063). Every
+; test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints: both types as written. Zig instantiates each with its argument; nothing here
+; calls into one or reads its fields, so a value set to `undefined` is never read.
+; The shapes are the corpus's own: bogatyrs_registry.t27 holds a `std.StringHashMap(V)` field set to
+; `undefined` in a struct a test builds and passes by address; claude_md.t27 takes a `*std.ArrayList(u8)`
+; parameter. Then: both between two fields that keep their values, a pointer to the list passed on, and the
+; struct copied and written again. Every test reads a field a call writes, so each has a runtime assert.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceCarriedContainer;
+
+const CcEntry = struct {
+    name: []const u8,
+    on: bool,
+};
+
+const CcBox = struct {
+    count: u32,
+    names: std.StringHashMap(CcEntry),
+    bytes: std.ArrayList(u8),
+    last: u8,
+};
+
+/// bogatyrs_registry.t27's BogatyrRegistry_init: the map set to `undefined`.
+fn cc_init(last: u8) -> CcBox {
+    return CcBox{ .count = 0, .names = undefined, .bytes = undefined, .last = last };
+}
+
+/// claude_md.t27's shape: a pointer to a list, taken and never opened.
+fn cc_step(bytes: *std.ArrayList(u8), n: u32) -> u32 {
+    _ = bytes;
+    return n;
+}
+
+fn cc_bump(b: *CcBox, by: u32) -> void {
+    b.count = b.count + by;
+}
+
+test held_between_two_fields {
+    var b = cc_init(9);
+    cc_bump(&b, 5);
+    assert(b.count == 5 and b.last == 9);
+}
+
+test a_pointer_to_the_list_is_passed_on {
+    var b = cc_init(200);
+    cc_bump(&b, cc_step(&b.bytes, 1));
+    assert(b.count == 1);
+    assert(b.last == 200);
+}
+
+test copied_with_its_struct_and_written_again {
+    var b = cc_init(1);
+    var c = b;
+    cc_bump(&c, 3);
+    assert(c.count == 3 and b.count == 0);
+    assert(c.last == 1 and b.last == 1);
+}

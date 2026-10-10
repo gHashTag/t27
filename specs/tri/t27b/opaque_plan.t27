@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/opaque_plan.t27 -- how t27b lowers `anyopaque` and `@ptrFromInt` to an optional pointer (issue #7737,
 ; t27b coverage epic #6063; written in t27 under the port epic #6198), and a `std.mem.Allocator` it carries but never
-; calls (issue #7917). Everything t27b decides about them is in this file and reaches cli/t27b through `t27c gen-rust`
+; calls (issue #7917), and a `std.ArrayList(T)` or `std.StringHashMap(V)` it carries the same way (issue #8701). Everything t27b decides about them is in this file and reaches cli/t27b through `t27c gen-rust`
 ; (gen/rust/tri/t27b/opaque_plan.rs): which shapes it takes, and the names and words of each refusal. The Rust glue
 ; in cli/t27b/src/lower.rs (`lty_in`, `expr_as`, `ptr_from_int`) and lower_float.rs (`std_const`) reads what the
 ; context wants, asks, and builds the answer.
@@ -31,6 +31,18 @@
 ;     allocator (`std.heap.page_allocator`) is NOT_MINE. Pinned by specs/tri/t27b/conformance/carried_allocator.t27;
 ;     the corpus cases are gen_regression.t27 (a field, a parameter, `std.testing.allocator` in each test) and
 ;     claude_md.t27 (parameters and unused locals).
+;   - `std.ArrayList(T)` and `std.StringHashMap(V)` are generic: Zig instantiates each with its argument, which must
+;     name a type, and the struct it returns has a size that does not depend on it. In a Debug build (the
+;     reference's) `std.ArrayList(T)` is `{ items: []T, capacity: usize }`, 24 bytes aligned to 8, and
+;     `std.StringHashMap(V)` is a HashMap holding its unmanaged part (a metadata pointer, two u32 counts and a
+;     Debug-only safety lock), an allocator and a context of no bytes: 40 bytes aligned to 8 (`@sizeOf` and
+;     `@alignOf` under zig 0.16.0 on the t27c lab). t27b carries each as it carries an allocator (CARRY_LIST,
+;     CARRY_MAP), after the glue has named its argument (`arg_lo`) as a pointee: an argument t27b cannot name keeps
+;     its own refusal. Nothing opens one: `.append`, `.put`, `.items` keep their refusals by name, as the
+;     allocator's do. Any other generic (`std.AutoHashMap(K, V)`, `std.ArrayList(u8).Slice`) is NOT_MINE and stays
+;     `type (generic)`: t27b has no generics. The corpus cases are claude_md.t27 (`parts: *std.ArrayList(u8)`
+;     parameters of fns no test calls) and bogatyrs_registry.t27 (a `plugins: std.StringHashMap(PluginEntry)` field
+;     set to `undefined` and never read).
 ;   - The name a call that no declared fn answers is refused by (`call_what`), the allocator's methods among them:
 ;     a builtin `@f(..)` and a bare `len(..)` or `expect(..)` as `ExprCall(<name>)`, `assert` in an expression,
 ;     `Ok`/`Err`/`Some`/`None`, any `std.` path, any other dotted path as a method, the rest as an undeclared fn.
@@ -47,10 +59,16 @@ pub const FROM_INT : u8 = 3;
 pub const REFUSE_PLAIN : u8 = 4;
 pub const REFUSE_ALIGNED : u8 = 5;
 pub const CARRY : u8 = 6;
+pub const CARRY_LIST : u8 = 7;
+pub const CARRY_MAP : u8 = 8;
 
 // Zig's two words, on the 64-bit targets t27b and the reference run on.
 pub const CARRY_SIZE : u32 = 16;
 pub const CARRY_ALIGN : u32 = 8;
+
+// Zig's `std.ArrayList(T)` and `std.StringHashMap(V)` in a Debug build, aligned to CARRY_ALIGN.
+pub const LIST_SIZE : u32 = 24;
+pub const MAP_SIZE : u32 = 40;
 
 // What `@ptrFromInt` is wanted as.
 pub const W_OPT_PTR : u8 = 0;
@@ -76,20 +94,66 @@ fn same(s: []const u8, w: str) -> bool {
 }
 
 /// The type named `t` where a type is read, by_value as in opaque_type: OPAQUE or REFUSE_BY_VALUE for
-/// `anyopaque`, CARRY for `std.mem.Allocator`, NOT_MINE for any other name.
+/// `anyopaque`, CARRY for `std.mem.Allocator`, CARRY_LIST for `std.ArrayList(T)`, CARRY_MAP for
+/// `std.StringHashMap(V)`, NOT_MINE for any other name.
 pub fn named(t: []const u8, by_value: bool) -> u8 {
     if (same(t, "anyopaque")) { return opaque_type(by_value); }
     if (same(t, "std.mem.Allocator")) { return CARRY; }
+    if (instance(t, "std.ArrayList(")) { return CARRY_LIST; }
+    if (instance(t, "std.StringHashMap(")) { return CARRY_MAP; }
     return NOT_MINE;
 }
 
 const B_AT : u8 = 64;
 const B_DOT : u8 = 46;
+const B_LPAREN : u8 = 40;
+const B_RPAREN : u8 = 41;
 
 /// Does the text begin with `w`?
 fn begins(s: []const u8, w: str) -> bool {
     if (s.len < w.len) { return false; }
     return same(s[0 .. w.len], w);
+}
+
+/// Is the text `head` (which ends in `(`), an argument, and the `)` that closes that `(` as its last byte?
+fn instance(t: []const u8, head: str) -> bool {
+    if (t.len < head.len + 2 or !begins(t, head)) { return false; }
+    var depth : i64 = 1;
+    var k : usize = head.len;
+    while (k < t.len) {
+        if (t[k] == B_LPAREN) { depth = depth + 1; }
+        if (t[k] == B_RPAREN) {
+            depth = depth - 1;
+            if (depth == 0) { return k == t.len - 1; }
+        }
+        k = k + 1;
+    }
+    return false;
+}
+
+/// Where the argument of a CARRY_LIST or CARRY_MAP type's text begins, after its first `(`; it ends before the
+/// last byte.
+pub fn arg_lo(t: []const u8) -> usize {
+    var k : usize = 0;
+    while (k < t.len and t[k] != B_LPAREN) { k = k + 1; }
+    return k + 1;
+}
+
+/// Is answer `act` a generic instance, whose argument the glue names first?
+pub fn generic(act: u8) -> bool {
+    return act == CARRY_LIST or act == CARRY_MAP;
+}
+
+/// Does answer `act` stand for a struct with no fields that t27b builds, laid out by `size` and `align`?
+pub fn has_struct(act: u8) -> bool {
+    return act == OPAQUE or act == CARRY or generic(act);
+}
+
+/// The construct the struct for answer `act` refuses where its size is needed (a dereference): `type anyopaque`
+/// for OPAQUE, in the words of REFUSE_BY_VALUE; "" for a struct that has a size.
+pub fn unsized_what(act: u8) -> str {
+    if (act == OPAQUE) { return what(REFUSE_BY_VALUE); }
+    return "";
 }
 
 /// Does the text hold a `.`?
@@ -115,15 +179,18 @@ pub fn call_what(name: []const u8) -> str {
     return "ExprCall(undeclared fn)";
 }
 
-/// The size the struct for answer `act` has: Zig's two words for CARRY, none (0) for `anyopaque`.
+/// The size the struct for answer `act` has: Zig's two words for CARRY, Zig's Debug sizes for CARRY_LIST and
+/// CARRY_MAP, none (0) for `anyopaque`.
 pub fn size(act: u8) -> u32 {
     if (act == CARRY) { return CARRY_SIZE; }
+    if (act == CARRY_LIST) { return LIST_SIZE; }
+    if (act == CARRY_MAP) { return MAP_SIZE; }
     return 0;
 }
 
 /// The alignment the struct for answer `act` has.
 pub fn align(act: u8) -> u32 {
-    if (act == CARRY) { return CARRY_ALIGN; }
+    if (act == CARRY or generic(act)) { return CARRY_ALIGN; }
     return 1;
 }
 
@@ -268,4 +335,41 @@ test call_refusal_names {
     assert(std.mem.eql(u8, call_what("list.append"), "ExprCall(method)"));
     assert(std.mem.eql(u8, call_what("lenx"), "ExprCall(undeclared fn)"));
     assert(std.mem.eql(u8, call_what(""), "ExprCall(undeclared fn)"));
+}
+
+test a_list_and_a_string_map_are_carried {
+    // claude_md.t27's `parts: *std.ArrayList(u8)`; bogatyrs_registry.t27's `plugins: std.StringHashMap(PluginEntry)`.
+    assert(named("std.ArrayList(u8)", false) == CARRY_LIST);
+    assert(named("std.ArrayList(u8)", true) == CARRY_LIST);
+    assert(named("std.StringHashMap(PluginEntry)", true) == CARRY_MAP);
+    assert(named("std.ArrayList(std.ArrayList(u8))", true) == CARRY_LIST);
+    assert(size(CARRY_LIST) == 24 and align(CARRY_LIST) == 8);
+    assert(size(CARRY_MAP) == 40 and align(CARRY_MAP) == 8);
+    assert(!refuses(CARRY_LIST) and !refuses(CARRY_MAP));
+    assert(std.mem.eql(u8, what(CARRY_MAP), "") and std.mem.eql(u8, why(CARRY_LIST), ""));
+}
+
+test the_argument_is_named_first {
+    assert(arg_lo("std.ArrayList(u8)") == 14);
+    assert(arg_lo("std.StringHashMap(PluginEntry)") == 18);
+    assert(generic(CARRY_LIST) and generic(CARRY_MAP));
+    assert(!generic(CARRY) and !generic(OPAQUE) and !generic(NOT_MINE));
+}
+
+test a_struct_stands_for_each_carried_or_opaque_name {
+    assert(has_struct(OPAQUE) and has_struct(CARRY) and has_struct(CARRY_LIST) and has_struct(CARRY_MAP));
+    assert(!has_struct(NOT_MINE) and !has_struct(REFUSE_BY_VALUE) and !has_struct(FROM_INT));
+    assert(std.mem.eql(u8, unsized_what(OPAQUE), "type anyopaque"));
+    assert(std.mem.eql(u8, unsized_what(CARRY), "") and std.mem.eql(u8, unsized_what(CARRY_LIST), ""));
+    assert(std.mem.eql(u8, unsized_what(CARRY_MAP), ""));
+}
+
+test other_generics_are_not_mine {
+    assert(named("std.ArrayList()", true) == NOT_MINE);
+    assert(named("std.ArrayList(u8", true) == NOT_MINE);
+    assert(named("std.ArrayList(u8).Slice", true) == NOT_MINE);
+    assert(named("std.ArrayList(u8)(u8)", false) == NOT_MINE);
+    assert(named("std.ArrayListUnmanaged(u8)", true) == NOT_MINE);
+    assert(named("std.AutoHashMap(u32, u8)", true) == NOT_MINE);
+    assert(named("ArrayList(u8)", true) == NOT_MINE);
 }
