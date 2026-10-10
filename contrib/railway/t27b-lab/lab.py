@@ -1012,7 +1012,7 @@ def main():
                 log.close()
                 last = sha if run_done(doc) else None
             set_status(phase="idle", commit=sha, next_poll_in_s=POLL, retry=last is None)
-            ran = lane_request(sha)
+            ran = (max_requests_per_master := 2) and all(lane_request(sha) for _ in range(max_requests_per_master))  # #8586: take up to two admitted requests per master run
         except Exception as e:
             print("lab loop error: %s" % e, flush=True)
             set_status(phase="error", error=str(e))
