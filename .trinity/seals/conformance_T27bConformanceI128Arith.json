@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+c31c059ef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:071cc1dcdbe8f86e0fdaa08ff43dc333622b38b621b9f087302ee22a0c17fb68",
+  "gen_hash_rust": "sha256:9f5c0ed870b8fb54bd0f37936f20fc4baa5758e0bc3cbd9e37952b51029eb30d",
+  "gen_hash_verilog": "sha256:76d79fe831a297cf060f7345d9806c6f4b38fd3744eb8de07543318cf8c54006",
+  "gen_hash_zig": "sha256:18ee5dcc1a1a1bd4957dee413309e01ffc4fe0142625124c94f7ec6fc9912b5d",
+  "module": "T27bConformanceI128Arith",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T20:12:20Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:98671159c7a2eca8586626238118a78a25f15fa2eb0041c92ed58433b6942b41",
+  "spec_path": "specs/tri/t27b/conformance/i128_arith.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: Apache-2.0
+; cli/t27b/tests/i128_traps.t27 -- the traps of a run-time i128's checked `+`, `-`, `*` and `@divTrunc` (issue
+; #8763, stage 2 of #7915). Each test's name ends in its verdict, as int_cast_traps.t27's do: `_expect_pass`
+; passes; `_expect_trap` stops at the line whose comment names the panic Zig 0.16's Debug build stops there with
+; ("integer overflow", "division by zero"). `t27c test-report` fails exactly the `_expect_trap` tests; in t27b
+; the interpreter and the JIT must trap at the same site. Every assert of an `_expect_trap` test expects the
+; wrapped result, so a compiler that wrapped instead of trapping would pass it. The `*` cases reach each trap of
+; i128_plan.t27's program: two high words not 0, a cross product's high word, a carry out of the high word, and
+; a result whose sign is wrong (2^127, minInt * -1). cli/t27b/tests/tail.rs runs this file. It is not under
+; specs/: its tests fail by design. The cases that pass are specs/tri/t27b/conformance/i128_arith.t27.
+; phi^2 + phi^-2 = 3 | TRINITY
+
+module T27bI128Traps;
+
+const I128_MAX : i128 = 170141183460469231731687303715884105727;
+const I128_MIN : i128 = 0 - 170141183460469231731687303715884105727 - 1;
+const TWO_64 : i128 = 18446744073709551616;
+
+/// An i128 from its high word (signed) and its low word.
+fn it_word(hi: i64, lo: u64) -> i128 {
+    const h : i128 = @intCast(hi);
+    const l : i128 = @intCast(lo);
+    return h * TWO_64 + l;
+}
+
+fn it_sum(k: i64) -> i128 {
+    const d : i128 = @intCast(k);
+    return I128_MAX + d; // integer overflow
+}
+
+fn it_low_sum(k: i64) -> i128 {
+    const d : i128 = @intCast(k);
+    return I128_MIN + d; // integer overflow
+}
+
+fn it_difference(k: i64) -> i128 {
+    const d : i128 = @intCast(k);
+    return I128_MIN - d; // integer overflow
+}
+
+fn it_from_zero(k: i64) -> i128 {
+    const z : i128 = @intCast(k);
+    return z - I128_MIN; // integer overflow
+}
+
+fn it_product(a_hi: i64, a_lo: u64, b_hi: i64, b_lo: u64) -> i128 {
+    const a : i128 = it_word(a_hi, a_lo);
+    const b : i128 = it_word(b_hi, b_lo);
+    return a * b; // integer overflow
+}
+
+fn it_by_zero(a_hi: i64, a_lo: u64, b_lo: u64) -> i128 {
+    const a : i128 = it_word(a_hi, a_lo);
+    const b : i128 = it_word(0, b_lo);
+    return @divTrunc(a, b); // division by zero
+}
+
+fn it_by_minus_one(a_hi: i64, a_lo: u64, b_hi: i64, b_lo: u64) -> i128 {
+    const a : i128 = it_word(a_hi, a_lo);
+    const b : i128 = it_word(b_hi, b_lo);
+    return @divTrunc(a, b); // integer overflow
+}
+
+test sums_and_differences_at_the_ends_expect_pass {
+    assert(it_sum(0) == I128_MAX);
+    assert(it_sum(0 - 1) == I128_MAX - 1);
+    assert(it_low_sum(0) == I128_MIN);
+    assert(it_low_sum(1) == I128_MIN + 1);
+    assert(it_difference(0 - 1) == I128_MIN + 1);
+    assert(it_from_zero(0 - 1) == I128_MAX);
+}
+
+test the_greatest_plus_one_expect_trap {
+    assert(it_sum(1) == I128_MIN);
+}
+
+test the_least_minus_one_by_a_sum_expect_trap {
+    assert(it_low_sum(0 - 1) == I128_MAX);
+}
+
+test the_least_minus_one_expect_trap {
+    assert(it_difference(1) == I128_MAX);
+}
+
+test zero_minus_the_least_expect_trap {
+    assert(it_from_zero(0) == I128_MIN);
+}
+
+test products_at_the_ends_expect_pass {
+    assert(it_product(0 - 1, 0, 0, 9223372036854775808) == I128_MIN);
+    assert(it_product(0 - 9223372036854775808, 0, 0, 1) == I128_MIN);
+    assert(it_product(4611686018427387904, 0, 0, 1) == 85070591730234615865843651857942052864);
+    assert(it_product(1, 18446744073709551615, 0, 4611686018427387904) == 170141183460469231727075617697456717824);
+}
+
+test both_high_words_expect_trap {
+    assert(it_product(1, 0, 1, 0) == 0);
+}
+
+test a_cross_product_past_two_to_the_128_expect_trap {
+    assert(it_product(4611686018427387904, 0, 0, 4) == 0);
+}
+
+test a_carry_out_of_the_high_word_expect_trap {
+    assert(it_product(1, 18446744073709551615, 0, 18446744073709551615) == 0 - 55340232221128654847);
+}
+
+test two_to_the_127_expect_trap {
+    assert(it_product(1, 0, 0, 9223372036854775808) == I128_MIN);
+}
+
+test the_least_times_minus_one_expect_trap {
+    assert(it_product(0 - 9223372036854775808, 0, 0 - 1, 18446744073709551615) == I128_MIN);
+}
+
+test quotients_beside_the_traps_expect_pass {
+    assert(it_by_zero(0, 7, 2) == 3);
+    assert(it_by_minus_one(0 - 9223372036854775808, 0, 0, 1) == I128_MIN);
+    assert(it_by_minus_one(0 - 9223372036854775808, 1, 0 - 1, 18446744073709551615) == I128_MAX);
+    assert(it_by_minus_one(0 - 1, 18446744073709551615, 0 - 1, 18446744073709551615) == 1);
+}
+
+test a_zero_divisor_expect_trap {
+    assert(it_by_zero(0, 7, 0) == 0);
+}
+
+test the_least_over_minus_one_expect_trap {
+    assert(it_by_minus_one(0 - 9223372036854775808, 0, 0 - 1, 18446744073709551615) == I128_MIN);
+}

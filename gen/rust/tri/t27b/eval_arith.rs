@@ -48,8 +48,6 @@ pub const ONE: i128 = 1;
 
 pub const ZERO: i128 = 0;
 
-pub const U64_MAX: i128 = 18446744073709551615;
-
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EvalArith {
@@ -108,19 +106,34 @@ pub fn checked(r: i128, bits: u32, signed: bool, boolean: bool) -> EvalArith {
     return trapped(TRAP_OVERFLOW);
 }
 
-pub fn mag(v: i128) -> i128 {
-    if (v < ZERO) {
-        return (ZERO - v);
+pub fn add_leaves(a: i128, b: i128, lo: i128, hi: i128) -> bool {
+    if (b > ZERO) {
+        return (a > (hi - b));
     }
-    return v;
+    return (a < (lo - b));
 }
 
-pub fn mul_too_large(a: i128, b: i128) -> bool {
-    let ma: i128 = mag(a);
-    if (ma == ZERO) {
+pub fn sub_leaves(a: i128, b: i128, lo: i128, hi: i128) -> bool {
+    if (b < ZERO) {
+        return (a > (hi + b));
+    }
+    return (a < (lo + b));
+}
+
+pub fn mul_leaves(a: i128, b: i128, lo: i128, hi: i128) -> bool {
+    if ((a == ZERO) || (b == ZERO)) {
         return false;
     }
-    return (mag(b) > (U64_MAX / ma));
+    if ((a > ZERO) && (b > ZERO)) {
+        return (a > (hi / b));
+    }
+    if (a > ZERO) {
+        return (b < (lo / a));
+    }
+    if (b > ZERO) {
+        return (a < (lo / b));
+    }
+    return (b < (hi / a));
 }
 
 pub fn shift_amount(op: u8, bits: u32, b: i128) -> i128 {
@@ -135,17 +148,25 @@ pub fn shift_amount(op: u8, bits: u32, b: i128) -> i128 {
 }
 
 pub fn arith(op: u8, bits: u32, signed: bool, boolean: bool, a: i128, b: i128) -> EvalArith {
+    let lo: i128 = ty_min(bits, signed);
+    let hi: i128 = ty_max(bits, signed, boolean);
     if (op == OP_ADD) {
-        return checked((a + b), bits, signed, boolean);
-    }
-    if (op == OP_SUB) {
-        return checked((a - b), bits, signed, boolean);
-    }
-    if (op == OP_MUL) {
-        if mul_too_large(a, b) {
+        if add_leaves(a, b, lo, hi) {
             return trapped(TRAP_OVERFLOW);
         }
-        return checked((a * b), bits, signed, boolean);
+        return ok((a + b));
+    }
+    if (op == OP_SUB) {
+        if sub_leaves(a, b, lo, hi) {
+            return trapped(TRAP_OVERFLOW);
+        }
+        return ok((a - b));
+    }
+    if (op == OP_MUL) {
+        if mul_leaves(a, b, lo, hi) {
+            return trapped(TRAP_OVERFLOW);
+        }
+        return ok((a * b));
     }
     if (op == OP_ADD_W) {
         return ok(wrap((a + b), bits, signed));
@@ -159,6 +180,15 @@ pub fn arith(op: u8, bits: u32, signed: bool, boolean: bool, a: i128, b: i128) -
     if (((op == OP_DIV) || (op == OP_DIV_W)) || (op == OP_REM)) {
         if (b == ZERO) {
             return trapped(TRAP_DIV_ZERO);
+        }
+        if ((signed && (a == lo)) && (b == (ZERO - ONE))) {
+            if (op == OP_DIV) {
+                return trapped(TRAP_OVERFLOW);
+            }
+            if (op == OP_DIV_W) {
+                return ok(lo);
+            }
+            return ok(ZERO);
         }
         if (op == OP_DIV) {
             return checked((a / b), bits, signed, boolean);

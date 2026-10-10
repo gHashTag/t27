@@ -604,6 +604,11 @@ fn lower_mode<'a>(
         let m = LIBM.get_or_init(|| crate::compiler::Compiler::parse_ast(&libm()).unwrap_or_default());
         items.extend(m.children.iter().filter(|c| c.name.starts_with(xp::HELPER)));
     }
+    static I128: std::sync::OnceLock<Node> = std::sync::OnceLock::new(); // i128_plan.t27's division routine, for `@divTrunc`
+    if named.contains(ip::DIV_BUILTIN) {
+        let m = I128.get_or_init(|| crate::compiler::Compiler::parse_ast(&include_str!("../../../specs/tri/t27b/i128_plan.t27").replace(ip::PORT, ip::HELPER)).unwrap_or_default());
+        items.extend(m.children.iter().filter(|c| c.name.starts_with(ip::HELPER)));
+    }
 
     // Struct declarations are laid out on first use, like Zig's lazy
     // analysis: an unused struct with an unsupported member rejects nothing.
@@ -625,7 +630,7 @@ fn lower_mode<'a>(
 
     // The fns Zig's lazy analysis reaches, and the `*` nodes t27c's strength reduction rewrites (ast_shape.t27).
     l.analyzed = marked(items.iter().copied(), sh::analyzed).map(|n| n.name.clone()).collect();
-    l.analyzed.extend(items.iter().filter(|c| c.name.starts_with(xp::HELPER)).map(|c| c.name.clone()));
+    l.analyzed.extend(items.iter().filter(|c| c.name.starts_with(xp::HELPER) || c.name.starts_with(ip::HELPER)).map(|c| c.name.clone()));
     l.float_field_names(&items);
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
@@ -1420,7 +1425,7 @@ impl<'a> Lower<'a> {
             None => return self.reject("ConstDecl", format!("`{}` has no value", node.name)),
         };
         let ann = node.extra_type.trim();
-        let st = if !ann.is_empty() {
+        let st = if !ann.is_empty() && ann != ip::NAME { // an i128 is a pair constant (i128_plan.t27), as a scalar
             match self.lty(ann)? {
                 t @ (LTy::Struct(_) | LTy::Arr(..)) => Some(t),
                 LTy::Str => {
@@ -1465,7 +1470,7 @@ impl<'a> Lower<'a> {
         let v = if node.extra_type.trim().is_empty() {
             self.expr(init)?
         } else {
-            let ty = self.ty(&node.extra_type)?;
+            let ty = if ann == ip::NAME { Ty::I128 } else { self.ty(ann)? };
             let v = self.expr_as(init, &LTy::S(ty))?;
             Val::E(self.coerce(v, ty)?)
         };
@@ -2293,7 +2298,7 @@ impl<'a> Lower<'a> {
             None => ann,
         };
         if !ann.is_empty() {
-            let t = self.lty(&ann)?;
+            let t = if ann == ip::NAME { LTy::S(Ty::I128) } else { self.lty(&ann)? }; // a run-time i128 (i128_plan.t27)
             if is_agg(&t) || self.addr_taken.contains(&name) {
                 // In memory; the name is bound only after its initializer.
                 let k = self.new_slot(&t)?;
@@ -3776,9 +3781,11 @@ impl<'a> Lower<'a> {
     /// folds it to, or the plan's refusal under that constant's type. None when it names none.
     fn wide_fold(&mut self, n: &Node, to: Option<&str>) -> R<Option<Val>> {
         let v = self.wide(n);
-        if !wp::folds(v) {
+        let act = wp::run_time(v, to.is_some()); // an i128 constant at run time: a pair constant (i128_plan.t27)
+        if !wp::folds(v) || act == wp::AS_RUN {
             return Ok(None);
         }
+        if act == wp::AS_PAIR { return Ok(Some(Val::E(Expr { ty: Ty::I128, kind: ExprKind::Const(wp::pair_value(v)) }))); }
         let ty = match to { Some(t) => self.ty(t)?, None => Ty::Bool };
         match wp::verdict(v, to.is_some(), ty.is_int(), ty.bits(), ty.signed()) {
             wp::OK => Ok(Some(Val::E(Expr { ty, kind: ExprKind::Const(ty.wrap(wp::low64(v) as i128)) }))),

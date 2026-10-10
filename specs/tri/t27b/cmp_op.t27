@@ -11,9 +11,14 @@
 ;     integers. (On floats a NaN breaks that identity; ir.rs negates only integer comparisons.)
 ;   - `swap` is the operator with its operands exchanged: `a < b` is `b > a`.
 ;   - `holds_f64` is IEEE 754 on two binary64 values: every comparison with a NaN is false except `!=`.
+;   - `cond_bits` is the condition code (a64.t27's 4-bit encoding) that holds after `cmp a, b` exactly when
+;     `a op b`: signed or unsigned on integers; on floats, after `fcmp`, one that an unordered compare (a NaN
+;     operand sets NZCV to 0011) leaves false, but NE. It was the hand-written `cond_for` and `fcond_for` of
+;     cli/t27b/src/codegen.rs (#8763 ports them).
 ; --
-; The oracle is the hand-written Rust this file replaces (cli/t27b/src/ir.rs on master f21a0b39c). Its four
-; methods were match tables; the tests below are those tables row by row, and the identities they keep.
+; The oracle is the hand-written Rust this file replaces (cli/t27b/src/ir.rs on master f21a0b39c, and
+; codegen.rs's cond_for and fcond_for on master c31c059ef). Its methods were match tables; the tests below are
+; those tables row by row, and the identities they keep.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -63,6 +68,45 @@ pub fn holds_f64(op: u8, a: f64, b: f64) -> bool {
     if (op == LE) { return a <= b; }
     if (op == GT) { return a > b; }
     return a >= b;
+}
+
+/// The condition codes `cond_bits` gives, in a64.t27's 4-bit encoding (cli/t27b/src/a64.rs's Cond).
+const C_EQ : u32 = 0;
+const C_NE : u32 = 1;
+const C_HS : u32 = 2;
+const C_LO : u32 = 3;
+const C_MI : u32 = 4;
+const C_HI : u32 = 8;
+const C_LS : u32 = 9;
+const C_GE : u32 = 10;
+const C_LT : u32 = 11;
+const C_GT : u32 = 12;
+const C_LE : u32 = 13;
+
+/// The condition that holds after `cmp a, b` (`fcmp` when `is_float`) exactly when `a op b`.
+pub fn cond_bits(op: u8, is_float: bool, signed: bool) -> u32 {
+    if (op == EQ) { return C_EQ; }
+    if (op == NE) { return C_NE; }
+    if (is_float) {
+        if (op == LT) { return C_MI; }
+        if (op == LE) { return C_LS; }
+        if (op == GT) { return C_GT; }
+        return C_GE;
+    }
+    if (op == LT) {
+        if (signed) { return C_LT; }
+        return C_LO;
+    }
+    if (op == LE) {
+        if (signed) { return C_LE; }
+        return C_LS;
+    }
+    if (op == GT) {
+        if (signed) { return C_GT; }
+        return C_HI;
+    }
+    if (signed) { return C_GE; }
+    return C_HS;
 }
 
 test the_symbols_are_zig_s {
@@ -133,6 +177,38 @@ test a_nan_compares_unequal_and_unordered {
         assert holds_f64(op, nan, 1.0) == (op == NE);
         assert holds_f64(op, 1.0, nan) == (op == NE);
         assert holds_f64(op, nan, nan) == (op == NE);
+        op = op + 1;
+    }
+}
+
+// codegen.rs's cond_for and fcond_for, row by row.
+test the_condition_of_each_comparison {
+    assert cond_bits(EQ, false, true) == C_EQ;
+    assert cond_bits(NE, false, false) == C_NE;
+    assert cond_bits(LT, false, true) == C_LT;
+    assert cond_bits(LE, false, true) == C_LE;
+    assert cond_bits(GT, false, true) == C_GT;
+    assert cond_bits(GE, false, true) == C_GE;
+    assert cond_bits(LT, false, false) == C_LO;
+    assert cond_bits(LE, false, false) == C_LS;
+    assert cond_bits(GT, false, false) == C_HI;
+    assert cond_bits(GE, false, false) == C_HS;
+    assert cond_bits(EQ, true, false) == C_EQ;
+    assert cond_bits(NE, true, false) == C_NE;
+    assert cond_bits(LT, true, false) == C_MI;
+    assert cond_bits(LE, true, false) == C_LS;
+    assert cond_bits(GT, true, false) == C_GT;
+    assert cond_bits(GE, true, false) == C_GE;
+}
+
+// On integers the negated comparison's condition is the inverse one (bit 0 flipped), signed or not; a float's
+// conditions do not depend on `signed`.
+test an_integer_condition_and_its_negation_are_inverse {
+    var op : u8 = 0;
+    while (op < 6) {
+        assert cond_bits(negate(op), false, true) == (cond_bits(op, false, true) ^ 1);
+        assert cond_bits(negate(op), false, false) == (cond_bits(op, false, false) ^ 1);
+        assert cond_bits(op, true, true) == cond_bits(op, true, false);
         op = op + 1;
     }
 }
