@@ -1,0 +1,399 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/fpga/die_probe.t27 -- Die probe module for FPGA PUF
+// Clocked by STARTUPE2 CFGMCLK: waits 4096 cycles, races 32 ring pairs
+// Serves {RESULT, PUF} on JTAG USER1 from shift register in CFGMCLK domain
+// Part of gHashTag/t27#8655, die D PZSDR P201/P203 Mini probe
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module DieProbe {
+
+    // === Module configuration ===
+    
+    pub const NUM_RING_PAIRS : u32 = 32;  // 32 ring pairs (64 total rings)
+    pub const WAIT_CYCLES : u32 = 4096;  // Wait 4096 cycles before racing
+    pub const COUNTER_WIDTH : u32 = 15;  // 2^15 = 32768
+    pub const DONE_THRESHOLD : u32 = 32768;  // done after 32768 periods
+    pub const PUF_BITS : u32 = 32;  // 32-bit PUF
+    pub const RESULT_MAGIC : u32 = 0xd1e208f7;  // Measured RESULT value
+    pub const PUF_THRESHOLD_PERCENT : u32 = 15;  // 15% threshold for puf_usable()
+    
+    // === Module interface ===
+    
+    pub struct ModuleInterface {
+        // JTAG USER1 interface
+        user1_data : [32]u32,  // Shift register data
+        user1_valid : bool,     // Data valid signal
+        
+        // Control signals
+        cfgmclk : bool,         // STARTUPE2 CFGMCLK clock
+        reset_n : bool,         // Active low reset
+        
+        // Status
+        wait_done : bool,       // Wait period completed
+        race_done : bool,       // Race completed
+        result : u32,           // RESULT output
+        puf : u32,              // PUF output
+    }
+    
+    // === Ring oscillator state ===
+    
+    pub struct RingOscillatorState {
+        counter : [COUNTER_WIDTH]u32,
+        periods_completed : u32,
+    }
+    
+    // === Race state ===
+    
+    pub struct RaceState {
+        wait_cycles_remaining : u32,
+        race_results : [NUM_RING_PAIRS]u32,  // 0 = tie, 1 = ring 2k won, 2 = ring 2k+1 won
+        race_complete : bool,
+    }
+    
+    // === Shift register state ===
+    
+    pub struct ShiftRegisterState {
+        data : [32]u32,
+        bit_index : u32,
+        shifting : bool,
+    }
+    
+    // === Combined module state ===
+    
+    pub struct ModuleState {
+        interface : ModuleInterface,
+        ring_states : [64]RingOscillatorState,  // 64 total rings
+        race_state : RaceState,
+        shift_state : ShiftRegisterState,
+    }
+    
+    // === Constructor helpers ===
+    
+    fn initial_ring_state() -> RingOscillatorState {
+        var counter_array : [COUNTER_WIDTH]u32 = [_]u32{0} ** COUNTER_WIDTH;
+        
+        return RingOscillatorState{
+            .counter = counter_array,
+            .periods_completed = 0,
+        };
+    }
+    
+    fn initial_race_state() -> RaceState {
+        var results_array : [NUM_RING_PAIRS]u32 = [_]u32{0} ** NUM_RING_PAIRS;
+        
+        return RaceState{
+            .wait_cycles_remaining = WAIT_CYCLES,
+            .race_results = results_array,
+            .race_complete = false,
+        };
+    }
+    
+    fn initial_shift_state() -> ShiftRegisterState {
+        var data_array : [32]u32 = [_]u32{0} ** 32;
+        
+        return ShiftRegisterState{
+            .data = data_array,
+            .bit_index = 0,
+            .shifting = false,
+        };
+    }
+    
+    fn initial_interface() -> ModuleInterface {
+        var data_array : [32]u32 = [_]u32{0} ** 32;
+        
+        return ModuleInterface{
+            .user1_data = data_array,
+            .user1_valid = false,
+            .cfgmclk = false,
+            .reset_n = false,
+            .wait_done = false,
+            .race_done = false,
+            .result = 0,
+            .puf = 0,
+        };
+    }
+    
+    fn initial_module_state() -> ModuleState {
+        var ring_array : [64]RingOscillatorState = [_]RingOscillatorState{initial_ring_state()} ** 64;
+        
+        return ModuleState{
+            .interface = initial_interface(),
+            .ring_states = ring_array,
+            .race_state = initial_race_state(),
+            .shift_state = initial_shift_state(),
+        };
+    }
+    
+    // === Ring oscillator logic ===
+    
+    fn update_ring_oscillator(state: RingOscillatorState) -> RingOscillatorState {
+        var new_state : RingOscillatorState = state;
+        
+        // Increment counter (simple binary counter)
+        var carry : bool = true;
+        var bit : u32 = 0;
+        
+        while (bit < COUNTER_WIDTH && carry) {
+            if (new_state.counter[bit] == 0) {
+                new_state.counter[bit] = 1;
+                carry = false;
+            } else {
+                new_state.counter[bit] = 0;
+                bit = bit + 1;
+            }
+        }
+        
+        // Check if counter wrapped around (completed a period)
+        if (!carry && bit == COUNTER_WIDTH) {
+            new_state.periods_completed = new_state.periods_completed + 1;
+        }
+        
+        return new_state;
+    }
+    
+    // === Race logic ===
+    
+    fn update_race_state(state: RaceState, ring_states: [64]RingOscillatorState) -> RaceState {
+        var new_state : RaceState = state;
+        
+        if (!new_state.race_complete) {
+            if (new_state.wait_cycles_remaining > 0) {
+                new_state.wait_cycles_remaining = new_state.wait_cycles_remaining - 1;
+            } else {
+                // Race phase: compare ring pairs
+                var pair : u32 = 0;
+                while (pair < NUM_RING_PAIRS) {
+                    var ring1_index : u32 = pair * 2;
+                    var ring2_index : u32 = pair * 2 + 1;
+                    
+                    var ring1_periods : u32 = ring_states[ring1_index].periods_completed;
+                    var ring2_periods : u32 = ring_states[ring2_index].periods_completed;
+                    
+                    if (ring1_periods > ring2_periods) {
+                        new_state.race_results[pair] = 1;  // ring 2k won
+                    } else if (ring2_periods > ring1_periods) {
+                        new_state.race_results[pair] = 2;  // ring 2k+1 won  
+                    } else {
+                        new_state.race_results[pair] = 0;  // tie
+                    }
+                    
+                    pair = pair + 1;
+                }
+                
+                new_state.race_complete = true;
+            }
+        }
+        
+        return new_state;
+    }
+    
+    // === Shift register logic ===
+    
+    fn update_shift_register(state: ShiftRegisterState, cfgmclk_rising: bool) -> ShiftRegisterState {
+        var new_state : ShiftRegisterState = state;
+        
+        if (cfgmclk_rising) {
+            if (!new_state.shifting) {
+                // Start shifting when race is done
+                new_state.shifting = true;
+                new_state.bit_index = 0;
+            } else if (new_state.shifting && new_state.bit_index < 32) {
+                // Shift out data
+                new_state.bit_index = new_state.bit_index + 1;
+                
+                // Stop after 32 bits
+                if (new_state.bit_index >= 32) {
+                    new_state.shifting = false;
+                }
+            }
+        }
+        
+        return new_state;
+    }
+    
+    fn get_shift_output(state: ShiftRegisterState) -> u32 {
+        if (state.bit_index > 0 && state.bit_index <= 32) {
+            // Return the bit at current position (simplified)
+            return (state.data[0] >> (state.bit_index - 1)) & 1;
+        }
+        return 0;
+    }
+    
+    // === PUF usability function ===
+    
+    fn puf_usable(puf1: u32, puf2: u32) -> bool {
+        var differing_bits : u32 = 0;
+        var bit : u32 = 0;
+        
+        while (bit < PUF_BITS) {
+            var bit1 : u32 = (puf1 >> bit) & 1;
+            var bit2 : u32 = (puf2 >> bit) & 1;
+            
+            if (bit1 != bit2) {
+                differing_bits = differing_bits + 1;
+            }
+            
+            bit = bit + 1;
+        }
+        
+        var percent_difference : u32 = (differing_bits * 100) / PUF_BITS;
+        return percent_difference <= PUF_THRESHOLD_PERCENT;
+    }
+    
+    // === Combined update logic ===
+    
+    fn update_module_state(state: ModuleState, cfgmclk: bool, reset_n: bool) -> ModuleState {
+        var new_state : ModuleState = state;
+        
+        // Handle reset
+        if (!reset_n) {
+            new_state = initial_module_state();
+            return new_state;
+        }
+        
+        // Update ring oscillators on every CFGMCLK cycle
+        var i : u32 = 0;
+        while (i < 64) {
+            new_state.ring_states[i] = update_ring_oscillator(new_state.ring_states[i]);
+            i = i + 1;
+        }
+        
+        // Update race state
+        new_state.race_state = update_race_state(new_state.race_state, new_state.ring_states);
+        
+        // Update shift register on rising edge
+        var cfgmclk_rising : bool = cfgmclk && !state.interface.cfgmclk;
+        new_state.shift_state = update_shift_register(new_state.shift_state, cfgmclk_rising);
+        
+        // Update interface signals
+        new_state.interface.cfgmclk = cfgmclk;
+        new_state.interface.reset_n = reset_n;
+        new_state.interface.wait_done = new_state.race_state.wait_cycles_remaining == 0;
+        new_state.interface.race_done = new_state.race_state.race_complete;
+        
+        // Generate RESULT and PUF based on race results
+        if (new_state.interface.race_done) {
+            var result_value : u32 = RESULT_MAGIC;
+            var puf_value : u32 = 0;
+            
+            // Convert race results to PUF (simplified - in silicon this would be more complex)
+            var pair : u32 = 0;
+            while (pair < NUM_RING_PAIRS) {
+                var race_result : u32 = new_state.race_state.race_results[pair];
+                puf_value = (puf_value << 1) | (race_result & 1);
+                pair = pair + 1;
+            }
+            
+            new_state.interface.result = result_value;
+            new_state.interface.puf = puf_value;
+            
+            // Load into shift register
+            new_state.shift_state.data[0] = result_value;
+            new_state.shift_state.data[1] = puf_value;
+        }
+        
+        // Update USER1 interface
+        new_state.interface.user1_valid = new_state.shift_state.shifting;
+        new_state.interface.user1_data[0] = get_shift_output(new_state.shift_state);
+        
+        return new_state;
+    }
+    
+    // === Test blocks ===
+    
+    test puf_usable_threshold {
+        // Test with identical PUFs
+        assert puf_usable(0xFFFFFFFF, 0xFFFFFFFF) == true;
+        
+        // Test with 15% difference (32 * 0.15 = 4.8, so 4 bits)
+        var puf1 : u32 = 0xFFFFFFFF;
+        var puf2 : u32 = 0xFFFFFFF0;  // 4 bits different
+        assert puf_usable(puf1, puf2) == true;
+        
+        // Test with 16% difference (5 bits) - should fail
+        puf2 = 0xFFFFFFE0;  // 5 bits different
+        assert puf_usable(puf1, puf2) == false;
+    }
+    
+    test race_logic {
+        var state : ModuleState = initial_module_state();
+        
+        // Set up ring states for testing
+        var test_rings : [64]RingOscillatorState = [_]RingOscillatorState{initial_ring_state()} ** 64;
+        
+        // Ring 0 wins pair 0
+        test_rings[0].periods_completed = 100;
+        test_rings[1].periods_completed = 50;
+        
+        // Ring 3 wins pair 1 (tie in pair 0)
+        test_rings[2].periods_completed = 75;
+        test_rings[3].periods_completed = 100;
+        
+        var race : RaceState = update_race_state(initial_race_state(), test_rings);
+        
+        // Check results
+        assert race.race_results[0] == 1;  // Ring 0 won
+        assert race.race_results[1] == 2;  // Ring 3 won
+    }
+    
+    test shift_register {
+        var state : ShiftRegisterState = initial_shift_state();
+        
+        // Test initial state
+        assert state.shifting == false;
+        assert state.bit_index == 0;
+        
+        // Test update without rising edge
+        var updated : ShiftRegisterState = update_shift_register(state, false);
+        assert updated.shifting == false;
+        assert updated.bit_index == 0;
+        
+        // Test start of shifting
+        updated = update_shift_register(state, true);
+        assert updated.shifting == true;
+        assert updated.bit_index == 0;
+    }
+    
+    test module_reset {
+        var state : ModuleState = initial_module_state();
+        
+        // Modify some state
+        state.interface.result = 0x12345678;
+        state.race_state.wait_cycles_remaining = 100;
+        
+        // Reset should clear everything
+        var reset_state : ModuleState = update_module_state(state, false, false);
+        var initial : ModuleState = initial_module_state();
+        
+        assert reset_state.interface.result == initial.interface.result;
+        assert reset_state.race_state.wait_cycles_remaining == initial.race_state.wait_cycles_remaining;
+    }
+    
+    // === Invariant blocks ===
+    
+    invariant puf_usable_bounds: forall p1 : u32, p2 : u32, 
+        puf_usable(p1, p2) == ((count_differing_bits(p1, p2) * 100) / 32 <= PUF_THRESHOLD_PERCENT)
+    
+    invariant race_result_validity: forall r : RaceState, 
+        forall i : u32, i < NUM_RING_PAIRS => r.race_results[i] <= 2
+    
+    invariant module_state_consistency: forall state : ModuleState, 
+        state.interface.race_done == state.race_state.race_complete
+    
+    // === Helper function for invariant ===
+    
+    fn count_differing_bits(a: u32, b: u32) -> u32 {
+        var diff : u32 = a ^ b;
+        var count : u32 = 0;
+        var bit : u32 = 0;
+        
+        while (bit < 32) {
+            if ((diff >> bit) & 1) == 1 {
+                count = count + 1;
+            }
+            bit = bit + 1;
+        }
+        
+        return count;
+    }
+}

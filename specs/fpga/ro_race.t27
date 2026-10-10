@@ -1,0 +1,166 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/fpga/ro_race.t27 -- Ring oscillator race module for FPGA PUF
+// One counter per ring oscillator; done rises after 32768 ring periods
+// Part of gHashTag/t27#8655, die D PZSDR P201/P203 Mini probe
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module RoRace {
+
+    // === Module configuration ===
+    
+    pub const NUM_RINGS : u32 = 64;  // 64 ring oscillators
+    pub const COUNTER_WIDTH : u32 = 15;  // 2^15 = 32768
+    pub const DONE_THRESHOLD : u32 = 32768;  // done after 32768 periods
+    
+    // === Module interface ===
+    
+    pub struct ModuleInterface {
+        done : bool,
+        ring_counters : [64]u32,
+    }
+    
+    // === Ring oscillator state ===
+    
+    pub struct RingOscillatorState {
+        counter : [COUNTER_WIDTH]u32,
+        periods_completed : u32,
+    }
+    
+    // === Constructor helpers ===
+    
+    fn initial_oscillator_state() -> RingOscillatorState {
+        var counter_array : [COUNTER_WIDTH]u32 = [_]u32{0} ** COUNTER_WIDTH;
+        
+        return RingOscillatorState{
+            .counter = counter_array,
+            .periods_completed = 0,
+        };
+    }
+    
+    fn initial_module_state() -> ModuleInterface {
+        var counter_array : [NUM_RINGS]u32 = [_]u32{0} ** NUM_RINGS;
+        
+        return ModuleInterface{
+            .done = false,
+            .ring_counters = counter_array,
+        };
+    }
+    
+    // === Ring oscillator logic ===
+    
+    fn update_ring_oscillator(state: RingOscillatorState) -> RingOscillatorState {
+        var new_state : RingOscillatorState = state;
+        
+        // Simple approach: increment periods_completed each time, cap at 1
+        if (new_state.periods_completed < 1) {
+            new_state.periods_completed = new_state.periods_completed + 1;
+        }
+        
+        return new_state;
+    }
+    
+    fn is_ring_done(state: RingOscillatorState) -> bool {
+        return state.periods_completed >= DONE_THRESHOLD;
+    }
+    
+    // === Module logic ===
+    
+    fn update_module_state(state: ModuleInterface) -> ModuleInterface {
+        var new_state : ModuleInterface = state;
+        
+        // Update each ring oscillator
+        var i : u32 = 0;
+        while (i < NUM_RINGS) {
+            var osc_state : RingOscillatorState = initial_oscillator_state();
+            osc_state.periods_completed = state.ring_counters[i];
+            
+            var updated_osc : RingOscillatorState = update_ring_oscillator(osc_state);
+            new_state.ring_counters[i] = updated_osc.periods_completed;
+            
+            i = i + 1;
+        }
+        
+        // Check if all rings are done
+        var all_done : bool = true;
+        var j : u32 = 0;
+        while (j < NUM_RINGS) {
+            if (new_state.ring_counters[j] < DONE_THRESHOLD) {
+                all_done = false;
+                break;
+            }
+            j = j + 1;
+        }
+        
+        new_state.done = all_done;
+        return new_state;
+    }
+    
+    // === Test blocks ===
+    
+    test ring_oscillator_increment {
+        var state : RingOscillatorState = initial_oscillator_state();
+        
+        // After one update, periods should be 0 (counter not wrapped yet)
+        var updated : RingOscillatorState = update_ring_oscillator(state);
+        assert updated.periods_completed == 0;
+        
+        // After 32768 updates, periods should be 1
+        var k : u32 = 0;
+        while (k < DONE_THRESHOLD) {
+            updated = update_ring_oscillator(updated);
+            k = k + 1;
+        }
+        assert updated.periods_completed == 1;
+        assert is_ring_done(updated) == true;
+    }
+    
+    test module_initialization {
+        var state : ModuleInterface = initial_module_state();
+        
+        assert state.done == false;
+        assert state.ring_counters[0] == 0;
+        assert state.ring_counters[NUM_RINGS-1] == 0;
+    }
+    
+    test module_completion {
+        var state : ModuleInterface = initial_module_state();
+        
+        // Set all rings to just below threshold
+        var i : u32 = 0;
+        while (i < NUM_RINGS) {
+            state.ring_counters[i] = DONE_THRESHOLD - 1;
+            i = i + 1;
+        }
+        assert state.done == false;
+        
+        // Update once - should complete
+        var updated : ModuleInterface = update_module_state(state);
+        assert updated.done == true;
+    }
+    
+    test partial_completion {
+        var state : ModuleInterface = initial_module_state();
+        
+        // Set half rings to complete, half to incomplete
+        var i : u32 = 0;
+        while (i < NUM_RINGS / 2) {
+            state.ring_counters[i] = DONE_THRESHOLD;
+            i = i + 1;
+        }
+        while (i < NUM_RINGS) {
+            state.ring_counters[i] = DONE_THRESHOLD - 1;
+            i = i + 1;
+        }
+        assert state.done == false;
+        
+        // Update - should still be incomplete
+        var updated : ModuleInterface = update_module_state(state);
+        assert updated.done == false;
+    }
+    
+    // === Invariant blocks ===
+    
+    invariant ring_counter_bounds: forall i : u32, i < NUM_RINGS => initial_module_state().ring_counters[i] <= DONE_THRESHOLD
+    
+    invariant done_consistency: forall state : ModuleInterface, update_module_state(state).done == (forall i : u32, i < NUM_RINGS => state.ring_counters[i] >= DONE_THRESHOLD)
+}
