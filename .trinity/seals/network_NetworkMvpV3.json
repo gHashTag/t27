@@ -1,0 +1,57 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+88821271d",
+  "closure": [
+    {
+      "spec": "specs/network/mvp.t27",
+      "spec_hash": "sha256:51e31c123af313c862f6b15765e28a76a1a618ebb0ac02c7d795dbc15da04f23"
+    },
+    {
+      "spec": "specs/network/mvp_v2.t27",
+      "spec_hash": "sha256:d4feb75fa7806a36d0aabe1f80c39faf2cce19c8c4c50ac2a55436e653b8122c"
+    },
+    {
+      "spec": "specs/network/pool.t27",
+      "spec_hash": "sha256:671be8fb23ca19777733e418b06f9c9d9d26c028d9048aea876bf3f0da5c5bf6"
+    },
+    {
+      "spec": "specs/network/quorum.t27",
+      "spec_hash": "sha256:75c3abd9be6b40cc8e73dd4c2ddd466f72edc4eb1ec13143a8484a1f07a8dbc4"
+    },
+    {
+      "spec": "specs/tri/crypto/sha256.t27",
+      "spec_hash": "sha256:7f7cbef299f95f1d9eb4bcacf66292e15e084e633d2d2ac3a751dc47da196b7a"
+    },
+    {
+      "spec": "specs/trinet/ledger.t27",
+      "spec_hash": "sha256:97660e545fbefc6fa5bcc7fc031bc08e1bda586fd6fb8c3b657e37b5dbac0e3f"
+    },
+    {
+      "spec": "specs/verified/payout.t27",
+      "spec_hash": "sha256:7b5e8bca72e68efd2050b469bb784d68b7ce5dd15907a5f44f0f132475fead87"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:1f42f64577044df2c72d8d2bd58c6c237eae940f8de84c40c59e6b89427fbd8f",
+  "gen_hash_rust": "sha256:669873b71dabc56de6c8fc366843ffbb892d63da4c57a94f986584b9e886ab4e",
+  "gen_hash_verilog": "sha256:922a4114289cb78413f5349136e0d1b6928605f9394b7ba714b7624ae2c52a63",
+  "gen_hash_zig": "sha256:0a34af07d7c3d5c6e5bf266772ef25d9e0615c213d22f16f9ed984a1a326f85c",
+  "module": "NetworkMvpV3",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T21:02:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4e3e67450204a429176d1246d3e8c214a39b79b94ac6c8da52d2db1d2b66765f",
+  "spec_path": "specs/network/mvp_v3.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+88821271d",
+  "closure": [
+    {
+      "spec": "specs/verified/payout.t27",
+      "spec_hash": "sha256:7b5e8bca72e68efd2050b469bb784d68b7ce5dd15907a5f44f0f132475fead87"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ac0a1ef475142bb0060b1bb621e42a673d704c15f7fada7df0540e714e6cc569",
+  "gen_hash_rust": "sha256:24d26a9e0a4536d31aeb84c306bfdd76f006113106bce47a3ff5668c990bbd3d",
+  "gen_hash_verilog": "sha256:8699c38823ff8a73785d9c47d92bc10d0ce5a68ac2bfcf752d0aaf76c2044443",
+  "gen_hash_zig": "sha256:e88fa2b8b83f9c2fa7ada96a887d6a584362b7f4e56b02754de8ef413716ff35",
+  "module": "NetworkPool",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T21:02:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:671be8fb23ca19777733e418b06f9c9d9d26c028d9048aea876bf3f0da5c5bf6",
+  "spec_path": "specs/network/pool.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

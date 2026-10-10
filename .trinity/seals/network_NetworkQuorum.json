@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+88821271d",
+  "closure": [
+    {
+      "spec": "specs/trinet/tri-bridge.t27",
+      "spec_hash": "sha256:c1b0634750e475ae41ab7a52736933ba9a696480223e22cb44943b95cffef809"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b23ea89c1172288daee580a7c4f4a9e66d8713bc96d1c871bbced7615839fc85",
+  "gen_hash_rust": "sha256:8d048c73d93936bbfe583ae0da86ab011c2bc990e911ea482e7d3e7cc6a69225",
+  "gen_hash_verilog": "sha256:72411da71b378903a4c1d470ee627e0a6fa618fb2c12aa65aea3c9e4f3382a14",
+  "gen_hash_zig": "sha256:8975bfdd668390ec43a2054d77e226394c15700b993b23ebc4c568a5a4e00678",
+  "module": "NetworkQuorum",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T21:02:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:75c3abd9be6b40cc8e73dd4c2ddd466f72edc4eb1ec13143a8484a1f07a8dbc4",
+  "spec_path": "specs/network/quorum.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
