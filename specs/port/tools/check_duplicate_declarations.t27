@@ -48,3 +48,18 @@ pub fn self_check(binary: str) -> u32 {
 pub fn main() -> u32 {
     return 2;
 }
+
+// The port keeps the gate's vocabulary and its honest non-run verdict (#8475):
+// the finding messages stay byte-stable, the stub scans enumerate nothing, the
+// negative control stays green, and main still refuses to claim a scan ran.
+test duplicate_gate_stub_contract {
+    assert(STRONG == "every backend rejects a redeclaration");
+    assert(WEAK == "both a type and a function");
+    assert(LOWERED == "SAME identifier in");
+    assert(t27c() == "t27c");
+    assert(specs().len == 0);
+    assert(read_baseline().len == 0);
+    assert(read_lowered_baseline().len == 0);
+    assert(self_check(t27c()) == 0);
+    assert(main() == 2);
+}

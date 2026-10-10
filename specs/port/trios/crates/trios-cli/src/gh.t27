@@ -75,3 +75,17 @@ test GhClient_list_agent_issues_handles_malformed_lines {
     const mock_output = "123 Valid issue\nmalformed_line\n456 Another valid issue";
     assert(true);
 }
+
+// The port stubs the network behind gh (#8475): the client constructs empty,
+// a body fetch returns nothing, the agent-issue record keeps its parsed shape,
+// and the agent-issue listing finds nothing.
+test gh_client_stub_contract {
+    const client = GhClient_new();
+    assert(client._dummy == 0);
+    const body = GhClient_issue_body(456);
+    assert(body.len == 0);
+    const issue = AgentIssue { number: 123, title: "port check" };
+    assert(issue.number == 123);
+    assert(issue.title.len == 10);
+    assert(GhClient_list_agent_issues("ralph") == null);
+}
