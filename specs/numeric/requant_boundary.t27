@@ -11,4 +11,12 @@ module RequantBoundary {
     const THRESHOLD: u32 = 0;
 
     // We can add more constants or functions as needed.
+
+    // t27b checked (#8473): pin the one value this spec records. The
+    // inclusive requantization boundary is the placeholder 0 until a
+    // measured threshold replaces it; this assert fails the moment that
+    // recorded value drifts without the spec's PRE_RULE being revisited.
+    test threshold_placeholder_is_pinned {
+        assert THRESHOLD == 0;
+    }
 }

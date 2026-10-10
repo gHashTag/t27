@@ -10,3 +10,12 @@ module TriMath;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    // t27b checked (#8473): TriMath declares no constants of its own; its
+    // surface is the sacred-constants import above. The identity the module
+    // header states -- phi^2 + 1/phi^2 = 3, with phi^2 = phi + 1 -- is
+    // checked on exactly what that import provides (L5 tolerance).
+    test trinity_identity_from_the_imported_constants {
+        assert abs(constants::PHI * constants::PHI - (constants::PHI + 1.0)) < 1e-12;
+        assert abs(constants::PHI_SQ + constants::PHI_INV_SQ - 3.0) < 1e-12;
+    }
+

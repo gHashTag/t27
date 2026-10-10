@@ -10,3 +10,15 @@ module TriMeasurement;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    // t27b checked (#8473): TriMeasurement declares no constants of its own;
+    // its surface is the CODATA measurement import above. The measured
+    // gravitational constant and the dimensionless dark-energy density are
+    // pinned as recorded, and the SI normalization scale stays within a
+    // rounding step of 1 (L5 tolerance for the f64 comparisons).
+    test codata_measurements_from_the_imported_constants {
+        assert abs(constants::G_MEASURED - 6.67430e-11) < 1e-20;
+        assert abs(constants::OMEGA_LAMBDA_MEASURED - 0.685) < 1e-12;
+        assert abs(constants::G_SCALE - 1.0001) < 1e-12;
+        assert abs(1.0 - constants::G_SCALE) < 1e-3;
+    }
+

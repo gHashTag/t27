@@ -127,4 +127,27 @@ module TernaryGraph {
     bench degree_out_27 {
         // Simulated — actual allocation at gen time
     }
+
+    // t27b checked (#8473): the trit alphabet and vertex bound the module
+    // declares, then the write/read behavior on a two-vertex slice -- the
+    // case the three tests above defer for want of 2D allocation. An
+    // undirected edge writes both directions, the diagonal stays TRIT_ZERO,
+    // degrees and neighbor counts read back the single edge, and the direct
+    // hop satisfies has_path_2. Integer compares, no L5 tolerance needed.
+    test undirected_edge_symmetry_on_a_two_vertex_slice {
+        assert MAX_VERTICES == 27;
+        assert TRIT_NEG == -1;
+        assert TRIT_ZERO == 0;
+        assert TRIT_POS == 1;
+        var adj : [][]i32 = [][]i32{ []i32{0, 0}, []i32{0, 0} };
+        graph_init(adj, 2);
+        add_edge_undirected(adj, 0, 1, TRIT_POS);
+        assert edge_weight(adj, 0, 1) == TRIT_POS;
+        assert edge_weight(adj, 1, 0) == TRIT_POS;
+        assert edge_weight(adj, 0, 0) == TRIT_ZERO;
+        assert degree_out(adj, 0, 2) == 1;
+        assert degree_in(adj, 1, 2) == 1;
+        assert neighbor_count(adj, 0, 2) == 1;
+        assert has_path_2(adj, 0, 1, 2) == true;
+    }
 }
