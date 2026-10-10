@@ -1,0 +1,116 @@
+module port::replay_detection_window_guard;
+
+pub const RPDW_MIN_WINDOW: u64 = 16;
+pub const RPDW_MAX_WINDOW: u64 = 4096;
+pub const RPDW_MAX_MESSAGES: usize = 8192;
+
+pub enum ReplayWindowError {
+    WindowTooSmall,
+    WindowTooLarge,
+    DuplicateMessage(u64),
+    GapInSequence,
+    SpanExceedsWindow,
+    TooManyMessages,
+}
+
+pub fn validate_replay_window(
+    window_size: u64,
+    message_ids: []u64,
+) -> bool {
+    if (window_size < RPDW_MIN_WINDOW) {
+        return false;
+    }
+    if (window_size > RPDW_MAX_WINDOW) {
+        return false;
+    }
+    if (message_ids.len() > RPDW_MAX_MESSAGES) {
+        return false;
+    }
+    
+    // Check for duplicates
+    for (i in 0..message_ids.len()) {
+        for (j in (i + 1)..message_ids.len()) {
+            if (message_ids[i] == message_ids[j]) {
+                return false;
+            }
+        }
+    }
+    
+    if (message_ids.len() > 0) {
+        // Sort the message IDs
+        var sorted: []u64 = message_ids;
+        for (i in 0..sorted.len()) {
+            for (j in (i + 1)..sorted.len()) {
+                if (sorted[i] > sorted[j]) {
+                    const temp = sorted[i];
+                    sorted[i] = sorted[j];
+                    sorted[j] = temp;
+                }
+            }
+        }
+        
+        // Check for gaps in sequence
+        for (i in 0..(sorted.len() - 1)) {
+            if (sorted[i + 1] - sorted[i] > 1) {
+                return false;
+            }
+        }
+        
+        // Check span exceeds window
+        const span = sorted[sorted.len() - 1] - sorted[0] + 1;
+        if (span > window_size) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+test validate_replay_window_basic {
+    // Test window too small
+    var ids1: [3]u64 = [1, 2, 3];
+    const result1 = validate_replay_window(8, &ids1);
+    assert(result1 == false);
+}
+
+test validate_replay_window_duplicates {
+    // Test duplicate message detection
+    var ids2: [4]u64 = [1, 2, 3, 2];
+    const result2 = validate_replay_window(RPDW_MIN_WINDOW, &ids2);
+    assert(result2 == false);
+}
+
+test validate_replay_window_sequence_gaps {
+    // Test gap in sequence
+    var ids3: [4]u64 = [1, 2, 5, 6];
+    const result3 = validate_replay_window(RPDW_MIN_WINDOW, &ids3);
+    assert(result3 == false);
+}
+
+test validate_replay_window_span_exceeds {
+    // Test span exceeds window
+    var ids4: [16]u64 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17];
+    const result4 = validate_replay_window(RPDW_MIN_WINDOW, &ids4);
+    assert(result4 == false);
+}
+
+test validate_replay_window_valid {
+    // Test valid window
+    var ids5: [10]u64 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const result5 = validate_replay_window(RPDW_MIN_WINDOW, &ids5);
+    assert(result5 == true);
+}
+
+test validate_replay_window_empty {
+    // Test empty message list
+    var ids6: [0]u64 = [_]u64{0} ** 0;
+    const result6 = validate_replay_window(RPDW_MIN_WINDOW, &ids6);
+    assert(result6 == true);
+}
+
+test validate_replay_window_single {
+    // Test single message
+    var ids7: [1]u64 = [42];
+    const result7 = validate_replay_window(RPDW_MIN_WINDOW, &ids7);
+    assert(result7 == true);
+}
