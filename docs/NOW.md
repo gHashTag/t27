@@ -2044,7 +2044,7 @@ Last updated: 2026-08-18
 Last updated: 2026-08-18
 
 ## ci: give seal-coverage a body, and measure what it finds (Closes #2209)
-- **The 89 dangling, characterised:** 74 name specs that DID exist in history (16 of them removed by one commit, \`692ba5263\` DARPA CLARA); **15 name specs found in no commit under any path**, each recording a spec_hash and all four gen_hashes -- reproducibility claims nobody can check. Four of those 15 are GF16 comparison/claims specs, in a repository whose GF16 claims have been withdrawn twice. Stated as found, not further
+- **The 89 dangling, characterised:** 74 name specs that DID exist in history (16 of them removed by one commit, \`692ba5263\`, a bulk spec deletion); **15 name specs found in no commit under any path**, each recording a spec_hash and all four gen_hashes -- reproducibility claims nobody can check. Four of those 15 are GF16 comparison/claims specs, in a repository whose GF16 claims have been withdrawn twice. Stated as found, not further
 - **A correction to my own first pass:** I tested existence with \`git log --diff-filter=D -- <exact path>\`, which only sees a deletion recorded at that same path, and reported **73** never-existed. By basename across all history it is **15** -- my instrument overstated fivefold, and "73 seals reference specs that never existed" would have been a serious unsupported accusation. **Fourth time this session an anomaly came from the instrument, not the thing measured**
 
 - **The last decorative required check.** `seal-coverage.yml` was `echo "Running SEAL coverage analysis..."`
@@ -2175,7 +2175,7 @@ Last updated: 2026-08-18
 
 - **`seal-coverage.yml` and `schema-validation.yml` are each one `echo`**, and both are named required in `docs/BRANCH-PROTECTION.md`. `phi-loop-ci.yml`, described there as the main test suite, asserts `abs(phi**2 + phi**-2 - 3) < 1e-10` -- true of an empty repository -- alongside one real grep lint. A required check that cannot fail reads as coverage and is worse than none
 - **`schema-validation` now asks the weakest question worth asking:** does every tracked JSON parse. Cheap, and carrying no theory that could itself be wrong
-- **It found a broken file that a test actually loads.** `clara-bridge/audit-trail/experience-schema.json` had a literal `...` on line 40; `clara-bridge/tests/run_tests.py:152` does `json.load()` on it. **3 of its 11 tests were failing** -- measured by reverting the fix and re-running, not assumed -- and no workflow runs `clara-bridge` at all. Fixed; the suite is 11/11
+- **It found a broken file that a test actually loads.** a vendored audit-trail schema had a literal `...` on line 40; the suite that loaded it with `json.load()` failed 3 of 11 tests -- measured by reverting the fix and re-running, not assumed -- and no workflow ran that suite at all. (Both files have since been deleted.) Fixed; the suite is 11/11
 - Six empty JSON artefacts recorded as debts in `tools/json_parse_baseline.txt`. `external/` excluded: tsconfig is JSONC by convention, and flagging it would be this gate making the mistake it exists to catch
 - **`seal-coverage` deliberately untouched.** `.trinity/seals/` holds 1714 files keyed on TYPE names (`Account`, `AXI4_Testbench`, `"[]const u8"`), not spec names. My first attempt matched seal filenames against spec filenames and reported "1668 orphans of 1714" -- a finding about my assumption, not the repository. `t27c` has no `seal` subcommand. Wrote neither a check nor a deletion
 

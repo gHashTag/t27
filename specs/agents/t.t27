@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [1]str = ["t27/specs/queen/lotus.t27"];
 pub const ENTRY_INVARIANT : str = "Queen health >= 0.9, graph is loaded";
 pub const EXIT_INVARIANT : str = "All rings are sealed, verdict is clean";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA2: AR Orchestrator - coordinates all AR agents for CLARA submission";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Orchestrator - coordinates all AR agents";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [27]str = ["t27/measure-corpus", "t27/phi-loop", "t27/providers-steward", "t27/tri", "t27/tri-pipeline", "t27/wave-audit", "t27/wrap-up", "trinity/blog-post", "trinity/board-sync", "trinity/cloud", "trinity/doctor", "trinity/farm-garden", "trinity/fpga-synth", "trinity/god-mode", "trinity/implement-issue", "trinity/queen-hive-visuals", "trinity/review-code", "trinity/run-tests", "trinity/scholar", "trinity/status", "trinity/tech-tree", "trinity/tri", "trinity/trinity-test", "trinity/ux-wave", "trinity/vibee-gen", "trinity/vsa-verify", "trinity/wave"];
@@ -57,6 +57,6 @@ test agent_t_constants {
   assert REGISTER == "R19";
   assert LAYER == "Physical";
   assert ENABLED == true;
-  assert CLARA_ROLE == "TA2: AR Orchestrator - coordinates all AR agents for CLARA submission";
+  assert AR_ROLE == "AR Orchestrator - coordinates all AR agents";
   assert KEY_FILES[0] == "t27/specs/queen/lotus.t27";
 }

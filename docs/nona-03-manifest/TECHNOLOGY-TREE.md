@@ -67,7 +67,7 @@ Eto derevo tekhnologij pokazyvaet put' evolyucii T27 ot bazovoj infrastruktury d
 
 ```
 +==============================================================+
-|              RINGS 18-24: CLARA AR Pipeline                   |
+|              RINGS 18-24: AR Pipeline                         |
 |         Automated Reasoning for DARPA compliance              |
 +==============================================================+
 |                                                               |
@@ -90,7 +90,7 @@ Eto derevo tekhnologij pokazyvaet put' evolyucii T27 ot bazovoj infrastruktury d
 |       +-- Resource limits: max steps, max memory, timeout    |
 |       +-- 100 cycles latency                                 |
 |                                                               |
-|  [v] Ring 22: Explainability (CLARA XAI)                     |
+|  [v] Ring 22: Explainability (bounded XAI)                   |
 |       +-- Explanations <= 10 steps with GF16 confidence      |
 |       +-- 200 cycles latency                                 |
 |                                                               |
@@ -167,7 +167,7 @@ Eto derevo tekhnologij pokazyvaet put' evolyucii T27 ot bazovoj infrastruktury d
 |  [~] Ring 32: README Update                                  |
 |       +-- Badges: rings-31, gen-112, conformance-34, seals-48|
 |       +-- Architecture strands section                       |
-|       +-- CLARA AR section                                   |
+|       +-- AR section                                         |
 |       +-- Conformance testing section                        |
 |                                                               |
 |  [~] Ring 33: Validation (Rust suite)                        |
@@ -261,7 +261,7 @@ Eto derevo tekhnologij pokazyvaet put' evolyucii T27 ot bazovoj infrastruktury d
 ```
 Rings 0-17  SEED->CANOPY (compiler bootstrap)
     |
-    +---> Rings 18-24  AR Integration (CLARA pipeline)
+    +---> Rings 18-24  AR Integration (bounded pipeline)
     |         |
     |         +---> Rings 25-31  Gen + Conformance (all backends)
     |                   |

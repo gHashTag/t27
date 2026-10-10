@@ -22,7 +22,7 @@ bootstrap/main.zig  ── parse only ──→  AST  ── ??? ──→  .zig
 
 **Queen brain:** Needs **E2E proof** (generated **Lotus** / **HSLM** + tests + honest experience logs), not only “files exist.”
 
-**Rolling snapshot (verify on your machine / CI — do not treat as SSOT):** e.g. ring 44 in **`.trinity/experience/clara_track*.jsonl`**, **GREEN** **`queen-health.json`**, ~52 generated `.zig` files, **`gen/zig/queen/lotus.zig`** + **`gen/zig/nn/hslm.zig`** generated but not proven E2E.
+**Rolling snapshot (verify on your machine / CI — do not treat as SSOT):** e.g. ring 44 in **`.trinity/experience/ar_track*.jsonl`**, **GREEN** **`queen-health.json`**, ~52 generated `.zig` files, **`gen/zig/queen/lotus.zig`** + **`gen/zig/nn/hslm.zig`** generated but not proven E2E.
 
 ### Critical path (illustrative)
 
@@ -74,7 +74,7 @@ Parse-only prototype; **no** Zig emitter.
 3. **Do not hand-edit `gen/**`** — regenerate via **`tri gen`** / **`t27c`**.  
 4. **SSOT is `.t27` / `.tri`** — Zig/C/Verilog are backends ([`SOUL.md`](../../SOUL.md), ADR-001).  
 5. **Conformance golden file** is **`conformance/gf16_vectors.json`** (and related JSON), **not** `conformance/vectors.json` (that path does not exist here). Grow vector count toward **33+** via schema work (**Ring #133**).  
-6. After each **phase**, append a **verifiable** JSON line to **`.trinity/experience/clara_track*.jsonl`** when work actually completed.  
+6. After each **phase**, append a **verifiable** JSON line to **`.trinity/experience/ar_track*.jsonl`** when work actually completed.  
 7. **`queen-health.json`** should reflect **real** health (≥ 0.9 if you claim GREEN).  
 8. **Compiler SSOT:** canonical CLI is **`./scripts/tri` → `t27c`** (Rust bootstrap). **`bootstrap/main.zig`** is a **parallel** Zig parser prototype — **not** the single authority for emission unless the project explicitly promotes it (see **§1 Gap A/B**).
 
@@ -104,7 +104,7 @@ Parse-only prototype; **no** Zig emitter.
 | 4 | **TF3** | Roundtrip tests on `gen/zig/numeric/tf3.zig` (or spec-driven gen) per **`specs/numeric/tf3.t27`**. |
 | 5 | **GF4/GF8/GF12 smoke** | `fromF32(1.0)` style smoke where APIs exist. |
 | 6 | **φ-rounding helpers** | If present in **`gf16.t27`**, test **documented** error bounds. |
-| 7 | **Experience** | Log numeric ring completion to **`clara_track*.jsonl`**. |
+| 7 | **Experience** | Log numeric ring completion to **`ar_track*.jsonl`**. |
 
 **Zig test note:** `gen/zig/` may lack a root **`build.zig`** — add a **small test harness** issue or test via **`t27c` / `tri test`**.
 
@@ -204,7 +204,7 @@ zig test gen/zig/math/constants.zig 2>&1 | tee conformance/constants_run1.log ||
 **Experience log (only after real verdict):**
 
 ```bash
-echo '{"ring":45,"task":"audit-seed","verdict":"…","ts":"…"}' >> .trinity/experience/clara_track1.jsonl
+echo '{"ring":45,"task":"audit-seed","verdict":"…","ts":"…"}' >> .trinity/experience/ar_track1.jsonl
 ```
 
 ---

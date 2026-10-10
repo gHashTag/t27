@@ -2,7 +2,7 @@
 
 ## A bee's work on #5277, published from `queen-5277` (Closes #5277)
 
-- The branch changes 1 file(s): `clara-bridge/.github/workflows/ci.yml`.
+- The branch changes 1 file(s): `.github/workflows/ci.yml`.
 - `git diff --stat origin/master...queen-5277` reads: 1 file changed, 1 insertion(+)
 - This entry is written by the publisher, not by the bee. A pull request must
   add exactly one `docs/now/` entry and a bee has no way to know that: its brief

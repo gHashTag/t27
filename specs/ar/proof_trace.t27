@@ -6,7 +6,7 @@ use base::types;
 
 spec ProofTrace {
     // Maximum number of steps allowed in proof trace
-    // DARPA CLARA requirement: ≤10 steps
+    // requirement: ≤10 steps
     const MAX_STEPS: int = 10
 
     // Proof step structure

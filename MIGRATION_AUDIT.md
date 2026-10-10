@@ -45,8 +45,7 @@ centralization in the `tri` CLI, per issue #592.
 | `examples/fpga/qmtech_minimal/build.sh` | C | Keep | Example; not on critical path. |
 | `bootstrap/t27c.py`, `bootstrap/src/memory/ace_step_wrapper.py` | D | Keep | Out of scope; handled separately. |
 | `contrib/backend/**/*.py` | C | Keep | NotebookLM / music-generator backends; not on commit gate. |
-| `clara-bridge/**/*.py` | C | Keep | Research bridge. |
-| `benchmarks/**/*.py`, `research/**/*.py`, `scripts/ultra_engine_v*.py`, `scripts/pysr_*.py`, `scripts/pslq_*.py`, `scripts/trinity-pellis-pipeline/**/*.py`, `external/kaggle/**/*.py`, `docs/clara/examples/*.py` | C | Keep | Research / examples; orthogonal. |
+| `benchmarks/**/*.py`, `research/**/*.py`, `scripts/ultra_engine_v*.py`, `scripts/pysr_*.py`, `scripts/pslq_*.py`, `scripts/trinity-pellis-pipeline/**/*.py`, `external/kaggle/**/*.py` | C | Keep | Research / examples; orthogonal. |
 | `bindings/python/**/*.py` | C | Keep | Python bindings to golden-float crate. |
 | `conformance/kepler_newton_tests.py` | C | Keep | Conformance helper not on gate. |
 | `test_notebooklm.py`, `test_notebooklm_venv.sh` | C | Keep | Manual smoke tests at repo root. |

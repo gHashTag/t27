@@ -1,27 +1,23 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+b9cf73e",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:8fefe7b7d619fbe32a6a9538e906eaeaeedf5266528e18aac40cadd10968e4fd",
-  "gen_hash_rust": "sha256:a986cabb2fdf200d0dc1832d2a349c5870236daf12d3cc1e4215cb31525aa758",
-  "gen_hash_verilog": "sha256:7270b293c95482a32bc45f326caab9b86dc4dad2fa72850a8efc7e03228a2cba",
-  "gen_hash_zig": "sha256:9a9cea5bfc67fed2f7da8b3810cb3c5bdd367894f7373026c14de278d11db64b",
+  "gen_hash_c": "sha256:aaec91fb8b22d4069984a74ca1bcd6e6a962e6858e04c435c599ae27090d244b",
+  "gen_hash_rust": "sha256:bc010202bbecee49e76cc6979eea233586f19802d7cb3442f6be314f1f45ffa4",
+  "gen_hash_verilog": "sha256:c9295a34108f83c9fa13cce7e341cd7bc175df721a1575be8321fb71d0d11129",
+  "gen_hash_zig": "sha256:ed0db14e913dd2bd5c3b815e16000e5502d5f1ff237846507109c172dfa096d6",
   "module": "agent_t",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:20:17Z",
+  "sealed_at": "2026-10-10T10:34:31Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:58a32881c537d60ea4c1361107a39226b1df51c45b88ca3581213a5b390c2e0d",
+  "spec_hash": "sha256:96b7cfb89e6fcf9da42c1024c912e54e0f22648e3904513b9ef86179feff8e4f",
   "spec_path": "specs/agents/t.t27",
   "tests": {
-    "failed": 0,
-    "failing": [],
-    "forced": false,
-    "passed": 1,
-    "total": 1
+    "blocked": "zig not on PATH"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
-    "zig": "0.16.0"
+    "zig": "missing"
   }
 }

@@ -109,9 +109,9 @@ print('FORMAT-SPEC-001.json: OK')
 
 Align with **`T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md`** (Rings 050–054): `specs/stdlib/math_test.t27`, **`tri math-verify`**, expanded **`conformance/axiom_system.json`**.
 
-### EPIC-BR — Brain / CLARA as axiom executor
+### EPIC-BR — Brain / AR as axiom executor
 
-Proof-chain JSON for “prove TRINITY identity”; honest **`FALSIFIED_AS_EXACT`** for PHY-005 class queries — track under brain charter + CLARA issues.
+Proof-chain JSON for “prove TRINITY identity”; honest **`FALSIFIED_AS_EXACT`** for PHY-005 class queries — track under brain charter + AR issues.
 
 ### EPIC-EX — Experience logs
 
@@ -127,7 +127,7 @@ Template per loop under **`.trinity/experience/`** (or successor); reference clo
 | **B** | AX-002 + grow **`axiom_system.json`** | Theorems + conformance |
 | **C** | NF-001 (done) + NF-002 | Format contract |
 | **D** | TX-* (framework spec) | `tri math-verify` |
-| **E** | BR-001 | CLARA axiom queries |
+| **E** | BR-001 | AR axiom queries |
 | **F** | EX-001 | Experience closure |
 
 ---
@@ -139,7 +139,7 @@ Template per loop under **`.trinity/experience/`** (or successor); reference clo
 3. **GoldenFloat** — **FORMAT-SPEC-001**, **THM-009**, cross-language checks.  
 4. **Empirical validation** — PHY-* tiers, falsifications.  
 5. **Sacred physics accuracy** — GF16 vs BF16, BENCH-005.  
-6. **CLARA** — axiom queries, conjectures.  
+6. **AR** — axiom queries, conjectures.  
 **Appendices:** **`axiom_system.json`**, **`FORMAT-SPEC-001.json`**, `tri math-verify --suite all` (target).
 
 ---
@@ -149,7 +149,7 @@ Template per loop under **`.trinity/experience/`** (or successor); reference clo
 1. **Single SSOT for layouts:** **`FORMAT-SPEC-001.json`** matches **`NUMERIC-STANDARD-001.md`**; languages **generate**, not reinterpret ad hoc.  
 2. **`claim_tier` is mandatory** for math/physics claims in specs (enforcement phased).  
 3. **`falsified_as_exact` is visible success** — not hidden debt.  
-4. **Brain / CLARA** is the primary **consumer** of the catalog + tiers.  
+4. **Brain / AR** is the primary **consumer** of the catalog + tiers.  
 5. **Reproducibility:** one command surface (**`tri math-verify`** — target) + sealed artifacts.
 
 ---

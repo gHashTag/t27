@@ -9,11 +9,11 @@
 
 ## Abstract
 
-We situate **t27**—a **spec-first** language whose `.t27` sources drive generation of **Zig**, **C**, and **Verilog** backends—in a multi-axis competitive landscape. t27 is **not** an **OpenCL**-class heterogeneous compute API; its closest *public* comparables span **hardware construction languages**, **compiler IR ecosystems**, **neuro-symbolic and probabilistic reasoning frameworks**, **ternary arithmetic research**, and **ML/HLS compilers**. We organize competitors by **problem class**, summarize **strengths and limitations** using publicly documented properties (desk review), and define **comparison dimensions** (spec SSOT, seals, multi-backend codegen, ternary semantics, custom numeric formats, AR/XAI hooks, FPGA path). We explicitly flag **unverified differentiators** (e.g. full **GoldenFloat** oracle testing, **CLARA** “compliance,” cross-backend bit identity) against the project’s own claims registry. The goal is **decision support** for reviewers and funders, not a marketing scorecard.
+We situate **t27**—a **spec-first** language whose `.t27` sources drive generation of **Zig**, **C**, and **Verilog** backends—in a multi-axis competitive landscape. t27 is **not** an **OpenCL**-class heterogeneous compute API; its closest *public* comparables span **hardware construction languages**, **compiler IR ecosystems**, **neuro-symbolic and probabilistic reasoning frameworks**, **ternary arithmetic research**, and **ML/HLS compilers**. We organize competitors by **problem class**, summarize **strengths and limitations** using publicly documented properties (desk review), and define **comparison dimensions** (spec SSOT, seals, multi-backend codegen, ternary semantics, custom numeric formats, AR/XAI hooks, FPGA path). We explicitly flag **unverified differentiators** (e.g. full **GoldenFloat** oracle testing, external-program “compliance,” cross-backend bit identity) against the project’s own claims registry. The goal is **decision support** for reviewers and funders, not a marketing scorecard.
 
 **Keywords:** domain-specific language; high-level synthesis; Chisel; MLIR; neuro-symbolic AI; ternary logic; reproducible research software; Trinity; t27.
 
-**Foundations companion (math / K3 / formats / CLARA alignment):** [`docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md`](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md).
+**Foundations companion (math / K3 / formats / assurance framing):** [`docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md`](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md).
 
 ---
 
@@ -26,7 +26,7 @@ We situate **t27**—a **spec-first** language whose `.t27` sources drive genera
 
 ### 1.2 Positioning correction: t27 vs “OpenCL-like” stacks
 
-**OpenCL** standardizes **parallel kernels** and **host APIs** for heterogeneous devices ([Khronos OpenCL](https://www.khronos.org/opencl/)). **t27** does not expose a portable kernel language for arbitrary GPUs; it centers on **`.t27` specifications**, **structured codegen**, **conformance vectors**, **seals**, and a **research overlay** (GoldenFloat, AR/CLARA-oriented specs). Any comparison to OpenCL should be **analogical** (heterogeneous targets) at most, not taxonomic identity.
+**OpenCL** standardizes **parallel kernels** and **host APIs** for heterogeneous devices ([Khronos OpenCL](https://www.khronos.org/opencl/)). **t27** does not expose a portable kernel language for arbitrary GPUs; it centers on **`.t27` specifications**, **structured codegen**, **conformance vectors**, **seals**, and a **research overlay** (GoldenFloat, AR-oriented specs). Any comparison to OpenCL should be **analogical** (heterogeneous targets) at most, not taxonomic identity.
 
 ### 1.3 System under study (t27) — engineering snapshot
 
@@ -41,7 +41,7 @@ Unless otherwise cited, the following **badge-level** metrics are taken from the
 | Module seals | **48** |
 | Agent roster (organizational) | **27** |
 
-**Honest gaps** (from state document): **cross-backend bit-exact equivalence** is **not** claimed closed; **GoldenFloat differential oracles** vs high-precision references are **in progress**; **AR / CLARA pipeline soundness** is **conjectural** in [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) §1.
+**Honest gaps** (from state document): **cross-backend bit-exact equivalence** is **not** claimed closed; **GoldenFloat differential oracles** vs high-precision references are **in progress**; **AR pipeline soundness** is **conjectural** in [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) §1.
 
 ---
 
@@ -104,9 +104,8 @@ These systems **generate** structural RTL or IR from a higher-level description;
 | DeepProbLog (line of work) | Neural + Prolog | Probabilistic reasoning | Hardware codegen not the focus |
 | **CogSys** (IBM, [HPCA 2025](https://arxiv.org/html/2503.01162v1)) | Neuro-symbolic **accelerator** stack on **binary** hardware | Reported **large** speedups with low overhead in venue/preprint materials | **No** native balanced-ternary ISA / **`.t27`** SSOT; different integration point than t27 |
 | **NSFlow** ([DAC 2025](https://arxiv.org/abs/2504.19323)) | **FPGA** NeSy acceleration framework | Reported **order-of-magnitude** gains vs software baselines in preprint | **No** K3-first spec corpus + GoldenFloat + multi-backend **generator** story as in t27 |
-| DARPA [CLARA](https://www.darpa.mil/research/programs/clara) | **Government program** (not a single repo) | Compositional ML+AR; explainability / assurance goals | **Not** “a compiler you install”; t27’s [`clara-bridge/`](../clara-bridge/) and [`specs/ar/`](../../specs/ar/) are **preparation / alignment** artifacts |
 
-**Epistemic note:** t27 documentation describes **targeting** CLARA-style assurance; **formal “compliance”** is **not** a closed engineering claim—see [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) (CLARA / AR row: `conjectural`).
+**Epistemic note:** t27 documentation describes **targeting** assurance-style bounded reasoning; **formal soundness** is **not** a closed engineering claim—see [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) (AR row: `conjectural`).
 
 ### 3.5 Ternary and multi-valued logic (research and libraries)
 
@@ -159,7 +158,7 @@ The following are **plausible structural gaps** in *combinations* of public tool
 | GoldenFloat (GF4–GF32) as designed family | **Design:** specs + [`docs/NUMERIC-STANDARD-001.md`](NUMERIC-STANDARD-001.md). **Performance/uniqueness:** avoid “no analog” until **literature search + Zenodo**; see **C-gf-*** rows—many **UNTESTED** / in validation. |
 | Spec + seal + conformance as assurance story | **Strong** engineering claims—see RESEARCH_CLAIMS §1 (`tested`). |
 | Ternary + AR + FPGA “in one stack” | **Partially realized**; cross-backend and soundness **conjectural**—see STATE doc + RESEARCH_CLAIMS. |
-| CLARA alignment | **Program** is real ([DARPA CLARA](https://www.darpa.mil/research/programs/clara)); **t27 compliance** is **not** certified—use **“preparation / architecture alignment.”** |
+| Assurance alignment | Bounded-reasoning themes are real; **external compliance** is **not** certified—use **“preparation / architecture alignment.”** |
 | 27-agent orchestration | **Organizational / pedagogical** pattern ([`docs/AGENTS_ALPHABET.md`](AGENTS_ALPHABET.md)); not a claim that **other projects lack multi-agent systems**—they clearly exist, but **ISA-register mapping** is distinctive **as a coordination metaphor**, not as proven optimality. |
 
 ### 5.3 False friends (bad comparisons)
@@ -173,7 +172,7 @@ The following are **plausible structural gaps** in *combinations* of public tool
 ## 6. Conclusions
 
 1. **t27** occupies a **sparse intersection** of **spec-first multi-backend generation**, **ternary / AR specs**, and **research-software hygiene** (conformance, seals, claims registry)—with **known incompleteness** on **numeric oracles** and **formal AR proofs**.  
-2. **Nearest mature competitors** for **RTL generation** remain **Chisel/FIRRTL** and **MLIR/CIRCT-class** infrastructures; **nearest** for **assurance narratives** are **program-level** efforts (e.g. **CLARA**) and **neuro-symbolic languages**, not single repositories.  
+2. **Nearest mature competitors** for **RTL generation** remain **Chisel/FIRRTL** and **MLIR/CIRCT-class** infrastructures; **nearest** for **assurance narratives** are **program-level** government efforts and **neuro-symbolic languages**, not single repositories.  
 3. **Scientific communication** should route **strong differentiators** through [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) and keep this memo as a **living** appendix—**version** with major releases.
 
 ---
@@ -188,7 +187,6 @@ The following are **plausible structural gaps** in *combinations* of public tool
 - OpenXLA: https://openxla.org/  
 - Halide: https://halide-lang.org/  
 - Scallop: https://scallop-lang.github.io/ — PLDI 2023 paper https://dl.acm.org/doi/10.1145/3591280  
-- DARPA CLARA: https://www.darpa.mil/research/programs/clara — Amendment 1 (2026-03) PDF https://www.darpa.mil/sites/default/files/attachment/2026-03/darpa-clara-amendment-1.pdf  
 - ARITH 2025 proceedings (takum line cited in competitive memos): https://www.arith2025.org/proceedings/215900a061.pdf  
 - TechRxiv radix / near-\(e\) review: https://www.techrxiv.org/doi/full/10.36227/techrxiv.177039671.14012313/v1  
 - CogSys (IBM, HPCA 2025 preprint): https://arxiv.org/html/2503.01162v1  

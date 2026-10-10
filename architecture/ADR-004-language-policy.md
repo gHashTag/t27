@@ -47,7 +47,7 @@ Forbidden in source files:
 
 These locations MUST use English prose:
 
-- `docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/**/*.md`, root `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`
+- `docs/`, `specs/**/*.md`, `architecture/`, `conformance/**/*.md`, root `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`
 
 Grandfathered non-English files are listed in **`docs/.legacy-non-english-docs`** until translated.
 

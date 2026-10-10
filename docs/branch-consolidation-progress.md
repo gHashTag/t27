@@ -46,7 +46,7 @@
 | `fix/ci-failures-409-v3` | 4 | L1 compliant | **Keep** - all commits have "Closes #409" |
 | `fix/ci-failures-409-v4` | 0 | All in dev | **Delete** - safe to remove |
 
-**Key Finding:** `fix/ci-failures-409-v4` contains CLARA/FPGA work already merged to dev - can be safely deleted.
+**Key Finding:** `fix/ci-failures-409-v4` contains AR/FPGA work already merged to dev - can be safely deleted.
 
 ### Ring-074 Remaining (3 branches)
 

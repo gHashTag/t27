@@ -120,10 +120,8 @@ scope** for t27 and the TRI-NET line as of this writing:
 3. **Open-shuttle silicon target.** The chip repos submit to Tiny Tapeout,
    not a closed fab.
 4. **Formal / assurance workflow** -- Coq proofs (`coq/`), seal-based
-   integrity (`.trinity/seals/`), and the `clara-bridge/` worked example
-   for DARPA CLARA-style compositional assurance
-   (see [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md) for the public-goal
-   mapping).
+   integrity (`.trinity/seals/`), and AR assurance vectors
+   (`conformance/ar_*.json`).
 
 These four claims, together, define the "open high-assurance ternary AI
 silicon substrate" positioning.

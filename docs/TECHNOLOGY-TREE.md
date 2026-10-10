@@ -17,7 +17,7 @@ This document defines the canonical technology tree for T27 from Ring 32 to Ring
 | **HARDEN** | 32–63 | Hardening: docs, validation, CI, TASK.md | NOW.md schema, ISSUE-GATE, E2E CI, conformance vectors |
 | **EXTEND** | 64–127 | Extended backends, new spec domains | RISC-V backend, WASM backend, quantum ops |
 | **OPTIMIZE** | 128–255 | Performance, benchmarks, GoldenFloat peer review | Profile-guided optimization, golden test vectors |
-| **SCALE** | 256–511 | Multi-agent scaling, DARPA CLARA submission | Swarm orchestration, TA1/TA2 deliverables |
+| **SCALE** | 256–511 | Multi-agent scaling, AR assurance track | Swarm orchestration, AR deliverables |
 | **SUMMIT** | 512–999 | Full production stack, academic publications, ecosystem | arXiv papers, conference submissions, production binaries |
 
 ---
@@ -37,7 +37,7 @@ Establish constitutional foundations, CI enforcement, and documentation standard
 | 035 | #130 | TECHNOLOGY-TREE | 🔄 Open |
 | 036 | #131 | SOUL.md hardening | ✅ Closed |
 | 037 | #132 | Parser enforcement | 🔄 Open |
-| 039 | #134 | CLARA-PREPARATION-PLAN | 🔄 Open |
+| 039 | #134 | AR-PREPARATION-PLAN | 🔄 Open |
 | 041 | #136 | GoldenFloat arXiv draft | 🔄 Open (PR #194) |
 | 042 | #137 | GF8 hardening | ✅ Closed |
 | 043 | #138 | GF12 hardening | ✅ Closed |
@@ -60,7 +60,7 @@ Ring 032 (NOW.md) ────► Ring 036 (SOUL.md)
 
 Ring 033 (ISSUE-GATE) ──► Ring 037 (Parser enforcement)
 
-Ring 032 (NOW.md) ────► Ring 039 (CLARA-PREPARATION-PLAN)
+Ring 032 (NOW.md) ────► Ring 039 (AR-PREPARATION-PLAN)
 
 Ring 032 (NOW.md) ────► All later rings (documentation requirement)
 ```
@@ -71,7 +71,7 @@ Ring 032 (NOW.md) ────► All later rings (documentation requirement)
 - [x] ISSUE-GATE blocks all PRs without Closes #N (#128)
 - [ ] TECHNOLOGY-TREE full DAG (#130)
 - [x] SOUL.md parser enforcement ready (#131, #132)
-- [ ] CLARA-PREPARATION-PLAN for DARPA (#134)
+- [ ] AR preparation plan (#134)
 - [ ] GoldenFloat arXiv paper submitted (#136)
 - [x] E2E CI loop demonstrated (#150)
 
@@ -175,7 +175,7 @@ Ring 160–167 (GF Review) ──► Phase 4 (SCALE)
 ## Phase 4: SCALE (Rings 256–511)
 
 ### Theme
-Multi-agent scaling, DARPA CLARA TA1/TA2 submission, swarm orchestration.
+Multi-agent scaling, AR assurance track, swarm orchestration.
 
 ### Planned Rings
 
@@ -186,9 +186,9 @@ Multi-agent scaling, DARPA CLARA TA1/TA2 submission, swarm orchestration.
 | 272–279 | State Management | Distributed state, consensus |
 | 280–287 | Fault Tolerance | Checkpoint/restart, recovery |
 | 288–295 | Resource Management | CPU/GPU allocation |
-| 296–303 | CLARA TA1 | Argumentation formal specs |
-| 304–311 | CLARA TA2 | VSA benchmarks submitted |
-| 312–319 | CLARA Deliverables | Final TA1/TA2 packages |
+| 296–303 | AR Formal Specs | Argumentation formal specs |
+| 304–311 | AR Benchmarks | VSA benchmarks |
+| 312–319 | AR Deliverables | Final assurance packages |
 | 320–327 | Multi-Agent RL | Cooperative learning |
 | 328–335 | Distributed Training | Parameter server, all-reduce |
 | 336–343 | Model Serving | Inference optimization |
@@ -211,20 +211,20 @@ Ring 152 (Concurrency) ──► Ring 256 (Swarm Core)
 
 Ring 156 (Distributed) ───► Ring 272 (State Management)
 
-Ring 160–167 (GF Review) ──► Ring 296 (CLARA TA1)
+Ring 160–167 (GF Review) ──► Ring 296 (AR Formal Specs)
 
 Ring 080 (ML Ops) ────────► Ring 328 (Distributed Training)
 
 Ring 248–255 (Production) ─► Ring 352 (Deployment)
 ```
 
-### CLARA TA1/TA2 Dependencies
+### AR Assurance Dependencies
 
 ```
-Ring 037 (Parser) ──► Ring 296 (CLARA TA1: AR formal specs)
-Ring 144 (VSA) ──────► Ring 304 (CLARA TA2: VSA benchmarks)
-Ring 296–303 (TA1) ──► Ring 312 (CLARA Deliverables)
-Ring 304–311 (TA2) ─► Ring 312 (CLARA Deliverables)
+Ring 037 (Parser) ──► Ring 296 (AR formal specs)
+Ring 144 (VSA) ──────► Ring 304 (AR benchmarks)
+Ring 296–303 (Formal Specs) ──► Ring 312 (AR Deliverables)
+Ring 304–311 (Benchmarks) ─► Ring 312 (AR Deliverables)
 ```
 
 ---
@@ -262,7 +262,7 @@ Phase 4 (SCALE) ────────────────────► 
 
 Ring 160–167 (GF Review) ──► Ring 512 (Academic Papers)
 
-Ring 312 (CLARA) ────────► Ring 528 (Conference Submissions)
+Ring 312 (AR Deliverables) ──► Ring 528 (Conference Submissions)
 
 Ring 400–415 (Production) ─► Ring 560 (Open Source)
 
@@ -281,12 +281,12 @@ Ring 168–175 (Numerics Validation) ──►
 Ring 512–527 (Academic Papers)
 ```
 
-### Path 2: CLARA DARPA Submission
+### Path 2: AR Assurance Track
 ```
 Ring 037 (Parser) ──►
 Ring 144 (VSA) ──►
-Ring 296–311 (CLARA TA1/TA2) ──►
-Ring 312 (CLARA Deliverables) ──►
+Ring 296–311 (AR Specs + Benchmarks) ──►
+Ring 312 (AR Deliverables) ──►
 Ring 528–543 (Conference Submissions)
 ```
 

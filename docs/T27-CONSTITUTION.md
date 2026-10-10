@@ -28,7 +28,7 @@ The numeric formalism relies on repository standards (**NUMERIC-STANDARD-001**, 
 
 ## Article LANG-EN — English for first-party code and documentation
 
-**Article LANG-EN.** All **first-party** Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`, `SOUL.md`) **MUST** be written in **English**. Source files (`.t27`, `.zig`, etc.) **MUST** use **English** for comments and identifiers, and remain **ASCII-only** per **ADR-004** and root **`SOUL.md`** Article I (expanded detail in **`docs/nona-03-manifest/SOUL.md`** Law #1).
+**Article LANG-EN.** All **first-party** Markdown under `docs/`, `specs/`, `architecture/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`, `SOUL.md`) **MUST** be written in **English**. Source files (`.t27`, `.zig`, etc.) **MUST** use **English** for comments and identifiers, and remain **ASCII-only** per **ADR-004** and root **`SOUL.md`** Article I (expanded detail in **`docs/nona-03-manifest/SOUL.md`** Law #1).
 
 Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-docs`** until translated; **do not expand** that list without Architect approval. Vendored content under **`external/`** is exempt.
 
@@ -64,13 +64,12 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 | **`docs/nona-01-foundation/`** | Foundation themes (alphabet nona **A–I**): rings, brain charter, language purge, sandbox, architecture-adjacent charter. |
 | **`docs/nona-02-organism/`** | Organism themes (nona **J–R**): language spec, numerics, physics, critical-path TZs; **thematic subfolders** (e.g. **`physics-kepler/`**) **SHOULD** be used when **three or more** closely related documents would otherwise clutter one directory. |
 | **`docs/nona-03-manifest/`** | Manifest themes (nona **S–Ϯ**): TDD, CI/testing policy, PHI loop, strategy, claims, expanded **`SOUL`** reference (root **`SOUL.md`** remains canonical). |
-| **`docs/clara/`** | CLARA / submission / evidence / composition pack. |
 
 **3. Forbidden patterns.** **Do not** create **`docs/misc/`**, **`docs/tmp/`**, **`docs/old/`**, or other informal dumping grounds without **Architect** approval, an update to **`docs/README.md`**, and an amendment here. **Do not** duplicate normative **`*.t27`** behavior as shadow specs in **`docs/`**; **`specs/`** is the product SSOT for executable spec text (**Article SSOT-MATH**).
 
 **4. Placement rule.** If placement is unclear, use **`docs/agents/AGENTS_ALPHABET.md`** domain column; prefer **`docs/nona-03-manifest/`** for cross-cutting governance and **`docs/coordination/`** for task routing and human handoff.
 
-**5. Other top-level trees.** **`specs/`**, **`architecture/`**, **`conformance/`**, **`clara-bridge/`**, **`bootstrap/`** keep their own **`OWNERS.md`** and purpose; this article governs **`docs/`** only.
+**5. Other top-level trees.** **`specs/`**, **`architecture/`**, **`conformance/`**, **`bootstrap/`** keep their own **`OWNERS.md`** and purpose; this article governs **`docs/`** only.
 
 **Enforcement:** **Code review** and **Issue Gate**; optional CI path checks may be added later. **OWNERS** for **`docs/`** is **`docs/OWNERS.md`**.
 

@@ -3,14 +3,14 @@
     "MAX_STEPS": 10
   },
   "created_at": "2026-04-06T15:54:08Z",
-  "description": "Bounded proof trace conformance vectors — CLARA ≤10 step limit",
+  "description": "Bounded proof trace conformance vectors — ≤10 step limit",
   "format_family": "Conformance",
   "generated_at": "2026-04-04T18:00:00Z",
   "invariants": {
     "confidence_in_unit_interval": "0.0 <= total_confidence <= 1.0",
     "step_numbers_monotonic": "steps[i].step_number < steps[i+1].step_number",
     "terminated_iff_max_steps": "terminated == (step_count == MAX_STEPS)",
-    "trace_bounded_by_clara": "step_count <= MAX_STEPS (10)"
+    "trace_bounded": "step_count <= MAX_STEPS (10)"
   },
   "module": "ProofTrace",
   "ring": 19,

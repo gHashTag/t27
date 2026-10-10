@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [1]str = ["bindings/"];
 pub const ENTRY_INVARIANT : str = "Bindings are documented";
 pub const EXIT_INVARIANT : str = "Interop tests pass, external APIs are current";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [1]str = ["trinity/scholar"];

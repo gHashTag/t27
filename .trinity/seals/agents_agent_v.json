@@ -1,0 +1,23 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b9cf73e",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fa392823c87b5fed3359a22eedbf15a26c5f3bd41ea4f719a267e6a4cb46d42c",
+  "gen_hash_rust": "sha256:cfb43c873f9b8f081385d28d13be89b6cca1d46868aa88f1e506b532f7402a29",
+  "gen_hash_verilog": "sha256:8bc89d9ab866061cf5b23582c5ed8d59837b7f2d7dab8f883dc0f5823321610f",
+  "gen_hash_zig": "sha256:0784a74b0006fef0591cd7cbfcb0b9e75223cb07f9fa96745e8dd0717108a050",
+  "module": "agent_v",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T10:34:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e915aee8f0acf69cb8ff3b2d1e8344f62f45b513293ac0ab64470df74fa369bd",
+  "spec_path": "specs/agents/v.t27",
+  "tests": {
+    "blocked": "zig not on PATH"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "missing"
+  }
+}

@@ -17,7 +17,7 @@ spec Composition {
         AR_CLASSICAL = 9    // Classical constraints
     }
 
-    // Composition patterns (from DARPA CLARA)
+    // Composition patterns
     enum CompositionPattern {
         CNN_RULES = 0,         // CNN feature extraction + K3 logic rules
         MLP_BAYESIAN = 1,     // MLP classification + Bayesian inference

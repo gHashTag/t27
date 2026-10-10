@@ -4,7 +4,7 @@
 > line-level TRI-NET 2026 scientific improvement plan. It enumerates
 > what the **toolchain product** of the line (specs, compilers,
 > conformance vectors, schemas, Coq export, SDK) is expected to ship
-> in 2026 to support the line's DARPA-CLARA-aligned, energy-efficient,
+> in 2026 to support the line's assurance-oriented, energy-efficient,
 > SNN-fused, peer-reviewed, open-source posture.
 >
 > **R5-HONEST gating.** Every row in every table below carries one of
@@ -43,17 +43,16 @@ Cross-links to companion docs:
 
 ---
 
-## 2. DARPA CLARA alignment (CL-01..CL-04)
+## 2. Assurance alignment (CL-01..CL-04)
 
-> **No claim is made that CLARA has funded this work; no programme
-> date is named.** The rows below are technical alignments visible in
-> this repo today, not funding statements. The full assurance
-> workflow lives in `clara-bridge/` and `CLARA_TRACEABILITY.md`.
+> **No claim is made that any external programme has funded this
+> work; no programme date is named.** The rows below are technical
+> alignments visible in this repo today, not funding statements.
 
 | ID | Track | t27 deliverable | Label |
 |----|-------|------------------|-------|
 | CL-01 | Drain-on-restraint semantic surface | Toolchain-side hooks in `docs/TRI_NET_API.md` so chip-repo D2D protocols can be consumed by external auditors without scraping. **D2D protocol itself lives in `tt-trinity-euler` / `tt-trinity-gamma`, not here.** | `target` |
-| CL-02 | Assurance bridge (CLARA-style reasoning) | `clara-bridge/` exit-criteria documented; conformance vectors `conformance/ar_*.json` validated against the bridge demo. | `target` |
+| CL-02 | Assurance bridge (bounded reasoning) | Conformance vectors `conformance/ar_*.json` validated across all gen backends. | `target` |
 | CL-03 | Spec-to-RTL traceability | Every `gen/verilog/` artefact traceable to a sealed `.t27` spec; seal-hash field in `schemas/tri-net-api-v1.json#/$defs/RepoIdentity`. | `target` |
 | CL-04 | Formal cross-walk | Coq export crate that ingests `.v` files from `coq/` and `trios-coq/` and emits a citation-map JSON consumable by external review tooling. | `target` |
 
@@ -176,7 +175,6 @@ silicon does land, the metric joins `STATUS.md`, not this plan.
 - `BENCHMARKS.md` -- restrained benchmark posture
 - `COMPETITORS.md` -- honest positioning
 - `FORMAT_REGISTRY.md` -- numeric SSOT mirror
-- `CLARA_TRACEABILITY.md` -- assurance bridge to DARPA CLARA
 - `docs/T27-CONSTITUTION.md` -- L1..L7 constitutional stack
 - `docs/TRI_NET_WHITEPAPER.md` -- positioning paper
 - `docs/TRI_NET_API.md` -- external integration contract
@@ -193,8 +191,6 @@ silicon does land, the metric joins `STATUS.md`, not this plan.
 
 **External (all `VERIFY` -- not quoted as fact in this doc):**
 
-- DARPA CLARA program page (darpa.mil; date / wording must be checked
-  at source before any derivative cites it).
 - Any 22FDX vendor brief from GlobalFoundries (vendor page; cite at
   use, not pre-cached here).
 - Any commercial-NPU TOPS/W figure (Coral / Hailo / Axelera / Qualcomm /
@@ -212,8 +208,8 @@ secondary to the in-repo Coq lemmas and are not restated here.
 
 ## 10. What this document is NOT
 
-- **NOT a funding statement.** No claim is made that DARPA / CLARA /
-  any other agency has funded this work, contracted it, or
+- **NOT a funding statement.** No claim is made that any agency has
+  funded this work, contracted it, or
   scheduled it. `CL-01..CL-04` are technical alignment rows, not
   funding rows.
 - **NOT a tape-out commitment.** No silicon arrival date is named.

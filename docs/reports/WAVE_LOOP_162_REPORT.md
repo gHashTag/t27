@@ -71,7 +71,7 @@ Web sweep for ternary hardware and geometric unification returned **no new June 
 
 - API 401 (token invalid).
 - Retroactive #900–#929 unexecuted.
-- Persistent ring issues #130–#136 open (CLARA deadline today).
+- Persistent ring issues #130–#136 open (deadline passed).
 - Selected `Closes #932`.
 
 ---

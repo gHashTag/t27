@@ -6,7 +6,7 @@ Mirrors `specs/ar/proof_trace.t27` byte-for-byte.
 
 ## Primitives
 
-- **`MAX_STEPS = 10`** — DARPA CLARA bound on reasoning chain length
+- **`MAX_STEPS = 10`** — bound on reasoning chain length
 - **`Trit`** — K3 ternary logic: `True`, `Unknown`, `False`, plus `Null` sentinel
 - **K3 connectives**: `k3_and` (min lattice), `k3_or` (max lattice), `k3_not`
 - **`ProofStep`** — `step_id`, `operation` (ASCII, up to 24 chars), `inputs` (up to 3 trits), `output: Trit`, `timestamp_us`

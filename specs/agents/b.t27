@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [2]str = ["build.tri", "src/tri/pipeline/"];
 pub const ENTRY_INVARIANT : str = "Build system is clean, no stale artifacts";
 pub const EXIT_INVARIANT : str = "All tests pass, CI pipeline is green";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [4]str = ["t27/tri-pipeline", "trinity/cloud", "trinity/run-tests", "trinity/trinity-test"];

@@ -45,7 +45,7 @@ GDS, and Tiny Tapeout submission live in the chip repo.
 
 Mid-tile. Acts as the **safety / control** engine: bounded reasoning, restraint
 behaviour, and the gateway through which the gamma mesh's outputs are exposed.
-Pairs with the `clara-bridge/` assurance workflow in t27.
+Pairs with the AR assurance specs in t27.
 
 ### 1.4 tt-trinity-gamma -- 8x4 gamma-surface
 
@@ -64,7 +64,7 @@ benchmarked against commercial NPUs (see `BENCHMARKS.md`).
                 |   bootstrap compiler        |
                 |   FORMAT-SPEC-001 registry  |
                 |   conformance vectors       |
-                |   coq / clara-bridge        |
+                |   coq / ar vectors           |
                 +--------------+--------------+
                                |
                                v   (.t27 -> Verilog RTL)

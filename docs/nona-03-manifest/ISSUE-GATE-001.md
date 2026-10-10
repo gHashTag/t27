@@ -26,7 +26,7 @@ The issue is the contract; the PR is the delivery; the seal is the proof.
 ## Issue Templates
 
 - **Seed Ring** (`seed-ring.yml`): New language capability rings
-- **AR Task** (`ar-task.yml`): CLARA Argumentation & Reasoning tasks
+- **AR Task** (`ar-task.yml`): Argumentation & Reasoning tasks
 
 Blank issues are disabled. All work flows through templates.
 

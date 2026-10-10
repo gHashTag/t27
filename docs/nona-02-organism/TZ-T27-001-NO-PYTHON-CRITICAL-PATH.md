@@ -15,7 +15,7 @@ Remove the documented split where “verdict” and assurance scenarios run thro
 
 ## 2. Definitions
 
-- **Critical path** — Anything that gates release decisions on math / sacred chains: numeric checks, conformance, CLARA-Bridge-style scenarios.
+- **Critical path** — Anything that gates release decisions on math / sacred chains: numeric checks, conformance, bridge-style scenarios.
 - **Legacy-Python** — Existing `*.py` kept until migration completes.
 - **Canon** — `*.t27` specifications and artifacts generated or checked by `tri` / `t27c`.
 
@@ -26,9 +26,6 @@ Remove the documented split where “verdict” and assurance scenarios run thro
 | Component | Path | Issue vs SSOT-MATH |
 |-----------|------|-------------------|
 | High-precision / catalog checks | `conformance/kepler_newton_tests.py` | Logic outside `tri` |
-| Scenario orchestration | `clara-bridge/run_scenario.py` | Not a `tri` subcommand |
-| Bridge tests | `clara-bridge/tests/*.py` | Assurance without t27 |
-| Documentation | `clara-bridge/README.md` | `python …` on critical path |
 
 ---
 
@@ -38,10 +35,10 @@ Remove the documented split where “verdict” and assurance scenarios run thro
 |----|-------------|---------------------|
 | **R1** | Kepler/Newton formulas and tolerances live in canonical **`*.t27`** (or one aggregating spec module) | No duplicated logic in Python; Python removed or reduced to a thin `tri` wrapper marked deprecated |
 | **R2** | **Verdict** is invoked as **`tri verdict …`** (or equivalent `t27c`) | README and CI do not require `python conformance/kepler_newton_tests.py` for release |
-| **R3** | CLARA-Bridge scenarios run via **`tri scenario …`** or merged CLI | `run_scenario.py` deprecated or thin-wrapper |
+| **R3** | Bridge scenarios run via **`tri scenario …`** or merged CLI | `run_scenario.py` deprecated or thin-wrapper |
 | **R4** | Mandatory scenario steps write to **`.trinity/experience/`** under an agreed schema when possible | Documented example run with ≥2 steps |
 | **R5** | Precision: either GoldenFloat / `f64` in specs suffices, or **one** language/runtime extension (no new Python on path) | ADR or `docs/` section |
-| **R6** | README, CLARA-bridge, KEPLER docs updated — no conflict with constitution | Review checklist |
+| **R6** | README, KEPLER docs updated — no conflict with constitution | Review checklist |
 | **R7** | First-party Markdown stays **English** (Cyrillic only on `docs/.legacy-non-english-docs` until translated) | `bash scripts/check-first-party-doc-language.sh` passes in CI |
 
 ---

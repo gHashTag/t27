@@ -42,7 +42,7 @@
 |------|------|
 | `research/**`, `kaggle/**` | Not ring-gold; quarantine from critical path. |
 | `external/**` | Vendored third parties; not Trinity SOOT. |
-| `backend/**`, `clara-bridge/**`, `portable-claude-setup/**` | Operational / bridge infrastructure; distinguish from **language proof obligations**. |
+| `backend/**`, `portable-claude-setup/**` | Operational / bridge infrastructure; distinguish from **language proof obligations**. |
 | `specs/math/**` (physics-flavored) | May mix **reference constants** and **empirical phi models** — read `docs/WHAT_REMAINS_SPECULATIVE.md`. |
 
 **Policy (target):** split tree into `specs/stable`, `specs/experimental`, `specs/research` — **not yet enforced**; until then, use claim labels in `docs/RESEARCH_CLAIMS.md`.

@@ -18,7 +18,7 @@ this repository, kept conservative on purpose. It complements
 |--------------------------------------------|--------------------------------------------------|
 | `FORMAT-SPEC-001.json`                     | GoldenFloat family registry (SSOT for the line). |
 | `gf*_vectors.json`                         | Arithmetic conformance vectors for GF widths.    |
-| `ar_*.json`                                | CLARA-style assurance reasoning vectors.         |
+| `ar_*.json`                                | assurance reasoning vectors.                     |
 | `nn_*.json`                                | Neural architecture conformance vectors.         |
 | `sacred_physics*.json`                     | phi / Trinity identity conformance.              |
 | `gf_competitive_bench.json`                | Skeleton benchmark file. **Most rows are placeholders.** |

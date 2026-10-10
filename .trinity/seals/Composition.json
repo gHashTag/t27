@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:dab1c0dc717bd06d2fe7fef5a3d6ca4df8c82877d48d306cae8922be151b9e9f",
   "module": "Composition",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:01:10Z",
-  "spec_hash": "sha256:0444c57bb6c469aacd5efeaa3e69bc8a3b074a8ad3732ac9d34af0122e67a6cf",
+  "sealed_at": "2026-10-10T10:34:31Z",
+  "spec_hash": "sha256:01aabb44b6525c35f99a083726869494c9253c9e587a32b994d7a46946cd36b4",
   "spec_path": "specs/ar/composition.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-composition-3769901/spec.zig:58:13: error: use of undeclared identifier 'Trit'"
+    "blocked": "zig not on PATH"
   }
 }

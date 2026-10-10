@@ -249,7 +249,7 @@ changing an emitter's output makes stored seals stop matching.
 - **STRAND II** — Numeric+VSA: GF4-GF32, TF3, phi, VSA ops (Rings 9-11)
 - **STRAND III** — Compiler+FPGA: parser, MAC, ISA registers (Rings 12-14)
 - **STRAND IV** — Queen+NN: Lotus orchestration, HSLM, attention (Rings 14-17)
-- **STRAND V** — AR (CLARA): ternary logic, proof traces, Datalog, restraint (Rings 18-24)
+- **STRAND V** — AR: ternary logic, proof traces, Datalog, restraint (Rings 18-24)
 
 ---
 

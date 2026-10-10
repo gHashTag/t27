@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [3]str = ["src/tri/verdict.zig", "specs/ar/proof_trace.t27", "specs/ar/restraint.t27"];
 pub const ENTRY_INVARIANT : str = "Verdict engine is ready, toxic thresholds defined";
 pub const EXIT_INVARIANT : str = "Toxicity is detected, proof traces are generated";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA2: AR Validation & Proof - validates AR reasoning, generates proofs";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Validation & Proof - validates AR reasoning, generates proofs";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [3]str = ["t27/tri-pipeline", "trinity/review-code", "trinity/status"];

@@ -2113,7 +2113,7 @@
     ],
     "ar_root": 20,
     "ar_composition_root": 26,
-    "clara_domain": true,
+    "ar_domain": true,
     "compiler_nodes": [
       11,
       12,

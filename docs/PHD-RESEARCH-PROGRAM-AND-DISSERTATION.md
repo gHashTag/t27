@@ -20,7 +20,7 @@ This document packages the **t27 / Trinity S³AI** repository as a **coherent sc
 - Formal methods & logic (Kleene **K3** ternary logic, bounded reasoning, conformance).  
 - Numerics & mathematical physics (GoldenFloat family, φ-structured formats, error budgets).  
 - Hardware (FPGA MAC, ISA-shaped specs, verification).  
-- Explainable / constrained AR pipelines (CLARA-style bounded traces, restraint).  
+- Explainable / constrained AR pipelines (bounded traces, restraint).  
 - Software engineering & reproducibility (seals, CI, experience logs).
 
 ### 1.3 Trinity identity (organizing equation)
@@ -58,7 +58,7 @@ Each WP should yield **at least one** conference/journal paper and **one dissert
 | **WP1** | Formal semantics of t27 | Operational / denotational semantics for a **core** language; type and invariant rules; partial soundness theorems | `specs/**/*.t27`, `compiler/*.t27`, `docs/TDD-CONTRACT.md` |
 | **WP2** | GoldenFloat & sacred physics numerics | Error analysis, stability, comparison to IEEE-754 baselines; conformance experiments | `docs/NUMERIC-STANDARD-001.md`, `specs/numeric/`, `specs/math/` |
 | **WP3** | Compiler & SEED-RINGS self-hosting | Inductive story of capability rings; fixed-point / bootstrap correctness **for a stated scope** | `docs/SEED-RINGS.md`, `CANON.md`, `FROZEN.md`, `bootstrap/` |
-| **WP4** | CLARA-style AR in ternary logic | Formal model of bounded traces, restraint, explainability depth; correctness sketches | `specs/ar/`, Kleene / ternary docs if present |
+| **WP4** | Bounded AR in ternary logic | Formal model of bounded traces, restraint, explainability depth; correctness sketches | `specs/ar/`, Kleene / ternary docs if present |
 | **WP5** | FPGA / MAC / ISA bridge | Implementation + benchmarks vs baseline; formal timing or resource bounds where feasible | `specs/fpga/`, `specs/isa/`, `gen/verilog/`, `gen/zig/` |
 | **WP6** | Governance & integrity (PHI LOOP) | Model of seals, rings, issue gates as **integrity constraints** on scientific software | `.trinity/seals/`, `SOUL.md`, `docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`, CI workflows |
 
@@ -87,7 +87,7 @@ Each WP should yield **at least one** conference/journal paper and **one dissert
 3. **Ternary logic** — K3, trits {−1,0,+1}, isomorphism statements **clearly scoped**; connection to t27 constructs.  
 4. **Language t27** — Grammar, types, invariants; soundness for a **core** fragment.  
 5. **SEED-RINGS & self-hosting** — Ring structure; fixed-point argument; mapping to `FROZEN_HASH` policy.  
-6. **AR / CLARA pipeline** — Bounded reasoning; explainability depth ≤ N; stratified negation / restraint as specified.  
+6. **AR pipeline** — Bounded reasoning; explainability depth ≤ N; stratified negation / restraint as specified.  
 7. **Hardware & numerics in silicon** — FPGA MAC / ISA path; measurements; comparison baselines.  
 8. **Governance** — PHI LOOP, agents, laws (`SOUL.md`) as **engineering ethics + integrity** layer.  
 9. **Conclusion & future work** — Self-host completion, DDC-style trust arguments, SLSA-grade attestations.

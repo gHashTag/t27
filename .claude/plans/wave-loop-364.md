@@ -31,7 +31,7 @@
 - If fix is too large for one wave, document findings and a recommended patch in the W364 report.
 
 ### 1.4 Research / threat survey update (must)
-- Refresh competitive landscape: Sparkle HDL, ternfpga, TernaryCore, Balanced_Ternary, Trinity CLARA, CktFormalizer, etc.
+- Refresh competitive landscape: Sparkle HDL, ternfpga, TernaryCore, Balanced_Ternary, Trinity AR, CktFormalizer, etc.
 - Add 2-3 recent papers/arXiv entries relevant to ternary/1.58-bit AI silicon or verified HDL compilation.
 - Cite primary sources only; no overclaim.
 

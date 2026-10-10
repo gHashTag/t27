@@ -21,7 +21,7 @@ This document is the **institutionalized reassessment**: what is **strong**, **i
 | Cross-backend equivalence | **Early** | Zig/C/Verilog gen exist; **bit-exact cross-backend** = Ring 39+ target. |
 | GoldenFloat numerics | **Mixed** | Standards + specs; **differential oracle vs high-precision reference** = P1 (see `docs/NUMERICS_VALIDATION.md`). |
 | Sacred / phi physics overlays | **Requires labeling** | Treat as **empirical / conjectural** unless proven; see `WHAT_REMAINS_SPECULATIVE.md`. |
-| AR / CLARA chain | **Spec-rich** | Formal boundedness / soundness theorems **not** fully written. |
+| AR chain | **Spec-rich** | Formal boundedness / soundness theorems **not** fully written. |
 | FPGA / simulation | **Good start** | Lint/sim scripts exist; **waveform golden regressions** = P2 excellence. |
 | Parser fuzzing | **Weak** | Not yet a documented corpus; excellence program target. |
 | Monorepo periphery | **Noisy** | `external/`, bridges, backends — **not** part of core proof story (see `REPO_MAP.md`). |

@@ -1,6 +1,6 @@
 # t27 documentation index
 
-First-party docs follow the **27-agent trinity alphabet** grouping: **three nonas** (3×9) from **`docs/agents/AGENTS_ALPHABET.md`**, plus **`agents/`**, **`coordination/`**, and **`clara/`**.
+First-party docs follow the **27-agent trinity alphabet** grouping: **three nonas** (3×9) from **`docs/agents/AGENTS_ALPHABET.md`**, plus **`agents/`** and **`coordination/`**.
 
 ## Root (stable anchors)
 
@@ -53,7 +53,6 @@ TDD, bootstrap/testing plans, math/physics test framework charter, PHI loop, tec
 
 | Project | Description | Link |
 |---------|-------------|-------|
-| **CLARA DARPA PA-25-07-02** | DARPA CLARA submission package (moved 2026-04-15) | [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara) |
 
 ## TRI-NET cross-line package (docs-only)
 

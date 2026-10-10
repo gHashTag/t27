@@ -45,7 +45,7 @@ Everything below is **acknowledged non-gold**. Agents **must not copy-paste** pa
 
 | Bucket | Pointer | Summary |
 |--------|---------|---------|
-| **Non-t27 languages on critical path** | `docs/nona-01-foundation/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Python CLARA runner, Kepler tests, legacy `t27c.py`, etc. |
+| **Non-t27 languages on critical path** | `docs/nona-01-foundation/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Python conformance runners, Kepler tests, legacy `t27c.py`, etc. |
 | **IEEE f32/f64 instead of GF16 primary** | `docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md` | nn/, vsa/, math/, physics/, AR composition `f32`, etc. |
 | **GF4–GF32 spec files** | Same inventory §1 | **`[REFERENCE]`** only — not an excuse to add `f64` in product paths. |
 | **Vendored forests** | `external/opencode/` | Not Trinity gold; submodule or delete policy. |

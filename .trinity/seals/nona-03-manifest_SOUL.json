@@ -1,14 +1,23 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b9cf73e",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "none",
   "gen_hash_rust": "none",
   "gen_hash_verilog": "none",
   "gen_hash_zig": "none",
   "module": "SOUL",
   "ring": 12,
+  "seal_schema": 2,
   "sealed_at": "2026-10-10T11:00:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:dbc1cec9721a7243f40a5e83a3f7daabeb8700df818d7fa537c595a2da2d818d",
   "spec_path": "docs/nona-03-manifest/SOUL.md",
   "tests": {
     "blocked": "zig not on PATH"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "missing"
   }
 }

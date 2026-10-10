@@ -3,7 +3,6 @@ description: Single source of truth for math/physics in t27; no Python on critic
 globs:
   - "**/*.t27"
   - "conformance/**"
-  - "clara-bridge/**"
   - "bootstrap/**"
   - "docs/**"
 alwaysApply: true
@@ -24,7 +23,7 @@ alwaysApply: true
 
 ## Exceptions (legacy)
 
-- Existing Python (`conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py`, `clara-bridge/tests/*.py`) is **legacy**; **do not** add new features there. Migrate per **`docs/nona-02-organism/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**.
+- Existing Python (`conformance/kepler_newton_tests.py`) is **legacy**; **do not** add new features there. Migrate per **`docs/nona-02-organism/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**.
 
 ## Conflict resolution
 
@@ -32,7 +31,7 @@ alwaysApply: true
 
 ## Language (English)
 
-- **First-party** Markdown (`docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/`, root `README.md` / `AGENTS.md` / `CLAUDE.md` / `task.md` / `SOUL.md`) **must be English**. No new Cyrillic; legacy paths only in **`docs/.legacy-non-english-docs`**.
+- **First-party** Markdown (`docs/`, `specs/**/*.md`, `architecture/`, `conformance/`, root `README.md` / `AGENTS.md` / `CLAUDE.md` / `task.md` / `SOUL.md`) **must be English**. No new Cyrillic; legacy paths only in **`docs/.legacy-non-english-docs`**.
 - **Source** (`.t27`, `.zig`, …): English comments/identifiers, ASCII per ADR-004.
 - **`cargo build` in `bootstrap/`** runs **`build.rs`**: Cyrillic in `specs/**/*.t27`, `bootstrap/src/**/*.rs`, or unlisted Markdown **fails the build** with pointers to SOUL / ADR-004 / constitution.
 

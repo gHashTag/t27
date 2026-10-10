@@ -40,17 +40,6 @@ spec "doc-sacred-physics" {
     agent = "P";
 }
 
-spec "doc-clara-prep-plan" {
-    tier = 0;
-    description = "CLARA-PREPARATION-PLAN: DARPA TA1/TA2 submission checklist";
-    path = "docs/CLARA-PREPARATION-PLAN.md";
-    exports = ["CLARA_TA1_CHECKLIST", "CLARA_TA2_CHECKLIST", "CLARA_TIMELINE"];
-    deps = ["doc-numeric-standard"];
-    competency = "CLARAPreparation";
-    status = "done";
-    agent = "S";
-}
-
 // ============================================================================
 // Tier 1: Core Arithmetic & Numeric Formats
 // ============================================================================
@@ -267,7 +256,7 @@ spec "triphysics-chern-simons" {
 }
 
 // ============================================================================
-// Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
+// Tier 2.5: AR Module (Argumentation & Reasoning)
 // ============================================================================
 
 spec "triar-logic" {
@@ -601,7 +590,7 @@ edges {
     trisacred-constants -> trisacred-physics;
 
     // ═══════════════════════════════════════════════════════
-    // AR Module Edges (CLARA TA1 Deliverable)
+    // AR Module Edges
     // ═══════════════════════════════════════════════════════
     // Base + numeric → Ternary Logic (AR-001)
     tritype-base -> triar-logic;
@@ -788,11 +777,11 @@ phase "PHASE-OPTIMIZE" {
 
 phase "PHASE-SCALE" {
     tier = 0;
-    description = "Phase 4: SCALE (Rings 256–511) — multi-agent, DARPA CLARA, swarm";
+    description = "Phase 4: SCALE (Rings 256–511) — multi-agent, AR, swarm";
     ring_start = 256;
     ring_end = 511;
     status = "planned";
-    key_deliverables = ["Swarm orchestration", "CLARA TA1/TA2", "Production hardening"];
+    key_deliverables = ["Swarm orchestration", "AR deliverables", "Production hardening"];
 }
 
 phase "PHASE-SUMMIT" {

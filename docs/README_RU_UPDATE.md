@@ -37,7 +37,7 @@ STRAND I   - Base         : типы, операции, константы      
 STRAND II  - Numeric+VSA : GF4-GF32, TF3, φ, VSA ops     (Rings 9-11)
 STRAND III - Compiler+FPGA : парсер, MAC, ISA регистры        (Rings 12-14)
 STRAND IV  - Queen+NN     : оркестрация, HSLM, внимание      (Rings 14-17)
-STRAND V   - AR (CLARA)     : логика, доказательства, datalog, RESTRAINT, VSA, FPGA, нейросети (Rings 18-24)
+STRAND V   - AR             : логика, доказательства, datalog, RESTRAINT, VSA, FPGA, нейросети (Rings 18-24)
 ```
 
 ## Основные компоненты

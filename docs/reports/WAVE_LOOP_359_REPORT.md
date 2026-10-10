@@ -139,7 +139,6 @@ Public indices remain quiet after ISCA 2026 (Jun 27–Jul 1) and SPRIND Next Fro
 | **manhvu/Balanced_Ternary** | Jun 17 | None | No | None |
 | **TOM / VitaLLM / TENET / TeLLMe** | Jun 2026 | None | No | ASIC/FPGA metrics |
 | **CktFormalizer** | May 2026 | Instance only | No | OpenROAD/Sky130 |
-| **TRINITY CLARA** | May 30 | Coq, 162 theorems (32 Admitted) | No | Sky130 tape-out claimed |
 
 ### 3.3 Key Assessment
 

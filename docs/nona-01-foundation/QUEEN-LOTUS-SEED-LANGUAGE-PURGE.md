@@ -42,8 +42,6 @@ Use the **6-phase cycle** as the **only** approved cleanup / migration ritual fo
 | Path | Kind | Action |
 |------|------|--------|
 | `conformance/kepler_newton_tests.py` | Python verdict | Replace with `.t27` + `tri verdict` per `docs/nona-02-organism/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md` |
-| `clara-bridge/run_scenario.py` | Python orchestration | Subcommand `tri scenario` (or merge into `t27c`); then delete |
-| `clara-bridge/tests/*.py` | Python tests | Replace with shell + `tri` + JSON schema check in Rust, or generated conformance |
 | `bootstrap/t27c.py` | Legacy Python compiler path | Remove after parity with `t27c` binary |
 | `bootstrap/parse_t27.py` | Legacy | Remove |
 | `scripts/check_first_party_doc_language.py` | Python | **Temporary OK** as duplicate of `bootstrap/build.rs` logic; long-term: single Rust `t27c lint-lang` |
@@ -83,7 +81,7 @@ Use the **6-phase cycle** as the **only** approved cleanup / migration ritual fo
 ## 4. Agent instructions (enforcement they cannot ignore)
 
 1. **Read first:** `CLAUDE.md` → `docs/T27-CONSTITUTION.md` → **this file** → `docs/nona-01-foundation/SEED-RINGS.md`.
-2. **Forbidden:** new `.py`, `.js`, `.ts`, `.go` in `specs/`, `conformance/` (logic), `clara-bridge/` (orchestration), or root scripts **without** an ADR + Queen-signed exception.
+2. **Forbidden:** new `.py`, `.js`, `.ts`, `.go` in `specs/`, `conformance/` (logic), or root scripts **without** an ADR + Queen-signed exception.
 3. **`cargo build` in `bootstrap/`** must stay green; Cyrillic / wrong-language policy is enforced in **`build.rs`**.
 4. **Trinity parity:** when [trinity](https://github.com/gHashTag/trinity) defines a stricter PHI LOOP step, **mirror it here** in `tri` docs and graph (`architecture/graph_v2.json`).
 

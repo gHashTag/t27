@@ -51,7 +51,6 @@ Measured with `--limit 1000` against 220 repositories, verified un-truncated
 | `zig-physics` | 2 |
 | `woody-woodpecker` | 2 |
 | `trios-mcp` | 2 |
-| `trinity-clara` | 2 |
 | `tt-trinity-holo` | 2 |
 | `vibee-lang` | 2 |
 | `bible_vibecoder` | 2 |
@@ -216,7 +215,6 @@ previous registry declared. One issue may match several themes.
 - [`t27#1859`](https://github.com/gHashTag/t27/issues/1859) — feat(igla): Wave Loop 898 — module-scope [615][2]^6 Pt non-power-of-two outer-dimension array-of
 - [`t27#1901`](https://github.com/gHashTag/t27/issues/1901) — feat(igla): Wave Loop 899 — module-scope [617][2]^6 Pt non-power-of-two outer-dimension array-of
 - [`t27#1959`](https://github.com/gHashTag/t27/issues/1959) — Wave Loop 549 — IGLA CODER+RACE: unbreak the build, make the FPGA path real, name the competitor
-- [`trinity-clara#3`](https://github.com/gHashTag/trinity-clara/issues/3) — L-COQ-SWEEP-CLARA-4: close 4 Admitted in trinity-clara proofs/igla/
 - [`trinity-fpga#14`](https://github.com/gHashTag/trinity-fpga/issues/14) — 🔨 hw: синтез + прошивка + bench на железе (v0.2-igla-fpga Release)
 - [`trios-dwagent#1`](https://github.com/gHashTag/trios-dwagent/issues/1) — Leaked PostgreSQL database credentials detected in scripts/igla_race_worker.py
 - [`trios-railway#75`](https://github.com/gHashTag/trios-railway/issues/75) — feat(skill-igla): #igla skill — Neon-synced experiment runner + NASA report format [MVP → SCALE]
@@ -233,7 +231,6 @@ previous registry declared. One issue may match several themes.
 - [`t27#1781`](https://github.com/gHashTag/t27/issues/1781) — suite: parse phase is superlinear, making `t27c suite` unrunnable on specs/scratch (12.4M lines)
 - [`t27#1873`](https://github.com/gHashTag/t27/issues/1873) — chore: civilian mesh positioning — drop drone wording from bpsk.t27 comment
 - [`t27#1882`](https://github.com/gHashTag/t27/issues/1882) — gen-rust: four codegen defects surfaced by tri-net's repaired spec-drift-guard
-- [`t27#1954`](https://github.com/gHashTag/t27/issues/1954) — Wave Loop 549 — CLARA coverage regenerated over 496 specs; 730 seals verify 0
 - [`t27#2105`](https://github.com/gHashTag/t27/issues/2105) — Wave 670: 497 specs parse, and 3292 declarations never reach an AST
 - [`t27#2121`](https://github.com/gHashTag/t27/issues/2121) — Wave 686: the parser chain closed — 788 to 4 swallowed declarations
 - [`t27#2126`](https://github.com/gHashTag/t27/issues/2126) — Wave 691: a third copy of the type parser — 384 to 161 recovery events

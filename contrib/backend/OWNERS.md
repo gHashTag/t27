@@ -15,4 +15,4 @@
 
 ## Related agents
 
-**R-Reasoning** may coordinate CLARA / AR flows that call these services; **E-Evidence** owns conformance vectors consumed by runners.
+**R-Reasoning** may coordinate AR flows that call these services; **E-Evidence** owns conformance vectors consumed by runners.

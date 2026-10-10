@@ -72,7 +72,6 @@ dedicated skill and an erratum had **no tracked work anywhere** until
 | `GoldenFloat.jl` | 1 |
 | `goldenfloat-preprint` | 1 |
 | `claim-audit-lab` | 1 |
-| `trinity-clara` | 1 |
 | `tt-lang-t27` | 1 |
 | `trios-dwagent` | 1 |
 | `zig-knowledge-graph` | 1 |
@@ -216,7 +215,6 @@ dedicated skill and an erratum had **no tracked work anywhere** until
 
 - [`t27#1442`](https://github.com/gHashTag/t27/issues/1442) — chore(igla): clean stale agent worktrees and preserve real changes
 - [`trinity#601`](https://github.com/gHashTag/trinity/issues/601) — Exposed API credential found in this repository
-- [`trinity-clara#3`](https://github.com/gHashTag/trinity-clara/issues/3) — L-COQ-SWEEP-CLARA-4: close 4 Admitted in trinity-clara proofs/igla/
 - [`trios#380`](https://github.com/gHashTag/trios/issues/380) — 🌻 GOLDEN SUNFLOWERS — Trinity S³AI / Flos Aureus (UNIFIED v6.2 · 98 ch · 2.53M ch · 2173 thm)
 - [`trios#957`](https://github.com/gHashTag/trios/issues/957) — TRIOS_PHD_NO_IMAGE_TRAIN: anchor hero panels via Needspace, ban hard clearpage
 - [`trios#1062`](https://github.com/gHashTag/trios/issues/1062) — fix(a2a): trios-agent offline — reconnect + auto-recovery

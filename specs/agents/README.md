@@ -59,7 +59,7 @@ written by hand.
 | `KEY_FILES`       | `[N]str`  | the Key files column; `[0]str = []` for the reserved seat                                 |
 | `ENTRY_INVARIANT` | `str`     | the Entry invariant of the schema-details section                                         |
 | `EXIT_INVARIANT`  | `str`     | the Exit invariant                                                                        |
-| `CLARA_ROLE`      | `str`     | the CLARA role; `""` when the table says `—`                                              |
+| `AR_ROLE`      | `str`     | the AR role; `""` when the table says `—`                                              |
 | `SKILLS`          | `[N]str`  | skill IDs (`specs/skills`) the agent holds — ONLY when a source binds them (see below)     |
 | `SKILLS_NOTE`     | `str`     | where the binding comes from, or why `SKILLS` is empty; required when `SKILLS` is `[]`    |
 | `TOOLS`           | `[N]str`  | tool IDs from `specs/tools` (`tri/<command>`, `mcp/<server>`) a source line binds to the letter |

@@ -32,7 +32,7 @@ The table the site renders next to this chapter is generated from
 `specs/agents/<letter>.t27` through the compiler wasm -- it is not typed here. Per letter it
 shows the ordinal, the letter name, the domain, the archetype, the register, the layer, and
 the skills and tools the agent holds with their evidence. The FULL TABLE of the alphabet
-document (letter, domain, archetype, key files, entry invariant, exit invariant, CLARA role)
+document (letter, domain, archetype, key files, entry invariant, exit invariant, AR role)
 is the source each spec was transcribed from; the spec's header names the row.
 
 Two conventions of the table are worth stating. A letter's register comes from the schema

@@ -40,7 +40,7 @@ site cannot tie to the layers above; that is recorded, not hidden.
 The 27 letters of the alphabet, one spec each: `specs/agents/<letter>.t27` with LETTER,
 ORDINAL, LETTER_NAME, NAME, DOMAIN, ARCHETYPE, REGISTER, LAYER, SUMMARY_EN, the three
 binding documents (SOUL, AGENTS_DOC, ALPHABET), KEY_FILES, the entry and exit invariants,
-CLARA_ROLE, SKILLS with SKILLS_NOTE and TOOLS with TOOLS_NOTE. An agent holds a skill or a
+AR_ROLE, SKILLS with SKILLS_NOTE and TOOLS with TOOLS_NOTE. An agent holds a skill or a
 tool only where a source line binds it -- a `.claude/agents/*.md` file, the alphabet, a
 phase description -- and the note cites that line or says why the list is empty. The
 generator fails the build on an unknown skill or tool ID and on a binding stated on one

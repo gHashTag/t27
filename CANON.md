@@ -82,7 +82,7 @@ High-level status aligned with `docs/TECHNOLOGY-TREE.md` (detail lives there). U
 | 9–12  | TRUNK — Zig / Verilog / C backends, seal CLI                    | Complete               |
 | 13–15 | BRANCH — AR pipeline, Queen+NN, full spec suite                 | Complete               |
 | 16–17 | CANOPY — self-hosting fixed point                               | Complete               |
-| 18–24 | CLARA AR integration                                            | Complete               |
+| 18–24 | AR integration                                                   | Complete               |
 | 25–31 | Gen backends + conformance hardening                            | Complete               |
 | 32–35 | Hardening (docs, validation scripts, CI)                        | In progress            |
 | 36+   | Zig/C/Verilog compile in CI, cross-backend conformance, benches | Planned                |
@@ -138,7 +138,7 @@ Everything here is **acknowledged non-gold**. Do **not** copy patterns into new 
 
 | Bucket                               | Pointer                                   | Summary                                                               |
 | ------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------- |
-| Non-t27 languages on critical path   | `docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Python CLARA runner, Kepler tests, legacy `t27c.py`, etc.             |
+| Non-t27 languages on critical path   | `docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Python conformance runners, Kepler tests, legacy `t27c.py`, etc.             |
 | IEEE f32/f64 instead of GF16 primary | `docs/NUMERIC-GF16-DEBT-INVENTORY.md`     | nn/, vsa/, math/, physics/, AR composition `f32`, etc.                |
 | GF4–GF32 spec files                  | Same inventory §1                         | `**[REFERENCE]`** only — not an excuse to add `f64` in product paths. |
 | Vendored forests                     | `external/opencode/`                      | Not Trinity gold; submodule or delete policy.                         |
@@ -164,7 +164,7 @@ Everything here is **acknowledged non-gold**. Do **not** copy patterns into new 
 
 **Ordered priorities (suggested):**
 
-1. **P0 Python on verdict path** — `conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py` → spec + `tri` (see TZ-T27-001).
+1. **P0 Python on verdict path** — `conformance/kepler_newton_tests.py` → spec + `tri` (see TZ-T27-001).
 2. **Language guard convergence** — keep `build.rs` + CI; long-term single `t27c lint-lang` (Python checker is temporary duplicate).
 3. **Numeric debt** — burn down `NUMERIC-GF16-DEBT-INVENTORY.md` from hottest product paths first.
 4. **Vendor boundaries** — `external/opencode/` submodule or remove; never teach agents to patch for Trinity features.

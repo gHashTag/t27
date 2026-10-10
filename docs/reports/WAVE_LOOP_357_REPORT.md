@@ -118,7 +118,6 @@ Linear scaling holds: ~0.085s per variable. No timeout trend detected. Omega bou
 | Competitor | Status | Formal Verification | Generic ∀ Ternary |
 |------------|--------|---------------------|-------------------|
 | **Sparkle HDL** | Dormant since March 2026 | Lean 4, 60+ BitNet theorems | **ZERO** — all instance-specific |
-| **TRINITY CLARA** | Last commit May 30 | Coq, 162 theorems (32 `Admitted`) | **ZERO** — K3 logic, no MAC accumulation |
 | **CktFormalizer** | arXiv:2605.07782 | Lean 4, binary `BitVec` only | **ZERO** — no ternary support |
 | **ternfpga** | Jun 8–10 | cocotb/NumPy golden models | **NO** |
 | **Balanced_Ternary** | Jun 17 | None yet | **NO** |

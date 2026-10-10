@@ -15,7 +15,6 @@ See **[`README.md`](README.md)** for the full index. Buckets:
 | **`nona-01-foundation/`** | **A**, **C**, **D**, **H**, **S** | Rings, brain charter, language purge, sandbox |
 | **`nona-02-organism/`** | **L**, **N**, **P**, … | Language spec, numerics, physics, Kepler notes |
 | **`nona-03-manifest/`** | **F**, **S**, **W**, **Z** | TDD, bootstrap testing, PHI loop, expanded `SOUL.md` |
-| **`clara/`** | **F** / **X** | CLARA submission pack |
 
 ## Dependencies
 

@@ -272,7 +272,7 @@ Wave 24 (2026-05-22, Closes #735) imports the **tenth** Wave-11 crate for real.
 Locally verified on Rust 1.83.0: `cargo check` green, `cargo test --lib`
 reports **29 passed, 0 failed** on the first run. Ring-097 mirrors
 [`specs/ar/proof_trace.t27`](../specs/ar/proof_trace.t27) byte-for-byte:
-`MAX_STEPS = 10` (DARPA CLARA bound); K3 ternary logic
+`MAX_STEPS = 10` (hard bound); K3 ternary logic
 (`Trit::{True = 1, Unknown = 0, False = -1, Null = 2}` with `Null` reserved
 for "output not yet produced"); K3 connectives `k3_and` (min lattice),
 `k3_or` (max lattice), `k3_not`; `ProofStep` with `step_id`, interned ASCII

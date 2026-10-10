@@ -5,7 +5,7 @@
     "MAX_SUMMARY_SIZE": 5
   },
   "created_at": "2026-04-06T15:54:08Z",
-  "description": "XAI conformance vectors for CLARA — explain_fact, summarize, GF16 confidence, natural/compact/fitch formats",
+  "description": "XAI conformance vectors — explain_fact, summarize, GF16 confidence, natural/compact/fitch formats",
   "encoding": {
     "FormatStyle": {
       "compact": 2,
@@ -20,7 +20,7 @@
   "generated_at": "2026-04-04T19:00:00Z",
   "invariants": {
     "confidence_in_unit_interval": "For all Explanation e: 0.0 <= gf16_decode_to_f32(e.confidence) <= 1.0",
-    "explanation_bounded_by_clara": "For all Explanation e: e.step_count <= MAX_STEPS (10)",
+    "explanation_bounded": "For all Explanation e: e.step_count <= MAX_STEPS (10)",
     "summary_confidence_sorted": "For all Summary s, indices i < s.fact_count-1: top_confidence[i] >= top_confidence[i+1]",
     "summary_size_respects_limit": "For all Summary s: s.fact_count <= MAX_SUMMARY_SIZE (5)",
     "terminated_iff_max_steps": "For all Explanation e: e.trace.terminated == (e.step_count == MAX_STEPS)"

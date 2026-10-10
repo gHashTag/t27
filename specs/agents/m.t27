@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [2]str = [".trinity/bench/", "docs/qualification/TVP.md"];
 pub const ENTRY_INVARIANT : str = "Bench baseline exists, telemetry is running";
 pub const EXIT_INVARIANT : str = "No performance regression > 5%, all benchmarks current";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [5]str = ["t27/measure-corpus", "trinity/cloud", "trinity/god-mode", "trinity/status", "trinity/tri"];

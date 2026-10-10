@@ -117,7 +117,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 
 ## 27 AGENTS — FULL TABLE
 
-| Agent | Letter | Domain (core) | Archetype | Key files | Entry invariant | Exit invariant | CLARA role |
+| Agent | Letter | Domain (core) | Archetype | Key files | Entry invariant | Exit invariant | AR role |
 |-------|--------|---------------|----------|-----------|-----------------|----------------|------------|
 | **A** | Alpha α | Architecture / ADR / SOUL | Bull — leader, primary force | `SOUL.md`, `architecture/ADR-*.md` | `SOUL.md` exists and is ASCII-only | All ADRs reviewed and consistent | TA1: AR Architecture Design |
 | **B** | Beta β | Build / Pipeline | House — container, dwelling | `build.tri`, `src/tri/pipeline/` | Build system is clean | All tests pass in pipeline | — |
@@ -158,7 +158,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `SOUL.md`, `architecture/ADR-*.md`, `architecture/CANON_DE_ZIGFICATION.md`
 **Entry Invariant**: `SOUL.md` exists, is ASCII-only, and defines L1-L7 laws
 **Exit Invariant**: All ADRs reviewed, consistent with constitution, no conflicts
-**CLARA Role**: TA1: AR Architecture Design — designs AR module architecture, ensures composability
+**AR Role**: AR Architecture Design — designs AR module architecture, ensures composability
 
 ### Agent B — Beta (Build)
 
@@ -175,7 +175,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `t27/compiler/parser/`, `bootstrap/src/compiler.rs`, `specs/ar/*.t27`
 **Entry Invariant**: Parser can handle all AR syntax (ternary logic, rules, proofs)
 **Exit Invariant**: Generated code compiles, AST is valid
-**CLARA Role**: TA1: AR Language Implementation — implements AR language features in t27 compiler
+**AR Role**: AR Language Implementation — implements AR language features in t27 compiler
 
 ### Agent D — Delta (De-Zigfication)
 
@@ -192,7 +192,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `.trinity/experience/`, `specs/ar/explainability.t27`, `specs/ar/proof_trace.t27`
 **Entry Invariant**: Episode log is append-only, no deletions
 **Exit Invariant**: Lessons learned are catalogued, explanations are generated
-**CLARA Role**: TA2: AR Explanation & XAI — generates human-readable explanations for AR outputs
+**AR Role**: AR Explanation & XAI — generates human-readable explanations for AR outputs
 
 ### Agent F — Phi (Formal Conformance)
 
@@ -273,7 +273,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `src/tri/pipeline/`, `specs/ar/composition.t27`
 **Entry Invariant**: All phases (1-6) are defined, phase transitions valid
 **Exit Invariant**: Orchestration completes, no stuck phases
-**CLARA Role**: TA2: AR Composition Engine — composes ML and AR components, manages interactions
+**AR Role**: AR Composition Engine — composes ML and AR components, manages interactions
 
 ### Agent P — Pi (Physics)
 
@@ -282,7 +282,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `t27/specs/math/sacred_physics.t27`, `specs/physics/su2_chern_simons.t27`
 **Entry Invariant**: φ² + φ⁻² = 3 holds in all calculations
 **Exit Invariant**: Sacred constants (G, ΩΛ, φ, tpresent) are verified
-**CLARA Role**: TA1: AR Theoretical Foundations — provides mathematical basis for AR reasoning
+**AR Role**: AR Theoretical Foundations — provides mathematical basis for AR reasoning
 
 ### Agent Q — Theta (Queue)
 
@@ -307,7 +307,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `specs/`, `specs/ar/*.t27`, `docs/NUMERIC-*.md`
 **Entry Invariant**: All specs have TDD (test/invariant/bench)
 **Exit Invariant**: Standards are consistent, naming rules followed
-**CLARA Role**: TA1: AR Spec Standards — defines and enforces AR spec conventions
+**AR Role**: AR Spec Standards — defines and enforces AR spec conventions
 
 ### Agent T — Tau (TRINITY Queen)
 
@@ -316,7 +316,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `t27/specs/queen/lotus.t27`
 **Entry Invariant**: Queen health >= 0.9, graph is loaded
 **Exit Invariant**: All rings are sealed, verdict is clean
-**CLARA Role**: TA2: AR Orchestrator — coordinates all AR agents for CLARA submission
+**AR Role**: AR Orchestrator — coordinates all AR agents
 
 ### Agent U — Upsilon (Universe)
 
@@ -333,7 +333,7 @@ Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFlo
 **Key Files**: `src/tri/verdict.zig`, `specs/ar/proof_trace.t27`, `specs/ar/restraint.t27`
 **Entry Invariant**: Verdict engine is ready, toxic thresholds defined
 **Exit Invariant**: Toxicity is detected, proof traces are generated
-**CLARA Role**: TA2: AR Validation & Proof — validates AR reasoning, generates proofs
+**AR Role**: AR Validation & Proof — validates AR reasoning, generates proofs
 
 ### Agent W — Double-Vav (Workflow)
 

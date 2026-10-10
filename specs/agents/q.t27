@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [1]str = ["src/tri/dev_commands.zig"];
 pub const ENTRY_INVARIANT : str = "Queue is not empty (work exists)";
 pub const EXIT_INVARIANT : str = "MNL (Most-Numerous-Loss) pattern enforced, no starvation";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [1]str = ["trinity/god-mode"];
@@ -57,7 +57,7 @@ test agent_q_constants {
   assert REGISTER == "R16";
   assert LAYER == "Spiritual";
   assert ENABLED == true;
-  assert CLARA_ROLE == "";
+  assert AR_ROLE == "";
   assert SKILLS[0] == "trinity/god-mode";
   assert TOOLS[0] == "mcp/inngest-dev";
 }

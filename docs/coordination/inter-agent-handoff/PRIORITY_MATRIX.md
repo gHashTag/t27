@@ -32,4 +32,4 @@
 1. **Audit** [`docs/nona-03-manifest/RESEARCH_CLAIMS.md`](../../nona-03-manifest/RESEARCH_CLAIMS.md) vs README hero claims.  
 2. **One** reproducible path: `bootstrap && cargo build` + documented conformance check (even if partial).  
 3. **Comment** on [#141](https://github.com/gHashTag/t27/issues/141) when parallel agents touch the same slice.  
-4. **Do not** claim CLARA “compliance” without BAA mapping — use **alignment** (see competitive memos).
+4. **Do not** claim external-program “compliance” without mapping — use **alignment** (see competitive memos).

@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [1]str = ["src/tri/cell.zig"];
 pub const ENTRY_INVARIANT : str = "Cell is sealed, hash is computed";
 pub const EXIT_INVARIANT : str = "Hash is verified, commit is signed";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [3]str = ["t27/phi-loop", "t27/tri", "trinity/implement-issue"];

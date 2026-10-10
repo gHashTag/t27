@@ -183,7 +183,7 @@ fn main() {
     }
 
     // --- First-party Markdown (same rules as CI script) ---
-    for dir in ["docs", "architecture", "clara-bridge", "conformance"] {
+    for dir in ["docs", "architecture", "conformance"] {
         let base = root.join(dir);
         if !base.is_dir() {
             continue;

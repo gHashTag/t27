@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:e3aeec909789b58d6e993ead042e59695a45ce6452e6ce36785acd3bfe1f2026",
   "module": "ProofTrace",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:28:31Z",
-  "spec_hash": "sha256:2bc144c93ba41b7bdbdcc2d72c197a508f3b44151489f790c19a71aefd6b0190",
+  "sealed_at": "2026-10-10T10:34:31Z",
+  "spec_hash": "sha256:56026b2c7550e5022ccfd5b696fb1503e8b0d0c9bae7962f96480138e636510c",
   "spec_path": "specs/ar/proof_trace.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-proof_trace-581890/spec.zig:34:83: error: use of undeclared identifier 'now'"
+    "blocked": "zig not on PATH"
   }
 }

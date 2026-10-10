@@ -86,7 +86,6 @@
 | `conformance/phi_ratio_vectors.json` | `[REFERENCE]` | Tests all GF widths — keep aligned with numeric specs. |
 | `conformance/goldenfloat_family_vectors.json` | `[REFERENCE]` | Family queries incl. GF32/GF8. |
 | `conformance/math_constants.json` | `[DEBT-f64]` | Text references **`f64`** floor invariant — tied to `constants.t27` debt. |
-| `conformance/clara_spec_coverage.json` | — | Lists **`gf32.t27`** etc. as coverage — not debt by itself. |
 
 ---
 

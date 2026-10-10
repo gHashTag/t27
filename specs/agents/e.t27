@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [3]str = [".trinity/experience/", "specs/ar/explainability.t27", "specs/ar/proof_trace.t27"];
 pub const ENTRY_INVARIANT : str = "Episode log is append-only, no deletions";
 pub const EXIT_INVARIANT : str = "Lessons learned are catalogued, explanations are generated";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA2: AR Explanation & XAI - generates human-readable explanations for AR outputs";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Explanation & XAI - generates human-readable explanations for AR outputs";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [1]str = ["t27/wrap-up"];

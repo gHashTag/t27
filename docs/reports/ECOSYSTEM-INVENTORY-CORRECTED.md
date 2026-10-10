@@ -68,7 +68,6 @@ The table below is kept as the *size* census it actually is.
 | `tri-claw` | 23 | TRI CLAW — t27 spec-first rewrite of RUST CLAW. 13 rings GOL |
 | `trinity-agents` | 0 | Trinity Agents — autonomous agents, orchestration, MCP serve |
 | `trinity-bittensor` | 19 | Trinity ↔ Bittensor BIT-0011 conviction attestor. Hardware-a |
-| `trinity-claraParameter` | 23 | DARPA CLARA / Parameter Golf — Trinity Cognitive Stack with  |
 | `trinity-contracts` | 56 | Trinity Network — On-chain mining protocol contracts. ERC-20 |
 | `trinity-node` | 17 | TrinityNode — DePIN daemon for Trinity triad chips (Phi+Eule |
 | `trinity-physics` | 0 | Trinity Physics — quantum mechanics, gravity, particle physi |
@@ -101,7 +100,6 @@ The table below is kept as the *size* census it actually is.
 | `goldenfloat*` | 3 | **2** | GoldenFloat.jl, GoldenFloats.jl, goldenfloat-preprint |
 | `go-half*` | 3 | **2** | go-half, go-half-lib, go-half-rust |
 | `trios-railway*` | 2 | **1** | trios-railway, trios-railway-mcp |
-| `trinity-clara*` | 2 | **1** | trinity-clara, trinity-claraParameter |
 | `trinity-railway*` | 2 | **1** | trinity-railway, trinity-railway-agent |
 
 > **`zig-half` WAS eight repositories (six deleted 2026-08-14) and six of the eight were empty; `zig-half` and `zig-half-rs` hold commits and remain**, with near-identical
@@ -145,7 +143,6 @@ self-contradicting -- which is what this file did for one wave.
 | `parameter-golf-trinity` | 1.9 | 1 | Python | Trinity Cognitive Stack entry to OpenAI Parameter Go |
 | `NeuronConstant` | 1.6 | 1 | Verilog | 🔱 NeuronConstant — Canonical silicon-ready chip-bloc |
 | `golden-chain-international` | 1.6 | 10 | Python | GOLDEN CHAIN — International Edition: trust-first op |
-| `trinity-clara` | 1.4 | 2 | TeX | DARPA CLARA PA-25-07-02 Submission Package |
 | `go-half` | 1.3 | 0 | Go | Pure Go f16/bf16 with ternary operations. No CGo ove |
 | `claim-audit-lab` | 0.9 | 1 | Python | Public, symmetric, falsifiable audits of phi-anchore |
 | `goldenfloat-preprint` | 0.9 | 1 | TeX | Canonical source for the GoldenFloat preprint (LaTeX |

@@ -20,7 +20,7 @@ This document **expands** root **SOUL** with operational detail—especially **L
 
 **Source files** (`.t27`, `.tri`, `.zig`, `.c`, `.v`, `.verilog`) **MUST NOT** contain Cyrillic or other non-Latin scripts in identifiers or comments (see ADR-004 for ASCII details). **Prose MUST be English.**
 
-**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`) **MUST be written in English**, except:
+**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`) **MUST be written in English**, except:
 
 - Paths listed in **`docs/.legacy-non-english-docs`** (grandfathered until translated; **no new entries** without Architect approval).
 - Vendored trees under **`external/`** (upstream locales).

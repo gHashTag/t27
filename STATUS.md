@@ -91,18 +91,6 @@ full bit layout and interop notes.
 | Phi identity (L5) | GREEN    | `conformance/FORMAT-SPEC-001.json` records IEEE f64 hex + zero residual.  |
 | Sacred physics    | SPEC+    | `proofs/sacred/`, `proofs/trinity/`, `proofs/gravity/`.                   |
 
-### 2.5 CLARA / assurance bridge
-
-| Artifact                | Level    | Evidence                                                |
-|-------------------------|----------|---------------------------------------------------------|
-| `clara-bridge/`         | demo     | README in `clara-bridge/README.md`, Python examples,    |
-|                         |          | scenarios, audit-trail, explainability harness.         |
-| Submission package      | draft    | `clara-bridge/submission/` and `clara-bridge/proposal/`.|
-
-See [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md) for how t27 maps to the
-public DARPA CLARA program goals.
-
----
 
 ## 3. Conservative status decisions
 
@@ -113,9 +101,7 @@ the rule "when in doubt, lower":
 2. **No GDS/TAPEOUT claim in t27.** Tape-out artifacts live in `tt-trinity-*` repos.
 3. **GF16 marked SIM, not SYNTH-on-vendor-cells**, because the Verilog evidence in this repo
    is Yosys-friendly + Vivado scripts; we do not assert a closed vendor flow from t27 alone.
-4. **CLARA bridge is "demo / draft"**, not "submitted" -- the repo contains examples and a
-   `submission/` directory, but no public award or acceptance evidence is asserted.
-5. **Coq surface is "partial"**, even though recent commits add Qed counts; an external
+4. **Coq surface is "partial"**, even though recent commits add Qed counts; an external
    reviewer should still audit each `*.v` rather than trust the aggregate.
 
 ---

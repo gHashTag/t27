@@ -23,7 +23,7 @@
   "invariants": {
     "composition_pattern_coverage": "All 4 patterns defined: CNN_RULES=0, MLP_BAYESIAN=1, TRANSFORMER_XAI=2, RL_GUARDRAILS=3",
     "confidence_in_valid_range": "For all patterns: 0.0 <= gf16_decode_to_f32(result.confidence) <= 1.0",
-    "explanation_bounded_by_clara": "All explanations respect step_count <= 10 (MAX_STEPS)",
+    "explanation_bounded": "All explanations respect step_count <= 10 (MAX_STEPS)",
     "satisfaction_in_valid_range": "For all patterns: 0.0 <= gf16_decode_to_f32(result.satisfaction) <= 1.0"
   },
   "module": "Composition",
@@ -99,7 +99,7 @@
           }
         }
       ],
-      "description": "Satisfaction scoring with CLARA compliance bonuses and penalties"
+      "description": "Satisfaction scoring with compliance bonuses and penalties"
     },
     "combine_confidence": {
       "cases": [
@@ -268,7 +268,7 @@
         {
           "expected": {
             "explanation_step_count_lte": 10,
-            "note": "Even with max_steps=15, clamped to <=10 per CLARA requirement"
+            "note": "Even with max_steps=15, clamped to <=10 per requirement"
           },
           "inputs": {
             "confidence_f32": 1.0,
@@ -289,7 +289,7 @@
           }
         }
       ],
-      "description": "Transformer+XAI explanation never exceeds 10 steps (CLARA bound)"
+      "description": "Transformer+XAI explanation never exceeds 10 steps (bound)"
     },
     "confidence_in_unit_interval": {
       "cases": [

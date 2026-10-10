@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [2]str = ["t27/specs/math/sacred_physics.t27", "specs/physics/su2_chern_simons.t27"];
 pub const ENTRY_INVARIANT : str = "phi^2 + phi^-2 = 3 holds in all calculations";
 pub const EXIT_INVARIANT : str = "Sacred constants (G, OmegaLambda, phi, tpresent) are verified";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA1: AR Theoretical Foundations - provides mathematical basis for AR reasoning";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Theoretical Foundations - provides mathematical basis for AR reasoning";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [0]str = [];
@@ -57,7 +57,7 @@ test agent_p_constants {
   assert REGISTER == "R15";
   assert LAYER == "Spiritual";
   assert ENABLED == true;
-  assert CLARA_ROLE == "TA1: AR Theoretical Foundations - provides mathematical basis for AR reasoning";
+  assert AR_ROLE == "AR Theoretical Foundations - provides mathematical basis for AR reasoning";
   assert KEY_FILES[0] == "t27/specs/math/sacred_physics.t27";
   assert KEY_FILES[1] == "specs/physics/su2_chern_simons.t27";
 }

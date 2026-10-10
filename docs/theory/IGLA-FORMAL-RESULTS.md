@@ -9482,7 +9482,7 @@ repositories in name only. And **forty-one of fifty-six sit in name families**:
 10  trinity-*      (6 empty)     8  zig-half*      (8 empty -- ALL)
  6  trios-*        (1 empty)     5  zig-*          (3 empty)
  3  goldenfloat*   (2 empty)     3  go-half*       (2 empty)
- 2  trios-railway* (1)           2  trinity-clara* (1)
+ 2  trios-railway* (1)
  2  trinity-railway* (1)
 ```
 

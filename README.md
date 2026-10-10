@@ -39,7 +39,6 @@ inspectable artefacts at every step.
 - **Positioning:** [`COMPETITORS.md`](COMPETITORS.md) — we do not race
   commercial NPUs on TOPS or SDK breadth; we own the inspectable open silicon
   and formal / assurance corner. Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
-- **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
 ## FPGA — what is measured on real silicon (2026-08-15)
 
 Three **QMTech XC7A200T-FGG676** boards. Synthesis is
@@ -232,7 +231,7 @@ The language is built around three pillars:
 - **GoldenFloat family** -- phi-structured floating-point formats (GF4-GF32) where `exp/mant ~ 1/phi`
 - **Sacred physics** -- fundamental constants derived from `phi^2 + 1/phi^2 = 3`
 
-t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neuroanatomical AI framework targeting FPGA acceleration, with an automated-reasoning pipeline written against the public DARPA CLARA solicitation as a specification target. No DARPA award or engagement -- see [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
+t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neuroanatomical AI framework targeting FPGA acceleration, 
 
 ## Quick Start
 
@@ -284,7 +283,7 @@ STRAND I   - Base         : types, ops, constants          (Rings 0-8)
 STRAND II  - Numeric+VSA  : GF4-GF32, TF3, phi, VSA ops   (Rings 9-11)
 STRAND III - Compiler+FPGA: parser, MAC, ISA registers      (Rings 12-14)
 STRAND IV  - Queen+NN     : Lotus orchestration, HSLM, attention (Rings 14-17)
-STRAND V   - AR (CLARA)   : ternary logic, proof traces, Datalog, restraint, XAI, ASP, composition (Rings 18-24)
+STRAND V   - AR          : ternary logic, proof traces, Datalog, restraint, XAI, ASP, composition (Rings 18-24)
 ```
 
 Gen backends (Zig, C, Verilog) and conformance vectors were generated across Rings 25-31.
@@ -301,7 +300,7 @@ t27/
 │   ├── base/               #   types, ops (2 specs)
 │   ├── numeric/            #   GoldenFloat GF4-GF32, TF3, phi_ratio (10 specs)
 │   ├── math/               #   sacred_physics, constants (2 specs)
-│   ├── ar/                 #   CLARA AR pipeline -- logic, proof, datalog (7 specs)
+│   ├── ar/                 #   AR pipeline -- logic, proof, datalog (7 specs)
 │   ├── nn/                 #   HSLM, attention kernels (2 specs)
 │   ├── isa/                #   27 Coptic registers (1 spec)
 │   ├── fpga/               #   MAC unit for XC7A100T (1 spec)
@@ -323,7 +322,7 @@ t27/
 │
 ├── conformance/            # Language-agnostic test vectors (34 JSON)
 │   ├── gf*_vectors.json    #   GoldenFloat arithmetic vectors
-│   ├── ar_*.json           #   CLARA AR conformance vectors
+│   ├── ar_*.json           #   AR conformance vectors
 │   ├── nn_*.json           #   Neural architecture vectors
 │   └── sacred_physics*.json#   phi, gamma, G, Omega_Lambda conformance
 │
@@ -348,7 +347,7 @@ t27/
 ├── external/               # Vendored upstream (e.g. OpenCode submodule) + kaggle tree — see OWNERS.md
 │
 ├── docs/                   # First-party docs (27-agent / 3-nona layout — see docs/README.md)
-│   ├── README.md           #   Index: agents/, coordination/, nona-01..03/, clara/
+│   ├── README.md           #   Index: agents/, coordination/, nona-01..03/
 │   ├── NOW.md              #   Rolling snapshot (sync gates)
 │   ├── T27-CONSTITUTION.md #   Charter
 │   └── …                   #   nona-01-foundation/, nona-02-organism/, nona-03-manifest/, etc.
@@ -360,9 +359,9 @@ t27/
 
 **Domain ownership:** each major directory may include an `**OWNERS.md`** (Primary agent, dependencies, outputs). Start at `[OWNERS.md](OWNERS.md)` in the repo root; see also `[docs/agents/AGENTS_ALPHABET.md](docs/agents/AGENTS_ALPHABET.md)`.
 
-## CLARA Automated Reasoning
+## Automated Reasoning
 
-The AR domain (Rings 18-24) implements a reasoning pipeline in ternary logic, written against the ten assurance requirements described in the public DARPA CLARA solicitation -- CLARA-style, not certified (DARPA does not certify compliance):
+The AR domain (Rings 18-24) implements a reasoning pipeline in ternary logic against ten assurance requirements:
 
 
 | Module             | Spec                          | Description                                                                                                 |
@@ -371,7 +370,7 @@ The AR domain (Rings 18-24) implements a reasoning pipeline in ternary logic, wr
 | **Proof Traces**   | `specs/ar/proof_trace.t27`    | Bounded proof traces with a hard 10-step limit. Each step carries a GF16 confidence score.                  |
 | **Datalog Engine** | `specs/ar/datalog_engine.t27` | Forward-chaining Datalog with O(n) complexity. Stratified negation via K3 unknown.                          |
 | **Restraint**      | `specs/ar/restraint.t27`      | Bounded rationality: resource limits on inference (max steps, max memory, timeout).                         |
-| **Explainability** | `specs/ar/explainability.t27` | CLARA-compliant XAI: explanations <= 10 steps, each with GF16 confidence.                                   |
+| **Explainability** | `specs/ar/explainability.t27` | Bounded XAI: explanations <= 10 steps, each with GF16 confidence.                                   |
 | **ASP Solver**     | `specs/ar/asp_solver.t27`     | Answer Set Programming with Negation-as-Failure under K3 semantics.                                         |
 | **Composition**    | `specs/ar/composition.t27`    | ML+AR composition patterns: CNN+Rules, MLP+Bayesian, Transformer+XAI, RL+Guardrails.                        |
 
@@ -387,7 +386,7 @@ Every domain has language-agnostic conformance vectors in `conformance/*.json`. 
 - GoldenFloat arithmetic (GF4 through GF32)
 - Sacred physics constants (phi, gamma, G, Omega_Lambda)
 - Base types and operations
-- CLARA AR pipeline (all 7 modules)
+- AR pipeline (all 7 modules)
 - Neural architecture (attention, HSLM)
 - Domain modules (VSA ops, ISA registers, FPGA MAC, Queen Lotus)
 
@@ -422,7 +421,7 @@ The compiler grows ring-by-ring. Each ring adds exactly one capability, sealed w
 | 19   | Bounded proof traces                               | AR     | Sealed      |
 | 20   | Datalog engine (forward chaining)                  | AR     | Sealed      |
 | 21   | Restraint (bounded rationality)                    | AR     | Sealed      |
-| 22   | Explainability (CLARA XAI)                         | AR     | Sealed      |
+| 22   | Explainability (bounded XAI)                       | AR     | Sealed      |
 | 23   | ASP solver (NAF + K3)                              | AR     | Sealed      |
 | 24   | ML+AR composition (4 patterns)                     | AR     | Sealed      |
 | 25   | Gen backends: base/types, base/ops, math/constants | GEN    | Sealed      |
@@ -671,7 +670,7 @@ tri git commit                        <- NOT BUILT: use git; the hook enforces "
 - **6 CLI commands**: parse, gen, gen-zig, gen-verilog, gen-c, seal
 - **5 architecture strands**: Base -> Numeric -> Compiler+FPGA -> Queen+NN -> AR
 - **Deterministic fixed point** reached at Ring 17 (CANOPY)
-- **CLARA AR module**: 7 specs (ternary logic -> composition)
+- **AR module**: 7 specs (ternary logic -> composition)
 - **Queen health**: GREEN 1.0 across 15 domains
 - CI enforced: Issue Gate + PHI Loop CI on all PRs
 
@@ -712,7 +711,6 @@ See [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) for details.
 ### Agents & Operations
 
 - [27-Agent Alphabet](docs/agents/AGENTS_ALPHABET.md) -- All 27 agents
-- [CLARA Preparation Plan](docs/clara/CLARA-PREPARATION-PLAN.md) -- DARPA compliance
 - [Kleene Trit Isomorphism](docs/nona-02-organism/KLEENE-TRIT-ISOMORPHISM.md)
 - [TRI Syntax vNext](docs/nona-02-organism/TRI_SYNTAX_VNEXT.md)
 - [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) -- Issue gate enforcement law
@@ -759,7 +757,7 @@ Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 **Wave 25 (2026-05-22):** World Model import — [`rings/ring-098-rust`](rings/ring-098-rust) lands the eleventh honestly-authored Wave-11 crate (779 LOC, 29 tests). Mirrors three specs byte-for-byte: `specs/brain/unified_state.t27` (`BrainState`, `ConsciousnessState`, `Mood`, `ArousalLevel`, `Layer`, `REGION_COUNT=27`, `LAYER_COUNT=3`, `REGIONS_PER_LAYER=9`, `PHI`/`PHI_INV`/`PHI_SQ`/`PHI_INV_SQ`/`TRINITY`); `specs/ml/rl/dqn.t27` (`Transition { state, action, reward, next_state, done }`); `specs/brain/cognitive_loop.t27` (`COGNITIVE_PHASE_COUNT=5`: sense, evaluate, decide, act, consolidate). `WorldModel` is a bounded recorder: fixed `[BrainState; MAX_STATE_HISTORY=16]` history, fixed `[Transition; MAX_TRANSITIONS=32]` replay buffer, inline `STATE_DIM=8`, plus `snapshot`, `record_transition`, `step_phase`, `run_one_cycle`, `verify`, `reset`. The `verify` routine enforces monotonic `cycle_count` and a `phi_coherence in [0,1]` invariant. `#![no_std]`, heap-free. `world_model_phi_identity` is the **tenth cross-kernel anchor test** in the project, routing `phi^2 + 1/phi^2 = 3` through (a) integer projection `floor(PHI_SQ) + floor(PHI) = 3`, (b) `pow_u64` numeric witness, and (c) mass-conservation `PHI_SQ + PHI_INV_SQ == TRINITY` to within 1e-12. Wave-11 narrative claimed 920 LOC; honest measurement is 779 LOC. All 29 tests green on Rust 1.83.0. See [COMPILE_STATUS](rings/COMPILE_STATUS.md).
 
-**Wave 24 (2026-05-22):** Chain-of-Thought import — [`rings/ring-097-rust`](rings/ring-097-rust) lands the tenth honestly-authored Wave-11 crate (823 LOC, 29 tests). Mirrors `specs/ar/proof_trace.t27` byte-for-byte: `MAX_STEPS=10` (DARPA CLARA bound on reasoning chain length); K3 ternary logic (`Trit::{True=1, Unknown=0, False=-1, Null=2}`) with `k3_and` (min lattice), `k3_or` (max lattice), `k3_not`; fixed-capacity heap-free `ProofStep` (interned ASCII operation name up to 24 chars, fixed-arity inputs up to 3 trits, `output`, `timestamp_us`); `ProofTrace` with `[ProofStep; MAX_STEPS]` buffer + `start_timestamp_us` / `end_timestamp_us` / `verified` flag; operations `new_proof_trace`, `add_step`, `verify_trace`, `trace_length`, `is_at_capacity`, `finalize_trace`, `step_at`, `format_trace`, `trit_to_string`; `VerifyStatus::{Valid, Empty, TooManySteps, NullOutput(usize)}` enforcing all three spec invariants (`empty_trace_fails`, `trace_verification_catches_overflow`, `valid_trace_passes`). The crate is `#![no_std]` and heap-free; `format_trace` writes into a caller-supplied buffer. `cot_phi_identity` is the **ninth cross-kernel anchor test** in the project, routing `phi^2 + 1/phi^2 = 3` through a 6-step bounded reasoning chain: symbolic premises, `k3_and`, a numeric-witness step that evaluates `pow_u64(phi, 2) + pow_u64(phi, -2)` and produces `True` iff the result is within 1e-9 of 3.0, a `k3_or` alternative-path step, and a conclusion -- then verifies and finalises the trace, plus a separate mass-conservation hook for φ²-weighted Pos and φ⁻²-weighted Neg priorities. Wave-11 narrative claimed 624 LOC; honest measurement is 823 LOC. All 29 tests green on Rust 1.83.0. See [COMPILE_STATUS](rings/COMPILE_STATUS.md).
+**Wave 24 (2026-05-22):** Chain-of-Thought import — [`rings/ring-097-rust`](rings/ring-097-rust) lands the tenth honestly-authored Wave-11 crate (823 LOC, 29 tests). Mirrors `specs/ar/proof_trace.t27` byte-for-byte: `MAX_STEPS=10` (hard bound on reasoning chain length); K3 ternary logic (`Trit::{True=1, Unknown=0, False=-1, Null=2}`) with `k3_and` (min lattice), `k3_or` (max lattice), `k3_not`; fixed-capacity heap-free `ProofStep` (interned ASCII operation name up to 24 chars, fixed-arity inputs up to 3 trits, `output`, `timestamp_us`); `ProofTrace` with `[ProofStep; MAX_STEPS]` buffer + `start_timestamp_us` / `end_timestamp_us` / `verified` flag; operations `new_proof_trace`, `add_step`, `verify_trace`, `trace_length`, `is_at_capacity`, `finalize_trace`, `step_at`, `format_trace`, `trit_to_string`; `VerifyStatus::{Valid, Empty, TooManySteps, NullOutput(usize)}` enforcing all three spec invariants (`empty_trace_fails`, `trace_verification_catches_overflow`, `valid_trace_passes`). The crate is `#![no_std]` and heap-free; `format_trace` writes into a caller-supplied buffer. `cot_phi_identity` is the **ninth cross-kernel anchor test** in the project, routing `phi^2 + 1/phi^2 = 3` through a 6-step bounded reasoning chain: symbolic premises, `k3_and`, a numeric-witness step that evaluates `pow_u64(phi, 2) + pow_u64(phi, -2)` and produces `True` iff the result is within 1e-9 of 3.0, a `k3_or` alternative-path step, and a conclusion -- then verifies and finalises the trace, plus a separate mass-conservation hook for φ²-weighted Pos and φ⁻²-weighted Neg priorities. Wave-11 narrative claimed 624 LOC; honest measurement is 823 LOC. All 29 tests green on Rust 1.83.0. See [COMPILE_STATUS](rings/COMPILE_STATUS.md).
 
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)
 

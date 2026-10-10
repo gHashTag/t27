@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [2]str = ["t27/specs/numeric/", "docs/NUMERIC-STANDARD-001.md"];
 pub const ENTRY_INVARIANT : str = "GF family is defined (GF4, GF8, GF12, GF16, GF20, GF24, GF32)";
 pub const EXIT_INVARIANT : str = "phi identity validated, all numeric tests pass";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [2]str = ["trinity/trinity-test", "trinity/vsa-verify"];

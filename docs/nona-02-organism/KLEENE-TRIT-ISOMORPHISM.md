@@ -1,6 +1,6 @@
 # Kleene-Trit Isomorphism Proof
 
-**Trinity S³AI - DARPA CLARA Technical Foundation**
+**Trinity S³AI — AR Technical Foundation**
 
 ---
 
@@ -182,7 +182,7 @@ The mapping `f: Trit → K3` is an isomorphism of algebraic structures.
 
 ---
 
-## 4. Implications for DARPA CLARA
+## 4. Implications for bounded assurance
 
 ### 4.1 Native Hardware AR
 
@@ -195,10 +195,10 @@ The isomorphism proof establishes that:
 
 Kleene's K_UNKNOWN maps exactly to Trit.zero, which represents:
 - "Undefined" or "don't-care" values
-- **Bounded rationality** (CLARA's "Restraint" requirement)
+- **Bounded rationality** (the "Restraint" requirement)
 - Safe defaults for incomplete information
 
-This provides a formal basis for CLARA's bounded rationality specification.
+This provides a formal basis for the bounded-rationality specification.
 
 ### 4.3 Polynomial-Time Inference Guarantees
 
@@ -212,7 +212,7 @@ Since all K3 operations are O(1) on Trit hardware:
 | Resolution | O(n) | n literal pairs, each O(1) |
 | SAT (3-K3) | O(n³) | Cubic for 3-literal clauses |
 
-This satisfies CLARA's polynomial-time tractability requirement.
+This satisfies the polynomial-time tractability requirement.
 
 ### 4.4 Proof Trace Generation
 
@@ -271,7 +271,7 @@ bench k3_implies_latency  // Target: < 20 cycles
 
 3. **t27 Specification (2026).** `specs/base/types.t27`, `specs/base/ops.t27`, `specs/ar/ternary_logic.t27`
 
-4. **DARPA CLARA Solicitation (2025).** PA-25-07-02, Section: "Polynomial-Time Tractability"
+4. **Bounded-rationality literature** (restraint / tractability sections)
 
 ---
 

@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [3]str = ["specs/", "specs/ar/*.t27", "docs/NUMERIC-*.md"];
 pub const ENTRY_INVARIANT : str = "All specs have TDD (test/invariant/bench)";
 pub const EXIT_INVARIANT : str = "Standards are consistent, naming rules followed";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA1: AR Spec Standards - defines and enforces AR spec conventions";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Spec Standards - defines and enforces AR spec conventions";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [1]str = ["t27/measure-corpus"];
@@ -57,7 +57,7 @@ test agent_s_constants {
   assert REGISTER == "R18";
   assert LAYER == "Physical";
   assert ENABLED == true;
-  assert CLARA_ROLE == "TA1: AR Spec Standards - defines and enforces AR spec conventions";
+  assert AR_ROLE == "AR Spec Standards - defines and enforces AR spec conventions";
   assert KEY_FILES[0] == "specs/";
   assert KEY_FILES[1] == "specs/ar/*.t27";
   assert KEY_FILES[2] == "docs/NUMERIC-*.md";

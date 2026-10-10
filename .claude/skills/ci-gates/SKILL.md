@@ -53,9 +53,9 @@ a claim that isn't true.
 
 Replacing one `echo` with *does every tracked JSON parse* — the weakest question worth
 asking, chosen because it carries no theory that could itself be wrong — immediately found
-`clara-bridge/audit-trail/experience-schema.json` with a literal `...` on line 40, which
-`clara-bridge/tests/run_tests.py:152` loads with `json.load()`. **3 of its 11 tests were
-failing** and no workflow ran that suite at all.
+a vendored audit-trail schema with a literal `...` on line 40, which its own test
+runner loaded with `json.load()` (both files have since been deleted). **3 of that
+suite's 11 tests were failing** and no workflow ran it at all.
 
 ## 2. A gate is green until proven otherwise — check its SCOPE separately from its result
 

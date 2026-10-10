@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [2]str = ["src/tri/pipeline/", "specs/ar/composition.t27"];
 pub const ENTRY_INVARIANT : str = "All phases (1-6) are defined, phase transitions valid";
 pub const EXIT_INVARIANT : str = "Orchestration completes, no stuck phases";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA2: AR Composition Engine - composes ML and AR components, manages interactions";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Composition Engine - composes ML and AR components, manages interactions";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [2]str = ["t27/phi-loop", "t27/tri"];

@@ -9,7 +9,7 @@ pub fn main() -> i32 {
     const branch5: []const u8 = "feat/ring-056-schema-validation-ci";
 
     // Stale PRs (older PRs that may need attention first)
-    const stale1: []const u8 = "feat/ring-039-clara-prep-plan";
+    const stale1: []const u8 = "feat/ring-039-ar-prep-plan";
     const stale2: []const u8 = "feat/ring-035-technology-tree";
     const stale3: []const u8 = "feat/ring-041-gf16-arxiv-draft";
     const stale4: []const u8 = "ring/037-soul-parser-enforcement";
@@ -99,7 +99,7 @@ test branch_arrays_structure {
     const phase4_branch4: []const u8 = "feat/ring-055-experience-schema";
     const phase4_branch5: []const u8 = "feat/ring-056-schema-validation-ci";
     
-    const stale_branch1: []const u8 = "feat/ring-039-clara-prep-plan";
+    const stale_branch1: []const u8 = "feat/ring-039-ar-prep-plan";
     const stale_branch2: []const u8 = "feat/ring-035-technology-tree";
     const stale_branch3: []const u8 = "feat/ring-041-gf16-arxiv-draft";
     const stale_branch4: []const u8 = "ring/037-soul-parser-enforcement";

@@ -9,7 +9,7 @@
 ; module imports nothing, so its dicts are mutable where the JavaScript artifact is frozen. It
 ; ends with three lists: __STRUCT_ORDER__, __DECL_ORDER__, and __NOT_EMITTED__, which holds one
 ; record for each declaration the spec has and the module does not bind.
-; This file replaces a stub that sketched Python classes and functions for a CLARA deliverable
+; This file replaces a stub that sketched Python classes and functions for an earlier deliverable
 ; and deferred the implementation as P1. The backend that landed took the data-only contract
 ; gen-js settled on instead, so the stub described a module nobody prints, and its tests asserted
 ; output this backend is built never to emit.

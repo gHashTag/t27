@@ -83,7 +83,7 @@ These invariants implement **`docs/T27-CONSTITUTION.md`** (Articles **EPISTEMIC-
 | Task ID | Deliverable |
 |---------|-------------|
 | TASK-1.1 | `docs/RESEARCH_CLAIMS.md` — table: claim, status (`algebraically_exact` / `empirically_verified` / `approximation_within_uncertainty` / `falsified_as_exact` / `conjectural` / `untested`), falsification criterion, artifact pointer |
-| TASK-1.2 | Split `specs/` into **`specs/core/`** (language, compiler, conformance-oriented) vs **`specs/research/`** (GoldenFloat narrative, sacred physics overlays, exploratory CLARA chains) with a **disclaimer** on the research branch |
+| TASK-1.2 | Split `specs/` into **`specs/core/`** (language, compiler, conformance-oriented) vs **`specs/research/`** (GoldenFloat narrative, sacred physics overlays, exploratory AR chains) with a **disclaimer** on the research branch |
 | TASK-1.3 | `README.md` — claims → evidence → artifact → reproduction (per strong claim) |
 | TASK-1.4 | `docs/WHAT_REMAINS_SPECULATIVE.md`, `docs/WHY_THIS_IS_NOT_NUMEROLOGY.md` |
 | TASK-1.5 | `docs/PHYSICS_REVIEW_PROTOCOL.md` — when external physics review is required vs appendix-only |

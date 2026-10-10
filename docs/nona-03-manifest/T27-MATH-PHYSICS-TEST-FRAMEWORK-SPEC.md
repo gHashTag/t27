@@ -20,7 +20,7 @@ t27's strength is **evidence-grade** practice inside a **ring** architecture. Th
 
 - **Math:** GoldenFloat (GF4–GF32), φ-ratio arithmetic, algebraic laws.
 - **Physics:** sacred physics, CODATA references, dimensional consistency.
-- **Brain / CLARA:** metamorphic consistency, recovery, conflict handling (later sprints).
+- **Brain / AR:** metamorphic consistency, recovery, conflict handling (later sprints).
 
 The framework is **authored in `.t27`**, **exercised by the official toolchain** (`tri` / `t27c`), and produces **reproducible artifacts** suitable for publications—not verbal claims alone.
 
@@ -39,7 +39,7 @@ Central rule: **oracle richness scales with ring maturity.**
 | **4** — GF4–GF8 | Exhaustive + formal slice | GF4: full small Cartesian products; optional Kani |
 | **5** — GF12–GF32 | PBT + reference | Differential vs mpmath / interval reference |
 | **6** — sacred physics | CODATA + MR | Typed constants + dimensional metamorphic relations + **claim_tier** |
-| **7+** — brain / CLARA | Metamorphic | Rephrase consistency, recovery, deterministic conflict resolution |
+| **7+** — brain / AR | Metamorphic | Rephrase consistency, recovery, deterministic conflict resolution |
 
 **t27 response to oracle gap:** **Double oracle** for novel math — **metamorphic relations** + **reference differential** (e.g. mpmath), per **`GOLDEN-CHAIN-TESTING-ATLAS.md`**.
 

@@ -4,16 +4,16 @@
 **Repository:** [gHashTag/t27](https://github.com/gHashTag/t27).  
 **Date:** 2026-04-06  
 **Companion:** [`docs/COMPETITIVE_LANDSCAPE_SCIENTIFIC.md`](COMPETITIVE_LANDSCAPE_SCIENTIFIC.md) (taxonomy / desk review).  
-**Strategy (executive summary, Ring 999 epochs, scorecard heuristic, CLARA/license reminders):** [`docs/COMPETITIVE_STRATEGY_RING999.md`](COMPETITIVE_STRATEGY_RING999.md).  
-**Claims discipline:** Strong product statements must align with [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) and [`docs/T27-CONSTITUTION.md`](T27-CONSTITUTION.md). Where this memo uses **design intent** language (e.g. CLARA-oriented bounds), it is **not** a claim of government certification.
+**Strategy (executive summary, Ring 999 epochs, scorecard heuristic, license reminders):** [`docs/COMPETITIVE_STRATEGY_RING999.md`](COMPETITIVE_STRATEGY_RING999.md).  
+**Claims discipline:** Strong product statements must align with [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md) and [`docs/T27-CONSTITUTION.md`](T27-CONSTITUTION.md). Where this memo uses **design intent** language (e.g. assurance-oriented bounds), it is **not** a claim of certification.
 
 ---
 
 ## Abstract
 
-We develop a **structured** competitive and foundational narrative for **t27**: a **spec-first** toolchain that compiles **`.t27`** specifications to **Zig**, **C**, and **Verilog**. **§2** reviews **radix / coding-efficiency** arguments (incl. **\(E(b)=\ln b/b\)** distance to \(b=e\) vs **TechRxiv** survey pointer), **state growth** \((3/2)^N\), and **digit-cost** caveats (incl. ternary arithmetic literature pointers). **§3** proves the **Trinity identity**, defines **GoldenFloat** \(\delta_\varphi\), contrasts **IEEE / posit / takum**, and states the **TWN** quantization baseline. **§4** links **Kleene K3** to trits and summarizes **AR** specs with **CLARA alignment** language (not certification). **§5–6** expand the **competitor audit** and a **capability matrix** with safe labels. **§7** states **bottlenecks** (quantization vs native spec domain, ABV vs parser-enforced TDD, seals, self-host honesty). **§8** lists **positioning advantages** under explicit guardrails. **Non-English** drafts of this memo must **not** be committed to the repository ([`docs/T27-CONSTITUTION.md`](T27-CONSTITUTION.md) Article LANG-EN).
+We develop a **structured** competitive and foundational narrative for **t27**: a **spec-first** toolchain that compiles **`.t27`** specifications to **Zig**, **C**, and **Verilog**. **§2** reviews **radix / coding-efficiency** arguments (incl. **\(E(b)=\ln b/b\)** distance to \(b=e\) vs **TechRxiv** survey pointer), **state growth** \((3/2)^N\), and **digit-cost** caveats (incl. ternary arithmetic literature pointers). **§3** proves the **Trinity identity**, defines **GoldenFloat** \(\delta_\varphi\), contrasts **IEEE / posit / takum**, and states the **TWN** quantization baseline. **§4** links **Kleene K3** to trits and summarizes the **AR** specs. **§5–6** expand the **competitor audit** and a **capability matrix** with safe labels. **§7** states **bottlenecks** (quantization vs native spec domain, ABV vs parser-enforced TDD, seals, self-host honesty). **§8** lists **positioning advantages** under explicit guardrails. **Non-English** drafts of this memo must **not** be committed to the repository ([`docs/T27-CONSTITUTION.md`](T27-CONSTITUTION.md) Article LANG-EN).
 
-**Keywords:** balanced ternary; radix economy; golden ratio; floating-point formats; Kleene logic; neuro-symbolic AI; hardware DSL; DARPA CLARA; research software.
+**Keywords:** balanced ternary; radix economy; golden ratio; floating-point formats; Kleene logic; neuro-symbolic AI; hardware DSL; research software.
 
 ---
 
@@ -22,7 +22,7 @@ We develop a **structured** competitive and foundational narrative for **t27**: 
 ### 1.1 What t27 is (and is not)
 
 - **Is:** A **spec-first** language and compiler story where **semantics and tests live in `.t27`**, with **generated** backends and **governance** (seals, conformance, `FROZEN_HASH`) described in-repo.  
-- **Is not:** A drop-in substitute for **OpenCL**/CUDA kernel ecosystems, nor a certified **CLARA** deliverable by mere repository structure.
+- **Is not:** A drop-in substitute for **OpenCL**/CUDA kernel ecosystems, nor a certified assurance deliverable by mere repository structure.
 
 ### 1.2 Engineering snapshot (badges)
 
@@ -179,7 +179,7 @@ Constants such as \(\text{PHI}=\varphi\), \(\varphi^{-3}\) (used in some **physi
 
 ---
 
-## 4. Kleene K3, trits, AR specs, and CLARA *alignment*
+## 4. Kleene K3, trits, and AR specs
 
 ### 4.1 Strong Kleene logic on \(\{-1,0,+1\}\)
 
@@ -203,28 +203,14 @@ Answer Set Programming with **negation-as-failure** and **well-founded semantics
 
 [`specs/ar/proof_trace.t27`](../specs/ar/proof_trace.t27) defines:
 
-- `MAX_STEPS : u8 = 10` (commented in-spec as a **CLARA-style** bound).  
+- `MAX_STEPS : u8 = 10` (a hard bound set in-spec).  
 - Per-step **GF16** confidence and multiplicative composition along a trace.
 
-**Important:** This is an **engineering choice** to support **bounded explainability** narratives. DARPA program text publicly stresses **verifiability** and **explainability** for composed ML+AR systems ([CLARA](https://www.darpa.mil/research/programs/clara)); that **does not** automatically imply a **numeric “10 steps”** mandate in any specific solicitation line—always cite the **BAA** you answer to.
+**Important:** This is an **engineering choice** to support **bounded explainability** narratives, not a claim certified by anyone.
 
-### 4.4 DARPA CLARA (public program framing)
+### 4.4 Thematic mapping (not a compliance matrix)
 
-DARPA’s **CLARA** program (Compositional Learning-And-Reasoning for AI) publicly emphasizes **compositional** ML+AR methods and **assurance** narratives coupling **verifiability** and **explainability** ([DARPA CLARA](https://www.darpa.mil/research/programs/clara)). **t27** may be positioned as **architecturally aligned** with those themes via **AR specs + hardware codegen + open governance**.
-
-**Amendment 1 (March 2026)** to solicitation **DARPA-PA-25-07-02** adjusts schedule (among other clarifications). Per the published PDF ([darpa-clara-amendment-1.pdf](https://www.darpa.mil/sites/default/files/attachment/2026-03/darpa-clara-amendment-1.pdf)):
-
-- **Proposal due date:** **17 April 2026**  
-- **Target award date:** **16 June 2026**  
-- **Anticipated program start:** **22 June 2026**  
-
-Always re-read the **full active BAA + amendments** before submitting; dates can move again.
-
-**Strict wording for proposals:** use **“alignment / preparation”**, not **“compliance”**, unless a specific solicitation item is mapped with evidence and legal review.
-
-### 4.5 Thematic mapping (not a compliance matrix)
-
-The following table maps **repository artifacts** to **CLARA-style** *themes* commonly discussed in program materials:
+The following table maps **repository artifacts** to *assurance* themes:
 
 | Theme (informal) | t27 artifact | Evidence type |
 |------------------|--------------|---------------|
@@ -236,7 +222,7 @@ The following table maps **repository artifacts** to **CLARA-style** *themes* co
 | ASP with NAF | [`specs/ar/asp_solver.t27`](../specs/ar/asp_solver.t27) | Spec |
 | Composition patterns | [`specs/ar/composition.t27`](../specs/ar/composition.t27) | Spec |
 
-**License note:** The project advertises **MIT** on the main **README** badge/text; a **root `LICENSE` file** may still be absent or differ in subtrees—verify before release. **CLARA-class** solicitations often require **Apache-2.0** (or compatible) outbound code terms; migrating **MIT → Apache-2.0** (or dual-license strategy) is a **legal** decision with maintainer counsel, not a documentation-only edit.
+**License note:** The project advertises **MIT** on the main **README** badge/text; a **root `LICENSE` file** may still be absent or differ in subtrees—verify before release. Public solicitations often require **Apache-2.0** (or compatible) outbound code terms; migrating **MIT → Apache-2.0** (or dual-license strategy) is a **legal** decision with maintainer counsel, not a documentation-only edit.
 
 ---
 
@@ -266,22 +252,22 @@ Full class-by-class narrative: [`docs/COMPETITIVE_LANDSCAPE_SCIENTIFIC.md`](COMP
 
 ## 6. Qualitative capability matrix (safe labels)
 
-Legend: **✓** = present as **design/artifact** in-repo; **~** = partial / roadmap / external-only; **✗** = not a focus. **CLARA** column: **~align** = thematic fit to public program goals, **not** certification.
+Legend: **✓** = present as **design/artifact** in-repo; **~** = partial / roadmap / external-only; **✗** = not a focus.
 
-| System | Ternary / K3 | GoldenFloat / φ-ratio | Spec SSOT + seals | FPGA / RTL | AR specs (repo) | CLARA (~align) | 27-agent pattern |
-|--------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| **t27** | ✓ | ✓ (**numeric proof burden open**) | ✓ | ✓ | ✓ (7 in `specs/ar/`) | **~align** | ✓ |
-| Chisel | ✗ | ✗ | ~ | ✓ (via FIRRTL) | ✗ | ✗ | ✗ |
-| CIRCT / MLIR | ✗ | ✗ | ~ | ✓ | ✗ | ✗ | ✗ |
-| Amaranth | ✗ | ✗ | ~ | ✓ | ✗ | ✗ | ✗ |
-| SpinalHDL | ✗ | ✗ | ~ | ✓ | ✗ | ✗ | ✗ |
-| Scallop (PLDI’23) | ✗ | ✗ | ✗ | ✗ | ✓ (SW) | ~ | ✗ |
-| DeepProbLog | ✗ | ✗ | ✗ | ✗ | ✓ (SW) | ✗ | ✗ |
-| CogSys / NSFlow (reports) | ~ | ✗ | ✗ | ~ | ~ | ✗ | ✗ |
-| TerEffic-class (papers) | ~quant | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| Vendor ternary silicon (press) | ✓ HW | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| TVM | ✗ | ✗ | ✗ | ~VTA | ✗ | ✗ | ✗ |
-| IEEE / posit / takum | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| System | Ternary / K3 | GoldenFloat / φ-ratio | Spec SSOT + seals | FPGA / RTL | AR specs (repo) | 27-agent pattern |
+|--------|:--:|:--:|:--:|:--:|:--:|:--:|
+| **t27** | ✓ | ✓ (**numeric proof burden open**) | ✓ | ✓ | ✓ (7 in `specs/ar/`) | ✓ |
+| Chisel | ✗ | ✗ | ~ | ✓ (via FIRRTL) | ✗ | ✗ |
+| CIRCT / MLIR | ✗ | ✗ | ~ | ✓ | ✗ | ✗ |
+| Amaranth | ✗ | ✗ | ~ | ✓ | ✗ | ✗ |
+| SpinalHDL | ✗ | ✗ | ~ | ✓ | ✗ | ✗ |
+| Scallop (PLDI’23) | ✗ | ✗ | ✗ | ✗ | ✓ (SW) | ✗ |
+| DeepProbLog | ✗ | ✗ | ✗ | ✗ | ✓ (SW) | ✗ |
+| CogSys / NSFlow (reports) | ~ | ✗ | ✗ | ~ | ~ | ✗ |
+| TerEffic-class (papers) | ~quant | ✗ | ✗ | ✓ | ✗ | ✗ |
+| Vendor ternary silicon (press) | ✓ HW | ✗ | ✗ | ✗ | ✗ | ✗ |
+| TVM | ✗ | ✗ | ✗ | ~VTA | ✗ | ✗ |
+| IEEE / posit / takum | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
 ---
 
@@ -323,9 +309,9 @@ Bootstrap narrative includes **fixed-point** milestones; **bit-exact self-host e
 
 Until **differential** evaluations vs **IEEE / posit / takum** are published and pinned (Zenodo + registry rows), marketing must **not** claim superiority—only **design distinctiveness**.
 
-### 7.6 CLARA solicitations and license
+### 7.6 Public solicitations and license
 
-Program **goals** and **IP** terms change by **BAA** and **amendments**; use the **active** solicitation text for deadlines, TA1/TA2 scope, and **Apache-2.0** obligations. **Amendment 1** (link in §4.4) extends key dates into mid-2026—use it for **HARDEN** scheduling, not outdated blog posts. **MIT → Apache-2.0** is a **legal** migration, not a trivial find-replace in proposals.
+Solicitation **goals** and **IP** terms change by **BAA** and **amendments**; use the **active** solicitation text for deadlines and **Apache-2.0** obligations. **MIT → Apache-2.0** is a **legal** migration, not a trivial find-replace.
 
 ---
 
@@ -351,7 +337,6 @@ The **27 agents ↔ register alphabet** pattern ([`docs/AGENTS_ALPHABET.md`](AGE
 1. **Ternary** motivation can be presented with **classical** radix-efficiency mathematics; **silicon optimality** requires **PDK-specific** evidence.  
 2. **Trinity identity** is a **clean exact** anchor; **GoldenFloat** merit vs **IEEE / posit / takum** is **still under validation**.  
 3. **K3 / trit** packaging supports **NeSy + HW** positioning; **theorems** for the full AR stack are **open**.  
-4. **CLARA** = **program alignment** + **BAA-specific** evidence, not repository self-certification.
 
 ---
 
@@ -364,12 +349,10 @@ The **27 agents ↔ register alphabet** pattern ([`docs/AGENTS_ALPHABET.md`](AGE
 5. S. C. Kleene, *Introduction to Metamathematics* (three-valued logics).  
 6. F. Li et al., **Ternary Weight Networks** (2016) — post-hoc ternary quantization baseline.  
 7. B. Parhami — ternary / multi-valued arithmetic publications ([UCSB list](https://web.ece.ucsb.edu/~parhami/publications.htm)).  
-8. DARPA CLARA: https://www.darpa.mil/research/programs/clara  
-9. DARPA CLARA **Amendment 1** (schedule / clarifications): https://www.darpa.mil/sites/default/files/attachment/2026-03/darpa-clara-amendment-1.pdf  
-10. Takum / ARITH 2025 proceedings entry (sparse-solver style comparison cited in competitive planning): https://www.arith2025.org/proceedings/215900a061.pdf  
-11. Scallop (PLDI 2023): https://dl.acm.org/doi/10.1145/3591280  
-12. Trinity / t27 — [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md), [`docs/NUMERIC-STANDARD-001.md`](NUMERIC-STANDARD-001.md).  
-13. Radix economy / near-\(e\) review (TechRxiv): https://www.techrxiv.org/doi/full/10.36227/techrxiv.177039671.14012313/v1  
+8. Takum / ARITH 2025 proceedings entry (sparse-solver style comparison cited in competitive planning): https://www.arith2025.org/proceedings/215900a061.pdf  
+9. Scallop (PLDI 2023): https://dl.acm.org/doi/10.1145/3591280  
+10. Trinity / t27 — [`docs/RESEARCH_CLAIMS.md`](RESEARCH_CLAIMS.md), [`docs/NUMERIC-STANDARD-001.md`](NUMERIC-STANDARD-001.md).  
+11. Radix economy / near-\(e\) review (TechRxiv): https://www.techrxiv.org/doi/full/10.36227/techrxiv.177039671.14012313/v1  
 14. CogSys (IBM, HPCA 2025 preprint): https://arxiv.org/html/2503.01162v1  
 15. NSFlow (DAC 2025 preprint): https://arxiv.org/abs/2504.19323
 

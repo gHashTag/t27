@@ -150,8 +150,8 @@ submission live in the chip repo -- not here.
 
 ### 6.3 `tt-trinity-euler` -- 8x2 e-engine
 
-Mid-tile. Safety / control. Bounded reasoning. Pairs with `clara-bridge/`
-in `t27`. 22FDX is a plausible-future PDK target; see
+Mid-tile. Safety / control. Bounded reasoning. Pairs with the AR assurance
+specs in `t27`. 22FDX is a plausible-future PDK target; see
 `docs/22FDX_TOPS_W_PROJECTION.md` for the projection methodology.
 
 ### 6.4 `tt-trinity-gamma` -- 8x4 32-PE ternary mesh
@@ -205,7 +205,6 @@ Zenodo bundles plan: `docs/ZENODO_BUNDLES.md` (this package).
 - `BENCHMARKS.md` -- restrained benchmark posture
 - `COMPETITORS.md` -- honest positioning
 - `FORMAT_REGISTRY.md` -- numeric SSOT mirror
-- `CLARA_TRACEABILITY.md` -- assurance bridge to DARPA CLARA
 - `docs/T27-CONSTITUTION.md` -- constitutional stack (L1..L7)
 - `docs/TRI_NET_API.md` -- API contract for external integrators
 - `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md` -- numeric comparison protocol

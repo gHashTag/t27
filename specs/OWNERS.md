@@ -12,7 +12,7 @@
 | `base/`, `compiler/` | **C-Compiler** | Core language |
 | `numeric/` | **N-Numeric** | GoldenFloat family |
 | `math/`, `physics/` | **P-Physics** | Constants and sacred physics overlays |
-| `ar/` | **R-Reasoning** | CLARA / proof / ASP |
+| `ar/` | **R-Reasoning** | argumentation / proof / ASP |
 | `queen/` | **T-Queen** | Lotus orchestration spec; `queen/dispatch.t27` (`KIND = "queen-dispatch"`): the canonical task lifecycle -- choose, start, end, review, retry, release -- taken from the trios supervisor (gHashTag/BrowserOS `trios/agent-server`) and held to its TypeScript, its `queend` binary, a PostgreSQL run of its writers and a live snapshot by `tools/trinity_queen_dispatch.py`, with the other cycles named as adapters; `queen/task_analysis.t27` states a priority order no runtime applies (S09); `queen/views.t27` (`KIND = "queen-views"`): the contract of the project views of t27.ai -- identity, the five evidence axes, address resolution, snapshot and live presentation, counting once, what may be called done -- held to the site's TypeScript, its public files, GitHub, its gates, a headless browser and the native package by `tools/trinity_queen_views.py` (S10) |
 | `brain/` | **T-Queen** + **P-Physics** + **N-Numeric** | Strand VI — unified brain specs; see `specs/brain/OWNERS.md` |
 | `fpga/` | **B-Builder** / hardware | Boards, constraints, testbenches |

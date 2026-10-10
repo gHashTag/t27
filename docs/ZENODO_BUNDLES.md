@@ -35,7 +35,7 @@ line: "the toolchain is real", "the silicon is real (Tiny Tapeout shape)",
 **Inclusion checklist:**
 
 - [ ] `README.md`, `STATUS.md`, `LINEUP.md`, `FORMAT_REGISTRY.md`,
-  `COMPETITORS.md`, `BENCHMARKS.md`, `CLARA_TRACEABILITY.md`
+  `COMPETITORS.md`, `BENCHMARKS.md`
 - [ ] `docs/T27-CONSTITUTION.md`, `AGENTS.md`, `CLAUDE.md`, `SOUL.md`
 - [ ] `docs/TRI_NET_API.md`, `docs/TRI_NET_WHITEPAPER.md`,
   `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md`,
@@ -130,7 +130,6 @@ language: eng
   Avs96Safe.v, RBB / FBBActive2 / CapBoost)
 - [ ] `proofs/` (work-in-progress lemma drawer; clearly labelled)
 - [ ] `conformance/` (all vectors; not just numeric)
-- [ ] `clara-bridge/` (assurance workflow)
 - [ ] `docs/T27_KERNEL_FORMAL_COQ.md`
 - [ ] `docs/PHYSICS_REVIEW_PROTOCOL.md`
 - [ ] `docs/NUMERICS_VALIDATION.md`

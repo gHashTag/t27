@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [3]str = ["SOUL.md", "architecture/ADR-*.md", "architecture/CANON_DE_ZIGFICATION.md"];
 pub const ENTRY_INVARIANT : str = "SOUL.md exists, is ASCII-only, and defines L1-L7 laws";
 pub const EXIT_INVARIANT : str = "All ADRs reviewed, consistent with constitution, no conflicts";
-; CLARA role from the alphabet (TA1/TA2 work areas).
-pub const CLARA_ROLE : str = "TA1: AR Architecture Design - designs AR module architecture, ensures composability";
+; AR role from the alphabet.
+pub const AR_ROLE : str = "AR Architecture Design - designs AR module architecture, ensures composability";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [0]str = [];

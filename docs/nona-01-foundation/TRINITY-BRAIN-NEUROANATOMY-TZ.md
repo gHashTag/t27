@@ -47,7 +47,7 @@ Brain semantics are authored in **T27** — the same spec language as `specs/num
 ## 2. Goals (unified architecture)
 
 1. **Single coherent brain model** — one shared state and messaging model, not two silos.
-2. **Brain as core router** — TRI-27 ISA, VSA, GF16, FPGA, CLARA, federation attach as **periphery** with explicit APIs.
+2. **Brain as core router** — TRI-27 ISA, VSA, GF16, FPGA, AR, federation attach as **periphery** with explicit APIs.
 3. **φ-structured topology** — connectivity and phase timing use **golden-ratio constraints** as **testable engineering invariants**, not decoration.
 4. **Neuroanatomical grounding** — each region maps to a biological analogue with citable references (see §6).
 

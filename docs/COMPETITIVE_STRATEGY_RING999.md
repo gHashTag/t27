@@ -8,11 +8,10 @@
 
 ## Executive summary (planning; Article COMPETITION-READY)
 
-**t27** combines (1) **spec-first** compilation from **`.t27`** to **Zig**, **C**, and **Verilog**, (2) **K3 / trit**-flavored semantics and **GoldenFloat** (φ-structured numerics — see `[docs/RESEARCH_CLAIMS.md](RESEARCH_CLAIMS.md)`), and (3) seven **AR** specs under [`specs/ar/`](../specs/ar/) whose **themes** overlap public **DARPA CLARA** program materials. That **co-location** is a real architectural story; it does **not**, by itself, prove **ecosystem dominance**, **grant awards**, or **“compliance”** with any solicitation.
+**t27** combines (1) **spec-first** compilation from **`.t27`** to **Zig**, **C**, and **Verilog**, (2) **K3 / trit**-flavored semantics and **GoldenFloat** (φ-structured numerics — see `[docs/RESEARCH_CLAIMS.md](RESEARCH_CLAIMS.md)`), and (3) seven **AR** specs under [`specs/ar/`](../specs/ar/) whose themes are the classical **assurance** themes (verifiable, explainable reasoning). That **co-location** is a real architectural story; it does **not**, by itself, prove **ecosystem dominance** or **“compliance”** with any external program.
 
-**CLARA (public):** Program overview [DARPA CLARA](https://www.darpa.mil/research/programs/clara); solicitation **DARPA-PA-25-07-02** [opportunity page](https://www.darpa.mil/work-with-us/opportunities/darpa-pa-25-07-02) (public framing **Feb 2026**). **Schedule:** [Amendment 1 (PDF)](https://www.darpa.mil/sites/default/files/attachment/2026-03/darpa-clara-amendment-1.pdf) — proposal due **2026-04-17**, target award **2026-06-16**, anticipated program start **2026-06-22**. **Funding caps, period of performance, Technical Areas, and outbound open-source license terms** are binding only in the **full active BAA + amendments** — not in this memo.
 
-**Highest-leverage gaps (in-repo narrative):** publish **GoldenFloat vs takum / posit / IEEE** results under a fixed protocol (§0, Ring **#129**); complete **CLARA preparation** docs/checklists (Ring **#134**); resolve **MIT vs Apache-2.0** (or dual strategy) with **legal** review before any CLARA-class release plan.
+**Highest-leverage gaps (in-repo narrative):** publish **GoldenFloat vs takum / posit / IEEE** results under a fixed protocol (§0, Ring **#129**); resolve **MIT vs Apache-2.0** (or dual strategy) with **legal** review before any solicitation-class release plan.
 
 **Repository metrics** (badges / snapshots): see `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md)` §1.2 and `[docs/STATE_OF_THE_PROJECT.md](STATE_OF_THE_PROJECT.md)`.
 
@@ -26,8 +25,7 @@ Use these for **scheduling** and **benchmark planning**; do **not** treat blogs 
 | Finding                                                                            | Primary reference                                                                                                                                                                               | t27 action                                                                                                                                                                 |
 | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **GoldenFloat** lacks **independent** peer bundles vs **takum** on published tasks | [ARITH 2025 proc. 215900a061.pdf](https://www.arith2025.org/proceedings/215900a061.pdf) (takum / bfloat16 sparse-solver style narrative in venue proceedings)                                   | Close gap via **documented** NMSE / solver protocol (**Ring #129**, `[docs/RESEARCH_CLAIMS.md](RESEARCH_CLAIMS.md)` **C-gf-***)                                            |
-| **CLARA** schedule shifted (more time before **program start**)                    | [DARPA Amendment 1 PDF](https://www.darpa.mil/sites/default/files/attachment/2026-03/darpa-clara-amendment-1.pdf): proposals **2026-04-17**, awards target **2026-06-16**, start **2026-06-22** | Align **EPOCH-01-HARDEN** and **#134** prep; re-check BAA before submit                                                                                                    |
-| **Apache-2.0** often required for CLARA-class outbound code                        | Active **BAA** + amendment (not third-party summaries)                                                                                                                                          | Legal review; README currently **MIT** — see `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md)` §4.4–4.5              |
+| **Apache-2.0** often required for solicitation-class outbound code                        | Active **BAA** + amendment (not third-party summaries)                                                                                                                                          | Legal review; README currently **MIT** — see `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md)` §4.4–4.5              |
 | **Scallop** = strong **AR** NeSy **without** t27-style **HW codegen** spine        | [ACM PLDI 2023](https://dl.acm.org/doi/10.1145/3591280)                                                                                                                                         | Position t27 on **spec → RTL** + AR **in one corpus**; avoid unmeasured “better than Scallop”                                                                              |
 | **MAS adoption %** from vendor blogs                                               | *Not* used here                                                                                                                                                                                 | t27 differentiator is **normative**: **Article AGENT-DOMAIN** + **27-register** roster (`[docs/AGENTS_ALPHABET.md](AGENTS_ALPHABET.md)`), not unverified market statistics |
 
@@ -43,7 +41,7 @@ Do **not** fork the long-form math into a second SSOT. Use:
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Radix / E(b), radix economy, (3/2)^N, caveats                       | `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md)` §2 |
 | Trinity identity, GoldenFloat \delta_\varphi, IEEE/posit/takum, TWN | same, §3                                                                                                   |
-| K3, AR specs, CLARA **alignment** (not certification)               | same, §4                                                                                                   |
+| K3, AR specs, assurance framing (not certification)                  | same, §4                                                                                                   |
 | Competitor taxonomy                                                 | `[docs/COMPETITIVE_LANDSCAPE_SCIENTIFIC.md](COMPETITIVE_LANDSCAPE_SCIENTIFIC.md)`                          |
 | Honest product status                                               | `[docs/STATE_OF_THE_PROJECT.md](STATE_OF_THE_PROJECT.md)`                                                  |
 | Claim IDs / evidence                                                | `[docs/RESEARCH_CLAIMS.md](RESEARCH_CLAIMS.md)`                                                            |
@@ -78,7 +76,6 @@ Do **not** fork the long-form math into a second SSOT. Use:
 
 Before grant text, DARPA-style proposals, or “we beat X” outreach, verify **all** items in **Article COMPETITION-READY** in `[docs/T27-CONSTITUTION.md](T27-CONSTITUTION.md)` (invariants, claims registry, repro/CI, Issue Gate, **TASK** protocol, honest competitor gaps).
 
-**CLARA:** thematic **alignment** with public program goals ≠ **certification**. Use the **active BAA + amendments** (e.g. **Amendment 1**, March 2026 — link in `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md](COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDATIONS.md)` §4.4) for deadlines, TA scope, and **license** terms.
 
 ---
 
@@ -91,8 +88,7 @@ Aligned with open ring issues and `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDAT
 | --------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Ship **conformance / GoldenFloat** artifacts on tagged releases | TerEffic-class, numerics peers | Tie to **RESEARCH_CLAIMS** + Zenodo per `[docs/PUBLICATION_PIPELINE.md](PUBLICATION_PIPELINE.md)`                      |
 | **GF16 vs bfloat16/float16** NMSE (documented protocol)         | Takum, posit, IEEE             | Ring **#129** track; no superiority slogans until tables exist                                                         |
-| `**docs/CLARA-*`** + checklist completion                       | CLARA-style programs           | Ring **#134**; license/legal reviewed separately                                                                       |
-| **License** compatible with target solicitation                 | Regulators / DARPA             | **MIT** is common in tree; **Apache-2.0** may be required by a specific BAA — **legal** decision + issue, not drive-by |
+| **License** chosen deliberately                                  | Regulators / partners          | **MIT** is common in tree; **Apache-2.0** may be required by a specific BAA — **legal** decision + issue, not drive-by |
 | Short **phi-distance** note or preprint                         | Academia                       | Must match `**docs/RESEARCH_CLAIMS.md`** statuses                                                                      |
 
 
@@ -100,7 +96,7 @@ Aligned with open ring issues and `[docs/COMPETITIVE_ANALYSIS_SCIENTIFIC_FOUNDAT
 
 **Execution SSOT** remains **GitHub issues + milestone**, not this list. For **competitive** urgency, close **dependencies** roughly as:
 
-`#127` (**TASK.md** / protocol) → `#128` (**Issue Gate** CI) → `#131` / `#132` (seal coverage / SOUL enforcement) → `#130` (technology tree) → `#129` (GF16 / NMSE vs baselines) → `#134` (CLARA prep) → `#135`–`#139` / `#140` / `#142` as Queen schedules.
+`#127` (**TASK.md** / protocol) → `#128` (**Issue Gate** CI) → `#131` / `#132` (seal coverage / SOUL enforcement) → `#130` (technology tree) → `#129` (GF16 / NMSE vs baselines) → `#134` (AR prep) → `#135`–`#139` / `#140` / `#142` as Queen schedules.
 
 ### 5.2 Superseded “first iteration” blockers
 
@@ -142,7 +138,7 @@ Per **Article RING-LAW**, long ring spans are **planning vocabulary** until back
 | 3 NUMERIC            | 86–112                   | GoldenFloat benchmarks vs takum / posit / IEEE       |
 | 4 COMPILER           | 113–139                  | IR, tooling — Chisel / MLIR class maturity           |
 | 5 FPGA               | 140–166                  | spec → bitstream evidence                            |
-| 6 AR / CLARA         | 167–193                  | AR pipeline + solicitation-aligned packaging         |
+| 6 AR                 | 167–193                  | AR pipeline + assurance packaging                     |
 | 7 SELF-HOST          | 194–220                  | bootstrap / self-host depth                          |
 | 8 PUBLISH            | 221–247                  | papers, DOIs, peer review                            |
 | 9 SWARM              | 248–274                  | multi-agent autonomy protocols                       |
@@ -154,7 +150,7 @@ Per **Article RING-LAW**, long ring spans are **planning vocabulary** until back
 | 999 ΩΩΩ              | 999                      | horizon “competition-ready” seal vocabulary          |
 
 
-**Milestone examples (draft spirit):** first **documented** GoldenFloat vs takum-class table; CLARA **preparation** package ready; first **peer-reviewed** PL/compiler venue submission; **bitstream** on a stated FPGA part; **publication + Zenodo** alignment per `[docs/PUBLICATION_PIPELINE.md](PUBLICATION_PIPELINE.md)`.
+**Milestone examples (draft spirit):** first **documented** GoldenFloat vs takum-class table; AR assurance package ready; first **peer-reviewed** PL/compiler venue submission; **bitstream** on a stated FPGA part; **publication + Zenodo** alignment per `[docs/PUBLICATION_PIPELINE.md](PUBLICATION_PIPELINE.md)`.
 
 ---
 
@@ -165,7 +161,7 @@ The formula below is a **heuristic dashboard** for internal prioritization — *
 \[
 \text{COMPETITION\_SCORE} = \bigl(
 w_1 \cdot f(\text{publications}) +
-w_2 \cdot \mathbb{1}[\text{CLARA package ready}] +
+w_2 \cdot \mathbb{1}[\text{AR assurance package ready}] +
 w_3 \cdot \mathbb{1}[\text{GF benchmarks published}] +
 w_4 \cdot \mathbb{1}[\text{FPGA artifact verified}] +
 w_5 \cdot g(\text{agent autonomy}) +

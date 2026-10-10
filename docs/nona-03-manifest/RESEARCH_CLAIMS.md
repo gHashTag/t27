@@ -53,7 +53,7 @@ Use these for **build, CI, and SSOT** rows (section 1).
 | GoldenFloat GF16 is primary numeric format for new product work | `conjectural` (policy) | `docs/nona-02-organism/NUMERIC-STANDARD-001.md` | Specs under `specs/numeric/` | Tracked in `docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md`. |
 | Sacred / phi-linked physics constants as **exact** fundamental laws | `empirical` / `conjectural` | `specs/math/`, physics docs | Label each row in §2–3 | CODATA/NIST update falsifies “exact” wording. |
 | Self-hosting / fixed-point compiler story | `tested` (partial) | `docs/nona-01-foundation/SEED-RINGS.md`, `CANON.md` | `t27c suite` fixed-point phase | Full formal self-host proof not yet `proved` — `docs/STATE_OF_THE_PROJECT.md`. |
-| CLARA / AR pipeline soundness | `conjectural` | `specs/ar/`, conformance | AR vectors | Bounded proofs TBD. |
+| AR pipeline soundness | `conjectural` | `specs/ar/`, conformance | AR vectors | Bounded proofs TBD. |
 | Cross-backend bit-exact equivalence (Zig vs C vs Verilog) | `conjectural` | — | Ring 39 roadmap | Mismatch allowed today. |
 
 ---

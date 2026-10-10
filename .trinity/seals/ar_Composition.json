@@ -1,15 +1,23 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+b9cf73e",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6f163250f9f1a4e38072cec7a75d6540d02632b71bf1fb405f7e2f5f2b954dd4",
   "gen_hash_rust": "sha256:c0402405ffb95a6ef610458eb89f108a4616ea0365bb840654d59108f493d3ac",
   "gen_hash_verilog": "sha256:2ef760b68bf87ef33e05187e95494251dfdddd74b91dcf96bb6b5a51d78f7e1d",
   "gen_hash_zig": "sha256:dab1c0dc717bd06d2fe7fef5a3d6ca4df8c82877d48d306cae8922be151b9e9f",
   "module": "composition",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:01:10Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:0444c57bb6c469aacd5efeaa3e69bc8a3b074a8ad3732ac9d34af0122e67a6cf",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T10:34:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:01aabb44b6525c35f99a083726869494c9253c9e587a32b994d7a46946cd36b4",
   "spec_path": "specs/ar/composition.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-composition-3769901/spec.zig:58:13: error: use of undeclared identifier 'Trit'"
+    "blocked": "zig not on PATH"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "missing"
   }
 }

@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [2]str = ["t27/compiler/runtime/", "bootstrap/src/compiler.rs"];
 pub const ENTRY_INVARIANT : str = "Runtime is initialized, ABI is defined";
 pub const EXIT_INVARIANT : str = "No memory leaks, no resource exhaustion";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [0]str = [];
@@ -57,7 +57,7 @@ test agent_r_constants {
   assert REGISTER == "R17";
   assert LAYER == "Spiritual";
   assert ENABLED == true;
-  assert CLARA_ROLE == "";
+  assert AR_ROLE == "";
   assert KEY_FILES[0] == "t27/compiler/runtime/";
   assert KEY_FILES[1] == "bootstrap/src/compiler.rs";
 }

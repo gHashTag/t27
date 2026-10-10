@@ -175,7 +175,6 @@ The Verilog backend requires a dedicated fix cycle (estimated 1–2 waves). Unti
 | **rfi-irfos** | Jun 22 | Rust test harness | **NO** |
 | **manhvu/Balanced_Ternary** | Jun 17 | None | **NO** |
 | **ternfpga** | Jun 10 | cocotb/NumPy | **NO** |
-| **trinity-clara** | May 30 | Coq, 162 theorems (32 `Admitted`) | **NO** — K3 logic |
 | **CktFormalizer** | May 2026 | Lean 4, binary BitVec | **NO ternary support** |
 
 ### 4.4 Patents & Funding

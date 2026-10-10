@@ -31,8 +31,8 @@ pub const ALPHABET : str = "docs/agents/AGENTS_ALPHABET.md";
 pub const KEY_FILES : [0]str = [];
 pub const ENTRY_INVARIANT : str = "Security policy exists";
 pub const EXIT_INVARIANT : str = "AAIF compliance ready, no vulnerabilities";
-; The alphabet lists no CLARA role for this agent ("-").
-pub const CLARA_ROLE : str = "";
+; The alphabet lists no AR role for this agent ("-").
+pub const AR_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
 pub const SKILLS : [0]str = [];
@@ -58,6 +58,6 @@ test agent_ti_constants {
   assert REGISTER == "R26";
   assert LAYER == "Physical";
   assert ENABLED == false;
-  assert CLARA_ROLE == "";
+  assert AR_ROLE == "";
   assert TOOLS[0] == "gHashTag/trinity:tri/identity";
 }

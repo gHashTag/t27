@@ -16,7 +16,7 @@
 | [131](https://github.com/gHashTag/t27/issues/131) | 036 | Seal coverage CI |
 | [132](https://github.com/gHashTag/t27/issues/132) | 037 | SOUL.md parser enforcement |
 | [133](https://github.com/gHashTag/t27/issues/133) | 038 | Conformance vector schema v2 |
-| [134](https://github.com/gHashTag/t27/issues/134) | 039 | CLARA / DARPA checklist |
+| [134](https://github.com/gHashTag/t27/issues/134) | 039 | AR checklist |
 | [135](https://github.com/gHashTag/t27/issues/135) | 040 | `AGENTS_ALPHABET.md` — 27 agents |
 
 **Queen / agents:** pick work only with a **linked issue**; PRs must satisfy **Issue Gate** ([`docs/ISSUE-GATE-001.md`](../../../docs/ISSUE-GATE-001.md)) — see Ring 033 (#128).
