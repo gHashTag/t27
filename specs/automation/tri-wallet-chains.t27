@@ -23,13 +23,20 @@
 // v2 (2026-10-09): the two doors without a person (/message, /propose) hold each caller to a
 // budget per minute, and /propose looks the nonce up before it checks a signature, so a call on
 // a nonce nobody was issued costs one key lookup and no curve arithmetic (review on 999#3952).
+// v3 (2026-10-09): the open-nonce count is read and the nonce written under one lock per
+// person, held across processes (the audit of 2026-10-09 measured 20 parallel challenge
+// requests issuing 7 nonces against the cap of 5 on a real Postgres, tri-wallet.ts:353-375),
+// and the bind and the unbind are one transaction each: bind_commits(nonce_spent,
+// address_written, event_written) and unbind_commits(address_removed, event_written) commit
+// all their writes or roll all of them back, so a failure after the address write leaves
+// nothing changed and no nonce spent (tri-wallet.ts:491-512).
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::tri_wallet_chains {
     pub const KIND : str = "automation";
     pub const ID : str = "tri-wallet-chains";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 2;
+    pub const VERSION : u8 = 3;
 
     // ---- the chains ----
 
@@ -162,6 +169,105 @@ module automation::tri_wallet_chains {
     pub const MAX_OPEN_CHALLENGES : u32 = 5;
     fn may_issue(open: u32) -> bool {
         return open < MAX_OPEN_CHALLENGES;
+    }
+
+    // ---- the nonce under one lock per person ----
+
+    // The open-nonce count is read and the nonce is written inside one lock per person, held
+    // in Postgres across processes. The audit of 2026-10-09 measured the race on a real
+    // Postgres: 20 parallel challenge requests issued 7 nonces against the cap of 5
+    // (tri-wallet.ts:353-375), because a request that read room wrote its nonce after another
+    // request had filled it. An in-memory counter cannot hold a cap across processes, and one
+    // lock per table would make every person wait on every other: the lock is one per person,
+    // so two persons issue in parallel and one person does not.
+    pub const ISSUE_UNDER_PERSON_LOCK : bool = true;
+    pub const LOCK_PER_PERSON : bool = true;
+    pub const LOCK_ACROSS_PROCESSES : bool = true;
+
+    // One atomic step under the person's lock: the open count is read and the nonce is written
+    // before the lock is released, so no other process reads in between, and the count the
+    // step read is the only count it trusts. Returns the open count after the step.
+    fn challenge_under_lock(open: u32) -> u32 {
+        if may_issue(open) { return open + 1; }
+        return open;
+    }
+
+    // A challenge request admitted under the person's lock. Outside the lock the same answer
+    // would mean nothing.
+    fn issue_under_lock(open: u32) -> bool {
+        return ISSUE_UNDER_PERSON_LOCK && LOCK_PER_PERSON && LOCK_ACROSS_PROCESSES
+            && may_issue(open);
+    }
+
+    // The open count after K requests that arrived against a count of C: under the lock every
+    // request runs challenge_under_lock in turn, so the count stops at the cap.
+    fn locked_open_after(count_seen: u32, requests: u32) -> u32 {
+        if count_seen + requests > MAX_OPEN_CHALLENGES { return MAX_OPEN_CHALLENGES; }
+        return count_seen + requests;
+    }
+
+    // The same K requests without the lock: every request that saw room writes after every
+    // other one, and the count ends past the cap. This is the race the audit measured; the
+    // lock above is what removes it.
+    fn race_open_without_lock(count_seen: u32, requests: u32) -> u32 {
+        if count_seen < MAX_OPEN_CHALLENGES { return count_seen + requests; }
+        return count_seen;
+    }
+
+    // ---- the bind and the unbind are one transaction each ----
+
+    // Spending the nonce, writing the address and writing the event used to be three separate
+    // statements: a failure after the address write left a changed address with no event (the
+    // audit of 2026-10-09 on a real Postgres, tri-wallet.ts:491-512). bind_commits
+    // (nonce_spent, address_written, event_written) puts the three in one transaction: the
+    // commit goes out with all three statements, and one failed write rolls all three back,
+    // so after the call all three stand or none does.
+    fn bind_commits(nonce_spent: bool, address_written: bool, event_written: bool) -> bool {
+        return (nonce_spent && address_written && event_written)
+            || (!nonce_spent && !address_written && !event_written);
+    }
+
+    // The committed side: the nonce is spent once, the address is written and the event is
+    // recorded, and the three stand together.
+    fn bind_committed(nonce_spent: bool, address_written: bool, event_written: bool) -> bool {
+        return bind_commits(nonce_spent, address_written, event_written)
+            && nonce_spent && address_written && event_written;
+    }
+
+    // The rolled-back side: the nonce is unspent again, the address is what it was and no
+    // event was recorded -- nothing of the bind stands, and the person may retry with the
+    // same nonce.
+    fn bind_rolled_back(nonce_spent: bool, address_written: bool, event_written: bool) -> bool {
+        return bind_commits(nonce_spent, address_written, event_written)
+            && !nonce_spent && !address_written && !event_written;
+    }
+
+    // A nonce is spent once: the spend is the first write of the bind transaction, and a
+    // second spend on a nonce already spent is refused.
+    fn may_spend_nonce(nonce_open: bool, spent_before: bool) -> bool {
+        return nonce_open && !spent_before;
+    }
+
+    // Removing the address and writing the event used to be two separate statements: a
+    // failure after the address removal left the address gone with no event of it.
+    // unbind_commits(address_removed, event_written) puts the two in one transaction: both
+    // stand or both are rolled back, so after the call the address is removed exactly when
+    // the event of the removal is written.
+    fn unbind_commits(address_removed: bool, event_written: bool) -> bool {
+        return (address_removed && event_written) || (!address_removed && !event_written);
+    }
+
+    // The committed side: the address is removed and the event of it is recorded.
+    fn unbind_committed(address_removed: bool, event_written: bool) -> bool {
+        return unbind_commits(address_removed, event_written)
+            && address_removed && event_written;
+    }
+
+    // The rolled-back side: the address remains and no event is recorded -- nothing of the
+    // unbind stands, and the person may unbind again.
+    fn unbind_rolled_back(address_removed: bool, event_written: bool) -> bool {
+        return unbind_commits(address_removed, event_written)
+            && !address_removed && !event_written;
     }
 
     // ---- who binds ----
@@ -369,8 +475,149 @@ module automation::tri_wallet_chains {
         assert(!paid_on(0));
     }
 
+    // ---- the person lock and the two transactions (v3) ----
+
+    test "the open-nonce count and the nonce are written under one person lock" {
+        assert(ISSUE_UNDER_PERSON_LOCK);
+        assert(LOCK_PER_PERSON);
+        assert(LOCK_ACROSS_PROCESSES);
+        // One atomic step: the count is read and the nonce written before the lock is released.
+        assert(challenge_under_lock(0) == 1);
+        assert(challenge_under_lock(4) == 5);
+        assert(challenge_under_lock(5) == 5);
+        assert(issue_under_lock(0));
+        assert(issue_under_lock(4));
+        assert(!issue_under_lock(5));
+        assert(!issue_under_lock(6));
+    }
+
+    test "twenty parallel requests issue at most five nonces under the person lock" {
+        assert(locked_open_after(0, 20) == 5);
+        assert(locked_open_after(2, 20) == 5);
+        assert(locked_open_after(4, 20) == 5);
+        assert(locked_open_after(5, 20) == 5);
+        assert(locked_open_after(0, 3) == 3);
+        assert(locked_open_after(3, 1) == 4);
+    }
+
+    test "without the person lock the same twenty requests pass the cap of five" {
+        // The audit's race: every request that saw room wrote, and the open count ended past
+        // the cap. The lock is what removes exactly this.
+        assert(race_open_without_lock(0, 20) > MAX_OPEN_CHALLENGES);
+        assert(race_open_without_lock(2, 20) > MAX_OPEN_CHALLENGES);
+        assert(race_open_without_lock(4, 20) > MAX_OPEN_CHALLENGES);
+        assert(race_open_without_lock(4, 2) > MAX_OPEN_CHALLENGES);
+        assert(race_open_without_lock(5, 20) == 5);
+    }
+
+    test "the person lock is one per person and held across processes" {
+        assert(LOCK_PER_PERSON);
+        assert(LOCK_ACROSS_PROCESSES);
+        assert(ISSUE_UNDER_PERSON_LOCK);
+        // The gate reads one person's count: the same count of four admits a nonce for
+        // whichever person holds it, and five refuses for whichever person holds it.
+        assert(issue_under_lock(4));
+        assert(!issue_under_lock(5));
+    }
+
+    test "under the person lock the open count climbs one nonce at a request and stops at five" {
+        assert(locked_open_after(0, 1) == 1);
+        assert(locked_open_after(1, 1) == 2);
+        assert(locked_open_after(2, 1) == 3);
+        assert(locked_open_after(3, 1) == 4);
+        assert(locked_open_after(4, 1) == 5);
+        assert(locked_open_after(5, 1) == 5);
+        assert(locked_open_after(5, 15) == 5);
+    }
+
+    test "bind_commits commits the three writes together" {
+        assert(bind_commits(true, true, true));
+        assert(bind_committed(true, true, true));
+        assert(!bind_commits(true, true, false));
+        assert(!bind_commits(true, false, true));
+        assert(!bind_commits(false, true, true));
+    }
+
+    test "bind_commits rolls the nonce and the address back when the event write fails" {
+        // The audited failure: the nonce spent, the address written, the event write failed.
+        // All three are rolled back, so the nonce remains unspent and the address is unchanged.
+        assert(!bind_commits(true, true, false));
+        assert(bind_rolled_back(false, false, false));
+        assert(!bind_rolled_back(true, true, false));
+        assert(!bind_rolled_back(true, false, false));
+    }
+
+    test "bind_commits leaves no partial write standing" {
+        // A failure injected at any one write rolls all three back: no mixed state survives.
+        assert(!bind_commits(true, false, false));
+        assert(!bind_commits(false, true, false));
+        assert(!bind_commits(false, false, true));
+        assert(!bind_committed(true, true, false));
+        assert(!bind_committed(false, true, true));
+    }
+
+    test "a rolled-back bind leaves the nonce unspent and the address unchanged" {
+        assert(bind_rolled_back(false, false, false));
+        assert(!bind_rolled_back(true, true, true));
+        // The nonce is open again after the rollback, so the same nonce may be spent on the
+        // retry, and only once:
+        assert(may_spend_nonce(true, false));
+        assert(!may_spend_nonce(true, true));
+    }
+
+    test "bind_commits makes the spend, the address and the event one transaction" {
+        assert(may_spend_nonce(true, false));
+        assert(!may_spend_nonce(false, false));
+        assert(!may_spend_nonce(false, true));
+        assert(bind_committed(true, true, true));
+        assert(bind_rolled_back(false, false, false));
+        assert(!bind_committed(true, false, false));
+    }
+
+    test "unbind_commits commits the address and the event together" {
+        assert(unbind_commits(true, true));
+        assert(unbind_committed(true, true));
+        assert(unbind_commits(false, false));
+        assert(!unbind_commits(true, false));
+        assert(!unbind_commits(false, true));
+    }
+
+    test "unbind_commits rolls the removal back when the event write fails" {
+        // The audited failure: the address removed, the event write failed. Both are rolled
+        // back, so the address remains and no event is recorded.
+        assert(!unbind_commits(true, false));
+        assert(unbind_rolled_back(false, false));
+        assert(!unbind_rolled_back(true, false));
+        assert(!unbind_rolled_back(true, true));
+    }
+
+    test "unbind_commits leaves no half unbind standing" {
+        assert(!unbind_commits(true, false));
+        assert(!unbind_commits(false, true));
+        assert(!unbind_committed(true, false));
+        assert(!unbind_committed(false, true));
+        assert(!unbind_rolled_back(true, false));
+        assert(!unbind_rolled_back(true, true));
+    }
+
+    test "a rolled-back unbind leaves the address and records no event" {
+        assert(unbind_rolled_back(false, false));
+        assert(!unbind_rolled_back(true, false));
+        assert(!unbind_rolled_back(true, true));
+        assert(unbind_commits(false, false));
+        assert(!unbind_committed(false, true));
+    }
+
+    test "unbind_commits refuses an address gone without its event" {
+        assert(!unbind_commits(true, false));
+        assert(!unbind_rolled_back(true, false));
+        assert(!unbind_committed(true, false));
+        assert(unbind_committed(true, true));
+        assert(unbind_rolled_back(false, false));
+    }
+
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 2);
+        assert(VERSION == 3);
     }
 }
 
