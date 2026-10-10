@@ -12,7 +12,7 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 20,
+ "max_not_pass": 19,
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass"},
   {"path": "specs/a_b/c.t27", "t27b": "pass"},
@@ -753,7 +753,7 @@
   {"path": "specs/port/trinity/src/tri/gen_transform.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_varint.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_wal.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_websocket.t27", "t27b": "blocked", "blocker": "type ?void", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_websocket.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_work_stealing.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/math/vocab_audit.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/orchestrator_bench.t27", "t27b": "pass"},
@@ -1159,6 +1159,7 @@
   {"path": "specs/tri/t27b/conformance/numeric_coercion.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/opaque_pointer.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/opt_void.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/optional_enum_compare.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/optional_module_var.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},

@@ -27,6 +27,16 @@
 ; Not taken (NOT_MINE): a local that names its type, `const r: void = f(x);`, which no corpus spec writes;
 ; a call whose signature was not lowered; a comparison whose other side is not a name (a call there runs
 ; for its effects, and the void fn's refusal names it). Those keep their refusals.
+; --
+; `?void` (issue #8694). What the reference does (zig 0.16.0 on the t27c lab, the default x86_64 backend and
+; -fllvm alike; pinned by specs/tri/t27b/conformance/opt_void.t27): an optional with a zero-bit payload is one
+; flag byte, `@sizeOf(?void) == 1`. gen-zig prints `?void`, `return null;` and `return undefined;` as written.
+; `null` writes the flag 0. `undefined` is the Debug build's fill byte 0xAA, and a flag that is not 0 reads as
+; non-null: `x != null` is true, `x == null` is false (see #7877 for ReleaseFast, which writes no fill; the
+; reference is the Debug build). t27b's optional over its `void` is already that byte: a zero-size payload,
+; then the flag at offset 0. t27b keeps a flag 0 or 1, so `undefined` written to a `?void` sets the flag
+; (SET_FLAG), which every read of it sees as Zig's Debug build sees 0xAA. An optional with a payload written
+; with `undefined` keeps what its memory held (LEAVE), as before. The corpus case is gen_websocket.t27.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -37,6 +47,8 @@ pub const NOT_MINE : u8 = 0;
 pub const BIND : u8 = 1;
 pub const FOLD_TRUE : u8 = 2;
 pub const FOLD_FALSE : u8 = 3;
+pub const LEAVE : u8 = 4;
+pub const SET_FLAG : u8 = 5;
 
 /// A local's initializer. void_call: it is a call of a fn whose signature t27b lowered with no result.
 /// typed: the local names its type. BIND: the call is a statement and the name is void's one value.
@@ -58,6 +70,12 @@ pub fn compare(eq: bool, ne: bool, void_name: bool) -> u8 {
 /// The bool a fold gives.
 pub fn folded(act: u8) -> bool {
     return act == FOLD_TRUE;
+}
+
+/// `undefined` written to an optional. void_payload: the payload is t27b's `void`, so the flag is the whole value.
+pub fn undefined_optional(void_payload: bool) -> u8 {
+    if (void_payload) { return SET_FLAG; }
+    return LEAVE;
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -91,4 +109,11 @@ test only_a_void_name_and_only_equality_fold {
     assert(compare(false, false, false) == NOT_MINE);
     assert(!folded(NOT_MINE));
     assert(!folded(BIND));
+}
+
+test an_undefined_opt_void_reads_as_non_null {
+    // gen_websocket.t27's `return undefined;` from a `-> ?void` fn: Zig's 0xAA, a set flag.
+    assert(undefined_optional(true) == SET_FLAG);
+    assert(undefined_optional(false) == LEAVE);
+    assert(SET_FLAG != LEAVE and SET_FLAG != NOT_MINE and LEAVE != BIND);
 }
