@@ -65,6 +65,10 @@ mod codegen_js;
 #[path = "../../../bootstrap/src/codegen_ts.rs"]
 mod codegen_ts;
 
+// The pure function bodies `gen-ts` lowers; `codegen_ts` calls it.
+#[path = "../../../bootstrap/src/codegen_ts_fn.rs"]
+mod codegen_ts_fn;
+
 // Whether this file is source at all -- asked before the parser, because a
 // parser's answer about a Markdown document is not news. `t27c classify` reads
 // the same function; see `source_kind.rs` for why it is not two functions.

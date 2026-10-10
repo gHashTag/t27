@@ -17,6 +17,7 @@ mod source_kind;
 mod codegen_js;
 mod codegen_python;
 mod codegen_ts;
+mod codegen_ts_fn;
 mod use_resolve;
 mod check_calls;
 mod cc_gate;

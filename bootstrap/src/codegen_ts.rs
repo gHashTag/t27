@@ -34,8 +34,11 @@
 //!   compiler does not emit. The declared width survives in the struct
 //!   descriptor's `fields` list, which keeps the spec's own spelling.
 //!
-//! Scope is `gen-js`'s scope: declarations, never function bodies, and anything
-//! not lowered is announced in a comment rather than dropped in silence.
+//! Scope is `gen-js`'s for declarations, plus the bodies of PURE functions in
+//! the subset `codegen_ts_fn` lowers (owner, 2026-10-08: "the functionality
+//! 100% from .t27" -- a host imports a spec's rule instead of copying it).
+//! Anything not lowered is announced in a comment rather than dropped in
+//! silence.
 
 use crate::codegen_js::{
     array_type, const_value, describe, enum_variants, js_name, js_string, key, list, struct_fields,
@@ -108,6 +111,12 @@ pub fn generate_reported(ast: &Node, source_name: &str) -> Result<(String, usize
         .filter(|n| matches!(n.kind, NodeKind::StructDecl | NodeKind::EnumDecl))
         .map(|n| n.name.clone())
         .collect();
+
+    // What a function body may name: the module's constants that have a
+    // value, and its own functions (a TS function declaration is hoisted, so
+    // order is free) -- those that lower, given what they call.
+    let (consts, const_types) = crate::codegen_ts_fn::readable_consts(ast);
+    let fns = crate::codegen_ts_fn::lowerable(ast, &consts, &const_types);
 
     let mut struct_order: Vec<String> = Vec::new();
     let mut decl_order: Vec<String> = Vec::new();
@@ -236,11 +245,27 @@ pub fn generate_reported(ast: &Node, source_name: &str) -> Result<(String, usize
                 decl_order.push(node.name.clone());
             }
             NodeKind::UseDecl => {}
-            // Announced, never dropped in silence.
-            NodeKind::FnDecl => out.push_str(&format!(
-                "// t27c gen-ts: fn {} was not emitted -- this backend lowers declarations, not bodies.\n",
-                node.name
-            )),
+            // A pure function is lowered (codegen_ts_fn); any other is
+            // announced with the reason, never dropped in silence.
+            NodeKind::FnDecl => {
+                let names = crate::codegen_ts_fn::Names {
+                    consts: &consts,
+                    fns: &fns,
+                    const_types: &const_types,
+                };
+                match crate::codegen_ts_fn::lower_fn(node, &names)
+                    .and_then(|code| {
+                        bound.claim(&TS, &node.name)?;
+                        Ok(code)
+                    }) {
+                    Ok(code) => out.push_str(&code),
+                    Err(why) => out.push_str(&format!(
+                        "// t27c gen-ts: fn {} was not emitted -- {}\n",
+                        node.name,
+                        why.trim_start_matches("gen-ts: ")
+                    )),
+                }
+            }
             NodeKind::TestBlock | NodeKind::BenchBlock | NodeKind::InvariantBlock => {
                 out.push_str(&format!(
                     "// t27c gen-ts: a {:?} was not emitted -- it is checked by the compiler, not by the artifact.\n",
