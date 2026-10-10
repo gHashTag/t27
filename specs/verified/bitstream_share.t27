@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/bitstream_share.t27 -- when the agent next to a board may load a bitstream another host built,
+; instead of building it. Epic gHashTag/t27#8095, ledger #8314 (P8).
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/bitstream_reuse.t27: the cache key over every build input, may_store() (only a build
+;   whose every stage passed and whose BSCAN chain agreed is stored), and the audit of local hits.
+; - specs/verified/bench_agent.t27: a job runs only when the owner opened it and commented APPROVE_WORD,
+;   and a receipt proves something only when the image was built from the seal's own Verilog by the
+;   seal's producer (image_matches).
+; --
+; Why. Die C's operator has a Windows PC and no open FPGA toolchain (yosys, nextpnr-xilinx, prjxray,
+; fasm2frames). Today that agent cannot run a job at all: it has nothing to load. The bitstream for a key
+; is the same bytes on every host (W842: the build is deterministic), so one host with the toolchain can
+; build it once and the others can load it.
+; --
+; Whose word names the bytes. The job body, which only the owner can make runnable, names the key and the
+; bitstream's sha256. The bytes come from the shared store; their hash comes from the job. A store that was
+; tampered with, or that serves a stale entry, cannot supply both, so it is caught: the fetched bytes do
+; not hash to what the job names, and the agent REFUSES. It never falls back to building silently, because
+; a mismatch is an anomaly someone has to read.
+; --
+; What a shared load records. Lake (Lean's build tool) records a fetched artifact as a stand-in trace, not
+; as a compile. Here the receipt says SHARED and names the key and the bitstream hash, so a reader can tell
+; a run that built its own bitstream from one that loaded somebody else's. A shared bitstream run on three
+; dies is three physical runs of ONE build: die independence holds, build independence does not, and the
+; receipt must not hide which it is.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedBitstreamShare;
+
+/// Where the bitstream for this job comes from.
+///   BUILD   build it here (this host has the toolchain, and the job names no shared bitstream)
+///   SHARED  load the bitstream the job names: fetched, its hash is the job's, and its BSCAN chain is there
+///   WAIT    nothing to load and no way to build: the operator's problem, not the spec's
+///   REFUSE  the fetched bytes are not the bytes the job named: report it, never build around it
+pub const SRC_BUILD : u8 = 0;
+pub const SRC_SHARED : u8 = 1;
+pub const SRC_WAIT : u8 = 2;
+pub const SRC_REFUSE : u8 = 3;
+
+pub fn bit_source(has_toolchain: bool, job_names_bit: bool, fetched: bool, sha_matches_job: bool, chain_present: bool) -> u8 {
+    if (job_names_bit) {
+        if (fetched and (sha_matches_job == false)) { return SRC_REFUSE; }
+        if (fetched and chain_present) { return SRC_SHARED; }
+    }
+    if (has_toolchain) { return SRC_BUILD; }
+    return SRC_WAIT;
+}
+
+/// May a finished local build be published to the shared store for this job? Only what may be stored
+/// locally (bitstream_reuse.t27 may_store: every stage passed, the chain agreed, not a reuse) and only for
+/// a job the owner approved.
+pub fn may_publish(may_store: bool, job_approved: bool) -> bool {
+    return may_store and job_approved;
+}
+
+/// A receipt from a SHARED load is complete only when it names the key and the bitstream hash it loaded.
+/// A BUILD receipt names neither: it built its own.
+pub fn receipt_complete(source: u8, names_key: bool, names_bit_sha: bool) -> bool {
+    if (source == SRC_SHARED) { return names_key and names_bit_sha; }
+    return source == SRC_BUILD;
+}
+
+test bit_source_loads_only_the_bytes_the_job_named {
+    // a toolchain-less agent loads a fetched, matching, complete entry
+    assert bit_source(false, true, true, true, true) == SRC_SHARED;
+    // so does one with the toolchain: the job asked for those bytes on every die
+    assert bit_source(true, true, true, true, true) == SRC_SHARED;
+    // bytes that do not hash to the job's sha are refused, toolchain or not
+    assert bit_source(false, true, true, false, true) == SRC_REFUSE;
+    assert bit_source(true, true, true, false, true) == SRC_REFUSE;
+}
+
+test bit_source_builds_or_waits_when_nothing_loadable_is_there {
+    // no shared bitstream named: build if possible, else wait
+    assert bit_source(true, false, false, false, false) == SRC_BUILD;
+    assert bit_source(false, false, false, false, false) == SRC_WAIT;
+    // named but not fetched (store down): build if possible, else wait
+    assert bit_source(true, true, false, false, false) == SRC_BUILD;
+    assert bit_source(false, true, false, false, false) == SRC_WAIT;
+    // fetched and matching but without its BSCAN chain: incomplete, never loaded
+    assert bit_source(false, true, true, true, false) == SRC_WAIT;
+    assert bit_source(true, true, true, true, false) == SRC_BUILD;
+}
+
+test may_publish_needs_a_storable_build_and_an_approved_job {
+    assert may_publish(true, true) == true;
+    assert may_publish(true, false) == false;
+    assert may_publish(false, true) == false;
+}
+
+test receipt_complete_names_what_a_shared_load_loaded {
+    assert receipt_complete(SRC_SHARED, true, true) == true;
+    assert receipt_complete(SRC_SHARED, true, false) == false;
+    assert receipt_complete(SRC_SHARED, false, true) == false;
+    assert receipt_complete(SRC_BUILD, false, false) == true;
+    // a run that waited or refused has no receipt to complete
+    assert receipt_complete(SRC_WAIT, true, true) == false;
+    assert receipt_complete(SRC_REFUSE, true, true) == false;
+}
+
+invariant the_source_codes_never_move {
+    assert SRC_BUILD == 0 and SRC_SHARED == 1 and SRC_WAIT == 2 and SRC_REFUSE == 3;
+}

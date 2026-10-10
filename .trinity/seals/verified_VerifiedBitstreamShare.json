@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+3d1a4fe8b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3222aca4bf9c955725357e32c3f935eb647d357c18c8bfd7cedc8ebb01f944fb",
+  "gen_hash_rust": "sha256:381e3852e2a3dc2bcc9b044b0455d5821e5ce51f1811e07c590676daa5a6af11",
+  "gen_hash_verilog": "sha256:67a6ca829c51e35687e4a9198c7f54a3b859f0ab2e2c80b08a6ed56b7382531e",
+  "gen_hash_zig": "sha256:243d8ce2b1705df70010502fdc79789e2f5a81ebe08c1648170bb487aac41901",
+  "module": "VerifiedBitstreamShare",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:58:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:24718c19fd892073285485773cf8c9d463b8872570968fb952c7229729d3e803",
+  "spec_path": "specs/verified/bitstream_share.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
