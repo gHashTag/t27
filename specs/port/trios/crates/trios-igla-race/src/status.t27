@@ -1,0 +1,17 @@
+struct NeonDb {}
+
+pub fn show_status(db: &NeonDb) -> ?void {
+    undefined;
+}
+
+pub fn show_best(db: &NeonDb) -> ?void {
+    undefined;
+}
+
+test show_status_test {
+    assert(true);
+}
+
+test show_best_test {
+    assert(true);
+}
