@@ -1,0 +1,242 @@
+module port::sweep;
+
+// Port of crates/trios-cli/src/cmd/sweep.rs from the trios repository.
+//
+// The original runs the swept command once per value, collects the
+// bits-per-byte and wall-clock time of every run, sorts the successful runs
+// by val_bpb ascending so the best (lowest bits-per-byte) comes first,
+// tracks failed runs separately as value-and-reason pairs, and prints a
+// markdown table marking the winner. The run invocation and all printing
+// are I/O: the caller supplies what each run produced and whether it
+// succeeded, and sweep ports the decision logic between those inputs and
+// the printed table.
+//
+// Port decisions:
+// - Growable lists become fixed-capacity arrays with explicit length
+//   fields; runs beyond the capacity are dropped rather than stored.
+// - String building is I/O. SweepResults_to_json and
+//   SweepResults_to_markdown each return one decision about the output the
+//   original would have produced.
+
+pub const CAP: usize = 16;
+
+/// One successful run of the swept command: bits per byte and wall time.
+pub struct RunResult {
+    pub val_bpb: f64,
+    pub time_sec: f64,
+}
+
+/// One swept value paired with the run it produced.
+pub struct SweepPair {
+    pub value: []const u8,
+    pub result: RunResult,
+}
+
+/// One failed run: the swept value and the reason the original recorded.
+pub struct SweepFailure {
+    pub value: []const u8,
+    pub reason: []const u8,
+}
+
+/// The outcome of a sweep: successful runs sorted best-first, and the
+/// failures that never produced a result.
+pub struct SweepResults {
+    pub results: [CAP]SweepPair,
+    pub results_len: usize,
+    pub failures: [CAP]SweepFailure,
+    pub failures_len: usize,
+}
+
+/// Port of the sort step: order runs by val_bpb ascending so index 0 holds
+/// the best run. Insertion sort over a slice, mutating it in place.
+pub fn sort_results_by_val_bpb(pairs: []SweepPair, len: usize) -> void {
+    var i: usize = 1;
+    while (i < len) {
+        const key = pairs[i];
+        var j: usize = i;
+        while (j > 0 && pairs[j - 1].result.val_bpb > key.result.val_bpb) {
+            pairs[j] = pairs[j - 1];
+            j -= 1;
+        }
+        pairs[j] = key;
+        i += 1;
+    }
+}
+
+/// Port of sweep: keep every run the caller reports as successful, record
+/// every failure the caller reports, then sort the successful runs by
+/// val_bpb ascending, best first -- the order the original prints and the
+/// order SweepResults_best reads. The parameter name is printed in the
+/// original's table header, which is I/O, so it is discarded here.
+pub fn sweep(param: []const u8, values: []str, run_results: []RunResult, ok: []bool) -> SweepResults {
+    var buf: [CAP]SweepPair = undefined;
+    var fails: [CAP]SweepFailure = undefined;
+    var n: usize = 0;
+    var f: usize = 0;
+
+    var i: usize = 0;
+    while (i < values.len) {
+        if (ok[i] && n < CAP) {
+            buf[n] = SweepPair { value: values[i], result: run_results[i] };
+            n += 1;
+        }
+        if (!ok[i] && f < CAP) {
+            fails[f] = SweepFailure { value: values[i], reason: "run_failed" };
+            f += 1;
+        }
+        i += 1;
+    }
+
+    sort_results_by_val_bpb(&buf, n);
+
+    var out: SweepResults = undefined;
+    out.results_len = n;
+    out.failures_len = f;
+    var k: usize = 0;
+    while (k < n) {
+        out.results[k] = buf[k];
+        k += 1;
+    }
+    k = 0;
+    while (k < f) {
+        out.failures[k] = fails[k];
+        k += 1;
+    }
+
+    _ = param;
+    return out;
+}
+
+/// Port of best: the best run is the first result after the sort, or
+/// nothing when the sweep produced no successful runs.
+pub fn SweepResults_best(r: SweepResults) -> ?SweepPair {
+    if (r.results_len == 0) {
+        return null;
+    }
+    return r.results[0];
+}
+
+/// Port of to_json: the original serializes the results and the failures
+/// into one JSON document. String building is I/O; this returns the marker
+/// the document would carry, or nothing when a sweep with no runs and no
+/// failures would have nothing to serialize.
+pub fn SweepResults_to_json(r: SweepResults) -> ?[]const u8 {
+    if (r.results_len == 0 && r.failures_len == 0) {
+        return null;
+    }
+    return "sweep_results_json";
+}
+
+/// Port of to_markdown: the original prints a header row and then one
+/// pipe-delimited row per successful run, best first; failures go to the
+/// error stream instead of the table. Row emission is I/O; this returns
+/// how many rows the table would have.
+pub fn SweepResults_to_markdown(r: SweepResults) -> usize {
+    return 1 + r.results_len;
+}
+
+test "sweep single value" {
+    var values: [1][]const u8 = ["bs16"];
+    var results: [1]RunResult = [RunResult { val_bpb: 1.9, time_sec: 10.0 }];
+    var ok: [1]bool = [true];
+
+    const r = sweep("batch", &values, &results, &ok);
+    assert(r.results_len == 1);
+    assert(r.failures_len == 0);
+    assert(r.results[0].value == "bs16");
+    assert(r.results[0].result.val_bpb == 1.9);
+
+    const best = SweepResults_best(r);
+    assert(best != null);
+    assert(best.?.value == "bs16");
+    assert(best.?.result.val_bpb == 1.9);
+}
+
+test "sweep sorts by val_bpb ascending" {
+    var values: [3][]const u8 = ["bs64", "bs16", "bs32"];
+    var results: [3]RunResult = [
+        RunResult { val_bpb: 1.5, time_sec: 30.0 },
+        RunResult { val_bpb: 1.9, time_sec: 10.0 },
+        RunResult { val_bpb: 1.2, time_sec: 60.0 },
+    ];
+    var ok: [3]bool = [true, true, true];
+
+    const r = sweep("batch", &values, &results, &ok);
+    assert(r.results_len == 3);
+    assert(r.results[0].value == "bs32");
+    assert(r.results[0].result.val_bpb == 1.2);
+    assert(r.results[1].value == "bs64");
+    assert(r.results[1].result.val_bpb == 1.5);
+    assert(r.results[2].value == "bs16");
+    assert(r.results[2].result.val_bpb == 1.9);
+
+    const best = SweepResults_best(r);
+    assert(best != null);
+    assert(best.?.value == "bs32");
+}
+
+test "sweep tracks failures separately" {
+    var values: [3][]const u8 = ["bs16", "bs32", "bs64"];
+    var results: [3]RunResult = [
+        RunResult { val_bpb: 1.9, time_sec: 10.0 },
+        RunResult { val_bpb: 1.2, time_sec: 60.0 },
+        RunResult { val_bpb: 1.5, time_sec: 30.0 },
+    ];
+    var ok: [3]bool = [true, false, true];
+
+    const r = sweep("batch", &values, &results, &ok);
+    assert(r.results_len == 2);
+    assert(r.failures_len == 1);
+    assert(r.failures[0].value == "bs32");
+    assert(r.failures[0].reason == "run_failed");
+    assert(r.results[0].value == "bs64");
+    assert(r.results[1].value == "bs16");
+
+    const best = SweepResults_best(r);
+    assert(best != null);
+    assert(best.?.value == "bs64");
+}
+
+test "sweep all failures leaves no results" {
+    var values: [2][]const u8 = ["bs16", "bs32"];
+    var results: [2]RunResult = [
+        RunResult { val_bpb: 0.0, time_sec: 0.0 },
+        RunResult { val_bpb: 0.0, time_sec: 0.0 },
+    ];
+    var ok: [2]bool = [false, false];
+
+    const r = sweep("batch", &values, &results, &ok);
+    assert(r.results_len == 0);
+    assert(r.failures_len == 2);
+    assert(r.failures[0].value == "bs16");
+    assert(r.failures[1].value == "bs32");
+
+    const best = SweepResults_best(r);
+    assert(best == null);
+    assert(SweepResults_to_json(r) != null);
+    assert(SweepResults_to_markdown(r) == 1);
+}
+
+test "empty sweep has no best" {
+    var r: SweepResults = undefined;
+    r.results_len = 0;
+    r.failures_len = 0;
+
+    const best = SweepResults_best(r);
+    assert(best == null);
+    assert(SweepResults_to_json(r) == null);
+    assert(SweepResults_to_markdown(r) == 1);
+}
+
+test "to_json and to_markdown on sorted results" {
+    var values: [2][]const u8 = ["bs16", "bs32"];
+    var results: [2]RunResult = [
+        RunResult { val_bpb: 1.9, time_sec: 10.0 },
+        RunResult { val_bpb: 1.2, time_sec: 60.0 },
+    ];
+    var ok: [2]bool = [true, true];
+
+    const r = sweep("batch", &values, &results, &ok);
+    assert(SweepResults_to_json(r) != null);
+    assert(SweepResults_to_markdown(r) == 3);
+}
