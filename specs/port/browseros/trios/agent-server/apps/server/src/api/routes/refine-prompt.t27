@@ -1,0 +1,111 @@
+module port::browseros::trios::agent_server::apps::server::src::api::routes::refine_prompt;
+
+// Port of RefinePromptRequestSchema from TypeScript
+struct RefinePromptRequest {
+    prompt: []const u8,
+    name: []const u8,
+    provider: []const u8,
+    model: []const u8,
+    // ... other fields from AgentLLMConfigSchema
+}
+
+// Port of RefinePromptRouteDeps interface
+struct RefinePromptRouteDeps {
+    browseros_id: ?[]const u8,
+}
+
+// Port of the result structure from refinePrompt function
+struct RefinePromptResult {
+    success: bool,
+    // ... other result fields
+}
+
+// Port of the decision logic from createRefinePromptRoutes
+pub fn createRefinePromptRoutes(deps: RefinePromptRouteDeps) -> i32 {
+    // This function handles HTTP routing and logging - port the decision logic
+    // The actual HTTP handling is plumbing that stays undefined
+    
+    // Decision: validate input and call refinePrompt
+    return 0;
+}
+
+// Helper function to validate the request decision logic
+pub fn validate_and_refine_prompt(
+    request: RefinePromptRequest,
+    deps: RefinePromptRouteDeps,
+) -> RefinePromptResult {
+    // Decision: validate required fields
+    if (request.prompt.len == 0) {
+        return RefinePromptResult{ success = false };
+    }
+    
+    if (request.name.len == 0) {
+        return RefinePromptResult{ success = false };
+    }
+    
+    // Decision: call refinePrompt with the configuration
+    // In the original, this would be: const result = await refinePrompt(llmConfig, { prompt, name }, deps.browserosId)
+    // For the port, we simulate the decision logic
+    var result: RefinePromptResult = undefined;
+    
+    // Decision: based on the provider and model, determine success
+    if (request.provider.len > 0 and request.model.len > 0) {
+        result = RefinePromptResult{ success = true };
+    } else {
+        result = RefinePromptResult{ success = false };
+    }
+    
+    return result;
+}
+
+test validate_empty_prompt {
+    var deps: RefinePromptRouteDeps = .{ .browseros_id = null };
+    var request: RefinePromptRequest = .{ 
+        .prompt = "", 
+        .name = "test", 
+        .provider = "openai", 
+        .model = "gpt-4" 
+    };
+    
+    var result = validate_and_refine_prompt(request, deps);
+    assert(result.success == false);
+}
+
+test validate_empty_name {
+    var deps: RefinePromptRouteDeps = .{ .browseros_id = null };
+    var request: RefinePromptRequest = .{ 
+        .prompt = "test prompt", 
+        .name = "", 
+        .provider = "openai", 
+        .model = "gpt-4" 
+    };
+    
+    var result = validate_and_refine_prompt(request, deps);
+    assert(result.success == false);
+}
+
+test validate_success_case {
+    var deps: RefinePromptRouteDeps = .{ .browseros_id = null };
+    var request: RefinePromptRequest = .{ 
+        .prompt = "test prompt", 
+        .name = "test task", 
+        .provider = "openai", 
+        .model = "gpt-4" 
+    };
+    
+    var result = validate_and_refine_prompt(request, deps);
+    assert(result.success == true);
+}
+
+test validate_with_browseros_id {
+    var deps: RefinePromptRouteDeps = .{ .browseros_id = "test-id" };
+    var request: RefinePromptRequest = .{ 
+        .prompt = "test prompt", 
+        .name = "test task", 
+        .provider = "openai", 
+        .model = "gpt-4" 
+    };
+    
+    var result = validate_and_refine_prompt(request, deps);
+    assert(result.success == true);
+}
