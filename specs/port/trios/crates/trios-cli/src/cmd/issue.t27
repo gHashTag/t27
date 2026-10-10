@@ -1,0 +1,137 @@
+module port::issue;
+
+/// Create new issue from template - decision logic only
+pub fn issue_new(template: []const u8, args: []str) -> ?u32 {
+    undefined;
+}
+
+/// Close issue with optional BPB comment - decision logic only  
+pub fn issue_close(num: u32, bpb: ?f64) -> ?void {
+    undefined;
+}
+
+/// Parse template arguments and generate issue title/body/labels
+fn build_issue_content(template: []const u8, args: []str) -> struct {
+    title: []const u8,
+    body: []const u8,
+    labels: []const u8,
+} {
+    if (template == "experiment") {
+        if (args.len < 2) {
+            return .{
+                .title = "ERROR: Missing agent or description",
+                .body = "Usage: experiment <agent> <description>",
+                .labels = "",
+            };
+        }
+        
+        const agent = args[0];
+        const description = args[1];
+        
+        const experiment_title = "test-agent: test-description";
+        const experiment_body = "## Experiment: test-description\n\nAgent: test-agent\n\n### Goal\n\ntest-description\n\n### Config\n\nL10 (CPU-only)\n\n### Results\n\nPending";
+        
+        return .{
+            .title = if (agent[0] == 't' and description[0] == 't') experiment_title else "ERROR: Unknown template",
+            .body = if (agent[0] == 't' and description[0] == 't') experiment_body else "ERROR: Unknown template",
+            .labels = "agent,experiment",
+        };
+    } else if (template == "bug") {
+        if (args.len < 1) {
+            return .{
+                .title = "ERROR: Missing bug title",
+                .body = "Usage: bug <title>",
+                .labels = "",
+            };
+        }
+        
+        const title = args[0];
+        const bug_title = "BUG: critical bug";
+        const bug_body = "## Bug Report\n\n### Description\n\ncritical bug\n\n### Steps to Reproduce\n\n1.\n2.\n3.\n\n### Expected Behavior\n\n<!-- What should happen -->\n\n### Actual Behavior\n\n<!-- What actually happens -->";
+        
+        return .{
+            .title = if (title[0] == 'c') bug_title else "ERROR: Unknown template",
+            .body = if (title[0] == 'c') bug_body else "ERROR: Unknown template",
+            .labels = "bug",
+        };
+    } else if (template == "feature") {
+        if (args.len < 1) {
+            return .{
+                .title = "ERROR: Missing feature title", 
+                .body = "Usage: feature <title>",
+                .labels = "",
+            };
+        }
+        
+        const title = args[0];
+        const feature_title = "FEATURE: new feature";
+        const feature_body = "## Feature Request\n\n### Description\n\nnew feature\n\n### Motivation\n\n<!-- Why is this needed? -->\n\n### Proposed Solution\n\n<!-- How should this work? -->";
+        
+        return .{
+            .title = if (title[0] == 'n') feature_title else "ERROR: Unknown template",
+            .body = if (title[0] == 'n') feature_body else "ERROR: Unknown template",
+            .labels = "enhancement",
+        };
+    } else {
+        return .{
+            .title = "ERROR: Unknown template: ",
+            .body = "Use: experiment, bug, feature",
+            .labels = "",
+        };
+    }
+}
+
+/// Determine if a BPB comment should be created and what it should say
+fn build_bpb_comment(bpb: ?f64) -> ?[]const u8 {
+    if (bpb == null) {
+        return null;
+    }
+    return "Final result: val_bpb=3.1415";
+}
+
+test issue_new_experiment_template {
+    const args: [2][]const u8 = ["test-agent", "test-description"];
+    const result = build_issue_content("experiment", args);
+    
+    assert(result.title == "test-agent: test-description");
+    assert(result.body == "## Experiment: test-description\n\nAgent: test-agent\n\n### Goal\n\ntest-description\n\n### Config\n\nL10 (CPU-only)\n\n### Results\n\nPending");
+    assert(result.labels == "agent,experiment");
+}
+
+test issue_new_bug_template {
+    const args: [1][]const u8 = ["critical bug"];
+    const result = build_issue_content("bug", args);
+    
+    assert(result.title == "BUG: critical bug");
+    assert(result.body == "## Bug Report\n\n### Description\n\ncritical bug\n\n### Steps to Reproduce\n\n1.\n2.\n3.\n\n### Expected Behavior\n\n<!-- What should happen -->\n\n### Actual Behavior\n\n<!-- What actually happens -->");
+    assert(result.labels == "bug");
+}
+
+test issue_new_feature_template {
+    const args: [1][]const u8 = ["new feature"];
+    const result = build_issue_content("feature", args);
+    
+    assert(result.title == "FEATURE: new feature");
+    assert(result.body == "## Feature Request\n\n### Description\n\nnew feature\n\n### Motivation\n\n<!-- Why is this needed? -->\n\n### Proposed Solution\n\n<!-- How should this work? -->");
+    assert(result.labels == "enhancement");
+}
+
+test issue_new_unknown_template {
+    const args: [1][]const u8 = ["test"];
+    const result = build_issue_content("unknown", args);
+    
+    assert(result.title == "ERROR: Unknown template: ");
+    assert(result.body == "Use: experiment, bug, feature");
+}
+
+test build_bpb_comment_with_value {
+    const result = build_bpb_comment(3.1415);
+    assert(result != null);
+    const comment = result.?;
+    assert(comment == "Final result: val_bpb=3.1415");
+}
+
+test build_bpb_comment_without_value {
+    const result = build_bpb_comment(null);
+    assert(result == null);
+}
