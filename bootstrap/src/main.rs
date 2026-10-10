@@ -6021,7 +6021,8 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                 println!("tests {}/{} pass", report.passed, report.total);
             }
         }
-        let tests_record = test_report::seal_record(&report, &verdict);
+        let mut tests_record = test_report::seal_record(&report, &verdict);
+        if tests_record.get("total").is_some() { tests_record["vacuous"] = report.vacuous().into(); } // #8693
 
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");

@@ -82,11 +82,14 @@ pub fn silicon_state(has_run: bool, run_citable: bool, same_spec: bool, same_too
 
 /// The tests part of a verdict: the recorded tests passed, none was forced, and at least one check ran --
 /// a test or an invariant. "0 failed" of nothing is not a pass: a spec with no test, no invariant and no
-/// bench breaks L4, and frontier reused two such specs as verified (#8354).
-pub fn checks_pass(failed_zero: bool, forced: bool, tests_total: u32, invariants: u32) -> bool {
+/// bench breaks L4, and frontier reused two such specs as verified (#8354). Nor is a suite whose every test
+/// passed with 0 runtime asserts executed (vacuous, #6509): it checked nothing either (#8693). A seal written
+/// before #8693 records no vacuous count and reads as 0.
+pub fn checks_pass(failed_zero: bool, forced: bool, tests_total: u32, invariants: u32, vacuous: u32) -> bool {
     if (failed_zero == false) { return false; }
     if (forced) { return false; }
-    return tests_total + invariants > 0;
+    if (invariants > 0) { return true; }
+    return tests_total > vacuous;
 }
 
 /// The re-mint: `t27c frontier --reseal` seals again every spec remint_wants() names, and keeps the new
@@ -115,10 +118,10 @@ pub const SEAL_SCHEMA : u32 = 2;
 /// And only in a file that is the spec's own: two specs can derive one seal file name (parent dir and
 /// module), and `seal --save` then overwrites the other spec's seal. The first full run hit 5 such files
 /// on 2026-10-10; that file is written back, never kept and never deleted.
-pub fn remint_keeps(schema: u32, failed_zero: bool, forced: bool, tests_total: u32, invariants: u32, file_is_its_own: bool) -> bool {
+pub fn remint_keeps(schema: u32, failed_zero: bool, forced: bool, tests_total: u32, invariants: u32, vacuous: u32, file_is_its_own: bool) -> bool {
     if (file_is_its_own == false) { return false; }
     if (schema != SEAL_SCHEMA) { return false; }
-    return checks_pass(failed_zero, forced, tests_total, invariants);
+    return checks_pass(failed_zero, forced, tests_total, invariants, vacuous);
 }
 
 /// May `seal --save` record a spec as blocked over a seal that recorded it passing? Not without --force: the
@@ -225,13 +228,13 @@ test a_node_follows_its_imports {
 }
 
 test checks_pass_needs_at_least_one_check {
-    assert checks_pass(true, false, 5, 0) == true;
+    assert checks_pass(true, false, 5, 0, 0) == true;
     // a data spec whose invariants are proved at comptime is checked
-    assert checks_pass(true, false, 0, 2) == true;
+    assert checks_pass(true, false, 0, 2, 0) == true;
     // nothing ran: never a pass (specs/lsp/language.t27, specs/numeric/formats_catalog.t27)
-    assert checks_pass(true, false, 0, 0) == false;
-    assert checks_pass(false, false, 5, 1) == false;
-    assert checks_pass(true, true, 5, 1) == false;
+    assert checks_pass(true, false, 0, 0, 0) == false;
+    assert checks_pass(false, false, 5, 1, 0) == false;
+    assert checks_pass(true, true, 5, 1, 0) == false;
 }
 
 test remint_wants_only_a_stale_part {
@@ -252,19 +255,19 @@ test remint_wants_a_never_sealed_spec_but_not_an_import_gap {
 }
 
 test remint_keeps_a_v2_seal_whose_checks_ran {
-    assert remint_keeps(2, true, false, 6, 0, true) == true;
+    assert remint_keeps(2, true, false, 6, 0, 0, true) == true;
     // invariant-only: the 15 specs the hand filter dropped (#8386)
-    assert remint_keeps(2, true, false, 0, 1, true) == true;
+    assert remint_keeps(2, true, false, 0, 1, 0, true) == true;
     // blocked: the seal records no failed count
-    assert remint_keeps(2, false, false, 0, 0, true) == false;
+    assert remint_keeps(2, false, false, 0, 0, 0, true) == false;
     // nothing ran, a failing test, a forced seal, an old schema
-    assert remint_keeps(2, true, false, 0, 0, true) == false;
-    assert remint_keeps(2, false, false, 6, 1, true) == false;
-    assert remint_keeps(2, true, true, 6, 1, true) == false;
-    assert remint_keeps(1, true, false, 6, 0, true) == false;
-    assert remint_keeps(3, true, false, 6, 0, true) == false;
+    assert remint_keeps(2, true, false, 0, 0, 0, true) == false;
+    assert remint_keeps(2, false, false, 6, 1, 0, true) == false;
+    assert remint_keeps(2, true, true, 6, 1, 0, true) == false;
+    assert remint_keeps(1, true, false, 6, 0, 0, true) == false;
+    assert remint_keeps(3, true, false, 6, 0, 0, true) == false;
     // a seal file another spec owns (a name collision) is never kept, however good the seal
-    assert remint_keeps(2, true, false, 6, 1, false) == false;
+    assert remint_keeps(2, true, false, 6, 1, 0, false) == false;
 }
 
 test blocked_reseal_allowed_refuses_a_regression {
@@ -274,6 +277,16 @@ test blocked_reseal_allowed_refuses_a_regression {
     assert blocked_reseal_allowed(false, false) == true;
     // on purpose, with the failure on the record
     assert blocked_reseal_allowed(true, true) == true;
+}
+
+test checks_pass_refuses_a_fully_vacuous_suite {
+    // every test ran 0 asserts: numeric/requant_boundary (1 of 1), tri-api/claude_md (6 of 6) (#8693)
+    assert checks_pass(true, false, 1, 0, 1) == false;
+    assert checks_pass(true, false, 6, 0, 6) == false;
+    // one test that asserted something, or an invariant, is a check
+    assert checks_pass(true, false, 6, 0, 5) == true;
+    assert checks_pass(true, false, 1, 1, 1) == true;
+    assert remint_keeps(2, true, false, 6, 0, 6, true) == false;
 }
 
 test the_reused_share_is_a_number {
