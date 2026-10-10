@@ -1,0 +1,503 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/libm_plan.t27 -- when t27b lowers a Zig math builtin, or a `std.math` fn, to a call of its
+; routine in specs/tri/t27b/libm.t27, and what it refuses instead (issues #7391, #7217, #7791, #7819, #7822,
+; #7923 and #7823, t27b coverage epic #6063; written in t27 under the port epic #6198).
+; gen-zig prints `@exp(x)` and `@log(x)` as written. `t27c test-report` runs `zig test` without libc, so
+; a run-time `@exp` is a call into Zig's compiler_rt (`exp` for an f64, `expf` for an f32), and so is a
+; run-time `@log` (`log` for an f64). None is correctly rounded (exp(1.0) is 2.7182818284590455, one ulp
+; above e), so t27b must return compiler_rt's bits: libm.t27 is those algorithms in t27, and its tests
+; hold them to Zig's `@exp` and `@log` under the reference.
+; `std.math.nan(T)`, `std.math.isNan(x)`, `std.math.isPositiveInf(x)` and `std.math.isNegativeInf(x)`
+; (#7791, for specs/numeric/gf16.t27) are Zig's std/math/float.zig, isnan.zig and isinf.zig. Their
+; routines are those few lines in t27: the canonical quiet NaN (0x7FC00000 for an f32, 0x7FF8000000000000
+; for an f64, measured on the t27c lab), `x != x`, `x == inf` and `x == -inf`. `nan` names its float
+; type as its one operand, so its routine takes no argument.
+; `@floor`, `@ceil`, `@round`, `@trunc` and `@rem` of an f32 (#7819) call libm.t27's ports of compiler_rt's
+; `floorf`, `ceilf`, `roundf`, `truncf` and `fmodf`. On the t27c lab the reference's `@floor`, `@ceil` and
+; `@trunc` are the `roundss` instruction, which the ports match bit for bit (a NaN quieted, as it does);
+; `@round` and `@rem` are those compiler_rt calls. `@rem` takes two operands: the second takes the first
+; one's type, as a literal beside it does in Zig. Their f64 routines are not ported: an f64 is refused.
+; `@log`, `@log2` and `@log10` of an f32 (#7822) call libm.t27's ports of compiler_rt `logf`, `log2f` and
+; `log10f`, the fdlibm algorithms on the bits (not the table-driven f64 `log`). An f64 `@log2` or `@log10` is
+; refused: compiler_rt's f64 `log2` and `log10` are not ported.
+; #7923 (specs/port/trinity/src/brain/weber_tuning.t27, specs/numeric/formats.t27): `std.math.inf(T)` names its
+; type as `nan` does, and its routine is the bit pattern with every exponent bit set and a zero fraction.
+; `std.math.log(T, base, x)` is `@log(x)` when the base is `std.math.e` (std/math/log.zig), so it calls `log` or
+; `logf`; it takes three operands, the value is the third, and T must be the value's own type. Any other base
+; goes to `log2`, `log10` or a quotient there, which this plan does not lower, so it is refused by name.
+; `std.math.log1p` of an f64 calls std/math/log1p.zig's `log1p_64` (musl's log1p.c), and `@round` of an f64
+; calls compiler_rt's `round`; an f32 `log1p`, which is a different routine (`log1p_32`), is refused.
+; `std.math.pow(f32, x, y)` (#7823) calls libm.t27's port of Zig's std/math/pow.zig, which is not compiler_rt.
+; Like `nan` it names its float type, first of its three operands; the other two take that type, as Zig's
+; parameters `x: T, y: T` give it to a literal. A comptime-folded `std.math.pow(f32, ..)` equals the run-time
+; call on a 49-point grid (t27c lab). An f64 is refused: pow's f64 path (`exp`, `log`, frexp and ldexp of an
+; f64) is not ported.
+; Everything t27b decides about these calls is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/libm_plan.rs): which builtins go to libm.t27, under which names its routines join a
+; program, which operand calls which routine, which are refused, and the words of each refusal. The Rust
+; glue in cli/t27b/src/lower.rs splices the routines in, classifies the operand it lowered (or the type
+; `nan` names), and builds the call the answer names, of the routine's result type.
+; --
+; The rules (Zig 0.16, Debug, no libc):
+;   The routines join a program only when it names a builtin of BUILTINS. They are renamed from PORT to
+;   HELPER, t27b's reserved prefix, so a file that declares a `t27b_libm_*` fn of its own (libm.t27
+;   itself, or a mutant of it) still has `@exp` and `@log` call compiler_rt's algorithm, as Zig does. The
+;   prefix covers log's tables too.
+;   `@exp(x)` with x an f64 calls `exp`, with x an f32 `expf`; `@log(x)` with x an f64 calls `log`. That
+;   holds whether Zig computes x at run time or knows it at compile time: Zig folds a typed `@exp` with the compiler's own exp, and in Zig 0.16 that is
+;   compiler_rt's code too. Measured on the t27c lab for #7391: a comptime-folded `@exp` and `@log` of a
+;   typed f64 and f32 equal the run-time call on 280000 points (exp over [-750, 712], near 0 and around
+;   the reduction bands; log over [0, 2e304], near 1, subnormals and negatives), 0 differ. So an invariant,
+;   a module-level initializer, a `const` of literals and a range loop t27c unrolls need no refusal.
+;   The `std.math` fns take an f64 or an f32 the same way, and `nan` its type. For `logf`, `log2f` and
+;   `log10f` it was measured again for #7822: a comptime-folded `@log`, `@log2` and `@log10` of a typed f32
+;   equal the run-time call on 24000 points each (every exponent of both signs, and densely near 1), 0 differ.
+;   Refused: any other number of operands than the builtin takes; a comptime_float or comptime_int operand (Zig takes
+;   its type from the result location, or folds it as a comptime_float at 128-bit precision, which t27b
+;   does not model); any other operand (an integer, which Zig refuses, a bool, an aggregate, a type
+;   other than f64 and f32); an f64 `@floor`, `@ceil`, `@trunc`, `@rem`, `@log2`, `@log10` or `std.math.pow`; an
+;   f32 `std.math.log1p`; and a `std.math.log` whose base is not `std.math.e` or whose type is not its value's.
+; --
+; The oracle is draft PR #7426 (branch claude/t27b-lane1-exp, 3f403d6c8): its hand-written lowering passed
+; libm.t27 and the t27b lab corpus with mismatch 0. Its prelude and its `exp_call` are the decisions here.
+; For `@log` it is draft PR #7466 (branch claude/t27b-lane1-log, e538e02dd), whose `libm_call` took an
+; f64 only and whose tables joined the prelude with the routines.
+; It also refused every operand Zig knows at compile time; the measurement above shows that refusal is
+; not needed for a typed operand, so this plan keeps it only for literals.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bLibmPlan;
+
+/// The builtins and `std.math` fns whose routines libm.t27 holds, separated by one space. A builtin's code is
+/// its position.
+pub const BUILTINS : str = "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem @log2 @log10 std.math.inf std.math.log1p std.math.log std.math.pow";
+pub const EXP : u8 = 0;
+pub const LOG : u8 = 1;
+pub const NAN : u8 = 2;
+pub const IS_NAN : u8 = 3;
+pub const IS_POS_INF : u8 = 4;
+pub const IS_NEG_INF : u8 = 5;
+pub const FLOOR : u8 = 6;
+pub const CEIL : u8 = 7;
+pub const ROUND : u8 = 8;
+pub const TRUNC : u8 = 9;
+pub const REM : u8 = 10;
+pub const LOG2 : u8 = 11;
+pub const LOG10 : u8 = 12;
+pub const INF : u8 = 13;
+pub const LOG1P : u8 = 14;
+/// `std.math.log(T, std.math.e, x)`.
+pub const LOG_E : u8 = 15;
+pub const POW : u8 = 16;
+
+/// The prefix of every routine in libm.t27, and the one its copies take in a program.
+pub const PORT : str = "t27b_libm_";
+pub const HELPER : str = "__t27b_libm_";
+
+// The operand, as the glue lowered it: a typed f64, a typed f32, a comptime_float or comptime_int
+// literal, anything else. For `nan`, the type its operand names: f64, f32, or another (K_OTHER).
+pub const K_F64 : u8 = 0;
+pub const K_F32 : u8 = 1;
+pub const K_LITERAL : u8 = 2;
+pub const K_OTHER : u8 = 3;
+
+// What the call lowers to: a call of the f64 or the f32 routine, or a refusal.
+pub const CALL_F64 : u8 = 0;
+pub const CALL_F32 : u8 = 1;
+pub const REFUSE_ARITY : u8 = 2;
+pub const REFUSE_LITERAL : u8 = 3;
+pub const REFUSE_OPERAND : u8 = 4;
+pub const REFUSE_NO_F64 : u8 = 5;
+pub const REFUSE_NO_F32 : u8 = 6;
+pub const REFUSE_BASE : u8 = 7;
+pub const REFUSE_TYPE : u8 = 8;
+
+/// Does libm.t27 hold builtin b's routine for an f32? All but `std.math.log1p`'s: std.math's `log1p_32` is not
+/// ported.
+pub fn has_f32(b: u8) -> bool {
+    return b != LOG1P;
+}
+
+/// Does libm.t27 hold builtin b's routine for an f64? `@floor`, `@ceil`, `@trunc`, `@rem`, `@log2`, `@log10` and
+/// `std.math.pow` have only their f32 one.
+pub fn has_f64(b: u8) -> bool {
+    return b <= IS_NEG_INF or b == ROUND or (b >= INF and b <= LOG_E);
+}
+
+/// How many operands builtin b takes.
+pub fn arity(b: u8) -> usize {
+    if (b == REM) { return 2; }
+    if (b == LOG_E) { return 3; }
+    if (b == POW) { return 3; }
+    return 1;
+}
+
+/// Which operand is the value the routine takes (`std.math.log`'s third); the ones after it are passed too.
+pub fn operand(b: u8) -> usize {
+    if (b == LOG_E) { return 2; }
+    return 0;
+}
+
+/// Is builtin b's first operand its float type (`std.math.nan(f32)`, `std.math.pow(f32, x, y)`)? No argument
+/// carries it; the operands after it take that type.
+pub fn takes_type(b: u8) -> bool {
+    return b == NAN or b == INF or b == POW;
+}
+
+/// `std.math.log`'s answer once its base and type are known: a call stands only when the base is
+/// `std.math.e` and the type operand names the value's own type. Every other builtin keeps `act`.
+pub fn with_base(b: u8, act: u8, base_is_e: bool, type_is_value_s: bool) -> u8 {
+    if (b != LOG_E or (act != CALL_F64 and act != CALL_F32)) { return act; }
+    if (!type_is_value_s) { return REFUSE_TYPE; }
+    if (!base_is_e) { return REFUSE_BASE; }
+    return act;
+}
+
+/// The decision. b: the builtin. operands: how many the call has. k: the operand's kind.
+pub fn plan(b: u8, operands: usize, k: u8) -> u8 {
+    if (operands != arity(b)) { return REFUSE_ARITY; }
+    if (k == K_F64 and has_f64(b)) { return CALL_F64; }
+    if (k == K_F32 and has_f32(b)) { return CALL_F32; }
+    if (k == K_F64) { return REFUSE_NO_F64; }
+    if (k == K_F32) { return REFUSE_NO_F32; }
+    if (k == K_LITERAL) { return REFUSE_LITERAL; }
+    return REFUSE_OPERAND;
+}
+
+/// The fn a call of builtin b runs, under its name in a program; empty for a refusal.
+pub fn routine(b: u8, act: u8) -> str {
+    if (b == EXP and act == CALL_F64) { return "__t27b_libm_exp"; }
+    if (b == EXP and act == CALL_F32) { return "__t27b_libm_expf"; }
+    if (b == LOG and act == CALL_F64) { return "__t27b_libm_log"; }
+    if (b == LOG and act == CALL_F32) { return "__t27b_libm_logf"; }
+    if (b == NAN and act == CALL_F64) { return "__t27b_libm_nan"; }
+    if (b == NAN and act == CALL_F32) { return "__t27b_libm_nanf"; }
+    if (b == IS_NAN and act == CALL_F64) { return "__t27b_libm_isnan"; }
+    if (b == IS_NAN and act == CALL_F32) { return "__t27b_libm_isnanf"; }
+    if (b == IS_POS_INF and act == CALL_F64) { return "__t27b_libm_isposinf"; }
+    if (b == IS_POS_INF and act == CALL_F32) { return "__t27b_libm_isposinff"; }
+    if (b == IS_NEG_INF and act == CALL_F64) { return "__t27b_libm_isneginf"; }
+    if (b == IS_NEG_INF and act == CALL_F32) { return "__t27b_libm_isneginff"; }
+    if (b == FLOOR and act == CALL_F32) { return "__t27b_libm_floorf"; }
+    if (b == CEIL and act == CALL_F32) { return "__t27b_libm_ceilf"; }
+    if (b == ROUND and act == CALL_F32) { return "__t27b_libm_roundf"; }
+    if (b == TRUNC and act == CALL_F32) { return "__t27b_libm_truncf"; }
+    if (b == REM and act == CALL_F32) { return "__t27b_libm_fmodf"; }
+    if (b == LOG2 and act == CALL_F32) { return "__t27b_libm_log2f"; }
+    if (b == LOG10 and act == CALL_F32) { return "__t27b_libm_log10f"; }
+    if (b == ROUND and act == CALL_F64) { return "__t27b_libm_round"; }
+    if (b == INF and act == CALL_F64) { return "__t27b_libm_inf"; }
+    if (b == INF and act == CALL_F32) { return "__t27b_libm_inff"; }
+    if (b == LOG1P and act == CALL_F64) { return "__t27b_libm_log1p"; }
+    if (b == LOG_E and act == CALL_F64) { return "__t27b_libm_log"; }
+    if (b == LOG_E and act == CALL_F32) { return "__t27b_libm_logf"; }
+    if (b == POW and act == CALL_F32) { return "__t27b_libm_powf"; }
+    return "";
+}
+
+/// The construct a refusal of builtin b names.
+pub fn what(b: u8) -> str {
+    if (b == EXP) { return "ExprCall(@exp)"; }
+    if (b == LOG) { return "ExprCall(@log)"; }
+    if (b == NAN) { return "ExprCall(std.math.nan)"; }
+    if (b == IS_NAN) { return "ExprCall(std.math.isNan)"; }
+    if (b == IS_POS_INF) { return "ExprCall(std.math.isPositiveInf)"; }
+    if (b == IS_NEG_INF) { return "ExprCall(std.math.isNegativeInf)"; }
+    if (b == FLOOR) { return "ExprCall(@floor)"; }
+    if (b == CEIL) { return "ExprCall(@ceil)"; }
+    if (b == ROUND) { return "ExprCall(@round)"; }
+    if (b == TRUNC) { return "ExprCall(@trunc)"; }
+    if (b == REM) { return "ExprCall(@rem)"; }
+    if (b == LOG2) { return "ExprCall(@log2)"; }
+    if (b == LOG10) { return "ExprCall(@log10)"; }
+    if (b == INF) { return "ExprCall(std.math.inf)"; }
+    if (b == LOG1P) { return "ExprCall(std.math.log1p)"; }
+    if (b == LOG_E) { return "ExprCall(std.math.log)"; }
+    if (b == POW) { return "ExprCall(std.math.pow)"; }
+    return "ExprCall(libm)";
+}
+
+/// Why: the words after the builtin's name.
+pub fn why(act: u8) -> str {
+    if (act == REFUSE_ARITY) { return "it takes one operand (`@rem` two, `std.math.log` and `std.math.pow` three)"; }
+    if (act == REFUSE_LITERAL) { return "the operand is a literal, which Zig types from the result location or folds at 128-bit precision"; }
+    if (act == REFUSE_OPERAND) { return "the operand is not an f64 or an f32"; }
+    if (act == REFUSE_NO_F32) { return "libm.t27 has no f32 routine for it (std.math's log1p_32 is not ported)"; }
+    if (act == REFUSE_NO_F64) { return "libm.t27 has no f64 routine for it (compiler_rt's is not ported)"; }
+    if (act == REFUSE_BASE) { return "its base is not std.math.e, the one base this plan lowers"; }
+    if (act == REFUSE_TYPE) { return "its type operand is not its value's type"; }
+    return "its routine in specs/tri/t27b/libm.t27 did not lower";
+}
+
+// ---------------------------------------------------------------- tests
+
+fn lp_kind(i: u32) -> u8 {
+    if (i == 0) { return K_F64; }
+    if (i == 1) { return K_F32; }
+    if (i == 2) { return K_LITERAL; }
+    return K_OTHER;
+}
+
+test a_typed_float_calls_its_routine {
+    assert plan(EXP, 1, K_F64) == CALL_F64;
+    assert plan(EXP, 1, K_F32) == CALL_F32;
+    assert plan(LOG, 1, K_F64) == CALL_F64;
+    assert plan(LOG, 1, K_F32) == CALL_F32;
+    assert std.mem.eql(u8, routine(EXP, CALL_F64), "__t27b_libm_exp");
+    assert std.mem.eql(u8, routine(EXP, CALL_F32), "__t27b_libm_expf");
+    assert std.mem.eql(u8, routine(LOG, CALL_F64), "__t27b_libm_log");
+    assert std.mem.eql(u8, routine(LOG, CALL_F32), "__t27b_libm_logf");
+}
+
+test the_std_math_fns_call_their_routines {
+    assert plan(NAN, 1, K_F32) == CALL_F32;
+    assert plan(NAN, 1, K_F64) == CALL_F64;
+    assert plan(IS_NAN, 1, K_F32) == CALL_F32;
+    assert plan(IS_POS_INF, 1, K_F64) == CALL_F64;
+    assert plan(IS_NEG_INF, 1, K_F32) == CALL_F32;
+    assert std.mem.eql(u8, routine(NAN, CALL_F64), "__t27b_libm_nan");
+    assert std.mem.eql(u8, routine(NAN, CALL_F32), "__t27b_libm_nanf");
+    assert std.mem.eql(u8, routine(IS_NAN, CALL_F64), "__t27b_libm_isnan");
+    assert std.mem.eql(u8, routine(IS_NAN, CALL_F32), "__t27b_libm_isnanf");
+    assert std.mem.eql(u8, routine(IS_POS_INF, CALL_F64), "__t27b_libm_isposinf");
+    assert std.mem.eql(u8, routine(IS_POS_INF, CALL_F32), "__t27b_libm_isposinff");
+    assert std.mem.eql(u8, routine(IS_NEG_INF, CALL_F64), "__t27b_libm_isneginf");
+    assert std.mem.eql(u8, routine(IS_NEG_INF, CALL_F32), "__t27b_libm_isneginff");
+    // Only `nan`, `inf` and `pow` name their type; the predicates take a value, as @exp does.
+    assert takes_type(NAN);
+    assert takes_type(POW);
+    assert !takes_type(EXP);
+    assert !takes_type(LOG);
+    assert !takes_type(IS_NAN);
+    assert !takes_type(IS_POS_INF);
+    assert !takes_type(IS_NEG_INF);
+    assert plan(NAN, 0, K_F32) == REFUSE_ARITY;
+    assert plan(NAN, 1, K_OTHER) == REFUSE_OPERAND;
+    assert plan(IS_NAN, 1, K_LITERAL) == REFUSE_LITERAL;
+    assert plan(IS_NEG_INF, 2, K_F64) == REFUSE_ARITY;
+}
+
+test the_rounding_builtins_and_rem_call_their_f32_routines {
+    assert plan(FLOOR, 1, K_F32) == CALL_F32;
+    assert plan(CEIL, 1, K_F32) == CALL_F32;
+    assert plan(ROUND, 1, K_F32) == CALL_F32;
+    assert plan(TRUNC, 1, K_F32) == CALL_F32;
+    assert plan(REM, 2, K_F32) == CALL_F32;
+    assert std.mem.eql(u8, routine(FLOOR, CALL_F32), "__t27b_libm_floorf");
+    assert std.mem.eql(u8, routine(CEIL, CALL_F32), "__t27b_libm_ceilf");
+    assert std.mem.eql(u8, routine(ROUND, CALL_F32), "__t27b_libm_roundf");
+    assert std.mem.eql(u8, routine(TRUNC, CALL_F32), "__t27b_libm_truncf");
+    assert std.mem.eql(u8, routine(REM, CALL_F32), "__t27b_libm_fmodf");
+    // No f64 routine: refused, and named so.
+    assert plan(FLOOR, 1, K_F64) == REFUSE_NO_F64;
+    assert plan(REM, 2, K_F64) == REFUSE_NO_F64;
+    assert routine(ROUND, REFUSE_NO_F64).len == 0;
+    assert !has_f64(FLOOR);
+    assert !has_f64(REM);
+    assert has_f64(IS_NEG_INF);
+    // `@rem` takes two operands, the others one.
+    assert arity(REM) == 2;
+    assert arity(FLOOR) == 1;
+    assert arity(EXP) == 1;
+    assert plan(REM, 1, K_F32) == REFUSE_ARITY;
+    assert plan(REM, 3, K_F32) == REFUSE_ARITY;
+    assert plan(FLOOR, 2, K_F32) == REFUSE_ARITY;
+    assert plan(REM, 2, K_LITERAL) == REFUSE_LITERAL;
+    assert plan(TRUNC, 1, K_OTHER) == REFUSE_OPERAND;
+}
+
+test std_math_pow_of_an_f32_calls_its_port {
+    assert plan(POW, 3, K_F32) == CALL_F32;
+    assert std.mem.eql(u8, routine(POW, CALL_F32), "__t27b_libm_powf");
+    assert plan(POW, 3, K_F64) == REFUSE_NO_F64;
+    assert routine(POW, REFUSE_NO_F64).len == 0;
+    assert plan(POW, 2, K_F32) == REFUSE_ARITY;
+    assert plan(POW, 1, K_F32) == REFUSE_ARITY;
+    assert plan(POW, 3, K_OTHER) == REFUSE_OPERAND;
+    assert arity(POW) == 3;
+    assert operand(POW) == 0;
+    assert !has_f64(POW);
+    assert has_f64(LOG_E);
+    assert has_f32(POW);
+    assert with_base(POW, CALL_F32, false, false) == CALL_F32;
+    assert std.mem.indexOf(u8, why(REFUSE_ARITY), "three") != null;
+}
+
+test the_log_family_of_an_f32_calls_compiler_rt_s_fdlibm_routines {
+    assert plan(LOG2, 1, K_F32) == CALL_F32;
+    assert plan(LOG10, 1, K_F32) == CALL_F32;
+    assert std.mem.eql(u8, routine(LOG2, CALL_F32), "__t27b_libm_log2f");
+    assert std.mem.eql(u8, routine(LOG10, CALL_F32), "__t27b_libm_log10f");
+    assert !std.mem.eql(u8, routine(LOG, CALL_F32), routine(LOG, CALL_F64));
+    // compiler_rt's f64 log2 and log10 are not ported.
+    assert plan(LOG2, 1, K_F64) == REFUSE_NO_F64;
+    assert plan(LOG10, 1, K_F64) == REFUSE_NO_F64;
+    assert !has_f64(LOG2);
+    assert !has_f64(LOG10);
+    assert has_f64(LOG);
+    assert routine(LOG10, REFUSE_NO_F64).len == 0;
+    assert plan(LOG2, 2, K_F32) == REFUSE_ARITY;
+    assert plan(LOG10, 1, K_LITERAL) == REFUSE_LITERAL;
+    assert arity(LOG10) == 1;
+}
+
+test a_literal_and_any_other_operand_are_refused {
+    assert plan(EXP, 1, K_LITERAL) == REFUSE_LITERAL;
+    assert plan(EXP, 1, K_OTHER) == REFUSE_OPERAND;
+    assert plan(LOG, 1, K_LITERAL) == REFUSE_LITERAL;
+    assert plan(LOG, 1, K_OTHER) == REFUSE_OPERAND;
+    assert routine(EXP, REFUSE_LITERAL).len == 0;
+    assert routine(EXP, REFUSE_OPERAND).len == 0;
+}
+
+test the_arity_is_asked_first {
+    assert plan(EXP, 0, K_F64) == REFUSE_ARITY;
+    assert plan(EXP, 2, K_F64) == REFUSE_ARITY;
+    assert plan(EXP, 2, K_F32) == REFUSE_ARITY;
+    assert plan(EXP, 3, K_OTHER) == REFUSE_ARITY;
+    assert plan(LOG, 0, K_LITERAL) == REFUSE_ARITY;
+    assert plan(LOG, 2, K_F32) == REFUSE_ARITY;
+}
+
+// Over the seventeen builtins, 0..3 operands and the four kinds: 26 of the 272 cases call a routine (an f64
+// for each of the first six, `@round`, `inf`, `log1p` and `std.math.log`; an f32 for each but `log1p`), all
+// with the builtin's own number of operands. Every other case is a refusal, which names no routine and says why.
+test only_a_typed_float_with_a_routine_calls {
+    var calls : u32 = 0;
+    var b : u8 = 0;
+    while (b < 17) {
+        var ops : usize = 0;
+        while (ops < 4) {
+            var i : u32 = 0;
+            while (i < 4) {
+                const act : u8 = plan(b, ops, lp_kind(i));
+                if (act == CALL_F64 or act == CALL_F32) {
+                    calls = calls + 1;
+                    assert ops == arity(b);
+                    assert (act == CALL_F64) == (lp_kind(i) == K_F64);
+                    assert (act == CALL_F32) == (lp_kind(i) == K_F32);
+                    assert act == CALL_F32 or has_f64(b);
+                    assert std.mem.indexOf(u8, routine(b, act), HELPER) != null;
+                } else {
+                    assert routine(b, act).len == 0;
+                    assert why(act).len > 0;
+                    assert std.mem.indexOf(u8, why(act), "did not lower") == null;
+                }
+                i = i + 1;
+            }
+            ops = ops + 1;
+        }
+        b = b + 1;
+    }
+    assert calls == 26;
+}
+
+test the_routines_are_renamed_into_the_reserved_prefix {
+    assert std.mem.eql(u8, BUILTINS, "@exp @log std.math.nan std.math.isNan std.math.isPositiveInf std.math.isNegativeInf @floor @ceil @round @trunc @rem @log2 @log10 std.math.inf std.math.log1p std.math.log std.math.pow");
+    assert EXP == 0;
+    assert LOG == 1;
+    assert NAN == 2;
+    assert IS_NEG_INF == 5;
+    assert REM == 10;
+    assert LOG10 == 12;
+    assert LOG_E == 15;
+    assert POW == 16;
+    assert std.mem.eql(u8, PORT, "t27b_libm_");
+    assert std.mem.eql(u8, HELPER, "__t27b_libm_");
+    assert std.mem.indexOf(u8, HELPER, PORT) != null;
+    assert HELPER.len == PORT.len + 2;
+    assert std.mem.indexOf(u8, routine(EXP, CALL_F64), PORT) != null;
+    assert std.mem.indexOf(u8, routine(EXP, CALL_F32), PORT) != null;
+    assert std.mem.indexOf(u8, routine(LOG, CALL_F64), PORT) != null;
+    assert std.mem.indexOf(u8, routine(IS_NEG_INF, CALL_F32), PORT) != null;
+    assert !std.mem.eql(u8, routine(EXP, CALL_F64), routine(EXP, CALL_F32));
+    assert !std.mem.eql(u8, routine(EXP, CALL_F64), routine(LOG, CALL_F64));
+    assert !std.mem.eql(u8, routine(IS_POS_INF, CALL_F32), routine(IS_NEG_INF, CALL_F32));
+    assert routine(POW + 1, CALL_F64).len == 0;
+    assert routine(POW + 1, CALL_F32).len == 0;
+    assert std.mem.indexOf(u8, routine(REM, CALL_F32), PORT) != null;
+}
+
+test the_refusals_name_the_call_and_say_why {
+    assert std.mem.eql(u8, what(EXP), "ExprCall(@exp)");
+    assert std.mem.eql(u8, what(LOG), "ExprCall(@log)");
+    assert std.mem.eql(u8, what(NAN), "ExprCall(std.math.nan)");
+    assert std.mem.eql(u8, what(IS_NAN), "ExprCall(std.math.isNan)");
+    assert std.mem.eql(u8, what(IS_POS_INF), "ExprCall(std.math.isPositiveInf)");
+    assert std.mem.eql(u8, what(IS_NEG_INF), "ExprCall(std.math.isNegativeInf)");
+    assert std.mem.eql(u8, what(FLOOR), "ExprCall(@floor)");
+    assert std.mem.eql(u8, what(CEIL), "ExprCall(@ceil)");
+    assert std.mem.eql(u8, what(ROUND), "ExprCall(@round)");
+    assert std.mem.eql(u8, what(TRUNC), "ExprCall(@trunc)");
+    assert std.mem.eql(u8, what(REM), "ExprCall(@rem)");
+    assert std.mem.eql(u8, what(LOG2), "ExprCall(@log2)");
+    assert std.mem.eql(u8, what(LOG10), "ExprCall(@log10)");
+    assert std.mem.eql(u8, what(INF), "ExprCall(std.math.inf)");
+    assert std.mem.eql(u8, what(LOG1P), "ExprCall(std.math.log1p)");
+    assert std.mem.eql(u8, what(LOG_E), "ExprCall(std.math.log)");
+    assert std.mem.eql(u8, what(POW), "ExprCall(std.math.pow)");
+    assert std.mem.eql(u8, what(POW + 1), "ExprCall(libm)");
+    assert std.mem.indexOf(u8, why(REFUSE_BASE), "std.math.e") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_ARITY), "three") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_NO_F32), "no f32 routine") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_ARITY), "one operand") != null;
+    assert std.mem.indexOf(u8, why(REFUSE_NO_F64), "no f64 routine") != null;
+    assert std.mem.eql(u8, why(REFUSE_OPERAND), "the operand is not an f64 or an f32");
+    assert std.mem.indexOf(u8, why(REFUSE_LITERAL), "literal") != null;
+    assert std.mem.indexOf(u8, why(CALL_F64), "did not lower") != null;
+    assert std.mem.indexOf(u8, why(CALL_F32), "did not lower") != null;
+    assert !std.mem.eql(u8, why(REFUSE_ARITY), why(REFUSE_LITERAL));
+    assert !std.mem.eql(u8, why(REFUSE_OPERAND), why(REFUSE_NO_F64));
+}
+
+// #7923: weber_tuning's `std.math.log(f64, std.math.e, x)`, `std.math.log1p(x)` and `@round(x)` of an f64, and
+// formats' `std.math.inf(f32)`.
+test inf_log1p_log_e_and_an_f64_round_call_their_routines {
+    assert plan(INF, 1, K_F32) == CALL_F32;
+    assert plan(INF, 1, K_F64) == CALL_F64;
+    assert takes_type(INF);
+    assert !takes_type(LOG_E);
+    assert !takes_type(LOG1P);
+    assert std.mem.eql(u8, routine(INF, CALL_F64), "__t27b_libm_inf");
+    assert std.mem.eql(u8, routine(INF, CALL_F32), "__t27b_libm_inff");
+    assert plan(LOG1P, 1, K_F64) == CALL_F64;
+    assert std.mem.eql(u8, routine(LOG1P, CALL_F64), "__t27b_libm_log1p");
+    assert plan(LOG1P, 1, K_F32) == REFUSE_NO_F32;
+    assert !has_f32(LOG1P);
+    assert has_f32(LOG_E);
+    assert plan(LOG1P, 1, K_LITERAL) == REFUSE_LITERAL;
+    assert plan(ROUND, 1, K_F64) == CALL_F64;
+    assert std.mem.eql(u8, routine(ROUND, CALL_F64), "__t27b_libm_round");
+    assert has_f64(ROUND);
+    assert !has_f64(TRUNC);
+    assert !has_f64(CEIL);
+    // std.math.log(T, base, x): three operands, the value third, `log`'s routine.
+    assert arity(LOG_E) == 3;
+    assert operand(LOG_E) == 2;
+    assert operand(EXP) == 0;
+    assert operand(REM) == 0;
+    assert plan(LOG_E, 3, K_F64) == CALL_F64;
+    assert plan(LOG_E, 1, K_F64) == REFUSE_ARITY;
+    assert plan(LOG_E, 3, K_F32) == CALL_F32;
+    assert std.mem.eql(u8, routine(LOG_E, CALL_F32), routine(LOG, CALL_F32));
+    assert std.mem.eql(u8, routine(LOG_E, CALL_F64), routine(LOG, CALL_F64));
+}
+
+test std_math_log_needs_base_e_and_its_value_s_type {
+    assert with_base(LOG_E, CALL_F64, true, true) == CALL_F64;
+    assert with_base(LOG_E, CALL_F64, false, true) == REFUSE_BASE;
+    assert with_base(LOG_E, CALL_F64, true, false) == REFUSE_TYPE;
+    assert with_base(LOG_E, CALL_F64, false, false) == REFUSE_TYPE;
+    assert with_base(LOG_E, REFUSE_LITERAL, false, false) == REFUSE_LITERAL;
+    assert with_base(LOG_E, REFUSE_NO_F32, true, true) == REFUSE_NO_F32;
+    assert with_base(LOG_E, CALL_F32, false, true) == REFUSE_BASE;
+    // Every other builtin keeps its answer, base or not.
+    assert with_base(LOG, CALL_F64, false, false) == CALL_F64;
+    assert with_base(EXP, CALL_F32, false, false) == CALL_F32;
+    assert with_base(INF, REFUSE_OPERAND, true, true) == REFUSE_OPERAND;
+    assert routine(LOG_E, REFUSE_BASE).len == 0;
+    assert !std.mem.eql(u8, why(REFUSE_BASE), why(REFUSE_OPERAND));
+    assert !std.mem.eql(u8, why(REFUSE_TYPE), why(REFUSE_OPERAND));
+    assert routine(LOG_E, REFUSE_TYPE).len == 0;
+}

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:48fc461e43cf3dc111dfe1eeec8d1f31cac5f556604ce669d87eb3c55ee8213b",
-  "gen_hash_rust": "sha256:c3bbcb6a00fbd2f4f454a4fe2977078fcb9e37cabcd8bae5f0f14d992987aa28",
+  "gen_hash_rust": "sha256:5540a4f6e0c897053703df1a34f6817563b305242c034bfce0a4ace570621f22",
   "gen_hash_verilog": "sha256:90b60f9d02463d7970ccf8f25705eb9dcb73bcdb745bb0c50cfb35e300a6d20b",
   "gen_hash_zig": "sha256:5540dcc8ceaaa2a997785188465b8674f99254aea3b64b49023802e954c1bee3",
   "module": "IGLAPublication",

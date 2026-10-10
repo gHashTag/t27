@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d7d678ecccbc5350e47b7dd894030ce9388f9f59dd4a6b7ef6759d38194f5483",
+  "gen_hash_rust": "sha256:3d68c72dc31bf3ee333a1f1c84c6be916319c9dbe97d573f92e8e2dd11a26b60",
+  "gen_hash_verilog": "sha256:951e89762207402b025133afe173f350a71f6509e35970e2aeee7d9f9105bc34",
+  "gen_hash_zig": "sha256:35ac8509fafd671ccb79bd73f26ba79b014c22bb7076f884750b395d5a94ad06",
+  "module": "tool_trinity_tri_spiral",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:57:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:06be5c6000a3edeea92fe4a02eca6edcdc53795b449428aa1af7339eb735731c",
+  "spec_path": "specs/tools/trinity/tri/spiral.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

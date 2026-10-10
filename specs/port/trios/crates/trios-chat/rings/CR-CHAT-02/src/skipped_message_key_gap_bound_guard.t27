@@ -1,0 +1,165 @@
+//! # CR-CHAT-02 — Skipped message key gap bound guard (Wave-80 Lane A)
+//!
+//! RATCHET — skipped message key gaps must be bounded, R-CHAT-2.
+//!
+//! In the double ratchet, out-of-order messages cause skipped message
+//! keys to be stored for later use. If the gap between two consecutive
+//! skipped keys is unbounded:
+//!
+//! * **Memory exhaustion** — an attacker forces the receiver to store
+//!   keys for every chain index from 0 to N, where N is unbounded.
+//! * **DoS via gap** — a single message at chain index 1_000_000
+//!   forces the receiver to skip and store 1M keys.
+//! * **Timing attack** — large gaps cause processing delays that
+//!   reveal which messages are out-of-order.
+//!
+//! trios-chat enforces **6 rules**:
+//!
+//! 1. Gap between consecutive skipped keys <= `SMKG_MAX_GAP`.
+//! 2. First skipped key index >= `SMKG_MIN_INDEX`.
+//! 3. Total skipped keys <= `SMKG_MAX_SKIPPED`.
+//! 4. Skipped key indices are strictly increasing.
+//! 5. No duplicate indices.
+//! 6. All indices < `SMKG_MAX_INDEX`.
+//!
+//! Tests **SMKG-01..10**. Error enum [`SkippedGapError`].
+//!
+//! Anchor: `phi^2 + phi^-2 = 3 * TRINITY * CHAT * SKIPPED-KEY-GAP`
+
+/// Maximum gap between consecutive skipped keys.
+pub const SMKG_MAX_GAP: u32 = 32;
+
+/// Minimum key index.
+pub const SMKG_MIN_INDEX: u32 = 0;
+
+/// Maximum total skipped keys.
+pub const SMKG_MAX_SKIPPED: usize = 256;
+
+/// Maximum key index.
+pub const SMKG_MAX_INDEX: u32 = 1_000_000;
+
+/// All ways skipped gap validation can fail.
+pub enum SkippedGapError {
+    /// Gap too large.
+    GapTooLarge(u32),
+    /// Index below minimum.
+    IndexBelowMin(u32),
+    /// Too many skipped keys.
+    TooManySkipped,
+    /// Indices not strictly increasing.
+    NotIncreasing,
+    /// Duplicate index.
+    DuplicateIndex(u32),
+    /// Index exceeds maximum.
+    IndexTooLarge(u32),
+}
+
+/// `[VERIFIED]` Validate that skipped message key gaps are bounded.
+pub fn validate_skipped_key_gaps(
+    indices: []u32,
+) -> ?SkippedGapError {
+    if (indices.len > SMKG_MAX_SKIPPED) {
+        return .TooManySkipped;
+    }
+    
+    var seen: [SMKG_MAX_SKIPPED]bool = [_]bool{false} ** SMKG_MAX_SKIPPED;
+    var i: usize = 0;
+    for (indices) |idx| {
+        if (idx > SMKG_MAX_INDEX) {
+            return .IndexTooLarge(idx);
+        }
+        if (idx < SMKG_MIN_INDEX) {
+            return .IndexBelowMin(idx);
+        }
+        
+        if (seen[idx]) {
+            return .DuplicateIndex(idx);
+        }
+        seen[idx] = true;
+        
+        if (i > 0 and idx <= indices[i - 1]) {
+            return .NotIncreasing;
+        }
+        
+        if (i > 0) {
+            const gap = idx - indices[i - 1];
+            if (gap > SMKG_MAX_GAP) {
+                return .GapTooLarge(gap);
+            }
+        }
+        i += 1;
+    }
+    
+    return null;
+}
+
+test smkg_01_gap_large_rejected {
+    const indices = [u32]{0, 1, 100};
+    const result = validate_skipped_key_gaps(&indices);
+    const expected = .GapTooLarge(99);
+    assert(result == expected);
+}
+
+test smkg_02_too_many_rejected {
+    var indices: [SMKG_MAX_SKIPPED + 1]u32 = undefined;
+    var i: usize = 0;
+    for (&indices) |*idx| {
+        idx.* = @intCast(i);
+        i += 1;
+    }
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == .TooManySkipped);
+}
+
+test smkg_03_not_increasing_rejected {
+    const indices = [u32]{1, 3, 2};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == .NotIncreasing);
+}
+
+test smkg_04_duplicate_rejected {
+    const indices = [u32]{1, 2, 2};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == .DuplicateIndex(2));
+}
+
+test smkg_05_index_large_rejected {
+    const indices = [u32]{SMKG_MAX_INDEX + 1};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == .IndexTooLarge(SMKG_MAX_INDEX + 1));
+}
+
+test smkg_06_valid_accepted {
+    const indices = [u32]{0, 1, 2, 3, 5, 6, 8, 9};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == null);
+}
+
+test smkg_07_empty_accepted {
+    const indices = [u32]{};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == null);
+}
+
+test smkg_08_single_accepted {
+    const indices = [u32]{0};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == null);
+}
+
+test smkg_09_max_gap_accepted {
+    const indices = [u32]{0, SMKG_MAX_GAP};
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == null);
+}
+
+test smkg_10_max_skipped_accepted {
+    var indices: [SMKG_MAX_SKIPPED]u32 = undefined;
+    var i: usize = 0;
+    for (&indices) |*idx| {
+        idx.* = @intCast(i);
+        i += 1;
+    }
+    const result = validate_skipped_key_gaps(&indices);
+    assert(result == null);
+}

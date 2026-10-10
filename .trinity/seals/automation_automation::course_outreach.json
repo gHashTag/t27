@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:02d330604fc85ba213a8dcecfc5a671a57e983405fd3ce10ce84081a939261a2",
+  "gen_hash_rust": "sha256:d7007fcedd4b282b9cfe44b651295e64e8266e0a4bb0976dbab2413785c26d89",
+  "gen_hash_verilog": "sha256:eed90796d34697a3029f36b30cd00b58061dcd3927cd189c3fead7fc7c242cfa",
+  "gen_hash_zig": "sha256:b14121bdd9c1347b8a57356ab8efc10248709f0bf4279580a64dbc75841f566f",
+  "module": "automation::course_outreach",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:21:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3b00f9721e342832586034e8f458cbb2451238736d8e1854d84bb67b3c126239",
+  "spec_path": "specs/automation/course-outreach.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 20,
+    "total": 20
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,12 +1,53 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/fpga/axi4/Axi4.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/bridge/FPGA_Bridge.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/fifo/Fifo.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/gf16_accel/Gf16Accel.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/mac/ZeroDSP_MAC.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/memory/Memory.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/spi/SPI_Master.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/top_level/ZeroDSP_TopLevel.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/fpga/uart/ZeroDSP_UART.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:56d63eece640ffb3900b4d2947e801f111cc3bde9ffaa5c0ef5d50a4ac644f6d",
   "gen_hash_rust": "sha256:37765af207cb96d9d3e0c4fbe47906d3dadfc037e9b333e692d5729b57baf0c0",
   "gen_hash_verilog": "sha256:426338e1fa66258cd1f8b59141f8986d84967a707088baaac47e9f46d8ca12f1",
   "gen_hash_zig": "sha256:1582d283ff7a08654a045d4ce263d20e769ce4c45a7358db34be08e424049750",
   "module": "ArtyA7_Integration",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:41:26Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T22:18:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8af99e802413fd1d7aa05a126ddc64fcca99ce26258bce4f6069997394b8b75d",
   "spec_path": "specs/fpga/boards/arty_a7_integration.t27",
   "tests": {
@@ -15,5 +56,9 @@
     "forced": false,
     "passed": 6,
     "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

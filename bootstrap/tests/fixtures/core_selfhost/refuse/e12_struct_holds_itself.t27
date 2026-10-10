@@ -1,0 +1,6 @@
+// #7961: a struct holding itself by value has no size; gen-c writes it.
+module struct_holds_itself;
+struct ShNode {
+    next: ShNode,
+    v: u8,
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2eb3bb743cd0d6b48d1cfcdfbd86b7974b5b70246747f1c82c26f2fd41532987",
+  "gen_hash_rust": "sha256:b29132270baf7a3e82915149de852d487d78bdbbd72ec07080e3a78ed934c0c6",
+  "gen_hash_verilog": "sha256:86e7190b79fca759879ca181dbb282757e75681eb785386ef9f3dc45511daaf7",
+  "gen_hash_zig": "sha256:5dabbc39d86c98a1cbe4829e551ccd43576cf0ab134f922982e7e03af01588a0",
+  "module": "port::railway_create_full",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1cd248ded9845cb30bd486efb7ca644406d25db748ba2529eeac000ca20b7ab1",
+  "spec_path": "specs/port/trinity/src/cli/railway_create_full.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

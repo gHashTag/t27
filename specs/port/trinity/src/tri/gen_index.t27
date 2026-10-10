@@ -86,3 +86,16 @@ test "multiple documents per term" {
     
     InvertedIndex_deinit(&idx);
 }
+
+// The ported index is inert by design (#8475): init round-trips its allocator
+// and the placeholder handle, and search misses even after add, because the
+// HashMap/ArrayList plumbing stays with the host.
+test inverted_index_stub_contract {
+    var idx = InvertedIndex_init("arena");
+    assert(idx.allocator.len == 5);
+    assert(idx.index.len == 11);
+    assert(InvertedIndex_search(&idx, "term") == null);
+    InvertedIndex_add(&idx, "term", 1);
+    assert(InvertedIndex_search(&idx, "term") == null);
+    InvertedIndex_deinit(&idx);
+}

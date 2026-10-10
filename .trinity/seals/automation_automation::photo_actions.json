@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b08b7d996ef9f2214a04ef325f2cb6f617d4530c6f4b51883703ded86293d707",
+  "gen_hash_rust": "sha256:35b801c652da4465a713a73c6faa313bbe4d0d958a862110dca12feeb89b393b",
+  "gen_hash_verilog": "sha256:ebdb0196de122fa567efc225a04f08861704ce124ceb635f31515e1edd50b017",
+  "gen_hash_zig": "sha256:a07c36af04fc848a266b53eff3ef03aae86a5faca980c9408ac0dbf2b372e815",
+  "module": "automation::photo_actions",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:18ec9b49e67307074385504979c945b387d5b0e8a7cac3de43694864ed5942d3",
+  "spec_path": "specs/automation/photo-actions.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

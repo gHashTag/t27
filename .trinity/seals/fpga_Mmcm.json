@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:eff16b68c55bbef2e5b06dc9f4e2afb3cfb209abbc8fb7072fa92bb0a576d8a7",
+  "gen_hash_rust": "sha256:1b2dd800dc9f0792060fe39e13f02274a4f6759239eb656e659c95e09a2c115a",
+  "gen_hash_verilog": "sha256:7867a687b41751f3e2eece8f35f3fe3de5f83474310ecde9e5b6d79f55e13e66",
+  "gen_hash_zig": "sha256:e8ce7c001749d98125e2d535b595bbe0cb544695e2e0c5ab166e263ce42f828a",
+  "module": "Mmcm",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:48:20Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7061ca463e6a6bd95c8fd4ac2cfd64ef9ed01f4381ca74695e368cd23ad3865a",
+  "spec_path": "specs/fpga/mmcm.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 16,
+    "total": 16
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

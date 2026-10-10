@@ -789,6 +789,8 @@ def run_check(check: dict, cwd, t27c: str, scratch: str, subcommands=None, env=N
     if env is None:
         env = dict(os.environ)
     env = dict(env, PATH=str(Path(t27c).parent) + os.pathsep + env.get("PATH", "/usr/bin:/bin"))
+    # #7370: a criterion reads test-report's words; its alone-run below must fail on an error, not on a red spec.
+    env["T27C_TEST_REPORT_EXIT_ZERO"] = "1"
     command = check["cmd"].replace(SCRATCH_PREFIX, scratch + "/t27-")
     seen = []
     try:

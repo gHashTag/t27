@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d3113a895ad26b80373b7d0021c2e2e6e6a1a01e3b7d82740064aaacd22fa86f",
+  "gen_hash_rust": "sha256:a042cf81ccaa0de60b717df353334cb911c33e9c9d9dbe4010a22138186386e9",
+  "gen_hash_verilog": "sha256:03a5372eb3fcd79bbf9c7ee34e758a108f886a197583363e48d3e031ce8149d4",
+  "gen_hash_zig": "sha256:7baae69ff64cdc181a305de65328e9ec70751a76e2a7b86b0440f9faad8bf4a5",
+  "module": "QueenPriority",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d5d5e42e10e89055810a8e8115285f6af4683f8c6e6c36501fa2b4419f4ed070",
+  "spec_path": "specs/queen/priority.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:d44b86294e7fdcaa56dd16e77fc9c93b2308b213b1cc8e8d8f286fe93fe00957",
-  "gen_hash_rust": "sha256:c78c64fd59cfe3d0dc5604f14a0015cc7b9ecb88912927e127404edad3268f9d",
+  "gen_hash_rust": "sha256:952baf28a474b4e42df46629709567c37218e33d007fc2045b6cec1cb76ee1c1",
   "gen_hash_verilog": "sha256:f365308297d87d4fa7268b80ec6d90ad91a2ca026d8ea6cf56716a75efcc3277",
   "gen_hash_zig": "sha256:496461fe415cd94c7ed5310d251ab365d672e82df9d846e403007a54070b8bf4",
   "module": "Backend",

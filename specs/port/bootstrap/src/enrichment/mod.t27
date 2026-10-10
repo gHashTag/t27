@@ -14,7 +14,7 @@ pub fn check_enrich_script_exists(notebooklm_dir: []const u8, script_name: []con
 
 /// Build command arguments for the enrich script based on parameters
 pub fn build_enrich_args(all: bool, notebook: []const u8, force: bool) -> struct { args: [4][]const u8, len: usize } {
-    var args: [4][]const u8 = undefined;
+    var args: [4]str = undefined;
     var len: usize = 0;
     
     args[0] = "enrich.py";
@@ -107,9 +107,9 @@ pub fn build_base_url(region: []const u8, project: []const u8, location: []const
 pub fn determine_notebooks_to_process(
     all: bool,
     notebook: []const u8,
-) -> (usize, [10][]const u8) {
+) -> (usize, [10]str) {
     var count: usize = 0;
-    var notebooks: [10][]const u8 = undefined;
+    var notebooks: [10]str = undefined;
     
     if (all) {
         // Simulate getting all notebooks with sources

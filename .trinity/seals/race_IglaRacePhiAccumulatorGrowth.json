@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d4103b8f8b189239f6cbb79ea4ee28ee5668e2d33742a3a446b7272d2aaaf590",
   "gen_hash_rust": "sha256:fcdef5ce3a6947f6bd84b158ac4981964e215267e54620b916f3dac362190bd4",
   "gen_hash_verilog": "sha256:cc5ad24bb60e614cb37c2d45c0077ae965536e283b11cca7ee05310bcf951cbe",
   "gen_hash_zig": "sha256:aac3d9a0326ade0c2b3d3438839c90c40720ccad91951e1e50f12ead40759d1e",
   "module": "IglaRacePhiAccumulatorGrowth",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:48Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:08:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e0db74fb04b07ce67ea824027d57b1d9da9853c9b36b609ef8cf54593b7d934d",
-  "spec_path": "specs/igla/race/phi_accumulator_growth.t27"
+  "spec_path": "specs/igla/race/phi_accumulator_growth.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 20,
+    "total": 20
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

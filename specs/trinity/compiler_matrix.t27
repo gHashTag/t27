@@ -89,3 +89,10 @@ test the_absent_backend_is_not_a_backend {
     assert ABSENT_BACKEND != BACKENDS[2];
     assert ABSENT_BACKEND != BACKENDS[3];
 }
+
+test the_matrix_is_enabled {
+    assert ENABLED == true;
+    assert KIND == "compiler-matrix";
+    assert NATIVE_COMPILER == "t27c 0.2.0";
+    assert FIXTURE_DIR == "bootstrap/tests/fixtures/trinity_matrix";
+}

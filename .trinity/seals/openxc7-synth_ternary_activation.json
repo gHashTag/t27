@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:7210dd33c1946eb2c248b79e6568726d79f980685cc3a839b24074cf18269c9a",
+  "gen_hash_rust": "sha256:ab32a66f90bc03332b53d234b4cfa1f627c82f9c713a1e174ea59ae4598d455a",
+  "gen_hash_verilog": "sha256:844dcfc17b48112858886db8e7f85f46500dfc5324be69d88a11c8cd708cd6ac",
+  "gen_hash_zig": "sha256:9276542868a282b8bb87805b33fe328daefa2da42b902be660f8f155db943871",
+  "module": "ternary_activation",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:31173e3c74d41a813d1ddd65d3a42a88c8c1b3ed85fbe9c974da11e7f342b5e4",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/ternary_activation.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

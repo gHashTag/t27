@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:66fdb546bec86ce4936c3e821b8deff2071056e97d108387e1553c70e23f8d2c",
+  "gen_hash_rust": "sha256:1e66b959b856fc0c248845eee61f7f1a47f55fc69da4d34429c728a90b30b018",
+  "gen_hash_verilog": "sha256:92f05b654950c54975f697631904e93e9b853720824ef9572072ee141ded8f02",
+  "gen_hash_zig": "sha256:3295c6e55f25f5a58045e80be6298c9ea3c09bcb2d0b927b59579594855e0ca4",
+  "module": "tool_tri_jumps",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:55:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c7aa760148412dbb75be0b954b0ca5aec9659a27bdf390c74ed934b497948ad1",
+  "spec_path": "specs/tools/tri/jumps.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

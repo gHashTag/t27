@@ -1,0 +1,3 @@
+// An undeclared name in a module const's value (#8087).
+module undeclared_in_module_const;
+const UMC_A: i64 = UMC_NOPE;

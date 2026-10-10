@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:724a02aefce65fbe24fa64ee9eb20b2fe62235ba45dc09068d9493bd9e3d4f7c",
+  "gen_hash_rust": "sha256:67eac1b65f44dd59dc6a5d77a7ff4c7f1117e29aab97adc73cd1163948cc2fff",
+  "gen_hash_verilog": "sha256:01d3af91d562e5f5a6882a8188dd176d9247ec0c6543a574a2b2c71a184e4561",
+  "gen_hash_zig": "sha256:3e4b50985c82d90e413569a87ef51d4c9115f1efbf282f64f3fdd81330d8b245",
+  "module": "T27bConformanceLargeFrame",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d734fc6f77a3e75a390ba3926b672c38e81c80bba8778854ad59bc7f3e46c5af",
+  "spec_path": "specs/tri/t27b/conformance/large_frame.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

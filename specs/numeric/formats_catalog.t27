@@ -46,7 +46,8 @@
 // NOTE: The AST path (getters emitted by `t27c gen`) has zero call sites
 // across the entire repository. The live gates -- `check_catalog_count.py`,
 // `check_catalog_integrity.py`, and `wp18_conformance_gate.py` -- read
-// the CATALOG: comment lines instead.
+// the structured catalog comment rows below instead (the colon-tagged ones;
+// this note must not repeat their tag, or every counter reads it as a row).
 
 module FormatsCatalog {
 
@@ -488,6 +489,23 @@ module FormatsCatalog {
 
   // CATALOG: id=stochastic_rounding name="stochastic rounding (technique)" bits=0 s=0 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=CompressionTrick status=Verified standard="Gupta 2015" use_case="training small networks at low precision" gf_relation=ally source="Gupta 2015 (ICML)"
   fn stochastic_rounding() -> str { return "stochastic_rounding"; }
+
+  // ----------------------------------------------------------------------
+  // t27b checked (#8473): exercise the AST path this module actually
+  // declares. Each getter returns its catalog id -- GF16 because it is the
+  // numeric SSOT anchor (L6), takum64 because the header names takum the
+  // strongest live counterexample, int8 as the integer-floor representative.
+  // TRINITY is the Lucas L2 anchor, compared with L5 tolerance.
+  // The CATALOG comment rows above stay the machine-readable record and are
+  // not touched by this block.
+  // ----------------------------------------------------------------------
+  test catalog_getters_and_trinity_anchor {
+    assert binary16() == "binary16";
+    assert gf16() == "gf16";
+    assert takum64() == "takum64";
+    assert int8() == "int8";
+    assert abs(TRINITY - 3.0) < 1e-12;
+  }
 
 }
 

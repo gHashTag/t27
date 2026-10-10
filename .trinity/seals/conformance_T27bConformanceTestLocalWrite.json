@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:52c59a75d30866a19c024dda810a5badbcd1ac77df076772ae0f70e64a192f6b",
+  "gen_hash_rust": "sha256:d055aff99af8e24b8566311aee07f9d8a375dcaf38e366581d0e0b9727eb466e",
+  "gen_hash_verilog": "sha256:f17b693718e43e89b6fe1a7142d88e8e6a5d1946aed8eead34d106fe58fb198d",
+  "gen_hash_zig": "sha256:a0b0f2d36763458ccc298fdf5d2bef96b0fbfcb621e6a8a901a385ea2fff3093",
+  "module": "T27bConformanceTestLocalWrite",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:00:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a4308d9f3a96b855be510263b52e55895a5e706202637197189e47f9ac4ccd2b",
+  "spec_path": "specs/tri/t27b/conformance/test_local_write.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

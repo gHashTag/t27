@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/any_param_plan.t27 -- how t27b lowers an `anytype` parameter that the fn's body never names,
+; and the argument a call passes for it (issue #7876, t27b coverage epic #6063; written in t27 under the port
+; epic #6198). The decisions reach cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/any_param_plan.rs); the
+; Rust glue in cli/t27b/src/lower.rs (`signature`, `call`) gathers the facts below and asks.
+; --
+; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
+; specs/tri/t27b/conformance/unread_anytype.t27): t27c prints `fn isNotFoundError(err: anytype) bool` with
+; `_ = err; // unused by the spec body`, and each call as written. Zig instantiates the fn once per argument type
+; (`*const [6:0]u8` for "ENOENT", `@TypeOf(null)` for null, `comptime_int` for 7), and as the body never reads the
+; parameter, every instance computes the same thing from the other parameters. The corpus has the shape in
+; identity.t27 (`isNotFoundError("ENOENT")`, `isNotFoundError(null)`).
+; --
+; What t27b does. Such a parameter (VOID_PARAM) is t27b's `void`, the struct with no fields (#7267), so one body
+; stands for every instance. An argument for it is taken (TAKE) when evaluating it runs nothing: `null`, or a
+; value t27b's own lowering folds at compile time to an integer or a string (a literal, a constant's name). Its
+; value is void's, which nobody reads. Any other argument (a call, a run-time value) is refused by name (REFUSE):
+; evaluating it may run code, and its type is not one t27b checks here.
+; Not covered: an `anytype` parameter the body names. Zig then compiles the body once per argument type, and the
+; body may dispatch on `@TypeOf(value)` (queen-public-agents.t27's `heartbeatTime`); that keeps `type anytype`.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bAnyParamPlan;
+
+// What a parameter is.
+pub const NOT_MINE : u8 = 0;
+pub const VOID_PARAM : u8 = 1;
+
+// What an argument for a VOID_PARAM is.
+pub const TAKE : u8 = 2;
+pub const REFUSE : u8 = 3;
+
+/// A parameter. is_anytype: its type is the keyword `anytype`. named: the fn's body names it.
+pub fn param(is_anytype: bool, named: bool) -> u8 {
+    if (is_anytype and !named) { return VOID_PARAM; }
+    return NOT_MINE;
+}
+
+/// The argument a call passes for a VOID_PARAM. pure: it is `null`, or t27b's own lowering folds it at compile
+/// time to an integer or a string, so evaluating it runs nothing.
+pub fn arg(pure: bool) -> u8 {
+    if (pure) { return TAKE; }
+    return REFUSE;
+}
+
+/// The construct a refusal names.
+pub fn what() -> str {
+    return "ExprCall(anytype argument)";
+}
+
+/// The words of a refusal, after the callee's name.
+pub fn why() -> str {
+    return "an argument for an `anytype` parameter the body never reads is taken only when evaluating it runs nothing (null, a compile-time integer or string)";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests: the corpus shape, then what is left alone.
+// ----------------------------------------------------------------------------------------------------------
+
+test an_anytype_parameter_nobody_reads_is_void {
+    // identity.t27's `isNotFoundError(err: anytype) bool { return false; }`.
+    assert(param(true, false) == VOID_PARAM);
+}
+
+test a_named_or_typed_parameter_is_left_alone {
+    // queen-public-agents.t27's `heartbeatTime(value: anytype)` reads `@TypeOf(value)`.
+    assert(param(true, true) == NOT_MINE);
+    assert(param(false, false) == NOT_MINE);
+    assert(param(false, true) == NOT_MINE);
+}
+
+test a_literal_argument_is_taken_and_any_other_is_refused {
+    // `isNotFoundError("ENOENT")`, `isNotFoundError(null)`: nothing runs.
+    assert(arg(true) == TAKE);
+    // `isNotFoundError(lookup())` would run `lookup`.
+    assert(arg(false) == REFUSE);
+}
+
+test the_answers_are_distinct_and_the_refusal_is_named {
+    assert(NOT_MINE != VOID_PARAM and VOID_PARAM != TAKE and TAKE != REFUSE and NOT_MINE != REFUSE);
+    assert(std.mem.eql(u8, what(), "ExprCall(anytype argument)"));
+    assert(std.mem.indexOf(u8, why(), "runs nothing") != null);
+}

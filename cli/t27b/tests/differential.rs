@@ -72,6 +72,24 @@ const ALL: [Ty; 9] = [
     Ty::I64,
 ];
 
+/// Odd widths (`u1`, `i21`): canonical like u8/u16 in a W register, with
+/// bitfield extracts where those have byte and halfword extends. The edge-
+/// value tests run them next to `Ty::INTS`; the random generator does not.
+const ODD: [Ty; 12] = [
+    Ty::UN(1),
+    Ty::IN(1),
+    Ty::IN(2),
+    Ty::UN(4),
+    Ty::IN(5),
+    Ty::UN(7),
+    Ty::UN(17),
+    Ty::IN(17),
+    Ty::UN(21),
+    Ty::IN(21),
+    Ty::UN(31),
+    Ty::IN(31),
+];
+
 /// A value of `ty`, biased towards the edges of its range.
 fn value(rng: &mut Rng, ty: Ty) -> i128 {
     if ty == Ty::Bool {
@@ -1518,9 +1536,14 @@ fn every_operator_at_edge_values() {
     let mut rng = Rng::new(99);
     let mut stats = Stats::default();
     let mut failures = Vec::new();
-    for ty in Ty::INTS {
+    for ty in Ty::INTS.into_iter().chain(ODD) {
         let vals = edge_values(ty);
         for op in OPS {
+            // A runtime wrap-mode shift of an odd width is refused by
+            // lowering (`bits - 1` is no mask); its constant form is below.
+            if ty.is_odd() && matches!(op, ArithOp::ShlW | ArithOp::ShrW) {
+                continue;
+            }
             let amt_tys: Vec<Ty> = if op.is_shift() {
                 vec![ty, Ty::U8, Ty::I8, Ty::U32, Ty::I64]
             } else {
@@ -1582,6 +1605,25 @@ fn every_operator_at_edge_values() {
             }
         }
     }
+    // Constant shifts of the odd widths: every in-range amount, the form
+    // lowering gives a comptime-known amount.
+    for ty in ODD {
+        let vals = edge_values(ty);
+        let (sites, _) = sites_for(ArithOp::ShlW, ty);
+        let mut funcs = Vec::new();
+        for c in 0..ty.bits() as i128 {
+            for op in [ArithOp::ShlW, ArithOp::ShrW] {
+                let e = arith(ty, op, var(ty, 0), konst(Ty::U32, c), 0);
+                funcs.push(one_func("sc", &[ty], ty, vec![Stmt::Return(Some(e))], 1));
+            }
+        }
+        let n = funcs.len();
+        let prog = Program { module: "oddshift".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), globals: Vec::new(), internal_abi: Vec::new() };
+        let calls: Vec<(usize, Vec<i128>)> = (0..n).flat_map(|f| vals.iter().map(move |&a| (f, vec![a]))).collect();
+        if let Err(e) = compare_calls(&prog, &calls, &mut rng, &mut stats) {
+            failures.push(format!("constant shifts on {}: {}", ty.name(), e));
+        }
+    }
     eprintln!(
         "edge values: {} programs, {} calls compared ({} returns, {} traps)",
         stats.programs,
@@ -1600,7 +1642,7 @@ fn compare_unary_widen_at_edge_values() {
     let mut stats = Stats::default();
     let mut failures = Vec::new();
     let mk = |kind, ty| Site { kind, line: 1, what: String::new(), ty };
-    for ty in ALL {
+    for ty in ALL.into_iter().chain(ODD) {
         let vals = edge_values(ty);
         let ops: Vec<CmpOp> = if ty == Ty::Bool { vec![CmpOp::Eq, CmpOp::Ne] } else { CMPS.to_vec() };
         for op in ops {
@@ -1663,7 +1705,7 @@ fn compare_unary_widen_at_edge_values() {
             failures.push(format!("unary on {}: {}", ty.name(), e));
         }
         // Widening into every wider type.
-        for to in Ty::INTS {
+        for to in Ty::INTS.into_iter().chain(ODD) {
             if to == ty || !to.can_widen_from(ty) {
                 continue;
             }
@@ -1700,9 +1742,9 @@ fn casts_at_edge_values() {
     let mut stats = Stats::default();
     let mut failures = Vec::new();
     let mk = |kind, ty| Site { kind, line: 1, what: String::new(), ty };
-    for from in ALL {
+    for from in ALL.into_iter().chain(ODD) {
         let vals = edge_values(from);
-        for to in Ty::INTS {
+        for to in Ty::INTS.into_iter().chain(ODD) {
             if to == from {
                 continue;
             }
@@ -2204,8 +2246,8 @@ test nan_to_int {
 
 /// What stays refused, each named: `@sqrt` of a literal, `std.math.*`, a
 /// conversion with no result type, f16, `as` from an f64 t27c gen does not
-/// spell as a float (here a call; a spelled one is lowered, see
-/// `float_as.t27`) or from a bool to f64 (an integer `as f64` is
+/// spell as a float (here an array element; a spelled one, a call of a fn
+/// declared `-> f64` included, is lowered, see `float_as_plan.t27`) or from a bool to f64 (an integer `as f64` is
 /// `@floatFromInt`, see `source.rs`), a folded value
 /// past the f64 range, and `x * 2^k` on f64 (t27c gen rewrites it into a
 /// shift that cannot compile).
@@ -2223,14 +2265,14 @@ fn f64_refusals_name_the_construct() {
         ("return std.math.sqrt(x);", "ExprCall(std.*)"),
         ("return @floatFromInt(n) + x;", "ExprCall(@floatFromInt)"),
         ("const y: f16 = 1.0;\nreturn x;", "type f16"),
-        ("return f(x, n) as f64;", "ExprCast(f64)"),
-        ("const k: i32 = f(x, n) as i32;\nreturn x;", "ExprCast(f64)"),
+        ("const a: [1]f64 = [x];\nreturn a[0] as f64;", "ExprCast(f64)"),
+        ("const a: [1]f64 = [x];\nconst k: i32 = a[0] as i32;\nreturn x;", "ExprCast(f64)"),
         ("return (n > 0) as f64;", "ExprCast(f64)"),
         ("return x + 1e308 * 10.0;", "literal out of range"),
         ("return x + 1.0 / 0.0;", "ExprBinary"),
         ("return x * 2;", "ExprBinary(f64 * 2^k)"),
         ("return x % 2.0;", "ExprBinary(%)"),
-        ("return x + n;", "type mismatch"),
+        ("return x + @as(i64, n);", "type mismatch"),
     ] {
         let msg = first(body);
         assert!(msg.contains(&format!("unsupported construct {} ", want)), "{}: {}", body, msg);
@@ -2532,7 +2574,7 @@ test f32_out_of_range {
 
 /// What stays refused for f32, each named: an integer literal that is not
 /// exactly an f32 (a Zig compile error), `as` from a float t27c gen does
-/// not spell as one (a call), and
+/// not spell as one (an array element), and
 /// `@floatCast` of a literal or with no result type. (A literal one f64
 /// apart from an f32 midpoint rounds from its binary128 value, see
 /// `comptime_floats_fold_in_binary128`.)
@@ -2547,8 +2589,8 @@ fn f32_refusals_name_the_construct() {
     };
     for (body, want) in [
         ("return 16777217;", "literal out of range"),
-        ("return f(x, n) as f32;", "ExprCast(f32)"),
-        ("const k: i32 = f(x, n) as i32;\nreturn x;", "ExprCast(f32)"),
+        ("const a: [1]f32 = [x];\nreturn a[0] as f32;", "ExprCast(f32)"),
+        ("const a: [1]f32 = [x];\nconst k: i32 = a[0] as i32;\nreturn x;", "ExprCast(f32)"),
         ("return @floatCast(0.5);", "ExprCall(@floatCast)"),
         ("return @floatCast(x) + x;", "ExprCall(@floatCast)"),
         ("return x * 4;", "ExprBinary(f64 * 2^k)"),

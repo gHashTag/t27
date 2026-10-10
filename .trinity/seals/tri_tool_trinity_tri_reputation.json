@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:32c8b4280bc465b8c7fdf05cb95a8d9fd2536dd1c26087b71a8ca237b0097ead",
+  "gen_hash_rust": "sha256:c13870b7625fb54009033a76b505d47b48722c8bfcd43170574e23648ffdb6a7",
+  "gen_hash_verilog": "sha256:c4b2adbfd692371d90dd30993c4d56db17896f811617fdce4d8c034068d0cfaa",
+  "gen_hash_zig": "sha256:d1905e71a31511ce12daeadc57f11efedaa9c8e9cbb1ecfbc8ee2e0cff16f665",
+  "module": "tool_trinity_tri_reputation",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:57:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f74bf776a495a8e5d5e377d68ce16674cfe3a5293d845cb9da8b734b94baaf98",
+  "spec_path": "specs/tools/trinity/tri/reputation.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

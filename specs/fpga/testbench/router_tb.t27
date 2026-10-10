@@ -110,7 +110,7 @@ module Router_Testbench {
         reset();
         var i : u32 = 0;
         while i < 100 {
-            manhattan_distance(i % 16, (i + 1) % 16, (i + 5) % 16, (i + 7) % 16);
+            _ = manhattan_distance(i % 16, (i + 1) % 16, (i + 5) % 16, (i + 7) % 16);
             i = i + 1;
         }
     }

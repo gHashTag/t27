@@ -53,6 +53,7 @@
     "PinMapping",
     "PipelineConfig",
     "PipelineResult",
+    "Point",
     "PolicyOutput",
     "Port",
     "ProcessInfo",

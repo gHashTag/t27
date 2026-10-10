@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fd61d163e68ad95bbbab31808500aff3c70fbfda44ace46e53abb3ce23a2b3e5",
+  "gen_hash_rust": "sha256:65949ddd08161d0aaba9150fe5ac5362f50fc9c0cbaee31cb619b217478f0b1f",
+  "gen_hash_verilog": "sha256:efca20279d924230fbc643099f6eb22ea369383f46ab9f83c943178529bb26ad",
+  "gen_hash_zig": "sha256:3a7c928c089126214adf7d4ffbe7c692ad2c5294398d0850c80c5bbd6559faa1",
+  "module": "port::build",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6abf174d636795cdf8f2cd6033a4c663e2cd6face39d5b875c8742d008e2c8b6",
+  "spec_path": "specs/port/trios/apps/trios-macos/rings/RUST-13/trios-mesh/build.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -25,3 +25,44 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "The schedule is configured in the Railway dashboard for project 999 and is not readable from the checkout; the probe below is what this catalog can verify.";
 pub const ON_FAILURE : str = "unknown";
 pub const CONTROL : str = "railway-dashboard";
+
+; The card held to the schema of specs/crons/README.md: ID is <host>/<repo>/<slug>; HOST,
+; ON_FAILURE and CONTROL come from fixed vocabularies; RUNS, the control link, is empty unless
+; the source evidently invokes a skill, and RUNS_NOTE then says why.
+test id_is_host_repo_and_slug {
+    // HOST is one of the five hosts the README names.
+    assert HOST == "github-actions" or HOST == "inngest" or HOST == "railway-cron" or HOST == "timer" or HOST == "launchd";
+    // ID opens with HOST and a `/`, then two path segments, neither empty. The middle one is
+    // not REPO on this card (#7911): only the shape is checked here.
+    var i : usize = 0;
+    while (i < HOST.len) {
+        assert ID[i] == HOST[i];
+        i = i + 1;
+    }
+    assert ID[HOST.len] == '/';
+    var slashes : u32 = 0;
+    var s : usize = HOST.len + 1;
+    while (s < ID.len) {
+        if (ID[s] == '/') {
+            slashes = slashes + 1;
+            assert ID[s - 1] != '/';
+        }
+        assert ID[s] != ' ';
+        s = s + 1;
+    }
+    assert slashes == 1;
+    assert ID[ID.len - 1] != '/';
+}
+test vocabularies_and_the_control_link {
+    assert KIND == "cron";
+    assert ON_FAILURE == "issue" or ON_FAILURE == "log" or ON_FAILURE == "unknown";
+    assert CONTROL == "github-actions-dispatch" or CONTROL == "railway-dashboard" or CONTROL == "inngest-dashboard" or CONTROL == "code-only";
+    // An empty RUNS carries its reason in RUNS_NOTE.
+    assert RUNS.len > 0 or RUNS_NOTE.len > 0;
+}
+test a_dashboard_schedule_says_where_it_is {
+    // SCHEDULE is `""` when only a dashboard holds it, and SCHEDULE_NOTE then says so.
+    assert SCHEDULE.len == 0;
+    assert SCHEDULE_NOTE.len > 0;
+    assert CONTROL == "railway-dashboard";
+}

@@ -44,3 +44,14 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test agent_c_constants {
+    assert KIND == "agent";
+    assert ID == "t27/C";
+    assert LETTER == "C";
+    assert ORDINAL == 3;
+    assert LETTER_NAME == "Gamma";
+    assert REGISTER == "R2";
+    assert SOUL == "SOUL.md";
+    assert ENABLED == true;
+}

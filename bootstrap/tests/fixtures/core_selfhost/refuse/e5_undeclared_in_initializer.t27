@@ -1,0 +1,6 @@
+// An undeclared name in a local's initializer (#8087).
+module undeclared_in_initializer;
+fn uii_g() -> i64 {
+    var a: i64 = uii_nope + 1;
+    return a;
+}

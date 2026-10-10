@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:8fc604a4966b7002071a067248b15bb887e72ee9801f677a23d3299d89847b63",
+  "gen_hash_rust": "sha256:c354adf591da4a816621d1c034614edd1e6e67984b7c7e8efaaf1788994df11d",
+  "gen_hash_verilog": "sha256:dabe132d01de12d1add52daa528d23becb456d0f221b3e56b6e96850f9f21575",
+  "gen_hash_zig": "sha256:ffb37e7a3ae04c6f6c2f8489d06c64720334fc6722025fe4572717697e7d5115",
+  "module": "tool_mcp_tri_ssot",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e4e0bf29c474032219a8165a534c7763d83642fbc05d109e1f5e624a66a57872",
+  "spec_path": "specs/tools/mcp/tri-ssot.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

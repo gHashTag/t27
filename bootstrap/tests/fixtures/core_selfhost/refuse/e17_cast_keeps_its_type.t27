@@ -1,0 +1,6 @@
+// A cast keeps its type though its operand is known at compile time:
+// (v as i64) & x is an i64 in Zig (#8075).
+module cast_keeps_its_type;
+fn ckt_f(x: i16) -> i16 {
+    return (5 as i64) & x;
+}

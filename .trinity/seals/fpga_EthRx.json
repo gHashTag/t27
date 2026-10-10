@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+88813772c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:58af70968270f224a8f5835df261478a3ef39f4a3409ff9d370bb1e3656a7d04",
+  "gen_hash_rust": "sha256:44f63260041288ef0fe0e2acce1c3d2207793765ef64b302931838f06fec5329",
+  "gen_hash_verilog": "sha256:2abc54dbaafcc5f8dbba6730014be46a518787f9ab6afa8d75a2167c154ab068",
+  "gen_hash_zig": "sha256:1d332c78486ab6a0352f2c91b895c6b894cf20177da45259564c09310e4faf00",
+  "module": "EthRx",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:0e95504a2d90ae53c018a587ae8bec8b8414161e1081c103489534cfd7c276f6",
+  "spec_path": "specs/fpga/eth_rx.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

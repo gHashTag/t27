@@ -12,3 +12,11 @@ module c_spec;
 pub fn dummy() -> bool {
     true
 }
+
+// The one value this module declares: dummy() returns the boolean true,
+// observed through a local first.
+test "c_dummy_value" {
+    let observed = dummy();
+    assert observed == true;
+}
+}

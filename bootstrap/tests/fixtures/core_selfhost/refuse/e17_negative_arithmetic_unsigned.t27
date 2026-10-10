@@ -1,0 +1,6 @@
+// 0 - 9 is -9, which a u8 does not hold (#8098).
+module negative_arithmetic_unsigned;
+fn nau_g() -> u8 {
+    var x: u8 = 0 - 9;
+    return x;
+}

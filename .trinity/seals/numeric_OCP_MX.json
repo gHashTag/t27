@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b19169f36ea3d904a1ce97802571980538b20a161fd5a45b6b788c454e283aff",
+  "gen_hash_rust": "sha256:a4e1a16f80b103a9f5aa365cb72cc44a5cc6d62738c048ac7af2bd5f179847f0",
+  "gen_hash_verilog": "sha256:a20e86b940825aa637db738d3f2bab89015315882207743565f3992d0b8935bc",
+  "gen_hash_zig": "sha256:201fd281d1cf22ebe80282684933aa43ecae763c413036189a17bb800ef8ec2b",
+  "module": "OCP_MX",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:11:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b67eb3b0586958d9afb84059ea18eca3765f013ef66bbb7574a1f9f165e7139a",
+  "spec_path": "specs/numeric/ocp_mx.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 49,
+    "total": 49
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

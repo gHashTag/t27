@@ -52,12 +52,75 @@ mod ternary;
 #[path = "../gen/rust/isa/t27a.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod t27a;
+// specs/verified/signed_receipt.t27 (R3-1, #7332), lowered by `t27c gen-rust`:
+// the receipt constants and decisions service.rs calls. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when the copy drifts.
+#[path = "../gen/rust/verified/signed_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod signed_receipt;
+// specs/verified/die_binding.t27 (R3-2, #7452): the v2 message and the die level.
+#[path = "../gen/rust/verified/die_binding.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod die_binding;
+// specs/verified/corpus_receipt.t27 (#7576): corpus receipt layout and compare rules. Its RFC 6962 tree
+// (vectors: corpus_merkle.t27) runs below on the sha2 crate until gen-rust lowers slices (#7469).
+#[path = "../gen/rust/verified/corpus_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod corpus_receipt;
+use corpus_receipt as cr;
+// specs/verified/ddc_receipt.t27 (#7699): a DDC run of t27core as a signed receipt, judged by T732's ddc_verdict.
+#[path = "../gen/rust/verified/ddc_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ddc_receipt;
+fn cr_sha(parts: &[&[u8]]) -> [u8; 32] { use sha2::Digest; parts.iter().fold(sha2::Sha256::new(), |h, p| h.chain_update(p)).finalize().into() }
+fn cr_root(l: &[String]) -> [u8; 32] { let k = cr::split_point(l.len() as u32) as usize;
+    if l.len() < 2 { l.first().map_or(cr_sha(&[]), |x| cr_sha(&[&[cr::LEAF_PREFIX], x.as_bytes()])) } else { cr_sha(&[&[cr::NODE_PREFIX], &cr_root(&l[..k]), &cr_root(&l[k..])]) } }
+fn cr_pair(a: &str, b: &str) -> String { let (a, b): (&'static str, &'static str) = (Box::leak(a.into()), Box::leak(b.into())); (0..cr::pair_len(a, b)).map(|k| cr::pair_char(a, b, k) as u8 as char).collect() }
+fn cr_leaves(v: &serde_json::Value, n: &str) -> Vec<String> { v["leaves"][n].as_array().into_iter().flatten().filter_map(|s| s.as_str().map(String::from)).collect() }
+// specs/tri/crypto/{sha256,ed25519}.t27 (ed25519 carries sha512.t27), lowered by
+// `t27c gen-rust`: receipt key ids, signing and verification. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when a copy drifts.
+#[path = "../gen/rust/tri/crypto/sha256.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod sha256;
+#[path = "../gen/rust/tri/crypto/ed25519.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ed25519;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
 mod behavior_sva_v2;
 mod service;
 mod phi_selfcheck;
+// specs/verified/run_record.t27 with the receipt.t27 rules it uses, lowered by
+// `t27c gen-rust`; `t27c run-record` calls it. Never hand-edit it.
+#[path = "../gen/rust/verified/run_record.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod run_record;
+// specs/verified/independence.t27 (R3-3, #7497): whether three placements are independent evidence.
+#[path = "../gen/rust/verified/independence.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod independence;
+// specs/compiler/test_report_exit.t27 (#7370): the exit code of `t27c test-report <spec>`.
+#[path = "../gen/rust/compiler/test_report_exit.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod test_report_exit;
+// specs/verified/seal_identity.t27 (#8095): seal v2 identity, SEAL_CONFIG, the per-node reuse decision.
+#[path = "../gen/rust/verified/seal_identity.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod seal_identity;
+// specs/verified/silicon_queue.t27 (#8095 step 5): the bench queue and the reseal guard.
+#[path = "../gen/rust/verified/silicon_queue.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod silicon_queue;
+// specs/verified/bench_agent.t27 (#8153): what the agent next to a board does with a job.
+#[path = "../gen/rust/verified/bench_agent.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bench_agent;
+// specs/verified/bitstream_reuse.t27 (#8095): when `t27c silicon` loads a bitstream it built before.
+#[path = "../gen/rust/verified/bitstream_reuse.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bitstream_reuse;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -76,7 +139,6 @@ mod tt_profile;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use sha2::{Sha256, Digest};
 #[cfg(feature = "server")]
 use std::env;
 use std::fs;
@@ -298,6 +360,21 @@ enum Commands {
     /// (.trinity/receipts) and judge, by specs/verified/run_record.t27, whether
     /// they are ONE verified run a verdict record may cite as its run
     /// reference. Collects the facts, never repairs the record.
+    /// #8095: every spec, REUSE or the reason to rebuild (specs/verified/seal_identity.t27).
+    Frontier { /// Also print each spec that must be rebuilt, with its reason code.
+        #[arg(long)] list: bool },
+    /// #8095 step 5: what the bench does about each spec with a silicon run (specs/verified/silicon_queue.t27).
+    SiliconQueue,
+    /// #8153: the agent next to a board (specs/verified/bench_agent.t27). Runs owner-approved jobs (open
+    /// issues labelled bench-job) with `t27c silicon` on the local cable, SRAM only, and answers each with
+    /// its receipt. Outbound only. Pause it by creating $TMPDIR/t27-bench-agent-paused.
+    BenchAgent {
+        /// The local cable, from `t27c boards`
+        #[arg(long)] busdev_num: String,
+        /// The control: a bitstream for the WRONG PART, which the die must refuse
+        #[arg(long)] wrong_part: String,
+        /// Look at the jobs once and exit
+        #[arg(long)] once: bool },
     RunRecord {
         /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
         input: String,
@@ -309,6 +386,12 @@ enum Commands {
         /// (specs/verified/signed_receipt.t27). Default none: unsigned runs stay citable.
         #[arg(long, default_value = "none")]
         require_level: String,
+        /// The directory of receipts to judge as one run; an archived run lives in a subdirectory.
+        #[arg(long, default_value = ".trinity/receipts")]
+        receipts: String,
+        /// Also write the judgment as JSON to this path (the Spec Explorer's Chip tab reads it).
+        #[arg(long)]
+        json: Option<String>,
     },
 
     /// R3-1 (#7332): this host's receipt signing key. `init` creates an Ed25519
@@ -320,6 +403,19 @@ enum Commands {
         #[arg(value_parser = ["init", "show"])]
         action: String,
     },
+    /// #7576: `sign RUN.json T27B [--nonce N] [--runner CMD]` prints a signed corpus receipt of a t27b lab run;
+    /// `compare BASE HEAD [--challenge N] [--challenge-head N]` checks two, names every changed file and judges the
+    /// pair as a lane (#7672); `admit SHA AGE,INDEX,ON_ORIGIN` judges a lab request.
+    CorpusReceipt {
+        #[arg(value_parser = ["sign", "compare", "admit"])] action: String,
+        a: String, b: String,
+        #[arg(long, alias = "challenge")] nonce: Option<String>,
+        #[arg(long)] challenge_head: Option<String>,
+        #[arg(long)] runner: Option<String>,
+    },
+    /// #7699: `sign RUN.json [--nonce N]` signs a DDC run of t27core; `verify RECEIPT [--challenge N]` checks one and
+    /// prints T732's verdict over its routes (specs/verified/ddc_receipt.t27); `due RUN.json [LAST]` exits 0 to run DDC.
+    DdcReceipt { #[arg(value_parser = ["sign", "verify", "due"])] action: String, a: String, b: Option<String>, #[arg(long, alias = "challenge")] nonce: Option<String> },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
@@ -463,9 +559,17 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         verbose: bool,
     },
+    /// Print every `use` edge as "importer<TAB>imported" for specs/ci/affected.t27 (#7565)
+    UseEdges {
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+    },
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
+    ///
+    /// One spec exits 1 when a test FAILs and 2 when it is BLOCKED (#7370,
+    /// specs/compiler/test_report_exit.t27); T27C_TEST_REPORT_EXIT_ZERO=1 exits 0.
     TestReport {
         /// The .t27 spec to measure. Omit with --all to measure the tree.
         #[arg(default_value = "")]
@@ -3807,6 +3911,26 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
     Ok(())
 }
 
+/// #7565: every `use` edge under `specs_dir`, "importer\timported", sorted -- the `--graph`
+/// section specs/ci/affected.t27 reads, from the resolver t27c compiles with.
+fn run_use_edges(specs_dir: &Path) -> anyhow::Result<()> {
+    let mut files = Vec::new();
+    for e in walkdir::WalkDir::new(specs_dir) {
+        let p = e?.into_path();
+        if p.extension().is_some_and(|x| x == "t27") {
+            files.push(p);
+        }
+    }
+    files.sort();
+    for f in files {
+        let src = fs::read_to_string(&f).with_context(|| format!("{}", f.display()))?;
+        for t in use_resolve::use_edges(&src, specs_dir) {
+            println!("{}\t{}", f.display(), t.display());
+        }
+    }
+    Ok(())
+}
+
 fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result<()> {
     let path = Path::new(spec);
     if !path.is_file() {
@@ -3819,7 +3943,7 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         println!();
         println!("  A blocked spec is not a failing one. It never produced a");
         println!("  binary, so it has no per-test result to report.");
-        return Ok(());
+        return test_report_exit_now(&r);
     }
     for o in &r.outcomes {
         if !o.passed {
@@ -3852,6 +3976,17 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
         for l in lines {
             println!("{}", l);
         }
+    }
+    test_report_exit_now(&r)
+}
+
+/// #7370: exit as specs/compiler/test_report_exit.t27 says, once the report is printed.
+fn test_report_exit_now(r: &test_report::Report) -> anyhow::Result<()> {
+    let var: &'static str = Box::leak(std::env::var(test_report_exit::OPT_OUT_VAR).unwrap_or_default().into());
+    let code = test_report_exit::exit_with(r.blocked.is_some(), r.failed as u64, test_report_exit::opted_out(var));
+    if code != test_report_exit::EXIT_GREEN {
+        std::io::Write::flush(&mut std::io::stdout())?;
+        std::process::exit(code as i32);
     }
     Ok(())
 }
@@ -5469,9 +5604,7 @@ fn run_gen_python(input_path: &str) -> anyhow::Result<()> {
 }
 
 fn sha256_hex(data: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    sha256::hash_hex(data).iter().map(|&c| c as char).collect()
 }
 
 fn run_conformance(input_path: &str) -> anyhow::Result<()> {
@@ -5688,6 +5821,37 @@ fn producer_identity() -> String {
     )
 }
 
+/// Seal v2 toolchain (seal_identity.t27): the tools that turn generated code into a verdict -- test runner, zig.
+fn seal_toolchain() -> serde_json::Value {
+    let runner = fs::read("bootstrap/src/test_report.rs").map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into());
+    let zig = std::process::Command::new("zig").arg("version").output().ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|z| !z.is_empty()).unwrap_or_else(|| "missing".into());
+    serde_json::json!({ "test_runner": runner, "zig": zig })
+}
+
+/// Seal v2 closure (seal_identity.t27): every `use` import and its spec hash, sorted; unreadable is "missing".
+/// The spec a `use` names: `use a::b;`, `use a::b::item;` and `use a::b::{X, Y};` all name specs/a/b.t27
+/// (#8351, #8384). An item path that is itself a file wins; otherwise the last segment is an item.
+pub(crate) fn use_spec_path(u: &str) -> String {
+    let m = u.trim_end_matches(';').trim().split("::{").next().unwrap_or("").replace("::", "/");
+    [format!("specs/{m}.t27"), format!("specs/{}.t27", m.rsplit_once('/').map_or(m.as_str(), |x| x.0))].into_iter().find(|f| Path::new(f).exists()).unwrap_or_else(|| format!("specs/{m}.t27"))
+}
+
+fn seal_closure(spec_path: &str) -> serde_json::Value {
+    let src = fs::read_to_string(spec_path).unwrap_or_default();
+    let mut v: Vec<(String, String)> = src.lines().filter_map(|l| l.trim().strip_prefix("use ")).map(use_spec_path)
+        .map(|p| { let h = fs::read(&p).map(|b| format!("sha256:{}", sha256_hex(&b))).unwrap_or_else(|_| "missing".into()); (p, h) })
+        .collect();
+    v.sort(); v.dedup();
+    serde_json::json!(v.into_iter().map(|(p, h)| serde_json::json!({ "spec": p, "spec_hash": h })).collect::<Vec<_>>())
+}
+
+/// The silicon receipts (.trinity/receipts/*.json, the current run) that name this spec.
+fn spec_receipts(spec_path: &str) -> usize {
+    fs::read_dir(".trinity/receipts").into_iter().flatten().flatten().map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |x| x == "json") && fs::read_to_string(p).map_or(false, |s| s.contains(&format!("\"{spec_path}\"")))).count()
+}
+
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
     let hashes = compute_seal_hashes(input_path)?;
 
@@ -5791,6 +5955,12 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
         // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
         // holding. Same machinery as `t27c test-report`, so the two cannot
         // disagree about what failed.
+        // #8095 step 5 (silicon_queue.t27 reseal_allowed): a new producer orphans the spec's silicon run.
+        let old_by = fs::read_to_string(seal_file_path(&hashes.module, &hashes.spec_path)).ok().and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok()).and_then(|v| v.get("built_by")?.as_str().map(String::from));
+        if !silicon_queue::reseal_allowed(spec_receipts(&hashes.spec_path) > 0, old_by.as_deref() == Some(producer_identity().as_str()), force) {
+            eprintln!("refusing to seal {}: its silicon receipts name {}; a new producer orphans that run (run-record: RUN_PRODUCER_MISMATCH). --force to do it on purpose.", hashes.spec_path, old_by.unwrap_or_default());
+            std::process::exit(1);
+        }
         let report = test_report::run(Path::new(input_path), Path::new("specs"));
         let verdict = test_report::seal_verdict(&report, force);
         match &verdict {
@@ -5875,6 +6045,11 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // Seals minted before this field read as unknown producer to any
             // reader, never as a match.
             "built_by": producer_identity(),
+            // Seal v2 (specs/verified/seal_identity.t27, #8095): the parts reuse.t27 judges.
+            "seal_schema": 2,
+            "toolchain": seal_toolchain(),
+            "config": seal_identity::SEAL_CONFIG,
+            "closure": seal_closure(&hashes.spec_path),
             "ring": 12,
             // What the spec's own tests said when this seal was minted (#5577).
             "tests": tests_record
@@ -7374,10 +7549,9 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
 /// Prints `<64-hex-sha256> <repo-relative-path>`, which is the operational line
 /// `bootstrap/stage0/FROZEN_HASH` expects.
 fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
-    use sha2::{Digest, Sha256};
     let rel = path.unwrap_or("bootstrap/src/compiler.rs");
     let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
-    println!("{:x} {}", Sha256::digest(&bytes), rel);
+    println!("{} {}", sha256_hex(&bytes), rel);
     Ok(())
 }
 
@@ -10015,9 +10189,7 @@ fn body_digest(node: &compiler::Node) -> String {
     for child in &node.children {
         structural(child, &mut shape);
     }
-    let mut hasher = Sha256::new();
-    hasher.update(shape.as_bytes());
-    format!("{:x}", hasher.finalize())[..16].to_string()
+    sha256_hex(shape.as_bytes())[..16].to_string()
 }
 
 /// How much body there is to compare.
@@ -11460,15 +11632,7 @@ fn run_hash(input_path: &str) -> anyhow::Result<()> {
     let mut f = std::fs::File::open(input_path)?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)?;
-    let hash = {
-        use std::fmt::Write;
-        let digest = <sha2::Sha256 as sha2::Digest>::digest(&buf);
-        let mut s = String::with_capacity(64);
-        for byte in digest {
-            write!(&mut s, "{:02x}", byte).unwrap();
-        }
-        s
-    };
+    let hash = sha256_hex(&buf);
     println!("{}  {}", hash, file_name);
     Ok(())
 }
@@ -11649,6 +11813,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => run_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -11814,12 +11979,14 @@ async fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
-        Commands::RunRecord { input, challenge, require_level } => {
-            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level)?
+        Commands::RunRecord { input, challenge, require_level, receipts, json } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level, &receipts, json)?
         }
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
+        Commands::DdcReceipt { action, a, b, nonce } => service::run_ddc_receipt(&std::env::current_dir()?, &action, &a, b, nonce)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -11839,6 +12006,9 @@ async fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
+        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -12078,6 +12248,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => run_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -12243,12 +12414,14 @@ fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
-        Commands::RunRecord { input, challenge, require_level } => {
-            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level)?
+        Commands::RunRecord { input, challenge, require_level, receipts, json } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level, &receipts, json)?
         }
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
+        Commands::DdcReceipt { action, a, b, nonce } => service::run_ddc_receipt(&std::env::current_dir()?, &action, &a, b, nonce)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -12268,6 +12441,9 @@ fn main() -> anyhow::Result<()> {
             service::run_prove(&std::env::current_dir()?, &input, mutate)?
         }
         Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
+        Commands::Frontier { list } => service::run_frontier(list)?,
+        Commands::SiliconQueue => service::run_silicon_queue()?,
+        Commands::BenchAgent { busdev_num, wrong_part, once } => service::run_bench_agent(&std::env::current_dir()?, busdev_num, wrong_part, once)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }

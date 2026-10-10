@@ -35,3 +35,19 @@ pub const PRIMARY_INFERENCE_RAW_BITS : u8 = 16;
 test "surface_primary_is_gf16" {
     try std.testing.expectEqual(@as(u8, 16), PRIMARY_INFERENCE_RAW_BITS);
 }
+
+// t27b checked (#8473): the portable ladder this policy declares. Every GF
+// raw width is pinned as declared, and the primary-inference format is tied
+// to GF16 (NUMERIC-STANDARD-001), so a silent width change or a policy bump
+// past version 1 fails here.
+test surface_raw_widths_and_primary_tie {
+    assert POLICY_VERSION == 1;
+    assert GF4_RAW_BITS == 4;
+    assert GF8_RAW_BITS == 8;
+    assert GF12_RAW_BITS == 12;
+    assert GF16_RAW_BITS == 16;
+    assert GF20_RAW_BITS == 20;
+    assert GF24_RAW_BITS == 24;
+    assert GF32_RAW_BITS == 32;
+    assert PRIMARY_INFERENCE_RAW_BITS == GF16_RAW_BITS;
+}

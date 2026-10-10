@@ -11,3 +11,13 @@ pub fn n1_finite(value: u32) -> bool {
         false
     }
 }
+
+test mesh_routing_wrapping_arithmetic {
+    const test_value = 10;
+    const result = n1_finite(test_value);
+    assert result == true;
+    
+    const max_value = 4294967295;  // u32 max
+    const wrapped_result = n1_finite(max_value);
+    assert wrapped_result == true;  // wrapping add should not overflow
+}

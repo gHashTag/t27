@@ -1,0 +1,205 @@
+// Port of fpga/openxc7-synth/riscv_blink.v (gHashTag/trinity @ 8723fe0a725a).
+// TRINITY RISC-V BLINK: a state-machine LED blinker for the 50 MHz board
+// clock, demonstrating autonomous FPGA operation. The original's decisions
+// live here as constants and pure functions: the 26-bit and 20-bit counter
+// wraps, the 32-bit xorshift LFSR taps, the per-mode LED selection, the
+// mode auto-cycle cadence and the active-low LED output. t27c gen-verilog
+// lowers this module to `module trinity_top (`.
+module trinity_top {
+
+    // State machine encoding (original localparams, 3 bits wide).
+    pub const STATE_IDLE: u32 = 0;
+    pub const STATE_BLINK_ON: u32 = 1;
+    pub const STATE_BLINK_OFF: u32 = 2;
+    pub const STATE_PATTERN: u32 = 3;
+    pub const STATE_CHAOTIC: u32 = 4;
+
+    // The 2-bit mode register selects the LED pattern (original case on mode).
+    pub const MODE_SLOW: u32 = 0;
+    pub const MODE_FAST: u32 = 1;
+    pub const MODE_CHAOTIC: u32 = 2;
+
+    // Counter moduli: the original's reg [25:0] and reg [19:0] wrap at 2^26
+    // and 2^20. 50 MHz / 2^26 is ~0.75 Hz (slow blink), 50 MHz / 2^20 is
+    // ~48 Hz (fast blink).
+    pub const COUNTER_MOD: u32 = 0x04000000;
+    pub const FAST_COUNTER_MOD: u32 = 0x00100000;
+
+    // LFSR seed (original: lfsr = 32'hDEAD_BEEF).
+    pub const LFSR_SEED: u32 = 0xDEADBEEF;
+
+    // The registers the original drives on every posedge clk.
+    pub struct BlinkRegs { state: u32, counter: u32, fast_counter: u32, lfsr: u32, mode: u32, }
+
+    // original: initial begin state = STATE_IDLE; counter = 26'd0;
+    // fast_counter = 20'd0; lfsr = 32'hDEAD_BEEF; end
+    pub fn init_regs() -> BlinkRegs {
+        return BlinkRegs{.state = STATE_IDLE, .counter = 0, .fast_counter = 0, .lfsr = LFSR_SEED, .mode = 0};
+    }
+
+    // counter <= counter + 1'd1, wrapping at 2^26.
+    pub fn counter_step(counter: u32) -> u32 {
+        var next: u32 = counter + 1;
+        if (next >= COUNTER_MOD) {
+            return 0;
+        }
+        return next;
+    }
+
+    // fast_counter <= fast_counter + 1'd1, wrapping at 2^20.
+    pub fn fast_counter_step(fast_counter: u32) -> u32 {
+        var next: u32 = fast_counter + 1;
+        if (next >= FAST_COUNTER_MOD) {
+            return 0;
+        }
+        return next;
+    }
+
+    // assign lfsr_next = {lfsr[30:0], lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0]};
+    // (32-bit xorshift variant: the shift drops bit 31 and the feedback bit
+    // enters bit 0.)
+    pub fn lfsr_step(lfsr: u32) -> u32 {
+        var feedback: u32 = ((lfsr >> 31) ^ (lfsr >> 21) ^ (lfsr >> 1) ^ lfsr) & 1;
+        return (lfsr << 1) | feedback;
+    }
+
+    // wire mode_change = (counter == 26'd0); (original line 58)
+    pub fn mode_change(counter: u32) -> bool {
+        return counter == 0;
+    }
+
+    // mode <= mode + 1'd1 while mode_change holds; reg [1:0] wraps at 4, so
+    // the module auto-cycles slow -> fast -> chaotic -> dark and around.
+    pub fn mode_step(mode: u32, change: bool) -> u32 {
+        if (!change) {
+            return mode;
+        }
+        return (mode + 1) % 4;
+    }
+
+    // The always @(*) case on mode (original lines 70-83): the internal LED
+    // level. Mode 0 is the slow blink from counter[25], mode 1 the fast
+    // blink from fast_counter[19], mode 2 the chaotic LFSR pattern, and the
+    // default arm holds the level low (original: led_int = 1'b0).
+    pub fn led_int(mode: u32, counter: u32, fast_counter: u32, lfsr: u32) -> bool {
+        if (mode == MODE_SLOW) {
+            return ((counter >> 25) & 1) == 1;
+        }
+        if (mode == MODE_FAST) {
+            return ((fast_counter >> 19) & 1) == 1;
+        }
+        if (mode == MODE_CHAOTIC) {
+            return (((lfsr >> 20) ^ (lfsr >> 10) ^ (lfsr >> 5)) & 1) == 1;
+        }
+        return false;
+    }
+
+    // assign led = ~led_int; LED D5 @ T23 is active LOW (original line 88).
+    pub fn led_value(int_level: bool) -> bool {
+        return !int_level;
+    }
+
+    // One posedge clk (original always blocks): the counters and the LFSR
+    // advance unconditionally, and the mode register increments when the
+    // 26-bit counter has wrapped to 0. As with the original's nonblocking
+    // assignments, every read sees the old register values.
+    pub fn clock_tick(regs: BlinkRegs) -> BlinkRegs {
+        var c: u32 = counter_step(regs.counter);
+        var f: u32 = fast_counter_step(regs.fast_counter);
+        var l: u32 = lfsr_step(regs.lfsr);
+        var m: u32 = mode_step(regs.mode, regs.counter == 0);
+        return BlinkRegs{.state = regs.state, .counter = c, .fast_counter = f, .lfsr = l, .mode = m};
+    }
+
+    // Data-port surface for gen-verilog: the led output as a function of the
+    // register values, the always @(*) case followed by the active-low
+    // inverter. In the hardware the only pin driving this is clk.
+    fn on_comb(mode: u32, counter: u32, fast_counter: u32, lfsr: u32) -> bool {
+        return led_value(led_int(mode, counter, fast_counter, lfsr));
+    }
+
+    // The LFSR steps twice from the original's seed with feedback 0 both
+    // times: 0xDEADBEEF has all four tap bits (31, 21, 1, 0) set, so the
+    // first feedback is 1^1^1^1 = 0; 0xBD5B7DDE has taps 31 and 1 set, so
+    // the second feedback is 1^0^1^0 = 0 as well.
+    test lfsr_steps_from_seed {
+        assert(lfsr_step(0xDEADBEEF) == 0xBD5B7DDE);
+        assert(lfsr_step(0xBD5B7DDE) == 0x7AB6FBBC);
+    }
+
+    test counter_wrap_widths {
+        // The 26-bit counter wraps to 0 after 0x3FFFFFF; the 20-bit counter
+        // after 0xFFFFF. Below the wrap they simply count up.
+        assert(counter_step(0) == 1);
+        assert(counter_step(0x3FFFFFF) == 0);
+        assert(fast_counter_step(0) == 1);
+        assert(fast_counter_step(0xFFFFF) == 0);
+    }
+
+    test mode_change_wire {
+        // mode_change is exactly counter == 0 (original line 58).
+        assert(mode_change(0));
+        assert(!mode_change(1));
+        assert(!mode_change(0x3FFFFFF));
+    }
+
+    test mode_wraps_two_bits {
+        // The 2-bit mode register wraps 3 -> 0, so the cycle repeats.
+        assert(mode_step(0, true) == 1);
+        assert(mode_step(3, true) == 0);
+        assert(mode_step(2, false) == 2);
+    }
+
+    test led_int_patterns {
+        // Slow mode: counter bit 25. 0x02000000 has only bit 25 set.
+        assert(!led_int(0, 0, 0, 0));
+        assert(led_int(0, 0x02000000, 0, 0));
+        // Fast mode: fast_counter bit 19. 0x00080000 has only bit 19 set.
+        assert(!led_int(1, 0, 0, 0));
+        assert(led_int(1, 0, 0x00080000, 0));
+        // Chaotic mode: lfsr[20] ^ lfsr[10] ^ lfsr[5]. The seed gives
+        // 0 ^ 1 ^ 1 = 0; 0x00100000 has only bit 20 set, giving 1.
+        assert(!led_int(2, 0, 0, 0xDEADBEEF));
+        assert(led_int(2, 0, 0, 0x00100000));
+        // Default arm: led_int = 1'b0, whatever the registers hold.
+        assert(!led_int(3, 0x02000000, 0x00080000, 0xFFFFFFFF));
+    }
+
+    test led_active_low {
+        // assign led = ~led_int: the output inverts the internal level.
+        assert(led_value(true) == false);
+        assert(led_value(false) == true);
+    }
+
+    test reset_and_first_ticks {
+        // Reset: STATE_IDLE, zeroed counters, 0xDEADBEEF seed, mode 0.
+        var regs: BlinkRegs = init_regs();
+        assert(regs.state == STATE_IDLE);
+        assert(regs.counter == 0);
+        assert(regs.fast_counter == 0);
+        assert(regs.lfsr == 0xDEADBEEF);
+        assert(regs.mode == 0);
+        // First tick: counter was 0, so the mode advances 0 -> 1 while the
+        // counters step to 1 and the LFSR shifts once.
+        var r1: BlinkRegs = clock_tick(regs);
+        assert(r1.mode == 1);
+        assert(r1.counter == 1);
+        assert(r1.fast_counter == 1);
+        assert(r1.lfsr == 0xBD5B7DDE);
+        // Second tick: counter is 1, no mode change.
+        var r2: BlinkRegs = clock_tick(r1);
+        assert(r2.mode == 1);
+        assert(r2.counter == 2);
+    }
+
+    test on_comb_led_surface {
+        // The led output is active low, so dark levels read 1. Slow mode
+        // with counter bit 25 clear is level 0 -> led 1; with bit 25 set the
+        // level is 1 -> led 0. Chaotic mode from the seed is level 0 -> led 1.
+        assert(on_comb(0, 0, 0, 0));
+        assert(!on_comb(0, 0x02000000, 0, 0));
+        assert(!on_comb(1, 0, 0x00080000, 0));
+        assert(on_comb(2, 0, 0, 0xDEADBEEF));
+        assert(on_comb(3, 0, 0, 0));
+    }
+}

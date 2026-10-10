@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:559f17c9e2942a4e732666d74fb1079d35d1ea8f2e1e8a967b453c076f3eb595",
+  "gen_hash_rust": "sha256:1c820f3d29f91cd8e570b0f90709bf2a4d56b47b505f94df0880949a74145c50",
+  "gen_hash_verilog": "sha256:2ec9763a4c749561783d3ebb34252dc1f4a884064987bbb8d7cbd0c555d64f4d",
+  "gen_hash_zig": "sha256:4d499c482afffae6f97ee309682df8a914f721b30fe5ca89b6af0b91d897adb5",
+  "module": "tool_mcp_tri_mcp",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2db3e41d25dd8eff540b15459ce20402bac3d4520731a356b20a6fa8a81b9f3d",
+  "spec_path": "specs/tools/mcp/tri-mcp.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

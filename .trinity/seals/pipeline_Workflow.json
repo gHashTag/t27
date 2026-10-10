@@ -1,13 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+0c637735b",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:8023e59af3462289024c5ed7ec3db322b5251303efbda7365ddbc1e49ed34d0c",
   "gen_hash_rust": "sha256:04cfd71fa8a0448ab352d48cf1c7b773a782a762cf75f9a2b0ef37b9a03a750f",
   "gen_hash_verilog": "sha256:dbd6f05d17f15f2505f94dad9532afbf417cb84ba0f3db94ff9e6bd885326831",
   "gen_hash_zig": "sha256:85b03e2016f673f259030bb5e7130db8311c87ef8281330dad1ef006eb58e7f8",
   "module": "Workflow",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:20:45Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:16Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a083a9827dc02d7c4cff5c49fd0a9bd1b6a48e9d41acade542276346df419bcf",
   "spec_path": "specs/tri/pipeline/workflow.t27",
   "tests": {
@@ -16,5 +28,9 @@
     "forced": false,
     "passed": 3,
     "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

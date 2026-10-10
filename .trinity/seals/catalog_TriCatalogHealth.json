@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:52f1ed3068f7174758f64f1037c5bac8678975b2c8a087d76585b6f1e07d3a9a",
+  "gen_hash_rust": "sha256:a02ecf3045436904a81694d7b4fe51d87ff0d7b714fa2ad4db61a76371883236",
+  "gen_hash_verilog": "sha256:9466528ef4673078d97f459fedc2fe3a5476f3db853e0fda686186387622ee74",
+  "gen_hash_zig": "sha256:d907912bebceab1de3e6019863b00eaa9e415ea80a34c90c754131d8fd206371",
+  "module": "TriCatalogHealth",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:30:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3cfc7069658ecba0de38f6f0438d1ba9cf1ad92579e88cd823158269072c7d0b",
+  "spec_path": "specs/tri/catalog/health.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

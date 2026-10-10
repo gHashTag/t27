@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:1146aa6e68e8bdd8d94f57b95c8f6dc7dc79b735eabbc3a511ce0ca38070a420",
+  "gen_hash_rust": "sha256:d76f21e8733159aaa8eacd500c81ac3d80b06091b2de5142f3db2a6cf5a34485",
+  "gen_hash_verilog": "sha256:94c6f8fa22d75c759ad46fb3bae50045c05eeed73929422943c1cccc4a405eea",
+  "gen_hash_zig": "sha256:5be9f14c00be897b716eff8954f178e141b8d4180c149e5732b83b26e0f7b671",
+  "module": "gft_train1_jtag",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:34d8e923fd2b415892b89ab6bd3a82384a2c0469679f4324a55f3a0d2471724e",
+  "spec_path": "specs/port/fpga/verilog/gft_train1_jtag.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

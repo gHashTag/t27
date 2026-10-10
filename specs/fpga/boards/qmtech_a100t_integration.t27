@@ -95,9 +95,9 @@ module QMTech_A100T_Integration {
     invariant baud_valid : UART_BAUD > 0 && UART_BAUD <= 921600;
     invariant board_name_set : BOARD_NAME != "";
 
-    bench bench_qmtech_config {
-        calc_baud_divisor(CLOCK_FREQ_HZ, UART_BAUD);
-    }
+bench bench_qmtech_config {
+    _ = calc_baud_divisor(CLOCK_FREQ_HZ, UART_BAUD);
+}
 }
 
 // W696: the hardware boundary, DERIVED -- not chosen.

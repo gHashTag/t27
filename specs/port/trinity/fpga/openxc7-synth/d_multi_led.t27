@@ -1,0 +1,63 @@
+// Port of gHashTag/trinity fpga/openxc7-synth/d_multi_led.v (module trinity_top).
+// The original drives all six LED outputs with 1'b0 -- "All ON (active-low
+// test)" -- so each function below carries the drive level of one LED line,
+// and the active-low verdict that makes a low line an ON LED.
+
+module trinity_top {
+
+    // === LED bank shape (led0..led5) ===
+
+    // Number of LED outputs the original declares (led0..led5).
+    pub const LED_COUNT: u32 = 6;
+
+    // Drive level the original assigns to every LED line: 1'b0.
+    pub const LED_DRIVE: u8 = 0;
+
+    // === The module's outputs ===
+
+    // `assign ledN = 1'b0;` for N in 0..5: every LED line is tied low.
+    pub fn led_value(led: u32) -> u8 {
+        return LED_DRIVE;
+    }
+
+    // Active-low verdict (line 16 of the original): a line reading low is ON.
+    pub fn led_on(led: u32) -> bool {
+        return led_value(led) == 0;
+    }
+
+    // "Test multiple LEDs at once": how many of the six lines read low.
+    pub fn low_line_count() -> u32 {
+        var i: u32 = 0;
+        var n: u32 = 0;
+        while (i < LED_COUNT) {
+            if (led_on(i)) {
+                n += 1;
+            }
+            i += 1;
+        }
+        return n;
+    }
+
+    // === Tests ===
+
+    // One assert per output wire of the original, in declaration order.
+    test all_leds_tied_low {
+        assert(led_value(0) == 0);
+        assert(led_value(1) == 0);
+        assert(led_value(2) == 0);
+        assert(led_value(3) == 0);
+        assert(led_value(4) == 0);
+        assert(led_value(5) == 0);
+    }
+
+    // Active-low: every tied-low line is an ON LED.
+    test active_low_lines_are_on {
+        assert(led_on(0) == true);
+        assert(led_on(5) == true);
+    }
+
+    // All six LEDs ON at once -- the original's whole point.
+    test all_six_on_at_once {
+        assert(low_line_count() == 6);
+    }
+}

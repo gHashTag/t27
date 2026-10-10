@@ -6,8 +6,17 @@
 ; --
 ; The rule, stated where it lives:
 ; - A change to anything outside specs/ means RUN_ALL. The compiler (bootstrap/, cli/), tools/, CI
-;   configuration, ledgers, seals and conformance vectors can all move any verdict, and this file does not
-;   try to tell which of them is harmless.
+;   configuration, ledgers and conformance vectors can all move any verdict, and this file does not
+;   try to tell which of them is harmless. Two exceptions, both measured (#7527):
+;   - A Markdown file (.md) anywhere is prose and selects nothing: no spec test reads a document. The
+;     documentation gates have their own triggers. .txt stays RUN_ALL outside specs/, because
+;     tools/*.txt are baselines a gate reads.
+;   - A seal (.trinity/seals/*.json) selects nothing: it is the verdict record t27c writes for a spec,
+;     never an input to that spec's tests. A spec that changed is a seed anyway, and the seal gates
+;     check the changed seal files themselves.
+;   Over the last 400 first-parent master commits (f943ba355) the old rule ran everything on 373 of
+;   them, 208 because of docs/*.md alone; with these two exceptions 284 of 400 are selective, with a
+;   median of 1 affected spec out of 1545 (p90 5, max 49).
 ; - Under specs/, a changed .t27 or .tri file is a seed. Every spec that imports a seed with `use`,
 ;   directly or transitively, is affected too. The answer is the seeds and their importers that still
 ;   exist in the head tree.
@@ -57,6 +66,10 @@ pub const ALL_FROM : u8 = 16;
 pub const SPEC_EXTS : str = "t27,tri,$";
 pub const PROSE_EXTS : str = "md,txt,$";
 pub const SPECS_ROOT : str = "specs/,$";
+/// Outside specs/ only Markdown is prose; .txt there can be a baseline a gate reads.
+pub const PROSE_ANYWHERE_EXTS : str = "md,$";
+pub const SEALS_ROOT : str = ".trinity/seals/,$";
+pub const SEAL_EXTS : str = "json,$";
 /// The status letters a selection can be made from. U X B and anything else are RUN_ALL.
 pub const KINDS : str = "ACDMRT$";
 pub const MARK_GRAPH : str = "--graph$";
@@ -114,8 +127,16 @@ pub fn ext_dot(s: []const u8, from: usize, to: usize) -> usize {
 pub fn path_class(s: []const u8, from: usize, to: usize) -> u8 {
     if (to <= from) { return C_ALL_UNREADABLE; }
     if (s[from] == '"') { return C_ALL_UNREADABLE; }
-    if (own_language::has_prefix(SPECS_ROOT, s, from, to) == false) { return C_ALL_OUTSIDE; }
     const d : usize = ext_dot(s, from, to);
+    if (own_language::has_prefix(SPECS_ROOT, s, from, to) == false) {
+        if (d < to) {
+            if (in_list(PROSE_ANYWHERE_EXTS, s, d + 1, to)) { return C_NOTHING; }
+            if (own_language::has_prefix(SEALS_ROOT, s, from, to) and in_list(SEAL_EXTS, s, d + 1, to)) {
+                return C_NOTHING;
+            }
+        }
+        return C_ALL_OUTSIDE;
+    }
     if (d < to) {
         if (in_list(SPEC_EXTS, s, d + 1, to)) { return C_SEED; }
         if (in_list(PROSE_EXTS, s, d + 1, to)) { return C_NOTHING; }
@@ -326,8 +347,9 @@ test negative_control_a_compiler_change_runs_everything {
 test anything_outside_specs_runs_everything {
     assert path_class("cli/t27b/src/lower.rs", 0, 21) == C_ALL_OUTSIDE;
     assert path_class(".github/workflows/ci.yml", 0, 24) == C_ALL_OUTSIDE;
-    assert path_class("README.md", 0, 9) == C_ALL_OUTSIDE;
     assert path_class("xspecs/a.t27", 0, 12) == C_ALL_OUTSIDE;
+    assert path_class("tools/specs_generate_baseline.txt", 0, 33) == C_ALL_OUTSIDE;
+    assert path_class("docs/reports/suite_expectations.json", 0, 36) == C_ALL_OUTSIDE;
     assert run_all("M\tspecs/a.t27\nA\ttools/x.json\n--graph\n--corpus\n", 46) == true;
 }
 
@@ -435,6 +457,29 @@ test negative_control_a_set_or_output_that_does_not_fit_runs_everything {
     assert select_affected(inp, 163, &set, 20, &out, 256) == RUN_ALL;
     assert select_affected(inp, 163, &set, 256, &out, 30) == RUN_ALL;
     assert select_affected(inp, 163, &set, 36, &out, 36) == 3;
+}
+
+test markdown_anywhere_and_a_seal_select_nothing {
+    assert path_class("README.md", 0, 9) == C_NOTHING;
+    assert path_class("docs/now/2026-10-07.MD", 0, 22) == C_NOTHING;
+    assert path_class(".trinity/seals/ci_CiAffected.json", 0, 33) == C_NOTHING;
+    var set : [256]u8 = undefined;
+    var out : [256]u8 = undefined;
+    const inp : str = "M\tdocs/NOW.md\nA\t.trinity/seals/x.json\nM\tspecs/b.t27\n--graph\nspecs/a.t27\tspecs/b.t27\n--corpus\nspecs/a.t27\nspecs/b.t27\nspecs/c.t27\n";
+    assert select_affected(inp, 129, &set, 256, &out, 256) == 2;
+    assert out[6] == 'a';
+    assert out[18] == 'b';
+    assert select_affected("M\tAGENTS.md\nD\t.trinity/seals/y.json\n--graph\n--corpus\nspecs/a.t27\n", 65, &set, 256, &out, 256) == 0;
+}
+
+test negative_control_the_seal_exception_is_only_seal_json {
+    assert path_class(".trinity/seals/x.txt", 0, 20) == C_ALL_OUTSIDE;
+    assert path_class(".trinity/seals.json", 0, 19) == C_ALL_OUTSIDE;
+    assert path_class(".trinity/state/queue.json", 0, 25) == C_ALL_OUTSIDE;
+    assert path_class("gen/c/ci/affected.c", 0, 19) == C_ALL_OUTSIDE;
+    assert path_class("docs/md", 0, 7) == C_ALL_OUTSIDE;
+    assert diff_class("R100\tdocs/a.md\ttools/a.py", 0, 25) == C_ALL_OUTSIDE;
+    assert diff_class("R100\ttools/a.py\tdocs/a.md", 0, 25) == C_ALL_OUTSIDE;
 }
 
 invariant every_run_all_class_is_at_or_above_all_from {

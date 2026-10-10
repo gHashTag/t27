@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/turn_stop.t27 -- a killed turn stops: its abort first, a grace, then its process group
+; Owner, 2026-10-09 (translated): "implement all the improvements" (epic gHashTag/trios#1712, item 2:
+; "make actor turns really stop"). Measured with Bun 1.3.11, the Queen's runtime:
+; - a turn killed on the event loop, or in a worker thread, is only abandoned: a spinning worker
+;   thread kept counting 200 ms after terminate() (actors.t27 section 8). Only a process kill stops
+;   work.
+; - in production a killed review kept its row and its z.ai key lane until the review ended on its
+;   own, up to the 120 s model timeout. Its worker came back at once and took another row, so during
+;   stalls more than REVIEWER_CONCURRENCY reviews ran at once.
+; - a process turn was killed with SIGKILL to the one pid the host spawned. `sh -c 'sleep 30 & wait'`
+;   killed that way left its sleep running 100 ms later; a kill of the process group left none of 30
+;   (2026-10-10, a developer Mac).
+; How others stop work: OTP sends `shutdown`, waits the child's shutdown time (5000 ms for a worker),
+; then kills it untrappably (brutal_kill). Effect interrupts a fiber at its next await and runs every
+; finalizer. Orleans 9 and 10 pass one CancellationToken through every call. The BEAM itself cannot
+; stop a dirty NIF: code that never checks in is stopped only by stopping its OS process.
+; This card is the stop of one turn. actors.t27 already decides the rest, and is reused, not restated:
+; - stop_signal(waited_ms, timeout_ms): X_SHUTDOWN at once, X_KILL once the timeout passes. A turn's
+;   stop runs it with TURN_STOP_GRACE_MS: X_SHUTDOWN is the turn's abort signal, X_KILL is the
+;   escalation `escalation` below decides.
+; - turn_isolation(cpu_bound, runs_foreign_code, must_stop): a turn that must stop for certain runs in
+;   an OS process. kill_effect: only a process kill stops work.
+; - holds_after_kill(isolation, work_ended): an abandoned turn holds its row and lane until its work
+;   ends; a stopped one holds nothing once the kill lands.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenTurnStop;
+
+; --- 1. How long a stopped turn has ------------------------------------------------------------------
+
+/// How long a turn has, after its abort signal, before the escalation. A turn that honours the
+/// abort ends at once: its model call's fetch rejects, its commands' process groups are killed. The
+/// grace is for what must run to its end (step_on_abort): a finalizer that removes a worktree, a write
+/// to the shared checkout already under way. Chosen, not measured, inside two bounds the invariant
+/// below pins: an escalated kill still frees the lane within LANE_FREE_MS, and a turn's stop ends
+/// inside its worker's own shutdown (actors.t27 WORKER_SHUTDOWN_MS, 5000, a literal here, which is
+/// OTP's default shutdown for a worker).
+pub const TURN_STOP_GRACE_MS : u32 = 3000;
+
+/// The promise this card makes: a killed turn's lane is free at most this long after the kill, for
+/// any turn that honours its abort or runs where a kill stops it (an OS process). Before this card a
+/// killed review held its lane up to the 120 s model timeout.
+pub const LANE_FREE_MS : u32 = 5000;
+
+/// The most a group kill may take to land, as the lane sees it: the signal, the exits, and the exit
+/// seen by the host. Measured 2026-10-10 on a developer Mac (Bun 1.3.11), 30 kills of the group of
+/// `sh -c 'sleep 30 & wait'`: seen as its exit after 0.49 ms at the median and 1.90 ms at worst. Not
+/// yet measured on the Queen's host. This bound is a thousand times the worst seen, and is what is
+/// left of LANE_FREE_MS after the grace.
+pub const KILL_LANDS_MS : u32 = 2000;
+
+invariant an_escalated_kill_frees_the_lane_in_time {
+    assert TURN_STOP_GRACE_MS + KILL_LANDS_MS <= LANE_FREE_MS;
+    assert TURN_STOP_GRACE_MS > 0;
+    assert TURN_STOP_GRACE_MS < 5000;
+}
+
+; --- 2. What the abort cuts ---------------------------------------------------------------------------
+
+/// What the abort does to one step of a turn (a command, a model call).
+/// STEP_CUT: a started step is cut (its process group killed, its call aborted), and one not yet
+/// started does not start.
+/// STEP_RUN: the step runs to its end, or starts and runs, although the turn was stopped.
+pub const STEP_CUT : u8 = 0;
+pub const STEP_RUN : u8 = 1;
+
+/// A finalizer always runs: it is what gives back what the turn held (a criteria worktree, a temporary
+/// directory), and Effect runs every finalizer on interruption for the same reason. A step that writes
+/// what other turns share (the checkout's worktree list, a runner's branch brought in) runs to its end
+/// once started: git killed while it writes leaves an index.lock or a half-added worktree that every
+/// later turn trips on. Not started, it does not start: a stopped turn has no use for it. Everything
+/// else is cut at once: a read, a model call, a criterion command.
+pub fn step_on_abort(started: bool, writes_shared: bool, finalizer: bool) -> u8 {
+    if (finalizer) { return STEP_RUN; }
+    if (writes_shared and started) { return STEP_RUN; }
+    return STEP_CUT;
+}
+
+; --- 3. The escalation --------------------------------------------------------------------------------
+
+/// What happens to a turn whose grace has passed (stop_signal said X_KILL).
+/// ESC_NOTHING: its work ended; nothing is left to stop.
+/// ESC_KILL_GROUP: SIGKILL to the process group the turn's process leads, every descendant with it.
+/// ESC_ABANDON: nothing can stop it. Its pid is dead and whatever it sends is dropped, but its work
+/// runs on and holds what it held (holds_after_kill) until it ends.
+pub const ESC_NOTHING : u8 = 0;
+pub const ESC_KILL_GROUP : u8 = 1;
+pub const ESC_ABANDON : u8 = 2;
+
+/// `kill_stops` is actors.t27 kill_effect(isolation) == KILL_STOPS, passed in: true only for a turn in
+/// an OS process. A kill reaches the GROUP, never the one pid the host spawned: a shell's or a
+/// compiler's child is not that pid, and a pid kill leaves it running (measured above), still holding
+/// the files and the lane the turn held. So a process turn starts as the leader of its own group.
+pub fn escalation(kill_stops: bool, work_ended: bool) -> u8 {
+    if (work_ended) { return ESC_NOTHING; }
+    if (kill_stops) { return ESC_KILL_GROUP; }
+    return ESC_ABANDON;
+}
+
+; --- 4. What a concurrency bound counts ---------------------------------------------------------------
+
+pub const U32_MAX : u32 = 4294967295;
+
+/// A turn whose pid was killed but whose work still holds its row and lane (holds_after_kill) is in
+/// flight as much as a running one: its key lane is busy (z.ai refuses a third concurrent request with
+/// 1302), and its row cannot be handed out. Leaving it out is how a restarted worker took a new row
+/// while the killed review still ran. A bound such as reviewer.t27 review_slots is asked with this
+/// count, never with the running turns alone. It saturates instead of wrapping.
+pub fn in_flight(running: u32, held_after_kill: u32) -> u32 {
+    if (held_after_kill > U32_MAX - running) { return U32_MAX; }
+    return running + held_after_kill;
+}
+
+; --- tests --------------------------------------------------------------------------------------------
+
+test a_finalizer_runs_whether_or_not_it_had_started {
+    assert step_on_abort(false, false, true) == STEP_RUN;
+    assert step_on_abort(true, false, true) == STEP_RUN;
+    assert step_on_abort(false, true, true) == STEP_RUN;
+    assert step_on_abort(true, true, true) == STEP_RUN;
+}
+
+test a_shared_write_under_way_finishes_and_one_not_started_never_starts {
+    assert step_on_abort(true, true, false) == STEP_RUN;
+    assert step_on_abort(false, true, false) == STEP_CUT;
+}
+
+test a_read_a_model_call_and_a_command_are_cut_at_once {
+    assert step_on_abort(true, false, false) == STEP_CUT;
+    assert step_on_abort(false, false, false) == STEP_CUT;
+}
+
+invariant the_two_step_answers_are_pinned {
+    assert STEP_CUT == 0;
+    assert STEP_RUN == 1;
+}
+
+test a_process_turn_past_its_grace_loses_its_whole_group {
+    assert escalation(true, false) == ESC_KILL_GROUP;
+}
+
+test a_loop_or_thread_turn_past_its_grace_is_abandoned_not_claimed_stopped {
+    assert escalation(false, false) == ESC_ABANDON;
+}
+
+test a_turn_whose_work_ended_inside_the_grace_needs_nothing {
+    assert escalation(true, true) == ESC_NOTHING;
+    assert escalation(false, true) == ESC_NOTHING;
+}
+
+invariant the_three_escalations_are_pinned {
+    assert ESC_NOTHING == 0;
+    assert ESC_KILL_GROUP == 1;
+    assert ESC_ABANDON == 2;
+}
+
+test a_held_turn_counts_against_the_bound {
+    assert in_flight(4, 0) == 4;
+    assert in_flight(3, 2) == 5;
+    assert in_flight(0, 4) == 4;
+    assert in_flight(0, 0) == 0;
+}
+
+test the_count_saturates_instead_of_wrapping {
+    assert in_flight(U32_MAX, 1) == U32_MAX;
+    assert in_flight(1, U32_MAX) == U32_MAX;
+    assert in_flight(U32_MAX - 1, 1) == U32_MAX;
+    assert in_flight(U32_MAX - 2, 1) == U32_MAX - 1;
+}
+
+invariant the_grace_and_the_promise_are_the_documented_numbers {
+    assert TURN_STOP_GRACE_MS == 3000;
+    assert LANE_FREE_MS == 5000;
+    assert KILL_LANDS_MS == 2000;
+}

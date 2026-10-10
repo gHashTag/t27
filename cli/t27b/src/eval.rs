@@ -14,6 +14,10 @@
 
 use crate::ir::*;
 
+#[path = "../../../gen/rust/tri/t27b/eval_arith.rs"]
+#[allow(dead_code, unused_parens, unexpected_cfgs, clippy::all)]
+mod spec; // t27c gen-rust of specs/tri/t27b/eval_arith.t27
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stop {
     /// A trap at the given site; for AssertEq, the two compared values.
@@ -201,58 +205,15 @@ fn is_const(e: &Expr) -> bool {
     matches!(e.kind, ExprKind::Const(_))
 }
 
-/// Exact arithmetic of one IR operation on in-range operands.
-/// Returns Err(site offset 0 or 1) for a trap; the caller maps it to a site.
-pub fn arith(op: ArithOp, ty: Ty, a: i128, b: i128, amt_ty: Ty) -> Result<i128, TrapKind> {
-    let bits = ty.bits() as i128;
-    let fit = |r: i128| if ty.fits(r) { Ok(r) } else { Err(TrapKind::Overflow) };
-    match op {
-        ArithOp::Add => fit(a + b),
-        ArithOp::Sub => fit(a - b),
-        ArithOp::Mul => match a.checked_mul(b) {
-            Some(r) => fit(r),
-            None => Err(TrapKind::Overflow),
-        },
-        ArithOp::AddW => Ok(ty.wrap(a + b)),
-        ArithOp::SubW => Ok(ty.wrap(a - b)),
-        ArithOp::MulW => Ok(ty.wrap(((a as u128).wrapping_mul(b as u128)) as i128)),
-        ArithOp::Div => {
-            if b == 0 {
-                return Err(TrapKind::DivZero);
-            }
-            fit(a / b)
-        }
-        ArithOp::DivW => {
-            if b == 0 {
-                return Err(TrapKind::DivZero);
-            }
-            Ok(ty.wrap(a / b))
-        }
-        ArithOp::Rem => {
-            if b == 0 {
-                return Err(TrapKind::DivZero);
-            }
-            Ok(a % b)
-        }
-        ArithOp::And => Ok(a & b),
-        ArithOp::Or => Ok(a | b),
-        ArithOp::Xor => Ok(a ^ b),
-        ArithOp::Shl | ArithOp::Shr | ArithOp::ShlW | ArithOp::ShrW => {
-            let _ = amt_ty;
-            let amt = if matches!(op, ArithOp::Shl | ArithOp::Shr) {
-                if b < 0 || b >= bits {
-                    return Err(TrapKind::ShiftRange);
-                }
-                b
-            } else {
-                b & (bits - 1)
-            };
-            if matches!(op, ArithOp::Shl | ArithOp::ShlW) {
-                Ok(ty.wrap(((a as u128) << amt) as i128))
-            } else {
-                Ok(a >> amt)
-            }
-        }
+/// Exact arithmetic of one IR operation on in-range operands, as
+/// `specs/tri/t27b/eval_arith.t27` states it. `amt_ty` is unused.
+pub fn arith(op: ArithOp, ty: Ty, a: i128, b: i128, _amt_ty: Ty) -> Result<i128, TrapKind> {
+    let r = spec::arith(op as u8, ty.bits(), ty.signed(), ty == Ty::Bool, a, b);
+    match r.trap {
+        spec::TRAP_NONE => Ok(r.value),
+        spec::TRAP_OVERFLOW => Err(TrapKind::Overflow),
+        spec::TRAP_DIV_ZERO => Err(TrapKind::DivZero),
+        _ => Err(TrapKind::ShiftRange),
     }
 }
 
@@ -448,11 +409,7 @@ impl<'p> Interp<'p> {
                     Ok(r) => Ok(r),
                     Err(kind) => {
                         // Div has two sites: zero divisor first, overflow next.
-                        let s = if *op == ArithOp::Div && kind == TrapKind::Overflow {
-                            site + 1
-                        } else {
-                            *site
-                        };
+                        let s = site + spec::site_offset(*op as u8, kind as u8);
                         Err(Stop::Trap { site: s, a: 0, b: 0 })
                     }
                 }

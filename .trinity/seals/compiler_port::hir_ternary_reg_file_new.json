@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:62937cc94439f2fe6713ea24d49a905daa9628ead793b1833459bf5e9c999358",
+  "gen_hash_rust": "sha256:e87ef3d62c14fb306adfcb60a3c4b1055ec53150c4cea1f66cee9522b841625a",
+  "gen_hash_verilog": "sha256:332e42d6cbbbff84114790b85e6fd1af93aa3a68d7f034be06e235fb22dadac8",
+  "gen_hash_zig": "sha256:13da138251e7cf22f8548d65571036d625683c776084278048c01c14070df5f3",
+  "module": "port::hir_ternary_reg_file_new",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:70843d4ff1ef5474cf7be9da771e1bd770433cb73332949c0b2bfc89643430c0",
+  "spec_path": "specs/port/bootstrap/src/compiler/HirTernaryRegFile_new.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

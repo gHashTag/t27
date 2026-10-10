@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+dfcf30c4a",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4d54dff6f1e4d23721cf702c7e0ba63d0f84ea38be8596f81d5eddc5dea5ceb6",
+  "gen_hash_rust": "sha256:76333d9b529d9b823d5dd4d3c06f1fb5b43046be9748408774ad2f0181d43c11",
+  "gen_hash_verilog": "sha256:14073a83cb4f912183c95a483db1351f5d27d62cdaa9d4ee87c649f29c56c771",
+  "gen_hash_zig": "sha256:e8104e6195889e2799442db79dfe664c67ea4fb9600f0e8578674935ff4ce36a",
+  "module": "smoke_m1",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T22:20:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4924de5a52344857b038eeb87f7b6ab4efd0747ed608e1e2518394112ed3fd38",
+  "spec_path": "specs/port/trios/apps/trios-macos/rings/RUST-13/trios-mesh/src/bin/smoke_m1.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

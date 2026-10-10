@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fe99254afdb2a2105e391a31c5ae08522423a3ab8f12ab3ce751767286b477c2",
+  "gen_hash_rust": "sha256:ed729d4dbe304157d8886598e7b2bcef25f6a405c6c659703ae85297126b66fb",
+  "gen_hash_verilog": "sha256:bed29b1e906e3079c81e33e94265fbe92ca6c48ea658aceca95adcacae960669",
+  "gen_hash_zig": "sha256:3a6c8ab3f62a064cc176f3042dc1712dc3f99580233c61fd764af48f1bf1b254",
+  "module": "MemoryGraphTypes",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1949fa1d3c8ed27d04c0a70ad328ec1a06c14a225ddf0b0e8a2ad918cd770ce3",
+  "spec_path": "specs/memory/graph/types.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

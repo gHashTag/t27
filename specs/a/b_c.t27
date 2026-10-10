@@ -12,3 +12,9 @@ module b_c_spec;
 pub fn dummy() -> bool {
     true
 }
+
+// The one value this module declares: dummy() returns the boolean true.
+test b_c_dummy_returns_true {
+    assert dummy() == true;
+}
+}

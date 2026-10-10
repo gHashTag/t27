@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d2b5fc129",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:8d0f0ccc0986414b17223a948723343bd1786164f95611c924b862c49b4a1e5b",
+  "gen_hash_rust": "sha256:5b23265ac07a6918fc25d0c1dee4fa09648357c1cfa9ac9d2f1a43808907b262",
+  "gen_hash_verilog": "sha256:082372d2ac2ffaaf52508882cf43496ed385715c97310b277ac7cded6a4ef428",
+  "gen_hash_zig": "sha256:758ce8ab41b83e8362b8f8c0f48cb25f28f10bb6e39342793d81eaa06065a157",
+  "module": "fn_render_avatar_video_run",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T17:45:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3bf64226ec32291fc1b0a5d1b5264165e2757a414239d8cd2ede1301132811a2",
+  "spec_path": "specs/functions/render-avatar-video-run.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,9 @@
+// A second module that declares ud_twice, differently from use_dep:
+// refuse/e11_use_ambiguous.t27 imports both.
+module use_other;
+fn ud_twice(a: i64) -> i64 {
+    return a + a + 1;
+}
+test uo_values {
+    assert(ud_twice(1) == 3);
+}

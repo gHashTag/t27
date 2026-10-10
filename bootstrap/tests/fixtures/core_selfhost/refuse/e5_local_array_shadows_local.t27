@@ -1,0 +1,11 @@
+// P1 slice 5: an inner block redeclares a local array; gen-c writes C's
+// shadowing array, which Zig refuses.
+module shadow_local;
+fn sl_first() -> u8 {
+    var sl_a: [2]u8 = [_]u8{0} ** 2;
+    if (true) {
+        var sl_a: [2]u8 = [_]u8{1} ** 2;
+        return sl_a[0];
+    }
+    return sl_a[0];
+}

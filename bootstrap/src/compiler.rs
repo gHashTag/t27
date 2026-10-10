@@ -8,6 +8,11 @@ use std::default::Default;
 
 use serde::Serialize;
 
+// specs/compiler/verilog_aos_memory.t27 (#8151), lowered by `t27c gen-rust`; never hand-edit it.
+#[path = "../gen/rust/compiler/verilog_aos_memory.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod verilog_aos_memory;
+
 // ============================================================================
 // AST Node Types (from parser.t27)
 // ============================================================================
@@ -7715,7 +7720,7 @@ impl Codegen {
                 self.gen_expr(elem);
             }
         } else {
-            let txt = node.extra_size.trim();
+            let txt = if node.extra_type.is_empty() { node.extra_size.trim() } else { "" }; // typed: a dimension
             let mut depth = 0i32;
             let mut cur = String::new();
             let mut parts: Vec<String> = Vec::new();
@@ -10862,10 +10867,9 @@ impl Codegen {
                 // Emit Zig anonymous-list forms, which coerce to the typed
                 // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
                 let txt = node.extra_size.trim().to_string();
-                // No children and no element text is the EMPTY literal. Left
-                // to the comma-splitting path below it emitted `.{  }` with a
-                // phantom element.
-                if txt.is_empty() {
+                // No children and no element text, or a TYPED literal (whose extra_size is its dimension,
+                // `[_]S{}` -> `.{ _ }`, 17 specs), is the EMPTY literal; else `.{  }` had a phantom element.
+                if txt.is_empty() || !node.extra_type.is_empty() {
                     self.write(".{}");
                     return;
                 }
@@ -11231,6 +11235,8 @@ pub struct VerilogCodegen {
     // says so when the module is otherwise port-less; `t27c gen-verilog` reads
     // this to say it on stderr every time.
     entry_refusal: Option<String>,
+    // #8151: module-level arrays of structs held as memories (verilog_aos_memory.t27), by emitted name.
+    aos_memories: std::collections::HashSet<String>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -11284,6 +11290,7 @@ impl VerilogCodegen {
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
             entry_refusal: None,
+            aos_memories: std::collections::HashSet::new(),
         }
     }
 
@@ -12833,6 +12840,11 @@ impl VerilogCodegen {
         }
     }
 
+    /// #8151: `name` is a module-level memory here, not shadowed by a local or parameter.
+    fn is_aos_memory(&self, name: &str) -> bool {
+        self.aos_memories.contains(name) && !self.local_types.contains_key(name) && !self.param_types.contains_key(name)
+    }
+
     /// W527/W563: walk a chain of ExprIndex nodes rooted at a local
     /// array-of-struct identifier or a call returning an array of scalar structs,
     /// and emit the corresponding packed slice. `trailing_field` is Some("x")
@@ -12942,6 +12954,12 @@ impl VerilogCodegen {
             (0u32, elem_width, false)
         };
 
+        if current.kind == NodeKind::ExprIdentifier && self.is_aos_memory(&base_expr) {
+            let word = format!("{}[{}]", base_expr, linear);
+            let text = if trailing_field.is_some() { format!("{}[{} +: {}]", word, field_offset, field_width) } else { word };
+            self.write(&if signed && !self.in_lvalue { format!("$signed({})", text) } else { text });
+            return true;
+        }
         self.emit_packed_struct_element_slice(
             &base_expr,
             &linear,
@@ -13113,10 +13131,14 @@ impl VerilogCodegen {
                 }
                 expr
             };
+            if self.is_aos_memory(&base_expr) {
+                format!("{}[{}][({} + ({} * {})) +: {}]", base_expr, linear, field_offset, inner_idx, inner_w, inner_w)
+            } else {
             format!(
                 "{}[(({}) * {} + {} + ({} * {})) +: {}]",
                 base_expr, linear, elem_width, field_offset, inner_idx, inner_w, inner_w
             )
+            }
         } else {
             // Single scalar-struct base (or call temporary): no outer element
             // stride, just field offset + inner index * element width.
@@ -13193,6 +13215,7 @@ impl VerilogCodegen {
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
             entry_refusal: None,
+            aos_memories: self.aos_memories.clone(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -13241,6 +13264,10 @@ impl VerilogCodegen {
                 let mut rhs = String::new();
                 self.collect_expr_text(elem, &mut rhs);
                 self.write_indent();
+                if self.is_aos_memory(var) {
+                    self.write_line(&format!("{}[{}] = {};", var, idx, rhs));
+                    continue;
+                }
                 self.write_line(&format!(
                     "{}[({}) * {} +: {}] = {};",
                     var, idx, elem_width, elem_width, rhs
@@ -13415,6 +13442,7 @@ impl VerilogCodegen {
                     imported_enums: Vec::new(),
             imported_structs: Vec::new(),
             entry_refusal: None,
+            aos_memories: self.aos_memories.clone(),
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -15119,13 +15147,22 @@ impl VerilogCodegen {
 
         // W528: multi-dimensional arrays of scalar structs are lowered as a
         // single packed-vector register with procedural per-element init.
-        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+        if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
             if self.struct_decls.contains_key(&elem_type) {
                 let width = self.packed_width(&node.extra_type);
+                // #8151: verilog_aos_memory.t27 decides; a memory is one word per element, as W531 holds primitives.
+                let words: usize = dims.iter().product();
+                let call = node.children.first().map_or(false, |c| c.kind == NodeKind::ExprCall);
                 self.write_indent();
+                if verilog_aos_memory::aos_var_layout(call, words as u64) == verilog_aos_memory::AOS_MEMORY {
+                    let range = Self::range_decl(self.element_width(&elem_type));
+                    self.aos_memories.insert(Self::verilog_safe_identifier(&node.name));
+                    self.write_line(&format!("reg {}{}{}[0:{}];", range, if range.is_empty() { "" } else { " " }, node.name, words - 1));
+                } else {
                 self.write_line(
                     &format!("reg [{}:0] {};", width.saturating_sub(1), node.name),
                 );
+                }
                 if !node.children.is_empty() {
                     self.write_indent();
                     self.write_line("initial begin");
@@ -20048,7 +20085,18 @@ long double: fabsl, default: llabs)(x)",
 
     /// A literal as C must read it: the `_` separators Zig and Rust allow are
     /// not part of a C numeric constant.
+    ///
+    /// #7318: a negated literal -- `const N: i64 = -1_000;` reaches here as the
+    /// one value `-1_000` -- starts with `-`, not a digit, so the separator
+    /// test said no and `#define N -1_000` reached cc. The sign is set aside,
+    /// the digits get the same rule as an unsigned literal, and the sign goes
+    /// back on.
     fn c_literal(v: &str) -> String {
+        if let Some(digits) = v.strip_prefix('-') {
+            if Self::is_separated_number(digits) {
+                return format!("-{}", digits.replace('_', ""));
+            }
+        }
         if Self::is_separated_number(v) {
             v.replace('_', "")
         } else {
@@ -20173,6 +20221,8 @@ long double: fabsl, default: llabs)(x)",
                         let size = &target[1..bracket_end];
                         let elem_type = &target[bracket_end + 1..];
                         let c_elem = Self::type_to_c(elem_type);
+                        // #7318: the dimension is a number like any other.
+                        let size = Self::c_literal(size);
                         self.write_line(&format!("typedef {} {}[{}];", c_elem, node.name, size));
                     } else {
                         self.write_line(&format!("/* type alias: {} = {} */", node.name, target));
@@ -20893,7 +20943,12 @@ long double: fabsl, default: llabs)(x)",
             return None;
         }
         // A nested `[2][3]u8` becomes `uint8_t f[2][3]`, which is ordinary C.
-        let mut dims = vec![size.to_string()];
+        //
+        // #7318: each dimension goes through `c_literal`, as every other
+        // number gen-c writes does. `[1_0]u8` was written `a[1_0]`, and cc
+        // reads the `_0` as a suffix; a named size such as `[N]` is left as
+        // it is, because `c_literal` only rewrites a number.
+        let mut dims = vec![Self::c_literal(size)];
         let mut rest = elem;
         while rest.starts_with('[') && !rest.contains(';') {
             let c = rest.find(']')?;
@@ -20901,7 +20956,7 @@ long double: fabsl, default: llabs)(x)",
             if d.is_empty() || d == "0" {
                 return None;
             }
-            dims.push(d.to_string());
+            dims.push(Self::c_literal(d));
             rest = rest[c + 1..].trim();
         }
         if rest.is_empty() {
@@ -21509,7 +21564,26 @@ long double: fabsl, default: llabs)(x)",
                         // "unknown type name 'u8'". `param_type_to_c` strips
                         // it for a slice parameter; the same strip is needed
                         // here.
-                        let elem = elem.trim();
+                        let mut elem = elem.trim();
+                        // #7441: a nested `[16][16]u8` kept its inner `[16]`
+                        // in the element, and `type_to_c` passed the text
+                        // through: `[16]u8 m[16]`, which is not C. Every
+                        // inner fixed dimension moves to the declarator, as
+                        // `c_array_field` and a module-level array already
+                        // do: `uint8_t m[16][16]`. A slice or sentinel
+                        // dimension stops the peel and keeps the old path.
+                        let mut inner_dims = String::new();
+                        if !size.trim().is_empty() {
+                            while let Some(r) = elem.strip_prefix('[') {
+                                let Some(c) = r.find(']') else { break };
+                                let d = r[..c].trim();
+                                if d.is_empty() || d == "_" || d.contains(';') || d.contains(':') {
+                                    break;
+                                }
+                                inner_dims.push_str(&format!("[{}]", Self::c_literal(d)));
+                                elem = r[c + 1..].trim();
+                            }
+                        }
                         let (qual, elem) = match elem.strip_prefix("const ") {
                             Some(rest) => ("const ", rest.trim()),
                             None => ("", elem),
@@ -21529,7 +21603,12 @@ long double: fabsl, default: llabs)(x)",
                             // condition got here.
                             self.write(&format!("{}* {}", c_elem, node.name));
                         } else {
-                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                            // #7318: `[1_0]u8` must not reach C as `x[1_0]`.
+                            let size = Self::c_literal(size);
+                            self.write(&format!(
+                                "{} {}[{}]{}",
+                                c_elem, node.name, size, inner_dims
+                            ));
                         }
                     } else {
                         self.write(&format!("int {}", node.name));
@@ -21908,8 +21987,9 @@ long double: fabsl, default: llabs)(x)",
             } else {
                 cap
             };
+            // #7307: the capture is a `usize`; an `int` counter ran zero times past INT_MAX.
             self.write_indent();
-            self.write(&format!("for (int {var} = "));
+            self.write(&format!("for (size_t {var} = "));
             self.gen_c_expr(&node.children[0].children[0]);
             self.write(&format!("; {var} < "));
             self.gen_c_expr(&node.children[0].children[1]);
@@ -21948,7 +22028,7 @@ long double: fabsl, default: llabs)(x)",
         let var = &node.name;
         self.write_indent();
         if node.children.len() >= 2 {
-            self.write(&format!("for (int {var} = "));
+            self.write(&format!("for (size_t {var} = "));
             self.gen_c_expr(&node.children[0]);
             self.write(&format!("; {var} < "));
             self.gen_c_expr(&node.children[1]);
@@ -22805,7 +22885,10 @@ long double: fabsl, default: llabs)(x)",
         let last_idx = cases.len() - 1;
         for (i, case) in cases.iter().enumerate() {
             if case.kind == NodeKind::ConstDecl {
-                let is_else = case.name.is_empty() || case.name == "else";
+                // #7428: `_ =>` is the catch-all arm, as `else` is. It was
+                // written as the comparison `(x == _)`, which C rejects.
+                let is_else =
+                    case.name.is_empty() || case.name == "else" || case.name == "_";
                 let is_last = i == last_idx;
 
                 if is_else {
@@ -23390,10 +23473,45 @@ impl Compiler {
         Ok((codegen.into_string(), refusal))
     }
 
+    /// #7308: gen-c lowers a switch to a ternary chain and ended it with `0` when no arm
+    /// matched. Like Zig, refuse an integer switch (a numeric, negative or char label) with no
+    /// `else` or `_` arm; enum-literal labels are left alone, naming every variant is exhaustive.
+    fn c_int_switch_without_else(node: &Node, owner: &str) -> Option<String> {
+        let owner = match node.kind {
+            NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::InvariantBlock | NodeKind::BenchBlock => {
+                node.name.as_str()
+            }
+            _ => owner,
+        };
+        if node.kind == NodeKind::ExprSwitch && node.children.len() > 1 {
+            let labels: Vec<&str> = node.children[1..]
+                .iter()
+                .filter(|a| a.kind == NodeKind::ConstDecl)
+                .map(|a| a.name.as_str())
+                .collect();
+            let catch_all = labels.iter().any(|n| n.is_empty() || *n == "else" || *n == "_");
+            let int_label = |n: &&str| {
+                n.trim_start_matches('-').starts_with(|c: char| c.is_ascii_digit() || c == '\'')
+            };
+            if !catch_all && labels.iter().any(int_label) {
+                return Some(format!(
+                    "non-exhaustive switch in `{}`: a switch on an integer needs an `else` arm \
+                     (labels {}) (#7308)",
+                    if owner.is_empty() { "<module>" } else { owner },
+                    labels.join(", ")
+                ));
+            }
+        }
+        node.children.iter().find_map(|c| Self::c_int_switch_without_else(c, owner))
+    }
+
     pub fn compile_c(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let ast = parser.parse()?;
+        if let Some(e) = Self::c_int_switch_without_else(&ast, "") {
+            return Err(e);
+        }
         // Emit FAITHFUL C from the AST; the C compiler optimizes downstream. See
         // the note on compile_rust: t27c's optimizer drops reassigned locals and
         // const-inlines `let`, corrupting the source-level output. Fixes #1455.
@@ -24184,17 +24302,20 @@ fn collect_field_names(node: &Node, out: &mut std::collections::HashSet<String>)
 /// the map between them.
 fn collect_param_names(
     node: &Node,
-    out: &mut std::collections::HashMap<String, Vec<String>>,
+    out: &mut std::collections::HashMap<String, Vec<(String, String)>>,
 ) {
     if node.kind == NodeKind::FnDecl {
-        out.insert(
-            node.name.clone(),
-            node.params.iter().map(|(n, _)| n.clone()).collect(),
-        );
+        out.insert(node.name.clone(), node.params.clone());
     }
     for c in &node.children {
         collect_param_names(c, out);
     }
+}
+
+/// Does the file slice (`x[a..b]`)? Only then is a `[]const u8` parameter bytes, not text.
+fn has_slice(n: &Node) -> bool {
+    (n.kind == NodeKind::ExprIndex && n.children.get(1).is_some_and(|i| i.extra_op == ".."))
+        || n.children.iter().any(has_slice)
 }
 
 fn collect_written_slice_params(
@@ -24483,6 +24604,9 @@ fn rust_ident(name: &str) -> String {
         "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop",
         "match", "mod", "move", "mut", "pub", "ref", "return", "static", "struct",
         "trait", "true", "type", "union", "unsafe", "use", "where", "while", "yield",
+        // Reserved for future use: still a parse error bare (`fn final`, sha256.t27).
+        "abstract", "become", "do", "final", "macro", "override", "priv", "try",
+        "typeof", "unsized", "virtual",
     ];
     if KEYWORDS.contains(&name) {
         format!("r#{}", name)
@@ -26753,7 +26877,9 @@ pub struct RustCodegen {
     field_names: std::collections::HashSet<String>,
     /// Parameter names by position, per function. Pairs with the map above so a
     /// call site can ask "is argument 2 a `&mut [T]` slot?".
-    param_names: std::collections::HashMap<String, Vec<String>>,
+    param_names: std::collections::HashMap<String, Vec<(String, String)>>,
+    /// `has_slice(file)`: its `[]const u8` parameters are `&[u8]`, else `&'static str`.
+    byte_params: bool,
     /// The slice parameters of the function currently being emitted that are
     /// themselves `&mut [T]`. Passing one of those on is a reborrow and must
     /// NOT get another `&mut`.
@@ -26831,6 +26957,7 @@ impl RustCodegen {
             in_const_init: false,
             written_slice_params: std::collections::HashMap::new(),
             param_names: std::collections::HashMap::new(),
+            byte_params: false,
             field_names: std::collections::HashSet::new(),
             current_mut_slice_params: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
@@ -26957,6 +27084,7 @@ impl RustCodegen {
         self.written_slice_params = collect_written_slice_params(ast);
         self.param_names.clear();
         collect_param_names(ast, &mut self.param_names);
+        self.byte_params = has_slice(ast);
         self.field_names.clear();
         collect_field_names(ast, &mut self.field_names);
 
@@ -27408,6 +27536,8 @@ impl RustCodegen {
                     // `&mut T` without a lifetime, and doing it everywhere
                     // introduced 9 errors across 3 specs against 1 revealed.
                     format!("{}: &mut {}", rust_ident(n), &rust_ty[5..])
+                } else if self.byte_params && t.trim() == "[]const u8" {
+                    format!("{}: &[u8]", rust_ident(n)) // `&'static str` cannot take `x[a..b]`
                 } else {
                     let binding = if mutable_params.contains(n) && !rust_ty.starts_with('&') {
                         format!("mut {}", rust_ident(n))
@@ -27476,7 +27606,9 @@ impl RustCodegen {
         // `return` of a narrower/wider value can be cast to the return type.
         self.var_types.clear();
         for (pname, ptype) in &params {
-            if !ptype.trim().is_empty() {
+            if self.byte_params && ptype.trim() == "[]const u8" {
+                self.var_types.insert(pname.clone(), "&[u8]".to_string());
+            } else if !ptype.trim().is_empty() {
                 self.var_types
                     .insert(pname.clone(), Self::t27_type_to_rust(ptype));
             }
@@ -28699,8 +28831,16 @@ impl RustCodegen {
 
     /// Emit an expression in an integer position (return value, typed local).
     fn expr_to_rust_as(&self, node: &Node, ty: &str) -> String {
-        let s = self.expr_to_rust(node);
         let ty = ty.trim();
+        // #7534: t27 coerces a `T` to `?T`; Rust needs `Some(..)`. Wrapped only when
+        // the value is known not to be optional already, so `null` stays `None`.
+        if let Some(inner) = ty.strip_prefix("Option<").and_then(|t| t.strip_suffix('>')) {
+            if self.rust_expr_is_plain(node) {
+                return format!("Some({})", self.expr_to_rust_as(node, inner));
+            }
+            return self.expr_to_rust(node);
+        }
+        let s = self.expr_to_rust(node);
         if !Self::is_int_type(ty) {
             return s;
         }
@@ -28713,6 +28853,25 @@ impl RustCodegen {
         match self.infer_int_type(node) {
             Some(actual) if actual != ty => format!("({}) as {}", s, ty),
             _ => s,
+        }
+    }
+
+    /// True when `node` is surely not an `Option`: a literal, an operator, a cast, a
+    /// struct or tuple, or a name or call whose declared type is not `Option<..>`.
+    /// Anything unknown (index, field, `if`, untyped name) answers false.
+    fn rust_expr_is_plain(&self, node: &Node) -> bool {
+        let plain = |t: Option<&String>| t.is_some_and(|t| !t.starts_with("Option<"));
+        match node.kind {
+            NodeKind::ExprLiteral | NodeKind::ExprBinary | NodeKind::ExprUnary => true,
+            NodeKind::ExprCast | NodeKind::ExprStructLit | NodeKind::ExprTuple => true,
+            NodeKind::ExprEnumValue | NodeKind::ExprArrayLiteral => true,
+            NodeKind::ExprIdentifier if node.name == "null" => false,
+            NodeKind::ExprIdentifier => {
+                plain(self.var_types.get(&node.name).or_else(|| self.const_types.get(&node.name)))
+            }
+            NodeKind::ExprCall => plain(self.fn_ret_types.get(&node.name)),
+            NodeKind::ExprFieldAccess => node.name == "?", // `x.?` unwraps
+            _ => false,
         }
     }
 
@@ -28746,6 +28905,30 @@ impl RustCodegen {
                 "unreachable!()".to_string()
             }
             NodeKind::ExprIdentifier => node.name.clone(),
+            // Zig's repeat `[v] ** n` is Rust's `[v; n]`; verbatim, rustc read `[v] * (*n)`.
+            // A sole literal or name element arrives as bracket TEXT, a typed one as a child.
+            NodeKind::ExprBinary
+                if node.extra_op == "**"
+                    && node.children.len() == 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && (node.children[0].children.len() == 1
+                        || (node.children[0].children.is_empty()
+                            && node.children[0].extra_type.is_empty()
+                            && !node.children[0].extra_size.trim().is_empty()
+                            && !node.children[0].extra_size.contains([',', ';', ']']))) =>
+            {
+                let lhs = &node.children[0];
+                let val = match lhs.children.first() {
+                    Some(c) => self.expr_to_rust(c),
+                    None => lhs.extra_size.trim().to_string(),
+                };
+                let count = self.expr_to_rust(&node.children[1]);
+                if self.infer_int_type(&node.children[1]).is_some_and(|t| t != "usize") {
+                    format!("[{}; ({}) as usize]", val, count)
+                } else {
+                    format!("[{}; {}]", val, count)
+                }
+            }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
                     let mut left = self.expr_to_rust(&node.children[0]);
@@ -28811,7 +28994,7 @@ impl RustCodegen {
                 if let Some(callee_params) = self.param_names.get(&node.name) {
                     if let Some(callee_written) = self.written_slice_params.get(&node.name) {
                         for (i, a) in args.iter_mut().enumerate() {
-                            let Some(pname) = callee_params.get(i) else {
+                            let Some((pname, _)) = callee_params.get(i) else {
                                 continue;
                             };
                             if !callee_written.contains(pname) {
@@ -28821,6 +29004,21 @@ impl RustCodegen {
                                 continue;
                             }
                             *a = format!("&mut {}", a);
+                        }
+                    }
+                    // `gen_fn` makes a bare `*T` parameter `&mut T`, so `&x` for it borrows
+                    // mutably; a byte `[]const u8` parameter is `&[u8]`, so a string is `b".."`.
+                    for (i, a) in args.iter_mut().enumerate() {
+                        let (Some((_, t)), Some(c)) = (callee_params.get(i), node.children.get(i)) else { continue };
+                        let t = t.trim();
+                        if c.kind == NodeKind::ExprUnary && c.extra_op == "&" && t.starts_with('*')
+                            && !t[1..].trim_start().starts_with("const ")
+                        {
+                            *a = format!("&mut {}", &a[1..]);
+                        } else if c.kind == NodeKind::ExprLiteral && c.extra_kind == "string"
+                            && self.byte_params && t == "[]const u8"
+                        {
+                            *a = format!("b{}", a);
                         }
                     }
                 }
@@ -28899,7 +29097,8 @@ impl RustCodegen {
                         return built;
                     }
                 }
-                format!("{}({})", node.name, args.join(", "))
+                // The callee's name went through `rust_ident` at `gen_fn`; the call must too.
+                format!("{}({})", rust_ident(&node.name), args.join(", "))
             }
             NodeKind::ExprArrayLiteral => {
                 if node.children.is_empty() && !node.extra_size.trim().is_empty() {
@@ -29062,6 +29261,11 @@ impl RustCodegen {
                         base = format!("{}.as_bytes()", base);
                     }
                     let idx = &node.children[1];
+                    // A slice `x[a..b]`: a Range cannot be cast `as usize` (E0605), each end can.
+                    if idx.kind == NodeKind::ExprBinary && idx.extra_op == ".." && idx.children.len() == 2 {
+                        let (lo, hi) = (self.expr_to_rust(&idx.children[0]), self.expr_to_rust(&idx.children[1]));
+                        return format!("&{}[({}) as usize..({}) as usize]", base, lo, hi);
+                    }
                     let idx_str = self.expr_to_rust(idx);
                     // Array/Vec indices must be usize. t27 index expressions are
                     // u32, so cast non-literal indices. Integer literals infer
@@ -43604,7 +43808,7 @@ mod tests_phase40_coverage {
     fn test_parse_for_range_c() {
         let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
         let out = Compiler::compile_c(code).expect("compile should succeed");
-        assert!(out.contains("for (int i = 0; i < 8; i++)"), "C output: {}", out);
+        assert!(out.contains("for (size_t i = 0; i < 8; i++)"), "C output: {}", out);
     }
 
     #[test]

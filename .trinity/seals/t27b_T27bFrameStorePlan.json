@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:670694ab75a1a4c5030c1fa9c4248465f2fd9ef66df3df196bbf493e66254740",
+  "gen_hash_rust": "sha256:6319a76252b20a1eb2996a3d580ff6cd23ab24a7a62deaee526ed54e69a1c231",
+  "gen_hash_verilog": "sha256:98eb6b4097459ce5978d2cdcb476bf76c0a15ccd741ee05e0989888bdc4cb0b1",
+  "gen_hash_zig": "sha256:241f5da4ab497a1d141e78c1f8acee260ab7ae5d1b08664b8a75681d2f9a2ccc",
+  "module": "T27bFrameStorePlan",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:58:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:614701f786590d09e4ddbc4fc554f3f71af9e7e9a90a60ff881e2848563332ff",
+  "spec_path": "specs/tri/t27b/frame_store_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

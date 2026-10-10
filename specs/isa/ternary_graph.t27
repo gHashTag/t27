@@ -127,4 +127,22 @@ module TernaryGraph {
     bench degree_out_27 {
         // Simulated — actual allocation at gen time
     }
+
+    // t27b checked (#8473): pin the declared alphabet and bound. The three
+    // trits are the balanced alphabet {-1, 0, +1} -- they sum to zero --
+    // and MAX_VERTICES is the 27-vertex bound every guard in this module
+    // checks against; the degree_bound invariant above caps in+out at
+    // 27*2 = 54. The adjacency walk itself needs a [][]i32 allocation
+    // t27b cannot express from a literal (no coercion from [N][N]i32),
+    // which is why the three tests above defer to invariant level; this
+    // block pins what the module declares at constant level. Integer
+    // compares, no L5 tolerance needed.
+    test trit_alphabet_and_vertex_bound {
+        assert MAX_VERTICES == 27;
+        assert MAX_VERTICES * 2 == 54;
+        assert TRIT_NEG == -1;
+        assert TRIT_ZERO == 0;
+        assert TRIT_POS == 1;
+        assert TRIT_NEG + TRIT_ZERO + TRIT_POS == 0;
+    }
 }

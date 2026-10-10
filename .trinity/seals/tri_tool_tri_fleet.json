@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:65ed9673c02bc20423e0a5833f7b46449bcb3463a51f56faaf06f09a1726a8d1",
+  "gen_hash_rust": "sha256:0dadc582c20452176b0263c798c453fa6994e205d2d67b17aec80c14be03570c",
+  "gen_hash_verilog": "sha256:4f76d30f3a2fecddc15c6bd23c7c7f7446b8bba4cf94910142cbd3d76845233f",
+  "gen_hash_zig": "sha256:b7a8444ac03ecb49f1f18475ea52558a2789d92f74a788c9831afcde3608d67d",
+  "module": "tool_tri_fleet",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e3b32bd1433c8232ec4ec235c67b05a8244c429701d639ab6c1cc3e9fc2efa65",
+  "spec_path": "specs/tools/tri/fleet.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

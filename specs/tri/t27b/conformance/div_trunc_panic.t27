@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/div_trunc_panic.t27 -- `@divTrunc` and a `@panic` statement, as the reference
+; runs them (gHashTag/t27#7790, t27b coverage epic #6063: ExprCall(@divTrunc), ExprCall(@panic) in
+; specs/tri/t27b/a64.t27). Every test here passes `t27c test-report`; t27b must give the same verdict on each,
+; or refuse the file. gen-zig prints both builtins as written.
+; - `@divTrunc(a, b)` of two integers is the quotient rounded toward zero, of signed and unsigned operands,
+;   with a literal beside a typed integer taking that integer's type. Of two literals it folds.
+; - `@panic("m");` as the last statement of a block fails only a test that reaches it; a test that does not
+;   reach it runs on past it. The fn after it continues as written.
+; Not here (each fails the test or the compile, so no passing spec can hold it): a run-time division by
+; zero, MIN / -1, a reached `@panic`, a statement after `@panic` in its block (`unreachable code`), and a
+; trailing `@panic` in a non-void fn (gen-zig prints `return @panic(..)`, #7533).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceDivTruncPanic;
+
+var DTP_CALLS: u32 = 0;
+
+fn dtp_div(a: i32, b: i32) -> i32 {
+    return @divTrunc(a, b);
+}
+
+fn dtp_div8(a: i32) -> i32 {
+    return @divTrunc(a, 8);
+}
+
+fn dtp_div_lit_first(b: i64) -> i64 {
+    return @divTrunc(100, b);
+}
+
+fn dtp_udiv(a: u32, b: u32) -> u32 {
+    return @divTrunc(a, b);
+}
+
+fn dtp_count(x: i32) -> i32 {
+    DTP_CALLS = DTP_CALLS + 1;
+    return x;
+}
+
+/// a64.t27's `pair`: the 7-bit scaled offset of an STP / LDP, in place at bit 15.
+fn dtp_pair(simm: i32) -> u32 {
+    return ((@divTrunc(simm, 8) & 0x7f) as u32) << 15;
+}
+
+/// a64.t27's `size_log2`: a `@panic` in an `if` body, then the fn goes on.
+fn dtp_size_log2(bytes: u32) -> u32 {
+    if ((bytes != 1) and (bytes != 2) and (bytes != 4) and (bytes != 8)) {
+        @panic("dtp_size_log2: an access is 1, 2, 4 or 8 bytes");
+    }
+    if (bytes == 1) {
+        return 0;
+    }
+    if (bytes == 2) {
+        return 1;
+    }
+    if (bytes == 4) {
+        return 2;
+    }
+    return 3;
+}
+
+/// A `@panic` as the last statement of a loop body that no call reaches.
+fn dtp_first_even(xs: [4]u32) -> u32 {
+    var i: u32 = 0;
+    while (i < 4) {
+        if (xs[i] % 2 == 0) {
+            return xs[i];
+        }
+        i = i + 1;
+        if (i == 9) {
+            @panic("dtp_first_even: past the end");
+        }
+    }
+    return 0;
+}
+
+test div_trunc_rounds_toward_zero {
+    assert(dtp_div(7, 2) == 3);
+    assert(dtp_div(-7, 2) == -3);
+    assert(dtp_div(7, -2) == -3);
+    assert(dtp_div(-7, -2) == 3);
+    assert(dtp_div(6, 3) == 2);
+    assert(dtp_div(0, -5) == 0);
+}
+
+test div_trunc_by_a_literal_takes_the_operand_s_type {
+    assert(dtp_div8(-9) == -1);
+    assert(dtp_div8(-8) == -1);
+    assert(dtp_div8(-7) == 0);
+    assert(dtp_div8(504) == 63);
+    assert(dtp_div_lit_first(-3) == -33);
+    assert(dtp_div_lit_first(7) == 14);
+}
+
+test div_trunc_of_unsigned_operands {
+    assert(dtp_udiv(9, 4) == 2);
+    assert(dtp_udiv(4294967295, 2) == 2147483647);
+    assert(dtp_udiv(3, 4) == 0);
+}
+
+test div_trunc_of_extremes {
+    assert(dtp_div(-2147483647 - 1, 1) == -2147483647 - 1);
+    assert(dtp_div(-2147483647 - 1, 2) == -1073741824);
+    assert(dtp_div(2147483647, -1) == -2147483647);
+}
+
+test div_trunc_evaluates_each_operand_once {
+    DTP_CALLS = 0;
+    const q = @divTrunc(dtp_count(-15), dtp_count(4));
+    assert(q == -3);
+    assert(DTP_CALLS == 2);
+}
+
+test div_trunc_in_a64_s_pair_encoding {
+    assert(dtp_pair(16) == 2 << 15);
+    assert(dtp_pair(-16) == 126 << 15);
+    assert(dtp_pair(-512) == 64 << 15);
+    assert(dtp_pair(504) == 63 << 15);
+}
+
+test a_panic_not_reached_lets_the_fn_run_on {
+    assert(dtp_size_log2(1) == 0);
+    assert(dtp_size_log2(2) == 1);
+    assert(dtp_size_log2(4) == 2);
+    assert(dtp_size_log2(8) == 3);
+}
+
+test a_panic_in_a_loop_body_not_reached {
+    const xs: [4]u32 = [3, 5, 6, 7];
+    assert(dtp_first_even(xs) == 6);
+    const ys: [4]u32 = [1, 3, 5, 7];
+    assert(dtp_first_even(ys) == 0);
+}

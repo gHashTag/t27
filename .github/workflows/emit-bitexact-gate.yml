@@ -47,6 +47,11 @@ on:
       - ".github/workflows/emit-bitexact-gate.yml"
   workflow_dispatch:
 
+# A newer push or PR edit makes this run's verdict stale: cancel it (queue jam 2026-10-09).
+concurrency:
+  group: emit-bitexact-gate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   emit-bitexact:
     runs-on: ubuntu-latest

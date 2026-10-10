@@ -6,3 +6,21 @@ pub fn create_packet_color(type: u32, red: u8, green: u8, blue: u8) -> u32 {
     let rgb: u32 = ((red as u32) << 16) | ((green as u32) << 8) | (blue as u32);
     color | rgb
 }
+
+test traffic_animator_color_creation {
+    const packet_type = 1;
+    const red_val = 255;
+    const green_val = 128;
+    const blue_val = 64;
+    
+    const color = create_packet_color(packet_type, red_val, green_val, blue_val);
+    
+    // Check that type is in the high byte
+    const type_part = (color >> 24) & 0xFF;
+    assert type_part == 1;
+    
+    // Check that RGB values are in the lower bytes
+    const rgb_part = color & 0xFFFFFF;
+    const expected_rgb = (255 << 16) | (128 << 8) | 64;
+    assert rgb_part == expected_rgb;
+}

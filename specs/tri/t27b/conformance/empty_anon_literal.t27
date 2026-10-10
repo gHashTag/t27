@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/empty_anon_literal.t27 -- `.{}`, the empty anonymous literal, takes its result type
+; (gHashTag/t27#7735). The corpus cases are specs/port/trinity/src/tri/gen_lockfree_stack.t27 (`return .{};` from a
+; fn returning a struct whose one field has a default) and
+; specs/port/browseros/trios/agent-server/apps/server/src/tools/tool-registry.t27 (`return &.{};` from a fn returning
+; `[][]const u8`, and `&.{}` for a `[]ToolDefinition` field).
+; gen-zig prints each as written, `.{  }` / `&.{  }`, where the context gives it a result type. Zig 0.16 coerces
+; it there: a struct takes the default of every field (a field without one is a compile error), and `&.{}` is a
+; zero-length slice of any element type, mutable or not. Below: struct defaults from a return, a typed local and an
+; argument; `&.{}` as a slice return (mutable, and of strings) and as slice fields beside a defaulted one.
+; `t27c test-report` (zig 0.16.0, t27c lab): 4/4 pass, 0 vacuous, 11 runtime asserts.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceEmptyAnonLiteral;
+
+const LIMIT: u32 = 40;
+
+pub const EmptyLitCounter = struct {
+    count: u32 = 7,
+    step: i64 = -3,
+    on: bool = true,
+};
+
+pub const EmptyLitBag = struct {
+    items: []u32,
+    names: [][]const u8,
+    total: u32 = LIMIT,
+};
+
+pub fn fresh_counter() -> EmptyLitCounter {
+    return .{};
+}
+
+pub fn count_of(c: EmptyLitCounter) -> u32 {
+    return c.count;
+}
+
+pub fn no_items() -> []u32 {
+    return &.{};
+}
+
+pub fn no_names() -> [][]const u8 {
+    return &.{};
+}
+
+pub fn empty_bag() -> EmptyLitBag {
+    return EmptyLitBag { items = &.{}, names = &.{} };
+}
+
+test returned_struct_takes_every_default {
+    const c = fresh_counter();
+    assert(c.count == 7);
+    assert(c.step == -3);
+    assert(c.on);
+}
+
+test local_struct_takes_every_default {
+    var c: EmptyLitCounter = .{};
+    c.count += 2;
+    assert(c.count == 9);
+    assert(c.step == -3);
+    assert(count_of(.{}) == 7);
+}
+
+test returned_slices_are_empty {
+    assert(no_items().len == 0);
+    assert(no_names().len == 0);
+}
+
+test field_slices_are_empty {
+    const b = empty_bag();
+    assert(b.items.len == 0);
+    assert(b.names.len == 0);
+    assert(b.total == 40);
+}

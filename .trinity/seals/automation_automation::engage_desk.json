@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:43c980dd850a1f80270812aaf073067e47d3fe3eab9281ec6482094a45510d80",
   "gen_hash_rust": "sha256:e58488fc08acca4565020483012feea2aaf106c297bba3efa793e838fbb4079c",
   "gen_hash_verilog": "sha256:614b9bd47f74de796d46ba50d12f3925670c0baef9460ff10a90b1b29c3e4f3b",
   "gen_hash_zig": "sha256:5c02673a4bf1862a3f2d6a048a6215a0bc14feb7bc7de8d33b40d40c1979f48b",
   "module": "automation::engage_desk",
   "ring": 12,
-  "sealed_at": "2026-10-04T17:29:45Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5c4fb4b99424d9112b4331611e5343e63083378ca0cf51686992dd4f8453fcca",
-  "spec_path": "specs/automation/engage-desk.t27"
+  "spec_path": "specs/automation/engage-desk.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 26,
+    "total": 26
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

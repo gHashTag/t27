@@ -1,0 +1,256 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/trinet/node-work-credit.t27 -- when a TRI-NET node's job is worth a TRI mint: who may vouch for it, once, after any restart, and to whom.
+// Issue: gHashTag/t27#8426. Companions of record in gHashTag/trinity-fpga (at ea895b50):
+// specs/trinet/settlement_law.t27 (the rate, the slash, the attacks), specs/trinet/mint_on_acceptance.t27
+// (ACCEPTANCE_TO_MINT: a receipt-backed job, the coordinator's ledger, an attestation, the mint),
+// src/trinet/mesh.zig (the coordinator), src/trinet/ledger.zig (settle), src/trinet/protocol.zig (verify).
+// The payout address is specs/automation/tri-wallet-chains.t27; the minter is TON testnet only.
+// Trace: owner 2026-10-09 "everything that passes through the nodes we wrote must be recorded to us,
+// so the tokens come to me". Measured that day in the code above:
+// - the coordinator issues the job and its nonce, protocol.verify recomputes the answer, and
+//   ledger.settle credits 1 mTRI per accepted job (settlement_law REWARD_PER_JOB_MTRI 1);
+// - ledger.zig keeps the paid (node, nonce) set in memory only, and mesh.zig starts next_nonce at 1
+//   on every start: after a restart the same (node, nonce) is paid again, and a receipt saved from an
+//   earlier run can match a reissued nonce;
+// - the receipt tag is a CRC keyed by a 16-byte key the operator holds, so software that holds the
+//   key makes the same tag (settlement_law emulation: caught_by nothing, open);
+// - nothing takes a ledger credit to an ACCEPTANCE_ATTESTATION.
+// Hosts (each against this spec's vectors): trinity-fpga src/trinet (journal-backed restart, record
+// level, the attestation request), the attestors (trinity-fpga contracts/ton/signer), and
+// 999-multibots-telegraf render (the payout route).
+// Claim status: DESIGN, test contour only. The rate is the settlement law's, not chosen here. Who runs
+// the independent coordinator, how a board proves it is a board, and who buys ternary compute stay
+// open (COORDINATOR_OPERATOR here; DEVICE_BOUND_IDENTITY and WHO_BUYS_TERNARY_COMPUTE in
+// trinity-fpga) and are not guessed. Nothing here mints, signs or pays.
+// v1 (2026-10-09): record levels, no self-vouching, one credit per (node, nonce) across restarts by a
+// durable nonce reservation, write-before-credit, the settlement rate, one attestation per closed run,
+// a work id apart from spec earnings, the board not proven by its tag, production gated.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinet::node_work_credit {
+    pub const KIND : str = "trinet";
+    pub const ID : str = "node-work-credit";
+    pub const VERSION : u8 = 1;
+
+    // ---- the rate (copied from the settlement law, never chosen here) ----
+
+    // settlement_law.t27 ECONOMICS: REWARD_PER_JOB_MTRI 1, for one accepted 32-wide ternary dot
+    // product. A change of rate is a change to the settlement law, not to this spec.
+    pub const REWARD_PER_JOB_MTRI : u64 = 1;
+    pub const JOB_WIDTH : u32 = 32;
+
+    fn amount_mtri(jobs: u64) -> u64 {
+        return jobs * REWARD_PER_JOB_MTRI;
+    }
+
+    // ---- what a record is worth ----
+
+    // A record is only as good as the party that vouches for it. The node's own operator running the
+    // coordinator chooses the inputs, holds the node key and writes the journal: that record says
+    // what the operator says, so it is a test record, whatever the arithmetic.
+    pub const LEVEL_NONE : u8 = 0;
+    pub const LEVEL_SELF_REPORTED : u8 = 1;
+    pub const LEVEL_VERIFIED : u8 = 2;
+    pub const LEVEL_ATTESTED : u8 = 3;
+
+    fn record_level(accepted: bool, coordinator_issued: bool, recomputed: bool, coordinator_is_owner: bool, attested: bool) -> u8 {
+        if !accepted || !coordinator_issued || !recomputed { return LEVEL_NONE; }
+        if coordinator_is_owner { return LEVEL_SELF_REPORTED; }
+        if attested { return LEVEL_ATTESTED; }
+        return LEVEL_VERIFIED;
+    }
+
+    // Internal credit from a verified record; a mint only from an attested one.
+    fn creditable(level: u8) -> bool {
+        return level >= LEVEL_VERIFIED;
+    }
+
+    fn mintable(level: u8) -> bool {
+        return level == LEVEL_ATTESTED;
+    }
+
+    // A signer never vouches for itself: the signatures of a signer who is also the payee do not
+    // count toward the quorum for that earning. Being a signer is never a way to mint alone.
+    fn quorum_without_payee(distinct_signatures: u32, payee_signatures: u32, m: u32) -> bool {
+        if payee_signatures > distinct_signatures { return false; }
+        return m > 0 && distinct_signatures - payee_signatures >= m;
+    }
+
+    // ---- once, across restarts ----
+
+    // The replay key is (node, nonce). The coordinator never issues one nonce to one node twice:
+    // before it issues past its reserved mark it durably writes a new mark NONCE_RESERVE_BLOCK
+    // higher, and after a restart it resumes AT the last written mark, so every nonce that may have
+    // been issued before the restart lies below it and is never issued again.
+    pub const NONCE_RESERVE_BLOCK : u32 = 1024;
+
+    fn resume_nonce(written_mark: u32) -> u32 {
+        return written_mark;
+    }
+
+    // A nonce is issued only between where this start resumed and the mark already written: below
+    // the resume point it may have been issued before the restart; at or above the mark it is not
+    // yet reserved, so a new mark is written first.
+    fn may_issue(nonce: u32, resumed_from: u32, written_mark: u32) -> bool {
+        return nonce >= resumed_from && nonce < written_mark;
+    }
+
+    // The next mark, or 0 when the nonce space is spent: then the node needs a new key epoch before
+    // it gets more work, never a wrap to nonces it has already signed.
+    fn next_mark(written_mark: u32) -> u32 {
+        if written_mark > 4294967295 - NONCE_RESERVE_BLOCK { return 0; }
+        return written_mark + NONCE_RESERVE_BLOCK;
+    }
+
+    // A credit counts once its journal line is durable, and the paid set is rebuilt from the journal
+    // on start. An unreadable journal stops crediting: not knowing what was paid must never read as
+    // "nothing was paid".
+    fn may_start_crediting(journal_readable: bool, mark_readable: bool) -> bool {
+        return journal_readable && mark_readable;
+    }
+
+    fn may_credit(verdict_accepted: bool, node_matches_dispatch: bool, nonce_issued_by_me: bool, key_spent: bool, journal_written: bool) -> bool {
+        return verdict_accepted && node_matches_dispatch && nonce_issued_by_me && !key_spent && journal_written;
+    }
+
+    // ---- what the tag proves ----
+
+    // The receipt tag is a CRC keyed by a 16-byte node key that the operator generated and holds.
+    // Software holding that key makes the same tag, so a tag proves "someone with the key computed
+    // this", never "this board computed this". Hardware counts only with a device-bound identity.
+    pub const TAG_PROVES_DEVICE : bool = false;
+
+    fn counts_as_hardware(device_bound_identity: bool) -> bool {
+        return device_bound_identity;
+    }
+
+    // ---- from credit to a mint ----
+
+    // 1 mTRI per job is far less than the 0.1 TON one mint message carries, so jobs are never minted
+    // one by one: a run is closed and its verified jobs go out as ONE attestation of their sum.
+    // The minter takes a 32-byte work id. A run's work id is the hash of this domain tag and the
+    // run's coordinator, node, nonce range and journal hash, so it never equals the work id of a
+    // Queen spec earning. Today's signers (trinity-fpga PR 802 signer.ts) look a work id up in
+    // Queen only; a run needs its own source for them, the coordinator's journal, which is part of
+    // the trust model still to agree.
+    pub const WORK_ID_DOMAIN : str = "trinet-run:v1";
+
+    fn may_request_attestation(level: u8, run_closed: bool, jobs: u64, payee_bound_on_testnet: bool) -> bool {
+        return level == LEVEL_VERIFIED && run_closed && jobs > 0 && payee_bound_on_testnet;
+    }
+
+    // One closed run is attested once: its work id is spent in the minter like any other.
+    fn may_mint_run(attested: bool, work_id_spent: bool) -> bool {
+        return attested && !work_id_spent;
+    }
+
+    // ---- what must hold before it pays for real ----
+
+    // Production payout needs an agreed trust model, a coordinator not run by the node's owner, and
+    // live signers. Until then the same code runs as a test contour whose records are self-reported.
+    pub const TRUST_MODEL_AGREED : bool = false;
+
+    fn production_payout_open(trust_model_agreed: bool, coordinator_independent: bool, signers_live: bool) -> bool {
+        return trust_model_agreed && coordinator_independent && signers_live;
+    }
+
+    // ---- tests ----
+
+    test "the rate is the settlement law's: one mTRI per accepted 32-wide job" {
+        assert(REWARD_PER_JOB_MTRI == 1);
+        assert(JOB_WIDTH == 32);
+        assert(amount_mtri(0) == 0);
+        assert(amount_mtri(1) == 1);
+        assert(amount_mtri(1280) == 1280);
+    }
+
+    test "a rejected, unissued or unrecomputed job is worth nothing" {
+        assert(record_level(false, true, true, false, true) == LEVEL_NONE);
+        assert(record_level(true, false, true, false, true) == LEVEL_NONE);
+        assert(record_level(true, true, false, false, true) == LEVEL_NONE);
+        assert(!creditable(LEVEL_NONE));
+        assert(!mintable(LEVEL_NONE));
+    }
+
+    test "a record the node's owner wrote about itself never mints" {
+        assert(record_level(true, true, true, true, false) == LEVEL_SELF_REPORTED);
+        assert(record_level(true, true, true, true, true) == LEVEL_SELF_REPORTED);
+        assert(!creditable(LEVEL_SELF_REPORTED));
+        assert(!mintable(LEVEL_SELF_REPORTED));
+        assert(record_level(true, true, true, false, false) == LEVEL_VERIFIED);
+        assert(creditable(LEVEL_VERIFIED));
+        assert(!mintable(LEVEL_VERIFIED));
+        assert(record_level(true, true, true, false, true) == LEVEL_ATTESTED);
+        assert(mintable(LEVEL_ATTESTED));
+    }
+
+    test "a signer's signature never counts for its own earning" {
+        assert(quorum_without_payee(2, 0, 2));
+        assert(!quorum_without_payee(2, 1, 2));
+        assert(quorum_without_payee(3, 1, 2));
+        assert(!quorum_without_payee(1, 0, 2));
+        assert(!quorum_without_payee(1, 2, 1));
+        assert(!quorum_without_payee(3, 0, 0));
+    }
+
+    test "one job credits once, and a restart never reissues a nonce" {
+        assert(NONCE_RESERVE_BLOCK == 1024);
+        assert(may_credit(true, true, true, false, true));
+        assert(!may_credit(true, true, true, true, true));
+        assert(resume_nonce(2048) == 2048);
+        assert(!may_issue(2047, 2048, 3072));
+        assert(may_issue(2048, 2048, 3072));
+        assert(may_issue(3071, 2048, 3072));
+        assert(!may_issue(3072, 2048, 3072));
+        assert(!may_issue(2048, 2048, 2048));
+        assert(next_mark(2048) == 3072);
+        assert(next_mark(1) == 1025);
+        assert(next_mark(4294967295 - 1024) == 4294967295);
+        assert(next_mark(4294967295 - 1023) == 0);
+    }
+
+    test "an unreadable journal stops crediting, and a credit counts only once written" {
+        assert(may_start_crediting(true, true));
+        assert(!may_start_crediting(false, true));
+        assert(!may_start_crediting(true, false));
+        assert(!may_credit(true, true, true, false, false));
+    }
+
+    test "a forged answer, a stranger's identity and a never-issued nonce are refused" {
+        assert(!may_credit(false, true, true, false, true));
+        assert(!may_credit(true, false, true, false, true));
+        assert(!may_credit(true, true, false, false, true));
+    }
+
+    test "the board is not proven by its tag" {
+        assert(!TAG_PROVES_DEVICE);
+        assert(!counts_as_hardware(false));
+        assert(counts_as_hardware(true));
+    }
+
+    test "a closed run is attested once, as one sum, to a bound testnet wallet" {
+        assert(may_request_attestation(LEVEL_VERIFIED, true, 96, true));
+        assert(!may_request_attestation(LEVEL_SELF_REPORTED, true, 96, true));
+        assert(!may_request_attestation(LEVEL_VERIFIED, false, 96, true));
+        assert(!may_request_attestation(LEVEL_VERIFIED, true, 0, true));
+        assert(!may_request_attestation(LEVEL_VERIFIED, true, 96, false));
+        assert(!may_request_attestation(LEVEL_ATTESTED, true, 96, true));
+        assert(may_mint_run(true, false));
+        assert(!may_mint_run(true, true));
+        assert(!may_mint_run(false, false));
+    }
+
+    test "production payout waits for the trust model, an independent coordinator and live signers" {
+        assert(!TRUST_MODEL_AGREED);
+        assert(!production_payout_open(TRUST_MODEL_AGREED, true, true));
+        assert(!production_payout_open(true, false, true));
+        assert(!production_payout_open(true, true, false));
+        assert(production_payout_open(true, true, true));
+    }
+
+    test "VERSION says what the header's last note says" {
+        assert(VERSION == 1);
+    }
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY

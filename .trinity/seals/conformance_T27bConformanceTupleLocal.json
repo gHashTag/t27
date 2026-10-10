@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c67ae1f9dae85de1fefa9dce3f724868044e87f4163d4e0676869773e6af6315",
+  "gen_hash_rust": "sha256:38489d56a23d1a41f33f5da686477dc41bd7af25c30785ef07748a2141a00274",
+  "gen_hash_verilog": "sha256:9ce6839a53aff30110b6328bdcd2d35a6b36771e953c5b77fcc4db9d7e7c2405",
+  "gen_hash_zig": "sha256:c20cc8b5a8df6f92e2bade103b961037b2ec8c87fe148d42a71cf9b0e8c32c06",
+  "module": "T27bConformanceTupleLocal",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:42Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b96ee5064cc49588ab0e92ead5b826b56cfc37c408cd31e3be1fc10ccd48a280",
+  "spec_path": "specs/tri/t27b/conformance/tuple_local.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

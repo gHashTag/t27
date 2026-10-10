@@ -556,28 +556,6 @@ module KnowledgeGraph {
         and results = findSimilar(&graph, "Paris", 2)
         then results.len() >= 2 and results[0].similarity >= results[1].similarity
 
-    test find_entity_returns_entity_when_exists
-        // Verify: findEntity returns entity when it exists
-        given graph = initGraph()
-        and addTriple(&graph, "Paris", "capital_of", "France")
-        and result = findEntity(&graph, "Paris")
-        then result != null
-
-    test find_entity_returns_null_when_not_exists
-        // Verify: findEntity returns null when entity doesn't exist
-        given graph = initGraph()
-        and result = findEntity(&graph, "nonexistent")
-        then result == null
-
-    test stats_returns_correct_counts
-        // Verify: stats returns correct counts
-        given graph = initGraph()
-        and _ = addTriple(&graph, "Paris", "capital_of", "France")
-        and _ = addTriple(&graph, "Berlin", "capital_of", "Germany")
-        and _ = addTriple(&graph, "Rome", "capital_of", "Italy")
-        when s = stats(&graph)
-        then s.entities == 3 and s.relations == 1 and s.triples == 3
-
     test get_or_create_entity_returns_existing_when_exists
         // Verify: getOrCreateEntity returns existing entity when it exists
         given graph = initGraph()

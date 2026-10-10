@@ -177,4 +177,16 @@ module system::unified_agent_operations {
     //   Ludmila 1210 Stars refund; rotation of leaked keys (12 categories); dead GramJS session.
     pub const OWNER_ITEMS : u8 = 8;
     pub const ENABLED : bool = true;
+
+    test unified_agent_operations_constants {
+        assert KIND == "system";
+        assert ID == "unified-agent-operations";
+        assert OWNER == "gHashTag";
+        assert SCHEDULER_ENGINE == "inngest";
+        assert SOURCE_LANGUAGE == "en";
+        assert AUTHORITY_FLOWS_DOWN == true;
+        assert VERSION == 2;
+        assert FORMATS == 83;
+        assert ENABLED == true;
+    }
 }

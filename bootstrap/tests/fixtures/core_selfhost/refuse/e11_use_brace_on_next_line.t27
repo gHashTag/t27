@@ -1,0 +1,10 @@
+// #7937: the imported ub_one opens its `{` on the line after its header. gen-c's
+// splice takes the header line alone, the spliced source does not compile,
+// and gen-c falls back to the importer alone with exit 0: its C calls an
+// undeclared ub_one. The core refuses a module whose declarations gen-c's
+// line split does not find whole.
+module use_brace_line;
+use selfhost_use::use_brace;
+fn ubl_one() -> i64 {
+    return ub_one();
+}

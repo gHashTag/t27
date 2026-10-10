@@ -208,6 +208,14 @@ pub const CTL_TAGS : u64 = 64;
 // a typed one: `zig` lowers a bare literal 1 in a shift as u32, which cannot reach bit 32 and up
 pub const CTL_BIT : u64 = 1;
 
+/// Bit k of a u64. The one is a typed local, not the constant: `gen-c` lowers a `pub const` to a bare
+/// `#define CTL_BIT 1`, an int, and `1 << 63` on an int is undefined in C, so bit 63 read back as 0
+/// under the C backend while zig and rust were right. A local keeps the u64 in every backend.
+pub fn bit(k: u64) -> u64 {
+    var one : u64 = CTL_BIT;
+    return one << k;
+}
+
 pub fn ctl_pending(lane: u64, tag: u64) -> bool {
     if (tag >= CTL_TAGS) { return false; }
     return ((lane >> tag) & 1) == 1;
@@ -216,7 +224,7 @@ pub fn ctl_pending(lane: u64, tag: u64) -> bool {
 pub fn ctl_post(lane: u64, tag: u64) -> u64 {
     if (tag == 0) { return lane; }
     if (tag >= CTL_TAGS) { return lane; }
-    return lane | (CTL_BIT << tag);
+    return lane | bit(tag);
 }
 
 pub fn ctl_next(lane: u64) -> u64 {
@@ -231,7 +239,7 @@ pub fn ctl_next(lane: u64) -> u64 {
 pub fn ctl_take(lane: u64) -> u64 {
     var t : u64 = ctl_next(lane);
     if (t == 0) { return lane; }
-    return lane - (CTL_BIT << t);
+    return lane - bit(t);
 }
 
 /// A call is a request that wants an answer: the caller sends it with a fresh alias, monitors the
@@ -287,12 +295,12 @@ pub const CALL_MAX_DEPTH : u32 = 8;
 
 pub fn chain_has(chain: u64, slot: u64) -> bool {
     if (slot >= CHAIN_SLOTS) { return false; }
-    return (chain & (CTL_BIT << slot)) != 0;
+    return (chain & bit(slot)) != 0;
 }
 
 pub fn chain_add(chain: u64, slot: u64) -> u64 {
     if (slot >= CHAIN_SLOTS) { return chain; }
-    return chain | (CTL_BIT << slot);
+    return chain | bit(slot);
 }
 
 /// CALL_PENDING admits the call; call_outcome takes it from there. A cycle is named before the depth.
@@ -668,7 +676,16 @@ pub fn lane_of(tag: u64) -> u8 {
 pub const TURN_MAX_SECONDS : u32 = 3600;
 
 pub fn hung_turn_signal(turn_age_seconds: u32) -> u8 {
-    if (turn_age_seconds >= TURN_MAX_SECONDS) { return X_KILL; }
+    return turn_signal(turn_age_seconds, TURN_MAX_SECONDS);
+}
+
+/// The same kill for a domain with its own bound: a reviewer's turn is one review, and a review is
+/// bounded far below a bee's hour (reviewer.t27 REVIEW_ROW_SECONDS). A bound of 0 means the default,
+/// so a domain that names none still gets TURN_MAX_SECONDS and never a turn that runs for good.
+pub fn turn_signal(turn_age_seconds: u32, max_seconds: u32) -> u8 {
+    var bound : u32 = max_seconds;
+    if (bound == 0) { bound = TURN_MAX_SECONDS; }
+    if (turn_age_seconds >= bound) { return X_KILL; }
     return X_NONE;
 }
 
@@ -686,26 +703,255 @@ pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u3
     return 0;
 }
 
+; --- 8. Preemption: a slice between turns, an OS thread or process within one ----------------------
+; Owner, 2026-10-09 (translated): "think how to improve this and do it: no distribution across
+; machines, no preemptive multitasking as in the BEAM".
+; The BEAM gives each process a budget of reductions and switches it out when the budget is spent, so
+; no process holds a scheduler for long. A JavaScript host runs one thread and cannot stop a function
+; midway. It can keep the two halves of that promise:
+; - Between turns, a slice. A scheduler runs at most SLICE_TURNS turns, or turns for SLICE_MICROS,
+;   then yields to the host's timers and I/O. Measured before this (t27#7851 ring benchmark): one
+;   message chain ran 200 000 turns without yielding once, so no timer and no socket could run.
+; - Within a turn, isolation. A turn whose work burns CPU runs in an OS thread, and one that runs code
+;   a bee wrote, or must be stoppable, runs in an OS process. The OS preempts both, so neither holds
+;   the host's thread. Only a process is certain to stop when killed. Measured 2026-10-09 on the
+;   Queen's host (Bun 1.3.11): `worker.terminate()` left a spinning worker thread counting, still
+;   running 3 s later. A kill of a thread turn, like a kill of a turn on the loop, only abandons it:
+;   its pid dies, whatever it sends is dropped, and its late result is fenced by the lease.
+
+pub const SLICE_TURNS : u32 = 64;
+pub const SLICE_MICROS : u32 = 5000;
+
+/// Whether a scheduler has spent its slice and must yield to the host before the next turn.
+pub fn slice_spent(turns: u32, micros: u32) -> bool {
+    if (turns >= SLICE_TURNS) { return true; }
+    return micros >= SLICE_MICROS;
+}
+
+/// Where a turn runs. On the host's thread: nothing of its own, and it cannot be stopped. In an OS
+/// thread: the OS preempts it, but terminate is not certain to stop it (section 8). In an OS process:
+/// its own memory, so a leak or a crash in foreign code stays there, and SIGKILL stops it.
+pub const ISO_LOOP : u8 = 0;
+pub const ISO_THREAD : u8 = 1;
+pub const ISO_PROCESS : u8 = 2;
+
+/// Code a bee wrote, any compiler or command run on its work, and any work that must stop when its turn
+/// is killed go to a process. Other work that burns CPU in this build's own code goes to a thread.
+/// Waiting on I/O stays on the loop: it holds no CPU, and a thread for it would only cost memory.
+pub fn turn_isolation(cpu_bound: bool, runs_foreign_code: bool, must_stop: bool) -> u8 {
+    if (runs_foreign_code) { return ISO_PROCESS; }
+    if (must_stop) { return ISO_PROCESS; }
+    if (cpu_bound) { return ISO_THREAD; }
+    return ISO_LOOP;
+}
+
+/// What a kill does to the work of the turn it ends.
+pub const KILL_ABANDONS : u8 = 0;
+pub const KILL_STOPS : u8 = 1;
+
+pub fn kill_effect(isolation: u8) -> u8 {
+    if (isolation == ISO_PROCESS) { return KILL_STOPS; }
+    return KILL_ABANDONS;
+}
+
+/// A turn whose work was abandoned still holds what it held, its row and its key lane, until the work
+/// ends on its own. One whose work was stopped holds nothing once the kill lands.
+pub fn holds_after_kill(isolation: u8, work_ended: bool) -> bool {
+    if (kill_effect(isolation) == KILL_STOPS) { return false; }
+    return work_ended == false;
+}
+
+; --- 9. Nodes: a pid names its host ----------------------------------------------------------------
+; The BEAM sends to a pid on another node exactly as to a local one. A node that stops answering turns
+; every link and monitor across it into a noconnection exit. Here the same, with the store as the wire:
+; - A pid carries its node in the top NODE_BITS of its slot, so a send needs no lookup to know where
+;   to go. Node 0 is a pid of section 1 unchanged.
+; - A send to another node is a row the target node's follower reads, in order for each pair of sender
+;   and receiver: section 2's only promise, kept across hosts. The target applies `deliver` on arrival.
+;   A sender that sees the node down drops the message as a dead letter, as a send to a dead pid does.
+; - A node holds a lease, renewed every NODE_HEARTBEAT_SECONDS. A node whose lease is older than
+;   NODE_TTL_SECONDS is down. Every monitor of a pid on it fires X_NOCONNECTION, which
+;   reclaim_wait_seconds already reads as proof of nothing: the holder may be alive across a partition.
+; - No code moves. Every node runs the same build, so a remote start names a kind, not a function.
+
+pub const NODE_BITS : u64 = 12;
+pub const LOCAL_SLOT_BITS : u64 = 20;
+pub const LOCAL_SLOT_MASK : u64 = 1048575;
+pub const MAX_NODE : u64 = 4095;
+
+/// The pid of local slot `local` on `node`, at `gen`. A local slot of 0, or one past the mask, is no
+/// pid, as in section 1.
+pub fn node_pid(node: u64, local: u64, gen: u64) -> u64 {
+    if (node > MAX_NODE) { return NO_PID; }
+    if (local == 0) { return NO_PID; }
+    if (local > LOCAL_SLOT_MASK) { return NO_PID; }
+    return pid_of((node << LOCAL_SLOT_BITS) | local, gen);
+}
+
+pub fn node_of(pid: u64) -> u64 {
+    return slot_of(pid) >> LOCAL_SLOT_BITS;
+}
+
+pub fn local_of(pid: u64) -> u64 {
+    return slot_of(pid) & LOCAL_SLOT_MASK;
+}
+
+pub fn is_remote(pid: u64, self_node: u64) -> bool {
+    if (pid == NO_PID) { return false; }
+    return node_of(pid) != self_node;
+}
+
+pub const NODE_HEARTBEAT_SECONDS : u32 = 5;
+pub const NODE_TTL_SECONDS : u32 = 20;
+
+pub fn node_up(seconds_since_heartbeat: u32) -> bool {
+    return seconds_since_heartbeat < NODE_TTL_SECONDS;
+}
+
+/// The sender's half of a remote send: a node that is down takes nothing.
+pub fn send_remote(target_node_up: bool) -> u8 {
+    if (target_node_up) { return D_QUEUED; }
+    return D_DROPPED_DEAD;
+}
+
+/// What a monitor of a remote pid hears. The node down: noconnection, whatever the pid did. The node up
+/// and the pid gone: the reason it ended with. Otherwise nothing yet.
+pub fn remote_down(target_node_up: bool, pid_ended: bool, reason: u8) -> u8 {
+    if (target_node_up == false) { return X_NOCONNECTION; }
+    if (pid_ended) { return reason; }
+    return X_NONE;
+}
+
+/// Placement of a new start: the node with more free room for the kind, and on a tie the lower node
+/// id, so that two placers reading the same counts choose the same node.
+pub fn place_before(free_a: u32, node_a: u64, free_b: u32, node_b: u64) -> bool {
+    if (free_a != free_b) { return free_a > free_b; }
+    return node_a < node_b;
+}
+
+; --- 10. A file has one owner; disjoint edits share it ------------------------------------------------
+; Measured 2026-10-09T06:38:23Z at the live Queen (/queen/status): 70 lanes, 23 active, 47 idle; the
+; last round skipped fileConflict 236, missingBoundary 72, claimed 61 (gHashTag/t27#8037). Until now a
+; task that held a file shut every other task touching that file out for its whole run, and the
+; scheduler read it as one bit: file held -> skip. specs/queen/holds.t27 shortened how long FINISHED
+; work holds; a task at work still shut out every edit of the file, even of another part of it.
+; In the BEAM a resource is owned by one process: clients send it messages and it serialises them.
+; Here the same for a file:
+; - One owner per path key, a process on section 1's pid scheme. Its slot is read from a hash of the
+;   path, so finding the owner needs no registry (section 7). Two paths that share a slot share an
+;   owner: their edits are compared as if they were one file's, which can only queue more, never admit
+;   an overlap. A crash of the owner loses nothing it cannot rebuild: what runs is the tasks' leases
+;   (control.t27 section 2) and their regions, both in the store; what was queued is a dead letter the
+;   reconciler offers again.
+; - An edit names a region: the whole file, a line range of the base commit, or an append to a file
+;   git merges as a union (`.trinity/experience/*.jsonl merge=union` in .gitattributes). Two edits
+;   whose regions do not meet run at once; a three-way merge maps each range past the other's shift.
+;   A boundary entry that names no range is the whole file, so a task that declares none is treated
+;   exactly as before. Two tasks on different base commits are compared as whole files by the host.
+; - An edit that meets a running or an older queued edit waits in the owner's queue, the section 2
+;   model mailbox (MBOX_SLOTS deep), oldest first, and holds no lane while it waits: the lane goes to
+;   the next candidate at the same wake (control.t27 offers_per_wake). When the edit ahead ends, the
+;   owner sends the head of its queue an offer, so the wait ends on an event, not on the next tick.
+; - An edit queued past FILE_WAIT_MAX_SECONDS is refused and gives up, counted against its issue as
+;   control.t27 DO_GIVE_UP is: no person is waited for (owner, 2026-10-05). A full queue refuses a new
+;   edit for this wake only, uncounted, as a send into a full mailbox is a dead letter (section 2).
+; - The owner caps nothing but overlap. A domain is an affinity, not a cap (control.t27 section 5,
+;   #7674), and a file owner is not a second one.
+
+/// Owners live above every slot the Queen's own tree takes (1..23, invariant
+/// the_queens_tree_fits_the_call_chain) and inside a node's local slot field (section 9).
+pub const FILE_SLOT_BASE : u64 = 1024;
+pub const FILE_OWNER_SLOTS : u64 = 65536;
+
+/// The owner's slot for a path, from the path's 64-bit hash (the host's; any hash will do, since a
+/// shared slot only serialises). Its pid is pid_of(file_owner_slot(h), gen), or node_pid on a node.
+pub fn file_owner_slot(path_hash: u64) -> u64 {
+    return FILE_SLOT_BASE + (path_hash % FILE_OWNER_SLOTS);
+}
+
+/// The region an edit names. A range is lines [start, end) of the base commit.
+pub const EDIT_WHOLE : u8 = 0;
+pub const EDIT_LINES : u8 = 1;
+pub const EDIT_APPEND : u8 = 2;
+
+/// Whether two edits of one file meet. Ranges that only touch meet too (the safe side of a three-way
+/// merge: one untouched line between them is asked for). Two appends to a union-merged file never
+/// meet. An append and a range meet: the range may reach the end, and the append moves it. An empty
+/// or reversed range, and a kind this file does not know, are read as the whole file.
+pub fn edits_meet(a_kind: u8, a_start: u32, a_end: u32, b_kind: u8, b_start: u32, b_end: u32) -> bool {
+    if (a_kind == EDIT_APPEND && b_kind == EDIT_APPEND) { return false; }
+    if (a_kind != EDIT_LINES) { return true; }
+    if (b_kind != EDIT_LINES) { return true; }
+    if (a_start >= a_end) { return true; }
+    if (b_start >= b_end) { return true; }
+    return a_start <= b_end && b_start <= a_end;
+}
+
+/// What the owner answers an edit, and the scheduler reads instead of "file held -> skip".
+/// FA_ADMIT: run now, take a lane. FA_QUEUE: keep the place in the owner's queue, take no lane.
+/// FA_REFUSE: not this time; refusal_gives_up says whether it is counted.
+pub const FA_ADMIT : u8 = 0;
+pub const FA_QUEUE : u8 = 1;
+pub const FA_REFUSE : u8 = 2;
+
+/// Twice a turn's bound (TURN_MAX_SECONDS): the edit ahead runs at most one turn before its supervisor
+/// kills it, then holds for at most holds.t27 AWAITING_HOLD_MINUTES; the rest is room for one more
+/// edit ahead. Chosen, not measured.
+pub const FILE_WAIT_MAX_SECONDS : u32 = 7200;
+
+/// `meets_running`: the edit meets an admitted edit that still holds (edit_still_holds).
+/// `meets_queued`: it meets an edit queued before it, so it never overtakes one it would block.
+/// `queue`: the owner's model queue of edits ahead of this one. `waited_seconds`: since it first queued.
+pub fn file_admit(meets_running: bool, meets_queued: bool, queue: u64, waited_seconds: u32) -> u8 {
+    if (waited_seconds >= FILE_WAIT_MAX_SECONDS) { return FA_REFUSE; }
+    if (meets_running == false && meets_queued == false) { return FA_ADMIT; }
+    if (mbox_len(queue) >= MBOX_SLOTS) { return FA_REFUSE; }
+    return FA_QUEUE;
+}
+
+/// A refusal past the wait bound is a give-up that counts against the issue (control.t27
+/// give_up_counts_against_issue); a refusal by a full queue is not, and the task is offered again.
+pub fn refusal_gives_up(waited_seconds: u32) -> bool {
+    return waited_seconds >= FILE_WAIT_MAX_SECONDS;
+}
+
+/// Only an admitted edit takes a lane; a queued one leaves its lane to the next candidate.
+pub fn takes_a_lane(answer: u8) -> bool {
+    return answer == FA_ADMIT;
+}
+
+/// Whether an admitted edit still holds its region. While the task runs: while its lease is live
+/// (control.t27 TASK_LEASE_TTL_SECONDS, 180, a literal here), so a dead bee frees the region when its
+/// lease does. Once it finished: what holds.t27 holds_files says for its stage, passed in.
+pub fn edit_still_holds(finished: bool, holds_files_now: bool, seconds_since_renewal: u32) -> bool {
+    if (finished) { return holds_files_now; }
+    // 180 = control.t27 TASK_LEASE_TTL_SECONDS
+    return seconds_since_renewal < 180;
+}
+
 ; --- 7. Deliberately not the BEAM ---------------------------------------------------------------------
 
 ; Bounded mailboxes: an unbounded one hides a stuck runtime until memory runs out (section 2).
 ; No hot code swap: a new build is a retired runtime and a fresh one (control.t27 RETIRED).
-; No transparent distribution: a pid is local to one host; across hosts liveness is the lease and its
-;   heartbeat, and a cross-host DOWN is only ever X_NOCONNECTION (section 6).
-; No reductions scheduler: fairness is the host's; a runtime is an OS process or a container.
+; Distribution over the store, not over sockets (section 9): a pid names its node, a send to another
+;   node is a row the target node reads, and a node's liveness is its lease. No code moves between
+;   nodes: every node runs the same build, so a remote start names a kind.
+; Preemption in two halves (section 8): between turns a scheduler slice, within a turn an OS thread or
+;   process. A turn on the host's own thread cannot be stopped midway; the BEAM's reduction count can.
 ; No global name registry: the store is the only directory of who holds what.
 ; No exit(self, normal) quirk: the BEAM kills a non-trapping process that sends itself a normal exit
 ;   signal, for backward compatibility; here a normal signal is ignored by a non-trapping receiver
 ;   whoever sent it (section 3).
 pub const MAILBOX_BOUNDED : bool = true;
 pub const HOT_CODE_SWAP : bool = false;
-pub const TRANSPARENT_DISTRIBUTION : bool = false;
+pub const TRANSPARENT_DISTRIBUTION : bool = true;
 pub const PREEMPTIVE_REDUCTIONS : bool = false;
+pub const PREEMPTIVE_SLICES : bool = true;
 pub const GLOBAL_NAME_REGISTRY : bool = false;
 
 invariant a_model_box_is_one_u64 { assert MBOX_SLOTS * SLOT_BITS == 64 and NO_MATCH == MBOX_SLOTS; }
 invariant a_tag_fills_one_slot { assert TAG_MASK + 1 == 1 << SLOT_BITS; }
-invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION == false and PREEMPTIVE_REDUCTIONS == false and GLOBAL_NAME_REGISTRY == false; }
+invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION and PREEMPTIVE_REDUCTIONS == false and PREEMPTIVE_SLICES and GLOBAL_NAME_REGISTRY == false; }
 invariant the_control_lane_is_one_u64 { assert CTL_TAGS == 64 and CTL_BIT == 1 and UNSTABLE_GIVE_UP > DOMAIN_MAX_RESTARTS; }
 invariant kill_is_a_signal_and_killed_a_reason { assert X_KILL != X_KILLED; }
 invariant none_is_outside_every_reason { assert X_NONE > X_NOCONNECTION; }
@@ -1130,6 +1376,17 @@ test a_hung_turn_is_killed_and_its_task_reclaimed_at_once {
     assert TURN_MAX_SECONDS > 180;
 }
 
+test a_domain_bounds_its_own_turns_and_none_runs_for_good {
+    assert turn_signal(299, 300) == X_NONE;
+    assert turn_signal(300, 300) == X_KILL;
+    assert turn_signal(301, 300) == X_KILL;
+    // a domain that names no bound gets the default one, not an unbounded turn
+    assert turn_signal(TURN_MAX_SECONDS - 1, 0) == X_NONE;
+    assert turn_signal(TURN_MAX_SECONDS, 0) == X_KILL;
+    // the default is the hung-turn rule itself
+    assert turn_signal(TURN_MAX_SECONDS, TURN_MAX_SECONDS) == hung_turn_signal(TURN_MAX_SECONDS);
+}
+
 test every_lost_message_is_a_dead_letter_and_a_coalesced_one_is_not {
     assert is_dead_letter(deliver(false, 0, MAILBOX_CAP)) == true;
     assert is_dead_letter(deliver(true, MAILBOX_CAP, MAILBOX_CAP)) == true;
@@ -1220,3 +1477,172 @@ test a_full_domain_refuses_a_new_start_and_still_restarts_a_crashed_agent {
     assert start_answer(0, 0, 0) == START_MAX_CHILDREN;
     assert start_answer(0, 0, 1) == START_OK;
 }
+
+test a_scheduler_yields_after_its_slice_and_not_before {
+    assert slice_spent(0, 0) == false;
+    assert slice_spent(SLICE_TURNS - 1, SLICE_MICROS - 1) == false;
+    assert slice_spent(SLICE_TURNS, 0) == true;
+    assert slice_spent(0, SLICE_MICROS) == true;
+}
+
+test foreign_and_cpu_work_runs_where_a_kill_stops_it {
+    assert turn_isolation(false, false, false) == ISO_LOOP;
+    assert turn_isolation(true, false, false) == ISO_THREAD;
+    assert turn_isolation(false, true, false) == ISO_PROCESS;
+    assert turn_isolation(true, true, false) == ISO_PROCESS;
+    assert turn_isolation(true, false, true) == ISO_PROCESS;
+    assert turn_isolation(false, false, true) == ISO_PROCESS;
+    assert kill_effect(ISO_LOOP) == KILL_ABANDONS;
+    // measured: a terminated worker thread kept spinning, so a thread kill is not a stop
+    assert kill_effect(ISO_THREAD) == KILL_ABANDONS;
+    assert kill_effect(ISO_PROCESS) == KILL_STOPS;
+    // an abandoned turn keeps its row and lane until its work ends; a stopped one lets go at once
+    assert holds_after_kill(ISO_LOOP, false) == true;
+    assert holds_after_kill(ISO_LOOP, true) == false;
+    assert holds_after_kill(ISO_THREAD, false) == true;
+    assert holds_after_kill(ISO_PROCESS, false) == false;
+}
+
+test a_pid_names_its_node_and_node_0_is_section_1 {
+    assert node_pid(0, 5, 7) == pid_of(5, 7);
+    assert node_of(node_pid(3, 5, 7)) == 3;
+    assert local_of(node_pid(3, 5, 7)) == 5;
+    assert gen_of(node_pid(3, 5, 7)) == 7;
+    assert node_of(node_pid(MAX_NODE, LOCAL_SLOT_MASK, 1)) == MAX_NODE;
+    assert local_of(node_pid(MAX_NODE, LOCAL_SLOT_MASK, 1)) == LOCAL_SLOT_MASK;
+    assert node_pid(MAX_NODE + 1, 5, 7) == NO_PID;
+    assert node_pid(3, 0, 7) == NO_PID;
+    assert node_pid(3, LOCAL_SLOT_MASK + 1, 7) == NO_PID;
+    assert is_remote(node_pid(3, 5, 7), 3) == false;
+    assert is_remote(node_pid(3, 5, 7), 4) == true;
+    assert is_remote(NO_PID, 4) == false;
+    // a restart on the same node keeps the node, as it keeps the slot
+    assert node_of(node_pid(3, 5, next_gen(7))) == 3;
+}
+
+test a_node_that_stops_renewing_is_down_and_its_pids_are_noconnection {
+    assert node_up(0) == true;
+    assert node_up(NODE_TTL_SECONDS - 1) == true;
+    assert node_up(NODE_TTL_SECONDS) == false;
+    assert send_remote(true) == D_QUEUED;
+    assert send_remote(false) == D_DROPPED_DEAD;
+    assert is_dead_letter(send_remote(false)) == true;
+    assert remote_down(false, false, X_NONE) == X_NOCONNECTION;
+    assert remote_down(false, true, X_CRASH) == X_NOCONNECTION;
+    assert remote_down(true, true, X_CRASH) == X_CRASH;
+    assert remote_down(true, false, X_NONE) == X_NONE;
+    // a noconnection proves nothing: the task waits out its lease rather than being reclaimed at once
+    assert reclaim_wait_seconds(remote_down(false, false, X_NONE), 30, 180) == 150;
+}
+
+test placement_is_the_roomiest_node_and_ties_agree {
+    assert place_before(5, 2, 3, 1) == true;
+    assert place_before(3, 1, 5, 2) == false;
+    assert place_before(4, 1, 4, 2) == true;
+    assert place_before(4, 2, 4, 1) == false;
+}
+invariant a_node_fits_the_slot_field { assert NODE_BITS + LOCAL_SLOT_BITS == 32 and LOCAL_SLOT_MASK + 1 == 1 << LOCAL_SLOT_BITS and MAX_NODE + 1 == 1 << NODE_BITS; }
+invariant a_node_is_down_only_after_missed_heartbeats { assert NODE_TTL_SECONDS >= 3 * NODE_HEARTBEAT_SECONDS; }
+invariant a_slice_is_short { assert SLICE_TURNS >= 1 and SLICE_MICROS <= 20000; }
+
+test a_file_has_one_owner_above_the_queens_tree {
+    assert file_owner_slot(0) == FILE_SLOT_BASE;
+    // the base is a number the supervisor mirrors from gen-js: it moves only on purpose
+    assert file_owner_slot(0) == 1024;
+    assert file_owner_slot(1) == FILE_SLOT_BASE + 1;
+    assert file_owner_slot(FILE_OWNER_SLOTS - 1) == FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1;
+    // a hash past the slot count wraps: two paths may share an owner, which only serialises
+    assert file_owner_slot(FILE_OWNER_SLOTS) == FILE_SLOT_BASE;
+    assert file_owner_slot(FILE_OWNER_SLOTS + 7) == file_owner_slot(7);
+    assert file_owner_slot(18446744073709551615) == FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1;
+    // its pid is a section 1 pid, and a restart of the owner is a new one
+    var owner : u64 = pid_of(file_owner_slot(12345), 1);
+    assert owner != NO_PID;
+    assert reaches(owner, pid_of(file_owner_slot(12345), next_gen(1))) == false;
+    // and a section 9 pid on a node keeps the slot
+    assert local_of(node_pid(3, file_owner_slot(18446744073709551615), 1)) == FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1;
+}
+
+test disjoint_line_ranges_and_union_appends_do_not_meet {
+    // lines 10..40 and 200..260 of one spec: they run at once
+    assert edits_meet(EDIT_LINES, 10, 40, EDIT_LINES, 200, 260) == false;
+    assert edits_meet(EDIT_LINES, 200, 260, EDIT_LINES, 10, 40) == false;
+    // one untouched line between them is enough
+    assert edits_meet(EDIT_LINES, 0, 5, EDIT_LINES, 6, 10) == false;
+    assert edits_meet(EDIT_LINES, 6, 10, EDIT_LINES, 0, 5) == false;
+    // ranges that touch or overlap meet
+    assert edits_meet(EDIT_LINES, 0, 5, EDIT_LINES, 5, 10) == true;
+    assert edits_meet(EDIT_LINES, 5, 10, EDIT_LINES, 0, 5) == true;
+    assert edits_meet(EDIT_LINES, 0, 10, EDIT_LINES, 3, 4) == true;
+    assert edits_meet(EDIT_LINES, 3, 4, EDIT_LINES, 0, 10) == true;
+    // two appends to a union-merged file never meet
+    assert edits_meet(EDIT_APPEND, 0, 0, EDIT_APPEND, 0, 0) == false;
+}
+
+test a_whole_file_an_append_and_a_bad_range_meet_everything_else {
+    assert edits_meet(EDIT_WHOLE, 0, 0, EDIT_LINES, 10, 20) == true;
+    assert edits_meet(EDIT_LINES, 10, 20, EDIT_WHOLE, 0, 0) == true;
+    assert edits_meet(EDIT_WHOLE, 0, 0, EDIT_WHOLE, 0, 0) == true;
+    assert edits_meet(EDIT_APPEND, 0, 0, EDIT_LINES, 10, 20) == true;
+    assert edits_meet(EDIT_LINES, 10, 20, EDIT_APPEND, 0, 0) == true;
+    assert edits_meet(EDIT_APPEND, 0, 0, EDIT_WHOLE, 0, 0) == true;
+    // an empty or reversed range is the whole file, on either side
+    assert edits_meet(EDIT_LINES, 5, 5, EDIT_LINES, 100, 200) == true;
+    assert edits_meet(EDIT_LINES, 9, 5, EDIT_LINES, 100, 200) == true;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_LINES, 5, 5) == true;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_LINES, 9, 5) == true;
+    // the smallest real range does not
+    assert edits_meet(EDIT_LINES, 5, 6, EDIT_LINES, 100, 200) == false;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_LINES, 5, 6) == false;
+    // a kind this file does not know is the whole file
+    assert edits_meet(EDIT_APPEND + 1, 10, 20, EDIT_LINES, 100, 200) == true;
+    assert edits_meet(EDIT_LINES, 100, 200, EDIT_APPEND + 1, 10, 20) == true;
+    assert edits_meet(EDIT_APPEND + 1, 0, 0, EDIT_APPEND, 0, 0) == true;
+    // the largest line number is a range like any other
+    assert edits_meet(EDIT_LINES, 0, 10, EDIT_LINES, 20, 4294967295) == false;
+}
+
+test the_owner_admits_queues_or_refuses_and_never_waits_for_a_person {
+    // nothing in the way: admitted, and it takes a lane
+    assert file_admit(false, false, 0, 0) == FA_ADMIT;
+    assert takes_a_lane(file_admit(false, false, 0, 0)) == true;
+    // a full queue does not stop an edit that meets nothing
+    assert file_admit(false, false, 18446744073709551615, 0) == FA_ADMIT;
+    // it meets a running edit, or an older queued one: it queues and leaves its lane
+    assert file_admit(true, false, 0, 0) == FA_QUEUE;
+    assert file_admit(false, true, mbox_push(0, 1), 0) == FA_QUEUE;
+    assert takes_a_lane(FA_QUEUE) == false;
+    // seven ahead still queue; an eighth ahead fills the model box and the new edit is refused, uncounted
+    var seven : u64 = 72057594037927935;
+    assert mbox_len(seven) == MBOX_SLOTS - 1;
+    assert file_admit(true, false, seven, 0) == FA_QUEUE;
+    assert file_admit(true, false, mbox_push(seven, 9), 0) == FA_REFUSE;
+    assert refusal_gives_up(0) == false;
+    assert takes_a_lane(FA_REFUSE) == false;
+    // queued past the bound: refused and counted, whatever stands in its way
+    assert file_admit(true, false, 0, FILE_WAIT_MAX_SECONDS - 1) == FA_QUEUE;
+    assert file_admit(true, false, 0, FILE_WAIT_MAX_SECONDS) == FA_REFUSE;
+    assert file_admit(false, false, 0, FILE_WAIT_MAX_SECONDS) == FA_REFUSE;
+    assert refusal_gives_up(FILE_WAIT_MAX_SECONDS - 1) == false;
+    assert refusal_gives_up(FILE_WAIT_MAX_SECONDS) == true;
+    assert takes_a_lane(FA_REFUSE + 1) == false;
+}
+
+test a_region_is_held_while_the_lease_lives_then_as_holds_says {
+    assert edit_still_holds(false, false, 0) == true;
+    assert edit_still_holds(false, false, 179) == true;
+    // a bee whose lease ran out (control.t27 TASK_LEASE_TTL_SECONDS 180) frees its region
+    assert edit_still_holds(false, true, 180) == false;
+    // finished work holds what holds.t27 says, whatever its lease
+    assert edit_still_holds(true, true, 4000000000) == true;
+    assert edit_still_holds(true, false, 0) == false;
+}
+
+/// The answers are numbers the scheduler reads across a language boundary: they never move.
+invariant the_file_owner_answers_never_move { assert FA_ADMIT == 0 and FA_QUEUE == 1 and FA_REFUSE == 2; }
+invariant the_edit_kinds_are_contiguous { assert EDIT_WHOLE == 0 and EDIT_LINES == EDIT_WHOLE + 1 and EDIT_APPEND == EDIT_LINES + 1; }
+/// Owners sit above the call-chain model's slots and inside a node's local slot field.
+invariant a_file_owner_is_a_local_slot_above_the_tree { assert FILE_SLOT_BASE >= CHAIN_SLOTS and FILE_SLOT_BASE + FILE_OWNER_SLOTS - 1 <= LOCAL_SLOT_MASK; }
+/// The wait is twice a turn, as its doc says, and outlasts one turn of the edit ahead plus its finished
+/// hold (30 = holds.t27 AWAITING_HOLD_MINUTES).
+invariant a_queued_edit_outwaits_one_turn_and_its_hold { assert FILE_WAIT_MAX_SECONDS == 2 * TURN_MAX_SECONDS and FILE_WAIT_MAX_SECONDS >= TURN_MAX_SECONDS + 30 * 60; }

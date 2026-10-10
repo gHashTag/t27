@@ -80,11 +80,11 @@
       "cases": [
         {
           "id": "encode_r_type",
-          "description": "R-type encoding produces non-zero word"
+          "description": "R-type r_instruction(1, 5, 6, 7) encodes to exactly 78002176"
         },
         {
           "id": "encode_i_type",
-          "description": "I-type encoding produces non-zero word"
+          "description": "I-type i_instruction(2, 5, 6, 42) encodes to exactly 145096746"
         }
       ]
     },

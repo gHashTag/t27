@@ -12,3 +12,17 @@ pub fn select_path_index(paths: [u32; 4]) -> u32 {
     // in some code path to trigger the bug
     return index;
 }
+
+test multipath_router_selection {
+    const test_paths = [_]u32{ 5, 0, 0, 0 };
+    const result = select_path_index(test_paths);
+    assert result == 5;
+    
+    const test_paths2 = [_]u32{ 0, 10, 0, 0 };
+    const result2 = select_path_index(test_paths2);
+    assert result2 == 10;
+    
+    const test_paths3 = [_]u32{ 0, 0, 0, 0 };
+    const result3 = select_path_index(test_paths3);
+    assert result3 == 0;  // Should default to 0 when no paths are valid
+}

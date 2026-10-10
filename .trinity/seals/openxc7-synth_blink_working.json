@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2097367f2ec4dffd18605906c3529f90a2f5d435688b10558daaf6af83994815",
+  "gen_hash_rust": "sha256:6e8c2ab588efc320be46aab77433541dcc12dc9562e4257fe3b5d65e1da6e5b6",
+  "gen_hash_verilog": "sha256:1e53ca7be6ba2dd157ce1857ad4fd1eeb1db31448d33b420bf52a575d7e43dfc",
+  "gen_hash_zig": "sha256:0424877c5d1600c76ff50a390b673bbe146ddfa568b74513134c49b797bf7db4",
+  "module": "blink_working",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7de059d6336db7394912dc069c626775536368c005c874002366f061ad4ca25d",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/blink_working.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

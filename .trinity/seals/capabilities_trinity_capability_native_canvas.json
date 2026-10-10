@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:4e9e40f358ca6e2656fb02db5588715a731b08485f82664c9a90f34944954bb6",
   "gen_hash_rust": "sha256:3b5c717a6317438f72241c5bc255872308b09c419d15143084e6deac2bbc68fe",
   "gen_hash_verilog": "sha256:0623642722d27b09898c5547da944be4056527a0f318c3bc4a6c56b1f7ff5c63",
   "gen_hash_zig": "sha256:4db9c9cf6bc0e2f5b51303fe48d18cf090307f8e8c222edee14c9a484c9726c6",
   "module": "trinity_capability_native_canvas",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:35:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:41d804d63c7cea9c3bed9025f52bd8d5f576855b3cd8b065800d6e6ba53f99a9",
-  "spec_path": "specs/trinity/capabilities/native.canvas.t27"
+  "spec_path": "specs/trinity/capabilities/native.canvas.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

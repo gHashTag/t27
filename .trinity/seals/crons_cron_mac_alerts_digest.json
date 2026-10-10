@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:24f8199ccca460b6e3ddfbb21b5541828d6d79be06ba60e9026960bc855430fb",
+  "gen_hash_rust": "sha256:82e682e0914cc85f5aafaab46ea8e611c4cce218bb9d87f5f2a56ae425ac8f1b",
+  "gen_hash_verilog": "sha256:efa00632a99ad06d565fd6e657748a57ced51250fec6b3a9752eeffaba3ff385",
+  "gen_hash_zig": "sha256:20c14017f045af7176d81dc358c800bf56127920cd9ffbe52b79628098318176",
+  "module": "cron_mac_alerts_digest",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:34:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:09c5abd89bf77992dc28b381d071a404c142c6933e0a4328e4c53a881656c684",
+  "spec_path": "specs/crons/mac-alerts-digest.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

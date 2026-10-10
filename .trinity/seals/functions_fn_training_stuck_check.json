@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:44f469766819a5e3e31279a82d2a9f821b402c7cfba07ce219e54ba52c43b66d",
+  "gen_hash_rust": "sha256:4399e2e8c86f78e1075080f8d719758f2120e1ab92bc156358a068a10cc87280",
+  "gen_hash_verilog": "sha256:aca9abc386d0180b13acaf1c5b1880e8ce23be174cfa5904b0d52ef1f932fda9",
+  "gen_hash_zig": "sha256:c1b81c1bed77a73d664905ffca640ddeb00443ab6a482e58e40e7a7c4f0bd00c",
+  "module": "fn_training_stuck_check",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:07:16Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:9acea7ccdb2197d169204222bf5c43e5a1f936a1e808df37b55ac51f7bc049d4",
+  "spec_path": "specs/functions/training-stuck-check.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c07c329a2b9178bf5536b8109f777cae191fdaa08bf427fab2a5840320d7584f",
   "gen_hash_rust": "sha256:4440e061c0a3e4ebb9c75e2e5c8771f9dba3344d122cba88aa073eb3cd3dffd4",
   "gen_hash_verilog": "sha256:e35dbede55bc0dbd9800187afe0c205c8bbce2d4942e54012f05a3d388105f98",
   "gen_hash_zig": "sha256:5acc8ace567a39f8db52143d39f0bfc4912ecaf540e90ad2afd083a4b029607c",
   "module": "trinity_capability_abi_c_api",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:35:09Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2f44ec37731d354202474d2074769c31c6582d9e0486fe224c2daa8f6188bb47",
-  "spec_path": "specs/trinity/capabilities/abi.c-api.t27"
+  "spec_path": "specs/trinity/capabilities/abi.c-api.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

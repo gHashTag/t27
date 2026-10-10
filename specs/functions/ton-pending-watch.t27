@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/functions/ton-pending-watch.t27 -- function ton-pending-watch (Inngest, 999-multibots-telegraf)
+; Source of truth for the function card on t27.ai (#/functions?function=ton-pending-watch).
+; The registration was read from 999-multibots-telegraf:src/inngest_app/functions/money/tonPendingWatch.ts#L51 (main @05fd960).
+; ID is the canonical id of the spec-first rename; LEGACY_ID and LEGACY_EVENTS are what the
+; deployed code still answers to. STEPS lists step.run names in source order; a ${...} in a
+; name is a template the code expands per item. Values here are read from the source, not
+; inferred from a name; what could not be read says so in NOTE.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module fn_ton_pending_watch;
+
+pub const KIND : str = "function";
+pub const ID : str = "ton-pending-watch";
+pub const LEGACY_ID : str = "ton-pending-watch";
+pub const NAME : str = "Money: TON that arrived and was never credited";
+pub const REPO : str = "999-multibots-telegraf";
+; file:line of inngest.createFunction( in the repo named in REPO
+pub const SERVICE : str = "src/inngest_app/functions/money/tonPendingWatch.ts:51";
+pub const DOMAIN : str = "money";
+; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
+pub const TRIGGER : str = "cron";
+pub const EVENT : str = "";
+pub const LEGACY_EVENTS : [0]str = [];
+pub const CRON : str = "0 * * * *";
+pub const TZ : str = "UTC";
+pub const SUMMARY_EN : str = "Every hour reads the pending TON invoices, asks the chain whether the coins actually arrived, and writes one journal line to the render saying either that nothing is unclaimed or that somebody paid and was never credited. It reads only; it never completes a payment.";
+; step.run names in source order
+pub const STEPS : [1]str = ["look"];
+; retries declared on the function; when the code declares none, the Inngest JS SDK v3 default (4) is written and NOTE says so
+pub const RETRIES : u8 = 0;
+; "admin-telegram" (onFailure handler messages the admin chat), "log" (no handler) or "refund+notify"
+pub const ON_FAILURE : str = "admin-telegram";
+; what a run touches outside the function, from a fixed vocabulary (see README)
+pub const SIDE_EFFECTS : [2]str = ["paid-api", "external-webhook"];
+; the first step that stops a bad payload; "none" when the first step already acts, "unknown" when not probed
+pub const GUARD : str = "safe-mode";
+; JSON payload of the 2026-09-09 safe probe and what it reached ("" / "skipped" when none was sent; "not-deployed" when the function is not on the probed build)
+pub const SAFE_PROBE : str = "";
+pub const PROBE_RESULT : str = "skipped";
+pub const CONTROL : str = "spec+code";
+pub const NOTE : str = "No safe probe has been sent: the 2026-09-09 probe pass predates this registration, which is why the manifest row carries no deployment reading. The live status endpoint answered on 2026-09-22 with 94 runs over seven days and none failed. SIDE_EFFECTS drops the manifest's db-read, which the catalog vocabulary cannot say, and adds external-webhook for the note the run posts to the render; the table read is stated here instead. GUARD is the isSafeMode early return at the top of the handler, which the manifest recorded as none. A chain the watcher cannot read returns did=unreadable and writes no quiet note, so a broken read never records a clean channel; that alarm is throttled to once every six hours.";
+
+; The card held to the schema of specs/functions/README.md: the vocabularies of its fields,
+; what TRIGGER decides about EVENT, LEGACY_EVENTS and CRON, SERVICE as `file:line`, and a
+; SAFE_PROBE that agrees with its PROBE_RESULT.
+; DOMAIN and the grammar of ID are not checked on this card: DOMAIN `money` is outside the
+; vocabulary of the README and ID does not open with it (#7911).
+test a_cron_function_has_a_cron_and_no_event {
+    // TRIGGER `cron`: CRON is a five-field cron expression, EVENT is `""` and LEGACY_EVENTS
+    // is empty (README; the generator fails otherwise).
+    assert TRIGGER == "cron";
+    assert EVENT.len == 0;
+    assert LEGACY_EVENTS.len == 0;
+    assert CRON[0] != ' ';
+    assert CRON[CRON.len - 1] != ' ';
+    var spaces : u32 = 0;
+    var i : usize = 0;
+    while (i < CRON.len) {
+        const c : u8 = CRON[i];
+        if (c == ' ') {
+            spaces = spaces + 1;
+            assert CRON[i + 1] != ' ';
+        } else {
+            assert (c >= '0' and c <= '9') or c == '*' or c == '/' or c == ',' or c == '-';
+        }
+        i = i + 1;
+    }
+    assert spaces == 4;
+}
+test fields_come_from_their_vocabularies {
+    assert KIND == "function";
+    assert REPO == "999-multibots-telegraf";
+    assert TZ == "UTC";
+    assert ON_FAILURE == "admin-telegram" or ON_FAILURE == "log" or ON_FAILURE == "refund+notify";
+    assert PROBE_RESULT == "COMPLETED" or PROBE_RESULT == "FAILED-at-guard" or PROBE_RESULT == "skipped" or PROBE_RESULT == "not-deployed";
+    assert CONTROL == "spec+code" or CONTROL == "spec-only" or CONTROL == "code-only" or CONTROL == "code-only/unregistered";
+    assert SIDE_EFFECTS.len > 0;
+    var i : usize = 0;
+    while (i < SIDE_EFFECTS.len) {
+        const e : str = SIDE_EFFECTS[i];
+        assert e == "charges-balance" or e == "paid-api" or e == "messages-user" or e == "messages-owners" or e == "messages-admin" or e == "db-write" or e == "external-webhook" or e == "none";
+        var j : usize = i + 1;
+        while (j < SIDE_EFFECTS.len) {
+            assert SIDE_EFFECTS[j] != e;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}
+test no_probe_was_sent {
+    // SAFE_PROBE is `""` when none was sent, and PROBE_RESULT then says why: `skipped`, or
+    // `not-deployed` with GUARD `unknown`.
+    assert SAFE_PROBE.len == 0;
+    assert PROBE_RESULT == "skipped" or PROBE_RESULT == "not-deployed";
+    assert PROBE_RESULT != "not-deployed" or GUARD == "unknown";
+}
+test service_is_file_and_line {
+    // SERVICE is `file:line` of inngest.createFunction( in REPO.
+    var colon : usize = 0;
+    var i : usize = 0;
+    while (i < SERVICE.len) {
+        if (SERVICE[i] == ':') {
+            colon = i;
+        }
+        i = i + 1;
+    }
+    assert colon > 0;
+    assert colon + 1 < SERVICE.len;
+    var d : usize = colon + 1;
+    while (d < SERVICE.len) {
+        assert SERVICE[d] >= '0' and SERVICE[d] <= '9';
+        d = d + 1;
+    }
+}

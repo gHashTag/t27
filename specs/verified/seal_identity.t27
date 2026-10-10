@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/seal_identity.t27 -- what a seal must record so reuse.t27 can answer REUSE, and when a
+; silicon run stands as the verdict part. Epic gHashTag/t27#8095, step 1 (seal v2), issue #8096.
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/reuse.t27: the five parts (spec, closure, toolchain, config, verdict), PART_MISSING
+;   fails closed, reuse_decision() and the hardware triad HW_UNPROVEN / HW_VERIFIED / HW_BLOCKED.
+; - specs/verified/frontier.t27: the walk of reuse_decision() over the `use` graph.
+; - specs/verified/run_record.t27 and independence.t27: whether a silicon run is complete and at which
+;   independence a verdict record may cite it (indep_citable_at).
+; --
+; Why this file. A seal today (`t27c seal --save`) records spec_hash, gen_hash_{c,rust,verilog,zig},
+; tests and built_by (t27c-bootstrap@<version>+<commit>): two of the five parts. With closure and config
+; missing, reuse_decision() answers REBUILD_MISSING for every seal, so nothing can be reused. Seal v2
+; records, beside today's fields:
+;   closure    the spec_hash of every seal in the `use` closure, in a fixed order (hashed by the
+;              existing sha256 tooling; this file compares, it hashes nothing);
+;   toolchain  judged by OUTPUT, not by producer. Part one: the four generated outputs the current
+;              t27c emits for the spec (gen_hash_zig/verilog/c/rust, typecheck refusal included) equal
+;              the ones the seal recorded -- a test verdict is a fact about the generated code, so a
+;              compiler change that leaves this spec's code byte-identical leaves its verdict standing.
+;              Part two: the tools that turned that code into the verdict, recorded and equal: the test
+;              runner (sha256 of bootstrap/src/test_report.rs) and zig; for a silicon verdict also
+;              yosys, nextpnr-xilinx, the prjxray database and the chipdb. Measured 2026-10-09: 23 of
+;              263 master commits in 48 h touched the t27c source, so keying on the compiler source (or
+;              on built_by's commit, which every merge changes) would void every verdict every two hours;
+;   config     SEAL_CONFIG for a software seal (the four gens and zig tests); for a silicon verdict
+;              also the part, the pnr seed and the chipdb;
+;   silicon    optional: a run reference (the run record a verdict may cite) and the independence it
+;              reached.
+; --
+; The silicon rule. A hardware verdict stands as the verdict part only when every one of these holds:
+; the seal names a run, the run is citable (run_record.t27), the run was made with this seal's own
+; spec, toolchain and config (a run of another version proves nothing about this one), and the run
+; reached at least SILICON_REQUIRED_LEVEL. Anything less leaves the hardware step UNPROVEN, and an
+; UNPROVEN step never counts as PASS (reuse.t27, Hardware). R3-3 (#7669) is the first run that meets
+; it: ternary_link on three distinct dies, INDEP_DIES.
+; --
+; The measure. reused_permille(reused, total) is the line CI prints, so a faster build is a number,
+; not a claim.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedSealIdentity;
+
+use verified::reuse;
+use verified::independence;
+
+/// The independence a silicon run must reach before its verdict is reused: three distinct dies. A
+/// one-die PASS might be a lucky board or a bench quirk (die B found a per-die constant die A hid).
+pub const SILICON_REQUIRED_LEVEL : u8 = 1;
+
+/// The configuration a software seal is minted under: all four gens, tests run by zig.
+pub const SEAL_CONFIG : str = "gen=c,rust,verilog,zig;tests=zig";
+
+/// One recorded part against the current state. Not recorded is MISSING, never SAME.
+pub fn recorded_part(recorded: bool, equal: bool) -> u8 {
+    if (recorded == false) { return PART_MISSING; }
+    if (equal) { return PART_SAME; }
+    return PART_DIFF;
+}
+
+/// The toolchain part: the generated outputs, then the tools that turned them into the verdict. Any of
+/// them unrecorded is MISSING; otherwise any of them changed is DIFF.
+pub fn toolchain_part(output_recorded: bool, output_equal: bool, tools_recorded: bool, tools_equal: bool) -> u8 {
+    if (output_recorded == false) { return PART_MISSING; }
+    if (tools_recorded == false) { return PART_MISSING; }
+    if (output_equal == false) { return PART_DIFF; }
+    if (tools_equal == false) { return PART_DIFF; }
+    return PART_SAME;
+}
+
+/// The hardware step of a sealed artifact, from its silicon run reference.
+pub fn silicon_state(has_run: bool, run_citable: bool, same_spec: bool, same_toolchain: bool, same_config: bool, run_level: u8) -> u8 {
+    if (has_run == false) { return HW_UNPROVEN; }
+    if (run_citable == false) { return HW_UNPROVEN; }
+    if (same_spec == false) { return HW_UNPROVEN; }
+    if (same_toolchain == false) { return HW_UNPROVEN; }
+    if (same_config == false) { return HW_UNPROVEN; }
+    if (indep_citable_at(run_level, SILICON_REQUIRED_LEVEL) == false) { return HW_UNPROVEN; }
+    return HW_VERIFIED;
+}
+
+/// The tests part of a verdict: the recorded tests passed, none was forced, and at least one check ran --
+/// a test or an invariant. "0 failed" of nothing is not a pass: a spec with no test, no invariant and no
+/// bench breaks L4, and frontier reused two such specs as verified (#8354).
+pub fn checks_pass(failed_zero: bool, forced: bool, tests_total: u32, invariants: u32) -> bool {
+    if (failed_zero == false) { return false; }
+    if (forced) { return false; }
+    return tests_total + invariants > 0;
+}
+
+/// The verdict part: the recorded tests passed, and, when the artifact needs silicon, its hardware
+/// step is VERIFIED.
+pub fn verdict_pass(tests_pass: bool, needs_silicon: bool, hw: u8) -> bool {
+    if (tests_pass == false) { return false; }
+    if (needs_silicon == false) { return true; }
+    return hw == HW_VERIFIED;
+}
+
+/// The seal v2 decision: reuse.t27's rule with the verdict part above.
+pub fn seal_decision(spec: u8, closure: u8, toolchain: u8, config: u8, tests_pass: bool, needs_silicon: bool, hw: u8) -> u8 {
+    return reuse_decision(spec, closure, toolchain, config, verdict_pass(tests_pass, needs_silicon, hw));
+}
+
+/// One node of the frontier walk: the closure part comes from the imports' decisions (reuse.t27
+/// closure_part), the rest as in seal_decision. frontier.t27 is the walk; until gen-rust lowers a
+/// read-only slice (#8102), the caller walks the `use` graph and feeds each node here.
+pub fn node_decision(spec: u8, any_import_rebuilt: bool, any_import_missing: bool, toolchain: u8, config: u8, tests_pass: bool, needs_silicon: bool, hw: u8) -> u8 {
+    return seal_decision(spec, closure_part(any_import_rebuilt, any_import_missing), toolchain, config, tests_pass, needs_silicon, hw);
+}
+
+/// The share of artifacts reused, in permille, rounded half up. Nothing to judge is 0, not 1000.
+pub fn reused_permille(reused: u32, total: u32) -> u32 {
+    if (total == 0) { return 0; }
+    if (reused >= total) { return 1000; }
+    return (reused * 1000 + total / 2) / total;
+}
+
+test a_seal_from_today_is_rebuilt_once {
+    // spec and toolchain recorded and unchanged, closure and config never recorded
+    assert seal_decision(PART_SAME, PART_MISSING, PART_SAME, PART_MISSING, true, false, HW_UNPROVEN) == REBUILD_MISSING;
+    assert recorded_part(false, true) == PART_MISSING;
+}
+
+test a_v2_software_seal_with_nothing_changed_is_reused {
+    assert seal_decision(PART_SAME, PART_SAME, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REUSE;
+    // failing tests are never reused
+    assert seal_decision(PART_SAME, PART_SAME, PART_SAME, PART_SAME, false, false, HW_UNPROVEN) == REBUILD_VERDICT;
+}
+
+test the_first_differing_part_is_the_reason {
+    assert seal_decision(PART_DIFF, PART_MISSING, PART_DIFF, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_SPEC;
+    assert seal_decision(PART_SAME, PART_DIFF, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_CLOSURE;
+    assert seal_decision(PART_SAME, PART_SAME, PART_DIFF, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_TOOLCHAIN;
+    assert seal_decision(PART_SAME, PART_SAME, PART_SAME, PART_DIFF, true, false, HW_UNPROVEN) == REBUILD_CONFIG;
+}
+
+test the_toolchain_part_covers_the_backend_tools {
+    assert toolchain_part(true, true, true, true) == PART_SAME;
+    // a compiler change that alters this spec's generated code, or a new test runner or zig
+    assert toolchain_part(true, false, true, true) == PART_DIFF;
+    assert toolchain_part(true, true, true, false) == PART_DIFF;
+    // a seal that never recorded its tools, or its outputs, cannot be judged
+    assert toolchain_part(true, true, false, true) == PART_MISSING;
+    assert toolchain_part(false, true, true, true) == PART_MISSING;
+}
+
+test ternary_link_with_the_r33_run_is_reused {
+    // R3-3: citable, three distinct dies, made with this seal's spec, t27c 0.5.1 and config
+    var hw : u8 = silicon_state(true, true, true, true, true, INDEP_DIES);
+    assert hw == HW_VERIFIED;
+    assert seal_decision(PART_SAME, PART_SAME, PART_SAME, PART_SAME, true, true, hw) == REUSE;
+    // a higher independence is enough too
+    assert silicon_state(true, true, true, true, true, INDEP_OPERATORS) == HW_VERIFIED;
+}
+
+test a_run_that_does_not_prove_this_seal_leaves_the_step_unproven {
+    // no run, a run that is not citable, a one-die run
+    assert silicon_state(false, true, true, true, true, INDEP_DIES) == HW_UNPROVEN;
+    assert silicon_state(true, false, true, true, true, INDEP_DIES) == HW_UNPROVEN;
+    assert silicon_state(true, true, true, true, true, INDEP_NONE) == HW_UNPROVEN;
+    // a run of another spec version, toolchain (the R3-3 receipts made by t27c 0.5.0) or config
+    assert silicon_state(true, true, false, true, true, INDEP_DIES) == HW_UNPROVEN;
+    assert silicon_state(true, true, true, false, true, INDEP_DIES) == HW_UNPROVEN;
+    assert silicon_state(true, true, true, true, false, INDEP_DIES) == HW_UNPROVEN;
+    // and an unproven hardware step is never a PASS, even with green tests
+    assert seal_decision(PART_SAME, PART_SAME, PART_SAME, PART_SAME, true, true, HW_UNPROVEN) == REBUILD_VERDICT;
+    assert seal_decision(PART_SAME, PART_SAME, PART_SAME, PART_SAME, true, true, HW_BLOCKED) == REBUILD_VERDICT;
+}
+
+test a_changed_spec_is_rebuilt_even_with_a_cited_run {
+    var hw : u8 = silicon_state(true, true, true, true, true, INDEP_DIES);
+    assert seal_decision(PART_DIFF, PART_SAME, PART_SAME, PART_SAME, true, true, hw) == REBUILD_SPEC;
+}
+
+test a_node_follows_its_imports {
+    assert node_decision(PART_SAME, false, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REUSE;
+    // an import that was rebuilt rebuilds its importer; an import nobody could judge is missing
+    assert node_decision(PART_SAME, true, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_CLOSURE;
+    assert node_decision(PART_SAME, false, true, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_MISSING;
+    assert node_decision(PART_SAME, true, true, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_MISSING;
+    // the node's own spec is judged before its closure
+    assert node_decision(PART_DIFF, true, false, PART_SAME, PART_SAME, true, false, HW_UNPROVEN) == REBUILD_SPEC;
+}
+
+test checks_pass_needs_at_least_one_check {
+    assert checks_pass(true, false, 5, 0) == true;
+    // a data spec whose invariants are proved at comptime is checked
+    assert checks_pass(true, false, 0, 2) == true;
+    // nothing ran: never a pass (specs/lsp/language.t27, specs/numeric/formats_catalog.t27)
+    assert checks_pass(true, false, 0, 0) == false;
+    assert checks_pass(false, false, 5, 1) == false;
+    assert checks_pass(true, true, 5, 1) == false;
+}
+
+test the_reused_share_is_a_number {
+    assert reused_permille(0, 0) == 0;
+    assert reused_permille(0, 7) == 0;
+    assert reused_permille(3, 4) == 750;
+    assert reused_permille(1, 3) == 333;
+    assert reused_permille(2, 3) == 667;
+    assert reused_permille(5, 5) == 1000;
+    assert reused_permille(9, 5) == 1000;
+}
+
+invariant the_silicon_bar_is_three_distinct_dies {
+    assert SILICON_REQUIRED_LEVEL == INDEP_DIES;
+    assert SILICON_REQUIRED_LEVEL > INDEP_NONE;
+}

@@ -47,3 +47,10 @@ test test_constants {
   assert LEGACY_ID == "log-monitor";
   assert TRIGGER == "cron";
 }
+
+test retries_and_daily_schedule_hold {
+  assert RETRIES == 2;
+  assert TRIGGER == "cron";
+  assert CRON == "0 10 * * *";
+  assert STEPS[0] == "read-logs";
+}

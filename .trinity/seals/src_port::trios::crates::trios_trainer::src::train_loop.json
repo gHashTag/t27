@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c2044c59de8f07fc0e522be25d38fd22dc930bc3bb3b379099ea4fcaab878ac6",
+  "gen_hash_rust": "sha256:6393944f7a1a627f98347beeabb45f91234363260140c2373c65818f90b718c1",
+  "gen_hash_verilog": "sha256:e38086af36bab4cc66dee56c4adf9078195aa72cbeeae63be222d2c9445dff42",
+  "gen_hash_zig": "sha256:60d35bd870468415dfe97d83f5b8ab16cadab4031fed67224e4a6af54cff81b5",
+  "module": "port::trios::crates::trios_trainer::src::train_loop",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:25:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:51866329d2f72302915849d6cbf804f0a62723d6b1f68e802e75df3bedfc4623",
+  "spec_path": "specs/port/trios/crates/trios-trainer/src/train_loop.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

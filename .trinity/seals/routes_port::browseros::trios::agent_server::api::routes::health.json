@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ea601ab127c2f8069aaef8a6bd8095827cf7cce42c119e680f4bc02b5790bebf",
+  "gen_hash_rust": "sha256:e75d5a1666805c772dbb8b5203c700524402b56b4505cd025ed5cacc5a6483aa",
+  "gen_hash_verilog": "sha256:dc139dde04fb6c41ccc5d3286e4e8549eb4eeb2e988c0dd94c28283ad6491a19",
+  "gen_hash_zig": "sha256:387b62332a9e151bee267c1f3c685586f04a4249dd3d2ecc6e1152c3c146588a",
+  "module": "port::browseros::trios::agent_server::api::routes::health",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:ccb7561512e9ed7bc59317523e939fc6b3d5707b91b260868d3860a47f426c14",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/health.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

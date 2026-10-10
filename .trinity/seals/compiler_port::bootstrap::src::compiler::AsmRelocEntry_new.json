@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:bf9a5f5a61030a37e6de04da784d76ddefe9f52986620615e1f30cd9bb35c8b3",
+  "gen_hash_rust": "sha256:a6e247ddcf07dc9462ec14d4ddb20bfbcbe3f678906ab430b21ea2bc2349b3a2",
+  "gen_hash_verilog": "sha256:9028525dcd0b0c3590dda07e90bf3091befad7c4a786f74b18279ad875fbb2a4",
+  "gen_hash_zig": "sha256:2673e3a705e703d7612bc50bbbea4161bcedc5c0b20d06a7ae9148cf1fb894e6",
+  "module": "port::bootstrap::src::compiler::AsmRelocEntry_new",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:0b45cb4820dc72b24ece7f7c4b95e75f00e4d0d9483bb4deb30fa053ef39a876",
+  "spec_path": "specs/port/bootstrap/src/compiler/AsmRelocEntry_new.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 16,
+    "total": 16
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

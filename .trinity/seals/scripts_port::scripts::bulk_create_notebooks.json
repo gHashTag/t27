@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:dfb85a8f7f69c4463f507c8743e76470bea493615abae825b2ec69c638185517",
+  "gen_hash_rust": "sha256:8e8793d3ad86ac0c80affbc19d9c806101f94f2bbda5a702e23d602a4ed2811d",
+  "gen_hash_verilog": "sha256:c9d631664fc3ffb64982060eb51a2cf1403646886c580e80b9bce1bff31de567",
+  "gen_hash_zig": "sha256:9c6b850de231532ab5b66feee91a5a78a67265f415d4ffbb3ace6583e535827c",
+  "module": "port::scripts::bulk_create_notebooks",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:50:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:c980eea971401fb31e2234ce6b560feff1d758ca1b4109a57da45aeddb0a31f3",
+  "spec_path": "specs/port/scripts/bulk-create-notebooks.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

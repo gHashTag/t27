@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:be5049a49f6b914191fb2a01c37aaa8dc63068fb0d9829b934bd2ca32e48b251",
+  "gen_hash_rust": "sha256:bad89f0dc9550581eef1aaaed6fe5d502c2d69270a12370117c40cfbd3bb8902",
+  "gen_hash_verilog": "sha256:94d964590f9950ebdb15785e76fcfd479564c72a35649c35dcf5a1c74e289f57",
+  "gen_hash_zig": "sha256:15213b96227d7a8e8a745d8c8366df3e8f2ec073e4725ecf9e2af38f7c940b6b",
+  "module": "led_diagnostic_top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1c54222fa711326e4ca91c0704b37830bb2f4236114db7428c0d714fc0b86899",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/led_diagnostic.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

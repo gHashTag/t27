@@ -12,3 +12,7 @@ module Specs.Lsp.Language;
     pub fn main() void {
         // TODO: Implement the LSP language specification
     }
+
+    test lsp_language_spec_exists {
+        assert true;  // Basic test to verify the spec module loads
+    }

@@ -19,8 +19,11 @@
 //! nothing names is never analyzed by the reference, so it is skipped
 //! (`unreferenced_tuple_const`), not evaluated.
 //!
-//! `return [ ... ];` in a fn returning a slice is `@constCast(&[_]E{ ... })`:
-//! an empty slice, or a slice of a constant array (`slice_literal_return`).
+//! `return [ ... ];` in a fn returning a slice, or a slice field's literal, is
+//! `@constCast(&[_]E{ ... })` (`slice_lit`, plan `specs/tri/t27b/slice_lit_plan.t27`); one whose
+//! elements hold a str is a global written at entry (`entry_static`, #8091).
+//! A write through it is undefined behaviour in Zig, so it is refused
+//! (`slice_write`, `literal_writes`, #7765).
 
 use super::*;
 
@@ -133,66 +136,134 @@ impl<'a> Lower<'a> {
         Ok(Some(()))
     }
 
-    /// `return [ ... ];` (or `[_]T{ ... }`, `[]T{}`) where the fn returns a
-    /// slice, written into `dst`. The reference writes
-    /// `@constCast(&[_]E{ ... })` with E the return element type: empty, an
-    /// empty slice; otherwise a slice of a constant array, which outlives the
-    /// call because its elements are comptime values -- so here it is
-    /// read-only data. Elements known only at run time are refused (the
-    /// reference returns a pointer into its own frame), and so is a mutable
-    /// slice from a fn some test reaches (a write through it faults there).
-    pub(super) fn slice_literal_return(&mut self, c: &Node, dst: &Place, out: &mut Vec<Stmt>) -> R<bool> {
-        if c.kind != NodeKind::ExprArrayLiteral || c.extra_size.contains(';') {
+    /// An untyped list local, which the reference prints as a tuple (plan `tl`, #8050); None leaves it as it was.
+    pub(super) fn tuple_array_local(&mut self, init: &Node, name: &str) -> R<Option<()>> {
+        let tt = init.extra_type.trim();
+        let same = init.children.iter().all(|c| match c.kind {
+            NodeKind::ExprStructLit => c.name == tt,
+            NodeKind::ExprIdentifier => self.const_nodes.get(c.name.as_str()).is_some_and(|d| d.extra_type.trim() == tt),
+            _ => false,
+        });
+        let n = init.children.len();
+        if tl::storage(!tt.is_empty(), same, n, false) == tl::NOT_MINE {
+            return Ok(None);
+        }
+        let t = LTy::Arr(Box::new(self.lty(tt)?), n as u32);
+        let seen = self.errors.len();
+        let agg = tl::storage(true, true, n, self.holds_str(&t)?) == tl::CONST_AGG;
+        match if agg { self.const_agg(init, &t) } else { self.rodata(init, t) } {
+            Ok(Val::M(p)) => self.bind(name, Binding::Mem(p)),
+            Ok(v @ Val::A(..)) => self.bind(name, Binding::Const(v)),
+            _ => {
+                self.errors.truncate(seen);
+                return Ok(None);
+            }
+        }
+        self.see(init);
+        self.tuple_names.insert(name.to_string());
+        Ok(Some(()))
+    }
+
+    /// An array literal the reference prints `@constCast(&[_]E{ ... })`, E the
+    /// element type of slice `dst`: a field's value or a return's
+    /// (`return [ ... ];`, `[_]T{ ... }`, `[]T{}`). As
+    /// `specs/tri/t27b/slice_lit_plan.t27` decides: a zero-length slice, or a
+    /// slice of the one static of its type and value (Zig interns it), which
+    /// only reads (`literal_writes`). False for NOT_MINE.
+    pub(super) fn slice_lit(&mut self, at: u8, named: bool, c: &Node, dst: &Place, out: &mut Vec<Stmt>) -> R<bool> {
+        if c.kind != NodeKind::ExprArrayLiteral || !matches!(dst.ty, LTy::Slice(..) | LTy::Str) {
             return Ok(false);
         }
-        let elem = match &dst.ty {
-            LTy::Slice(e, _) => (**e).clone(),
-            LTy::Str => LTy::S(Ty::U8),
-            _ => return Ok(false),
-        };
-        if !(elem == LTy::Str || !has_brackets(&elem)) {
-            return Ok(false);
+        let elem = if let LTy::Slice(e, _) = &dst.ty { (**e).clone() } else { LTy::S(Ty::U8) };
+        let flat = elem == LTy::Str || !has_brackets(&elem);
+        let (repeat, typed, strings) = (c.extra_size.contains(';'), !c.extra_type.trim().is_empty(), self.holds_str(&elem)?);
+        let ask = |n, text| sl::plan(at, named, flat, repeat, n, text, typed, strings);
+        let (mut act, mut text) = (ask(c.children.len(), !c.extra_size.trim().is_empty()), None);
+        if act == sl::PARSE {
+            text = self.text_lit(c)?;
+            act = ask(text.as_ref().map_or(0, |l| l.children.len()), false);
         }
-        if c.children.is_empty() && c.extra_size.trim().is_empty() {
-            self.see(c);
-            let Val::M(arr) = self.struct_temp(c, LTy::Arr(Box::new(elem), 0))? else {
-                return Err(());
-            };
-            let Val::M(src) = self.slice_of(addr_of(&arr), 0, dst.ty.clone())? else {
-                return Err(());
-            };
-            self.copy(dst, src, out)?;
-            return Ok(true);
-        }
-        let text = self.text_lit(c)?;
-        let lit = text.as_ref().unwrap_or(c);
-        if lit.children.is_empty() {
+        if act == sl::NOT_MINE {
             return Ok(false);
         }
         self.see(c);
-        if matches!(dst.ty, LTy::Slice(_, true)) && !self.unanalyzed_fn {
-            return self.reject(
-                "ExprArrayLiteral(constant to mutable slice)",
-                "an array literal returned as a mutable slice from a fn a test reaches".into(),
-            );
+        if sl::refuses(act) {
+            return self.reject(sl::what(at, act), sl::why(at, act).into());
         }
+        let lit = text.as_ref().unwrap_or(c);
         let len = lit.children.len() as u32;
-        let seen = self.errors.len();
-        let arr = match self.rodata(lit, LTy::Arr(Box::new(elem), len)) {
-            Ok(Val::M(arr)) => arr,
-            Ok(_) => return Err(()),
-            Err(()) => {
-                if let Some(e) = self.errors.get_mut(seen).filter(|e| e.construct == "ConstDecl") {
-                    e.construct = "ExprArrayLiteral(run-time slice return)".into();
+        if sl::logs(act, matches!(dst.ty, LTy::Slice(_, true)), !self.unanalyzed_fn) {
+            self.lit_log.push((act, format!("{:?}", elem), self.line));
+        }
+        let t = LTy::Arr(Box::new(elem), len);
+        let arr = if sl::at_entry(act) {
+            self.entry_static(at, lit, &t)?
+        } else if sl::is_static(act) {
+            let (size, _) = self.size_align(&t)?;
+            let (mut buf, seen) = (vec![0u8; size as usize], self.errors.len());
+            if self.const_fill(lit, &t, &mut buf, 0).is_err() {
+                if self.errors.get(seen).is_some_and(|e| e.construct == "ConstDecl") {
+                    self.errors.truncate(seen);
+                    return self.reject(sl::what(at, sl::REFUSE_RUN_TIME), sl::why(at, sl::REFUSE_RUN_TIME).into());
                 }
                 return Err(());
             }
+            let n = self.globals_init.len() as u32;
+            let k = *self.statics.entry((format!("{:?}", t), buf.clone())).or_insert(n);
+            if k == n {
+                self.globals_init.push(buf);
+            }
+            Place { addr: Expr { ty: Ty::Ptr, kind: ExprKind::Global(k) }, off: 0, ty: t, mutable: true, temp: None }
+        } else {
+            let Val::M(p) = self.struct_temp(c, t)? else { return Err(()) };
+            p
         };
         let Val::M(src) = self.slice_of(addr_of(&arr), len, dst.ty.clone())? else {
             return Err(());
         };
         self.copy(dst, src, out)?;
         Ok(true)
+    }
+
+    /// A STATIC_STRINGS literal: one global per element type and value, written at the start of every test,
+    /// invariant and bench, as a module var holding a str is (`str_globals`).
+    fn entry_static(&mut self, at: u8, lit: &Node, t: &LTy) -> R<Place> {
+        let seen = self.errors.len();
+        let Ok(v) = self.const_agg(lit, t) else {
+            if self.errors.get(seen).is_some_and(|e| e.construct == "ConstDecl") {
+                self.errors.truncate(seen);
+                return self.reject(sl::what(at, sl::REFUSE_RUN_TIME), sl::why(at, sl::REFUSE_RUN_TIME).into());
+            }
+            return Err(());
+        };
+        let (n, (size, _)) = (self.globals_init.len() as u32, self.size_align(t)?);
+        let k = *self.statics.entry((format!("{:?}", t), format!("{:?}", v).into_bytes())).or_insert(n);
+        let place = Place { addr: Expr { ty: Ty::Ptr, kind: ExprKind::Global(k) }, off: 0, ty: t.clone(), mutable: true, temp: None };
+        if k == n {
+            self.globals_init.push(vec![0u8; size as usize]);
+            self.str_globals.push((place.clone(), v));
+        }
+        Ok(place)
+    }
+
+    /// `slice_index` of a slice of `elem`: a WRITE of the write check when
+    /// `lvalue` builds the place (a store, or `&xs[i]`).
+    pub(super) fn slice_write(&mut self, elem: &LTy, mutable: bool) {
+        if self.writing && sl::logs(sl::WRITE, mutable, !self.unanalyzed_fn) {
+            self.lit_log.push((sl::WRITE, format!("{:?}", elem), self.line));
+        }
+    }
+
+    /// After every body: each WRITE whose element type a STATIC literal
+    /// backs is refused at the write, as the plan's `refuses_write` decides.
+    pub(super) fn literal_writes(&mut self) {
+        let log = std::mem::take(&mut self.lit_log);
+        for (act, elem, line) in &log {
+            if sl::refuses_write(*act, log.iter().any(|(a, e, _)| sl::is_static(*a) && e == elem)) {
+                self.line = *line;
+                let _: R<()> = self.reject(sl::what(sl::AT_WRITE, sl::REFUSE_WRITE), sl::why(sl::AT_WRITE, sl::REFUSE_WRITE).into());
+            }
+        }
     }
 }
 

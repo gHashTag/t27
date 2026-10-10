@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e1099fb6fb198bf00146b5fea5459efa6276fabd96badd51c2dacb8038828b0c",
+  "gen_hash_rust": "sha256:12bb6bd36d689175aaf1dc69728472c2d96de941e4f8454443101ecca1e8d2c5",
+  "gen_hash_verilog": "sha256:a7222319f5e06b3ee10a4e6c3115d8c220a9cb653ac43df69d45c8affc5a5217",
+  "gen_hash_zig": "sha256:295e513fc8329ac242e96bb64484c7d99e3e7b5ec89533c39c0d04ed22341aff",
+  "module": "port::trinity::tri::gen_neuron",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:20:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e0feb930fe126e432068998cdc0c57e21442e1784763f6951142d021a5c6f104",
+  "spec_path": "specs/port/trinity/src/tri/gen_neuron.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
