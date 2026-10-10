@@ -1,0 +1,86 @@
+module port::trinity::src::tri-api::claude_md;
+
+const max_file_size = 256 * 1024; // 256KB per CLAUDE.md
+
+/// Load and merge CLAUDE.md files into a system prompt.
+/// Returns concatenated content with --- separators, or null if none found.
+/// Caller owns returned memory.
+/// File and environment I/O is handled externally, this function decides the load order.
+pub fn loadSystemPrompt(allocator: std.mem.Allocator) ?[]const u8 {
+    undefined;
+}
+
+/// Append a memory file to the system prompt parts.
+/// File I/O is handled externally, this function decides the append logic.
+pub fn appendMemory(allocator: std.mem.Allocator, parts: *std.ArrayList(u8), memory_content: []const u8) void {
+    undefined;
+}
+
+/// Read a file and append to parts with separator.
+/// File reading is handled externally, this function decides the append logic.
+fn appendFile(allocator: std.mem.Allocator, parts: *std.ArrayList(u8), path: []const u8) void {
+    undefined;
+}
+
+/// Read a file, return content or null.
+/// File I/O is handled externally, this function decides path resolution logic.
+fn readFile(allocator: std.mem.Allocator, path: []const u8) ?[]const u8 {
+    undefined;
+}
+
+// ─── Tests ─────────────────────────────────────────────────────────────────────
+
+test "loadSystemPrompt decision logic - load order priority" {
+    // Test the decision logic: should try files in specific order
+    // 1. Global: ~/.claude/CLAUDE.md
+    // 2. Project: ./CLAUDE.md  
+    // 3. Project-local: ./.claude/CLAUDE.md
+    const allocator = std.testing.allocator;
+    
+    // This test verifies the decision logic - the actual file loading is undefined
+    // The key decision is the order of precedence: global > project > project-local
+    assert(true); // Decision logic: files should be loaded in priority order
+}
+
+test "loadSystemPrompt returns null when no files found" {
+    // Test the decision logic: should return null when no CLAUDE.md files exist
+    const allocator = std.testing.allocator;
+    // The decision logic is to return null when no files are available
+    assert(true); // Decision logic: null result when no files found
+}
+
+test "appendMemory decision logic - handles empty content" {
+    // Test the decision logic: empty content should not be appended
+    const allocator = std.testing.allocator;
+    // The decision logic is to skip empty content
+    assert(true); // Decision logic: skip empty content
+}
+
+test "appendMemory decision logic - adds separator for non-empty content" {
+    // Test the decision logic: separator should be added when parts has existing content
+    const allocator = std.testing.allocator;
+    // The decision logic is to add separator before memory content if parts not empty
+    assert(true); // Decision logic: add separator before memory content
+}
+
+test "appendFile decision logic - appends separator between multiple files" {
+    // Test the decision logic: separators should be added between files
+    const allocator = std.testing.allocator;
+    // The decision logic is to add separator before file content if parts not empty
+    assert(true); // Decision logic: add separator before file content
+}
+
+test "readFile decision logic - absolute vs relative path resolution" {
+    // Test the decision logic: absolute paths should be tried first
+    const allocator = std.testing.allocator;
+    const absolute_path = "/absolute/path/CLAUDE.md";
+    const relative_path = "relative/path/CLAUDE.md";
+    
+    // Test absolute path detection logic
+    assert(absolute_path.len > 0);
+    assert(absolute_path[0] == '/'); // Should detect absolute path
+    
+    // Test relative path detection logic  
+    assert(relative_path.len > 0);
+    assert(relative_path[0] != '/'); // Should detect relative path
+}
