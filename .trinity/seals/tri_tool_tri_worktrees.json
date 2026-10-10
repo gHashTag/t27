@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b533e7d02cfcf8702f0816fc836513ef038e4cf8c2a947bb320433f20063ed57",
+  "gen_hash_rust": "sha256:96b37b3ce707b4f1437288c62e69caa8b3a0a387f11d1ff826e6e485f324d915",
+  "gen_hash_verilog": "sha256:95e02975fbe3862a319fca8098e35fb80e3d424042e82f83e0cae86430c6f8c4",
+  "gen_hash_zig": "sha256:a4e673ba1c8066518db133b13acbc7c0f8440262f7a5f540881435a56ef18ed1",
+  "module": "tool_tri_worktrees",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:56:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4427c5e349eccd291f547ab064220d6c52e5c4a954f74f6bc73b36cbb6fe722b",
+  "spec_path": "specs/tools/tri/worktrees.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

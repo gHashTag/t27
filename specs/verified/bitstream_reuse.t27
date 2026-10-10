@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/bitstream_reuse.t27 -- when `t27c silicon` may load a bitstream it built before instead of
+; building it again. Epic gHashTag/t27#8095: rebuild only what is not yet verified.
+; --
+; Measured 2026-10-09, die A, ternary_link: the build took about 27 s (yosys 3.2 s, datapath 2.4 s, nextpnr
+; 19.1 s, fasm2frames 1.8 s, frames to bitstream 0.3 s). The load and readback took about 15 s more. Every
+; run rebuilt the same bitstream from the same inputs. The build is deterministic: the same netlist, chipdb,
+; tools and seed place and route identically (W842), so a second build of the same inputs is wasted work.
+; --
+; The key. The cache entry is named by one hash over every input that can change a bit:
+;   the Verilog `t27c gen-verilog` wrote for the spec, every wrapper (--top) and the last wrapper's XDC;
+;   the chipdb file, the nextpnr binary, fasm2frames and the prjxray database revision, xc7frames2bit;
+;   the yosys version, the pnr seed, the t27c version, and BIT_RECIPE below.
+; A different key is a different entry, so a changed input is simply a miss: it can never read as a hit.
+; BIT_RECIPE is bumped by hand when the build recipe inside t27c changes (the yosys script, the nextpnr
+; frequency or arguments), because the t27c version alone does not move within a release.
+; --
+; What an entry must hold. The bitstream, its sha256, and the BSCAN chain the run reads the verdict on.
+; The chain is derived from the FASM during the build (`BSCAN chain == site`), so a reused bitstream
+; without its chain would read the wrong USER register: that entry is INCOMPLETE and is rebuilt.
+; --
+; What is stored. Only a build whose every stage passed. A build that failed, or whose BSCAN chain did not
+; agree with the placed site, is never stored: a cache that keeps a failure serves the failure forever.
+; --
+; The audit. A key can miss an input it never declared (Bazel's usual cause of a poisoned cache: two actions
+; that look identical but read different host state). So every AUDIT_EVERY-th hit is rebuilt without the
+; cache and compared byte for byte. Equal bytes keep the entry. Different bytes mean the key missed an
+; input: the entry is POISONED, it is deleted, and the run says so loudly instead of loading it.
+; The comparison starts at the configuration sync word (BIT_SYNC_WORD): the .bit header before it carries
+; the build date and time. Measured 2026-10-10 on ternary_link: two builds of the same inputs differed in
+; exactly 3 bytes, at offsets 162..165, all inside that header; the configuration stream was identical.
+; --
+; What a reuse does NOT change. The receipt still binds to the seal through `t27c seal --verify` (the
+; seal's gen_hash_verilog), and the control bitstream and the readback still run on the board every time.
+; Reuse skips the build, never the hardware check.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedBitstreamReuse;
+
+/// Bumped by hand when the build recipe inside t27c changes.
+pub const BIT_RECIPE : u32 = 1;
+
+/// What `t27c silicon` does with the bitstream for this key.
+///   REUSE       the entry is complete and its bytes are the bytes that were stored: load it
+///   MISSING     no entry for this key: build (and store, if the build passes)
+///   INCOMPLETE  the entry lacks its BSCAN chain: build
+///   CORRUPT     the bitstream's bytes no longer match the recorded sha256: build
+///   FORCED      the operator asked for a rebuild (T27_SILICON_REBUILD): build
+pub const BIT_REUSE : u8 = 0;
+pub const BIT_MISSING : u8 = 1;
+pub const BIT_INCOMPLETE : u8 = 2;
+pub const BIT_CORRUPT : u8 = 3;
+pub const BIT_FORCED : u8 = 4;
+
+pub fn bit_decision(forced: bool, entry_found: bool, chain_recorded: bool, bit_hash_equal: bool) -> u8 {
+    if (forced) { return BIT_FORCED; }
+    if (entry_found == false) { return BIT_MISSING; }
+    if (chain_recorded == false) { return BIT_INCOMPLETE; }
+    if (bit_hash_equal == false) { return BIT_CORRUPT; }
+    return BIT_REUSE;
+}
+
+/// May a finished build be stored under its key? Only when every stage passed and the BSCAN chain agreed
+/// with the placed site, and never when this run itself loaded the entry.
+pub fn may_store(decision: u8, all_stages_ok: bool, chain_agrees: bool) -> bool {
+    if (decision == BIT_REUSE) { return false; }
+    return all_stages_ok and chain_agrees;
+}
+
+/// The 7-series configuration sync word. An audit compares the two bitstreams from here on.
+pub const BIT_SYNC_WORD : u32 = 2862175590;
+
+/// Every AUDIT_EVERY-th hit on an entry is rebuilt and compared instead of loaded.
+pub const AUDIT_EVERY : u32 = 10;
+
+/// Is this hit an audit? `hits` counts the hits the entry served before this one.
+pub fn audit_due(hits: u32) -> bool {
+    return hits % AUDIT_EVERY == AUDIT_EVERY - 1;
+}
+
+/// What an audit found.
+///   SAME      the rebuilt bitstream is byte-identical to the cached one: keep the entry
+///   POISONED  the bytes differ, so the key missed an input: delete the entry and say so
+pub const AUDIT_SAME : u8 = 0;
+pub const AUDIT_POISONED : u8 = 1;
+
+pub fn audit_verdict(rebuilt_equal: bool) -> u8 {
+    if (rebuilt_equal) { return AUDIT_SAME; }
+    return AUDIT_POISONED;
+}
+
+test bit_decision_reuses_only_a_complete_intact_entry {
+    assert bit_decision(false, true, true, true) == BIT_REUSE;
+    assert bit_decision(false, false, false, false) == BIT_MISSING;
+    assert bit_decision(false, true, false, true) == BIT_INCOMPLETE;
+    assert bit_decision(false, true, true, false) == BIT_CORRUPT;
+}
+
+test bit_decision_obeys_a_forced_rebuild_first {
+    assert bit_decision(true, true, true, true) == BIT_FORCED;
+    assert bit_decision(true, false, false, false) == BIT_FORCED;
+}
+
+test bit_decision_reports_the_first_missing_part {
+    // no entry at all reads as missing, not as incomplete or corrupt
+    assert bit_decision(false, false, true, true) == BIT_MISSING;
+    // an entry without its chain is incomplete even when its bytes are intact
+    assert bit_decision(false, true, false, false) == BIT_INCOMPLETE;
+}
+
+test may_store_keeps_only_a_passing_agreeing_build {
+    assert may_store(BIT_MISSING, true, true) == true;
+    assert may_store(BIT_CORRUPT, true, true) == true;
+    assert may_store(BIT_FORCED, true, true) == true;
+    assert may_store(BIT_MISSING, false, true) == false;
+    assert may_store(BIT_MISSING, true, false) == false;
+}
+
+test may_store_never_rewrites_the_entry_it_loaded {
+    assert may_store(BIT_REUSE, true, true) == false;
+}
+
+test audit_due_on_every_tenth_hit {
+    assert audit_due(0) == false;
+    assert audit_due(8) == false;
+    assert audit_due(9) == true;
+    assert audit_due(10) == false;
+    assert audit_due(19) == true;
+}
+
+test audit_verdict_keeps_only_identical_bytes {
+    assert audit_verdict(true) == AUDIT_SAME;
+    assert audit_verdict(false) == AUDIT_POISONED;
+}
+
+invariant the_bit_codes_never_move {
+    assert BIT_REUSE == 0 and BIT_MISSING == 1 and BIT_INCOMPLETE == 2 and BIT_CORRUPT == 3 and BIT_FORCED == 4;
+    assert BIT_RECIPE >= 1;
+    assert AUDIT_EVERY >= 2 and AUDIT_SAME != AUDIT_POISONED;
+    // 0xAA995566
+    assert BIT_SYNC_WORD == 2862175590;
+}

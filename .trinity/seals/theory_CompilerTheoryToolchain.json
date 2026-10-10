@@ -1,12 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/steward.t27",
+      "spec_hash": "sha256:70867c8cd8a8155d82f352b6833168f04c846a736413d6b2420d54774994123e"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:2b34ea9e2eaeb5de944b506f30ac426472894629db74e0920a6e7c0508d9c641",
   "gen_hash_rust": "sha256:7574408b78ccecbff61b3162cace5ac4158ff424a69a5c2755b0396a06247662",
   "gen_hash_verilog": "sha256:51a62244a3ad7e9a97c5f0e495675dc70ab7c6cdbe55b1a8db6faa422ece72e0",
   "gen_hash_zig": "sha256:981119d3f2285cd8fc4570f5eb39fffcecdcf3d225dbd45c9f407b17ef3cf799",
   "module": "CompilerTheoryToolchain",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:11:02Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:47:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:74fcddcd2e463ee4e0ca987c16fe9575691436d06c29aeb1cb2f52cef62077bb",
   "spec_path": "specs/compiler/theory/toolchain.t27",
   "tests": {
@@ -15,5 +24,9 @@
     "forced": false,
     "passed": 20,
     "total": 20
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

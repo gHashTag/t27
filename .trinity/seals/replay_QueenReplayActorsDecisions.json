@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:33ebbad8689008d9e5d03c5aa8a6a1da978c25b0b2754f790d420e80042ee2be",
+  "gen_hash_rust": "sha256:51a050a860141758d3c9ff34d018e90afc5b73accc46a4e1d76755a0f0743d2a",
+  "gen_hash_verilog": "sha256:f752d31a4c8ed799d619132212bfc6d6b5a512292a9fbea4be267391efc0bd55",
+  "gen_hash_zig": "sha256:1e522738694f84d9215ec32000d37480a345e476f4a4647d20318ca07a725a73",
+  "module": "QueenReplayActorsDecisions",
+  "ring": 12,
+  "sealed_at": "2026-10-09T19:59:59Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:aaa29888acf35d9668b4a5bb77fbed84a99fb7dce3f9d703224975835ab71012",
+  "spec_path": "specs/queen/replay/actors_decisions.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 25,
+    "total": 25
+  }
+}

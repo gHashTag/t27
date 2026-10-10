@@ -1,0 +1,6 @@
+// An index is unsigned in Zig (#8075).
+module signed_index;
+var si_t: [4]u8 = [_]u8{ 1, 2, 3, 4 };
+fn si_g(i: i32) -> u8 {
+    return si_t[i];
+}

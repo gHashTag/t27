@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:2500c7927b598505f1ec078bb05b36ccd28f95c1ea1f0a035988bb63265e24ad",
   "gen_hash_rust": "sha256:99ad17dc69249539f31e866dcc45a0536b20e2b6147a4a939d42f93f9b90b2ac",
   "gen_hash_verilog": "sha256:328b353e20d680a53bfe1952bf2f5014f4790e21fb3bc5a736dea05a0f8a2140",
   "gen_hash_zig": "sha256:cd458a494028bf08e3154656296d7dd0ea606cfef9a7058d50b2bd12b85b5194",
   "module": "trinity_capability_vibee_compiler",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:36:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5981241f2cd196051990feaf73a6afbd75a0e3a166b3e8dd18c2e60528974cca",
-  "spec_path": "specs/trinity/capabilities/vibee.compiler.t27"
+  "spec_path": "specs/trinity/capabilities/vibee.compiler.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

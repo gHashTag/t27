@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:549683c0303197bd10b35bf503712f704037fcf2434769cd04bf87436a1f62be",
   "gen_hash_rust": "sha256:7868f2fdf23aba6d0b44317bb11d2d7f98b73ece0124679bcfe3008b57be7b3b",
   "gen_hash_verilog": "sha256:29d68783c2e16204305ee3669795f45c4a3e19054492d912e50480618b415824",
   "gen_hash_zig": "sha256:3c1067b981319f8baebeec12ed4392f1a7bc581e437c94b45ff94ef7a9e0c8e4",
   "module": "e8_lqg_bridge",
   "ring": 12,
-  "sealed_at": "2026-10-04T05:56:33Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:50:15Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7f355f421c1a1808d029b8e79baab836d2f7820e75c02fb762fadcfc90dab96c",
   "spec_path": "specs/physics/e8_lqg_bridge.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 8,
     "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0acd24a3fe9506edd9d559002f95e84f526f1ebef90181b248881237bc4e5a60",
+  "gen_hash_rust": "sha256:3a4d03134339a5436ca4ea7ba1ecd2f1cf1b72eecd28055f57bcc9cb1a165025",
+  "gen_hash_verilog": "sha256:5b7b227caf581c3273ba4c9ad70e50f393fe17e6c4a1b91cac6539f1f825d0c5",
+  "gen_hash_zig": "sha256:7e29999612a8e875e9425338851a052e584a4b1406852049e22ecb8deee0763c",
+  "module": "temporal_heartbeat_top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3c9a1dbcea294c6173f04bd8526e431364eb57e75e9718a896553b15c1bcde6a",
+  "spec_path": "specs/port/fpga/vsa/temporal_heartbeat_top.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 16,
+    "total": 16
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

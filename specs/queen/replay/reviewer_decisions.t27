@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/replay/reviewer_decisions.t27 -- the reviewer card's logged answers, as asserts
+; GENERATED from a decision log. Do not edit by hand: regenerate it (below). Source: the decision
+; log of the seeded reviewer run (seed 7852: 45 arrivals an hour for 6 h, 180 s median review, 5%
+; crashes, 2% stalls; slices off) in gHashTag/trios
+; trios/agent-server/apps/server/tests/api/queen-actors-telemetry.test.ts, logged at trios commit
+; 71b45642585abddcb7ad1b6391a82ac670363af0. It holds 4223 calls into queen/reviewer.wasm (sha256
+; e921ad60a4930cf4fa6ba53ae79c9456a355374255614d26acae88d930d10a46), compiled from
+; queen/reviewer.t27 (sha256 31bbca9567a54822fd12dd34b24cf3a15db37627e21700c83b80542cea50e71d).
+; Each assert is one distinct (fn, args) of those calls with the answer the wasm card gave: 25
+; asserts over 2 functions. t27c test-report runs them on the reference path (gen, then zig) and
+; t27b runs them on its native AArch64 JIT, so production's wasm, the reference and t27b give the
+; same answer to every question production asked, or this module fails. Epic gHashTag/trios#1712.
+; Regenerate: in trios/agent-server/apps/server,
+;   QUEEN_DECISION_SPEC_OUT=<t27 checkout> QUEEN_DECISION_SPEC_FROM=<trios commit>
+;   bun test tests/api/queen-actors-telemetry.test.ts -t 'replays to the same'
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenReplayReviewerDecisions;
+
+use queen::reviewer::review_slots;
+use queen::reviewer::visit_first;
+
+; review_slots: 3144 calls logged, 23 distinct
+test review_slots_answers_as_logged {
+    assert review_slots(0, 0) == 0;
+    assert review_slots(0, 1) == 1;
+    assert review_slots(1, 0) == 0;
+    assert review_slots(1, 1) == 1;
+    assert review_slots(1, 4) == 3;
+    assert review_slots(2, 0) == 0;
+    assert review_slots(2, 1) == 1;
+    assert review_slots(2, 3) == 2;
+    assert review_slots(2, 4) == 2;
+    assert review_slots(3, 0) == 0;
+    assert review_slots(3, 1) == 1;
+    assert review_slots(3, 2) == 1;
+    assert review_slots(3, 3) == 1;
+    assert review_slots(3, 4) == 1;
+    assert review_slots(3, 5) == 1;
+    assert review_slots(3, 6) == 1;
+    assert review_slots(4, 0) == 0;
+    assert review_slots(4, 1) == 0;
+    assert review_slots(4, 2) == 0;
+    assert review_slots(4, 3) == 0;
+    assert review_slots(4, 4) == 0;
+    assert review_slots(4, 5) == 0;
+    assert review_slots(4, 6) == 0;
+}
+
+; visit_first: 1079 calls logged, 2 distinct
+test visit_first_answers_as_logged {
+    assert visit_first(true, 0, false, 24) == true;
+    assert visit_first(true, 0, true, 0) == false;
+}

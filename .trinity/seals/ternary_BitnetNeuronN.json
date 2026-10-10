@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:2688fe349c114e8631f7e0657666e17db77aac16b92743f7b6a45121753d4088",
   "gen_hash_rust": "sha256:7fc8e8e765114313b0b3daa812c02eeaaff5cc4758734c5a1bd53a835f3f10de",
   "gen_hash_verilog": "sha256:58949d73f3dda75b74638316fd05c1a9abda31e0611030aaba8d4e4ac30210f5",
   "gen_hash_zig": "sha256:c7a2ce03fef7cfe7c2af15b41c2ebca334941650376b9de3d97ca4bcf7e1fbda",
   "module": "BitnetNeuronN",
   "ring": 12,
-  "sealed_at": "2026-09-08T00:32:47Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:28:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3ecc74e152223eb2912ded3c83f63e176a03c46c980887b379b1a83c2deeb3c3",
-  "spec_path": "specs/ternary/bitnet_neuron_nchunk.t27"
+  "spec_path": "specs/ternary/bitnet_neuron_nchunk.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

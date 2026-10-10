@@ -1,0 +1,8 @@
+// typecheck only warns that an i64 is passed for a u8 parameter (#8075).
+module argument_narrowing;
+fn an_take(x: u8) -> u8 {
+    return x;
+}
+fn an_g(a: i64) -> u8 {
+    return an_take(a);
+}

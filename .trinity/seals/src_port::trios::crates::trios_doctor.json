@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:558b8253d3dec1635f7abd007b1a3145261988b0e0a71b8911a37e76369eaa43",
+  "gen_hash_rust": "sha256:2d08daff52131828f42234702ff97a78f2350d435a9aa185a1b5cc725da7805b",
+  "gen_hash_verilog": "sha256:a742c96ad1301dd36e616a6c9e9e6e201cbd3db33570ac54c8a916f9d0836ec4",
+  "gen_hash_zig": "sha256:26c3fb7f8d58dba547c24f12bef6b51023a33faf14bc0c892293e0d13af87c32",
+  "module": "port::trios::crates::trios_doctor",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:21Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:bf8a2f9d1352d8525b7f929ef4e4aab262a364d150377d991001440f7d388ade",
+  "spec_path": "specs/port/trios/crates/trios-doctor/src/main.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

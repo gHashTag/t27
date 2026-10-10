@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ccdf4adb8d1db7b9811d8833979aa3bfc939a4eac7ea951287082e9e9ccda8c2",
+  "gen_hash_rust": "sha256:70a352e233ce9a1221aa7c0e6c8cb826c862c66df445397f060a6ea1e189e74d",
+  "gen_hash_verilog": "sha256:608b69e511b255532e7ce4dd222a647fab12b28792707a456ea592821010834e",
+  "gen_hash_zig": "sha256:ac3542e1167fadede7a7e0778cd28e9f7eaebb872992bfd5f9e0d13bccce0d7c",
+  "module": "port::bootstrap::enrichment",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:624e644f49e87ab6b0fe69fe505245cb84e58f3223c54f37d7f651ce98dd838c",
+  "spec_path": "specs/port/bootstrap/src/enrichment/mod.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

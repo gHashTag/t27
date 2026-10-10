@@ -1,0 +1,4 @@
+// The array's size is a const written after it (#8088).
+module size_names_later_const;
+var snl_xs: [SNL_N]u8 = [_]u8{0} ** SNL_N;
+const SNL_N: i64 = 3;

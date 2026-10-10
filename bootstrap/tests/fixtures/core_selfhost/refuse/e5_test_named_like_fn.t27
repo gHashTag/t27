@@ -1,0 +1,8 @@
+// `test tnf_t` is C's `test_tnf_t`, which the function names too (#8088).
+module test_named_like_fn;
+fn test_tnf_t() -> bool {
+    return true;
+}
+test tnf_t {
+    assert(test_tnf_t());
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ea00ffe7c45d891f88a10f9c21c1e22b68e99cd723c2ab888eab5894256c2e1a",
+  "gen_hash_rust": "sha256:d17766bba5ef0ffd02275b2a1f1d9c1e4f400448a87daa19a625bec27a9b866e",
+  "gen_hash_verilog": "sha256:6f7371478d78a8d0d744dac842398e88b7f865aeb86f5196705cd9136f76ce57",
+  "gen_hash_zig": "sha256:ffae35deee3b659bdf1b0581147b5b999c136a63c806f4a51274b738fedde504",
+  "module": "cron_mac_dev_cache_clean",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:34:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e0febcc93b8e342d7da47ec495daa3b2ac5bef941c2222f9b996a6017d46a663",
+  "spec_path": "specs/crons/mac-dev-cache-clean.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

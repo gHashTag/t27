@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b9d22d0f4",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a98897e1c2637b17c7b06f3f6cfcb5d6bfe6de7e40a119712708fc0b69df2ccf",
+  "gen_hash_rust": "sha256:7d1012d8e5525f3a7e9bb4a4df8dc3d82d348cf8c6a8fb88358b760e6f436a83",
+  "gen_hash_verilog": "sha256:ff71dcdd95d8924750482d94bcf3d9200db3d228f28608d4998bc57182fabcc9",
+  "gen_hash_zig": "sha256:345e172b09abf438598ab533347554e6637d442e14dcdf0e94775c2973fb3de7",
+  "module": "trinet::node_work_credit",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T00:15:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7cafb68c406c379ddde0c4e655c15455c5fd84988733a6d6b660117eff4caea7",
+  "spec_path": "specs/trinet/node-work-credit.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

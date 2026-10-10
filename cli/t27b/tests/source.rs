@@ -547,6 +547,17 @@ fn undefined_module_vars_read_as_0xaa() {
     assert_eq!(r[3].2, Err((TrapKind::Assert, line_of(src, "assert(w[1] == 0)"))));
 }
 
+/// A module var of an optional type that starts as `null` (#7910): zero bytes, a null flag, in every test; the
+/// conformance spec passes (`t27c test-report`: 4 pass, none vacuous). Any other initial value stays refused.
+#[test]
+fn optional_module_vars_start_null() {
+    let ran = run(include_str!("../../../specs/tri/t27b/conformance/optional_module_var.t27"));
+    let got = names_ok(&ran);
+    assert!(got.len() == 4 && got.iter().all(|(_, inv, ok)| !inv && *ok), "{:?}", got);
+    let m = rejected("module a;\n\nvar g: ?u32 = 5;\n\ntest t {\n    assert(g.? == 5);\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct VarDecl(module, pointer/slice) at line 3"), "{}", m);
+}
+
 #[test]
 fn string_rejections_are_precise() {
     let head = "module s;\n\nconst S: str = \"ab\";\n\n";
@@ -1325,7 +1336,7 @@ fn module_var_rejections_are_precise() {
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
         ("invariant i { assert(g == 0); }", "ExprIdentifier(var at comptime)", "module-level var `g`"),
         ("var h = 3;\ntest t { assert(h == 3); }", "VarDecl(module, untyped)", "`h` has no type"),
-        ("const B: u32 = 2;\nvar h: u32 = B / 2;\ntest t { assert(h == 1); }", "VarDecl(module)", "not a compile-time integer"),
+        ("const B: u32 = 2;\nvar h: u32 = B / 0;\ntest t { assert(h == 1); }", "VarDecl(module)", "not a compile-time integer"),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));

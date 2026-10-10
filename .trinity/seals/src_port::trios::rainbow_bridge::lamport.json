@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:19f9349f4fa22925042041a79d44bcfb28c72c006f9c0f5d752899615ab0d15c",
+  "gen_hash_rust": "sha256:31b995607435d1ac6d201acb974fb845c4247891a22659f34a668eb18fae02af",
+  "gen_hash_verilog": "sha256:63fc243a584621efb8feecd18c637e429e56af2cdaea7c5908adb100b3dbba9c",
+  "gen_hash_zig": "sha256:d5fee8e7059e7786e352e8cf974d1a26709f69c7011c4287d8cf18e47794c894",
+  "module": "port::trios::rainbow_bridge::lamport",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:24:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:bccdb4887231d99c49363005334ef65e82c34cd500a53b70f2c60c4865632ca4",
+  "spec_path": "specs/port/trios/crates/trios-rainbow-bridge/src/lamport.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

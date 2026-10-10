@@ -1,13 +1,21 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:083a527e45a50f9d8f4296d089ded9fb27fe88e2be9132a0fe09ba73af3c807a",
   "gen_hash_rust": "sha256:d50d3454f51312df8ae97f8885d1ef89eccf26835aab641ec4a7d131a94556a4",
   "gen_hash_verilog": "sha256:a0ecc024bbf108bf40c663321efaadc401dc9e22f8d45323eae4913dc08738bc",
   "gen_hash_zig": "sha256:64a63107dcc3633db230f785581c8ac92a01ee6eb4178c6d92d6ef643502356e",
   "module": "TernaryGates",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:01Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b4ea36c976d78efe1add7b0ec95018c0f01877755c257dac8482eeb7576f1909",
   "spec_path": "specs/isa/ternary_gates.t27",
   "tests": {
@@ -16,5 +24,9 @@
     "forced": false,
     "passed": 12,
     "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

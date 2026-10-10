@@ -23,3 +23,76 @@ pub const ENABLED : bool = false;
 pub const NOTE : str = "Weekly rather than per-push because a full run costs about thirty yosys invocations. Measured 2026-10-04: .github/workflows/formal-mutation.yml and the formal/ directory it runs (mutate.py, absence_sweep.py) exist only on branch fix/reject-vibee-specs, never on master, so the Queen's dispatch answered HTTP 404. ENABLED is false until the workflow lands on master.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "github-actions-dispatch";
+
+; The card held to the schema of specs/crons/README.md: ID is <host>/<repo>/<slug>; HOST,
+; ON_FAILURE and CONTROL come from fixed vocabularies; RUNS, the control link, is empty unless
+; the source evidently invokes a skill, and RUNS_NOTE then says why.
+test id_is_host_repo_and_slug {
+    // HOST is one of the five hosts the README names.
+    assert HOST == "github-actions" or HOST == "inngest" or HOST == "railway-cron" or HOST == "timer" or HOST == "launchd";
+    // ID opens with HOST, a `/`, REPO and a `/`.
+    var i : usize = 0;
+    while (i < HOST.len) {
+        assert ID[i] == HOST[i];
+        i = i + 1;
+    }
+    assert ID[HOST.len] == '/';
+    var r : usize = 0;
+    while (r < REPO.len) {
+        assert ID[HOST.len + 1 + r] == REPO[r];
+        r = r + 1;
+    }
+    assert ID[HOST.len + 1 + REPO.len] == '/';
+    // The slug after it is one path segment, not empty.
+    assert ID.len > HOST.len + REPO.len + 2;
+    var s : usize = HOST.len + REPO.len + 2;
+    while (s < ID.len) {
+        assert ID[s] != '/' and ID[s] != ' ';
+        s = s + 1;
+    }
+}
+test vocabularies_and_the_control_link {
+    assert KIND == "cron";
+    assert ON_FAILURE == "issue" or ON_FAILURE == "log" or ON_FAILURE == "unknown";
+    assert CONTROL == "github-actions-dispatch" or CONTROL == "railway-dashboard" or CONTROL == "inngest-dashboard" or CONTROL == "code-only";
+    // An empty RUNS carries its reason in RUNS_NOTE.
+    assert RUNS.len > 0 or RUNS_NOTE.len > 0;
+}
+test schedule_is_a_five_field_cron_expression {
+    // Five fields with one space between each, made of digits and `* / , -`.
+    assert SCHEDULE[0] != ' ';
+    assert SCHEDULE[SCHEDULE.len - 1] != ' ';
+    var spaces : u32 = 0;
+    var i : usize = 0;
+    while (i < SCHEDULE.len) {
+        const c : u8 = SCHEDULE[i];
+        if (c == ' ') {
+            spaces = spaces + 1;
+            assert SCHEDULE[i + 1] != ' ';
+        } else {
+            assert (c >= '0' and c <= '9') or c == '*' or c == '/' or c == ',' or c == '-';
+        }
+        i = i + 1;
+    }
+    assert spaces == 4;
+}
+test the_workflow_file_is_the_slug {
+    // SERVICE is the workflow file, `.github/workflows/<slug>.yml`.
+    const DIR : str = ".github/workflows/";
+    const at : usize = HOST.len + REPO.len + 2;
+    assert SERVICE.len == DIR.len + (ID.len - at) + 4;
+    var p : usize = 0;
+    while (p < DIR.len) {
+        assert SERVICE[p] == DIR[p];
+        p = p + 1;
+    }
+    var k : usize = 0;
+    while (k < ID.len - at) {
+        assert SERVICE[DIR.len + k] == ID[at + k];
+        k = k + 1;
+    }
+    assert SERVICE[SERVICE.len - 4] == '.';
+    assert SERVICE[SERVICE.len - 3] == 'y';
+    assert SERVICE[SERVICE.len - 2] == 'm';
+    assert SERVICE[SERVICE.len - 1] == 'l';
+}

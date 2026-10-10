@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:96b562d4ef8c09027f3da02e6fb191601eb3fe96018ee4036beccdcf3170dcf8",
+  "gen_hash_rust": "sha256:419ef6d35df5732628117b22c3131c5732daca8be642ca8ab8f7ece6deeb55b1",
+  "gen_hash_verilog": "sha256:951b702438f39bda45b73f14b39387f289cb5427faca7fde07284f10586b2ba0",
+  "gen_hash_zig": "sha256:a82aa2876fc98f3318f7e787bb09a190fb59580c06f7699465b1ba1eff0f6abb",
+  "module": "port::scripts::install_constitutional_hook",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:16:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a45b1882c83ad25aa20190964392c7d9a10cd29952b0b596624a77dbde91bbd8",
+  "spec_path": "specs/port/scripts/install-constitutional-hook.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

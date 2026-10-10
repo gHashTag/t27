@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a820cb4e9e3f9a0dabb61856ea904befbf825ba88594088bfe5f9305b5059a68",
+  "gen_hash_rust": "sha256:2e46044a173d8665d8ec05fe95cf4b7ac9944658ab32726842f91f495746a421",
+  "gen_hash_verilog": "sha256:d54b554bc55d4b70fcd8c2bc356191cfd380620b12cde1ba52d6a54f0198f944",
+  "gen_hash_zig": "sha256:329e7e2a89f1976ce67b000546bfc992852eccbaf2074fc5f90eb9cb8850a593",
+  "module": "ternary_node_jtag",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cf41e7ccb79394032ac42e58a64d6a8fcb4cd804251d20c6afa998886c98a3a5",
+  "spec_path": "specs/port/fpga/verilog/ternary_node_jtag.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 20,
+    "total": 20
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

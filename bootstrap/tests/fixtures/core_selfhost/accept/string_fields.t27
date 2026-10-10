@@ -1,0 +1,51 @@
+// P3 slice 1 (#5980): a string field and a string element. The core now
+// follows an expression's type through fields, elements and calls, so a
+// string read there stands only where a string is declared.
+module string_fields;
+
+struct SfUser {
+    name: str,
+    age: u8,
+}
+
+struct SfTeam {
+    lead: SfUser,
+    size: u8,
+}
+
+var sf_names: [3]str = [_]str{ "ada", "bob", "cy" };
+var sf_lead: SfUser = SfUser{ .name = "ada", .age = 36 };
+
+fn sf_first(s: str) -> u8 {
+    return s[0] as u8;
+}
+
+fn sf_make(n: str, a: u8) -> SfUser {
+    return SfUser{ .name = n, .age = a };
+}
+
+fn sf_name_of(u: SfUser) -> str {
+    return u.name;
+}
+
+fn sf_pick(i: usize) -> str {
+    var local: [2]str = [_]str{ "x", "y" };
+    if (i < 2) {
+        return local[i];
+    }
+    return sf_names[i - 2];
+}
+
+test sf_fields {
+    var u: SfUser = sf_make("eve", 30);
+    assert(sf_first(u.name) == 'e');
+    assert(sf_first(sf_name_of(u)) == 'e');
+    var team: SfTeam = SfTeam{ .lead = sf_lead, .size = 2 };
+    assert(sf_first(team.lead.name) == 'a');
+    u.name = sf_names[1];
+    assert(sf_first(u.name) == 'b');
+    assert(sf_first(sf_pick(1)) == 'y');
+    assert(sf_first(sf_pick(4)) == 'c');
+    sf_names[0] = "zed";
+    assert(sf_first(sf_names[0]) == 'z');
+}

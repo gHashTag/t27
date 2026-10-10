@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:30efb7e48c81d3f1b59698ef83101c92846a86019b04e47039ceded2d8176f8f",
+  "gen_hash_rust": "sha256:16fd10361db3216e7f299ceebc1c451be090570b7385a8acf6895bd74057d4aa",
+  "gen_hash_verilog": "sha256:4added6006a9081869cde347b0cb03a5174b02043f7ce3b221f0a712de166bb8",
+  "gen_hash_zig": "sha256:b086a0db16c76ed61d03f63b7b10c52b99126ebc22e53f55100a5c3bd3ce0f0f",
+  "module": "TriMutateSurvivors",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:32:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:56e4c33a963a79c11b99927b27345320c0edfda95379e30c30829b08582ad96c",
+  "spec_path": "specs/tri/mutate/survivors.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

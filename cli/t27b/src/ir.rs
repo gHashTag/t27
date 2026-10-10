@@ -204,20 +204,10 @@ impl Ty {
     }
 
     /// `self` can hold every value of `from`: the lossless implicit widening
-    /// the subset allows (Zig's rule: same signedness and not narrower, or
+    /// the subset allows (`widens` of specs/tri/t27b/int_cast_plan.t27: same signedness and not narrower, or
     /// unsigned into a strictly wider signed type).
     pub fn can_widen_from(self, from: Ty) -> bool {
-        if self == from {
-            return true;
-        }
-        if !self.is_int() || !from.is_int() {
-            return false;
-        }
-        if self.signed() == from.signed() {
-            self.bits() >= from.bits()
-        } else {
-            self.signed() && self.bits() > from.bits()
-        }
+        self == from || self.is_int() && from.is_int() && crate::lower::ic::widens(from.bits(), from.signed(), self.bits(), self.signed())
     }
 }
 
@@ -307,41 +297,17 @@ pub enum ArithOp {
     ShrW,
 }
 
+#[path = "../../../gen/rust/tri/t27b/arith_op.rs"]
+#[allow(dead_code, unused_parens)]
+mod ao; // t27c gen-rust of specs/tri/t27b/arith_op.t27: the integer operators by their ArithOp number
+const _: () = assert!(ArithOp::Add as u8 == ao::OP_ADD && ArithOp::Rem as u8 == ao::OP_REM && ArithOp::ShrW as u8 == ao::OP_SHR_W);
+
 impl ArithOp {
-    pub fn symbol(self) -> &'static str {
-        match self {
-            ArithOp::Add => "+",
-            ArithOp::Sub => "-",
-            ArithOp::Mul => "*",
-            ArithOp::AddW => "+%",
-            ArithOp::SubW => "-%",
-            ArithOp::MulW => "*%",
-            ArithOp::Div | ArithOp::DivW => "/",
-            ArithOp::Rem => "%",
-            ArithOp::And => "&",
-            ArithOp::Or => "|",
-            ArithOp::Xor => "^",
-            ArithOp::Shl | ArithOp::ShlW => "<<",
-            ArithOp::Shr | ArithOp::ShrW => ">>",
-        }
-    }
+    pub fn symbol(self) -> &'static str { ao::symbol(self as u8) }
 
-    pub fn is_shift(self) -> bool {
-        matches!(self, ArithOp::Shl | ArithOp::Shr | ArithOp::ShlW | ArithOp::ShrW)
-    }
+    pub fn is_shift(self) -> bool { ao::is_shift(self as u8) }
 
-    pub fn commutative(self) -> bool {
-        matches!(
-            self,
-            ArithOp::Add
-                | ArithOp::Mul
-                | ArithOp::AddW
-                | ArithOp::MulW
-                | ArithOp::And
-                | ArithOp::Or
-                | ArithOp::Xor
-        )
-    }
+    pub fn commutative(self) -> bool { ao::commutative(self as u8) }
 }
 
 /// IEEE-754 binary operations on F64.
@@ -403,17 +369,14 @@ pub enum CmpOp {
     Ge,
 }
 
+#[path = "../../../gen/rust/tri/t27b/cmp_op.rs"]
+#[allow(dead_code, unused_parens)]
+mod co; // t27c gen-rust of specs/tri/t27b/cmp_op.t27: the comparisons by their CmpOp number
+const CMP_OPS: [CmpOp; 6] = [CmpOp::Eq, CmpOp::Ne, CmpOp::Lt, CmpOp::Le, CmpOp::Gt, CmpOp::Ge];
+const _: () = assert!(CmpOp::Eq as u8 == co::EQ && CmpOp::Lt as u8 == co::LT && CmpOp::Ge as u8 == co::GE);
+
 impl CmpOp {
-    pub fn symbol(self) -> &'static str {
-        match self {
-            CmpOp::Eq => "==",
-            CmpOp::Ne => "!=",
-            CmpOp::Lt => "<",
-            CmpOp::Le => "<=",
-            CmpOp::Gt => ">",
-            CmpOp::Ge => ">=",
-        }
-    }
+    pub fn symbol(self) -> &'static str { co::symbol(self as u8) }
 
     pub fn holds(self, a: i128, b: i128) -> bool {
         match self {
@@ -426,41 +389,14 @@ impl CmpOp {
         }
     }
 
-    pub fn negate(self) -> CmpOp {
-        match self {
-            CmpOp::Eq => CmpOp::Ne,
-            CmpOp::Ne => CmpOp::Eq,
-            CmpOp::Lt => CmpOp::Ge,
-            CmpOp::Le => CmpOp::Gt,
-            CmpOp::Gt => CmpOp::Le,
-            CmpOp::Ge => CmpOp::Lt,
-        }
-    }
+    pub fn negate(self) -> CmpOp { CMP_OPS[co::negate(self as u8) as usize] }
 
     /// The comparison on two binary64 values: false for every op but `!=`
     /// when either is NaN.
-    pub fn holds_f64(self, a: f64, b: f64) -> bool {
-        match self {
-            CmpOp::Eq => a == b,
-            CmpOp::Ne => a != b,
-            CmpOp::Lt => a < b,
-            CmpOp::Le => a <= b,
-            CmpOp::Gt => a > b,
-            CmpOp::Ge => a >= b,
-        }
-    }
+    pub fn holds_f64(self, a: f64, b: f64) -> bool { co::holds_f64(self as u8, a, b) }
 
     /// The comparison with operands exchanged: `a op b` == `b op.swap() a`.
-    pub fn swap(self) -> CmpOp {
-        match self {
-            CmpOp::Eq => CmpOp::Eq,
-            CmpOp::Ne => CmpOp::Ne,
-            CmpOp::Lt => CmpOp::Gt,
-            CmpOp::Le => CmpOp::Ge,
-            CmpOp::Gt => CmpOp::Lt,
-            CmpOp::Ge => CmpOp::Le,
-        }
-    }
+    pub fn swap(self) -> CmpOp { CMP_OPS[co::swap(self as u8) as usize] }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]

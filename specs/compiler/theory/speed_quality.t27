@@ -1,0 +1,395 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/compiler/theory/speed_quality.t27 -- compile speed and code quality of t27b and t27c, published as
+; numbers against reference compilers: cell C7 of specs/compiler/theory/sieve.t27 (gHashTag/t27#7596).
+; The sample constants are TOOL-WRITTEN from the run files; the fns and tests after them are hand-written,
+; and the tests recompute every published median and geomean from the samples. ASCII only (L3).
+; -- The run --
+; Where: the Railway t27b lab (x86_64, AMD EPYC 9655, 48 cores, shared), 2026-10-09 11:32Z-11:50Z, master
+; be9757784 (plus the `t27b test --time` print of #7596, which does not change code generation). Nothing
+; ran on the Mac. Method of the #6488 comment: 5 repetitions per row, min and median published, the
+; 1-minute load average recorded beside every sample.
+; What: the six kernels of specs/benchmarks (kernel_<k>.t27, #6568), each a file of `test` blocks. Every
+; row compiles the same file and runs all of its tests; every program ran on aarch64 under qemu-aarch64
+; 7.2 user mode, so run times are emulated arm64 time, equal across rows, not native speed.
+; Rows (run):
+;   T27B_WALL  t27b JIT: process wall, compile + run, under qemu
+;   T27B_RUN   t27b JIT: run phase only (t27b --time phases)
+;   GCC_O0     t27c gen-c + aarch64-linux-gnu-gcc 12.2 -O0
+;   GCC_O2     t27c gen-c + gcc -O2
+;   CLANG_O0   t27c gen-c + zig cc (clang 21.1.0) -O0, musl
+;   CLANG_O2   t27c gen-c + zig cc (clang 21.1.0) -O2, musl
+;   ZIG_DEBUG  t27c gen + zig 0.16.0 test -O Debug
+;   ZIG_FAST   t27c gen + zig test -O ReleaseFast
+; Rows (compile, x86_64 host unless named):
+;   C_T27C_GEN_C t27c gen-c, x86 host
+;   C_T27C_GEN   t27c gen, x86 host
+;   C_T27B_BUILD t27b build (AOT object), x86 host
+;   C_T27B_JIT   t27b JIT phases read..jit-map, under qemu
+;   C_GCC_O0     gcc -O0
+;   C_GCC_O2     gcc -O2
+;   C_CLANG_O0   zig cc -O0
+;   C_CLANG_O2   zig cc -O2
+;   C_ZIG_DEBUG  zig test -O Debug, fresh local cache
+;   C_ZIG_FAST   zig test -O ReleaseFast, fresh local cache
+; There is no clang on the lab; `zig cc` (clang 21.1.0 inside zig 0.16.0, musl target) is the clang row.
+; zig compile rows include building the test runner with a fresh local cache; libc and compiler_rt come
+; from a global cache warmed before timing. t27b JIT compile is the sum of its phases before `run`, under
+; qemu, so it is not comparable 1:1 with the x86 rows.
+; -- Medians, ms (kernels: fib sieve matmul collatz ternary f64loop) --
+;   T27B_WALL      421.7   547.5  1257.4  1375.5   486.0   457.6
+;   T27B_RUN       359.4   453.5  1125.7  1206.7   378.9   363.8
+;   GCC_O0         371.2   475.4   708.8   752.9   339.0   489.7
+;   GCC_O2         123.0   241.7   269.1   350.4   210.8   373.5
+;   CLANG_O0       408.2  1659.8  3739.2  1617.5  2049.9   400.7
+;   CLANG_O2       183.8   394.4   194.7   308.5   148.2    17.4
+;   ZIG_DEBUG      522.0  1260.3  2319.4  1953.8   839.8   509.8
+;   ZIG_FAST       187.1   303.1    88.8  1532.9   163.1   513.7
+;   C_T27C_GEN_C     3.5     3.7     5.7     3.8     4.4     5.5
+;   C_T27C_GEN       4.6     5.0     7.9     4.5     4.3     4.1
+;   C_T27B_BUILD     2.8     2.9     2.8     2.9     3.2     2.5
+;   C_T27B_JIT      32.7    57.1    86.0    42.1    57.7    49.5
+;   C_GCC_O0        43.9    54.0    46.2    44.3    45.4    49.3
+;   C_GCC_O2        66.3    70.1    77.3    62.0    72.0    51.5
+;   C_CLANG_O0      68.4    92.4    96.7    72.1    88.7    77.6
+;   C_CLANG_O2      79.6   125.5   123.0    75.0   134.8    66.2
+;   C_ZIG_DEBUG   3642.9  3653.8  4592.4  3506.0  3465.6  4739.1
+;   C_ZIG_FAST   15842.7 16010.1 16361.5 15037.8 16435.2 15457.3
+; Load average during each kernel (min-max): fib 30-46, sieve 35-50, matmul 52-106, collatz 33-52, ternary 28-47, f64loop 43-55.
+; JIT image size, words of 4 bytes: fib 121, sieve 353, matmul 713, collatz 145, ternary 789, f64loop 157.
+; -- Geometric means of the median ratios (the tests below recompute them) --
+;   T27B_WALL  / CLANG_O2        3.131  (5 kernels: f64loop left out, clang -O2 runs it in 17 ms (T753))
+;   T27B_RUN   / CLANG_O2        2.648  (same 5 kernels, t27b run phase only)
+;   T27B_WALL  / ZIG_FAST        2.271  (all 6 kernels)
+;   T27B_RUN   / ZIG_FAST        1.901  (all 6, run phase)
+;   T27B_WALL  / GCC_O2          2.717  (all 6)
+;   GCC_O2     / CLANG_O2        0.983  (t27c C through the two C compilers)
+;   ZIG_DEBUG  / ZIG_FAST        3.542  (t27c Zig, Debug vs ReleaseFast)
+;   C_CLANG_O2 / C_T27C_GEN_C   22.241  (C compile vs the t27c front end that wrote the C)
+;   C_ZIG_FAST / C_T27B_JIT    306.051  (zig ReleaseFast build vs t27b JIT compile)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module CompilerTheorySpeedQuality;
+
+pub const KERNELS : usize = 6;
+pub const REPS : usize = 5;
+pub const FIB : usize = 0;
+pub const SIEVE : usize = 1;
+pub const MATMUL : usize = 2;
+pub const COLLATZ : usize = 3;
+pub const TERNARY : usize = 4;
+pub const F64LOOP : usize = 5;
+
+; t27b JIT: process wall, compile + run, under qemu, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const T27B_WALL: [30]u32 = [_]u32{
+    500156, 394080, 421668, 473212, 409819,
+    547538, 442901, 763633, 546161, 603036,
+    1576986, 1561260, 1160731, 1257373, 1172631,
+    1375474, 1236265, 1274731, 1603304, 1503782,
+    486019, 458806, 491540, 522137, 475433,
+    589063, 579769, 408251, 457616, 421501,
+};
+
+; t27b JIT: run phase only (t27b --time phases), us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const T27B_RUN: [30]u32 = [_]u32{
+    433391, 317732, 359415, 362618, 346685,
+    422951, 374597, 642025, 453475, 511996,
+    1425732, 1360304, 1057800, 1125660, 1028935,
+    1200983, 1160981, 1206724, 1525244, 1429380,
+    377210, 363746, 398072, 400769, 378860,
+    388601, 484930, 343341, 363761, 322256,
+};
+
+; t27c gen-c + aarch64-linux-gnu-gcc 12.2 -O0, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const GCC_O0: [30]u32 = [_]u32{
+    418694, 339458, 371199, 346247, 431392,
+    426111, 477710, 553728, 475380, 461701,
+    805233, 711805, 708843, 548348, 614571,
+    967625, 756186, 692989, 752880, 726099,
+    338983, 320400, 389859, 350366, 324088,
+    588049, 489672, 442830, 514151, 467544,
+};
+
+; t27c gen-c + gcc -O2, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const GCC_O2: [30]u32 = [_]u32{
+    100592, 137425, 115455, 128919, 123031,
+    236543, 221747, 312397, 241655, 248697,
+    334332, 268878, 305111, 269060, 214144,
+    382899, 301450, 368273, 350356, 292867,
+    230577, 192073, 224564, 191526, 210767,
+    491191, 373503, 306981, 435870, 288351,
+};
+
+; t27c gen-c + zig cc (clang 21.1.0) -O0, musl, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const CLANG_O0: [30]u32 = [_]u32{
+    408156, 319710, 415130, 428601, 375069,
+    1665126, 1629248, 2008642, 1659832, 1608603,
+    5486715, 4236113, 3659699, 3739217, 3337063,
+    1617547, 1648355, 1576570, 1629908, 1530948,
+    2023294, 2037353, 2703138, 2049881, 2084900,
+    507318, 400719, 364853, 445376, 361440,
+};
+
+; t27c gen-c + zig cc (clang 21.1.0) -O2, musl, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const CLANG_O2: [30]u32 = [_]u32{
+    189381, 183761, 170956, 165875, 247919,
+    394350, 330726, 416122, 398397, 327162,
+    259837, 161892, 217159, 194697, 141303,
+    308500, 329282, 306865, 320808, 289702,
+    135671, 148154, 181667, 131187, 179401,
+    23441, 17384, 27832, 12883, 9367,
+};
+
+; t27c gen + zig 0.16.0 test -O Debug, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const ZIG_DEBUG: [30]u32 = [_]u32{
+    590671, 452899, 522005, 556831, 474196,
+    1195749, 1232351, 1604557, 1300175, 1260309,
+    2985056, 2592554, 2319433, 2130664, 2298807,
+    1933440, 1932688, 1953775, 1968153, 2051073,
+    795030, 992081, 910792, 784615, 839767,
+    584508, 555467, 476646, 503509, 509777,
+};
+
+; t27c gen + zig test -O ReleaseFast, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const ZIG_FAST: [30]u32 = [_]u32{
+    203431, 182714, 177001, 187076, 214377,
+    303116, 366099, 293084, 287323, 368485,
+    83515, 88788, 100944, 98476, 71732,
+    1614809, 1332681, 1704332, 1518078, 1532891,
+    163088, 171948, 143539, 143870, 174519,
+    583740, 430461, 744808, 478716, 513656,
+};
+
+; t27c gen-c, x86 host, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_T27C_GEN_C: [30]u32 = [_]u32{
+    3485, 9953, 3213, 4266, 3428,
+    3716, 7344, 6062, 3461, 3710,
+    5827, 7392, 5687, 3560, 4651,
+    5712, 3765, 3649, 4704, 3826,
+    3420, 4260, 4438, 5421, 4367,
+    5816, 4272, 13839, 5513, 3106,
+};
+
+; t27c gen, x86 host, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_T27C_GEN: [30]u32 = [_]u32{
+    6331, 4631, 2939, 6502, 3556,
+    7415, 5043, 10324, 3492, 4471,
+    8881, 4229, 4135, 7942, 9219,
+    5761, 4550, 3094, 11518, 3715,
+    4351, 4059, 4309, 3872, 4582,
+    4902, 3105, 3439, 4133, 5248,
+};
+
+; t27b build (AOT object), x86 host, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_T27B_BUILD: [30]u32 = [_]u32{
+    7323, 4870, 2587, 2802, 2014,
+    2888, 6087, 7503, 2224, 2149,
+    12171, 2817, 2711, 2828, 3329,
+    2934, 16164, 2235, 3529, 2922,
+    2374, 3189, 3984, 3233, 4065,
+    2621, 2059, 1875, 2496, 2456,
+};
+
+; t27b JIT phases read..jit-map, under qemu, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_T27B_JIT: [30]u32 = [_]u32{
+    30297, 37527, 32683, 39891, 30764,
+    78968, 39633, 80774, 54709, 57090,
+    92995, 133238, 62936, 85985, 74158,
+    125506, 40354, 40117, 43827, 42080,
+    64578, 57683, 55517, 69089, 53304,
+    108317, 49539, 36109, 47094, 55098,
+};
+
+; gcc -O0, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_GCC_O0: [30]u32 = [_]u32{
+    37710, 34287, 49232, 45139, 43910,
+    57699, 67240, 53216, 49693, 53995,
+    52599, 46669, 41875, 46191, 45493,
+    56077, 44337, 33995, 38536, 52244,
+    49796, 35417, 45370, 43475, 49021,
+    60751, 49675, 36566, 44044, 49335,
+};
+
+; gcc -O2, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_GCC_O2: [30]u32 = [_]u32{
+    66269, 61287, 74049, 68818, 64863,
+    78362, 55515, 88965, 59904, 70116,
+    130133, 77312, 86237, 60568, 69390,
+    78782, 53540, 63640, 55184, 61967,
+    70759, 71994, 94138, 64268, 78281,
+    74464, 55881, 38544, 50536, 51476,
+};
+
+; zig cc -O0, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_CLANG_O0: [30]u32 = [_]u32{
+    63977, 50375, 68368, 74733, 69535,
+    87856, 75635, 111675, 92353, 119072,
+    131399, 88405, 96685, 163414, 77894,
+    72071, 71414, 76866, 98107, 65889,
+    81538, 88695, 105232, 88663, 79773,
+    93259, 130258, 77039, 77581, 69130,
+};
+
+; zig cc -O2, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_CLANG_O2: [30]u32 = [_]u32{
+    88684, 79580, 63796, 70943, 82526,
+    125531, 106171, 171051, 133253, 112859,
+    304758, 131468, 119762, 122970, 97187,
+    72137, 76638, 74982, 84404, 72913,
+    134753, 136746, 192174, 117161, 127471,
+    62973, 68099, 59245, 92011, 66161,
+};
+
+; zig test -O Debug, fresh local cache, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_ZIG_DEBUG: [30]u32 = [_]u32{
+    3424165, 3642912, 3534176, 3798590, 3821395,
+    3653791, 3220437, 4772780, 3784289, 3575810,
+    7575457, 5467260, 4592404, 4234582, 3836030,
+    4001182, 3266259, 3347013, 3777275, 3506007,
+    3228859, 4421587, 4402159, 3465606, 3382648,
+    5621154, 4739068, 3301456, 4837362, 3442539,
+};
+
+; zig test -O ReleaseFast, fresh local cache, us, kernel-major (fib sieve matmul collatz ternary f64loop), 5 reps each
+pub const C_ZIG_FAST: [30]u32 = [_]u32{
+    15842674, 15570642, 16087007, 16350055, 15488749,
+    15359274, 17687356, 16390775, 15291004, 16010109,
+    26296824, 16361537, 17037585, 15872422, 15857479,
+    14972771, 14727641, 16001797, 15367998, 15037761,
+    14880828, 17669350, 16435238, 15683365, 17906233,
+    18446631, 15457316, 15097924, 16233132, 15179125,
+};
+
+; -- Logic (hand-written) --
+
+; The REPS samples of one kernel, sorted (insertion sort), into s.
+fn sorted5(xs: []const u32, k: usize, s: []u32) -> void {
+    var i: usize = 0;
+    while (i < REPS) {
+        var v: u32 = xs[k * REPS + i];
+        var j: usize = i;
+        while (j > 0 and s[j - 1] > v) {
+            s[j] = s[j - 1];
+            j = j - 1;
+        }
+        s[j] = v;
+        i = i + 1;
+    }
+}
+
+; The published median of one kernel's samples: the middle of five.
+pub fn med5(xs: []const u32, k: usize) -> u32 {
+    var s: [8]u32 = [_]u32{0} ** 8;
+    sorted5(xs, k, &s);
+    return s[REPS / 2];
+}
+
+; The published minimum of one kernel's samples.
+pub fn min5(xs: []const u32, k: usize) -> u32 {
+    var s: [8]u32 = [_]u32{0} ** 8;
+    sorted5(xs, k, &s);
+    return s[0];
+}
+
+; ln of the geometric mean of a[k] / b[k] over kernels lo..hi-1, from medians (or minima).
+pub fn log_geomean(a: []const u32, b: []const u32, lo: usize, hi: usize, use_min: bool) -> f64 {
+    var sum: f64 = 0.0;
+    var k: usize = lo;
+    while (k < hi) {
+        var x: u32 = med5(a, k);
+        var y: u32 = med5(b, k);
+        if (use_min) {
+            x = min5(a, k);
+            y = min5(b, k);
+        }
+        sum = sum + @log((x as f64) / (y as f64));
+        k = k + 1;
+    }
+    return sum / ((hi - lo) as f64);
+}
+
+; True when the geometric mean lies in [lo, hi].
+pub fn geomean_in(a: []const u32, b: []const u32, k0: usize, k1: usize, use_min: bool, lo: f64, hi: f64) -> bool {
+    var g: f64 = log_geomean(a, b, k0, k1, use_min);
+    return g >= @log(lo) and g <= @log(hi);
+}
+
+; -- Tests (T753) --
+
+test t753_medians_are_the_published_ones {
+    // A few cells of the table in the header, recomputed from the samples.
+    assert med5(&T27B_RUN, FIB) == 359415;
+    assert min5(&T27B_RUN, FIB) == 317732;
+    assert med5(&CLANG_O2, MATMUL) == 194697;
+    assert med5(&ZIG_FAST, COLLATZ) == 1532891;
+    assert med5(&C_T27C_GEN_C, TERNARY) == 4367;
+    assert med5(&C_ZIG_FAST, F64LOOP) == 15457316;
+    // A median is a sample and lies between the minimum and the maximum.
+    var k: usize = 0;
+    while (k < KERNELS) {
+        assert min5(&T27B_WALL, k) <= med5(&T27B_WALL, k);
+        assert med5(&T27B_RUN, k) < med5(&T27B_WALL, k);
+        k = k + 1;
+    }
+}
+
+test t753_clang_o2_folds_f64loop {
+    // clang -O2 runs f64loop in under 20 ms, a tenth of every other row: read as the loop folded at
+    // compile time (not checked by disassembly). f64loop leaves the clang -O2 geomean, which would
+    // otherwise measure little more than process start.
+    var c: u32 = med5(&CLANG_O2, F64LOOP);
+    assert c < 20000;
+    assert c * 10 < med5(&GCC_O2, F64LOOP);
+    assert c * 10 < med5(&ZIG_FAST, F64LOOP);
+    assert c * 10 < med5(&T27B_RUN, F64LOOP);
+    // No other kernel is folded: each clang -O2 median is above 100 ms.
+    var k: usize = 0;
+    while (k < F64LOOP) {
+        assert med5(&CLANG_O2, k) > 100000;
+        k = k + 1;
+    }
+}
+
+test t753_t27b_code_quality_against_clang_and_zig {
+    // t27b against clang -O2, 5 kernels: 3.13x process wall, 2.65x run phase.
+    assert geomean_in(&T27B_WALL, &CLANG_O2, 0, F64LOOP, false, 3.12, 3.14);
+    assert geomean_in(&T27B_RUN, &CLANG_O2, 0, F64LOOP, false, 2.64, 2.66);
+    // Against zig ReleaseFast, all 6 kernels: 2.27x wall, 1.90x run phase.
+    assert geomean_in(&T27B_WALL, &ZIG_FAST, 0, KERNELS, false, 2.26, 2.28);
+    assert geomean_in(&T27B_RUN, &ZIG_FAST, 0, KERNELS, false, 1.89, 1.91);
+    // Against gcc -O2, all 6: 2.72x wall.
+    assert geomean_in(&T27B_WALL, &GCC_O2, 0, KERNELS, false, 2.71, 2.73);
+    // From minima instead of medians the order holds: 3.31x and 2.32x wall.
+    assert geomean_in(&T27B_WALL, &CLANG_O2, 0, F64LOOP, true, 3.30, 3.32);
+    assert geomean_in(&T27B_WALL, &ZIG_FAST, 0, KERNELS, true, 2.31, 2.33);
+    // Not uniform: on collatz the t27b run phase beats zig ReleaseFast, and it beats every -O0 row there.
+    assert med5(&T27B_RUN, COLLATZ) < med5(&ZIG_FAST, COLLATZ);
+    assert med5(&T27B_RUN, COLLATZ) < med5(&CLANG_O0, COLLATZ);
+    assert med5(&T27B_RUN, COLLATZ) > med5(&GCC_O0, COLLATZ);
+}
+
+test t753_t27c_code_quality_through_each_backend {
+    // t27c's own output through gcc -O2 and clang -O2 is within 2% (5 kernels), and -O0 costs 2x-7x.
+    assert geomean_in(&GCC_O2, &CLANG_O2, 0, F64LOOP, false, 0.97, 0.99);
+    assert geomean_in(&GCC_O0, &GCC_O2, 0, KERNELS, false, 2.02, 2.05);
+    assert geomean_in(&CLANG_O0, &CLANG_O2, 0, F64LOOP, false, 6.64, 6.66);
+    assert geomean_in(&ZIG_DEBUG, &ZIG_FAST, 0, KERNELS, false, 3.53, 3.55);
+}
+
+test t753_compile_speed {
+    // The t27c front end writes C or Zig in under 8 ms per kernel; t27b's AOT build takes under 4 ms.
+    var k: usize = 0;
+    while (k < KERNELS) {
+        assert med5(&C_T27C_GEN_C, k) < 8000;
+        assert med5(&C_T27C_GEN, k) < 8000;
+        assert med5(&C_T27B_BUILD, k) < 4000;
+        // Every C compile, even gcc -O0, is slower than the gen-c that produced its input.
+        assert med5(&C_GCC_O0, k) > med5(&C_T27C_GEN_C, k);
+        // zig ReleaseFast takes over 14 s; t27b's JIT compiles, under qemu, in under 0.1 s.
+        assert med5(&C_ZIG_FAST, k) > 14000000;
+        assert med5(&C_T27B_JIT, k) < 100000;
+        k = k + 1;
+    }
+    // Geomeans: clang -O2 compile is 22.2x gen-c; zig ReleaseFast is 306x the t27b JIT compile.
+    assert geomean_in(&C_CLANG_O2, &C_T27C_GEN_C, 0, KERNELS, false, 22.1, 22.4);
+    assert geomean_in(&C_ZIG_FAST, &C_T27B_JIT, 0, KERNELS, false, 305.0, 307.0);
+}

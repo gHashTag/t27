@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:db250d7c69638a1d364c353b5a45c3c350a8023c9f2ab7a40af52ddd08b67bd7",
+  "gen_hash_rust": "sha256:8c1801276166aa4a90e4ca51fe9b08f6dc634d5996c3e524ea2155c45e49f6c2",
+  "gen_hash_verilog": "sha256:2c10e1e7f2428f97c42186a2a5d0edb142783c90fd088ad4e9ed219c652748d8",
+  "gen_hash_zig": "sha256:de80f31903322f1a661e0121d338e1431554647e0fd2951da6ec8c9d1f7beb79",
+  "module": "uart_loopback_core",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:19:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1ee0ad08c261df7578c5772460be3abc2e7a6a254d488d061c837d604a2fd36c",
+  "spec_path": "specs/port/trinity/fpga/uart_loopback_core.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

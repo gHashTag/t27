@@ -20,7 +20,8 @@
 //! (`unreferenced_tuple_const`), not evaluated.
 //!
 //! `return [ ... ];` in a fn returning a slice, or a slice field's literal, is
-//! `@constCast(&[_]E{ ... })` (`slice_lit`, plan `specs/tri/t27b/slice_lit_plan.t27`).
+//! `@constCast(&[_]E{ ... })` (`slice_lit`, plan `specs/tri/t27b/slice_lit_plan.t27`); one whose
+//! elements hold a str is a global written at entry (`entry_static`, #8091).
 //! A write through it is undefined behaviour in Zig, so it is refused
 //! (`slice_write`, `literal_writes`, #7765).
 
@@ -135,6 +136,34 @@ impl<'a> Lower<'a> {
         Ok(Some(()))
     }
 
+    /// An untyped list local, which the reference prints as a tuple (plan `tl`, #8050); None leaves it as it was.
+    pub(super) fn tuple_array_local(&mut self, init: &Node, name: &str) -> R<Option<()>> {
+        let tt = init.extra_type.trim();
+        let same = init.children.iter().all(|c| match c.kind {
+            NodeKind::ExprStructLit => c.name == tt,
+            NodeKind::ExprIdentifier => self.const_nodes.get(c.name.as_str()).is_some_and(|d| d.extra_type.trim() == tt),
+            _ => false,
+        });
+        let n = init.children.len();
+        if tl::storage(!tt.is_empty(), same, n, false) == tl::NOT_MINE {
+            return Ok(None);
+        }
+        let t = LTy::Arr(Box::new(self.lty(tt)?), n as u32);
+        let seen = self.errors.len();
+        let agg = tl::storage(true, true, n, self.holds_str(&t)?) == tl::CONST_AGG;
+        match if agg { self.const_agg(init, &t) } else { self.rodata(init, t) } {
+            Ok(Val::M(p)) => self.bind(name, Binding::Mem(p)),
+            Ok(v @ Val::A(..)) => self.bind(name, Binding::Const(v)),
+            _ => {
+                self.errors.truncate(seen);
+                return Ok(None);
+            }
+        }
+        self.see(init);
+        self.tuple_names.insert(name.to_string());
+        Ok(Some(()))
+    }
+
     /// An array literal the reference prints `@constCast(&[_]E{ ... })`, E the
     /// element type of slice `dst`: a field's value or a return's
     /// (`return [ ... ];`, `[_]T{ ... }`, `[]T{}`). As
@@ -167,7 +196,9 @@ impl<'a> Lower<'a> {
             self.lit_log.push((act, format!("{:?}", elem), self.line));
         }
         let t = LTy::Arr(Box::new(elem), len);
-        let arr = if sl::is_static(act) {
+        let arr = if sl::at_entry(act) {
+            self.entry_static(at, lit, &t)?
+        } else if sl::is_static(act) {
             let (size, _) = self.size_align(&t)?;
             let (mut buf, seen) = (vec![0u8; size as usize], self.errors.len());
             if self.const_fill(lit, &t, &mut buf, 0).is_err() {
@@ -194,6 +225,27 @@ impl<'a> Lower<'a> {
         Ok(true)
     }
 
+    /// A STATIC_STRINGS literal: one global per element type and value, written at the start of every test,
+    /// invariant and bench, as a module var holding a str is (`str_globals`).
+    fn entry_static(&mut self, at: u8, lit: &Node, t: &LTy) -> R<Place> {
+        let seen = self.errors.len();
+        let Ok(v) = self.const_agg(lit, t) else {
+            if self.errors.get(seen).is_some_and(|e| e.construct == "ConstDecl") {
+                self.errors.truncate(seen);
+                return self.reject(sl::what(at, sl::REFUSE_RUN_TIME), sl::why(at, sl::REFUSE_RUN_TIME).into());
+            }
+            return Err(());
+        };
+        let (n, (size, _)) = (self.globals_init.len() as u32, self.size_align(t)?);
+        let k = *self.statics.entry((format!("{:?}", t), format!("{:?}", v).into_bytes())).or_insert(n);
+        let place = Place { addr: Expr { ty: Ty::Ptr, kind: ExprKind::Global(k) }, off: 0, ty: t.clone(), mutable: true, temp: None };
+        if k == n {
+            self.globals_init.push(vec![0u8; size as usize]);
+            self.str_globals.push((place.clone(), v));
+        }
+        Ok(place)
+    }
+
     /// `slice_index` of a slice of `elem`: a WRITE of the write check when
     /// `lvalue` builds the place (a store, or `&xs[i]`).
     pub(super) fn slice_write(&mut self, elem: &LTy, mutable: bool) {
@@ -207,7 +259,7 @@ impl<'a> Lower<'a> {
     pub(super) fn literal_writes(&mut self) {
         let log = std::mem::take(&mut self.lit_log);
         for (act, elem, line) in &log {
-            if sl::refuses_write(*act, log.iter().any(|(a, e, _)| *a == sl::STATIC && e == elem)) {
+            if sl::refuses_write(*act, log.iter().any(|(a, e, _)| sl::is_static(*a) && e == elem)) {
                 self.line = *line;
                 let _: R<()> = self.reject(sl::what(sl::AT_WRITE, sl::REFUSE_WRITE), sl::why(sl::AT_WRITE, sl::REFUSE_WRITE).into());
             }

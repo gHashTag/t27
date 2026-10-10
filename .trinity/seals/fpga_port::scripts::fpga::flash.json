@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:43a538a34e47be2ccd3c6edf9791a91c994c262a0f96f0dc645f2c59563ba517",
+  "gen_hash_rust": "sha256:e965518d03e4add97b0efd2d10ab99babe17d5df09d66da48f48f1b7d605713e",
+  "gen_hash_verilog": "sha256:843dd644215624517b19c7f07fe03403be0385bec7bff51e3e2ccffbc9a9de4d",
+  "gen_hash_zig": "sha256:16e917e67022fe2c037b305682e7c8e2871fae7b4f3a24936c14082fdce1a31b",
+  "module": "port::scripts::fpga::flash",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:15:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:13b41095cf5f16adb55c805cf9229fbfb7ba311cdd4e7dab4fa5b75548a6816c",
+  "spec_path": "specs/port/scripts/fpga/flash.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

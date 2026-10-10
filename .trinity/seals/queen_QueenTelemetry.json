@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:70b643c8be4bfafec3bcd17733e791d7da56f5a13044fd770423fb53950f2f46",
+  "gen_hash_rust": "sha256:7cd68235e6839f318d09170b8c1b4c838217e57fd7809d3e2f626006ee8b5388",
+  "gen_hash_verilog": "sha256:23b4b67b8177d15c78b963284c9830b884e783f22bbd95e781f0db4401677784",
+  "gen_hash_zig": "sha256:58712c4b817822c6f16112638814565a3c3f7171ada0bfb6882052d75d3be529",
+  "module": "QueenTelemetry",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:03Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:007d2562943afa47b3a4ed7bb5c9a28caf70e32fc9a64b855b478cc693ac4faf",
+  "spec_path": "specs/queen/telemetry.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

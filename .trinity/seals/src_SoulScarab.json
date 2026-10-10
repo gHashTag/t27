@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:3a265b87d7a446170c4eb7c29a87624f6db8750b786cbca1cbb145c730ab2a5c",
+  "gen_hash_rust": "sha256:9fe0c91b9de9dbb85810e335771ac43a7deb1cf4253e2db1e00ea9b5ee09cd65",
+  "gen_hash_verilog": "sha256:3c8dff64bd2cd2971bbdf0a35b7e2e46ee7f44e602de7907f62f852f4cf4645c",
+  "gen_hash_zig": "sha256:66098eaa9e38f5ec30bc95abc0450b209dc2b83b23bc596bcc79163079463006",
+  "module": "SoulScarab",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:24:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:483e0393a53492b3f7541047ac0bfe86fa5214d8c23ef7025d25d583f023474f",
+  "spec_path": "specs/port/trios/crates/trios-scarab-types/rings/SR-02/src/lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

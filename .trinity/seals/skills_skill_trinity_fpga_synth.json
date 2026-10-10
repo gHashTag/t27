@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:62c85f69a240907e83637fac719b60546f0946399da0a1405f6ebce25a7d91b3",
+  "gen_hash_rust": "sha256:80881de46d63e7c38c0f229acdc5a0e7f8ff45d8d57b61c19e7ad9b5f8db723e",
+  "gen_hash_verilog": "sha256:d758210d34cec9c8b3a5b95cf61124b47625333bb669a4ad5bc825789fa79903",
+  "gen_hash_zig": "sha256:b2a954d4d312a2597ef52cb68b11220897fd7fc5a1864b2dba8de19cb3a5ba95",
+  "module": "skill_trinity_fpga_synth",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:28:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2f82ff5ef777dff61f31acb7a65f11e47963eb9b4f1126be150941d5748fc309",
+  "spec_path": "specs/skills/trinity-fpga-synth.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

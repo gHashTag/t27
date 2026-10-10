@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+bbb77f0c3",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d44d0cf3f0403d90cdeded0edb7d34935d4d023f082483a6905af0440b3f9ace",
   "gen_hash_rust": "sha256:e04140194c954fd66d3ae8fa54d6f41ad626a4bb59b26988b5a78adccb089127",
   "gen_hash_verilog": "sha256:1263f2e55290983d422aef97c5f80b79f3e516ba86a8a409e978e815b956af1f",
   "gen_hash_zig": "sha256:c1341ca2acafeb8eb6c67a699891aed7a00cb7e9efd09c5bdeed4e1765d620cb",
   "module": "tool_tri_misread",
   "ring": 12,
-  "sealed_at": "2026-10-08T19:24:06Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:55:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2f2cbfb0fb745d6370deb69e68f9a866247a50dc3d1c76f76cefe3741240434e",
   "spec_path": "specs/tools/tri/misread.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 4,
     "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

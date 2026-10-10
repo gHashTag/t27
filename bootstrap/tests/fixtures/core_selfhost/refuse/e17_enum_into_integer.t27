@@ -1,0 +1,11 @@
+// An enum member where an integer is declared: C reads its value, Zig
+// refuses (#8075).
+module enum_into_integer;
+enum EiiColor {
+    red,
+    green,
+}
+fn eii_g() -> u8 {
+    var n: u8 = EiiColor.green;
+    return n;
+}

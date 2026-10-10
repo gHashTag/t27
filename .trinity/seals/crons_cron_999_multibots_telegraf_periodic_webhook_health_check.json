@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:cc740efc32ccaa37aa698356df0ac2c245c6a8db8c087d793e7102e8226ff110",
+  "gen_hash_rust": "sha256:f8d89a3776586a52a810df663ac77395761f6a06dd08f3423058bf1edd6770e7",
+  "gen_hash_verilog": "sha256:c21f5c9f1077aef33255cbb5112d457429a78a66ecead5e26eb733c2b240b52d",
+  "gen_hash_zig": "sha256:230fd69c652923e4cb872a02aae8a8ff7c7780d120b011f45a2583da80b40e5b",
+  "module": "cron_999_multibots_telegraf_periodic_webhook_health_check",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:32:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:adf808554070208262e8f321dcb39a8fee1eb01e5ffb42cf061fd621c42e3b19",
+  "spec_path": "specs/crons/999-multibots-telegraf-periodic-webhook-health-check.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

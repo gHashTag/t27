@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ded9517f02f0afb5af0f0e3597f953dcf7826529762d1b03b752c7ed67a5e587",
+  "gen_hash_rust": "sha256:737fc32515db5a92189c411eccccee43b0c19b343429c8412940ead082eacee3",
+  "gen_hash_verilog": "sha256:7f993ed0d34326020b282587748bcc1d609a72d30ec6148b26a1933490cdf888",
+  "gen_hash_zig": "sha256:fbfd4f1a3b1066382540c651c23f9d886fd313101f4fbc9259534a138357229d",
+  "module": "QueenMergerGate",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:35Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7390058c25153a807bd1dfc78aa132c6905779b69ab46edd6d9d383d15a74c5f",
+  "spec_path": "specs/queen/merger_gate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 32,
+    "total": 32
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

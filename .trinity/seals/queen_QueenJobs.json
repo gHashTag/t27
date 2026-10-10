@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4b98675f57aee09505c1d691af029bd8342938a067caddc6e1d6e62fafd70aca",
+  "gen_hash_rust": "sha256:5f268c274306de0ae0cb83a9a791ad3b9a698437d5303f08953cbbad28862d74",
+  "gen_hash_verilog": "sha256:2c465575167fcd4f04fefb4b5c51247fe240e79c4dc630e4a7dcec021bb3b942",
+  "gen_hash_zig": "sha256:a60cba9d1d1532807549882608950748ae65372f6c4c3482dad8e22be8e8f20d",
+  "module": "QueenJobs",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:26:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2d7dbdc491bed288b5a451b7c12e3e62f8b2b319e1316c3055ab89bb76af6fe7",
+  "spec_path": "specs/queen/jobs.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:79517b5a5f970e1ae76986253171483a23688acfdc51fb6704598dcf1976f299",
+  "gen_hash_rust": "sha256:e2b92853ed74abf036536edd492811a903320892c321f7256a301b7457245147",
+  "gen_hash_verilog": "sha256:66f8b3df43dcfc4bc57d2270b809ad2b68dc018ec5b776abcb568f88d06744ff",
+  "gen_hash_zig": "sha256:ceaa2bf9b7126bef219d166a49263bddfd554d4d56832b9b3d62ba4a449dd460",
+  "module": "T27bEvalArith",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:34:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:514381f40b644b4232a45e7f492fc00a5950b93fc839871764d5686859dc5bdc",
+  "spec_path": "specs/tri/t27b/eval_arith.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

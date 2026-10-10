@@ -1,0 +1,6 @@
+// C converts -1 to 4294967295 against a u32; Zig compares the values
+// (#8076).
+module negative_compared_unsigned;
+fn ncu_g(x: u32) -> bool {
+    return -1 < x;
+}

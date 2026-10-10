@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9c629982f33f55431c29d9e3583f4d4c3867d13c684ad35eb93c0052269f7973",
+  "gen_hash_rust": "sha256:78a48c98ede6c397b85f707d25b0af5ea8b5631541e987402617601dc6d3ebac",
+  "gen_hash_verilog": "sha256:666cba7da2d2d26f80afad3214bb2577ee86b1e90986c195b144b63eb8e27d53",
+  "gen_hash_zig": "sha256:9e5f65e093aec0742555cc7ea0d5823caf371dc9fdd8e95d9cdb8500db44290a",
+  "module": "port::trios::crates::trios_scarab_types::rings::SR_04",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:24:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:94c98c89a2f83cf3e40dbfa84555ef4b8900b7166b098f8bee18332a5706cf4e",
+  "spec_path": "specs/port/trios/crates/trios-scarab-types/rings/SR-04/src/lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

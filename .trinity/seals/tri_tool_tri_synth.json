@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7bbcb5b4c7f9aea366e3834fd603fc8b223365e962be9736aaa6e45b36f4fc32",
   "gen_hash_rust": "sha256:1ad80f3f004a062936e46ccfe540a5634a3b1cab01788adba62440b8985b6c0e",
   "gen_hash_verilog": "sha256:3aac7766ed7359c034eb3dc80accaadf1c52667922d62deae118a0f261f583cb",
   "gen_hash_zig": "sha256:63200d531371aa5d538b8261ca6d21dfd3d629bf75a97c9f50c952950922b433",
   "module": "tool_tri_synth",
   "ring": 12,
-  "sealed_at": "2026-10-07T23:12:46Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:56:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5659e39dca0bc1791ba525b4afcddcf6b39c8ff6bb6914144654c6ed1f1401f9",
   "spec_path": "specs/tools/tri/synth.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,0 +1,6 @@
+// A bool where an integer is declared: C reads 1, Zig refuses (#8075).
+module bool_into_integer;
+fn bii_g(f: bool) -> u8 {
+    var n: u8 = f;
+    return n;
+}

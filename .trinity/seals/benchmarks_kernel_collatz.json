@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fa4fd9d956a66c89762c57208f353fac99566d7e11651c502681b501eb17fe09",
+  "gen_hash_rust": "sha256:46842add5db29931caee50b872749801678758893685cf93cdfb972586758a2a",
+  "gen_hash_verilog": "sha256:16bd3b5b463423e1b7ee7f8a80b9e7283fc53078b2f205b301f94cdfc4c79fa7",
+  "gen_hash_zig": "sha256:43936e89a20a47c178485bc4ed73f539f54bf1fcdac8992563e86f694b4ecdcd",
+  "module": "kernel_collatz",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:25:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a036535902bb765d83118019cf0383d7827b8e1a7f7607b53bce55b2d4462112",
+  "spec_path": "specs/benchmarks/kernel_collatz.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

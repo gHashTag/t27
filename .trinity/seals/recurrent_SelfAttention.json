@@ -1,12 +1,36 @@
 {
-  "gen_hash_c": "sha256:39817711ce740e6873ac95eb4ba0a2da7f301cb0137ccbc4a12feb36a2f21d4c",
-  "gen_hash_rust": "sha256:0b560e0acac4399cd8e610359eee62682ad7d2a782514e7646ef5e0e06797bd2",
-  "gen_hash_verilog": "sha256:8adb798d65a1c483fa6c8e984d7a820df58a780898c57af0d410f324b35f9112",
-  "gen_hash_zig": "sha256:ad8edf7d6a5861ea764970929703be3536e5dd4fff9c0bcbae378ddbf5bd94f4",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:aace60697796fa32880e51f89d7b440e498435c0c75a249a7982aa9cdd4e1249",
+  "gen_hash_rust": "sha256:e82472926f40d33418c5905c65d1abe82faf77930ce557bdd2fa41b38e5a4353",
+  "gen_hash_verilog": "sha256:f03703961dd4950f98f26c13c949237fd8d19974e2a1ee8dd089db349be9bdc7",
+  "gen_hash_zig": "sha256:45d417083031825168c7fbfa6ce0824d2c7602c425a050b1a2dbddfcfeaa9fc2",
   "module": "SelfAttention",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:871e3000467439dec4df09a9dc1c78e089de4fd53ec9119d7ab96f6ac052c54b",
-  "spec_path": "specs/ml/recurrent/self_attention.t27"
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:46f80eeca6e22b772f817c99d052edccbc02b0ff10310d2c6d4e4d4743ba582d",
+  "spec_path": "specs/ml/recurrent/self_attention.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

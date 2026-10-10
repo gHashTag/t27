@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0203bbc58d58bdec1ba17d82ebe767c81c35939174f70961bab57629ce28082d",
   "gen_hash_rust": "sha256:cb92ff923b7e830957facf96824e37fe076738c68f18fbdfd12d70d5b971ff7b",
   "gen_hash_verilog": "sha256:b58b614920b7ca30de52dbb02f42f85dc58707275a13b396e8df5e6deab62697",
   "gen_hash_zig": "sha256:4c4f7d0c65811e35f257a3ad715b48923fe8f87dd02a6edb2136c7ab7aba5ed9",
   "module": "GftXorPercep",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:31Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:06595d9ec82682b405cdeeb5fa4ecb3ccec220b25c90792e9cbf199043c70e5b",
   "spec_path": "specs/ternary/gft_xorpercep.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 1,
     "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

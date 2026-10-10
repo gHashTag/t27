@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:8c51dcada7ad78cd9b0c95747eca5a738711cf5cfa264eb38d02c2af3199a24f",
+  "gen_hash_rust": "sha256:96bf1d2ea00ca6afbd44523ff61986cc57b0b79afe06ec5e55eecf18d5a242ac",
+  "gen_hash_verilog": "sha256:6b65df04869bcae1ef8a4e1ca8a0cff789ff90d29c477e9718a5015c47b85d2f",
+  "gen_hash_zig": "sha256:04c34c8b34cecb4466317d9c654b223ccf21b64798c0e5981e53a74bd20c5ce9",
+  "module": "port::trios::crates::trios_git::src::status",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6a2f8902a28268fbe9d2c82a7cb2efe0f00ee8cc1cab634fe75b4ed238d0a61c",
+  "spec_path": "specs/port/trios/crates/trios-git/src/status.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

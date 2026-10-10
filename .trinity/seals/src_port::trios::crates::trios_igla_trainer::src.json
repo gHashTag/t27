@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:bec8cc2dd8b8fe33d6563569300f6c3b3c49f552bf24d6efaf430b7eb7e522f8",
+  "gen_hash_rust": "sha256:727e0b9d99181eac3f1ecf9efc2fddbbff1d30e015506f4a97ecf1ca62bf5abe",
+  "gen_hash_verilog": "sha256:d1048d215ee5954554a2401773c74e6290393b7cc5a9f7efb1378bb258170189",
+  "gen_hash_zig": "sha256:4dfba6c434eba99836ba59e4dd93c1ed00b92b7c4bb1b1b93907abfa97c682f9",
+  "module": "port::trios::crates::trios_igla_trainer::src",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a829df608cdf61a150ab566ef5175579bb2f7547c602abc3dc090ef031910272",
+  "spec_path": "specs/port/trios/crates/trios-igla-trainer/src/jepa_runner.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
