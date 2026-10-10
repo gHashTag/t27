@@ -252,7 +252,7 @@ pub fn analyzed(nodes: &[u8], text: &[u8], marks: &mut [u8]) -> () {
     let mut r: usize = 0;
     while (r < count(nodes)) {
         let k: u8 = kind(nodes, r);
-        if (((k != K_FN_DECL) && (k != K_BENCH_BLOCK)) && (k != K_STMT_EXPR)) {
+        if ((((k != K_FN_DECL) && (k != K_BENCH_BLOCK)) && (k != K_STMT_EXPR)) && !(is_hw_const(nodes, text, r, 0))) {
             reach_named(nodes, text, r, end(nodes, r), marks);
         }
         r = end(nodes, r);
@@ -598,5 +598,33 @@ pub fn ws_at(s: &[u8], i: usize, hi: usize) -> usize {
         return 3;
     }
     return 0;
+}
+
+pub const HW_DEPTH: usize = 32;
+
+pub fn is_hw_const(nodes: &[u8], text: &[u8], c: usize, depth: usize) -> bool {
+    if ((kind(nodes, c) != K_CONST_DECL) || (depth > HW_DEPTH)) {
+        return false;
+    }
+    let mut j: usize = (c + 1);
+    while (j < end(nodes, c)) {
+        let k: u8 = kind(nodes, j);
+        if ((k == K_EXPR_CALL) || (k == K_EXPR_IDENTIFIER)) {
+            let mut t: usize = 0;
+            while (t < count(nodes)) {
+                if ((t != c) && field_is(nodes, text, t, F_NAME, &text[(lo(nodes, j, F_NAME)) as usize..(hi(nodes, j, F_NAME)) as usize])) {
+                    if (((k == K_EXPR_CALL) && (kind(nodes, t) == K_FN_DECL)) && (end(nodes, t) == (t + 1))) {
+                        return true;
+                    }
+                    if ((k == K_EXPR_IDENTIFIER) && is_hw_const(nodes, text, t, (depth + 1))) {
+                        return true;
+                    }
+                }
+                t = end(nodes, t);
+            }
+        }
+        j = (j + 1);
+    }
+    return false;
 }
 

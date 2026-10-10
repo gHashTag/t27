@@ -1,0 +1,958 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/verilog_plan.t27 -- what t27b's Verilog path lowers, and how (issue #8796, under the
+; self-host epic #5980; FPGA row of the release plan gHashTag/trios#1763). `t27b verilog <spec>` writes a
+; Verilog module, and a test bench for it, from the t27c AST; specs/tri/t27b/verilog_emit.t27 is the writer
+; and this file holds every decision it takes. Both reach cli/t27b only through `t27c gen-rust`.
+; It replaces nothing in t27c: the hand-written `gen-verilog` there stays the reference, and its two defects
+; are the reason this path exists -- it cannot instantiate a device primitive or another module (#8660), and
+; it calls a function brought in by `use` without defining it (#8769), both with exit 0.
+; --
+; The source form. Every rule below is spelled in syntax the t27 parser already accepts; nothing new is
+; parsed.
+; - An EXTERN MODULE is a fn with an empty body: `pub fn BUFG(I: bool) -> BufgOut {}`. Its name is the Verilog
+;   module (a device primitive, or another generated module). Its parameters are, by type: `str`, `f64`,
+;   `f32` and `comptime_int` a Verilog parameter (ROLE_PARAM); `bool` named `keep` or `dont_touch` an
+;   attribute of the instance (ROLE_ATTR); any other `bool` or `uN` an input port (ROLE_PORT). Its result
+;   is a struct declared in the same file whose fields are its output ports (`pub struct BufgOut { O: bool }`).
+;   The reference never calls one: Zig analyses a declaration only when a test reaches it.
+; - An INSTANCE is a module-level `const` bound to a call of an extern: `const gclk : BufgOut = BUFG(x);`.
+;   The call's arguments are the port connections and parameter values, in the extern's order. An output
+;   is read as `gclk.O`.
+; - A NET is any other module-level `const` whose value is not a compile-time constant: `const clk : bool =
+;   gclk.O;`. A net named `clk`, `rst_n` or `en` replaces that implicit port of a clocked module.
+; - A CONSTANT is a module-level `const` with a compile-time value; every use is folded to a sized literal.
+; Ports. A module with `fn on_clock` has the inputs clk, rst_n and en (each unless a net of that name
+; exists) and one input per parameter of on_clock, except a parameter named `<instance>_<output>`, which is
+; that instance's output (BOUND). The outputs are the `pub var`s (output reg) and the `pub const` nets
+; (output wire); when the module declares no `pub` var or net at all, every var is an output reg, as in
+; t27c's gen-verilog. So a module declares its ports, and every other var is an internal register.
+; The use closure. The module carries, as Verilog functions, exactly the fns its hardware reaches: on_clock,
+; the nets and the instances' arguments, and every fn those call, transitively. `use` has already spliced
+; each imported fn into the file (bootstrap/src/use_resolve.rs, as in every t27c path), so an imported fn
+; is emitted like a local one; a callee that is declared nowhere is refused by name (#8660 FR-005, #8769).
+; The test bench carries the fns the tests reach.
+; Widths. Every value is exact at its t27 type: unsigned widths 1 to 64 and bool. A sum, a product, a
+; shift or a complement is written inside a concatenation, `{a + b}`, so Verilog evaluates it at its own
+; width and not at the width of the context (the defect of #8341); a literal is always sized to the type it
+; takes; a narrowing cast of an expression is a call of t27_uW, a widening one a zero fill. Signed types
+; are refused.
+; Loops. Hardware has no loop whose trip count depends on data, so a `while` in the module is written as a
+; `for` over a static bound with the condition as a guard; the bound is read from the source, never
+; guessed (trip_bound). In the test bench a loop without such a bound is a plain `while`.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bVerilogPlan;
+
+use tri::t27b::ast_walk;
+
+// ----------------------------------------------------------------------------------------------------------
+// The per-node meta records: the glue writes, for each node of `flat`'s list in the same preorder, four
+// little-endian u32 words: flags (bit 0 the node is mutable, a `var`; bit 1 it is `pub`), the source line
+// (0 for none), and the start and end of its parameters in the params text, one `name:type` line each.
+// ----------------------------------------------------------------------------------------------------------
+
+pub const META : usize = 16;
+pub const FLAG_MUT : usize = 1;
+pub const FLAG_PUB : usize = 2;
+pub const B_NL : u8 = 10;
+pub const B_COLON_V : u8 = 58;
+
+/// Word w of node i's meta record.
+pub fn meta_word(meta: []const u8, i: usize, w: usize) -> usize {
+    return u32_at(meta, i * META + w * 4);
+}
+
+/// Is node i a `var` (mutable)?
+pub fn is_mut(meta: []const u8, i: usize) -> bool {
+    return (meta_word(meta, i, 0) & FLAG_MUT) == FLAG_MUT;
+}
+
+/// Is node i declared `pub`?
+pub fn is_pub(meta: []const u8, i: usize) -> bool {
+    return (meta_word(meta, i, 0) & FLAG_PUB) == FLAG_PUB;
+}
+
+/// Node i's source line, 0 for none.
+pub fn line_of(meta: []const u8, i: usize) -> usize {
+    return meta_word(meta, i, 1);
+}
+
+/// Where node i's parameter lines start in the params text.
+pub fn params_lo(meta: []const u8, i: usize) -> usize {
+    return meta_word(meta, i, 2);
+}
+
+/// Where node i's parameter lines end in the params text.
+pub fn params_hi(meta: []const u8, i: usize) -> usize {
+    return meta_word(meta, i, 3);
+}
+
+/// How many `name:type` lines ptext[a .. b] holds.
+pub fn param_count(ptext: []const u8, a: usize, b: usize) -> usize {
+    var n : usize = 0;
+    var j : usize = a;
+    while (j < b) {
+        if (ptext[j] == B_NL) { n = n + 1; }
+        j = j + 1;
+    }
+    return n;
+}
+
+/// Where line k (from 0) of ptext[a .. b] starts; b when there are not k lines.
+pub fn param_at(ptext: []const u8, a: usize, b: usize, k: usize) -> usize {
+    var seen : usize = 0;
+    var j : usize = a;
+    while (j < b and seen < k) {
+        if (ptext[j] == B_NL) { seen = seen + 1; }
+        j = j + 1;
+    }
+    return j;
+}
+
+/// Where the line that starts at s ends (its newline), or b.
+pub fn line_stop(ptext: []const u8, s: usize, b: usize) -> usize {
+    var j : usize = s;
+    while (j < b and ptext[j] != B_NL) { j = j + 1; }
+    return j;
+}
+
+/// Where the name of the line s .. e ends: its first `:`, or e.
+pub fn colon_at(ptext: []const u8, s: usize, e: usize) -> usize {
+    var j : usize = s;
+    while (j < e and ptext[j] != B_COLON_V) { j = j + 1; }
+    return j;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Types. A type is one i64 code: 1 to 64 an unsigned integer of that width; TY_BOOL; TY_COMPTIME an untyped
+// integer literal or constant; TY_VOID no value; TY_STR and TY_FLOAT only as parameters of an extern;
+// TY_STRUCT + i the struct declared at node i (an extern's result); TY_BAD anything else, refused where it is
+// used.
+// ----------------------------------------------------------------------------------------------------------
+
+pub const TY_BAD : i64 = -1;
+pub const TY_COMPTIME : i64 = 0;
+pub const TY_BOOL : i64 = 65;
+pub const TY_VOID : i64 = 66;
+pub const TY_STR : i64 = 67;
+pub const TY_FLOAT : i64 = 68;
+pub const TY_STRUCT : i64 = 1000000;
+pub const MAX_WIDTH : i64 = 64;
+
+/// The code of the type text s[a .. b] (trimmed). Struct names are looked up by the writer, not here.
+pub fn type_code(s: []const u8, a: usize, b: usize) -> i64 {
+    // The trimmed text is passed on as s[p .. q], never bound to a local: gen-rust types a `[]const u8`
+    // local as `&'static str` (#8812).
+    const p : usize = trim_lo(s, a, b);
+    const q : usize = trim_hi(s, p, b);
+    if (q == p or same(s[p .. q], "void")) { return TY_VOID; }
+    if (same(s[p .. q], "bool")) { return TY_BOOL; }
+    if (same(s[p .. q], "usize")) { return 64; }
+    if (same(s[p .. q], "comptime_int")) { return TY_COMPTIME; }
+    if (same(s[p .. q], "str") or same(s[p .. q], "string") or same(s[p .. q], "[]const u8")) { return TY_STR; }
+    if (same(s[p .. q], "f64") or same(s[p .. q], "f32") or same(s[p .. q], "comptime_float")) { return TY_FLOAT; }
+    if (s[p] != 117 or q - p < 2 or q - p > 3) { return TY_BAD; }
+    // p1 is bound once: t27c's Zig backend hoists a repeated `p + 1` above the declaration of p (#2629).
+    const p1 : usize = p + 1;
+    var w : i64 = 0;
+    var j : usize = p1;
+    while (j < q) {
+        if (!digit(s[j])) { return TY_BAD; }
+        const dv : i64 = @intCast(s[j] - 48);
+        w = w * 10 + dv;
+        j = j + 1;
+    }
+    if (s[p1] == 48 or w < 1 or w > MAX_WIDTH) { return TY_BAD; }
+    return w;
+}
+
+/// Is the type an unsigned integer this path holds?
+pub fn ty_int(t: i64) -> bool {
+    return t >= 1 and t <= MAX_WIDTH;
+}
+
+/// Is the type a value a register or a wire holds: an integer or a bool?
+pub fn ty_scalar(t: i64) -> bool {
+    return ty_int(t) or t == TY_BOOL;
+}
+
+/// The width in bits of a scalar type (a bool is one bit); 0 for anything else.
+pub fn ty_width(t: i64) -> i64 {
+    if (ty_int(t)) { return t; }
+    if (t == TY_BOOL) { return 1; }
+    return 0;
+}
+
+/// The type both operands of an arithmetic or a comparison take (Zig's peer type for unsigned integers):
+/// an untyped operand takes the other's type, two integers the wider one, two bools bool. TY_BAD when they
+/// do not meet (a bool and an integer, or anything not scalar).
+pub fn peer(a: i64, b: i64) -> i64 {
+    if (a == TY_COMPTIME) {
+        if (b == TY_COMPTIME or ty_scalar(b)) { return b; }
+        return TY_BAD;
+    }
+    if (b == TY_COMPTIME) {
+        if (ty_scalar(a)) { return a; }
+        return TY_BAD;
+    }
+    if (a == TY_BOOL and b == TY_BOOL) { return TY_BOOL; }
+    if (ty_int(a) and ty_int(b)) {
+        if (a >= b) { return a; }
+        return b;
+    }
+    return TY_BAD;
+}
+
+/// The largest value of an integer type of width w (1..64). Values are u64: t27b's own code generator holds
+/// no run-time i128 parameter yet, and these plans run under t27b too.
+pub const U64_MAX : u64 = 18446744073709551615;
+
+pub fn max_of(w: i64) -> u64 {
+    var m : u64 = 0;
+    var j : i64 = 0;
+    while (j < w and j < 64) {
+        m = m * 2 + 1;
+        j = j + 1;
+    }
+    return m;
+}
+
+/// Does v fit the scalar type t? A bool holds 0 and 1.
+pub fn fits(v: u64, t: i64) -> bool {
+    if (t == TY_BOOL) { return v <= 1; }
+    if (ty_int(t)) { return v <= max_of(t); }
+    return false;
+}
+
+/// The value of an integer literal's text s[a .. b]: decimal, or `0x`, `0o`, `0b`; `_` between digits is
+/// skipped. lit_ok says whether it is one that fits a u64; lit_val is its value (0 when it is not).
+pub fn lit_ok(s: []const u8, a: usize, b: usize) -> bool {
+    return lit_scan(s, a, b, true) == 1;
+}
+
+pub fn lit_val(s: []const u8, a: usize, b: usize) -> u64 {
+    return lit_scan(s, a, b, false);
+}
+
+/// The radix a literal's text s[a .. b] is written in.
+pub fn lit_radix(s: []const u8, a: usize, b: usize) -> u64 {
+    if (b - a < 3 or s[a] != 48) { return 10; }
+    const c1 : u8 = s[a + 1];
+    if (c1 == 120 or c1 == 88) { return 16; }
+    if (c1 == 111) { return 8; }
+    if (c1 == 98) { return 2; }
+    return 10;
+}
+
+/// The digit value of byte c, 99 for none.
+pub fn digit_of(c: u8) -> u64 {
+    if (c >= 48 and c <= 57) { return (c - 48) as u64; }
+    if (c >= 97 and c <= 102) { return (c - 87) as u64; }
+    if (c >= 65 and c <= 70) { return (c - 55) as u64; }
+    return 99;
+}
+
+/// Reads the literal: with `check`, 1 when it is a literal that fits a u64 and 0 otherwise; without, its
+/// value.
+pub fn lit_scan(s: []const u8, a: usize, b: usize, check: bool) -> u64 {
+    if (b <= a) { return 0; }
+    const base : u64 = lit_radix(s, a, b);
+    var j : usize = a;
+    if (base != 10) { j = a + 2; }
+    var v : u64 = 0;
+    var digits : usize = 0;
+    while (j < b) {
+        const c : u8 = s[j];
+        if (c != 95) {
+            const d : u64 = digit_of(c);
+            if (d >= base) { return 0; }
+            if (v > (U64_MAX - d) / base) { return 0; }
+            v = v * base + d;
+            digits = digits + 1;
+        }
+        j = j + 1;
+    }
+    if (digits == 0) { return 0; }
+    if (check) { return 1; }
+    return v;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Constructs. Which binary operators lower, as what, and the names a refusal uses.
+// ----------------------------------------------------------------------------------------------------------
+
+pub const OP_BAD : u8 = 0;
+/// `+ - * / % +% -% *% & | ^`: an integer (or, for & | ^, bool) result at the operands' peer type.
+pub const OP_ARITH : u8 = 1;
+/// `<< >>`: the left operand's type; the amount keeps its own.
+pub const OP_SHIFT : u8 = 2;
+/// `== != < <= > >=`: bool.
+pub const OP_CMP : u8 = 3;
+/// `and or && ||`: bool, on bools.
+pub const OP_LOGIC : u8 = 4;
+
+/// The class of the binary operator text s.
+pub fn op_class(s: []const u8) -> u8 {
+    if (same(s, "+") or same(s, "-") or same(s, "*") or same(s, "/") or same(s, "%")) { return OP_ARITH; }
+    if (same(s, "+%") or same(s, "-%") or same(s, "*%")) { return OP_ARITH; }
+    if (same(s, "&") or same(s, "|") or same(s, "^")) { return OP_ARITH; }
+    if (same(s, "<<") or same(s, ">>")) { return OP_SHIFT; }
+    if (same(s, "==") or same(s, "!=") or same(s, "<") or same(s, "<=") or same(s, ">") or same(s, ">=")) { return OP_CMP; }
+    if (same(s, "and") or same(s, "or") or same(s, "&&") or same(s, "||")) { return OP_LOGIC; }
+    return OP_BAD;
+}
+
+/// Is the operator one of `& | ^`, which also apply to bools?
+pub fn op_bitwise(s: []const u8) -> bool {
+    return same(s, "&") or same(s, "|") or same(s, "^");
+}
+
+/// Is the operator one whose untyped result may be negative or fractional, so it is never folded on
+/// untyped operands: `-`, `-%`, `/`, `%`?
+pub fn op_unfoldable(s: []const u8) -> bool {
+    return same(s, "-") or same(s, "-%");
+}
+
+/// The Verilog spelling of a t27 binary operator: the wrapping forms are the plain ones (the value is cut to
+/// its width by the concatenation around it), `and`/`or` are `&&`/`||`.
+pub fn verilog_op(s: []const u8) -> str {
+    if (same(s, "+%")) { return "+"; }
+    if (same(s, "-%")) { return "-"; }
+    if (same(s, "*%")) { return "*"; }
+    if (same(s, "and")) { return "&&"; }
+    if (same(s, "or")) { return "||"; }
+    if (same(s, "+")) { return "+"; }
+    if (same(s, "-")) { return "-"; }
+    if (same(s, "*")) { return "*"; }
+    if (same(s, "/")) { return "/"; }
+    if (same(s, "%")) { return "%"; }
+    if (same(s, "&")) { return "&"; }
+    if (same(s, "|")) { return "|"; }
+    if (same(s, "^")) { return "^"; }
+    if (same(s, "<<")) { return "<<"; }
+    if (same(s, ">>")) { return ">>"; }
+    if (same(s, "==")) { return "=="; }
+    if (same(s, "!=")) { return "!="; }
+    if (same(s, "<")) { return "<"; }
+    if (same(s, "<=")) { return "<="; }
+    if (same(s, ">")) { return ">"; }
+    if (same(s, ">=")) { return ">="; }
+    if (same(s, "&&")) { return "&&"; }
+    if (same(s, "||")) { return "||"; }
+    return "?";
+}
+
+/// Does a binary operator fold over two u64 values: a result that is no negative number, no division by 0,
+/// and no value above U64_MAX?
+pub fn fold_ok_op(s: []const u8, a: u64, b: u64) -> bool {
+    if (same(s, "+") or same(s, "+%")) { return a <= U64_MAX - b; }
+    if (same(s, "-") or same(s, "-%")) { return a >= b; }
+    if (same(s, "*") or same(s, "*%")) { return b == 0 or a <= U64_MAX / b; }
+    if (same(s, "/") or same(s, "%")) { return b != 0; }
+    if (same(s, "<<")) { return b < 64 and a <= (U64_MAX >> b); }
+    if (same(s, ">>") or op_bitwise(s) or op_class(s) == OP_CMP or op_class(s) == OP_LOGIC) { return true; }
+    return false;
+}
+
+/// The value of a binary operator over two u64 values, when fold_ok_op says it folds; a comparison or a
+/// logical operator gives 1 or 0.
+pub fn fold_val_op(s: []const u8, a: u64, b: u64) -> u64 {
+    if (same(s, "+") or same(s, "+%")) { return a + b; }
+    if (same(s, "-") or same(s, "-%")) { return a - b; }
+    if (same(s, "*") or same(s, "*%")) { return a * b; }
+    if (same(s, "/")) { return a / b; }
+    if (same(s, "%")) { return a % b; }
+    if (same(s, "<<")) { return a << b; }
+    if (same(s, ">>")) {
+        if (b >= 64) { return 0; }
+        return a >> b;
+    }
+    if (same(s, "&")) { return a & b; }
+    if (same(s, "|")) { return a | b; }
+    if (same(s, "^")) { return a ^ b; }
+    var t : bool = false;
+    if (same(s, "==")) { t = a == b; }
+    if (same(s, "!=")) { t = a != b; }
+    if (same(s, "<")) { t = a < b; }
+    if (same(s, "<=")) { t = a <= b; }
+    if (same(s, ">")) { t = a > b; }
+    if (same(s, ">=")) { t = a >= b; }
+    if (same(s, "and") or same(s, "&&")) { t = a == 1 and b == 1; }
+    if (same(s, "or") or same(s, "||")) { t = a == 1 or b == 1; }
+    if (t) { return 1; }
+    return 0;
+}
+
+/// The names of the node kinds, in NodeKind's order, for refusals.
+pub const KIND_NAMES : [35]str = ["Module", "UseDecl", "ConstDecl", "EnumDecl", "EnumVariant", "StructDecl", "FnDecl", "InvariantBlock", "TestBlock", "BenchBlock", "ExprLiteral", "ExprIdentifier", "ExprEnumValue", "ExprCall", "ExprFieldAccess", "ExprSwitch", "ExprBinary", "ExprUnary", "ExprReturn", "ExprIndex", "ExprIf", "ExprStructLit", "ExprArrayLiteral", "ExprTuple", "ExprCast", "ExprRange", "StmtLocal", "StmtAssign", "StmtIf", "StmtWhile", "StmtFor", "StmtForRange", "StmtBreak", "StmtContinue", "StmtExpr"];
+
+/// The name of node kind k.
+pub fn kind_label(k: u8) -> str {
+    const ki : usize = k as usize; // the cast is written out: gen-rust leaves the widening uncast (#8812)
+    if (ki < 35) { return KIND_NAMES[ki]; }
+    return "node";
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Module-level items. Each top-level node is one class.
+// ----------------------------------------------------------------------------------------------------------
+
+pub const C_SKIP : u8 = 0;
+/// `var`: a register.
+pub const C_VAR : u8 = 1;
+/// `const` with a compile-time value: folded where it is used.
+pub const C_CONST : u8 = 2;
+/// `const` bound to a call of an extern: an instance.
+pub const C_INSTANCE : u8 = 3;
+/// any other `const` of a scalar: a net, `wire` plus `assign`.
+pub const C_NET : u8 = 4;
+/// fn with an empty body: an extern module.
+pub const C_EXTERN : u8 = 5;
+/// fn with a body: a Verilog function when the hardware or a test reaches it.
+pub const C_FN : u8 = 6;
+/// `fn on_clock`: the clocked process.
+pub const C_CLOCK : u8 = 7;
+/// `test`: the test bench.
+pub const C_TEST : u8 = 8;
+/// struct, enum, `use`, invariant, bench: nothing is emitted for it; a use of it is refused.
+pub const C_TYPE : u8 = 9;
+
+/// Is top-level node i a fn with an empty body (an extern module)?
+pub fn is_extern(nodes: []const u8, i: usize) -> bool {
+    return kind(nodes, i) == K_FN_DECL and end(nodes, i) == i + 1;
+}
+
+/// The top-level FnDecl named text[a .. b] among the children of the root (node 0); NO_NODE when there is
+/// none.
+pub fn find_fn(nodes: []const u8, text: []const u8, a: usize, b: usize) -> i64 {
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (kind(nodes, c) == K_FN_DECL and field_is(nodes, text, c, F_NAME, text[a .. b])) {
+            const ci : i64 = @intCast(c);
+            return ci;
+        }
+        c = end(nodes, c);
+    }
+    return NO_NODE;
+}
+
+/// The top-level declaration (const, var or struct) named text[a .. b]; NO_NODE when there is none.
+pub fn find_decl(nodes: []const u8, text: []const u8, a: usize, b: usize) -> i64 {
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        const k : u8 = kind(nodes, c);
+        if ((k == K_CONST_DECL or k == K_STRUCT_DECL) and field_is(nodes, text, c, F_NAME, text[a .. b])) {
+            const ci : i64 = @intCast(c);
+            return ci;
+        }
+        c = end(nodes, c);
+    }
+    return NO_NODE;
+}
+
+/// Is top-level const i bound to a call of an extern module (an instance)?
+pub fn is_instance(nodes: []const u8, text: []const u8, meta: []const u8, i: usize) -> bool {
+    if (kind(nodes, i) != K_CONST_DECL or is_mut(meta, i) or i + 1 >= end(nodes, i)) { return false; }
+    if (end(nodes, i + 1) != end(nodes, i) or kind(nodes, i + 1) != K_EXPR_CALL) { return false; }
+    const f : i64 = find_fn(nodes, text, lo(nodes, i + 1, F_NAME), hi(nodes, i + 1, F_NAME));
+    if (f == NO_NODE) { return false; }
+    const fi : usize = @intCast(f);
+    return is_extern(nodes, fi);
+}
+
+/// The CPU path (`t27b test`) and the hardware. An instance, and every net built on one, is a value only
+/// on the die: the reference never analyses one unless a test reaches it (Zig analyses a declaration lazily),
+/// and the call of an extern in it would be a compile error when it did. So t27b's CPU path neither lowers
+/// such a const in the module's eager pass nor counts it as a root of the fns Zig analyses
+/// (ast_shape.t27's `analyzed`); it lowers one only when code it lowers names it, where it is refused as
+/// before. is_hw_const decides it for item c of a list of top-level items (ast_walk.t27's records, the items
+/// one after the other): a const whose value calls an extern of the list (a fn with an empty body) or names
+/// such a const, HW_DEPTH names deep at most.
+pub const HW_DEPTH : usize = 32;
+
+pub fn is_hw_const(nodes: []const u8, text: []const u8, c: usize, depth: usize) -> bool {
+    if (kind(nodes, c) != K_CONST_DECL or depth > HW_DEPTH) { return false; }
+    var j : usize = c + 1;
+    while (j < end(nodes, c)) {
+        const k : u8 = kind(nodes, j);
+        if (k == K_EXPR_CALL or k == K_EXPR_IDENTIFIER) {
+            var t : usize = 0;
+            while (t < count(nodes)) {
+                if (t != c and field_is(nodes, text, t, F_NAME, text[lo(nodes, j, F_NAME) .. hi(nodes, j, F_NAME)])) {
+                    if (k == K_EXPR_CALL and kind(nodes, t) == K_FN_DECL and end(nodes, t) == t + 1) { return true; }
+                    if (k == K_EXPR_IDENTIFIER and is_hw_const(nodes, text, t, depth + 1)) { return true; }
+                }
+                t = end(nodes, t);
+            }
+        }
+        j = j + 1;
+    }
+    return false;
+}
+
+/// Marks every hardware-only const of a list of top-level items (for the eager pass of lower.rs).
+pub fn hw_consts(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var c : usize = 0;
+    while (c < count(nodes)) {
+        if (is_hw_const(nodes, text, c, 0)) { marks[c] = 1; }
+        c = end(nodes, c);
+    }
+}
+
+/// The name of an implicit port of a clocked module: `clk`, `rst_n`, `en`.
+pub fn implicit_port(s: []const u8) -> bool {
+    return same(s, "clk") or same(s, "rst_n") or same(s, "en");
+}
+
+/// The role of an extern's parameter named `name` of type t.
+pub const ROLE_BAD : u8 = 0;
+pub const ROLE_PORT : u8 = 1;
+pub const ROLE_PARAM : u8 = 2;
+pub const ROLE_ATTR : u8 = 3;
+
+pub fn param_role(name: []const u8, t: i64) -> u8 {
+    if (t == TY_STR or t == TY_FLOAT or t == TY_COMPTIME) { return ROLE_PARAM; }
+    if (t == TY_BOOL and (same(name, "keep") or same(name, "dont_touch"))) { return ROLE_ATTR; }
+    if (ty_scalar(t)) { return ROLE_PORT; }
+    return ROLE_BAD;
+}
+
+/// Is on_clock's parameter ps[a .. b] the output text[fa .. fb] of the instance named text[ia .. ib]: is it
+/// the instance's name, `_`, then the output's name?
+pub fn binds(ps: []const u8, a: usize, b: usize, text: []const u8, ia: usize, ib: usize, fa: usize, fb: usize) -> bool {
+    const n : usize = ib - ia;
+    const m : usize = fb - fa;
+    if (b - a != n + 1 + m) { return false; }
+    if (!has_at(ps, a, a + n, text[ia .. ib])) { return false; }
+    if (ps[a + n] != 95) { return false; }
+    return has_at(ps, a + n + 1, b, text[fa .. fb]);
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Loops. A `while` in the module lowers to `for (k = 0; k < bound; k = k + 1) if (cond) body`, and it is the
+// same loop exactly when the body cannot run more than `bound` times. trip_bound reads that bound from the
+// loop's shape: the condition is `v < K` or `v <= K` with K a constant, and the body (or the continue
+// expression) steps v up by a positive constant exactly once on every pass (a direct statement of it, not
+// under an `if`) and assigns v nowhere else, and holds no `continue` that could skip the step. v is unsigned,
+// so it starts at 0 or more and the loop stops within K (K + 1 for `<=`) passes. Anything else has no static
+// bound.
+// ----------------------------------------------------------------------------------------------------------
+
+/// No static bound.
+pub const NO_BOUND : i64 = -1;
+/// The largest bound the module unrolls; a loop above it is refused in the module.
+pub const MAX_UNROLL : i64 = 4096;
+
+/// Is node s the statement `v = v + c`, `v = v +% c`, `v += c` or `v +%= c` for a constant c > 0, with v
+/// the identifier text[va .. vb]? `cval` is c's value, which the caller folds.
+pub fn steps_up(nodes: []const u8, text: []const u8, s: usize, va: usize, vb: usize) -> i64 {
+    if (kind(nodes, s) != K_STMT_ASSIGN or children(nodes, s) != 2) { return NO_NODE; }
+    const t : usize = s + 1;
+    const r : usize = end(nodes, t);
+    if (!ident_is(nodes, text, t, text[va .. vb])) { return NO_NODE; }
+    if (field_eq(nodes, text, s, F_OP, "+=") or field_eq(nodes, text, s, F_OP, "+%=")) {
+        const ri : i64 = @intCast(r);
+        return ri;
+    }
+    if (!field_eq(nodes, text, s, F_OP, "") and !field_eq(nodes, text, s, F_OP, "=")) { return NO_NODE; }
+    if (kind(nodes, r) != K_EXPR_BINARY or children(nodes, r) != 2) { return NO_NODE; }
+    if (!field_eq(nodes, text, r, F_OP, "+") and !field_eq(nodes, text, r, F_OP, "+%")) { return NO_NODE; }
+    if (!ident_is(nodes, text, r + 1, text[va .. vb])) { return NO_NODE; }
+    const c : usize = end(nodes, r + 1);
+    const cc : i64 = @intCast(c);
+    return cc;
+}
+
+/// How many statements in nodes[a .. b] assign the identifier text[va .. vb] (any operator).
+pub fn assigns_of(nodes: []const u8, text: []const u8, a: usize, b: usize, va: usize, vb: usize) -> usize {
+    var n : usize = 0;
+    var j : usize = a;
+    while (j < b) {
+        if (kind(nodes, j) == K_STMT_ASSIGN and j + 1 < end(nodes, j) and ident_is(nodes, text, j + 1, text[va .. vb])) { n = n + 1; }
+        j = j + 1;
+    }
+    return n;
+}
+
+/// Is there a `continue` in nodes[a .. b] that belongs to this loop (not to a loop nested in it)?
+pub fn own_continue(nodes: []const u8, a: usize, b: usize) -> bool {
+    var j : usize = a;
+    while (j < b) {
+        const k : u8 = kind(nodes, j);
+        if (k == K_STMT_WHILE or k == K_STMT_FOR or k == K_STMT_FOR_RANGE) {
+            j = end(nodes, j);
+        } else {
+            if (k == K_STMT_CONTINUE) { return true; }
+            j = j + 1;
+        }
+    }
+    return false;
+}
+
+/// The block child of loop w named `name` ("body" or "continue_expr"); NO_NODE when it has none.
+pub fn loop_block(nodes: []const u8, text: []const u8, w: usize, name: str) -> i64 {
+    var c : usize = w + 1;
+    while (c < end(nodes, w)) {
+        if (kind(nodes, c) == K_MODULE and field_eq(nodes, text, c, F_NAME, name)) {
+            const ci : i64 = @intCast(c);
+            return ci;
+        }
+        c = end(nodes, c);
+    }
+    return NO_NODE;
+}
+
+/// The node of the step constant of loop w over the identifier text[va .. vb]: the `c` of the one statement
+/// that steps v up, when v is assigned exactly once in the loop and no `continue` can skip it; NO_NODE
+/// otherwise. The caller folds it and checks it is above 0.
+pub fn step_of(nodes: []const u8, text: []const u8, w: usize, va: usize, vb: usize) -> i64 {
+    const body : i64 = loop_block(nodes, text, w, "body");
+    if (body == NO_NODE) { return NO_NODE; }
+    const bi : usize = @intCast(body);
+    if (assigns_of(nodes, text, w + 1, end(nodes, w), va, vb) != 1) { return NO_NODE; }
+    const ce : i64 = loop_block(nodes, text, w, "continue_expr");
+    if (ce != NO_NODE) {
+        const cei : usize = @intCast(ce);
+        var s : usize = cei + 1;
+        while (s < end(nodes, cei)) {
+            const st : i64 = steps_up(nodes, text, s, va, vb);
+            if (st != NO_NODE) { return st; }
+            s = end(nodes, s);
+        }
+        return NO_NODE;
+    }
+    if (own_continue(nodes, bi + 1, end(nodes, bi))) { return NO_NODE; }
+    var s2 : usize = bi + 1;
+    while (s2 < end(nodes, bi)) {
+        const st2 : i64 = steps_up(nodes, text, s2, va, vb);
+        if (st2 != NO_NODE) { return st2; }
+        s2 = end(nodes, s2);
+    }
+    return NO_NODE;
+}
+
+/// The trip bound of a loop whose condition is `v OP K` and whose step is c (both folded by the caller; kok and
+/// sok say whether they folded): K for `<`, K + 1 for `<=`, NO_BOUND otherwise (also for a step of 0, and for
+/// a K above 2^62, which no loop unrolls).
+pub fn trip_bound(op: []const u8, kok: bool, k: u64, sok: bool, step: u64) -> i64 {
+    if (!kok or !sok or step == 0 or k > 4611686018427387904) { return NO_BOUND; }
+    const ki : i64 = @intCast(k);
+    if (same(op, "<")) { return ki; }
+    if (same(op, "<=")) { return ki + 1; }
+    return NO_BOUND;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Names. A t27 name that is a Verilog keyword is written as an escaped identifier (`\wait `).
+// ----------------------------------------------------------------------------------------------------------
+
+pub const VERILOG_KEYWORDS : [103]str = ["always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1", "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default", "defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig", "endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify", "endtable", "endtask", "event", "for", "force", "forever", "fork", "function", "generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include", "initial", "inout", "input", "instance", "integer", "join", "large", "liblist", "library", "localparam", "macromodule", "medium", "module", "nand", "negedge", "nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output", "parameter", "pmos", "posedge", "primitive", "pull0", "pull1", "pulldown", "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "rcmos", "real", "realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0", "rtranif1", "scalared", "showcancelled", "signed", "small", "specify", "specparam", "strong0", "strong1", "supply0", "supply1", "table", "task", "time", "tran"];
+pub const VERILOG_KEYWORDS_2 : [17]str = ["tranif0", "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use", "uwire", "vectored", "wait", "wand", "weak0", "weak1", "while"];
+pub const VERILOG_KEYWORDS_3 : [5]str = ["wire", "wor", "xnor", "xor", "logic"];
+
+/// Is s a reserved word of Verilog-2005 (or `logic`)?
+pub fn verilog_keyword(s: []const u8) -> bool {
+    var j : usize = 0;
+    while (j < 103) {
+        if (same(s, VERILOG_KEYWORDS[j])) { return true; }
+        j = j + 1;
+    }
+    j = 0;
+    while (j < 17) {
+        if (same(s, VERILOG_KEYWORDS_2[j])) { return true; }
+        j = j + 1;
+    }
+    j = 0;
+    while (j < 5) {
+        if (same(s, VERILOG_KEYWORDS_3[j])) { return true; }
+        j = j + 1;
+    }
+    return false;
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. Node buffers are written as ast_walk.t27 lays them out (a record of REC bytes per node in preorder);
+// the texts are slices of PT.
+//   PT: 0 `i`, 1 `<`, 2..4 `16`, 4..6 `+=`, 6 `1`, 7..11 `body`, 11..13 `<=`, 13 `+`, 14 `j`, 15..28
+//   `continue_expr`.
+// ----------------------------------------------------------------------------------------------------------
+
+const PT : str = "i<16+=1body<=+jcontinue_expr";
+
+fn vput32(buf: []u8, at: usize, v: usize) -> void {
+    buf[at] = @intCast(v % 256);
+    buf[at + 1] = @intCast((v / 256) % 256);
+    buf[at + 2] = @intCast((v / 65536) % 256);
+    buf[at + 3] = @intCast(v / 16777216);
+}
+
+/// Node i: kind k, subtree end e, every field the empty span at 0.
+fn vnode(buf: []u8, i: usize, k: u8, e: usize) -> void {
+    buf[i * REC] = k;
+    vput32(buf, i * REC + 4, e);
+    var f : usize = 0;
+    while (f < FIELDS) {
+        vput32(buf, i * REC + 8 + f * 8, 0);
+        vput32(buf, i * REC + 12 + f * 8, 0);
+        f = f + 1;
+    }
+}
+
+/// Field f of node i is PT[a .. b].
+fn vset(buf: []u8, i: usize, f: usize, a: usize, b: usize) -> void {
+    vput32(buf, i * REC + 8 + f * 8, a);
+    vput32(buf, i * REC + 12 + f * 8, b);
+}
+
+test type_texts_read_as_codes {
+    assert type_code("u8", 0, 2) == 8;
+    assert type_code(" u64 ", 0, 5) == 64;
+    assert type_code("u1", 0, 2) == 1;
+    assert type_code("u65", 0, 3) == TY_BAD;
+    assert type_code("u0", 0, 2) == TY_BAD;
+    assert type_code("u08", 0, 3) == TY_BAD;
+    assert type_code("i32", 0, 3) == TY_BAD;
+    assert type_code("bool", 0, 4) == TY_BOOL;
+    assert type_code("", 0, 0) == TY_VOID;
+    assert type_code("void", 0, 4) == TY_VOID;
+    assert type_code("usize", 0, 5) == 64;
+    assert type_code("str", 0, 3) == TY_STR;
+    assert type_code("f64", 0, 3) == TY_FLOAT;
+    assert type_code("comptime_int", 0, 12) == TY_COMPTIME;
+    assert type_code("[4]u8", 0, 5) == TY_BAD;
+    assert type_code("xu8", 1, 3) == 8;
+}
+
+test widths_peers_and_ranges {
+    assert ty_width(8) == 8 and ty_width(TY_BOOL) == 1 and ty_width(TY_STR) == 0;
+    assert peer(8, 16) == 16 and peer(32, 8) == 32;
+    assert peer(TY_COMPTIME, 16) == 16 and peer(16, TY_COMPTIME) == 16;
+    assert peer(TY_COMPTIME, TY_COMPTIME) == TY_COMPTIME;
+    assert peer(TY_BOOL, TY_BOOL) == TY_BOOL;
+    assert peer(TY_BOOL, 8) == TY_BAD and peer(8, TY_BOOL) == TY_BAD;
+    assert peer(TY_STR, 8) == TY_BAD;
+    assert max_of(8) == 255 and max_of(1) == 1 and max_of(63) == 9223372036854775807 and max_of(64) == U64_MAX;
+    assert fits(255, 8) and !fits(256, 8) and fits(1, TY_BOOL) and !fits(2, TY_BOOL) and fits(U64_MAX, 64);
+}
+
+test operators_have_a_class_and_a_spelling {
+    assert op_class("+") == OP_ARITH and op_class("+%") == OP_ARITH and op_class("^") == OP_ARITH;
+    assert op_class("<<") == OP_SHIFT and op_class(">>") == OP_SHIFT;
+    assert op_class("<=") == OP_CMP and op_class("!=") == OP_CMP;
+    assert op_class("and") == OP_LOGIC and op_class("||") == OP_LOGIC;
+    assert op_class("**") == OP_BAD and op_class("orelse") == OP_BAD;
+    assert same("+", verilog_op("+%")) and same("*", verilog_op("*%")) and same("&&", verilog_op("and"));
+    assert same("||", verilog_op("or")) and same(">=", verilog_op(">=")) and same("?", verilog_op("**"));
+    assert op_bitwise("&") and !op_bitwise("&&");
+}
+
+test constants_fold_without_going_negative {
+    assert fold_ok_op("+", 2, 3) and fold_val_op("+", 2, 3) == 5;
+    assert !fold_ok_op("+", U64_MAX, 1) and fold_ok_op("+", U64_MAX, 0);
+    assert !fold_ok_op("-", 2, 3) and fold_ok_op("-", 3, 2) and fold_val_op("-", 3, 2) == 1;
+    assert fold_val_op("*", 6, 7) == 42 and !fold_ok_op("*", 4294967296, 4294967296) and fold_ok_op("*", 4294967296, 4294967295);
+    assert fold_val_op("/", 7, 2) == 3 and !fold_ok_op("/", 7, 0);
+    assert fold_val_op("%", 7, 4) == 3 and !fold_ok_op("%", 7, 0);
+    assert fold_ok_op("<<", 1, 63) and fold_val_op("<<", 1, 63) == 9223372036854775808;
+    assert !fold_ok_op("<<", 2, 63) and !fold_ok_op("<<", 1, 64);
+    assert fold_val_op(">>", 4096, 3) == 512 and fold_val_op(">>", 4096, 64) == 0;
+    assert fold_val_op("&", 12, 10) == 8 and fold_val_op("|", 12, 10) == 14 and fold_val_op("^", 12, 10) == 6;
+    assert fold_val_op("<", 1, 2) == 1 and fold_val_op(">=", 1, 2) == 0 and fold_val_op("==", 5, 5) == 1;
+    assert fold_val_op("and", 1, 0) == 0 and fold_val_op("or", 1, 0) == 1;
+    assert !fold_ok_op("**", 1, 1);
+}
+
+test literals_read_in_every_radix {
+    assert lit_ok("255", 0, 3) and lit_val("255", 0, 3) == 255;
+    assert lit_ok("0xFF", 0, 4) and lit_val("0xFF", 0, 4) == 255;
+    assert lit_val("0b1010", 0, 6) == 10 and lit_val("0o17", 0, 4) == 15;
+    assert lit_val("1_000", 0, 5) == 1000;
+    assert lit_ok("18446744073709551615", 0, 20) and lit_val("18446744073709551615", 0, 20) == U64_MAX;
+    assert !lit_ok("18446744073709551616", 0, 20);
+    assert !lit_ok("10.0", 0, 4) and !lit_ok("true", 0, 4) and !lit_ok("", 0, 0) and !lit_ok("0x", 0, 2);
+    assert lit_val("0", 0, 1) == 0 and lit_ok("0", 0, 1);
+    assert lit_ok("0xFFFFFFFFFFFFFFFE", 0, 18) and lit_val("0xFFFFFFFFFFFFFFFE", 0, 18) == 18446744073709551614;
+}
+
+test extern_parameters_take_a_role_by_type {
+    assert param_role("PROG_USR", TY_STR) == ROLE_PARAM;
+    assert param_role("SIM_CCLK_FREQ", TY_FLOAT) == ROLE_PARAM;
+    assert param_role("JTAG_CHAIN", TY_COMPTIME) == ROLE_PARAM;
+    assert param_role("keep", TY_BOOL) == ROLE_ATTR and param_role("dont_touch", TY_BOOL) == ROLE_ATTR;
+    assert param_role("KEEP", TY_BOOL) == ROLE_PORT;
+    assert param_role("CLK", TY_BOOL) == ROLE_PORT and param_role("I0", 1) == ROLE_PORT;
+    assert param_role("X", TY_BAD) == ROLE_BAD and param_role("Y", TY_VOID) == ROLE_BAD;
+}
+
+test a_parameter_binds_to_an_instance_output_by_name {
+    // "bscan_TCK" against instance "bscan" and field "TCK"
+    const s : str = "bscan_TCKbscanTCKbscanTC";
+    assert binds(s, 0, 9, s, 9, 14, 14, 17);
+    assert !binds(s, 0, 9, s, 9, 14, 21, 23);
+    assert !binds(s, 0, 8, s, 9, 14, 14, 17);
+    assert binds("bscan_TCK", 0, 9, s, 9, 14, 14, 17);
+    assert implicit_port("clk") and implicit_port("rst_n") and implicit_port("en") and !implicit_port("clk2");
+}
+
+test meta_records_and_parameter_lines {
+    var m : [32]u8 = undefined;
+    vput32(m[0 .. 32], 0, 3);
+    vput32(m[0 .. 32], 4, 1205);
+    vput32(m[0 .. 32], 8, 0);
+    vput32(m[0 .. 32], 12, 13);
+    vput32(m[0 .. 32], 16, 0);
+    vput32(m[0 .. 32], 20, 0);
+    vput32(m[0 .. 32], 24, 13);
+    vput32(m[0 .. 32], 28, 13);
+    const mm : []const u8 = m[0 .. 32];
+    assert is_mut(mm, 0) and is_pub(mm, 0) and line_of(mm, 0) == 1205;
+    assert !is_mut(mm, 1) and !is_pub(mm, 1) and line_of(mm, 1) == 0;
+    const p : str = "x:u8\nk0:bool\n";
+    assert params_lo(mm, 0) == 0 and params_hi(mm, 0) == 13;
+    assert param_count(p, 0, 13) == 2 and param_count(p, 13, 13) == 0;
+    assert param_at(p, 0, 13, 0) == 0 and param_at(p, 0, 13, 1) == 5 and param_at(p, 0, 13, 2) == 13;
+    assert line_stop(p, 5, 13) == 12 and colon_at(p, 5, 12) == 7;
+}
+
+test a_counted_loop_has_a_static_bound {
+    // while (i < 16) { i += 1; }: 0 StmtWhile { 1 `<` { 2 i, 3 16 }, 4 body { 5 `+=` { 6 i, 7 1 } } }
+    var buf : [576]u8 = undefined;
+    vnode(buf[0 .. 576], 0, K_STMT_WHILE, 8);
+    vnode(buf[0 .. 576], 1, K_EXPR_BINARY, 4);
+    vset(buf[0 .. 576], 1, F_OP, 1, 2);
+    vnode(buf[0 .. 576], 2, K_EXPR_IDENTIFIER, 3);
+    vset(buf[0 .. 576], 2, F_NAME, 0, 1);
+    vnode(buf[0 .. 576], 3, K_EXPR_LITERAL, 4);
+    vset(buf[0 .. 576], 3, F_VALUE, 2, 4);
+    vnode(buf[0 .. 576], 4, K_MODULE, 8);
+    vset(buf[0 .. 576], 4, F_NAME, 7, 11);
+    vnode(buf[0 .. 576], 5, K_STMT_ASSIGN, 8);
+    vset(buf[0 .. 576], 5, F_OP, 4, 6);
+    vnode(buf[0 .. 576], 6, K_EXPR_IDENTIFIER, 7);
+    vset(buf[0 .. 576], 6, F_NAME, 0, 1);
+    vnode(buf[0 .. 576], 7, K_EXPR_LITERAL, 8);
+    vset(buf[0 .. 576], 7, F_VALUE, 6, 7);
+    const ns : []const u8 = buf[0 .. 576];
+    assert loop_block(ns, PT, 0, "body") == 4;
+    assert loop_block(ns, PT, 0, "continue_expr") == NO_NODE;
+    assert steps_up(ns, PT, 5, 0, 1) == 7;
+    assert steps_up(ns, PT, 5, 14, 15) == NO_NODE;
+    assert step_of(ns, PT, 0, 0, 1) == 7;
+    assert step_of(ns, PT, 0, 14, 15) == NO_NODE;
+    assert assigns_of(ns, PT, 1, 8, 0, 1) == 1;
+    assert !own_continue(ns, 5, 8);
+    assert trip_bound("<", true, 16, true, 1) == 16 and trip_bound("<=", true, 16, true, 1) == 17;
+    assert trip_bound("!=", true, 16, true, 1) == NO_BOUND and trip_bound("<", true, 16, true, 0) == NO_BOUND;
+    assert trip_bound("<", false, 16, true, 1) == NO_BOUND and trip_bound("<", true, 16, false, 1) == NO_BOUND;
+    // a second assignment of i makes the bound unknown
+    vset(buf[0 .. 576], 2, F_NAME, 14, 15);
+    vnode(buf[0 .. 576], 1, K_STMT_ASSIGN, 4);
+    vset(buf[0 .. 576], 2, F_NAME, 0, 1);
+    assert assigns_of(buf[0 .. 576], PT, 1, 8, 0, 1) == 2;
+    assert step_of(buf[0 .. 576], PT, 0, 0, 1) == NO_NODE;
+}
+
+test a_continue_that_could_skip_the_step_unbinds_the_loop {
+    // body { continue; i += 1 }
+    var buf : [432]u8 = undefined;
+    vnode(buf[0 .. 432], 0, K_STMT_WHILE, 6);
+    vnode(buf[0 .. 432], 1, K_MODULE, 6);
+    vset(buf[0 .. 432], 1, F_NAME, 7, 11);
+    vnode(buf[0 .. 432], 2, K_STMT_CONTINUE, 3);
+    vnode(buf[0 .. 432], 3, K_STMT_ASSIGN, 6);
+    vset(buf[0 .. 432], 3, F_OP, 4, 6);
+    vnode(buf[0 .. 432], 4, K_EXPR_IDENTIFIER, 5);
+    vset(buf[0 .. 432], 4, F_NAME, 0, 1);
+    vnode(buf[0 .. 432], 5, K_EXPR_LITERAL, 6);
+    vset(buf[0 .. 432], 5, F_VALUE, 6, 7);
+    const ns : []const u8 = buf[0 .. 432];
+    assert own_continue(ns, 2, 6);
+    assert step_of(ns, PT, 0, 0, 1) == NO_NODE;
+    // a continue inside a nested loop belongs to that loop
+    vnode(buf[0 .. 432], 2, K_STMT_WHILE, 3);
+    assert !own_continue(buf[0 .. 432], 2, 6);
+    assert step_of(buf[0 .. 432], PT, 0, 0, 1) == 5;
+}
+
+test verilog_keywords_are_escaped_by_name {
+    assert verilog_keyword("wait") and verilog_keyword("reg") and verilog_keyword("module");
+    assert verilog_keyword("while") and verilog_keyword("xor") and verilog_keyword("logic");
+    assert !verilog_keyword("seed") and !verilog_keyword("waits") and !verilog_keyword("");
+    assert same("ExprIndex", kind_label(K_EXPR_INDEX)) and same("StmtExpr", kind_label(K_STMT_EXPR));
+    assert same("node", kind_label(99));
+}
+
+test top_level_items_are_classed {
+    // 0 Module { 1 FnDecl `i` (no body), 2 FnDecl `j` { 3 StmtBreak }, 4 ConstDecl `i` { 5 call `i` } }
+    var buf : [432]u8 = undefined;
+    vnode(buf[0 .. 432], 0, K_MODULE, 6);
+    vnode(buf[0 .. 432], 1, K_FN_DECL, 2);
+    vset(buf[0 .. 432], 1, F_NAME, 0, 1);
+    vnode(buf[0 .. 432], 2, K_FN_DECL, 4);
+    vset(buf[0 .. 432], 2, F_NAME, 14, 15);
+    vnode(buf[0 .. 432], 3, K_STMT_BREAK, 4);
+    vnode(buf[0 .. 432], 4, K_CONST_DECL, 6);
+    vset(buf[0 .. 432], 4, F_NAME, 14, 15);
+    vnode(buf[0 .. 432], 5, K_EXPR_CALL, 6);
+    vset(buf[0 .. 432], 5, F_NAME, 0, 1);
+    var m : [96]u8 = undefined;
+    var w : usize = 0;
+    while (w < 96) { m[w] = 0; w = w + 1; }
+    const ns : []const u8 = buf[0 .. 432];
+    assert is_extern(ns, 1) and !is_extern(ns, 2);
+    assert find_fn(ns, PT, 0, 1) == 1 and find_fn(ns, PT, 14, 15) == 2 and find_fn(ns, PT, 4, 6) == NO_NODE;
+    assert find_decl(ns, PT, 14, 15) == 4 and find_decl(ns, PT, 0, 1) == NO_NODE;
+    assert is_instance(ns, PT, m[0 .. 96], 4);
+    // a call of a fn with a body is no instance, and neither is a `var`
+    vset(buf[0 .. 432], 5, F_NAME, 14, 15);
+    assert !is_instance(buf[0 .. 432], PT, m[0 .. 96], 4);
+    vset(buf[0 .. 432], 5, F_NAME, 0, 1);
+    m[64] = 1;
+    assert !is_instance(buf[0 .. 432], PT, m[0 .. 96], 4);
+}
+
+test hardware_only_consts_are_found_to_a_fixed_point {
+    // items: 0 FnDecl `i` (empty body), 1 ConstDecl `j` { 2 call `i` }, 3 ConstDecl `body` { 4 field access
+    // { 5 ident `j` } }, 6 ConstDecl `<=` { 7 literal }, 8 FnDecl `+` { 9 StmtBreak }, 10 ConstDecl `<` { 11 call `+` }
+    var buf : [864]u8 = undefined;
+    vnode(buf[0 .. 864], 0, K_FN_DECL, 1);
+    vset(buf[0 .. 864], 0, F_NAME, 0, 1);
+    vnode(buf[0 .. 864], 1, K_CONST_DECL, 3);
+    vset(buf[0 .. 864], 1, F_NAME, 14, 15);
+    vnode(buf[0 .. 864], 2, K_EXPR_CALL, 3);
+    vset(buf[0 .. 864], 2, F_NAME, 0, 1);
+    vnode(buf[0 .. 864], 3, K_CONST_DECL, 6);
+    vset(buf[0 .. 864], 3, F_NAME, 7, 11);
+    vnode(buf[0 .. 864], 4, K_EXPR_FIELD_ACCESS, 6);
+    vnode(buf[0 .. 864], 5, K_EXPR_IDENTIFIER, 6);
+    vset(buf[0 .. 864], 5, F_NAME, 14, 15);
+    vnode(buf[0 .. 864], 6, K_CONST_DECL, 8);
+    vset(buf[0 .. 864], 6, F_NAME, 11, 13);
+    vnode(buf[0 .. 864], 7, K_EXPR_LITERAL, 8);
+    vnode(buf[0 .. 864], 8, K_FN_DECL, 10);
+    vset(buf[0 .. 864], 8, F_NAME, 13, 14);
+    vnode(buf[0 .. 864], 9, K_STMT_BREAK, 10);
+    vnode(buf[0 .. 864], 10, K_CONST_DECL, 12);
+    vset(buf[0 .. 864], 10, F_NAME, 1, 2);
+    vnode(buf[0 .. 864], 11, K_EXPR_CALL, 12);
+    vset(buf[0 .. 864], 11, F_NAME, 13, 14);
+    var m : [12]u8 = undefined;
+    var w : usize = 0;
+    while (w < 12) {
+        m[w] = 0;
+        w = w + 1;
+    }
+    hw_consts(buf[0 .. 864], PT, m[0 .. 12]);
+    // `j` calls the extern; `body` reads `j.x`; the literal const and the const that calls a fn with a body
+    // are not hardware
+    assert m[1] == 1 and m[3] == 1;
+    assert m[6] == 0 and m[10] == 0;
+    assert m[0] == 0 and m[2] == 0 and m[5] == 0;
+    assert is_hw_const(buf[0 .. 864], PT, 3, 0) and !is_hw_const(buf[0 .. 864], PT, 3, HW_DEPTH);
+    // two consts that name each other, and nothing else, are no hardware: the depth bound stops the walk
+    vset(buf[0 .. 864], 2, F_NAME, 7, 11);
+    vnode(buf[0 .. 864], 2, K_EXPR_IDENTIFIER, 3);
+    vset(buf[0 .. 864], 2, F_NAME, 7, 11);
+    assert !is_hw_const(buf[0 .. 864], PT, 1, 0) and !is_hw_const(buf[0 .. 864], PT, 3, 0);
+}

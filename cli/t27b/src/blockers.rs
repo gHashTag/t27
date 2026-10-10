@@ -22,6 +22,9 @@ pub use spec::fnv64;
 #[path = "../../../gen/rust/tri/t27b/verdict_key.rs"]
 #[allow(dead_code, unused_parens, clippy::all)]
 mod vk; // t27c gen-rust of specs/tri/t27b/verdict_key.t27 (#8095)
+#[path = "../../../gen/rust/tri/t27b/text_escape.rs"]
+#[allow(dead_code, unused_parens, clippy::all)]
+pub mod te; // t27c gen-rust of specs/tri/t27b/text_escape.t27: JSON literals, cache-row names (#8796)
 
 /// One greedy step: supporting `construct`, after every construct of the
 /// earlier steps, unlocks `unlocked` more files, `cumulative` in all.
@@ -133,18 +136,9 @@ pub type Verdicts = Vec<(String, bool)>;
 const TESTS_FIELD: &str = "tests=";
 
 fn escape_name(n: &str) -> String {
-    let mut o = String::with_capacity(n.len());
-    for c in n.chars() {
-        match c {
-            '%' => o.push_str("%25"),
-            ';' => o.push_str("%3B"),
-            '\t' => o.push_str("%09"),
-            '\n' => o.push_str("%0A"),
-            '\r' => o.push_str("%0D"),
-            c => o.push(c),
-        }
-    }
-    o
+    let mut o = vec![0u8; 3 * n.len()];
+    let k = te::escape_name(n.as_bytes(), &mut o);
+    String::from_utf8_lossy(&o[..k]).into_owned()
 }
 
 fn unescape_name(n: &str) -> String {

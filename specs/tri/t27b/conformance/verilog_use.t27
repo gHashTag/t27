@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/verilog_use.t27 -- the #8769 repro for `t27b verilog` (gHashTag/t27#8796): a
+; clocked module that calls a fn brought in by `use`. t27c's gen-verilog wrote `out <= twice(v);` with no
+; `twice` in the file and exited 0, and yosys refused it ("Can't resolve function name '\twice'").
+; `t27b verilog` carries the use closure: twice, and wrap_add, which only twice calls. `out` is declared a port
+; (`pub var`); `count` is a register that is no port.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceVerilogUse;
+
+use tri::t27b::conformance::verilog_lib::twice;
+
+pub var out : u8 = 0;
+var count : u16 = 0;
+
+fn on_clock(v: u8) {
+    out = twice(v);
+    count = count + 1;
+}
+
+test uses_twice {
+    out = 0;
+    on_clock(4);
+    assert_eq(out, 8);
+    on_clock(130);
+    assert_eq(out, 4);
+    assert_eq(count, 2);
+}

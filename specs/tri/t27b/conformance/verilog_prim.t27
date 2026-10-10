@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/verilog_prim.t27 -- the #8660 repro for `t27b verilog` (gHashTag/t27#8796): a
+; heartbeat clocked by STARTUPE2's CFGMCLK through a BUFG, with a BSCANE2 on chain 1 whose TDO reads the
+; heartbeat's low bit. t27c's gen-verilog had no way to say "this module's clock is STARTUPE2.CFGMCLK", and
+; wrote `mclk <= STARTUPE2(1'b0);` for a call of the primitive, exit 0.
+; The source form (specs/tri/t27b/verilog_plan.t27):
+; - a device primitive is a fn with an empty body; its `str`, `f64` and `comptime_int` parameters are Verilog
+;   parameters, a `bool` named keep or dont_touch an attribute, every other parameter an input port; its result
+;   struct lists the output ports this design reads;
+; - an instance is a module-level const bound to a call of one;
+; - a const named clk (or rst_n, en) is that net, not a port;
+; - on_clock's parameter `bscan_SEL` is the instance bscan's output SEL, not a port.
+; The reference never calls a primitive: Zig analyses a declaration only when a test reaches it, so the tests
+; below drive on_clock with the values the primitives would give.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceVerilogPrim;
+
+/// The outputs of STARTUPE2 this design reads.
+pub struct Startupe2Out { CFGMCLK: bool }
+
+/// STARTUPE2 (7-series): the configuration clock.
+pub fn STARTUPE2(PROG_USR: str, SIM_CCLK_FREQ: f64, CLK: bool, GSR: bool, GTS: bool, KEYCLEARB: bool, PACK: bool, USRCCLKO: bool, USRCCLKTS: bool, USRDONEO: bool, USRDONETS: bool) -> Startupe2Out {}
+
+/// The output of BUFG.
+pub struct BufgOut { O: bool }
+
+/// BUFG: a global clock buffer.
+pub fn BUFG(I: bool) -> BufgOut {}
+
+/// The outputs of BSCANE2 this design reads.
+pub struct Bscane2Out { SEL: bool, CAPTURE: bool }
+
+/// BSCANE2 (7-series): the JTAG USER chain; JTAG_CHAIN is a parameter, keep an attribute, TDO its input.
+pub fn BSCANE2(JTAG_CHAIN: comptime_int, keep: bool, TDO: bool) -> Bscane2Out {}
+
+const startup : Startupe2Out = STARTUPE2("FALSE", 10.0, false, false, false, false, false, false, false, true, true);
+const gclk : BufgOut = BUFG(startup.CFGMCLK);
+const clk : bool = gclk.O;
+const rst_n : bool = true;
+const en : bool = true;
+const bscan : Bscane2Out = BSCANE2(1, true, (beat & 1) == 1);
+
+pub var beat : u32 = 0;
+var captured : u32 = 0;
+
+// Every var is read before it is written, so the test's order and the clock edge agree.
+fn on_clock(bscan_CAPTURE: bool) {
+    if (bscan_CAPTURE) { captured = beat; }
+    beat = beat + 1;
+}
+
+test beat_counts {
+    beat = 0;
+    on_clock(false);
+    assert_eq(beat, 1);
+    on_clock(false);
+    assert_eq(beat, 2);
+}
+
+test capture_takes_the_beat_before_the_edge {
+    beat = 41;
+    captured = 0;
+    on_clock(true);
+    assert_eq(captured, 41);
+    assert_eq(beat, 42);
+}

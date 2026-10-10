@@ -74,11 +74,18 @@ pub fn is_anytype(t: []const u8) -> bool {
     return t.len == 7 and begins(t, "anytype");
 }
 
+/// Is `t` exactly `comptime_int`? An extern module's integer Verilog parameter is declared so
+/// (specs/tri/t27b/verilog_plan.t27, #8796); Zig resolves it, and refuses it on a run-time parameter, only when
+/// the fn is analyzed, and nothing analyzed calls an extern.
+pub fn is_comptime_int(t: []const u8) -> bool {
+    return t.len == 12 and begins(t, "comptime_int");
+}
+
 /// The decision for one signature type t27b refused. param: it is a parameter's type, the only place `anytype`
 /// parses. elem_spelled: for `[*]T`, T is a type Zig reads in this file. UNRESOLVED: Zig resolves the type only
 /// when the fn is analyzed.
 pub fn plan(t: []const u8, param: bool, elem_spelled: bool) -> u8 {
-    if (is_anytype(t)) {
+    if (is_anytype(t) or is_comptime_int(t)) {
         if (param) { return UNRESOLVED; }
         return KEEP;
     }
@@ -135,6 +142,14 @@ test anytype_parameters_are_resolved_lazily {
     assert(is_anytype("anytype"));
     assert(plan("anytype", true, false) == UNRESOLVED);
     assert(plan("anytype", true, true) == UNRESOLVED);
+}
+
+test comptime_int_parameters_are_resolved_lazily {
+    // verilog_prim.t27's `BSCANE2(JTAG_CHAIN: comptime_int, ...)`, an extern no test calls.
+    assert(is_comptime_int("comptime_int"));
+    assert(plan("comptime_int", true, false) == UNRESOLVED);
+    assert(plan("comptime_int", false, false) == KEEP);
+    assert(!is_comptime_int("comptime_ints") and !is_comptime_int("comptime_float") and !is_comptime_int(""));
 }
 
 test anytype_outside_a_parameter_keeps_its_refusal {

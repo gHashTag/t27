@@ -67,6 +67,7 @@ const USAGE: &str = "usage:
   t27b test   <file.t27> [--overflow trap|wrap] [--time] [--quiet] [--check] [--blockers]
   t27b build  <file.t27> -o <out.o> [--overflow trap|wrap] [--time]
   t27b asm    <file.t27> [--overflow trap|wrap]
+  t27b verilog <file.t27>   (the module, and its test bench under `ifdef T27B_TESTBENCH)
   t27b corpus <dir> [--timeout-ms N] [--jobs N] [--overflow trap|wrap] [--list]
                     [--json <path>] [--runner \"<cmd> [args]\"]
                     [--blockers [--reference <t27c> [--reference-cache <file>]
@@ -205,7 +206,7 @@ fn main() -> ExitCode {
         Err(e) => return usage(&e),
     };
     match o.cmd.as_str() {
-        "test" | "build" | "asm" => {
+        "test" | "build" | "asm" | "verilog" => {
             let Some(input) = o.input.clone() else {
                 return usage("missing input file");
             };
@@ -259,6 +260,9 @@ fn compile_front(input: &str, o: &Opts) -> Result<(Program, Phases), u8> {
             errln!("t27b: typecheck error in {}: {}", input, e);
         }
         return Err(EXIT_FRONTEND);
+    }
+    if o.cmd == "verilog" {
+        return Err(lower::verilog(&parsed.ast).map_or_else(|e| { errln!("{}", e); EXIT_UNSUPPORTED }, |v| { out(&v); 0 }));
     }
     if o.blockers {
         // Every unsupported construct, not just the first; a file with none
@@ -609,28 +613,11 @@ impl Outcome {
     }
 }
 
-/// A JSON string literal (RFC 8259 escaping; the output stays ASCII).
+/// A JSON string literal (RFC 8259 escaping; the output stays ASCII): specs/tri/t27b/text_escape.t27.
 fn json_str(s: &str) -> String {
-    let mut o = String::with_capacity(s.len() + 2);
-    o.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => o.push_str("\\\""),
-            '\\' => o.push_str("\\\\"),
-            '\n' => o.push_str("\\n"),
-            '\r' => o.push_str("\\r"),
-            '\t' => o.push_str("\\t"),
-            c if (c as u32) < 0x20 || (c as u32) > 0x7e => {
-                let mut buf = [0u16; 2];
-                for u in c.encode_utf16(&mut buf) {
-                    o.push_str(&format!("\\u{:04x}", u));
-                }
-            }
-            c => o.push(c),
-        }
-    }
-    o.push('"');
-    o
+    let mut o = vec![0u8; 6 * s.len() + 2];
+    let n = blockers::te::json_quote(s.as_bytes(), &mut o);
+    String::from_utf8_lossy(&o[..n]).into_owned()
 }
 
 fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -646,11 +633,10 @@ fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Construct name from a reject line `t27b: unsupported construct X at line N (...)`.
+/// Construct name from a reject line `t27b: unsupported construct X at line N (...)`: text_escape.t27.
 fn construct_of(line: &str) -> Option<String> {
-    let rest = line.strip_prefix("t27b: unsupported construct ")?;
-    let end = rest.find(" at line ")?;
-    Some(rest[..end].to_string())
+    let r = blockers::te::construct_span(line.as_bytes());
+    (r >= 0).then(|| line[(r >> 32) as usize..(r & 0xffff_ffff) as usize].to_string())
 }
 
 /// One `t27b test --check` run of `file`, with its per-test verdicts when the

@@ -300,11 +300,27 @@ Each cell is the outcome of that test (`inc_max`, `shr_big`, `rem_neg`):
 t27b test   <file.t27> [--overflow trap|wrap] [--time] [--quiet] [--check] [--blockers]
 t27b build  <file.t27> -o <out.o> [--overflow trap|wrap] [--time]
 t27b asm    <file.t27> [--overflow trap|wrap]
+t27b verilog <file.t27>
 t27b corpus <dir> [--timeout-ms N] [--jobs N] [--overflow trap|wrap] [--list]
                   [--json <path>] [--runner "<cmd> [args]"]
                   [--blockers [--reference <t27c> [--reference-cache <file>]
                                [--reference-timeout-ms N]]]
 ```
+
+`t27b verilog` writes a Verilog module for the spec to stdout, and after it, under
+`` `ifdef T27B_TESTBENCH ``, a test bench that runs the spec's own tests against
+that module (`iverilog -DT27B_TESTBENCH`). A construct it does not lower is
+refused by name, exit 2. Every decision is in `specs/tri/t27b/verilog_plan.t27`:
+
+* what lowers;
+* how a spec declares an extern module, an instance and a net;
+* the port derivation;
+* the use closure;
+* exact widths;
+* the static loop bound.
+
+The writer is `specs/tri/t27b/verilog_emit.t27`. The fixtures are
+`specs/tri/t27b/conformance/verilog_*.t27` (#8796).
 
 Options:
 

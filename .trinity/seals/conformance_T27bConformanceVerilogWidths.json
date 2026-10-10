@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+f8a558ca5",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0ed4cec35206c4cf9cce9deb9abea613d4dc33edbeb6d3aed44a33c5f11d1faa",
+  "gen_hash_rust": "sha256:fb89f56d763813ea191b12caf34c6d01e1463b3fe1d664f30d573ad29dab9ebb",
+  "gen_hash_verilog": "sha256:b63fd4c5f15a5c30bfc8d0b2feb7d1afdb46de3b8a3ecbe89b1f5d4bdff513ad",
+  "gen_hash_zig": "sha256:7616490b87a25d6bd3407a1ecc7d18bdadd3fb4a4660521b8ee66b98b70ad1ac",
+  "module": "T27bConformanceVerilogWidths",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T21:22:16Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a54b553d70815b93090a3f2b9780705d75496099233a0a3ca0af84fb189268d4",
+  "spec_path": "specs/tri/t27b/conformance/verilog_widths.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
