@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: Apache-2.0
+// Port of scripts/gen_w692.py (issue #8678).
+// The original writes the spec w692_bench_module_203x2p6_aos_var_call_write.t27: a
+// [203][2][2][2][2][2][2]Pt grid literal whose points are numbered in row-major order.
+// The decisions in it are the expected point values the generated test asserts, the
+// indent width, the coordinate of each point (2e + offset, wrapped at 32768) and how
+// many points a subtree consumes. Building the text and writing the file are plumbing.
+module gen_w692 {
+    const WRAP: u32 = 32768;
+    const INDENT_UNIT: u32 = 4;
+
+    // Expected values the original substitutes into the emitted test (lines 9-21):
+    // 203 * 2^6 = 12992 points, the last at e = 12991, the mid one at
+    // dst[MID_IDX][1][0][0][0][0][0]. The original's "# 99" comment on MID_IDX is
+    // stale: 203 // 2 is 101, and 101 is what the original actually substitutes.
+    const OUTER: u32 = 203;
+    const TOTAL: u32 = OUTER * 64;
+    const LAST_IDX: u32 = OUTER - 1;
+    const MID_IDX: u32 = OUTER / 2;
+    const MID_E: u32 = MID_IDX * 64 + 32;
+    const LAST_X: u32 = (2 * (TOTAL - 1)) % WRAP;
+    const LAST_Y: u32 = (2 * (TOTAL - 1) + 1) % WRAP;
+    const MID_X: u32 = (2 * MID_E) % WRAP;
+    const MID_Y: u32 = (2 * MID_E + 1) % WRAP;
+    const WRAP_LAST_X: u32 = (2 * (TOTAL - 1) + WRAP) % WRAP;
+    const WRAP_LAST_Y: u32 = (2 * (TOTAL - 1) + 1 + WRAP) % WRAP;
+
+    // indent(level): the number of spaces for one indent level ("    " * level).
+    fn indent(level: u32) -> u32 {
+        return INDENT_UNIT * level;
+    }
+
+    // coordinate(e, offset, step): x is step 0, y is step 1 -> (2e + offset + step) % 32768.
+    fn coordinate(e: u32, offset: u32, step: u32) -> u32 {
+        return (2 * e + offset + step) % WRAP;
+    }
+
+    // build_tree(n, inner_points, base): the next base after n subtrees of inner_points
+    // points each, starting at base. A leaf row is n subtrees of one point.
+    fn build_tree(n: u32, inner_points: u32, base: u32) -> u32 {
+        var b: u32 = base;
+        var i: u32 = 0;
+        while (i < n) {
+            b = b + inner_points;
+            i = i + 1;
+        }
+        return b;
+    }
+
+    // Plumbing: assembles the literal with build_tree, gates the text on ASCII,
+    // writes the .t27 file and prints the byte count; no test calls it.
+    fn generate() -> u32 {
+        undefined;
+    }
+
+    test indent_is_four_spaces_per_level {
+        assert(indent(0) == 0);
+        assert(indent(1) == 4);
+        assert(indent(2) == 8);
+    }
+
+    test first_point_is_zero_one {
+        assert(coordinate(0, 0, 0) == 0);
+        assert(coordinate(0, 0, 1) == 1);
+    }
+
+    test last_point_matches_the_generated_expectations {
+        // 203 * 64 = 12992 points, the last has e = 12991: x = 25982, y = 25983.
+        assert(coordinate(TOTAL - 1, 0, 0) == LAST_X);
+        assert(coordinate(TOTAL - 1, 0, 1) == LAST_Y);
+        // The point at dst[MID_IDX][1][0][0][0][0][0] has e = MID_IDX * 64 + 32.
+        assert(coordinate(MID_E, 0, 0) == MID_X);
+        assert(coordinate(MID_E, 0, 1) == MID_Y);
+    }
+
+    test offset_32768_wraps_back {
+        assert(coordinate(0, WRAP, 0) == 0);
+        assert(coordinate(0, WRAP, 1) == 1);
+        assert(coordinate(TOTAL - 1, WRAP, 0) == WRAP_LAST_X);
+        assert(coordinate(TOTAL - 1, WRAP, 1) == WRAP_LAST_Y);
+    }
+
+    test build_tree_advances_the_base {
+        // leaf row of 203 single points starting at 0
+        assert(build_tree(OUTER, 1, 0) == OUTER);
+        // 2 subtrees of 32 points from base 10
+        assert(build_tree(2, 32, 10) == 74);
+        assert(build_tree(0, 5, 7) == 7);
+    }
+
+    test whole_grid_has_12992_points {
+        // 203 * 2^6 points: 203 outer entries of 64 points each
+        assert(build_tree(OUTER, 64, 0) == TOTAL);
+    }
+}
