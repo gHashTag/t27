@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/digest_cache.t27 -- when t27c may take a file's sha256 from a cache instead of hashing the
+; file again. Issue gHashTag/t27#8805, hot reload #8737 (step H8), epic #8095.
+; --
+; Why. A bitstream reuse hit (bitstream_reuse.t27) must name every tool in its key, so `t27c silicon` hashed
+; the chipdb (333 MB), nextpnr, fasm2frames and xc7frames2bit on every run. Measured 2026-10-11: a hit that
+; loads a cached bitstream took 4.3-8.9 s, and 5694 of its 1 ms samples were in sha256 -- for files that had
+; not changed since the last run.
+; --
+; The key. A cached digest is named by the file's path, size, mtime, ctime and inode, each to the
+; nanosecond, and DIGEST_CACHE_VERSION -- git's index and Bazel's digest cache. A write in place moves mtime
+; and ctime; a replacement by rename moves the inode; ctime cannot be set back by user tools. A different
+; stat is a different entry, so a changed file is a miss and is hashed again.
+; --
+; Small files are hashed every time. Below DIGEST_CACHE_MIN_MIB a file hashes faster than a cache entry is
+; found and read, and the Verilog a run generates is new on every run anyway.
+; --
+; A fresh file is hashed but not stored: one whose mtime or ctime is less than DIGEST_FRESH_S old. A write in
+; the same clock tick as the stat could leave the stat unchanged and the content new (git's "racily clean"
+; entries); a file that has been still for DIGEST_FRESH_S cannot be in that tick.
+; --
+; What it does NOT change. The digest is the file's sha256 either way, so every key built from it -- the
+; bitstream reuse key above all -- is the same with and without the cache, and every bitstream cached before
+; still hits. The bitstream audit (every AUDIT_EVERY-th hit rebuilt and compared byte for byte) still runs.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedDigestCache;
+
+/// Bumped by hand when the entry format or the key's composition changes.
+pub const DIGEST_CACHE_VERSION : u32 = 1;
+
+/// Files smaller than this are hashed every time.
+pub const DIGEST_CACHE_MIN_MIB : u32 = 1;
+
+/// A file changed less than this many seconds ago is hashed but its digest is not stored.
+pub const DIGEST_FRESH_S : u32 = 2;
+
+/// The length of a stored digest: sha256 in lowercase hex.
+pub const DIGEST_HEX_LEN : u32 = 64;
+
+/// Take the digest from the cache: a large file whose entry was found and holds a whole digest.
+pub fn digest_cache_use(size_mib: u32, entry_found: bool, entry_len: u32) -> bool {
+    if (size_mib < DIGEST_CACHE_MIN_MIB) { return false; }
+    if (entry_found == false) { return false; }
+    return entry_len == DIGEST_HEX_LEN;
+}
+
+/// Store a freshly computed digest: a large file that has been still for DIGEST_FRESH_S seconds.
+pub fn digest_cache_store(size_mib: u32, seconds_since_change: u32) -> bool {
+    if (size_mib < DIGEST_CACHE_MIN_MIB) { return false; }
+    return seconds_since_change >= DIGEST_FRESH_S;
+}
+
+test digest_cache_use_needs_a_large_file_and_a_whole_entry {
+    // the chipdb: 333 MiB, entry found, 64 hex digits
+    assert digest_cache_use(333, true, 64) == true;
+    assert digest_cache_use(1, true, 64) == true;
+    // no entry: hash it
+    assert digest_cache_use(333, false, 0) == false;
+    // a torn or foreign entry is never used
+    assert digest_cache_use(333, true, 63) == false;
+    assert digest_cache_use(333, true, 0) == false;
+    assert digest_cache_use(333, true, 65) == false;
+    // a small file is hashed every time, even with an entry
+    assert digest_cache_use(0, true, 64) == false;
+}
+
+test digest_cache_store_skips_small_and_fresh_files {
+    assert digest_cache_store(333, 3600) == true;
+    assert digest_cache_store(333, 2) == true;
+    // changed within the last DIGEST_FRESH_S seconds: maybe still being written
+    assert digest_cache_store(333, 1) == false;
+    assert digest_cache_store(333, 0) == false;
+    // small: never stored
+    assert digest_cache_store(0, 3600) == false;
+}
+
+invariant the_cache_never_hides_a_change {
+    assert DIGEST_CACHE_VERSION >= 1;
+    assert DIGEST_CACHE_MIN_MIB >= 1;
+    assert DIGEST_FRESH_S >= 1;
+    assert DIGEST_HEX_LEN == 64;
+}

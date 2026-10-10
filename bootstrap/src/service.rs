@@ -4075,6 +4075,25 @@ pub fn run_run_record(
     std::process::exit(if citable { 0 } else { 1 });
 }
 
+/// #8805: a file's sha256, taken from ~/.cache/t27/digests while its stat is unchanged (specs/verified/digest_cache.t27).
+fn file_digest(p: &Path) -> String {
+    use crate::digest_cache as dc;
+    use std::os::unix::fs::MetadataExt;
+    let hash = || crate::sha256_hex(&std::fs::read(p).unwrap_or_default());
+    let Ok(m) = std::fs::metadata(p) else { return hash() };
+    let mib = (m.len() >> 20).min(u32::MAX as u64) as u32;
+    let id = format!("{}|{}|{}|{}.{}|{}.{}|{}", dc::DIGEST_CACHE_VERSION, p.display(), m.len(), m.mtime(), m.mtime_nsec(), m.ctime(), m.ctime_nsec(), m.ino());
+    let entry = PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache/t27/digests").join(crate::sha256_hex(id.as_bytes()));
+    let cached = std::fs::read_to_string(&entry).ok();
+    if dc::digest_cache_use(mib, cached.is_some(), cached.as_deref().map_or(0, |c| c.len() as u32)) { return cached.unwrap_or_default(); }
+    let d = hash();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |t| t.as_secs() as i64);
+    if dc::digest_cache_store(mib, (now - m.mtime().max(m.ctime())).clamp(0, u32::MAX as i64) as u32) {
+        let _ = std::fs::create_dir_all(entry.with_file_name("")).and_then(|_| std::fs::write(&entry, &d));
+    }
+    d
+}
+
 pub fn run_silicon(
     repo_root: &Path,
     spec: &str,
@@ -4221,7 +4240,7 @@ pub fn run_silicon(
     let tools = [chipdb.clone(), pnr.clone(), xr.join("utils/fasm2frames.py"), PathBuf::from(run(Command::new("which").arg("xc7frames2bit")).1.trim())];
     let xdc_in = tops.last().map(|t| Path::new(t).with_extension("xdc")).filter(|p| p.exists());
     let mut key_in = format!("{}|{}|{pnr_seed:?}|{}|{}", run(Command::new("yosys").arg("-V")).1.trim().to_owned() + run(Command::new(&venv).args(["-m", "pip", "freeze"])).1.trim(), run(Command::new("git").arg("-C").arg(&db).args(["rev-parse", "HEAD"])).1.trim(), br::BIT_RECIPE, env!("CARGO_PKG_VERSION"));
-    for f in sources.iter().map(PathBuf::from).chain(xdc_in).chain(tools) { key_in += &format!("|{}", crate::sha256_hex(&std::fs::read(&f).unwrap_or_default())); }
+    for f in sources.iter().map(PathBuf::from).chain(xdc_in).chain(tools) { key_in += &format!("|{}", file_digest(&f)); }
     let cache = PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache/t27/bitstreams").join(crate::sha256_hex(key_in.as_bytes()));
     let (cached_bit, cached_chain) = (std::fs::read(cache.join("design.bit")).ok(), std::fs::read_to_string(cache.join("chain")).ok());
     let intact = cached_bit.as_deref().map(crate::sha256_hex) == std::fs::read_to_string(cache.join("bit.sha256")).ok();
