@@ -48,7 +48,6 @@
     "OptimizerStepResult",
     "OscillatorState",
     "Outputs",
-    "Pair",
     "ParseError",
     "Parser",
     "PinAssignment",
