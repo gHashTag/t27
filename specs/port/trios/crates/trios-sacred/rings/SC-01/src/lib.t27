@@ -44,3 +44,21 @@ test scale_phi_with_both_components {
     }
     // If we get here, the test passes
 }
+
+// The same contract, asserted rather than returned-from (#8475): scaling by
+// PHI multiplies both axes, and the zero vector stays zero.
+test scale_phi_asserted_scaling {
+    const v = Vec2 { x: 2.0, y: 3.0 };
+    const s = scale_phi(v);
+    const ex = 2.0 * PHI;
+    const ey = 3.0 * PHI;
+    const sx = s.x;
+    const sy = s.y;
+    assert(@abs(sx - ex) < 1.0e-12);
+    assert(@abs(sy - ey) < 1.0e-12);
+    const zero = scale_phi(Vec2 { x: 0.0, y: 0.0 });
+    const zx = zero.x;
+    const zy = zero.y;
+    assert(@abs(zx) < 1.0e-12);
+    assert(@abs(zy) < 1.0e-12);
+}
