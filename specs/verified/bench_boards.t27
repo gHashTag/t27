@@ -1,0 +1,849 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/bench_boards.t27 -- the bench's boards as one table, and how `t27c silicon` picks the
+; cable and the die from a row before it reads the DNA a die_binding v2 receipt signs. Issue
+; gHashTag/t27#8662 (part of #8635).
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/device_dna.t27 owns the read itself: opcodes, decoding, well-formedness, agreement.
+; - specs/verified/die_binding.t27 owns the v2 message, the die level, the count rule
+;   dna_read_allowed() (exactly one cable), and the parse of a tagged read (reader_raw).
+; --
+; Why: until this file, t27c silicon had one part (xc7a200tfbg676-1), one cable kind (FT232H 0403:6014)
+; and one TAP (irlen 6, 0x13636093) in its Rust and in die_binding.t27's DNA_READER. Its cable rule
+; counted 0403:6014 cables only. On the bench of 2026-10-10 -- the AX7203 on an FT232H 0403:6014
+; (serial 210512180081) and die D, the PZSDR P201/P203 Mini's Zynq XC7Z020, on an FT2232H 0403:6010
+; (serial 210203859289) -- that rule counted one cable and allowed the read, and the reader opened the
+; AX7203's cable. A die D run would have been signed with the AX7203's DNA: the wrong die, which is
+; exactly what DIE_NAMED exists to prevent.
+; --
+; The table. One row per board: the part t27c builds for and its prjxray family, openFPGALoader's
+; cable name, the cable's vid:pid and (optionally) its USB serial, the PL's IDCODE with the version
+; nibble masked, and the JTAG chain -- each TAP's IR length and full IDCODE, and the PL's position.
+; - Positions count from TDI, the order `openFPGALoader --detect` lists the chain: on die D it listed
+;   the ARM DAP (0x4ba00477) first and the PL (0x23727093) second (#8635). openocd declares the TAP
+;   nearest TDO first, so the reader declares the positions in reverse; the die D read of 2026-10-10
+;   (PL declared first, then the DAP) returned the PL's IDCODE 23727093 and both DNA reads.
+; - artix200t is the default row and reproduces, field for field, what t27c silicon assumed until
+;   now. R3 dies A, B and C ran on it (other operators' cables have other serials, so it names none).
+;   Its reader is the old DNA_READER with one read added: the PL's IDCODE, tagged PL_IDCODE.
+; - ax7203 is the AX7203 on this bench, picked by serial. Its package is fbg484-2 (a camera photo,
+;   2026-10-08); a pin-free design built for artix200t's fbg676-1 loads on it too, same die.
+; - pzsdr-d is die D. Its package (clg400) is assumed, not read from a marking (#8635); the chipdb
+;   build/fpga/openxc7/xc7z020clg400-1.bin was built from prjxray-db's zynq7 on the t27c lab.
+; --
+; The rule, in judgment order (dna_pick, then reader_first_wrong on the reader's output):
+; 1. The board is a row of this table (--board names it; no name is the default row).
+; 2. Exactly one cable in `openFPGALoader --scan-usb` matches the row: its vid:pid, and its serial as
+;    a whole column when the row names one. None is no read; two or more is no read, because openocd
+;    would open whichever it finds first (W838) -- the three QMTech cables share serial 210512180081,
+;    so even a serial does not always pick one cable.
+; 3. The die `openFPGALoader --detect` lists at the row's PL position answers the row's IDCODE
+;    (version masked). A Zynq on the default row fails here: its position 0 is the ARM DAP.
+; 4. The reader opens that cable (vid_pid, and adapter serial when the row names one), declares the
+;    row's whole chain, and shifts every instruction into the PL TAP xc7.tap only. Its first read is
+;    the PL's IDCODE; a read whose PL_IDCODE is missing or is not the row's names no die.
+; No read means no device_dna, never a guess: the receipt is then v1 and names no die.
+; --
+; Also here: the BSCAN guard's FASM reads, which decide the USER chain t27c silicon reads the PL on.
+; They moved from bootstrap/src/service.rs (fasm_bscan_chain_and_site, W693), with its tests: a site
+; is every leading digit after CFG_CENTER_BSCAN (site 12 is not site 1), the chain is the number
+; after the last BSCAN.JTAG_CHAIN_, and the sites are distinct and ascending. One FASM feature per line.
+; --
+; Honest limits: the scan and detect texts in the tests are in each tool's layout, with this bench's
+; serials and IDCODEs; die D's reader output is derived from its TDI-low read of 2026-10-10 (the
+; reader holds TDI high, so the XSC fill reads as ones). No new read of any board was made for this file.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedBenchBoards;
+
+use verified::device_dna;
+use verified::die_binding;
+
+/// The rows. --board names one by board_name(); no name is the default row.
+pub const BOARD_ARTIX200T : u8 = 0;
+pub const BOARD_AX7203 : u8 = 1;
+pub const BOARD_PZSDR_D : u8 = 2;
+pub const BOARD_COUNT : u8 = 3;
+pub const BOARD_NONE : u8 = 255;
+pub const BOARD_DEFAULT : u8 = 0;
+
+pub fn board_name(b: u8) -> string {
+    if (b == BOARD_ARTIX200T) { return "artix200t"; }
+    if (b == BOARD_AX7203) { return "ax7203"; }
+    if (b == BOARD_PZSDR_D) { return "pzsdr-d"; }
+    return "";
+}
+
+/// The part t27c builds for: chipdb build/fpga/openxc7/<part>.bin, prjxray-db/<family>/<part>/part.yaml.
+pub fn board_part(b: u8) -> string {
+    if (b == BOARD_AX7203) { return "xc7a200tfbg484-2"; }
+    if (b == BOARD_PZSDR_D) { return "xc7z020clg400-1"; }
+    return "xc7a200tfbg676-1";
+}
+
+pub fn board_family(b: u8) -> string {
+    if (b == BOARD_PZSDR_D) { return "zynq7"; }
+    return "artix7";
+}
+
+/// openFPGALoader's cable name (-c): digilent_hs2 drives an FT232H, digilent an FT2232H.
+pub fn board_cable(b: u8) -> string {
+    if (b == BOARD_PZSDR_D) { return "digilent"; }
+    return "digilent_hs2";
+}
+
+/// The cable's USB ids. Every bench cable is FTDI's.
+pub const FTDI_VID : u64 = 0x0403;
+
+pub fn board_pid(b: u8) -> u64 {
+    if (b == BOARD_PZSDR_D) { return 0x6010; }
+    return 0x6014;
+}
+
+/// The cable's USB serial, or "" when the row picks its cable by vid:pid alone.
+pub fn board_serial(b: u8) -> string {
+    if (b == BOARD_AX7203) { return "210512180081"; }
+    if (b == BOARD_PZSDR_D) { return "210203859289"; }
+    return "";
+}
+
+pub fn board_has_serial(b: u8) -> bool {
+    var s : string = board_serial(b);
+    return (s.len as u32) > 0;
+}
+
+/// The PL's IDCODE with the version nibble (bits 31..28) masked: every die of the part answers it.
+pub const IDCODE_VERSION_UNIT : u64 = 0x10000000;
+
+pub fn board_idcode(b: u8) -> u64 {
+    if (b == BOARD_PZSDR_D) { return 0x03727093; }
+    return 0x03636093;
+}
+
+/// The JTAG chain, positions from TDI: how many TAPs, and where the PL is.
+pub fn chain_len(b: u8) -> u32 {
+    if (b == BOARD_PZSDR_D) { return 2; }
+    return 1;
+}
+
+pub fn pl_pos(b: u8) -> u32 {
+    if (b == BOARD_PZSDR_D) { return 1; }
+    return 0;
+}
+
+/// The IR length of the TAP at position k.
+pub fn tap_irlen(b: u8, k: u32) -> u32 {
+    if (b == BOARD_PZSDR_D) { if (k == 0) { return 4; } }
+    return 6;
+}
+
+/// The full IDCODE openocd expects at position k (-expected-id), version included: die A's for the
+/// Artix rows (device_dna.t27, IDCODE_OBSERVED), die D's PL and DAP for pzsdr-d.
+pub fn tap_idcode(b: u8, k: u32) -> u64 {
+    if (b == BOARD_PZSDR_D) {
+        if (k == 0) { return 0x4ba00477; }
+        return 0x23727093;
+    }
+    return 0x13636093;
+}
+
+/// openocd's chip and tap name for position k. The PL is always xc7.tap, so every irscan names it.
+pub fn tap_name(b: u8, k: u32) -> string {
+    if (k == pl_pos(b)) { return "xc7 tap"; }
+    if (b == BOARD_PZSDR_D) { return "arm dap"; }
+    return "other tap";
+}
+
+; --- The reader, composed from the row: fixed text and the row's numbers, piece by piece ---------
+
+/// The IDCODE instruction, read first so the output names the die the DNA came from.
+pub const OP_IDCODE : u8 = 9;
+pub const READER_IRSCAN : str = "irscan xc7.tap 0x";
+pub const READER_IDCODE_TAG : str = "PL_IDCODE ";
+
+pub const PIECE_HEAD : str = "adapter driver ftdi; ftdi vid_pid 0x";
+pub const PIECE_PID : str = " 0x";
+pub const PIECE_END : str = "; ";
+pub const PIECE_SERIAL : str = "adapter serial ";
+pub const PIECE_ADAPTER : str = "ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; ";
+pub const PIECE_NEWTAP : str = "jtag newtap ";
+pub const PIECE_IRLEN : str = " -irlen ";
+pub const PIECE_EXPECTED : str = " -expected-id 0x";
+pub const READER_BODY : str = "init; irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
+
+/// Pieces: head, vid, " 0x", pid, "; ", the serial clause (three pieces, empty without a serial),
+/// the adapter settings; then seven per TAP, nearest TDO first; then the body.
+pub const PIECES_BEFORE_TAPS : u32 = 9;
+pub const PIECES_PER_TAP : u32 = 7;
+
+pub fn piece_count(b: u8) -> u32 {
+    return PIECES_BEFORE_TAPS + PIECES_PER_TAP * chain_len(b) + 1;
+}
+
+/// Whether piece p declares a TAP, and which part of the declaration it is.
+pub fn piece_in_taps(b: u8, p: u32) -> bool {
+    if (p < PIECES_BEFORE_TAPS) { return false; }
+    return p < PIECES_BEFORE_TAPS + PIECES_PER_TAP * chain_len(b);
+}
+
+pub fn piece_part(p: u32) -> u32 {
+    return (p - PIECES_BEFORE_TAPS) % PIECES_PER_TAP;
+}
+
+/// The chain position a TAP piece declares: the last position (nearest TDO) comes first.
+pub fn piece_tap(b: u8, p: u32) -> u32 {
+    return chain_len(b) - 1 - (p - PIECES_BEFORE_TAPS) / PIECES_PER_TAP;
+}
+
+/// How many hex digits a number piece is written in, or 0 for a text piece.
+pub fn piece_digits(b: u8, p: u32) -> u32 {
+    if (p == 1) { return 4; }
+    if (p == 3) { return 4; }
+    if (piece_in_taps(b, p)) {
+        if (piece_part(p) == 3) { return 1; }
+        if (piece_part(p) == 5) { return 8; }
+    }
+    return 0;
+}
+
+pub fn piece_value(b: u8, p: u32) -> u64 {
+    if (p == 1) { return FTDI_VID; }
+    if (p == 3) { return board_pid(b); }
+    if (piece_in_taps(b, p)) {
+        if (piece_part(p) == 3) { return tap_irlen(b, piece_tap(b, p)) as u64; }
+        return tap_idcode(b, piece_tap(b, p));
+    }
+    return 0;
+}
+
+pub fn piece_text(b: u8, p: u32) -> string {
+    if (p == 0) { return PIECE_HEAD; }
+    if (p == 2) { return PIECE_PID; }
+    if (p == 4) { return PIECE_END; }
+    if (p == 5) {
+        if (board_has_serial(b)) { return PIECE_SERIAL; }
+        return "";
+    }
+    if (p == 6) { return board_serial(b); }
+    if (p == 7) {
+        if (board_has_serial(b)) { return PIECE_END; }
+        return "";
+    }
+    if (p == 8) { return PIECE_ADAPTER; }
+    if (piece_in_taps(b, p)) {
+        if (piece_part(p) == 0) { return PIECE_NEWTAP; }
+        if (piece_part(p) == 1) { return tap_name(b, piece_tap(b, p)); }
+        if (piece_part(p) == 2) { return PIECE_IRLEN; }
+        if (piece_part(p) == 4) { return PIECE_EXPECTED; }
+        return PIECE_END;
+    }
+    if (p == piece_count(b) - 1) { return READER_BODY; }
+    return "";
+}
+
+/// Character j of v in `digits` lowercase hex digits, most significant first.
+pub fn hex_char(v: u64, digits: u32, j: u32) -> u32 {
+    var nibble : u64 = (v / pow2(4 * ((digits - 1 - j) as u64))) % 16;
+    if (nibble < 10) { return 48 + (nibble as u32); }
+    return 87 + (nibble as u32);
+}
+
+pub fn piece_len(b: u8, p: u32) -> u32 {
+    var d : u32 = piece_digits(b, p);
+    if (d > 0) { return d; }
+    var t : string = piece_text(b, p);
+    return t.len as u32;
+}
+
+pub fn piece_char(b: u8, p: u32, j: u32) -> u32 {
+    var d : u32 = piece_digits(b, p);
+    if (d > 0) { return hex_char(piece_value(b, p), d, j); }
+    var t : string = piece_text(b, p);
+    return t[j] as u32;
+}
+
+/// The reader t27c runs as one openocd -c script, as its length and its k-th character.
+pub const READER_END : u32 = 256;
+
+pub fn reader_len(b: u8) -> u32 {
+    var n : u32 = 0;
+    var p : u32 = 0;
+    while (p < piece_count(b)) {
+        n = n + piece_len(b, p);
+        p = p + 1;
+    }
+    return n;
+}
+
+pub fn reader_char(b: u8, k: u32) -> u32 {
+    var at : u32 = k;
+    var p : u32 = 0;
+    while (p < piece_count(b)) {
+        var n : u32 = piece_len(b, p);
+        if (at < n) { return piece_char(b, p, at); }
+        at = at - n;
+        p = p + 1;
+    }
+    return READER_END;
+}
+
+/// Whether board b's reader is exactly text.
+pub fn reader_matches(b: u8, text: string) -> bool {
+    if (reader_len(b) != (text.len as u32)) { return false; }
+    var k : u32 = 0;
+    while (k < (text.len as u32)) {
+        if (reader_char(b, k) != (text[k] as u32)) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+; --- Which row --board names ----------------------------------------------------------------------
+
+pub fn text_same(a: string, b: string) -> bool {
+    if ((a.len as u32) != (b.len as u32)) { return false; }
+    var k : u32 = 0;
+    while (k < (a.len as u32)) {
+        if ((a[k] as u32) != (b[k] as u32)) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The row a name picks: no name is the default row, an unknown name is BOARD_NONE.
+pub fn board_by_name(name: string) -> u8 {
+    if ((name.len as u32) == 0) { return BOARD_DEFAULT; }
+    var b : u8 = 0;
+    while (b < BOARD_COUNT) {
+        if (text_same(name, board_name(b))) { return b; }
+        b = b + 1;
+    }
+    return BOARD_NONE;
+}
+
+; --- The cable and the die ------------------------------------------------------------------------
+
+/// No such position. A u32 sentinel, so it stays clear of a multi-megabyte FASM's offsets.
+pub const NOT_FOUND : u32 = 4294967295;
+
+/// Where pat next starts in text at or after from, or NOT_FOUND. One pass, so long texts stay linear.
+pub fn text_next(text: string, pat: string, from: u32) -> u32 {
+    var i : u32 = from;
+    while (i + (pat.len as u32) <= (text.len as u32)) {
+        var k : u32 = 0;
+        while (k < (pat.len as u32)) {
+            if ((text[i + k] as u32) != (pat[k] as u32)) {
+                k = (pat.len as u32) + 1;
+            } else {
+                k = k + 1;
+            }
+        }
+        if (k == (pat.len as u32)) { return i; }
+        i = i + 1;
+    }
+    return NOT_FOUND;
+}
+
+/// Where the line holding text[at] ends: its newline, or the end of the text.
+pub fn line_end(text: string, at: u32) -> u32 {
+    var i : u32 = at;
+    while (i < (text.len as u32)) {
+        if ((text[i] as u32) == 10) { return i; }
+        i = i + 1;
+    }
+    return i;
+}
+
+/// Whether the n characters at text[s] are a whole column: a space before, a space or a line end after.
+pub fn column_bounded(text: string, s: u32, n: u32) -> bool {
+    if (s == 0) { return false; }
+    if ((text[s - 1] as u32) != 32) { return false; }
+    if (s + n == (text.len as u32)) { return true; }
+    var c : u32 = text[s + n] as u32;
+    if (c == 32) { return true; }
+    if (c == 10) { return true; }
+    return false;
+}
+
+/// Whether the scan line that holds text[at] names the row's serial as a column (always, without one).
+pub fn line_has_serial(scan: string, at: u32, b: u8) -> bool {
+    var serial : string = board_serial(b);
+    if ((serial.len as u32) == 0) { return true; }
+    var end : u32 = line_end(scan, at);
+    var s : u32 = text_next(scan, serial, at);
+    while (s != NOT_FOUND) {
+        if (s + (serial.len as u32) > end) { return false; }
+        if (column_bounded(scan, s, serial.len as u32)) { return true; }
+        s = text_next(scan, serial, s + 1);
+    }
+    return false;
+}
+
+/// How a cable's ids start in `openFPGALoader --scan-usb`: 0x0403:0x6014.
+pub const SCAN_VID : str = "0x0403:0x";
+
+/// How many cables in a --scan-usb listing could be the row's: its vid:pid, and its serial if it has one.
+pub fn cables_matching(scan: string, b: u8) -> u32 {
+    var n : u32 = 0;
+    var at : u32 = text_next(scan, SCAN_VID, 0);
+    while (at != NOT_FOUND) {
+        if (text_hex_at(scan, at + (SCAN_VID.len as u32)) == board_pid(b)) {
+            if (line_has_serial(scan, at, b)) { n = n + 1; }
+        }
+        at = text_next(scan, SCAN_VID, at + 1);
+    }
+    return n;
+}
+
+/// `openFPGALoader --detect` prints one `idcode 0x...` line per TAP, from TDI, version masked.
+pub const DETECT_IDCODE : str = "idcode 0x";
+
+pub fn detect_count(detect: string) -> u32 {
+    var n : u32 = 0;
+    while (text_find(detect, DETECT_IDCODE, n) != TEXT_NONE) { n = n + 1; }
+    return n;
+}
+
+/// The IDCODE detect lists at position n, or HEX_NONE.
+pub fn detect_idcode(detect: string, n: u32) -> u64 {
+    return text_hex_after(detect, DETECT_IDCODE, n);
+}
+
+/// Whether an IDCODE, version masked, is the row's PL.
+pub fn idcode_is_row(id: u64, b: u8) -> bool {
+    if (id == HEX_NONE) { return false; }
+    return (id % IDCODE_VERSION_UNIT) == board_idcode(b);
+}
+
+/// Why the DNA is not read, in judgment order; PICK_OK reads it.
+pub const PICK_OK : u8 = 0;
+pub const PICK_NO_BOARD : u8 = 1;
+pub const PICK_NO_CABLE : u8 = 2;
+pub const PICK_TWO_CABLES : u8 = 3;
+pub const PICK_WRONG_DIE : u8 = 4;
+pub const PICK_READ_NO_IDCODE : u8 = 5;
+pub const PICK_READ_WRONG_DIE : u8 = 6;
+pub const PICK_READ_NO_DNA : u8 = 7;
+
+/// Before the reader runs: the row, the one cable it opens, and the die at the row's PL position.
+pub fn dna_pick(scan: string, detect: string, b: u8) -> u8 {
+    if (b >= BOARD_COUNT) { return PICK_NO_BOARD; }
+    var n : u32 = cables_matching(scan, b);
+    if (n == 0) { return PICK_NO_CABLE; }
+    if (dna_read_allowed(n) == false) { return PICK_TWO_CABLES; }
+    if (idcode_is_row(detect_idcode(detect, pl_pos(b)), b) == false) { return PICK_WRONG_DIE; }
+    return PICK_OK;
+}
+
+/// After it ran: the PL TAP answered the row's IDCODE, and both DNA reads are there.
+pub fn reader_first_wrong(out: string, b: u8) -> u8 {
+    var id : u64 = text_hex_after(out, READER_IDCODE_TAG, 0);
+    if (id == HEX_NONE) { return PICK_READ_NO_IDCODE; }
+    if (idcode_is_row(id, b) == false) { return PICK_READ_WRONG_DIE; }
+    if (reader_raw(out, READER_FUSE_TAG) == HEX_NONE) { return PICK_READ_NO_DNA; }
+    if (reader_raw(out, READER_XSC_TAG) == HEX_NONE) { return PICK_READ_NO_DNA; }
+    return PICK_OK;
+}
+
+pub fn pick_why(code: u8) -> string {
+    if (code == PICK_OK) { return "read"; }
+    if (code == PICK_NO_BOARD) { return "no such board in bench_boards.t27"; }
+    if (code == PICK_NO_CABLE) { return "no cable on the bus matches the board's vid:pid and serial"; }
+    if (code == PICK_TWO_CABLES) { return "more than one cable could be the board's; openocd would open whichever it finds first"; }
+    if (code == PICK_WRONG_DIE) { return "the die at the board's PL position does not answer its IDCODE"; }
+    if (code == PICK_READ_NO_IDCODE) { return "openocd printed no PL_IDCODE read"; }
+    if (code == PICK_READ_WRONG_DIE) { return "the PL TAP openocd read is not the board's die"; }
+    return "openocd printed no tagged DNA read";
+}
+
+; --- The user chain: what the FASM says about BSCAN (moved from bootstrap/src/service.rs, W693) -----
+
+pub const FASM_CHAIN_KEY : str = "BSCAN.JTAG_CHAIN_";
+pub const FASM_SITE_KEY : str = "CFG_CENTER_BSCAN";
+
+/// The decimal number whose digits start at text[at] -- all of them, not the first (W693) -- or
+/// NOT_FOUND when there is no digit or more than nine.
+pub fn decimal_at(text: string, at: u32) -> u32 {
+    var v : u32 = 0;
+    var i : u32 = at;
+    var going : bool = true;
+    while (going) {
+        going = false;
+        if (i < (text.len as u32)) {
+            var c : u32 = text[i] as u32;
+            if (c >= 48) {
+                if (c <= 57) {
+                    if (i - at >= 9) { return NOT_FOUND; }
+                    v = v * 10 + (c - 48);
+                    i = i + 1;
+                    going = true;
+                }
+            }
+        }
+    }
+    if (i == at) { return NOT_FOUND; }
+    return v;
+}
+
+/// The JTAG chain the FASM enables: the number after the last BSCAN.JTAG_CHAIN_, or NOT_FOUND.
+pub fn fasm_chain(fasm: string) -> u32 {
+    var chain : u32 = NOT_FOUND;
+    var at : u32 = text_next(fasm, FASM_CHAIN_KEY, 0);
+    while (at != NOT_FOUND) {
+        var n : u32 = decimal_at(fasm, at + (FASM_CHAIN_KEY.len as u32));
+        if (n != NOT_FOUND) { chain = n; }
+        at = text_next(fasm, FASM_CHAIN_KEY, at + 1);
+    }
+    return chain;
+}
+
+/// The smallest BSCAN site the FASM routes that is above `above` (any site when first), or NOT_FOUND.
+pub fn fasm_site_after(fasm: string, above: u32, first: bool) -> u32 {
+    var best : u32 = NOT_FOUND;
+    var at : u32 = text_next(fasm, FASM_SITE_KEY, 0);
+    while (at != NOT_FOUND) {
+        var n : u32 = decimal_at(fasm, at + (FASM_SITE_KEY.len as u32));
+        if (n != NOT_FOUND) {
+            var counts : bool = first;
+            if (n > above) { counts = true; }
+            if (counts) {
+                if (n < best) { best = n; }
+            }
+        }
+        at = text_next(fasm, FASM_SITE_KEY, at + 1);
+    }
+    return best;
+}
+
+/// How many distinct sites the FASM routes, and the n-th of them in ascending order.
+pub fn fasm_site_count(fasm: string) -> u32 {
+    var n : u32 = 0;
+    var s : u32 = fasm_site_after(fasm, 0, true);
+    while (s != NOT_FOUND) {
+        n = n + 1;
+        s = fasm_site_after(fasm, s, false);
+    }
+    return n;
+}
+
+pub fn fasm_site(fasm: string, n: u32) -> u32 {
+    var s : u32 = fasm_site_after(fasm, 0, true);
+    var k : u32 = 0;
+    while (k < n) {
+        s = fasm_site_after(fasm, s, false);
+        k = k + 1;
+    }
+    return s;
+}
+
+; --- Tests ---------------------------------------------------------------------------------------
+
+test "the default row is what t27c silicon assumed until now" {
+    var b : u8 = BOARD_ARTIX200T;
+    assert board_by_name("") == b;
+    assert text_same(board_part(b), "xc7a200tfbg676-1");
+    assert text_same(board_family(b), "artix7");
+    assert text_same(board_cable(b), "digilent_hs2");
+    assert board_pid(b) == 0x6014;
+    assert board_has_serial(b) == false;
+    assert chain_len(b) == 1;
+    assert pl_pos(b) == 0;
+    assert tap_irlen(b, 0) == (IR_LEN as u32);
+    assert tap_idcode(b, 0) == IDCODE_OBSERVED;
+    assert board_idcode(b) == IDCODE_OBSERVED % IDCODE_VERSION_UNIT;
+}
+
+test "the default reader is the old one with the PL IDCODE read added" {
+    var old_head : string = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6014; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x13636093; init; ";
+    var added : string = "irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; ";
+    var old_tail : string = "irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
+    var r : string = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6014; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x13636093; init; irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
+    assert reader_matches(BOARD_ARTIX200T, r);
+    assert reader_len(BOARD_ARTIX200T) == (old_head.len as u32) + (added.len as u32) + (old_tail.len as u32);
+    assert text_find(r, old_head, 0) == 0;
+    assert text_find(r, added, 0) == (old_head.len as u32);
+    assert text_find(r, old_tail, 0) == (old_head.len as u32) + (added.len as u32);
+    assert text_find(r, "adapter serial", 0) == TEXT_NONE;
+    assert reader_char(BOARD_ARTIX200T, reader_len(BOARD_ARTIX200T)) == READER_END;
+}
+
+test "the ax7203 row picks its cable by serial and keeps the one-TAP chain" {
+    var r : string = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6014; adapter serial 210512180081; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x13636093; init; irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
+    assert reader_matches(BOARD_AX7203, r);
+    assert board_by_name("ax7203") == BOARD_AX7203;
+    assert text_same(board_part(BOARD_AX7203), "xc7a200tfbg484-2");
+    assert text_same(board_family(BOARD_AX7203), "artix7");
+    assert board_idcode(BOARD_AX7203) == board_idcode(BOARD_ARTIX200T);
+    assert reader_len(BOARD_AX7203) == reader_len(BOARD_ARTIX200T) + 29;
+}
+
+test "die D's row declares the Zynq chain and opens its own cable" {
+    var b : u8 = BOARD_PZSDR_D;
+    var r : string = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6010; adapter serial 210203859289; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x23727093; jtag newtap arm dap -irlen 4 -expected-id 0x4ba00477; init; irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
+    assert reader_matches(b, r);
+    assert board_by_name("pzsdr-d") == b;
+    assert text_same(board_part(b), "xc7z020clg400-1");
+    assert text_same(board_family(b), "zynq7");
+    assert text_same(board_cable(b), "digilent");
+    assert board_pid(b) == 0x6010;
+    assert chain_len(b) == 2;
+    assert pl_pos(b) == 1;
+    // the DAP is position 0 from TDI, so openocd declares it second
+    assert tap_irlen(b, 0) == 4;
+    assert tap_idcode(b, 0) == 0x4ba00477;
+    assert tap_irlen(b, 1) == (IR_LEN as u32);
+    assert tap_idcode(b, 1) == 0x23727093;
+    assert text_hex_after(r, "-expected-id 0x", 0) == tap_idcode(b, pl_pos(b));
+    assert text_hex_after(r, "-irlen ", 0) == (tap_irlen(b, pl_pos(b)) as u64);
+    assert text_hex_after(r, "-expected-id 0x", 1) == tap_idcode(b, 0);
+    assert text_hex_after(r, "-irlen ", 1) == (tap_irlen(b, 0) as u64);
+    assert text_find(r, "jtag newtap xc7 tap", 0) < text_find(r, "jtag newtap arm dap", 0);
+    assert board_idcode(b) == tap_idcode(b, pl_pos(b)) % IDCODE_VERSION_UNIT;
+    // the old reader's cable is not in it
+    assert text_find(r, "0x6014", 0) == TEXT_NONE;
+}
+
+test "every reader shifts device_dna's opcodes into the PL TAP only, IDCODE first" {
+    var b : u8 = 0;
+    var rows : u32 = 0;
+    while (b < BOARD_COUNT) {
+        var at : u32 = reader_len(b) - (READER_BODY.len as u32);
+        var k : u32 = 0;
+        var same : bool = true;
+        while (k < (READER_BODY.len as u32)) {
+            if (reader_char(b, at + k) != (READER_BODY[k] as u32)) { same = false; }
+            k = k + 1;
+        }
+        assert same;
+        rows = rows + 1;
+        b = b + 1;
+    }
+    assert rows == 3;
+    var r : string = READER_BODY;
+    assert text_hex_after(r, READER_IRSCAN, 0) == (OP_IDCODE as u64);
+    assert text_hex_after(r, READER_IRSCAN, 1) == (OP_FUSE_DNA as u64);
+    assert text_hex_after(r, READER_IRSCAN, 2) == (OP_ISC_ENABLE as u64);
+    assert text_hex_after(r, READER_IRSCAN, 3) == (OP_XSC_DNA as u64);
+    assert text_hex_after(r, READER_IRSCAN, 4) == (OP_ISC_DISABLE as u64);
+    assert text_hex_after(r, READER_IRSCAN, 5) == (OP_BYPASS as u64);
+    assert text_hex_after(r, READER_IRSCAN, 6) == HEX_NONE;
+    // every irscan and every drscan names xc7.tap
+    assert text_find(r, "irscan ", 6) == TEXT_NONE;
+    assert text_find(r, "drscan ", 3) == TEXT_NONE;
+    assert text_find(r, "drscan xc7.tap ", 2) != TEXT_NONE;
+    // each read is tagged between its own opcodes
+    var i : u32 = text_find(r, READER_IDCODE_TAG, 0);
+    var f : u32 = text_find(r, READER_FUSE_TAG, 0);
+    var x : u32 = text_find(r, READER_XSC_TAG, 0);
+    assert text_find(r, READER_IRSCAN, 0) < i;
+    assert i < text_find(r, READER_IRSCAN, 1);
+    assert text_find(r, READER_IRSCAN, 1) < f;
+    assert f < text_find(r, READER_IRSCAN, 2);
+    assert text_find(r, READER_IRSCAN, 3) < x;
+    assert x < text_find(r, READER_IRSCAN, 4);
+    assert text_find(r, READER_IDCODE_TAG, 1) == TEXT_NONE;
+    assert text_find(r, READER_FUSE_TAG, 1) == TEXT_NONE;
+    assert text_find(r, READER_XSC_TAG, 1) == TEXT_NONE;
+}
+
+test "every row's PL is a 7-series TAP and every IR length is one digit" {
+    var b : u8 = 0;
+    while (b < BOARD_COUNT) {
+        assert tap_irlen(b, pl_pos(b)) == (IR_LEN as u32);
+        assert pl_pos(b) < chain_len(b);
+        assert board_idcode(b) == tap_idcode(b, pl_pos(b)) % IDCODE_VERSION_UNIT;
+        var k : u32 = 0;
+        while (k < chain_len(b)) {
+            assert tap_irlen(b, k) < 10;
+            assert tap_irlen(b, k) > 1;
+            k = k + 1;
+        }
+        assert board_by_name(board_name(b)) == b;
+        b = b + 1;
+    }
+}
+
+test "a name that is not a row picks no board" {
+    assert board_by_name("ax720") == BOARD_NONE;
+    assert board_by_name("ax72033") == BOARD_NONE;
+    assert board_by_name("PZSDR-D") == BOARD_NONE;
+    assert board_by_name("zynq") == BOARD_NONE;
+    assert text_same(board_name(BOARD_NONE), "");
+    assert dna_pick("", "", BOARD_NONE) == PICK_NO_BOARD;
+    assert dna_pick("", "", BOARD_COUNT) == PICK_NO_BOARD;
+}
+
+test "numbers are written in so many lowercase hex digits" {
+    assert hex_char(0x6014, 4, 0) == 54;
+    assert hex_char(0x6014, 4, 3) == 52;
+    assert hex_char(0x4ba00477, 8, 1) == 98;
+    assert hex_char(0x0403, 4, 0) == 48;
+    assert hex_char(6, 1, 0) == 54;
+    assert hex_char(15, 1, 0) == 102;
+}
+
+test "on the bench of 2026-10-10 each row finds exactly its own cable" {
+    // openFPGALoader --scan-usb layout (bus, device, vid:pid, probe type, manufacturer, serial,
+    // product) with this bench's two cables: the AX7203's FT232H and die D's FT2232H
+    var scan : string = "found 2 USB device\nBus device vid:pid       probe type      manufacturer serial               product\n000 002    0x0403:0x6014 ft232H          Digilent     210512180081         Digilent USB Device\n000 003    0x0403:0x6010 ft2232H         Digilent     210203859289         Digilent Adept USB Device\n";
+    assert cables_matching(scan, BOARD_ARTIX200T) == 1;
+    assert cables_matching(scan, BOARD_AX7203) == 1;
+    assert cables_matching(scan, BOARD_PZSDR_D) == 1;
+    // die D's serial on the AX7203's line would not do, nor the AX7203's vid:pid on die D's
+    var swapped : string = "000 002    0x0403:0x6014 ft232H          Digilent     210203859289         Digilent USB Device\n000 003    0x0403:0x6010 ft2232H         Digilent     210512180081         Digilent Adept USB Device\n";
+    assert cables_matching(swapped, BOARD_PZSDR_D) == 0;
+    assert cables_matching(swapped, BOARD_AX7203) == 0;
+    assert cables_matching(swapped, BOARD_ARTIX200T) == 1;
+}
+
+test "two cables that could be the board's are refused, a serial alone is not enough" {
+    // the three QMTech cables share serial 210512180081 (W838)
+    var three : string = "001 004    0x0403:0x6014 ft232H          Digilent     210512180081         Digilent USB Device\n001 006    0x0403:0x6014 ft232H          Digilent     210512180081         Digilent USB Device\n001 008    0x0403:0x6014 ft232H          Digilent     210512180081         Digilent USB Device\n";
+    var detect : string = "index 0:\n    idcode 0x3636093\n    manufacturer xilinx\n    family artix a7 200t\n    model  xc7a200\n    irlength 6\n";
+    assert cables_matching(three, BOARD_AX7203) == 3;
+    assert cables_matching(three, BOARD_ARTIX200T) == 3;
+    assert dna_pick(three, detect, BOARD_AX7203) == PICK_TWO_CABLES;
+    assert dna_pick(three, detect, BOARD_ARTIX200T) == PICK_TWO_CABLES;
+    assert dna_pick(three, detect, BOARD_PZSDR_D) == PICK_NO_CABLE;
+    assert dna_pick("empty", detect, BOARD_ARTIX200T) == PICK_NO_CABLE;
+}
+
+test "a serial counts only as a whole column on the cable's own line" {
+    var longer : string = "000 003    0x0403:0x6010 ft2232H         Digilent     2102038592891        Digilent Adept USB Device\n";
+    var shorter : string = "000 003    0x0403:0x6010 ft2232H         Digilent     10203859289          Digilent Adept USB Device\n";
+    var next_line : string = "000 003    0x0403:0x6010 ft2232H         Digilent     unknown              Digilent Adept\n000 004    0x0403:0x6011 ft4232H         FTDI         210203859289         Quad RS232\n";
+    var at_end : string = "000 003    0x0403:0x6010 ft2232H Digilent 210203859289";
+    assert cables_matching(longer, BOARD_PZSDR_D) == 0;
+    assert cables_matching(shorter, BOARD_PZSDR_D) == 0;
+    assert cables_matching(next_line, BOARD_PZSDR_D) == 0;
+    assert cables_matching(at_end, BOARD_PZSDR_D) == 1;
+    assert column_bounded("210203859289", 0, 12) == false;
+    assert line_end("ab\ncd", 0) == 2;
+    assert line_end("ab\ncd", 3) == 5;
+}
+
+test "the die at the row's PL position must answer the row's IDCODE" {
+    var scan : string = "000 002    0x0403:0x6014 ft232H          Digilent     210512180081         Digilent USB Device\n000 003    0x0403:0x6010 ft2232H         Digilent     210203859289         Digilent Adept USB Device\n";
+    // openFPGALoader --detect on an XC7A200T (docs/reports/FPGA_EVIDENCE_W385.md) and on die D's
+    // chain, DAP then PL, in the same layout
+    var artix : string = "Jtag frequency : requested 6.00MHz    -> real 6.00MHz   \nindex 0:\n    idcode 0x3636093\n    manufacturer xilinx\n    family artix a7 200t\n    model  xc7a200\n    irlength 6\n";
+    var zynq : string = "Jtag frequency : requested 6.00MHz    -> real 6.00MHz   \nindex 0:\n    idcode 0x4ba00477\n    manufacturer xilinx\n    family zynq\n    model  ARM cortex A9\n    irlength 4\nindex 1:\n    idcode 0x3727093\n    manufacturer xilinx\n    family zynq\n    model  xc7z020\n    irlength 6\n";
+    assert detect_count(artix) == 1;
+    assert detect_count(zynq) == 2;
+    assert detect_idcode(zynq, 1) == 0x3727093;
+    assert dna_pick(scan, artix, BOARD_ARTIX200T) == PICK_OK;
+    assert dna_pick(scan, artix, BOARD_AX7203) == PICK_OK;
+    assert dna_pick(scan, zynq, BOARD_PZSDR_D) == PICK_OK;
+    // THE HAZARD: a die D run on the default row. The old rule counted one 0403:6014 cable and read
+    // the AX7203's DNA; here die D's position 0 is its ARM DAP, so no DNA is read
+    assert dna_read_allowed(cables_matching(scan, BOARD_ARTIX200T));
+    assert dna_pick(scan, zynq, BOARD_ARTIX200T) == PICK_WRONG_DIE;
+    assert dna_pick(scan, zynq, BOARD_AX7203) == PICK_WRONG_DIE;
+    // and the AX7203 on die D's row: position 1 does not exist
+    assert dna_pick(scan, artix, BOARD_PZSDR_D) == PICK_WRONG_DIE;
+    assert detect_idcode(artix, 1) == HEX_NONE;
+    // no detect output names no die
+    assert dna_pick(scan, "", BOARD_ARTIX200T) == PICK_WRONG_DIE;
+    // the version nibble is not judged
+    assert idcode_is_row(0x13636093, BOARD_ARTIX200T);
+    assert idcode_is_row(0x3636093, BOARD_ARTIX200T);
+    assert idcode_is_row(0x23727093, BOARD_PZSDR_D);
+    assert idcode_is_row(0x23727093, BOARD_ARTIX200T) == false;
+    assert idcode_is_row(0x13631093, BOARD_ARTIX200T) == false;
+    assert idcode_is_row(HEX_NONE, BOARD_ARTIX200T) == false;
+}
+
+test "the reader's output names the die it read, or no DNA is taken" {
+    // die A's output of 2026-10-07 (die_binding.t27), with the PL_IDCODE line this reader adds
+    var a : string = "Info : JTAG tap: xc7.tap | PL_IDCODE 13636093 | FUSE_DNA 41ab0a4f 2a19bf18 | XSC_DNA 30835614 fe54337e | shutdown";
+    assert reader_first_wrong(a, BOARD_ARTIX200T) == PICK_OK;
+    assert reader_first_wrong(a, BOARD_AX7203) == PICK_OK;
+    assert reader_first_wrong(a, BOARD_PZSDR_D) == PICK_READ_WRONG_DIE;
+    var f : u64 = reader_raw(a, READER_FUSE_TAG);
+    var x : u64 = reader_raw(a, READER_XSC_TAG);
+    assert die_read_first_wrong(f, x, f, x) == READ_OK;
+    assert dna_from_xsc(x) == DNA_OBSERVED;
+    // the old reader's output has no PL_IDCODE line: it is refused, not trusted
+    var old : string = "Info : JTAG tap: xc7.tap | FUSE_DNA 41ab0a4f 2a19bf18 | XSC_DNA 30835614 fe54337e | shutdown";
+    assert reader_first_wrong(old, BOARD_ARTIX200T) == PICK_READ_NO_IDCODE;
+    assert reader_first_wrong("PL_IDCODE 13636093 | XSC_DNA 30835614 fe54337e", BOARD_ARTIX200T) == PICK_READ_NO_DNA;
+    assert reader_first_wrong("PL_IDCODE 13636093 | FUSE_DNA 41ab0a4f 2a19bf18", BOARD_ARTIX200T) == PICK_READ_NO_DNA;
+    assert reader_first_wrong("PL_IDCODE x | FUSE_DNA 41ab0a4f 2a19bf18 | XSC_DNA 30835614 fe54337e", BOARD_ARTIX200T) == PICK_READ_NO_IDCODE;
+}
+
+test "die D's reads, in this reader's form, name die D" {
+    // die D, 2026-10-10: FUSE_DNA 2a18bce290363a73 and XSC_DNA 00543179c5206c74 (TDI low). With TDI
+    // held high the XSC fill bits read as ones, so this reader prints c5206c74 fe543179
+    var d : string = "Info : JTAG tap: xc7.tap | PL_IDCODE 23727093 | FUSE_DNA 90363a73 2a18bce2 | XSC_DNA c5206c74 fe543179 | shutdown";
+    assert reader_first_wrong(d, BOARD_PZSDR_D) == PICK_OK;
+    assert reader_first_wrong(d, BOARD_ARTIX200T) == PICK_READ_WRONG_DIE;
+    var f : u64 = reader_raw(d, READER_FUSE_TAG);
+    var x : u64 = reader_raw(d, READER_XSC_TAG);
+    assert f == 0x2a18bce290363a73;
+    assert x % pow2(57) == 0x543179c5206c74;
+    assert die_read_first_wrong(f, x, f, x) == READ_OK;
+    assert dna_from_xsc(x) == 0x5c6c09473d1854;
+    assert dna_from_fuse(f) == dna_from_xsc(x);
+    assert dna_hex_matches(dna_from_xsc(x), "05c6c09473d1854");
+    // die A before and die D after is a swap, not one die
+    var fa : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xa : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    assert die_read_first_wrong(fa, xa, f, x) == READ_DIE_CHANGED;
+}
+
+test "every refusal says why, and only PICK_OK reads" {
+    var c : u8 = PICK_OK;
+    var named : u32 = 0;
+    while (c <= PICK_READ_NO_DNA) {
+        var w : string = pick_why(c);
+        if ((w.len as u32) > 0) { named = named + 1; }
+        c = c + 1;
+    }
+    assert named == 8;
+    assert text_same(pick_why(PICK_OK), "read");
+    assert text_same(pick_why(PICK_TWO_CABLES), pick_why(PICK_NO_CABLE)) == false;
+    assert text_same(pick_why(PICK_WRONG_DIE), pick_why(PICK_READ_WRONG_DIE)) == false;
+}
+
+test "a two-digit BSCAN site is not read as one digit (W693)" {
+    var fasm : string = "TILE.BSCAN.JTAG_CHAIN_1\nTILE.X.CFG_CENTER_BSCAN12_TDI\n";
+    assert fasm_chain(fasm) == 1;
+    assert fasm_site_count(fasm) == 1;
+    assert fasm_site(fasm, 0) == 12;
+}
+
+test "the BSCAN guard tells agreement from mismatch" {
+    var ok : string = "A.BSCAN.JTAG_CHAIN_3\nB.CFG_CENTER_BSCAN3_TDI\nC.CFG_CENTER_BSCAN3_TDO\n";
+    assert fasm_chain(ok) == 3;
+    assert fasm_site_count(ok) == 1;
+    assert fasm_site(ok, 0) == 3;
+    var bad : string = "A.BSCAN.JTAG_CHAIN_3\nB.CFG_CENTER_BSCAN2_TDI\n";
+    assert fasm_chain(bad) == 3;
+    assert fasm_site_count(bad) == 1;
+    assert fasm_site(bad, 0) == 2;
+}
+
+test "a design with no BSCAN is not a mismatch" {
+    var none : string = "SOME.OTHER.FEATURE\n";
+    assert fasm_chain(none) == NOT_FOUND;
+    assert fasm_site_count(none) == 0;
+    assert fasm_site(none, 0) == NOT_FOUND;
+    assert fasm_chain("") == NOT_FOUND;
+}
+
+test "sites are distinct and ascending, and the last chain line wins" {
+    var two : string = "X.CFG_CENTER_BSCAN4_TDI\nX.CFG_CENTER_BSCAN2_TDI\nX.CFG_CENTER_BSCAN4_TDO\nY.BSCAN.JTAG_CHAIN_2\nY.BSCAN.JTAG_CHAIN_4\nZ.BSCAN.JTAG_CHAIN_\nZ.CFG_CENTER_BSCAN_X\n";
+    assert fasm_site_count(two) == 2;
+    assert fasm_site(two, 0) == 2;
+    assert fasm_site(two, 1) == 4;
+    assert fasm_site(two, 2) == NOT_FOUND;
+    assert fasm_chain(two) == 4;
+    assert decimal_at("x12y", 1) == 12;
+    assert decimal_at("x12y", 0) == NOT_FOUND;
+    assert decimal_at("1234567890", 0) == NOT_FOUND;
+    assert decimal_at("123456789", 0) == 123456789;
+    assert decimal_at("007", 0) == 7;
+    assert text_next("abcabc", "bc", 2) == 4;
+    assert text_next("abcabc", "bc", 5) == NOT_FOUND;
+    assert text_next("ab", "abc", 0) == NOT_FOUND;
+}

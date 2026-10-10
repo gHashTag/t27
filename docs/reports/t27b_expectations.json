@@ -1314,6 +1314,7 @@
   {"path": "specs/trinity/project.t27", "t27b": "pass"},
   {"path": "specs/ui/queen_evidence.t27", "t27b": "pass"},
   {"path": "specs/verified/bench_agent.t27", "t27b": "pass"},
+  {"path": "specs/verified/bench_boards.t27", "t27b": "pass"},
   {"path": "specs/verified/bitstream_reuse.t27", "t27b": "pass"},
   {"path": "specs/verified/bitstream_share.t27", "t27b": "pass"},
   {"path": "specs/verified/corpus_merkle.t27", "t27b": "pass"},
