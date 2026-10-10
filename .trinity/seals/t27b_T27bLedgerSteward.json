@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+55eb214ac",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/steward.t27",
+      "spec_hash": "sha256:70867c8cd8a8155d82f352b6833168f04c846a736413d6b2420d54774994123e"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e68d532298ecd4aac96e32088f179d581147705775933c8f93ebda82221aabab",
+  "gen_hash_rust": "sha256:d8faa3518e7703b7f8c7e3cac99fce073a4ae01c1a7c3f1b0195e502226d3b74",
+  "gen_hash_verilog": "sha256:806a630d9e2970ef50e7ea4b777b101b6c24616736caa484b3dc012f55c914f9",
+  "gen_hash_zig": "sha256:cf898366b4bc6cd30fc0232d7dde252a94afaf03e0868d783e15ef7bf4338cd9",
+  "module": "T27bLedgerSteward",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:40:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e2a58a7ef6fb10c371af1dcb8cf02cd1f206f3327dc4851546f5eb4696ce4132",
+  "spec_path": "specs/tri/t27b/ledger_steward.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/jobs/t27b_ledger_steward.t27 -- the t27b ledger steward, as a job the Queen runs (specs/queen/jobs.t27)
+; The steps are the ones a Claude session ran by hand three times in two days (#8289, #8548, #8646):
+; read a red ratchet on a master run, write the rows the run states into
+; docs/reports/t27b_expectations.json with t27b.dump_ledger's layout, open an issue and a PR that
+; closes it, and enable auto-merge (#8654; see #8637 item 1). What the steward may apply and what it
+; refuses is decided in specs/tri/t27b/ledger_steward.t27 (RULES), compiled to wasm like every card
+; decision; this card names the steps.
+; A job starts when a master run's ratchet is red and no job was started for its commit
+; (ledger_steward.t27 run_starts_job), from either trigger:
+;   lab-latest      the t27b lab publishes a master run at LAB_RUN_URL: results[] and steps.ratchet
+;                   (verdict, counts, findings)
+;   native-ratchet  master's NATIVE_CHECK job of NATIVE_WORKFLOW completes; its run.json and
+;                   ratchet.json are read from the run's NATIVE_ARTIFACT (the workflow does not upload
+;                   that artifact yet: until it does, lab-latest is the only trigger)
+; The job's parameters are the run (its URL or Actions run id) and the run's commit.
+;   0 CHECK  steward-run             the run is pinned as the subject: its ref is master, it counted
+;                                    runtime asserts, and master's ledger is the ledger the run was
+;                                    compared against (run_stewardable); otherwise the job fails as SKIP
+;   1 EFFECT steward-refusals-issue  when run_verdict is REFUSE: one issue for this run, listing each
+;                                    refused finding with its refusal_reason (or run_refusal) and the
+;                                    rows the steward would have applied; otherwise PASS, nothing done
+;   2 CHECK  steward-appliable       run_verdict is APPLY: every finding is the steward's and the cap
+;                                    fits (cap_fits); REFUSE fails the job, pointing at the issue
+;   3 EFFECT steward-ledger-issue    the issue the ledger commit and the PR close (the Issue Gate:
+;                                    `Closes #N` in the commit and on line 1 of the PR body),
+;                                    labelled ISSUE_LABEL
+;   4 EFFECT steward-compose         compose the ledger from master's, finding by finding
+;                                    (finding_action: ADD, SET, DROP; KEEP leaves the row), rows in
+;                                    path order, a non-pass row with its first blocker and row_reason,
+;                                    max_not_pass = cap_after, source = the run; push it as one commit
+;                                    to BRANCH_PREFIX + the run's commit (12 hex)
+;   5 EFFECT steward-pull-request    the PR from that branch to master, body line 1 `Closes #<issue>`,
+;                                    with a table of the rows by finding, as #8548's
+;   6 EFFECT steward-auto-merge      enable auto-merge with MERGE_METHOD while the checks are pending
+;                                    (GitHub refuses it once they finished with a non-required red)
+;   7 WAIT   steward-merged          the PR merged; a day without it fails the job (jobs.t27)
+; Every EFFECT goes through the effects journal (control.t27 section 7) under the key
+; JOURNAL_PREFIX + the run's commit + ":" + its STEP_WHAT, so a Queen that restarts mid-step looks
+; before she acts and never opens a second issue or PR for one run. STEP_EFFECT names the effect kind
+; each step needs from the supervisor.
+; Read at run time by the supervisor's vendored compiler wasm: the supervisor reads the constants;
+; the two functions are only what the card's tests ask of them.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module JobT27bLedgerSteward;
+
+pub const JOB_NAME : str = "t27b-ledger-steward";
+pub const REPO : str = "gHashTag/t27";
+pub const BASE_BRANCH : str = "master";
+pub const LEDGER : str = "docs/reports/t27b_expectations.json";
+pub const RULES : str = "specs/tri/t27b/ledger_steward.t27";
+
+/// Where a master run is read, by trigger.
+pub const TRIGGERS : [2]str = ["lab-latest", "native-ratchet"];
+pub const LAB_RUN_URL : str = "https://t27b-lab-production.up.railway.app/latest.json";
+pub const NATIVE_WORKFLOW : str = "t27b-native.yml";
+pub const NATIVE_CHECK : str = "t27b-native-ratchet";
+pub const NATIVE_ARTIFACT : str = "t27b-native-ratchet";
+
+/// The two parameters a job of this card starts with.
+pub const PARAMS : [2]str = ["run", "commit"];
+
+/// What the steward writes.
+pub const BRANCH_PREFIX : str = "steward/t27b-ledger-";
+pub const ISSUE_LABEL : str = "t27b-ledger-steward";
+pub const GENERATED_BY : str = "t27b ledger steward (specs/jobs/t27b_ledger_steward.t27), #8654";
+pub const MERGE_METHOD : str = "squash";
+pub const JOURNAL_PREFIX : str = "t27b-ledger:";
+
+/// Step kinds by number (specs/queen/jobs.t27: CHECK 0, WAIT 1, EFFECT 2), and the executor each
+/// step names. A name the supervisor does not know fails the step: it never guesses.
+pub const STEP_COUNT : u32 = 8;
+pub const STEP_KIND : [8]u8 = [0, 2, 0, 2, 2, 2, 2, 1];
+pub const STEP_WHAT : [8]str = [
+    "steward-run", "steward-refusals-issue", "steward-appliable", "steward-ledger-issue",
+    "steward-compose", "steward-pull-request", "steward-auto-merge", "steward-merged"
+];
+
+/// The effect kind each step needs ("" for a CHECK or a WAIT).
+pub const STEP_EFFECT : [8]str = ["", "issue", "", "issue", "push", "pull-request", "auto-merge", ""];
+
+/// Which ledger_steward.t27 effect code (EF_*) each EFFECT step is; 255 for a CHECK or a WAIT.
+/// effect_wanted(run_verdict, code) says whether the step acts or answers PASS with nothing done.
+pub const STEP_EF : [8]u8 = [255, 0, 255, 2, 1, 3, 4, 255];
+
+/// The refusal issue is the only effect before the appliable CHECK; the ledger issue, the ledger and
+/// its PR come only after it, so every check passed at the subject before the first of them
+/// (jobs.t27 effect_may_run).
+pub const REFUSAL_STEP : u32 = 1;
+pub const APPLIABLE_STEP : u32 = 2;
+pub const LEDGER_ISSUE_STEP : u32 = 3;
+pub const COMPOSE_STEP : u32 = 4;
+
+/// Whether a step writes the steward's batch: an EFFECT after the appliable CHECK (the ledger issue,
+/// the branch, the PR, auto-merge). The refusal issue before it only reports.
+pub fn writes_the_repo(step: u32) -> bool {
+    if (step >= STEP_COUNT) { return false; }
+    if (STEP_KIND[step] != 2) { return false; }
+    return step > APPLIABLE_STEP;
+}
+
+/// The ledger_steward.t27 effect code of a step, 255 for a CHECK, a WAIT or a step past the end.
+pub fn step_ef(step: u32) -> u8 {
+    if (step >= STEP_COUNT) { return 255; }
+    return STEP_EF[step];
+}
+
+test the_card_writes_the_ledger_only_after_its_checks {
+    assert writes_the_repo(0) == false;
+    assert writes_the_repo(REFUSAL_STEP) == false;
+    assert writes_the_repo(APPLIABLE_STEP) == false;
+    assert writes_the_repo(LEDGER_ISSUE_STEP) == true;
+    assert writes_the_repo(COMPOSE_STEP) == true;
+    assert writes_the_repo(5) == true;
+    assert writes_the_repo(6) == true;
+    assert writes_the_repo(7) == false;
+    assert writes_the_repo(STEP_COUNT) == false;
+    assert STEP_KIND[0] == 0;
+    assert STEP_KIND[APPLIABLE_STEP] == 0;
+    assert STEP_KIND[7] == 1;
+}
+
+test every_effect_step_names_its_effect {
+    assert step_ef(REFUSAL_STEP) == 0;
+    assert step_ef(LEDGER_ISSUE_STEP) == 2;
+    assert step_ef(COMPOSE_STEP) == 1;
+    assert step_ef(5) == 3;
+    assert step_ef(6) == 4;
+    assert step_ef(0) == 255;
+    assert step_ef(APPLIABLE_STEP) == 255;
+    assert step_ef(7) == 255;
+    assert step_ef(STEP_COUNT) == 255;
+}
+
+invariant the_steps_are_ordered {
+    assert REFUSAL_STEP == 1;
+    assert APPLIABLE_STEP == 2;
+    assert LEDGER_ISSUE_STEP == 3;
+    assert COMPOSE_STEP == 4;
+    assert COMPOSE_STEP < STEP_COUNT;
+}

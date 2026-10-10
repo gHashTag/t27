@@ -1,0 +1,427 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/ledger_steward.t27 -- which ratchet findings on a master run the t27b ledger steward
+; applies by itself, and which it refuses and reports to a person (#8654; see #8637 item 1, #8321
+; option 3).
+; docs/reports/t27b_expectations.json must name every spec the reference passes. Spec PRs from many
+; sessions landed without a row, master's t27b-native-ratchet went red (UNLISTED) on every PR, and the
+; lanes conflicted on the file. The loop wrote the rows by hand three times in two days: #8289 (9 rows,
+; max_not_pass 18 -> 20), #8548 (58 row changes: UNLISTED 8, UNEXPECTED PASS 44, STALE 4, UNEXPECTED
+; FAILURE 2; 23 -> 27) and #8646 (9 rows, 25 -> 26). Every one of those rows was copied from a master
+; run, which is a decision this file can make. The steward job (specs/jobs/t27b_ledger_steward.t27)
+; reads a master run, asks this file about each finding, and either opens one ledger PR with
+; auto-merge or opens one issue for the run.
+; What the steward applies, as the run states it:
+;   UNLISTED          the row is added; a non-pass row gets reason "unimplemented" (steward.t27
+;                     bless_reason), and only a construct t27b rejects is unimplemented
+;   UNEXPECTED PASS   a gain: the row becomes the run's pass (or pass_vacuous)
+;   STALE             the reference no longer passes it, or the spec is gone: the row is dropped
+;   the cap           max_not_pass is recounted; it may rise by at most the new non-pass rows
+;                     (steward.t27 cap_rise_is_new)
+; What it refuses, so a person reads it:
+;   UNEXPECTED FAILURE (a possible t27b regression, or a spec another session rewrote: see #8637 item
+;   5), MOVED, BAD REASON, OVER CAP (the master ledger is already over its own cap: a hand edit), an
+;   UNLISTED spec t27b fails, mismatches, crashes or times out on (a defect is never "unimplemented"),
+;   a cap rise larger than the new rows, more STALE rows in one run than STALE_LIMIT (the reference
+;   moved, not the specs), and any finding code this file does not know.
+; One refused finding refuses the run: a ledger PR that leaves the ratchet red is noise, and the person
+; who reads the issue writes the whole batch, as #8548 was written.
+; Codes are steward.t27's; the invariant at the end checks the numbering against its entry_code.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bLedgerSteward;
+
+use tri::t27b::steward::is_pass;
+use tri::t27b::steward::bless_reason;
+use tri::t27b::steward::cap_rise_is_new;
+use tri::t27b::steward::entry_code;
+use tri::t27b::steward::unlisted;
+
+/// Ratchet finding codes (steward.t27): what the ratchet said about one ledger row or one spec.
+pub const RC_NONE : u8 = 0;
+pub const RC_VACUITY_MEASURED : u8 = 1;
+pub const RC_UNEXPECTED_FAILURE : u8 = 2;
+pub const RC_UNEXPECTED_PASS : u8 = 3;
+pub const RC_MOVED : u8 = 4;
+pub const RC_STALE : u8 = 5;
+pub const RC_UNJUDGED : u8 = 6;
+pub const RC_UNLISTED : u8 = 7;
+pub const RC_OVER_CAP : u8 = 8;
+pub const RC_BAD_REASON : u8 = 9;
+pub const RC_KINDS : u8 = 10;
+
+/// t27b verdict codes of one spec in one run (steward.t27).
+pub const T_PASS : u8 = 0;
+pub const T_PASS_VACUOUS : u8 = 1;
+pub const T_BLOCKED : u8 = 2;
+pub const T_FRONTEND : u8 = 3;
+pub const T_CODEGEN : u8 = 4;
+pub const T_FAIL : u8 = 5;
+pub const T_MISMATCH : u8 = 6;
+pub const T_CRASH : u8 = 7;
+pub const T_TIMEOUT : u8 = 8;
+pub const T_NOT_RUN : u8 = 9;
+pub const T_MISSING : u8 = 10;
+
+/// Reason codes of a non-pass row (steward.t27): NONE = 0, UNIMPLEMENTED = 1.
+pub const RS_NONE : u8 = 0;
+pub const RS_UNIMPLEMENTED : u8 = 1;
+
+/// What the steward does with one finding.
+///   KEEP    information only: the row stays as it is (VACUITY MEASURED, UNJUDGED, NONE)
+///   ADD     UNLISTED: the row is added as the run states it
+///   SET     UNEXPECTED PASS: the row becomes the run's pass
+///   DROP    STALE: the row goes
+///   REFUSE  a person reads it: the run gets one issue and no PR
+pub const ACT_KEEP : u8 = 0;
+pub const ACT_ADD : u8 = 1;
+pub const ACT_SET : u8 = 2;
+pub const ACT_DROP : u8 = 3;
+pub const ACT_REFUSE : u8 = 4;
+
+/// Why a run was refused, as the issue words it.
+pub const RR_NONE : u8 = 0;
+pub const RR_REGRESSION : u8 = 1;
+pub const RR_MOVED : u8 = 2;
+pub const RR_BAD_REASON : u8 = 3;
+pub const RR_DEFECT : u8 = 4;
+pub const RR_OVER_CAP : u8 = 5;
+pub const RR_CAP_RISE : u8 = 6;
+pub const RR_STALE_FLOOD : u8 = 7;
+pub const RR_UNKNOWN : u8 = 8;
+
+/// The run's verdict.
+///   NOTHING  no finding to apply: the ratchet is green, no job
+///   APPLY    every finding is the steward's: compose the ledger, one PR, auto-merge
+///   REFUSE   some finding is a person's: one issue for the run, no PR
+///   SKIP     not a run the steward reads: not a master run, asserts not counted, or master's ledger
+///            moved since the run (the next run is read instead)
+pub const RV_NOTHING : u8 = 0;
+pub const RV_APPLY : u8 = 1;
+pub const RV_REFUSE : u8 = 2;
+pub const RV_SKIP : u8 = 3;
+
+/// More rows going STALE in one run than this says the reference moved, not the specs: #8548, the
+/// largest hand batch, dropped 4. A spec PR that deletes a whole directory trips it too, and a person
+/// then reads one issue, which is the cheap side of the mistake.
+pub const STALE_LIMIT : u32 = 16;
+
+/// The effects a steward job may run, by the job card's effect steps.
+pub const EF_REFUSAL_ISSUE : u8 = 0;
+pub const EF_COMPOSE : u8 = 1;
+pub const EF_LEDGER_ISSUE : u8 = 2;
+pub const EF_PULL_REQUEST : u8 = 3;
+pub const EF_AUTO_MERGE : u8 = 4;
+
+/// The reason the steward writes on a row it adds: none on a pass, "unimplemented" on a construct
+/// t27b rejects (blocked, frontend, codegen), and none on a defect -- which the steward never writes.
+pub fn row_reason(got: u8) -> u8 {
+    if (is_pass(got)) { return RS_NONE; }
+    return bless_reason(got, RS_NONE);
+}
+
+/// The steward's action on one finding. `got` is t27b's verdict on that spec in the run.
+pub fn finding_action(code: u8, got: u8) -> u8 {
+    if (code == RC_UNLISTED) {
+        if (is_pass(got)) { return ACT_ADD; }
+        if (row_reason(got) == RS_UNIMPLEMENTED) { return ACT_ADD; }
+        return ACT_REFUSE;
+    }
+    if (code == RC_UNEXPECTED_PASS) {
+        if (is_pass(got)) { return ACT_SET; }
+        return ACT_REFUSE;
+    }
+    if (code == RC_STALE) { return ACT_DROP; }
+    if (code == RC_NONE) { return ACT_KEEP; }
+    if (code == RC_VACUITY_MEASURED) { return ACT_KEEP; }
+    if (code == RC_UNJUDGED) { return ACT_KEEP; }
+    return ACT_REFUSE;
+}
+
+/// Why one finding is refused; NONE when the steward applies or keeps it.
+pub fn refusal_reason(code: u8, got: u8) -> u8 {
+    if (finding_action(code, got) != ACT_REFUSE) { return RR_NONE; }
+    if (code == RC_UNEXPECTED_FAILURE) { return RR_REGRESSION; }
+    if (code == RC_MOVED) { return RR_MOVED; }
+    if (code == RC_BAD_REASON) { return RR_BAD_REASON; }
+    if (code == RC_UNLISTED) { return RR_DEFECT; }
+    if (code == RC_OVER_CAP) { return RR_OVER_CAP; }
+    return RR_UNKNOWN;
+}
+
+/// Is this finding a non-pass row new to the ledger? Only those may raise the cap.
+pub fn new_not_pass_row(code: u8, got: u8) -> bool {
+    if (code != RC_UNLISTED) { return false; }
+    if (finding_action(code, got) != ACT_ADD) { return false; }
+    if (is_pass(got)) { return false; }
+    return true;
+}
+
+/// Folds over one run's findings, grouped by (code, t27b verdict) with `n` findings in the group.
+pub fn tally_refused(acc: u32, code: u8, got: u8, n: u32) -> u32 {
+    if (finding_action(code, got) == ACT_REFUSE) { return acc + n; }
+    return acc;
+}
+
+pub fn tally_applied(acc: u32, code: u8, got: u8, n: u32) -> u32 {
+    var a : u8 = finding_action(code, got);
+    if (a == ACT_KEEP) { return acc; }
+    if (a == ACT_REFUSE) { return acc; }
+    return acc + n;
+}
+
+pub fn tally_new_not_pass(acc: u32, code: u8, got: u8, n: u32) -> u32 {
+    if (new_not_pass_row(code, got)) { return acc + n; }
+    return acc;
+}
+
+pub fn tally_stale(acc: u32, code: u8, n: u32) -> u32 {
+    if (code == RC_STALE) { return acc + n; }
+    return acc;
+}
+
+pub fn stale_flood(stale: u32) -> bool {
+    return stale > STALE_LIMIT;
+}
+
+/// The cap the composed ledger writes: its own non-pass count, which falls with every gain and rises
+/// by at most its new non-pass rows. A rise larger than that is refused, and the old cap stays.
+pub fn cap_fits(not_pass_after: u32, old_cap: u32, new_rows: u32) -> bool {
+    return cap_rise_is_new(not_pass_after, old_cap, new_rows);
+}
+
+pub fn cap_after(not_pass_after: u32, old_cap: u32, new_rows: u32) -> u32 {
+    if (cap_fits(not_pass_after, old_cap, new_rows)) { return not_pass_after; }
+    return old_cap;
+}
+
+/// A run the steward reads: a master run, with runtime asserts counted (otherwise pass and
+/// pass_vacuous cannot be told apart), compared against the ledger master has now (otherwise its
+/// findings describe a file that is gone).
+pub fn run_stewardable(is_master: bool, asserts_counted: bool, same_ledger: bool) -> bool {
+    if (is_master == false) { return false; }
+    if (asserts_counted == false) { return false; }
+    if (same_ledger == false) { return false; }
+    return true;
+}
+
+pub fn run_verdict(stewardable: bool, refused: u32, applied: u32, stale: u32, cap_ok: bool) -> u8 {
+    if (stewardable == false) { return RV_SKIP; }
+    if (refused > 0) { return RV_REFUSE; }
+    if (stale_flood(stale)) { return RV_REFUSE; }
+    if (cap_ok == false) { return RV_REFUSE; }
+    if (applied == 0) { return RV_NOTHING; }
+    return RV_APPLY;
+}
+
+/// The run-level reason the issue leads with when no single finding was refused.
+pub fn run_refusal(refused: u32, stale: u32, cap_ok: bool) -> u8 {
+    if (refused > 0) { return RR_NONE; }
+    if (stale_flood(stale)) { return RR_STALE_FLOOD; }
+    if (cap_ok == false) { return RR_CAP_RISE; }
+    return RR_NONE;
+}
+
+/// Which effects a verdict runs. An effect not wanted answers PASS ("nothing to do") and writes no
+/// journal entry: a refused run opens its issue and nothing else, an applied run its PR and nothing
+/// else.
+pub fn effect_wanted(verdict: u8, effect: u8) -> bool {
+    if (effect == EF_REFUSAL_ISSUE) { return verdict == RV_REFUSE; }
+    if (effect > EF_AUTO_MERGE) { return false; }
+    return verdict == RV_APPLY;
+}
+
+/// A run starts a steward job when it is a master run whose ratchet is red and no job was started
+/// for its commit yet (jobs.t27 job_may_start keeps it to one at a time).
+pub fn run_starts_job(is_master: bool, ratchet_red: bool, commit_seen: bool) -> bool {
+    if (is_master == false) { return false; }
+    if (ratchet_red == false) { return false; }
+    if (commit_seen) { return false; }
+    return true;
+}
+
+test batch_8289_nine_rows_two_blocked {
+    // #8289: UNLISTED -- 7 pass; tri/t27b/eval_arith and type_text blocked; max_not_pass 18 -> 20
+    var refused : u32 = tally_refused(0, RC_UNLISTED, T_PASS, 7);
+    refused = tally_refused(refused, RC_UNLISTED, T_BLOCKED, 2);
+    var applied : u32 = tally_applied(0, RC_UNLISTED, T_PASS, 7);
+    applied = tally_applied(applied, RC_UNLISTED, T_BLOCKED, 2);
+    var fresh : u32 = tally_new_not_pass(0, RC_UNLISTED, T_PASS, 7);
+    fresh = tally_new_not_pass(fresh, RC_UNLISTED, T_BLOCKED, 2);
+    assert refused == 0;
+    assert applied == 9;
+    assert fresh == 2;
+    assert row_reason(T_BLOCKED) == RS_UNIMPLEMENTED;
+    assert row_reason(T_PASS) == RS_NONE;
+    assert cap_fits(20, 18, fresh) == true;
+    assert cap_after(20, 18, fresh) == 20;
+    assert run_verdict(run_stewardable(true, true, true), refused, applied, 0, cap_fits(20, 18, fresh)) == RV_APPLY;
+}
+
+test batch_8646_nine_rows_one_codegen {
+    // #8646, run 20624dd85: UNLISTED 9 -- 8 pass; compiler/lexer codegen (FnDecl frame size); 25 -> 26
+    var refused : u32 = tally_refused(0, RC_UNLISTED, T_PASS, 8);
+    refused = tally_refused(refused, RC_UNLISTED, T_CODEGEN, 1);
+    var applied : u32 = tally_applied(0, RC_UNLISTED, T_PASS, 8);
+    applied = tally_applied(applied, RC_UNLISTED, T_CODEGEN, 1);
+    var fresh : u32 = tally_new_not_pass(0, RC_UNLISTED, T_PASS, 8);
+    fresh = tally_new_not_pass(fresh, RC_UNLISTED, T_CODEGEN, 1);
+    assert refused == 0;
+    assert applied == 9;
+    assert fresh == 1;
+    assert row_reason(T_CODEGEN) == RS_UNIMPLEMENTED;
+    assert cap_after(26, 25, fresh) == 26;
+    assert run_verdict(true, refused, applied, 0, cap_fits(26, 25, fresh)) == RV_APPLY;
+    assert effect_wanted(RV_APPLY, EF_PULL_REQUEST) == true;
+    assert effect_wanted(RV_APPLY, EF_REFUSAL_ISSUE) == false;
+}
+
+test batch_8548_is_refused_for_its_two_failures {
+    // #8548, run c9d36f314: UNLISTED 8 (6 pass, claude_md and trinity_tokenizer blocked), UNEXPECTED
+    // PASS 44 (pass_vacuous -> pass), STALE 4, UNEXPECTED FAILURE 2 (ternary_gates and
+    // arty_a7_integration now blocked); the hand batch took the cap 23 -> 27
+    var refused : u32 = tally_refused(0, RC_UNLISTED, T_PASS, 6);
+    refused = tally_refused(refused, RC_UNLISTED, T_BLOCKED, 2);
+    refused = tally_refused(refused, RC_UNEXPECTED_PASS, T_PASS, 44);
+    refused = tally_refused(refused, RC_STALE, T_PASS, 4);
+    refused = tally_refused(refused, RC_UNEXPECTED_FAILURE, T_BLOCKED, 2);
+    var fresh : u32 = tally_new_not_pass(0, RC_UNLISTED, T_BLOCKED, 2);
+    fresh = tally_new_not_pass(fresh, RC_UNEXPECTED_FAILURE, T_BLOCKED, 2);
+    var stale : u32 = tally_stale(0, RC_STALE, 4);
+    assert refused == 2;
+    assert fresh == 2;
+    assert stale == 4;
+    assert refusal_reason(RC_UNEXPECTED_FAILURE, T_BLOCKED) == RR_REGRESSION;
+    // the two failures count against the cap as old rows: 27 is 2 more than the new rows allow
+    assert cap_fits(27, 23, fresh) == false;
+    assert cap_after(27, 23, fresh) == 23;
+    assert run_verdict(true, refused, 56, stale, cap_fits(27, 23, fresh)) == RV_REFUSE;
+    assert effect_wanted(RV_REFUSE, EF_REFUSAL_ISSUE) == true;
+    assert effect_wanted(RV_REFUSE, EF_COMPOSE) == false;
+    assert effect_wanted(RV_REFUSE, EF_AUTO_MERGE) == false;
+}
+
+test batch_8548_without_its_failures_is_applied {
+    // the same run with the two failures taken out: 56 row changes, cap 23 -> 25
+    var applied : u32 = tally_applied(0, RC_UNLISTED, T_PASS, 6);
+    applied = tally_applied(applied, RC_UNLISTED, T_BLOCKED, 2);
+    applied = tally_applied(applied, RC_UNEXPECTED_PASS, T_PASS, 44);
+    applied = tally_applied(applied, RC_STALE, T_PASS, 4);
+    var fresh : u32 = tally_new_not_pass(0, RC_UNLISTED, T_BLOCKED, 2);
+    var refused : u32 = tally_refused(0, RC_UNEXPECTED_PASS, T_PASS, 44);
+    assert applied == 56;
+    assert fresh == 2;
+    assert refused == 0;
+    assert cap_after(25, 23, fresh) == 25;
+    assert run_verdict(true, refused, applied, 4, cap_fits(25, 23, fresh)) == RV_APPLY;
+}
+
+test the_steward_applies_these {
+    assert finding_action(RC_UNLISTED, T_PASS) == ACT_ADD;
+    assert finding_action(RC_UNLISTED, T_PASS_VACUOUS) == ACT_ADD;
+    assert finding_action(RC_UNLISTED, T_FRONTEND) == ACT_ADD;
+    assert finding_action(RC_UNEXPECTED_PASS, T_PASS) == ACT_SET;
+    assert finding_action(RC_UNEXPECTED_PASS, T_PASS_VACUOUS) == ACT_SET;
+    assert finding_action(RC_STALE, T_PASS) == ACT_DROP;
+    assert finding_action(RC_STALE, T_MISSING) == ACT_DROP;
+    assert finding_action(RC_VACUITY_MEASURED, T_PASS_VACUOUS) == ACT_KEEP;
+    assert finding_action(RC_UNJUDGED, T_BLOCKED) == ACT_KEEP;
+    assert refusal_reason(RC_STALE, T_PASS) == RR_NONE;
+    assert new_not_pass_row(RC_UNLISTED, T_PASS_VACUOUS) == false;
+    assert new_not_pass_row(RC_UNLISTED, T_FRONTEND) == true;
+    assert new_not_pass_row(RC_UNEXPECTED_FAILURE, T_BLOCKED) == false;
+}
+
+test the_steward_refuses_these {
+    assert refusal_reason(RC_UNEXPECTED_FAILURE, T_FAIL) == RR_REGRESSION;
+    assert refusal_reason(RC_MOVED, T_BLOCKED) == RR_MOVED;
+    assert refusal_reason(RC_BAD_REASON, T_BLOCKED) == RR_BAD_REASON;
+    assert refusal_reason(RC_OVER_CAP, T_PASS) == RR_OVER_CAP;
+    assert refusal_reason(RC_KINDS, T_PASS) == RR_UNKNOWN;
+    // an UNLISTED defect is never "unimplemented"
+    assert refusal_reason(RC_UNLISTED, T_FAIL) == RR_DEFECT;
+    assert refusal_reason(RC_UNLISTED, T_MISMATCH) == RR_DEFECT;
+    assert refusal_reason(RC_UNLISTED, T_CRASH) == RR_DEFECT;
+    assert refusal_reason(RC_UNLISTED, T_TIMEOUT) == RR_DEFECT;
+    assert refusal_reason(RC_UNLISTED, T_NOT_RUN) == RR_DEFECT;
+    assert row_reason(T_MISMATCH) == RS_NONE;
+    // a gain the run does not show is no gain
+    assert refusal_reason(RC_UNEXPECTED_PASS, T_BLOCKED) == RR_UNKNOWN;
+    assert tally_refused(3, RC_MOVED, T_BLOCKED, 2) == 5;
+    assert tally_applied(3, RC_MOVED, T_BLOCKED, 2) == 3;
+}
+
+test a_cap_rise_larger_than_the_new_rows_is_refused {
+    assert cap_fits(26, 25, 1) == true;
+    assert cap_fits(27, 25, 1) == false;
+    // the cap falls with every gain
+    assert cap_after(20, 26, 0) == 20;
+    assert run_verdict(true, 0, 9, 0, false) == RV_REFUSE;
+    assert run_refusal(0, 0, false) == RR_CAP_RISE;
+    assert run_refusal(2, 0, false) == RR_NONE;
+}
+
+test a_stale_flood_is_refused {
+    assert stale_flood(STALE_LIMIT) == false;
+    assert stale_flood(STALE_LIMIT + 1) == true;
+    var stale : u32 = tally_stale(0, RC_STALE, 17);
+    stale = tally_stale(stale, RC_UNLISTED, 5);
+    assert stale == 17;
+    assert run_verdict(true, 0, 17, stale, true) == RV_REFUSE;
+    assert run_refusal(0, stale, true) == RR_STALE_FLOOD;
+    assert run_verdict(true, 0, 16, 16, true) == RV_APPLY;
+}
+
+test only_a_counted_master_run_on_the_current_ledger_is_read {
+    assert run_stewardable(true, true, true) == true;
+    assert run_stewardable(false, true, true) == false;
+    assert run_stewardable(true, false, true) == false;
+    assert run_stewardable(true, true, false) == false;
+    assert run_verdict(run_stewardable(true, true, false), 0, 9, 0, true) == RV_SKIP;
+    assert run_verdict(true, 0, 0, 0, true) == RV_NOTHING;
+    assert effect_wanted(RV_NOTHING, EF_COMPOSE) == false;
+    assert effect_wanted(RV_SKIP, EF_REFUSAL_ISSUE) == false;
+    assert effect_wanted(RV_APPLY, EF_AUTO_MERGE + 1) == false;
+}
+
+test a_red_master_run_starts_one_job {
+    assert run_starts_job(true, true, false) == true;
+    assert run_starts_job(true, true, true) == false;
+    assert run_starts_job(true, false, false) == false;
+    assert run_starts_job(false, true, false) == false;
+}
+
+// The codes are steward.t27's: its entry_code and unlisted answer them.
+invariant the_codes_are_the_stewards {
+    assert entry_code(0, 0, 2, true, true) == RC_UNEXPECTED_FAILURE;
+    assert entry_code(2, 0, 0, true, false) == RC_UNEXPECTED_PASS;
+    assert entry_code(2, 0, 3, true, false) == RC_MOVED;
+    assert entry_code(0, 5, 0, true, true) == RC_STALE;
+    assert entry_code(0, 8, 0, true, true) == RC_UNJUDGED;
+    assert entry_code(0, 0, 1, false, true) == RC_VACUITY_MEASURED;
+    assert unlisted(T_PASS, false) == true;
+    assert bless_reason(T_BLOCKED, RS_NONE) == RS_UNIMPLEMENTED;
+}
+
+invariant a_regression_is_never_applied {
+    assert finding_action(RC_UNEXPECTED_FAILURE, T_PASS) == ACT_REFUSE;
+    assert finding_action(RC_UNEXPECTED_FAILURE, T_BLOCKED) == ACT_REFUSE;
+    assert finding_action(RC_MOVED, T_BLOCKED) == ACT_REFUSE;
+    assert finding_action(RC_BAD_REASON, T_PASS) == ACT_REFUSE;
+    assert new_not_pass_row(RC_UNEXPECTED_FAILURE, T_BLOCKED) == false;
+}
+
+invariant the_steward_codes_never_move {
+    assert ACT_KEEP == 0;
+    assert ACT_ADD == 1;
+    assert ACT_SET == 2;
+    assert ACT_DROP == 3;
+    assert ACT_REFUSE == 4;
+    assert RV_NOTHING == 0;
+    assert RV_APPLY == 1;
+    assert RV_REFUSE == 2;
+    assert RV_SKIP == 3;
+    assert RR_UNKNOWN == 8;
+    assert EF_AUTO_MERGE == 4;
+    assert STALE_LIMIT == 16;
+}
