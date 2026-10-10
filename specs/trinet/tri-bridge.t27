@@ -67,7 +67,8 @@ module trinet::tri_bridge {
 
     // New TRI is minted in exactly one place: TON, from acceptance attestations, under the cap.
     // Every other network holds TRI that was locked on TON first. So the cap is enforced by one
-    // contract and counted once, whatever the number of networks.
+    // contract and counted once, whatever the number of networks. The halving schedule and the
+    // no-allocation rule are bound to the single TON minter, ensuring one supply law across all specs.
     pub const CHAIN_OF_RECORD : u8 = 1;
     pub const MTRI_PER_TRI : u64 = 1000;
     pub const DECIMALS : u8 = 3;
