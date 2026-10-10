@@ -4094,6 +4094,17 @@ fn file_digest(p: &Path) -> String {
     d
 }
 
+/// #8811: the python fasm2frames runs on -- each distribution's dist-info entry in the venv, and prjxray's own
+/// sources by content. Not `pip freeze`: it named the editable prjxray by the enclosing t27 checkout's HEAD.
+fn venv_identity(root: &Path, xr: &Path) -> String {
+    let ls = |d: PathBuf| -> Vec<PathBuf> { let mut v: Vec<PathBuf> = std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).collect(); v.sort(); v };
+    let name = |p: &PathBuf| p.file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned());
+    let mut id: Vec<String> = ls(root.join("venv/lib")).iter().flat_map(|py| ls(py.join("site-packages")).into_iter().map(move |e| (py.clone(), e)))
+        .filter(|(_, e)| name(e).ends_with(".dist-info") || name(e).starts_with("__editable__")).map(|(py, e)| format!("{}/{}", name(&py), name(&e))).collect();
+    id.extend(ls(xr.join("prjxray")).iter().filter(|p| name(p).ends_with(".py")).map(|p| format!("{}={}", name(p), file_digest(p))));
+    id.join(",")
+}
+
 pub fn run_silicon(
     repo_root: &Path,
     spec: &str,
@@ -4239,7 +4250,7 @@ pub fn run_silicon(
     let bit_path = tmp.join(format!("{stem}.bit"));
     let tools = [chipdb.clone(), pnr.clone(), xr.join("utils/fasm2frames.py"), PathBuf::from(run(Command::new("which").arg("xc7frames2bit")).1.trim())];
     let xdc_in = tops.last().map(|t| Path::new(t).with_extension("xdc")).filter(|p| p.exists());
-    let mut key_in = format!("{}|{}|{pnr_seed:?}|{}|{}", run(Command::new("yosys").arg("-V")).1.trim().to_owned() + run(Command::new(&venv).args(["-m", "pip", "freeze"])).1.trim(), run(Command::new("git").arg("-C").arg(&db).args(["rev-parse", "HEAD"])).1.trim(), br::BIT_RECIPE, env!("CARGO_PKG_VERSION"));
+    let mut key_in = format!("{}|{}|{pnr_seed:?}|{}|{}", run(Command::new("yosys").arg("-V")).1.trim().to_owned() + &venv_identity(&root, &xr), run(Command::new("git").arg("-C").arg(&db).args(["rev-parse", "HEAD"])).1.trim(), br::BIT_RECIPE, env!("CARGO_PKG_VERSION"));
     for f in sources.iter().map(PathBuf::from).chain(xdc_in).chain(tools) { key_in += &format!("|{}", file_digest(&f)); }
     let cache = PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".cache/t27/bitstreams").join(crate::sha256_hex(key_in.as_bytes()));
     let (cached_bit, cached_chain) = (std::fs::read(cache.join("design.bit")).ok(), std::fs::read_to_string(cache.join("chain")).ok());

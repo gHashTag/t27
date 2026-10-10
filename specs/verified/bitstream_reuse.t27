@@ -10,7 +10,12 @@
 ; The key. The cache entry is named by one hash over every input that can change a bit:
 ;   the Verilog `t27c gen-verilog` wrote for the spec, every wrapper (--top) and the last wrapper's XDC;
 ;   the chipdb file, the nextpnr binary, fasm2frames and the prjxray database revision, xc7frames2bit;
+;   the python fasm2frames runs on: every distribution in the toolchain venv by its dist-info entry (name
+;   and version), and prjxray's own python sources by content;
 ;   the yosys version, the pnr seed, the t27c version, and BIT_RECIPE below.
+; Not `pip freeze` (#8811, BIT_RECIPE 2). prjxray is an editable install with no .git of its own, so pip named
+; it by the HEAD of the t27 checkout that encloses it: a commit there would have orphaned every cached
+; bitstream, while an edit to prjxray's python never reached the key. It also took 1.15 s of every hit.
 ; A different key is a different entry, so a changed input is simply a miss: it can never read as a hit.
 ; BIT_RECIPE is bumped by hand when the build recipe inside t27c changes (the yosys script, the nextpnr
 ; frequency or arguments), because the t27c version alone does not move within a release.
@@ -38,7 +43,7 @@
 module VerifiedBitstreamReuse;
 
 /// Bumped by hand when the build recipe inside t27c changes.
-pub const BIT_RECIPE : u32 = 1;
+pub const BIT_RECIPE : u32 = 2;
 
 /// What `t27c silicon` does with the bitstream for this key.
 ///   REUSE       the entry is complete and its bytes are the bytes that were stored: load it
@@ -135,7 +140,8 @@ test audit_verdict_keeps_only_identical_bytes {
 
 invariant the_bit_codes_never_move {
     assert BIT_REUSE == 0 and BIT_MISSING == 1 and BIT_INCOMPLETE == 2 and BIT_CORRUPT == 3 and BIT_FORCED == 4;
-    assert BIT_RECIPE >= 1;
+    // 2 since #8811: the venv part of the key is read from the venv, not from `pip freeze`
+    assert BIT_RECIPE >= 2;
     assert AUDIT_EVERY >= 2 and AUDIT_SAME != AUDIT_POISONED;
     // 0xAA995566
     assert BIT_SYNC_WORD == 2862175590;
