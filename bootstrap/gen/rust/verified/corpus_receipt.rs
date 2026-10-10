@@ -120,7 +120,7 @@ pub const REQUEST_QUEUE_MAX: u32 = 8;
 
 pub const REQUEST_AGE_MAX_S: u32 = 21600;
 
-pub const REQUEST_ORIGIN_GRACE_S: u32 = 1800;
+pub const REQUEST_ORIGIN_GRACE_S: u32 = 7200;
 
 pub fn corpus_domain_line_len() -> u32 {
     return ((CORPUS_DOMAIN.len() as u32) + 1);

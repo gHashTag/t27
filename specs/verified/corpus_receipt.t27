@@ -187,9 +187,10 @@ pub const REQUEST_SHA_LEN : u32 = 40;
 pub const REQUEST_QUEUE_MAX : u32 = 8;
 /// A request not started within 6 hours of being written is dropped unrun.
 pub const REQUEST_AGE_MAX_S : u32 = 21600;
-/// A request whose sha is not on origin waits this long before it is dropped (#8320): long enough
-/// for the lab to fetch a commit that just landed on master, short of a lab run.
-pub const REQUEST_ORIGIN_GRACE_S : u32 = 1800;
+/// A request whose sha is not on origin waits this long before it is dropped (#8320). The lab judges
+/// "on origin" against the master it last ran, so a squash commit becomes known only after the next
+/// master run; a master cycle with two request runs is about an hour, so two hours covers it.
+pub const REQUEST_ORIGIN_GRACE_S : u32 = 7200;
 
 ; --- The message ---------------------------------------------------------------------------------
 
@@ -763,8 +764,8 @@ test "a request runs only when every bound holds, its name judged first" {
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 8, true) == REQ_QUEUE_FULL;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 7, true) == REQ_ADMIT;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 0, false) == REQ_WAIT_ORIGIN;
-    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 1800, 3, false) == REQ_WAIT_ORIGIN;
-    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 1801, 0, false) == REQ_NOT_ON_ORIGIN;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 7200, 3, false) == REQ_WAIT_ORIGIN;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 7201, 0, false) == REQ_NOT_ON_ORIGIN;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 99999, 9, false) == REQ_QUEUE_FULL;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 99999, 0, false) == REQ_EXPIRED;
     assert request_verdict("HEAD", 0, 0, true) == REQ_BAD_NAME;
@@ -777,7 +778,7 @@ test "a request runs only when every bound holds, its name judged first" {
     assert request_exit(REQ_WAIT_ORIGIN) == 2;
     assert request_exit(REQ_QUEUE_FULL) == 1;
     assert text_is(REQUEST_NAMES[REQ_WAIT_ORIGIN], "WAIT_ORIGIN") == true;
-    assert REQUEST_ORIGIN_GRACE_S == 1800;
+    assert REQUEST_ORIGIN_GRACE_S == 7200;
     assert REQUEST_SHA_LEN == 40;
     assert REQUEST_QUEUE_MAX == 8;
     assert REQUEST_AGE_MAX_S == 21600;
