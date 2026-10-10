@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/anytype_typeof.t27 -- fns whose body reads an `anytype` parameter and branches on
+; `@TypeOf` of it, called from tests with arguments of several types, as the reference runs them (issue #8713,
+; t27b coverage epic #6063). Every test here passes `t27c test-report`; t27b must give the same verdict on each,
+; or refuse the file. The plan is specs/tri/t27b/any_param_plan.t27.
+; Zig compiles each fn once per argument type, folds `@TypeOf(v) == T` in each instance, and never analyses a
+; branch whose condition folds false: `return v;` is no type error in the instance for a string or for null.
+; `h` is the repro of #8713; `nonnegative` mirrors queen-public-agents.t27 (`heartbeatTime(value: anytype)`,
+; called with an i64, a string and null).
+; Not here: an argument that is a name or a call (t27b knows no key for it before lowering, so the fn keeps
+; `type anytype`), and a `@TypeOf` outside such a comparison (refused by name).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceAnytypeTypeof;
+
+fn h(v: anytype) -> ?i64 {
+    if (@TypeOf(v) == i64) {
+        return v;
+    }
+    return null;
+}
+
+fn nonnegative(value: anytype) -> ?i64 {
+    if (@TypeOf(value) == i64) {
+        const n = value;
+        if (n >= 0) {
+            return n;
+        }
+    }
+    return null;
+}
+
+fn widened(x: anytype) -> u32 {
+    if (u8 != @TypeOf(x)) {
+        return 0;
+    } else {
+        return x;
+    }
+}
+
+test reads_by_type {
+    assert(h(@as(i64, 5)) == 5);
+    assert(h(null) == null);
+    assert(h("x") == null);
+}
+
+test the_port_shape_with_a_run_time_test {
+    assert(nonnegative(@as(i64, 1000)) == 1000);
+    assert(nonnegative(@as(i64, -1)) == null);
+    assert(nonnegative("invalid-date") == null);
+    assert(nonnegative(null) == null);
+}
+
+test a_literal_integer_or_bool_is_no_i64 {
+    assert(h(5) == null);
+    assert(h(true) == null);
+}
+
+test two_strings_are_two_instances {
+    assert(h("ab") == null);
+    assert(h("abc") == null);
+}
+
+test the_else_block_zig_skips {
+    assert(widened(@as(u8, 7)) == 7);
+    assert(widened(@as(u32, 9)) == 0);
+    assert(widened(true) == 0);
+    assert(widened("s") == 0);
+}

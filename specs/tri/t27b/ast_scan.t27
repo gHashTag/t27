@@ -2,8 +2,9 @@
 ; specs/tri/t27b/ast_scan.t27 -- the scans cli/t27b/src/lower.rs makes of a list of t27c AST nodes to collect
 ; some of them (port epic #6198, under #6063 and #5980). They were hand-written Rust recursions over
 ; `compiler::Node` (`names_in`, `array_locals`, `decls_of`, `calls_in`, `scan_addr_taken`, `count_assigns`,
-; `ref_mutable_names`, `misprinted_ifs` and `mark_tail_returns`); they now reach cli/t27b only through
-; `t27c gen-rust` (gen/rust/tri/t27b/ast_scan.rs, mounted as `ax`).
+; `ref_mutable_names`, `misprinted_ifs`, `mark_tail_returns`, and the scans of `cse_hoist_defect` and
+; `shadow_names`); they now reach cli/t27b only through `t27c gen-rust` (gen/rust/tri/t27b/ast_scan.rs,
+; mounted as `ax`).
 ; --
 ; The nodes arrive as ast_walk.t27's bytes: a record per node in preorder, then the text. A scan writes 1 into
 ; marks[i] for each node i it collects and leaves every other entry as it found it (the glue passes zeros).
@@ -212,14 +213,73 @@ pub fn tail_returns(nodes: []const u8, text: []const u8, marks: []u8) -> void {
     tail_in(nodes, text, 0, count(nodes), marks);
 }
 
+/// Does a node from `from` to `to` name `name` as an identifier?
+pub fn ident_in(nodes: []const u8, text: []const u8, from: usize, to: usize, name: []const u8) -> bool {
+    var j : usize = from;
+    while (j < to) {
+        if (ident_is(nodes, text, j, name)) { return true; }
+        j = j + 1;
+    }
+    return false;
+}
+
+/// Is node i a local whose name starts `_cse`: a temporary t27c's optimizer made?
+pub fn cse_local(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    return kind(nodes, i) == K_STMT_LOCAL and has_at(text, lo(nodes, i, F_NAME), hi(nodes, i, F_NAME), "_cse");
+}
+
+/// Is `name` declared by a local of the body, at any depth, that is no `_cse` temporary? An empty name never is.
+pub fn body_local(nodes: []const u8, text: []const u8, name: []const u8) -> bool {
+    if (name.len == 0) { return false; }
+    var j : usize = 0;
+    while (j < count(nodes)) {
+        if (kind(nodes, j) == K_STMT_LOCAL and field_is(nodes, text, j, F_NAME, name) and !cse_local(nodes, text, j)) { return true; }
+        j = j + 1;
+    }
+    return false;
+}
+
+/// The identifiers under a top-level `_cse` temporary of a fn body that name another local of the body
+/// (`cse_hoist_defect`, which drops the fn's parameters and takes the first): t27c's Zig backend writes every
+/// such temporary at the very top of the body, so one that reads a local names it before its declaration.
+pub fn cse_reads(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var s : usize = 0;
+    while (s < count(nodes)) {
+        if (cse_local(nodes, text, s)) {
+            var i : usize = s + 1;
+            while (i < end(nodes, s)) {
+                if (kind(nodes, i) == K_EXPR_IDENTIFIER and body_local(nodes, text, text[lo(nodes, i, F_NAME) .. hi(nodes, i, F_NAME)])) { marks[i] = MARK; }
+                i = i + 1;
+            }
+        }
+        s = end(nodes, s);
+    }
+}
+
+/// Is node s, a local named `name`, the body's only declaration of the name, with no identifier before it or in
+/// its own initializer naming it?
+pub fn alone(nodes: []const u8, text: []const u8, s: usize, name: []const u8) -> bool {
+    return !ident_in(nodes, text, 0, end(nodes, s), name) and decl_count(nodes, text, name) == 1;
+}
+
+/// The top-level locals of a body a module `var` of the same name may be shadowed by (`shadow_names`, which keeps
+/// those naming a module var): each one `alone`.
+pub fn shadow_locals(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var s : usize = 0;
+    while (s < count(nodes)) {
+        if (kind(nodes, s) == K_STMT_LOCAL and alone(nodes, text, s, text[lo(nodes, s, F_NAME) .. hi(nodes, s, F_NAME)])) { marks[s] = MARK; }
+        s = end(nodes, s);
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------
 // Tests. The expected values are what the hand-written Rust of lower.rs (master f21a0b39c) returns on the
 // same trees, built with ast_walk.t27's `node` and `set`. Their texts are slices of SCAN_TEXT:
 //   0 `x`, 1 `&`, 2..8 `assert`, 2..11 `assert_eq`, 11..16 `print`, 11..18 `println`, 18 `f`, 19 `-`,
-//   20..25 `panic`, 25..36 `unreachable`, 36 `y`.
+//   20..25 `panic`, 25..36 `unreachable`, 36 `y`, 37..42 `_cse0`, 37..40 `_cs`.
 // ----------------------------------------------------------------------------------------------------------
 
-const SCAN_TEXT : str = "x&assert_eqprintlnf-panicunreachabley";
+const SCAN_TEXT : str = "x&assert_eqprintlnf-panicunreachabley_cse0";
 
 /// Clears the first n marks.
 fn clear(marks: []u8, n: usize) -> void {
@@ -520,4 +580,79 @@ test a_tail_if_else_marks_each_branch {
     clear(m[0 .. 10], 10);
     tail_returns(buf[0 .. 360], SCAN_TEXT, m[0 .. 10]);
     assert mask(m[0 .. 10], 10) == 0;
+}
+
+test a_cse_temporary_that_reads_a_body_local_is_marked {
+    // 0 Local _cse0 { 1 Binary { 2 Ident x, 3 Ident y } }, 4 Local x { 5 Lit }, 6 StmtIf { 7 Lit, 8 Module { 9 Local y { 10 Ident x } } },
+    // 11 Local _cse0 { 12 Ident _cse0 }
+    var buf : [936]u8 = undefined;
+    var m : [13]u8 = undefined;
+    node(buf[0 .. 936], 0, K_STMT_LOCAL, 4, 37, 42);
+    node(buf[0 .. 936], 1, K_EXPR_BINARY, 4, 0, 0);
+    node(buf[0 .. 936], 2, K_EXPR_IDENTIFIER, 3, 0, 1);
+    node(buf[0 .. 936], 3, K_EXPR_IDENTIFIER, 4, 36, 37);
+    node(buf[0 .. 936], 4, K_STMT_LOCAL, 6, 0, 1);
+    node(buf[0 .. 936], 5, K_EXPR_LITERAL, 6, 0, 0);
+    node(buf[0 .. 936], 6, K_STMT_IF, 11, 0, 0);
+    node(buf[0 .. 936], 7, K_EXPR_LITERAL, 8, 0, 0);
+    node(buf[0 .. 936], 8, K_MODULE, 11, 0, 0);
+    node(buf[0 .. 936], 9, K_STMT_LOCAL, 11, 36, 37);
+    node(buf[0 .. 936], 10, K_EXPR_IDENTIFIER, 11, 0, 1);
+    node(buf[0 .. 936], 11, K_STMT_LOCAL, 13, 37, 42);
+    node(buf[0 .. 936], 12, K_EXPR_IDENTIFIER, 13, 37, 42);
+    const ns : []const u8 = buf[0 .. 936];
+    clear(m[0 .. 13], 13);
+    cse_reads(ns, SCAN_TEXT, m[0 .. 13]);
+    assert mask(m[0 .. 13], 13) == 12;
+    assert cse_local(ns, SCAN_TEXT, 11);
+    assert !cse_local(ns, SCAN_TEXT, 4);
+    assert body_local(ns, SCAN_TEXT, "x");
+    assert !body_local(ns, SCAN_TEXT, "_cse0");
+    assert !body_local(ns, SCAN_TEXT, "");
+    // `y` assigned, not declared, is no local.
+    node(buf[0 .. 936], 9, K_STMT_ASSIGN, 11, 36, 37);
+    clear(m[0 .. 13], 13);
+    cse_reads(ns, SCAN_TEXT, m[0 .. 13]);
+    assert mask(m[0 .. 13], 13) == 4;
+    // A local named `_cs` is no temporary.
+    node(buf[0 .. 936], 0, K_STMT_LOCAL, 4, 37, 40);
+    clear(m[0 .. 13], 13);
+    cse_reads(ns, SCAN_TEXT, m[0 .. 13]);
+    assert mask(m[0 .. 13], 13) == 0;
+    assert !cse_local(ns, SCAN_TEXT, 0);
+}
+
+test a_top_level_local_alone_and_unnamed_before_may_shadow {
+    // 0 Local x { 1 Lit }, 2 Local y { 3 Ident y }, 4 StmtExpr { 5 Ident f }, 6 Local f { 7 Lit },
+    // 8 StmtIf { 9 Lit, 10 Module { 11 Local x } }
+    var buf : [864]u8 = undefined;
+    var m : [12]u8 = undefined;
+    node(buf[0 .. 864], 0, K_STMT_LOCAL, 2, 0, 1);
+    node(buf[0 .. 864], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 864], 2, K_STMT_LOCAL, 4, 36, 37);
+    node(buf[0 .. 864], 3, K_EXPR_IDENTIFIER, 4, 36, 37);
+    node(buf[0 .. 864], 4, K_STMT_EXPR, 6, 0, 0);
+    node(buf[0 .. 864], 5, K_EXPR_IDENTIFIER, 6, 18, 19);
+    node(buf[0 .. 864], 6, K_STMT_LOCAL, 8, 18, 19);
+    node(buf[0 .. 864], 7, K_EXPR_LITERAL, 8, 0, 0);
+    node(buf[0 .. 864], 8, K_STMT_IF, 12, 0, 0);
+    node(buf[0 .. 864], 9, K_EXPR_LITERAL, 10, 0, 0);
+    node(buf[0 .. 864], 10, K_MODULE, 12, 0, 0);
+    node(buf[0 .. 864], 11, K_STMT_LOCAL, 12, 0, 1);
+    clear(m[0 .. 12], 12);
+    shadow_locals(buf[0 .. 576], SCAN_TEXT, m[0 .. 12]);
+    assert mask(m[0 .. 12], 12) == 1;
+    // A second declaration of `x`, nested.
+    clear(m[0 .. 12], 12);
+    shadow_locals(buf[0 .. 864], SCAN_TEXT, m[0 .. 12]);
+    assert mask(m[0 .. 12], 12) == 0;
+    // `f` named after its declaration only.
+    node(buf[0 .. 864], 5, K_EXPR_IDENTIFIER, 6, 0, 1);
+    clear(m[0 .. 12], 12);
+    shadow_locals(buf[0 .. 864], SCAN_TEXT, m[0 .. 12]);
+    assert mask(m[0 .. 12], 12) == 64;
+    assert !alone(buf[0 .. 864], SCAN_TEXT, 2, "y");
+    assert alone(buf[0 .. 864], SCAN_TEXT, 6, "f");
+    assert ident_in(buf[0 .. 864], SCAN_TEXT, 0, 4, "y");
+    assert !ident_in(buf[0 .. 864], SCAN_TEXT, 4, 12, "y");
 }
