@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0c90f130b",
+  "built_by": "t27c-bootstrap@0.5.2+a977fd715",
   "closure": [
     {
       "spec": "specs/tri/t27b/ast_walk.t27",
@@ -10,13 +10,13 @@
   "gen_hash_c": "sha256:dad50a8b8581ca4090cee396ec47b68fb1346b33ae41361fbf4fe7245577b52b",
   "gen_hash_rust": "sha256:72bb6f75096d024ff50388fe26e9605adfbea1fecc432810f4c46851e1d0ae52",
   "gen_hash_verilog": "sha256:10281b9f23740d06f58b3598d7fac63781ca200263cb6c4d4b8dcc01d051829e",
-  "gen_hash_zig": "sha256:e6a4d9d1d37460a4764271d56bf5fa4c73348df692d48080544abb4c4e479f2a",
+  "gen_hash_zig": "sha256:f7ca30fc7f1e23cdc8d482f7171af29941d8f25285e9440eeb5feda663a981c6",
   "module": "T27bVerilogPlan",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T21:19:22Z",
+  "sealed_at": "2026-10-10T21:33:20Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:43e6ba990085abb36c1849ede91ad952d0490589e35a4404ab1e6be3965610d6",
+  "spec_hash": "sha256:3af74a0781349e87aed21b4c668668045b68c184490c842c921672e939385794",
   "spec_path": "specs/tri/t27b/verilog_plan.t27",
   "tests": {
     "failed": 0,

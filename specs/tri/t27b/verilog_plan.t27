@@ -680,7 +680,9 @@ pub fn verilog_keyword(s: []const u8) -> bool {
 
 const PT : str = "i<16+=1body<=+jcontinue_expr";
 
-fn vput32(buf: []u8, at: usize, v: usize) -> void {
+/// Writes v at buf[at] as a little-endian u32 (the tests of this file and of verilog_emit.t27 build records
+/// with it).
+pub fn vput32(buf: []u8, at: usize, v: usize) -> void {
     buf[at] = @intCast(v % 256);
     buf[at + 1] = @intCast((v / 256) % 256);
     buf[at + 2] = @intCast((v / 65536) % 256);
@@ -699,8 +701,8 @@ fn vnode(buf: []u8, i: usize, k: u8, e: usize) -> void {
     }
 }
 
-/// Field f of node i is PT[a .. b].
-fn vset(buf: []u8, i: usize, f: usize, a: usize, b: usize) -> void {
+/// Field f of node i is the text span a .. b.
+pub fn vset(buf: []u8, i: usize, f: usize, a: usize, b: usize) -> void {
     vput32(buf, i * REC + 8 + f * 8, a);
     vput32(buf, i * REC + 12 + f * 8, b);
 }

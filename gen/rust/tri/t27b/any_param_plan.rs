@@ -62,15 +62,6 @@ pub fn plan(n: usize, keys: usize, unknown: usize, decls: usize) -> u8 {
     return LEAVE;
 }
 
-pub fn put_text(out: &mut [u8], at: usize, w: &'static str) -> usize {
-    let mut k: usize = 0;
-    while (k < w.len()) {
-        out[((at + k)) as usize] = w.as_bytes()[(k) as usize];
-        k = (k + 1);
-    }
-    return (at + w.len());
-}
-
 pub fn put_digits(out: &mut [u8], at: usize, n: usize) -> usize {
     let mut len: usize = 1;
     let mut rest: usize = (n / 10);
@@ -366,6 +357,29 @@ pub fn u32_at(nodes: &[u8], at: usize) -> usize {
     let b2: usize = (nodes[((at + 2)) as usize] as usize);
     let b3: usize = (nodes[((at + 3)) as usize] as usize);
     return (((b0 + (b1 * 256)) + (b2 * 65536)) + (b3 * 16777216));
+}
+
+pub fn put_text(out: &mut [u8], at: usize, w: &'static str) -> usize {
+    let mut k: usize = 0;
+    while (k < w.len()) {
+        out[((at + k)) as usize] = w.as_bytes()[(k) as usize];
+        k = (k + 1);
+    }
+    return (at + w.len());
+}
+
+pub fn reads(out: &[u8], n: usize, w: &'static str) -> bool {
+    if (n != w.len()) {
+        return false;
+    }
+    let mut k: usize = 0;
+    while (k < n) {
+        if (out[(k) as usize] != w.as_bytes()[(k) as usize]) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return true;
 }
 
 pub const B_UNDERSCORE: u8 = 95;

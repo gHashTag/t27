@@ -22,6 +22,17 @@ module T27bTextEscape;
 
 pub const HEX_DIGITS : str = "0123456789abcdef";
 
+/// Writes the bytes of `w` into out from `at`; where they end. (Every plan that writes text into a buffer
+/// uses this one: any_param_plan.t27, verilog_emit.t27.)
+pub fn put_text(out: []u8, at: usize, w: str) -> usize {
+    var k : usize = 0;
+    while (k < w.len) {
+        out[at + k] = w[k];
+        k = k + 1;
+    }
+    return at + w.len;
+}
+
 /// The number of bytes of the UTF-8 char whose first byte is c (1 for a byte that starts none).
 pub fn utf8_len(c: u8) -> usize {
     if (c >= 240) { return 4; }

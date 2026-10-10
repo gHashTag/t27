@@ -6,6 +6,15 @@
 
 pub const HEX_DIGITS: &'static str = "0123456789abcdef";
 
+pub fn put_text(out: &mut [u8], at: usize, w: &'static str) -> usize {
+    let mut k: usize = 0;
+    while (k < w.len()) {
+        out[((at + k)) as usize] = w.as_bytes()[(k) as usize];
+        k = (k + 1);
+    }
+    return (at + w.len());
+}
+
 pub fn utf8_len(c: u8) -> usize {
     if (c >= 240) {
         return 4;
