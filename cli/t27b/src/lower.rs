@@ -502,12 +502,12 @@ pub fn blockers_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>)
 }
 
 fn lower_mode<'a>(
-    orig: &'a Node,
+    ast: &'a Node,
     mode: OverflowMode,
     src: Option<&'a str>,
     recover: bool,
 ) -> Result<Program, Vec<Reject>> {
-    let ast = &instances(orig);
+    let (orig, ast) = (ast, &instances(ast));
     let mut l = Lower {
         mode,
         sites: vec![Site {
@@ -7617,26 +7617,22 @@ fn each(n: &mut Node, i: &mut usize, f: &mut dyn FnMut(&mut Node, usize)) {
 /// `@TypeOf(p) == T` folded and the branch Zig never analyses dropped.
 fn instances(ast: &Node) -> Node {
     let mut m = ast.clone();
-    for g in ast.children.iter().filter(|g| g.kind == NodeKind::FnDecl) {
+    for (at, g) in ast.children.iter().enumerate().rev().filter(|(_, g)| g.kind == NodeKind::FnDecl) {
         let read: Vec<usize> = (0..g.params.len()).filter(|&k| ap::param(ls::is_anytype(g.params[k].1.trim().as_bytes()), name_mentions(&g.children, g.params[k].0.trim()) > 0) == ap::INSTANCE_PARAM).collect();
         if read.is_empty() { continue; }
-        let (mut next, mut keys, mut calls, mut unknown) = (m.clone(), Vec::<Vec<u8>>::new(), 0, 0);
+        let (mut next, mut keys, mut unknown) = (m.clone(), Vec::<Vec<u8>>::new(), 0);
         each(&mut next, &mut 0, &mut |n, _| if n.kind == NodeKind::ExprCall && n.name == g.name && read.len() == 1 && n.children.len() == g.params.len() {
             let ((a, t), mut key) = (flat([&n.children[read[0]]]), vec![0u8; ap::KEY_MAX]);
-            let len = ap::key(&a, &t, 0, &mut key); key.truncate(len);
-            (calls, unknown) = (calls + 1, unknown + key.is_empty() as usize);
+            let len = ap::key(&a, &t, 0, &mut key); key.truncate(len); unknown += key.is_empty() as usize;
             n.name = format!("{}{}{}", g.name, ap::SEP, keys.iter().position(|k| *k == key).unwrap_or_else(|| { keys.push(key); keys.len() - 1 }));
         });
-        if ap::plan(read.len(), calls, unknown, ast.children.iter().filter(|c| c.kind == NodeKind::FnDecl && c.name == g.name).count()) == ap::LEAVE { continue; }
-        let at = next.children.iter().position(|c| c.kind == NodeKind::FnDecl && c.name == g.name).unwrap();
+        if ap::plan(read.len(), keys.len(), unknown, ast.children.iter().filter(|c| c.kind == NodeKind::FnDecl && c.name == g.name).count()) == ap::LEAVE { continue; }
         let made: Vec<Node> = keys.iter().enumerate().map(|(o, key)| {
-            let (mut f, p) = (next.children[at].clone(), g.params[read[0]].0.trim());
-            f.name = format!("{}{}{}", g.name, ap::SEP, o);
+            let mut f = Node { name: format!("{}{}{}", g.name, ap::SEP, o), ..next.children[at].clone() };
             if ap::typed(key) { f.params[read[0]].1 = String::from_utf8_lossy(key).into(); }
-            let ((a, t), i) = (flat(&f.children), &mut 0);
-            let mut marks = vec![ap::KEEP; a.len() / aw::REC];
-            ap::instance(&a, &t, p.as_bytes(), key, &mut marks);
-            f.children.iter_mut().for_each(|c| each(c, i, &mut |n, j| match marks[j] { ap::KEEP => {} ap::DROP => n.children.clear(), v => *n = Node { kind: NodeKind::ExprLiteral, value: ap::literal(v).into(), ..Node::default() } }));
+            let (a, t) = flat([&f]);
+            let mut marks = vec![ap::KEEP; a.len() / aw::REC]; ap::instance(&a, &t, g.params[read[0]].0.trim().as_bytes(), key, &mut marks);
+            each(&mut f, &mut 0, &mut |n, j| match marks[j] { ap::KEEP => {} ap::DROP => n.children.clear(), v => *n = Node { kind: NodeKind::ExprLiteral, value: ap::literal(v).into(), ..Node::default() } });
             f
         }).collect();
         next.children.splice(at..=at, made);

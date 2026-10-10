@@ -55,8 +55,8 @@ pub fn why() -> &'static str {
     return "an argument for an `anytype` parameter the body never reads is taken only when evaluating it runs nothing (null, a compile-time integer or string)";
 }
 
-pub fn plan(n: usize, calls: usize, unknown: usize, decls: usize) -> u8 {
-    if ((((n == 1) && (calls > 0)) && (unknown == 0)) && (decls == 1)) {
+pub fn plan(n: usize, keys: usize, unknown: usize, decls: usize) -> u8 {
+    if ((((n == 1) && (keys > 0)) && (unknown == 0)) && (decls == 1)) {
         return MONO;
     }
     return LEAVE;

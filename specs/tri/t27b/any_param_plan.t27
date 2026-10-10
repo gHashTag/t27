@@ -29,9 +29,9 @@
 ;                  literal is comptime_int. Any other argument has no key t27b knows before lowering.
 ;   the instances  a fn declared once, with exactly one such parameter, at least one call and a key for every
 ;                  call is replaced by one instance per distinct key (`plan`); any other keeps its refusal, `type
-;                  anytype` (with no call, lazy_sig_plan.t27's rule; declared twice, `FnDecl(duplicate)`). Instance k is named for the fn, SEP, then k
-;                  (`h__anytype0`), k counting the keys in the order of their first call in the file (preorder);
-;                  each call names its own instance.
+;                  anytype` (with no call, lazy_sig_plan.t27's rule; declared twice, `FnDecl(duplicate)`).
+;                  Instance k is named for the fn, SEP, then k (`h__anytype0`), k counting the keys in the order
+;                  of their first call in the file (preorder); each call names its own instance.
 ;   the parameter  is declared with its key as the type when that is a type t27b names (`typed`: i64, bool).
 ;                  Otherwise it stays `anytype`: VOID_PARAM above once the instance's body no longer names it,
 ;                  still refused as `type anytype` when it does.
@@ -98,11 +98,11 @@ pub fn why() -> str {
     return "an argument for an `anytype` parameter the body never reads is taken only when evaluating it runs nothing (null, a compile-time integer or string)";
 }
 
-/// A fn declared `decls` times, with `n` INSTANCE_PARAMs and `calls` calls, `unknown` of them with no key: replaced
-/// by its instances (MONO), or left as it is (LEAVE). A second declaration keeps its refusal, which replacing the
-/// first would hide.
-pub fn plan(n: usize, calls: usize, unknown: usize, decls: usize) -> u8 {
-    if (n == 1 and calls > 0 and unknown == 0 and decls == 1) { return MONO; }
+/// A fn declared `decls` times, with `n` INSTANCE_PARAMs, whose calls have `keys` distinct keys (none when nothing
+/// calls it) and `unknown` calls no key: replaced by its instances (MONO), or left as it is (LEAVE). A second
+/// declaration keeps its refusal, which replacing the first would hide.
+pub fn plan(n: usize, keys: usize, unknown: usize, decls: usize) -> u8 {
+    if (n == 1 and keys > 0 and unknown == 0 and decls == 1) { return MONO; }
     return LEAVE;
 }
 
@@ -280,13 +280,13 @@ test a_literal_argument_is_taken_and_any_other_is_refused {
 }
 
 test a_fn_is_instantiated_only_with_one_read_parameter_and_a_key_for_every_call {
-    // heartbeatTime: declared once, one parameter read, four calls, every key known.
-    assert(plan(1, 4, 0, 1) == MONO);
-    assert(plan(1, 4, 1, 1) == LEAVE);
-    assert(plan(2, 4, 0, 1) == LEAVE);
+    // heartbeatTime: declared once, one parameter read, three keys at its four calls, every key known.
+    assert(plan(1, 3, 0, 1) == MONO);
+    assert(plan(1, 3, 1, 1) == LEAVE);
+    assert(plan(2, 3, 0, 1) == LEAVE);
     assert(plan(1, 0, 0, 1) == LEAVE);
-    assert(plan(0, 4, 0, 1) == LEAVE);
-    assert(plan(1, 4, 0, 2) == LEAVE);
+    assert(plan(0, 3, 0, 1) == LEAVE);
+    assert(plan(1, 3, 0, 2) == LEAVE);
 }
 
 test each_argument_shape_has_its_key {
