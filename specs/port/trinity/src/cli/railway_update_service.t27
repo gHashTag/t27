@@ -1,0 +1,258 @@
+// Port of gHashTag/trinity:src/cli/railway_update_service.zig (91 lines, 2
+// functions: main, execCurl). The original rewrites a Railway service
+// configuration: given <service-id> <project-id> <token> it POSTs a GraphQL
+// serviceInstanceUpdate mutation through curl that sets startCommand to ""
+// so the Dockerfile ENTRYPOINT (health_server) is used, then fails when the
+// response carries an "errors" field. The decisions in it are: whether the
+// command line is complete, what the curl invocation looks like (endpoint,
+// body, bearer header), whether the child exited cleanly, and whether the
+// response counts as a Railway error. Everything else (argv reading, the
+// allocator, string formatting, the curl subprocess, printing) is plumbing
+// and stays out.
+//
+// std.mem.Allocator has no equivalent here and disappears from execCurl's
+// signature; error.CurlFailed / error.RailwayError / std.process.exit(1)
+// become distinct exit-code constants. argv is not modelled as an array of
+// strings: a local `[N][]const u8` is a 2-D aggregate that gen-verilog
+// cannot lower (W469), and the argc decision only ever reads its length.
+
+module port::trinity::src::cli::railway_update_service;
+
+const EXIT_OK: i32 = 0;
+const EXIT_USAGE: i32 = 1;         // std.process.exit(1) after the usage line
+const EXIT_CURL_FAILED: i32 = 2;   // error.CurlFailed from execCurl
+const EXIT_RAILWAY_ERROR: i32 = 3; // error.RailwayError from the response
+
+// Original: `if (args.len < 4)` prints the usage line and exits 1. `args`
+// includes the program name, so <service-id> <project-id> <token> need
+// argc >= 4.
+pub fn needs_usage(argc: u32) -> bool {
+    return argc < 4;
+}
+
+// The usage verdict: 1 mirrors std.process.exit(1) after printing usage;
+// 0 means the arguments were sufficient and the update proceeds.
+pub fn usage_exit_code(argc: u32) -> i32 {
+    if (needs_usage(argc)) {
+        return EXIT_USAGE;
+    }
+    return EXIT_OK;
+}
+
+// Original: `std.mem.indexOf(u8, haystack, needle) != null`. An empty
+// needle is found at index 0, as in std.mem.indexOf.
+pub fn contains(haystack: []const u8, needle: []const u8) -> bool {
+    if (needle.len > haystack.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) {
+        var j: usize = 0;
+        var same: bool = true;
+        while (j < needle.len) {
+            if (haystack[i + j] != needle[j]) {
+                same = false;
+            }
+            j += 1;
+        }
+        if (same) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// The GraphQL request the original allocPrints: a serviceInstanceUpdate
+// mutation on <service-id> whose input sets startCommand to "" - that
+// empty string is the whole point: Railway then uses the Dockerfile
+// ENTRYPOINT instead of a start command.
+pub struct ServiceUpdatePayload {
+    mutation: str,
+    id: str,
+    start_command: str,
+}
+
+pub fn build_payload(service_id: str) -> ServiceUpdatePayload {
+    return ServiceUpdatePayload { mutation: "serviceInstanceUpdate", id: service_id, start_command: "" };
+}
+
+// startCommand must be cleared (empty) for the Dockerfile ENTRYPOINT to be
+// used instead.
+pub fn command_is_cleared(cmd: str) -> bool {
+    return cmd.len == 0;
+}
+
+// The curl target from the original: Railway's backboard GraphQL endpoint.
+pub fn railway_endpoint() -> str {
+    return "https://backboard.railway.com/graphql";
+}
+
+pub fn is_railway_endpoint(url: str) -> bool {
+    return url == "https://backboard.railway.com/graphql";
+}
+
+// Original: the header is allocPrint'd as "Authorization: Bearer {s}" from
+// the token. The constant scheme and credential type of that header; the
+// caller appends the token.
+pub struct AuthHeader {
+    scheme: str,
+    credential: str,
+}
+
+pub fn build_auth_header() -> AuthHeader {
+    return AuthHeader { scheme: "Authorization", credential: "Bearer" };
+}
+
+// Original execCurl: `if (result.stderr.len > 0)` prints the stderr but
+// does not fail on it - stderr is a warning channel, only the exit term
+// decides.
+pub fn stderr_is_reported(stderr_len: usize) -> bool {
+    return stderr_len > 0;
+}
+
+// Original execCurl: `switch (result.term)` - `.Exited` with code 0 yields
+// the stdout the caller keeps; a non-zero exit or any other term (signal,
+// stopped, unknown) is error.CurlFailed.
+pub fn curl_exit_ok(exited_normally: bool, code: i32) -> bool {
+    return exited_normally and code == 0;
+}
+
+pub fn curl_verdict(exited_normally: bool, code: i32) -> i32 {
+    if (curl_exit_ok(exited_normally, code)) {
+        return EXIT_OK;
+    }
+    return EXIT_CURL_FAILED;
+}
+
+// Original: `if (std.mem.indexOf(u8, result, "\"errors\"")) |_|` returns
+// error.RailwayError. Railway answers HTTP 200 with an "errors" array on a
+// rejected mutation, so the body is the only signal.
+pub fn decide_response(stdout: []const u8) -> i32 {
+    if (contains(stdout, "\"errors\"")) {
+        return EXIT_RAILWAY_ERROR;
+    }
+    return EXIT_OK;
+}
+
+// main's whole control flow as a verdict: bad argc, then a curl failure,
+// then an "errors" field in the response, else success.
+pub fn main_verdict(argc: u32, curl_ok: bool, response_has_error_field: bool) -> i32 {
+    if (needs_usage(argc)) {
+        return EXIT_USAGE;
+    }
+    if (!curl_ok) {
+        return EXIT_CURL_FAILED;
+    }
+    if (response_has_error_field) {
+        return EXIT_RAILWAY_ERROR;
+    }
+    return EXIT_OK;
+}
+
+// The success output of the original directs the user to monitor the
+// project and to redeploy the same service against the same project
+// ("railway-redeploy <service-id> <project-id> TOKEN").
+pub struct FollowUpHint {
+    monitor_project_id: str,
+    redeploy_service_id: str,
+    redeploy_project_id: str,
+}
+
+pub fn follow_up_hint(service_id: str, project_id: str) -> FollowUpHint {
+    return FollowUpHint { monitor_project_id: project_id, redeploy_service_id: service_id, redeploy_project_id: project_id };
+}
+
+// Plumbing: reads argv, allocates the query and auth header strings, runs
+// curl and prints its verdict. Its decisions are ported above (needs_usage,
+// usage_exit_code, build_payload, build_auth_header, decide_response,
+// main_verdict, follow_up_hint). No test calls this.
+pub fn main() -> void {
+    undefined;
+}
+
+// Plumbing: spawns the curl child process and frees its stderr. Its
+// decisions are ported above (stderr_is_reported, curl_verdict). No test
+// calls this.
+fn execCurl(args: []str) -> ?str {
+    undefined;
+}
+
+test usage_exit_code_no_arguments {
+    assert(needs_usage(1) == true);
+    assert(usage_exit_code(1) == EXIT_USAGE);
+}
+
+test usage_exit_code_missing_project_and_token {
+    assert(usage_exit_code(2) == EXIT_USAGE);
+}
+
+test usage_exit_code_missing_token {
+    assert(usage_exit_code(3) == EXIT_USAGE);
+}
+
+test usage_exit_code_complete {
+    assert(usage_exit_code(4) == EXIT_OK);
+}
+
+test build_payload_clears_start_command {
+    const p = build_payload("abc123-def456");
+    assert(p.mutation == "serviceInstanceUpdate");
+    assert(p.id == "abc123-def456");
+    assert(command_is_cleared(p.start_command));
+    assert(p.start_command.len == 0);
+}
+
+test endpoint_and_auth_header {
+    assert(is_railway_endpoint(railway_endpoint()));
+    assert(!is_railway_endpoint("https://railway.app/graphql"));
+    const h = build_auth_header();
+    assert(h.scheme == "Authorization");
+    assert(h.credential == "Bearer");
+}
+
+test contains_finds_error_token_in_response {
+    assert(contains("{\"errors\":[{\"message\":\"boom\"}]}", "\"errors\"") == true);
+}
+
+test contains_rejects_success_body {
+    assert(contains("{\"data\":{\"serviceInstanceUpdate\":{\"id\":\"abc\"}}}", "\"errors\"") == false);
+}
+
+test contains_partial_then_full_match {
+    assert(contains("errorerrors", "\"errors\"") == false);
+    assert(contains("\"error\"errors\"", "\"errors\"") == true);
+}
+
+test decide_response_error_body {
+    assert(decide_response("{\"errors\":[{\"message\":\"boom\"}]}") == EXIT_RAILWAY_ERROR);
+}
+
+test decide_response_success_body {
+    assert(decide_response("{\"data\":{\"serviceInstanceUpdate\":{\"id\":\"abc\"}}}") == EXIT_OK);
+}
+
+test curl_verdict_nonzero_exit_and_signal {
+    assert(curl_exit_ok(true, 0) == true);
+    assert(curl_exit_ok(true, 28) == false);
+    assert(curl_exit_ok(false, 0) == false);
+    assert(curl_verdict(true, 0) == EXIT_OK);
+    assert(curl_verdict(true, 28) == EXIT_CURL_FAILED);
+    assert(curl_verdict(false, 0) == EXIT_CURL_FAILED);
+    assert(stderr_is_reported(19) == true);
+    assert(stderr_is_reported(0) == false);
+}
+
+test main_verdict_paths {
+    assert(main_verdict(1, true, false) == EXIT_USAGE);
+    assert(main_verdict(4, false, false) == EXIT_CURL_FAILED);
+    assert(main_verdict(4, true, true) == EXIT_RAILWAY_ERROR);
+    assert(main_verdict(4, true, false) == EXIT_OK);
+}
+
+test follow_up_hint_carries_ids {
+    const h = follow_up_hint("svc-1", "proj-9");
+    assert(h.monitor_project_id == "proj-9");
+    assert(h.redeploy_service_id == "svc-1");
+    assert(h.redeploy_project_id == "proj-9");
+}
