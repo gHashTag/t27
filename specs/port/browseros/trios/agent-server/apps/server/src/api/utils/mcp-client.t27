@@ -1,0 +1,28 @@
+module port::browseros::trios::agent_server::apps::server::src::api::utils::mcp_client;
+
+pub fn callMcpTool(serverUrl: []const u8, name: []const u8, args: anytype) void {
+    undefined;
+}
+
+pub fn getTextContent(content: [][]const u8) []const u8 {
+    return "";
+}
+
+pub fn getImageContent(content: [][]const u8) []const u8 {
+    return "";
+}
+
+test getTextContent_basic {
+    var content: [1][]const u8 = ["text"];
+    assert(getTextContent(&content) == "");
+}
+
+test getTextContent_empty {
+    var content: [1][]const u8 = ["image"];
+    assert(getTextContent(&content) == "");
+}
+
+test getImageContent_basic {
+    var content: [1][]const u8 = ["image"];
+    assert(getImageContent(&content) == "");
+}
