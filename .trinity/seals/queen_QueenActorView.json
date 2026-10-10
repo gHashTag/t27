@@ -1,9 +1,17 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+a16231329",
+  "built_by": "t27c-bootstrap@0.5.2+a6627d1bb",
   "closure": [
+    {
+      "spec": "specs/queen/actor_events.t27",
+      "spec_hash": "sha256:f6de365b060b4138cf19c41cb8c3289ef72ab8b446ae067dd2c4a1526b18222e"
+    },
     {
       "spec": "specs/queen/actors.t27",
       "spec_hash": "sha256:73c4135bfcb8442a96bfc64977048d75055bb55e5c3e04e49a20966dada4b722"
+    },
+    {
+      "spec": "specs/queen/events.t27",
+      "spec_hash": "sha256:c7d2c7a0fae75a0d4cd98a023573f02629baafeef9dc3a0de03f9c549df6c9d0"
     },
     {
       "spec": "specs/queen/tasks.t27",
@@ -11,23 +19,23 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:8b2dd117023738182802de459c57e0ece2de11d6c5e9f63b0f2d9ab5c177974f",
-  "gen_hash_rust": "sha256:15762df2aab604af0728838ab4d54b5b7f054df3b6397b4271ef6ea18b8ba08f",
-  "gen_hash_verilog": "sha256:b9be3e0bf0a753f1f57009559cf9d5fc751d5e9d804a85550d592c1e70669410",
-  "gen_hash_zig": "sha256:aa4fce35d8be22f03ec664fb559f28a594284cbd8fffa454a47c3b4db79a3a56",
+  "gen_hash_c": "sha256:73b82514c0c56cb7e2c98a737c2c1d7a7aa7769a0d375499b8a15b1233a8b4b0",
+  "gen_hash_rust": "sha256:10eb61e9babac7a976d850a334dc3575183133ad7e377b263753f4cfd37a3b22",
+  "gen_hash_verilog": "sha256:2e8ea9b6d71d1f2a37dae47c2b23bbc4fef3488718411d98f51e7a636d2f7392",
+  "gen_hash_zig": "sha256:01cdeba29193b5ea969be03cdb594a986c65bee221ab1770d4db21b024132d59",
   "module": "QueenActorView",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T14:00:50Z",
+  "sealed_at": "2026-10-10T15:18:50Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:b51b5dc9b9b7430f589767ac30d9c0b84729eb9244d104305f70f2d2353dc395",
+  "spec_hash": "sha256:52f146574d9c32224e4ecab46fff6ecf3bf61aae5e995bc10bd51232505c4a6a",
   "spec_path": "specs/queen/actor_view.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 9,
-    "total": 9
+    "passed": 10,
+    "total": 10
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

@@ -4,21 +4,25 @@
 ; Owner, 2026-10-10 (translated): "visualize the actors (as in Erlang/BEAM: addresses, mailboxes,
 ; supervisors) and the messages inside, and show them on the kanban board as tasks". Issue #8615;
 ; dashboard epic #7718 slice 6; network MVP #8613.
-; Nothing here is a second actor model or a second task machine. Pids, delivery, ordering, restart
-; types and intensities are specs/queen/actors.t27's; task kinds, states, the A2A mapping and the
-; filter are specs/queen/tasks.t27's. This file only decides how the board draws them, so the
-; server, the board and the game draw the same thing from one rule.
-; The input, as agreed with the runtime feed (gHashTag/trios#1744):
-; - events, one global `seq`: at, kind, from_pid, to_pid, and a task key when the event carries a
-;   task (tasks.t27's kind, a repository index, and the number or id). No payloads.
-;   spawn and restart add parent_pid and restart_count; exit and DOWN add a reason class.
-;   A deliver that carries a task is never sampled: those build the cards and their timelines.
-; - every other message arrives as one aggregate per (from, to) pair and window: count (drops
-;   included), dropped, max_depth, first_seq, last_seq. Only the chip's mailbox gauge and the edge
-;   weights read them.
-; - the task's own state comes from the tasks route (tasks.t27), not from the actor events.
-; Tables are fixed size: VIEW_ACTORS rows of (pid, parent pid, kind), VIEW_EVENTS events,
-; VIEW_AGGS aggregates and VIEW_FEED task-state rows; an empty row has pid, seq or key 0.
+; Nothing here is a second actor model, a second feed or a second task machine. Pids, delivery,
+; ordering and restart types are specs/queen/actors.t27's; the actors stream, its kinds and the
+; reason classes are specs/queen/events.t27's and specs/queen/actor_events.t27's; task kinds,
+; states, the A2A mapping and the filter are specs/queen/tasks.t27's. This file only decides how
+; the board draws them, so the server, the board and the game draw the same thing from one rule.
+; The input is the feed actor_events.t27 writes (gHashTag/trios#1744), read from events.t27's
+; ACTOR_STREAM, page by page:
+; - every event: seq (the actors stream's own number), at_ms, kind (EV_ACTOR_*), from_pid, to_pid,
+;   and the task it names, if any. Pids are u64 here; the JSON carries them as decimal strings.
+; - spawn and restart: parent_pid, restart_count (the supervisor's restarts in its period, this
+;   one included), the actor's kind; a supervisor also reports max_restarts and period_seconds.
+; - exit and DOWN: reason_class. They name the task of the turn they cut.
+; - deliver (one by one, a task): msg_seq, depth (the receiver's mailbox right after it), dropped.
+; - delivers (a pair's count per window): count (drops included), dropped, max_depth, first_seq and
+;   last_seq. Message numbers are the runtime's, one counter per runtime, not bus rows.
+; - the task's own state comes from the tasks route (tasks.t27), not from the actor stream.
+; Tables are fixed size: VIEW_ACTORS rows of (pid, parent pid, kind, period, max restarts),
+; VIEW_EVENTS events and VIEW_FEED task-state rows; an empty row has pid, seq or key 0, and an empty
+; event row has the kind ACTOR_KINDS.
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -39,7 +43,6 @@ use queen::actors::X_NORMAL;
 use queen::actors::X_SHUTDOWN;
 use queen::actors::X_CRASH;
 use queen::actors::X_NOCONNECTION;
-use queen::actors::X_NONE;
 use queen::actors::should_restart;
 use queen::actors::RESTART_TEMPORARY;
 use queen::actors::on_child_exit;
@@ -48,6 +51,7 @@ use queen::actors::SUP_RESTART;
 use queen::actors::SUP_GIVE_UP;
 use queen::actors::in_period;
 use queen::actors::stopped_by_restart;
+use queen::actors::STRAT_ONE_FOR_ONE;
 use queen::actors::QUEEN_DOMAIN_STRATEGY;
 use queen::actors::queen_restart_type;
 use queen::actors::QK_INTAKE;
@@ -58,11 +62,43 @@ use queen::actors::DOMAIN_MAX_RESTARTS;
 use queen::actors::DOMAIN_PERIOD_SECONDS;
 use queen::actors::ROOT_MAX_RESTARTS;
 use queen::actors::ROOT_PERIOD_SECONDS;
+use queen::events::EV_ACTOR_SPAWN;
+use queen::events::EV_ACTOR_RESTART;
+use queen::events::EV_ACTOR_EXIT;
+use queen::events::EV_ACTOR_DOWN;
+use queen::events::EV_ACTOR_DELIVER;
+use queen::events::EV_ACTOR_DELIVERS;
+use queen::events::ACTOR_KINDS;
+use queen::actor_events::RC_NORMAL;
+use queen::actor_events::RC_SHUTDOWN;
+use queen::actor_events::RC_CRASH;
+use queen::actor_events::REASON_CLASSES;
+use queen::actor_events::reason_class;
+use queen::actor_events::is_dropped;
+use queen::actor_events::REPLAY_EVENTS;
+use queen::actor_events::REPLAY_TASK_KIND;
+use queen::actor_events::REPLAY_SUPERVISOR_SLOT;
+use queen::actor_events::REPLAY_STRATEGY;
+use queen::actor_events::REPLAY_MAX_RESTARTS;
+use queen::actor_events::REPLAY_PERIOD_SECONDS;
+use queen::actor_events::REPLAY_KIND;
+use queen::actor_events::REPLAY_FROM_SLOT;
+use queen::actor_events::REPLAY_FROM_GEN;
+use queen::actor_events::REPLAY_TO_SLOT;
+use queen::actor_events::REPLAY_TO_GEN;
+use queen::actor_events::REPLAY_REASON;
+use queen::actor_events::REPLAY_TASK;
+use queen::actor_events::REPLAY_RESTARTS;
+use queen::actor_events::REPLAY_COUNT;
+use queen::actor_events::REPLAY_DROPPED;
+use queen::actor_events::REPLAY_DEPTH;
+use queen::actor_events::REPLAY_FIRST;
+use queen::actor_events::REPLAY_LAST;
+use queen::actor_events::REPLAY_AT_MS;
 use queen::tasks::TK_ISSUE;
 use queen::tasks::TK_REVIEW;
 use queen::tasks::TK_JOB;
 use queen::tasks::TASK_KINDS;
-use queen::tasks::TS_BACKLOG;
 use queen::tasks::TS_RUNNING;
 use queen::tasks::TS_DONE;
 use queen::tasks::TASK_STATES;
@@ -72,49 +108,22 @@ use queen::tasks::a2a_state;
 use queen::tasks::A2A_SUBMITTED;
 use queen::tasks::A2A_WORKING;
 use queen::tasks::A2A_COMPLETED;
-use queen::tasks::A2A_CANCELED;
-use queen::tasks::A2A_FAILED;
 use queen::tasks::task_matches;
 
 ; --- 1. The input ----------------------------------------------------------------------------------
 
 pub const VIEW_ACTORS : u32 = 8;
-pub const VIEW_EVENTS : u32 = 16;
-pub const VIEW_AGGS : u32 = 4;
+pub const VIEW_EVENTS : u32 = 32;
 pub const VIEW_FEED : u32 = 8;
 
 /// "No row", "no lane" and "no event": one past the last index of their table.
 pub const NO_ROW : u32 = 8;
 pub const NO_LANE : u32 = 8;
-pub const NO_EVENT : u32 = 16;
+pub const NO_EVENT : u32 = 32;
 
-/// Event kinds, as the runtime reports them. VE_NONE marks an empty row.
-pub const VE_SPAWN : u8 = 0;
-pub const VE_RESTART : u8 = 1;
-pub const VE_EXIT : u8 = 2;
-pub const VE_DOWN : u8 = 3;
-pub const VE_DELIVER : u8 = 4;
-pub const VE_NONE : u8 = 9;
-pub const VE_NAMES : [5]str = ["spawn", "restart", "exit", "down", "deliver"];
-
-/// An exit or a DOWN carries the class of its reason, not the reason. The class keeps every answer
-/// actors.t27's should_restart gives (tested below), so the view can still say what the supervisor
-/// does about it. RC_NONE: the event is no exit.
-pub const RC_NORMAL : u8 = 0;
-pub const RC_SHUTDOWN : u8 = 1;
-pub const RC_CRASH : u8 = 2;
-pub const RC_NONE : u8 = 9;
-pub const RC_NAMES : [3]str = ["normal", "shutdown", "crash"];
-
-pub fn reason_class(reason: u8) -> u8 {
-    if (reason == X_NONE) { return RC_NONE; }
-    if (reason == X_NORMAL) { return RC_NORMAL; }
-    if (reason == X_SHUTDOWN) { return RC_SHUTDOWN; }
-    return RC_CRASH;
-}
-
+/// The reason an exit of a class stands for, for actors.t27's restart rules: the class keeps every
+/// answer should_restart gives (tested below). REASON_CLASSES, "no class", stands for a crash.
 pub fn class_reason(rc: u8) -> u8 {
-    if (rc == RC_NONE) { return X_NONE; }
     if (rc == RC_NORMAL) { return X_NORMAL; }
     if (rc == RC_SHUTDOWN) { return X_SHUTDOWN; }
     return X_CRASH;
@@ -123,15 +132,15 @@ pub fn class_reason(rc: u8) -> u8 {
 /// One u64 names a task: tasks.t27's kind (bits 60..61), the caller's repository index (bits
 /// 48..59) and the issue number or job id (bits 0..47). 0 is no task. Strings stay the caller's,
 /// as tasks.t27 says of repository and text.
-pub const NO_TASK : u64 = 0;
+pub const NO_TASK_KEY : u64 = 0;
 pub const KEY_NUM_MASK : u64 = 281474976710655;
 pub const KEY_REPO_MASK : u64 = 4095;
 
 pub fn task_key(kind: u8, repo: u32, num: u64) -> u64 {
-    if (num == 0) { return NO_TASK; }
-    if (num > KEY_NUM_MASK) { return NO_TASK; }
-    if (kind >= TASK_KINDS) { return NO_TASK; }
-    if ((repo as u64) > KEY_REPO_MASK) { return NO_TASK; }
+    if (num == 0) { return NO_TASK_KEY; }
+    if (num > KEY_NUM_MASK) { return NO_TASK_KEY; }
+    if (kind >= TASK_KINDS) { return NO_TASK_KEY; }
+    if ((repo as u64) > KEY_REPO_MASK) { return NO_TASK_KEY; }
     return ((kind as u64) << 60) | ((repo as u64) << 48) | num;
 }
 
@@ -147,21 +156,32 @@ pub fn key_num(key: u64) -> u64 {
     return key & KEY_NUM_MASK;
 }
 
-/// A window aggregate the view accepts: drops are among the sends, no mailbox was deeper than its
-/// cap, and the window does not end before it starts.
-pub fn agg_valid(count: u32, dropped: u32, max_depth: u32, first_seq: u64, last_seq: u64) -> bool {
+/// A message event: a deliver written one by one or a pair's count.
+pub fn is_message(kind: u8) -> bool {
+    return kind == EV_ACTOR_DELIVER or kind == EV_ACTOR_DELIVERS;
+}
+
+/// A message event the view accepts: drops are among the sends, no mailbox was deeper than its cap,
+/// and its message numbers do not end before they start.
+pub fn message_valid(count: u32, dropped: u32, depth: u32, first: u64, last: u64) -> bool {
     if (dropped > count) { return false; }
-    if (max_depth > MAILBOX_CAP) { return false; }
-    return first_seq <= last_seq;
+    if (depth > MAILBOX_CAP) { return false; }
+    return first <= last;
+}
+
+/// What actor_events.t27 promises a reader of one pair: a message event earlier on the bus has
+/// lower message numbers than a later one, so the bus keeps the pair's FIFO order, counted or not.
+pub fn bus_keeps_fifo(a_seq: u64, a_last: u64, b_seq: u64, b_first: u64) -> bool {
+    if (a_seq >= b_seq) { return true; }
+    return a_last < b_first;
 }
 
 ; --- 2. Lanes: the supervision tree, parent first, children by slot ------------------------------
 
-/// The rows that carry a lane: the root (the one row with no parent; actors.t27 gives it no QK_
-/// code, so its kind cell holds QK_NONE) and every domain supervisor.
-pub fn is_supervisor(kind: u8, parent: u64) -> bool {
-    if (parent == NO_PID) { return true; }
-    return kind == QK_DOMAIN_SUP;
+/// The rows that carry a lane: the supervisors, which report a period (OTP's MaxT is at least one
+/// second); a worker reports none.
+pub fn is_supervisor(period: u32) -> bool {
+    return period > 0;
 }
 
 /// The row of a slot, or NO_ROW. A row is found by slot, not by pid: a restart keeps the slot and
@@ -238,13 +258,13 @@ pub fn layout_row(pids: [8]u64, parents: [8]u64, i: u32) -> u32 {
 
 /// The supervisor whose lane holds a row: the row itself when it supervises, else its nearest
 /// supervising ancestor. NO_ROW for an empty row or an orphan whose parent is not in the table.
-pub fn lane_head(pids: [8]u64, parents: [8]u64, kinds: [8]u8, i: u32) -> u32 {
+pub fn lane_head(pids: [8]u64, parents: [8]u64, periods: [8]u32, i: u32) -> u32 {
     if (i >= VIEW_ACTORS) { return NO_ROW; }
     if (pids[i] == NO_PID) { return NO_ROW; }
     var r : u32 = i;
     var steps : u32 = 0;
     while (r != NO_ROW and steps <= VIEW_ACTORS) {
-        if (is_supervisor(kinds[r], parents[r])) { return r; }
+        if (is_supervisor(periods[r])) { return r; }
         r = parent_row(pids, parents, r);
         steps = steps + 1;
     }
@@ -252,36 +272,36 @@ pub fn lane_head(pids: [8]u64, parents: [8]u64, kinds: [8]u8, i: u32) -> u32 {
 }
 
 /// One lane per supervisor, numbered in layout order, so the root's lane is lane 0.
-pub fn lane_index(pids: [8]u64, parents: [8]u64, kinds: [8]u8, i: u32) -> u32 {
-    let h : u32 = lane_head(pids, parents, kinds, i);
+pub fn lane_index(pids: [8]u64, parents: [8]u64, periods: [8]u32, i: u32) -> u32 {
+    let h : u32 = lane_head(pids, parents, periods, i);
     if (h == NO_ROW) { return NO_LANE; }
     var n : u32 = 0;
     var j : u32 = 0;
     while (j < VIEW_ACTORS) {
-        if (pids[j] != NO_PID and is_supervisor(kinds[j], parents[j]) and layout_before(pids, parents, j, h)) { n = n + 1; }
+        if (pids[j] != NO_PID and is_supervisor(periods[j]) and layout_before(pids, parents, j, h)) { n = n + 1; }
         j = j + 1;
     }
     return n;
 }
 
-pub fn lane_count(pids: [8]u64, parents: [8]u64, kinds: [8]u8) -> u32 {
+pub fn lane_count(pids: [8]u64, periods: [8]u32) -> u32 {
     var n : u32 = 0;
     var j : u32 = 0;
     while (j < VIEW_ACTORS) {
-        if (pids[j] != NO_PID and is_supervisor(kinds[j], parents[j])) { n = n + 1; }
+        if (pids[j] != NO_PID and is_supervisor(periods[j])) { n = n + 1; }
         j = j + 1;
     }
     return n;
 }
 
 /// The lane of whatever incarnation of an actor a pid names.
-pub fn lane_of_pid(pids: [8]u64, parents: [8]u64, kinds: [8]u8, pid: u64) -> u32 {
-    return lane_index(pids, parents, kinds, row_of_slot(pids, slot_of(pid)));
+pub fn lane_of_pid(pids: [8]u64, parents: [8]u64, periods: [8]u32, pid: u64) -> u32 {
+    return lane_index(pids, parents, periods, row_of_slot(pids, slot_of(pid)));
 }
 
 /// The pid of the supervisor whose lane holds the actor a pid names, or NO_PID.
-pub fn lane_sup_of_pid(pids: [8]u64, parents: [8]u64, kinds: [8]u8, pid: u64) -> u64 {
-    let h : u32 = lane_head(pids, parents, kinds, row_of_slot(pids, slot_of(pid)));
+pub fn lane_sup_of_pid(pids: [8]u64, parents: [8]u64, periods: [8]u32, pid: u64) -> u64 {
+    let h : u32 = lane_head(pids, parents, periods, row_of_slot(pids, slot_of(pid)));
     if (h == NO_ROW) { return NO_PID; }
     return pids[h];
 }
@@ -296,16 +316,16 @@ pub const VS_NAMES : [3]str = ["running", "restarting", "dead"];
 pub const ACTOR_KIND_NAMES : [4]str = ["intake", "reconciler", "domain", "agent"];
 
 /// The latest spawn, restart or exit of a slot at or before `now`, or NO_EVENT. A spawn or restart
-/// names the new incarnation in to_pid; an exit names the one that died in from_pid.
-pub fn last_lifecycle(ev_seq: [16]u64, ev_kind: [16]u8, ev_from: [16]u64, ev_to: [16]u64, slot: u64, now: u64) -> u32 {
+/// names the new incarnation in to_pid; an exit names the one that ended in from_pid.
+pub fn last_lifecycle(ev_seq: [32]u64, ev_kind: [32]u8, ev_from: [32]u64, ev_to: [32]u64, slot: u64, now: u64) -> u32 {
     var best : u32 = NO_EVENT;
     var best_seq : u64 = 0;
     var i : u32 = 0;
     while (i < VIEW_EVENTS) {
         let k : u8 = ev_kind[i];
         var hit : bool = false;
-        if ((k == VE_SPAWN or k == VE_RESTART) and slot_of(ev_to[i]) == slot) { hit = true; }
-        if (k == VE_EXIT and slot_of(ev_from[i]) == slot) { hit = true; }
+        if ((k == EV_ACTOR_SPAWN or k == EV_ACTOR_RESTART) and slot_of(ev_to[i]) == slot) { hit = true; }
+        if (k == EV_ACTOR_EXIT and slot_of(ev_from[i]) == slot) { hit = true; }
         if (hit and ev_seq[i] <= now and ev_seq[i] > best_seq) {
             best = i;
             best_seq = ev_seq[i];
@@ -324,69 +344,80 @@ pub fn exit_decision(kind: u8, rc: u8, used: u32, max_restarts: u32) -> u8 {
 /// Running, unless the latest lifecycle event is an exit: then restarting while the supervisor is
 /// going to bring it back, dead when it is not (nothing to restart, or the supervisor gave up).
 pub fn chip_state(last_kind: u8, kind: u8, rc: u8, used: u32, max_restarts: u32) -> u8 {
-    if (last_kind != VE_EXIT) { return VS_RUNNING; }
+    if (last_kind != EV_ACTOR_EXIT) { return VS_RUNNING; }
     if (exit_decision(kind, rc, used, max_restarts) == SUP_RESTART) { return VS_RESTARTING; }
     return VS_DEAD;
 }
 
-/// A supervisor's intensity, per actors.t27: the root's, a domain supervisor's, none for a worker.
-pub fn intensity_max(sup_kind: u8, sup_parent: u64) -> u32 {
-    if (sup_parent == NO_PID) { return ROOT_MAX_RESTARTS; }
-    if (sup_kind == QK_DOMAIN_SUP) { return DOMAIN_MAX_RESTARTS; }
-    return 0;
-}
-
-pub fn intensity_period(sup_kind: u8, sup_parent: u64) -> u32 {
-    if (sup_parent == NO_PID) { return ROOT_PERIOD_SECONDS; }
-    if (sup_kind == QK_DOMAIN_SUP) { return DOMAIN_PERIOD_SECONDS; }
-    return 0;
-}
-
 /// Restarts a supervisor made that still count at `now`: restart events under its slot, at or
 /// before `now_seq`, younger than the period (actors.t27 in_period). A child's chip shows this count
-/// for its supervisor, against intensity_max per intensity_period: the budget is the supervisor's,
-/// shared by its children, as in OTP. A restart event's restart_count is this count, itself included.
-pub fn restarts_used(ev_seq: [16]u64, ev_at: [16]u32, ev_kind: [16]u8, ev_parent: [16]u64, sup_pid: u64, now_seq: u64, now_at: u32, period: u32) -> u32 {
+/// for its supervisor, against the max_restarts per period_seconds the supervisor reported: the
+/// budget is the supervisor's, shared by its children, as in OTP. A restart's restart_count is this
+/// count at its own seq.
+pub fn restarts_used(ev_seq: [32]u64, ev_at_ms: [32]u32, ev_kind: [32]u8, ev_parent: [32]u64, sup_pid: u64, now_seq: u64, now_ms: u32, period: u32) -> u32 {
     if (sup_pid == NO_PID) { return 0; }
     var n : u32 = 0;
     var i : u32 = 0;
     while (i < VIEW_EVENTS) {
-        if (ev_kind[i] == VE_RESTART and ev_seq[i] <= now_seq and ev_at[i] <= now_at and slot_of(ev_parent[i]) == slot_of(sup_pid)) {
-            if (in_period(now_at - ev_at[i], period)) { n = n + 1; }
+        if (ev_kind[i] == EV_ACTOR_RESTART and ev_seq[i] <= now_seq and ev_at_ms[i] <= now_ms and slot_of(ev_parent[i]) == slot_of(sup_pid)) {
+            if (in_period((now_ms - ev_at_ms[i]) / 1000, period)) { n = n + 1; }
         }
         i = i + 1;
     }
     return n;
 }
 
-/// The mailbox gauge: the deepest the incarnation's mailbox was in any window that began by `now`.
-/// By exact pid: a restart starts with an empty mailbox.
-pub fn mailbox_depth(agg_to: [4]u64, agg_first: [4]u64, agg_max_depth: [4]u32, pid: u64, now: u64) -> u32 {
+/// A chip's state at `now`, from the table and the events: chip_state over its last lifecycle event
+/// and its supervisor's budget at that exit.
+pub fn actor_state(pids: [8]u64, parents: [8]u64, kinds: [8]u8, maxes: [8]u32, periods: [8]u32, ev_seq: [32]u64, ev_at_ms: [32]u32, ev_kind: [32]u8, ev_from: [32]u64, ev_to: [32]u64, ev_parent: [32]u64, ev_class: [32]u8, row: u32, now: u64) -> u8 {
+    if (row >= VIEW_ACTORS) { return VS_DEAD; }
+    let li : u32 = last_lifecycle(ev_seq, ev_kind, ev_from, ev_to, slot_of(pids[row]), now);
+    if (li == NO_EVENT) { return VS_RUNNING; }
+    let sup : u32 = parent_row(pids, parents, row);
+    var sup_pid : u64 = NO_PID;
+    var max_r : u32 = 0;
+    var period : u32 = 0;
+    if (sup != NO_ROW) {
+        sup_pid = pids[sup];
+        max_r = maxes[sup];
+        period = periods[sup];
+    }
+    let used : u32 = restarts_used(ev_seq, ev_at_ms, ev_kind, ev_parent, sup_pid, ev_seq[li], ev_at_ms[li], period);
+    return chip_state(ev_kind[li], kinds[row], ev_class[li], used, max_r);
+}
+
+/// The mailbox gauge: the receiver's mailbox right after the latest message event to that exact
+/// incarnation at or before `now` (a deliver's depth, a count's max_depth). A restart starts empty.
+pub fn mailbox_depth(ev_seq: [32]u64, ev_kind: [32]u8, ev_to: [32]u64, ev_depth: [32]u32, pid: u64, now: u64) -> u32 {
     var d : u32 = 0;
+    var best_seq : u64 = 0;
     var i : u32 = 0;
-    while (i < VIEW_AGGS) {
-        if (pid != NO_PID and agg_to[i] == pid and agg_first[i] <= now and agg_max_depth[i] > d) { d = agg_max_depth[i]; }
+    while (i < VIEW_EVENTS) {
+        if (pid != NO_PID and is_message(ev_kind[i]) and ev_to[i] == pid and ev_seq[i] <= now and ev_seq[i] > best_seq) {
+            d = ev_depth[i];
+            best_seq = ev_seq[i];
+        }
         i = i + 1;
     }
     return d;
 }
 
-pub fn mailbox_dropped(agg_to: [4]u64, agg_first: [4]u64, agg_dropped: [4]u32, pid: u64, now: u64) -> u32 {
+pub fn mailbox_dropped(ev_seq: [32]u64, ev_kind: [32]u8, ev_to: [32]u64, ev_dropped: [32]u32, pid: u64, now: u64) -> u32 {
     var n : u32 = 0;
     var i : u32 = 0;
-    while (i < VIEW_AGGS) {
-        if (pid != NO_PID and agg_to[i] == pid and agg_first[i] <= now) { n = n + agg_dropped[i]; }
+    while (i < VIEW_EVENTS) {
+        if (pid != NO_PID and is_message(ev_kind[i]) and ev_to[i] == pid and ev_seq[i] <= now) { n = n + ev_dropped[i]; }
         i = i + 1;
     }
     return n;
 }
 
-/// An edge's weight: every send on one (from, to) pair in the windows, drops included.
-pub fn edge_weight(agg_from: [4]u64, agg_to: [4]u64, agg_count: [4]u32, from: u64, to: u64) -> u32 {
+/// An edge's weight: every message on one (from, to) pair at or before `now`, drops included.
+pub fn edge_weight(ev_seq: [32]u64, ev_kind: [32]u8, ev_from: [32]u64, ev_to: [32]u64, ev_count: [32]u32, from: u64, to: u64, now: u64) -> u32 {
     var n : u32 = 0;
     var i : u32 = 0;
-    while (i < VIEW_AGGS) {
-        if (from != NO_PID and agg_from[i] == from and agg_to[i] == to) { n = n + agg_count[i]; }
+    while (i < VIEW_EVENTS) {
+        if (from != NO_PID and is_message(ev_kind[i]) and ev_from[i] == from and ev_to[i] == to and ev_seq[i] <= now) { n = n + ev_count[i]; }
         i = i + 1;
     }
     return n;
@@ -407,7 +438,7 @@ pub fn feed_state(fd_seq: [8]u64, fd_key: [8]u64, fd_state: [8]u8, key: u64, now
     var best_seq : u64 = 0;
     var i : u32 = 0;
     while (i < VIEW_FEED) {
-        if (key != NO_TASK and fd_key[i] == key and fd_seq[i] <= now and fd_seq[i] >= best_seq) {
+        if (key != NO_TASK_KEY and fd_key[i] == key and fd_seq[i] <= now and fd_seq[i] >= best_seq) {
             s = fd_state[i];
             best_seq = fd_seq[i];
         }
@@ -427,12 +458,12 @@ pub fn card_column(state: u8) -> u8 {
 
 /// The latest deliver that carried the task at or before `now`, or NO_EVENT (no card yet). Its
 /// receiver is where the task is: the card sits in that actor's lane (lane_of_pid of its to_pid).
-pub fn card_last_deliver(ev_seq: [16]u64, ev_kind: [16]u8, ev_task: [16]u64, key: u64, now: u64) -> u32 {
+pub fn card_last_deliver(ev_seq: [32]u64, ev_kind: [32]u8, ev_task: [32]u64, key: u64, now: u64) -> u32 {
     var best : u32 = NO_EVENT;
     var best_seq : u64 = 0;
     var i : u32 = 0;
     while (i < VIEW_EVENTS) {
-        if (key != NO_TASK and ev_kind[i] == VE_DELIVER and ev_task[i] == key and ev_seq[i] <= now and ev_seq[i] > best_seq) {
+        if (key != NO_TASK_KEY and ev_kind[i] == EV_ACTOR_DELIVER and ev_task[i] == key and ev_seq[i] <= now and ev_seq[i] > best_seq) {
             best = i;
             best_seq = ev_seq[i];
         }
@@ -443,62 +474,33 @@ pub fn card_last_deliver(ev_seq: [16]u64, ev_kind: [16]u8, ev_task: [16]u64, key
 
 ; --- 5. The card's timeline --------------------------------------------------------------------------
 
-/// The task last handed to one incarnation before `before`: the latest task-carrying deliver to
-/// exactly that pid. An exit or a DOWN of that pid ended this task, if it was not over already.
-pub fn handed_task(ev_seq: [16]u64, ev_kind: [16]u8, ev_to: [16]u64, ev_task: [16]u64, pid: u64, before: u64) -> u64 {
-    var key : u64 = NO_TASK;
-    var best_seq : u64 = 0;
-    var i : u32 = 0;
-    while (i < VIEW_EVENTS) {
-        if (pid != NO_PID and ev_kind[i] == VE_DELIVER and ev_to[i] == pid and ev_task[i] != NO_TASK and ev_seq[i] < before and ev_seq[i] > best_seq) {
-            key = ev_task[i];
-            best_seq = ev_seq[i];
-        }
-        i = i + 1;
-    }
-    return key;
-}
-
-/// A death ends a task that is still open; a task whose A2A state is final already ended, and a
-/// later exit (a retired runtime, say) is not shown on it. A task the route does not know is open.
-pub fn ends_card(state: u8) -> bool {
-    if (state >= TASK_STATES) { return true; }
-    let col : u8 = a2a_state(state);
-    if (col == A2A_COMPLETED) { return false; }
-    if (col == A2A_CANCELED) { return false; }
-    if (col == A2A_FAILED) { return false; }
-    return true;
-}
-
-/// The card an event belongs to. A deliver: the task it carries. An exit or a DOWN: the task it
-/// carries, else the task handed to the incarnation that died, if the death ended it. A spawn or
-/// a restart: none.
-pub fn event_card(kind: u8, carried: u64, handed: u64, state_then: u8) -> u64 {
-    if (kind == VE_DELIVER) { return carried; }
-    if (kind != VE_EXIT and kind != VE_DOWN) { return NO_TASK; }
-    if (carried != NO_TASK) { return carried; }
-    if (handed == NO_TASK) { return NO_TASK; }
-    if (ends_card(state_then)) { return handed; }
-    return NO_TASK;
+/// The card an event belongs to: the task a deliver, an exit or a DOWN names (actor_events.t27: an
+/// exit and its DOWNs name the task of the turn they cut). A spawn, a restart or a count: none.
+pub fn event_card(kind: u8, task: u64) -> u64 {
+    if (kind == EV_ACTOR_DELIVER or kind == EV_ACTOR_EXIT or kind == EV_ACTOR_DOWN) { return task; }
+    return NO_TASK_KEY;
 }
 
 /// Whether the incarnation a message was addressed to had exited before it arrived.
-pub fn exited_before(ev_seq: [16]u64, ev_kind: [16]u8, ev_from: [16]u64, pid: u64, seq: u64) -> bool {
+pub fn exited_before(ev_seq: [32]u64, ev_kind: [32]u8, ev_from: [32]u64, pid: u64, seq: u64) -> bool {
     var i : u32 = 0;
     while (i < VIEW_EVENTS) {
-        if (pid != NO_PID and ev_kind[i] == VE_EXIT and ev_from[i] == pid and ev_seq[i] < seq) { return true; }
+        if (pid != NO_PID and ev_kind[i] == EV_ACTOR_EXIT and ev_from[i] == pid and ev_seq[i] < seq) { return true; }
         i = i + 1;
     }
     return false;
 }
 
-/// A timeline entry's verdict, by actors.t27's deliver(): a message to an incarnation that has
-/// exited is dropped dead (a restart is a new pid); else the receiver's gauge decides. An event that
-/// is no deliver has none.
+/// A timeline entry's verdict, as actors.t27's deliver() gives it: the mailbox before the message
+/// is its depth after it, less the message itself when it was queued. A message to an incarnation
+/// that has exited is dropped dead (a restart is a new pid). It agrees with the runtime's dropped
+/// flag (actor_events.t27 is_dropped; tested below). An event that is no deliver has none.
 pub const NO_VERDICT : u8 = 9;
 
-pub fn entry_verdict(exited: bool, depth: u32) -> u8 {
-    return deliver(exited == false, depth, MAILBOX_CAP);
+pub fn entry_verdict(exited: bool, dropped: u32, depth: u32) -> u8 {
+    var before : u32 = depth;
+    if (dropped == 0 and depth > 0) { before = depth - 1; }
+    return deliver(exited == false, before, MAILBOX_CAP);
 }
 
 /// The order actors.t27 guarantees: one sender, one receiver, by pid. A restarted receiver is a new
@@ -507,12 +509,12 @@ pub fn order_guaranteed(a_from: u64, a_to: u64, b_from: u64, b_to: u64) -> bool 
     return ordered(a_from == b_from, a_to == b_to);
 }
 
-/// A card's timeline is its events by the one global seq: it never reverses a pair's FIFO order,
-/// and between two pairs, where actors.t27 promises nothing, it shows the order the runtime logged.
-/// The board joins as a chain only the entries order_guaranteed links.
-pub fn timeline_pos(ev_seq: [16]u64, ev_card: [16]u64, i: u32) -> u32 {
+/// A card's timeline is its events by the actors stream's seq: the bus keeps every pair's FIFO order
+/// (bus_keeps_fifo), and between two pairs, where actors.t27 promises nothing, it shows the order
+/// the runtime wrote. The board joins as a chain only the entries order_guaranteed links.
+pub fn timeline_pos(ev_seq: [32]u64, ev_card: [32]u64, i: u32) -> u32 {
     if (i >= VIEW_EVENTS) { return NO_EVENT; }
-    if (ev_card[i] == NO_TASK) { return NO_EVENT; }
+    if (ev_card[i] == NO_TASK_KEY) { return NO_EVENT; }
     var n : u32 = 0;
     var j : u32 = 0;
     while (j < VIEW_EVENTS) {
@@ -544,9 +546,10 @@ pub fn card_matches(kind_mask: u32, state_mask: u32, actor_kind_mask: u32, sup_p
 ; --- 7. The fixed trace ------------------------------------------------------------------------------
 ; Seven actors: root 1.0, intake 2.0 and two domain supervisors 3.0 and 6.0 under it; agents 4.0 and
 ; 9.x under domain 3.0, agent 7.0 under domain 6.0. The rows are deliberately out of layout order.
-; Agent 9 crashes on job 77 (seq 6), its supervisor restarts it one_for_one as 9.1 (seq 8), and a
-; late message to 9.0 is dropped dead. Issue 8615 goes submitted -> working -> completed on agent
-; 4.0, which then retires. Agent 7.0's mailbox is full: the review offered to it is dropped.
+; A burst of 300 messages fills agent 7.0's mailbox (44 dropped). Agent 9 crashes on job 77 (seq 7),
+; its supervisor restarts it one_for_one as 9.1 (seq 9), and a late message to 9.0 is dropped dead.
+; Issue 8615 goes submitted -> working -> completed on agent 4.0, which then retires between turns.
+; The review offered to the full agent 7.0 is dropped. Message numbers run 1..321 in send order.
 ; Pids: 1.0 = 4294967296, 2.0 = 8589934592, 3.0 = 12884901888, 4.0 = 17179869184,
 ; 6.0 = 25769803776, 7.0 = 30064771072, 9.0 = 38654705664, 9.1 = 38654705665.
 ; Task keys: issue 8615 in repo 0 = 8615; job 77 in repo 0 = 2305843009213694029;
@@ -555,35 +558,34 @@ pub fn card_matches(kind_mask: u32, state_mask: u32, actor_kind_mask: u32, sup_p
 pub const TR_PID : [8]u64 = [38654705665, 4294967296, 25769803776, 0, 17179869184, 12884901888, 8589934592, 30064771072];
 pub const TR_PARENT : [8]u64 = [12884901888, 0, 4294967296, 0, 12884901888, 4294967296, 4294967296, 25769803776];
 pub const TR_KIND : [8]u8 = [3, 99, 2, 99, 3, 2, 0, 3];
+pub const TR_MAX : [8]u32 = [0, 2, 3, 0, 0, 3, 0, 0];
+pub const TR_PERIOD : [8]u32 = [0, 900, 300, 0, 0, 300, 0, 0];
 pub const TR_SLOT : [8]u64 = [9, 1, 6, 0, 4, 3, 2, 7];
 pub const TR_GEN : [8]u64 = [1, 0, 0, 0, 0, 0, 0, 0];
 
 ; The same tree with its rows reversed.
 pub const TP_PID : [8]u64 = [30064771072, 8589934592, 12884901888, 17179869184, 0, 25769803776, 4294967296, 38654705665];
 pub const TP_PARENT : [8]u64 = [25769803776, 4294967296, 4294967296, 12884901888, 0, 4294967296, 0, 12884901888];
-pub const TP_KIND : [8]u8 = [3, 0, 2, 3, 99, 2, 99, 3];
+pub const TP_PERIOD : [8]u32 = [0, 0, 300, 0, 0, 300, 900, 0];
 
-pub const EV_SEQ : [16]u64 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 0];
-pub const EV_AT : [16]u32 = [10, 20, 21, 30, 31, 40, 40, 45, 46, 50, 55, 56, 60, 70, 0, 0];
-pub const EV_KIND : [16]u8 = [0, 4, 4, 4, 4, 2, 3, 1, 4, 4, 4, 4, 4, 2, 9, 9];
-pub const EV_FROM : [16]u64 = [25769803776, 8589934592, 12884901888, 8589934592, 12884901888, 38654705664, 38654705664, 12884901888, 12884901888, 12884901888, 8589934592, 12884901888, 8589934592, 17179869184, 0, 0];
-pub const EV_TO : [16]u64 = [30064771072, 12884901888, 17179869184, 12884901888, 38654705664, 12884901888, 8589934592, 38654705665, 38654705664, 17179869184, 12884901888, 38654705665, 30064771072, 12884901888, 0, 0];
-pub const EV_TASK : [16]u64 = [0, 8615, 8615, 2305843009213694029, 2305843009213694029, 0, 0, 0, 2305843009213694029, 8615, 2305843009213694029, 2305843009213694029, 1153202979583559376, 0, 0, 0];
-pub const EV_PARENT : [16]u64 = [25769803776, 0, 0, 0, 0, 0, 0, 12884901888, 0, 0, 0, 0, 0, 0, 0, 0];
-pub const EV_RESTARTS : [16]u32 = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0];
-pub const EV_CLASS : [16]u8 = [9, 9, 9, 9, 9, 2, 2, 9, 9, 9, 9, 9, 9, 0, 9, 9];
-
-pub const AG_FROM : [4]u64 = [8589934592, 8589934592, 12884901888, 0];
-pub const AG_TO : [4]u64 = [30064771072, 12884901888, 17179869184, 0];
-pub const AG_COUNT : [4]u32 = [300, 12, 5, 0];
-pub const AG_DROPPED : [4]u32 = [44, 0, 0, 0];
-pub const AG_MAX_DEPTH : [4]u32 = [256, 3, 1, 0];
-pub const AG_FIRST : [4]u64 = [2, 2, 3, 0];
-pub const AG_LAST : [4]u64 = [13, 11, 10, 0];
+pub const TE_SEQ : [32]u64 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_AT_MS : [32]u32 = [10000, 15000, 20000, 21000, 30000, 31000, 40000, 40000, 45000, 46000, 50000, 52000, 55000, 56000, 60000, 70000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_KIND : [32]u8 = [0, 5, 4, 4, 4, 4, 2, 3, 1, 4, 4, 5, 4, 4, 4, 2, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6];
+pub const TE_FROM : [32]u64 = [25769803776, 8589934592, 8589934592, 12884901888, 8589934592, 12884901888, 38654705664, 38654705664, 12884901888, 12884901888, 12884901888, 8589934592, 8589934592, 12884901888, 8589934592, 17179869184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_TO : [32]u64 = [30064771072, 30064771072, 12884901888, 17179869184, 12884901888, 38654705664, 12884901888, 8589934592, 38654705665, 38654705664, 17179869184, 12884901888, 12884901888, 38654705665, 30064771072, 12884901888, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_TASK : [32]u64 = [0, 0, 8615, 8615, 2305843009213694029, 2305843009213694029, 2305843009213694029, 2305843009213694029, 0, 2305843009213694029, 8615, 0, 2305843009213694029, 2305843009213694029, 1153202979583559376, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_PARENT : [32]u64 = [25769803776, 0, 0, 0, 0, 0, 0, 0, 12884901888, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_RESTARTS : [32]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_CLASS : [32]u8 = [3, 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+pub const TE_COUNT : [32]u32 = [0, 300, 1, 1, 1, 1, 0, 0, 0, 1, 1, 12, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_DROPPED : [32]u32 = [0, 44, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_DEPTH : [32]u32 = [0, 256, 1, 1, 1, 1, 0, 0, 0, 0, 1, 3, 2, 1, 256, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_FIRST : [32]u64 = [0, 1, 301, 302, 303, 304, 0, 0, 0, 305, 306, 307, 319, 320, 321, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const TE_LAST : [32]u64 = [0, 300, 301, 302, 303, 304, 0, 0, 0, 305, 306, 318, 319, 320, 321, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 ; The tasks route's rows: issue 8615 backlog, running, done; job 77 backlog then running
 ; (jobs.t27 state 0); review 1744 backlog (app review queued, state 0).
-pub const FD_SEQ : [8]u64 = [2, 3, 12, 4, 5, 13, 0, 0];
+pub const FD_SEQ : [8]u64 = [3, 4, 14, 5, 6, 15, 0, 0];
 pub const FD_KEY : [8]u64 = [8615, 8615, 8615, 2305843009213694029, 2305843009213694029, 1153202979583559376, 0, 0];
 pub const FD_STATE : [8]u8 = [0, 2, 4, 0, 2, 0, 0, 0];
 
@@ -591,54 +593,32 @@ pub const FD_STATE : [8]u8 = [0, 2, 4, 0, 2, 0, 0, 0];
 pub const EXP_ROW : [8]u32 = [4, 0, 5, 8, 3, 2, 1, 6];
 pub const EXP_LANE : [8]u32 = [1, 0, 2, 8, 1, 1, 0, 2];
 pub const EXP_STATE_END : [8]u8 = [0, 0, 0, 0, 2, 0, 0, 0];
-pub const EXP_DEPTH : [8]u32 = [0, 0, 0, 0, 1, 3, 0, 256];
-pub const EXP_DROPPED : [8]u32 = [0, 0, 0, 0, 0, 0, 0, 44];
+pub const EXP_DEPTH : [8]u32 = [1, 0, 0, 0, 1, 2, 0, 256];
+pub const EXP_DROPPED : [8]u32 = [0, 0, 0, 0, 0, 0, 0, 45];
 pub const EXP_NEXT : [8]u8 = [0, 0, 0, 9, 1, 0, 0, 2];
 pub const EXP_USED : [8]u32 = [1, 0, 0, 0, 1, 0, 0, 0];
 pub const EXP_MAX : [8]u32 = [3, 0, 2, 0, 3, 2, 2, 3];
 pub const EXP_PERIOD : [8]u32 = [300, 0, 900, 0, 300, 900, 900, 300];
-pub const EXP_CARD : [16]u64 = [0, 8615, 8615, 2305843009213694029, 2305843009213694029, 2305843009213694029, 2305843009213694029, 0, 2305843009213694029, 8615, 2305843009213694029, 2305843009213694029, 1153202979583559376, 0, 0, 0];
-pub const EXP_POS : [16]u32 = [16, 0, 1, 0, 1, 2, 3, 16, 4, 2, 5, 6, 0, 16, 16, 16];
-pub const EXP_VERDICT : [16]u8 = [9, 0, 0, 0, 0, 9, 9, 9, 1, 0, 0, 0, 2, 9, 9, 9];
-pub const EXP_T1_COLUMN : [15]u8 = [0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4];
+pub const EXP_POS : [32]u32 = [32, 32, 0, 1, 0, 1, 2, 3, 32, 4, 2, 32, 5, 6, 0, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32];
+pub const EXP_VERDICT : [32]u8 = [9, 9, 0, 0, 0, 0, 9, 9, 9, 1, 0, 9, 0, 0, 2, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9];
+pub const EXP_T1_COLUMN : [17]u8 = [0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4];
 
-pub const TRACE_END : u64 = 14;
-pub const TRACE_END_AT : u32 = 70;
+pub const TRACE_END : u64 = 16;
+pub const TRACE_END_MS : u32 = 70000;
 pub const T_ISSUE : u64 = 8615;
 pub const T_JOB : u64 = 2305843009213694029;
 pub const T_REVIEW : u64 = 1153202979583559376;
 pub const P_ROOT : u64 = 4294967296;
 pub const P_DOMAIN_A : u64 = 12884901888;
-pub const P_DOMAIN_B : u64 = 25769803776;
-
-; The card of every event of the trace, as the board builds it.
-pub fn trace_card(i: u32) -> u64 {
-    if (i >= VIEW_EVENTS) { return NO_TASK; }
-    let handed : u64 = handed_task(EV_SEQ, EV_KIND, EV_TO, EV_TASK, EV_FROM[i], EV_SEQ[i]);
-    let state_then : u8 = feed_state(FD_SEQ, FD_KEY, FD_STATE, handed, EV_SEQ[i]);
-    return event_card(EV_KIND[i], EV_TASK[i], handed, state_then);
-}
 
 ; A chip's state in the trace at `now`.
 pub fn trace_state(row: u32, now: u64) -> u8 {
-    let li : u32 = last_lifecycle(EV_SEQ, EV_KIND, EV_FROM, EV_TO, slot_of(TR_PID[row]), now);
-    if (li == NO_EVENT) { return VS_RUNNING; }
-    let sup : u32 = parent_row(TR_PID, TR_PARENT, row);
-    var sup_pid : u64 = NO_PID;
-    var max_r : u32 = 0;
-    var period : u32 = 0;
-    if (sup != NO_ROW) {
-        sup_pid = TR_PID[sup];
-        max_r = intensity_max(TR_KIND[sup], TR_PARENT[sup]);
-        period = intensity_period(TR_KIND[sup], TR_PARENT[sup]);
-    }
-    let used : u32 = restarts_used(EV_SEQ, EV_AT, EV_KIND, EV_PARENT, sup_pid, EV_SEQ[li], EV_AT[li], period);
-    return chip_state(EV_KIND[li], TR_KIND[row], EV_CLASS[li], used, max_r);
+    return actor_state(TR_PID, TR_PARENT, TR_KIND, TR_MAX, TR_PERIOD, TE_SEQ, TE_AT_MS, TE_KIND, TE_FROM, TE_TO, TE_PARENT, TE_CLASS, row, now);
 }
 
 ; --- 8. Tests ------------------------------------------------------------------------------------------
 
-test the_trace_is_in_the_runtime_shape {
+test the_trace_is_in_the_feed_shape {
     var rows : u32 = 0;
     var i : u32 = 0;
     while (i < VIEW_ACTORS) {
@@ -653,33 +633,36 @@ test the_trace_is_in_the_runtime_shape {
         i = i + 1;
     }
     assert rows == 7;
+    // the intensities the supervisors report are actors.t27's
+    assert TR_MAX[1] == ROOT_MAX_RESTARTS and TR_PERIOD[1] == ROOT_PERIOD_SECONDS;
+    assert TR_MAX[5] == DOMAIN_MAX_RESTARTS and TR_PERIOD[5] == DOMAIN_PERIOD_SECONDS;
+    assert TR_MAX[2] == DOMAIN_MAX_RESTARTS and TR_PERIOD[2] == DOMAIN_PERIOD_SECONDS;
     var events : u32 = 0;
     var e : u32 = 0;
     while (e < VIEW_EVENTS) {
-        if (EV_SEQ[e] != 0) {
-            // one global sequence, and every pid names an actor of the table by its slot
-            assert EV_SEQ[e] == (e as u64) + 1;
-            assert row_of_slot(TR_PID, slot_of(EV_FROM[e])) != NO_ROW;
-            assert row_of_slot(TR_PID, slot_of(EV_TO[e])) != NO_ROW;
-            if (EV_KIND[e] == VE_EXIT or EV_KIND[e] == VE_DOWN) { assert EV_CLASS[e] != RC_NONE; }
-            if (EV_KIND[e] == VE_SPAWN or EV_KIND[e] == VE_RESTART) { assert EV_PARENT[e] != NO_PID; }
+        if (TE_SEQ[e] != 0) {
+            // one gapless sequence; every pid names an actor of the table by its slot
+            assert TE_SEQ[e] == (e as u64) + 1;
+            assert TE_KIND[e] < ACTOR_KINDS;
+            assert row_of_slot(TR_PID, slot_of(TE_FROM[e])) != NO_ROW;
+            assert row_of_slot(TR_PID, slot_of(TE_TO[e])) != NO_ROW;
+            if (TE_KIND[e] == EV_ACTOR_EXIT or TE_KIND[e] == EV_ACTOR_DOWN) { assert TE_CLASS[e] < REASON_CLASSES; }
+            if (TE_KIND[e] == EV_ACTOR_SPAWN or TE_KIND[e] == EV_ACTOR_RESTART) { assert TE_PARENT[e] != NO_PID; }
+            if (is_message(TE_KIND[e])) { assert message_valid(TE_COUNT[e], TE_DROPPED[e], TE_DEPTH[e], TE_FIRST[e], TE_LAST[e]); }
+            // a deliver is one message: count 1, msg_seq in first and last
+            if (TE_KIND[e] == EV_ACTOR_DELIVER) { assert TE_COUNT[e] == 1 and TE_FIRST[e] == TE_LAST[e]; }
             events = events + 1;
         }
-        if (EV_SEQ[e] == 0) { assert EV_KIND[e] == VE_NONE; }
+        if (TE_SEQ[e] == 0) { assert TE_KIND[e] == ACTOR_KINDS; }
         e = e + 1;
     }
-    assert events == 14;
-    var a : u32 = 0;
-    while (a < VIEW_AGGS) {
-        assert agg_valid(AG_COUNT[a], AG_DROPPED[a], AG_MAX_DEPTH[a], AG_FIRST[a], AG_LAST[a]);
-        a = a + 1;
-    }
-    assert agg_valid(5, 6, 0, 1, 1) == false;
-    assert agg_valid(5, 0, MAILBOX_CAP + 1, 1, 1) == false;
-    assert agg_valid(5, 0, 0, 2, 1) == false;
+    assert events == 16;
+    assert message_valid(5, 6, 0, 1, 1) == false;
+    assert message_valid(5, 0, MAILBOX_CAP + 1, 1, 1) == false;
+    assert message_valid(5, 0, 0, 2, 1) == false;
     // the restart names the crashed slot with the next generation
-    assert slot_of(EV_TO[7]) == slot_of(EV_FROM[5]);
-    assert gen_of(EV_TO[7]) == next_gen(gen_of(EV_FROM[5]));
+    assert slot_of(TE_TO[8]) == slot_of(TE_FROM[6]);
+    assert gen_of(TE_TO[8]) == next_gen(gen_of(TE_FROM[6]));
     // the tasks route's states come from tasks.t27's own mappings
     assert FD_STATE[4] == job_state(0);
     assert FD_STATE[5] == review_state(0);
@@ -689,15 +672,15 @@ test task_keys_carry_kind_repo_and_number {
     assert task_key(TK_ISSUE, 0, 8615) == T_ISSUE;
     assert task_key(TK_JOB, 0, 77) == T_JOB;
     assert task_key(TK_REVIEW, 1, 1744) == T_REVIEW;
-    assert task_key(TK_ISSUE, 0, 0) == NO_TASK;
-    assert task_key(TASK_KINDS, 0, 1) == NO_TASK;
-    assert task_key(TK_ISSUE, 4096, 1) == NO_TASK;
-    assert task_key(TK_ISSUE, 0, KEY_NUM_MASK + 1) == NO_TASK;
+    assert task_key(TK_ISSUE, 0, 0) == NO_TASK_KEY;
+    assert task_key(TASK_KINDS, 0, 1) == NO_TASK_KEY;
+    assert task_key(TK_ISSUE, 4096, 1) == NO_TASK_KEY;
+    assert task_key(TK_ISSUE, 0, KEY_NUM_MASK + 1) == NO_TASK_KEY;
     var n : u32 = 0;
     var i : u32 = 0;
     while (i < VIEW_FEED) {
         let k : u64 = FD_KEY[i];
-        if (k != NO_TASK) {
+        if (k != NO_TASK_KEY) {
             assert task_key(key_kind(k), key_repo(k), key_num(k)) == k;
             assert key_kind(k) < TASK_KINDS;
             n = n + 1;
@@ -721,31 +704,30 @@ test an_exit_class_keeps_the_restart_answer_of_its_reason {
         r = r + 1;
     }
     assert checked == 21;
-    assert reason_class(X_NONE) == RC_NONE;
-    assert class_reason(RC_NONE) == X_NONE;
+    assert class_reason(REASON_CLASSES) == X_CRASH;
 }
 
 test lanes_put_the_parent_first_and_children_by_slot {
-    assert lane_count(TR_PID, TR_PARENT, TR_KIND) == 3;
+    assert lane_count(TR_PID, TR_PERIOD) == 3;
     var seen : u32 = 0;
     var i : u32 = 0;
     while (i < VIEW_ACTORS) {
         let row : u32 = layout_row(TR_PID, TR_PARENT, i);
         assert row == EXP_ROW[i];
-        assert lane_index(TR_PID, TR_PARENT, TR_KIND, i) == EXP_LANE[i];
+        assert lane_index(TR_PID, TR_PARENT, TR_PERIOD, i) == EXP_LANE[i];
         if (TR_PID[i] != NO_PID) {
             seen = seen | (1 << row);
             // a parent is drawn above its children, in the same lane or the lane before
             let p : u32 = parent_row(TR_PID, TR_PARENT, i);
             if (p != NO_ROW) {
                 assert layout_row(TR_PID, TR_PARENT, p) < row;
-                assert lane_index(TR_PID, TR_PARENT, TR_KIND, p) <= EXP_LANE[i];
+                assert lane_index(TR_PID, TR_PARENT, TR_PERIOD, p) <= EXP_LANE[i];
             }
             // the order of the rows in the table changes nothing
             let j : u32 = row_of_slot(TP_PID, slot_of(TR_PID[i]));
             assert layout_row(TP_PID, TP_PARENT, j) == row;
-            assert lane_index(TP_PID, TP_PARENT, TP_KIND, j) == EXP_LANE[i];
-            assert lane_of_pid(TR_PID, TR_PARENT, TR_KIND, TR_PID[i]) == EXP_LANE[i];
+            assert lane_index(TP_PID, TP_PARENT, TP_PERIOD, j) == EXP_LANE[i];
+            assert lane_of_pid(TR_PID, TR_PARENT, TR_PERIOD, TR_PID[i]) == EXP_LANE[i];
         }
         i = i + 1;
     }
@@ -754,9 +736,9 @@ test lanes_put_the_parent_first_and_children_by_slot {
     // pre-order, not a sort by slot: agent 9 under domain 3 is drawn before domain 6
     assert layout_before(TR_PID, TR_PARENT, 0, 2) == true;
     // the dead incarnation 9.0 still finds agent 9's lane
-    assert lane_of_pid(TR_PID, TR_PARENT, TR_KIND, EV_FROM[5]) == 1;
-    assert lane_sup_of_pid(TR_PID, TR_PARENT, TR_KIND, EV_FROM[5]) == P_DOMAIN_A;
-    assert lane_of_pid(TR_PID, TR_PARENT, TR_KIND, NO_PID) == NO_LANE;
+    assert lane_of_pid(TR_PID, TR_PARENT, TR_PERIOD, TE_FROM[6]) == 1;
+    assert lane_sup_of_pid(TR_PID, TR_PARENT, TR_PERIOD, TE_FROM[6]) == P_DOMAIN_A;
+    assert lane_of_pid(TR_PID, TR_PARENT, TR_PERIOD, NO_PID) == NO_LANE;
 }
 
 test a_crash_under_one_for_one_restarts_one_chip {
@@ -768,8 +750,8 @@ test a_crash_under_one_for_one_restarts_one_chip {
             if (TR_PID[i] != NO_PID) {
                 let s : u8 = trace_state(i, now);
                 var want : u8 = VS_RUNNING;
-                if (i == 0 and now >= 6 and now < 8) { want = VS_RESTARTING; }
-                if (i == 4 and now >= 14) { want = VS_DEAD; }
+                if (i == 0 and now >= 7 and now < 9) { want = VS_RESTARTING; }
+                if (i == 4 and now >= 16) { want = VS_DEAD; }
                 assert s == want;
                 if (s == VS_RESTARTING) { restarting = restarting + 1; }
             }
@@ -777,32 +759,32 @@ test a_crash_under_one_for_one_restarts_one_chip {
         }
         now = now + 1;
     }
-    // agent 9 restarts while seq 6 and 7 are the latest; one_for_one leaves agent 4 running
+    // agent 9 restarts while seq 7 and 8 are the latest; one_for_one leaves agent 4 running
     assert restarting == 2;
-    assert QUEEN_DOMAIN_STRATEGY == 0;
+    assert QUEEN_DOMAIN_STRATEGY == STRAT_ONE_FOR_ONE;
     assert stopped_by_restart(QUEEN_DOMAIN_STRATEGY, 1, 0, true) == false;
     // the runtime's restart_count is the view's count at that seq
-    assert restarts_used(EV_SEQ, EV_AT, EV_KIND, EV_PARENT, P_DOMAIN_A, EV_SEQ[7], EV_AT[7], DOMAIN_PERIOD_SECONDS) == EV_RESTARTS[7];
+    assert restarts_used(TE_SEQ, TE_AT_MS, TE_KIND, TE_PARENT, P_DOMAIN_A, TE_SEQ[8], TE_AT_MS[8], DOMAIN_PERIOD_SECONDS) == TE_RESTARTS[8];
     // and the restart stops counting once it is older than the period
-    let ages : [5]u32 = [45, 100, 344, 345, 1000];
+    let ages : [5]u32 = [45000, 100000, 344999, 345000, 1000000];
     let want_used : [5]u32 = [1, 1, 1, 0, 0];
     var k : u32 = 0;
     while (k < 5) {
-        assert restarts_used(EV_SEQ, EV_AT, EV_KIND, EV_PARENT, P_DOMAIN_A, TRACE_END, ages[k], DOMAIN_PERIOD_SECONDS) == want_used[k];
+        assert restarts_used(TE_SEQ, TE_AT_MS, TE_KIND, TE_PARENT, P_DOMAIN_A, TRACE_END, ages[k], DOMAIN_PERIOD_SECONDS) == want_used[k];
         k = k + 1;
     }
     // more crashes than the domain's intensity: the last one gives up and the chip is dead
     var used : u32 = 0;
     while (used <= DOMAIN_MAX_RESTARTS + 1) {
         let d : u8 = exit_decision(QK_AGENT, RC_CRASH, used, DOMAIN_MAX_RESTARTS);
-        if (used < DOMAIN_MAX_RESTARTS) { assert d == SUP_RESTART; assert chip_state(VE_EXIT, QK_AGENT, RC_CRASH, used, DOMAIN_MAX_RESTARTS) == VS_RESTARTING; }
-        if (used >= DOMAIN_MAX_RESTARTS) { assert d == SUP_GIVE_UP; assert chip_state(VE_EXIT, QK_AGENT, RC_CRASH, used, DOMAIN_MAX_RESTARTS) == VS_DEAD; }
+        if (used < DOMAIN_MAX_RESTARTS) { assert d == SUP_RESTART; assert chip_state(EV_ACTOR_EXIT, QK_AGENT, RC_CRASH, used, DOMAIN_MAX_RESTARTS) == VS_RESTARTING; }
+        if (used >= DOMAIN_MAX_RESTARTS) { assert d == SUP_GIVE_UP; assert chip_state(EV_ACTOR_EXIT, QK_AGENT, RC_CRASH, used, DOMAIN_MAX_RESTARTS) == VS_DEAD; }
         // a retired agent stays down, a permanent worker always comes back
         assert exit_decision(QK_AGENT, RC_NORMAL, used, DOMAIN_MAX_RESTARTS) == SUP_NOTHING;
         used = used + 1;
     }
     assert exit_decision(QK_INTAKE, RC_NORMAL, 0, ROOT_MAX_RESTARTS) == SUP_RESTART;
-    assert chip_state(VE_RESTART, QK_AGENT, RC_NONE, 0, 0) == VS_RUNNING;
+    assert chip_state(EV_ACTOR_RESTART, QK_AGENT, REASON_CLASSES, 0, 0) == VS_RUNNING;
 }
 
 test a_chip_shows_its_mailbox_and_its_supervisors_budget {
@@ -813,10 +795,10 @@ test a_chip_shows_its_mailbox_and_its_supervisors_budget {
         if (p != NO_PID) {
             let s : u8 = trace_state(i, TRACE_END);
             assert s == EXP_STATE_END[i];
-            let depth : u32 = mailbox_depth(AG_TO, AG_FIRST, AG_MAX_DEPTH, p, TRACE_END);
+            let depth : u32 = mailbox_depth(TE_SEQ, TE_KIND, TE_TO, TE_DEPTH, p, TRACE_END);
             assert depth == EXP_DEPTH[i];
             assert depth <= MAILBOX_CAP;
-            assert mailbox_dropped(AG_TO, AG_FIRST, AG_DROPPED, p, TRACE_END) == EXP_DROPPED[i];
+            assert mailbox_dropped(TE_SEQ, TE_KIND, TE_TO, TE_DROPPED, p, TRACE_END) == EXP_DROPPED[i];
             let v : u8 = next_verdict(s, depth);
             assert v == EXP_NEXT[i];
             if (v == D_DROPPED_FULL) { full = full + 1; }
@@ -825,9 +807,9 @@ test a_chip_shows_its_mailbox_and_its_supervisors_budget {
             var max_r : u32 = 0;
             var period : u32 = 0;
             if (sup != NO_ROW) {
-                max_r = intensity_max(TR_KIND[sup], TR_PARENT[sup]);
-                period = intensity_period(TR_KIND[sup], TR_PARENT[sup]);
-                used = restarts_used(EV_SEQ, EV_AT, EV_KIND, EV_PARENT, TR_PID[sup], TRACE_END, TRACE_END_AT, period);
+                max_r = TR_MAX[sup];
+                period = TR_PERIOD[sup];
+                used = restarts_used(TE_SEQ, TE_AT_MS, TE_KIND, TE_PARENT, TR_PID[sup], TRACE_END, TRACE_END_MS, period);
             }
             assert used == EXP_USED[i];
             assert max_r == EXP_MAX[i];
@@ -835,42 +817,42 @@ test a_chip_shows_its_mailbox_and_its_supervisors_budget {
         }
         i = i + 1;
     }
-    // one full mailbox, and its window counted the drops
+    // one full mailbox; before the burst's count was written it read empty
     assert full == 1;
-    assert mailbox_depth(AG_TO, AG_FIRST, AG_MAX_DEPTH, TR_PID[7], 1) == 0;
+    assert mailbox_depth(TE_SEQ, TE_KIND, TE_TO, TE_DEPTH, TR_PID[7], 1) == 0;
     assert deliver(true, MAILBOX_CAP, MAILBOX_CAP) == D_DROPPED_FULL;
-    // edges: drops included; the restarted 9.1 has no traffic yet
-    assert edge_weight(AG_FROM, AG_TO, AG_COUNT, AG_FROM[0], AG_TO[0]) == 300;
-    assert edge_weight(AG_FROM, AG_TO, AG_COUNT, AG_FROM[1], AG_TO[1]) == 12;
-    assert edge_weight(AG_FROM, AG_TO, AG_COUNT, P_DOMAIN_A, TR_PID[0]) == 0;
-    assert intensity_max(QK_AGENT, P_DOMAIN_A) == 0;
+    // edges: counted and single messages alike, drops included; 9.1 had one message
+    assert edge_weight(TE_SEQ, TE_KIND, TE_FROM, TE_TO, TE_COUNT, TE_FROM[1], TE_TO[1], TRACE_END) == 301;
+    assert edge_weight(TE_SEQ, TE_KIND, TE_FROM, TE_TO, TE_COUNT, TE_FROM[2], TE_TO[2], TRACE_END) == 15;
+    assert edge_weight(TE_SEQ, TE_KIND, TE_FROM, TE_TO, TE_COUNT, P_DOMAIN_A, TR_PID[0], TRACE_END) == 1;
+    assert edge_weight(TE_SEQ, TE_KIND, TE_FROM, TE_TO, TE_COUNT, TE_FROM[2], TE_TO[2], 11) == 2;
 }
 
 test a_task_card_moves_submitted_working_completed {
     var step : u32 = 0;
     var moves : u32 = 0;
     var last_col : u8 = COLUMN_UNKNOWN;
-    while (step <= 14) {
+    while (step <= 16) {
         let now : u64 = step as u64;
         let col : u8 = card_column(feed_state(FD_SEQ, FD_KEY, FD_STATE, T_ISSUE, now));
         assert col == EXP_T1_COLUMN[step];
         if (col != last_col) { moves = moves + 1; }
         last_col = col;
-        let d : u32 = card_last_deliver(EV_SEQ, EV_KIND, EV_TASK, T_ISSUE, now);
-        if (now < 2) { assert d == NO_EVENT; }
-        if (now >= 2) {
+        let d : u32 = card_last_deliver(TE_SEQ, TE_KIND, TE_TASK, T_ISSUE, now);
+        if (now < 3) { assert d == NO_EVENT; }
+        if (now >= 3) {
             // the card sits in the lane of the actor that received the task last
-            assert lane_of_pid(TR_PID, TR_PARENT, TR_KIND, EV_TO[d]) == 1;
+            assert lane_of_pid(TR_PID, TR_PARENT, TR_PERIOD, TE_TO[d]) == 1;
         }
-        // the job is working from seq 5 on, through the crash and the restart
-        if (now >= 5) { assert card_column(feed_state(FD_SEQ, FD_KEY, FD_STATE, T_JOB, now)) == A2A_WORKING; }
+        // the job is working from seq 6 on, through the crash and the restart
+        if (now >= 6) { assert card_column(feed_state(FD_SEQ, FD_KEY, FD_STATE, T_JOB, now)) == A2A_WORKING; }
         // the dropped review is a submitted card in domain 6's lane
-        let r : u32 = card_last_deliver(EV_SEQ, EV_KIND, EV_TASK, T_REVIEW, now);
-        if (now >= 13) {
+        let r : u32 = card_last_deliver(TE_SEQ, TE_KIND, TE_TASK, T_REVIEW, now);
+        if (now >= 15) {
             assert card_column(feed_state(FD_SEQ, FD_KEY, FD_STATE, T_REVIEW, now)) == A2A_SUBMITTED;
-            assert lane_of_pid(TR_PID, TR_PARENT, TR_KIND, EV_TO[r]) == 2;
+            assert lane_of_pid(TR_PID, TR_PARENT, TR_PERIOD, TE_TO[r]) == 2;
         }
-        if (now < 13) { assert r == NO_EVENT; }
+        if (now < 15) { assert r == NO_EVENT; }
         step = step + 1;
     }
     // unknown -> submitted -> working -> completed
@@ -881,33 +863,38 @@ test a_task_card_moves_submitted_working_completed {
 }
 
 test timelines_keep_each_pairs_fifo_and_deaths_join_their_task {
-    var cards : [16]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var cards : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var i : u32 = 0;
     while (i < VIEW_EVENTS) {
-        cards[i] = trace_card(i);
-        assert cards[i] == EXP_CARD[i];
+        cards[i] = event_card(TE_KIND[i], TE_TASK[i]);
         i = i + 1;
     }
     var pairs : u32 = 0;
     var deaths : u32 = 0;
     var a : u32 = 0;
     while (a < VIEW_EVENTS) {
-        let pa : u32 = timeline_pos(EV_SEQ, cards, a);
+        let pa : u32 = timeline_pos(TE_SEQ, cards, a);
         assert pa == EXP_POS[a];
-        if ((EV_KIND[a] == VE_EXIT or EV_KIND[a] == VE_DOWN) and cards[a] != NO_TASK) { deaths = deaths + 1; }
-        // a deliver's verdict: dropped dead to an exited incarnation, dropped full at the cap
-        if (EV_KIND[a] == VE_DELIVER) {
-            let gone : bool = exited_before(EV_SEQ, EV_KIND, EV_FROM, EV_TO[a], EV_SEQ[a]);
-            let depth : u32 = mailbox_depth(AG_TO, AG_FIRST, AG_MAX_DEPTH, EV_TO[a], EV_SEQ[a]);
-            assert entry_verdict(gone, depth) == EXP_VERDICT[a];
+        if ((TE_KIND[a] == EV_ACTOR_EXIT or TE_KIND[a] == EV_ACTOR_DOWN) and cards[a] != NO_TASK_KEY) { deaths = deaths + 1; }
+        // a deliver's verdict: dropped dead to an exited incarnation, dropped full at the cap, and
+        // the runtime's dropped flag says the same
+        if (TE_KIND[a] == EV_ACTOR_DELIVER) {
+            let gone : bool = exited_before(TE_SEQ, TE_KIND, TE_FROM, TE_TO[a], TE_SEQ[a]);
+            let v : u8 = entry_verdict(gone, TE_DROPPED[a], TE_DEPTH[a]);
+            assert v == EXP_VERDICT[a];
+            assert is_dropped(v) == (TE_DROPPED[a] == 1);
         }
-        if (EV_KIND[a] != VE_DELIVER) { assert EXP_VERDICT[a] == NO_VERDICT; }
+        if (TE_KIND[a] != EV_ACTOR_DELIVER) { assert EXP_VERDICT[a] == NO_VERDICT; }
         var b : u32 = a + 1;
         while (b < VIEW_EVENTS) {
-            if (cards[a] != NO_TASK and cards[b] == cards[a] and order_guaranteed(EV_FROM[a], EV_TO[a], EV_FROM[b], EV_TO[b])) {
+            if (cards[a] != NO_TASK_KEY and cards[b] == cards[a] and order_guaranteed(TE_FROM[a], TE_TO[a], TE_FROM[b], TE_TO[b])) {
                 // FIFO per pair: the timeline keeps the order the pair sent them in
-                assert (pa < timeline_pos(EV_SEQ, cards, b)) == (EV_SEQ[a] < EV_SEQ[b]);
+                assert (pa < timeline_pos(TE_SEQ, cards, b)) == (TE_FIRST[a] < TE_FIRST[b]);
                 pairs = pairs + 1;
+            }
+            // and the bus keeps it for every pair, counted messages included
+            if (is_message(TE_KIND[a]) and is_message(TE_KIND[b]) and order_guaranteed(TE_FROM[a], TE_TO[a], TE_FROM[b], TE_TO[b])) {
+                assert bus_keeps_fifo(TE_SEQ[a], TE_LAST[a], TE_SEQ[b], TE_FIRST[b]);
             }
             b = b + 1;
         }
@@ -915,14 +902,14 @@ test timelines_keep_each_pairs_fifo_and_deaths_join_their_task {
     }
     // 3.0 -> 4.0 twice on the issue; 2.0 -> 3.0 and 3.0 -> 9.0 twice each on the job; 3.0 -> 9.1 is a new pair
     assert pairs == 3;
-    assert order_guaranteed(EV_FROM[4], EV_TO[4], EV_FROM[11], EV_TO[11]) == false;
-    // the crash's exit and DOWN join the job; the retirement after the issue was done joins nothing
+    assert order_guaranteed(TE_FROM[5], TE_TO[5], TE_FROM[13], TE_TO[13]) == false;
+    // the crash's exit and DOWN name the job; the retirement between turns names nothing
     assert deaths == 2;
-    assert handed_task(EV_SEQ, EV_KIND, EV_TO, EV_TASK, EV_FROM[13], EV_SEQ[13]) == T_ISSUE;
-    assert ends_card(TS_DONE) == false;
-    assert ends_card(TS_BACKLOG) == true;
-    assert event_card(VE_EXIT, T_REVIEW, NO_TASK, TS_DONE) == T_REVIEW;
-    assert event_card(VE_RESTART, T_REVIEW, T_ISSUE, TS_RUNNING) == NO_TASK;
+    assert cards[15] == NO_TASK_KEY;
+    assert event_card(EV_ACTOR_DELIVERS, T_REVIEW) == NO_TASK_KEY;
+    assert event_card(EV_ACTOR_RESTART, T_REVIEW) == NO_TASK_KEY;
+    assert bus_keeps_fifo(2, 300, 1, 5) == true;
+    assert bus_keeps_fifo(1, 300, 2, 300) == false;
 }
 
 test the_filter_is_task_matches_plus_actor_kind_and_supervisor {
@@ -935,7 +922,7 @@ test the_filter_is_task_matches_plus_actor_kind_and_supervisor {
         var i : u32 = 0;
         while (i < VIEW_ACTORS) {
             let p : u64 = TR_PID[i];
-            if (p != NO_PID and actor_matches(kind_masks[f], sups[f], TR_KIND[i], lane_sup_of_pid(TR_PID, TR_PARENT, TR_KIND, p))) { n = n + 1; }
+            if (p != NO_PID and actor_matches(kind_masks[f], sups[f], TR_KIND[i], lane_sup_of_pid(TR_PID, TR_PARENT, TR_PERIOD, p))) { n = n + 1; }
             i = i + 1;
         }
         assert n == want_actors[f];
@@ -953,38 +940,152 @@ test the_filter_is_task_matches_plus_actor_kind_and_supervisor {
         var m : u32 = 0;
         var t : u32 = 0;
         while (t < 3) {
-            let d : u32 = card_last_deliver(EV_SEQ, EV_KIND, EV_TASK, keys[t], TRACE_END);
-            let who : u32 = row_of_slot(TR_PID, slot_of(EV_TO[d]));
+            let d : u32 = card_last_deliver(TE_SEQ, TE_KIND, TE_TASK, keys[t], TRACE_END);
+            let who : u32 = row_of_slot(TR_PID, slot_of(TE_TO[d]));
             let st : u8 = feed_state(FD_SEQ, FD_KEY, FD_STATE, keys[t], TRACE_END);
-            if (card_matches(c_kind[c], c_state[c], c_actor[c], c_sup[c], key_kind(keys[t]), st, TR_KIND[who], lane_sup_of_pid(TR_PID, TR_PARENT, TR_KIND, EV_TO[d]))) { m = m + 1; }
+            if (card_matches(c_kind[c], c_state[c], c_actor[c], c_sup[c], key_kind(keys[t]), st, TR_KIND[who], lane_sup_of_pid(TR_PID, TR_PARENT, TR_PERIOD, TE_TO[d]))) { m = m + 1; }
             t = t + 1;
         }
         assert m == want_cards[c];
         c = c + 1;
     }
-    // every card's receiver is an agent at the end; at seq 4 the job still sits with its domain
+    // every card's receiver is an agent at the end; at seq 5 the job still sits with its domain
     var agents : u32 = 0;
-    var at4 : u32 = 0;
+    var at5 : u32 = 0;
     var t2 : u32 = 0;
     while (t2 < 3) {
-        let d2 : u32 = card_last_deliver(EV_SEQ, EV_KIND, EV_TASK, keys[t2], TRACE_END);
-        if (actor_matches(1 << QK_AGENT, NO_PID, TR_KIND[row_of_slot(TR_PID, slot_of(EV_TO[d2]))], NO_PID)) { agents = agents + 1; }
-        let d4 : u32 = card_last_deliver(EV_SEQ, EV_KIND, EV_TASK, keys[t2], 4);
-        if (d4 != NO_EVENT and actor_matches(1 << QK_DOMAIN_SUP, NO_PID, TR_KIND[row_of_slot(TR_PID, slot_of(EV_TO[d4]))], NO_PID)) { at4 = at4 + 1; }
+        let d2 : u32 = card_last_deliver(TE_SEQ, TE_KIND, TE_TASK, keys[t2], TRACE_END);
+        if (actor_matches(1 << QK_AGENT, NO_PID, TR_KIND[row_of_slot(TR_PID, slot_of(TE_TO[d2]))], NO_PID)) { agents = agents + 1; }
+        let d5 : u32 = card_last_deliver(TE_SEQ, TE_KIND, TE_TASK, keys[t2], 5);
+        if (d5 != NO_EVENT and actor_matches(1 << QK_DOMAIN_SUP, NO_PID, TR_KIND[row_of_slot(TR_PID, slot_of(TE_TO[d5]))], NO_PID)) { at5 = at5 + 1; }
         t2 = t2 + 1;
     }
     assert agents == 3;
-    assert at4 == 1;
+    assert at5 == 1;
     // the root's QK_NONE has no bit; an unknown task kind matches nothing, as in tasks.t27
     assert actor_matches(1 << QK_AGENT, NO_PID, QK_NONE, NO_PID) == false;
     assert actor_matches(0, P_ROOT, QK_NONE, P_ROOT) == true;
     assert card_matches(0, 0, 0, NO_PID, TASK_KINDS, TS_DONE, QK_AGENT, P_ROOT) == false;
 }
 
+test the_feeds_own_replay_draws_as_one_lane_with_a_crash_a_restart_and_a_full_mailbox {
+    // actor_events.t27's replay of the network MVP, read as the board reads the feed
+    var pids : [8]u64 = [0, 0, 0, 0, 0, 0, 0, 0];
+    var parents : [8]u64 = [0, 0, 0, 0, 0, 0, 0, 0];
+    var kinds : [8]u8 = [99, 99, 99, 99, 99, 99, 99, 99];
+    var maxes : [8]u32 = [0, 0, 0, 0, 0, 0, 0, 0];
+    var periods : [8]u32 = [0, 0, 0, 0, 0, 0, 0, 0];
+    var rseq : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rat : [32]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rkind : [32]u8 = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6];
+    var rfrom : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rto : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rtask : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rparent : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rclass : [32]u8 = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+    var rdepth : [32]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rdropped : [32]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rcount : [32]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var rcards : [32]u64 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var i : u32 = 0;
+    while (i < REPLAY_EVENTS) {
+        rseq[i] = (i as u64) + 1;
+        rat[i] = REPLAY_AT_MS[i];
+        rkind[i] = REPLAY_KIND[i];
+        rfrom[i] = pid_of(REPLAY_FROM_SLOT[i] as u64, REPLAY_FROM_GEN[i] as u64);
+        rto[i] = pid_of(REPLAY_TO_SLOT[i] as u64, REPLAY_TO_GEN[i] as u64);
+        if (REPLAY_TASK[i] != 0) { rtask[i] = task_key(REPLAY_TASK_KIND, 0, REPLAY_TASK[i] as u64); }
+        if (rkind[i] == EV_ACTOR_EXIT or rkind[i] == EV_ACTOR_DOWN) { rclass[i] = reason_class(REPLAY_REASON[i]); }
+        rdepth[i] = REPLAY_DEPTH[i];
+        rdropped[i] = REPLAY_DROPPED[i];
+        rcount[i] = REPLAY_COUNT[i];
+        rcards[i] = event_card(rkind[i], rtask[i]);
+        // a spawn or a restart: the spawner is the parent; slot s is row s - 1
+        if (rkind[i] == EV_ACTOR_SPAWN or rkind[i] == EV_ACTOR_RESTART) {
+            rparent[i] = rfrom[i];
+            let row : u32 = REPLAY_TO_SLOT[i] - 1;
+            pids[row] = rto[i];
+            parents[row] = rfrom[i];
+            kinds[row] = QK_AGENT;
+            if (REPLAY_TO_SLOT[i] == REPLAY_SUPERVISOR_SLOT) {
+                kinds[row] = QK_NONE;
+                maxes[row] = REPLAY_MAX_RESTARTS;
+                periods[row] = REPLAY_PERIOD_SECONDS;
+            }
+        }
+        i = i + 1;
+    }
+    assert REPLAY_STRATEGY == STRAT_ONE_FOR_ONE;
+    // one supervisor, one lane; the workers below it by slot
+    assert lane_count(pids, periods) == 1;
+    var r : u32 = 0;
+    while (r < 7) {
+        assert layout_row(pids, parents, r) == r;
+        assert lane_index(pids, parents, periods, r) == 0;
+        r = r + 1;
+    }
+    assert layout_row(pids, parents, 7) == NO_ROW;
+    // the worker in slot 5 restarts between its exit (rseq 15) and its restart (rseq 17); the native
+    // worker in slot 4 retires at rseq 24 and stays down; everyone else runs
+    var now : u64 = 1;
+    var restarting : u32 = 0;
+    while (now <= 24) {
+        var w : u32 = 0;
+        while (w < 7) {
+            let s : u8 = actor_state(pids, parents, kinds, maxes, periods, rseq, rat, rkind, rfrom, rto, rparent, rclass, w, now);
+            var want : u8 = VS_RUNNING;
+            if (w == 4 and now >= 15 and now < 17) { want = VS_RESTARTING; }
+            if (w == 3 and now >= 24) { want = VS_DEAD; }
+            assert s == want;
+            if (s == VS_RESTARTING) { restarting = restarting + 1; }
+            w = w + 1;
+        }
+        now = now + 1;
+    }
+    assert restarting == 2;
+    // the feed's restart_count is the view's count
+    assert restarts_used(rseq, rat, rkind, rparent, pids[0], rseq[16], rat[16], periods[0]) == REPLAY_RESTARTS[16];
+    // the treasurer's mailbox is full at the end, and the next message would be dropped
+    let gauge : u32 = mailbox_depth(rseq, rkind, rto, rdepth, pids[6], 24);
+    assert gauge == MAILBOX_CAP;
+    assert next_verdict(VS_RUNNING, gauge) == D_DROPPED_FULL;
+    assert mailbox_dropped(rseq, rkind, rto, rdropped, pids[6], 24) == 1;
+    assert edge_weight(rseq, rkind, rfrom, rto, rcount, pids[1], pids[5], 24) == 10;
+    // the crash's exit and DOWN join job 2; job 2's timeline has 8 entries, the bus keeps each pair
+    var job2 : u32 = 0;
+    var deaths : u32 = 0;
+    var a : u32 = 0;
+    while (a < REPLAY_EVENTS) {
+        if (rcards[a] == task_key(REPLAY_TASK_KIND, 0, 2)) {
+            job2 = job2 + 1;
+            assert timeline_pos(rseq, rcards, a) < 8;
+            if (rkind[a] == EV_ACTOR_EXIT or rkind[a] == EV_ACTOR_DOWN) { deaths = deaths + 1; }
+        }
+        if (rkind[a] == EV_ACTOR_DELIVER) {
+            let v : u8 = entry_verdict(exited_before(rseq, rkind, rfrom, rto[a], rseq[a]), rdropped[a], rdepth[a]);
+            assert is_dropped(v) == (rdropped[a] == 1);
+            assert lane_of_pid(pids, parents, periods, rto[a]) == 0;
+        }
+        var b : u32 = a + 1;
+        while (b < REPLAY_EVENTS) {
+            if (is_message(rkind[a]) and is_message(rkind[b]) and order_guaranteed(rfrom[a], rto[a], rfrom[b], rto[b])) {
+                assert bus_keeps_fifo(rseq[a], REPLAY_LAST[a] as u64, rseq[b], REPLAY_FIRST[b] as u64);
+            }
+            b = b + 1;
+        }
+        a = a + 1;
+    }
+    assert job2 == 8;
+    assert deaths == 2;
+}
+
 invariant the_view_tables_and_their_sentinels {
     assert NO_ROW == VIEW_ACTORS and NO_LANE == VIEW_ACTORS and NO_EVENT == VIEW_EVENTS;
-    assert VE_DELIVER < VE_NONE and RC_CRASH < RC_NONE;
+    assert REPLAY_EVENTS <= VIEW_EVENTS;
     assert NO_VERDICT > D_DROPPED_FULL and D_QUEUED == 0 and D_DROPPED_DEAD == 1;
     assert COLUMN_UNKNOWN < A2A_SUBMITTED;
     assert KEY_NUM_MASK + 1 == 1 << 48 and KEY_REPO_MASK + 1 == 1 << 12;
+    assert EV_ACTOR_SPAWN == 0 and EV_ACTOR_RESTART == 1 and EV_ACTOR_EXIT == 2;
+    assert EV_ACTOR_DOWN == 3 and EV_ACTOR_DELIVER == 4 and EV_ACTOR_DELIVERS == 5 and ACTOR_KINDS == 6;
+    assert RC_NORMAL == 0 and RC_SHUTDOWN == 1 and RC_CRASH == 2 and REASON_CLASSES == 3;
 }
