@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/verdict_audit.t27 -- which reused verdicts `t27c frontier --audit` runs again, and what a
+; rerun that disagrees means. Epic gHashTag/t27#8095, ledger #8314 (P10).
+; --
+; Why. frontier reuses a sealed verdict without running anything: the seal says the tests passed under this
+; spec, closure, toolchain and config. That is sound only if the verdict is a function of those inputs. A
+; flaky test (time, an unseeded random, a host path, uninitialised memory read as a value) passed once, was
+; sealed, and would be reused forever. Develocity's predictive test selection keeps flaky outcomes out of
+; its model for the same reason; bitstream_reuse.t27 audits every AUDIT_EVERY-th bitstream hit.
+; --
+; The sample. Each audit round reruns the REUSE specs whose pick falls on this round: the spec's own hash
+; word decides, so two machines on the same round rerun the same specs (their answers can be compared), and
+; consecutive rounds walk the whole corpus, one AUDIT_SHARE-th per round, without a list kept anywhere.
+; --
+; The verdict. A rerun AGREES only when it compiled, failed nothing, and ran the same number of tests the
+; seal recorded. Anything else is a disagreement, and a disagreement POISONS the seal: the run says which
+; spec and why, and the seal stops counting as REUSE until it is minted again. Fewer tests than recorded is
+; a disagreement too: a test that vanished is not a test that passed.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedVerdictAudit;
+
+/// One round reruns one spec in AUDIT_SHARE of the REUSE set.
+pub const AUDIT_SHARE : u32 = 16;
+
+/// Is this spec in this round's sample? `hash_word` is the first 32 bits of the spec's sha256.
+pub fn audit_pick(hash_word: u32, round: u32) -> bool {
+    return (hash_word % AUDIT_SHARE) == (round % AUDIT_SHARE);
+}
+
+/// What a rerun found.
+///   AGREES    compiled, nothing failed, the same number of tests the seal recorded: keep reusing
+///   POISONED  anything else: the seal stops being reused until it is minted again
+pub const AUDIT_AGREES : u8 = 0;
+pub const AUDIT_POISONED : u8 = 1;
+
+pub fn audit_result(compiled: bool, failed: u32, rerun_total: u32, sealed_total: u32) -> u8 {
+    if (compiled == false) { return AUDIT_POISONED; }
+    if (failed > 0) { return AUDIT_POISONED; }
+    if (rerun_total != sealed_total) { return AUDIT_POISONED; }
+    return AUDIT_AGREES;
+}
+
+test audit_pick_covers_every_spec_once_per_cycle {
+    // a hash word lands in exactly one round of the cycle
+    assert audit_pick(35, 3) == true;
+    assert audit_pick(35, 4) == false;
+    assert audit_pick(35, 19) == true;
+    assert audit_pick(0, 0) == true;
+    assert audit_pick(0, 1) == false;
+    assert audit_pick(4294967295, 15) == true;
+    assert audit_pick(4294967295, 14) == false;
+}
+
+test audit_result_agrees_only_on_the_same_clean_run {
+    assert audit_result(true, 0, 6, 6) == AUDIT_AGREES;
+    // did not compile: the toolchain or a dependency moved under a seal that still reads REUSE
+    assert audit_result(false, 0, 0, 6) == AUDIT_POISONED;
+    // a flaky test failed on the rerun
+    assert audit_result(true, 1, 6, 6) == AUDIT_POISONED;
+    // a test vanished, or one appeared that the seal never judged
+    assert audit_result(true, 0, 5, 6) == AUDIT_POISONED;
+    assert audit_result(true, 0, 7, 6) == AUDIT_POISONED;
+}
+
+invariant the_audit_codes_never_move {
+    assert AUDIT_AGREES == 0 and AUDIT_POISONED == 1;
+    assert AUDIT_SHARE >= 2;
+}

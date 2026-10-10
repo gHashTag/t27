@@ -1287,6 +1287,7 @@
   {"path": "specs/verified/silicon_runs.t27", "t27b": "pass"},
   {"path": "specs/verified/ternary_link_run.t27", "t27b": "pass"},
   {"path": "specs/verified/verdict.t27", "t27b": "pass"},
+  {"path": "specs/verified/verdict_audit.t27", "t27b": "pass"},
   {"path": "specs/vm/trinity_vm.t27", "t27b": "pass"},
   {"path": "specs/vsa/similarity_search.t27", "t27b": "pass"},
   {"path": "specs/vsa/trinity_compat.t27", "t27b": "pass"},
