@@ -1,0 +1,274 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w694.t27
+// Port of scripts/gen_w694.py to t27
+module port::scripts::gen_w694;
+
+// Port of scripts/gen_w694.py (gHashTag/t27 @ bba8efb24370, 146 lines), which
+// emits specs/scratch/w694_bench_module_207x2p6_aos_var_call_write.t27: a
+// [207][2][2][2][2][2][2]Pt literal - 13,248 points - written to disk as text.
+//
+// .t27 has no string concatenation, no growable buffers and no file IO yet, so
+// per "port the decision, not the plumbing" this port carries the decisions as
+// pure, tested functions and leaves the rendering and the write to the caller:
+//
+//   indent     - returns the run of spaces behind "    " * level in a fixed
+//                buffer (the original returns the same bytes as a str).
+//   build_tree - the original returns (text, next_base); the text is
+//                rendering, so the port returns the elements that text would
+//                carry, in emission order (fixed capacity, MAX_ELEMS), plus
+//                the exact next_base.
+//   generate   - writes the file and prints one line: pure IO. Its body stays
+//                an undefined stub that no test calls; its decisions - the
+//                shape, the ASCII-only gate and the expected values with their
+//                32768 wrap - are the tested helpers below.
+
+// Constants of the original (lines 9-21). OUTER * 2 ** 6 == 207 * 64.
+pub const OUTER: i64 = 207;
+pub const TOTAL: i64 = OUTER * 64;
+pub const LAST_IDX: i64 = OUTER - 1;
+// The original's comment says "# 99", but 207 // 2 is 103; the code wins.
+pub const MID_IDX: i64 = OUTER / 2;
+pub const LAST_X: i64 = (2 * (TOTAL - 1)) % 32768;
+pub const LAST_Y: i64 = (2 * (TOTAL - 1) + 1) % 32768;
+pub const MID_E: i64 = MID_IDX * 64 + 32;
+pub const MID_X: i64 = (2 * MID_E) % 32768;
+pub const MID_Y: i64 = (2 * MID_E + 1) % 32768;
+pub const WRAP_LAST_X: i64 = (2 * (TOTAL - 1) + 32768) % 32768;
+pub const WRAP_LAST_Y: i64 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+// The original raises ValueError on non-ASCII text before writing (line 135).
+pub const EXIT_OK: i32 = 0;
+pub const EXIT_FAIL: i32 = 1;
+
+// Capture capacity. The real literal holds 13,248 points; the port keeps the
+// first MAX_ELEMS elements and still returns the exact next_base.
+pub const MAX_ELEMS: usize = 16;
+
+// One emitted element: e = base + i, x = (2*e + offset) % 32768, y = x + 1
+// (mod 32768).
+pub struct PtVal { x: i64, y: i64, }
+
+// The port's stand-in for build_tree's returned text: the elements in
+// emission order plus the base the caller continues from.
+pub struct TreeOut { pts: [MAX_ELEMS]PtVal, len: usize, next_base: i64, }
+
+// The port's stand-in for indent()'s returned str: the same bytes in a fixed
+// buffer (level <= 8 fits).
+pub struct Indent { bytes: [32]u8, len: usize, }
+
+// The shape generate() builds (line 62): [OUTER, 2, 2, 2, 2, 2, 2].
+pub struct GenShape { dims: [7]u32, }
+
+// indent (line 24): "    " repeated level times.
+pub fn indent(level: usize) -> Indent {
+    var out: Indent = undefined;
+    var i: usize = 0;
+    while (i < level * 4 and i < 32) {
+        out.bytes[i] = ' ';
+        i += 1;
+    }
+    out.len = i;
+    return out;
+}
+
+// The per-element field formulas (lines 41-42). They also carry the generated
+// test's explicit wrap check (lines 92-96): offset 32768 is congruent to 0
+// mod 32768, so make_grid(32768) carries make_grid(0)'s values.
+pub fn elem_x(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset) % 32768;
+}
+
+pub fn elem_y(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset + 1) % 32768;
+}
+
+// Recursive worker for build_tree; first is the index of the dimension being
+// built (the original slices shape[1:] at each level instead).
+fn build_from(shape: []const u32, first: usize, base: i64, offset: i64) -> TreeOut {
+    if (first + 1 == shape.len) {
+        // Leaf (lines 35-46): n points; element i carries base + i.
+        var pts: [MAX_ELEMS]PtVal = undefined;
+        const n: usize = shape[first] as usize;
+        var i: usize = 0;
+        while (i < n and i < MAX_ELEMS) {
+            const e: i64 = base + (i as i64);
+            pts[i] = PtVal { x: elem_x(e, offset), y: elem_y(e, offset) };
+            i += 1;
+        }
+        var kept: usize = n;
+        if (kept > MAX_ELEMS) {
+            kept = MAX_ELEMS;
+        }
+        return TreeOut { pts: pts, len: kept, next_base: base + (n as i64) };
+    }
+    // Inner (lines 48-58): n children over the remaining dims; the base
+    // threads through the children in emission order.
+    var pts: [MAX_ELEMS]PtVal = undefined;
+    const n: usize = shape[first] as usize;
+    var kept: usize = 0;
+    var cur: i64 = base;
+    var c: usize = 0;
+    while (c < n) {
+        const sub = build_from(shape, first + 1, cur, offset);
+        var j: usize = 0;
+        while (j < sub.len and kept < MAX_ELEMS) {
+            pts[kept] = sub.pts[j];
+            kept += 1;
+            j += 1;
+        }
+        cur = sub.next_base;
+        c += 1;
+    }
+    return TreeOut { pts: pts, len: kept, next_base: cur };
+}
+
+// build_tree (line 28): see TreeOut for how the returned text is represented.
+pub fn build_tree(shape: []const u32, base: i64, offset: i64) -> TreeOut {
+    return build_from(shape, 0, base, offset);
+}
+
+// How many Pt entries a literal for shape holds: the product of the dims.
+pub fn total_elements(shape: []const u32) -> i64 {
+    var n: i64 = 1;
+    for d in shape {
+        n = n * (d as i64);
+    }
+    return n;
+}
+
+pub fn gen_shape() -> GenShape {
+    return GenShape { dims: [207, 2, 2, 2, 2, 2, 2] };
+}
+
+// generate()'s gate before writing (lines 135-136): refuse non-ASCII text.
+pub fn ascii_only(text: []const u8) -> bool {
+    for c in text {
+        if (c >= 128) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The verdict generate() would exit with: FAIL unless the text is ASCII.
+pub fn write_verdict(text: []const u8) -> i32 {
+    if (!ascii_only(text)) {
+        return EXIT_FAIL;
+    }
+    return EXIT_OK;
+}
+
+// generate (line 61): assembles header + make_grid + footer, gates the result
+// on ascii_only, writes DST and prints one line. The write and the print are
+// IO with no .t27 construct yet, so the body stays a stub and no test calls
+// it; every decision it encodes is ported and tested above.
+pub fn generate() {
+    undefined;
+}
+
+test indent_spaces {
+    const i0 = indent(0);
+    const i1 = indent(1);
+    const i3 = indent(3);
+    assert(i0.len == 0);
+    assert(i1.len == 4);
+    assert(i1.bytes[0] == ' ');
+    assert(i1.bytes[3] == ' ');
+    assert(i3.len == 12);
+    assert(i3.bytes[11] == ' ');
+}
+
+test build_tree_leaf_values {
+    var shape: [1]u32 = [4];
+    const out = build_tree(&shape, 10, 0);
+    assert(out.len == 4);
+    assert(out.next_base == 14);
+    assert(out.pts[0].x == 20);
+    assert(out.pts[0].y == 21);
+    assert(out.pts[1].x == 22);
+    assert(out.pts[1].y == 23);
+    assert(out.pts[3].x == 26);
+    assert(out.pts[3].y == 27);
+}
+
+test build_tree_nested_base_threading {
+    var shape: [2]u32 = [2, 3];
+    const out = build_tree(&shape, 5, 1);
+    // The base threads through the two rows in order: elements 5..10.
+    assert(out.len == 6);
+    assert(out.next_base == 11);
+    assert(out.pts[0].x == elem_x(5, 1));
+    assert(out.pts[0].y == elem_y(5, 1));
+    assert(out.pts[3].x == elem_x(8, 1));
+    assert(out.pts[5].x == elem_x(10, 1));
+    assert(out.pts[5].y == elem_y(10, 1));
+}
+
+test build_tree_deep_and_empty {
+    var deep: [3]u32 = [2, 2, 2];
+    const d = build_tree(&deep, 100, 0);
+    assert(d.len == 8);
+    assert(d.next_base == 108);
+    // The original's range(0) loops leave an empty literal and an unchanged
+    // base - both the empty leaf and the empty inner case.
+    var empty_leaf: [1]u32 = [0];
+    const e0 = build_tree(&empty_leaf, 7, 0);
+    assert(e0.len == 0);
+    assert(e0.next_base == 7);
+    var empty_inner: [2]u32 = [0, 3];
+    const n0 = build_tree(&empty_inner, 9, 0);
+    assert(n0.len == 0);
+    assert(n0.next_base == 9);
+}
+
+test build_tree_full_shape_next_base {
+    // The real shape: 207 * 2**6 = 13,248 points. Capture caps at MAX_ELEMS,
+    // but next_base must walk the whole tree, and the captured head matches
+    // the generated test's dst[0][0][0][0][0][0][0] reads (x = 0, y = 1).
+    var shape: [7]u32 = [207, 2, 2, 2, 2, 2, 2];
+    const out = build_tree(&shape, 0, 0);
+    assert(out.next_base == TOTAL);
+    assert(total_elements(&shape) == TOTAL);
+    assert(out.len == MAX_ELEMS);
+    assert(out.pts[0].x == 0);
+    assert(out.pts[0].y == 1);
+    assert(out.pts[15].x == 30);
+    assert(out.pts[15].y == 31);
+}
+
+test element_formulas_and_wrap {
+    assert(elem_x(0, 0) == 0);
+    assert(elem_y(0, 0) == 1);
+    assert(elem_x(TOTAL - 1, 0) == LAST_X);
+    assert(elem_y(TOTAL - 1, 0) == LAST_Y);
+    assert(elem_x(MID_E, 0) == MID_X);
+    assert(elem_y(MID_E, 0) == MID_Y);
+    // offset 32768 folds back onto 0 (generated test lines 92-96).
+    assert(elem_x(TOTAL - 1, 32768) == LAST_X);
+    assert(elem_y(TOTAL - 1, 32768) == LAST_Y);
+    assert(WRAP_LAST_X == LAST_X);
+    assert(WRAP_LAST_Y == LAST_Y);
+}
+
+test generate_constants {
+    assert(TOTAL == 13248);
+    assert(LAST_IDX == 206);
+    assert(MID_IDX == 103);
+    assert(MID_E == 6624);
+    assert(LAST_X == 26494);
+    assert(LAST_Y == 26495);
+    assert(MID_X == 13248);
+    assert(MID_Y == 13249);
+    const s = gen_shape();
+    assert(s.dims[0] == 207);
+    assert(s.dims[1] == 2);
+    assert(s.dims[6] == 2);
+}
+
+test ascii_gate {
+    assert(ascii_only("module w694_bench_module_207x2p6_aos_var_call_write\n\n\npub struct Pt { x : i16, y : i16 }\n\n"));
+    var bad: [4]u8 = [97, 98, 200, 99];
+    assert(!ascii_only(&bad));
+    assert(write_verdict("ok") == EXIT_OK);
+    assert(write_verdict(&bad) == EXIT_FAIL);
+}
