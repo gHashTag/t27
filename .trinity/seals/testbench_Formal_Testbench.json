@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/formal/Formal.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/formal.t27",
+      "spec_hash": "sha256:1d8f5672e970df56a3cf297e686e8c60d42e06656e3431147e6cc7f92c649e2b"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -14,7 +14,7 @@
   "module": "Formal_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:18:56Z",
+  "sealed_at": "2026-10-10T12:15:54Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e9a001b46f6e06019d8d58fe8d1336cddf2a4eed6adfde30ec98f7cc4815e13d",
   "spec_path": "specs/fpga/testbench/formal_tb.t27",

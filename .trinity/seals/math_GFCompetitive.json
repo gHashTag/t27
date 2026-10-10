@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
       "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
     },
     {
       "spec": "specs/math/sacred_physics.t27",
@@ -18,7 +18,7 @@
   "module": "GFCompetitive",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:49:23Z",
+  "sealed_at": "2026-10-10T12:17:03Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0c7ab6d6bceb875e70487a3f11a726a6f66d3c14cb227dce17cf99a5d41e85fe",
   "spec_path": "specs/math/gf_competitive.t27",

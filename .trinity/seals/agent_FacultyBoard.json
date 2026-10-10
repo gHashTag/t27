@@ -1,33 +1,33 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     },
     {
       "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:329ca86422b04dc4e424a47a8767e7755346964d01769a1260ac02f320ce1d25",
-  "gen_hash_rust": "sha256:526d9268dbce67a2633098fbdc1260162d50a5f35da6162bad2292be670cf3ab",
-  "gen_hash_verilog": "sha256:18b34f8f4484245b1b3cc11d144ff5ddb23d60bcfc4d2e53ba0f43fd510f7947",
-  "gen_hash_zig": "sha256:a2efe162b0447d89646981fe36f94b2f0d7716b2f13ee3d15cc7161f5c6f76b6",
+  "gen_hash_c": "sha256:0503463ba9f9dc6ea686193de153271a0834e25fdc195e145fdd43e855673bb0",
+  "gen_hash_rust": "sha256:310a55add2faa6ae4e992bd0d1537d844f5d3250f1928d6f9c226fb6541eefce",
+  "gen_hash_verilog": "sha256:a4fd190c73a337d1a4ad23c364219796cdc030cbcce9a8d41329862f1a7ee40d",
+  "gen_hash_zig": "sha256:3fbe0ae5cf35655e102ffe1f5ecf774172ca30a7bbe61642e77f0db68791a638",
   "module": "FacultyBoard",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:57:46Z",
+  "sealed_at": "2026-10-10T12:19:36Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:a05378bfed3b4e3af62fa932fa3581776cb4b7c8007d079dab2de5024e104f22",
+  "spec_hash": "sha256:f91b2ba31deb51fbe213fcaa0b42c33e369bf6d6b10eb41eac65c40587939664",
   "spec_path": "specs/tri/agent/faculty_board.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 0,
-    "total": 0
+    "passed": 1,
+    "total": 1
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

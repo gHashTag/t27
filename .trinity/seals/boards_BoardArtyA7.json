@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
       "spec": "specs/base/ops.t27",
@@ -7,7 +7,7 @@
     },
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -18,7 +18,7 @@
   "module": "BoardArtyA7",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:46:56Z",
+  "sealed_at": "2026-10-10T12:06:20Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3a7453191d3d155eda5b7cbeb6bfa3aaed22444e1edbc66a2b534ea203510379",
   "spec_path": "specs/boards/arty_a7.t27",

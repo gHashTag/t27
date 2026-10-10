@@ -1,22 +1,22 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/fpga/router/Router.t27",
-      "spec_hash": "missing"
+      "spec": "specs/fpga/router.t27",
+      "spec_hash": "sha256:8bcacd8470ff17c5693596c2f560e3772c19a66b7b07abe92d162ff2a13fe4ca"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:ac8242eec74b7227ab4b1953630ff0ea00d4fd1fd05e7b118b4a02acf26ae2df",
+  "gen_hash_c": "sha256:4c7f1a08b726f4ffcccb6eb76320816ed4ec3d17b56665418454e5799bc11508",
   "gen_hash_rust": "sha256:109b7812e0ebae7819638e80c0db048c3bc2a7a250f6a7dd2318d34f83e4f4d1",
   "gen_hash_verilog": "sha256:ae570efe03055260fb7ecb02954209c705374b4726d892426a6cb9a34f68593c",
   "gen_hash_zig": "sha256:55f37d9aa2da2aede48fae8636a11c8f6b16474ed626f62b570fcb95da88b348",
   "module": "Router_Testbench",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:19:08Z",
+  "sealed_at": "2026-10-10T12:16:05Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:b00905d8de72cc36c22094e2bfa71861fec30e76771998bc418b333fe7a8870e",
+  "spec_hash": "sha256:b1fc4a65e6d0307835b080153fd15eebd537f13612a40bdb3fa9d4947203baa7",
   "spec_path": "specs/fpga/testbench/router_tb.t27",
   "tests": {
     "failed": 0,

@@ -1,24 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:dd8449c961970e590d06b7cdd743bdf37ce0a4785602629d51a5c201969e0d71",
-  "gen_hash_rust": "sha256:02ef5bde81fa70281ddcab8645a156ce505ec1e182fd638919e3c25996feab96",
-  "gen_hash_verilog": "sha256:a4dfa08cd14f9ed02ade6d2a0d2005c162c004793845a5c5886f9472e14267c5",
-  "gen_hash_zig": "sha256:1b8809fd33b49567fd4aa6c88792a099a4020a6898734570189f3bc00ef32412",
+  "gen_hash_c": "sha256:f2ba4d0050a6a0c7e7d5c4de6f65ee85664e32b47cebf877336166a4921f3867",
+  "gen_hash_rust": "sha256:de540cf6efa9a4aa07ff6259f236179a7031fea9efd4a73a0de82c17b1716630",
+  "gen_hash_verilog": "sha256:09d16ba137236e556a6b8972f7759e0351c7639a9aec69ea572b8bbb20b0efca",
+  "gen_hash_zig": "sha256:3c23275a2bb6f0441d8c355b7fbb62b41077112d37fcc31d4dcd434fdc79fc80",
   "module": "fn_monitoring_logs_analyze",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T21:06:40Z",
+  "sealed_at": "2026-10-10T12:16:23Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:cfe740eb6c73a586bc542971a055967a240a883c42e79ac7a2588f5cf6671163",
+  "spec_hash": "sha256:99df0762122e1c92b8aab87f98ce2ab1ebb337e35b855aaf11230f687c72bf68",
   "spec_path": "specs/functions/monitoring-logs-analyze.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 1,
-    "total": 1
+    "passed": 2,
+    "total": 2
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

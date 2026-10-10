@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/math/sacred_physics/{PHI, PHI_INV}.t27",
-      "spec_hash": "missing"
+      "spec": "specs/math/sacred_physics.t27",
+      "spec_hash": "sha256:6f0c02de93fc908bcae88bd48037b8b06c54efe3fc0105ab09288fb2102e74d9"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -14,7 +14,7 @@
   "module": "base-debounce",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:18:34Z",
+  "sealed_at": "2026-10-10T12:06:10Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5327811d6750849976773faf4abbe18bd6c06f3a49799ffc4ca850c88581abb9",
   "spec_path": "specs/base/debounce.t27",

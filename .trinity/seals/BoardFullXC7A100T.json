@@ -1,11 +1,36 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
+  "closure": [
+    {
+      "spec": "specs/base/ops.t27",
+      "spec_hash": "sha256:ef25280bdd4c1cc8dac5b84533ba73f686c70dcdc5797828490eab07465e9c23"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:07e4a6b01e715d54011f062aa67e5edb84f690af6af87d9f5fb4a98ddc85bf4d",
   "gen_hash_rust": "sha256:ff15913a2102fe45a0847264ee8fd9e2eb5290111c20d302541d7c40c36e19da",
   "gen_hash_verilog": "sha256:23d683d666aef2efaf64e64269197cd2e74c98f8c24c3a3e8376c4f1c80fd777",
   "gen_hash_zig": "sha256:40526bef15181fe4ea17e02c64d971077e029292dc8538ae19a2f7ca662b81d6",
   "module": "BoardFullXC7A100T",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:06:22Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9feb89b9ec20e3bb5987eea46b178a2d5a57d6974c1b5250f20b1d8f6e0c635d",
-  "spec_path": "specs/boards/xc7a100t_full.t27"
+  "spec_path": "specs/boards/xc7a100t_full.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

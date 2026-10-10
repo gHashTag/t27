@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+94a5d5c02",
   "closure": [
     {
-      "spec": "specs/math/sacred_physics/{PHI, PHI_INV, TRINITY}.t27",
-      "spec_hash": "missing"
+      "spec": "specs/math/sacred_physics.t27",
+      "spec_hash": "sha256:6f0c02de93fc908bcae88bd48037b8b06c54efe3fc0105ab09288fb2102e74d9"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -14,7 +14,7 @@
   "module": "base-ring-32",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T22:18:37Z",
+  "sealed_at": "2026-10-10T12:06:12Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:6bcf3942f1f175d1c3708484d4cb216a6e6ba7492a6ebf7e6320887c7d13a42b",
   "spec_path": "specs/base/ring_32.t27",
