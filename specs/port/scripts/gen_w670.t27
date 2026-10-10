@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: Apache-2.0
+// Port of scripts/gen_w670.py (146 lines) to .t27, so the generator's decisions are
+// generated instead of hand-written. The original writes the spec
+// w670_bench_module_159x2p6_aos_var_call_write.t27: a [159][2][2][2][2][2][2]Pt grid
+// literal whose points are numbered in row-major order, plus a test and a bench over it.
+// The decisions in it are the indent width, the coordinate of each point
+// ((2e + offset) % 32768 for x and (2e + offset + 1) % 32768 for y, lines 41-42), how
+// many points a subtree consumes (the base threading, lines 35-58) and the ASCII gate
+// over the assembled text (lines 135-136). Building the text with f-strings and
+// ",\n".join(), the split and the re-indent, the write to DST and the summary print are
+// plumbing: string concatenation is not a construct in t27, so the text assembly is not
+// ported; the decisions it carried are ported as the helpers below.
+
+module port::gen_w670;
+
+const WRAP: u32 = 32768;
+const INDENT_UNIT: u32 = 4;
+
+// The original's module-level constants (lines 9-21), which its footer embeds.
+const OUTER: u32 = 159;
+const TOTAL: u32 = OUTER * 64;          // OUTER * 2 ** 6
+const LAST_IDX: u32 = OUTER - 1;        // 158
+// Python // (floor division); the original's comment says 73, the code computes 79.
+const MID_IDX: u32 = OUTER / 2;
+// dst[MID_IDX][1][0][0][0][0][0] is element MID_IDX * 64 + 1 * 32 (lines 15-16).
+const MID_E: u32 = MID_IDX * 64 + 32;
+const LAST_X: u32 = (2 * (TOTAL - 1)) % WRAP;
+const LAST_Y: u32 = (2 * (TOTAL - 1) + 1) % WRAP;
+const MID_X: u32 = (2 * MID_E) % WRAP;
+const MID_Y: u32 = (2 * MID_E + 1) % WRAP;
+const WRAP_LAST_X: u32 = (2 * (TOTAL - 1) + WRAP) % WRAP;
+const WRAP_LAST_Y: u32 = (2 * (TOTAL - 1) + 1 + WRAP) % WRAP;
+
+// indent(level) is "    " * level (line 24): one level is four spaces. t27 has no
+// string repetition, so the decision is the number of spaces the string would hold.
+fn indent(level: u32) -> u32 {
+    return INDENT_UNIT * level;
+}
+
+// The Pt the leaf builds for element e (lines 41-42): x is step 0, y is step 1 ->
+// (2e + offset + step) % 32768.
+fn coordinate(e: u32, offset: u32, step: u32) -> u32 {
+    return (2 * e + offset + step) % WRAP;
+}
+
+// build_tree(shape, base, offset) returns next_base (line 28): the base after every
+// leaf under the shape has claimed its element. A leaf of n entries advances base by n,
+// an inner level threads base through its n sub-trees -- both return base + the number
+// of Pt entries under the shape, the product of the shape's dimensions. offset moves
+// the coordinates, never the base; the text built alongside is plumbing (f-strings,
+// join).
+fn build_tree(shape: []const u32, base: u32, offset: u32) -> u32 {
+    var count: u32 = 1;
+    for d in shape {
+        count = count * d;
+    }
+    return base + count;
+}
+
+// The original raises ValueError unless every character of the assembled text is
+// below 128 (lines 135-136).
+fn is_ascii(text: []const u8) -> bool {
+    for c in text {
+        if (c >= 128) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Plumbing: assembles the text and writes the .t27 file; no test calls it.
+fn generate() -> u32 {
+    undefined;
+}
+
+test indent_is_four_spaces_per_level {
+    assert(indent(0) == 0);
+    assert(indent(1) == 4);
+    assert(indent(2) == 8);
+    assert(indent(3) == 12);
+}
+
+test first_point_is_zero_one {
+    // dst[0][0][0][0][0][0][0] is element 0: x = 0, y = 1 (footer lines 86-87).
+    assert(coordinate(0, 0, 0) == 0);
+    assert(coordinate(0, 0, 1) == 1);
+}
+
+test last_point_matches_the_generated_expectations {
+    // dst[LAST_IDX][1][1][1][1][1][1] is element LAST_IDX * 64 + 63 = TOTAL - 1
+    // (footer line 88): x = 20350, y = 20351.
+    assert(coordinate(LAST_IDX * 64 + 63, 0, 0) == 20350);
+    assert(coordinate(LAST_IDX * 64 + 63, 0, 1) == 20351);
+    assert(coordinate(LAST_IDX * 64 + 63, 0, 0) == LAST_X);
+    assert(coordinate(LAST_IDX * 64 + 63, 0, 1) == LAST_Y);
+    assert(coordinate(TOTAL - 1, 0, 0) == 20350);
+    assert(coordinate(TOTAL - 1, 0, 1) == 20351);
+    // dst[MID_IDX][1][0][0][0][0][0] is element MID_E = 5088 (footer lines 90-91):
+    // x = 10176, y = 10177.
+    assert(coordinate(MID_E, 0, 0) == 10176);
+    assert(coordinate(MID_E, 0, 1) == 10177);
+    assert(coordinate(MID_E, 0, 0) == MID_X);
+    assert(coordinate(MID_E, 0, 1) == MID_Y);
+}
+
+test offset_32768_wraps_back {
+    // Explicit modulo-wrap check (footer lines 92-96): offset 32768 folds back to the
+    // offset-0 coordinates.
+    assert(coordinate(0, 32768, 0) == 0);
+    assert(coordinate(0, 32768, 1) == 1);
+    assert(coordinate(TOTAL - 1, 32768, 0) == 20350);
+    assert(coordinate(TOTAL - 1, 32768, 1) == 20351);
+    assert(coordinate(TOTAL - 1, 32768, 0) == WRAP_LAST_X);
+    assert(coordinate(TOTAL - 1, 32768, 1) == WRAP_LAST_Y);
+}
+
+test build_tree_advances_the_base {
+    // A leaf row of 4 single entries starting at 10 (original line 46: base + n).
+    var leaf: [1]u32 = [4];
+    assert(build_tree(&leaf, 10, 0) == 14);
+    // An inner level of 3 sub-trees of 2 points each from base 7 (line 58: base after
+    // threading): 7 + 3 * 2.
+    var nested: [2]u32 = [3, 2];
+    assert(build_tree(&nested, 7, 0) == 13);
+    // offset moves the coordinates, never the base threading.
+    assert(build_tree(&nested, 7, 32768) == 13);
+    // The full shape [159, 2, 2, 2, 2, 2, 2] from base 0: TOTAL = 10176 points.
+    var shape: [7]u32 = [159, 2, 2, 2, 2, 2, 2];
+    assert(build_tree(&shape, 0, 0) == 10176);
+}
+
+test whole_grid_is_ascii {
+    assert(is_ascii("module w670_bench_module_159x2p6_aos_var_call_write\n"));
+    const bad: [3]u8 = [ 'x', 233, 'y' ];
+    assert(!is_ascii(&bad));
+}
