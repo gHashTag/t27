@@ -48,6 +48,11 @@
 ; (statement.t27), the rows and the HTTP (gHashTag/trios). The honest ceiling: an attacker that
 ; answers correctly is doing the work, and is paid for it like anyone else, inside its cap; two of its
 ; keys may then both hold replicas of one known-answer job and run it once. The cap bounds that.
+; --
+; TODO(network MVP hardening lane, gHashTag/t27, 2026-10-11): that lane adds to network/mvp.t27 a
+; trusted N/F/M configuration with one vote per operator. When it is on master, the anchors here (the
+; owner's and trusted hosts) and their votes are to be read from it, one vote per operator, and this
+; card imports it instead of growing its own; until then it defines only the anchor it needs.
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
