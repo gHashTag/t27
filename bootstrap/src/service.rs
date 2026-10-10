@@ -99,6 +99,15 @@ fn run(cmd: &mut Command) -> (Option<i32>, String, String) {
     run_bounded(cmd, STAGE_TIMEOUT)
 }
 
+/// Stop `pid` so it spawns nothing more, kill its descendants depth-first, then kill it (#8815).
+fn kill_tree(pid: u32) {
+    let sig = |s: &str, p: u32| { let _ = Command::new("kill").args([s, &p.to_string()]).status(); };
+    sig("-STOP", pid);
+    let kids = Command::new("pgrep").args(["-P", &pid.to_string()]).output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    kids.split_whitespace().filter_map(|k| k.parse().ok()).for_each(kill_tree);
+    sig("-KILL", pid);
+}
+
 fn run_bounded(cmd: &mut Command, limit: Duration) -> (Option<i32>, String, String) {
     let mut child = match cmd
         .stdout(std::process::Stdio::piped())
@@ -138,7 +147,7 @@ fn run_bounded(cmd: &mut Command, limit: Duration) -> (Option<i32>, String, Stri
             Ok(Some(s)) => break Some(s),
             Ok(None) => {
                 if start.elapsed() >= limit {
-                    let _ = child.kill();
+                    kill_tree(child.id()); // #8815: the child's own children too, or they outlive it
                     let _ = child.wait();
                     break None;
                 }
