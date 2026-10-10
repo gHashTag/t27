@@ -1,24 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+5ba4247",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:0cd421467218d737d263b98dd68b175e320b04852544be431226f8931828c2cc",
-  "gen_hash_rust": "sha256:faeb9df8fddb1d3ebe4c4744c38fc219af1aa506957ead26118dccc18e6390bb",
-  "gen_hash_verilog": "sha256:d8d8e38d2dfe097b792a3c660ba3c760da412ccda72c8944c7e1486938e68ba4",
-  "gen_hash_zig": "sha256:968ae57463ad87b89e64f6aa14ba8fb6e2005608555e2f3fe3f80c2504ac52ef",
+  "gen_hash_c": "sha256:f66ec8684487cb21e774c92bef3b687c57364f9f6bb5e77482006a71ce9079b8",
+  "gen_hash_rust": "sha256:1876967e8f010bd27fd098d10bb932741ea5c474dc49eacf3c6fc61e8223820a",
+  "gen_hash_verilog": "sha256:edb679d2b569d93c84da645e85b849175dc966f5eed224e068082d9d87df510e",
+  "gen_hash_zig": "sha256:49802bb02acb2307a1737597a182e71eadcd3be5c215ce0c27c17a2d40d8e63a",
   "module": "CompilerTheoryReproducible",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:29:56Z",
+  "sealed_at": "2026-10-09T13:35:18Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:28ee297483d0152aa214252e6ef496d25a421449372df7b1cd13698fdc6afca6",
+  "spec_hash": "sha256:c8035c954c408519b4d77a9beb724db317336725fdc54c185891be73c4d0a62d",
   "spec_path": "specs/compiler/theory/reproducible.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 2,
-    "total": 2
+    "passed": 10,
+    "total": 10
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
