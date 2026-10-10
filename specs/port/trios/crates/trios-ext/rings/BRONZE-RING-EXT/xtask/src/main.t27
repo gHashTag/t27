@@ -1,0 +1,278 @@
+module port::trios::crates::trios_ext::rings::BRONZE_RING_EXT::xtask;
+
+// Port of crates/trios-ext/rings/BRONZE-RING-EXT/xtask/src/main.rs at 8b229e9489ee
+// (148 lines). The original xtask drives three cargo + wasm-bindgen builds for the
+// BRONZE-RING-EXT ring: the ex00 ring extension and the sidepanel app. Everything
+// that talks to the world is plumbing: the cargo and wasm-bindgen subprocesses, the
+// CARGO_MANIFEST_DIR reads, the dist/ filesystem writes, the stderr prints. The
+// decisions that survive the port are:
+//   * main's dispatch over "build-ext" | "build-sidepanel" | "build-all" | usage,
+//   * the two build plans (crate, wasm target, bindgen target, global flag, outputs),
+//   * each build's failure ordering and exit mode (assert abort / exit 1 / 0),
+//   * the end-of-build report (both artifacts present -> OK, else WARNING).
+// No `undefined;` stubs: the review of the previous attempt measured that an
+// `undefined;` main breaks the generated build, so every function here has a
+// complete body and every test calls its subjects with runtime asserts.
+
+// Process exit codes, mirroring the original's three endings.
+//   0   - main returns normally (every arm, including the usage arm)
+//   1   - std::process::exit(1) inside a build function
+//   101 - a failed assert! aborts the process (Rust's panic exit code)
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+const EXIT_PANIC: i32 = 101;
+
+// The four arms of main's match. "help" and anything unrecognized fall into
+// the usage arm; the other three name the builds.
+pub enum Action {
+    BuildExt,
+    BuildSidepanel,
+    BuildAll,
+    Usage,
+}
+
+// The build facts each build function fixes before touching the world.
+// Paths are relative to the ring directory (one level above the xtask crate).
+pub struct BuildPlan {
+    cargo_package: []const u8,   // cargo build -p <cargo_package>
+    wasm_target: []const u8,     // --target <wasm_target>
+    wasm_input: []const u8,      // the .wasm cargo must have produced
+    bindgen_target: []const u8,  // wasm-bindgen --target <bindgen_target>
+    global_name: []const u8,     // --no-modules-global <global_name>; "" = flag absent
+    js_out: []const u8,          // dist/<stem>.js
+    wasm_out: []const u8,        // dist/<stem>_bg.wasm
+}
+
+// args.get(1).unwrap_or("help"): argv[0] is the program name, argv[1] the
+// subcommand; with no argument the original substitutes "help", which the
+// match then sends to the usage arm.
+pub fn subcmd_arg(argc: u32, argv: [][]const u8) -> []const u8 {
+    if (argc >= 2) { return argv[1]; }
+    return "help";
+}
+
+pub fn dispatch(subcmd: []const u8) -> Action {
+    if (subcmd == "build-ext") { return Action.BuildExt; }
+    if (subcmd == "build-sidepanel") { return Action.BuildSidepanel; }
+    if (subcmd == "build-all") { return Action.BuildAll; }
+    return Action.Usage;
+}
+
+// The `_` arm: eprintln! the usage line and fall out of main, so the process
+// exits 0 exactly like a successful build arm.
+pub fn usage_exit() -> i32 {
+    return EXIT_OK;
+}
+
+// build_ext's plan (original line 25): cargo build -p trios-ext-ring-ex00
+// --target wasm32-unknown-unknown --release, then wasm-bindgen --target
+// no-modules --no-modules-global trios_ext_init, artifacts into dist/.
+pub fn plan_ext() -> BuildPlan {
+    const plan = BuildPlan {
+        cargo_package: "trios-ext-ring-ex00",
+        wasm_target: "wasm32-unknown-unknown",
+        wasm_input: "target/wasm32-unknown-unknown/release/trios_ext_ring_ex00.wasm",
+        bindgen_target: "no-modules",
+        global_name: "trios_ext_init",
+        js_out: "dist/trios_ext_ring_ex00.js",
+        wasm_out: "dist/trios_ext_ring_ex00_bg.wasm",
+    };
+    return plan;
+}
+
+// build_sidepanel's plan (original line 87): same cargo target and dist/
+// layout, but the crate is trios-ui-br-app and wasm-bindgen runs with
+// --target web and no --no-modules-global flag.
+pub fn plan_sidepanel() -> BuildPlan {
+    const plan = BuildPlan {
+        cargo_package: "trios-ui-br-app",
+        wasm_target: "wasm32-unknown-unknown",
+        wasm_input: "target/wasm32-unknown-unknown/release/trios_ui_br_app.wasm",
+        bindgen_target: "web",
+        global_name: "",
+        js_out: "dist/trios_ui_br_app.js",
+        wasm_out: "dist/trios_ui_br_app_bg.wasm",
+    };
+    return plan;
+}
+
+// CARGO_MANIFEST_DIR for this xtask is <workspace>/crates/trios-ext/rings/
+// BRONZE-RING-EXT/xtask. The original joins ".." once for the ring directory
+// (bronze_dir, where dist/ and target/ live) and five levels for the
+// workspace root (root_workspace). Levels, not the joins themselves, are the
+// decision a testable port can carry.
+pub fn ring_dir_levels_up() -> u32 {
+    return 1;
+}
+
+pub fn workspace_root_levels_up() -> u32 {
+    return 5;
+}
+
+// build_ext's exit-code verdict, in the original's order: cargo first and
+// asserted (a failed assert aborts the process), then the missing-input
+// exit(1), then wasm-bindgen and its assert. The world's answers come in as
+// flags; the sequencing and the three endings are the decisions.
+pub fn build_ext(cargo_ok: bool, wasm_found: bool, bindgen_ok: bool) -> i32 {
+    if (!cargo_ok) { return EXIT_PANIC; }
+    if (!wasm_found) { return EXIT_FAIL; }
+    if (!bindgen_ok) { return EXIT_PANIC; }
+    return EXIT_OK;
+}
+
+// build_sidepanel (original line 87) runs the same sequence but ends a
+// wasm-bindgen failure differently: no assert!, an explicit
+// `if !status.success() { eprintln!; std::process::exit(1) }`. The port keeps
+// that difference: a sidepanel bindgen failure exits 1 where build_ext would
+// abort at 101.
+pub fn build_sidepanel(cargo_ok: bool, wasm_found: bool, bindgen_ok: bool) -> i32 {
+    if (!cargo_ok) { return EXIT_PANIC; }
+    if (!wasm_found) { return EXIT_FAIL; }
+    if (!bindgen_ok) { return EXIT_FAIL; }
+    return EXIT_OK;
+}
+
+// build-all runs the two builds back to back. A std::process::exit inside
+// build_ext ends the whole process, so a failing first build preempts the
+// second one entirely; only a clean first build reaches build_sidepanel.
+pub fn build_all(cargo_ok: bool, wasm_found: bool, bindgen_ok: bool) -> i32 {
+    const ext = build_ext(cargo_ok, wasm_found, bindgen_ok);
+    if (ext != EXIT_OK) { return ext; }
+    return build_sidepanel(cargo_ok, wasm_found, bindgen_ok);
+}
+
+// After wasm-bindgen the original checks both artifacts and prints sizes; the
+// report carries "(OK)" only when js and wasm both exist, otherwise the
+// "WARNING: expected outputs not found after wasm-bindgen" line.
+pub fn finish_marker(js_exists: bool, wasm_exists: bool) -> []const u8 {
+    if (js_exists and wasm_exists) { return "OK"; }
+    return "WARNING";
+}
+
+// fs::metadata(...).map(|m| m.len()).unwrap_or(0): an artifact that vanished
+// between the existence check and the metadata read reports as zero bytes.
+pub fn size_or_zero(metadata_present: bool, len: u64) -> u64 {
+    if (metadata_present) { return len; }
+    return 0;
+}
+
+// Port of main (original line 4). argv[0] is the program name and argv[1] the
+// subcommand; the match picks the arm and every arm ends with the process
+// exiting 0, including the usage arm. Nonzero exits only ever come from
+// inside a build function, which build_ext / build_sidepanel / build_all
+// model for the tests. The true flags describe the canonical run where cargo
+// and wasm-bindgen succeeded and both artifacts exist.
+pub fn main(argc: u32, argv: [][]const u8) -> i32 {
+    const subcmd = subcmd_arg(argc, argv);
+    const action = dispatch(subcmd);
+    switch (action) {
+        .BuildExt => build_ext(true, true, true),
+        .BuildSidepanel => build_sidepanel(true, true, true),
+        .BuildAll => build_all(true, true, true),
+        .Usage => usage_exit(),
+    }
+}
+
+// dispatch sends each of the three subcommands to its arm and everything
+// else — "help", an empty string, a typo — to the usage arm.
+test dispatch_four_arms {
+    assert(dispatch("build-ext") == Action.BuildExt);
+    assert(dispatch("build-sidepanel") == Action.BuildSidepanel);
+    assert(dispatch("build-all") == Action.BuildAll);
+    assert(dispatch("help") == Action.Usage);
+    assert(dispatch("") == Action.Usage);
+    assert(dispatch("build") == Action.Usage);
+}
+
+// main's exit contract: no arm makes the process itself exit nonzero; the
+// usage arm ("help", no argument, unknown word) is as clean as a build arm.
+test main_all_arms_exit_zero {
+    assert(main(1, ["xtask"]) == 0);
+    assert(main(2, ["xtask", "build-ext"]) == 0);
+    assert(main(2, ["xtask", "build-sidepanel"]) == 0);
+    assert(main(2, ["xtask", "build-all"]) == 0);
+    assert(main(2, ["xtask", "help"]) == 0);
+    assert(main(2, ["xtask", "nonsense"]) == 0);
+}
+
+// subcmd_arg ports args.get(1).unwrap_or("help").
+test subcmd_defaults_to_help {
+    assert(subcmd_arg(1, ["xtask"]) == "help");
+    assert(subcmd_arg(2, ["xtask", "build-ext"]) == "build-ext");
+}
+
+// plan_ext pins the ext build exactly: the ex00 crate, the wasm target cargo
+// builds for, the input path the wasm-bindgen step requires, the no-modules
+// bindgen target with the trios_ext_init global, and the dist/ outputs.
+test plan_ext_pins_the_original_build {
+    const plan = plan_ext();
+    assert(plan.cargo_package == "trios-ext-ring-ex00");
+    assert(plan.wasm_target == "wasm32-unknown-unknown");
+    assert(plan.wasm_input == "target/wasm32-unknown-unknown/release/trios_ext_ring_ex00.wasm");
+    assert(plan.bindgen_target == "no-modules");
+    assert(plan.global_name == "trios_ext_init");
+    assert(plan.js_out == "dist/trios_ext_ring_ex00.js");
+    assert(plan.wasm_out == "dist/trios_ext_ring_ex00_bg.wasm");
+}
+
+// plan_sidepanel pins the sidepanel build: the trios-ui-br-app crate, the
+// same wasm target, and --target web with NO --no-modules-global flag.
+test plan_sidepanel_uses_web_target {
+    const plan = plan_sidepanel();
+    assert(plan.cargo_package == "trios-ui-br-app");
+    assert(plan.wasm_target == "wasm32-unknown-unknown");
+    assert(plan.wasm_input == "target/wasm32-unknown-unknown/release/trios_ui_br_app.wasm");
+    assert(plan.bindgen_target == "web");
+    assert(plan.global_name == "");
+    assert(plan.js_out == "dist/trios_ui_br_app.js");
+    assert(plan.wasm_out == "dist/trios_ui_br_app_bg.wasm");
+}
+
+// build_ext's endings: clean success exits 0; a failed cargo or wasm-bindgen
+// assert aborts the process (101); a missing wasm input is an exit(1).
+test build_ext_exit_codes {
+    assert(build_ext(true, true, true) == 0);
+    assert(build_ext(false, true, true) == 101);
+    assert(build_ext(true, false, true) == 1);
+    assert(build_ext(true, true, false) == 101);
+}
+
+// build_sidepanel's endings differ from build_ext's exactly once: a
+// wasm-bindgen failure is an explicit exit(1), not an assert abort.
+test sidepanel_bindgen_failure_exits_one {
+    assert(build_sidepanel(true, true, true) == 0);
+    assert(build_sidepanel(true, true, false) == 1);
+    assert(build_ext(true, true, false) == 101);
+    assert(build_sidepanel(true, false, true) == 1);
+    assert(build_sidepanel(false, true, true) == 101);
+}
+
+// build-all short-circuits: ext's process::exit ends the run before the
+// sidepanel build starts, so only a clean ext build reaches the sidepanel.
+// The two builds see the same world here, and ext's assert fires first, so a
+// sidepanel bindgen failure is unreachable through build_all — its explicit
+// exit(1) is only observable by calling build_sidepanel directly (above).
+test build_all_preempts_sidepanel_on_ext_failure {
+    assert(build_all(true, true, true) == 0);
+    assert(build_all(false, true, true) == 101);
+    assert(build_all(true, false, true) == 1);
+    assert(build_all(true, true, false) == 101);
+}
+
+// The end-of-build report: both artifacts present marks the run OK; anything
+// missing is the WARNING line. Sizes fall back to zero when metadata is gone.
+test finish_marker_and_sizes {
+    assert(finish_marker(true, true) == "OK");
+    assert(finish_marker(true, false) == "WARNING");
+    assert(finish_marker(false, true) == "WARNING");
+    assert(finish_marker(false, false) == "WARNING");
+    assert(size_or_zero(true, 1234) == 1234);
+    assert(size_or_zero(false, 999) == 0);
+}
+
+// The two relative-path decisions of the original: dist/ and target/ hang off
+// the ring directory one level up, the workspace root five levels up.
+test manifest_dir_joins {
+    assert(ring_dir_levels_up() == 1);
+    assert(workspace_root_levels_up() == 5);
+}
