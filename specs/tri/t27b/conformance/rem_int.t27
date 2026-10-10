@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/rem_int.t27 -- `@rem` of two integers, as the reference runs it (gHashTag/t27#8627,
+; t27b coverage epic #6063: ExprCall(@rem) in specs/math/constants.t27). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file. gen-zig prints `@rem` as written.
+; - `@rem(a, b)` is the truncated remainder: the sign of the dividend, and `@divTrunc(a, b) * b + @rem(a, b) == a`,
+;   of signed and unsigned operands, with a literal beside a typed integer taking that integer's type.
+; Not here (it fails the test, so no passing spec can hold it): a run-time zero divisor, which is a safety panic
+; in Zig and a DivZero trap in t27b (specs/tri/t27b/libm_plan.t27 lowers the call as t27b's `%`).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceRemInt;
+
+fn ri_rem(a: i32, b: i32) -> i32 {
+    return @rem(a, b);
+}
+
+fn ri_rem2(a: i64) -> i64 {
+    return @rem(a, 2);
+}
+
+fn ri_urem(a: u32, b: u32) -> u32 {
+    return @rem(a, b);
+}
+
+fn ri_rem_byte(a: i8, b: i8) -> i8 {
+    return @rem(a, b);
+}
+
+test rem_takes_the_sign_of_the_dividend {
+    assert ri_rem(7, 3) == 1;
+    assert ri_rem(-7, 3) == -1;
+    assert ri_rem(7, -3) == 1;
+    assert ri_rem(-7, -3) == -1;
+    assert ri_rem(6, 3) == 0;
+    assert ri_rem(-6, 3) == 0;
+    assert ri_rem(2, 5) == 2;
+    assert ri_rem(-2, 5) == -2;
+}
+
+test rem_and_div_trunc_rebuild_the_dividend {
+    var a : i32 = -17;
+    while (a <= 17) {
+        assert @divTrunc(a, 5) * 5 + ri_rem(a, 5) == a;
+        assert @divTrunc(a, -4) * (0 - 4) + ri_rem(a, -4) == a;
+        a = a + 1;
+    }
+}
+
+test a_literal_divisor_takes_the_dividend_s_type {
+    assert ri_rem2(5) == 1;
+    assert ri_rem2(-5) == -1;
+    assert ri_rem2(4) == 0;
+    assert ri_rem2(9223372036854775807) == 1;
+}
+
+test unsigned_and_narrow_operands {
+    assert ri_urem(4000000000, 7) == 3;
+    assert ri_urem(5, 9) == 5;
+    assert ri_rem_byte(-128, 3) == -2;
+    assert ri_rem_byte(127, -10) == 7;
+}

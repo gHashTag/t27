@@ -3811,7 +3811,7 @@ impl<'a> Lower<'a> {
         }
     }
 
-    /// A builtin of libm_plan.t27 (`@exp`, `@log`): a call of its routine from specs/tri/t27b/libm.t27, compiler_rt's
+    /// A builtin of libm_plan.t27 (`@exp`, `@log`; an integer `@rem` is t27b's `%`): a call of its routine from libm.t27, compiler_rt's
     /// algorithm, so the bits are the reference's, folded or not. What is refused instead is the plan's.
     fn libm_call(&mut self, n: &Node) -> R<Val> {
         self.see(n);
@@ -3823,8 +3823,7 @@ impl<'a> Lower<'a> {
         let k = match &v {
             _ if t => match n.children[0].name.as_str() { "f64" => xp::K_F64, "f32" => xp::K_F32, _ => xp::K_OTHER },
             Val::Poison if ok => return Err(()),
-            Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
-            Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
+            Val::E(e) => xp::kind(e.ty.name()),
             Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
             _ => xp::K_OTHER,
         };
@@ -3832,6 +3831,7 @@ impl<'a> Lower<'a> {
         let base_e = n.children.get(1).filter(|c| c.name == "e").is_some_and(|c| self.std_math_const(c).is_some());
         let a = xp::with_base(b, xp::plan(b, n.children.len(), k), base_e, n.children.first().is_some_and(|c| c.name == named));
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
+            (v, _) if a == xp::OPERATOR => { let r = self.expr(&n.children[1])?; self.binary(xp::OPERATOR_TEXT, v, r) }
             (v, Some((func, Some(LTy::S(ty))))) if t || matches!(v, Val::E(_)) => {
                 let mut args = if t { vec![] } else { vec![self.reg(v)?] };
                 for c in &n.children[at + 1..] {
