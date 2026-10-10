@@ -109,6 +109,7 @@
   {"path": "specs/automation/tri-wallet-chains.t27", "t27b": "pass"},
   {"path": "specs/automation/wrapup-auto.t27", "t27b": "pass"},
   {"path": "specs/base/debounce.t27", "t27b": "pass"},
+  {"path": "specs/base/ops.t27", "t27b": "pass"},
   {"path": "specs/base/ring_32.t27", "t27b": "pass"},
   {"path": "specs/base/seed.t27", "t27b": "pass"},
   {"path": "specs/base/types.t27", "t27b": "blocked", "blocker": "type [N]T", "reason": "unimplemented"},
