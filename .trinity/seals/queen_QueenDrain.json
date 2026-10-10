@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:a56dca203bdc698460a8f9825cc0f0c7750a959ea1ce66bbef29d263dffed992",
+  "gen_hash_rust": "sha256:cdb02442eac84bbe5a7743907ecadd6f86ae2f34981e413b87068a86bc118e9a",
+  "gen_hash_verilog": "sha256:6e62e873874b4cb5c224e670ae11bde4f6c243c0d2530aaeecc80cee8e712241",
+  "gen_hash_zig": "sha256:fb954e0f22d98f449af6f420e34cf265a5416626edda1171bebf974522d89ba3",
+  "module": "QueenDrain",
+  "ring": 12,
+  "sealed_at": "2026-10-10T13:00:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:ae64ef302f98301a0594298d43848603ad55177e387f72d7edcf0b863f5a081a",
+  "spec_path": "specs/queen/drain.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}
