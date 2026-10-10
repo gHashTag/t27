@@ -189,7 +189,7 @@ pub const REQUEST_QUEUE_MAX : u32 = 8;
 pub const REQUEST_AGE_MAX_S : u32 = 21600;
 /// A request whose sha is not on origin waits this long before it is dropped (#8320): long enough
 /// for the lab to fetch a commit that just landed on master, short of a lab run.
-pub const REQUEST_ORIGIN_GRACE_S : u32 = 1800;
+pub const REQUEST_ORIGIN_GRACE_S : u32 = 7200;
 
 ; --- The message ---------------------------------------------------------------------------------
 
