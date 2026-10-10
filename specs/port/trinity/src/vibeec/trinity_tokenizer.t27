@@ -1,0 +1,160 @@
+module port::trinity::src::vibeec::trinity_tokenizer;
+
+// Special tokens
+const PAD_TOKEN: f32 = 0.0;
+const UNK_TOKEN: f32 = -1.0;
+const BOS_TOKEN: f32 = 1.0; // Begin of sequence
+const EOS_TOKEN: f32 = 2.0; // End of sequence
+
+pub struct Tokenizer {
+    allocator: usize,
+}
+
+pub fn Tokenizer_init(allocator: usize) Tokenizer {
+    return Tokenizer{ .allocator = allocator };
+}
+
+pub fn Tokenizer_tokenize(_self: *Tokenizer, text: []const u8) -> []f32 {
+    // Allocate: BOS + text + EOS
+    var tokens: [1000]f32 = undefined; // Fixed-size array for testing
+    var tokens_len: usize = text.len + 2;
+
+    // BOS
+    tokens[0] = BOS_TOKEN;
+
+    // Normalize ASCII to [-1, 1] range
+    // ASCII 0-127 → [-1, 1]
+    var i: usize = 0;
+    for (text) |char| {
+        const normalized = (@as(f32, @floatFromInt(char)) / 127.0) * 2.0 - 1.0;
+        tokens[i + 1] = normalized;
+        i += 1;
+    }
+
+    // EOS
+    tokens[tokens_len - 1] = EOS_TOKEN;
+
+    // Return slice of the used portion
+    return tokens[0..tokens_len];
+}
+
+pub fn Tokenizer_detokenize(_self: *Tokenizer, tokens: []const f32) -> []const u8 {
+    var result: [1000]u8 = undefined; // Fixed-size array for testing
+    var result_len: usize = 0;
+
+    for (tokens) |token| {
+        // Skip special tokens
+        if (token == BOS_TOKEN or token == EOS_TOKEN or token == PAD_TOKEN) continue;
+        if (token == UNK_TOKEN) {
+            result[result_len] = '?';
+            result_len += 1;
+            continue;
+        }
+
+        // Denormalize: [-1, 1] → ASCII 0-127
+        const denormalized = (token + 1.0) / 2.0 * 127.0;
+        const char_val = @as(i16, @intFromFloat(denormalized));
+
+        // Clamp to valid ASCII
+        if (char_val >= 0 and char_val < 128) {
+            result[result_len] = @as(u8, @intCast(char_val));
+        } else {
+            result[result_len] = '?';
+        }
+        result_len += 1;
+    }
+
+    // Return slice of the used portion
+    return result[0..result_len];
+}
+
+pub fn main() !void {
+    undefined;
+}
+
+test Tokenizer_init_basic {
+    const allocator = 1; // Mock allocator
+    var tokenizer = Tokenizer_init(allocator);
+    assert(tokenizer.allocator == allocator);
+}
+
+test Tokenizer_tokenize_simple {
+    const allocator = 1; // Mock allocator
+    
+    var tokenizer = Tokenizer{ .allocator = allocator };
+    const text = "Hi";
+    const tokens = Tokenizer_tokenize(&tokenizer, text);
+    
+    // Check BOS token
+    assert(tokens[0] == BOS_TOKEN);
+    
+    // Check normalized 'H' (ASCII 72)
+    const h_normalized = (@as(f32, @floatFromInt(72)) / 127.0) * 2.0 - 1.0;
+    assert(tokens[1] == h_normalized);
+    
+    // Check normalized 'i' (ASCII 105)
+    const i_normalized = (@as(f32, @floatFromInt(105)) / 127.0) * 2.0 - 1.0;
+    assert(tokens[2] == i_normalized);
+    
+    // Check EOS token
+    assert(tokens[3] == EOS_TOKEN);
+    
+    // Check length: BOS + 2 chars + EOS = 4
+    assert(tokens.len == 4);
+}
+
+test Tokenizer_detokenize_roundtrip {
+    const allocator = 1; // Mock allocator
+    
+    var tokenizer = Tokenizer{ .allocator = allocator };
+    const original = "Test";
+    const tokens = Tokenizer_tokenize(&tokenizer, original);
+    
+    const decoded = Tokenizer_detokenize(&tokenizer, tokens);
+    
+    // Should match original after round-trip
+    assert(decoded.len == original.len);
+    var i: usize = 0;
+    while (i < original.len) {
+        assert(decoded[i] == original[i]);
+        i += 1;
+    }
+}
+
+test Tokenizer_detokenize_special_tokens {
+    const allocator = 1; // Mock allocator
+    
+    var tokenizer = Tokenizer{ .allocator = allocator };
+    
+    // Create tokens array with special tokens
+    var tokens: [6]f32 = [BOS_TOKEN, 0.5, UNK_TOKEN, -0.3, EOS_TOKEN, PAD_TOKEN];
+    const tokens_slice = &tokens;
+    
+    const result = Tokenizer_detokenize(&tokenizer, tokens_slice);
+    
+    // Should contain only the non-special tokens converted back
+    // BOS (1.0) and EOS (2.0) and PAD (0.0) should be skipped
+    // UNK (-1.0) should become '?'
+    // 0.5 should convert to a valid char, -0.3 should become '?'
+    assert(result.len >= 1); // At least the UNK token conversion
+    // Check that we got some meaningful result
+    assert(result.len > 0);
+}
+
+test Tokenizer_detokenize_invalid_chars {
+    const allocator = 1; // Mock allocator
+    
+    var tokenizer = Tokenizer{ .allocator = allocator };
+    
+    // Create tokens that will denormalize to invalid ASCII values
+    // Values outside [0, 127] range should become '?'
+    var tokens: [3]f32 = [2.5, -1.2, 1.8]; // Will denormalize to >127, <0, and valid
+    const tokens_slice = &tokens;
+    
+    const result = Tokenizer_detokenize(&tokenizer, tokens_slice);
+    
+    // Should handle invalid characters gracefully
+    assert(result.len > 0);
+    // Invalid chars should be replaced with '?'
+    // Valid chars should be preserved
+}

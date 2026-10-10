@@ -23,3 +23,13 @@ pub const TAGS : [3]str = ["compiler", "self-hosting", "gen-c"];
 pub const ENABLED : bool = true;
 ; Default budget; SKILL.md declares no timeout of its own.
 pub const TIMEOUT_MIN : u16 = 30;
+
+test self_host_constants {
+    assert KIND == "skill";
+    assert ID == "t27/self-host";
+    assert REPO == "t27";
+    assert SOURCE == "SKILL.md";
+    assert TAGS[0] == "compiler";
+    assert ENABLED == true;
+    assert TIMEOUT_MIN == 30;
+}

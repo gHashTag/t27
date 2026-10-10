@@ -23,3 +23,15 @@ pub const TAGS : [3]str = ["audit", "issues", "plan"];
 pub const ENABLED : bool = true;
 ; Default budget; SKILL.md declares no timeout of its own.
 pub const TIMEOUT_MIN : u16 = 30;
+
+test wave_audit_constants {
+    assert KIND == "skill";
+    assert ID == "t27/wave-audit";
+    assert REPO == "t27";
+    assert SOURCE == "SKILL.md";
+    assert TAGS[0] == "audit";
+    assert TAGS[1] == "issues";
+    assert TAGS[2] == "plan";
+    assert ENABLED == true;
+    assert TIMEOUT_MIN == 30;
+}

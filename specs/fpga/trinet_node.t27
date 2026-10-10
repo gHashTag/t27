@@ -86,6 +86,7 @@ var r_y : u8 = 0
 var r_st : u8 = 0
 var r_n : u32 = 0
 var r_tag : u64 = 0
+var j_go : u8 = 0
 var n_req : u32 = 0
 var n_busy : u32 = 0
 var n_bad : u32 = 0
@@ -410,6 +411,7 @@ fn on_clock(pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) {
     n_req = n_req + (start(dn, okf, c_a, c_5, c_len, md_of(ms)) as u32);
     n_busy = n_busy + (busy_drop(dn, okf, c_a, c_5, c_len, md_of(ms)) as u32);
     n_bad = n_bad + (not_req(dn, okf, c_a, c_5, c_len) as u32);
+    j_go = start(dn, okf, c_a, c_5, c_len, md_of(ms));
     j_op = sel8(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_op, j_op);
     j_n = sel32(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_n, j_n);
     j_w = sel64(start(dn, okf, c_a, c_5, c_len, md_of(ms)), c_w, j_w);
@@ -651,4 +653,68 @@ test a_frame_that_eth_rx_rejected_starts_nothing {
     assert_eq(n_bad, 0);
     assert_eq(ms, 0);
     assert_eq(c_len, 0);
+}
+
+test j_go_rises_exactly_when_a_job_starts {
+    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0; j_go = 0;
+    var k : u16 = 0;
+    var t : u32 = 0;
+    var seen_go : u8 = 0;
+    
+    // Send a valid request (vector 0: MAC32 unkeyed)
+    while (k < 24) {
+        on_clock(1, v_byte(0, k), k, 0, 0);
+        k = k + 1;
+    }
+    
+    // End the frame with ok=1 (accepted)
+    on_clock(0, 0, 0, 1, 1);
+    
+    // Check that j_go rose for exactly one clock when the job started
+    t = 0;
+    seen_go = 0;
+    while (t < 100) {
+        on_clock(0, 0, 0, 0, 0);
+        if (j_go == 1) {
+            seen_go = seen_go + 1;
+        }
+        t = t + 1;
+    }
+    
+    assert_eq(seen_go, 1);
+    assert_eq(n_req, 1);
+    assert_eq(n_busy, 0);
+    assert_eq(n_bad, 0);
+}
+
+test j_go_stays_low_for_non_requests {
+    ms = 0; tq = 0; fa = 0; fs = 0; c_a = 0; c_5 = 0; c_len = 0; n_req = 0; n_busy = 0; n_bad = 0; j_go = 0;
+    var k : u16 = 0;
+    var t : u32 = 0;
+    var seen_go : u8 = 0;
+    
+    // Send an invalid frame (wrong magic bytes)
+    while (k < 10) {
+        on_clock(1, 1, k, 0, 0);
+        k = k + 1;
+    }
+    
+    // End the frame with ok=1 (but it's not a request)
+    on_clock(0, 0, 0, 1, 1);
+    
+    // Check that j_go never rises
+    t = 0;
+    seen_go = 0;
+    while (t < 100) {
+        on_clock(0, 0, 0, 0, 0);
+        if (j_go == 1) {
+            seen_go = seen_go + 1;
+        }
+        t = t + 1;
+    }
+    
+    assert_eq(seen_go, 0);
+    assert_eq(n_req, 0);
+    assert_eq(n_busy, 0);
+    assert_eq(n_bad, 1);
 }

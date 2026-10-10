@@ -94,8 +94,8 @@ module PipelineE2E {
 
     // test: full pipeline passes all stages
     test full_pipeline_pass {
-        var stages : [10]u8;
-        var results : [10]bool;
+        var stages : [10]u8 = undefined;
+        var results : [10]bool = undefined;
         var count : usize = 0;
         var final_stage = pipeline_run(stages[0..], results[0..], &count);
         try eq(final_stage, STAGE_DONE);
@@ -104,8 +104,8 @@ module PipelineE2E {
 
     // test: pipeline failure at gen stage
     test pipeline_fail_at_gen {
-        var stages : [10]u8;
-        var results : [10]bool;
+        var stages : [10]u8 = undefined;
+        var results : [10]bool = undefined;
         var count : usize = 0;
         var final_stage = pipeline_inject_failure(STAGE_GEN, stages[0..], results[0..], &count);
         try eq(final_stage, STAGE_FAIL);
@@ -115,8 +115,8 @@ module PipelineE2E {
 
     // test: pipeline failure at test stage
     test pipeline_fail_at_test {
-        var stages : [10]u8;
-        var results : [10]bool;
+        var stages : [10]u8 = undefined;
+        var results : [10]bool = undefined;
         var count : usize = 0;
         var final_stage = pipeline_inject_failure(STAGE_TEST, stages[0..], results[0..], &count);
         try eq(final_stage, STAGE_FAIL);
@@ -155,8 +155,8 @@ module PipelineE2E {
 
     // bench: full pipeline execution
     bench full_pipeline_bench {
-        var stages : [10]u8;
-        var results : [10]bool;
+        var stages : [10]u8 = undefined;
+        var results : [10]bool = undefined;
         var count : usize = 0;
         pipeline_run(stages[0..], results[0..], &count);
     }

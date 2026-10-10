@@ -47,3 +47,10 @@ test test_constants {
   assert LEGACY_ID == "trigger-log-monitor";
   assert TRIGGER == "event";
 }
+
+test retries_and_event_trigger_hold {
+  assert RETRIES == 1;
+  assert TRIGGER == "event";
+  assert EVENT == "monitoring/logs.trigger";
+  assert LEGACY_EVENTS[0] == "logs/monitor.trigger";
+}

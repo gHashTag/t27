@@ -1,0 +1,154 @@
+module port::unmerged_leaves_bound_guard;
+
+// CR-CHAT-03 - Unmerged leaves bound guard (Wave-70 Lane B).
+//
+// RATCHET TREE - the unmerged leaves list of a TreeKEM inner node is bounded
+// and duplicate-free, R-CHAT-2.
+//
+// Each inner node of the ratchet tree can carry a list of leaf indices whose
+// subtrees are not yet merged into the node's direct path. If that list grows
+// unbounded, or holds stale or invalid entries, tree math (resolution, parent
+// hashes) silently drifts away from the real tree.
+//
+// trios-chat enforces 6 rules:
+//
+// 1. Unmerged count <= ULBG_MAX_UNMERGED.
+// 2. No duplicate leaf indices.
+// 3. All leaf indices < tree size.
+// 4. No blank nodes in the list (sentinel u32::MAX).
+// 5. List is cleared after commit (empty input = post-commit state).
+// 6. Tree size <= ULBG_MAX_TREE.
+//
+// Ported from crates/trios-chat/rings/CR-CHAT-03/src/unmerged_leaves_bound_guard.rs
+// (gHashTag/trios at 8b229e9489ee). The Rust Result<(), UnmergedLeavesError>
+// verdict becomes an i32 code here: 0 is Ok, 1..6 are the UnmergedLeavesError
+// variants in declaration order (the ULBG_ERR_* constants below). The
+// decision is pure; the caller keeps the plumbing.
+
+// Maximum unmerged leaves per node.
+pub const ULBG_MAX_UNMERGED: usize = 64;
+
+// Maximum tree size.
+pub const ULBG_MAX_TREE: u32 = 1024;
+
+// Sentinel value the original treats as a blank node (Rust u32::MAX).
+pub const ULBG_BLANK_SENTINEL: u32 = 4294967295;
+
+// All ways unmerged leaves validation can fail, in declaration order. The
+// ULBG_ERR_* verdict codes below map onto these variants one to one.
+pub enum UnmergedLeavesError {
+    TooManyUnmerged,
+    DuplicateLeaf,
+    LeafOutOfBounds,
+    BlankNode,
+    TreeTooLarge,
+    NotClearedAfterCommit,
+}
+
+// Verdict of validate_unmerged_leaves: 0 is Ok(()), 1..6 map onto the
+// UnmergedLeavesError variants above in declaration order.
+pub const ULBG_OK: i32 = 0;
+pub const ULBG_ERR_TOO_MANY_UNMERGED: i32 = 1;
+pub const ULBG_ERR_DUPLICATE_LEAF: i32 = 2;
+pub const ULBG_ERR_LEAF_OUT_OF_BOUNDS: i32 = 3;
+pub const ULBG_ERR_BLANK_NODE: i32 = 4;
+pub const ULBG_ERR_TREE_TOO_LARGE: i32 = 5;
+pub const ULBG_ERR_NOT_CLEARED_AFTER_COMMIT: i32 = 6;
+
+// Validate unmerged leaves list for an inner node. [VERIFIED]
+// Rust returned Result<(), UnmergedLeavesError>; here the verdict is an i32
+// code, ULBG_OK on success. Checks run in the original's order: tree bound,
+// expect-cleared, count bound, then per leaf blank sentinel, bounds, and
+// duplicate (the Rust BTreeSet becomes a scan over the earlier entries, safe
+// because the list is bounded by ULBG_MAX_UNMERGED).
+pub fn validate_unmerged_leaves(tree_size: u32, unmerged: []const u32, expect_cleared: bool) -> i32 {
+    if (tree_size > ULBG_MAX_TREE) {
+        return ULBG_ERR_TREE_TOO_LARGE;
+    }
+    if (expect_cleared and unmerged.len != 0) {
+        return ULBG_ERR_NOT_CLEARED_AFTER_COMMIT;
+    }
+    if (unmerged.len > ULBG_MAX_UNMERGED) {
+        return ULBG_ERR_TOO_MANY_UNMERGED;
+    }
+    var i: usize = 0;
+    while (i < unmerged.len) {
+        const leaf = unmerged[i];
+        if (leaf == ULBG_BLANK_SENTINEL) {
+            return ULBG_ERR_BLANK_NODE;
+        }
+        if (leaf >= tree_size) {
+            return ULBG_ERR_LEAF_OUT_OF_BOUNDS;
+        }
+        var j: usize = 0;
+        while (j < i) {
+            if (unmerged[j] == leaf) {
+                return ULBG_ERR_DUPLICATE_LEAF;
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    return ULBG_OK;
+}
+
+// ULBG-01 - too many unmerged rejected (65 entries, 0..=64).
+test ulbg_01_too_many_rejected {
+    var leaves: [65]u32 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64];
+    assert(validate_unmerged_leaves(256, &leaves, false) == ULBG_ERR_TOO_MANY_UNMERGED);
+}
+
+// ULBG-02 - duplicate leaf rejected.
+test ulbg_02_duplicate_rejected {
+    var leaves: [4]u32 = [0, 1, 2, 1];
+    assert(validate_unmerged_leaves(8, &leaves, false) == ULBG_ERR_DUPLICATE_LEAF);
+}
+
+// ULBG-03 - leaf out of bounds rejected.
+test ulbg_03_oob_rejected {
+    var leaves: [3]u32 = [0, 1, 10];
+    assert(validate_unmerged_leaves(4, &leaves, false) == ULBG_ERR_LEAF_OUT_OF_BOUNDS);
+}
+
+// ULBG-04 - blank node rejected: the blank check runs before the bounds
+// check, so the sentinel wins over out-of-bounds.
+test ulbg_04_blank_rejected {
+    var leaves: [2]u32 = [0, 4294967295];
+    assert(validate_unmerged_leaves(8, &leaves, false) == ULBG_ERR_BLANK_NODE);
+}
+
+// ULBG-05 - tree too large rejected (ULBG_MAX_TREE + 1).
+test ulbg_05_tree_large_rejected {
+    var leaves: [1]u32 = [0];
+    assert(validate_unmerged_leaves(1025, &leaves, false) == ULBG_ERR_TREE_TOO_LARGE);
+}
+
+// ULBG-06 - not cleared after commit rejected.
+test ulbg_06_not_cleared_rejected {
+    var leaves: [2]u32 = [1, 2];
+    assert(validate_unmerged_leaves(8, &leaves, true) == ULBG_ERR_NOT_CLEARED_AFTER_COMMIT);
+}
+
+// ULBG-07 - valid list accepted.
+test ulbg_07_valid_accepted {
+    var leaves: [4]u32 = [0, 1, 2, 3];
+    assert(validate_unmerged_leaves(8, &leaves, false) == ULBG_OK);
+}
+
+// ULBG-08 - empty list accepted.
+test ulbg_08_empty_accepted {
+    var leaves: [0]u32 = [];
+    assert(validate_unmerged_leaves(8, &leaves, false) == ULBG_OK);
+}
+
+// ULBG-09 - cleared after commit accepted (empty list).
+test ulbg_09_cleared_accepted {
+    var leaves: [0]u32 = [];
+    assert(validate_unmerged_leaves(8, &leaves, true) == ULBG_OK);
+}
+
+// ULBG-10 - max unmerged accepted (64 entries, 0..=63, tree size 65).
+test ulbg_10_max_accepted {
+    var leaves: [64]u32 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63];
+    assert(validate_unmerged_leaves(65, &leaves, false) == ULBG_OK);
+}
