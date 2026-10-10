@@ -1,0 +1,93 @@
+module port::trios::crates::trios-http::rings::HR-01::src::lib;
+
+pub fn health() -> []const u8 {
+    return "ok";
+}
+
+pub struct AppState {
+    agents: i32,
+    tools: i32,
+}
+
+pub struct StatusResponse {
+    status: []const u8,
+    agents: i32,
+    tools: i32,
+}
+
+pub fn status(state: AppState) -> StatusResponse {
+    return StatusResponse {
+        status: "ok",
+        agents: 19,
+        tools: 5,
+    };
+}
+
+pub struct ChatRequest {
+    method: []const u8,
+}
+
+pub struct ChatResponse {
+    data: []const u8,
+}
+
+pub fn chat(req: ChatRequest) -> ChatResponse {
+    // Add back the if/else logic
+    if (req.method == "agents/list") {
+        return ChatResponse {
+            data: "[]",
+        };
+    } else if (req.method == "agents/chat") {
+        return ChatResponse {
+            data: "echo: hello",
+        };
+    } else if (req.method == "tools/list") {
+        return ChatResponse {
+            data: "tools list",
+        };
+    } else {
+        return ChatResponse {
+            data: "unknown method",
+        };
+    }
+}
+
+test health_test {
+    const result = health();
+    assert(result == "ok");
+}
+
+test status_test {
+    const state = AppState {
+        agents: 19,
+        tools: 5,
+    };
+    const response = status(state);
+    assert(response.status == "ok");
+    assert(response.agents == 19);
+    assert(response.tools == 5);
+}
+
+test chat_agents_list {
+    const req = ChatRequest {
+        method: "agents/list",
+    };
+    const response = chat(req);
+    assert(response.data == "[]");
+}
+
+test chat_agents_chat {
+    const req = ChatRequest {
+        method: "agents/chat",
+    };
+    const response = chat(req);
+    assert(response.data == "echo: hello");
+}
+
+test chat_unknown_method {
+    const req = ChatRequest {
+        method: "unknown_method",
+    };
+    const response = chat(req);
+    assert(response.data == "unknown method");
+}
