@@ -4548,13 +4548,13 @@ impl<'a> Lower<'a> {
                 return Ok(LTy::Arr(Box::new(inner), n));
             }
         }
-        // `anyopaque` names no layout, only a pointer to it; `std.mem.Allocator` is carried, never opened (plan `opaque_plan.t27`).
+        // `anyopaque` names no layout, only a pointer to it; an allocator, `std.ArrayList(T)`, `std.StringHashMap(V)` are carried, never opened (plan `opaque_plan.t27`).
         let act = oq::named(t.as_bytes(), by_value);
-        if act == oq::OPAQUE || act == oq::CARRY {
+        if oq::generic(act) { self.lty_in(&t[oq::arg_lo(t.as_bytes())..t.len() - 1], false)?; }
+        if oq::has_struct(act) {
             let id = *self.struct_ids.entry(t.into()).or_insert(self.structs.len() as u32);
             if id as usize == self.structs.len() {
-                let (what, why) = (oq::what(oq::REFUSE_BY_VALUE).into(), oq::why(oq::REFUSE_BY_VALUE).into());
-                let fail = (act == oq::OPAQUE).then(|| Reject { construct: what, line: self.line, detail: why });
+                let fail = Some(oq::unsized_what(act)).filter(|w| !w.is_empty()).map(|w| Reject { construct: w.into(), line: self.line, detail: oq::why(oq::REFUSE_BY_VALUE).into() });
                 self.structs.push(StructDef { name: t.into(), fields: Vec::new(), size: Some(oq::size(act)).filter(|s| *s > 0), align: oq::align(act), fail });
             }
             return Ok(LTy::Struct(id));
