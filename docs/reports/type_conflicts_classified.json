@@ -1,8 +1,8 @@
 {
   "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
   "verdicts": {
-    "DRIFT": 50,
-    "DISTINCT": 35
+    "DRIFT": 51,
+    "DISTINCT": 37
   },
   "names": [
     {
@@ -173,6 +173,15 @@
       "evidence": "railway_deploy.t27:74 `pub struct EnvVar { pub key: str, pub value: str, pub is_secret: bool, }` \u2014 file header: \"Autonomous Railway Deployment\", sits next to `RailwayServiceConfig { service_name, base_service_id, project_id, port, memory_mb, cpu_cores }`. shell/schema.t27:94 `struct EnvVar { name: str, value: str, }` \u2014 file header: \"Shell Types Specification\", sits under a `// Environment Types` banner next to `ShellProperties { path, name, shellType, isLogin, isPosix, isBlacklisted }`. One is a deploy-time variable to push at a cloud service (hence `is_secret`); the other is a process environment entry read from a shell. `key` vs `name` for the same slot is the tell of independent authorship, not a copy. NOTE ON THE INSTRUMENT: `tri types dup` prints \"(no fields this reader could parse)\" for the railway side. That is a reader gap, not an empty struct \u2014 it drops every field declared with a per-field `pub` modifier. Reproduced on all three such sites in the census (railway_deploy.t27:74, railway_deploy.t27:107 `HealthStatus`, which has no doc comments at all, and queen/task_analysis.t27:48 `Task`). The other six \"no fields\" sites are a different cause: generated stubs whose body is literally `variants : ,`.",
       "confidence": "Certain on the verdict (a cloud deploy variable and a shell environment variable are different things in unrelated subsystems). Certain also that the railway field list is key/value/is_secret \u2014 read directly from the file, since the tool would not show it.",
       "suggested_action": "Two fixes, unrelated: (a) leave the types alone, they are genuinely different; (b) fix the field reader in `tri types dup` to accept `pub` on fields \u2014 it currently reports three structs as fieldless."
+    },
+    {
+      "name": "Episode",
+      "sites": [
+        "specs/memory/graph/ingest.t27:63",
+        "specs/queen/lotus.t27:65"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "ingest.t27:63 `pub struct Episode { id: u64, group_id, principal, owner, thread, valid_at, created_at, content_hash, plaintext_consent, trust_domain, attempts, state }` is the memory graph's append-only provenance record (ENTRY_INVARIANT 'Episode log is append-only, no deletions', agents/e.t27:32). lotus.t27:65 `struct Episode { id: usize, timestamp, context, evaluation, plan, result, outcome }` (nested in module lotus, beside `var episode_buffer : [EPISODE_BUFFER_SIZE]Episode`) is the Lotus runtime's loop-step entry for PHASE_OBSERVE..PHASE_LEARN. Provenance ledger record vs agent-loop step: two concepts, one name."
     },
     {
       "name": "EvalResult",
@@ -515,6 +524,16 @@
       "suggested_action": "No defect. Prefix per module if names must resolve across specs."
     },
     {
+      "name": "Pair",
+      "sites": [
+        "specs/compiler/zig_empty_typed_array.t27:16",
+        "specs/dataset/igla_coder_manifest.tri:36",
+        "specs/port/tools/verify_multitarget.t27:13"
+      ],
+      "verdict": "DISTINCT",
+      "evidence": "zig_empty_typed_array.t27:16 `pub const Pair = struct { a: u8, b: u8 }` exists only as the element type of an empty typed array (compiler conformance fixture). igla_coder_manifest.tri:36 `pub type Pair = struct { pair_id, spec_path, spec_sha256, gen_path_opt, gen_sha256_opt, target_lang }` is a dataset manifest row pairing a spec with its generated target. verify_multitarget.t27:13 `pub const Pair = struct { a: i32, b: i32 }` (ported from tools/verify_multitarget) is the deterministic test generator's payload. Fixture pair, manifest record, test payload: three concepts on a trivially generic name."
+    },
+    {
       "name": "ParseError",
       "sites": [
         "specs/pins/parser.t27:336",
@@ -801,6 +820,15 @@
       "evidence": "fpga/simulator.t27 (\"HIR Cycle-Accurate Simulation Engine\"): `pub struct SimResult { cycles : u32, state : i8, errors : u32, assertions_fired : u32, coverage_points : u32 }` \u2014 the outcome of one cycle-accurate run, sitting beside `SimConfig { name, max_cycles, clock_freq_hz, trace_enabled, vcd_output, break_on_error, vcd_path }`, `ProbePoint` and `TraceEntry`. igla/coder/prm.t27 (\"Process Reward Model for IGLA CODER\"): `pub const SimResult = struct { passed : u32, total : u32 }` \u2014 a pass tally feeding `reward_simulation(step) -> RewardSignal`, whose neighbours are `reward_lint`, `reward_sacred_compliance` and `RewardSignal { name, weight, score }`. Zero shared field names, zero shared fields by meaning, no import path between them (prm.t27 uses base::types, igla::coder::arch, igla::coder::eval, igla::race::rtl \u2014 not fpga::simulator).",
       "confidence": "certain \u2014 one is a Verilog simulator's run record, the other a scalar reward numerator/denominator in an LLM training loop.",
       "suggested_action": "No defect. If cross-spec resolution is ever attempted, rename the PRM one to TestbenchPassRate \u2014 it is a two-counter tally, not a simulation result."
+    },
+    {
+      "name": "SkipList",
+      "sites": [
+        "specs/tri/collections/skip_list.t27:19",
+        "specs/port/trinity/src/tri/gen_skiplist_impl.t27:31"
+      ],
+      "verdict": "DRIFT",
+      "evidence": "skip_list.t27:19 `pub const SkipList(T) = struct { head: SkipNode(T), max_level, level }` is the collections spec's generic skip list. gen_skiplist_impl.t27:31 `pub struct SkipList { values: [32]i64, levels: [32]usize, forward: [32][16]usize, len, max_level, p }` is the port of trinity's gen_skiplist.zig -- same concept (SKIP_W 16 max_level, SKIP_P 0.5), restated concretely with fixed pools instead of pointers. One skip list, two definitions."
     },
     {
       "name": "SystemConfig",
