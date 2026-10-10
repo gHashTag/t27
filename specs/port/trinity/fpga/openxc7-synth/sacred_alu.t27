@@ -1,0 +1,428 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/trinity/fpga/openxc7-synth/sacred_alu.t27
+// Sacred ALU Wrapper — Unified GF16/TF3 Arithmetic Unit
+// Trinity Sacred Formats on FPGA Level 6 (RTL)
+// GF16 (Golden Float 16): exp:mant = 6:9 = 0.667, φ-distance = 0.049
+// TF3-9 (Ternary Float 9): exp:mant = 3:5 = 0.6, φ-distance = 0.018
+// Operations: MODE_GF16_ADD (2'b00), MODE_GF16_MUL (2'b01), MODE_TF3_ADD (2'b10), MODE_TF3_DOT (2'b11)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module sacred_alu {
+
+    // === Operation mode constants ===
+
+    pub const MODE_GF16_ADD : u32 = 0b00;
+    pub const MODE_GF16_MUL : u32 = 0b01;
+    pub const MODE_TF3_ADD  : u32 = 0b10;
+    pub const MODE_TF3_DOT  : u32 = 0b11;
+
+    // === Interface structs ===
+
+    pub struct SacredAluConfig {
+        name : &str,
+        data_width : u32,
+        gf16_bits : u32,
+        tf3_bits : u32,
+    }
+
+    pub struct SacredAluInputs {
+        clk : bool,
+        rst : bool,
+        in_valid : bool,
+        mode : u32,
+        in_a : u32,
+        in_b : u32,
+        tf3_dot_len : u32,
+        out_ready : bool,
+    }
+
+    pub struct SacredAluOutputs {
+        in_ready : bool,
+        out_valid : bool,
+        out_y : u32,
+    }
+
+    pub struct SacredAluResults {
+        gf16_add_result : u32,
+        gf16_mul_result : u32,
+        tf3_result : u32,
+        result_valid : bool,
+        result_ready : bool,
+    }
+
+    // === Constructor helpers ===
+
+    fn sacred_alu_config(name: &str) -> SacredAluConfig {
+        return SacredAluConfig{
+            .name = name,
+            .data_width = 32,
+            .gf16_bits = 15,
+            .tf3_bits = 18,
+        };
+    }
+
+    fn sacred_alu_inputs(
+        clk: bool, rst: bool, in_valid: bool, mode: u32, 
+        in_a: u32, in_b: u32, tf3_dot_len: u32, out_ready: bool
+    ) -> SacredAluInputs {
+        return SacredAluInputs{
+            .clk = clk,
+            .rst = rst,
+            .in_valid = in_valid,
+            .mode = mode,
+            .in_a = in_a,
+            .in_b = in_b,
+            .tf3_dot_len = tf3_dot_len,
+            .out_ready = out_ready,
+        };
+    }
+
+    fn sacred_alu_outputs() -> SacredAluOutputs {
+        return SacredAluOutputs{
+            .in_ready = false,
+            .out_valid = false,
+            .out_y = 0,
+        };
+    }
+
+    fn sacred_alu_results() -> SacredAluResults {
+        return SacredAluResults{
+            .gf16_add_result = 0,
+            .gf16_mul_result = 0,
+            .tf3_result = 0,
+            .result_valid = false,
+            .result_ready = false,
+        };
+    }
+
+    // === Mode decode functions ===
+
+    fn is_gf16_add(mode: u32) -> bool {
+        return mode == MODE_GF16_ADD;
+    }
+
+    fn is_gf16_mul(mode: u32) -> bool {
+        return mode == MODE_GF16_MUL;
+    }
+
+    fn is_gf16_op(mode: u32) -> bool {
+        return is_gf16_add(mode) or is_gf16_mul(mode);
+    }
+
+    fn is_tf3_op(mode: u32) -> bool {
+        return !is_gf16_op(mode);
+    }
+
+    // === Operand extraction functions ===
+
+    fn extract_gf16_operand(data: u32, bits: u32) -> u32 {
+        return data & ((1 << bits) - 1);
+    }
+
+    fn extract_tf3_operand(data: u32, bits: u32) -> u32 {
+        return data & ((1 << bits) - 1);
+    }
+
+    fn extract_gf16_a(in_a: u32) -> u32 {
+        return extract_gf16_operand(in_a, 15);
+    }
+
+    fn extract_gf16_b(in_b: u32) -> u32 {
+        return extract_gf16_operand(in_b, 15);
+    }
+
+    fn extract_tf3_a(in_a: u32) -> u32 {
+        return extract_tf3_operand(in_a, 18);
+    }
+
+    fn extract_tf3_b(in_b: u32) -> u32 {
+        return extract_tf3_operand(in_b, 18);
+    }
+
+    // === TF3 mode mapping ===
+
+    fn map_tf3_mode(mode: u32) -> u32 {
+        return ((mode & 1) << 1) | 0;  // TF3_ADD=00, TF3_DOT=01
+    }
+
+    // === Output multiplexing functions ===
+
+    fn mux_gf16_result(gf16_out: u32) -> u32 {
+        return (17 << 0) | gf16_out;  // {17'd0, gf16_out}
+    }
+
+    fn mux_tf3_result(tf3_out: u32) -> u32 {
+        return (14 << 0) | tf3_out;   // {14'd0, tf3_out}
+    }
+
+    fn select_result(mode: u32, gf16_add_result: u32, gf16_mul_result: u32, tf3_result: u32) -> u32 {
+        if (is_gf16_add(mode)) {
+            return gf16_add_result;
+        } else if (is_gf16_mul(mode)) {
+            return gf16_mul_result;
+        } else {
+            return tf3_result;
+        }
+    }
+
+    fn select_valid(mode: u32, gf16_add_valid: bool, gf16_mul_valid: bool, tf3_valid: bool) -> bool {
+        if (is_gf16_add(mode)) {
+            return gf16_add_valid;
+        } else if (is_gf16_mul(mode)) {
+            return gf16_mul_valid;
+        } else {
+            return tf3_valid;
+        }
+    }
+
+    fn select_ready(mode: u32, gf16_add_ready: bool, gf16_mul_ready: bool, tf3_ready: bool) -> bool {
+        if (is_gf16_add(mode)) {
+            return gf16_add_ready;
+        } else if (is_gf16_mul(mode)) {
+            return gf16_mul_ready;
+        } else {
+            return tf3_ready;
+        }
+    }
+
+    // === Input validation ===
+
+    fn validate_mode(mode: u32) -> bool {
+        return mode <= MODE_TF3_DOT;
+    }
+
+    fn validate_operands(in_a: u32, in_b: u32, mode: u32) -> bool {
+        if (is_gf16_op(mode)) {
+            var gf16_a : u32 = extract_gf16_a(in_a);
+            var gf16_b : u32 = extract_gf16_b(in_b);
+            return gf16_a < (1 << 15) and gf16_b < (1 << 15);
+        } else {
+            var tf3_a : u32 = extract_tf3_a(in_a);
+            var tf3_b : u32 = extract_tf3_b(in_b);
+            return tf3_a < (1 << 18) and tf3_b < (1 << 18);
+        }
+    }
+
+    fn validate_tf3_dot_len(tf3_dot_len: u32) -> bool {
+        return tf3_dot_len <= 255;
+    }
+
+    // === Main computation function ===
+
+    fn compute_sacred_alu_results(inputs: SacredAluInputs) -> SacredAluResults {
+        var results : SacredAluResults = sacred_alu_results();
+
+        // Mode decode
+        var gf16_add : bool = is_gf16_add(inputs.mode);
+        var gf16_mul : bool = is_gf16_mul(inputs.mode);
+        var tf3_op : bool = is_tf3_op(inputs.mode);
+
+        // Operand extraction
+        var gf16_a_val : u32 = extract_gf16_a(inputs.in_a);
+        var gf16_b_val : u32 = extract_gf16_b(inputs.in_b);
+        var tf3_a_val : u32 = extract_tf3_a(inputs.in_a);
+        var tf3_b_val : u32 = extract_tf3_b(inputs.in_b);
+
+        // TF3 mode mapping
+        var tf3_mode : u32 = map_tf3_mode(inputs.mode);
+
+        // Submodule results (simulated - these would come from actual hardware)
+        var gf16_add_valid : bool = inputs.in_valid and gf16_add;
+        var gf16_mul_valid : bool = inputs.in_valid and gf16_mul;
+        var tf3_valid : bool = inputs.in_valid and tf3_op;
+
+        var gf16_add_ready : bool = inputs.out_ready;
+        var gf16_mul_ready : bool = inputs.out_ready;
+        var tf3_ready : bool = inputs.out_ready;
+
+        // Output multiplexing
+        results.gf16_add_result = mux_gf16_result(gf16_a_val);  // Simplified for simulation
+        results.gf16_mul_result = mux_gf16_result(gf16_b_val);  // Simplified for simulation
+        results.tf3_result = mux_tf3_result(tf3_a_val);         // Simplified for simulation
+
+        results.result_valid = select_valid(inputs.mode, gf16_add_valid, gf16_mul_valid, tf3_valid);
+        results.result_ready = select_ready(inputs.mode, gf16_add_ready, gf16_mul_ready, tf3_ready);
+
+        return results;
+    }
+
+    // === Configuration validation ===
+
+    fn validate_sacred_alu_config(cfg: SacredAluConfig) -> u32 {
+        var errors : u32 = 0;
+        if (cfg.name == "") {
+            errors = errors + 1;
+        }
+        if (cfg.data_width == 0) {
+            errors = errors + 1;
+        }
+        if (cfg.gf16_bits == 0) {
+            errors = errors + 1;
+        }
+        if (cfg.tf3_bits == 0) {
+            errors = errors + 1;
+        }
+        return errors;
+    }
+
+    // === Tests ===
+
+    test mode_decode_gf16_add
+        then is_gf16_add(MODE_GF16_ADD) == true
+        and is_gf16_mul(MODE_GF16_ADD) == false
+        and is_gf16_op(MODE_GF16_ADD) == true
+        and is_tf3_op(MODE_GF16_ADD) == false
+
+    test mode_decode_gf16_mul
+        then is_gf16_add(MODE_GF16_MUL) == false
+        and is_gf16_mul(MODE_GF16_MUL) == true
+        and is_gf16_op(MODE_GF16_MUL) == true
+        and is_tf3_op(MODE_GF16_MUL) == false
+
+    test mode_decode_tf3_add
+        then is_gf16_add(MODE_TF3_ADD) == false
+        and is_gf16_mul(MODE_TF3_ADD) == false
+        and is_gf16_op(MODE_TF3_ADD) == false
+        and is_tf3_op(MODE_TF3_ADD) == true
+
+    test mode_decode_tf3_dot
+        then is_gf16_add(MODE_TF3_DOT) == false
+        and is_gf16_mul(MODE_TF3_DOT) == false
+        and is_gf16_op(MODE_TF3_DOT) == false
+        and is_tf3_op(MODE_TF3_DOT) == true
+
+    test operand_extraction_gf16
+        given a = 0x1234, b = 0x5678
+        then extract_gf16_a(a) == 0x1234 & 0x7FFF
+        and extract_gf16_b(b) == 0x5678 & 0x7FFF
+
+    test operand_extraction_tf3
+        given a = 0x12345, b = 0x67890
+        then extract_tf3_a(a) == 0x12345 & 0x3FFFF
+        and extract_tf3_b(b) == 0x67890 & 0x3FFFF
+
+    test output_multiplexing_gf16_add
+        given gf16_out = 0x123
+        then mux_gf16_result(gf16_out) == (17 << 0) | 0x123
+
+    test output_multiplexing_tf3
+        given tf3_out = 0x1234
+        then mux_tf3_result(tf3_out) == (14 << 0) | 0x1234
+
+    test result_selection_gf16_add
+        given mode = MODE_GF16_ADD, gf16_add = 0x100, gf16_mul = 0x200, tf3 = 0x300
+        then select_result(mode, gf16_add, gf16_mul, tf3) == 0x100
+
+    test result_selection_gf16_mul
+        given mode = MODE_GF16_MUL, gf16_add = 0x100, gf16_mul = 0x200, tf3 = 0x300
+        then select_result(mode, gf16_add, gf16_mul, tf3) == 0x200
+
+    test result_selection_tf3
+        given mode = MODE_TF3_ADD, gf16_add = 0x100, gf16_mul = 0x200, tf3 = 0x300
+        then select_result(mode, gf16_add, gf16_mul, tf3) == 0x300
+
+    test valid_signal_selection
+        given mode = MODE_GF16_ADD, gf16_add_valid = true, gf16_mul_valid = false, tf3_valid = false
+        then select_valid(mode, gf16_add_valid, gf16_mul_valid, tf3_valid) == true
+
+    test ready_signal_selection
+        given mode = MODE_TF3_ADD, gf16_add_ready = false, gf16_mul_ready = false, tf3_ready = true
+        then select_ready(mode, gf16_add_ready, gf16_mul_ready, tf3_ready) == true
+
+    test mode_validation
+        then validate_mode(MODE_GF16_ADD) == true
+        and validate_mode(MODE_GF16_MUL) == true
+        and validate_mode(MODE_TF3_ADD) == true
+        and validate_mode(MODE_TF3_DOT) == true
+        and validate_mode(0b100) == false
+
+    test operand_validation_gf16
+        given in_a = 0x1234, in_b = 0x5678, mode = MODE_GF16_ADD
+        then validate_operands(in_a, in_b, mode) == true
+
+    test operand_validation_tf3
+        given in_a = 0x12345, in_b = 0x67890, mode = MODE_TF3_ADD
+        then validate_operands(in_a, in_b, mode) == true
+
+    test tf3_dot_len_validation
+        then validate_tf3_dot_len(10) == true
+        and validate_tf3_dot_len(255) == true
+        and validate_tf3_dot_len(256) == false
+
+    test sacred_alu_config_creation
+        given cfg = sacred_alu_config("test_alu")
+        then cfg.name == "test_alu"
+        and cfg.data_width == 32
+        and cfg.gf16_bits == 15
+        and cfg.tf3_bits == 18
+
+    test sacred_alu_config_validation
+        given cfg = sacred_alu_config("valid")
+        then validate_sacred_alu_config(cfg) == 0
+
+    test sacred_alu_config_empty_name
+        given cfg = SacredAluConfig{.name = "", .data_width = 32, .gf16_bits = 15, .tf3_bits = 18}
+        then validate_sacred_alu_config(cfg) > 0
+
+    test sacred_alu_config_zero_width
+        given cfg = SacredAluConfig{.name = "test", .data_width = 0, .gf16_bits = 15, .tf3_bits = 18}
+        then validate_sacred_alu_config(cfg) > 0
+
+    test compute_sacred_alu_results_gf16_add
+        given inputs = sacred_alu_inputs(true, false, true, MODE_GF16_ADD, 0x1234, 0x5678, 10, true)
+        then var results = compute_sacred_alu_results(inputs)
+        and results.result_valid == true
+        and results.result_ready == true
+
+    test compute_sacred_alu_results_tf3_dot
+        given inputs = sacred_alu_inputs(true, false, true, MODE_TF3_DOT, 0x12345, 0x67890, 5, true)
+        then var results = compute_sacred_alu_results(inputs)
+        and results.result_valid == true
+        and results.result_ready == true
+
+    // === Invariants ===
+
+    invariant mode_constants_valid
+        assert MODE_GF16_ADD == 0b00
+        and MODE_GF16_MUL == 0b01
+        and MODE_TF3_ADD == 0b10
+        and MODE_TF3_DOT == 0b11
+
+    invariant gf16_bits_positive
+        given cfg = sacred_alu_config("inv")
+        assert cfg.gf16_bits > 0
+
+    invariant tf3_bits_positive
+        given cfg = sacred_alu_config("inv")
+        assert cfg.tf3_bits > 0
+
+    invariant data_width_positive
+        given cfg = sacred_alu_config("inv")
+        assert cfg.data_width > 0
+
+    invariant mode_exclusivity
+        assert !is_gf16_add(MODE_GF16_MUL)
+        and !is_gf16_mul(MODE_GF16_ADD)
+        and is_gf16_op(MODE_GF16_ADD) == true
+        and is_gf16_op(MODE_TF3_ADD) == false
+
+    invariant result_mux_consistency
+        given gf16_add = 0x100, gf16_mul = 0x200, tf3 = 0x300
+        assert select_result(MODE_GF16_ADD, gf16_add, gf16_mul, tf3) == gf16_add
+        and select_result(MODE_GF16_MUL, gf16_add, gf16_mul, tf3) == gf16_mul
+        and select_result(MODE_TF3_ADD, gf16_add, gf16_mul, tf3) == tf3
+
+    bench mode_decode_latency
+        measure: nanoseconds to is_gf16_add(MODE_GF16_ADD)
+        target: < 10ns
+
+    bench operand_extraction_latency
+        measure: nanoseconds to extract_gf16_a(0x1234)
+        target: < 10ns
+
+    bench result_selection_latency
+        measure: nanoseconds to select_result(MODE_GF16_ADD, 0x100, 0x200, 0x300)
+        target: < 10ns
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
