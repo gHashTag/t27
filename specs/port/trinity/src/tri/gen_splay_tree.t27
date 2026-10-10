@@ -1,0 +1,217 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/src/tri/gen_splay_tree.t27
+module port::gen_splay_tree;
+
+// Port of gHashTag/trinity src/tri/gen_splay_tree.zig at d07bc6251fa3
+// ("tri/splay_tree - Self-adjusting binary search tree").
+// Despite the name, the original never splays: insert is a plain
+// BST descent and find is a plain BST walk, and this port keeps exactly that
+// behaviour.
+//
+// The original keeps its nodes on the heap through std.mem.Allocator and
+// links them with optional pointers. The pointers and the allocator calls
+// are the plumbing; the decisions are pointer-free. So the port holds a
+// fixed node pool inside the tree and links nodes by pool index, with
+// NO_NODE standing for Zig's null. insert reports the allocator's failure
+// path (a full pool) as false instead of an error, and freeRecursive reports
+// how many nodes the original would destroy, in its post-order (left,
+// right, node). The allocator handle itself is carried, as the original's
+// init stores it, as an opaque i64 the caller passes in.
+
+const NO_NODE: i64 = -1;
+const POOL_CAP: usize = 16;
+
+struct SplayNode {
+    key: i64,
+    value: i64,
+    left: i64,
+    right: i64,
+    parent: i64,
+}
+
+struct SplayTree {
+    nodes: [POOL_CAP]SplayNode,
+    count: usize,
+    root: i64,
+    allocator: i64,
+}
+
+// SplayTree.init(allocator): a fresh tree has no root and no nodes, and it
+// remembers the allocator it was given.
+pub fn SplayTree_init(allocator: i64) -> SplayTree {
+    var tree = SplayTree {
+        nodes: [_]SplayNode{ SplayNode{ key: 0, value: 0, left: NO_NODE, right: NO_NODE, parent: NO_NODE } } ** POOL_CAP,
+        count: 0,
+        root: NO_NODE,
+        allocator: allocator,
+    };
+    return tree;
+}
+
+// SplayTree.insert(tree, key, value) !void: take the root slot when the
+// tree is empty; otherwise descend, key < curr.key to the left and anything
+// else to the right, and attach the new node at the first missing child,
+// recording its parent. The create() error is the pool being full: false.
+pub fn SplayTree_insert(tree: *SplayTree, key: i64, value: i64) -> bool {
+    if (tree.count >= POOL_CAP) {
+        return false;
+    }
+    var idx: i64 = tree.count as i64;
+    tree.nodes[tree.count] = SplayNode { key: key, value: value, left: NO_NODE, right: NO_NODE, parent: NO_NODE };
+    tree.count += 1;
+
+    if (tree.root == NO_NODE) {
+        tree.root = idx;
+        return true;
+    }
+
+    var curr: i64 = tree.root;
+    while (curr != NO_NODE) {
+        if (key < tree.nodes[curr as usize].key) {
+            if (tree.nodes[curr as usize].left == NO_NODE) {
+                tree.nodes[curr as usize].left = idx;
+                tree.nodes[idx as usize].parent = curr;
+                return true;
+            }
+            curr = tree.nodes[curr as usize].left;
+        } else {
+            if (tree.nodes[curr as usize].right == NO_NODE) {
+                tree.nodes[curr as usize].right = idx;
+                tree.nodes[idx as usize].parent = curr;
+                return true;
+            }
+            curr = tree.nodes[curr as usize].right;
+        }
+    }
+    return false;
+}
+
+// SplayTree.find(tree, key) ?i64: an equal key returns that node's value;
+// key < node.key walks left, anything else walks right; the walk falling off
+// the tree is Zig's null.
+pub fn SplayTree_find(tree: SplayTree, key: i64) -> ?i64 {
+    var curr: i64 = tree.root;
+    while (curr != NO_NODE) {
+        if (key == tree.nodes[curr as usize].key) {
+            return tree.nodes[curr as usize].value;
+        }
+        if (key < tree.nodes[curr as usize].key) {
+            curr = tree.nodes[curr as usize].left;
+        } else {
+            curr = tree.nodes[curr as usize].right;
+        }
+    }
+    return null;
+}
+
+// SplayTree.deinit(tree) void: hand the nodes back only when a root exists.
+// allocator.destroy is the plumbing; the decision - how many nodes a tree
+// with this root gives back - is the returned count.
+pub fn SplayTree_deinit(tree: SplayTree) -> i64 {
+    if (tree.root == NO_NODE) {
+        return 0;
+    }
+    return SplayTree_freeRecursive(tree, tree.root);
+}
+
+// SplayTree.freeRecursive(tree, node) void: left, then right, then the node
+// itself - post-order, so a child is always handed back before its parent.
+pub fn SplayTree_freeRecursive(tree: SplayTree, node: i64) -> i64 {
+    if (node == NO_NODE) {
+        return 0;
+    }
+    var left_freed: i64 = SplayTree_freeRecursive(tree, tree.nodes[node as usize].left);
+    var right_freed: i64 = SplayTree_freeRecursive(tree, tree.nodes[node as usize].right);
+    return left_freed + right_freed + 1;
+}
+
+// The original's own test, "splay tree insert find": three inserts, one hit,
+// one miss.
+test splay_tree_insert_find {
+    var tree = SplayTree_init(1);
+    assert(SplayTree_insert(&tree, 5, 50));
+    assert(SplayTree_insert(&tree, 3, 30));
+    assert(SplayTree_insert(&tree, 7, 70));
+
+    assert(SplayTree_find(tree, 3) == 30);
+    assert(SplayTree_find(tree, 7) == 70);
+    assert(SplayTree_find(tree, 99) == null);
+}
+
+test init_starts_empty_and_stores_allocator {
+    const tree = SplayTree_init(7);
+    assert(tree.root == NO_NODE);
+    assert(tree.count == 0);
+    assert(tree.allocator == 7);
+    assert(SplayTree_find(tree, 1) == null);
+}
+
+test insert_takes_root_slot {
+    var tree = SplayTree_init(1);
+    assert(SplayTree_insert(&tree, 5, 50));
+    assert(tree.root == 0);
+    assert(tree.count == 1);
+    assert(tree.nodes[0].parent == NO_NODE);
+    assert(tree.nodes[0].left == NO_NODE);
+    assert(tree.nodes[0].right == NO_NODE);
+    assert(SplayTree_find(tree, 5) == 50);
+}
+
+test insert_descends_and_links {
+    var tree = SplayTree_init(1);
+    assert(SplayTree_insert(&tree, 5, 50));
+    assert(SplayTree_insert(&tree, 3, 30));
+    assert(SplayTree_insert(&tree, 7, 70));
+
+    assert(tree.nodes[0].left == 1);
+    assert(tree.nodes[0].right == 2);
+    assert(tree.nodes[1].parent == 0);
+    assert(tree.nodes[2].parent == 0);
+    assert(SplayTree_find(tree, 4) == null);
+}
+
+test insert_duplicate_key_goes_right {
+    var tree = SplayTree_init(1);
+    assert(SplayTree_insert(&tree, 5, 50));
+    assert(SplayTree_insert(&tree, 5, 55));
+
+    assert(tree.nodes[0].right == 1);
+    assert(tree.nodes[0].left == NO_NODE);
+    assert(SplayTree_find(tree, 5) == 50);
+}
+
+test insert_full_pool_is_the_error_path {
+    var tree = SplayTree_init(1);
+    var i: usize = 0;
+    while (i < POOL_CAP) {
+        assert(SplayTree_insert(&tree, i as i64, (i * 10) as i64));
+        i += 1;
+    }
+    assert(tree.count == POOL_CAP);
+    assert(!SplayTree_insert(&tree, 99, 99));
+    assert(SplayTree_find(tree, 15) == 150);
+    assert(SplayTree_find(tree, 99) == null);
+}
+
+test deinit_frees_only_when_root_exists {
+    const empty = SplayTree_init(1);
+    assert(SplayTree_deinit(empty) == 0);
+
+    var tree = SplayTree_init(1);
+    assert(SplayTree_insert(&tree, 5, 50));
+    assert(SplayTree_insert(&tree, 3, 30));
+    assert(SplayTree_insert(&tree, 7, 70));
+    assert(SplayTree_deinit(tree) == 3);
+}
+
+test free_recursive_counts_postorder {
+    var tree = SplayTree_init(1);
+    assert(SplayTree_insert(&tree, 5, 50));
+    assert(SplayTree_insert(&tree, 3, 30));
+    assert(SplayTree_insert(&tree, 7, 70));
+
+    assert(SplayTree_freeRecursive(tree, tree.nodes[0].left) == 1);
+    assert(SplayTree_freeRecursive(tree, tree.nodes[0].right) == 1);
+    assert(SplayTree_freeRecursive(tree, tree.root) == 3);
+    assert(SplayTree_freeRecursive(tree, NO_NODE) == 0);
+}
