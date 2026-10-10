@@ -88,10 +88,11 @@ pub const T27B_URLS : [3]str = ["https://github.com/gHashTag/trios/releases/down
 pub const T27B_SHA256 : [3]str = ["38d66e75856d8d87787d3e6e012ba334c5b54c101f0ee9fd67556ee3e2b02e46", "", "8da449a6b51f24008fde1f32078392f2c7a8b412eba110483934ac0b337550c8"];
 pub const T27B_BYTES : [3]u64 = [2472000, 0, 2794840];
 
-/// Filled after the agent is built (see the header): the agent never reads these three rows.
-pub const TRIOS_HOST_URLS : [3]str = ["", "", ""];
-pub const TRIOS_HOST_SHA256 : [3]str = ["", "", ""];
-pub const TRIOS_HOST_BYTES : [3]u64 = [0, 0, 0];
+/// Filled after the agent was built from gHashTag/trios c4df0f5b5 (see the header): the agent never
+/// reads these three rows.
+pub const TRIOS_HOST_URLS : [3]str = ["https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/trios-host-darwin-arm64", "https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/trios-host-linux-x64", "https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/trios-host-linux-arm64"];
+pub const TRIOS_HOST_SHA256 : [3]str = ["b1f072f4589eef53a3235c7be5fa6a4b3aa26832794d7762809acb2c83224164", "d415acec061626600a8fbf88fd9de4a3b0088e47f2220c27b1dd6635d2b8b8fc", "9f4300cfd8e7fe37ea50ccc33d04e26788336278885530e25f9a71c2a2c067a1"];
+pub const TRIOS_HOST_BYTES : [3]u64 = [61118752, 99347796, 98788850];
 
 ; --- 4. The shard's inputs ---------------------------------------------------------------------------
 
@@ -246,6 +247,7 @@ test every_trios_host_pin_is_complete {
     var k : u32 = 0;
     while (k < PLATFORM_COUNT) {
         assert pin_well_formed(TRIOS_HOST_SHA256[k]);
+        assert TRIOS_HOST_SHA256[k].len == 64;
         assert pin_complete(TRIOS_HOST_URLS[k], TRIOS_HOST_SHA256[k], TRIOS_HOST_BYTES[k]);
         assert url_allowed(TRIOS_HOST_URLS[k]);
         assert names_asset(TRIOS_HOST_URLS[k], "trios-host", PLATFORMS[k]);
