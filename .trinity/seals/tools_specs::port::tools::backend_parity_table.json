@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6a3eff9d47e531f1bf442b2b9065ddf1d160892e6147d6124b69801f9079452e",
+  "gen_hash_rust": "sha256:e1e7d01bd6a7769e5c200b30f4e10bb026e7068e018fd805e165c328fed32079",
+  "gen_hash_verilog": "sha256:5f03229012d59e76fc81536801e1cca6cef2fa17e38a9ed9fcad5debbbf0f445",
+  "gen_hash_zig": "sha256:7f5105f843f9c06d4e63289d319ac8cd2c1c98fd3069e0486f8ee542010fa44c",
+  "module": "specs::port::tools::backend_parity_table",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:31Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:264cc14377bc7036260c55755934e083825b7f099881b111a35760e18837659b",
+  "spec_path": "specs/port/tools/backend_parity_table.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

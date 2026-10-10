@@ -1,13 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:69e13f0f52e970f7dfad700ca985bb94524f357cbd99d0659ccbf46394290ea9",
   "gen_hash_rust": "sha256:d38b85e047333245b1f21f20f3136a6632d23f6d67015d13c61a6becb6e7a530",
   "gen_hash_verilog": "sha256:a7a343946f9c4362047b84d28d158756b6ac0f48cb3f6bbc77c7f13cee3fbf0b",
   "gen_hash_zig": "sha256:dc282cb7cc5f6d5add486b75c3b071737dc4597f5c0bd594da095b943eabe63e",
   "module": "Mtbf",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:44:43Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:48:22Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:103f2f24a819a3995ace528f3cc48d9cd29e51e38e4fdcdc8b6c9a7d2df5c40b",
   "spec_path": "specs/fpga/mtbf.t27",
   "tests": {
@@ -16,5 +19,9 @@
     "forced": false,
     "passed": 15,
     "total": 15
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9fc7b763d2b4cfde6a2fba4c746b727f598f5cf3b386e2184ff6ff5426b8c682",
   "gen_hash_rust": "sha256:18229fd935a0c1713dc344296927a195e55fca00667457df513b038c0644db04",
   "gen_hash_verilog": "sha256:73b002e8befde1678c538f91604a99b2a35e2533913f3ba6696119e69d2d7db9",
   "gen_hash_zig": "sha256:0979161dbda5a2cf5077f3dcb45321382949b9a811ae1d4e7e4d2ced85afa695",
   "module": "Tri27Encoding",
   "ring": 12,
-  "sealed_at": "2026-10-06T14:34:06Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:49:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:563b6ca610274d48010c05fca146634edcde13c391fcea3f44cc2790171530d6",
   "spec_path": "specs/isa/ternary_encoding.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 14,
     "total": 14
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

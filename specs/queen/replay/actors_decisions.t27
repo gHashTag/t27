@@ -1,0 +1,618 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/replay/actors_decisions.t27 -- the actors card's logged answers, as asserts
+; GENERATED from a decision log. Do not edit by hand: regenerate it (below). Source: the decision
+; log of the seeded reviewer run (seed 7852: 45 arrivals an hour for 6 h, 180 s median review, 5%
+; crashes, 2% stalls; slices off) in gHashTag/trios
+; trios/agent-server/apps/server/tests/api/queen-actors-telemetry.test.ts, logged at trios commit
+; 71b45642585abddcb7ad1b6391a82ac670363af0. It holds 54633 calls into queen/actors.wasm (sha256
+; 7d5be60a4576700245154600bde5b9afbfeb0d07d3f86aa5c3d5c16973b0e304), compiled from queen/actors.t27
+; (sha256 73c4135bfcb8442a96bfc64977048d75055bb55e5c3e04e49a20966dada4b722).
+; Each assert is one distinct (fn, args) of those calls with the answer the wasm card gave: 472
+; asserts over 25 functions. t27c test-report runs them on the reference path (gen, then zig) and
+; t27b runs them on its native AArch64 JIT, so production's wasm, the reference and t27b give the
+; same answer to every question production asked, or this module fails. Epic gHashTag/trios#1712.
+; Regenerate: in trios/agent-server/apps/server,
+;   QUEEN_DECISION_SPEC_OUT=<t27 checkout> QUEEN_DECISION_SPEC_FROM=<trios commit>
+;   bun test tests/api/queen-actors-telemetry.test.ts -t 'replays to the same'
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenReplayActorsDecisions;
+
+use queen::actors::pid_of;
+use queen::actors::slot_of;
+use queen::actors::next_gen;
+use queen::actors::reaches;
+use queen::actors::deliver;
+use queen::actors::deliver_control;
+use queen::actors::next_lane;
+use queen::actors::ctl_pending;
+use queen::actors::ctl_post;
+use queen::actors::ctl_next;
+use queen::actors::ctl_take;
+use queen::actors::death_reason;
+use queen::actors::monitors_after_monitor;
+use queen::actors::stopped_by_restart;
+use queen::actors::restarted;
+use queen::actors::in_period;
+use queen::actors::on_child_exit;
+use queen::actors::unstable_streak;
+use queen::actors::backoff_seconds;
+use queen::actors::with_backoff;
+use queen::actors::jittered_seconds;
+use queen::actors::turn_signal;
+use queen::actors::kill_effect;
+use queen::actors::node_pid;
+use queen::actors::is_remote;
+
+; pid_of: 49 calls logged, 49 distinct
+test pid_of_answers_as_logged {
+    assert pid_of(1, 1) == 4294967297;
+    assert pid_of(2, 1) == 8589934593;
+    assert pid_of(2, 2) == 8589934594;
+    assert pid_of(2, 3) == 8589934595;
+    assert pid_of(2, 4) == 8589934596;
+    assert pid_of(2, 5) == 8589934597;
+    assert pid_of(2, 6) == 8589934598;
+    assert pid_of(3, 1) == 12884901889;
+    assert pid_of(3, 2) == 12884901890;
+    assert pid_of(3, 3) == 12884901891;
+    assert pid_of(3, 4) == 12884901892;
+    assert pid_of(3, 5) == 12884901893;
+    assert pid_of(3, 6) == 12884901894;
+    assert pid_of(3, 7) == 12884901895;
+    assert pid_of(3, 8) == 12884901896;
+    assert pid_of(3, 9) == 12884901897;
+    assert pid_of(3, 10) == 12884901898;
+    assert pid_of(4, 1) == 17179869185;
+    assert pid_of(4, 2) == 17179869186;
+    assert pid_of(4, 3) == 17179869187;
+    assert pid_of(4, 4) == 17179869188;
+    assert pid_of(4, 5) == 17179869189;
+    assert pid_of(4, 6) == 17179869190;
+    assert pid_of(4, 7) == 17179869191;
+    assert pid_of(4, 8) == 17179869192;
+    assert pid_of(4, 9) == 17179869193;
+    assert pid_of(4, 10) == 17179869194;
+    assert pid_of(4, 11) == 17179869195;
+    assert pid_of(4, 12) == 17179869196;
+    assert pid_of(4, 13) == 17179869197;
+    assert pid_of(5, 1) == 21474836481;
+    assert pid_of(5, 2) == 21474836482;
+    assert pid_of(5, 3) == 21474836483;
+    assert pid_of(5, 4) == 21474836484;
+    assert pid_of(5, 5) == 21474836485;
+    assert pid_of(5, 6) == 21474836486;
+    assert pid_of(5, 7) == 21474836487;
+    assert pid_of(5, 8) == 21474836488;
+    assert pid_of(5, 9) == 21474836489;
+    assert pid_of(5, 10) == 21474836490;
+    assert pid_of(5, 11) == 21474836491;
+    assert pid_of(5, 12) == 21474836492;
+    assert pid_of(5, 13) == 21474836493;
+    assert pid_of(5, 14) == 21474836494;
+    assert pid_of(5, 15) == 21474836495;
+    assert pid_of(5, 16) == 21474836496;
+    assert pid_of(5, 17) == 21474836497;
+    assert pid_of(5, 18) == 21474836498;
+    assert pid_of(5, 19) == 21474836499;
+}
+
+; slot_of: 18918 calls logged, 54 distinct
+test slot_of_answers_as_logged {
+    assert slot_of(4294967296) == 1;
+    assert slot_of(4294967297) == 1;
+    assert slot_of(8589934592) == 2;
+    assert slot_of(8589934593) == 2;
+    assert slot_of(8589934594) == 2;
+    assert slot_of(8589934595) == 2;
+    assert slot_of(8589934596) == 2;
+    assert slot_of(8589934597) == 2;
+    assert slot_of(8589934598) == 2;
+    assert slot_of(12884901888) == 3;
+    assert slot_of(12884901889) == 3;
+    assert slot_of(12884901890) == 3;
+    assert slot_of(12884901891) == 3;
+    assert slot_of(12884901892) == 3;
+    assert slot_of(12884901893) == 3;
+    assert slot_of(12884901894) == 3;
+    assert slot_of(12884901895) == 3;
+    assert slot_of(12884901896) == 3;
+    assert slot_of(12884901897) == 3;
+    assert slot_of(12884901898) == 3;
+    assert slot_of(17179869184) == 4;
+    assert slot_of(17179869185) == 4;
+    assert slot_of(17179869186) == 4;
+    assert slot_of(17179869187) == 4;
+    assert slot_of(17179869188) == 4;
+    assert slot_of(17179869189) == 4;
+    assert slot_of(17179869190) == 4;
+    assert slot_of(17179869191) == 4;
+    assert slot_of(17179869192) == 4;
+    assert slot_of(17179869193) == 4;
+    assert slot_of(17179869194) == 4;
+    assert slot_of(17179869195) == 4;
+    assert slot_of(17179869196) == 4;
+    assert slot_of(17179869197) == 4;
+    assert slot_of(21474836480) == 5;
+    assert slot_of(21474836481) == 5;
+    assert slot_of(21474836482) == 5;
+    assert slot_of(21474836483) == 5;
+    assert slot_of(21474836484) == 5;
+    assert slot_of(21474836485) == 5;
+    assert slot_of(21474836486) == 5;
+    assert slot_of(21474836487) == 5;
+    assert slot_of(21474836488) == 5;
+    assert slot_of(21474836489) == 5;
+    assert slot_of(21474836490) == 5;
+    assert slot_of(21474836491) == 5;
+    assert slot_of(21474836492) == 5;
+    assert slot_of(21474836493) == 5;
+    assert slot_of(21474836494) == 5;
+    assert slot_of(21474836495) == 5;
+    assert slot_of(21474836496) == 5;
+    assert slot_of(21474836497) == 5;
+    assert slot_of(21474836498) == 5;
+    assert slot_of(21474836499) == 5;
+}
+
+; next_gen: 49 calls logged, 19 distinct
+test next_gen_answers_as_logged {
+    assert next_gen(0) == 1;
+    assert next_gen(1) == 2;
+    assert next_gen(2) == 3;
+    assert next_gen(3) == 4;
+    assert next_gen(4) == 5;
+    assert next_gen(5) == 6;
+    assert next_gen(6) == 7;
+    assert next_gen(7) == 8;
+    assert next_gen(8) == 9;
+    assert next_gen(9) == 10;
+    assert next_gen(10) == 11;
+    assert next_gen(11) == 12;
+    assert next_gen(12) == 13;
+    assert next_gen(13) == 14;
+    assert next_gen(14) == 15;
+    assert next_gen(15) == 16;
+    assert next_gen(16) == 17;
+    assert next_gen(17) == 18;
+    assert next_gen(18) == 19;
+}
+
+; reaches: 6322 calls logged, 73 distinct
+test reaches_answers_as_logged {
+    assert reaches(4294967297, 4294967297) == true;
+    assert reaches(8589934593, 8589934593) == true;
+    assert reaches(8589934594, 8589934594) == true;
+    assert reaches(8589934594, 8589934595) == false;
+    assert reaches(8589934595, 8589934595) == true;
+    assert reaches(8589934596, 8589934596) == true;
+    assert reaches(8589934597, 8589934597) == true;
+    assert reaches(8589934598, 8589934598) == true;
+    assert reaches(12884901889, 12884901889) == true;
+    assert reaches(12884901889, 12884901890) == false;
+    assert reaches(12884901890, 12884901890) == true;
+    assert reaches(12884901890, 12884901891) == false;
+    assert reaches(12884901891, 12884901891) == true;
+    assert reaches(12884901891, 12884901892) == false;
+    assert reaches(12884901892, 12884901892) == true;
+    assert reaches(12884901892, 12884901893) == false;
+    assert reaches(12884901893, 12884901893) == true;
+    assert reaches(12884901893, 12884901895) == false;
+    assert reaches(12884901894, 12884901894) == true;
+    assert reaches(12884901895, 12884901895) == true;
+    assert reaches(12884901895, 12884901896) == false;
+    assert reaches(12884901896, 12884901896) == true;
+    assert reaches(12884901896, 12884901897) == false;
+    assert reaches(12884901897, 12884901897) == true;
+    assert reaches(12884901898, 12884901898) == true;
+    assert reaches(17179869185, 17179869185) == true;
+    assert reaches(17179869185, 17179869186) == false;
+    assert reaches(17179869186, 17179869186) == true;
+    assert reaches(17179869186, 17179869187) == false;
+    assert reaches(17179869187, 17179869187) == true;
+    assert reaches(17179869187, 17179869188) == false;
+    assert reaches(17179869188, 17179869188) == true;
+    assert reaches(17179869189, 17179869189) == true;
+    assert reaches(17179869189, 17179869190) == false;
+    assert reaches(17179869190, 17179869190) == true;
+    assert reaches(17179869191, 17179869191) == true;
+    assert reaches(17179869192, 17179869192) == true;
+    assert reaches(17179869192, 17179869193) == false;
+    assert reaches(17179869193, 17179869193) == true;
+    assert reaches(17179869194, 17179869194) == true;
+    assert reaches(17179869194, 17179869195) == false;
+    assert reaches(17179869195, 17179869195) == true;
+    assert reaches(17179869195, 17179869196) == false;
+    assert reaches(17179869196, 17179869196) == true;
+    assert reaches(17179869196, 17179869197) == false;
+    assert reaches(17179869197, 17179869197) == true;
+    assert reaches(21474836481, 21474836481) == true;
+    assert reaches(21474836482, 21474836482) == true;
+    assert reaches(21474836482, 21474836484) == false;
+    assert reaches(21474836483, 21474836483) == true;
+    assert reaches(21474836483, 21474836484) == false;
+    assert reaches(21474836484, 21474836484) == true;
+    assert reaches(21474836484, 21474836485) == false;
+    assert reaches(21474836485, 21474836485) == true;
+    assert reaches(21474836485, 21474836487) == false;
+    assert reaches(21474836486, 21474836486) == true;
+    assert reaches(21474836487, 21474836487) == true;
+    assert reaches(21474836488, 21474836488) == true;
+    assert reaches(21474836488, 21474836489) == false;
+    assert reaches(21474836489, 21474836489) == true;
+    assert reaches(21474836489, 21474836490) == false;
+    assert reaches(21474836490, 21474836490) == true;
+    assert reaches(21474836491, 21474836491) == true;
+    assert reaches(21474836492, 21474836492) == true;
+    assert reaches(21474836492, 21474836493) == false;
+    assert reaches(21474836493, 21474836493) == true;
+    assert reaches(21474836494, 21474836494) == true;
+    assert reaches(21474836495, 21474836495) == true;
+    assert reaches(21474836495, 21474836496) == false;
+    assert reaches(21474836496, 21474836496) == true;
+    assert reaches(21474836497, 21474836497) == true;
+    assert reaches(21474836498, 21474836498) == true;
+    assert reaches(21474836499, 21474836499) == true;
+}
+
+; deliver: 3440 calls logged, 5 distinct
+test deliver_answers_as_logged {
+    assert deliver(false, 0, 256) == 1;
+    assert deliver(true, 0, 256) == 0;
+    assert deliver(true, 1, 256) == 0;
+    assert deliver(true, 2, 256) == 0;
+    assert deliver(true, 3, 256) == 0;
+}
+
+; deliver_control: 2520 calls logged, 1 distinct
+test deliver_control_answers_as_logged {
+    assert deliver_control(true, false) == 0;
+}
+
+; next_lane: 9229 calls logged, 3 distinct
+test next_lane_answers_as_logged {
+    assert next_lane(false, false) == 2;
+    assert next_lane(false, true) == 0;
+    assert next_lane(true, false) == 1;
+}
+
+; ctl_pending: 2520 calls logged, 1 distinct
+test ctl_pending_answers_as_logged {
+    assert ctl_pending(0, 3) == false;
+}
+
+; ctl_post: 2520 calls logged, 1 distinct
+test ctl_post_answers_as_logged {
+    assert ctl_post(0, 3) == 8;
+}
+
+; ctl_next: 2520 calls logged, 1 distinct
+test ctl_next_answers_as_logged {
+    assert ctl_next(8) == 3;
+}
+
+; ctl_take: 2520 calls logged, 1 distinct
+test ctl_take_answers_as_logged {
+    assert ctl_take(8) == 0;
+}
+
+; death_reason: 6 calls logged, 1 distinct
+test death_reason_answers_as_logged {
+    assert death_reason(2) == 3;
+}
+
+; monitors_after_monitor: 48 calls logged, 1 distinct
+test monitors_after_monitor_answers_as_logged {
+    assert monitors_after_monitor(0) == 1;
+}
+
+; stopped_by_restart: 90 calls logged, 20 distinct
+test stopped_by_restart_answers_as_logged {
+    assert stopped_by_restart(2, 1, 0, true) == false;
+    assert stopped_by_restart(2, 1, 1, true) == false;
+    assert stopped_by_restart(2, 1, 2, true) == true;
+    assert stopped_by_restart(2, 1, 3, true) == true;
+    assert stopped_by_restart(2, 1, 4, true) == true;
+    assert stopped_by_restart(2, 2, 0, true) == false;
+    assert stopped_by_restart(2, 2, 1, true) == false;
+    assert stopped_by_restart(2, 2, 2, true) == false;
+    assert stopped_by_restart(2, 2, 3, true) == true;
+    assert stopped_by_restart(2, 2, 4, true) == true;
+    assert stopped_by_restart(2, 3, 0, true) == false;
+    assert stopped_by_restart(2, 3, 1, true) == false;
+    assert stopped_by_restart(2, 3, 2, true) == false;
+    assert stopped_by_restart(2, 3, 3, true) == false;
+    assert stopped_by_restart(2, 3, 4, true) == true;
+    assert stopped_by_restart(2, 4, 0, true) == false;
+    assert stopped_by_restart(2, 4, 1, true) == false;
+    assert stopped_by_restart(2, 4, 2, true) == false;
+    assert stopped_by_restart(2, 4, 3, true) == false;
+    assert stopped_by_restart(2, 4, 4, true) == false;
+}
+
+; restarted: 90 calls logged, 20 distinct
+test restarted_answers_as_logged {
+    assert restarted(2, 1, 0, 0, true) == false;
+    assert restarted(2, 1, 1, 0, true) == true;
+    assert restarted(2, 1, 2, 0, true) == true;
+    assert restarted(2, 1, 3, 0, true) == true;
+    assert restarted(2, 1, 4, 0, true) == true;
+    assert restarted(2, 2, 0, 0, true) == false;
+    assert restarted(2, 2, 1, 0, true) == false;
+    assert restarted(2, 2, 2, 0, true) == true;
+    assert restarted(2, 2, 3, 0, true) == true;
+    assert restarted(2, 2, 4, 0, true) == true;
+    assert restarted(2, 3, 0, 0, true) == false;
+    assert restarted(2, 3, 1, 0, true) == false;
+    assert restarted(2, 3, 2, 0, true) == false;
+    assert restarted(2, 3, 3, 0, true) == true;
+    assert restarted(2, 3, 4, 0, true) == true;
+    assert restarted(2, 4, 0, 0, true) == false;
+    assert restarted(2, 4, 1, 0, true) == false;
+    assert restarted(2, 4, 2, 0, true) == false;
+    assert restarted(2, 4, 3, 0, true) == false;
+    assert restarted(2, 4, 4, 0, true) == true;
+}
+
+; in_period: 156 calls logged, 134 distinct
+test in_period_answers_as_logged {
+    assert in_period(0, 300) == true;
+    assert in_period(15, 300) == true;
+    assert in_period(22, 300) == true;
+    assert in_period(37, 300) == true;
+    assert in_period(42, 300) == true;
+    assert in_period(47, 300) == true;
+    assert in_period(62, 300) == true;
+    assert in_period(67, 300) == true;
+    assert in_period(71, 300) == true;
+    assert in_period(81, 300) == true;
+    assert in_period(86, 300) == true;
+    assert in_period(96, 300) == true;
+    assert in_period(117, 300) == true;
+    assert in_period(130, 300) == true;
+    assert in_period(148, 300) == true;
+    assert in_period(172, 300) == true;
+    assert in_period(234, 300) == true;
+    assert in_period(241, 300) == true;
+    assert in_period(242, 300) == true;
+    assert in_period(249, 300) == true;
+    assert in_period(257, 300) == true;
+    assert in_period(274, 300) == true;
+    assert in_period(315, 300) == false;
+    assert in_period(322, 300) == false;
+    assert in_period(323, 300) == false;
+    assert in_period(337, 300) == false;
+    assert in_period(341, 300) == false;
+    assert in_period(342, 300) == false;
+    assert in_period(347, 300) == false;
+    assert in_period(362, 300) == false;
+    assert in_period(370, 300) == false;
+    assert in_period(371, 300) == false;
+    assert in_period(373, 300) == false;
+    assert in_period(417, 300) == false;
+    assert in_period(430, 300) == false;
+    assert in_period(448, 300) == false;
+    assert in_period(534, 300) == false;
+    assert in_period(549, 300) == false;
+    assert in_period(557, 300) == false;
+    assert in_period(574, 300) == false;
+    assert in_period(615, 300) == false;
+    assert in_period(622, 300) == false;
+    assert in_period(642, 300) == false;
+    assert in_period(647, 300) == false;
+    assert in_period(662, 300) == false;
+    assert in_period(665, 300) == false;
+    assert in_period(671, 300) == false;
+    assert in_period(717, 300) == false;
+    assert in_period(730, 300) == false;
+    assert in_period(739, 300) == false;
+    assert in_period(748, 300) == false;
+    assert in_period(799, 300) == false;
+    assert in_period(834, 300) == false;
+    assert in_period(849, 300) == false;
+    assert in_period(874, 300) == false;
+    assert in_period(915, 300) == false;
+    assert in_period(929, 300) == false;
+    assert in_period(942, 300) == false;
+    assert in_period(962, 300) == false;
+    assert in_period(1017, 300) == false;
+    assert in_period(1030, 300) == false;
+    assert in_period(1048, 300) == false;
+    assert in_period(1134, 300) == false;
+    assert in_period(1149, 300) == false;
+    assert in_period(1174, 300) == false;
+    assert in_period(1215, 300) == false;
+    assert in_period(1242, 300) == false;
+    assert in_period(1259, 300) == false;
+    assert in_period(1262, 300) == false;
+    assert in_period(1317, 300) == false;
+    assert in_period(1434, 300) == false;
+    assert in_period(1449, 300) == false;
+    assert in_period(1474, 300) == false;
+    assert in_period(1515, 300) == false;
+    assert in_period(1542, 300) == false;
+    assert in_period(1562, 300) == false;
+    assert in_period(1617, 300) == false;
+    assert in_period(1734, 300) == false;
+    assert in_period(1749, 300) == false;
+    assert in_period(1774, 300) == false;
+    assert in_period(1815, 300) == false;
+    assert in_period(1842, 300) == false;
+    assert in_period(1862, 300) == false;
+    assert in_period(1870, 300) == false;
+    assert in_period(2034, 300) == false;
+    assert in_period(2049, 300) == false;
+    assert in_period(2074, 300) == false;
+    assert in_period(2115, 300) == false;
+    assert in_period(2142, 300) == false;
+    assert in_period(2162, 300) == false;
+    assert in_period(2334, 300) == false;
+    assert in_period(2349, 300) == false;
+    assert in_period(2374, 300) == false;
+    assert in_period(2415, 300) == false;
+    assert in_period(2442, 300) == false;
+    assert in_period(2462, 300) == false;
+    assert in_period(2634, 300) == false;
+    assert in_period(2649, 300) == false;
+    assert in_period(2674, 300) == false;
+    assert in_period(2715, 300) == false;
+    assert in_period(2742, 300) == false;
+    assert in_period(2762, 300) == false;
+    assert in_period(2933, 300) == false;
+    assert in_period(2934, 300) == false;
+    assert in_period(2974, 300) == false;
+    assert in_period(3015, 300) == false;
+    assert in_period(3042, 300) == false;
+    assert in_period(3062, 300) == false;
+    assert in_period(3234, 300) == false;
+    assert in_period(3274, 300) == false;
+    assert in_period(3315, 300) == false;
+    assert in_period(3342, 300) == false;
+    assert in_period(3362, 300) == false;
+    assert in_period(3413, 300) == false;
+    assert in_period(3534, 300) == false;
+    assert in_period(3574, 300) == false;
+    assert in_period(3615, 300) == false;
+    assert in_period(3642, 300) == false;
+    assert in_period(3874, 300) == false;
+    assert in_period(3942, 300) == false;
+    assert in_period(4174, 300) == false;
+    assert in_period(4242, 300) == false;
+    assert in_period(4474, 300) == false;
+    assert in_period(4542, 300) == false;
+    assert in_period(4774, 300) == false;
+    assert in_period(4842, 300) == false;
+    assert in_period(5074, 300) == false;
+    assert in_period(5142, 300) == false;
+    assert in_period(5374, 300) == false;
+    assert in_period(5442, 300) == false;
+    assert in_period(5674, 300) == false;
+    assert in_period(5742, 300) == false;
+    assert in_period(5936, 300) == false;
+    assert in_period(6004, 300) == false;
+}
+
+; on_child_exit: 18 calls logged, 3 distinct
+test on_child_exit_answers_as_logged {
+    assert on_child_exit(0, 3, 0, 3) == 1;
+    assert on_child_exit(0, 4, 0, 3) == 1;
+    assert on_child_exit(0, 4, 1, 3) == 1;
+}
+
+; unstable_streak: 18 calls logged, 18 distinct
+test unstable_streak_answers_as_logged {
+    assert unstable_streak(0, 57) == 1;
+    assert unstable_streak(0, 67) == 1;
+    assert unstable_streak(0, 362) == 1;
+    assert unstable_streak(0, 373) == 1;
+    assert unstable_streak(0, 655) == 0;
+    assert unstable_streak(0, 799) == 0;
+    assert unstable_streak(0, 1259) == 0;
+    assert unstable_streak(0, 1262) == 0;
+    assert unstable_streak(0, 2933) == 0;
+    assert unstable_streak(0, 3014) == 0;
+    assert unstable_streak(0, 3413) == 0;
+    assert unstable_streak(0, 6034) == 0;
+    assert unstable_streak(0, 6933) == 0;
+    assert unstable_streak(0, 8434) == 0;
+    assert unstable_streak(1, 703) == 0;
+    assert unstable_streak(1, 739) == 0;
+    assert unstable_streak(1, 929) == 0;
+    assert unstable_streak(1, 3265) == 0;
+}
+
+; backoff_seconds: 18 calls logged, 2 distinct
+test backoff_seconds_answers_as_logged {
+    assert backoff_seconds(0) == 0;
+    assert backoff_seconds(1) == 10;
+}
+
+; with_backoff: 18 calls logged, 2 distinct
+test with_backoff_answers_as_logged {
+    assert with_backoff(1, 0) == 1;
+    assert with_backoff(1, 1) == 1;
+}
+
+; jittered_seconds: 18 calls logged, 7 distinct
+test jittered_seconds_answers_as_logged {
+    assert jittered_seconds(0, 2) == 0;
+    assert jittered_seconds(0, 3) == 0;
+    assert jittered_seconds(0, 4) == 0;
+    assert jittered_seconds(0, 5) == 0;
+    assert jittered_seconds(10, 2) == 8;
+    assert jittered_seconds(10, 3) == 10;
+    assert jittered_seconds(10, 5) == 8;
+}
+
+; turn_signal: 6 calls logged, 1 distinct
+test turn_signal_answers_as_logged {
+    assert turn_signal(300, 300) == 2;
+}
+
+; kill_effect: 6 calls logged, 1 distinct
+test kill_effect_answers_as_logged {
+    assert kill_effect(0) == 0;
+}
+
+; node_pid: 5 calls logged, 5 distinct
+test node_pid_answers_as_logged {
+    assert node_pid(0, 1, 0) == 4294967296;
+    assert node_pid(0, 2, 0) == 8589934592;
+    assert node_pid(0, 3, 0) == 12884901888;
+    assert node_pid(0, 4, 0) == 17179869184;
+    assert node_pid(0, 5, 0) == 21474836480;
+}
+
+; is_remote: 3529 calls logged, 49 distinct
+test is_remote_answers_as_logged {
+    assert is_remote(4294967297, 0) == false;
+    assert is_remote(8589934593, 0) == false;
+    assert is_remote(8589934594, 0) == false;
+    assert is_remote(8589934595, 0) == false;
+    assert is_remote(8589934596, 0) == false;
+    assert is_remote(8589934597, 0) == false;
+    assert is_remote(8589934598, 0) == false;
+    assert is_remote(12884901889, 0) == false;
+    assert is_remote(12884901890, 0) == false;
+    assert is_remote(12884901891, 0) == false;
+    assert is_remote(12884901892, 0) == false;
+    assert is_remote(12884901893, 0) == false;
+    assert is_remote(12884901894, 0) == false;
+    assert is_remote(12884901895, 0) == false;
+    assert is_remote(12884901896, 0) == false;
+    assert is_remote(12884901897, 0) == false;
+    assert is_remote(12884901898, 0) == false;
+    assert is_remote(17179869185, 0) == false;
+    assert is_remote(17179869186, 0) == false;
+    assert is_remote(17179869187, 0) == false;
+    assert is_remote(17179869188, 0) == false;
+    assert is_remote(17179869189, 0) == false;
+    assert is_remote(17179869190, 0) == false;
+    assert is_remote(17179869191, 0) == false;
+    assert is_remote(17179869192, 0) == false;
+    assert is_remote(17179869193, 0) == false;
+    assert is_remote(17179869194, 0) == false;
+    assert is_remote(17179869195, 0) == false;
+    assert is_remote(17179869196, 0) == false;
+    assert is_remote(17179869197, 0) == false;
+    assert is_remote(21474836481, 0) == false;
+    assert is_remote(21474836482, 0) == false;
+    assert is_remote(21474836483, 0) == false;
+    assert is_remote(21474836484, 0) == false;
+    assert is_remote(21474836485, 0) == false;
+    assert is_remote(21474836486, 0) == false;
+    assert is_remote(21474836487, 0) == false;
+    assert is_remote(21474836488, 0) == false;
+    assert is_remote(21474836489, 0) == false;
+    assert is_remote(21474836490, 0) == false;
+    assert is_remote(21474836491, 0) == false;
+    assert is_remote(21474836492, 0) == false;
+    assert is_remote(21474836493, 0) == false;
+    assert is_remote(21474836494, 0) == false;
+    assert is_remote(21474836495, 0) == false;
+    assert is_remote(21474836496, 0) == false;
+    assert is_remote(21474836497, 0) == false;
+    assert is_remote(21474836498, 0) == false;
+    assert is_remote(21474836499, 0) == false;
+}

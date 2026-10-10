@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9d4f04fdbcc2725b57c11c172c289e186e16a7a022c0d658c9d0feaed6b2bb83",
+  "gen_hash_rust": "sha256:27d6b2196610362e62e17f7e74d60a0a83f296764fe727bb2e508fff2cc12fa5",
+  "gen_hash_verilog": "sha256:68bd5fc09a830c02a638ddbc26ea8695ed4ecf4c454468a8fd7e569482567c8e",
+  "gen_hash_zig": "sha256:65e3d1cf82413aed365874702957b2fd7ead09be98515e5373eafef4e8124524",
+  "module": "uart_detect_top",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:14:55Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b10a702a2ba1ed84bb2cf954cc76e37175857ff0dab4e82028f01fc2badef987",
+  "spec_path": "specs/port/fpga/vivado/uart_detect_top.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

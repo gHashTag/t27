@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:71774250889709b6b4fe740676545f8554fbadd04968c4b10013bd82a8ecfd43",
+  "gen_hash_rust": "sha256:4fe5d06feff0e0ab3955fbbe1f75685f284b909b9372daa0a2bf50477c59389a",
+  "gen_hash_verilog": "sha256:420b7626ed72cd430ed16db238be0d5e69f836d986193c1672354f55da65b8af",
+  "gen_hash_zig": "sha256:2220bbd17fdd3e9ef1804a2363fb63f5f96f13dc8c921d8902a92ea9987a809c",
+  "module": "automation::mail_push",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:22:29Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b146315bec09e2c2ab8e14efb25a15d439ca4b76ef2ad7e0416157d120d83787",
+  "spec_path": "specs/automation/mail-push.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

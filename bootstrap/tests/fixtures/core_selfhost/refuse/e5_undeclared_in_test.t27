@@ -1,0 +1,5 @@
+// An undeclared name in a test (#8087).
+module undeclared_in_test;
+test uit_t {
+    assert(uit_nope == 0);
+}

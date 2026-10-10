@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:46c9a44a5963dd06fc64ae1409baa50ee7c17f910c54f1f6ebc5e557909a043c",
   "gen_hash_rust": "sha256:037c2e12221045ee9100325a6aaede6eba2628eb04c17548ae4efc8b704551a1",
   "gen_hash_verilog": "sha256:11c20d96dfbaba34e1323840a0fd10b4906d1407577a810f54f405f5d5226b77",
   "gen_hash_zig": "sha256:0b6190c51b16188fa2cdfde7e8266c286cb341eae441dcab25d4e202dd052d7b",
   "module": "VerifiedEvidenceChain",
   "ring": 12,
-  "sealed_at": "2026-10-06T07:04:52Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T15:00:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:661844eb29e69a6e548bdcef04fafff9e5ac7c0366f5f063f12f74d41c9d5fde",
   "spec_path": "specs/verified/evidence_chain.t27",
   "tests": {
@@ -15,5 +19,9 @@
     "forced": false,
     "passed": 9,
     "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -8,6 +8,11 @@ use std::default::Default;
 
 use serde::Serialize;
 
+// specs/compiler/verilog_aos_memory.t27 (#8151), lowered by `t27c gen-rust`; never hand-edit it.
+#[path = "../gen/rust/compiler/verilog_aos_memory.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod verilog_aos_memory;
+
 // ============================================================================
 // AST Node Types (from parser.t27)
 // ============================================================================
@@ -7715,7 +7720,7 @@ impl Codegen {
                 self.gen_expr(elem);
             }
         } else {
-            let txt = node.extra_size.trim();
+            let txt = if node.extra_type.is_empty() { node.extra_size.trim() } else { "" }; // typed: a dimension
             let mut depth = 0i32;
             let mut cur = String::new();
             let mut parts: Vec<String> = Vec::new();
@@ -10862,10 +10867,9 @@ impl Codegen {
                 // Emit Zig anonymous-list forms, which coerce to the typed
                 // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
                 let txt = node.extra_size.trim().to_string();
-                // No children and no element text is the EMPTY literal. Left
-                // to the comma-splitting path below it emitted `.{  }` with a
-                // phantom element.
-                if txt.is_empty() {
+                // No children and no element text, or a TYPED literal (whose extra_size is its dimension,
+                // `[_]S{}` -> `.{ _ }`, 17 specs), is the EMPTY literal; else `.{  }` had a phantom element.
+                if txt.is_empty() || !node.extra_type.is_empty() {
                     self.write(".{}");
                     return;
                 }
@@ -11231,6 +11235,8 @@ pub struct VerilogCodegen {
     // says so when the module is otherwise port-less; `t27c gen-verilog` reads
     // this to say it on stderr every time.
     entry_refusal: Option<String>,
+    // #8151: module-level arrays of structs held as memories (verilog_aos_memory.t27), by emitted name.
+    aos_memories: std::collections::HashSet<String>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -11284,6 +11290,7 @@ impl VerilogCodegen {
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
             entry_refusal: None,
+            aos_memories: std::collections::HashSet::new(),
         }
     }
 
@@ -12833,6 +12840,11 @@ impl VerilogCodegen {
         }
     }
 
+    /// #8151: `name` is a module-level memory here, not shadowed by a local or parameter.
+    fn is_aos_memory(&self, name: &str) -> bool {
+        self.aos_memories.contains(name) && !self.local_types.contains_key(name) && !self.param_types.contains_key(name)
+    }
+
     /// W527/W563: walk a chain of ExprIndex nodes rooted at a local
     /// array-of-struct identifier or a call returning an array of scalar structs,
     /// and emit the corresponding packed slice. `trailing_field` is Some("x")
@@ -12942,6 +12954,12 @@ impl VerilogCodegen {
             (0u32, elem_width, false)
         };
 
+        if current.kind == NodeKind::ExprIdentifier && self.is_aos_memory(&base_expr) {
+            let word = format!("{}[{}]", base_expr, linear);
+            let text = if trailing_field.is_some() { format!("{}[{} +: {}]", word, field_offset, field_width) } else { word };
+            self.write(&if signed && !self.in_lvalue { format!("$signed({})", text) } else { text });
+            return true;
+        }
         self.emit_packed_struct_element_slice(
             &base_expr,
             &linear,
@@ -13113,10 +13131,14 @@ impl VerilogCodegen {
                 }
                 expr
             };
+            if self.is_aos_memory(&base_expr) {
+                format!("{}[{}][({} + ({} * {})) +: {}]", base_expr, linear, field_offset, inner_idx, inner_w, inner_w)
+            } else {
             format!(
                 "{}[(({}) * {} + {} + ({} * {})) +: {}]",
                 base_expr, linear, elem_width, field_offset, inner_idx, inner_w, inner_w
             )
+            }
         } else {
             // Single scalar-struct base (or call temporary): no outer element
             // stride, just field offset + inner index * element width.
@@ -13193,6 +13215,7 @@ impl VerilogCodegen {
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
             entry_refusal: None,
+            aos_memories: self.aos_memories.clone(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -13241,6 +13264,10 @@ impl VerilogCodegen {
                 let mut rhs = String::new();
                 self.collect_expr_text(elem, &mut rhs);
                 self.write_indent();
+                if self.is_aos_memory(var) {
+                    self.write_line(&format!("{}[{}] = {};", var, idx, rhs));
+                    continue;
+                }
                 self.write_line(&format!(
                     "{}[({}) * {} +: {}] = {};",
                     var, idx, elem_width, elem_width, rhs
@@ -13415,6 +13442,7 @@ impl VerilogCodegen {
                     imported_enums: Vec::new(),
             imported_structs: Vec::new(),
             entry_refusal: None,
+            aos_memories: self.aos_memories.clone(),
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -15119,13 +15147,22 @@ impl VerilogCodegen {
 
         // W528: multi-dimensional arrays of scalar structs are lowered as a
         // single packed-vector register with procedural per-element init.
-        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+        if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
             if self.struct_decls.contains_key(&elem_type) {
                 let width = self.packed_width(&node.extra_type);
+                // #8151: verilog_aos_memory.t27 decides; a memory is one word per element, as W531 holds primitives.
+                let words: usize = dims.iter().product();
+                let call = node.children.first().map_or(false, |c| c.kind == NodeKind::ExprCall);
                 self.write_indent();
+                if verilog_aos_memory::aos_var_layout(call, words as u64) == verilog_aos_memory::AOS_MEMORY {
+                    let range = Self::range_decl(self.element_width(&elem_type));
+                    self.aos_memories.insert(Self::verilog_safe_identifier(&node.name));
+                    self.write_line(&format!("reg {}{}{}[0:{}];", range, if range.is_empty() { "" } else { " " }, node.name, words - 1));
+                } else {
                 self.write_line(
                     &format!("reg [{}:0] {};", width.saturating_sub(1), node.name),
                 );
+                }
                 if !node.children.is_empty() {
                     self.write_indent();
                     self.write_line("initial begin");

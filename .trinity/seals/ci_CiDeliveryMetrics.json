@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [
+    {
+      "spec": "specs/compiler/theory/toolchain.t27",
+      "spec_hash": "sha256:74fcddcd2e463ee4e0ca987c16fe9575691436d06c29aeb1cb2f52cef62077bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:875a6570b944c8ed6ae54f4d9a607ef779e70e350130a121f6348ce83859dd30",
+  "gen_hash_rust": "sha256:222812bcc72c1110d8f0977694793b0e50af64c043a1ec12070b74af18adde9f",
+  "gen_hash_verilog": "sha256:86cb2428615c3e1a28d78bdd45fd26d8de4e200968e887c99c54ab1eb7bcb833",
+  "gen_hash_zig": "sha256:7b202b4b88b785a22c8a530a107c218f450badbfee8a8d9733f8bf987793d5a5",
+  "module": "CiDeliveryMetrics",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:27:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d2bf894c11066e68be49c5b59075791a68d129aad71558b677d847aac0431d6e",
+  "spec_path": "specs/ci/delivery_metrics.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

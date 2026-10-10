@@ -1,0 +1,7 @@
+// A literal 1 where a bool is declared: Zig coerces a comptime integer only
+// to an integer (#8075).
+module integer_literal_into_bool;
+fn ilb_g() -> bool {
+    var f: bool = 1;
+    return f;
+}

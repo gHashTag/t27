@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d4cfe83d7918a3b8a9132264ec99e49b7723bf7c454b36da8ae69f7f9967d6e1",
+  "gen_hash_rust": "sha256:0d5f44eba8ae371cd93800bdc4812385aaba05e9a1740e1bfe0e9b415be22ed2",
+  "gen_hash_verilog": "sha256:3773671971a8226c056e9b46fcf648b1dc1af0f8ef8c04ea645a20e3cb5c317d",
+  "gen_hash_zig": "sha256:94f8ed1362e77049a85094c03a9c804d319b023398a93f2d01b00b1db90556b6",
+  "module": "port::scripts::git_commands_tasks_1_4",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:16:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:494c00913ba0fa33d7600434b2855f9633e0ee051ae45a5d7df10e338fea2c31",
+  "spec_path": "specs/port/scripts/git_commands_tasks_1_4.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

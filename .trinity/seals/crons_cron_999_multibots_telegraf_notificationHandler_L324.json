@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:867c58489b973da88996cf8e9e7d9d04da2e55d5d1060f3fd05347059c5aaa9e",
+  "gen_hash_rust": "sha256:8c093bfae2b1e6b227181385727f46daa83ce8b2e6dd570f90bdb8e7b98ce757",
+  "gen_hash_verilog": "sha256:4406536603fd834ba1afefc440b54f11544242d8838dff2ab9978b51de95a009",
+  "gen_hash_zig": "sha256:37d0ce6048c55f48fdc9264c32e51f8efee60c46b5e448ef342c7349d3c14e04",
+  "module": "cron_999_multibots_telegraf_notificationHandler_L324",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:32:07Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cb3d81a772de36e0761494d4613876d5ae9aa06e1e406af5d2159050468fa45d",
+  "spec_path": "specs/crons/999-multibots-telegraf-notificationHandler-L324.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

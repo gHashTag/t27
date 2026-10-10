@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0ad2a2f69ebf817bb184466d9213b4d02b73fa57e1992ee0bfd920438c2db7a8",
+  "gen_hash_rust": "sha256:fe02c4e570a6431b7c1f685fe431f874669007f27d15f6ef2151b0f520657f31",
+  "gen_hash_verilog": "sha256:8d8dc8d69032e964bdd6448239214edbb30d8a556d4b77614d70d806d44f8633",
+  "gen_hash_zig": "sha256:970161d217aadb8f01cbce6caf6e879be9fb5d9f3c41afcd80e2946ee2d9b1c9",
+  "module": "port::tri::string_dualities",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:21:58Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:0e0eb389970eb0fabb4f9bf55b500a96ee25fc1bc1c2843bcb463e6d1096bb0d",
+  "spec_path": "specs/port/trinity/src/tri/string_dualities.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

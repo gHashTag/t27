@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d86bce7623ebdd2f11a7da62343e4d46248a1acaecfc6ffcdb0f2dc0bc093976",
+  "gen_hash_rust": "sha256:256fddb974fbdff5032afe9151f50e3d8b20d8be53d05e8f06bb32f596d369ae",
+  "gen_hash_verilog": "sha256:96d521b7682f505a1fc9b5579ecfcfcc34ca435a9c2a8de89d39dee6a3777a72",
+  "gen_hash_zig": "sha256:3e13724243cf06cf6633c43ba0ec0723766e46323a45a7c4b744eaa70b0f2b6f",
+  "module": "port::trinity::src::vibeec::p2p_module",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:06Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7584585f1e07117ec65953fb518a7d50964960e6c97b698ee3382bfcd554d446",
+  "spec_path": "specs/port/trinity/src/vibeec/p2p_module.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

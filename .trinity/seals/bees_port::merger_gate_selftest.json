@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b4d48b3a7647f3a4305180aadadcf63d7915ebe571d680f345bd197fe920456d",
+  "gen_hash_rust": "sha256:b7901d59e76bbc22647ce8103728f41d3b3995958928c7ef501a0874b4abbdf3",
+  "gen_hash_verilog": "sha256:3b7d0f784e525dfb424947f50897968ddd1f2a382f7cbe8face746163e0d1818",
+  "gen_hash_zig": "sha256:8a4a3151d266677dadeeb24b339c88c33742883921c4d29e3efae5b176faf80e",
+  "module": "port::merger_gate_selftest",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:17:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:bbfbe2a3116c0e51f169e1824534e4b7e2dcd32025773304d2b4b57c2141ac5c",
+  "spec_path": "specs/port/tools/bees/merger_gate_selftest.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

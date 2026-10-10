@@ -22,8 +22,18 @@
 //   a 256-bit ladder of add/double with conditional swaps.
 // - scalars mod L = 2^252 + 27742317777372353535851937790883648493 are
 //   reduced from 64 signed limbs of 8 bits (TweetNaCl modL).
-// Constant time is not a goal of this spec (verification handles public
-// data), but the masked selects stay in place so the shape is TweetNaCl's.
+// No constant-time claim. This spec makes none, and nothing checks it:
+// no timing measurement, no review of the generated Zig, Rust, C or
+// Verilog for secret-dependent branches, indexing or variable-latency
+// instructions. Verification only touches public data, but sign and
+// public_key handle the secret seed and its expanded scalar, so a host
+// whose timing an attacker can observe should not sign with this code.
+// The masked selects (fe_pick, pt_pick) stay because that is TweetNaCl's
+// shape, not because they are a guarantee. Functional evidence (#8041):
+// all 151 Wycheproof ed25519_test.json cases (88 valid, 63 invalid, no
+// acceptable cases in that file) match, and 100000 random sign/verify
+// cases with mutated keys, signatures and messages agree byte for byte
+// with ed25519-dalek (verify_strict) and, on 20000 of them, OpenSSL.
 //
 // Verification is RFC 8032 section 5.1.7, strict where TweetNaCl is lax:
 // S must be below L (5.1.7: S out of range makes the signature invalid,

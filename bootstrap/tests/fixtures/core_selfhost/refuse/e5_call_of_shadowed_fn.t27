@@ -1,0 +1,10 @@
+// A local shadows the function, so C calls the local; gen-zig renames it
+// (#8088).
+module call_of_shadowed_fn;
+fn csf_h() -> i64 {
+    return 1;
+}
+fn csf_g() -> i64 {
+    var csf_h: i64 = 2;
+    return csf_h() + csf_h;
+}

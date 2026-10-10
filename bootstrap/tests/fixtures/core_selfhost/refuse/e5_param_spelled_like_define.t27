@@ -1,0 +1,6 @@
+// `#define PSD_F 1` rewrites the parameter's name in C (#8088).
+module param_spelled_like_define;
+const PSD_F: bool = true;
+fn psd_g(PSD_F: bool) -> bool {
+    return PSD_F;
+}

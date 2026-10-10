@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5978e904ed6d0c92e7619f1aff49ca87aa850cb8e7f694c8c21593695bc53dc6",
   "gen_hash_rust": "sha256:3bed404c90a32a9be604f91962a2a0932a4e80b77e3a24d8155f3abaf9e0dc8f",
   "gen_hash_verilog": "sha256:e09a50d081f1e23a5ced4ba130cc4d921eaa9ed7915b0bfc327180b379e9311f",
   "gen_hash_zig": "sha256:660133ee6fd6b395c0c790927a8e74ec8f6a3a64a6fc8ab1447765ebb5a8d66b",
   "module": "trinity-numeric-surface",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:11:52Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:77566dd023604fbac7e5faed2a768ddb4e05c21c50d05569b2bebd5be2c61579",
-  "spec_path": "specs/numeric/trinity_numeric_surface.t27"
+  "spec_path": "specs/numeric/trinity_numeric_surface.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

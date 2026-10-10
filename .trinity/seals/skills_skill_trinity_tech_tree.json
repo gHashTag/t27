@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:41a286c4e06f152d09332c1693093663965b11abba2924c48ab8168e4cca64b2",
+  "gen_hash_rust": "sha256:d874e1a84caca17ab76e3b1bb5a65f611d54cf2b102a1d05371dba419eaae383",
+  "gen_hash_verilog": "sha256:9d5590ccb855f5b3884bf1264522e37c52ed2cbb00db66f2c50bbbb67a3cc338",
+  "gen_hash_zig": "sha256:710f5885c2c5d1946b74944d2f23e56cb0dbd449c975efc278a6b42851de3b5c",
+  "module": "skill_trinity_tech_tree",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:28:20Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5d4397246ac8d9138dfb1f090e8b2cd725bdc51c3feb9458c9a40cd94e249fca",
+  "spec_path": "specs/skills/trinity-tech-tree.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

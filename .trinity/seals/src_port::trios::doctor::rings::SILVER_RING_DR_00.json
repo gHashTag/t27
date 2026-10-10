@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:cae4915d04bf45f1bc41342e767d7e5a97aaa62690325cce66b2c10b65b60dd9",
+  "gen_hash_rust": "sha256:9659f88b2869ef004f78c7d5aee4ca686991c2f409011f65b76a4639dd5a7fc5",
+  "gen_hash_verilog": "sha256:952ad2827d5c7821cf410a6c30cc6e14b2c6da0a0987ab40ee68b657c5b01f21",
+  "gen_hash_zig": "sha256:cec44181646041557bd9755f734316b1729310188a82d8e046cef72879cce282",
+  "module": "port::trios::doctor::rings::SILVER_RING_DR_00",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:23:18Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6a7e8e422c54b9bb03ff53dfe609f053e1e53149a524bf40d8a403e3a17bd7d1",
+  "spec_path": "specs/port/trios/crates/trios-doctor/rings/SILVER-RING-DR-00/src/lib.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

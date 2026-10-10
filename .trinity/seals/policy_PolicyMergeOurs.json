@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:7710aea621bce0988aa187c941a6b3a00ce0c0b66e29aa9da99a52471eb206e9",
+  "gen_hash_rust": "sha256:f57179c508c64e343a0f4f182f979fc7b801b1dd20f4188f4dc6be13223b1946",
+  "gen_hash_verilog": "sha256:274d150ba57647d08f9c9d81763e1eaa4b5709201b8f59fa1b294031532e7094",
+  "gen_hash_zig": "sha256:69dbcb9118b6c75b0a9c75b051d96ce63018364118b60b06729769f3b1e87526",
+  "module": "PolicyMergeOurs",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e17f4f84da879a34a8ce263a5d6792ad3b54553332e53c777035f630a00264e6",
+  "spec_path": "specs/policy/merge_ours.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

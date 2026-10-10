@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0
+// Port of scripts/gen_w311.py (issue #7768).
+// The original appends a block to every IGLA race/coder spec: it takes the last two
+// tests plus the invariant that follows them and rewrites the wave suffix to _w311.
+// The decisions in it are (1) which lines of a file form that block, and (2) which
+// occurrences of _w308/_w309/_w310 are rewritten. Reading the files, joining text and
+// appending to them is plumbing.
+module port::scripts::gen_w311;
+
+use port::scripts::gen_w_blocks;
+
+// line_end, line_starts_with, is_blank, ends_block, get_last_block and their tests live in
+// gen_w_blocks.t27, shared by the seven gen_w ports.
+
+// Which old wave number a suffix at position i is: 308, 309 or 310, else 0.
+fn wave_suffix_at(line: str, i: usize) -> u32 {
+    return wave_suffix_from(line, i, 308);
+}
+
+// transform_block(line): how many suffixes the original rewrites to _w311 in one line
+// (each match is 5 characters and contains no '_' after the first, so none overlap).
+fn transform_block(line: str) -> u32 {
+    return transform_block_from(line, 308);
+}
+
+// Plumbing: globs the spec files and appends to them; no test calls it.
+fn process_specs() -> u32 {
+    undefined;
+}
+
+test old_wave_suffixes_are_recognised {
+    assert(wave_suffix_at("a_w308b", 1) == 308);
+    assert(wave_suffix_at("a_w309b", 1) == 309);
+    assert(wave_suffix_at("a_w310b", 1) == 310);
+    assert(wave_suffix_at("a_w311b", 1) == 0);
+    assert(wave_suffix_at("a_w3", 1) == 0);
+}
+
+test transform_counts_rewrites {
+    assert(transform_block("hello_w311_world") == 0);
+    assert(transform_block("foo_w310_bar_w309_baz") == 2);
+    assert(transform_block("x_w308") == 1);
+    assert(transform_block("") == 0);
+}

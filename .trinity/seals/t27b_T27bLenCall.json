@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:4726410654f3284cde9cfdbbe490190bec24b750fd7a5adb1872ac4942936012",
+  "gen_hash_rust": "sha256:3833c505a29f2469cf747015490edf50ee801b725abec51f5c3e011485d3e5c9",
+  "gen_hash_verilog": "sha256:aed4fc9345fd330a7588857cb85e7fb4940ef895c0c82ba8b2c174406dab2b7b",
+  "gen_hash_zig": "sha256:88a1f58ec96503ca288ed940f10c6ad674ade72d5527709ec92af5862df12583",
+  "module": "T27bLenCall",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:34:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cd96118cc21422d2d5aaeab4ee725b010dece8b05d07fed2ed09275bb2874686",
+  "spec_path": "specs/tri/t27b/lencall.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

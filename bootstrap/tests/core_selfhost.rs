@@ -129,7 +129,7 @@ const FIXTURES: &[&str] = &[
      fn empty() -> void {\n}\n\
      pub fn sign(x: i64) -> i64 {\n    if (x > 0) {\n        return 1;\n    } else if (x < 0) {\n        return -1;\n    } else {\n        return 0;\n    }\n}\n\
      fn loop_(n: usize, k: u16) -> bool {\n    var i: usize = 0;\n    while (i < n) {\n        if (i == 3) {\n            break;\n        }\n        if (i == 1) {\n            continue;\n        } else {\n        }\n        i = i + 1;\n    }\n    return !(i >= n) and ~k != 0 or false;\n}\n\
-     fn ops(a: i32, b: u64) -> u32 {\n    var c: i16 = (a << 2 >> 1 | 3 ^ 5 & 7) as i16;\n    empty();\n    return (a % 3 + b / 2 - c * 1) as u32;\n}\n",
+     fn ops(a: i32, b: i64) -> u32 {\n    var c: i16 = (a << 2 >> 1 | 3 ^ 5 & 7) as i16;\n    empty();\n    return (a % 3 + b / 2 - c * 1) as u32;\n}\n",
     "module tested;\n\
      fn twice(x: i64) -> i64 {\n    return x * 2;\n}\n\
      test doubles {\n    var r: i64 = twice(4);\n    r = r + 1;\n    assert(r == 9);\n    assert_eq(twice(1), 2);\n}\n\
@@ -163,7 +163,7 @@ const FIXTURES: &[&str] = &[
      test filled {\n    assert(sev[0] == 7);\n    assert(sev[3] == 7);\n    assert(five[3] == 5);\n\
      \x20   assert(z3[2] == 0);\n    assert(hx[1] == 16);\n    assert(hz[1] == 0);\n}\n",
     "module c;\n; prose line at column 1\n/* block /* nested */ still comment */\n# hash comment\n\
-     fn f(a: u8) -> u8 {\n    return a && 1 || '\\n' == '\\'';\n}\n",
+     fn f(a: bool) -> bool {\n    return a && true || '\\n' == '\\'';\n}\n",
 ];
 
 /// Shapes gen-c lowers with loss, and the code the core refuses them with.

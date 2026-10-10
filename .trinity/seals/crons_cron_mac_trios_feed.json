@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b091b633e33b752cee19f360d98c4087face546453f9c1ab274cc422b32e436f",
+  "gen_hash_rust": "sha256:4416eb89b2a74dadb303fae0b33ef82434f0f96c8737647b3c10384f8069db9f",
+  "gen_hash_verilog": "sha256:1bdbe8d5f8949d8bfdb798d023fa41453e9ee66885b69d551efed91a2ea33d4b",
+  "gen_hash_zig": "sha256:978a1f405433c4f43c17e987ef6ee4a214c3dedad59f7621c9615ad4ad20768a",
+  "module": "cron_mac_trios_feed",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:37:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2170779278dddcaebdeb3384eb4dc3e274a3f4bd47f04b26aae3c2652e1033ed",
+  "spec_path": "specs/crons/mac-trios-feed.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

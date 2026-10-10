@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:04e63b769c4d7a045ced53f86e797ad29ff7271850bc00ecfde715dc44882e86",
+  "gen_hash_rust": "sha256:85d81ed1bbb499563cc468398a25a8bfa24bd6598ecbee1a0b5080fbdfff0902",
+  "gen_hash_verilog": "sha256:a5e22df7fbedc2f604c0f8314cada42725dadec137f7b401015904f9e4236e0c",
+  "gen_hash_zig": "sha256:5c21491c43edee1f9061f17a35db7434367070c3117d7c593e9dd0c0f8cd50d7",
+  "module": "T27bConformanceFloatSqrt",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d39acdf5837ec95ced186705d9c6a6740b383a7170503f5721fc8d13f44bf031",
+  "spec_path": "specs/tri/t27b/conformance/float_sqrt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

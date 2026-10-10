@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b364c4eb32084b67916abe45cb2fa3b592e78aa3cef0764130db5432d79dea99",
+  "gen_hash_rust": "sha256:e0a928b2a1ef1c3d23d031fac328315bec06ccf2471580ffb4d2c9a22824f235",
+  "gen_hash_verilog": "sha256:4aeabd7c1379904640019e8a4b64e5774b948b499fde114010bd6d574a10194b",
+  "gen_hash_zig": "sha256:2c25765963c8d537d7b4278d17c12352ed5f0d5d868a91b674f3905071c60e2e",
+  "module": "port::browseros::trios::agent_server::apps::server::src::lib::db::retry",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:13:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:cb9dae4005f7dc8e3af3788165cccae23efba4bea25e6443ffd18af3ed11b96d",
+  "spec_path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/db/retry.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

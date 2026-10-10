@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:06bef2369cfbc73eb505925ed5834f5bc915cac5aeed840638e40336bd5fa343",
+  "gen_hash_rust": "sha256:7e3cc160a7aa8a7eaed296ffc008c77b40df256270ff3d071d8b9dc641fa4dc2",
+  "gen_hash_verilog": "sha256:705857124fc6ebfaba7afb6c6bb8c2d70c271e7e604e1eb16ef54c119a933f0b",
+  "gen_hash_zig": "sha256:875d22a46e77d641e274fb3aee7ececa50def5632effcc57b91d56d48d8ce153",
+  "module": "cron_mac_jobsearch_poller",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:34:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:1cc98802f2efa0cd0bf9ca0f3e22eab28d77b7c99b6b8dddff94dac88eed0db4",
+  "spec_path": "specs/crons/mac-jobsearch-poller.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

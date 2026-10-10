@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f0b68b9c2d01d70d99bf51afce1dc17172f6532e4572e18d310ec425ebfd387b",
+  "gen_hash_rust": "sha256:7687a1c06c2aa284b29094e85abc117ea4aae454e74272acf8161c352b85b3f4",
+  "gen_hash_verilog": "sha256:ba4ca0d452496d9f1112c39e661657e0e94293dbf44a14975dd30cbde26c10a6",
+  "gen_hash_zig": "sha256:c97f52de0bf81c67349ee974c5a6b39662f65c2a20a396c60f97049eaf4af6e3",
+  "module": "skill_t27_tri_pipeline",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:40Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f98caab5463cfed47bc0d3ebca12589a0728093aef79672cf9a29f40b135bdca",
+  "spec_path": "specs/skills/t27-tri-pipeline.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

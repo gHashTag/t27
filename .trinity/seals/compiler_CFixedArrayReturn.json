@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:b647729031de3d251807120d393eb8d9e15dafc64facd2a7fd55ad88b3d246c3",
+  "gen_hash_rust": "sha256:ef40202f55e6887b0f5c8d39dc2f367ca217f55ab3231e417468e4477638b26e",
+  "gen_hash_verilog": "sha256:f36b4ce19073aae38e67ac023f2f274db1c743ee32c579e6f9aacbb3a3b24a22",
+  "gen_hash_zig": "sha256:8f40b1dd904d6266e906440e22a32fcd311972998cb8a254e81c2a3def527add",
+  "module": "CFixedArrayReturn",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T20:28:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:12c7674c2486bd85d302e838c7414459914c311932bedc6674a4189fc3c488fe",
+  "spec_path": "specs/compiler/c_fixed_array_return.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

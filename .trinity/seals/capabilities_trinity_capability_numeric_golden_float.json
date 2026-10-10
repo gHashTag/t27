@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e4bbae7cd5df1afa7cf337a0e2e43645b175934d215a2be76bb59088e7daba32",
   "gen_hash_rust": "sha256:476d6397c753569127c528064b93636e1738230e0ebe36be0f486932ec526a67",
   "gen_hash_verilog": "sha256:b2101e62087f0db8c538d44309462ae34cf0ff3de50eae2c527d2760d91910c7",
   "gen_hash_zig": "sha256:6968401aac795f10463409e7713a08b65c2fcf7815c1bdc67044fb8c79f02d65",
   "module": "trinity_capability_numeric_golden_float",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:36:01Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:45af6aee6801336077dc92898917fdea1ea9ef5c6e9283fd2868d9e3714cf91c",
-  "spec_path": "specs/trinity/capabilities/numeric.golden-float.t27"
+  "spec_path": "specs/trinity/capabilities/numeric.golden-float.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

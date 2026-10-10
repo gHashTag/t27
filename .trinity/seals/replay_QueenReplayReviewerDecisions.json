@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:437a704090bc57f9f829ca2ea3dd79a81ef3b2b02732a7ae99e2ad9c454581bb",
+  "gen_hash_rust": "sha256:97bd4a291098516a5c34ef923b3c4a489d08938029dd9662f6f10a36217c0d33",
+  "gen_hash_verilog": "sha256:1d6657e6fa1bdd99ff4a26eab38268f463d0b241b7e406e551ee65d74a080af7",
+  "gen_hash_zig": "sha256:a14e8313650b8eedc48cd380e3c4ab74ebbf34e1d526c82efb86fe149feb3532",
+  "module": "QueenReplayReviewerDecisions",
+  "ring": 12,
+  "sealed_at": "2026-10-09T20:00:08Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:0bcd90f84d67b0b6566564143726f8d74e0166db0afc91241eb46f5bbdef376b",
+  "spec_path": "specs/queen/replay/reviewer_decisions.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
+}

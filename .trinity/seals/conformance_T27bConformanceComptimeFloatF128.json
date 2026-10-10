@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:1e9a2a70d27c0230d86d1099158f4b9c73e8cf47bb800d8402f17f053573d0d7",
+  "gen_hash_rust": "sha256:88d68847be2307b010a10ecef8ff3eb8f64b229470dcdf140e59eebb26af1916",
+  "gen_hash_verilog": "sha256:ef3d96a2d0e79e382ad393eeefc024867cded10f629bd896abdb3893640d7c8b",
+  "gen_hash_zig": "sha256:491c2f7eb2ac2a040874e19699bcedafff2aede7d3e2ed3e365e7768c67dacd2",
+  "module": "T27bConformanceComptimeFloatF128",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:00Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:fc341c2d24c67b6d6c3783e95f24ae3639f989383bbb7597bf04a8ad6130633e",
+  "spec_path": "specs/tri/t27b/conformance/comptime_float_f128.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,10 @@
+// typecheck does not look at an assignment value (#8033).
+module arity_in_assignment;
+fn aia_f(a: i64) -> i64 {
+    return a;
+}
+fn aia_g() -> i64 {
+    var x: i64 = 0;
+    x = aia_f(1, 2);
+    return x;
+}

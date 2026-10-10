@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/blink_r23.t27
+// FPGA component for Trinity S³AI — synthesizable Verilog module.
+// Ports the original blink_r23.v to T27 specification
+// Implements a 26-bit counter with LED output on bit 25 (active-low)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinity_top {
+
+    // === Module interface ===
+    
+    pub struct BlinkInterface {
+        clk : bool,
+        led : bool,
+    }
+    
+    // === LED control logic ===
+    
+    fn led_output(clock_count: u32) -> bool {
+        // Original: assign led = ~counter[25];
+        // The LED output is the inverse of bit 25 of the 26-bit counter
+        // Simulate the 26-bit counter behavior
+        var bit25_value : u32 = clock_count / (1 << 25);  // Divide by 2^25
+        var bit25_toggled : bool = (bit25_value % 2) == 1;  // Check if odd/even
+        
+        // LED is active-low, so invert the bit
+        return !bit25_toggled;
+    }
+    
+    fn compute_blink_output(clk: bool, clock_count: u32) -> BlinkInterface {
+        return BlinkInterface{
+            .clk = clk,
+            .led = led_output(clock_count),
+        };
+    }
+    
+    // === Tests ===
+    
+    test led_initial_state
+        // At clock cycle 0, bit 25 = 0, LED = ~0 = 1 (ON)
+        given count = 0
+        then led_output(count) == true
+    
+    test led_after_half_period
+        // At clock cycle 2^25 = 33,554,432, bit 25 = 1, LED = ~1 = 0 (OFF)
+        given half_period = 1 << 25  // 33,554,432
+        then led_output(half_period) == false
+    
+    test led_after_full_period
+        // At clock cycle 2^26 = 67,108,864, bit 25 = 0 again, LED = ~0 = 1 (ON)
+        given full_period = 1 << 26  // 67,108,864
+        then led_output(full_period) == true
+    
+    test compute_output_with_clk
+        given output = compute_blink_output(true, 0)
+        then output.clk == true
+        and output.led == true
+    
+    test compute_output_without_clk
+        given output = compute_blink_output(false, 0)
+        then output.clk == false
+        and output.led == true
+    
+    test blink_pattern_consistency
+        // Test that the LED toggles every 2^25 clock cycles
+        given period = 1 << 25
+        then led_output(0) == true      // Start: LED ON
+        and led_output(period) == false  // Half period: LED OFF
+        and led_output(period * 2) == true  // Full period: LED ON again
+    
+    // === Invariants ===
+    
+    invariant led_always_boolean
+        then led_output(0) == true or led_output(0) == false
+    
+    invariant clk_preserved
+        given output = compute_blink_output(true, 0)
+        assert output.clk == true
+    
+    invariant active_low_behavior
+        // LED should be ON (true) when bit 25 is 0, OFF (false) when bit 25 is 1
+        given period = 1 << 25
+        assert led_output(0) == true      // bit25=0 -> LED=1 (ON)
+        and led_output(period) == false  // bit25=1 -> LED=0 (OFF)
+    
+    // === Benchmarks ===
+    
+    bench led_output_latency
+        measure: nanoseconds to led_output(0)
+        target: < 1ns
+    
+    bench compute_output_latency
+        measure: nanoseconds to compute_blink_output(true, 0)
+        target: < 10ns
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY

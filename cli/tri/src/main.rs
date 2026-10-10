@@ -41,6 +41,8 @@ mod prcheck;
 mod prose;
 mod quant;
 mod red;
+#[path = "../../../gen/rust/tri/test/report.rs"] #[allow(dead_code, unused_parens)]
+mod report; // t27c gen-rust of specs/tri/test/report.t27 (#7369): every rule of reading `t27c test-report`
 mod renum;
 mod reseal;
 mod rtl;
@@ -113,8 +115,12 @@ enum Commands {
     Gen {
         spec_path: String,
     },
+    /// Run a .t27 spec's tests with `t27c test-report` and fail unless every test passed and at least one ran (rules: specs/tri/test/report.t27).
     Test {
         spec_path: String,
+        /// The t27c binary; default target/release/t27c, then t27c on PATH.
+        #[arg(long)]
+        t27c: Option<String>,
     },
     Verdict {
         #[arg(long)]
@@ -879,10 +885,37 @@ fn cmd_gen(spec_path: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_test(spec_path: &str) -> Result<()> {
-    run_t27c(&["test", spec_path])?;
-    println!("tests passed: {}", spec_path);
+/// `t27c test` only lists the tests (#7369); they run in `t27c test-report`, which exits 0 when one FAILs (#7370).
+fn cmd_test(spec: &str, t27c: Option<&str>) -> Result<()> {
+    let (t, v) = test_report(&mutate::resolve_t27c(t27c), Path::new(spec), false)?;
+    println!("{t}{}", report_summary(t));
+    anyhow::ensure!(report::passes(v), "{spec}: {}", report::why(v));
     Ok(())
+}
+
+/// Run `<t27c> test-report <spec>`; the verdict is report.t27's, from the text and whether t27c exited 0.
+pub(crate) fn test_report(t27c: &str, spec: &Path, verbose: bool) -> Result<(&'static str, u8)> {
+    let out = Command::new(t27c).arg("test-report").arg(spec).args(verbose.then_some("--verbose")).stderr(std::process::Stdio::inherit()).output().with_context(|| format!("cannot start `{t27c} test-report`"))?;
+    let text: &'static str = String::from_utf8_lossy(&out.stdout).into_owned().leak(); // gen-rust's `string` is `&'static str` (#7449)
+    Ok((text, report::verdict(text, out.status.success())))
+}
+
+/// The report's names of one kind (FAIL, pass, or the BLOCKED why), joined.
+pub(crate) fn report_names(t: &'static str, k: u8) -> String {
+    (0..report::count(t, k)).map(|n| &t[report::name_from(t, k, n)..report::name_to(t, k, n)]).collect::<Vec<_>>().join(", ")
+}
+
+/// The one greppable line: `tests: N, pass: P, fail: F (names)`, or `, BLOCKED: <why>`.
+pub(crate) fn report_summary(t: &'static str) -> String {
+    let (b, f, n) = (report_names(t, report::LINE_BLOCKED), report_names(t, report::LINE_FAIL_NAME), |k| report::total(t, k));
+    let tail = if !b.is_empty() { format!(", BLOCKED: {b}") } else if !f.is_empty() { format!(" ({f})") } else { String::new() };
+    format!("tests: {}, pass: {}, fail: {}{tail}", n(report::LINE_TESTS), n(report::LINE_PASS), n(report::LINE_FAIL))
+}
+
+#[test] // the glue's one line over report.t27's reading: the #7400 demo's red report, and a BLOCKED one
+fn the_summary_line_names_what_the_report_names() {
+    assert_eq!(report_summary("  FAIL  negz\n\n  tests       4\n  pass        3\n  FAIL        1\n"), "tests: 4, pass: 3, fail: 1 (negz)");
+    assert_eq!(report_summary("  BLOCKED  zig: error: x \n\n  A blocked spec\n"), "tests: 0, pass: 0, fail: 0, BLOCKED: zig: error: x");
 }
 
 fn cmd_verdict(toxic: bool) -> Result<()> {
@@ -1056,7 +1089,7 @@ fn main() -> Result<()> {
             }
         }
         Commands::Gen { spec_path } => cmd_gen(spec_path)?,
-        Commands::Test { spec_path } => cmd_test(spec_path)?,
+        Commands::Test { spec_path, t27c } => cmd_test(spec_path, t27c.as_deref())?,
         Commands::Verdict { toxic } => cmd_verdict(*toxic)?,
         Commands::Experience { action } => {
             let root = find_trinity_root()?;

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:fbd228ce356fbe87b9fd9231e0a2c1a9a3bb14a5a533bba4454b98e956daa777",
+  "gen_hash_rust": "sha256:3e0c09c2183a8b5cf624852b39912fc57b69dda0d221260e2f6d25b0870c2e21",
+  "gen_hash_verilog": "sha256:6c0dd25aa9d7b9d3ef9f27b5ecbaa24e2d6347625aae16a3be1418a2e1d0e6e3",
+  "gen_hash_zig": "sha256:43f31ef53c79170d79d31270431566f06bd9813055a37811bb27b59be11516f6",
+  "module": "port::hir_bus_port_axi4_lite_slave",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:41Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:9cdb4e902a9a74e009c175a0d9fc52351eef82668d1694b6c37a85698c9b2bfc",
+  "spec_path": "specs/port/bootstrap/src/compiler/HirBusPort_axi4_lite_slave.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 23,
+    "total": 23
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

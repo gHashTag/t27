@@ -1,0 +1,8 @@
+// Two tests of one name: one C function `test_dt_t` twice (#8088).
+module duplicate_test;
+test dt_t {
+    assert(true);
+}
+test dt_t {
+    assert(true);
+}

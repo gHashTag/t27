@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:7a2743b84c76dd84fc0f7136fef248f154b5ba6df708face03c60fbdeeeaa522",
+  "gen_hash_rust": "sha256:7cd793a5a31ec07419bf1eac398b3d1a2899e8bd627436e0acd0b3861ce9bdc1",
+  "gen_hash_verilog": "sha256:c7c4c36254b42b485649105323bfe8f11de0a2669b23a4829d3a10c45d9fc34b",
+  "gen_hash_zig": "sha256:5d69917fca43e37c74bdcc031b538c6813415945af464fce19358734c66a14b6",
+  "module": "tool_tri_vsim",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T14:56:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e81efc340e905e685db8b163810ca15dd08b1cf0e5915a971bd464db3052b2b7",
+  "spec_path": "specs/tools/tri/vsim.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

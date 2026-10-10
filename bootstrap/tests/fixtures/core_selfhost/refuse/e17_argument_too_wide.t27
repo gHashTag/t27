@@ -1,0 +1,8 @@
+// A constant argument too wide for its parameter (#8098).
+module argument_too_wide;
+fn atw_h(x: u8) -> u8 {
+    return x;
+}
+fn atw_g() -> u8 {
+    return atw_h(300);
+}

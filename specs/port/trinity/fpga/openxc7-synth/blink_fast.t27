@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/blink_fast.t27
+// Port of gHashTag/trinity fpga/openxc7-synth/blink_fast.v (fc914dbaa7ab)
+// Strand III: Language & Hardware Bridge
+// Very fast blink - should be visible blur
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinity_top {
+
+    // === Counter geometry, from the original's own comments ===
+    // 16-bit counter = 65536 cycles @ 50MHz = ~0.0013 seconds (~760 Hz)
+
+    pub const COUNTER_WIDTH : u32 = 16;
+    pub const COUNTER_PERIOD : u32 = 65536;
+    pub const COUNTER_MASK : u32 = 65535;
+    pub const CLOCK_MHZ : u32 = 50;
+
+    // reg [15:0] counter = 16'h0; then, on every posedge clk,
+    // counter <= counter + 1'b1. The 16-bit wraparound is the
+    // decision the hardware makes.
+    pub fn next_counter(counter: u16) -> u16 {
+        var wide : u32 = counter as u32;
+        wide = wide + 1;
+        if (wide > COUNTER_MASK) {
+            wide = 0;
+        }
+        return wide as u16;
+    }
+
+    // assign led = counter[0]; the LSB drives the LED,
+    // set exactly when the count is odd.
+    pub fn led_of(counter: u16) -> bool {
+        return (counter as u32) % 2 == 1;
+    }
+
+    // Counter wrap period in nanoseconds at CLOCK_MHZ:
+    // 65536 cycles * 20 ns = 1,310,720 ns (~0.0013 seconds).
+    pub fn wrap_period_ns() -> u32 {
+        return COUNTER_PERIOD * (1000 / CLOCK_MHZ);
+    }
+
+    // Counter wraps per second at CLOCK_MHZ:
+    // 50,000,000 / 65536 = 762, the original's "~760 Hz".
+    pub fn wrap_frequency_hz() -> u32 {
+        return (CLOCK_MHZ * 1000000) / COUNTER_PERIOD;
+    }
+
+    // === Combinational surface (T81) ===
+    // Mirrors `assign led = counter[0]`: the counter value becomes
+    // an input, the LED state becomes the `result` output.
+
+    fn on_comb(counter: u16) -> bool {
+        return led_of(counter);
+    }
+
+    // === Tests ===
+
+    test next_counter_increments
+        then next_counter(0) == 1
+        and next_counter(1) == 2
+        and next_counter(42) == 43
+
+    test next_counter_wraps_at_16_bits
+        then next_counter(65535) == 0
+
+    test led_follows_counter_lsb
+        then led_of(0) == false
+        and led_of(1) == true
+        and led_of(2) == false
+        and led_of(65535) == true
+
+    test led_blips_each_posedge
+        given a = next_counter(0)
+        and b = next_counter(1)
+        and c = next_counter(2)
+        then on_comb(a) == true
+        and on_comb(b) == false
+        and on_comb(c) == true
+
+    test timing_matches_original_comments
+        then wrap_period_ns() == 1310720
+        and wrap_frequency_hz() == 762
+
+    test counter_geometry
+        then COUNTER_WIDTH == 16
+        and COUNTER_PERIOD == 65536
+        and COUNTER_MASK == 65535
+        and CLOCK_MHZ == 50
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:0b1d557f6999271e2644e0b324423efb4991291a40098e5aa87fe05c8e8316ef",
+  "gen_hash_rust": "sha256:76e3800db0d4b0eece2e865cbfee20e0e184752ba54a5e977300a40eb2810a83",
+  "gen_hash_verilog": "sha256:d341d9dd3c6ad861f2ecd9d56a2f1b35703f2b961fff30f6dc339c1a0f201990",
+  "gen_hash_zig": "sha256:309925f17c32c9816e78887d9fd2aae576c15726911571f2c2c99a368a864cfa",
+  "module": "tb32",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:18:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:2bd48fea843bc5725a2f2b6b7a42d1c61adbb40a479d1d64f4bc849081b4d281",
+  "spec_path": "specs/port/trinity/fpga/gft/tb32.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

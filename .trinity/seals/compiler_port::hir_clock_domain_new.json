@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:29d630479d8fe68cd5e7b1ff6166ddd3b1b9d72c0547ee7deff27bc67cf297ed",
+  "gen_hash_rust": "sha256:252ddba518a96d058f8f1bee2c25f08d0c1c1d853a6bbfa5f38b75ae18482b7b",
+  "gen_hash_verilog": "sha256:dd4850484d4d749b49b3a0c113a8563cead0efcd24a3fd0ead3a5695d0193d6c",
+  "gen_hash_zig": "sha256:6a4f1db8e0a613c69adfbcd0dc25e72f550b4d0c46bea37d83ad90799474e47a",
+  "module": "port::hir_clock_domain_new",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:12:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7b44fda04d9d54ece50c05e2e9c2c3019e9e6c26baf6c946cd3241df003f9d96",
+  "spec_path": "specs/port/bootstrap/src/compiler/HirClockDomain_new.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

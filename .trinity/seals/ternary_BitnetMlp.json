@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0367e71face268cb40572ebedbc9582c8e707edc54b1b726f35bc6d18d440fd9",
   "gen_hash_rust": "sha256:bad9092676f6daf891e808ac813530497749d0db25d3cbf978bfc1fbf388662f",
   "gen_hash_verilog": "sha256:69eba1b27abb2f3c10216550947f7b0503d1dfce22235dca04a30c0d2e03bbc9",
   "gen_hash_zig": "sha256:314307380b78f4fafc32d2a4d168629738ddf68a930d8eeb43d06946c1ccf5c2",
   "module": "BitnetMlp",
   "ring": 12,
-  "sealed_at": "2026-09-08T00:32:47Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:28:51Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9d464252d2dde474735df22e6f84c74959316ce9f17c7ae6299091287e0867d7",
-  "spec_path": "specs/ternary/bitnet_mlp.t27"
+  "spec_path": "specs/ternary/bitnet_mlp.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

@@ -1,0 +1,5 @@
+// A bool in arithmetic (#8075).
+module bool_arithmetic;
+fn ba_g(f: bool, n: u8) -> u8 {
+    return n + f;
+}

@@ -1,0 +1,6 @@
+// A module var and a function of one name (#8087).
+module var_and_fn_one_name;
+var vf_g: i64 = 1;
+fn vf_g() -> i64 {
+    return 2;
+}

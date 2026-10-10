@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:9cace5c638dbec581e0d2bc984c7e5d31d7f8eabf952c9542a2e308b6dbf7222",
+  "gen_hash_rust": "sha256:2c8dcf11b2ab001967f2ec60dc4f0cd98af5353d3431eafb16b28ce4f792e86e",
+  "gen_hash_verilog": "sha256:1779ba02df5d4a4603851c2d71e49b19a2fe5626179087cb1a82ab6acd05a0e0",
+  "gen_hash_zig": "sha256:a172ff40df3871f7bcd92e8bbaa063116c0828a3157b4cf0aa303dc3ed4bf49d",
+  "module": "skill_t27_wrap_up",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:27:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:547771112c926687870c895d83dc5312200a6c154335e2e3351dcaf223bbc8bb",
+  "spec_path": "specs/skills/t27-wrap-up.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

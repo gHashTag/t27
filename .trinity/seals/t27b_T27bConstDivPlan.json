@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+cde548ecd",
+  "closure": [
+    {
+      "spec": "specs/tri/t27b/coerce_plan.t27",
+      "spec_hash": "sha256:4c301189f81ac9a1868b45ed1afeb5568f4db4f25f21a3c0711080f79c797aa4"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c2a5715ccb27b665a08662ada307a04e5484861273be46577ae847bb4f3ab0e6",
+  "gen_hash_rust": "sha256:3e13cfc39687eb277f174bf746915f655552de7a7293812ec7d481b011220bab",
+  "gen_hash_verilog": "sha256:a28262e0577a57ba367c7382a214d221230202e3a4a7f9ffe4ce260fd20501b0",
+  "gen_hash_zig": "sha256:a7ba5e5e9ab4047743d6efc6c9a87e3bb45f751a54ae41c6ced1ae580cdffb56",
+  "module": "T27bConstDivPlan",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T18:39:30Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4f0113fee243efb7de8bab007fd22c99f1e747b80592aaa1582e2271a4502269",
+  "spec_path": "specs/tri/t27b/const_div_plan.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,12 +1,27 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:1fbbd13d3518fc2cd195ef2bf442775f9a948e29fa2a80cd01b7c00dac4ec9e5",
   "gen_hash_rust": "sha256:22be18deaf06b2c75c6ff4691a574dee771387b10145e189bfc214c4b4da0b5e",
   "gen_hash_verilog": "sha256:9183cd078958031a8ccc88df0f0e1f2b5536b4d4be46edf20586fd13e43df1f6",
   "gen_hash_zig": "sha256:058374bb59e5709d609494eb8aad8c16f6320048777f988975443b06313e7992",
   "module": "trinity_capability_specs_tri_corpus",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:36:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f4cbc7903cba83f5b77de3ea9da6843b4ad6074a3fc695555573e68537ebdb07",
-  "spec_path": "specs/trinity/capabilities/specs.tri-corpus.t27"
+  "spec_path": "specs/trinity/capabilities/specs.tri-corpus.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

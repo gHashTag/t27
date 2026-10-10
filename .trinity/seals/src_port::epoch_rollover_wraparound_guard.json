@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5441b8550d069a2b4de36cd7d7087e0d5ff3a59f059875ba6ffd94b69ea0b5e8",
+  "gen_hash_rust": "sha256:3760df6b099c9707630cc63f6d3ed619cbd43b7703a80f52c6ee04aa23a9f085",
+  "gen_hash_verilog": "sha256:240a5b625fdbc16d77ec367ef143bcbe17b7f84b1bb4a92a7fbf9ce9112ca764",
+  "gen_hash_zig": "sha256:9e288240de9167f1464cecc9a8816ddac89f7d83943356dea978b7525be4f455",
+  "module": "port::epoch_rollover_wraparound_guard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:22:36Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5b7d4ff15a794b0bc17548dc546e9598a22166191a930eb33addc59da76d4e79",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-02/src/epoch_rollover_wraparound_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

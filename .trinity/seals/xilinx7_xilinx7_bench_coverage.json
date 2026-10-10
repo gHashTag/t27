@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:166378c84d12be06f6bef22248d4beedadd411e3aebaaa311e264270ee0fe5b1",
+  "gen_hash_rust": "sha256:1f55679a2b9bc583f345e42c96b005db931075c983acfa546f38ca65e2cf82d3",
+  "gen_hash_verilog": "sha256:1c62ba8f170cc26301aa12b72564b35371d8264a9791f8cae336a7cd27cf0fd8",
+  "gen_hash_zig": "sha256:c6625224ca264ac045fb11058e5deb812e8e9204a8c93707b0924c51cb85a50f",
+  "module": "xilinx7_bench_coverage",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:37:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d7c499870bc087c73688b8b289558c5a66201b251d4db41125a4e10af3ce957b",
+  "spec_path": "specs/xilinx7/bench_coverage.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ad25e4694e01903f5c064fb583719cb4bfc758fd0884775a1574d02d326e2595",
+  "gen_hash_rust": "sha256:5fee8f8bb545515a73e2d758409c0f51f504b87e17a230a5ab9b7fac0e51099c",
+  "gen_hash_verilog": "sha256:9596f0d2ff5b7fc9def453f414cc99d155dc175babb5d17a70f75fbfe6a73ea2",
+  "gen_hash_zig": "sha256:a199847308d6434f01826c6993b3f7b247e342259f7ee6c6bf7d9ff733319547",
+  "module": "TriMutateLab",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:32:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:475320c4c608ba34d76465913356ba0149271f87b2ed07f7adc1643f4a13fb41",
+  "spec_path": "specs/tri/mutate/lab.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 21,
+    "total": 21
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

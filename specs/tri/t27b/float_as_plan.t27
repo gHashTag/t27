@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/float_as_plan.t27 -- which operands of `x as T` gen-zig spells as floats, so t27b lowers the
+; cast the way the reference's Zig does (issue #7805, t27b coverage epic #6063; written in t27 under the port
+; epic #6198).
+; gen-zig picks the cast builtin from the operand's spelling, not its type (`is_float_expr` in
+; bootstrap/src/compiler.rs): a float operand gets `@floatCast` to a float and `@intFromFloat` to an
+; integer, anything else `@floatFromInt` / `@intCast`. t27b takes the first two only where gen-zig spells
+; the operand a float (cli/t27b/src/lower/floatas.rs, #7179); everywhere else a typed float operand is
+; refused as `ExprCast(f32)` / `ExprCast(f64)`, because the reference's `@floatFromInt` of a float does not
+; compile. Everything t27b decides about the spelling is in this file and reaches cli/t27b through
+; `t27c gen-rust` (gen/rust/tri/t27b/float_as_plan.rs); the glue reads the facts off one node and asks
+; `spelled_float`.
+; --
+; is_float_expr, as gen-zig has it (master 579bc55aa):
+;   a literal that is not a string and has a `.` in its text;
+;   a name or a field access whose last segment is in `float_names` (struct fields, and the current fn's
+;   parameters and locals, declared with one of FLOAT_TYPES);
+;   a binary expression with an operand that is spelled a float;
+;   since #6941, a call of a fn this file declares with one of FLOAT_TYPES as its return type -- so
+;   `(half() - quarter()) as f32` is `@as(f32, @floatCast(half() - quarter()))`, and `half() as f32` too;
+;   nothing else (a unary minus, an index, a cast, a call of a method or of an undeclared fn).
+; Measured on the t27c lab (`t27c test-report`, zig 0.16.0, x86_64 Debug): specs/compiler/zig_float_call_cast.t27
+; passes 3/3, and so does specs/tri/t27b/conformance/float_call_cast.t27.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bFloatAsPlan;
+
+/// The type names gen-zig reads as floats, in its `float_names` and in `is_float_expr`'s call arm. The glue
+/// splits it on spaces, as libm_plan's BUILTINS.
+pub const FLOAT_TYPES : str = "f16 f32 f64 float double";
+
+// The node kinds is_float_expr tells apart.
+pub const N_LITERAL : u8 = 0;
+pub const N_NAME : u8 = 1;
+pub const N_BINARY : u8 = 2;
+pub const N_CALL : u8 = 3;
+pub const N_OTHER : u8 = 4;
+
+/// is_float_expr of one node of kind `kind`, from the fact the glue reads off it for that kind:
+/// point -- a literal, not a string, whose text has a `.`;
+/// float_name -- the name's last segment is in float_names;
+/// float_operand -- an operand of the binary expression is spelled a float;
+/// float_return -- the call names a fn this file declares, whose return type is in FLOAT_TYPES.
+pub fn spelled_float(kind: u8, point: bool, float_name: bool, float_operand: bool, float_return: bool) -> bool {
+    if (kind == N_LITERAL) { return point; }
+    if (kind == N_NAME) { return float_name; }
+    if (kind == N_BINARY) { return float_operand; }
+    if (kind == N_CALL) { return float_return; }
+    return false;
+}
+
+/// How many type names FLOAT_TYPES holds. For the tests.
+pub fn type_count() -> usize {
+    var n : usize = 1;
+    var i : usize = 0;
+    while (i < FLOAT_TYPES.len) {
+        if (FLOAT_TYPES[i] == 32) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+test a_literal_is_a_float_when_its_text_has_a_point {
+    assert spelled_float(N_LITERAL, true, false, false, false);
+    assert !spelled_float(N_LITERAL, false, true, true, true);
+}
+
+test a_name_is_a_float_when_it_is_in_float_names {
+    assert spelled_float(N_NAME, false, true, false, false);
+    assert !spelled_float(N_NAME, true, false, true, true);
+}
+
+test a_binary_expression_is_a_float_when_an_operand_is {
+    assert spelled_float(N_BINARY, false, false, true, false);
+    assert !spelled_float(N_BINARY, true, true, false, true);
+}
+
+test a_call_is_a_float_when_its_fn_returns_one {
+    // zig_float_call_cast.t27: `half() as f32` with `fn half() -> f64`.
+    assert spelled_float(N_CALL, false, false, false, true);
+    // `three() as f32` with `fn three() -> u32` stays `@floatFromInt`.
+    assert !spelled_float(N_CALL, true, true, true, false);
+}
+
+test nothing_else_is_a_float {
+    assert !spelled_float(N_OTHER, true, true, true, true);
+    assert !spelled_float(N_OTHER, false, false, false, false);
+}
+
+test the_float_type_names_are_gen_zig_s_five {
+    assert type_count() == 5;
+    assert FLOAT_TYPES.len == 24;
+    assert FLOAT_TYPES[0] == 102;
+    assert FLOAT_TYPES[4] == 102;
+    assert FLOAT_TYPES[18] == 100;
+}

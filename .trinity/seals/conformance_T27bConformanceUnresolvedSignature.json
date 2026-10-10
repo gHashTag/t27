@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:822c27f543e8df2bd2cab65dbe8e5ee6bb73376ddde9786c0b8d4074d7dd0c2c",
+  "gen_hash_rust": "sha256:434f365df1dd292c175e1575b735631c1461399043c283a50ab582cfc1555ad6",
+  "gen_hash_verilog": "sha256:ce8db0ea559979ce0ceba861e0868a78309bb83ef2c148d8faa6416cffa76f2d",
+  "gen_hash_zig": "sha256:38a89f28a8f2850d9b3bfdcf8f340aebc05749803628bc68f652b25d9f624c50",
+  "module": "T27bConformanceUnresolvedSignature",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-09T21:33:54Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:fcd07b20da5238e9da1693b335884791b9f8891d65284ee2ed488f3bb3ff82dc",
+  "spec_path": "specs/tri/t27b/conformance/unresolved_signature.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
