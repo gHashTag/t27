@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // specs/trinet/tri-bridge.t27 -- TRI on every chain: TON is the chain of record and the only minter; EVM, TRON and Solana hold TRI by lock-and-mint.
-// Issue: gHashTag/t27#8302. Companion of record: gHashTag/trinity-fpga
+// Issue: gHashTag/t27#8302 (v1), gHashTag/t27#8423 (v2). Companion of record: gHashTag/trinity-fpga
 // specs/trinet/mint_on_acceptance.t27 (how an accepted spec becomes minted TRI) and
 // src/trinet/mint_authority.zig (the oracle, chains ton = 1, solana = 2); the payout addresses
 // are specs/automation/tri-wallet-chains.t27 (TON, EVM, Solana, TRON, each proved by signature).
@@ -10,24 +10,37 @@
 // together mint twice the cap (mint_on_acceptance.t27 CROSS_CHAIN_DOUBLE_MINT), and its README
 // names the road this spec takes: one chain of record with lock-and-mint on the others.
 // Hosts (to come, each against this spec's vectors): the TON vault and minter (FunC), one
-// bridged-TRI contract for EVM and TRON (Solidity; TRON runs the same bytecode as TRC-20), the
-// Solana bridge program (Anchor), the attestors (trinity-fpga contracts/ton/signer), and
-// 999-multibots-telegraf render (tri-wallet-chains BRIDGE_LIVE, the payout route).
+// bridged-TRI contract per EVM chain and for TRON (Solidity; TRON runs the same bytecode as
+// TRC-20), the Solana bridge program (Anchor), the attestors (trinity-fpga contracts/ton/signer),
+// and 999-multibots-telegraf render (tri-wallet-chains BRIDGE_LIVE, the payout route).
 // Claim status: DESIGN. No contract, vault, key or bridged token exists. BRIDGE_LIVE is false
-// until LIVE_REQUIRES holds; who holds the attestor keys, and M and N in production, stay the
+// until may_go_live holds; who holds the attestor keys, and M, N and F in production, stay the
 // open question KEY_CUSTODY_AND_ATTESTOR_SET and are not guessed here.
 // v1 (2026-10-09): chain of record, lock-and-mint, one supply across chains, distinct ops for
 // mint / bridge-mint / release, an honest-majority quorum, finality per chain, one spend per
 // lock or burn, the pause, the payout route, what must hold before it goes live.
+// v2 (2026-10-09): Codex audit of v1 (t27 at 54f3c140). The quorum is judged against a fault
+// bound F: v1's "M > N/2 gives an honest signer in every overlap" was false (N 3, M 2, A faulty:
+// {A,B} and {A,C} meet only in A). Safety needs 2M > N + F, liveness M <= N - F, and every
+// signer keeps a durable record of what it signed per event, so it never signs a second
+// envelope for one lock, across restart and rotation. An attestor signs only on a proven
+// finality fact of the source network; unknown finality refuses, and a confirmation count alone
+// is never finality. Supply counts pending mint and pending release, so a paused burn keeps the
+// law. A lock mints its whole amount once, never a part. The signed envelope names the source
+// and destination networks and contracts, the event, the recipient, the amount and the epoch;
+// the replay key is the source event, spent once per destination deployment.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module trinet::tri_bridge {
     pub const KIND : str = "trinet";
     pub const ID : str = "tri-bridge";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
 
-    // ---- the chains (the oracle's numbers, tri-wallet-chains.t27) ----
+    // ---- the chain families (the oracle's numbers, tri-wallet-chains.t27) ----
 
+    // A family names an address format, not a network. A bridge destination is a concrete
+    // network with its own CAIP-2 id (below): "EVM" in the wallet spec binds one address for
+    // every EVM chain, but TRI is minted on one named EVM chain by one named contract.
     pub const CHAIN_TON : u8 = 1;
     pub const CHAIN_SOLANA : u8 = 2;
     pub const CHAIN_EVM : u8 = 3;
@@ -37,11 +50,24 @@ module trinet::tri_bridge {
         return chain >= CHAIN_TON && chain <= CHAIN_TRON;
     }
 
+    // Networks a bridge envelope may name, by CAIP-2 id. Planned, not enabled: a destination
+    // goes live only with its own deployed, audited contract (may_go_live).
+    pub const NET_TON_MAINNET : str = "ton:-239";
+    pub const NET_TON_TESTNET : str = "ton:-3";
+    pub const NET_ETHEREUM : str = "eip155:1";
+    pub const NET_BASE : str = "eip155:8453";
+    pub const NET_BNB : str = "eip155:56";
+    pub const NET_POLYGON : str = "eip155:137";
+    pub const NET_ARBITRUM : str = "eip155:42161";
+    pub const NET_SEPOLIA : str = "eip155:11155111";
+    pub const NET_TRON_MAINNET : str = "tron:0x2b6653dc";
+    pub const NET_SOLANA_MAINNET : str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+
     // ---- one chain of record ----
 
     // New TRI is minted in exactly one place: TON, from acceptance attestations, under the cap.
-    // Every other chain holds TRI that was locked on TON first. So the cap is enforced by one
-    // contract and counted once, whatever the number of chains.
+    // Every other network holds TRI that was locked on TON first. So the cap is enforced by one
+    // contract and counted once, whatever the number of networks.
     pub const CHAIN_OF_RECORD : u8 = 1;
     pub const MTRI_PER_TRI : u64 = 1000;
     pub const DECIMALS : u8 = 3;
@@ -57,16 +83,23 @@ module trinet::tri_bridge {
         return 0;
     }
 
-    // ---- one supply across chains ----
+    // ---- one supply across networks, pending included ----
 
     // minted: everything the TON minter ever minted. locked: what the TON vault holds.
-    // bridged: the sum of bridged TRI on every other chain. The bridge is sound exactly when
-    // the bridged sum equals the vault and nothing exceeds the cap.
-    fn supply_sound(minted: u64, locked: u64, bridged: u64) -> bool {
-        return minted <= CAP_MTRI && locked <= minted && bridged == locked;
+    // bridged: bridged TRI held on every other network. pending_mint: locked on TON, not yet
+    // minted on its destination. pending_release: burned on a destination, not yet released
+    // from the vault. Every lock first raises locked and pending_mint; a bridge mint moves its
+    // amount from pending_mint to bridged; a burn moves it from bridged to pending_release; a
+    // release lowers pending_release and locked. The vault therefore always holds exactly what
+    // is bridged or on its way, in either direction:
+    //   locked == bridged + pending_mint + pending_release,  locked <= minted <= CAP_MTRI.
+    fn supply_sound(minted: u64, locked: u64, bridged: u64, pending_mint: u64, pending_release: u64) -> bool {
+        return minted <= CAP_MTRI && locked <= minted
+            && locked == bridged + pending_mint + pending_release;
     }
 
-    // What a holder can see in total, on all chains: TON outside the vault plus bridged.
+    // What a holder can spend on all networks: TON outside the vault plus bridged TRI. Pending
+    // amounts belong to nobody's balance until their mint or release lands.
     fn circulating(minted: u64, locked: u64, bridged: u64) -> u64 {
         return minted - locked + bridged;
     }
@@ -83,37 +116,73 @@ module trinet::tri_bridge {
         return signed_op == expected_op;
     }
 
-    // A bridge mint lands on a chain that is not the chain of record; a release lands on it.
+    // A bridge mint lands on a network that is not the chain of record; a release lands on it.
     fn op_lands_on(op: u32, chain: u8) -> bool {
         if op == OP_MINT_ON_ATT || op == OP_BRIDGE_RELEASE { return chain == CHAIN_OF_RECORD; }
         if op == OP_BRIDGE_MINT { return chain_known(chain) && chain != CHAIN_OF_RECORD; }
         return false;
     }
 
-    // ---- the quorum ----
+    // ---- the quorum, judged against a fault bound ----
 
-    // M of N attestors, the same set that signs acceptance mints. Honest majority: M > N/2,
-    // so any two quorums share a signer, and one honest signer that refuses a second spend of
-    // the same lock is enough to stop it. M and N in production are KEY_CUSTODY's to decide.
+    // N attestors, at most F of them faulty: a faulty one may sign anything, sign twice, or
+    // collude. Safety: any two quorums of M share at least 2M - N signers; that is more than F,
+    // so at least one honest signer, exactly when 2M > N + F. Liveness: the N - F honest
+    // signers alone reach M. "M > N/2" is only the F = 0 case: N 3, M 2 tolerates no faulty
+    // signer, because with A faulty the quorums {A,B} and {A,C} meet only in A.
+    fn quorum_safe(m: u32, n: u32, f: u32) -> bool {
+        return n > 0 && f < n && m <= n && m * 2 > n + f;
+    }
+
+    fn quorum_live(m: u32, n: u32, f: u32) -> bool {
+        return f < n && m > 0 && m <= n - f;
+    }
+
+    fn quorum_valid(m: u32, n: u32, f: u32) -> bool {
+        return quorum_safe(m, n, f) && quorum_live(m, n, f);
+    }
+
+    // The largest fault bound a quorum stands, by safety: 2M - N - 1, or none.
+    fn faults_tolerated(m: u32, n: u32) -> u32 {
+        if m > n || m * 2 <= n { return 0; }
+        return m * 2 - n - 1;
+    }
+
+    // The testnet stand: 2 of 3, which tolerates NO faulty signer. Production M, N and F are
+    // KEY_CUSTODY's to decide; e.g. 3 of 4 tolerates one, 5 of 7 tolerates two.
     pub const TESTNET_M : u32 = 2;
     pub const TESTNET_N : u32 = 3;
+    pub const TESTNET_F : u32 = 0;
 
-    fn quorum_valid(m: u32, n: u32) -> bool {
-        return n > 0 && m <= n && m * 2 > n;
+    fn quorum_met(distinct_signers: u32, m: u32, n: u32, f: u32) -> bool {
+        return quorum_valid(m, n, f) && distinct_signers >= m && distinct_signers <= n;
     }
 
-    fn quorum_met(distinct_signers: u32, m: u32, n: u32) -> bool {
-        return quorum_valid(m, n) && distinct_signers >= m && distinct_signers <= n;
+    // ---- what one signer may sign ----
+
+    // Safety also rests on each honest signer never signing two different envelopes for one
+    // source event. Its record of what it signed is durable: it survives a restart and a key
+    // rotation (a rotation hands keys over, it does not forget spends). A signer that cannot
+    // read its own record signs nothing.
+    fn may_sign(record_readable: bool, signed_this_event_before: bool, same_envelope: bool, epoch_current: bool) -> bool {
+        return record_readable && epoch_current && (!signed_this_event_before || same_envelope);
     }
 
-    // ---- finality ----
+    // ---- finality: a proven fact, never a count ----
 
-    // An attestor signs a lock or a burn only from the source chain's own finalized view, never
-    // from a block that can still be rolled back: a reorg after a bridge mint would leave TRI
-    // minted against a lock that no longer exists. Blocks past the event, at least:
-    // TON a masterchain block; TRON 19 (solidified); Solana 32 (finalized); EVM the chain's
-    // `finalized` tag -- 64 is Ethereum's two epochs, a floor for chains without that tag.
-    fn final_blocks(chain: u8) -> u32 {
+    // An attestor signs only for a source event inside a block its network has finalized, by
+    // that network's own rule: TON a masterchain-final block; Ethereum a finalized checkpoint;
+    // an L2 the batch finalized on L1; Solana the finalized commitment; TRON a solidified block.
+    // What the attestor's finality adapter reports: unknown (no answer, an unsupported network,
+    // a broken adapter), pending, or final. Unknown refuses: a count of confirmations is not
+    // finality, and 10 000 of them on an unfinalized block are still not.
+    pub const FINALITY_UNKNOWN : u8 = 0;
+    pub const FINALITY_PENDING : u8 = 1;
+    pub const FINALITY_FINAL : u8 = 2;
+
+    // A floor of blocks past the event, as well as finality, never instead of it:
+    // TON 1, TRON 19, Solana 32, EVM 64.
+    fn floor_blocks(chain: u8) -> u32 {
         if chain == CHAIN_TON { return 1; }
         if chain == CHAIN_TRON { return 19; }
         if chain == CHAIN_SOLANA { return 32; }
@@ -121,14 +190,34 @@ module trinet::tri_bridge {
         return 0;
     }
 
-    fn may_attest(chain: u8, confirmations: u32) -> bool {
-        return chain_known(chain) && confirmations >= final_blocks(chain);
+    fn may_attest(chain: u8, network_matches: bool, finality: u8, event_in_final_block: bool, confirmations: u32) -> bool {
+        return chain_known(chain) && network_matches && finality == FINALITY_FINAL
+            && event_in_final_block && confirmations >= floor_blocks(chain);
     }
 
-    // ---- one spend per lock and per burn ----
+    // ---- the envelope the attestors sign, and its replay key ----
 
-    // A bridge mint names the TON lock it answers; the destination contract records it and
-    // refuses it a second time. A release names the burn; the vault does the same.
+    // One bridge mint or release is one envelope, and the attestors sign all of its fields:
+    pub const ENVELOPE_FIELDS : str = "op, source_network (CAIP-2), source_contract, source_event (tx hash + log index or message hash), destination_network (CAIP-2), destination_contract, recipient, amount_mtri, attestor_epoch";
+    // A destination contract spends the replay key once and checks the envelope names its own
+    // network (chain id) and its own address: the same envelope on another EVM chain, on a
+    // testnet instead of a mainnet, or on a twin deployment matches nothing there.
+    pub const REPLAY_KEY : str = "source_network, source_contract, source_event";
+
+    fn envelope_accepted(op_ok: bool, source_ok: bool, event_final: bool, dest_network_is_mine: bool, dest_contract_is_me: bool, recipient_ok: bool, amount_ok: bool, epoch_ok: bool, replay_key_spent: bool) -> bool {
+        return op_ok && source_ok && event_final && dest_network_is_mine && dest_contract_is_me
+            && recipient_ok && amount_ok && epoch_ok && !replay_key_spent;
+    }
+
+    // ---- one spend per lock and per burn, whole amounts only ----
+
+    // A lock names its destination and amount when it is made; the bridge mint answers that
+    // lock exactly once, for exactly that amount. A part would leave the rest locked with no
+    // way out, so a part is refused, never minted.
+    fn bridge_amount_ok(amount: u64, locked_by_this_lock: u64) -> bool {
+        return amount > 0 && amount == locked_by_this_lock;
+    }
+
     fn may_bridge_mint(op: u32, chain: u8, quorum: bool, lock_spent: bool, paused: bool) -> bool {
         return op_usable(op, OP_BRIDGE_MINT) && op_lands_on(op, chain) && quorum
             && !lock_spent && !paused;
@@ -138,15 +227,10 @@ module trinet::tri_bridge {
         return op_usable(op, OP_BRIDGE_RELEASE) && quorum && !burn_spent && burn_final && !paused;
     }
 
-    // A bridge mint never exceeds the lock it answers.
-    fn bridge_amount_ok(amount: u64, locked_by_this_lock: u64) -> bool {
-        return amount > 0 && amount <= locked_by_this_lock;
-    }
-
     // ---- the pause ----
 
-    // The quorum can pause minting and releasing on every chain at once; a pause never blocks
-    // a holder from burning (their TRI then waits, counted, for the release).
+    // The quorum can pause minting and releasing on every network at once; a pause never blocks
+    // a holder from burning. A paused burn sits in pending_release, counted, until release.
     pub const PAUSE_BLOCKS_BURN : bool = false;
 
     fn may_burn(paused: bool, amount: u64) -> bool {
@@ -156,7 +240,7 @@ module trinet::tri_bridge {
     // ---- the payout route ----
 
     // TRI earned for accepted work is paid where the person bound a wallet. On TON the minter
-    // mints to them. On any other chain the minter mints into the vault and the bridge mints
+    // mints to them. On any other network the minter mints into the vault and the bridge mints
     // the same amount to their bound address: still one minter, still one supply.
     pub const ROUTE_DIRECT : u8 = 1;
     pub const ROUTE_VAULT_THEN_BRIDGE : u8 = 2;
@@ -170,12 +254,12 @@ module trinet::tri_bridge {
     // ---- live ----
 
     // The bridge goes live, and tri-wallet-chains' BRIDGE_LIVE turns true, only when all of
-    // these hold: the contracts are audited, deployed and their addresses recorded, and the
-    // attestor keys have named holders with M and N set (KEY_CUSTODY_AND_ATTESTOR_SET).
+    // these hold: the contracts are audited and deployed, the attestor keys have named holders,
+    // and the quorum is valid against the fault bound they agreed to (KEY_CUSTODY_AND_ATTESTOR_SET).
     pub const BRIDGE_LIVE : bool = false;
 
-    fn may_go_live(audited: bool, deployed: bool, keys_held: bool, m: u32, n: u32) -> bool {
-        return audited && deployed && keys_held && quorum_valid(m, n);
+    fn may_go_live(audited: bool, deployed: bool, keys_held: bool, m: u32, n: u32, f: u32) -> bool {
+        return audited && deployed && keys_held && quorum_valid(m, n, f);
     }
 
     // ---- tests ----
@@ -191,7 +275,7 @@ module trinet::tri_bridge {
         assert(!chain_known(5));
     }
 
-    test "one base unit on every chain, so an amount crosses unchanged" {
+    test "one base unit on every network, so an amount crosses unchanged" {
         assert(MTRI_PER_TRI == 1000);
         assert(decimals_of(CHAIN_TON) == 3);
         assert(decimals_of(CHAIN_EVM) == 3);
@@ -200,17 +284,34 @@ module trinet::tri_bridge {
         assert(decimals_of(9) == 0);
     }
 
-    test "the bridged sum equals the vault and the cap is counted once" {
+    test "the vault holds what is bridged or pending, and the cap is counted once" {
         assert(CAP_MTRI == 10460353203000);
-        assert(supply_sound(1000, 400, 400));
-        assert(supply_sound(0, 0, 0));
-        assert(supply_sound(CAP_MTRI, CAP_MTRI, CAP_MTRI));
-        assert(!supply_sound(1000, 400, 401));
-        assert(!supply_sound(1000, 400, 399));
-        assert(!supply_sound(1000, 1001, 1001));
-        assert(!supply_sound(CAP_MTRI + 1, 0, 0));
+        assert(supply_sound(1000, 400, 400, 0, 0));
+        assert(supply_sound(0, 0, 0, 0, 0));
+        assert(supply_sound(CAP_MTRI, CAP_MTRI, CAP_MTRI, 0, 0));
+        assert(!supply_sound(1000, 400, 401, 0, 0));
+        assert(!supply_sound(1000, 400, 399, 0, 0));
+        assert(!supply_sound(1000, 1001, 1001, 0, 0));
+        assert(!supply_sound(CAP_MTRI + 1, 0, 0, 0, 0));
         assert(circulating(1000, 400, 400) == 1000);
         assert(circulating(1000, 0, 0) == 1000);
+    }
+
+    test "a paused burn, a delayed mint and a retried release keep the law" {
+        // Burn 5 while releases are paused: bridged 395, pending_release 5.
+        assert(supply_sound(1000, 400, 395, 0, 5));
+        // The release lands later: the vault gives 5 back.
+        assert(supply_sound(1000, 395, 395, 0, 0));
+        // A new lock of 10 whose mint is delayed: pending_mint 10.
+        assert(supply_sound(1000, 405, 395, 10, 0));
+        // Its mint lands.
+        assert(supply_sound(1000, 405, 405, 0, 0));
+        // v1's law without the pending terms called the paused burn unsound.
+        assert(400 != 395);
+        // The release retried after it landed is the same burn: spent, refused.
+        assert(!may_release(OP_BRIDGE_RELEASE, true, true, true, false));
+        // Circulation counts the burned 5 nowhere until it is released.
+        assert(circulating(1000, 400, 395) == 995);
     }
 
     test "a mint, a bridge mint and a release are three operations no attestation crosses" {
@@ -232,52 +333,110 @@ module trinet::tri_bridge {
         assert(!op_lands_on(0, CHAIN_TON));
     }
 
-    test "the quorum is an honest majority, so two quorums always share a signer" {
-        assert(quorum_valid(TESTNET_M, TESTNET_N));
-        assert(quorum_valid(3, 5));
-        assert(quorum_valid(1, 1));
-        assert(!quorum_valid(1, 2));
-        assert(!quorum_valid(2, 4));
-        assert(!quorum_valid(4, 3));
-        assert(!quorum_valid(0, 0));
-        assert(quorum_met(2, 2, 3));
-        assert(quorum_met(3, 2, 3));
-        assert(!quorum_met(1, 2, 3));
-        assert(!quorum_met(4, 2, 3));
-        assert(!quorum_met(2, 1, 2));
+    test "a quorum is safe only when two quorums share more than F signers" {
+        // The counterexample: N 3, M 2, one faulty signer A; {A,B} and {A,C} meet only in A.
+        assert(!quorum_safe(2, 3, 1));
+        assert(faults_tolerated(2, 3) == 0);
+        assert(quorum_safe(2, 3, 0));
+        assert(quorum_safe(3, 4, 1));
+        assert(faults_tolerated(3, 4) == 1);
+        assert(quorum_safe(5, 7, 2));
+        assert(faults_tolerated(5, 7) == 2);
+        assert(!quorum_safe(4, 7, 2));
+        assert(!quorum_safe(2, 4, 0));
+        assert(!quorum_safe(4, 3, 0));
+        assert(!quorum_safe(1, 0, 0));
+        assert(!quorum_safe(3, 3, 3));
     }
 
-    test "an attestor signs only from the source chain's finalized view" {
-        assert(final_blocks(CHAIN_TON) == 1);
-        assert(final_blocks(CHAIN_TRON) == 19);
-        assert(final_blocks(CHAIN_SOLANA) == 32);
-        assert(final_blocks(CHAIN_EVM) == 64);
-        assert(final_blocks(0) == 0);
-        assert(may_attest(CHAIN_TRON, 19));
-        assert(!may_attest(CHAIN_TRON, 18));
-        assert(may_attest(CHAIN_EVM, 64));
-        assert(!may_attest(CHAIN_EVM, 63));
-        assert(!may_attest(CHAIN_TON, 0));
-        assert(!may_attest(0, 1000));
+    test "a quorum is live only when the honest signers alone reach it" {
+        assert(quorum_live(2, 3, 1));
+        assert(quorum_live(3, 4, 1));
+        assert(!quorum_live(3, 3, 1));
+        assert(!quorum_live(0, 3, 0));
+        assert(quorum_valid(3, 4, 1));
+        assert(quorum_valid(2, 3, 0));
+        assert(!quorum_valid(2, 3, 1));
+        assert(!quorum_valid(3, 3, 1));
+        assert(TESTNET_M == 2);
+        assert(TESTNET_N == 3);
+        assert(TESTNET_F == 0);
+        assert(quorum_valid(TESTNET_M, TESTNET_N, TESTNET_F));
+        assert(quorum_met(2, 2, 3, 0));
+        assert(quorum_met(3, 2, 3, 0));
+        assert(!quorum_met(1, 2, 3, 0));
+        assert(!quorum_met(4, 2, 3, 0));
+        assert(!quorum_met(2, 2, 3, 1));
     }
 
-    test "a lock mints once on one chain, a burn releases once" {
+    test "a signer never signs two envelopes for one event, across restart and rotation" {
+        assert(may_sign(true, false, false, true));
+        // Equivocation: a second, different envelope for the same event.
+        assert(!may_sign(true, true, false, true));
+        // The same envelope again (a retry after a crash) is the same signature.
+        assert(may_sign(true, true, true, true));
+        // A restart that lost the record signs nothing.
+        assert(!may_sign(false, false, false, true));
+        // After a rotation, an envelope for the old epoch is refused.
+        assert(!may_sign(true, false, false, false));
+    }
+
+    test "an attestor signs only on proven finality, never on a count" {
+        assert(FINALITY_UNKNOWN == 0);
+        assert(FINALITY_PENDING == 1);
+        assert(FINALITY_FINAL == 2);
+        assert(floor_blocks(CHAIN_TON) == 1);
+        assert(floor_blocks(CHAIN_TRON) == 19);
+        assert(floor_blocks(CHAIN_SOLANA) == 32);
+        assert(floor_blocks(CHAIN_EVM) == 64);
+        assert(floor_blocks(0) == 0);
+        assert(may_attest(CHAIN_EVM, true, FINALITY_FINAL, true, 64));
+        // Ten thousand confirmations on a block not yet finalized.
+        assert(!may_attest(CHAIN_EVM, true, FINALITY_PENDING, true, 10000));
+        // The adapter cannot say: fail closed.
+        assert(!may_attest(CHAIN_EVM, true, FINALITY_UNKNOWN, true, 10000));
+        // Final, but the event is not in the finalized block.
+        assert(!may_attest(CHAIN_TRON, true, FINALITY_FINAL, false, 100));
+        // A proof from another network.
+        assert(!may_attest(CHAIN_SOLANA, false, FINALITY_FINAL, true, 100));
+        // Final, but below the floor.
+        assert(!may_attest(CHAIN_TRON, true, FINALITY_FINAL, true, 18));
+        assert(!may_attest(0, true, FINALITY_FINAL, true, 1000));
+    }
+
+    test "an envelope lands once, on the one network and contract it names" {
+        assert(envelope_accepted(true, true, true, true, true, true, true, true, false));
+        // The same envelope on another EVM chain, or on a testnet instead of a mainnet.
+        assert(!envelope_accepted(true, true, true, false, true, true, true, true, false));
+        // On a twin deployment on the right network.
+        assert(!envelope_accepted(true, true, true, true, false, true, true, true, false));
+        // The replay key already spent there.
+        assert(!envelope_accepted(true, true, true, true, true, true, true, true, true));
+        // An old epoch, a wrong amount, another recipient, a wrong op, an unfinal event.
+        assert(!envelope_accepted(true, true, true, true, true, true, true, false, false));
+        assert(!envelope_accepted(true, true, true, true, true, true, false, true, false));
+        assert(!envelope_accepted(true, true, true, true, true, false, true, true, false));
+        assert(!envelope_accepted(false, true, true, true, true, true, true, true, false));
+        assert(!envelope_accepted(true, true, false, true, true, true, true, true, false));
+        assert(!envelope_accepted(true, false, true, true, true, true, true, true, false));
+    }
+
+    test "a lock mints its whole amount once, never a part" {
+        assert(bridge_amount_ok(400, 400));
+        assert(!bridge_amount_ok(1, 400));
+        assert(!bridge_amount_ok(399, 400));
+        assert(!bridge_amount_ok(401, 400));
+        assert(!bridge_amount_ok(0, 400));
+        assert(!bridge_amount_ok(0, 0));
         assert(may_bridge_mint(OP_BRIDGE_MINT, CHAIN_EVM, true, false, false));
         assert(!may_bridge_mint(OP_BRIDGE_MINT, CHAIN_EVM, true, true, false));
         assert(!may_bridge_mint(OP_BRIDGE_MINT, CHAIN_EVM, false, false, false));
         assert(!may_bridge_mint(OP_BRIDGE_MINT, CHAIN_TON, true, false, false));
         assert(!may_bridge_mint(OP_MINT_ON_ATT, CHAIN_EVM, true, false, false));
-        assert(!may_bridge_mint(OP_BRIDGE_MINT, CHAIN_EVM, true, false, true));
         assert(may_release(OP_BRIDGE_RELEASE, true, false, true, false));
-        assert(!may_release(OP_BRIDGE_RELEASE, true, true, true, false));
         assert(!may_release(OP_BRIDGE_RELEASE, true, false, false, false));
         assert(!may_release(OP_BRIDGE_RELEASE, false, false, true, false));
         assert(!may_release(OP_BRIDGE_MINT, true, false, true, false));
-        assert(!may_release(OP_BRIDGE_RELEASE, true, false, true, true));
-        assert(bridge_amount_ok(400, 400));
-        assert(bridge_amount_ok(1, 400));
-        assert(!bridge_amount_ok(401, 400));
-        assert(!bridge_amount_ok(0, 400));
     }
 
     test "a pause stops minting and releasing, never a holder's burn" {
@@ -290,7 +449,7 @@ module trinet::tri_bridge {
         assert(!may_burn(false, 0));
     }
 
-    test "a payout on another chain is a vault mint and a bridge mint, never a second minter" {
+    test "a payout on another network is a vault mint and a bridge mint, never a second minter" {
         assert(payout_route(CHAIN_TON) == ROUTE_DIRECT);
         assert(payout_route(CHAIN_EVM) == ROUTE_VAULT_THEN_BRIDGE);
         assert(payout_route(CHAIN_SOLANA) == ROUTE_VAULT_THEN_BRIDGE);
@@ -298,17 +457,17 @@ module trinet::tri_bridge {
         assert(payout_route(0) == 0);
     }
 
-    test "the bridge is not live until audited, deployed and its keys have holders" {
+    test "the bridge is not live until audited, deployed, keys held and the quorum stands its faults" {
         assert(!BRIDGE_LIVE);
-        assert(may_go_live(true, true, true, 2, 3));
-        assert(!may_go_live(false, true, true, 2, 3));
-        assert(!may_go_live(true, false, true, 2, 3));
-        assert(!may_go_live(true, true, false, 2, 3));
-        assert(!may_go_live(true, true, true, 1, 2));
+        assert(may_go_live(true, true, true, 3, 4, 1));
+        assert(!may_go_live(true, true, true, 2, 3, 1));
+        assert(!may_go_live(false, true, true, 3, 4, 1));
+        assert(!may_go_live(true, false, true, 3, 4, 1));
+        assert(!may_go_live(true, true, false, 3, 4, 1));
     }
 
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 1);
+        assert(VERSION == 2);
     }
 }
 

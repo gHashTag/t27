@@ -2,22 +2,26 @@
   "built_by": "t27c-bootstrap@0.5.2+b9d22d0f4",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:f9628be29de1429acb027fdadab6575994f432e695cce6c6d8eb475000a26527",
-  "gen_hash_rust": "sha256:25f635e25d25690ee23d1b11f5e00df7e52c40f1541cefb682e0bbd39b82f018",
-  "gen_hash_verilog": "sha256:bd6a75033c710940baf43e3fbd0d35fbb9f1fdcdbb2a7967330ea60c4f10c973",
-  "gen_hash_zig": "sha256:c672c3e7810d62f93ffc444a5bb065cdc3dd977fbfbacee54832a69714f5b697",
+  "gen_hash_c": "sha256:0d44fe3377aa8d10d03e851fbba044c1a83ba99979f8984047b537e3bc231d54",
+  "gen_hash_rust": "sha256:802b4259a385971d8f5f0baff3f5e7f405c46f0f2bf9b27e858a11d26097a675",
+  "gen_hash_verilog": "sha256:ad4e47e11aab3be27e372b94080636462376b7e6a6239417420606c4c5fd55d3",
+  "gen_hash_zig": "sha256:06b2977b7932b41d2465f7595f1046fedddd3eb8d4bae2e6d58881808077d02e",
   "module": "trinet::tri_bridge",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T19:40:20Z",
+  "sealed_at": "2026-10-10T00:04:59Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:34e80b8fa71c90fdf2bd0ff26b9f40823d85a92ff44f1c1c14053b1331dc79ef",
+  "spec_hash": "sha256:c1b0634750e475ae41ab7a52736933ba9a696480223e22cb44943b95cffef809",
   "spec_path": "specs/trinet/tri-bridge.t27",
   "tests": {
-    "blocked": "does not compile: runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
-    "zig": "0.15.2"
+    "zig": "0.16.0"
   }
 }
