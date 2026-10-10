@@ -390,6 +390,7 @@
   {"path": "specs/multipath_router.t27", "t27b": "pass"},
   {"path": "specs/network/attribution.t27", "t27b": "pass"},
   {"path": "specs/network/mvp.t27", "t27b": "pass"},
+  {"path": "specs/network/mvp_v2.t27", "t27b": "pass"},
   {"path": "specs/network/usage.t27", "t27b": "pass"},
   {"path": "specs/numeric/bnf1024.t27", "t27b": "pass"},
   {"path": "specs/numeric/bnf128.t27", "t27b": "pass"},

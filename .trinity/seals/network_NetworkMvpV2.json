@@ -1,0 +1,88 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+c26639789",
+  "closure": [
+    {
+      "spec": "specs/network/mvp.t27",
+      "spec_hash": "sha256:51e31c123af313c862f6b15765e28a76a1a618ebb0ac02c7d795dbc15da04f23"
+    },
+    {
+      "spec": "specs/queen/actor_events.t27",
+      "spec_hash": "sha256:f6de365b060b4138cf19c41cb8c3289ef72ab8b446ae067dd2c4a1526b18222e"
+    },
+    {
+      "spec": "specs/queen/actors.t27",
+      "spec_hash": "sha256:73c4135bfcb8442a96bfc64977048d75055bb55e5c3e04e49a20966dada4b722"
+    },
+    {
+      "spec": "specs/queen/events.t27",
+      "spec_hash": "sha256:c7d2c7a0fae75a0d4cd98a023573f02629baafeef9dc3a0de03f9c549df6c9d0"
+    },
+    {
+      "spec": "specs/queen/jobs.t27",
+      "spec_hash": "sha256:2d7dbdc491bed288b5a451b7c12e3e62f8b2b319e1316c3055ab89bb76af6fe7"
+    },
+    {
+      "spec": "specs/queen/simulation.t27",
+      "spec_hash": "sha256:1accadfb74aacfb8b05fc14842ec62ca1c2c52ab28a6f05bf307f4593fdaefe1"
+    },
+    {
+      "spec": "specs/tri/crypto/sha256.t27",
+      "spec_hash": "sha256:7f7cbef299f95f1d9eb4bcacf66292e15e084e633d2d2ac3a751dc47da196b7a"
+    },
+    {
+      "spec": "specs/trinet/ledger.t27",
+      "spec_hash": "sha256:c1879562fd7a265b0fd054fa6cc3b605e0e7262080d023231c9b1b63e6866dbf"
+    },
+    {
+      "spec": "specs/trinet/node-work-credit.t27",
+      "spec_hash": "sha256:7cafb68c406c379ddde0c4e655c15455c5fd84988733a6d6b660117eff4caea7"
+    },
+    {
+      "spec": "specs/trinet/tri-bridge.t27",
+      "spec_hash": "sha256:c1b0634750e475ae41ab7a52736933ba9a696480223e22cb44943b95cffef809"
+    },
+    {
+      "spec": "specs/verified/device_dna.t27",
+      "spec_hash": "sha256:04b88f6195af63fa1bc343ab0d874b5e5444d1b3c770990894ba4a747c4182e5"
+    },
+    {
+      "spec": "specs/verified/payout.t27",
+      "spec_hash": "sha256:cb4be92310f639e1e84aa505f07c4f9be22e3a928ac70e2ea1b088b261896ea8"
+    },
+    {
+      "spec": "specs/verified/run_record.t27",
+      "spec_hash": "sha256:7050d8c80907319db650cd6a910412e73962d6780effd4722ecf0822f8a56079"
+    },
+    {
+      "spec": "specs/verified/signed_receipt.t27",
+      "spec_hash": "sha256:20728477c97dc10f66c47391e1418aff63769660c180b3912765a86f322fdb61"
+    },
+    {
+      "spec": "specs/verified/verdict.t27",
+      "spec_hash": "sha256:7be6b928ac3f103f703504ee844d906153b27b102e3c1f24d097ea97179b6adb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:6409e2db70e891897b94b12fb2836a028264ae7c42a1426be2a87cf9a01db7dc",
+  "gen_hash_rust": "sha256:8bef8325cad2a407c853924d517cb41842349cb4e2f1ff3834883244199c2589",
+  "gen_hash_verilog": "sha256:91d239c9a8584a0e3577d40e11339f37481d8166b37aa0fce2d62175b985b1c8",
+  "gen_hash_zig": "sha256:8a8857c72f91a362c2eabc661eb8dde7ccbc80390d5fb52040774f3776f60a12",
+  "module": "NetworkMvpV2",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T15:40:26Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f854c6593d50be002c84418d4731917bd77ff6c328ac659177b7b725b2209962",
+  "spec_path": "specs/network/mvp_v2.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

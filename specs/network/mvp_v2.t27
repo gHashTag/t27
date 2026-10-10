@@ -1,0 +1,2351 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/mvp_v2.t27 -- the network MVP, v2: tri-net's receipt envelope, admission order, verifier
+; economics and account states, with our quorum, replay and key-id rules, settled through the real
+; ledger. Issue gHashTag/t27#8648, epic see #8613. v1 (specs/network/mvp.t27, see #8610) is unchanged;
+; v2 uses its draws and helpers and replaces its receipt, admission, settlement and accounts.
+; --
+; From gHashTag/tri-net at d6deeb39 (another repository, which t27 cannot `use`, so what is taken from it
+; is restated in section 1 under tri-net's own names):
+;   specs/tri_compute_receipt.t27    digest_pre, the one-block SHA-256 preimage [TAG "TRCP", request_id,
+;                                    device_id, executor, task, in_hash, out, epoch, prev_head, pad];
+;                                    merkle_pair_pre, one signed root over N receipts; ledger_entry_pre,
+;                                    the "TRLG" head that commits every entry
+;   specs/tri_receipt_verify.t27     a receipt is accepted iff its signature checks, it is in the batch
+;                                    and its result recomputes; the first failure, in that order, is the
+;                                    reason (BAD_SIG 1, NOT_IN_BATCH 2, BAD_COMPUTE 3)
+;   specs/tri_compute_challenge.t27  a dissenter loses its stake; verifier_reward = burned / honest_count,
+;                                    floor division, so the VERIFIER_FEE is paid out of slashed stake and
+;                                    the dust is never minted; a challenger that proves the executor wrong
+;                                    gets its bond; a frivolous challenger loses its stake
+;   specs/tri_compute_account.t27    spendable, locked and pending; a reward is pending until the
+;                                    challenge window passes, and a reward proven fraudulent never
+;                                    finalizes
+; Our corrections, kept against tri-net:
+;   - the quorum is 2M > N + F with M <= N - F (specs/trinet/tri-bridge.t27 quorum_valid), not tri-net's
+;     n/2 + 1: here N 4, F 1, M 3; the tests show the (N, F) where n/2 + 1 is unsafe;
+;   - replay protection is a spent (node, nonce) set (specs/trinet/ledger.t27 settle, spent_key) with a
+;     durable nonce mark (specs/trinet/node-work-credit.t27 may_issue, next_mark, resume_nonce), not a
+;     task-id high-water mark, which refuses honest work settled out of order;
+;   - key ids are 64 bits (signed_receipt.t27 KEY_ID_HEX_LEN 16), not 32-bit truncations, and the device
+;     id is the die's 64-bit FUSE_DNA, so digest_pre's device_id and executor are two words each: the
+;     message is 44 bytes, still one block. device_id 0 is SOFTWARE_SIGNED; a nonzero id is DEVICE_BOUND
+;     and is FUSE_DNA, never DNA_PORT's 57-bit DNA (device_dna.t27, see #8620).
+; The treasurer settles every authenticated claim through specs/trinet/ledger.t27 settle(), the same
+; rule the real network runs (eligibility, identity, verdict, once per (node, nonce), the slash amount).
+; Payment kinds stay payout.t27's: BOUNTY, EXECUTOR_FEE, PROVIDER_FEE, VERIFIER_FEE, AUTHOR_ROYALTY, all
+; non-transferable, minted only on the chain of record (tri-bridge.t27, one minter).
+; --
+; The network: a supervisor, a dispatcher, four signers (the executor and three verifiers, v1's), a
+; verifier, a treasurer, a watcher and a griefer, each a pid (actors.t27). Per job:
+;   1. the dispatcher issues each eligible node its own nonce below that node's durable mark and offers
+;      the job; a restarted dispatcher resumes at the marks;
+;   2. each signer sends the verifier its signed receipt (a vote) and the treasurer its claim;
+;   3. the verifier admits the job when M valid votes agree, builds the batch root over the votes,
+;      signs it and sends the run to the treasurer;
+;   4. the treasurer judges every claim in tri_receipt_verify's order, settles each authenticated claim
+;      through ledger.t27, and credits pending: EXECUTOR_FEE, PROVIDER_FEE and AUTHOR_ROYALTY from the
+;      pool (minted only as paid), VERIFIER_FEE from the stake it slashed, the BOUNTY once;
+;   5. for CHALLENGE_WINDOW epochs a challenge may be filed: the watcher re-runs every job with the
+;      reference and disputes a wrong one; the griefer disputes a right one now and then. A challenge
+;      upheld slashes the wrong signers, pays the executor's bond to the watcher and the slashed
+;      verifiers' stake to those who told the truth, and claws the job's pending rewards back. Pending
+;      becomes spendable only after the window, never while a challenge is open, never once slashed.
+; Faults drawn from the seed: a lie, an unsigned receipt, an impostor's lie under a key whose id agrees
+; with the node's in its low 32 bits, DNA_PORT's DNA given as the device id, an equivocation, a replayed receipt, a crash
+; (restarted by the supervisor), collusion of the executor with two verifiers (beyond F), a dispatcher
+; restart, a double bill, a frivolous or late challenge, and v1's off-chain and unreproduced claims.
+; The observer judges after every step: paid <= emitted + slashed; the books balance; fraud nets worse
+; than honesty; nothing finalizes while challenged or once slashed; the dust is never minted; no nonce is
+; issued twice or paid twice; no claim is paid that failed admission; no vote counts that the node's own
+; key did not sign; the quorum is safe; the ledger and the MVP agree. The same seed gives the same ledger digest.
+; The run is also a trace in the actor-event shape of queen/actor_events.t27 (see #8642, #8652):
+; trace_len(seed) and trace_row(seed, i), for the runtime's replay.
+; Digests: hashed, every receipt, Merkle node and head entry is SHA-256 (tri/crypto/sha256.t27); fast,
+; the same preimage words fold through mix32. The network compares digests only for equality, so both
+; modes give the same books and the same trace (the_digest_does_not_steer_the_network); the many-seed
+; tests run fast to stay inside t27b's interpreter budget.
+; Limits, said and not hidden: Ed25519 stays a primitive outside .t27, as in tri-net, so sig_of is a
+; keyed stand-in over every digest word; key_id_of's halves are independent so the tests can build the
+; 2^32-work collision a 32-bit id invites; at N 4, F 1 the safe quorum and n/2 + 1 are both 3, so only
+; the quorum test over N 1..9 tells them apart; collusion that includes the reference worker is beyond
+; what the watcher here can catch; a double bill is refused but not slashed, ledger.t27's answer (see
+; #8658).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkMvpV2;
+
+use queen::actors;
+use queen::events;
+use queen::actor_events;
+use queen::jobs;
+use queen::simulation;
+use verified::verdict;
+use verified::signed_receipt;
+use verified::run_record;
+use verified::payout;
+use verified::device_dna;
+use trinet::node-work-credit;
+use trinet::tri-bridge;
+use trinet::ledger;
+use tri::crypto::sha256;
+use network::mvp;
+
+; --- 1. What tri-net specifies, restated under its names -------------------------------------------
+
+/// tri_compute_receipt.t27 constants. DIGEST_MSG_BITS is ours: 11 words (tri-net's 9, with device_id
+/// and executor two words each), 44 bytes, one block.
+pub const TAG_RECEIPT : u32 = 0x54524350;
+pub const SHA_PAD : u32 = 0x80000000;
+pub const DIGEST_MSG_BITS : u32 = 352;
+pub const TAG_LEDGER : u32 = 0x54524C47;
+pub const LEDGER_GENESIS : u32 = 0x54524C30;
+pub const LEDGER_MSG_BITS : u32 = 608;
+pub const MERKLE_MSG_BITS : u32 = 512;
+
+/// A receipt, in digest_pre's field order.
+pub struct Envelope {
+    request_id: u32,
+    device_id: u64,
+    executor: u64,
+    task: u32,
+    in_hash: u32,
+    out: u32,
+    epoch: u32,
+    prev_head: u32,
+}
+
+pub fn hi32(x: u64) -> u32 {
+    return ((x >> 32) & MASK32) as u32;
+}
+
+pub fn lo32(x: u64) -> u32 {
+    return (x & MASK32) as u32;
+}
+
+/// Word idx (0..15) of the receipt's one 512-bit block: the tag, the fields in order (the 64-bit ones
+/// high word first), the SHA-256 pad word, zeros, the message length in bits.
+pub fn digest_pre(idx: u32, e: Envelope) -> u32 {
+    if (idx == 0) { return TAG_RECEIPT; }
+    if (idx == 1) { return e.request_id; }
+    if (idx == 2) { return hi32(e.device_id); }
+    if (idx == 3) { return lo32(e.device_id); }
+    if (idx == 4) { return hi32(e.executor); }
+    if (idx == 5) { return lo32(e.executor); }
+    if (idx == 6) { return e.task; }
+    if (idx == 7) { return e.in_hash; }
+    if (idx == 8) { return e.out; }
+    if (idx == 9) { return e.epoch; }
+    if (idx == 10) { return e.prev_head; }
+    if (idx == 11) { return SHA_PAD; }
+    if (idx == 15) { return DIGEST_MSG_BITS; }
+    return 0;
+}
+
+/// SHA-256's compression of one block of 16 big-endian words from state st (H0 for a first block):
+/// tri/crypto/sha256.t27 compress, the FIPS 180-4 function t27c seals with.
+pub fn sha_block(st: [8]u32, block: [16]u32) -> [8]u32 {
+    var h : SHA256 = init();
+    h.state = st;
+    var i : usize = 0;
+    while (i < 16) {
+        h.buffer[i * 4] = ((block[i] >> 24) & 255) as u8;
+        h.buffer[i * 4 + 1] = ((block[i] >> 16) & 255) as u8;
+        h.buffer[i * 4 + 2] = ((block[i] >> 8) & 255) as u8;
+        h.buffer[i * 4 + 3] = (block[i] & 255) as u8;
+        i = i + 1;
+    }
+    compress(&h);
+    return h.state;
+}
+
+/// The digest the network runs on. Hashed, it is SHA-256 over the preimages of this section; fast, the
+/// same 16 words folded through mix32. The network reads a digest only to compare two for equality, so
+/// both give the same run (the_digest_does_not_steer_the_network); fast keeps the many-seed tests inside
+/// t27b's interpreter budget (tri/t27b/check_budget.t27 FILE_FUEL).
+pub fn fold_block(st: [8]u32, block: [16]u32) -> [8]u32 {
+    var out : [8]u32 = st;
+    var acc : u64 = 2654435769;
+    var i : usize = 0;
+    while (i < 16) {
+        acc = mix32(acc ^ (block[i] as u64) ^ ((i as u64) << 32));
+        out[i % 8] = out[i % 8] ^ (acc as u32);
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn block_digest(st: [8]u32, block: [16]u32, hashed: bool) -> [8]u32 {
+    if (hashed) { return sha_block(st, block); }
+    return fold_block(st, block);
+}
+
+/// The receipt's 256-bit digest: SHA-256 of the 44-byte message digest_pre lays out.
+pub fn receipt_digest(e: Envelope, hashed: bool) -> [8]u32 {
+    var blk : [16]u32 = [0; 16];
+    var i : u32 = 0;
+    while (i < 16) {
+        blk[i as usize] = digest_pre(i, e);
+        i = i + 1;
+    }
+    return block_digest(H0, blk, hashed);
+}
+
+/// Word idx (0..31) of a Merkle inner node's two blocks: left || right, then the pad for 64 bytes.
+pub fn merkle_pair_pre(idx: u32, lft: [8]u32, rgt: [8]u32) -> u32 {
+    if (idx < 8) { return lft[idx as usize]; }
+    if (idx < 16) { return rgt[(idx - 8) as usize]; }
+    if (idx == 16) { return SHA_PAD; }
+    if (idx == 31) { return MERKLE_MSG_BITS; }
+    return 0;
+}
+
+pub fn merkle_node(lft: [8]u32, rgt: [8]u32, hashed: bool) -> [8]u32 {
+    var b1 : [16]u32 = [0; 16];
+    var b2 : [16]u32 = [0; 16];
+    var i : u32 = 0;
+    while (i < 16) {
+        b1[i as usize] = merkle_pair_pre(i, lft, rgt);
+        b2[i as usize] = merkle_pair_pre(i + 16, lft, rgt);
+        i = i + 1;
+    }
+    return block_digest(block_digest(H0, b1, hashed), b2, hashed);
+}
+
+/// Word idx (0..31) of a settled-ledger entry's two blocks: prev_head || digest, then balance, epoch,
+/// TAG_LEDGER and the pad for 76 bytes.
+pub fn ledger_entry_pre(idx: u32, ph: [8]u32, dg: [8]u32, balance: u32, epoch: u32) -> u32 {
+    if (idx < 8) { return ph[idx as usize]; }
+    if (idx < 16) { return dg[(idx - 8) as usize]; }
+    if (idx == 16) { return balance; }
+    if (idx == 17) { return epoch; }
+    if (idx == 18) { return TAG_LEDGER; }
+    if (idx == 19) { return SHA_PAD; }
+    if (idx == 31) { return LEDGER_MSG_BITS; }
+    return 0;
+}
+
+pub fn ledger_head_after(ph: [8]u32, dg: [8]u32, balance: u32, epoch: u32, hashed: bool) -> [8]u32 {
+    var b1 : [16]u32 = [0; 16];
+    var b2 : [16]u32 = [0; 16];
+    var i : u32 = 0;
+    while (i < 16) {
+        b1[i as usize] = ledger_entry_pre(i, ph, dg, balance, epoch);
+        b2[i as usize] = ledger_entry_pre(i + 16, ph, dg, balance, epoch);
+        i = i + 1;
+    }
+    return block_digest(block_digest(H0, b1, hashed), b2, hashed);
+}
+
+pub fn ledger_genesis() -> [8]u32 {
+    var g : [8]u32 = [0; 8];
+    g[0] = LEDGER_GENESIS;
+    return g;
+}
+
+pub fn same8(a: [8]u32, c: [8]u32) -> bool {
+    var i : usize = 0;
+    while (i < 8) {
+        if (a[i] != c[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn fold64(dg: [8]u32) -> u64 {
+    return ((dg[0] as u64) << 32) | (dg[1] as u64);
+}
+
+/// tri_receipt_verify.t27: the reasons, and the order they are judged in (who, membership, correctness).
+pub const RV_OK : u32 = 0;
+pub const RV_BAD_SIG : u32 = 1;
+pub const RV_NOT_IN_BATCH : u32 = 2;
+pub const RV_BAD_COMPUTE : u32 = 3;
+
+pub fn reject_reason(sig_ok: bool, included: bool, compute_ok: bool) -> u32 {
+    if (sig_ok == false) { return RV_BAD_SIG; }
+    if (included == false) { return RV_NOT_IN_BATCH; }
+    if (compute_ok == false) { return RV_BAD_COMPUTE; }
+    return RV_OK;
+}
+
+pub fn receipt_accepted(sig_ok: bool, included: bool, compute_ok: bool) -> bool {
+    return reject_reason(sig_ok, included, compute_ok) == RV_OK;
+}
+
+/// tri_compute_challenge.t27: a challenge is decided by recomputation.
+pub const RESOLVE_HONEST : u8 = 0;
+pub const RESOLVE_SLASH : u8 = 1;
+
+pub fn resolve(claimed: u32, recomputed: u32) -> u8 {
+    if (claimed == recomputed) { return RESOLVE_HONEST; }
+    return RESOLVE_SLASH;
+}
+
+/// The challenger wins the slashed bond on a challenge upheld, and nothing on a frivolous one.
+pub fn challenger_reward(bond: u64, outcome: u8) -> u64 {
+    if (outcome == RESOLVE_SLASH) { return bond; }
+    return 0;
+}
+
+/// A frivolous challenger's stake is burned; an upheld one's is kept.
+pub fn challenger_stake_after(stake: u64, outcome: u8) -> u64 {
+    if (outcome == RESOLVE_HONEST) { return 0; }
+    return stake;
+}
+
+/// A vote dissents only from a quorum that formed: no quorum, nothing proven, no penalty.
+pub fn verifier_dissented(vote: u32, quorum_value: u32, has_quorum: bool) -> bool {
+    if (has_quorum == false) { return false; }
+    return vote != quorum_value;
+}
+
+/// Each honest verifier's floor share of the burned stake: no inflation, and never over-issued.
+pub fn verifier_reward(burned: u64, honest_count: u64) -> u64 {
+    if (honest_count == 0) { return 0; }
+    return burned / honest_count;
+}
+
+/// What the floor division leaves, unminted: all of it when nobody was honest.
+pub fn reward_dust(burned: u64, honest_count: u64) -> u64 {
+    return burned - (verifier_reward(burned, honest_count) * honest_count);
+}
+
+/// tri_compute_account.t27 is_final: a reward settled at settle_epoch is final once a whole window has
+/// passed; a clock before the settle epoch is never final.
+pub fn is_final(settle_epoch: u32, now_epoch: u32, window: u32) -> bool {
+    if (now_epoch < settle_epoch) { return false; }
+    return (now_epoch - settle_epoch) >= window;
+}
+
+/// A challenge counts only inside the window (tri-net's RESOLVE_STALE outside it).
+pub fn dispute_in_window(settle_epoch: u32, dispute_epoch: u32, window: u32) -> bool {
+    if (dispute_epoch < settle_epoch) { return false; }
+    return (dispute_epoch - settle_epoch) < window;
+}
+
+/// bal_after_finalize_checked's gates, and ours: never once slashed, never while a challenge is open,
+/// and only after the window.
+pub fn may_finalize(settle_epoch: u32, now_epoch: u32, window: u32, challenge_open: bool, slashed: bool) -> bool {
+    if (slashed) { return false; }
+    if (challenge_open) { return false; }
+    return is_final(settle_epoch, now_epoch, window);
+}
+
+; --- 2. Our corrections ----------------------------------------------------------------------------
+
+/// The quorum, judged against a fault bound F (tri-bridge.t27): N signers, at most F faulty, M of them
+/// to admit. The smallest safe M is floor((N + F) / 2) + 1.
+pub const NET_N : u32 = 4;
+pub const NET_F : u32 = 1;
+pub const NET_M : u32 = 3;
+
+pub fn quorum_needed(n: u32, f: u32) -> u32 {
+    return ((n + f) / 2) + 1;
+}
+
+/// tri_compute_challenge.t27 quorum_threshold, floor(n/2) + 1: the F = 0 case only. Kept to be refuted.
+pub fn majority_threshold(n: u32) -> u32 {
+    return (n >> 1) + 1;
+}
+
+/// The rule we do not use for replay: a high-water mark takes only ids above the last one settled.
+pub fn high_water_accepts(id: u32, mark: u32) -> bool {
+    return id > mark;
+}
+
+/// Key ids: 64 bits of the public key's hash (KEY_ID_HEX_LEN 16 hex digits).
+pub const KEY_ID_BITS : u32 = 64;
+
+pub fn key_id_of(pubkey: u64) -> u64 {
+    return (mix32(pubkey >> 32) << 32) | mix32(pubkey & MASK32);
+}
+
+pub fn pubkey_of(who: u32) -> u64 {
+    return (mix32((who as u64) + 4096) << 32) | mix32((who as u64) + 8192);
+}
+
+/// A key that agrees with signer `who`'s in the low half of its id: what a 2^32 search finds.
+pub const FORGE_BIT : u64 = 1099511627776;
+
+pub fn forged_pubkey(who: u32) -> u64 {
+    return pubkey_of(who) ^ FORGE_BIT;
+}
+
+/// The verifier signs each batch root with its own key, slot SLOT_VERIFIER's.
+pub fn verifier_pubkey() -> u64 {
+    return pubkey_of(SLOT_VERIFIER as u32);
+}
+
+/// The registered node (1..SIGNERS) a 64-bit key id names, or 0.
+pub fn node_of_key(key_id: u64) -> u32 {
+    var i : u32 = 0;
+    while (i < SIGNERS) {
+        if (key_id_of(pubkey_of(i)) == key_id) { return i + 1; }
+        i = i + 1;
+    }
+    return 0;
+}
+
+/// The 32-bit truncation we refuse: a node found by the low 32 bits of a key id.
+pub fn node_of_key32(key_id: u64) -> u32 {
+    var i : u32 = 0;
+    while (i < SIGNERS) {
+        if ((key_id_of(pubkey_of(i)) & MASK32) == (key_id & MASK32)) { return i + 1; }
+        i = i + 1;
+    }
+    return 0;
+}
+
+/// The signature stand-in (Ed25519 is a primitive outside .t27, as in tri-net): keyed on the public key
+/// and folded over every digest word.
+pub fn sig_of(pubkey: u64, dg: [8]u32) -> u64 {
+    var a : u64 = mix32(pubkey & MASK32);
+    var c : u64 = mix32(pubkey >> 32);
+    var i : usize = 0;
+    while (i < 8) {
+        a = mix32(a ^ (dg[i] as u64));
+        c = mix32(c ^ a);
+        i = i + 1;
+    }
+    return (c << 32) | a;
+}
+
+/// Devices. 0 is SOFTWARE_SIGNED. A die is named by its 64-bit FUSE_DNA word, its 7-bit tail included
+/// (device_dna.t27, measured on dies A and B); DNA_PORT reads the 57-bit DNA only, never a device id.
+pub const DEVICE_SOFTWARE : u64 = 0;
+pub const SIGNER_NATIVE : u32 = 2;
+
+pub fn fuse_dna_a() -> u64 {
+    return raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+}
+
+pub fn fuse_dna_b() -> u64 {
+    return raw_from_fields(FUSE_LO_OBSERVED_B, FUSE_HI_OBSERVED_B);
+}
+
+pub fn dna_port_of(fuse: u64) -> u64 {
+    return dna_from_fuse(fuse);
+}
+
+/// The executor runs on die A and the second native worker on die B; the reference and the re-run are
+/// software-signed.
+pub fn device_of(signer: u32) -> u64 {
+    if (signer == SIGNER_EXECUTOR) { return fuse_dna_a(); }
+    if (signer == SIGNER_NATIVE) { return fuse_dna_b(); }
+    return DEVICE_SOFTWARE;
+}
+
+pub fn device_bound(device_id: u64) -> bool {
+    return device_id != DEVICE_SOFTWARE;
+}
+
+pub fn attestation_of(device_id: u64, reproduced: bool) -> u8 {
+    return attestation_level(true, reproduced, device_bound(device_id));
+}
+
+/// tri_receipt_verify's sig_ok, with the identity the registry binds: the key id names the node the
+/// claim came from, the public key hashes to that id, the device id is the one that node registered,
+/// and the signature checks over dg, the digest the checker recomputed from the envelope. wide = false
+/// is the 32-bit truncation we refuse.
+pub fn sig_check(e: Envelope, dg: [8]u32, pubkey: u64, signed: bool, sig: u64, node: u32, wide: bool) -> bool {
+    if (signed == false) { return false; }
+    var key_node : u32 = node_of_key(e.executor);
+    var id_matches : bool = key_id_of(pubkey) == e.executor;
+    if (wide == false) {
+        key_node = node_of_key32(e.executor);
+        id_matches = (key_id_of(pubkey) & MASK32) == (e.executor & MASK32);
+    }
+    if (key_node == 0 or key_node != node) { return false; }
+    if (id_matches == false) { return false; }
+    if (e.device_id != device_of(node - 1)) { return false; }
+    return sig_of(pubkey, dg) == sig;
+}
+
+/// What the ledger is told about an authenticated claim. Out of the batch with a leaf present, the
+/// signer signed what it did not commit: a nonce mismatch when it answers another request (a replay),
+/// a wrong result when it answers this one (an equivocation). No leaf: late, not evidence. A claim no
+/// key vouches for (BAD_SIG) never reaches the ledger, so its identity branch never sees it (see #8658).
+pub fn claim_verdict(reason: u32, leaf_present: bool, request_matches: bool) -> u8 {
+    if (reason == RV_OK) { return V_OK; }
+    if (reason == RV_BAD_COMPUTE) { return V_WRONG_RESULT; }
+    if (reason == RV_NOT_IN_BATCH) {
+        if (leaf_present == false) { return V_UNVERIFIABLE; }
+        if (request_matches == false) { return V_NONCE_MISMATCH; }
+        return V_WRONG_RESULT;
+    }
+    return V_UNVERIFIABLE;
+}
+
+; --- 3. The actors and the trace -------------------------------------------------------------------
+
+/// v1's slots (dispatcher 1, workers 2..4, verifier 5, treasurer 6, supervisor 7, re-run 8), and two more.
+pub const SLOT_WATCHER : u64 = 9;
+pub const SLOT_GRIEFER : u64 = 10;
+pub const ACTOR_SLOTS_V2 : u64 = 10;
+pub const TRACE_ACTOR_NAMES : [10]str = [
+    "dispatcher", "executor", "worker-ref", "worker-native", "verifier", "treasurer", "mvp-root", "rerun", "watcher", "griefer"
+];
+
+/// Message tags beyond v1's (M_TASK_OFFER, M_RECEIPT, M_RUN, M_CLAIM).
+pub const M_SLASH : u64 = 24;
+pub const M_DISPUTE : u64 = 25;
+pub const M_POLL : u64 = 26;
+
+/// actor_events.t27's row: seq, kind, from_pid, to_pid, task_ref (job number, TK_JOB; 0 is none),
+/// parent_pid and restart_count on spawn and restart, reason_class on exit and DOWN (NO_REASON
+/// elsewhere), count on a pair count. tag is the message tag of a deliver, never a payload.
+pub const TRACE_CAP : usize = 640;
+pub const NO_REASON : u8 = 255;
+pub const TRACE_TASK_KIND : u8 = 2;
+
+pub struct Trace {
+    len: u32,
+    overflow: u32,
+    kind: [TRACE_CAP]u8,
+    from_pid: [TRACE_CAP]u64,
+    to_pid: [TRACE_CAP]u64,
+    task_ref: [TRACE_CAP]u32,
+    parent_pid: [TRACE_CAP]u64,
+    restart_count: [TRACE_CAP]u32,
+    reason_class: [TRACE_CAP]u8,
+    count: [TRACE_CAP]u32,
+    tag: [TRACE_CAP]u64,
+}
+
+pub struct TraceRow {
+    seq: u64,
+    kind: u8,
+    from_pid: u64,
+    to_pid: u64,
+    task_ref: u32,
+    parent_pid: u64,
+    restart_count: u32,
+    reason_class: u8,
+    count: u32,
+    tag: u64,
+}
+
+pub fn trace_empty() -> Trace {
+    return Trace {
+        len: 0,
+        overflow: 0,
+        kind: [0; TRACE_CAP],
+        from_pid: [0; TRACE_CAP],
+        to_pid: [0; TRACE_CAP],
+        task_ref: [0; TRACE_CAP],
+        parent_pid: [0; TRACE_CAP],
+        restart_count: [0; TRACE_CAP],
+        reason_class: [0; TRACE_CAP],
+        count: [0; TRACE_CAP],
+        tag: [0; TRACE_CAP],
+    };
+}
+
+pub fn trace_push(t: *Trace, kind: u8, from: u64, to: u64, task: u32, parent: u64, restarts: u32, reason: u8, count: u32, tag: u64) -> void {
+    if ((t.len as usize) >= TRACE_CAP) {
+        t.overflow = t.overflow + 1;
+        return;
+    }
+    let i : usize = t.len as usize;
+    t.kind[i] = kind;
+    t.from_pid[i] = from;
+    t.to_pid[i] = to;
+    t.task_ref[i] = task;
+    t.parent_pid[i] = parent;
+    t.restart_count[i] = restarts;
+    t.reason_class[i] = reason;
+    t.count[i] = count;
+    t.tag[i] = tag;
+    t.len = t.len + 1;
+}
+
+pub fn deliver_row(t: *Trace, from: u64, to: u64, task: u32, tag: u64) -> void {
+    trace_push(t, EV_ACTOR_DELIVER, from, to, task, NO_PID, 0, NO_REASON, 1, tag);
+}
+
+; --- 4. The draws: streams 28..32, apart from v1's 20..27 -----------------------------------------
+
+pub const NET2_STREAM_FAULT : u32 = 28;
+pub const NET2_STREAM_COLLUDE : u32 = 29;
+pub const NET2_STREAM_RESTART : u32 = 30;
+pub const NET2_STREAM_CHALLENGE : u32 = 31;
+pub const NET2_STREAM_DOUBLE : u32 = 32;
+
+pub const F2_HONEST : u8 = 0;
+pub const F2_LIE : u8 = 1;
+pub const F2_UNSIGNED : u8 = 2;
+pub const F2_FORGED_KEY : u8 = 3;
+pub const F2_DNA_PORT : u8 = 4;
+pub const F2_EQUIVOCATE : u8 = 5;
+pub const F2_REPLAY : u8 = 6;
+pub const F2_CRASH : u8 = 7;
+pub const F2_COLLUDE : u8 = 8;
+
+pub const W2_LIE : u32 = 5;
+pub const W2_UNSIGNED : u32 = 2;
+pub const W2_FORGED_KEY : u32 = 2;
+pub const W2_DNA_PORT : u32 = 2;
+pub const W2_EQUIVOCATE : u32 = 2;
+pub const W2_REPLAY : u32 = 3;
+pub const W2_CRASH : u32 = 3;
+
+pub fn fault2_of(roll: u32) -> u8 {
+    let x : u32 = pick_between(roll, 0, FAULT_SPAN - 1);
+    var edge : u32 = W2_LIE;
+    if (x < edge) { return F2_LIE; }
+    edge = edge + W2_UNSIGNED;
+    if (x < edge) { return F2_UNSIGNED; }
+    edge = edge + W2_FORGED_KEY;
+    if (x < edge) { return F2_FORGED_KEY; }
+    edge = edge + W2_DNA_PORT;
+    if (x < edge) { return F2_DNA_PORT; }
+    edge = edge + W2_EQUIVOCATE;
+    if (x < edge) { return F2_EQUIVOCATE; }
+    edge = edge + W2_REPLAY;
+    if (x < edge) { return F2_REPLAY; }
+    edge = edge + W2_CRASH;
+    if (x < edge) { return F2_CRASH; }
+    return F2_HONEST;
+}
+
+pub fn fault2_draw(seed: u32, job_ix: u32, try_ix: u32, signer: u32) -> u8 {
+    return fault2_of(sim_roll(seed, NET2_STREAM_FAULT, draw_index(job_ix, try_ix, signer)));
+}
+
+/// A slashable fraud: attributable, so the ledger can charge it.
+pub fn fraud_slashable(fault: u8) -> bool {
+    return fault == F2_LIE or fault == F2_EQUIVOCATE or fault == F2_REPLAY or fault == F2_COLLUDE;
+}
+
+/// A claim no key vouches for: it can be refused, never charged.
+pub fn fraud_unsigned(fault: u8) -> bool {
+    return fault == F2_UNSIGNED or fault == F2_FORGED_KEY or fault == F2_DNA_PORT;
+}
+
+/// Half the jobs whose spec fails its tests: the executor bribes the two native verifiers, and signers
+/// 0, 2 and 3 agree on PASS to be paid. The reference worker is not bribed.
+pub fn colluded(seed: u32, job_ix: u32) -> bool {
+    if (true_word(seed, job_ix) != FAIL) { return false; }
+    return pick_between(sim_roll(seed, NET2_STREAM_COLLUDE, job_ix), 0, 1) == 0;
+}
+
+/// One job in five, the dispatcher restarts first and loses what it held in memory.
+pub fn dispatcher_restarts(seed: u32, job_ix: u32) -> bool {
+    return pick_between(sim_roll(seed, NET2_STREAM_RESTART, job_ix), 0, 4) == 0;
+}
+
+/// The griefer disputes one right job in four; it files inside the window or one epoch late.
+pub fn griefed(seed: u32, job_ix: u32) -> bool {
+    return pick_between(sim_roll(seed, NET2_STREAM_CHALLENGE, draw_index(job_ix, 0, 0)), 0, 3) == 0;
+}
+
+pub fn grief_delay(seed: u32, job_ix: u32) -> u32 {
+    return pick_between(sim_roll(seed, NET2_STREAM_CHALLENGE, draw_index(job_ix, 0, 1)), 0, CHALLENGE_WINDOW);
+}
+
+/// The watcher files inside the window; a resolution takes one to three epochs.
+pub fn watch_delay(seed: u32, job_ix: u32) -> u32 {
+    return pick_between(sim_roll(seed, NET2_STREAM_CHALLENGE, draw_index(job_ix, 0, 2)), 0, CHALLENGE_WINDOW - 1);
+}
+
+pub fn resolve_delay(seed: u32, job_ix: u32) -> u32 {
+    return pick_between(sim_roll(seed, NET2_STREAM_CHALLENGE, draw_index(job_ix, 0, 3)), 1, 3);
+}
+
+/// One settled job in three, the executor presents its credited claim again.
+pub fn double_billed(seed: u32, job_ix: u32) -> bool {
+    return pick_between(sim_roll(seed, NET2_STREAM_DOUBLE, job_ix), 0, 2) == 0;
+}
+
+/// Outs: the truth is v1's honest verdict digest (below 2^32); colluders agree on the other word's; a
+/// liar's carries its own mark; an equivocation flips one bit of what was committed.
+pub const EQUIVOCATION_MARK : u32 = 1048576;
+
+pub fn true_out(job_ix: u32, word: u8) -> u32 {
+    return verdict_digest(job_ix, word) as u32;
+}
+
+pub fn collusion_out(job_ix: u32, truth: u8) -> u32 {
+    return true_out(job_ix, other_word(truth));
+}
+
+pub fn lie_out(job_ix: u32, truth: u8, signer: u32) -> u32 {
+    return collusion_out(job_ix, truth) ^ ((signer + 1) << 24);
+}
+
+pub fn word_of(job_ix: u32, out: u32) -> u8 {
+    if (out == true_out(job_ix, PASS)) { return PASS; }
+    return FAIL;
+}
+
+pub fn spec_in_hash(job_ix: u32) -> u32 {
+    return mix32(((job_ix as u64) * 7919) + 17) as u32;
+}
+
+; --- 5. The books and the observer ------------------------------------------------------------------
+
+/// Holders: v1's four signers, provider 4 and author 5, and the watcher and the griefer.
+pub const H_WATCHER : u64 = 6;
+pub const H_GRIEFER : u64 = 7;
+pub const HOLDERS : u32 = 8;
+pub const HOLDER_CAP : usize = 8;
+pub const JOBS_MAX : u32 = 16;
+pub const JOB_CAP : usize = 16;
+pub const PEND_CAP : usize = 128;
+pub const CLAIM_CAP : usize = 64;
+pub const LEAF_CAP : usize = 32;
+
+/// Epochs: one per job. The window, and the epochs after the last job in which challenges resolve and
+/// rewards finalize (window + the longest resolution + 1).
+pub const CHALLENGE_WINDOW : u32 = 2;
+pub const DRAIN_EPOCHS : u32 = 6;
+
+pub const TEST_STAKE : u64 = 10000;
+pub const TEST_SLASH : u64 = 200;
+pub const WATCHER_STAKE : u64 = 1000;
+pub const GRIEFER_STAKE : u64 = 1000;
+pub const CHALLENGE_STAKE : u64 = 100;
+
+/// Entry kinds of the ledger head beyond the payment kinds (v1's ENTRY_SLASH is 9).
+pub const ENTRY_FINAL : u8 = 10;
+pub const ENTRY_CLAWBACK : u8 = 11;
+pub const ENTRY_BURN : u8 = 12;
+pub const ENTRY_JOB_END : u8 = 13;
+
+/// The epoch word of a head entry carries the epoch, the holder and the kind (tri-net's entry is one
+/// holder's; ours names which).
+pub fn entry_word(epoch: u32, holder: u64, kind: u8) -> u32 {
+    return (epoch << 8) | (((holder as u32) & 15) << 4) | ((kind as u32) & 15);
+}
+
+/// The treasurer's books (tri_compute_account.t27's buckets): spendable (fin), pending per job and
+/// holder (pend, with pend_h its sum per holder), and what flowed. Locked stake is the ledger's.
+pub struct Books {
+    fin: [HOLDER_CAP]u64,
+    pend: [PEND_CAP]u64,
+    pend_h: [HOLDER_CAP]u64,
+    head: [8]u32,
+    paid: u64,
+    emitted: u64,
+    paid_from_slashed: u64,
+    slashed: u64,
+    ledger_slashed: u64,
+    dust: u64,
+    clawed: u64,
+    finals: u64,
+    hashed: bool,
+}
+
+pub fn books_open(hashed: bool) -> Books {
+    return Books {
+        fin: [0; HOLDER_CAP],
+        pend: [0; PEND_CAP],
+        pend_h: [0; HOLDER_CAP],
+        head: ledger_genesis(),
+        paid: 0,
+        emitted: 0,
+        paid_from_slashed: 0,
+        slashed: 0,
+        ledger_slashed: 0,
+        dust: 0,
+        clawed: 0,
+        finals: 0,
+        hashed: hashed,
+    };
+}
+
+/// A credit into pending, minted from the pool (from_pool) or paid out of slashed stake.
+pub fn credit_pending(bk: Books, job: u32, holder: u64, kind: u8, amount: u64, from_pool: bool, dg: [8]u32) -> Books {
+    var s : Books = bk;
+    let h : usize = holder as usize;
+    let x : usize = ((job * HOLDERS) as usize) + h;
+    s.pend[x] = s.pend[x] + amount;
+    s.pend_h[h] = s.pend_h[h] + amount;
+    s.paid = s.paid + amount;
+    if (from_pool) { s.emitted = s.emitted + amount; } else { s.paid_from_slashed = s.paid_from_slashed + amount; }
+    s.head = ledger_head_after(s.head, dg, lo32(s.fin[h] + s.pend_h[h]), entry_word(job, holder, kind), s.hashed);
+    return s;
+}
+
+/// A credit straight to spendable, out of slashed stake: a challenge's resolution is final.
+pub fn credit_final(bk: Books, job: u32, holder: u64, kind: u8, amount: u64, dg: [8]u32) -> Books {
+    var s : Books = bk;
+    let h : usize = holder as usize;
+    s.fin[h] = s.fin[h] + amount;
+    s.paid = s.paid + amount;
+    s.paid_from_slashed = s.paid_from_slashed + amount;
+    s.finals = s.finals + amount;
+    s.head = ledger_head_after(s.head, dg, lo32(s.fin[h] + s.pend_h[h]), entry_word(job, holder, kind), s.hashed);
+    return s;
+}
+
+/// Stake taken: by ledger.t27 (via_ledger) or a challenger's posted stake burned.
+pub fn take_stake(bk: Books, job: u32, holder: u64, amount: u64, left: u64, via_ledger: bool, dg: [8]u32) -> Books {
+    var s : Books = bk;
+    s.slashed = s.slashed + amount;
+    var kind : u8 = ENTRY_BURN;
+    if (via_ledger) {
+        s.ledger_slashed = s.ledger_slashed + amount;
+        kind = ENTRY_SLASH;
+    }
+    s.head = ledger_head_after(s.head, dg, lo32(left), entry_word(job, holder, kind), s.hashed);
+    return s;
+}
+
+/// Pending to spendable for every holder of one job (finalize), or back to the pool (claw back).
+pub fn release_job(bk: Books, job: u32, to_final: bool) -> Books {
+    var s : Books = bk;
+    var moved : u64 = 0;
+    var h : u32 = 0;
+    while (h < HOLDERS) {
+        let x : usize = (job * HOLDERS + h) as usize;
+        let amt : u64 = s.pend[x];
+        s.pend[x] = 0;
+        s.pend_h[h as usize] = s.pend_h[h as usize] - amt;
+        if (to_final) { s.fin[h as usize] = s.fin[h as usize] + amt; }
+        moved = moved + amt;
+        h = h + 1;
+    }
+    var kind : u8 = ENTRY_CLAWBACK;
+    if (to_final) {
+        s.finals = s.finals + moved;
+        kind = ENTRY_FINAL;
+    } else {
+        s.clawed = s.clawed + moved;
+    }
+    var none : [8]u32 = [0; 8];
+    s.head = ledger_head_after(s.head, none, lo32(moved), entry_word(job, 15, kind), s.hashed);
+    return s;
+}
+
+pub fn sum8(a: [HOLDER_CAP]u64) -> u64 {
+    var t : u64 = 0;
+    var i : usize = 0;
+    while (i < HOLDER_CAP) {
+        t = t + a[i];
+        i = i + 1;
+    }
+    return t;
+}
+
+pub fn stakes_held(lg: Ledger) -> u64 {
+    var t : u64 = 0;
+    var k : usize = 0;
+    while (k < lg.n_nodes) {
+        t = t + lg.stake_mtri[k];
+        k = k + 1;
+    }
+    return t;
+}
+
+pub fn accepted_held(lg: Ledger) -> u64 {
+    var t : u64 = 0;
+    var k : usize = 0;
+    while (k < lg.n_nodes) {
+        t = t + lg.accepted[k];
+        k = k + 1;
+    }
+    return t;
+}
+
+pub fn count_bits(mask: u64, n: u32) -> u64 {
+    var c : u64 = 0;
+    var i : u32 = 0;
+    while (i < n) {
+        if (has(mask, i)) { c = c + 1; }
+        i = i + 1;
+    }
+    return c;
+}
+
+/// The observer's invariants (bit i: invariant i broke).
+pub const I2_OK : u8 = 0;
+pub const I2_PAID_OVER_SOURCES : u8 = 1;
+pub const I2_NOT_CONSERVED : u8 = 2;
+pub const I2_FRAUD_NOT_WORSE : u8 = 3;
+pub const I2_FINAL_WHILE_CHALLENGED : u8 = 4;
+pub const I2_SLASHED_FINALIZED : u8 = 5;
+pub const I2_DUST_MINTED : u8 = 6;
+pub const I2_NONCE_REISSUED : u8 = 7;
+pub const I2_PAID_TWICE : u8 = 8;
+pub const I2_UNADMITTED_PAID : u8 = 9;
+pub const I2_QUORUM_UNSAFE : u8 = 10;
+pub const I2_LEDGER_DRIFT : u8 = 11;
+pub const I2_UNSIGNED_PAID : u8 = 12;
+pub const I2_BOUNTY_UNEARNED : u8 = 13;
+pub const I2_OFF_CHAIN_CREDIT : u8 = 14;
+pub const I2_UNREPRODUCED_CREDIT : u8 = 15;
+pub const I2_UNKNOWN_KIND : u8 = 16;
+pub const I2_FORGED_VOTE : u8 = 17;
+pub const I2_KINDS : u8 = 18;
+
+pub fn first_broken2(already: u8, flags: u64) -> u8 {
+    if (already != I2_OK) { return already; }
+    var i : u8 = 1;
+    while (i < I2_KINDS) {
+        if ((flags & bit(i as u64)) != 0) { return i; }
+        i = i + 1;
+    }
+    return I2_OK;
+}
+
+/// The books, after every step: paid <= emitted + slashed; what was paid out of slashed stake never
+/// exceeds it (so the dust stays unminted); and every unit is somewhere: spendable + pending + locked +
+/// burned-unpaid + clawed back = the stakes at the start + what was emitted.
+pub fn books_flags(flags: u64, bk: Books, locked_now: u64, stakes_start: u64) -> u64 {
+    var f : u64 = flag(flags, I2_PAID_OVER_SOURCES, bk.paid > bk.emitted + bk.slashed);
+    if (bk.paid_from_slashed > bk.slashed) { return flag(f, I2_DUST_MINTED, true); }
+    let held : u64 = sum8(bk.fin) + sum8(bk.pend_h) + locked_now + (bk.slashed - bk.paid_from_slashed) + bk.clawed;
+    f = flag(f, I2_NOT_CONSERVED, held != stakes_start + bk.emitted);
+    return f;
+}
+
+/// The ledger and the MVP keep one account: every slash the ledger took, every credit it counted, every
+/// spent key distinct.
+pub fn ledger_flags(flags: u64, lg: Ledger, ledger_slashed: u64, credited: u64, closing: bool) -> u64 {
+    var drift : bool = lg.total_slashed_mtri != ledger_slashed;
+    if (accepted_held(lg) != credited) { drift = true; }
+    if ((lg.n_spent as u64) != credited) { drift = true; }
+    if (closing and spent_keys_are_distinct(lg) == false) { drift = true; }
+    return flag(flags, I2_LEDGER_DRIFT, drift);
+}
+
+; --- 6. One run of the network ----------------------------------------------------------------------
+
+pub struct NetV2 {
+    digest: u64,
+    flags: u64,
+    broken: u8,
+    paid: u64,
+    emitted: u64,
+    slashed: u64,
+    paid_from_slashed: u64,
+    dust: u64,
+    clawed: u64,
+    finals: u64,
+    pending_left: u64,
+    rate_end: u64,
+    lies: u64,
+    unsigned: u64,
+    forged: u64,
+    dna_port: u64,
+    equivocations: u64,
+    replays: u64,
+    crashes: u64,
+    collusions: u64,
+    sup_restarts: u64,
+    gave_up: u64,
+    bad_sig: u64,
+    not_in_batch: u64,
+    bad_compute: u64,
+    accepted: u64,
+    credited: u64,
+    runs_admitted: u64,
+    runs_refused: u64,
+    wrong_runs: u64,
+    device_bound_runs: u64,
+    jobs_done: u64,
+    jobs_failed: u64,
+    jobs_paid: u64,
+    split_refused: u64,
+    executor_fees: u64,
+    provider_fees: u64,
+    verifier_fees: u64,
+    royalties: u64,
+    bounties: u64,
+    challenges_upheld: u64,
+    challenges_frivolous: u64,
+    challenges_stale: u64,
+    held_open: u64,
+    jobs_finalized: u64,
+    jobs_clawed: u64,
+    challenger_paid: u64,
+    griefer_burned: u64,
+    disp_restarts: u64,
+    marks_written: u64,
+    double_bills: u64,
+    double_refused: u64,
+    double_zero_slash: u64,
+    off_chain: u64,
+    off_chain_refused: u64,
+    bypass: u64,
+    bypass_refused: u64,
+    fraud_closed: u64,
+    honest_closed: u64,
+    lie_slash_seq: u64,
+    lie_slash_pid: u64,
+    replay_seq: u64,
+    replay_pid: u64,
+    double_seq: u64,
+    double_pid: u64,
+}
+
+pub fn net_v2_empty() -> NetV2 {
+    return NetV2 {
+        digest: 0, flags: 0, broken: 0, paid: 0, emitted: 0, slashed: 0, paid_from_slashed: 0, dust: 0,
+        clawed: 0, finals: 0, pending_left: 0, rate_end: 0, lies: 0, unsigned: 0, forged: 0, dna_port: 0,
+        equivocations: 0, replays: 0, crashes: 0, collusions: 0, sup_restarts: 0, gave_up: 0, bad_sig: 0,
+        not_in_batch: 0, bad_compute: 0, accepted: 0, credited: 0, runs_admitted: 0, runs_refused: 0,
+        wrong_runs: 0, device_bound_runs: 0, jobs_done: 0, jobs_failed: 0, jobs_paid: 0, split_refused: 0,
+        executor_fees: 0, provider_fees: 0, verifier_fees: 0, royalties: 0, bounties: 0,
+        challenges_upheld: 0, challenges_frivolous: 0, challenges_stale: 0, held_open: 0,
+        jobs_finalized: 0, jobs_clawed: 0, challenger_paid: 0, griefer_burned: 0, disp_restarts: 0,
+        marks_written: 0, double_bills: 0, double_refused: 0, double_zero_slash: 0, off_chain: 0,
+        off_chain_refused: 0, bypass: 0, bypass_refused: 0, fraud_closed: 0, honest_closed: 0,
+        lie_slash_seq: 0, lie_slash_pid: 0, replay_seq: 0, replay_pid: 0, double_seq: 0, double_pid: 0,
+    };
+}
+
+pub const CH_NONE : u8 = 0;
+pub const CH_SCHEDULED : u8 = 1;
+pub const CH_OPEN : u8 = 2;
+pub const CH_DONE : u8 = 3;
+pub const BY_WATCHER : u8 = 1;
+pub const BY_GRIEFER : u8 = 2;
+
+/// Run `jobs` jobs (at most JOBS_MAX) under `seed`, writing the actor trace into `tr`. The price, the
+/// bounty and the slash are parameters; the stakes are the tests' own.
+pub fn network_v2(seed: u32, jobs: u32, base_rate: u64, halving_every: u64, units_max: u64, bounty: u64, slash: u64, hashed: bool, tr: *Trace) -> NetV2 {
+    var r : NetV2 = net_v2_empty();
+    var bk : Books = books_open(hashed);
+    var lg : Ledger = ledger_init(policy_of(1, slash, 100));
+    var si : u32 = 0;
+    // the root supervisor starts every actor
+    let sup_pid : u64 = pid_of(SLOT_SUPERVISOR, 0);
+    var disp_gen : u64 = 0;
+    var disp_pid : u64 = pid_of(SLOT_DISPATCHER, 0);
+    let ver_pid : u64 = pid_of(SLOT_VERIFIER, 0);
+    let tre_pid : u64 = pid_of(SLOT_TREASURER, 0);
+    let watch_pid : u64 = pid_of(SLOT_WATCHER, 0);
+    let grief_pid : u64 = pid_of(SLOT_GRIEFER, 0);
+    trace_push(tr, EV_ACTOR_SPAWN, NO_PID, sup_pid, 0, NO_PID, 0, NO_REASON, 0, 0);
+    var slot : u64 = 1;
+    while (slot <= ACTOR_SLOTS_V2) {
+        if (slot != SLOT_SUPERVISOR) { trace_push(tr, EV_ACTOR_SPAWN, sup_pid, pid_of(slot, 0), 0, sup_pid, 0, NO_REASON, 0, 0); }
+        slot = slot + 1;
+    }
+    while (si < SIGNERS) {
+        lg = register_node(lg, si + 1, si + 1, device_bound(device_of(si)), TEST_STAKE);
+        si = si + 1;
+    }
+    let stakes_start : u64 = ((SIGNERS as u64) * TEST_STAKE) + WATCHER_STAKE + GRIEFER_STAKE;
+    // supervisor: each signer's generation and restarts, and the signers it gave up on
+    var sup_gens : u64 = 0;
+    var sup_restarts : u64 = 0;
+    var sup_down : u64 = 0;
+    // dispatcher: per node, the next nonce, where this start resumed, the durable mark
+    var d_next : [4]u32 = [0; 4];
+    var d_resumed : [4]u32 = [0; 4];
+    var d_mark : [4]u32 = [0; 4];
+    var disp_serial : u64 = 0;
+    var o_issued : u64 = 0;
+    var o_last : [4]u32 = [0; 4];
+    // what each signer keeps: its last vote, the receipt a replay presents
+    var pv_present : u64 = 0;
+    var pv_req : [4]u32 = [0; 4];
+    var pv_task : [4]u32 = [0; 4];
+    var pv_in : [4]u32 = [0; 4];
+    var pv_out : [4]u32 = [0; 4];
+    var pv_epoch : [4]u32 = [0; 4];
+    var pv_prev : [4]u32 = [0; 4];
+    // treasurer
+    var tre_minted : u64 = 0;
+    var bounty_paid : bool = false;
+    var griefer_locked : u64 = GRIEFER_STAKE;
+    var griefer_posted : u64 = 0;
+    // per job: settled, closed, clawed; the challenge; each signer's settled claim; gains and losses
+    var j_settled : u64 = 0;
+    var j_closed : u64 = 0;
+    var j_clawed : u64 = 0;
+    var ch_state : [JOB_CAP]u8 = [0; JOB_CAP];
+    var ch_by : [JOB_CAP]u8 = [0; JOB_CAP];
+    var ch_file_at : [JOB_CAP]u32 = [0; JOB_CAP];
+    var ch_resolve_at : [JOB_CAP]u32 = [0; JOB_CAP];
+    var j_q_out : [JOB_CAP]u32 = [0; JOB_CAP];
+    var j_t_out : [JOB_CAP]u32 = [0; JOB_CAP];
+    var j_signers : [JOB_CAP]u64 = [0; JOB_CAP];
+    var j_pids : [CLAIM_CAP]u64 = [0; CLAIM_CAP];
+    var j_req : [CLAIM_CAP]u32 = [0; CLAIM_CAP];
+    var j_cout : [CLAIM_CAP]u32 = [0; CLAIM_CAP];
+    var j_reason : [CLAIM_CAP]u32 = [0; CLAIM_CAP];
+    var j_fault : [CLAIM_CAP]u8 = [0; CLAIM_CAP];
+    var j_exec_d : [PEND_CAP]u32 = [0; PEND_CAP];
+    var gain : [CLAIM_CAP]u64 = [0; CLAIM_CAP];
+    var loss : [CLAIM_CAP]u64 = [0; CLAIM_CAP];
+    var polls : u32 = 0;
+    let bounty_job : u32 = bounty_job_of(seed, jobs);
+    let bounty_pr_merged : bool = bounty_merged(seed);
+
+    var now : u32 = 0;
+    while (now < jobs + DRAIN_EPOCHS) {
+        if (now < jobs) {
+            let job_ix : u32 = now;
+            let task : u32 = job_ix + 1;
+            let truth : u8 = true_word(seed, job_ix);
+            let t_out : u32 = true_out(job_ix, truth);
+            let units : u64 = units_draw(seed, job_ix, units_max);
+            let collude : bool = colluded(seed, job_ix);
+            disp_serial = disp_serial + 1;
+            let bill : u64 = issue_nonce(disp_serial, units);
+            if (dispatcher_restarts(seed, job_ix)) {
+                // the dispatcher restarts: its counters are gone; it resumes at each node's durable mark,
+                // above every nonce it may have issued (node-work-credit.t27)
+                r.disp_restarts = r.disp_restarts + 1;
+                trace_push(tr, EV_ACTOR_EXIT, disp_pid, NO_PID, 0, NO_PID, 0, reason_class(X_CRASH), 0, 0);
+                disp_gen = next_gen(disp_gen);
+                disp_pid = pid_of(SLOT_DISPATCHER, disp_gen);
+                trace_push(tr, EV_ACTOR_RESTART, sup_pid, disp_pid, 0, sup_pid, (r.disp_restarts as u32), NO_REASON, 0, 0);
+                si = 0;
+                while (si < SIGNERS) {
+                    d_next[si as usize] = resume_nonce(d_mark[si as usize]);
+                    d_resumed[si as usize] = d_next[si as usize];
+                    si = si + 1;
+                }
+            }
+            if (collude) { r.collusions = r.collusions + 1; }
+            var job_state : u8 = J_RUNNING;
+            if (units_issuable(units) == false) { job_state = J_FAILED; }
+            var job_step : u32 = STEP_JUDGE;
+            var step_runs : u32 = 0;
+            var try_ix : u32 = 0;
+            var settle_ix : u32 = 0;
+            var run_ok : bool = false;
+            var run_word : u8 = FAIL;
+            var run_bound : bool = false;
+            var q_out : u32 = 0;
+            // the admitted attempt's claims, as the treasurer received them, and its batch
+            var c_req : [4]u32 = [0; 4];
+            var c_issued : [4]u32 = [0; 4];
+            var c_dev : [4]u64 = [0; 4];
+            var c_key : [4]u64 = [0; 4];
+            var c_pub : [4]u64 = [0; 4];
+            var c_sig : [4]u64 = [0; 4];
+            var c_out : [4]u32 = [0; 4];
+            var c_task : [4]u32 = [0; 4];
+            var c_in : [4]u32 = [0; 4];
+            var c_epoch : [4]u32 = [0; 4];
+            var c_prev : [4]u32 = [0; 4];
+            var c_fault : [4]u8 = [0; 4];
+            var c_pid : [4]u64 = [0; 4];
+            var c_signed : u64 = 0;
+            var c_present : u64 = 0;
+            var leaves : [LEAF_CAP]u32 = [0; LEAF_CAP];
+            var leaf_present : u64 = 0;
+            var v_root : [8]u32 = [0; 8];
+            var root_sig : u64 = 0;
+            // v1's attack: one signer's own receipt claimed for credit with no reproduction
+            if (bypass_claimed(seed, job_ix)) {
+                r.bypass = r.bypass + 1;
+                if (treasurer_accepts(CHAIN_OF_RECORD, true, bill_issued(bill, jobs), false, attestation_level(true, false, false))) {
+                    r.flags = flag(r.flags, I2_UNREPRODUCED_CREDIT, true);
+                } else {
+                    r.bypass_refused = r.bypass_refused + 1;
+                }
+            }
+            while (job_state == J_RUNNING) {
+                step_runs = step_runs + 1;
+                var step_outcome : u8 = O_FAIL;
+                if (job_step == STEP_JUDGE) {
+                    c_present = 0;
+                    c_signed = 0;
+                    leaf_present = 0;
+                    var v_ok : u64 = 0;
+                    var v_out : [4]u32 = [0; 4];
+                    var a_present : u64 = 0;
+                    var a_req : [4]u32 = [0; 4];
+                    var a_issued : [4]u32 = [0; 4];
+                    var a_dev : [4]u64 = [0; 4];
+                    var a_key : [4]u64 = [0; 4];
+                    var a_pub : [4]u64 = [0; 4];
+                    var a_sig : [4]u64 = [0; 4];
+                    var a_out : [4]u32 = [0; 4];
+                    var a_task : [4]u32 = [0; 4];
+                    var a_in : [4]u32 = [0; 4];
+                    var a_epoch : [4]u32 = [0; 4];
+                    var a_prev : [4]u32 = [0; 4];
+                    var a_fault : [4]u8 = [0; 4];
+                    var a_pid : [4]u64 = [0; 4];
+                    var a_signed : u64 = 0;
+                    var a_leaves : [LEAF_CAP]u32 = [0; LEAF_CAP];
+                    let prev_word : u32 = bk.head[0];
+                    si = 0;
+                    while (si < SIGNERS) {
+                        let k : usize = si as usize;
+                        let s_bit : u64 = bit(si as u64);
+                        if (has(sup_down, si) == false and is_eligible(lg, si + 1)) {
+                            let s_pid : u64 = pid_of(signer_slot(si), lane(sup_gens, si));
+                            // the dispatcher issues this node's nonce below the node's durable mark
+                            if (may_issue(d_next[k], d_resumed[k], d_mark[k]) == false) {
+                                d_mark[k] = next_mark(d_mark[k]);
+                                r.marks_written = r.marks_written + 1;
+                            }
+                            let nonce : u32 = d_next[k];
+                            d_next[k] = nonce + 1;
+                            // the observer: no nonce is issued twice to one node
+                            r.flags = flag(r.flags, I2_NONCE_REISSUED, has(o_issued, si) and nonce <= o_last[k]);
+                            o_issued = o_issued | s_bit;
+                            o_last[k] = nonce;
+                            deliver_row(tr, disp_pid, s_pid, task, M_TASK_OFFER);
+                            var fault : u8 = fault2_draw(seed, job_ix, try_ix, si);
+                            if (collude and si != W_REFERENCE) { fault = F2_COLLUDE; }
+                            if (fault == F2_REPLAY and has(pv_present, si) == false) { fault = F2_HONEST; }
+                            if (fault == F2_CRASH) {
+                                // it dies in the turn: its exit and the DOWN the dispatcher gets name the job
+                                r.crashes = r.crashes + 1;
+                                trace_push(tr, EV_ACTOR_EXIT, s_pid, NO_PID, task, NO_PID, 0, reason_class(X_CRASH), 0, 0);
+                                trace_push(tr, EV_ACTOR_DOWN, s_pid, disp_pid, task, NO_PID, 0, reason_class(X_CRASH), 0, 0);
+                                let answer : u8 = on_child_exit(RESTART_PERMANENT, X_CRASH, lane(sup_restarts, si) as u32, DOMAIN_MAX_RESTARTS);
+                                if (answer == SUP_RESTART) {
+                                    sup_gens = with_lane(sup_gens, si, next_gen(lane(sup_gens, si)));
+                                    sup_restarts = with_lane(sup_restarts, si, lane(sup_restarts, si) + 1);
+                                    r.sup_restarts = r.sup_restarts + 1;
+                                    trace_push(tr, EV_ACTOR_RESTART, sup_pid, pid_of(signer_slot(si), lane(sup_gens, si)), 0, sup_pid, lane(sup_restarts, si) as u32, NO_REASON, 0, 0);
+                                } else {
+                                    sup_down = sup_down | s_bit;
+                                    r.gave_up = r.gave_up + 1;
+                                }
+                            } else {
+                                if (fault == F2_LIE) { r.lies = r.lies + 1; }
+                                if (fault == F2_UNSIGNED) { r.unsigned = r.unsigned + 1; }
+                                if (fault == F2_FORGED_KEY) { r.forged = r.forged + 1; }
+                                if (fault == F2_DNA_PORT) { r.dna_port = r.dna_port + 1; }
+                                if (fault == F2_EQUIVOCATE) { r.equivocations = r.equivocations + 1; }
+                                if (fault == F2_REPLAY) { r.replays = r.replays + 1; }
+                                // the signer's receipt, in digest_pre order
+                                var e : Envelope = Envelope { request_id: nonce, device_id: device_of(si), executor: key_id_of(pubkey_of(si)), task: task, in_hash: spec_in_hash(job_ix), out: t_out, epoch: job_ix, prev_head: prev_word };
+                                var pk : u64 = pubkey_of(si);
+                                var signed : bool = true;
+                                if (fault == F2_LIE) { e.out = lie_out(job_ix, truth, si); }
+                                if (fault == F2_COLLUDE) { e.out = collusion_out(job_ix, truth); }
+                                if (fault == F2_UNSIGNED) { signed = false; }
+                                if (fault == F2_FORGED_KEY) {
+                                    // an impostor answers in this node's name, with a key whose id agrees
+                                    // with the node's in its low 32 bits, and a lie
+                                    pk = forged_pubkey(si);
+                                    e.executor = key_id_of(pk);
+                                    e.out = lie_out(job_ix, truth, si);
+                                }
+                                if (fault == F2_DNA_PORT) { e.device_id = dna_port_of(fuse_dna_a()); }
+                                var sig : u64 = 0;
+                                let vd : [8]u32 = receipt_digest(e, hashed);
+                                if (signed) { sig = sig_of(pk, vd); }
+                                // the vote: the verifier counts it only when its signature checks
+                                deliver_row(tr, s_pid, ver_pid, task, M_RECEIPT);
+                                if (sig_check(e, vd, pk, signed, sig, si + 1, true)) {
+                                    // the observer: a vote counts only when the node's own key signed it
+                                    r.flags = flag(r.flags, I2_FORGED_VOTE, fraud_unsigned(fault));
+                                    v_ok = v_ok | s_bit;
+                                    v_out[k] = e.out;
+                                    var w : usize = 0;
+                                    while (w < 8) {
+                                        a_leaves[k * 8 + w] = vd[w];
+                                        w = w + 1;
+                                    }
+                                }
+                                let vote : Envelope = e;
+                                // the claim to the treasurer: the same receipt, or another one
+                                if (fault == F2_EQUIVOCATE) {
+                                    e.out = e.out ^ EQUIVOCATION_MARK;
+                                    sig = sig_of(pk, receipt_digest(e, hashed));
+                                }
+                                if (fault == F2_REPLAY) {
+                                    e = Envelope { request_id: pv_req[k], device_id: device_of(si), executor: key_id_of(pk), task: pv_task[k], in_hash: pv_in[k], out: pv_out[k], epoch: pv_epoch[k], prev_head: pv_prev[k] };
+                                    sig = sig_of(pk, receipt_digest(e, hashed));
+                                }
+                                let claim_seq : u64 = (tr.len as u64) + 1;
+                                deliver_row(tr, s_pid, tre_pid, e.task, M_CLAIM);
+                                if (fault == F2_REPLAY and r.replay_seq == 0) {
+                                    r.replay_seq = claim_seq;
+                                    r.replay_pid = s_pid;
+                                }
+                                a_present = a_present | s_bit;
+                                if (signed) { a_signed = a_signed | s_bit; }
+                                a_req[k] = e.request_id;
+                                a_issued[k] = nonce;
+                                a_dev[k] = e.device_id;
+                                a_key[k] = e.executor;
+                                a_pub[k] = pk;
+                                a_sig[k] = sig;
+                                a_out[k] = e.out;
+                                a_task[k] = e.task;
+                                a_in[k] = e.in_hash;
+                                a_epoch[k] = e.epoch;
+                                a_prev[k] = e.prev_head;
+                                a_fault[k] = fault;
+                                a_pid[k] = s_pid;
+                                // what it keeps: this vote, for a replay later
+                                pv_present = pv_present | s_bit;
+                                pv_req[k] = vote.request_id;
+                                pv_task[k] = vote.task;
+                                pv_in[k] = vote.in_hash;
+                                pv_out[k] = vote.out;
+                                pv_epoch[k] = vote.epoch;
+                                pv_prev[k] = vote.prev_head;
+                            }
+                        }
+                        si = si + 1;
+                    }
+                    // the verifier: the largest group of valid votes that agree, admitted with M of N
+                    var best_ix : u32 = 0;
+                    var best : u32 = 0;
+                    si = 0;
+                    while (si < SIGNERS) {
+                        if (has(v_ok, si)) {
+                            var same : u32 = 0;
+                            var sj : u32 = 0;
+                            while (sj < SIGNERS) {
+                                if (has(v_ok, sj) and v_out[sj as usize] == v_out[si as usize]) { same = same + 1; }
+                                sj = sj + 1;
+                            }
+                            if (same > best) {
+                                best = same;
+                                best_ix = si;
+                            }
+                        }
+                        si = si + 1;
+                    }
+                    var g_level : u8 = run_level_start();
+                    var group : u32 = 0;
+                    si = 0;
+                    while (si < SIGNERS) {
+                        if (best > 0 and has(v_ok, si) and v_out[si as usize] == v_out[best_ix as usize]) {
+                            group = group + 1;
+                            g_level = run_level_with(g_level, LEVEL_FRESH);
+                        }
+                        si = si + 1;
+                    }
+                    let admitted : bool = quorum_met(group, NET_M, NET_N, NET_F) and run_admitted(group, true, true, true, g_level);
+                    if (admitted) {
+                        step_outcome = O_PASS;
+                        run_ok = true;
+                        q_out = v_out[best_ix as usize];
+                        run_word = word_of(job_ix, q_out);
+                        run_bound = has(v_ok, SIGNER_EXECUTOR) and device_bound(device_of(SIGNER_EXECUTOR));
+                        r.runs_admitted = r.runs_admitted + 1;
+                        r.flags = flag(r.flags, I2_QUORUM_UNSAFE, group < NET_M or quorum_valid(NET_M, NET_N, NET_F) == false);
+                        // the batch the verifier signs: this attempt's valid votes, one leaf each
+                        leaves = a_leaves;
+                        leaf_present = v_ok;
+                        v_root = merkle_node(merkle_node(leaf_at(leaves, 0), leaf_at(leaves, 1), hashed), merkle_node(leaf_at(leaves, 2), leaf_at(leaves, 3), hashed), hashed);
+                        root_sig = sig_of(verifier_pubkey(), v_root);
+                        c_present = a_present;
+                        c_signed = a_signed;
+                        c_req = a_req;
+                        c_issued = a_issued;
+                        c_dev = a_dev;
+                        c_key = a_key;
+                        c_pub = a_pub;
+                        c_sig = a_sig;
+                        c_out = a_out;
+                        c_task = a_task;
+                        c_in = a_in;
+                        c_epoch = a_epoch;
+                        c_prev = a_prev;
+                        c_fault = a_fault;
+                        c_pid = a_pid;
+                    } else {
+                        r.runs_refused = r.runs_refused + 1;
+                    }
+                    try_ix = try_ix + 1;
+                } else {
+                    settle_ix = settle_ix + 1;
+                    if (effect_may_run(false, run_ok, run_ok) == E_RUN) {
+                        let verified : bool = run_word == PASS;
+                        var bound : bool = false;
+                        if (run_bound) { bound = true; }
+                        let run_att : u8 = attestation_level(true, run_ok, bound);
+                        deliver_row(tr, ver_pid, tre_pid, task, M_RUN);
+                        // the treasurer: the root it recomputes from the batch, under the verifier's
+                        // signature; the chain of record, a reproduced run, a nonce it issued
+                        let root_again : [8]u32 = merkle_node(merkle_node(leaf_at(leaves, 0), leaf_at(leaves, 1), hashed), merkle_node(leaf_at(leaves, 2), leaf_at(leaves, 3), hashed), hashed);
+                        let root_ok : bool = same8(root_again, v_root) and sig_of(verifier_pubkey(), v_root) == root_sig;
+                        if (root_ok and treasurer_accepts(CHAIN_OF_RECORD, run_ok, bill_issued(bill, jobs), false, run_att)) {
+                            var pool : u64 = 0;
+                            var ex : u64 = 0;
+                            var pv : u64 = 0;
+                            var au : u64 = 0;
+                            var fits : bool = true;
+                            if (verified) {
+                                pool = job_price(nonce_units(bill), rate_at(base_rate, tre_minted, halving_every));
+                                ex = fee_draw(seed, job_ix, settle_ix, 0, pool, EXECUTOR_PARTS_MAX);
+                                pv = fee_draw(seed, job_ix, settle_ix, 1, pool, PROVIDER_PARTS_MAX);
+                                au = fee_draw(seed, job_ix, settle_ix, 3, pool, AUTHOR_PARTS_MAX);
+                                // the VERIFIER_FEE is not in the pool: it is paid out of slashed stake
+                                fits = fees_fit(pool, ex, pv, 0, au);
+                                if (fits == false) { r.split_refused = r.split_refused + 1; }
+                            }
+                            if (fits) {
+                                let jx : usize = job_ix as usize;
+                                var burned : u64 = 0;
+                                var honest_v : u64 = 0;
+                                var exec_paid : bool = false;
+                                var exec_credited : bool = false;
+                                var exec_d : [8]u32 = [0; 8];
+                                si = 0;
+                                while (si < SIGNERS) {
+                                    let k : usize = si as usize;
+                                    let x : usize = (job_ix * SIGNERS + si) as usize;
+                                    j_fault[x] = c_fault[k];
+                                    if (has(c_present, si)) {
+                                        let ce : Envelope = Envelope { request_id: c_req[k], device_id: c_dev[k], executor: c_key[k], task: c_task[k], in_hash: c_in[k], out: c_out[k], epoch: c_epoch[k], prev_head: c_prev[k] };
+                                        let cd : [8]u32 = receipt_digest(ce, hashed);
+                                        if (si == SIGNER_EXECUTOR) { exec_d = cd; }
+                                        // tri_receipt_verify: who, then membership, then correctness
+                                        let sig_ok : bool = sig_check(ce, cd, c_pub[k], has(c_signed, si), c_sig[k], si + 1, true);
+                                        let included : bool = has(leaf_present, si) and same8(leaf_at(leaves, si), cd);
+                                        let compute_ok : bool = ce.out == q_out;
+                                        let reason : u32 = reject_reason(sig_ok, included, compute_ok);
+                                        j_reason[x] = reason;
+                                        if (reason == RV_BAD_SIG) { r.bad_sig = r.bad_sig + 1; }
+                                        if (reason == RV_NOT_IN_BATCH) { r.not_in_batch = r.not_in_batch + 1; }
+                                        if (reason == RV_BAD_COMPUTE) { r.bad_compute = r.bad_compute + 1; }
+                                        if (reason == RV_OK) { r.accepted = r.accepted + 1; }
+                                        if (reason != RV_BAD_SIG) {
+                                            // ledger.t27 settle: eligibility, identity, the verdict, once per (node, nonce)
+                                            let verdict : u8 = claim_verdict(reason, has(leaf_present, si), ce.request_id == c_issued[k]);
+                                            lg = settle(lg, si + 1, node_of_key(ce.executor), ce.request_id, verdict);
+                                            j_signers[jx] = j_signers[jx] | bit(si as u64);
+                                            j_pids[x] = c_pid[k];
+                                            j_req[x] = ce.request_id;
+                                            j_cout[x] = ce.out;
+                                            if (lg.last_outcome == OUT_CREDITED) {
+                                                r.credited = r.credited + 1;
+                                                if (si == SIGNER_EXECUTOR) { exec_credited = true; }
+                                            }
+                                            let pay : u8 = payout(lg.last_outcome, verified, true);
+                                            if (pay == PAY_NORMAL) {
+                                                r.flags = flag(r.flags, I2_UNADMITTED_PAID, reason != RV_OK or sig_ok == false or included == false or compute_ok == false);
+                                                if (si == SIGNER_EXECUTOR) { exec_paid = true; } else { honest_v = honest_v | bit(si as u64); }
+                                            }
+                                            if (pay == PAY_SLASH_ONLY) {
+                                                let taken : u64 = lg.last_slash_delta_mtri;
+                                                burned = burned + taken;
+                                                loss[x] = loss[x] + taken;
+                                                bk = take_stake(bk, job_ix, si as u64, taken, lg.stake_mtri[k], true, cd);
+                                                let slash_seq : u64 = (tr.len as u64) + 1;
+                                                deliver_row(tr, tre_pid, c_pid[k], task, M_SLASH);
+                                                if (c_fault[k] == F2_LIE and r.lie_slash_seq == 0) {
+                                                    r.lie_slash_seq = slash_seq;
+                                                    r.lie_slash_pid = c_pid[k];
+                                                }
+                                            }
+                                        }
+                                    }
+                                    si = si + 1;
+                                }
+                                if (verified) {
+                                    if (exec_paid) {
+                                        bk = credit_pending(bk, job_ix, 0, EXECUTOR_FEE, ex, true, exec_d);
+                                        bk = credit_pending(bk, job_ix, H_PROVIDER, PROVIDER_FEE, pv, true, exec_d);
+                                        tre_minted = tre_minted + ex + pv;
+                                        r.executor_fees = r.executor_fees + 1;
+                                        r.provider_fees = r.provider_fees + 1;
+                                    }
+                                    bk = credit_pending(bk, job_ix, H_AUTHOR, AUTHOR_ROYALTY, au, true, exec_d);
+                                    tre_minted = tre_minted + au;
+                                    r.royalties = r.royalties + 1;
+                                    r.jobs_paid = r.jobs_paid + 1;
+                                }
+                                // VERIFIER_FEE: the burned stake, split among the verifiers that agreed
+                                let honest_n : u64 = count_bits(honest_v, SIGNERS);
+                                let share : u64 = verifier_reward(burned, honest_n);
+                                si = 1;
+                                while (si < SIGNERS) {
+                                    if (has(honest_v, si) and share > 0) {
+                                        bk = credit_pending(bk, job_ix, si as u64, VERIFIER_FEE, share, false, exec_d);
+                                        r.verifier_fees = r.verifier_fees + 1;
+                                    }
+                                    si = si + 1;
+                                }
+                                let dust_now : u64 = reward_dust(burned, honest_n);
+                                bk.dust = bk.dust + dust_now;
+                                r.flags = flag(r.flags, I2_DUST_MINTED, (share * honest_n) + dust_now != burned);
+                                // the BOUNTY, once, on the task its PR closes
+                                if (bounty_payable(job_ix == bounty_job, bounty_pr_merged, verified and exec_paid, bounty_paid)) {
+                                    bk = credit_pending(bk, job_ix, H_AUTHOR, BOUNTY, bounty, true, exec_d);
+                                    bounty_paid = true;
+                                    r.bounties = r.bounties + 1;
+                                    r.flags = flag(r.flags, I2_BOUNTY_UNEARNED, r.bounties > 1 or job_ix != bounty_job or bounty_pr_merged == false or verified == false);
+                                }
+                                if (run_att == ATT_DEVICE_BOUND) { r.device_bound_runs = r.device_bound_runs + 1; }
+                                var w : u32 = 0;
+                                while (w < 8) {
+                                    j_exec_d[(job_ix * 8 + w) as usize] = exec_d[w as usize];
+                                    w = w + 1;
+                                }
+                                j_q_out[jx] = q_out;
+                                j_t_out[jx] = t_out;
+                                j_settled = j_settled | bit(job_ix as u64);
+                                if (q_out != t_out) { r.wrong_runs = r.wrong_runs + 1; }
+                                step_outcome = O_PASS;
+                                // a double bill: the executor presents its credited claim again
+                                if (exec_credited and double_billed(seed, job_ix)) {
+                                    r.double_bills = r.double_bills + 1;
+                                    if (r.double_seq == 0) {
+                                        r.double_seq = (tr.len as u64) + 1;
+                                        r.double_pid = c_pid[0];
+                                    }
+                                    deliver_row(tr, c_pid[0], tre_pid, task, M_CLAIM);
+                                    lg = settle(lg, 1, 1, c_req[0], V_OK);
+                                    if (lg.last_outcome == OUT_CREDITED) {
+                                        r.flags = flag(r.flags, I2_PAID_TWICE, true);
+                                        r.credited = r.credited + 1;
+                                    } else {
+                                        r.double_refused = r.double_refused + 1;
+                                    }
+                                    // ledger.t27 answers a double bill with a zero slash (see #8658)
+                                    if (lg.last_slash_delta_mtri == 0) { r.double_zero_slash = r.double_zero_slash + 1; }
+                                }
+                                // v1's attack: the same run's credit asked on another chain
+                                if (off_chain_asked(seed, job_ix)) {
+                                    r.off_chain = r.off_chain + 1;
+                                    if (treasurer_accepts(CHAIN_EVM, run_ok, bill_issued(bill, jobs), false, run_att)) {
+                                        r.flags = flag(r.flags, I2_OFF_CHAIN_CREDIT, true);
+                                    } else {
+                                        r.off_chain_refused = r.off_chain_refused + 1;
+                                    }
+                                }
+                                // the challenges this job will see: the watcher disputes a wrong run;
+                                // the griefer, a right one
+                                if (q_out != t_out) {
+                                    ch_state[jx] = CH_SCHEDULED;
+                                    ch_by[jx] = BY_WATCHER;
+                                    ch_file_at[jx] = job_ix + watch_delay(seed, job_ix);
+                                } else {
+                                    if (griefed(seed, job_ix)) {
+                                        ch_state[jx] = CH_SCHEDULED;
+                                        ch_by[jx] = BY_GRIEFER;
+                                        ch_file_at[jx] = job_ix + grief_delay(seed, job_ix);
+                                    }
+                                }
+                                ch_resolve_at[jx] = ch_file_at[jx] + resolve_delay(seed, job_ix);
+                            }
+                        }
+                    }
+                }
+                let step_act : u8 = step_action(step_kind(job_step), step_outcome, step_runs, 0);
+                job_state = job_state_after(step_act, job_step, JOB_STEPS);
+                let step_next : u32 = step_after(step_act, job_step);
+                if (step_next != job_step) { step_runs = 0; }
+                job_step = step_next;
+                // the observer, after every step
+                r.flags = books_flags(r.flags, bk, stakes_held(lg) + WATCHER_STAKE + griefer_locked + griefer_posted, stakes_start);
+                r.flags = ledger_flags(r.flags, lg, bk.ledger_slashed, r.credited, false);
+                r.broken = first_broken2(r.broken, r.flags);
+            }
+            if (job_state == J_DONE) { r.jobs_done = r.jobs_done + 1; } else { r.jobs_failed = r.jobs_failed + 1; }
+            var none : [8]u32 = [0; 8];
+            bk.head = ledger_head_after(bk.head, none, job_state as u32, entry_word(job_ix, 15, ENTRY_JOB_END), hashed);
+        }
+        // the epoch's turn: challenges filed and resolved, rewards finalized
+        polls = polls + 1;
+        var j : u32 = 0;
+        while (j < jobs and j <= now) {
+            let ju : usize = j as usize;
+            let task_j : u32 = j + 1;
+            if (has(j_settled, j) and has(j_closed, j) == false) {
+                if (ch_state[ju] == CH_SCHEDULED and ch_file_at[ju] == now) {
+                    var by_pid : u64 = watch_pid;
+                    if (ch_by[ju] == BY_GRIEFER) { by_pid = grief_pid; }
+                    deliver_row(tr, by_pid, tre_pid, task_j, M_DISPUTE);
+                    if (dispute_in_window(j, now, CHALLENGE_WINDOW) and (ch_by[ju] == BY_WATCHER or griefer_locked >= CHALLENGE_STAKE)) {
+                        ch_state[ju] = CH_OPEN;
+                        if (ch_by[ju] == BY_GRIEFER) {
+                            griefer_locked = griefer_locked - CHALLENGE_STAKE;
+                            griefer_posted = griefer_posted + CHALLENGE_STAKE;
+                        }
+                    } else {
+                        ch_state[ju] = CH_NONE;
+                        r.challenges_stale = r.challenges_stale + 1;
+                    }
+                }
+                if (ch_state[ju] == CH_OPEN and ch_resolve_at[ju] == now) {
+                    var jd : [8]u32 = [0; 8];
+                    var w : u32 = 0;
+                    while (w < 8) {
+                        jd[w as usize] = j_exec_d[(j * 8 + w) as usize];
+                        w = w + 1;
+                    }
+                    let outcome : u8 = resolve(j_q_out[ju], j_t_out[ju]);
+                    if (outcome == RESOLVE_SLASH) {
+                        // the executor's bond to the challenger (ledger.t27: a lie on a paid nonce is still slashed)
+                        let x0 : usize = (j * SIGNERS) as usize;
+                        if (has(j_signers[ju], SIGNER_EXECUTOR) and j_reason[x0] == RV_OK) {
+                            lg = settle(lg, 1, 1, j_req[x0], V_WRONG_RESULT);
+                            let bond : u64 = lg.last_slash_delta_mtri;
+                            loss[x0] = loss[x0] + bond;
+                            bk = take_stake(bk, j, 0, bond, lg.stake_mtri[0], true, jd);
+                            deliver_row(tr, tre_pid, j_pids[x0], task_j, M_SLASH);
+                            let reward : u64 = challenger_reward(bond, outcome);
+                            bk = credit_final(bk, j, H_WATCHER, VERIFIER_FEE, reward, jd);
+                            r.challenger_paid = r.challenger_paid + reward;
+                        }
+                        // the verifiers who agreed with the wrong run are proven wrong; those who told
+                        // the truth share their stake
+                        var burned2 : u64 = 0;
+                        var truthful : u64 = 0;
+                        si = 1;
+                        while (si < SIGNERS) {
+                            let x : usize = (j * SIGNERS + si) as usize;
+                            if (has(j_signers[ju], si)) {
+                                if (j_reason[x] == RV_OK) {
+                                    lg = settle(lg, si + 1, si + 1, j_req[x], V_WRONG_RESULT);
+                                    let taken2 : u64 = lg.last_slash_delta_mtri;
+                                    burned2 = burned2 + taken2;
+                                    loss[x] = loss[x] + taken2;
+                                    bk = take_stake(bk, j, si as u64, taken2, lg.stake_mtri[si as usize], true, jd);
+                                    deliver_row(tr, tre_pid, j_pids[x], task_j, M_SLASH);
+                                }
+                                if (j_reason[x] == RV_BAD_COMPUTE and j_cout[x] == j_t_out[ju]) { truthful = truthful | bit(si as u64); }
+                            }
+                            si = si + 1;
+                        }
+                        let tn : u64 = count_bits(truthful, SIGNERS);
+                        let share2 : u64 = verifier_reward(burned2, tn);
+                        si = 1;
+                        while (si < SIGNERS) {
+                            if (has(truthful, si) and share2 > 0) {
+                                bk = credit_final(bk, j, si as u64, VERIFIER_FEE, share2, jd);
+                                gain[(j * SIGNERS + si) as usize] = gain[(j * SIGNERS + si) as usize] + share2;
+                                r.verifier_fees = r.verifier_fees + 1;
+                            }
+                            si = si + 1;
+                        }
+                        bk.dust = bk.dust + reward_dust(burned2, tn);
+                        // every pending reward of the job is clawed back: it never finalizes
+                        bk = release_job(bk, j, false);
+                        j_clawed = j_clawed | bit(j as u64);
+                        r.challenges_upheld = r.challenges_upheld + 1;
+                    } else {
+                        // a frivolous challenge: the griefer's posted stake is burned
+                        let kept : u64 = challenger_stake_after(CHALLENGE_STAKE, outcome);
+                        griefer_posted = griefer_posted - CHALLENGE_STAKE;
+                        griefer_locked = griefer_locked + kept;
+                        bk = take_stake(bk, j, H_GRIEFER, CHALLENGE_STAKE - kept, griefer_locked, false, jd);
+                        r.griefer_burned = r.griefer_burned + (CHALLENGE_STAKE - kept);
+                        r.challenges_frivolous = r.challenges_frivolous + 1;
+                    }
+                    ch_state[ju] = CH_DONE;
+                }
+                let open : bool = ch_state[ju] == CH_OPEN;
+                var closing : bool = false;
+                if (has(j_clawed, j) == false and open and is_final(j, now, CHALLENGE_WINDOW)) { r.held_open = r.held_open + 1; }
+                if (may_finalize(j, now, CHALLENGE_WINDOW, open, has(j_clawed, j))) {
+                    // the observer, at the finalize site: never while challenged, never once slashed
+                    r.flags = flag(r.flags, I2_FINAL_WHILE_CHALLENGED, ch_state[ju] == CH_OPEN or ch_state[ju] == CH_SCHEDULED);
+                    r.flags = flag(r.flags, I2_SLASHED_FINALIZED, has(j_clawed, j));
+                    si = 0;
+                    while (si < SIGNERS) {
+                        let x : usize = (j * SIGNERS + si) as usize;
+                        gain[x] = gain[x] + bk.pend[(j * HOLDERS + si) as usize];
+                        si = si + 1;
+                    }
+                    bk = release_job(bk, j, true);
+                    r.jobs_finalized = r.jobs_finalized + 1;
+                    closing = true;
+                }
+                if (has(j_clawed, j) and ch_state[ju] == CH_DONE) {
+                    r.jobs_clawed = r.jobs_clawed + 1;
+                    closing = true;
+                }
+                if (closing) {
+                    // fraud nets worse than honesty: every slashable fraud below zero, every honest
+                    // signer at or above it, and a claim no key vouched for is never paid
+                    j_closed = j_closed | bit(j as u64);
+                    si = 0;
+                    while (si < SIGNERS) {
+                        let x : usize = (j * SIGNERS + si) as usize;
+                        let f : u8 = j_fault[x];
+                        if (has(j_signers[ju], si)) {
+                            if (fraud_slashable(f)) {
+                                r.fraud_closed = r.fraud_closed + 1;
+                                r.flags = flag(r.flags, I2_FRAUD_NOT_WORSE, gain[x] >= loss[x]);
+                            }
+                            if (f == F2_HONEST) {
+                                r.honest_closed = r.honest_closed + 1;
+                                r.flags = flag(r.flags, I2_FRAUD_NOT_WORSE, gain[x] < loss[x]);
+                            }
+                        }
+                        if (fraud_unsigned(f)) { r.flags = flag(r.flags, I2_UNSIGNED_PAID, gain[x] > 0); }
+                        si = si + 1;
+                    }
+                }
+            }
+            j = j + 1;
+        }
+        // the observer, after the epoch's turn; and the griefer is never paid
+        r.flags = flag(r.flags, I2_FRAUD_NOT_WORSE, bk.fin[H_GRIEFER as usize] > 0);
+        r.flags = books_flags(r.flags, bk, stakes_held(lg) + WATCHER_STAKE + griefer_locked + griefer_posted, stakes_start);
+        r.flags = ledger_flags(r.flags, lg, bk.ledger_slashed, r.credited, false);
+        r.broken = first_broken2(r.broken, r.flags);
+        now = now + 1;
+    }
+    // the watcher's polls of the treasurer name no task: one counted row
+    trace_push(tr, EV_ACTOR_DELIVERS, watch_pid, tre_pid, 0, NO_PID, 0, NO_REASON, polls, M_POLL);
+    r.flags = ledger_flags(r.flags, lg, bk.ledger_slashed, r.credited, true);
+    r.flags = flag(r.flags, I2_UNKNOWN_KIND, payment_kind_known(EXECUTOR_FEE) == false or payment_kind_known(VERIFIER_FEE) == false);
+    r.broken = first_broken2(r.broken, r.flags);
+    r.digest = fold64(bk.head);
+    r.paid = bk.paid;
+    r.emitted = bk.emitted;
+    r.slashed = bk.slashed;
+    r.paid_from_slashed = bk.paid_from_slashed;
+    r.dust = bk.dust;
+    r.clawed = bk.clawed;
+    r.finals = bk.finals;
+    r.pending_left = sum8(bk.pend_h);
+    r.rate_end = rate_at(base_rate, tre_minted, halving_every);
+    return r;
+}
+
+pub fn leaf_at(lv: [LEAF_CAP]u32, i: u32) -> [8]u32 {
+    var out : [8]u32 = [0; 8];
+    var w : usize = 0;
+    while (w < 8) {
+        out[w] = lv[(i as usize) * 8 + w];
+        w = w + 1;
+    }
+    return out;
+}
+
+; --- 7. The tests' network, and the trace the runtime replays -------------------------------------------
+
+/// v1's test setting (NET_SEEDS 8, JOBS_PER_RUN 12, its price and bounty), with v2's slash.
+pub fn world_v2(seed: u32, jobs: u32) -> NetV2 {
+    var tr : Trace = trace_empty();
+    return network_v2(seed, jobs, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOUNTY, TEST_SLASH, false, &tr);
+}
+
+/// The same network on SHA-256 digests throughout.
+pub fn world_v2_hashed(seed: u32, jobs: u32) -> NetV2 {
+    var tr : Trace = trace_empty();
+    return network_v2(seed, jobs, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOUNTY, TEST_SLASH, true, &tr);
+}
+
+/// The seeded network's trace. Its events do not depend on the digest, so it runs fast. A run whose
+/// observer saw a broken invariant marks its trace with an overflow.
+pub fn trace_of(seed: u32) -> Trace {
+    var tr : Trace = trace_empty();
+    let w : NetV2 = network_v2(seed, JOBS_PER_RUN, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOUNTY, TEST_SLASH, false, &tr);
+    if (w.flags != 0) { tr.overflow = tr.overflow + 1; }
+    return tr;
+}
+
+/// The number of event rows the seeded network writes.
+pub fn trace_len(seed: u32) -> u32 {
+    return trace_of(seed).len;
+}
+
+/// Row i (0-based) of the seeded network's trace; seq counts from 1. Past the end: seq 0.
+pub fn trace_row(seed: u32, i: u32) -> TraceRow {
+    return row_of(trace_of(seed), i);
+}
+
+pub fn row_of(tr: Trace, i: u32) -> TraceRow {
+    if (i >= tr.len) {
+        return TraceRow { seq: 0, kind: 0, from_pid: 0, to_pid: 0, task_ref: 0, parent_pid: 0, restart_count: 0, reason_class: NO_REASON, count: 0, tag: 0 };
+    }
+    let k : usize = i as usize;
+    return TraceRow {
+        seq: (i as u64) + 1,
+        kind: tr.kind[k],
+        from_pid: tr.from_pid[k],
+        to_pid: tr.to_pid[k],
+        task_ref: tr.task_ref[k],
+        parent_pid: tr.parent_pid[k],
+        restart_count: tr.restart_count[k],
+        reason_class: tr.reason_class[k],
+        count: tr.count[k],
+        tag: tr.tag[k],
+    };
+}
+
+; --- 8. Tests: every one loops over seeds, signers or cases, so its asserts run at run time ----------
+; The network tests run fast digests (section 1); the_digest_does_not_steer_the_network runs SHA-256.
+
+/// The seeds a focused test runs: three of NET_SEEDS, from index `first`.
+pub const FOCUS_SEEDS : u32 = 3;
+
+test the_receipt_envelope_is_digest_pre_with_64_bit_ids {
+    // the SHA-256 path is FIPS 180-4: "abc" in one padded block
+    var abc : [16]u32 = [0; 16];
+    abc[0] = 0x61626380;
+    abc[15] = 24;
+    let hv : [8]u32 = sha_block(H0, abc);
+    assert hv[0] == 0xba7816bf;
+    assert hv[7] == 0xf20015ad;
+    var si : u32 = 0;
+    while (si < SIGNERS) {
+        var j : u32 = 0;
+        while (j < JOBS_PER_RUN) {
+            let e : Envelope = Envelope { request_id: (j * 3) + si, device_id: device_of(si), executor: key_id_of(pubkey_of(si)), task: j + 1, in_hash: spec_in_hash(j), out: true_out(j, PASS), epoch: j, prev_head: 7 };
+            assert digest_pre(0, e) == TAG_RECEIPT;
+            assert digest_pre(1, e) == e.request_id;
+            assert ((((digest_pre(2, e) as u64) << 32)) | (digest_pre(3, e) as u64)) == e.device_id;
+            assert ((((digest_pre(4, e) as u64) << 32)) | (digest_pre(5, e) as u64)) == e.executor;
+            assert digest_pre(6, e) == e.task;
+            assert digest_pre(7, e) == e.in_hash;
+            assert digest_pre(8, e) == e.out;
+            assert digest_pre(9, e) == e.epoch;
+            assert digest_pre(10, e) == e.prev_head;
+            assert digest_pre(11, e) == SHA_PAD;
+            assert digest_pre(15, e) == DIGEST_MSG_BITS;
+            assert digest_pre(12, e) == 0 and digest_pre(13, e) == 0 and digest_pre(14, e) == 0;
+            // every field is bound, high words included, under SHA-256 and under the fast fold
+            var mode : u32 = 0;
+            while (mode < 2) {
+                let hashed : bool = mode == 0;
+                let dg : [8]u32 = receipt_digest(e, hashed);
+                var e2 : Envelope = e;
+                e2.out = e.out ^ 1;
+                assert same8(receipt_digest(e2, hashed), dg) == false;
+                e2 = e;
+                e2.executor = e.executor ^ 4294967296;
+                assert same8(receipt_digest(e2, hashed), dg) == false;
+                e2 = e;
+                e2.device_id = e.device_id ^ 4294967296;
+                assert same8(receipt_digest(e2, hashed), dg) == false;
+                e2 = e;
+                e2.request_id = e.request_id + 1;
+                assert same8(receipt_digest(e2, hashed), dg) == false;
+                mode = mode + 1;
+            }
+            j = j + 7;
+        }
+        // device_id 0 is SOFTWARE_SIGNED; a die is its 64-bit FUSE_DNA, never DNA_PORT's 57-bit DNA
+        let dev : u64 = device_of(si);
+        if (device_bound(dev)) {
+            assert dev > MASK32;
+            assert dna_port_of(dev) != dev;
+            assert dna_port_of(dev) < pow2(57);
+            assert attestation_of(dev, true) == ATT_DEVICE_BOUND;
+            assert value_flow_allowed(attestation_of(dev, true));
+        } else {
+            assert attestation_of(dev, true) == ATT_REPRODUCED;
+            assert value_flow_allowed(attestation_of(dev, true)) == false;
+        }
+        si = si + 1;
+    }
+    assert dna_port_of(fuse_dna_a()) == DNA_OBSERVED;
+    assert dna_port_of(fuse_dna_b()) == DNA_OBSERVED_B;
+    assert fuse_dna_a() != fuse_dna_b();
+}
+
+test admission_follows_tri_receipt_verify_order_and_codes {
+    var m : u32 = 0;
+    while (m < 8) {
+        let s_ok : bool = (m & 1) != 0;
+        let i_ok : bool = (m & 2) != 0;
+        let c_ok : bool = (m & 4) != 0;
+        var want : u32 = RV_OK;
+        if (c_ok == false) { want = RV_BAD_COMPUTE; }
+        if (i_ok == false) { want = RV_NOT_IN_BATCH; }
+        if (s_ok == false) { want = RV_BAD_SIG; }
+        assert reject_reason(s_ok, i_ok, c_ok) == want;
+        assert receipt_accepted(s_ok, i_ok, c_ok) == (s_ok and i_ok and c_ok);
+        // what the ledger hears: only an accepted claim is credited
+        let v : u8 = claim_verdict(want, s_ok, i_ok);
+        assert verdict_accepted(v) == (want == RV_OK);
+        if (want == RV_BAD_COMPUTE) { assert v == V_WRONG_RESULT; }
+        m = m + 1;
+    }
+    // out of the batch: a replay and an equivocation indict, a late receipt does not
+    var p : u32 = 0;
+    while (p < 4) {
+        let present : bool = (p & 1) != 0;
+        let matches : bool = (p & 2) != 0;
+        let v : u8 = claim_verdict(RV_NOT_IN_BATCH, present, matches);
+        assert verdict_indicts(v) == present;
+        if (present and matches == false) { assert v == V_NONCE_MISMATCH; }
+        if (present and matches) { assert v == V_WRONG_RESULT; }
+        p = p + 1;
+    }
+    assert RV_BAD_SIG == 1 and RV_NOT_IN_BATCH == 2 and RV_BAD_COMPUTE == 3;
+}
+
+test the_quorum_is_2m_over_n_plus_f_not_a_majority {
+    var unsafe_majorities : u32 = 0;
+    var n : u32 = 1;
+    while (n <= 9) {
+        var f : u32 = 0;
+        while (f < n) {
+            let m : u32 = quorum_needed(n, f);
+            assert (m * 2) > (n + f);
+            assert quorum_safe(m, n, f);
+            if (m > 1) { assert quorum_safe(m - 1, n, f) == false; }
+            if (f == 0) { assert majority_threshold(n) == m; }
+            if (quorum_safe(majority_threshold(n), n, f) == false) { unsafe_majorities = unsafe_majorities + 1; }
+            assert quorum_valid(m, n, f) == quorum_live(m, n, f);
+            f = f + 1;
+        }
+        n = n + 1;
+    }
+    assert unsafe_majorities > 0;
+    // N 3, F 1: n/2 + 1 is 2, and the quorums {A,B} and {A,C} meet only in the faulty A
+    assert quorum_safe(majority_threshold(3), 3, 1) == false;
+    assert quorum_needed(NET_N, NET_F) == NET_M;
+    assert quorum_valid(NET_M, NET_N, NET_F);
+    assert faults_tolerated(NET_M, NET_N) == NET_F;
+    assert NET_M >= (placements_needed() as u32);
+}
+
+test key_ids_are_64_bits_not_32_bit_truncations {
+    var si : u32 = 0;
+    while (si < SIGNERS) {
+        let real : u64 = key_id_of(pubkey_of(si));
+        let fake : u64 = key_id_of(forged_pubkey(si));
+        assert (fake & MASK32) == (real & MASK32);
+        assert fake != real;
+        assert node_of_key(real) == si + 1;
+        assert node_of_key(fake) == 0;
+        assert node_of_key32(fake) == si + 1;
+        // a receipt signed with the forged key: the 32-bit rule takes it for this node's, ours refuses
+        var e : Envelope = Envelope { request_id: 5, device_id: device_of(si), executor: fake, task: 1, in_hash: spec_in_hash(0), out: true_out(0, PASS), epoch: 0, prev_head: 0 };
+        let fd : [8]u32 = receipt_digest(e, true);
+        let forged_sig : u64 = sig_of(forged_pubkey(si), fd);
+        assert sig_check(e, fd, forged_pubkey(si), true, forged_sig, si + 1, false);
+        assert sig_check(e, fd, forged_pubkey(si), true, forged_sig, si + 1, true) == false;
+        // the honest receipt passes; unsigned, another node's, or DNA_PORT as the device does not
+        e.executor = real;
+        let gd : [8]u32 = receipt_digest(e, true);
+        let good_sig : u64 = sig_of(pubkey_of(si), gd);
+        assert sig_check(e, gd, pubkey_of(si), true, good_sig, si + 1, true);
+        assert sig_check(e, gd, pubkey_of(si), false, good_sig, si + 1, true) == false;
+        assert sig_check(e, gd, pubkey_of(si), true, good_sig, ((si + 1) % SIGNERS) + 1, true) == false;
+        var e3 : Envelope = e;
+        e3.device_id = dna_port_of(fuse_dna_a());
+        let d3 : [8]u32 = receipt_digest(e3, true);
+        assert sig_check(e3, d3, pubkey_of(si), true, sig_of(pubkey_of(si), d3), si + 1, true) == false;
+        var sj : u32 = si + 1;
+        while (sj < SIGNERS) {
+            assert key_id_of(pubkey_of(sj)) != real;
+            sj = sj + 1;
+        }
+        si = si + 1;
+    }
+    assert (KEY_ID_HEX_LEN as u32) * 4 == KEY_ID_BITS;
+}
+
+test replay_protection_is_a_spent_node_nonce_set_with_a_durable_mark {
+    // the ledger settles distinct nonces in any order and refuses one paid before; a task-id high-water
+    // mark refuses honest work settled out of order
+    var lg : Ledger = ledger_init(policy_of(1, TEST_SLASH, 100));
+    var nd : u32 = 1;
+    while (nd <= SIGNERS) {
+        lg = register_node(lg, nd, nd, false, TEST_STAKE);
+        nd = nd + 1;
+    }
+    var hwm_refused : u32 = 0;
+    nd = 1;
+    while (nd <= SIGNERS) {
+        var hwm : u32 = 0;
+        var i : u32 = 0;
+        while (i < 6) {
+            let nonce : u32 = ((i * 5) % 6) + 1;
+            lg = settle(lg, nd, nd, nonce, V_OK);
+            assert lg.last_outcome == OUT_CREDITED;
+            if (high_water_accepts(nonce, hwm)) { hwm = nonce; } else { hwm_refused = hwm_refused + 1; }
+            i = i + 1;
+        }
+        lg = settle(lg, nd, nd, 3, V_OK);
+        assert lg.last_outcome != OUT_CREDITED;
+        assert lg.last_why == WHY_ALREADY_SETTLED;
+        nd = nd + 1;
+    }
+    assert hwm_refused > 0;
+    assert spent_keys_are_distinct(lg);
+    // the mark: issue below the durable mark; a restart resumes at it, above all issued before
+    var mark : u32 = 0;
+    var next : u32 = 0;
+    var resumed : u32 = 0;
+    var last : u32 = 0;
+    var k : u32 = 0;
+    while (k < 1500) {
+        if ((k % 350) == 349) {
+            next = resume_nonce(mark);
+            resumed = next;
+        }
+        if (may_issue(next, resumed, mark) == false) { mark = next_mark(mark); }
+        assert may_issue(next, resumed, mark);
+        if (k > 0) { assert next > last; }
+        last = next;
+        next = next + 1;
+        k = k + 1;
+    }
+    // and in the network
+    var restarts : u64 = 0;
+    var doubles : u64 = 0;
+    var replays : u64 = 0;
+    var s : u32 = 0;
+    while (s < FOCUS_SEEDS) {
+        let w : NetV2 = world_v2(run_seed(GATE_BASE_SEED, s), JOBS_PER_RUN);
+        assert (w.flags & bit(I2_NONCE_REISSUED as u64)) == 0;
+        assert (w.flags & bit(I2_PAID_TWICE as u64)) == 0;
+        assert w.double_refused == w.double_bills;
+        restarts = restarts + w.disp_restarts;
+        doubles = doubles + w.double_bills;
+        replays = replays + w.replays;
+        s = s + 1;
+    }
+    assert restarts > 0;
+    assert doubles > 0;
+    assert replays > 0;
+}
+
+test the_verifier_fee_comes_from_slashed_stake_and_dust_is_never_minted {
+    var burned : u64 = 0;
+    while (burned <= 1000) {
+        var hc : u64 = 0;
+        while (hc <= 4) {
+            let share : u64 = verifier_reward(burned, hc);
+            assert (share * hc) <= burned;
+            assert (share * hc) + reward_dust(burned, hc) == burned;
+            if (hc > 0) { assert reward_dust(burned, hc) < hc; } else { assert share == 0; }
+            hc = hc + 1;
+        }
+        burned = burned + 37;
+    }
+    var bond : u64 = 0;
+    while (bond <= 400) {
+        assert challenger_reward(bond, resolve(1, 2)) == bond;
+        assert challenger_reward(bond, resolve(3, 3)) == 0;
+        assert challenger_stake_after(bond, resolve(3, 3)) == 0;
+        assert challenger_stake_after(bond, resolve(1, 2)) == bond;
+        assert verifier_dissented(1, 2, true);
+        assert verifier_dissented(1, 2, false) == false;
+        bond = bond + 100;
+    }
+    var fees : u64 = 0;
+    var dust : u64 = 0;
+    var to_challenger : u64 = 0;
+    var s : u32 = 0;
+    while (s < FOCUS_SEEDS) {
+        let w : NetV2 = world_v2(run_seed(GATE_BASE_SEED, s + 1), JOBS_PER_RUN);
+        assert w.paid_from_slashed <= w.slashed;
+        assert w.paid <= w.emitted + w.slashed;
+        assert (w.flags & bit(I2_DUST_MINTED as u64)) == 0;
+        fees = fees + w.verifier_fees;
+        dust = dust + w.dust;
+        to_challenger = to_challenger + w.challenger_paid;
+        s = s + 1;
+    }
+    assert fees > 0;
+    assert dust > 0;
+    assert to_challenger > 0;
+}
+
+test credits_finalize_after_the_window_never_while_challenged_never_once_slashed {
+    var e : u32 = 0;
+    while (e < 6) {
+        var t : u32 = 0;
+        while (t < 12) {
+            assert is_final(e, t, CHALLENGE_WINDOW) == (t >= e + CHALLENGE_WINDOW);
+            assert may_finalize(e, t, CHALLENGE_WINDOW, true, false) == false;
+            assert may_finalize(e, t, CHALLENGE_WINDOW, false, true) == false;
+            assert may_finalize(e, t, CHALLENGE_WINDOW, false, false) == is_final(e, t, CHALLENGE_WINDOW);
+            assert dispute_in_window(e, t, CHALLENGE_WINDOW) == (t >= e and t < e + CHALLENGE_WINDOW);
+            t = t + 1;
+        }
+        e = e + 1;
+    }
+    var held : u64 = 0;
+    var clawed_jobs : u64 = 0;
+    var clawed_units : u64 = 0;
+    var frivolous : u64 = 0;
+    var stale : u64 = 0;
+    var s : u32 = 0;
+    while (s < FOCUS_SEEDS) {
+        let w : NetV2 = world_v2(run_seed(GATE_BASE_SEED, s + 1), JOBS_PER_RUN);
+        assert (w.flags & bit(I2_FINAL_WHILE_CHALLENGED as u64)) == 0;
+        assert (w.flags & bit(I2_SLASHED_FINALIZED as u64)) == 0;
+        // the run drains: nothing is left pending, and every settled job closed one way
+        assert w.pending_left == 0;
+        assert w.jobs_finalized + w.jobs_clawed == w.jobs_done;
+        assert w.jobs_clawed == w.challenges_upheld;
+        assert w.challenges_upheld == w.wrong_runs;
+        held = held + w.held_open;
+        clawed_jobs = clawed_jobs + w.jobs_clawed;
+        clawed_units = clawed_units + w.clawed;
+        frivolous = frivolous + w.challenges_frivolous;
+        stale = stale + w.challenges_stale;
+        s = s + 1;
+    }
+    assert held > 0;
+    assert clawed_jobs > 0;
+    assert clawed_units > 0;
+    assert frivolous > 0;
+    assert stale > 0;
+}
+
+test the_invariants_hold_after_every_step_of_every_seed {
+    var lies : u64 = 0;
+    var unsigned : u64 = 0;
+    var forged : u64 = 0;
+    var dna : u64 = 0;
+    var equiv : u64 = 0;
+    var crashes : u64 = 0;
+    var restarts : u64 = 0;
+    var collusions : u64 = 0;
+    var bad_sig : u64 = 0;
+    var not_in_batch : u64 = 0;
+    var bad_compute : u64 = 0;
+    var off_chain : u64 = 0;
+    var bypass : u64 = 0;
+    var refused_runs : u64 = 0;
+    var bound_runs : u64 = 0;
+    var ex : u64 = 0;
+    var pv : u64 = 0;
+    var vf : u64 = 0;
+    var au : u64 = 0;
+    var bo : u64 = 0;
+    var s : u32 = 0;
+    while (s < NET_SEEDS) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, s);
+        // the observer judged every step; a shorter run of the same seed is judged again
+        if (s < 2) {
+            var k : u32 = 1;
+            while (k <= JOBS_PER_RUN / 2) {
+                let part : NetV2 = world_v2(seed, k);
+                assert part.flags == 0;
+                assert part.broken == I2_OK;
+                k = k + 5;
+            }
+        }
+        let w : NetV2 = world_v2(seed, JOBS_PER_RUN);
+        assert w.flags == 0;
+        assert w.broken == I2_OK;
+        assert w.paid <= w.emitted + w.slashed;
+        assert w.jobs_done + w.jobs_failed == (JOBS_PER_RUN as u64);
+        // a crash is restarted until the intensity is spent; every v1 attack is refused
+        assert w.sup_restarts + w.gave_up == w.crashes;
+        assert w.off_chain_refused == w.off_chain;
+        assert w.bypass_refused == w.bypass;
+        assert w.accepted + w.bad_sig + w.not_in_batch + w.bad_compute <= (SIGNERS as u64) * w.runs_admitted;
+        // work is paid by kind: one bounty at most, one royalty per paid run, a provider per executor
+        assert w.bounties <= 1;
+        assert w.royalties == w.jobs_paid;
+        assert w.provider_fees == w.executor_fees;
+        assert w.rate_end <= TEST_BASE_RATE;
+        lies = lies + w.lies;
+        unsigned = unsigned + w.unsigned;
+        forged = forged + w.forged;
+        dna = dna + w.dna_port;
+        equiv = equiv + w.equivocations;
+        crashes = crashes + w.crashes;
+        restarts = restarts + w.sup_restarts;
+        collusions = collusions + w.collusions;
+        bad_sig = bad_sig + w.bad_sig;
+        not_in_batch = not_in_batch + w.not_in_batch;
+        bad_compute = bad_compute + w.bad_compute;
+        off_chain = off_chain + w.off_chain;
+        bypass = bypass + w.bypass;
+        refused_runs = refused_runs + w.runs_refused;
+        bound_runs = bound_runs + w.device_bound_runs;
+        ex = ex + w.executor_fees;
+        pv = pv + w.provider_fees;
+        vf = vf + w.verifier_fees;
+        au = au + w.royalties;
+        bo = bo + w.bounties;
+        s = s + 1;
+    }
+    // not vacuous: every fault and attack was drawn and caught, and every kind of work was paid
+    assert lies > 0 and unsigned > 0 and forged > 0 and dna > 0 and equiv > 0;
+    assert crashes > 0 and restarts > 0 and collusions > 0;
+    assert bad_sig > 0 and not_in_batch > 0 and bad_compute > 0;
+    assert off_chain > 0 and bypass > 0 and refused_runs > 0 and bound_runs > 0;
+    assert ex > 0 and pv > 0 and vf > 0 and au > 0 and bo > 0;
+}
+
+test the_digest_does_not_steer_the_network {
+    // the same seed, twice: the same ledger digest; another seed, another ledger
+    var s : u32 = 0;
+    var last : u64 = 0;
+    while (s < 4) {
+        let seed : u32 = run_seed(GATE_BASE_SEED, s);
+        let first_run : NetV2 = world_v2(seed, JOBS_PER_RUN);
+        let second_run : NetV2 = world_v2(seed, JOBS_PER_RUN);
+        assert first_run.digest == second_run.digest;
+        assert first_run.paid == second_run.paid;
+        if (s > 0) { assert first_run.digest != last; }
+        last = first_run.digest;
+        s = s + 1;
+    }
+    // on SHA-256 throughout: the same digest twice, and the same books and events as the fast fold
+    let seed1 : u32 = run_seed(GATE_BASE_SEED, 1);
+    var t_hash : Trace = trace_empty();
+    var t_fast : Trace = trace_empty();
+    let hashed : NetV2 = network_v2(seed1, 4, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOUNTY, TEST_SLASH, true, &t_hash);
+    let fast : NetV2 = network_v2(seed1, 4, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOUNTY, TEST_SLASH, false, &t_fast);
+    assert world_v2_hashed(seed1, 4).digest == hashed.digest;
+    assert hashed.digest != fast.digest;
+    assert hashed.flags == 0;
+    assert hashed.paid == fast.paid;
+    assert hashed.slashed == fast.slashed;
+    assert hashed.clawed == fast.clawed;
+    assert hashed.accepted == fast.accepted and hashed.bad_sig == fast.bad_sig;
+    assert hashed.not_in_batch == fast.not_in_batch and hashed.bad_compute == fast.bad_compute;
+    assert t_hash.len == t_fast.len;
+    var i : u32 = 0;
+    while (i < t_hash.len) {
+        let x : usize = i as usize;
+        assert t_hash.kind[x] == t_fast.kind[x];
+        assert t_hash.from_pid[x] == t_fast.from_pid[x];
+        assert t_hash.to_pid[x] == t_fast.to_pid[x];
+        assert t_hash.tag[x] == t_fast.tag[x];
+        i = i + 1;
+    }
+}
+
+test fraud_nets_worse_than_honesty {
+    var fraud : u64 = 0;
+    var honest : u64 = 0;
+    var s : u32 = 0;
+    while (s < FOCUS_SEEDS) {
+        let w : NetV2 = world_v2(run_seed(GATE_BASE_SEED, s + 4), JOBS_PER_RUN);
+        assert (w.flags & bit(I2_FRAUD_NOT_WORSE as u64)) == 0;
+        assert (w.flags & bit(I2_UNSIGNED_PAID as u64)) == 0;
+        assert (w.flags & bit(I2_UNADMITTED_PAID as u64)) == 0;
+        assert (w.flags & bit(I2_FORGED_VOTE as u64)) == 0;
+        assert w.griefer_burned == w.challenges_frivolous * CHALLENGE_STAKE;
+        fraud = fraud + w.fraud_closed;
+        honest = honest + w.honest_closed;
+        s = s + 1;
+    }
+    assert fraud > 0;
+    assert honest > 0;
+}
+
+test work_is_paid_by_the_five_kinds_and_credits_never_move {
+    var kind : u8 = 0;
+    var known : u32 = 0;
+    while (kind < 16) {
+        if (payment_kind_known(kind)) { known = known + 1; }
+        kind = kind + 1;
+    }
+    assert known == (PAYMENT_KINDS as u32);
+    assert payment_kind_known(BOUNTY) and payment_kind_known(EXECUTOR_FEE) and payment_kind_known(PROVIDER_FEE);
+    assert payment_kind_known(VERIFIER_FEE) and payment_kind_known(AUTHOR_ROYALTY);
+    assert payment_kind_known(ENTRY_FINAL) == false;
+    assert payment_kind_known(ENTRY_SLASH) == false;
+    assert CREDIT_TRANSFERABLE == false;
+    // one minter: only the chain of record mints
+    var chain : u8 = 0;
+    while (chain < 6) {
+        assert mints_new_supply(chain) == (chain == CHAIN_OF_RECORD);
+        chain = chain + 1;
+    }
+    var s : u32 = 0;
+    while (s < 2) {
+        let w : NetV2 = world_v2(run_seed(GATE_BASE_SEED, s + 6), JOBS_PER_RUN);
+        assert (w.flags & bit(I2_BOUNTY_UNEARNED as u64)) == 0;
+        assert (w.flags & bit(I2_LEDGER_DRIFT as u64)) == 0;
+        assert (w.flags & bit(I2_OFF_CHAIN_CREDIT as u64)) == 0;
+        assert (w.flags & bit(I2_UNKNOWN_KIND as u64)) == 0;
+        assert w.emitted <= w.paid;
+        s = s + 1;
+    }
+}
+
+test the_trace_is_the_seeded_network_in_actor_event_shape {
+    // seed 1, as the runtime replays it: the crash and the restart, the liar's slash, the replayed nonce
+    var tr : Trace = trace_empty();
+    let w : NetV2 = network_v2(1, JOBS_PER_RUN, TEST_BASE_RATE, TEST_HALVING_EVERY, TEST_UNITS_MAX, TEST_BOUNTY, TEST_SLASH, false, &tr);
+    assert w.flags == 0;
+    assert tr.overflow == 0;
+    assert tr.len == trace_len(1);
+    var exits : u64 = 0;
+    var restarts : u64 = 0;
+    var spawns : u64 = 0;
+    var counted : u64 = 0;
+    var crash_slot : u64 = 0;
+    var crash_gen : u64 = 0;
+    var restarted_after_crash : bool = false;
+    var i : u32 = 0;
+    while (i < tr.len) {
+        let row : TraceRow = row_of(tr, i);
+        assert row.seq == (i as u64) + 1;
+        assert actor_kind_ok(row.kind);
+        if (row.kind == EV_ACTOR_SPAWN) {
+            spawns = spawns + 1;
+            assert row.to_pid != NO_PID;
+        }
+        if (row.kind == EV_ACTOR_EXIT or row.kind == EV_ACTOR_DOWN) {
+            assert row.reason_class < REASON_CLASSES;
+        } else {
+            assert row.reason_class == NO_REASON;
+        }
+        if (row.kind == EV_ACTOR_EXIT) {
+            exits = exits + 1;
+            assert row.reason_class == RC_CRASH;
+            crash_slot = slot_of(row.from_pid);
+            crash_gen = gen_of(row.from_pid);
+        }
+        if (row.kind == EV_ACTOR_RESTART) {
+            restarts = restarts + 1;
+            assert row.parent_pid == pid_of(SLOT_SUPERVISOR, 0);
+            assert row.restart_count >= 1;
+            if (slot_of(row.to_pid) == crash_slot and crash_slot != SLOT_DISPATCHER and gen_of(row.to_pid) == next_gen(crash_gen)) { restarted_after_crash = true; }
+        }
+        if (row.kind == EV_ACTOR_DELIVER) {
+            assert row.task_ref >= 1 and row.task_ref <= JOBS_PER_RUN;
+            assert row.count == 1;
+        }
+        if (row.kind == EV_ACTOR_DELIVERS) { counted = counted + (row.count as u64); }
+        i = i + 1;
+    }
+    assert spawns == ACTOR_SLOTS_V2;
+    assert exits == w.crashes + w.disp_restarts;
+    assert restarts == w.sup_restarts + w.disp_restarts;
+    assert restarted_after_crash;
+    assert counted == ((JOBS_PER_RUN + DRAIN_EPOCHS) as u64);
+    // the liar's slash: the treasurer's M_SLASH to the liar's pid
+    assert w.lie_slash_seq > 0;
+    let slash_row : TraceRow = row_of(tr, (w.lie_slash_seq - 1) as u32);
+    assert slash_row.kind == EV_ACTOR_DELIVER;
+    assert slash_row.tag == M_SLASH;
+    assert slash_row.from_pid == pid_of(SLOT_TREASURER, 0);
+    assert slash_row.to_pid == w.lie_slash_pid;
+    // the replayed nonce: the executor's credited claim presented again, and refused by the spent set
+    assert w.double_seq > 0;
+    let double_row : TraceRow = trace_row(1, (w.double_seq - 1) as u32);
+    assert double_row.tag == M_CLAIM;
+    assert double_row.from_pid == w.double_pid;
+    assert double_row.to_pid == pid_of(SLOT_TREASURER, 0);
+    assert w.double_refused == w.double_bills;
+    // and a replayed receipt, a claim to the treasurer the treasurer slashes
+    assert w.replay_seq > 0;
+    assert row_of(tr, (w.replay_seq - 1) as u32).tag == M_CLAIM;
+    assert row_of(tr, (w.replay_seq - 1) as u32).from_pid == w.replay_pid;
+    // past the end there is no row
+    assert row_of(tr, tr.len).seq == 0;
+    // and other seeds' traces fit
+    var s : u32 = 0;
+    while (s < FOCUS_SEEDS) {
+        let t2 : Trace = trace_of(run_seed(GATE_BASE_SEED, s));
+        assert t2.overflow == 0;
+        assert t2.len > (ACTOR_SLOTS_V2 as u32);
+        s = s + 1;
+    }
+}
+
+invariant the_v2_network_is_safe_and_fits {
+    assert quorum_valid(NET_M, NET_N, NET_F);
+    assert NET_N == SIGNERS;
+    assert JOBS_PER_RUN <= JOBS_MAX;
+    assert I2_KINDS < 64;
+    assert JOBS_MAX * HOLDERS <= 128;
+    assert FOCUS_SEEDS + 4 <= NET_SEEDS;
+}
+
+invariant the_v2_fault_bands_fit_the_span {
+    assert W2_LIE + W2_UNSIGNED + W2_FORGED_KEY + W2_DNA_PORT + W2_EQUIVOCATE + W2_REPLAY + W2_CRASH < FAULT_SPAN;
+    assert NET2_STREAM_FAULT > NET_STREAM_BOUNTY;
+}
+
+invariant one_block_and_two_block_preimages {
+    assert DIGEST_MSG_BITS == 11 * 32;
+    assert DIGEST_MSG_BITS + 65 <= 512;
+    assert LEDGER_MSG_BITS == 19 * 32;
+    assert MERKLE_MSG_BITS == 16 * 32;
+}
