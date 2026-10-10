@@ -1,0 +1,291 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/claim.t27 -- what a dispatch row still claims: the round's stateOfDispatch, from one source
+; gHashTag/t27#8765; runtime gHashTag/trios#1767 (branch queen).
+; Every round, for every queen_dispatch row, the trios supervisor asks one question: does this row still
+; claim its issue, and is the issue free for another bee? The answer is one of six words -- running,
+; accepted, rejected, awaitingReview, failed, cancelled -- and the round, the board (dispatchRowState) and
+; the files a row holds all read it. Until this card it was written by hand: stateOfDispatch in
+; trios/agent-server/apps/server/src/api/services/queen-tick.ts (gHashTag/trios queen @ 3654fdd2, lines
+; 791-912), and two specs describe older versions of it that no longer agree with the code that runs:
+;   specs/queen/dispatch.t27 claim_of  -- the audit at supervisor pin 879799a8 (2026-10-05): escalate holds
+;                                          with no clock, obsolete is not a state, criteria are not read;
+;   trios rings/T27-02/tick_core.t27   -- state_of_dispatch, four states, written 2026-09-04.
+; This card is the rule as it runs on the queen branch. The review valve's two decisions -- the kind of an
+; escalation and the next step after a clock -- are imported from review_valve.t27, not restated, so the
+; valve stays the one home of "no person in the loop". The supervisor calls claim_of as generated wasm
+; (t27c gen-c + zig cc wasm32-wasi), the way it calls holds.t27.
+; The words are the boundary's: review_state is a text column, the supervisor hands this card one of the V_
+; codes below, and maps the CL_ code it gets back to its word. Recognising a word is text work and stays
+; there; everything decided about the word is here.
+; Clocks are whole minutes since finished_at, the one column nothing rewrites. The supervisor counts
+; milliseconds; every floor here is a whole number of minutes, so idle_ms >= floor_ms holds exactly when
+; floor(idle_ms / 60000) >= floor_minutes, and a clock that cannot be read (or reads negative) is 0: it
+; keeps the hold, as today.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenClaim;
+
+use queen::review_valve::escalation_kind;
+use queen::review_valve::next_step;
+use queen::review_valve::KIND_UNRECORDED;
+use queen::review_valve::KIND_NO_CRITERIA;
+use queen::review_valve::KIND_SEND_BACK_CEILING;
+use queen::review_valve::KIND_DEAD_LETTER;
+use queen::review_valve::KIND_REVIEWER_GAVE_UP;
+use queen::review_valve::STEP_HOLD;
+use queen::review_valve::STEP_RELEASE;
+use queen::review_valve::STEP_BACKFILL;
+use queen::review_valve::STEP_CLOSE;
+use queen::review_valve::RETRY_FLOOR_MINUTES;
+use queen::review_valve::OBSOLETE_STATE;
+
+/// The empty-attempt floor is the valve's retry floor (queen-tick.ts EMPTY_ATTEMPT_FLOOR_MS =
+/// RETRY_FLOOR_MINUTES), imported above with the valve's kind and step codes: nothing of the valve is
+/// restated here.
+
+/// What a dispatch row claims. The order is the supervisor's return type.
+/// CL_RUNNING: the bee has not ended: its issue and its files are held.
+/// CL_ACCEPTED: the Queen said yes: the work is done and holds nothing.
+/// CL_REJECTED: sent back, or an empty attempt inside its floor: the same work is expected back.
+/// CL_AWAITING_REVIEW: finished and not decided, or held by the valve while its clock runs.
+/// CL_FAILED: released: the issue goes back to the swarm.
+/// CL_CANCELLED: closed by the review valve as obsolete: free, and not taken again while the row stands.
+pub const CL_RUNNING : u8 = 0;
+pub const CL_ACCEPTED : u8 = 1;
+pub const CL_REJECTED : u8 = 2;
+pub const CL_AWAITING_REVIEW : u8 = 3;
+pub const CL_FAILED : u8 = 4;
+pub const CL_CANCELLED : u8 = 5;
+pub const CLAIM_STATES : u8 = 6;
+
+/// The review_state column, as the boundary read it.
+/// V_NONE: no verdict yet (the column is null or empty). V_ACCEPT 'accept'. V_SEND_BACK 'sendBack'.
+/// V_ESCALATE 'escalate'. V_WAIT 'wait'. V_FAILED 'failed'. V_CANCELLED 'cancelled'. V_EMPTY 'empty'.
+/// V_STALE_CONTRACT 'stale-contract'. V_OBSOLETE: OBSOLETE_STATE, the word review_valve.t27 closes a
+/// row with, imported above so the boundary reads it from this card's generated constants.
+/// V_OTHER: any other word. It is held for review with no clock: a word nobody wrote a rule for
+/// releases nothing. A code past VERDICT_CODES is read the same way.
+pub const V_NONE : u8 = 0;
+pub const V_ACCEPT : u8 = 1;
+pub const V_SEND_BACK : u8 = 2;
+pub const V_ESCALATE : u8 = 3;
+pub const V_WAIT : u8 = 4;
+pub const V_FAILED : u8 = 5;
+pub const V_CANCELLED : u8 = 6;
+pub const V_EMPTY : u8 = 7;
+pub const V_STALE_CONTRACT : u8 = 8;
+pub const V_OBSOLETE : u8 = 9;
+pub const V_OTHER : u8 = 10;
+pub const VERDICT_CODES : u8 = 11;
+
+/// A send-back under its ceiling goes back to the swarm after an hour idle (queen-tick.ts
+/// SEND_BACK_IDLE_FLOOR_MS): the bee it waits for was usually dispatched again within a round.
+pub const SEND_BACK_FLOOR_MINUTES : u32 = 60;
+
+/// A wait, or no verdict at all, under the ceiling is released after six hours (WAIT_FROZEN_FLOOR_MS).
+/// A finished bee's transcript never changes, so re-reading it is not re-judging it; six and not one,
+/// because a transcript slow to flush can still parse on a later sweep.
+pub const WAIT_FROZEN_FLOOR_MINUTES : u32 = 360;
+
+/// The send-back ceiling a row is read against when the caller names none (stateOfDispatch `?? 2`).
+pub const DEFAULT_SEND_BACK_CEILING : u32 = 2;
+
+/// Free attempts (nothing judgeable) after which an escalation reads as a dead letter
+/// (queen-tick.ts FREE_ATTEMPT_CEILING).
+pub const FREE_ATTEMPT_CEILING : u32 = 3;
+
+/// Rounds a bought review may fail to arrive before its escalation reads as the reviewer giving up
+/// (queen-tick.ts REVIEWER_MISS_CEILING).
+pub const REVIEWER_MISS_CEILING : u32 = 3;
+
+/// The criteria count of a row that did not select its criteria: one, never none. Read as none, the
+/// valve would close the row for a missing contract nobody looked for.
+pub const UNREAD_CRITERIA : u32 = 1;
+
+/// The claim a valve step leaves: RELEASE frees the row, CLOSE cancels it, HOLD and BACKFILL keep the
+/// claim the row holds while it waits (`held`).
+pub fn claim_of_step(step: u8, held: u8) -> u8 {
+    if (step == STEP_RELEASE) { return CL_FAILED; }
+    if (step == STEP_CLOSE) { return CL_CANCELLED; }
+    return held;
+}
+
+/// The criteria count an escalation's kind is read from.
+pub fn criteria_read_as(criteria_read: bool, criteria: u32) -> u32 {
+    if (criteria_read) { return criteria; }
+    return UNREAD_CRITERIA;
+}
+
+/// The kind an escalated row is read as, from its own counters, in review_valve.t27's order. Today the
+/// valve gives a dead letter, a reviewer that gave up and an unrecorded reason the same step, so the claim
+/// does not change between them; the kind is still the valve's input, and its own test pins each ceiling.
+pub fn escalation_kind_of(send_backs: u32, ceiling: u32, criteria_read: bool, criteria: u32, free_attempts: u32, reviewer_misses: u32) -> u8 {
+    return escalation_kind(criteria_read_as(criteria_read, criteria), send_backs >= ceiling, free_attempts >= FREE_ATTEMPT_CEILING, reviewer_misses >= REVIEWER_MISS_CEILING);
+}
+
+/// What the row claims. finished: the bee ended (finished_at is set). verdict: a V_ code.
+/// idle_minutes: whole minutes since finished_at. send_backs, releases, free_attempts, reviewer_misses:
+/// the row's counters (send_backs, ceiling_releases, free_attempts, reviewer_misses). ceiling: the
+/// send-back ceiling (DEFAULT_SEND_BACK_CEILING unless the caller names one). criteria_read: the row
+/// selected its criteria; criteria: how many.
+pub fn claim_of(finished: bool, verdict: u8, idle_minutes: u32, send_backs: u32, ceiling: u32, releases: u32, criteria_read: bool, criteria: u32, free_attempts: u32, reviewer_misses: u32) -> u8 {
+    if (finished == false) { return CL_RUNNING; }
+    if (verdict == V_ACCEPT) { return CL_ACCEPTED; }
+    if (verdict == V_FAILED or verdict == V_CANCELLED) { return CL_FAILED; }
+    if (verdict == V_EMPTY) {
+        if (idle_minutes >= RETRY_FLOOR_MINUTES) { return CL_FAILED; }
+        return CL_REJECTED;
+    }
+    if (verdict == V_STALE_CONTRACT) { return CL_FAILED; }
+    if (verdict == V_OBSOLETE) { return CL_CANCELLED; }
+    if (verdict == V_SEND_BACK) {
+        if (idle_minutes >= SEND_BACK_FLOOR_MINUTES and send_backs < ceiling) { return CL_FAILED; }
+        return claim_of_step(next_step(KIND_SEND_BACK_CEILING, idle_minutes, releases), CL_REJECTED);
+    }
+    if (verdict == V_ESCALATE) {
+        var kind : u8 = escalation_kind_of(send_backs, ceiling, criteria_read, criteria, free_attempts, reviewer_misses);
+        return claim_of_step(next_step(kind, idle_minutes, releases), CL_AWAITING_REVIEW);
+    }
+    if (verdict == V_NONE or verdict == V_WAIT) {
+        if (idle_minutes >= WAIT_FROZEN_FLOOR_MINUTES and send_backs < ceiling) { return CL_FAILED; }
+    }
+    return CL_AWAITING_REVIEW;
+}
+
+test a_running_bee_claims_whatever_its_column_says {
+    assert claim_of(false, V_ACCEPT, 999999, 9, 2, 9, true, 0, 9, 9) == CL_RUNNING;
+    assert claim_of(false, V_FAILED, 0, 0, 2, 0, true, 1, 0, 0) == CL_RUNNING;
+    assert claim_of(false, V_OBSOLETE, 0, 0, 2, 0, true, 1, 0, 0) == CL_RUNNING;
+    assert claim_of(false, V_NONE, 0, 0, 2, 0, false, 0, 0, 0) == CL_RUNNING;
+}
+
+test a_decided_word_ends_the_claim_at_once {
+    assert claim_of(true, V_ACCEPT, 0, 0, 2, 0, true, 1, 0, 0) == CL_ACCEPTED;
+    assert claim_of(true, V_FAILED, 0, 9, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_CANCELLED, 0, 0, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_STALE_CONTRACT, 0, 0, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_OBSOLETE, 0, 0, 2, 0, true, 1, 0, 0) == CL_CANCELLED;
+}
+
+test an_empty_attempt_is_held_until_its_floor {
+    assert claim_of(true, V_EMPTY, 0, 0, 2, 0, true, 1, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_EMPTY, RETRY_FLOOR_MINUTES - 1, 0, 2, 0, true, 1, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_EMPTY, RETRY_FLOOR_MINUTES, 0, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    // the floor is the clock alone: spent counters do not hold an empty attempt longer
+    assert claim_of(true, V_EMPTY, RETRY_FLOOR_MINUTES, 9, 2, 9, true, 1, 9, 9) == CL_FAILED;
+}
+
+test a_send_back_under_its_ceiling_goes_back_after_the_hour {
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_FLOOR_MINUTES - 1, 1, 2, 0, true, 1, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_FLOOR_MINUTES, 1, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_FLOOR_MINUTES, 0, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    // its own clock is asked first: from the hour on, a send-back under the ceiling is released even when
+    // the row's ceiling was already handed back once; inside the hour the valve answers, and a spent
+    // release closes it (the supervisor as it runs at 3654fdd2; gHashTag/trios#1767 records this)
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_FLOOR_MINUTES, 1, 2, 1, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_FLOOR_MINUTES - 1, 1, 2, 1, true, 1, 0, 0) == CL_CANCELLED;
+}
+
+test a_spent_ceiling_is_the_valves {
+    // at the ceiling the hour floor is the valve's (KIND_SEND_BACK_CEILING), once
+    assert claim_of(true, V_SEND_BACK, 59, 2, 2, 0, true, 1, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_SEND_BACK, 60, 2, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, 999999, 2, 2, 1, true, 1, 0, 0) == CL_CANCELLED;
+    // a ceiling handed back once closes the next send-back at once, inside the hour as well
+    assert claim_of(true, V_SEND_BACK, 0, 0, 2, 1, true, 1, 0, 0) == CL_CANCELLED;
+    // a caller's own ceiling is the ceiling
+    assert claim_of(true, V_SEND_BACK, 60, 2, 3, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, 0, 3, 3, 0, true, 1, 0, 0) == CL_REJECTED;
+}
+
+test an_escalation_has_a_kind_and_a_clock {
+    // unrecorded: the retry floor, then once
+    assert claim_of(true, V_ESCALATE, 29, 0, 2, 0, true, 2, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 0, true, 2, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 1, true, 2, 0, 0) == CL_CANCELLED;
+    // no criteria: held for the backfill window, then closed; releases do not apply
+    assert claim_of(true, V_ESCALATE, 119, 0, 2, 1, true, 0, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 120, 0, 2, 0, true, 0, 0, 0) == CL_CANCELLED;
+    // a spent ceiling escalates on the hour floor
+    assert claim_of(true, V_ESCALATE, 59, 2, 2, 0, true, 2, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 60, 2, 2, 0, true, 2, 0, 0) == CL_FAILED;
+    // dead letter and a reviewer that gave up: the retry floor
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 0, true, 2, FREE_ATTEMPT_CEILING, 0) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 0, true, 2, 0, REVIEWER_MISS_CEILING) == CL_FAILED;
+}
+
+test the_kind_is_read_from_the_counters_at_their_ceilings {
+    assert escalation_kind_of(0, 2, true, 2, 0, 0) == KIND_UNRECORDED;
+    assert escalation_kind_of(0, 2, true, 2, FREE_ATTEMPT_CEILING - 1, REVIEWER_MISS_CEILING - 1) == KIND_UNRECORDED;
+    assert escalation_kind_of(0, 2, true, 2, FREE_ATTEMPT_CEILING, 0) == KIND_DEAD_LETTER;
+    assert escalation_kind_of(0, 2, true, 2, 0, REVIEWER_MISS_CEILING) == KIND_REVIEWER_GAVE_UP;
+    assert escalation_kind_of(1, 2, true, 2, 9, 9) == KIND_DEAD_LETTER;
+    assert escalation_kind_of(2, 2, true, 2, 9, 9) == KIND_SEND_BACK_CEILING;
+    assert escalation_kind_of(2, 2, true, 0, 9, 9) == KIND_NO_CRITERIA;
+    assert escalation_kind_of(2, 2, false, 0, 9, 9) == KIND_SEND_BACK_CEILING;
+}
+
+test criteria_that_were_not_read_are_not_none {
+    // unread criteria are one criterion: the row waits the retry floor, it is not closed as contract-less
+    assert criteria_read_as(false, 0) == UNREAD_CRITERIA;
+    assert criteria_read_as(true, 0) == 0;
+    assert claim_of(true, V_ESCALATE, 120, 0, 2, 0, false, 0, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 120, 0, 2, 0, true, 0, 0, 0) == CL_CANCELLED;
+}
+
+test a_wait_is_released_after_six_hours_under_the_ceiling {
+    assert claim_of(true, V_WAIT, 0, 0, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_WAIT, WAIT_FROZEN_FLOOR_MINUTES - 1, 1, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_WAIT, WAIT_FROZEN_FLOOR_MINUTES, 1, 2, 0, true, 1, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_NONE, WAIT_FROZEN_FLOOR_MINUTES, 0, 2, 0, false, 0, 0, 0) == CL_FAILED;
+    // at the ceiling a wait is held: the frozen floor is for work the ceiling has not judged
+    assert claim_of(true, V_WAIT, 999999, 2, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+}
+
+test a_word_nobody_named_holds_and_releases_nothing {
+    assert claim_of(true, V_OTHER, 0, 0, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_OTHER, 999999, 0, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, VERDICT_CODES, 999999, 0, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, 255, 999999, 0, 2, 0, true, 1, 0, 0) == CL_AWAITING_REVIEW;
+}
+
+test the_valve_codes_are_the_valves {
+    // every valve step maps to one claim, and only RELEASE and CLOSE end the hold
+    assert claim_of_step(STEP_RELEASE, CL_REJECTED) == CL_FAILED;
+    assert claim_of_step(STEP_CLOSE, CL_REJECTED) == CL_CANCELLED;
+    assert claim_of_step(STEP_HOLD, CL_REJECTED) == CL_REJECTED;
+    assert claim_of_step(STEP_BACKFILL, CL_AWAITING_REVIEW) == CL_AWAITING_REVIEW;
+    // the send-back ceiling is the valve's kind, read on the valve's hour
+    assert next_step(KIND_SEND_BACK_CEILING, 60, 0) == STEP_RELEASE;
+    assert next_step(KIND_SEND_BACK_CEILING, 59, 0) == STEP_HOLD;
+    assert next_step(KIND_SEND_BACK_CEILING, 0, 1) == STEP_CLOSE;
+    assert escalation_kind(1, true, false, false) == KIND_SEND_BACK_CEILING;
+    // the empty floor is the valve's retry floor: an unrecorded escalation releases on the same minute
+    assert next_step(escalation_kind(1, false, false, false), RETRY_FLOOR_MINUTES - 1, 0) == STEP_HOLD;
+    assert next_step(escalation_kind(1, false, false, false), RETRY_FLOOR_MINUTES, 0) == STEP_RELEASE;
+}
+
+invariant the_codes_never_move {
+    assert CL_RUNNING == 0;
+    assert CL_ACCEPTED == 1;
+    assert CL_REJECTED == 2;
+    assert CL_AWAITING_REVIEW == 3;
+    assert CL_FAILED == 4;
+    assert CL_CANCELLED == 5;
+    assert CLAIM_STATES == CL_CANCELLED + 1;
+    assert V_NONE == 0;
+    assert V_OTHER == 10;
+    assert VERDICT_CODES == V_OTHER + 1;
+}
+
+invariant the_floors_rise {
+    // every clock here is a whole positive number of minutes, so the minute clock reads them exactly
+    assert RETRY_FLOOR_MINUTES > 0;
+    assert RETRY_FLOOR_MINUTES < SEND_BACK_FLOOR_MINUTES;
+    assert SEND_BACK_FLOOR_MINUTES < WAIT_FROZEN_FLOOR_MINUTES;
+    assert DEFAULT_SEND_BACK_CEILING > 0;
+    assert FREE_ATTEMPT_CEILING > 0;
+    assert REVIEWER_MISS_CEILING > 0;
+    assert UNREAD_CRITERIA > 0;
+}

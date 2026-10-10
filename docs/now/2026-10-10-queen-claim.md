@@ -1,0 +1,10 @@
+# NOW -- claim.t27: what a dispatch row still claims, the round's stateOfDispatch as a card (2026-10-10)
+
+## specs/queen/claim.t27 (Closes #8765; runtime gHashTag/trios#1767)
+
+- Every round the trios supervisor asks of every `queen_dispatch` row whether it still claims its issue. The answer (`running`, `accepted`, `rejected`, `awaitingReview`, `failed`, `cancelled`) is `stateOfDispatch` in `queen-tick.ts`, hand-written TypeScript. `dispatch.t27` `claim_of` (the audit at pin 879799a8) and trios `rings/T27-02/tick_core.t27` describe older versions; neither agrees with the code on the `queen` branch (3654fdd2).
+- The card states the rule as it runs: `claim_of`, `claim_of_step`, `criteria_read_as`, `escalation_kind_of`. It imports `escalation_kind`, `next_step`, the kind and step codes and `RETRY_FLOOR_MINUTES` from `review_valve.t27`; nothing of the valve is restated. The seal's closure names `review_valve.t27`.
+- Clocks are whole minutes since `finished_at`. Every floor is a whole number of minutes, so the supervisor's `idle_ms >= floor_ms` holds exactly when `floor(idle_ms / 60000) >= floor_minutes`.
+- `t27c test-report`: 11 tests, 0 FAIL, 0 vacuous, 2 invariants. `tri mutate spec`: 40 mutants (drop-guard 11, flip-cmp 21, swap-logic 4, ret-default 4), 40 killed by a failing test. The first run left 4 survivors: the send-back's own floor was masked by the valve when `releases = 0` (2, a test gap, closed by asserting `releases = 1`), and the dead-letter and reviewer-miss ceilings could not change the claim because the valve gives those kinds the step of an unrecorded one (2, closed by `escalation_kind_of` and its own test).
+- Recorded, not changed: after a spent ceiling is handed back, the redispatch resets `send_backs` and keeps `ceiling_releases = 1`, so the first send-back of the new attempt reaches the valve with a spent release and is closed inside its hour. The card keeps today's answer; the trios issue records it.
+- Runtime: gHashTag/trios `queen`, `stateOfDispatch` calls `claim_of` in `specs/queen/claim.wasm` (gen-c + zig 0.16.0 cc wasm32-wasi), proven equal to the hand-written function first.

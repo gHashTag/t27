@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+c31c059ef",
+  "closure": [
+    {
+      "spec": "specs/queen/review_valve.t27",
+      "spec_hash": "sha256:5177806d264aa3611b5187a89b929c2231cbf7f95eb3cb78d246d913b658d8a6"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:94cb2ddefbe72c36a94e33fe7aa1d7431dde06620fa9853a92a35351a92f8885",
+  "gen_hash_rust": "sha256:566b400d7e72278fa32999f03fbd911b0b445f4b1dd8d110fb9983d9bd88d11d",
+  "gen_hash_verilog": "sha256:1c18ff19805ce881c1444bcfa48b6de40e980f24830869fc0f6a7fc8b0d8ce70",
+  "gen_hash_zig": "sha256:9ec7f998801cf283659bad1eccb70b0d53e947bd9bb3200defc1c8ed34042fe1",
+  "module": "QueenClaim",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:49:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f031594c8c0c5078a126ad4ed3ec0e3ef6b1179658572878fa24361c4b17cec9",
+  "spec_path": "specs/queen/claim.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
