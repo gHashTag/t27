@@ -193,6 +193,7 @@
   {"path": "specs/compiler/zig_float_call_cast.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_primitive_bindings.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_scoped_type.t27", "t27b": "pass"},
+  {"path": "specs/compiler/zig_shadow_initializer.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_test_shadowing.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_value_ignored.t27", "t27b": "pass"},
   {"path": "specs/conformance/e2e_scenarios.t27", "t27b": "pass"},
