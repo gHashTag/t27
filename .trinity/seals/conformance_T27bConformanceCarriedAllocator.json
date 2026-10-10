@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+d1a3280f3",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a966575b8ac13adb2c7b6c8ef1538265090d602f14a9bcaa020615bfd1b03413",
+  "gen_hash_rust": "sha256:c73c1f096a485fadd4f6fa088e75bd357f8ab0fda8811c32433c6a313aabcaec",
+  "gen_hash_verilog": "sha256:479e8778082d2e6c605d9cceb26919583173bf6df6dc3c040d05ff2116db6f54",
+  "gen_hash_zig": "sha256:a29863efdffcf044c45ac576fb5a300c090e26a8b546c8ce8b46e2e22c8dd3a2",
+  "module": "T27bConformanceCarriedAllocator",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T16:33:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:d292db1bfb4b19efff87554cfcb4092132fb3d564f4d5a360ef4b842bfcac2b7",
+  "spec_path": "specs/tri/t27b/conformance/carried_allocator.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

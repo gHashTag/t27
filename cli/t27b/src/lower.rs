@@ -3123,21 +3123,8 @@ impl<'a> Lower<'a> {
                 );
             }
             None => {
-                let what = if c.name.starts_with('@') {
-                    format!("ExprCall({})", c.name)
-                } else if c.name == "assert" || c.name == "assert_eq" {
-                    "ExprCall(assert in expression)".to_string()
-                } else if matches!(c.name.as_str(), "Ok" | "Err" | "Some" | "None") {
-                    "ExprCall(Result/Option constructor)".to_string()
-                } else if c.name.starts_with("std.") {
-                    "ExprCall(std.*)".to_string()
-                } else if c.name.contains('.') {
-                    "ExprCall(method)".to_string()
-                } else if matches!(c.name.as_str(), "len" | "expect") {
-                    format!("ExprCall({})", c.name)
-                } else {
-                    "ExprCall(undeclared fn)".to_string()
-                };
+                // The name the refusal reports (plan `opaque_plan.t27`, `call_what`): "" is the callee's own.
+                let what = match oq::call_what(c.name.as_bytes()) { "" => format!("ExprCall({})", c.name), w => w.to_string() };
                 return self.reject(&what, format!("call to `{}`", c.name));
             }
         };
@@ -3596,7 +3583,7 @@ impl<'a> Lower<'a> {
                         return Ok(Val::E(Expr { ty: Ty::U64, kind: ExprKind::Const(len as i128) }));
                     }
                 }
-                if let Some(v) = self.std_math_const(n) { return Ok(v); }
+                if let Some(v) = self.std_const(n) { return Ok(v); }
                 match self.member(n)? {
                     Ok(p) => self.place_value(p),
                     Err(v) => Ok(v),
@@ -3824,7 +3811,7 @@ impl<'a> Lower<'a> {
             _ => xp::K_OTHER,
         };
         let named = if k == xp::K_F64 { "f64" } else { "f32" };
-        let base_e = n.children.get(1).filter(|c| c.name == "e").is_some_and(|c| self.std_math_const(c).is_some());
+        let base_e = n.children.get(1).filter(|c| c.name == "e").is_some_and(|c| self.std_const(c).is_some());
         let a = xp::with_base(b, xp::plan(b, n.children.len(), k), base_e, n.children.first().is_some_and(|c| c.name == named));
         match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| (s.id, s.ret.clone()))) {
             (v, _) if a == xp::OPERATOR => { let r = self.expr(&n.children[1])?; self.binary(xp::OPERATOR_TEXT, v, r) }
@@ -4566,13 +4553,14 @@ impl<'a> Lower<'a> {
                 return Ok(LTy::Arr(Box::new(inner), n));
             }
         }
-        // `anyopaque` names no layout: only a pointer to it (plan `opaque_plan.t27`, #7737).
-        if t == "anyopaque" && !oq::refuses(oq::opaque_type(by_value)) {
+        // `anyopaque` names no layout, only a pointer to it; `std.mem.Allocator` is carried, never opened (plan `opaque_plan.t27`).
+        let act = oq::named(t.as_bytes(), by_value);
+        if act == oq::OPAQUE || act == oq::CARRY {
             let id = *self.struct_ids.entry(t.into()).or_insert(self.structs.len() as u32);
             if id as usize == self.structs.len() {
                 let (what, why) = (oq::what(oq::REFUSE_BY_VALUE).into(), oq::why(oq::REFUSE_BY_VALUE).into());
-                let fail = Some(Reject { construct: what, line: self.line, detail: why });
-                self.structs.push(StructDef { name: t.into(), fields: Vec::new(), size: None, align: 1, fail });
+                let fail = (act == oq::OPAQUE).then(|| Reject { construct: what, line: self.line, detail: why });
+                self.structs.push(StructDef { name: t.into(), fields: Vec::new(), size: Some(oq::size(act)).filter(|s| *s > 0), align: oq::align(act), fail });
             }
             return Ok(LTy::Struct(id));
         }

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/t27b/opaque_plan.t27 -- how t27b lowers `anyopaque` and `@ptrFromInt` to an optional pointer (issue #7737,
-; t27b coverage epic #6063; written in t27 under the port epic #6198). Everything t27b decides about them is in this
-; file and reaches cli/t27b through `t27c gen-rust` (gen/rust/tri/t27b/opaque_plan.rs): which shapes it takes, and the
-; names and words of each refusal. The Rust glue in cli/t27b/src/lower.rs (`lty_in`, `expr_as`, `ptr_from_int`) reads
-; what the context wants, asks, and builds the answer.
+; t27b coverage epic #6063; written in t27 under the port epic #6198), and a `std.mem.Allocator` it carries but never
+; calls (issue #7917). Everything t27b decides about them is in this file and reaches cli/t27b through `t27c gen-rust`
+; (gen/rust/tri/t27b/opaque_plan.rs): which shapes it takes, and the names and words of each refusal. The Rust glue
+; in cli/t27b/src/lower.rs (`lty_in`, `expr_as`, `ptr_from_int`) and lower_float.rs (`std_const`) reads what the
+; context wants, asks, and builds the answer.
 ; --
 ; What the reference does (zig 0.16.0, `t27c test-report` on the t27c lab; pinned by
 ; specs/tri/t27b/conformance/opaque_pointer.t27). gen-zig prints all of it as written.
@@ -19,6 +20,20 @@
 ;     `ExprCall(@ptrFromInt)`, as before.
 ; The corpus cases: gen_assertion.t27 (`?*anyopaque` parameters and local, `assertNotNull(@ptrFromInt(0))`) and
 ; gen_hazard_pointers.t27 (`?*anyopaque` fields and parameter).
+;   - `std.mem.Allocator` is Zig's `struct { ptr: *anyopaque, vtable: *const VTable }`, 16 bytes aligned to 8, and
+;     `std.testing.allocator` is one over the test runner's leak-checking allocator; gen-zig prints both as written.
+;     A spec may hold one (a field, a parameter, a local), copy, pass and return it, and Zig refuses `==` on a
+;     struct, so no test can read its bytes. t27b carries it (CARRY): a struct with no fields and Zig's size and
+;     alignment, which copies, stores, passes and returns as any struct does. `std.testing.allocator`, its one
+;     source, is a fresh one of zero bytes. Nothing opens it: a method call (`alloc`, `free`, `create`, ...) keeps
+;     its refusal by name (`ExprCall(method)` or `ExprCall(std.*)`, naming the call), and so does a field read
+;     (`.ptr`, `.vtable`): t27b has no testing allocator and no leak check. Any other type name and any other
+;     allocator (`std.heap.page_allocator`) is NOT_MINE. Pinned by specs/tri/t27b/conformance/carried_allocator.t27;
+;     the corpus cases are gen_regression.t27 (a field, a parameter, `std.testing.allocator` in each test) and
+;     claude_md.t27 (parameters and unused locals).
+;   - The name a call that no declared fn answers is refused by (`call_what`), the allocator's methods among them:
+;     a builtin `@f(..)` and a bare `len(..)` or `expect(..)` as `ExprCall(<name>)`, `assert` in an expression,
+;     `Ok`/`Err`/`Some`/`None`, any `std.` path, any other dotted path as a method, the rest as an undeclared fn.
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -31,6 +46,11 @@ pub const NOT_MINE : u8 = 2;
 pub const FROM_INT : u8 = 3;
 pub const REFUSE_PLAIN : u8 = 4;
 pub const REFUSE_ALIGNED : u8 = 5;
+pub const CARRY : u8 = 6;
+
+// Zig's two words, on the 64-bit targets t27b and the reference run on.
+pub const CARRY_SIZE : u32 = 16;
+pub const CARRY_ALIGN : u32 = 8;
 
 // What `@ptrFromInt` is wanted as.
 pub const W_OPT_PTR : u8 = 0;
@@ -42,6 +62,81 @@ pub const W_OTHER : u8 = 2;
 pub fn opaque_type(by_value: bool) -> u8 {
     if (by_value) { return REFUSE_BY_VALUE; }
     return OPAQUE;
+}
+
+/// Is the text exactly `w`?
+fn same(s: []const u8, w: str) -> bool {
+    if (s.len != w.len) { return false; }
+    var k : usize = 0;
+    while (k < w.len) {
+        if (s[k] != w[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The type named `t` where a type is read, by_value as in opaque_type: OPAQUE or REFUSE_BY_VALUE for
+/// `anyopaque`, CARRY for `std.mem.Allocator`, NOT_MINE for any other name.
+pub fn named(t: []const u8, by_value: bool) -> u8 {
+    if (same(t, "anyopaque")) { return opaque_type(by_value); }
+    if (same(t, "std.mem.Allocator")) { return CARRY; }
+    return NOT_MINE;
+}
+
+const B_AT : u8 = 64;
+const B_DOT : u8 = 46;
+
+/// Does the text begin with `w`?
+fn begins(s: []const u8, w: str) -> bool {
+    if (s.len < w.len) { return false; }
+    return same(s[0 .. w.len], w);
+}
+
+/// Does the text hold a `.`?
+fn dotted(s: []const u8) -> bool {
+    var k : usize = 0;
+    while (k < s.len) {
+        if (s[k] == B_DOT) { return true; }
+        k = k + 1;
+    }
+    return false;
+}
+
+/// The construct a call of `name` that no declared fn answers is refused as; "" means `ExprCall(<name>)`.
+pub fn call_what(name: []const u8) -> str {
+    if (name.len > 0 and name[0] == B_AT) { return ""; }
+    if (same(name, "assert") or same(name, "assert_eq")) { return "ExprCall(assert in expression)"; }
+    if (same(name, "Ok") or same(name, "Err") or same(name, "Some") or same(name, "None")) {
+        return "ExprCall(Result/Option constructor)";
+    }
+    if (begins(name, "std.")) { return "ExprCall(std.*)"; }
+    if (dotted(name)) { return "ExprCall(method)"; }
+    if (same(name, "len") or same(name, "expect")) { return ""; }
+    return "ExprCall(undeclared fn)";
+}
+
+/// The size the struct for answer `act` has: Zig's two words for CARRY, none (0) for `anyopaque`.
+pub fn size(act: u8) -> u32 {
+    if (act == CARRY) { return CARRY_SIZE; }
+    return 0;
+}
+
+/// The alignment the struct for answer `act` has.
+pub fn align(act: u8) -> u32 {
+    if (act == CARRY) { return CARRY_ALIGN; }
+    return 1;
+}
+
+/// `std.<ns>.<name>` read as a value: CARRY for `std.testing.allocator`, the one source of a carried allocator,
+/// whose type is `carried_type`; NOT_MINE for any other.
+pub fn std_value(ns: []const u8, name: []const u8) -> u8 {
+    if (same(ns, "testing") and same(name, "allocator")) { return CARRY; }
+    return NOT_MINE;
+}
+
+/// The type a carried value has.
+pub fn carried_type() -> str {
+    return "std.mem.Allocator";
 }
 
 /// `@ptrFromInt(...)`. want: W_OPT_PTR, W_PTR or W_OTHER. align: the pointee's alignment in bytes. args: how many
@@ -119,4 +214,58 @@ test refusal_names_and_words {
     assert(why(REFUSE_BY_VALUE).len > 0);
     assert(!std.mem.eql(u8, why(REFUSE_PLAIN), why(REFUSE_ALIGNED)));
     assert(std.mem.eql(u8, why(NOT_MINE), ""));
+}
+
+test an_allocator_is_carried {
+    // gen_regression.t27's `allocator: std.mem.Allocator` field and parameter; claude_md.t27's parameters.
+    assert(named("std.mem.Allocator", true) == CARRY);
+    assert(named("std.mem.Allocator", false) == CARRY);
+    assert(size(CARRY) == 16 and align(CARRY) == 8);
+    assert(!refuses(CARRY));
+    assert(std.mem.eql(u8, what(CARRY), "") and std.mem.eql(u8, why(CARRY), ""));
+}
+
+test anyopaque_keeps_its_answers {
+    assert(named("anyopaque", false) == OPAQUE);
+    assert(named("anyopaque", true) == REFUSE_BY_VALUE);
+    assert(size(OPAQUE) == 0 and align(OPAQUE) == 1);
+}
+
+test other_names_are_not_mine {
+    assert(named("std.mem", false) == NOT_MINE);
+    assert(named("std.mem.Allocatorx", false) == NOT_MINE);
+    assert(named("Allocator", true) == NOT_MINE);
+    assert(named("std.heap.ArenaAllocator", true) == NOT_MINE);
+    assert(named("", false) == NOT_MINE);
+}
+
+test std_testing_allocator_is_the_one_source {
+    // `const allocator = std.testing.allocator;` in each test of gen_regression.t27 and claude_md.t27.
+    assert(std_value("testing", "allocator") == CARRY);
+    assert(named(carried_type(), true) == CARRY);
+    assert(std_value("heap", "page_allocator") == NOT_MINE);
+    assert(std_value("testing", "allocatorx") == NOT_MINE);
+    assert(std_value("testing", "expect") == NOT_MINE);
+    assert(std_value("math", "pi") == NOT_MINE);
+}
+
+test a_call_on_a_carried_allocator_keeps_its_refusal {
+    assert(std.mem.eql(u8, call_what("allocator.alloc"), "ExprCall(method)"));
+    assert(std.mem.eql(u8, call_what("suite.allocator.free"), "ExprCall(method)"));
+    assert(std.mem.eql(u8, call_what("std.testing.allocator.create"), "ExprCall(std.*)"));
+}
+
+test call_refusal_names {
+    assert(std.mem.eql(u8, call_what("@foo"), ""));
+    assert(std.mem.eql(u8, call_what("@"), ""));
+    assert(std.mem.eql(u8, call_what("len"), "") and std.mem.eql(u8, call_what("expect"), ""));
+    assert(std.mem.eql(u8, call_what("assert"), "ExprCall(assert in expression)"));
+    assert(std.mem.eql(u8, call_what("assert_eq"), "ExprCall(assert in expression)"));
+    assert(std.mem.eql(u8, call_what("Ok"), "ExprCall(Result/Option constructor)"));
+    assert(std.mem.eql(u8, call_what("None"), "ExprCall(Result/Option constructor)"));
+    assert(std.mem.eql(u8, call_what("std.debug.print"), "ExprCall(std.*)"));
+    assert(std.mem.eql(u8, call_what("std"), "ExprCall(undeclared fn)"));
+    assert(std.mem.eql(u8, call_what("list.append"), "ExprCall(method)"));
+    assert(std.mem.eql(u8, call_what("lenx"), "ExprCall(undeclared fn)"));
+    assert(std.mem.eql(u8, call_what(""), "ExprCall(undeclared fn)"));
 }

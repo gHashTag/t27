@@ -112,15 +112,23 @@ impl<'a> Lower<'a> {
         self.plan_rows(b, ty, Val::Cf(Q::zero()), vals)
     }
 
-    /// `std.math.pi` / `std.math.e` (no local or constant named `std`): builtin_plan.t27's digits.
-    pub(super) fn std_math_const(&mut self, n: &Node) -> Option<Val> {
-        let d = match n.name.as_str() { "pi" => bp::PI_DIGITS, "e" => bp::E_DIGITS, _ => return None };
+    /// `std.math.pi` / `std.math.e` (no local or constant named `std`): builtin_plan.t27's digits. `std.testing.allocator`:
+    /// opaque_plan.t27's carried value, a fresh one of zero bytes.
+    pub(super) fn std_const(&mut self, n: &Node) -> Option<Val> {
         let [m] = &n.children[..] else { return None };
         let [s] = &m.children[..] else { return None };
-        let shape = m.kind == NodeKind::ExprFieldAccess && m.name == "math" && s.kind == NodeKind::ExprIdentifier && s.name == "std";
+        let shape = m.kind == NodeKind::ExprFieldAccess && s.kind == NodeKind::ExprIdentifier && s.name == "std";
         if !shape || self.lookup("std").is_some() || self.const_nodes.contains_key("std") {
             return None;
         }
+        if oq::std_value(m.name.as_bytes(), n.name.as_bytes()) == oq::CARRY {
+            self.see(n);
+            let (t, k) = self.lty(oq::carried_type()).and_then(|t| Ok((t.clone(), self.new_slot(&t)?))).ok()?;
+            let zero = |off| Stmt::Store { addr: slot_expr(k), off, value: Expr { ty: Ty::U64, kind: ExprKind::Const(0) } };
+            let addr = Expr { ty: Ty::Ptr, kind: ExprKind::Seq { stmts: vec![zero(0), zero(8)], value: Box::new(slot_expr(k)) } };
+            return Some(Val::M(Place { addr, off: 0, ty: t, mutable: false, temp: Some(k) }));
+        }
+        let d = match (m.name.as_str(), n.name.as_str()) { ("math", "pi") => bp::PI_DIGITS, ("math", "e") => bp::E_DIGITS, _ => return None };
         self.see(n);
         Some(Val::Cf(Q::parse(d).ok()?))
     }
