@@ -94,19 +94,9 @@ pub struct SignedVote {
     sig: [64]u8,
 }
 
-pub fn text_eq(a: str, b: str) -> bool {
-    if (a.len != b.len) { return false; }
-    var i : usize = 0;
-    while (i < a.len) {
-        if (a[i] != b[i]) { return false; }
-        i = i + 1;
-    }
-    return true;
-}
-
 /// A nonce's JSON text: `null`, or a quoted hex string. Its length in bytes, as receipt_level reads it.
 pub fn nonce_bytes_of(nonce: str) -> u8 {
-    if (nonce.len < 2 or text_eq(nonce, "null")) { return 0; }
+    if (nonce.len < 2 or text_is(nonce, "null")) { return 0; }
     let n : usize = (nonce.len - 2) / 2;
     if (n > 255) { return 255; }
     return n as u8;
@@ -130,20 +120,20 @@ pub fn vote_verifies(c: QuorumConfig, v: SignedVote) -> bool {
 /// of the challenge, or "null" when none was issued).
 pub fn vote_level(c: QuorumConfig, v: SignedVote, challenge: str) -> u8 {
     let registered : bool = key_row(c, v.key_id) < QUORUM_ROWS;
-    let given : bool = text_eq(challenge, "null") == false;
+    let given : bool = text_is(challenge, "null") == false;
     let nonce : str = v.fields[F_NONCE];
-    return receipt_level(true, registered, vote_verifies(c, v), given, nonce_bytes_of(nonce), given and text_eq(nonce, challenge));
+    return receipt_level(true, registered, vote_verifies(c, v), given, nonce_bytes_of(nonce), given and text_is(nonce, challenge));
 }
 
 /// The level the job asks of a key: FRESH when it issued the key a challenge.
 pub fn level_asked(challenge: str) -> u8 {
-    if (text_eq(challenge, "null")) { return LEVEL_AUTHOR; }
+    if (text_is(challenge, "null")) { return LEVEL_AUTHOR; }
     return LEVEL_FRESH;
 }
 
 /// Two votes say the same thing: the same commit, the same three roots, the same totals.
 pub fn votes_agree(a: SignedVote, b: SignedVote) -> bool {
-    return text_eq(a.fields[F_COMMIT], b.fields[F_COMMIT]) and text_eq(a.fields[F_INPUT_ROOT], b.fields[F_INPUT_ROOT]) and text_eq(a.fields[F_VERDICT_ROOT], b.fields[F_VERDICT_ROOT]) and text_eq(a.fields[F_OUTPUT_ROOT], b.fields[F_OUTPUT_ROOT]) and text_eq(a.fields[F_TOTALS], b.fields[F_TOTALS]);
+    return text_is(a.fields[F_COMMIT], b.fields[F_COMMIT]) and text_is(a.fields[F_INPUT_ROOT], b.fields[F_INPUT_ROOT]) and text_is(a.fields[F_VERDICT_ROOT], b.fields[F_VERDICT_ROOT]) and text_is(a.fields[F_OUTPUT_ROOT], b.fields[F_OUTPUT_ROOT]) and text_is(a.fields[F_TOTALS], b.fields[F_TOTALS]);
 }
 
 ; --- 2. The real receipts of a16231329 ---------------------------------------------------------
@@ -294,7 +284,7 @@ test the_labs_real_receipts_verify_and_are_one_vote {
     assert vote_verifies(c, swapped) == false;
     // the same commit, roots and totals: an EQUIVALENT pair
     assert votes_agree(a, b);
-    assert text_eq(a.fields[F_NONCE], b.fields[F_NONCE]) == false;
+    assert text_is(a.fields[F_NONCE], b.fields[F_NONCE]) == false;
     // lab 1 is fresh for its request's challenge; lab 2 was given none and is an author
     assert vote_level(c, a, R_NONCE_LAB1) == LEVEL_FRESH;
     assert level_asked("null") == LEVEL_AUTHOR;

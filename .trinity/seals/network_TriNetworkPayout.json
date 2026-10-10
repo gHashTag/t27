@@ -1,13 +1,13 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6a8e44b5f",
+  "built_by": "t27c-bootstrap@0.5.2+88821271d",
   "closure": [
     {
       "spec": "specs/network/attribution.t27",
-      "spec_hash": "sha256:e8fa862c0d5ff353cd3248e0c55b5d9690d7d18088742f51793883e7bf3f7cf7"
+      "spec_hash": "sha256:335bc78ec8e3bf8c2eb337ad4c3c74471764a4c49973a427a1721b9a4c0028c5"
     },
     {
       "spec": "specs/network/usage.t27",
-      "spec_hash": "sha256:92ed936bcee894992d5ff23cdaa4a713b6876a9f409a2c7e5a9289ce700a125b"
+      "spec_hash": "sha256:1bfabef6f284582c99561ad1aa314fb04984fe50812ae10136b1fb75c092da22"
     },
     {
       "spec": "specs/tri/lab/receipt.t27",
@@ -15,23 +15,24 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:031b0448419acecdf4bb782bd8b9be5ac7699812ab0bc0b63904fd2a1f15ad94",
-  "gen_hash_rust": "sha256:5a5d311eec5c7d9873f44ce264dc66790a5ad47dc740a860a6844fd147261211",
-  "gen_hash_verilog": "sha256:81046edda0e957874d6bf052f845aef9f6b30575c6bfe211f65be1305c78940b",
-  "gen_hash_zig": "sha256:69d604509502244ddf035963e194dd96b929914545f251a3de4388945a316ce4",
+  "gen_hash_c": "sha256:cdd9e498e412274adef7ed5d3e1aaadcb7d19fbd4e0d2c3dbedbc16709cc51de",
+  "gen_hash_rust": "sha256:49a9d4d3b000fab8a5f1c1c2ecf23a2761feb131aca2233ddc55c28cbdf92b7a",
+  "gen_hash_verilog": "sha256:8117ce3efb060530c74ce3d2280f6307287f683a30af801b5d456506f581f39c",
+  "gen_hash_zig": "sha256:d90984ec31eac565100bac08811d7ed50f56cc274966474344ddb4be168f78c1",
   "module": "TriNetworkPayout",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T18:20:39Z",
+  "sealed_at": "2026-10-10T21:22:12Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:e781ecd5af81515c28f080ba5d5b341d480a5e324c9e8d402ab8fc30f80a5c48",
+  "spec_hash": "sha256:e7039534f075829656c57844ecad7e123c8f2ee4cfb4006636d0058cbe636d4b",
   "spec_path": "specs/tri/network/payout.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
     "passed": 12,
-    "total": 12
+    "total": 12,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

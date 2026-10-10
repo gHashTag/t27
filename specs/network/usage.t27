@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/network/usage.t27 -- which specs admitted runs actually read, per epoch, and the
 ; AUTHOR_ROYALTY split that follows from it. Issue #8605 (GOLDEN CHAIN, see #8609; network MVP, see
-; #8613). Accounting only: nothing moves here, and credits are non-transferable (payout.t27).
+; #8613); the held shares of DISPUTED authors, issue #8789. Accounting only: nothing moves here, and
+; credits are non-transferable (payout.t27).
 ; --
 ; What already exists and is NOT restated here:
 ; - specs/verified/corpus_receipt.t27: a corpus receipt's input leaves name every spec file the run
@@ -11,7 +12,8 @@
 ;   list (bit s: spec s, the same index specs/network/attribution.t27 uses).
 ; - specs/verified/signed_receipt.t27: the key registry and receipt_level decide a receipt's level;
 ;   usage_level passes a row's facts to receipt_level unchanged.
-; - specs/network/attribution.t27: per-spec author weights in basis points, and POOL_ID.
+; - specs/network/attribution.t27: per-spec author weights in basis points, POOL_ID, the row statuses
+;   (CONFIRMED, DISPUTED, AGENT) and the held ids of DISPUTED authors (held_id, is_held, payable).
 ; --
 ; A receipt row: commit (the receipted commit, its sha's first 16 hex digits read as a u64), key
 ; (the signer's key id, KEY_ID_HEX_LEN hex digits read as a u64), epoch (the settlement epoch the
@@ -31,9 +33,11 @@
 ;   its uses' weights. None of it depends on row order.
 ; - An epoch's AUTHOR_ROYALTY pool is split by usage x attribution weight. An id's claim is the sum
 ;   over specs of usage(spec) x weight_of(spec, id); a person's share is
-;   floor(pool x claim / total claim), computed without overflow for any u64 pool. POOL_ID is never
-;   paid out: its share and the integer remainder stay in the pool, so the split never pays more
-;   than the pool and never mints dust.
+;   floor(pool x claim / total claim), computed without overflow for any u64 pool. Only a CONFIRMED
+;   author is paid (attribution.t27 payable). POOL_ID's share stays in the pool. A DISPUTED author's
+;   share is held in the pool for that author, unpaid until the author confirms; royalty_held says
+;   how much. The integer remainder stays in the pool too, so the split never pays more than the pool
+;   and never mints dust.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module NetworkUsage;
@@ -202,11 +206,30 @@ pub fn royalty_floor(pool: u64, claim: u64, total: u64) -> u64 {
     return q * claim + (r * claim) / total;
 }
 
-/// A person's share of the epoch's pool. POOL_ID is never paid out.
+/// A person's share of the epoch's pool. Only a confirmed author's account is paid: never POOL_ID, no
+/// account, or a held id.
 pub fn royalty_share(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, id: u64) -> u64 {
-    if (id == POOL_ID) { return 0; }
-    if (id == NO_AUTHOR) { return 0; }
+    if (payable(id) == false) { return 0; }
     return royalty_floor(pool, royalty_claim(usage, specs, authors, lines, tests, flags, id), royalty_total(usage));
+}
+
+/// What the epoch holds for `author`, unpaid: the share of the author's DISPUTED rows (held_id).
+pub fn royalty_held(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, author: u64) -> u64 {
+    return royalty_floor(pool, royalty_claim(usage, specs, authors, lines, tests, flags, held_id(author)), royalty_total(usage));
+}
+
+/// Everything held for DISPUTED authors: each held id's share once.
+pub fn royalty_held_total(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8) -> u64 {
+    var h : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        let c : u64 = credited_to(authors[i], flags[i]);
+        if (royalty_first_id(specs, authors, flags, i) and is_held(c)) {
+            h = h + royalty_floor(pool, royalty_claim(usage, specs, authors, lines, tests, flags, c), royalty_total(usage));
+        }
+        i = i + 1;
+    }
+    return h;
 }
 
 /// Whether row i is the first row, over every spec, credited to its id.
@@ -234,7 +257,7 @@ pub fn royalty_paid(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, 
     return p;
 }
 
-/// What stays in the pool: the pool's own share and the integer remainder.
+/// What stays in the pool: the pool's own share, the held shares, and the integer remainder.
 pub fn royalty_left(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8) -> u64 {
     return pool - royalty_paid(pool, usage, specs, authors, lines, tests, flags);
 }
@@ -251,11 +274,12 @@ pub fn royalty_left(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, 
 ; Usage in epoch 7 (count, usage): spec 0: C1 read by K1 and K2 (weight 2), C2 by K2 (1): 2, 3.
 ; spec 1: C1 by K1 and K2: 1, 2. spec 2: C1 by K1 only (R1 is R0 again): 1, 1. Total usage 6.
 ; Attribution: spec 0 alice 7500, bob 2500; spec 1 bob 4000, carol 6000; spec 2 carol 5000,
-; dave 3000, POOL 2000 (an agent commit under the owner's account).
+; held(dave) 3000 (an unsigned commit: DISPUTED, held for dave), POOL 2000 (an agent commit under the
+; owner's account). Every other row is CONFIRMED.
 ; Claims (usage x weight): alice 3 x 7500 = 22500; bob 3 x 2500 + 2 x 4000 = 15500;
-; carol 2 x 6000 + 1 x 5000 = 17000; dave 3000; POOL 2000; total 6 x 10000 = 60000.
-; An AUTHOR_ROYALTY pool of 1000: alice 375, bob 258, carol 283, dave 50. Paid 966; 34 stay in the
-; pool (POOL's 33 and 1 of rounding).
+; carol 2 x 6000 + 1 x 5000 = 17000; held(dave) 3000; POOL 2000; total 6 x 10000 = 60000.
+; An AUTHOR_ROYALTY pool of 1000: alice 375, bob 258, carol 283; dave 0, with 50 held for him. Paid
+; 916; 84 stay in the pool (dave's 50 held, POOL's 33 and 1 of rounding).
 
 pub const UX_COMMIT : [8]u64 = [193, 193, 193, 194, 194, 0, 0, 0];
 pub const UX_KEY : [8]u64 = [17, 17, 34, 34, 51, 0, 0, 0];
@@ -281,11 +305,14 @@ pub const UA_SPEC : [16]u32 = [0, 0, 1, 1, 2, 2, 2, 65535, 65535, 65535, 65535, 
 pub const UA_AUTHOR : [16]u64 = [101, 202, 202, 303, 303, 404, 900, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 pub const UA_LINES : [16]u64 = [300, 100, 40, 70, 50, 30, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 pub const UA_TESTS : [16]u64 = [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-pub const UA_FLAGS : [16]u8 = [5, 5, 5, 5, 5, 5, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const UA_FLAGS : [16]u8 = [13, 13, 13, 13, 13, 4, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const UA_IDS : [6]u64 = [101, 202, 303, 404, 900, 18446744073709551615];
-pub const UA_CLAIM : [6]u64 = [22500, 15500, 17000, 3000, 0, 2000];
-pub const UA_SHARE : [6]u64 = [375, 258, 283, 50, 0, 0];
+/// alice, bob, carol, dave, the owner, the pool, held(dave).
+pub const UA_IDS : [7]u64 = [101, 202, 303, 404, 900, 18446744073709551615, 9223372036854776212];
+pub const UA_CLAIM : [7]u64 = [22500, 15500, 17000, 0, 0, 2000, 3000];
+pub const UA_SHARE : [7]u64 = [375, 258, 283, 0, 0, 0, 0];
+/// What is held for each of the first five ids (people and the owner).
+pub const UA_HELD : [5]u64 = [0, 0, 0, 50, 0];
 
 /// Epochs and the quorum cap: C 300 in epoch 7 by K1, again in epoch 8 by K2 (too late); C 301 in
 /// epoch 8; C 303 read by five registered keys in epoch 8.
@@ -406,35 +433,64 @@ test the_royalty_splits_by_usage_times_weight {
     assert royalty_total(UX_USAGE) == 60000;
     var k : u32 = 0;
     var sum : u64 = 0;
-    while (k < 6) {
+    while (k < 7) {
         assert royalty_claim(UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, UA_IDS[k]) == UA_CLAIM[k];
         assert royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, UA_IDS[k]) == UA_SHARE[k];
+        if (k < 5) { assert royalty_held(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, UA_IDS[k]) == UA_HELD[k]; }
         sum = sum + UA_CLAIM[k];
         k = k + 1;
     }
     // the claims are the whole total: every spec's weights sum to BP_TOTAL
     assert sum == royalty_total(UX_USAGE);
-    assert royalty_paid(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 966;
-    assert royalty_left(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 34;
+    assert royalty_paid(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 916;
+    assert royalty_held_total(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 50;
+    assert royalty_left(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 84;
+}
+
+// A DISPUTED author is kept and held, never paid; once their own signature confirms the row, the same
+// claim is paid to them and nothing else moves.
+test a_disputed_share_is_held_until_its_author_confirms {
+    // dave's held id is credited, never paid
+    assert royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, held_id(404)) == 0;
+    assert royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, 404) == 0;
+    assert royalty_held(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, 404) == 50;
+    // dave signs: his row is CONFIRMED, his 50 is paid, and every other share is the same
+    var signed : [16]u8 = UA_FLAGS;
+    signed[5] = 13;
+    assert royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, signed, 404) == 50;
+    assert royalty_held(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, signed, 404) == 0;
+    var k : u32 = 0;
+    while (k < 3) {
+        assert royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, signed, UA_IDS[k]) == UA_SHARE[k];
+        k = k + 1;
+    }
+    assert royalty_paid(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, signed) == 966;
+    assert royalty_held_total(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, signed) == 0;
+    // a squash GitHub's web-flow signed (verified, not the author's key) stays held
+    var web_flow : [16]u8 = UA_FLAGS;
+    web_flow[5] = F_VERIFIED | F_SEAL_GREEN;
+    assert royalty_held(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, web_flow, 404) == 50;
 }
 
 test the_split_never_mints_dust {
-    // a pool that divides evenly leaves exactly POOL's share: 2000 of every 60000
+    // a pool that divides evenly leaves exactly POOL's share and dave's held one: 5000 of every 60000
     var m : u64 = 1;
     while (m < 9) {
         let pool : u64 = m * 60000;
-        assert royalty_paid(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 58000;
-        assert royalty_left(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 2000;
+        assert royalty_paid(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 55000;
+        assert royalty_held_total(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 3000;
+        assert royalty_left(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 5000;
         m = m + 1;
     }
-    // any pool: never more paid than the pool, the pool's share always kept
+    // any pool: never more paid than the pool, the pool's share and the held shares always kept
     var k : u64 = 0;
     while (k < 12) {
         let pool : u64 = k * k * 7919 + k * 104729 + 1;
         let paid : u64 = royalty_paid(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS);
+        let held : u64 = royalty_held_total(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS);
         assert paid <= pool;
         assert royalty_left(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == pool - paid;
-        assert pool - paid >= royalty_floor(pool, 2000, 60000);
+        assert pool - paid >= royalty_floor(pool, 2000, 60000) + held;
         k = k + 1;
     }
     // the top of u64 does not overflow: q x claim + floor(r x claim / total)

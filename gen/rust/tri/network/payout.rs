@@ -40,6 +40,8 @@ pub const PAY_UNREAD: u8 = 2;
 
 pub const TRAILER: &'static str = "co-authored-by:";
 
+pub const WEB_FLOW_EMAIL: &'static str = "noreply@github.com";
+
 pub fn lab_url(k: u32) -> &'static str {
     if (k == 0) {
         return LAB_URL;
@@ -380,6 +382,78 @@ pub fn gh_agent(t: &'static str) -> bool {
     return ((e >= (f + 5)) && span_is(t, (e - 5), e, "[bot]"));
 }
 
+pub fn gh_block_end(t: &'static str, at: usize, ind: usize) -> usize {
+    let mut k: usize = (line_end(t, at) + 1);
+    while (k < t.len()) {
+        let e: usize = line_end(t, k);
+        if line_is(t, k, e, ind, "}") {
+            return k;
+        }
+        k = (e + 1);
+    }
+    return t.len();
+}
+
+pub fn gh_person_at(t: &'static str, which: &'static str) -> usize {
+    let c: usize = key_at(t, 0, t.len(), 2, "commit");
+    if ((c >= t.len()) || (t.as_bytes()[(c) as usize] != 123)) {
+        return (t.len() + 1);
+    }
+    let stop: usize = gh_block_end(t, c, 2);
+    let p: usize = key_at(t, (line_end(t, c) + 1), stop, 4, which);
+    if (((p >= stop) || (p >= t.len())) || (t.as_bytes()[(p) as usize] != 123)) {
+        return (t.len() + 1);
+    }
+    return p;
+}
+
+pub fn gh_email_from(t: &'static str, which: &'static str) -> usize {
+    let p: usize = gh_person_at(t, which);
+    if (p > t.len()) {
+        return t.len();
+    }
+    return value_from(t, key_at(t, (line_end(t, p) + 1), gh_block_end(t, p, 4), 6, "email"));
+}
+
+pub fn gh_email_to(t: &'static str, which: &'static str) -> usize {
+    let p: usize = gh_person_at(t, which);
+    if (p > t.len()) {
+        return t.len();
+    }
+    return value_to(t, key_at(t, (line_end(t, p) + 1), gh_block_end(t, p, 4), 6, "email"));
+}
+
+pub fn same_text(t: &'static str, a0: usize, a1: usize, b0: usize, b1: usize) -> bool {
+    if (((a1 < a0) || (b1 < b0)) || ((a1 - a0) != (b1 - b0))) {
+        return false;
+    }
+    let mut k: usize = 0;
+    while (k < (a1 - a0)) {
+        if (t.as_bytes()[((a0 + k)) as usize] != t.as_bytes()[((b0 + k)) as usize]) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return true;
+}
+
+pub fn gh_author_signed(t: &'static str) -> bool {
+    if (gh_verified(t) == false) {
+        return false;
+    }
+    let af: usize = gh_email_from(t, "author");
+    let at: usize = gh_email_to(t, "author");
+    let cf: usize = gh_email_from(t, "committer");
+    let ct: usize = gh_email_to(t, "committer");
+    if ((at <= af) || (ct <= cf)) {
+        return false;
+    }
+    if span_is(t, cf, ct, WEB_FLOW_EMAIL) {
+        return false;
+    }
+    return same_text(t, af, at, cf, ct);
+}
+
 pub fn row_flags(gh: &'static str, agent: bool, green: bool) -> u8 {
     let mut f: u8 = 0;
     if gh_verified(gh) {
@@ -390,6 +464,9 @@ pub fn row_flags(gh: &'static str, agent: bool, green: bool) -> u8 {
     }
     if green {
         f = (f | F_SEAL_GREEN);
+    }
+    if gh_author_signed(gh) {
+        f = (f | F_AUTHOR_SIGNED);
     }
     return f;
 }
@@ -456,7 +533,14 @@ pub fn share_floor(pool: u64, claim: u64, total: u64) -> u64 {
 }
 
 pub fn share_of(pool: u64, claim: u64, total: u64, id: u64) -> u64 {
-    if ((id == POOL_ID) || (id == NO_AUTHOR)) {
+    if (payable(id) == false) {
+        return 0;
+    }
+    return share_floor(pool, claim, total);
+}
+
+pub fn held_of(pool: u64, claim: u64, total: u64, id: u64) -> u64 {
+    if (is_held(id) == false) {
         return 0;
     }
     return share_floor(pool, claim, total);
@@ -482,7 +566,13 @@ pub const RECEIPT_NONCE: &'static str = "{\n \"commit\": \"6a8e44b5f2a7718924ac3
 
 pub const BLAME: &'static str = "36136f09263ac21c7290821de70fa0fb07dcb98b 1 1 2\nauthor Vasilev Dmitrii\nauthor-mail <admin@t27.ai>\nsummary specs: types (#8703)\nfilename specs/x.t27\n\tmodule X;\n36136f09263ac21c7290821de70fa0fb07dcb98b 2 2\n\ttest one_is_one {\n6a8e44b5f2a7718924ac378579d2d6aa4c73d8e4 3 3 2\nauthor Claude\nprevious 1111111111111111111111111111111111111111 specs/x.t27\nfilename specs/x.t27\n\t    assert 1 == 1;\n6a8e44b5f2a7718924ac378579d2d6aa4c73d8e4 4 4\n\t}\n";
 
-pub const GH: &'static str = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"node_id\": \"C_kwDOR5JM8NoAKDM2MTM2ZjA5\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\",\n      \"id\": 1\n    },\n    \"message\": \"specs: types.t27 (#8703)\",\n    \"verification\": {\n      \"verified\": true,\n      \"reason\": \"valid\",\n      \"signature\": null\n    }\n  },\n  \"author\": {\n    \"login\": \"gHashTag\",\n    \"id\": 6774813,\n    \"type\": \"User\"\n  },\n  \"committer\": {\n    \"login\": \"web-flow\",\n    \"id\": 19864447\n  },\n  \"files\": [\n    {\n      \"sha\": \"aa\",\n      \"verified\": true\n    }\n  ]\n}\n";
+pub const GH: &'static str = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"node_id\": \"C_kwDOR5JM8NoAKDM2MTM2ZjA5\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\",\n      \"id\": 1\n    },\n    \"committer\": {\n      \"name\": \"GitHub\",\n      \"email\": \"noreply@github.com\"\n    },\n    \"message\": \"specs: types.t27 (#8703)\",\n    \"verification\": {\n      \"verified\": true,\n      \"reason\": \"valid\",\n      \"signature\": null\n    }\n  },\n  \"author\": {\n    \"login\": \"gHashTag\",\n    \"id\": 6774813,\n    \"type\": \"User\"\n  },\n  \"committer\": {\n    \"login\": \"web-flow\",\n    \"id\": 19864447\n  },\n  \"files\": [\n    {\n      \"sha\": \"aa\",\n      \"verified\": true\n    }\n  ]\n}\n";
+
+pub const GH_SELF: &'static str = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\"\n    },\n    \"committer\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\"\n    },\n    \"verification\": {\n      \"verified\": true\n    }\n  },\n  \"author\": {\n    \"login\": \"gHashTag\",\n    \"id\": 6774813\n  }\n}\n";
+
+pub const GH_MERGER: &'static str = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Alice\",\n      \"email\": \"alice@example.org\"\n    },\n    \"committer\": {\n      \"name\": \"Bob\",\n      \"email\": \"bob@example.org\"\n    },\n    \"verification\": {\n      \"verified\": true\n    }\n  },\n  \"author\": {\n    \"login\": \"alice\",\n    \"id\": 101\n  },\n  \"committer\": {\n    \"login\": \"bob\",\n    \"id\": 202\n  }\n}\n";
+
+pub const GH_WEB_SELF: &'static str = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"GitHub\",\n      \"email\": \"noreply@github.com\"\n    },\n    \"committer\": {\n      \"name\": \"GitHub\",\n      \"email\": \"noreply@github.com\"\n    },\n    \"verification\": {\n      \"verified\": true\n    }\n  }\n}\n";
 
 pub const GH_UNSIGNED: &'static str = "{\n  \"sha\": \"6a8e44b5f2a7718924ac378579d2d6aa4c73d8e4\",\n  \"commit\": {\n    \"verification\": {\n      \"verified\": false,\n      \"reason\": \"unsigned\"\n    }\n  },\n  \"author\": null,\n  \"files\": [\n    {\n      \"verified\": true\n    }\n  ]\n}\n";
 
@@ -496,7 +586,7 @@ pub const S1_LINES: [u64; 16] = [120, 80, 100, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 pub const S1_TESTS: [u64; 16] = [3, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const S1_FLAGS: [u8; 16] = [5, 1, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const S1_FLAGS: [u8; 16] = [13, 9, 4, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 pub const M1_SPEC: [u32; 16] = [0, 0, 0, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535];
 
@@ -506,7 +596,7 @@ pub const M1_LINES: [u64; 16] = [150, 80, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 
 pub const M1_TESTS: [u64; 16] = [3, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const M1_FLAGS: [u8; 16] = [5, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const M1_FLAGS: [u8; 16] = [13, 9, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 pub const C1_COMMIT: [u64; 8] = [193, 193, 193, 0, 0, 0, 0, 0];
 
@@ -536,9 +626,11 @@ pub const B1_READS: [u64; 8] = [1, 1, 1, 0, 1, 0, 0, 0];
 
 pub const B2_READS: [u64; 8] = [1, 1, 0, 0, 1, 0, 0, 0];
 
+pub const ACCOUNT_MAX: u64 = 9223372036854775806;
+
 pub const AE_AUTHOR: [u64; 16] = [11, 12, 13, 11, 14, 15, 16, 17, 15, 12, 13, 0, 17, 16, 14, 11];
 
-pub const AE_FLAGS: [u8; 16] = [5, 5, 1, 4, 7, 5, 5, 3, 5, 1, 5, 5, 5, 5, 0, 5];
+pub const AE_FLAGS: [u8; 16] = [13, 5, 9, 4, 7, 13, 5, 3, 13, 1, 13, 13, 5, 13, 0, 13];
 
 pub const AE_LINES: [u64; 16] = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 99999999, 41, 43, 47];
 
@@ -548,17 +640,21 @@ pub const AE_TESTS: [u64; 16] = [0, 1, 0, 2, 3, 0, 5, 1, 0, 2, 2, 9, 1, 3000000,
 
 pub const ATTR_ROWS: u32 = 16;
 
-pub const AX_IDS: [u64; 6] = [101, 202, 303, 404, 900, 18446744073709551615];
+pub const AX_IDS: [u64; 8] = [101, 202, 303, 404, 900, 18446744073709551615, 9223372036854775909, 9223372036854776212];
 
-pub const AX_W1: [u64; 6] = [0, 0, 4884, 1860, 0, 3256];
+pub const AX_W1: [u64; 8] = [0, 0, 4884, 1860, 0, 0, 3256, 0];
 
 pub const BP_TOTAL: u64 = 10000;
 
 pub const F_AGENT: u8 = 2;
 
+pub const F_AUTHOR_SIGNED: u8 = 8;
+
 pub const F_SEAL_GREEN: u8 = 4;
 
 pub const F_VERIFIED: u8 = 1;
+
+pub const HELD_BIT: u64 = 9223372036854775808;
 
 pub const LINES_MAX: u64 = 16777216;
 
@@ -568,11 +664,21 @@ pub const NO_SPEC: u32 = 65535;
 
 pub const POOL_ID: u64 = 18446744073709551615;
 
+pub const ST_AGENT: u8 = 3;
+
+pub const ST_CONFIRMED: u8 = 1;
+
+pub const ST_DISPUTED: u8 = 2;
+
 pub const TESTS_MAX: u64 = 1048576;
 
 pub const W_LINE: u64 = 1;
 
 pub const W_TEST: u64 = 20;
+
+pub fn account_known(author: u64) -> bool {
+    return ((author != NO_AUTHOR) && (author <= ACCOUNT_MAX));
+}
 
 pub fn attr_clamp(v: u64, top: u64) -> u64 {
     if (v > top) {
@@ -585,17 +691,26 @@ pub fn attr_flag(flags: u8, f: u8) -> bool {
     return ((flags & f) != 0);
 }
 
+pub fn author_part(n: u64, k: u64, i: u64) -> u64 {
+    if ((k == 0) || (i >= k)) {
+        return 0;
+    }
+    let mut p: u64 = (n / k);
+    if (i < (n % k)) {
+        p = (p + 1);
+    }
+    return p;
+}
+
 pub fn credited_to(author: u64, flags: u8) -> u64 {
-    if (attr_flag(flags, F_VERIFIED) == false) {
+    let st: u8 = row_status(author, flags);
+    if (st == ST_AGENT) {
         return POOL_ID;
     }
-    if attr_flag(flags, F_AGENT) {
-        return POOL_ID;
+    if (st == ST_CONFIRMED) {
+        return author;
     }
-    if (author == NO_AUTHOR) {
-        return POOL_ID;
-    }
-    return author;
+    return held_id(author);
 }
 
 pub fn first_of_id(specs: [u32; 16], authors: [u64; 16], flags: [u8; 16], i: u32) -> bool {
@@ -610,6 +725,13 @@ pub fn first_of_id(specs: [u32; 16], authors: [u64; 16], flags: [u8; 16], i: u32
     return true;
 }
 
+pub fn held_id(author: u64) -> u64 {
+    if (account_known(author) == false) {
+        return HELD_BIT;
+    }
+    return (HELD_BIT | author);
+}
+
 pub fn id_score(specs: [u32; 16], authors: [u64; 16], lines: [u64; 16], tests: [u64; 16], flags: [u8; 16], spec: u32, id: u64) -> u64 {
     let mut s: u64 = 0;
     let mut i: u32 = 0;
@@ -622,12 +744,30 @@ pub fn id_score(specs: [u32; 16], authors: [u64; 16], lines: [u64; 16], tests: [
     return s;
 }
 
+pub fn is_held(id: u64) -> bool {
+    return ((id != POOL_ID) && (id >= HELD_BIT));
+}
+
+pub fn payable(id: u64) -> bool {
+    return account_known(id);
+}
+
 pub fn row_score(lines: u64, tests: u64, flags: u8) -> u64 {
     let l: u64 = (attr_clamp(lines, LINES_MAX) * W_LINE);
     if (attr_flag(flags, F_SEAL_GREEN) == false) {
         return l;
     }
     return (l + (attr_clamp(tests, TESTS_MAX) * W_TEST));
+}
+
+pub fn row_status(author: u64, flags: u8) -> u8 {
+    if attr_flag(flags, F_AGENT) {
+        return ST_AGENT;
+    }
+    if ((account_known(author) && attr_flag(flags, F_VERIFIED)) && attr_flag(flags, F_AUTHOR_SIGNED)) {
+        return ST_CONFIRMED;
+    }
+    return ST_DISPUTED;
 }
 
 pub fn spec_leftover(specs: [u32; 16], authors: [u64; 16], lines: [u64; 16], tests: [u64; 16], flags: [u8; 16], spec: u32) -> u64 {
@@ -725,15 +865,15 @@ pub const QUORUM_CAP: u64 = 3;
 
 pub const UA_AUTHOR: [u64; 16] = [101, 202, 202, 303, 303, 404, 900, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const UA_CLAIM: [u64; 6] = [22500, 15500, 17000, 3000, 0, 2000];
+pub const UA_CLAIM: [u64; 7] = [22500, 15500, 17000, 0, 0, 2000, 3000];
 
-pub const UA_FLAGS: [u8; 16] = [5, 5, 5, 5, 5, 5, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const UA_FLAGS: [u8; 16] = [13, 13, 13, 13, 13, 4, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const UA_IDS: [u64; 6] = [101, 202, 303, 404, 900, 18446744073709551615];
+pub const UA_IDS: [u64; 7] = [101, 202, 303, 404, 900, 18446744073709551615, 9223372036854776212];
 
 pub const UA_LINES: [u64; 16] = [300, 100, 40, 70, 50, 30, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const UA_SHARE: [u64; 6] = [375, 258, 283, 50, 0, 0];
+pub const UA_SHARE: [u64; 7] = [375, 258, 283, 0, 0, 0, 0];
 
 pub const UA_SPEC: [u32; 16] = [0, 0, 1, 1, 2, 2, 2, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535];
 
@@ -779,6 +919,21 @@ pub fn royalty_claim(usage: [u64; 8], specs: [u32; 16], authors: [u64; 16], line
     return c;
 }
 
+pub fn royalty_first_id(specs: [u32; 16], authors: [u64; 16], flags: [u8; 16], i: u32) -> bool {
+    if (specs[(i) as usize] == NO_SPEC) {
+        return false;
+    }
+    let c: u64 = credited_to(authors[(i) as usize], flags[(i) as usize]);
+    let mut j: u32 = 0;
+    while (j < i) {
+        if ((specs[(j) as usize] != NO_SPEC) && (credited_to(authors[(j) as usize], flags[(j) as usize]) == c)) {
+            return false;
+        }
+        j = (j + 1);
+    }
+    return true;
+}
+
 pub fn royalty_floor(pool: u64, claim: u64, total: u64) -> u64 {
     if (total == 0) {
         return 0;
@@ -788,11 +943,21 @@ pub fn royalty_floor(pool: u64, claim: u64, total: u64) -> u64 {
     return ((q * claim) + ((r * claim) / total));
 }
 
-pub fn royalty_share(pool: u64, usage: [u64; 8], specs: [u32; 16], authors: [u64; 16], lines: [u64; 16], tests: [u64; 16], flags: [u8; 16], id: u64) -> u64 {
-    if (id == POOL_ID) {
-        return 0;
+pub fn royalty_held_total(pool: u64, usage: [u64; 8], specs: [u32; 16], authors: [u64; 16], lines: [u64; 16], tests: [u64; 16], flags: [u8; 16]) -> u64 {
+    let mut h: u64 = 0;
+    let mut i: u32 = 0;
+    while (i < ATTR_ROWS) {
+        let c: u64 = credited_to(authors[(i) as usize], flags[(i) as usize]);
+        if (royalty_first_id(specs, authors, flags, i) && is_held(c)) {
+            h = (h + royalty_floor(pool, royalty_claim(usage, specs, authors, lines, tests, flags, c), royalty_total(usage)));
+        }
+        i = (i + 1);
     }
-    if (id == NO_AUTHOR) {
+    return h;
+}
+
+pub fn royalty_share(pool: u64, usage: [u64; 8], specs: [u32; 16], authors: [u64; 16], lines: [u64; 16], tests: [u64; 16], flags: [u8; 16], id: u64) -> u64 {
+    if (payable(id) == false) {
         return 0;
     }
     return royalty_floor(pool, royalty_claim(usage, specs, authors, lines, tests, flags, id), royalty_total(usage));

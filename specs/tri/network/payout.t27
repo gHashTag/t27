@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/tri/network/payout.t27 -- every rule of `tri payout`: the AUTHOR_ROYALTY table of one epoch,
 ; from git history and the public lab receipts, by specs/network/attribution.t27 and
-; specs/network/usage.t27. Issue #8716 (see #8604, #8605, #8612; network MVP, see #8613).
+; specs/network/usage.t27. Issue #8716 (see #8604, #8605, #8612; network MVP, see #8613); the author's
+; own signature (F_AUTHOR_SIGNED) and the held shares of DISPUTED authors, issue #8789.
 ; Accounting only: nothing moves here, and credits are non-transferable (specs/verified/payout.t27).
 ; --
 ; The command (cli/tri/src/payout.rs, through `t27c gen-rust` in gen/rust/tri/network/payout.rs) is
@@ -29,8 +30,11 @@
 ;   --first-parent --format=%x01%H%n%an%n%B`; the glue splits the log at the %x01). GitHub's
 ;   `commit.verification.verified` and the author's account id are read from API_COMMITS<sha>, and
 ;   only for a commit that declares no agent (needs_github): an agent's row is POOL_ID's whatever
-;   GitHub says. The seal bit: A's first counting receipt gives the spec the reference verdict `pass`
-;   (its verdict leaf), the `t27c test-report` run the seal guards.
+;   GitHub says. The author signed it when GitHub verified it AND the commit's committer is its author
+;   (`commit.committer.email` equals `commit.author.email`) and not GitHub's web-flow (WEB_FLOW_EMAIL):
+;   web-flow signs every squash and merge made on github.com, so its signature confirms no author
+;   (attribution.t27 F_AUTHOR_SIGNED). The seal bit: A's first counting receipt gives the spec the
+;   reference verdict `pass` (its verdict leaf), the `t27c test-report` run the seal guards.
 ; - The pool: --pool, DEFAULT_POOL credits unless given.
 ; --
 ; The rules:
@@ -44,8 +48,9 @@
 ;   is the sum of royalty_usage(usage) x BP_TOTAL over every spec, the ones no person wrote included
 ;   (total_add); a person's share is floor(pool x claim / total), usage.t27's rule. share_floor
 ;   computes it exactly for any total up to SPLIT_MAX, where royalty_floor needs a total below 2^31;
-;   the two agree wherever both apply (a test). POOL_ID and NO_AUTHOR are never paid; what is not paid
-;   stays in the pool.
+;   the two agree wherever both apply (a test). Only a CONFIRMED author is paid (attribution.t27
+;   payable): never POOL_ID, NO_AUTHOR or a DISPUTED author's held id, whose share stays in the pool,
+;   held, until the author confirms. What is not paid stays in the pool.
 ; - The digests, both printed: SHA-256 of the facts text and of the table text. The facts text is one
 ;   line per fact, in the order the glue reads them:
 ;     epoch <N> pool <P> head <sha of A>
@@ -63,6 +68,10 @@
 ; The honest limits: GitHub's verification and the account ids are facts given, not checked here. The
 ; seal bit is the reference verdict at A, not `t27c seal --verify` at each commit. An agent commit
 ; that omits its trailer reads as its signer's (attribution.t27). A path holding `\t` would misread.
+; The rows are still the blamed first-parent commits. On master every one of them is a squash that
+; web-flow signed, so every human row reads DISPUTED and its share is held. attribution.t27 wants the
+; ORIGINAL commits behind a squash (the pull request's own) and the human Co-authored-by trailers, each
+; with its own row and author_part() of the lines; reading them is the glue's follow-up (see #8816).
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -119,6 +128,9 @@ pub const PAY_UNREAD : u8 = 2;
 
 /// A Co-Authored-By trailer, lower case: the rule compares any case.
 pub const TRAILER : str = "co-authored-by:";
+
+/// The committer email of every squash and merge made on github.com: GitHub's web-flow key signs them.
+pub const WEB_FLOW_EMAIL : str = "noreply@github.com";
 
 invariant the_exits_and_lists_are_numbered { assert PAY_OK == 0 and PAY_UNREAD == 2 and LIST_INPUT == 0 and LIST_VERDICT == 1 and LAB_COUNT == 2 and LAB_COUNT <= USAGE_ROWS; }
 
@@ -426,13 +438,74 @@ pub fn gh_agent(t: string) -> bool {
     return e >= f + 5 and span_is(t, e - 5, e, "[bot]");
 }
 
+/// The line that closes the block opened on the line at `at`: the first later line that is `ind`
+/// spaces and `}` (a ',' after it allowed); t.len when there is none.
+pub fn gh_block_end(t: string, at: usize, ind: usize) -> usize {
+    var k : usize = line_end(t, at) + 1;
+    while (k < t.len) {
+        const e : usize = line_end(t, k);
+        if (line_is(t, k, e, ind, "}")) { return k; }
+        k = e + 1;
+    }
+    return t.len;
+}
+
+/// Where the git commit's `which` person (`author` or `committer`, indent 4) opens inside the answer's
+/// `commit` object (indent 2); t.len + 1 when either is absent or not an object.
+pub fn gh_person_at(t: string, which: string) -> usize {
+    const c : usize = key_at(t, 0, t.len, 2, "commit");
+    if (c >= t.len or t[c] != 123) { return t.len + 1; }
+    const stop : usize = gh_block_end(t, c, 2);
+    const p : usize = key_at(t, line_end(t, c) + 1, stop, 4, which);
+    if (p >= stop or p >= t.len or t[p] != 123) { return t.len + 1; }
+    return p;
+}
+
+/// Where that person's email (indent 6) starts and ends; an empty span when there is none.
+pub fn gh_email_from(t: string, which: string) -> usize {
+    const p : usize = gh_person_at(t, which);
+    if (p > t.len) { return t.len; }
+    return value_from(t, key_at(t, line_end(t, p) + 1, gh_block_end(t, p, 4), 6, "email"));
+}
+
+pub fn gh_email_to(t: string, which: string) -> usize {
+    const p : usize = gh_person_at(t, which);
+    if (p > t.len) { return t.len; }
+    return value_to(t, key_at(t, line_end(t, p) + 1, gh_block_end(t, p, 4), 6, "email"));
+}
+
+/// Are t[a0..a1] and t[b0..b1] the same bytes?
+pub fn same_text(t: string, a0: usize, a1: usize, b0: usize, b1: usize) -> bool {
+    if (a1 < a0 or b1 < b0 or a1 - a0 != b1 - b0) { return false; }
+    var k : usize = 0;
+    while (k < a1 - a0) {
+        if (t[a0 + k] != t[b0 + k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Did the author sign the commit with a key of their own: GitHub verified it, and its committer is
+/// its author (one email, not empty) and not GitHub's web-flow.
+pub fn gh_author_signed(t: string) -> bool {
+    if (gh_verified(t) == false) { return false; }
+    const af : usize = gh_email_from(t, "author");
+    const at : usize = gh_email_to(t, "author");
+    const cf : usize = gh_email_from(t, "committer");
+    const ct : usize = gh_email_to(t, "committer");
+    if (at <= af or ct <= cf) { return false; }
+    if (span_is(t, cf, ct, WEB_FLOW_EMAIL)) { return false; }
+    return same_text(t, af, at, cf, ct);
+}
+
 /// A row's flags (attribution.t27's F_*): GitHub verified it; the commit or its account is an agent's;
-/// the spec's seal bit at A.
+/// the spec's seal bit at A; the author signed it with a key of their own.
 pub fn row_flags(gh: string, agent: bool, green: bool) -> u8 {
     var f : u8 = 0;
     if (gh_verified(gh)) { f = f | F_VERIFIED; }
     if (agent or gh_agent(gh)) { f = f | F_AGENT; }
     if (green) { f = f | F_SEAL_GREEN; }
+    if (gh_author_signed(gh)) { f = f | F_AUTHOR_SIGNED; }
     return f;
 }
 
@@ -506,9 +579,16 @@ pub fn share_floor(pool: u64, claim: u64, total: u64) -> u64 {
     return q * claim + mul_div_small(r, claim, total);
 }
 
-/// A credited id's share of the epoch's pool. POOL_ID and NO_AUTHOR are never paid.
+/// A credited id's share of the epoch's pool. Only a CONFIRMED author's account is paid; POOL_ID,
+/// NO_AUTHOR and a DISPUTED author's held id never are.
 pub fn share_of(pool: u64, claim: u64, total: u64, id: u64) -> u64 {
-    if (id == POOL_ID or id == NO_AUTHOR) { return 0; }
+    if (payable(id) == false) { return 0; }
+    return share_floor(pool, claim, total);
+}
+
+/// What the epoch holds, unpaid, for the DISPUTED author behind a held id: the share the id would get.
+pub fn held_of(pool: u64, claim: u64, total: u64, id: u64) -> u64 {
+    if (is_held(id) == false) { return 0; }
     return share_floor(pool, claim, total);
 }
 
@@ -539,26 +619,34 @@ const BLAME : string = "36136f09263ac21c7290821de70fa0fb07dcb98b 1 1 2\nauthor V
 
 // GitHub's answer for master 36136f092, shortened: the commit's own author object (indent 4) and a
 // file entry with a `verified` key (indent 6) are traps the reader must not take.
-const GH : string = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"node_id\": \"C_kwDOR5JM8NoAKDM2MTM2ZjA5\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\",\n      \"id\": 1\n    },\n    \"message\": \"specs: types.t27 (#8703)\",\n    \"verification\": {\n      \"verified\": true,\n      \"reason\": \"valid\",\n      \"signature\": null\n    }\n  },\n  \"author\": {\n    \"login\": \"gHashTag\",\n    \"id\": 6774813,\n    \"type\": \"User\"\n  },\n  \"committer\": {\n    \"login\": \"web-flow\",\n    \"id\": 19864447\n  },\n  \"files\": [\n    {\n      \"sha\": \"aa\",\n      \"verified\": true\n    }\n  ]\n}\n";
+const GH : string = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"node_id\": \"C_kwDOR5JM8NoAKDM2MTM2ZjA5\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\",\n      \"id\": 1\n    },\n    \"committer\": {\n      \"name\": \"GitHub\",\n      \"email\": \"noreply@github.com\"\n    },\n    \"message\": \"specs: types.t27 (#8703)\",\n    \"verification\": {\n      \"verified\": true,\n      \"reason\": \"valid\",\n      \"signature\": null\n    }\n  },\n  \"author\": {\n    \"login\": \"gHashTag\",\n    \"id\": 6774813,\n    \"type\": \"User\"\n  },\n  \"committer\": {\n    \"login\": \"web-flow\",\n    \"id\": 19864447\n  },\n  \"files\": [\n    {\n      \"sha\": \"aa\",\n      \"verified\": true\n    }\n  ]\n}\n";
+
+// A commit its author signed with a key of their own: the git committer is the author. And a commit a
+// maintainer merged by hand and signed: verified, but the signature is the merger's, not the author's.
+const GH_SELF : string = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\"\n    },\n    \"committer\": {\n      \"name\": \"Vasilev Dmitrii\",\n      \"email\": \"admin@t27.ai\"\n    },\n    \"verification\": {\n      \"verified\": true\n    }\n  },\n  \"author\": {\n    \"login\": \"gHashTag\",\n    \"id\": 6774813\n  }\n}\n";
+const GH_MERGER : string = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"Alice\",\n      \"email\": \"alice@example.org\"\n    },\n    \"committer\": {\n      \"name\": \"Bob\",\n      \"email\": \"bob@example.org\"\n    },\n    \"verification\": {\n      \"verified\": true\n    }\n  },\n  \"author\": {\n    \"login\": \"alice\",\n    \"id\": 101\n  },\n  \"committer\": {\n    \"login\": \"bob\",\n    \"id\": 202\n  }\n}\n";
+
+// A commit web-flow both wrote and signed: its own signature is never an author's.
+const GH_WEB_SELF : string = "{\n  \"sha\": \"36136f09263ac21c7290821de70fa0fb07dcb98b\",\n  \"commit\": {\n    \"author\": {\n      \"name\": \"GitHub\",\n      \"email\": \"noreply@github.com\"\n    },\n    \"committer\": {\n      \"name\": \"GitHub\",\n      \"email\": \"noreply@github.com\"\n    },\n    \"verification\": {\n      \"verified\": true\n    }\n  }\n}\n";
 
 // An unsigned commit with no GitHub account, and a bot's verified commit.
 const GH_UNSIGNED : string = "{\n  \"sha\": \"6a8e44b5f2a7718924ac378579d2d6aa4c73d8e4\",\n  \"commit\": {\n    \"verification\": {\n      \"verified\": false,\n      \"reason\": \"unsigned\"\n    }\n  },\n  \"author\": null,\n  \"files\": [\n    {\n      \"verified\": true\n    }\n  ]\n}\n";
 const GH_BOT : string = "{\n  \"sha\": \"6a8e44b5f2a7718924ac378579d2d6aa4c73d8e4\",\n  \"commit\": {\n    \"verification\": {\n      \"verified\": true\n    }\n  },\n  \"author\": {\n    \"login\": \"github-actions[bot]\",\n    \"id\": 41898282\n  }\n}\n";
 
 /// Spec 1 of attribution.t27's worked example as its own table (spec index 0): carol, dave, alice
-/// unverified, carol again.
+/// unsigned (DISPUTED, held for alice), carol again.
 pub const S1_SPEC : [16]u32 = [0, 0, 0, 0, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535];
 pub const S1_AUTHOR : [16]u64 = [303, 404, 101, 303, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 pub const S1_LINES : [16]u64 = [120, 80, 100, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 pub const S1_TESTS : [16]u64 = [3, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-pub const S1_FLAGS : [16]u8 = [5, 1, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const S1_FLAGS : [16]u8 = [13, 9, 4, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 /// The table table_slot builds from the same four rows: carol's second row merged into slot 0.
 pub const M1_SPEC : [16]u32 = [0, 0, 0, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535];
 pub const M1_AUTHOR : [16]u64 = [303, 404, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 pub const M1_LINES : [16]u64 = [150, 80, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 pub const M1_TESTS : [16]u64 = [3, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-pub const M1_FLAGS : [16]u8 = [5, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const M1_FLAGS : [16]u8 = [13, 9, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 /// usage.t27's worked example split by commit: C1 = 0xc1's three receipts, C2 = 0xc2's two.
 pub const C1_COMMIT : [8]u64 = [193, 193, 193, 0, 0, 0, 0, 0];
@@ -722,6 +810,10 @@ test githubs_answer_is_read_at_its_own_levels {
     assert gh_author(GH) == 6774813;
     assert span_is(GH, gh_login_from(GH), gh_login_to(GH), "gHashTag");
     assert gh_agent(GH) == false;
+    // a squash GitHub's web-flow signed: verified, but not by its author
+    assert span_is(GH, gh_email_from(GH, "committer"), gh_email_to(GH, "committer"), WEB_FLOW_EMAIL);
+    assert span_is(GH, gh_email_from(GH, "author"), gh_email_to(GH, "author"), "admin@t27.ai");
+    assert gh_author_signed(GH) == false;
     assert row_flags(GH, false, true) == 5;
     assert row_flags(GH, true, false) == 3;
     assert gh_verified(GH_UNSIGNED) == false;
@@ -731,7 +823,22 @@ test githubs_answer_is_read_at_its_own_levels {
     assert gh_agent(GH_BOT);
     assert row_flags(GH_BOT, false, false) == 3;
     assert credited_to(gh_author(GH_BOT), row_flags(GH_BOT, false, false)) == POOL_ID;
-    assert credited_to(gh_author(GH), row_flags(GH, false, true)) == 6774813;
+    // the squash's author is kept and held (DISPUTED); a commit its author signed is CONFIRMED
+    assert credited_to(gh_author(GH), row_flags(GH, false, true)) == held_id(6774813);
+    assert gh_author_signed(GH_SELF);
+    assert row_flags(GH_SELF, false, true) == 13;
+    assert credited_to(gh_author(GH_SELF), row_flags(GH_SELF, false, true)) == 6774813;
+    // a commit a maintainer merged and signed: the row is the author's (101), held; the merger (202)
+    // is never its author, and its signature confirms no one
+    assert gh_author_signed(GH_MERGER) == false;
+    assert gh_author_signed(GH_WEB_SELF) == false;
+    assert gh_verified(GH_WEB_SELF);
+    assert row_flags(GH_MERGER, false, true) == 5;
+    assert gh_author(GH_MERGER) == 101;
+    assert credited_to(gh_author(GH_MERGER), row_flags(GH_MERGER, false, true)) == held_id(101);
+    // an unsigned commit with no account is held unclaimed, never given to the pool
+    assert gh_author_signed(GH_UNSIGNED) == false and gh_author_signed(GH_BOT) == false and gh_author_signed("") == false;
+    assert credited_to(gh_author(GH_UNSIGNED), row_flags(GH_UNSIGNED, false, true)) == held_id(NO_AUTHOR);
     // an agent's row needs no answer; a person's row with no answer is no verdict
     assert gh_unread("", "36136f09263ac21c7290821de70fa0fb07dcb98b", true) == false;
     assert gh_unread("", "36136f09263ac21c7290821de70fa0fb07dcb98b", false);
@@ -742,19 +849,23 @@ test githubs_answer_is_read_at_its_own_levels {
 // Scenario: merging rows credited to one id changes no weight. The four rows of attribution.t27's spec 1
 // go into three slots, and the merged table weighs exactly as the worked example says.
 test merged_rows_weigh_as_the_rows_they_merge {
-    assert table_slot(S1_SPEC, S1_AUTHOR, S1_LINES, S1_TESTS, S1_FLAGS, 303, 5, 30, 0) == 0;
-    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 303, 5, 30, 0) == 0;
-    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 505, 5, 1, 0) == 3;
-    // another pool row with the same seal bit joins alice's unverified row; a red one does not
-    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 900, 7, 1, 0) == 2;
-    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 900, 3, 1, 0) == 3;
+    assert table_slot(S1_SPEC, S1_AUTHOR, S1_LINES, S1_TESTS, S1_FLAGS, 303, 13, 30, 0) == 0;
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 303, 13, 30, 0) == 0;
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 505, 13, 1, 0) == 3;
+    // carol's web-flow squash is held for carol: another id than her signed rows
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 303, 5, 30, 0) == 3;
+    // another unsigned row of alice with the same seal bit joins her held row; a red one does not, and
+    // an agent row is the pool's, not alice's
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 101, 4, 1, 0) == 2;
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 101, 0, 1, 0) == 3;
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 900, 7, 1, 0) == 3;
     // a merge past a clamp is refused
-    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 303, 5, LINES_MAX, 0) == ATTR_ROWS;
+    assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 303, 13, LINES_MAX, 0) == ATTR_ROWS;
     assert table_slot(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 505, 5, 0, TESTS_MAX + 1) == ATTR_ROWS;
     // a full table has no slot for a new id
     assert table_slot(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, 505, 5, 1, 0) == ATTR_ROWS;
     var k : u32 = 0;
-    while (k < 6) {
+    while (k < 8) {
         const w : u64 = weight_of(M1_SPEC, M1_AUTHOR, M1_LINES, M1_TESTS, M1_FLAGS, 0, AX_IDS[k]);
         assert w == weight_of(S1_SPEC, S1_AUTHOR, S1_LINES, S1_TESTS, S1_FLAGS, 0, AX_IDS[k]);
         assert w == AX_W1[k];
@@ -779,7 +890,8 @@ test usage_is_the_sum_of_one_table_per_commit {
 }
 
 // Scenario: the split folded spec by spec is usage.t27's split: the same claims, the same total, and
-// the shares of its worked example (a pool of 1000: 375, 258, 283, 50; POOL_ID paid nothing).
+// the shares of its worked example (a pool of 1000: 375, 258, 283; dave's 50 held; POOL_ID paid
+// nothing).
 test the_split_spec_by_spec_is_usage_t27s_split {
     var total : u64 = 0;
     var s : u32 = 0;
@@ -791,7 +903,8 @@ test the_split_spec_by_spec_is_usage_t27s_split {
     assert total == 60000;
     var k : u32 = 0;
     var paid : u64 = 0;
-    while (k < 6) {
+    var held : u64 = 0;
+    while (k < 7) {
         var claim : u64 = 0;
         var t : u32 = 0;
         while (t < USAGE_SPECS) {
@@ -804,11 +917,18 @@ test the_split_spec_by_spec_is_usage_t27s_split {
         assert share == UA_SHARE[k];
         assert share == royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, UA_IDS[k]);
         paid = paid + share;
+        held = held + held_of(1000, claim, total, UA_IDS[k]);
         k = k + 1;
     }
-    assert paid == 966;
+    assert paid == 916;
+    assert held == 50;
+    assert held == royalty_held_total(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS);
     assert share_of(1000, 2000, 60000, POOL_ID) == 0;
     assert share_of(1000, 2000, 60000, NO_AUTHOR) == 0;
+    // a held id is credited a claim and paid nothing; what it would get is what is held
+    assert share_of(1000, 3000, 60000, held_id(404)) == 0;
+    assert held_of(1000, 3000, 60000, held_id(404)) == 50;
+    assert held_of(1000, 3000, 60000, 404) == 0 and held_of(1000, 2000, 60000, POOL_ID) == 0;
 }
 
 // Scenario: share_floor is royalty_floor wherever royalty_floor's range holds, and stays exact past it.
