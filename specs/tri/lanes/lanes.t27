@@ -35,6 +35,7 @@ use tri::lab::receipt::key_value;
 use tri::lab::receipt::key_at;
 use tri::lab::receipt::value_from;
 use tri::lab::receipt::value_to;
+use tri::lab::receipt::object_end;
 
 // The defaults: the loop of gHashTag/trios#1729, its integration branch and the ledger's 45 minutes.
 pub const OWNER : str = "gHashTag/";
@@ -111,15 +112,10 @@ pub fn next_pr(text: string, at: usize) -> usize {
     return text.len;
 }
 
-/// The end of the pull request that opens at `at`: its `  }` line, or text.len.
+/// The end of the pull request that opens at `at`: its `  }` line, or text.len. A pull request is laid
+/// out as a lab result is, so this is receipt.t27's object_end.
 pub fn pr_end(text: string, at: usize) -> usize {
-    var k : usize = line_end(text, at) + 1;
-    while (k < text.len) {
-        const end : usize = line_end(text, k);
-        if (line_is(text, k, end, 2, "}")) { return end; }
-        k = end + 1;
-    }
-    return text.len;
+    return object_end(text, at);
 }
 
 pub fn pr_from(text: string, o: usize, e: usize, k: u8) -> usize {

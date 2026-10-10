@@ -43,9 +43,12 @@ mod quant;
 mod red;
 #[path = "../../../gen/rust/tri/test/report.rs"] #[allow(dead_code, unused_parens)]
 mod report; // t27c gen-rust of specs/tri/test/report.t27 (#7369): every rule of reading `t27c test-report`
-#[path = "../../../gen/rust/tri/lab/receipt.rs"] #[allow(dead_code, unused_parens)] mod lab; // t27c gen-rust of specs/tri/lab/receipt.t27: every rule of `tri lab receipt`
-#[path = "../../../gen/rust/tri/actors/metrics.rs"] #[allow(dead_code, unused_parens)] mod act; // t27c gen-rust of specs/tri/actors/metrics.t27: every rule of `tri actors`
-#[path = "../../../gen/rust/tri/lanes/lanes.rs"] #[allow(dead_code, unused_parens)] mod lanes; // t27c gen-rust of specs/tri/lanes/lanes.t27: every rule of `tri lanes`
+#[path = "../../../gen/rust/tri/lab/receipt.rs"] #[allow(dead_code, unused_parens)]
+mod lab; // t27c gen-rust of specs/tri/lab/receipt.t27: every rule of `tri lab receipt`
+#[path = "../../../gen/rust/tri/actors/metrics.rs"] #[allow(dead_code, unused_parens)]
+mod act; // t27c gen-rust of specs/tri/actors/metrics.t27: every rule of `tri actors`
+#[path = "../../../gen/rust/tri/lanes/lanes.rs"] #[allow(dead_code, unused_parens)]
+mod lanes; // t27c gen-rust of specs/tri/lanes/lanes.t27: every rule of `tri lanes`
 mod renum;
 mod reseal;
 mod rtl;
@@ -976,9 +979,7 @@ fn cmd_lab(specs: Option<&str>, sha: &[String]) -> Result<u8> {
         o = lab::next_object(t, e);
     }
     println!("{}", (0..lab::CLASSES).map(|v| format!("{} {}", n[v as usize], lab::name(v))).collect::<Vec<_>>().join(", "));
-    let x = lab::exit_code(n.iter().sum(), n[lab::V_RED as usize], n[lab::V_UNREAD as usize]);
-    println!("{}", lab::exit_why(x));
-    Ok(x)
+    let x = lab::exit_code(n.iter().sum(), n[lab::V_RED as usize], n[lab::V_UNREAD as usize]); println!("{}", lab::exit_why(x)); Ok(x)
 }
 
 /// `tri actors`: curl the telemetry (and with --replay the decision log), pretty-print it, and print what specs/tri/actors/metrics.t27 reads in it.
@@ -998,9 +999,7 @@ fn cmd_actors(url: &str, bound: u32, replay: bool) -> Result<u8> {
         }
     }
     if replay { println!("decision log: {records} records; {}", act::REPLAY_NOTE); }
-    let x = act::exit_code(act::enabled(docs[0]), alarms, n[act::V_UNREAD as usize], replay, records);
-    println!("{}", act::exit_why(x));
-    Ok(x)
+    let x = act::exit_code(act::enabled(docs[0]), alarms, n[act::V_UNREAD as usize], replay, records); println!("{}", act::exit_why(x)); Ok(x)
 }
 
 fn cmd_verdict(toxic: bool) -> Result<()> {

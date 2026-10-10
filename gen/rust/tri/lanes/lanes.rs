@@ -111,15 +111,7 @@ pub fn next_pr(text: &'static str, at: usize) -> usize {
 }
 
 pub fn pr_end(text: &'static str, at: usize) -> usize {
-    let mut k: usize = (line_end(text, at) + 1);
-    while (k < text.len()) {
-        let end: usize = line_end(text, k);
-        if line_is(text, k, end, 2, "}") {
-            return end;
-        }
-        k = (end + 1);
-    }
-    return text.len();
+    return object_end(text, at);
 }
 
 pub fn pr_from(text: &'static str, o: usize, e: usize, k: u8) -> usize {
@@ -590,6 +582,18 @@ pub fn name(v: u8) -> &'static str {
         return "RED";
     }
     return "UNREAD";
+}
+
+pub fn object_end(text: &'static str, at: usize) -> usize {
+    let mut k: usize = (line_end(text, at) + 1);
+    while (k < text.len()) {
+        let end: usize = line_end(text, k);
+        if line_is(text, k, end, 2, "}") {
+            return end;
+        }
+        k = (end + 1);
+    }
+    return text.len();
 }
 
 pub fn span_is(text: &'static str, from: usize, to: usize, lit: &'static str) -> bool {

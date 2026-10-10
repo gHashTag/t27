@@ -132,6 +132,7 @@ instantiate_ports 2
 is_counter_power_of_two 2
 kill 2
 led_config 2
+line_end 2
 local_branch 2
 log2_frac 2
 log2v 2
