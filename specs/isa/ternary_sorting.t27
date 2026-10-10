@@ -161,7 +161,7 @@ module TernarySorting {
 
     // bench: bubble sort 27 elements
     bench bubble_sort_27 {
-        var data : [27]i32;
+        var data : [27]i32 = undefined;
         var i : usize = 0;
         while (i < 27) {
             data[i] = (27 - i) % 3 - 1;
