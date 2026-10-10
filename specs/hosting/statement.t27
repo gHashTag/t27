@@ -22,6 +22,13 @@
 ; the provider's work and earns PROVIDER_FEE (slice 2 runs services; slice 1b has no such row). A
 ; disagreeing receipt is slashed (sybil.t27). BOUNTY and AUTHOR_ROYALTY are paid for pull requests and
 ; authorship (network/attribution.t27 and usage.t27), never to a host for a shard, so no leaf has them.
+; TODO(network MVP hardening lane, gHashTag/t27, 2026-10-11): that lane adds to network/mvp.t27 a base
+; VERIFIER_FEE paid from the job pool (the fee from burned stake being 0 in an honest network) and the
+; attribution states CONFIRMED, DISPUTED and AGENT. When they are on master, the amount of a
+; verifier's credit is imported from there; until then every agreeing receipt earns credit.t27's
+; per-job rate and this card decides only its kind. The leaf encoding (LEAF_DOMAIN, LEAF_FIELDS) and
+; the kind words (KIND_WORDS) stay as they are: other sources' rows (a t27b lab receipt recorded by
+; the network MVP's job card) fold into the same statement under them.
 ; --
 ; The epoch. EPOCH_SECONDS long, numbered from EPOCH_ORIGIN_UNIX (2026-10-10T00:00:00Z, the day of
 ; the decision). A ledger row belongs to the epoch of its time. Epoch n closes once the clock is past

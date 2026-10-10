@@ -6,9 +6,9 @@
   "gen_hash_zig": "sha256:6fe6f854b417437a96f4326340cd57ccf0a040f3984017c6e8d5977400e0b0f5",
   "module": "HostingSybil",
   "ring": 12,
-  "sealed_at": "2026-10-10T18:48:47Z",
+  "sealed_at": "2026-10-10T20:07:16Z",
   "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:5eeff187e83c9473d29e66c71759bd89c493084402bc8c754f3a2d0fb45760cc",
+  "spec_hash": "sha256:35524803bc2897a030031372be8564ca5fb8ec3cc653ed7edb78fe3782818d59",
   "spec_path": "specs/hosting/sybil.t27",
   "tests": {
     "failed": 0,
