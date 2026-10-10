@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/review_lanes.t27 -- a review that finds no lane free waits for one, in a bounded queue
+; Owner, 2026-10-09 (translated): "implement all the improvements" (epic gHashTag/trios#1712; night
+; loop gHashTag/trios#1729, item 4). Measured on the reviewer benchmark (gHashTag/trios
+; tests/api/queen-actors-bench.test.ts, second table, one seeded input for every runtime): with 3 free
+; lanes the adaptive pool (reviewer_sizing.t27) reviewed 360 of 660 rows where the fixed 4 reviewed
+; 429 (overload, 120 an hour), and 352 of 365 where the fixed 4 reviewed all 365 (a burst of 120).
+; Why: a review holds its model lane only during its model call. It spends its first part (the
+; witness, the criteria measurement) on no lane and asks for one at its model call; with none free it
+; ends there and answers `wait`. A pool capped at the lane count leaves the lanes idle during that
+; first part of every review. The fixed 4 overlaps it, and pays with 427 lane-less `wait` visits in the
+; overload run, each one a witness and a measurement thrown away and a row pushed back by due_again.
+; How others hold work back without throwing it away:
+; - Discord (2017) put a semaphore in front of a call: a count of requests in flight, and a request
+;   past the bound fails at once instead of piling up.
+; - Broadway and GenStage: a consumer asks for demand, and nothing is sent past what was asked.
+; - OTP: a bounded mailbox pushes back on the sender instead of dropping the message.
+; This card:
+; - a review that reaches its model call with no lane free waits for one, in a queue one actor owns,
+;   instead of answering `wait` (section 1);
+; - the queue is bounded, and a review past the bound answers `wait` at once, as Discord's semaphore
+;   does (queue_admits);
+; - the oldest review is let through first (grant_before);
+; - a wait never outlasts the row's budget for its model call (wait_left_seconds);
+; - a stopped turn leaves the queue, and a row given back for want of a lane is a `wait`, never a
+;   reviewer miss (lane_answer, gives_row_back);
+; - the pool may exceed the lanes by the share of a review spent on no lane, once that share is
+;   measured (section 2).
+; Reused, not restated: reviewer.t27 REVIEW_ROW_SECONDS and REVIEWER_CEILING, reviewer_sizing.t27
+; pool_target (gen-c compiles them in).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenReviewLanes;
+
+use queen::reviewer::REVIEW_ROW_SECONDS;
+use queen::reviewer::REVIEWER_CEILING;
+use queen::reviewer_sizing::U32_MAX;
+use queen::reviewer_sizing::pool_target;
+
+; --- 1. The queue ------------------------------------------------------------------------------------
+
+/// What a review's lane step answers.
+/// LANE_GO: go on to the model call. A lane was free, or the queue let this review try again.
+/// LANE_WAIT_ROW: give the row back as `wait`. The queue was full, or the wait ran out.
+/// LANE_STOPPED: the review's turn was stopped while it waited. It leaves the queue and writes nothing.
+pub const LANE_GO : u8 = 0;
+pub const LANE_WAIT_ROW : u8 = 1;
+pub const LANE_STOPPED : u8 = 2;
+
+/// What the queue's owner hears.
+/// LANE_ASKED: a review found no lane free and asks to wait.
+/// LANE_RELEASED: a review's model call ended, so its lane is free again.
+/// LANE_BEAT: the reviewer's heartbeat (reviewer.t27 REVIEWER_EVERY_SECONDS).
+/// LANE_LEFT: a waiter left the queue: its turn was stopped, or its wait ran out.
+pub const LANE_ASKED : u8 = 0;
+pub const LANE_RELEASED : u8 = 1;
+pub const LANE_BEAT : u8 = 2;
+pub const LANE_LEFT : u8 = 3;
+
+/// Whether a review that found no lane free may join the queue, with `waiting` reviews in it and
+/// `holding` reviews in a model call now. One waiter for each review that holds a lane: each waiter
+/// then has a lane coming back to it within one model call. With no review in a model call, every lane
+/// is a bee's, and a bee keeps its key for its whole run, longer than any row's budget, so the review
+/// answers `wait` at once, as Discord's semaphore fails a request past its count. Never more than
+/// REVIEWER_CEILING waiters, however many hold.
+pub fn queue_admits(waiting: u32, holding: u32) -> bool {
+    if (waiting >= REVIEWER_CEILING) { return false; }
+    return waiting < holding;
+}
+
+/// The order the queue lets reviews through: oldest first. A ticket is handed out when a review starts,
+/// so the oldest review is also the one with the least of its row budget left (wait_left_seconds).
+/// A review let through that finds its lane taken again (a bee took the key) asks again with the same
+/// ticket and keeps its place. A review that finds a lane free at its model call takes it without
+/// asking: a free lane is never left idle to keep the order.
+pub fn grant_before(ticket_a: u32, ticket_b: u32) -> bool {
+    return ticket_a < ticket_b;
+}
+
+/// Whether the oldest waiter is let try again on `event`: when a review gives back its lane, and at the
+/// reviewer's heartbeat, because a bee that ended freed its key without telling the queue. A review
+/// that asks has just found no lane, and one that leaves frees none.
+pub fn head_tries(event: u8) -> bool {
+    if (event == LANE_RELEASED) { return true; }
+    if (event == LANE_BEAT) { return true; }
+    return false;
+}
+
+/// The model call's own bound: the reviewer's call times out at 120 s (gHashTag/trios queen-reviewer.ts
+/// REVIEW_TIMEOUT_MS = 120000).
+pub const MODEL_CALL_SECONDS : u32 = 120;
+
+/// How much longer a review `elapsed_s` seconds into its row may wait for a lane: until it could no
+/// longer finish its model call inside REVIEW_ROW_SECONDS. A wait past that ends in a turn kill in the
+/// middle of a paid call: the lane spent, nothing delivered. 0: it does not wait at all.
+pub fn wait_left_seconds(elapsed_s: u32) -> u32 {
+    let last : u32 = REVIEW_ROW_SECONDS - MODEL_CALL_SECONDS;
+    if (elapsed_s >= last) { return 0; }
+    return last - elapsed_s;
+}
+
+/// What the lane step answers once its wait has ended: `granted` when the queue let it try again,
+/// `stopped` when its turn was stopped. A stop wins: a stopped turn does not start a model call.
+pub fn lane_answer(granted: bool, stopped: bool) -> u8 {
+    if (stopped) { return LANE_STOPPED; }
+    if (granted) { return LANE_GO; }
+    return LANE_WAIT_ROW;
+}
+
+/// Whether the row is given back as `wait`. Such a row is a `wait` like any other, and reviewer.t27
+/// due_again spaces its next visit. It is never a reviewer miss: REVIEWER_MISS_CEILING counts a review
+/// bought and not delivered, and a review that never reached its model call bought nothing (gHashTag/
+/// trios queen-tick.ts: "No lane, a spent budget and a transient refusal are the round's circumstances,
+/// not a fact about the reviewer"). A stopped review gives nothing back: its turn ended, and the intake
+/// hands its row out again.
+pub fn gives_row_back(answer: u8) -> bool {
+    return answer == LANE_WAIT_ROW;
+}
+
+; --- 2. How far the pool may exceed its lanes -------------------------------------------------------
+
+/// The share of a review's life it holds a lane, in percent, until measured: 100, so the pool does not
+/// grow past its lanes on a guess and stays the pool reviewer_sizing.t27 sizes. Chosen, not measured.
+pub const HOLD_PERCENT_UNTIL_MEASURED : u32 = 100;
+
+/// Seconds of review the share must rest on before it is believed: three row budgets
+/// (3 x REVIEW_ROW_SECONDS). Chosen, not measured.
+pub const HOLD_MEASURED_AFTER_SECONDS : u32 = 900;
+
+/// The least share believed. At 25 percent the pool is at most four times its lanes, and a waiter past
+/// one for each holder is refused anyway (queue_admits). Chosen, not measured.
+pub const HOLD_PERCENT_FLOOR : u32 = 25;
+
+/// The samples halve once they hold this many seconds, so the share follows the last hour or so of
+/// reviews and a burst of stalls an hour ago no longer weighs. Chosen, not measured.
+pub const HOLD_WINDOW_SECONDS : u32 = 3600;
+
+/// The largest sample that still multiplies by 100 and adds to another without wrapping.
+pub const SAMPLE_MAX : u32 = 21474836;
+
+/// The share of a review's life spent holding its lane, from two sums the queue's owner keeps:
+/// `before_s`, seconds from a review's start to its ask for a lane (its time in the queue is NOT in it,
+/// or a long queue would read as a short hold and grow the pool that made the queue), and `holding_s`,
+/// seconds its lane was held. Until the two hold HOLD_MEASURED_AFTER_SECONDS: HOLD_PERCENT_UNTIL_MEASURED.
+/// Then holding / (before + holding), never below HOLD_PERCENT_FLOOR, never above 100.
+pub fn hold_percent(before_s: u32, holding_s: u32) -> u32 {
+    var whole : u32 = U32_MAX;
+    if (before_s <= U32_MAX - holding_s) { whole = before_s + holding_s; }
+    if (whole < HOLD_MEASURED_AFTER_SECONDS) { return HOLD_PERCENT_UNTIL_MEASURED; }
+    var b : u32 = before_s;
+    var h : u32 = holding_s;
+    while (b > SAMPLE_MAX or h > SAMPLE_MAX) {
+        b = b / 2;
+        h = h / 2;
+    }
+    var pct : u32 = HOLD_PERCENT_UNTIL_MEASURED;
+    if (b + h > 0) { pct = h * 100 / (b + h); }
+    if (pct < HOLD_PERCENT_FLOOR) { return HOLD_PERCENT_FLOOR; }
+    if (pct > 100) { return 100; }
+    return pct;
+}
+
+/// Whether the owner halves both sums now: once they hold HOLD_WINDOW_SECONDS.
+pub fn samples_halve(before_s: u32, holding_s: u32) -> bool {
+    if (before_s > U32_MAX - holding_s) { return true; }
+    return before_s + holding_s >= HOLD_WINDOW_SECONDS;
+}
+
+/// The lanes the pool is sized against when reviews may wait: enough reviews that the `lanes` stay
+/// busy while each review spends (100 - hold_pct) percent of its life on no lane,
+/// ceil(lanes x 100 / hold_pct). The reviews past the lanes are the ones that wait, one for each holder
+/// at most (queue_admits). Saturates instead of wrapping.
+pub fn queue_lanes(lanes: u32, hold_pct: u32) -> u32 {
+    var h : u32 = hold_pct;
+    if (h < HOLD_PERCENT_FLOOR) { h = HOLD_PERCENT_FLOOR; }
+    if (h >= 100) { return lanes; }
+    if (lanes > (U32_MAX - 100) / 100) { return U32_MAX; }
+    return (lanes * 100 + h - 1) / h;
+}
+
+/// How many workers the pool should have when reviews may wait for a lane: reviewer_sizing.t27
+/// pool_target over queue_lanes. Memory still bounds it: a waiting review has done its witness and its
+/// measurement and holds what they took, so the queue never lifts the memory bound.
+pub fn pool_target_queued(lanes: u32, hold_pct: u32, free_mb: u32, mb_per_review: u32, busy: u32, queued: u32) -> u32 {
+    return pool_target(queue_lanes(lanes, hold_pct), free_mb, mb_per_review, busy, queued);
+}
+
+; --- tests --------------------------------------------------------------------------------------------
+
+test a_review_waits_only_behind_a_review_that_holds_a_lane {
+    // nobody holds a lane: every lane is a bee's, so no wait
+    assert queue_admits(0, 0) == false;
+    // one waiter for each holder
+    assert queue_admits(0, 1) == true;
+    assert queue_admits(1, 1) == false;
+    assert queue_admits(2, 3) == true;
+    assert queue_admits(3, 3) == false;
+    assert queue_admits(4, 3) == false;
+    // never past the ceiling, however many hold
+    assert queue_admits(REVIEWER_CEILING - 1, 100) == true;
+    assert queue_admits(REVIEWER_CEILING, 100) == false;
+    assert queue_admits(U32_MAX, U32_MAX) == false;
+}
+
+test the_oldest_review_is_let_through_first {
+    assert grant_before(1, 2) == true;
+    assert grant_before(2, 1) == false;
+    assert grant_before(5, 5) == false;
+    assert grant_before(0, U32_MAX) == true;
+}
+
+test the_head_tries_again_when_a_lane_may_be_free {
+    assert head_tries(LANE_RELEASED) == true;
+    assert head_tries(LANE_BEAT) == true;
+    assert head_tries(LANE_ASKED) == false;
+    assert head_tries(LANE_LEFT) == false;
+}
+
+test a_wait_never_outlasts_the_row_budget_for_its_model_call {
+    assert wait_left_seconds(0) == REVIEW_ROW_SECONDS - MODEL_CALL_SECONDS;
+    assert wait_left_seconds(0) == 180;
+    // the benchmark's 180 s review asks for its lane 30 percent in, at 54 s
+    assert wait_left_seconds(54) == 126;
+    assert wait_left_seconds(179) == 1;
+    assert wait_left_seconds(180) == 0;
+    assert wait_left_seconds(REVIEW_ROW_SECONDS) == 0;
+    assert wait_left_seconds(U32_MAX) == 0;
+    // the wait and the call fit the row
+    assert 54 + wait_left_seconds(54) + MODEL_CALL_SECONDS == REVIEW_ROW_SECONDS;
+    assert 100 + wait_left_seconds(100) + MODEL_CALL_SECONDS == REVIEW_ROW_SECONDS;
+}
+
+test a_stopped_turn_leaves_and_a_row_without_a_lane_waits {
+    assert lane_answer(true, false) == LANE_GO;
+    assert lane_answer(false, false) == LANE_WAIT_ROW;
+    assert lane_answer(true, true) == LANE_STOPPED;
+    assert lane_answer(false, true) == LANE_STOPPED;
+    assert gives_row_back(LANE_WAIT_ROW) == true;
+    assert gives_row_back(LANE_GO) == false;
+    assert gives_row_back(LANE_STOPPED) == false;
+}
+
+test the_hold_share_is_believed_only_once_measured {
+    // nothing measured, or too little: the pool stays at its lanes
+    assert hold_percent(0, 0) == HOLD_PERCENT_UNTIL_MEASURED;
+    assert hold_percent(200, 600) == HOLD_PERCENT_UNTIL_MEASURED;
+    // the benchmark's reviews: asked 30 percent in, so the lane is held 70 percent of the time
+    assert hold_percent(270, 630) == 70;
+    assert hold_percent(540, 1260) == 70;
+    // stalls hold their lane for long: the share rises, and the pool shrinks back toward its lanes
+    assert hold_percent(108, 3492) == 97;
+    assert hold_percent(0, 1000) == 100;
+    // a share below the floor is not believed
+    assert hold_percent(1000, 0) == HOLD_PERCENT_FLOOR;
+    assert hold_percent(900, 100) == HOLD_PERCENT_FLOOR;
+    // no wrap: the sums are scaled before they multiply
+    assert hold_percent(U32_MAX, U32_MAX) == 50;
+    assert hold_percent(U32_MAX, 0) == HOLD_PERCENT_FLOOR;
+    assert hold_percent(0, U32_MAX) == 100;
+}
+
+test the_samples_follow_the_last_hour {
+    assert samples_halve(0, 0) == false;
+    assert samples_halve(1000, 2599) == false;
+    assert samples_halve(1000, 2600) == true;
+    assert samples_halve(U32_MAX, 1) == true;
+    assert samples_halve(1, U32_MAX) == true;
+}
+
+test the_pool_may_exceed_its_lanes_by_the_share_spent_on_no_lane {
+    // unmeasured or always holding: the lanes, as reviewer_sizing.t27 sizes them
+    assert queue_lanes(3, 100) == 3;
+    assert queue_lanes(3, 150) == 3;
+    // 70 percent held: 3 lanes keep 300 / 70 = 4.3 reviews busy, so 5
+    assert queue_lanes(3, 70) == 5;
+    assert queue_lanes(3, 75) == 4;
+    assert queue_lanes(3, 74) == 5;
+    assert queue_lanes(1, 70) == 2;
+    assert queue_lanes(0, 70) == 0;
+    assert queue_lanes(47, 70) == 68;
+    // the floor: at most four times the lanes
+    assert queue_lanes(3, HOLD_PERCENT_FLOOR) == 12;
+    assert queue_lanes(3, 10) == 12;
+    assert queue_lanes(3, 0) == 12;
+    // no wrap
+    assert queue_lanes(U32_MAX, 70) == U32_MAX;
+    assert queue_lanes(U32_MAX, 100) == U32_MAX;
+    assert queue_lanes(42949671, 99) == 43383507;
+}
+
+test the_queued_pool_holds_to_the_ceiling_the_memory_and_the_backlog {
+    // 3 lanes, 70 percent held: 5 workers where the adaptive pool had 3
+    assert pool_target_queued(3, 70, 8192, 512, 0, 111) == 5;
+    assert pool_target(3, 8192, 512, 0, 111) == 3;
+    // unmeasured: exactly the adaptive pool
+    assert pool_target_queued(3, HOLD_PERCENT_UNTIL_MEASURED, 8192, 512, 0, 111) == pool_target(3, 8192, 512, 0, 111);
+    // ample lanes: the ceiling, as before
+    assert pool_target_queued(47, 70, 8192, 512, 0, 111) == REVIEWER_CEILING;
+    // the memory bound stands: 1536 MB at the unmeasured 512 MB a review is 3
+    assert pool_target_queued(47, 70, 1536, 0, 0, 111) == 3;
+    assert pool_target_queued(3, 70, 1536, 0, 0, 111) == 3;
+    // never above the backlog, and one worker while anything waits, with no lane at all
+    assert pool_target_queued(3, 70, 8192, 512, 1, 1) == 2;
+    assert pool_target_queued(0, 70, 8192, 512, 0, 5) == 1;
+    assert pool_target_queued(0, 70, 8192, 512, 0, 0) == 0;
+}
+
+test the_queued_pool_fits_its_own_queue_bound {
+    // 3 lanes at 70 percent: 5 workers, 3 holding, 2 waiting, and the queue admits both
+    let pool : u32 = pool_target_queued(3, 70, 8192, 512, 0, 111);
+    assert queue_admits(pool - 3 - 1, 3) == true;
+    assert queue_admits(pool - 3, 3) == true;
+    // at the floor the pool is four times its lanes, and the queue refuses past one per holder
+    assert queue_admits(queue_lanes(3, HOLD_PERCENT_FLOOR) - 3, 3) == false;
+}
+
+invariant the_lane_answers_and_events_are_pinned {
+    assert LANE_GO == 0;
+    assert LANE_WAIT_ROW == 1;
+    assert LANE_STOPPED == 2;
+    assert LANE_ASKED == 0;
+    assert LANE_RELEASED == 1;
+    assert LANE_BEAT == 2;
+    assert LANE_LEFT == 3;
+}
+
+invariant a_wait_fits_inside_the_row {
+    assert MODEL_CALL_SECONDS < REVIEW_ROW_SECONDS;
+    assert wait_left_seconds(0) > 0;
+    assert wait_left_seconds(0) + MODEL_CALL_SECONDS == REVIEW_ROW_SECONDS;
+}
+
+invariant the_hold_share_is_measured_before_it_moves_the_pool {
+    assert HOLD_PERCENT_UNTIL_MEASURED == 100;
+    assert HOLD_PERCENT_FLOOR > 0;
+    assert HOLD_PERCENT_FLOOR <= 100;
+    // a halving never forgets a share once it was believed
+    assert HOLD_WINDOW_SECONDS / 2 >= HOLD_MEASURED_AFTER_SECONDS;
+    assert HOLD_MEASURED_AFTER_SECONDS == 3 * REVIEW_ROW_SECONDS;
+    // two samples at their largest still multiply by 100 and add without wrapping
+    assert SAMPLE_MAX * 100 <= U32_MAX;
+    assert SAMPLE_MAX + SAMPLE_MAX <= U32_MAX;
+}

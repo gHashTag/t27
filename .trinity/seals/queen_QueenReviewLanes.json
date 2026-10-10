@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:1d375209274b64ea59ce9091a7189317822db65248cf1fd4786751d754193259",
+  "gen_hash_rust": "sha256:f2234eca8bd1b293cff9385253aba0c14991a39df1959ff0f305a292b3349724",
+  "gen_hash_verilog": "sha256:70092e5d79fa89bacae1b1713f91a6c7681fc8a0c63076f331327be128663b07",
+  "gen_hash_zig": "sha256:d1cdee3a6bae0b32b1b82fb26379dca7762c3a791ae31b10a0c7ca226bec0e38",
+  "module": "QueenReviewLanes",
+  "ring": 12,
+  "sealed_at": "2026-10-10T12:53:44Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:a8de1f5ba15f6863e465077855ba9b947244217049ccdaf06b86126ea12cb942",
+  "spec_path": "specs/queen/review_lanes.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
+}
