@@ -1,0 +1,40 @@
+; #5403: Regression test for Verilog tuple lowering defects
+; This spec reproduces two specific emitter defects:
+; 1. String literals in tuples emitted as sized decimal constants: 32'dCOA verified successfully, 1'b1}
+; 2. Tuple destructuring in loops emitting empty register declarations: reg [31:0] ;
+module VerilogTupleLowering {
+    fn verdict() -> (bool, str) {
+        return (true, "test");
+    }
+    
+    fn simple_tuple() -> (u32, str) {
+        const (value, name) = (42, "test");
+        return (value, name);
+    }
+    
+    fn tuple_in_loop() -> u32 {
+        var result: u32 = 0;
+        var i: u32 = 0;
+        while (i < 3) {
+            const pair = (42 + i, "test");
+            result = result + pair.0;
+            i = i + 1;
+        }
+        return result;
+    }
+    
+    
+    
+    test verdict_test {
+        const result = verdict();
+        assert(result.0 == true, "Verdict should be true");
+        assert(result.1 == "test", "Message should match");
+    }
+    
+    
+    
+    test tuple_test {
+        const result = tuple_in_loop();
+        assert(result == 129, "Tuple in loop sum should be 129");
+    }
+}
