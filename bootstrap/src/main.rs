@@ -12705,7 +12705,7 @@ fn run_yostat(log: &str) -> anyhow::Result<()> {
         println!();
         println!("  !! KNOWN-BAD PRIMITIVES FOR openXC7 !!");
         if srl > 0 {
-            println!("  {srl} shift-register LUT(s). T342: the bitstream is wrong while the");
+            println!("  {srl} shift-register LUT(s). The bitstream is wrong while the");
             println!("     netlist is right. Re-synthesise with `synth_xilinx -nosrl`.");
         }
         if dsp > 0 {
