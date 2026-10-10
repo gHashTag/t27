@@ -43,7 +43,7 @@ pub fn deployment_indices(binaries: [][]const u8, boards: [][]const u8, existing
 }
 
 pub fn build_ssh_args(password: []const u8, ssh_opts: [6][]const u8, user_at_host: []const u8, remote_cmd: []const u8) SshArgs {
-    var args: [12][]const u8 = undefined;
+    var args: [12]str = undefined;
     args[0] = "-p";
     args[1] = password;
     var i: usize = 0;
@@ -85,8 +85,8 @@ test count_deploy_actions_none_exist {
 test deployment_indices_all_exist {
     var existing: [2]bool = [true, true];
     var indices: [6]usize = undefined;
-    var binaries_var: [2][]const u8 = BINARIES;
-    var boards_var: [3][]const u8 = BOARDS;
+    var binaries_var: [2]str = BINARIES;
+    var boards_var: [3]str = BOARDS;
     const written = deployment_indices(&binaries_var, &boards_var, &existing, &indices);
     assert(written == 6);
     assert(indices[0] == 0);
@@ -100,8 +100,8 @@ test deployment_indices_all_exist {
 test deployment_indices_one_missing {
     var existing: [2]bool = [true, false];
     var indices: [6]usize = undefined;
-    var binaries_var: [2][]const u8 = BINARIES;
-    var boards_var: [3][]const u8 = BOARDS;
+    var binaries_var: [2]str = BINARIES;
+    var boards_var: [3]str = BOARDS;
     const written = deployment_indices(&binaries_var, &boards_var, &existing, &indices);
     assert(written == 3);
     assert(indices[0] == 0);
@@ -112,8 +112,8 @@ test deployment_indices_one_missing {
 test deployment_indices_none_exist {
     var existing: [2]bool = [false, false];
     var indices: [6]usize = undefined;
-    var binaries_var: [2][]const u8 = BINARIES;
-    var boards_var: [3][]const u8 = BOARDS;
+    var binaries_var: [2]str = BINARIES;
+    var boards_var: [3]str = BOARDS;
     const written = deployment_indices(&binaries_var, &boards_var, &existing, &indices);
     assert(written == 0);
 }

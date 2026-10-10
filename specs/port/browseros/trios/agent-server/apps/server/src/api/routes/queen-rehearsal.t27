@@ -26,7 +26,7 @@ struct WordsResult {
 }
 
 pub fn split_into_words(text: []const u8) -> WordsResult {
-    var words: [64][]const u8 = undefined;
+    var words: [64]str = undefined;
     var word_count: usize = 0;
     var start: usize = 0;
     var in_word: bool = false;

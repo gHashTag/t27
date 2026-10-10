@@ -8,7 +8,7 @@ pub struct Mock {
 }
 
 pub fn Mock_init(allocator: u32) Mock {
-    var calls_array: [MAX_CALLS][]const u8 = undefined;
+    var calls_array: [MAX_CALLS]str = undefined;
     for (0..MAX_CALLS) |i| {
         calls_array[i] = "";
     }

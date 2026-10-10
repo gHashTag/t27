@@ -103,7 +103,7 @@ pub fn get_last_block(lines: [][]const u8) -> ?[][]const u8 {
     }
 
     // Return the slice from start to end (exclusive of end)
-    var result: [100][]const u8 = undefined;
+    var result: [100]str = undefined;
     var result_count: usize = 0;
     for (i in start..end_index) {
         if (result_count < result.len) {
@@ -169,7 +169,7 @@ pub fn process_specs() {
 }
 
 test get_last_block_normal {
-    var lines: [10][]const u8 = [
+    var lines: [10]str = [
         "test something",
         "line 1",
         "invariant something",
@@ -178,7 +178,7 @@ test get_last_block_normal {
         "line 3",
         "line 4",
     ];
-    const expected: [3][]const u8 = [
+    const expected: [3]str = [
         "invariant something",
         "line 2",
         "test another",
@@ -195,7 +195,7 @@ test get_last_block_normal {
 }
 
 test get_last_block_insufficient_tests {
-    var lines: [5][]const u8 = [
+    var lines: [5]str = [
         "test only one",
         "invariant something",
         "line 1",
@@ -207,7 +207,7 @@ test get_last_block_insufficient_tests {
 }
 
 test get_last_block_insufficient_invariants {
-    var lines: [5][]const u8 = [
+    var lines: [5]str = [
         "test one",
         "test two",
         "line 1",
@@ -219,7 +219,7 @@ test get_last_block_insufficient_invariants {
 }
 
 test get_last_block_stops_at_keyword {
-    var lines: [10][]const u8 = [
+    var lines: [10]str = [
         "test first",
         "line 1",
         "invariant something",
@@ -229,7 +229,7 @@ test get_last_block_stops_at_keyword {
         "fn something() { }", // should stop here
         "line 4",
     ];
-    const expected: [3][]const u8 = [
+    const expected: [3]str = [
         "invariant something",
         "line 2",
         "test second",
@@ -246,7 +246,7 @@ test get_last_block_stops_at_keyword {
 }
 
 test transform_block_simple {
-    var input: [2][]const u8 = [
+    var input: [2]str = [
         "hello_w311_world",
         "foo_w310_bar_w309_baz",
     ];

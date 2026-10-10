@@ -23,7 +23,7 @@ pub fn main() -> void {
 
 // Test the decision logic
 test decide_railway_project_create_insufficient_args {
-    var test_argv: [1][]const u8 = ["railway-create-project"];
+    var test_argv: [1]str = ["railway-create-project"];
     const argc: u32 = 1;
     const argv = &test_argv;
     const result = decide_railway_project_create(argc, argv);
@@ -31,7 +31,7 @@ test decide_railway_project_create_insufficient_args {
 }
 
 test decide_railway_project_create_sufficient_args {
-    var test_argv: [2][]const u8 = ["railway-create-project", "fake-token"];
+    var test_argv: [2]str = ["railway-create-project", "fake-token"];
     const argc: u32 = 2;
     const argv = &test_argv;
     const result = decide_railway_project_create(argc, argv);

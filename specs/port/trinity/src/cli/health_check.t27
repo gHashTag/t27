@@ -20,19 +20,19 @@ pub fn main() -> void {
 
 // Test the decision logic
 test decide_health_check_default_url_success {
-    var args: [2][]const u8 = ["program", "https://hslm-r12.up.railway.app/health"];
+    var args: [2]str = ["program", "https://hslm-r12.up.railway.app/health"];
     const result = decide_health_check(1, &args, 0);
     assert(result == 0);
 }
 
 test decide_health_check_custom_url_success {
-    var args: [2][]const u8 = ["program", "https://example.com/health"];
+    var args: [2]str = ["program", "https://example.com/health"];
     const result = decide_health_check(2, &args, 0);
     assert(result == 0);
 }
 
 test decide_health_check_failure {
-    var args: [2][]const u8 = ["program", "https://example.com/health"];
+    var args: [2]str = ["program", "https://example.com/health"];
     const result = decide_health_check(2, &args, 1);
     assert(result == 1);
 }
