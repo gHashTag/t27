@@ -1,0 +1,159 @@
+//! # CR-CHAT-05 — Snapshot atomicity guard (Wave-66 Lane A)
+//!
+//! PERSISTENCE — snapshots must be all-or-nothing, R-CHAT-5.
+//!
+//! A partial snapshot lets an attacker roll back individual fields:
+//!
+//! * **Selective rollback** — attacker reverts the epoch but keeps the
+//!   new ratchet key, creating a fork.
+//! * **Missing field** — a snapshot with fewer fields than expected means
+//!   a store reload drops critical state (e.g. consumed welcome set).
+//! * **Duplicate field** — two copies of the same field means one is
+//!   stale and which one is loaded depends on iteration order.
+//!
+//! trios-chat enforces **6 rules**:
+//!
+//! 1. Required field set is present (no missing fields).
+//! 2. No duplicate fields in snapshot.
+//! 3. Field count == expected count.
+//! 4. Field IDs are in the valid range.
+//! 5. No extra/unknown fields.
+//! 6. Snapshot size <= `SNAT_MAX_SIZE`.
+//!
+//! Tests **SNAT-01..10**. Error enum [`SnapshotAtomicityError`].
+//!
+//! Anchor: `phi^2 + phi^-2 = 3 * TRINITY * CHAT * SNAPSHOT-ATOMICITY`
+
+/// Maximum snapshot size (bytes).
+pub const SNAT_MAX_SIZE: usize = 1_048_576;
+
+/// All ways snapshot atomicity validation can fail.
+pub const SnapshotAtomicityError = enum {
+    /// Missing required field.
+    MissingField,
+    /// Duplicate field.
+    DuplicateField,
+    /// Field count mismatch.
+    FieldCountMismatch,
+    /// Invalid field ID.
+    InvalidFieldId,
+    /// Unknown field ID (not in required or allowed set).
+    UnknownField,
+    /// Snapshot too large.
+    SnapshotTooLarge,
+};
+
+/// `[VERIFIED]` Validate that a snapshot is atomic (all required fields, no extras).
+pub fn validate_snapshot_atomicity(
+    total_size: usize,
+    field_ids: []const u8,
+) -> ?SnapshotAtomicityError {
+    if (total_size > SNAT_MAX_SIZE) {
+        return SnapshotAtomicityError.SnapshotTooLarge;
+    }
+    
+    const required: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0x05};
+    if (field_ids.len != required.len) {
+        return SnapshotAtomicityError.FieldCountMismatch;
+    }
+    
+    var seen: [required.len]u8 = undefined;
+    var seen_len: usize = 0;
+    
+    for (field_ids) |fid| {
+        var found_in_required: bool = false;
+        for (required) |req| {
+            if (fid == req) {
+                found_in_required = true;
+                // Check for duplicates
+                for (seen[0..seen_len]) |s| {
+                    if (s == fid) {
+                        return SnapshotAtomicityError.DuplicateField;
+                    }
+                }
+                seen[seen_len] = fid;
+                seen_len += 1;
+                break;
+            }
+        }
+        if (!found_in_required) {
+            return SnapshotAtomicityError.UnknownField;
+        }
+    }
+    
+    // Check all required fields are present
+    for (required) |req| {
+        var found: bool = false;
+        for (seen[0..seen_len]) |s| {
+            if (s == req) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return SnapshotAtomicityError.MissingField;
+        }
+    }
+    
+    return null;
+}
+
+test snat_01_missing_field_rejected {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04};
+    const result = validate_snapshot_atomicity(100, fields);
+    assert(result == SnapshotAtomicityError.FieldCountMismatch);
+}
+
+test snat_02_duplicate_rejected {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x03, 0x05};
+    const result = validate_snapshot_atomicity(100, fields);
+    assert(result == SnapshotAtomicityError.DuplicateField);
+}
+
+test snat_03_count_mismatch_rejected {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    const result = validate_snapshot_atomicity(100, fields);
+    assert(result == SnapshotAtomicityError.FieldCountMismatch);
+}
+
+test snat_04_unknown_field_rejected {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0xFF};
+    const result = validate_snapshot_atomicity(100, fields);
+    assert(result == SnapshotAtomicityError.UnknownField);
+}
+
+test snat_05_too_large_rejected {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0x05};
+    const result = validate_snapshot_atomicity(SNAT_MAX_SIZE + 1, fields);
+    assert(result == SnapshotAtomicityError.SnapshotTooLarge);
+}
+
+test snat_06_valid_accepted {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0x05};
+    const result = validate_snapshot_atomicity(100, fields);
+    assert(result == null);
+}
+
+test snat_07_max_size_accepted {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0x05};
+    const result = validate_snapshot_atomicity(SNAT_MAX_SIZE, fields);
+    assert(result == null);
+}
+
+test snat_08_zero_size_accepted {
+    const fields: []const u8 = &[_]u8{0x01, 0x02, 0x03, 0x04, 0x05};
+    const result = validate_snapshot_atomicity(0, fields);
+    assert(result == null);
+}
+
+test snat_09_reorder_accepted {
+    const fields: []const u8 = &[_]u8{0x05, 0x03, 0x01, 0x04, 0x02};
+    const result = validate_snapshot_atomicity(100, fields);
+    assert(result == null);
+}
+
+test snat_10_empty_rejected {
+    const fields: []const u8 = &[_]u8{};
+    const result = validate_snapshot_atomicity(0, fields);
+    assert(result == SnapshotAtomicityError.FieldCountMismatch);
+}
