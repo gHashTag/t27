@@ -1,0 +1,251 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/tf3_add_test.t27
+// TF3 Trit Addition Test Specification
+// Tests trit addition logic with saturating ternary arithmetic
+// Ported from gHashTag/trinity fpga/openxc7-synth/tf3_add_test.v
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tf3_add_test {
+
+    // === TF3 trit addition constants ===
+
+    pub const TRIT_WIDTH : u32 = 2;
+    pub const DATA_WIDTH : u32 = 18;
+    pub const SIGN_BITS : u32 = 2;
+    pub const SIGN_POS : u32 = 16;
+    pub const SIGN_POS_USIZE : usize = 16;
+    pub const SIGN_BITS_USIZE : usize = 2;
+
+    // === Trit values ===
+
+    pub const TRIT_ZERO : u32 = 0b00;
+    pub const TRIT_MINUS_ONE : u32 = 0b01;
+    pub const TRIT_PLUS_ONE : u32 = 0b10;
+
+    // === Input/Output structs ===
+
+    pub struct Tf3Input {
+        clk : bool,
+        rst : bool,
+        in_valid : bool,
+        in_a : [DATA_WIDTH]u32,
+        in_b : [DATA_WIDTH]u32,
+        out_ready : bool,
+    }
+
+    pub struct Tf3Output {
+        in_ready : bool,
+        out_valid : bool,
+        out_y : [DATA_WIDTH]u32,
+    }
+
+    // === Trit decoding ===
+
+    fn trit_decode(t: u32) -> i32 {
+        switch (t) {
+            0b01 => -1,
+            0b10 => 1,
+            else => 0,
+        }
+    }
+
+    // === Sign decoding ===
+
+    fn decode_sign(data: [DATA_WIDTH]u32) -> i32 {
+        var sign_bits : u32 = 0;
+        for i in SIGN_POS_USIZE..SIGN_POS_USIZE + SIGN_BITS_USIZE {
+            sign_bits = (sign_bits << 1) + data[i];
+        }
+        
+        switch (sign_bits) {
+            0b10 => 1,
+            0b01 => -1,
+            else => 0,
+        }
+    }
+
+    // === Saturating ternary arithmetic ===
+
+    fn add_signs(a_sign: i32, b_sign: i32) -> i32 {
+        var sum : i32 = a_sign + b_sign;
+        // Add offset for ternary arithmetic
+        sum = sum + 1;
+        
+        // Saturate to [-1, 0, +1] range
+        if (sum > 1) {
+            return 1;
+        }
+        if (sum < -1) {
+            return -1;
+        }
+        return sum;
+    }
+
+    // === Sign encoding ===
+
+    fn encode_sign(sign: i32) -> u32 {
+        switch (sign) {
+            1 => 0b10,
+            -1 => 0b01,
+            else => 0b00,
+        }
+    }
+
+    // === Main addition function ===
+
+    fn tf3_add(input: Tf3Input) -> Tf3Output {
+        var output : Tf3Output = Tf3Output{
+            .in_ready = true,
+            .out_valid = input.in_valid,
+            .out_y = [_]u32{0} ** DATA_WIDTH,
+        };
+
+        // Decode signs
+        var a_sign : i32 = decode_sign(input.in_a);
+        var b_sign : i32 = decode_sign(input.in_b);
+
+        // Add signs with saturating arithmetic
+        var result_sign : i32 = add_signs(a_sign, b_sign);
+
+        // Encode result sign
+        var encoded_sign : u32 = encode_sign(result_sign);
+
+        // Copy data and set result sign
+        for i in 0..DATA_WIDTH {
+            if (i < SIGN_POS_USIZE) {
+                output.out_y[i] = input.in_a[i];  // Copy data bits (assuming they're the same)
+            } else {
+                output.out_y[i] = (encoded_sign >> (i - SIGN_POS_USIZE)) & 1;
+            }
+        }
+
+        return output;
+    }
+
+    // === Test helpers ===
+
+    fn create_input(a_sign: i32, b_sign: i32) -> Tf3Input {
+        var input : Tf3Input = Tf3Input{
+            .clk = true,
+            .rst = false,
+            .in_valid = true,
+            .in_a = [_]u32{0} ** DATA_WIDTH,
+            .in_b = [_]u32{0} ** DATA_WIDTH,
+            .out_ready = false,
+        };
+
+        // Set sign bits for a
+        var a_encoded : u32 = encode_sign(a_sign);
+        for i in SIGN_POS_USIZE..SIGN_POS_USIZE + SIGN_BITS_USIZE {
+            input.in_a[i] = (a_encoded >> (i - SIGN_POS_USIZE)) & 1;
+        }
+
+        // Set sign bits for b
+        var b_encoded : u32 = encode_sign(b_sign);
+        for i in SIGN_POS_USIZE..SIGN_POS_USIZE + SIGN_BITS_USIZE {
+            input.in_b[i] = (b_encoded >> (i - SIGN_POS_USIZE)) & 1;
+        }
+
+        return input;
+    }
+
+    fn get_result_sign(output: Tf3Output) -> i32 {
+        var sign_bits : u32 = 0;
+        for i in SIGN_POS_USIZE..SIGN_POS_USIZE + SIGN_BITS_USIZE {
+            sign_bits = (sign_bits << 1) + output.out_y[i];
+        }
+        
+        switch (sign_bits) {
+            0b10 => 1,
+            0b01 => -1,
+            else => 0,
+        }
+    }
+
+    // === Tests ===
+
+    test trit_decode_zero
+        then trit_decode(TRIT_ZERO) == 0
+
+    test trit_decode_plus_one
+        then trit_decode(TRIT_PLUS_ONE) == 1
+
+    test trit_decode_minus_one
+        then trit_decode(TRIT_MINUS_ONE) == -1
+
+    test decode_sign_plus_one
+        given input = create_input(1, 0)
+        then decode_sign(input.in_a) == 1
+
+    test decode_sign_minus_one
+        given input = create_input(-1, 0)
+        then decode_sign(input.in_a) == -1
+
+    test decode_sign_zero
+        given input = create_input(0, 0)
+        then decode_sign(input.in_a) == 0
+
+    test add_signs_zero_plus_zero
+        then add_signs(0, 0) == 0
+
+    test add_signs_plus_one_plus_zero
+        then add_signs(1, 0) == 1
+
+    test add_signs_minus_one_plus_zero
+        then add_signs(-1, 0) == -1
+
+    test add_signs_plus_one_minus_one
+        then add_signs(1, -1) == 0
+
+    test add_signs_plus_one_plus_one
+        then add_signs(1, 1) == 1
+
+    test add_signs_minus_one_minus_one
+        then add_signs(-1, -1) == -1
+
+    test tf3_add_zero_plus_zero
+        given input = create_input(0, 0)
+        let output = tf3_add(input)
+        then get_result_sign(output) == 0
+
+    test tf3_add_plus_one_plus_zero
+        given input = create_input(1, 0)
+        let output = tf3_add(input)
+        then get_result_sign(output) == 1
+
+    test tf3_add_minus_one_plus_zero
+        given input = create_input(-1, 0)
+        let output = tf3_add(input)
+        then get_result_sign(output) == -1
+
+    test tf3_add_plus_one_minus_one
+        given input = create_input(1, -1)
+        let output = tf3_add(input)
+        then get_result_sign(output) == 0
+
+    // === Invariants ===
+
+    invariant trit_decode_valid
+        for t in 0..4 {
+            let decoded = trit_decode(t);
+            assert decoded >= -1 and decoded <= 1;
+        }
+
+    invariant sign_encoding_consistent
+        for sign in -1..2 {
+            let encoded = encode_sign(sign);
+            let decoded = trit_decode(encoded);
+            assert decoded == sign;
+        }
+
+    invariant saturating_arithmetic_bounds
+        for a in -1..2 {
+            for b in -1..2 {
+                let result = add_signs(a, b);
+                assert result >= -1 and result <= 1;
+            }
+        }
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
