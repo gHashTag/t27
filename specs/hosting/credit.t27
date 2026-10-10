@@ -1,0 +1,193 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/credit.t27 -- what a verified shard earns its host: TRI credit, off-chain, only on the
+; agreeing side, once; strikes; and the settlement that stays off
+; gHashTag/trios#1756, constraint 3: TRI accrues off-chain in the MVP. The ledger is keyed by host key.
+; On-chain settlement needs a host identity the pool accepts and the legal review FACTS.md requires;
+; the MVP pays nothing on-chain and claims no token value.
+; --
+; Facts this card is held to (gHashTag/golden-chain-international FACTS.md section 6): TriToken lives on
+; Base Sepolia, a testnet; all of its supply sits in MiningPool, and both contracts' ownership is
+; renounced; a token leaves the pool only as a reward for a verified compute proof from a registered
+; chip; any promise of token income for hardware or compute needs legal review first. A host here is a
+; key on a computer, not a registered chip, so nothing here can be a claim on that pool.
+; --
+; Reused, not restated:
+; - verified/payout.t27: the payment kinds (a shard's credit is an EXECUTOR_FEE), CREDIT_TRANSFERABLE
+;   false, and the attestation ladder. A credited shard is SOFTWARE_SIGNED (the host's key signed its
+;   receipt) and REPRODUCED (another host's key signed the same output hash), so testnet_credit_allowed
+;   holds; value_flow_allowed needs DEVICE_BOUND, which no host reaches (signed_receipt.t27
+;   DEVICE_ROOTED_LEVELS 0). That is the settlement gate, and it is closed for a reason, not by a flag
+;   alone.
+; - trinet/node-work-credit.t27 REWARD_PER_JOB_MTRI: one accepted job, 1 mTRI. That rate was set for a
+;   TRI-NET node's 32-wide ternary dot product; a shard is far more work, but the owner has not set a
+;   shard rate, so this card uses the existing per-job rate rather than invent one.
+; - the unit is the mTRI of trinet/ledger.t27 and trinet/tri-bridge.t27 (DECIMALS 3). FACTS.md gives the
+;   Base token 18 decimals; the two homes disagree (the t27 issue that reconciles them is not this one),
+;   and an off-chain count of mTRI is the same count under either.
+; - trinet/ledger.t27 and node-work-credit.t27: one credit per (node, nonce), never two. Here the key is
+;   (host, job, kind): a host is credited for a job once, and struck for it at most once.
+; --
+; Strikes (host.t27 suspended): a receipt this host's key signed that proof.t27 calls tampered, or a vote
+; on the losing side of an agreed job. A host is never struck when no quorum formed. Nothing is ever
+; taken from a balance: with no stake there is nothing to slash, and a strike only stops placement.
+; --
+; The ledger: append-only rows (host, job, kind, mTRI, time); a balance is the sum of a host's credit
+; rows. The public read shows each host's key id, tier, balance, credited jobs and strikes, and the
+; settlement state; never an address, an origin or a key file.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingCredit;
+
+use verified::payout::EXECUTOR_FEE;
+use verified::payout::CREDIT_TRANSFERABLE;
+use verified::payout::ATT_SOFTWARE_SIGNED;
+use verified::payout::ATT_REPRODUCED;
+use verified::payout::ATT_DEVICE_BOUND;
+use verified::payout::attestation_level;
+use verified::payout::testnet_credit_allowed;
+use verified::payout::value_flow_allowed;
+use trinet::node-work-credit::REWARD_PER_JOB_MTRI;
+use hosting::proof::SIDE_AGREED;
+use hosting::proof::SIDE_DISSENT;
+use hosting::proof::SIDE_NONE;
+
+; --- 1. Credit --------------------------------------------------------------------------------------
+
+/// A shard's credit is paid as this kind (payout.t27).
+pub const CREDIT_KIND : u8 = 2;
+
+/// The attestation a host's vote reaches: its key signed it; it is reproduced when it is on the agreeing
+/// side of an agreed job; it is device-bound only with a hardware identity, which no host has.
+pub fn vote_attestation(side: u8, device_bound: bool) -> u8 {
+    return attestation_level(true, side == SIDE_AGREED, device_bound);
+}
+
+/// The mTRI credited to one host for one job: the per-job rate when its vote is reproduced and it has
+/// not been credited for this job before; otherwise nothing.
+pub fn credit_mtri(side: u8, device_bound: bool, already_credited: bool) -> u64 {
+    if (already_credited) { return 0; }
+    if (testnet_credit_allowed(vote_attestation(side, device_bound)) == false) { return 0; }
+    return REWARD_PER_JOB_MTRI;
+}
+
+/// Whether a host is struck for this job: its own key signed a tampered receipt, or it voted against an
+/// agreed result. Once per (host, job), like a credit.
+pub fn strike_due(attributable_tamper: bool, side: u8, already_struck: bool) -> bool {
+    if (already_struck) { return false; }
+    if (attributable_tamper) { return true; }
+    return side == SIDE_DISSENT;
+}
+
+; --- 2. The ledger ------------------------------------------------------------------------------------
+
+pub const LE_CREDIT : u8 = 0;
+pub const LE_STRIKE : u8 = 1;
+pub const LEDGER_KINDS : u8 = 2;
+
+pub const BALANCE_MAX : u64 = 18446744073709551615;
+
+/// A row is written only when the ledger has none for this (host, job, kind) yet.
+pub fn row_admitted(kind: u8, exists: bool) -> bool {
+    if (kind >= LEDGER_KINDS) { return false; }
+    return exists == false;
+}
+
+/// A balance after a credit: it only grows, and saturates rather than wraps.
+pub fn balance_after(balance: u64, credit: u64) -> u64 {
+    if (credit > BALANCE_MAX - balance) { return BALANCE_MAX; }
+    return balance + credit;
+}
+
+; --- 3. Settlement: defined, and off -------------------------------------------------------------------
+
+/// No chain call exists. A balance reaching the threshold changes nothing while this is false.
+pub const SETTLEMENT_ENABLED : bool = false;
+/// One TRI, in mTRI: the smallest balance a settlement would ever pay out. A placeholder for the day
+/// settlement exists; while it is off, it decides nothing.
+pub const SETTLE_THRESHOLD_MTRI : u64 = 1000;
+/// The ledger claims no token value: its rows are counts of verified work, not a currency.
+pub const TOKEN_VALUE_CLAIMED : bool = false;
+
+/// Whether a host's balance would be settled on-chain: settlement exists, the legal review cleared it,
+/// the host's identity is one a value flow may reach (payout.t27: device-bound), and the balance has
+/// reached the threshold.
+pub fn settlement_due(balance_mtri: u64, enabled: bool, legal_cleared: bool, device_bound: bool) -> bool {
+    if (enabled == false) { return false; }
+    if (legal_cleared == false) { return false; }
+    if (value_flow_allowed(vote_attestation(SIDE_AGREED, device_bound)) == false) { return false; }
+    return balance_mtri >= SETTLE_THRESHOLD_MTRI;
+}
+
+; --- tests --------------------------------------------------------------------------------------------
+
+test only_the_agreeing_side_is_credited {
+    assert credit_mtri(SIDE_AGREED, false, false) == REWARD_PER_JOB_MTRI;
+    assert credit_mtri(SIDE_AGREED, false, false) == 1;
+    assert credit_mtri(SIDE_DISSENT, false, false) == 0;
+    assert credit_mtri(SIDE_NONE, false, false) == 0;
+    // a device-bound identity changes nothing about the credit
+    assert credit_mtri(SIDE_AGREED, true, false) == REWARD_PER_JOB_MTRI;
+    assert credit_mtri(SIDE_DISSENT, true, false) == 0;
+}
+
+test a_job_is_credited_once {
+    assert credit_mtri(SIDE_AGREED, false, true) == 0;
+    assert row_admitted(LE_CREDIT, false) == true;
+    assert row_admitted(LE_CREDIT, true) == false;
+    assert row_admitted(LE_STRIKE, false) == true;
+    assert row_admitted(LE_STRIKE, true) == false;
+    assert row_admitted(LEDGER_KINDS, false) == false;
+}
+
+test an_agreed_vote_is_reproduced_and_nothing_more {
+    assert vote_attestation(SIDE_AGREED, false) == ATT_REPRODUCED;
+    assert vote_attestation(SIDE_DISSENT, false) == ATT_SOFTWARE_SIGNED;
+    assert vote_attestation(SIDE_NONE, false) == ATT_SOFTWARE_SIGNED;
+    assert vote_attestation(SIDE_AGREED, true) == ATT_DEVICE_BOUND;
+    assert testnet_credit_allowed(vote_attestation(SIDE_AGREED, false)) == true;
+    assert value_flow_allowed(vote_attestation(SIDE_AGREED, false)) == false;
+}
+
+test the_tamperer_and_the_dissenter_are_struck_once {
+    assert strike_due(true, SIDE_NONE, false) == true;
+    assert strike_due(false, SIDE_DISSENT, false) == true;
+    assert strike_due(false, SIDE_AGREED, false) == false;
+    // no quorum, no strike
+    assert strike_due(false, SIDE_NONE, false) == false;
+    assert strike_due(true, SIDE_DISSENT, true) == false;
+}
+
+test a_balance_only_grows {
+    assert balance_after(0, 1) == 1;
+    assert balance_after(41, 1) == 42;
+    assert balance_after(5, 0) == 5;
+    assert balance_after(BALANCE_MAX - 1, 1) == BALANCE_MAX;
+    assert balance_after(BALANCE_MAX, 1) == BALANCE_MAX;
+    assert balance_after(BALANCE_MAX - 1, 5) == BALANCE_MAX;
+}
+
+test settlement_stays_off {
+    // as configured: never, whatever the balance
+    assert settlement_due(SETTLE_THRESHOLD_MTRI, SETTLEMENT_ENABLED, true, true) == false;
+    assert settlement_due(BALANCE_MAX, SETTLEMENT_ENABLED, true, true) == false;
+    // and if it were switched on: still never without the legal review or a device-bound host
+    assert settlement_due(BALANCE_MAX, true, false, true) == false;
+    assert settlement_due(BALANCE_MAX, true, true, false) == false;
+    assert settlement_due(SETTLE_THRESHOLD_MTRI - 1, true, true, true) == false;
+    assert settlement_due(SETTLE_THRESHOLD_MTRI, true, true, true) == true;
+}
+
+/// No chain call, no transfer, no value claimed.
+invariant credit_is_off_chain {
+    assert SETTLEMENT_ENABLED == false;
+    assert CREDIT_TRANSFERABLE == false;
+    assert TOKEN_VALUE_CLAIMED == false;
+    assert SETTLE_THRESHOLD_MTRI > 0;
+}
+/// A shard's credit is an executor's fee, at the existing per-job rate.
+invariant the_rate_and_kind_are_reused {
+    assert CREDIT_KIND == EXECUTOR_FEE;
+    assert REWARD_PER_JOB_MTRI == 1;
+    assert LE_CREDIT == 0 and LE_STRIKE == 1 and LEDGER_KINDS == 2;
+}

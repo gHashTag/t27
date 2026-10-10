@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/placement.t27 -- which host runs which job: fit, spread over hosts, k replicas, and the
+; move of a replica whose lease lapsed
+; gHashTag/trios#1756, slice 1. Hosts pull: an idle host asks the Queen for a lease on its beat, and
+; the Queen answers with one replica of one job, or nothing. This card decides whether a given host may
+; take a given job, which job it is offered first, and when a replica it holds is over without a result.
+; --
+; What the others do, and what is taken here:
+; - BOINC (volunteer computing) sends each workunit to a quorum of hosts, at most one replica per host
+;   and, by default, per user; a result that does not arrive by its deadline is sent to another host,
+;   and a workunit with too many errors is given up. Taken: one replica per host, a deadline, a cap on
+;   the leases a job is given before it is given up.
+; - Kubernetes filters nodes (fit), then scores them (spread). Taken: the filter as one boolean
+;   (may_take), and spread as a rule, not a score, because a host pulls one job at a time.
+; - The bee runners (gHashTag/trios queen-runners.ts) hold a lease they renew and lose when they stop
+;   renewing; the actor runtime's nodes do the same over queen/netlink.t27. Taken: a replica's lease
+;   ends when its host's lease ends (netlink lease_up, via host.t27 host_up).
+; --
+; Spread. Two replicas of one job never run on one host: a host's two receipts would agree with each
+; other whatever it computed. A host that held a lease of the job and lost it does not get the job back:
+; its first run may still finish. A public host never runs a job beside another PUBLIC host with the
+; same network origin (the requester's IPv4 /24 or IPv6 /48, hashed by the runtime; the address itself
+; is personal data and is never kept): two keys behind one network could be one person voting twice.
+; Sharing a network with an owner's or a trusted host is no such risk -- a lie there disagrees with a
+; host the owner trusts -- and the owner's machines usually share one. This slows one person posing as
+; two public hosts; it does not stop a person with two networks (proof.t27, the honest ceiling).
+; --
+; The deadline. A shard is one `t27c test-report`; the t27b lab gives that command REF_TIMEOUT_S 300
+; (contrib/railway/t27b-lab/lab.py), and so does a host. A replica lapses when its host is down, or when
+; the run has outlasted that bound plus RECEIPT_GRACE_SECONDS for the receipt to arrive. A lapsed
+; replica's slot is open again at once; a receipt for it is late (proof.t27 RC_LATE): refused, and it
+; blames nobody.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingPlacement;
+
+use hosting::host::TIER_OWNER;
+use hosting::host::TIER_TRUSTED;
+use hosting::host::TIER_PUBLIC;
+use hosting::host::WC_SHARD;
+use hosting::host::WC_SERVICE;
+use hosting::host::eligible;
+use hosting::host::has_room;
+use hosting::host::suspended;
+use hosting::host::host_up;
+use hosting::host::STRIKES_MAX;
+use hosting::proof::REPLICAS_K;
+use hosting::proof::REPLICAS_MAX;
+use queen::netlink::NODE_TTL_SECONDS;
+
+; --- 1. Fit ------------------------------------------------------------------------------------------
+
+/// Whether this host may take a replica of this workload now: its tier may run the workload, the Queen
+/// sees it up, it is not suspended, and it has a free slot.
+pub fn may_take(tier: u8, class: u8, holds_secret: bool, holds_personal: bool, beat_age_seconds: u32, strikes: u32, slots: u32, running: u32) -> bool {
+    if (eligible(tier, class, holds_secret, holds_personal) == false) { return false; }
+    if (host_up(beat_age_seconds) == false) { return false; }
+    if (suspended(strikes)) { return false; }
+    return has_room(slots, running);
+}
+
+; --- 2. Spread ---------------------------------------------------------------------------------------
+
+/// The network prefix a public host's origin is taken over, before it is hashed.
+pub const ORIGIN_V4_PREFIX_BITS : u32 = 24;
+pub const ORIGIN_V6_PREFIX_BITS : u32 = 48;
+
+/// Whether a replica of this job may go to this host, given the job's other leases. leased_before:
+/// this host holds or held a lease of the job, in any state. same_origin: how many of the job's other
+/// live leases and votes are held by hosts of `other_tier` with this host's origin; the runtime asks
+/// once per tier.
+pub fn origin_blocks(tier: u8, other_tier: u8, same_origin: u32) -> bool {
+    if (tier != TIER_PUBLIC) { return false; }
+    if (other_tier != TIER_PUBLIC) { return false; }
+    return same_origin > 0;
+}
+
+pub fn spread_ok(tier: u8, leased_before: bool, same_origin_public: u32) -> bool {
+    if (leased_before) { return false; }
+    return origin_blocks(tier, TIER_PUBLIC, same_origin_public) == false;
+}
+
+; --- 3. k replicas, and how many are open ------------------------------------------------------------
+
+/// A job is leased at most this many times, counting leases that lapsed and receipts that were not
+/// votes: twice its most replicas. Then it is given up (exhausted) once no lease is outstanding.
+pub const LEASES_MAX_PER_JOB : u32 = 6;
+
+/// The replicas of a job still to place: wanted, less the leases outstanding and the votes in.
+pub fn open_replicas(wanted: u32, outstanding: u32, votes: u32) -> u32 {
+    var taken : u32 = outstanding + votes;
+    if (taken >= wanted) { return 0; }
+    return wanted - taken;
+}
+
+/// Whether the job will be leased no more and waits on nothing: proof.t27 job_verdict then closes it.
+pub fn exhausted(leases_issued: u32, outstanding: u32) -> bool {
+    return leases_issued >= LEASES_MAX_PER_JOB and outstanding == 0;
+}
+
+/// Whether the Queen places a replica of this job on this host now.
+pub fn places(may_take_it: bool, spread_is_ok: bool, open: u32, leases_issued: u32) -> bool {
+    if (may_take_it == false) { return false; }
+    if (spread_is_ok == false) { return false; }
+    if (open == 0) { return false; }
+    return leases_issued < LEASES_MAX_PER_JOB;
+}
+
+/// Which of two jobs a host is offered first: the one with more votes in (it is closer to a verdict,
+/// and a tiebreak is one host away from releasing two hosts' credit), then the older.
+pub fn job_first(a_votes: u32, a_age_seconds: u32, b_votes: u32, b_age_seconds: u32) -> bool {
+    if (a_votes != b_votes) { return a_votes > b_votes; }
+    return a_age_seconds >= b_age_seconds;
+}
+
+; --- 4. When a lease is over without a result ------------------------------------------------------
+
+/// = contrib/railway/t27b-lab/lab.py REF_TIMEOUT_S: what one test-report run may take.
+pub const JOB_RUN_BOUND_SECONDS : u32 = 300;
+/// For the receipt to cross the network after the run ends.
+pub const RECEIPT_GRACE_SECONDS : u32 = 30;
+
+/// Whether a replica's lease is over: its host is down, or the run outlasted its bound and the grace.
+pub fn replica_lapsed(beat_age_seconds: u32, run_age_seconds: u32) -> bool {
+    if (host_up(beat_age_seconds) == false) { return true; }
+    return run_age_seconds >= JOB_RUN_BOUND_SECONDS + RECEIPT_GRACE_SECONDS;
+}
+
+; --- tests ---------------------------------------------------------------------------------------------
+
+test a_job_goes_only_where_it_fits {
+    assert may_take(TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 0) == true;
+    assert may_take(TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 1) == true;
+    // full
+    assert may_take(TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 2) == false;
+    // down
+    assert may_take(TIER_PUBLIC, WC_SHARD, false, false, NODE_TTL_SECONDS, 0, 2, 0) == false;
+    // suspended
+    assert may_take(TIER_PUBLIC, WC_SHARD, false, false, 0, STRIKES_MAX, 2, 0) == false;
+    // a job that declares a secret is refused to a public host, and only to it
+    assert may_take(TIER_PUBLIC, WC_SHARD, true, false, 0, 0, 2, 0) == false;
+    assert may_take(TIER_TRUSTED, WC_SHARD, true, false, 0, 0, 2, 0) == true;
+    assert may_take(TIER_OWNER, WC_SERVICE, true, true, 0, 0, 2, 0) == true;
+    assert may_take(TIER_TRUSTED, WC_SERVICE, false, true, 0, 0, 2, 0) == false;
+}
+
+test two_replicas_of_one_job_never_share_a_host {
+    assert spread_ok(TIER_PUBLIC, false, 0) == true;
+    assert spread_ok(TIER_PUBLIC, true, 0) == false;
+    assert spread_ok(TIER_OWNER, true, 0) == false;
+    assert spread_ok(TIER_TRUSTED, true, 0) == false;
+    // nor, for strangers, one network with another stranger
+    assert spread_ok(TIER_PUBLIC, false, 1) == false;
+    assert spread_ok(TIER_PUBLIC, false, 2) == false;
+    assert spread_ok(TIER_TRUSTED, false, 1) == true;
+    assert spread_ok(TIER_OWNER, false, 1) == true;
+}
+
+test a_stranger_may_share_a_network_with_the_owner {
+    assert origin_blocks(TIER_PUBLIC, TIER_PUBLIC, 1) == true;
+    assert origin_blocks(TIER_PUBLIC, TIER_PUBLIC, 0) == false;
+    assert origin_blocks(TIER_PUBLIC, TIER_OWNER, 1) == false;
+    assert origin_blocks(TIER_PUBLIC, TIER_TRUSTED, 3) == false;
+    assert origin_blocks(TIER_OWNER, TIER_PUBLIC, 1) == false;
+    assert origin_blocks(TIER_TRUSTED, TIER_PUBLIC, 1) == false;
+}
+
+test a_job_runs_k_replicas_and_one_more_on_a_tiebreak {
+    assert open_replicas(REPLICAS_K, 0, 0) == REPLICAS_K;
+    assert open_replicas(REPLICAS_K, 1, 0) == 1;
+    assert open_replicas(REPLICAS_K, 1, 1) == 0;
+    assert open_replicas(REPLICAS_K, 0, 2) == 0;
+    assert open_replicas(REPLICAS_K + 1, 0, 2) == 1;
+    assert open_replicas(REPLICAS_MAX, 3, 0) == 0;
+    assert open_replicas(REPLICAS_K, 5, 5) == 0;
+    assert places(true, true, 1, 0) == true;
+    assert places(true, true, 0, 0) == false;
+    assert places(false, true, 1, 0) == false;
+    assert places(true, false, 1, 0) == false;
+    assert places(true, true, 1, LEASES_MAX_PER_JOB - 1) == true;
+    assert places(true, true, 1, LEASES_MAX_PER_JOB) == false;
+}
+
+test a_job_that_keeps_failing_is_given_up {
+    assert exhausted(0, 0) == false;
+    assert exhausted(LEASES_MAX_PER_JOB - 1, 0) == false;
+    // the last lease is still out: wait for it
+    assert exhausted(LEASES_MAX_PER_JOB, 1) == false;
+    assert exhausted(LEASES_MAX_PER_JOB, 0) == true;
+}
+
+test the_job_nearest_a_verdict_goes_first {
+    assert job_first(1, 0, 0, 100) == true;
+    assert job_first(0, 100, 1, 0) == false;
+    assert job_first(0, 100, 0, 50) == true;
+    assert job_first(0, 50, 0, 100) == false;
+    assert job_first(2, 5, 2, 5) == true;
+}
+
+test a_lapsed_lease_frees_its_replica {
+    assert replica_lapsed(0, 0) == false;
+    assert replica_lapsed(NODE_TTL_SECONDS - 1, JOB_RUN_BOUND_SECONDS) == false;
+    // the host went away
+    assert replica_lapsed(NODE_TTL_SECONDS, 0) == true;
+    // the host is up but the run never ended
+    assert replica_lapsed(0, JOB_RUN_BOUND_SECONDS + RECEIPT_GRACE_SECONDS - 1) == false;
+    assert replica_lapsed(0, JOB_RUN_BOUND_SECONDS + RECEIPT_GRACE_SECONDS) == true;
+}
+
+/// A job may lose every replica twice over before it is given up, and a tiebreak always fits.
+invariant a_job_has_room_to_be_retried {
+    assert LEASES_MAX_PER_JOB >= 2 * REPLICAS_MAX;
+    assert REPLICAS_MAX > REPLICAS_K;
+}
+/// A lease outlives one missed beat, and a run is never cut by its own receipt's grace.
+invariant the_deadline_is_the_labs {
+    assert JOB_RUN_BOUND_SECONDS == 300;
+    assert RECEIPT_GRACE_SECONDS < JOB_RUN_BOUND_SECONDS;
+    assert ORIGIN_V4_PREFIX_BITS == 24 and ORIGIN_V6_PREFIX_BITS == 48;
+}

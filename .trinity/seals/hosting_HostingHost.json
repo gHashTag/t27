@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:440a04ed1b79b36ecd7a0e978ced377ba9393a1a3b0d998788331f3835c8970d",
+  "gen_hash_rust": "sha256:ba18ed1624ac99a8b1bbcaf93315dc1cb67a69d63df6f069af940142c326e795",
+  "gen_hash_verilog": "sha256:2f620e7990dfaff4fb55cc5db5d4a458b35d9d755a857514e1249294db72ad87",
+  "gen_hash_zig": "sha256:a226cf50079f3856f7bda22e40be54b87fe50cde7cf0370b9c0b69b2d6b3ed9c",
+  "module": "HostingHost",
+  "ring": 12,
+  "sealed_at": "2026-10-10T17:37:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:158876939312f82543f1d5ce92dca919b69d39c7deca74d8d9bf0ae62d2c2166",
+  "spec_path": "specs/hosting/host.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}

@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/host.t27 -- a computer that lends itself to the Queen: its trust tier, its capacity,
+; what it may run, its lease, and the toolchain it may install
+; Owner, 2026-10-10 (gHashTag/trios#1756, translated): run the services we need on users' computers
+; instead of a hosting provider, paid in TRI for proof of compute. This card decides what a host is to
+; the Queen. placement.t27 decides which host runs what, proof.t27 whether a result is believed, and
+; credit.t27 what a believed result earns.
+; Measured before this card (gHashTag/trios, branch queen):
+; - bee runners already pull work over HTTP (queen-runners.ts): a runner holds a bearer the owner
+;   minted for a person he knows, so every runner is trusted by construction. A host here is anyone
+;   with a key, so trust is a property the owner grants per key, not one a request can carry;
+; - nodes of the actor runtime hold a 20 s lease renewed every 5 s, with an incarnation per process
+;   start and a refusal of every write from an incarnation that is over (queen/netlink.t27). A host is
+;   a node of that kind, and its lease is that lease.
+; The hard constraint (issue #1756, constraint 1): a stranger's computer can read everything a
+; workload it runs holds. So:
+; - three tiers, by who controls the machine: owner (the owner's own machines), trusted (people the
+;   owner names), public (anyone);
+; - the tier comes from the owner's allowlist, keyed by the host's key id. A host may claim less than
+;   its entry, never more; a key the allowlist does not name is public, whatever it claims;
+; - a public host never receives a workload that holds a secret or personal data. A trusted host
+;   never receives personal data or a stateful service; a secret it receives is scoped to the one
+;   service it runs. Only the owner's machines run everything;
+; - only a deterministic job can be checked by agreement (constraint 2), so it is the only workload a
+;   public host runs.
+; Reused, not restated: queen/netlink.t27 lease_up, next_incarnation, write_admitted, must_fence and
+; its numbers (a host beats every NODE_HEARTBEAT_SECONDS 5 and is down after NODE_TTL_SECONDS 20); the
+; host id is a key id as verified/signed_receipt.t27 defines it (KEY_ID_HEX_LEN 16 hex characters of
+; the SHA-256 of the Ed25519 public key).
+; Not here: the store, the HTTP and the signatures themselves (gHashTag/trios); the pins of the
+; toolchain (toolchain.t27).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingHost;
+
+use queen::netlink::NODE_HEARTBEAT_SECONDS;
+use queen::netlink::NODE_TTL_SECONDS;
+use queen::netlink::lease_up;
+use queen::netlink::next_incarnation;
+use queen::netlink::write_admitted;
+use queen::netlink::must_fence;
+
+; --- 1. Tiers: granted by the owner's allowlist, never claimed above it -------------------------------
+; A smaller number is more trust. The allowlist answers ALLOW_NONE for a key it does not name.
+
+pub const TIER_OWNER : u8 = 0;
+pub const TIER_TRUSTED : u8 = 1;
+pub const TIER_PUBLIC : u8 = 2;
+pub const TIERS : u8 = 3;
+pub const ALLOW_NONE : u8 = 255;
+
+/// The tier a registering host gets: its claim, capped by the allowlist entry for its key. The cap is
+/// the less trusted of the two. A key with no entry, an entry that is not a tier, and a claim that is
+/// not a tier are all public.
+pub fn tier_of(claimed: u8, allowed: u8) -> u8 {
+    var cap : u8 = TIER_PUBLIC;
+    if (allowed < TIERS) { cap = allowed; }
+    if (claimed >= TIERS) { return TIER_PUBLIC; }
+    if (claimed > cap) { return claimed; }
+    return cap;
+}
+
+; --- 2. Workloads, and which tier may run each --------------------------------------------------------
+; WC_SHARD: a deterministic job with pinned inputs (slice 1: `t27c test-report` on one spec at one t27
+;   commit). Its result is checked by agreement between hosts (proof.t27).
+; WC_SERVICE: a stateless service (an STT pod, a static site): long-running, so agreement cannot check
+;   it; a challenge probe proves it answers, never that its answers are right (constraint 2).
+; WC_STATEFUL: a service that keeps state between requests: a database, a CRM, a bot's sessions.
+; Separately from its class, a workload declares whether it holds a secret (an API key, a database
+; URL) and whether it holds personal data (client data, messages). The Queen cannot look inside a
+; workload, so the declaration is what it judges: only the owner creates workloads, and the runtime
+; refuses one that does not carry both declarations.
+
+pub const WC_SHARD : u8 = 0;
+pub const WC_SERVICE : u8 = 1;
+pub const WC_STATEFUL : u8 = 2;
+pub const CLASSES : u8 = 3;
+
+/// Whether a host of this tier may receive this workload.
+pub fn eligible(tier: u8, class: u8, holds_secret: bool, holds_personal: bool) -> bool {
+    if (tier >= TIERS) { return false; }
+    if (class >= CLASSES) { return false; }
+    if (tier == TIER_OWNER) { return true; }
+    if (holds_personal) { return false; }
+    if (class == WC_STATEFUL) { return false; }
+    if (tier == TIER_TRUSTED) { return true; }
+    if (holds_secret) { return false; }
+    return class == WC_SHARD;
+}
+
+/// Whether two hosts' results for this workload can be compared to decide it (proof.t27).
+pub fn checked_by_agreement(class: u8) -> bool {
+    return class == WC_SHARD;
+}
+
+; --- 3. Capacity -------------------------------------------------------------------------------------
+; A host declares how many jobs it runs at once. The Queen admits at most its tier's cap: a stranger
+; who claims a hundred slots would draw a hundred jobs and, by going away, delay all of them for a
+; whole lease. The caps are a choice, not a measurement: two shards at once on a stranger's machine,
+; four on a named person's, sixteen on the owner's.
+
+pub const SLOTS_MAX_OWNER : u32 = 16;
+pub const SLOTS_MAX_TRUSTED : u32 = 4;
+pub const SLOTS_MAX_PUBLIC : u32 = 2;
+
+pub fn slots_admitted(tier: u8, claimed: u32) -> u32 {
+    var cap : u32 = SLOTS_MAX_PUBLIC;
+    if (tier == TIER_OWNER) { cap = SLOTS_MAX_OWNER; }
+    if (tier == TIER_TRUSTED) { cap = SLOTS_MAX_TRUSTED; }
+    if (claimed > cap) { return cap; }
+    return claimed;
+}
+
+pub fn has_room(slots: u32, running: u32) -> bool {
+    return running < slots;
+}
+
+; --- 4. The host's lease: netlink's, unchanged ----------------------------------------------------------
+; A registration takes the next incarnation of the key's row (next_incarnation) and starts the lease.
+; Every later write of the host (a beat, a lease request, a receipt) carries that incarnation, and is
+; admitted only while write_admitted holds: the row still holds that incarnation and its lease is up.
+; A host whose write was refused, or whose beats have not been confirmed for SELF_FENCE_SECONDS, stops
+; and registers again (must_fence): it never takes a lapsed lease back, so a host the Queen saw down
+; never comes back as itself, and every job it held is placed again (placement.t27).
+
+/// Whether the Queen counts this host up, `beat_age_seconds` after its last admitted beat.
+pub fn host_up(beat_age_seconds: u32) -> bool {
+    return lease_up(beat_age_seconds);
+}
+
+/// Whether a host's write is admitted: its incarnation is the row's, and the row's lease is up.
+pub fn host_write_admitted(row_inc: u64, writer_inc: u64, beat_age_seconds: u32) -> bool {
+    return write_admitted(row_inc, writer_inc, beat_age_seconds);
+}
+
+/// Whether the host agent must stop and register again.
+pub fn must_register_again(refused: bool, seconds_since_confirmed: u32) -> bool {
+    return must_fence(refused, seconds_since_confirmed);
+}
+
+; --- 5. Requests: signed, and fresh ----------------------------------------------------------------------
+; Every host request is signed with the host's key over its method, path, incarnation, time and body
+; (the message layout of verified/signed_receipt.t27: a domain line, then `name=value` lines). The time
+; keeps a captured request from being replayed later: it is refused when it is further than
+; REQUEST_SKEW_SECONDS from the Queen's clock, either way. The skew outlasts one missed beat, so a beat
+; that waited a heartbeat in a queue still counts.
+
+pub const REQUEST_SKEW_SECONDS : u32 = 30;
+
+pub fn request_fresh(skew_seconds: u32) -> bool {
+    return skew_seconds <= REQUEST_SKEW_SECONDS;
+}
+
+; --- 6. Standing ------------------------------------------------------------------------------------------
+; A strike is a receipt this host signed that was tampered, or a result that dissented from an agreed
+; one (credit.t27 strike_due). A host with STRIKES_MAX strikes is suspended: it registers and beats, but
+; is placed nothing. A strike is not proof of malice -- an honest host on a platform where a spec
+; behaves differently dissents too -- so one strike suspends nobody.
+
+pub const STRIKES_MAX : u32 = 3;
+
+pub fn suspended(strikes: u32) -> bool {
+    return strikes >= STRIKES_MAX;
+}
+
+; --- 7. The toolchain a host installs ------------------------------------------------------------------------
+; The host agent runs t27c and zig. It downloads each from the URL toolchain.t27 pins and keeps the file
+; only when its SHA-256 equals the pin. An operator may name a binary already on the machine instead;
+; it is used as given, and its digest goes into every receipt (proof.t27 model_hash), so the Queen and
+; the reader see which build ran. A tool with no pin and no local binary is not run at all: a host never
+; downloads what nobody pinned.
+
+pub const TA_DOWNLOAD : u8 = 0;
+pub const TA_USE_LOCAL : u8 = 1;
+pub const TA_REFUSE : u8 = 2;
+
+pub fn toolchain_action(pinned: bool, local_given: bool) -> u8 {
+    if (local_given) { return TA_USE_LOCAL; }
+    if (pinned) { return TA_DOWNLOAD; }
+    return TA_REFUSE;
+}
+
+/// A downloaded file is kept only when its digest and its size are the pinned ones; otherwise it is
+/// deleted before anything runs it.
+pub fn download_kept(digest_matches: bool, size_matches: bool) -> bool {
+    return digest_matches and size_matches;
+}
+
+; --- tests ---------------------------------------------------------------------------------------------------
+
+test a_tier_is_granted_by_the_allowlist_never_claimed {
+    // a key the allowlist does not name is public, whatever it claims
+    assert tier_of(TIER_OWNER, ALLOW_NONE) == TIER_PUBLIC;
+    assert tier_of(TIER_TRUSTED, ALLOW_NONE) == TIER_PUBLIC;
+    assert tier_of(TIER_PUBLIC, ALLOW_NONE) == TIER_PUBLIC;
+    // the owner's own key may claim any tier it was granted, or less
+    assert tier_of(TIER_OWNER, TIER_OWNER) == TIER_OWNER;
+    assert tier_of(TIER_TRUSTED, TIER_OWNER) == TIER_TRUSTED;
+    assert tier_of(TIER_PUBLIC, TIER_OWNER) == TIER_PUBLIC;
+    // a named person's key never becomes the owner's
+    assert tier_of(TIER_OWNER, TIER_TRUSTED) == TIER_TRUSTED;
+    assert tier_of(TIER_TRUSTED, TIER_TRUSTED) == TIER_TRUSTED;
+    // a claim or an entry that is not a tier is public
+    assert tier_of(7, TIER_OWNER) == TIER_PUBLIC;
+    assert tier_of(TIER_OWNER, 7) == TIER_PUBLIC;
+    assert tier_of(255, 255) == TIER_PUBLIC;
+}
+
+test a_public_host_never_gets_a_secret_or_personal_data {
+    assert eligible(TIER_PUBLIC, WC_SHARD, false, false) == true;
+    assert eligible(TIER_PUBLIC, WC_SHARD, true, false) == false;
+    assert eligible(TIER_PUBLIC, WC_SHARD, false, true) == false;
+    assert eligible(TIER_PUBLIC, WC_SHARD, true, true) == false;
+    // a service cannot be checked by agreement, so a stranger never runs one
+    assert eligible(TIER_PUBLIC, WC_SERVICE, false, false) == false;
+    assert eligible(TIER_PUBLIC, WC_STATEFUL, false, false) == false;
+}
+
+test a_trusted_host_gets_stateless_work_and_scoped_secrets_only {
+    assert eligible(TIER_TRUSTED, WC_SHARD, false, false) == true;
+    assert eligible(TIER_TRUSTED, WC_SERVICE, false, false) == true;
+    assert eligible(TIER_TRUSTED, WC_SERVICE, true, false) == true;
+    assert eligible(TIER_TRUSTED, WC_SERVICE, false, true) == false;
+    assert eligible(TIER_TRUSTED, WC_SHARD, false, true) == false;
+    assert eligible(TIER_TRUSTED, WC_STATEFUL, false, false) == false;
+    assert eligible(TIER_TRUSTED, WC_STATEFUL, true, true) == false;
+}
+
+test the_owner_runs_everything_and_nothing_unknown_runs_anywhere {
+    assert eligible(TIER_OWNER, WC_SHARD, false, false) == true;
+    assert eligible(TIER_OWNER, WC_SERVICE, true, false) == true;
+    assert eligible(TIER_OWNER, WC_STATEFUL, true, true) == true;
+    assert eligible(TIER_OWNER, CLASSES, false, false) == false;
+    assert eligible(TIERS, WC_SHARD, false, false) == false;
+    assert eligible(ALLOW_NONE, WC_SHARD, false, false) == false;
+    assert checked_by_agreement(WC_SHARD) == true;
+    assert checked_by_agreement(WC_SERVICE) == false;
+    assert checked_by_agreement(WC_STATEFUL) == false;
+}
+
+test a_claimed_capacity_is_capped_by_tier {
+    assert slots_admitted(TIER_PUBLIC, 100) == SLOTS_MAX_PUBLIC;
+    assert slots_admitted(TIER_PUBLIC, 1) == 1;
+    assert slots_admitted(TIER_PUBLIC, 0) == 0;
+    assert slots_admitted(TIER_TRUSTED, 100) == SLOTS_MAX_TRUSTED;
+    assert slots_admitted(TIER_TRUSTED, 3) == 3;
+    assert slots_admitted(TIER_OWNER, 100) == SLOTS_MAX_OWNER;
+    assert slots_admitted(TIER_OWNER, 16) == 16;
+    // a tier that is not one gets the public cap
+    assert slots_admitted(9, 100) == SLOTS_MAX_PUBLIC;
+    assert has_room(2, 1) == true;
+    assert has_room(2, 2) == false;
+    assert has_room(0, 0) == false;
+}
+
+test a_host_is_a_netlink_node {
+    assert host_up(0) == true;
+    assert host_up(NODE_TTL_SECONDS - 1) == true;
+    assert host_up(NODE_TTL_SECONDS) == false;
+    // a registration is a new incarnation, and the old one's writes are refused
+    var first : u64 = next_incarnation(0);
+    var second : u64 = next_incarnation(first);
+    assert first == 1;
+    assert second == 2;
+    assert host_write_admitted(second, second, 0) == true;
+    assert host_write_admitted(second, first, 0) == false;
+    // a lapsed lease admits nothing, not even from its own incarnation
+    assert host_write_admitted(second, second, NODE_TTL_SECONDS) == false;
+    assert must_register_again(true, 0) == true;
+    assert must_register_again(false, NODE_HEARTBEAT_SECONDS) == false;
+    assert must_register_again(false, NODE_TTL_SECONDS) == true;
+}
+
+test a_stale_request_is_refused {
+    assert request_fresh(0) == true;
+    assert request_fresh(REQUEST_SKEW_SECONDS) == true;
+    assert request_fresh(REQUEST_SKEW_SECONDS + 1) == false;
+    assert request_fresh(3600) == false;
+}
+
+test strikes_suspend_only_after_several {
+    assert suspended(0) == false;
+    assert suspended(STRIKES_MAX - 1) == false;
+    assert suspended(STRIKES_MAX) == true;
+    assert suspended(STRIKES_MAX + 10) == true;
+}
+
+test a_host_runs_only_a_pinned_or_named_tool {
+    assert toolchain_action(true, false) == TA_DOWNLOAD;
+    assert toolchain_action(false, true) == TA_USE_LOCAL;
+    assert toolchain_action(true, true) == TA_USE_LOCAL;
+    assert toolchain_action(false, false) == TA_REFUSE;
+    assert download_kept(true, true) == true;
+    assert download_kept(false, true) == false;
+    assert download_kept(true, false) == false;
+    assert download_kept(false, false) == false;
+}
+
+invariant tiers_are_ordered_by_trust {
+    assert TIER_OWNER < TIER_TRUSTED and TIER_TRUSTED < TIER_PUBLIC and TIER_PUBLIC < TIERS;
+    assert ALLOW_NONE >= TIERS;
+    assert WC_SHARD == 0 and WC_SERVICE == 1 and WC_STATEFUL == 2 and CLASSES == 3;
+}
+/// Less trust never means more capacity.
+invariant capacity_shrinks_with_trust {
+    assert SLOTS_MAX_PUBLIC <= SLOTS_MAX_TRUSTED and SLOTS_MAX_TRUSTED <= SLOTS_MAX_OWNER;
+    assert SLOTS_MAX_PUBLIC > 0;
+}
+/// A request delayed by one beat is still fresh.
+invariant the_skew_outlasts_a_beat {
+    assert REQUEST_SKEW_SECONDS >= NODE_HEARTBEAT_SECONDS;
+    assert STRIKES_MAX > 1;
+    assert TA_DOWNLOAD == 0 and TA_USE_LOCAL == 1 and TA_REFUSE == 2;
+}

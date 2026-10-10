@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/toolchain.t27 -- what a host agent installs, from where, and the digest each file must
+; have: the pins, as data
+; Owner, 2026-10-10 (translated): "a fast loader of our service copy onto any machine that turns it
+; into useful work". The host agent is one self-contained binary (`trios-host`). On its first run
+; (`trios-host join`) it fetches the toolchain a shard needs -- t27c, and the zig that t27c's
+; test-report compiles with -- into AGENT_DIR under the user's home, and keeps a file only when its
+; SHA-256 and its size are the ones pinned here (host.t27 download_kept). The pins are data in this
+; spec, not literals in the agent: a new zig or a new t27c release is a change to this file, reviewed
+; and sealed like any rule.
+; --
+; zig 0.16.0: the URLs, digests and sizes are ziglang.org's own, from https://ziglang.org/download/
+; index.json (entry 0.16.0, dated 2026-04-13), copied as published.
+; t27c: no release carries a t27c binary yet (the t27c 0.5.0 release holds the source signature and the
+; SBOM only), so there is nothing to pin, and the pins are empty. An empty pin is not a wildcard: a host
+; with no pin and no binary of its own does not run shards at all (host.t27 toolchain_action TA_REFUSE).
+; Until a release carries per-platform t27c assets, an operator names a t27c already on the machine
+; (`trios-host join --t27c <path>`), and every receipt carries that binary's digest (proof.t27
+; model_hash), so the Queen and a reader see which build produced each result.
+; --
+; The shard's inputs come from the t27 repository at the job's pinned commit: each file of the spec's
+; `use` closure is fetched from SPEC_SOURCE_BASE + commit + "/" + path and checked against the SHA-256
+; the job names before it is written to disk.
+; --
+; The agent's own files: AGENT_DIR is created with AGENT_DIR_MODE (owner only); the Ed25519 private key
+; lives in KEY_FILE inside it with KEY_FILE_MODE (owner read and write, nobody else), and is never sent
+; anywhere: only its public key and signatures leave the machine.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingToolchain;
+
+; --- 1. Platforms ------------------------------------------------------------------------------------
+
+/// The platforms a host agent is built for and installs a toolchain on, in pin order.
+pub const PLATFORMS : [2]str = ["darwin-arm64", "linux-x64"];
+pub const PLATFORM_COUNT : u32 = 2;
+
+; --- 2. zig ------------------------------------------------------------------------------------------
+
+pub const ZIG_VERSION : str = "0.16.0";
+pub const ZIG_URLS : [2]str = ["https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz", "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"];
+pub const ZIG_SHA256 : [2]str = ["b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489", "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"];
+pub const ZIG_BYTES : [2]u64 = [52238004, 55478392];
+/// The directory each archive unpacks to, under AGENT_DIR; the zig binary is at its top.
+pub const ZIG_DIRS : [2]str = ["zig-aarch64-macos-0.16.0", "zig-x86_64-linux-0.16.0"];
+
+; --- 3. t27c -----------------------------------------------------------------------------------------
+
+/// Empty until a release carries a t27c binary per platform.
+pub const T27C_URLS : [2]str = ["", ""];
+pub const T27C_SHA256 : [2]str = ["", ""];
+pub const T27C_BYTES : [2]u64 = [0, 0];
+
+; --- 4. The shard's inputs ---------------------------------------------------------------------------
+
+pub const SPEC_SOURCE_BASE : str = "https://raw.githubusercontent.com/gHashTag/t27/";
+
+; --- 5. The agent's own files ------------------------------------------------------------------------
+
+pub const AGENT_DIR : str = ".trios-host";
+pub const KEY_FILE : str = "key";
+/// 0700 and 0600.
+pub const AGENT_DIR_MODE : u32 = 448;
+pub const KEY_FILE_MODE : u32 = 384;
+/// The bits of a mode that let anyone but the owner read, write or enter.
+pub const GROUP_OTHER_BITS : u32 = 63;
+
+; --- 6. What a pin may be ----------------------------------------------------------------------------
+
+pub const SHA256_HEX_LEN : u32 = 64;
+
+/// A pin is 64 lowercase hex digits, or empty (nothing pinned).
+pub fn pin_well_formed(pin: string) -> bool {
+    var n : u32 = pin.len as u32;
+    if (n == 0) { return true; }
+    if (n != SHA256_HEX_LEN) { return false; }
+    var k : u32 = 0;
+    while (k < n) {
+        var c : u32 = pin[k] as u32;
+        var digit : bool = c >= 48 and c <= 57;
+        var lower : bool = c >= 97 and c <= 102;
+        if (digit == false and lower == false) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// A URL is pinned only with its digest and its size, and a digest only with its URL.
+pub fn pin_complete(url: string, pin: string, bytes: u64) -> bool {
+    var has_url : bool = url.len > 0;
+    var has_pin : bool = pin.len > 0;
+    if (has_url != has_pin) { return false; }
+    if (has_pin) { return bytes > 0; }
+    return bytes == 0;
+}
+
+/// Only https: a pin makes the bytes safe, but a plain-http fetch tells the network which host fetched.
+pub fn url_allowed(url: string) -> bool {
+    if (url.len == 0) { return true; }
+    if (url.len < 8) { return false; }
+    return url[0] == 104 and url[1] == 116 and url[2] == 116 and url[3] == 112 and url[4] == 115 and url[5] == 58 and url[6] == 47 and url[7] == 47;
+}
+
+; --- tests -------------------------------------------------------------------------------------------
+
+test every_zig_pin_is_complete_and_https {
+    var k : u32 = 0;
+    while (k < PLATFORM_COUNT) {
+        assert pin_well_formed(ZIG_SHA256[k]);
+        assert ZIG_SHA256[k].len == 64;
+        assert pin_complete(ZIG_URLS[k], ZIG_SHA256[k], ZIG_BYTES[k]);
+        assert url_allowed(ZIG_URLS[k]);
+        assert ZIG_DIRS[k].len > 0;
+        k = k + 1;
+    }
+}
+
+test an_empty_t27c_pin_is_complete_and_names_nothing {
+    var k : u32 = 0;
+    while (k < PLATFORM_COUNT) {
+        assert pin_well_formed(T27C_SHA256[k]);
+        assert pin_complete(T27C_URLS[k], T27C_SHA256[k], T27C_BYTES[k]);
+        assert url_allowed(T27C_URLS[k]);
+        assert T27C_SHA256[k].len == 0;
+        k = k + 1;
+    }
+}
+
+test a_bad_pin_is_refused {
+    assert pin_well_formed("") == true;
+    // upper case, a short pin, a long one, a stray character
+    assert pin_well_formed("B23D70DEAA879B5C2D486ED3316F7EAA53E84ACF6FC9CC747DE152450D401489") == false;
+    assert pin_well_formed("b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d40148") == false;
+    assert pin_well_formed("b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d4014890") == false;
+    assert pin_well_formed("g23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489") == false;
+    // a URL with no digest, a digest with no URL, a pin with no size
+    assert pin_complete("https://example.org/x", "", 0) == false;
+    assert pin_complete("", "b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489", 1) == false;
+    assert pin_complete("https://example.org/x", "b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489", 0) == false;
+    assert pin_complete("", "", 5) == false;
+    assert url_allowed("http://ziglang.org/x") == false;
+    assert url_allowed("ftp://x") == false;
+    assert url_allowed("https://ziglang.org/x") == true;
+}
+
+test the_key_is_the_owners_alone {
+    assert (KEY_FILE_MODE & GROUP_OTHER_BITS) == 0;
+    assert (AGENT_DIR_MODE & GROUP_OTHER_BITS) == 0;
+    // the owner can read and write the key, and enter the directory
+    assert (KEY_FILE_MODE & 384) == 384;
+    assert (AGENT_DIR_MODE & 448) == 448;
+    assert KEY_FILE.len > 0;
+    assert AGENT_DIR[0] == 46;
+    assert url_allowed(SPEC_SOURCE_BASE);
+}
+
+/// One pin per platform in every list.
+invariant one_pin_per_platform {
+    assert PLATFORM_COUNT == 2;
+    assert SHA256_HEX_LEN == 64;
+    assert KEY_FILE_MODE == 384 and AGENT_DIR_MODE == 448 and GROUP_OTHER_BITS == 63;
+}

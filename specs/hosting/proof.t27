@@ -1,0 +1,408 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/proof.t27 -- when the Queen believes a result a host sent: the shard's output, the
+; receipt, the checks a receipt passes, and k-of-n agreement over the hosts' output hashes
+; gHashTag/trios#1756, constraint 2: proof of compute is solved only for deterministic jobs. k hosts run
+; the same pinned job, the hashes of their outputs must agree, and only the agreeing hosts earn credit.
+; --
+; The job (slice 1, the owner's choice of 2026-10-10): `t27c test-report` on ONE spec at a pinned t27
+; commit, a shard of the corpus the t27b lab and the t27c lab run today. The lab reads the reference
+; verdict out of that command's output (contrib/railway/t27b-lab/lab.py reference_one and
+; parse_test_report); a shard reads it the same way, so its rows can be set beside the lab's (`file`,
+; `reference`, `tests`, `asserts`) and, in a later slice, assembled into a corpus receipt
+; (verified/corpus_receipt.t27) that must equal the lab's on the same commit.
+; --
+; The normalized output. Two honest hosts must produce the same bytes, so the hash is not taken over
+; t27c's text (which carries the rate line and, when a spec does not build, paths of the host's own
+; temporary directory). It is taken over the facts that text reports, one per line, in this order:
+;   SHARD_DOMAIN
+;   spec=<path as given>
+;   verdict=<a VERDICT_WORDS word>
+;   tests=<n> fail=<n> invariants=<n> asserts=<n> vacuous=<n>   (one line each, SHARD_COUNT_KEYS)
+;   test=<pass|FAIL> <runtime asserts> <name>                    (one line per test, in report order)
+; every line ending in a newline; a test the asserts table does not list is written with `-` for its
+; count. A verdict that lists no tests (lists_tests: blocked, timeout, host_error) is the first three
+; lines and nothing else: a blocked report's reason names files of the machine it ran on, and a run cut
+; short has no counts. A host that ran out of time or of processes reports a verdict word too, but that
+; word is about the host that minute, not about the spec (lab.py: "never cached"), so it is not a vote.
+; --
+; The receipt. tri-net's DePIN Compute arm proves (model_hash, input_hash, output_hash, ops); a shard
+; receipt carries those four under the same names:
+;   model_hash  -- SHA-256 of the t27c binary that ran (the model that computed);
+;   input_hash  -- SHA-256 of the spec file's bytes at the commit: the lab's `input` leaf, exactly;
+;   output_hash -- SHA-256 of the normalized output above;
+;   ops         -- the runtime asserts the run executed: the work done, as test-report counts it.
+; and around them what binds it to one lease: the job, the lease, the host, its incarnation, the commit,
+; the spec, the zig version, the verdict, and the lease's nonce (a challenge the Queen chose for this
+; lease, of at least signed_receipt NONCE_MIN_BYTES). The message signed is verified/signed_receipt.t27's
+; layout: the domain line RECEIPT_DOMAIN, then `name=value` per RECEIPT_SIGNED_FIELDS, each line ending
+; in a newline, signed with the host's Ed25519 key. The normalized output itself rides along unsigned:
+; output_hash binds it.
+; --
+; The checks a receipt passes, in judgment order (receipt_code): the host is known; the signature
+; verifies under its key (authentication before content: an unauthenticated field is only text, as in
+; signed_receipt.t27 and tri-net's tri_receipt_verify); the lease is this host's, at this incarnation,
+; with this nonce; it is the first receipt for the lease; the lease has not lapsed; the input and the
+; commit are the job's; the model is the job's when the job pins one; the output rehashes to output_hash.
+; A receipt that fails a check the sender could not fail by accident is TAMPERED. One that fails only by
+; arriving late, or by running another model, is refused and blames nobody.
+; --
+; Agreement. Each receipt that passes and whose verdict votes is a vote for its output hash. The Queen
+; groups the votes by hash: `top` is the largest group, `second` the next. The job is AGREED when top
+; holds at least REPLICAS_K votes and a strict majority of the votes: network/mvp_v2.t27 quorum_needed
+; with no fault allowance, floor(n/2) + 1. The k hosts disagree: one more host runs it (TIEBREAK), up to
+; REPLICAS_MAX. Past that, the job is UNRESOLVED: nobody is credited and nobody is struck, because a
+; vote dissents only from a quorum that formed (network/mvp_v2.t27 verifier_dissented).
+; Those two rules are restated below, word for word, not imported: t27c splices the module a `use`
+; names, and pulls from it every declaration whose name appears anywhere in this file, comments
+; included; from mvp_v2.t27 that brings its SHA-256 (for the words of this header), which gen-c cannot
+; lower, so the card would not build. The test mvp_v2_rules_are_kept pins the restated pair to
+; mvp_v2.t27's own asserts.
+; The honest ceiling: agreement shows that k keys reported the same bytes. k keys can be one person
+; (placement.t27 spreads replicas over hosts and, for public hosts, over network origins, which slows
+; that and does not stop it). It does not prove which machine computed anything.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingProof;
+
+use verified::signed_receipt::NONCE_MIN_BYTES;
+use verified::signed_receipt::KEY_ID_HEX_LEN;
+
+; --- 1. The shard's output, normalized ---------------------------------------------------------------
+
+pub const SHARD_DOMAIN : str = "t27-hosting-shard-v1";
+pub const SHARD_COUNT_KEYS : [5]str = ["tests", "fail", "invariants", "asserts", "vacuous"];
+pub const SHARD_SPEC_KEY : str = "spec";
+pub const SHARD_VERDICT_KEY : str = "verdict";
+pub const SHARD_TEST_KEY : str = "test";
+
+/// The verdict words, by code. pass, fail and blocked are the lab's reference words; timeout and
+/// host_error are its timeout and lab_error, said of a host.
+pub const VERDICT_WORDS : [5]str = ["pass", "fail", "blocked", "timeout", "host_error"];
+pub const VW_PASS : u8 = 0;
+pub const VW_FAIL : u8 = 1;
+pub const VW_BLOCKED : u8 = 2;
+pub const VW_TIMEOUT : u8 = 3;
+pub const VW_HOST_ERROR : u8 = 4;
+pub const VERDICTS : u8 = 5;
+
+/// lab.py parse_test_report, in its order: a BLOCKED line blocks; a report with its `tests` and `FAIL`
+/// counts passes when nothing failed and fails otherwise; anything else is unreadable, so blocked.
+pub fn report_verdict(blocked_line: bool, has_counts: bool, fail: u32) -> u8 {
+    if (blocked_line) { return VW_BLOCKED; }
+    if (has_counts == false) { return VW_BLOCKED; }
+    if (fail == 0) { return VW_PASS; }
+    return VW_FAIL;
+}
+
+/// The verdict of one run, around the report: t27c did not start, or the host ran out of processes
+/// (lab.py's "Resource temporarily unavailable"): host_error; it outran the bound: timeout; it exited
+/// non-zero with T27C_TEST_REPORT_EXIT_ZERO set: blocked; otherwise what the report says.
+pub fn run_verdict(started: bool, out_of_resources: bool, timed_out: bool, exited_zero: bool, report: u8) -> u8 {
+    if (started == false) { return VW_HOST_ERROR; }
+    if (out_of_resources) { return VW_HOST_ERROR; }
+    if (timed_out) { return VW_TIMEOUT; }
+    if (exited_zero == false) { return VW_BLOCKED; }
+    if (report >= VERDICTS) { return VW_BLOCKED; }
+    return report;
+}
+
+/// Whether a verdict says something about the spec, and so may be a vote.
+pub fn verdict_votes(verdict: u8) -> bool {
+    return verdict == VW_PASS or verdict == VW_FAIL or verdict == VW_BLOCKED;
+}
+
+/// Whether a BLOCKED report keeps its per-test lines: never, the reason names the host's files.
+pub fn lists_tests(verdict: u8) -> bool {
+    return verdict == VW_PASS or verdict == VW_FAIL;
+}
+
+; --- 2. The receipt ----------------------------------------------------------------------------------
+
+pub const RECEIPT_DOMAIN : str = "t27-hosting-receipt-v1";
+pub const RECEIPT_SIGNED_FIELDS : [14]str = ["job", "lease", "host", "incarnation", "commit", "spec", "model_hash", "zig", "input_hash", "output_hash", "ops", "verdict", "nonce", "utc_unix"];
+pub const RECEIPT_SIGNED_FIELD_COUNT : u8 = 14;
+/// A lease's nonce, in bytes: signed_receipt's floor.
+pub const LEASE_NONCE_BYTES : u8 = 16;
+/// The request every host write carries: the same layout, its own domain line, so a request signature
+/// can never verify as a receipt or the other way round.
+pub const REQUEST_DOMAIN : str = "t27-hosting-request-v1";
+pub const REQUEST_SIGNED_FIELDS : [6]str = ["method", "path", "host", "incarnation", "utc_unix", "body_sha256"];
+/// A registration is signed with the key it registers (proof of possession), before a host id exists.
+pub const REGISTER_DOMAIN : str = "t27-hosting-register-v1";
+pub const REGISTER_SIGNED_FIELDS : [5]str = ["public_key", "tier_claim", "slots", "platform", "utc_unix"];
+
+/// receipt_code() answers, in judgment order.
+pub const RC_OK : u8 = 0;
+pub const RC_UNKNOWN_HOST : u8 = 1;
+pub const RC_BAD_SIGNATURE : u8 = 2;
+pub const RC_NOT_LEASED : u8 = 3;
+pub const RC_DUPLICATE : u8 = 4;
+pub const RC_EQUIVOCATION : u8 = 5;
+pub const RC_LATE : u8 = 6;
+pub const RC_INPUT_MISMATCH : u8 = 7;
+pub const RC_MODEL_MISMATCH : u8 = 8;
+pub const RC_OUTPUT_MISMATCH : u8 = 9;
+
+/// The first check a receipt fails, or RC_OK.
+/// leased: the lease names this host, its incarnation and its nonce. reported_before: the lease already
+/// holds a receipt; same_as_before: this one is byte-identical to it. lapsed: placement.t27 replica_lapsed
+/// held for the lease, or the job closed. input_matches: commit, spec and input_hash are the job's.
+/// model_matches: the job pins no model, or this one. output_rehashes: SHA-256 of the output sent is
+/// output_hash, and its verdict and asserts lines are the receipt's verdict and ops.
+pub fn receipt_code(host_known: bool, signature_ok: bool, leased: bool, reported_before: bool, same_as_before: bool, lapsed: bool, input_matches: bool, model_matches: bool, output_rehashes: bool) -> u8 {
+    if (host_known == false) { return RC_UNKNOWN_HOST; }
+    if (signature_ok == false) { return RC_BAD_SIGNATURE; }
+    if (leased == false) { return RC_NOT_LEASED; }
+    if (reported_before) {
+        if (same_as_before) { return RC_DUPLICATE; }
+        return RC_EQUIVOCATION;
+    }
+    if (lapsed) { return RC_LATE; }
+    if (input_matches == false) { return RC_INPUT_MISMATCH; }
+    if (model_matches == false) { return RC_MODEL_MISMATCH; }
+    if (output_rehashes == false) { return RC_OUTPUT_MISMATCH; }
+    return RC_OK;
+}
+
+/// A receipt no honest host sends: forged, for a lease it does not hold, two answers for one lease,
+/// someone else's input, or an output that is not what its hash says.
+pub fn tampered(code: u8) -> bool {
+    if (code == RC_BAD_SIGNATURE) { return true; }
+    if (code == RC_NOT_LEASED) { return true; }
+    if (code == RC_EQUIVOCATION) { return true; }
+    if (code == RC_INPUT_MISMATCH) { return true; }
+    if (code == RC_OUTPUT_MISMATCH) { return true; }
+    return false;
+}
+
+/// Tampering the host's own key vouches for: everything tampered except a bad signature, which anyone
+/// could have sent in the host's name.
+pub fn attributable(code: u8) -> bool {
+    if (code == RC_BAD_SIGNATURE) { return false; }
+    return tampered(code);
+}
+
+/// Whether this receipt is a vote for its output hash.
+pub fn is_vote(code: u8, verdict: u8) -> bool {
+    return code == RC_OK and verdict_votes(verdict);
+}
+
+; --- 3. Agreement ------------------------------------------------------------------------------------
+
+pub const REPLICAS_K : u32 = 2;
+pub const REPLICAS_MAX : u32 = 3;
+
+/// job_verdict() answers.
+pub const JV_PENDING : u8 = 0;
+pub const JV_AGREED : u8 = 1;
+pub const JV_TIEBREAK : u8 = 2;
+pub const JV_UNRESOLVED : u8 = 3;
+
+/// No host is assumed faulty inside one job's replicas; placement.t27 spreads them instead.
+pub const FAULTS_ASSUMED : u32 = 0;
+
+/// = network/mvp_v2.t27 quorum_needed: N voters, at most F faulty, the smallest safe M.
+pub fn quorum_needed(n: u32, f: u32) -> u32 {
+    return ((n + f) / 2) + 1;
+}
+
+/// = network/mvp_v2.t27 verifier_dissented: a vote dissents only from a quorum that formed.
+pub fn verifier_dissented(vote: u32, quorum_value: u32, has_quorum: bool) -> bool {
+    if (has_quorum == false) { return false; }
+    return vote != quorum_value;
+}
+
+/// The job's state from its votes. votes: receipts that are votes. top and second: the two largest
+/// groups of votes with one output hash. wanted: how many replicas the job runs now. exhausted: the
+/// job will be leased no more and no lease of it is outstanding (placement.t27 exhausted), so the
+/// votes it has are all it will get. A replica whose receipt is not a vote (a timeout) is placed
+/// again, so the job waits for it.
+pub fn job_verdict(votes: u32, top: u32, second: u32, wanted: u32, exhausted: bool) -> u8 {
+    if (top > votes or second > top) { return JV_PENDING; }
+    if (top >= REPLICAS_K and top >= quorum_needed(votes, FAULTS_ASSUMED)) { return JV_AGREED; }
+    if (exhausted) { return JV_UNRESOLVED; }
+    if (votes < wanted) { return JV_PENDING; }
+    if (wanted < REPLICAS_MAX) { return JV_TIEBREAK; }
+    return JV_UNRESOLVED;
+}
+
+/// How many replicas the job runs after this verdict: one more on a tiebreak, never past REPLICAS_MAX.
+pub fn wanted_after(verdict: u8, wanted: u32) -> u32 {
+    if (verdict == JV_TIEBREAK and wanted < REPLICAS_MAX) { return wanted + 1; }
+    return wanted;
+}
+
+/// Whether the job is over: agreed or unresolved. Its open leases close with it.
+pub fn job_closed(verdict: u8) -> bool {
+    return verdict == JV_AGREED or verdict == JV_UNRESOLVED;
+}
+
+/// side_of() answers.
+pub const SIDE_AGREED : u8 = 0;
+pub const SIDE_DISSENT : u8 = 1;
+pub const SIDE_NONE : u8 = 2;
+
+/// Where one vote stands once the job is decided. group: the vote's group, numbered so that the top
+/// group is TOP_GROUP. A vote dissents only from a quorum that formed.
+pub const TOP_GROUP : u32 = 0;
+
+pub fn side_of(verdict: u8, group: u32) -> u8 {
+    var agreed : bool = verdict == JV_AGREED;
+    if (verifier_dissented(group, TOP_GROUP, agreed)) { return SIDE_DISSENT; }
+    if (agreed) { return SIDE_AGREED; }
+    return SIDE_NONE;
+}
+
+; --- tests --------------------------------------------------------------------------------------------
+
+test the_verdict_is_read_as_the_lab_reads_it {
+    assert report_verdict(true, true, 0) == VW_BLOCKED;
+    assert report_verdict(false, true, 0) == VW_PASS;
+    assert report_verdict(false, true, 3) == VW_FAIL;
+    assert report_verdict(false, false, 0) == VW_BLOCKED;
+    assert run_verdict(false, false, false, true, VW_PASS) == VW_HOST_ERROR;
+    assert run_verdict(true, true, false, true, VW_PASS) == VW_HOST_ERROR;
+    assert run_verdict(true, false, true, true, VW_PASS) == VW_TIMEOUT;
+    assert run_verdict(true, false, false, false, VW_PASS) == VW_BLOCKED;
+    assert run_verdict(true, false, false, true, VW_FAIL) == VW_FAIL;
+    assert run_verdict(true, false, false, true, VW_PASS) == VW_PASS;
+    assert run_verdict(true, false, false, true, 77) == VW_BLOCKED;
+}
+
+test only_a_verdict_about_the_spec_votes {
+    assert verdict_votes(VW_PASS) == true;
+    assert verdict_votes(VW_FAIL) == true;
+    assert verdict_votes(VW_BLOCKED) == true;
+    assert verdict_votes(VW_TIMEOUT) == false;
+    assert verdict_votes(VW_HOST_ERROR) == false;
+    assert verdict_votes(VERDICTS) == false;
+    assert lists_tests(VW_PASS) == true;
+    assert lists_tests(VW_FAIL) == true;
+    assert lists_tests(VW_BLOCKED) == false;
+    assert lists_tests(VW_TIMEOUT) == false;
+}
+
+test a_receipt_is_judged_in_order {
+    assert receipt_code(true, true, true, false, false, false, true, true, true) == RC_OK;
+    assert receipt_code(false, false, false, false, false, true, false, false, false) == RC_UNKNOWN_HOST;
+    // the signature is judged before anything it signs
+    assert receipt_code(true, false, false, false, false, true, false, false, false) == RC_BAD_SIGNATURE;
+    assert receipt_code(true, true, false, true, false, true, false, false, false) == RC_NOT_LEASED;
+    // a resend of the same bytes is ignored; a second, different answer for one lease is tampering
+    assert receipt_code(true, true, true, true, true, true, true, true, true) == RC_DUPLICATE;
+    assert receipt_code(true, true, true, true, false, false, true, true, true) == RC_EQUIVOCATION;
+    assert receipt_code(true, true, true, false, false, true, false, false, false) == RC_LATE;
+    assert receipt_code(true, true, true, false, false, false, false, false, false) == RC_INPUT_MISMATCH;
+    assert receipt_code(true, true, true, false, false, false, true, false, false) == RC_MODEL_MISMATCH;
+    assert receipt_code(true, true, true, false, false, false, true, true, false) == RC_OUTPUT_MISMATCH;
+}
+
+test tampering_is_named_and_lateness_blames_nobody {
+    assert tampered(RC_OK) == false;
+    assert tampered(RC_UNKNOWN_HOST) == false;
+    assert tampered(RC_BAD_SIGNATURE) == true;
+    assert tampered(RC_NOT_LEASED) == true;
+    assert tampered(RC_DUPLICATE) == false;
+    assert tampered(RC_EQUIVOCATION) == true;
+    assert tampered(RC_LATE) == false;
+    assert tampered(RC_INPUT_MISMATCH) == true;
+    assert tampered(RC_MODEL_MISMATCH) == false;
+    assert tampered(RC_OUTPUT_MISMATCH) == true;
+    // a forged signature is nobody's: anyone can send bytes in a host's name
+    assert attributable(RC_BAD_SIGNATURE) == false;
+    assert attributable(RC_OUTPUT_MISMATCH) == true;
+    assert attributable(RC_EQUIVOCATION) == true;
+    assert attributable(RC_LATE) == false;
+    assert is_vote(RC_OK, VW_PASS) == true;
+    assert is_vote(RC_OK, VW_TIMEOUT) == false;
+    assert is_vote(RC_LATE, VW_PASS) == false;
+    assert is_vote(RC_OUTPUT_MISMATCH, VW_PASS) == false;
+}
+
+test two_hosts_that_agree_decide_the_job {
+    assert job_verdict(0, 0, 0, REPLICAS_K, false) == JV_PENDING;
+    assert job_verdict(1, 1, 0, REPLICAS_K, false) == JV_PENDING;
+    assert job_verdict(2, 2, 0, REPLICAS_K, false) == JV_AGREED;
+    assert wanted_after(JV_AGREED, REPLICAS_K) == REPLICAS_K;
+    assert job_closed(JV_AGREED) == true;
+    assert job_closed(JV_PENDING) == false;
+}
+
+test a_disagreement_is_broken_by_one_more_host {
+    assert job_verdict(2, 1, 1, REPLICAS_K, false) == JV_TIEBREAK;
+    assert wanted_after(JV_TIEBREAK, REPLICAS_K) == REPLICAS_K + 1;
+    assert job_closed(JV_TIEBREAK) == false;
+    // the third host sides with one of the two: two of three agree
+    assert job_verdict(2, 1, 1, 3, false) == JV_PENDING;
+    assert job_verdict(3, 2, 1, 3, false) == JV_AGREED;
+    // three different answers: no quorum, and no fourth host
+    assert job_verdict(3, 1, 1, 3, false) == JV_UNRESOLVED;
+    assert wanted_after(JV_UNRESOLVED, 3) == 3;
+    assert wanted_after(JV_TIEBREAK, REPLICAS_MAX) == REPLICAS_MAX;
+    assert job_closed(JV_UNRESOLVED) == true;
+    // one vote, its partner timed out: the partner's replica is placed again, and the job waits
+    assert job_verdict(1, 1, 0, REPLICAS_K, false) == JV_PENDING;
+    // until placement gives up on it
+    assert job_verdict(1, 1, 0, REPLICAS_K, true) == JV_UNRESOLVED;
+    assert job_verdict(0, 0, 0, REPLICAS_K, true) == JV_UNRESOLVED;
+    // a job that agreed is agreed, whatever placement says
+    assert job_verdict(2, 2, 0, REPLICAS_K, true) == JV_AGREED;
+    // counts that cannot be are never a verdict
+    assert job_verdict(1, 2, 0, 2, false) == JV_PENDING;
+    assert job_verdict(3, 1, 2, 3, false) == JV_PENDING;
+}
+
+test one_host_is_never_a_quorum {
+    assert job_verdict(1, 1, 0, REPLICAS_MAX, false) != JV_AGREED;
+    assert job_verdict(1, 1, 0, 1, false) != JV_AGREED;
+    // a strict majority is needed, not a plurality
+    assert job_verdict(4, 2, 2, 4, false) != JV_AGREED;
+    assert job_verdict(5, 2, 2, 5, false) != JV_AGREED;
+    assert job_verdict(4, 2, 1, 4, false) != JV_AGREED;
+    assert job_verdict(5, 2, 1, 5, false) != JV_AGREED;
+    assert job_verdict(5, 3, 2, 5, false) == JV_AGREED;
+}
+
+test only_the_agreeing_side_is_on_the_right_side {
+    assert side_of(JV_AGREED, TOP_GROUP) == SIDE_AGREED;
+    assert side_of(JV_AGREED, 1) == SIDE_DISSENT;
+    assert side_of(JV_AGREED, 2) == SIDE_DISSENT;
+    // no quorum, nothing proven, nobody dissents
+    assert side_of(JV_UNRESOLVED, TOP_GROUP) == SIDE_NONE;
+    assert side_of(JV_UNRESOLVED, 1) == SIDE_NONE;
+    assert side_of(JV_PENDING, 1) == SIDE_NONE;
+    assert side_of(JV_TIEBREAK, 1) == SIDE_NONE;
+}
+
+test mvp_v2_rules_are_kept {
+    // network/mvp_v2.t27's own asserts on the pair, unchanged: N 4, F 1 needs M 3
+    assert quorum_needed(4, 1) == 3;
+    assert verifier_dissented(1, 2, true);
+    assert verifier_dissented(1, 2, false) == false;
+    // with no fault allowance it is a strict majority
+    assert quorum_needed(1, 0) == 1;
+    assert quorum_needed(2, 0) == 2;
+    assert quorum_needed(3, 0) == 2;
+    assert quorum_needed(4, 0) == 3;
+}
+
+invariant the_receipt_carries_the_compute_proof {
+    assert RECEIPT_SIGNED_FIELD_COUNT == 14;
+    assert LEASE_NONCE_BYTES >= NONCE_MIN_BYTES;
+    assert KEY_ID_HEX_LEN == 16;
+}
+/// Agreement needs two hosts, and a tiebreak has room for at least one more.
+invariant agreement_needs_two_and_room_for_a_third {
+    assert REPLICAS_K >= 2;
+    assert REPLICAS_MAX > REPLICAS_K;
+    assert FAULTS_ASSUMED == 0;
+}
+/// The codes are distinct and ordered as they are judged.
+invariant the_codes_are_distinct {
+    assert RC_OK == 0 and RC_UNKNOWN_HOST == 1 and RC_BAD_SIGNATURE == 2 and RC_NOT_LEASED == 3;
+    assert RC_DUPLICATE == 4 and RC_EQUIVOCATION == 5 and RC_LATE == 6 and RC_INPUT_MISMATCH == 7;
+    assert RC_MODEL_MISMATCH == 8 and RC_OUTPUT_MISMATCH == 9;
+    assert JV_PENDING == 0 and JV_AGREED == 1 and JV_TIEBREAK == 2 and JV_UNRESOLVED == 3;
+    assert VW_PASS == 0 and VW_FAIL == 1 and VW_BLOCKED == 2 and VW_TIMEOUT == 3 and VW_HOST_ERROR == 4;
+}

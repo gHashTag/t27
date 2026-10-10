@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
+  "gen_hash_c": "sha256:8fac0951fb7b808b8e0f0aa19732edde084cd0915f0f45405ea83274695958b5",
+  "gen_hash_rust": "sha256:bf0b9143f9db9d9f45e7eaa507425c71052558fdad53b5c306104df5b980f35b",
+  "gen_hash_verilog": "sha256:a08ed3ce2d2f03c2848bb0cbbae3aace4f5d88964a5072f57603ad3e711988f2",
+  "gen_hash_zig": "sha256:a96b57a9b57a2101fc5ea824633cc6c5ba57e53cc29920b75b9d96febe9c63f1",
+  "module": "HostingCredit",
+  "ring": 12,
+  "sealed_at": "2026-10-10T17:37:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:5254364501bfab090209ecf5589bc4c2e267c1f621ff65a56b3dce0679aad004",
+  "spec_path": "specs/hosting/credit.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}
