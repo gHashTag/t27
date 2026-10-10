@@ -1,0 +1,108 @@
+module gen_w681 {
+
+// Port of scripts/gen_w681.py, the 181-wide sibling of gen_w631.py.
+// The original assembles a [181][2][2][2][2][2][2]Pt benchmark spec and writes
+// it to specs/scratch/w681_bench_module_181x2p6_aos_var_call_write.t27. String
+// assembly and file I/O are not portable, so the port keeps the pure parts:
+// the indent rule, the element coordinate rule, the build_tree base-advance
+// rule, and the generated expectations as tests.
+
+const WRAP: u32 = 32768;
+const INDENT_UNIT: u32 = 4;
+
+// The original indent returns "    " * level: four spaces per level, the empty
+// string for level 0 or a negative level. build_tree uses level 1 for the
+// literal header and closing brace and level 2 for the Pt entries; generate()
+// then shifts every line four more spaces. The port returns the space count.
+fn indent(level: i32) -> i32 {
+    if (level < 0) {
+        return 0;
+    }
+    return INDENT_UNIT * level;
+}
+
+// Element e of the grid carries x = (2*e + offset) % 32768 and
+// y = (2*e + offset + 1) % 32768; step folds the +1 in.
+fn coordinate(e: u32, offset: u32, step: u32) -> u32 {
+    return (2 * e + offset + step) % WRAP;
+}
+
+// The original build_tree(shape, base, offset) recursively builds a t27
+// literal for shape, returning (text, next_base): the text is a
+// self-contained literal beginning with the full dimension annotation and
+// ending with the matching closing brace, indented relative to level 0, and
+// next_base is the base after all points consumed by the subtree. For shape
+// [181, 2, 2, 2, 2, 2, 2] the outer row is 181 subtrees of 2^6 = 64 points
+// each and only leaves advance the base, so flattened the next base after n
+// subtrees of inner_points points each, starting at base, is
+// base + n * inner_points.
+fn build_tree(n: u32, inner_points: u32, base: u32) -> u32 {
+    return base + n * inner_points;
+}
+
+// The original generate() assembles the spec text (a module header with the
+// Pt struct, the make_grid function wrapping the indented literal, and a
+// footer with expected, dst, a test block and a bench block whose signed
+// field writes exercise 1234/-1234 and -5678/5678), raises ValueError if the
+// text is not ASCII, writes it to the scratch spec, and prints its byte and
+// line counts. String assembly and file I/O are not portable, so this stub
+// stands in for it.
+fn generate() -> u32 {
+    undefined;
+}
+
+test indent_is_four_spaces_per_level {
+    assert(indent(0) == 0);
+    assert(indent(1) == 4);
+    assert(indent(2) == 8);
+    assert(indent(5) == 20);
+}
+
+test negative_indent_level_repeats_zero_spaces {
+    // Python: "    " * -1 is the empty string.
+    assert(indent(-1) == 0);
+    assert(indent(-4) == 0);
+}
+
+test first_point_is_zero_one {
+    assert(coordinate(0, 0, 0) == 0);
+    assert(coordinate(0, 0, 1) == 1);
+}
+
+test last_point_matches_the_generated_expectations {
+    // 181 * 2^6 = 11584 points, the last has e = 11583: x = 23166, y = 23167.
+    assert(coordinate(11583, 0, 0) == 23166);
+    assert(coordinate(11583, 0, 1) == 23167);
+}
+
+test mid_point_matches_the_generated_expectations {
+    // MID_IDX = OUTER // 2 = 90 (the original's "# 73" comment is stale), and
+    // dst[90][1][0][0][0][0][0] has e = 90 * 64 + 32 = 5776: x = 11552, y = 11553.
+    assert(coordinate(5776, 0, 0) == 11552);
+    assert(coordinate(5776, 0, 1) == 11553);
+}
+
+test offset_32768_wraps_back {
+    // make_grid(32768) folds back to the offset-0 grid; the original derives
+    // WRAP_LAST_X/Y with the offset already folded in, so the wrapped last
+    // values equal the unwrapped ones by construction.
+    assert(coordinate(0, 32768, 0) == 0);
+    assert(coordinate(0, 32768, 1) == 1);
+    assert(coordinate(11583, 32768, 0) == 23166);
+    assert(coordinate(11583, 32768, 1) == 23167);
+}
+
+test build_tree_advances_the_base {
+    // leaf row of 181 single points starting at 0
+    assert(build_tree(181, 1, 0) == 181);
+    // 2 subtrees of 32 points from base 10
+    assert(build_tree(2, 32, 10) == 74);
+    assert(build_tree(0, 5, 7) == 7);
+}
+
+test whole_grid_has_11584_points {
+    // 181 * 2^6 points: 181 outer entries of 64 points each
+    assert(build_tree(181, 64, 0) == 11584);
+}
+
+}
