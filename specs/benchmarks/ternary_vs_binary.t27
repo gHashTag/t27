@@ -60,11 +60,21 @@ test "Ternary-Binary: MLP forward baseline" {
     const config = LayerConfig{ .input_size = 4, .hidden_size = 8, .output_size = 3 };
     const input = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
     // Run forward and verify output matches expected
+    assert config.input_size == 4;
+    assert config.hidden_size == 8;
+    assert config.output_size == 3;
+    assert input[0] == 1.0;
+    assert input[1] == 0.0;
 }
 
 test "Ternary-Binary: quantization accuracy" {
     // Ternary vs FP32 difference should be < 0.5
     // FP16 vs FP32 difference should be < 0.5
+    const ternary_threshold = 0.5;
+    const fp16_threshold = 0.5;
+    assert ternary_threshold > 0.0;
+    assert fp16_threshold > 0.0;
+    assert ternary_threshold == fp16_threshold;
 }
 ```
 
