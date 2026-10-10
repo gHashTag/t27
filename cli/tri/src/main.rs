@@ -45,6 +45,7 @@ mod red;
 mod report; // t27c gen-rust of specs/tri/test/report.t27 (#7369): every rule of reading `t27c test-report`
 #[path = "../../../gen/rust/tri/lab/receipt.rs"] #[allow(dead_code, unused_parens)] mod lab; // t27c gen-rust of specs/tri/lab/receipt.t27: every rule of `tri lab receipt`
 #[path = "../../../gen/rust/tri/actors/metrics.rs"] #[allow(dead_code, unused_parens)] mod act; // t27c gen-rust of specs/tri/actors/metrics.t27: every rule of `tri actors`
+#[path = "../../../gen/rust/tri/lanes/lanes.rs"] #[allow(dead_code, unused_parens)] mod lanes; // t27c gen-rust of specs/tri/lanes/lanes.t27: every rule of `tri lanes`
 mod renum;
 mod reseal;
 mod rtl;
@@ -351,6 +352,19 @@ enum Commands {
     Seals {
         #[command(subcommand)]
         action: seals::SealsCmd,
+    },
+    /// A loop's lanes: its open pull requests into the base and its worktrees, each judged; a red, conflicting or stale lane is an alarm (rules: specs/tri/lanes/lanes.t27).
+    Lanes {
+        /// The repository: owner/name, or a name of gHashTag's.
+        #[arg(long, default_value = lanes::REPO)] repo: String,
+        /// The branch the lanes merge into.
+        #[arg(long, default_value = lanes::BASE)] base: String,
+        /// The git clone whose worktrees are the lanes.
+        #[arg(long, default_value = ".")] clone: String,
+        /// Only the clone's worktrees whose path starts with this are lanes.
+        #[arg(long, default_value = "")] dir: String,
+        /// Minutes without a commit or push after which a lane is stale.
+        #[arg(long, default_value_t = lanes::STALE_MINUTES)] stale: u64,
     },
     /// Pure-Rust ports of repository commit / push gates.
     Hooks {
@@ -1229,12 +1243,38 @@ fn main() -> Result<()> {
         Commands::Jumps { action } => jumps::run(action)?,
         Commands::Vsim { action } => vsim::run(action)?,
         Commands::Seals { action } => seals::run(action)?,
+        Commands::Lanes { repo, base, clone, dir, stale } => std::process::exit(cmd_lanes(repo, base, clone, dir, *stale)? as i32),
         Commands::Hooks { action } => hooks::run(action)?,
         Commands::Lab { specs, sha, .. } => std::process::exit(cmd_lab(specs.as_deref(), sha)? as i32),
         Commands::Actors { url, bound, replay } => std::process::exit(cmd_actors(url, *bound, *replay)? as i32),
     }
 
     Ok(())
+}
+
+/// `tri lanes`: gh's open pull requests into the base, the clone's worktrees and branch times, and what specs/tri/lanes/lanes.t27 reads in them.
+fn cmd_lanes(repo: &str, base: &str, clone: &str, dir: &str, stale: u64) -> Result<u8> {
+    fn run(c: &str, a: &[&str]) -> Result<&'static str> { Ok(String::from_utf8_lossy(&Command::new(c).args(a).output()?.stdout).into_owned().leak()) }
+    let full = format!("{}{repo}", if lanes::needs_owner(repo.to_string().leak()) { lanes::OWNER } else { "" });
+    let prs: &'static str = serde_json::from_str::<serde_json::Value>(run("gh", &["pr", "list", "-R", &full, "--base", base, "--state", "open", "--limit", lanes::PR_LIMIT, "--json", lanes::PR_FIELDS])?).ok().and_then(|v| serde_json::to_string_pretty(&v).ok()).unwrap_or_default().leak();
+    let (wts, refs, done) = (run("git", &["-C", clone, "worktree", "list", "--porcelain"])?, run("git", &["-C", clone, "for-each-ref", lanes::REF_FORMAT, "refs/heads"])?, run("gh", &["pr", "list", "-R", &full, "--base", base, "--state", "merged", "--limit", lanes::PR_LIMIT, "--json", lanes::MERGED_FIELDS])?);
+    let (now, dir, mut alarms): (u64, &'static str, u64) = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(), dir.to_string().leak(), 0);
+    let age = |a: u64| if lanes::age_known(a) { a.to_string() } else { lanes::UNKNOWN.to_string() };
+    let mut o = lanes::next_pr(prs, 0);
+    while o < prs.len() {
+        let e = lanes::pr_end(prs, o);
+        let w = lanes::worktree_of(wts, dir, prs, o, e);
+        let a = lanes::age_minutes(now, lanes::later(lanes::pr_updated(prs, o, e), lanes::commit_time(refs, wts, w))); let v = lanes::pr_verdict(prs, o, e, a, stale); alarms += lanes::is_alarm(v) as u64;
+        println!("{} checks={} age_min={} worktree={}  {}", (0..lanes::PR_CELLS).map(|k| format!("{}={}", lanes::pr_label(k), &prs[lanes::pr_from(prs, o, e, k)..lanes::pr_to(prs, o, e, k)])).collect::<Vec<_>>().join(" "), lanes::ci_name(lanes::ci(prs, o, e)), age(a), &wts[lanes::path_from(wts, w)..lanes::path_to(wts, w)], lanes::why(v));
+        o = lanes::next_pr(prs, e);
+    }
+    let mut w = lanes::next_worktree(wts, 0, dir);
+    while w < wts.len() {
+        let a = lanes::age_minutes(now, lanes::commit_time(refs, wts, w)); let v = lanes::worktree_verdict(wts, w, a, stale, lanes::merged(done, wts, w));
+        if !lanes::has_pr(prs, wts, w) { alarms += lanes::is_alarm(v) as u64; println!("worktree={} branch={} age_min={}  {}", &wts[lanes::path_from(wts, w)..lanes::path_to(wts, w)], &wts[lanes::branch_from(wts, w)..lanes::branch_to(wts, w)], age(a), lanes::why(v)); }
+        w = lanes::next_worktree(wts, lanes::record_end(wts, w), dir);
+    }
+    let x = lanes::exit_code(!prs.is_empty(), alarms); println!("{}", lanes::exit_why(x)); Ok(x)
 }
 
 fn cmd_serve(addr: &str) -> Result<()> {

@@ -1,0 +1,32 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/tri/lab/receipt.t27",
+      "spec_hash": "sha256:00d9eec8d7be84dde596c9990b3a5574de24aff9f7a94579fc620eb585712441"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f08bc5e43e2b648ebf9456020e086df45592fa4186cafe1002e34714df6c015f",
+  "gen_hash_rust": "sha256:f459ec369d21af88cb41113b4c453c930ad514b0a8d10b317b46c3872c06f29c",
+  "gen_hash_verilog": "sha256:379d076d49247e518f1830a17feb71e478a589071494208d9d0c71d651788e99",
+  "gen_hash_zig": "sha256:ef1ebda3983c805a06a7f57ab27489e76d7999949a7d27d6c53449acd3a631d4",
+  "module": "TriLanes",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:52:57Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:8b1ff75510259ba9bbaf0a51e619db5f6b48228f31c99c65d3b2db292efa3b21",
+  "spec_path": "specs/tri/lanes/lanes.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
