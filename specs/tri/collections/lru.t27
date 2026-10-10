@@ -1,96 +1,178 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Evicts least recently used | φ² + 1/φ² = 3 | TRINITY
-
+//
+// Least recently used cache mapping i64 keys to i64 values, capacity 4.
+//
+// The original spec used generic keys with an optional pointer chain. The
+// reference compiler only accepts concrete struct types and value-based
+// data flow, so the cache is now two parallel arrays plus a live count.
+// Live entries occupy slots 0 through size - 1, ordered from least to
+// most recently used by put; get is a pure lookup and does not reorder.
+// Every operation returns a new value.
+//
+// TRINITY: 3-6-9 | 6-3-9 | 9-6-3
 module TriLru;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const LRU = struct {
+    keys : [4]i64 = [4]i64{ 0, 0, 0, 0 },
+    values : [4]i64 = [4]i64{ 0, 0, 0, 0 },
+    size : i64 = 0,
+};
 
-    pub const LRU(K, V) = struct {
-        capacity : "usize",
-        entries : "std.HashMap(K, V)",
-        access_list : []K,
-    };
+pub fn init() -> LRU {
+    return LRU{};
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // init(capacity: usize, allocator: std.mem.Allocator) → !LRU(K, V)
-    fn init(capacity: usize, allocator: std.mem.Allocator) -> !LRU(K, V) {
-        var cache = LRU(K, V) {
-            .capacity = capacity,
-            .entries = std.HashMap(K, V).init(allocator),
-            .access_list = []K,
-        };
-        return cache;
-    }
-
-    // get(cache: *LRU(K, V), key: K, allocator: std.mem.Allocator) → ?V
-    fn get(cache: *LRU(K, V), key: K, allocator: std.mem.Allocator) -> ?V {
-        if (cache.entries.get(key)) |value| {
-            // Move key to end of access list to mark as recently used
-            var i: usize = 0;
-            while (i < cache.access_list.len) : (i += 1) {
-                if (cache.access_list[i] == key) {
-                    cache.access_list[i] = cache.access_list[cache.access_list.len - 1];
-                    cache.access_list[cache.access_list.len - 1] = key;
-                    break;
-                }
+fn value_at(cache : LRU, key : i64) -> ?i64 {
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (idx < cache.size) {
+            if (cache.keys[i] == key) {
+                return cache.values[i];
             }
-            return value;
+            idx = idx + 1;
         }
-        return null;
+        i = i + 1;
     }
+    return null;
+}
 
-    // put(cache: *LRU(K, V), key: K, value: V, allocator: std.mem.Allocator) → !void
-    fn put(cache: *LRU(K, V), key: K, value: V, allocator: std.mem.Allocator) -> !void {
-        if (cache.entries.contains(key)) {
-            // Key exists, update value and move to end of access list
-            cache.entries.put(key, value);
-            var i: usize = 0;
-            while (i < cache.access_list.len) : (i += 1) {
-                if (cache.access_list[i] == key) {
-                    cache.access_list[i] = cache.access_list[cache.access_list.len - 1];
-                    cache.access_list[cache.access_list.len - 1] = key;
-                    break;
+// Rebuild the cache with the key-value pair moved to the most recently
+// used slot. Appends the pair when the key is absent; when the cache is
+// full the least recently used entry (slot 0) is dropped to make room.
+fn move_pair_to_back(cache : LRU, key : i64, value : i64) -> LRU {
+    const present : bool = value_at(cache, key) != null;
+    var skip_first : bool = false;
+    if (present == false) {
+        if (cache.size >= 4) {
+            skip_first = true;
+        }
+    }
+    var out_keys : [4]i64 = [4]i64{ 0, 0, 0, 0 };
+    var out_values : [4]i64 = [4]i64{ 0, 0, 0, 0 };
+    var dst : usize = 0;
+    var live : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (live < cache.size) {
+            const k : i64 = cache.keys[i];
+            var keep : bool = true;
+            if (present) {
+                if (k == key) {
+                    keep = false;
                 }
             }
+            if (skip_first) {
+                if (live == 0) {
+                    keep = false;
+                }
+            }
+            if (keep) {
+                out_keys[dst] = k;
+                out_values[dst] = cache.values[i];
+                dst = dst + 1;
+            }
+            live = live + 1;
+        }
+        i = i + 1;
+    }
+    if (present) {
+        out_keys[dst] = key;
+        out_values[dst] = value;
+    } else {
+        if (cache.size < 4) {
+            out_keys[dst] = key;
+            out_values[dst] = value;
         } else {
-            // Key doesn't exist, check if we need to evict
-            if (cache.entries.count >= cache.capacity) {
-                // Evict least recently used item (first in access list)
-                const lru_key = cache.access_list[0];
-                cache.entries.remove(lru_key);
-                cache.access_list = cache.access_list[1..];
-            }
-            
-            // Add new key-value pair
-            cache.entries.put(key, value);
-            cache.access_list = cache.access_list ++ [_]K{key};
+            out_keys[3] = key;
+            out_values[3] = value;
         }
     }
+    var out : LRU = cache;
+    out.keys = out_keys;
+    out.values = out_values;
+    return out;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+// Return the value for a present key, or null when absent.
+pub fn get(cache : LRU, key : i64) -> ?i64 {
+    return value_at(cache, key);
+}
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+// Insert or update a key, refreshing it as most recently used. When the
+// cache is full the least recently used key is evicted.
+pub fn put(cache : LRU, key : i64, value : i64) -> LRU {
+    const rebuilt : LRU = move_pair_to_back(cache, key, value);
+    var out : LRU = rebuilt;
+    const present : bool = value_at(cache, key) != null;
+    if (present) {
+        out.size = cache.size;
+    } else {
+        if (cache.size < 4) {
+            out.size = cache.size + 1;
+        } else {
+            out.size = cache.size;
+        }
+    }
+    return out;
+}
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+test "init returns an empty cache" {
+    const cache = init();
+    assert(cache.size == 0);
+    assert(get(cache, 10) == null);
+}
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+test "get returns the value for a present key" {
+    var cache = init();
+    cache = put(cache, 10, 1);
+    assert(get(cache, 10).? == 1);
+}
 
+test "get returns null for a missing key" {
+    var cache = init();
+    cache = put(cache, 10, 1);
+    assert(get(cache, 99) == null);
+}
+
+test "put updates an existing key in place" {
+    var cache = init();
+    cache = put(cache, 10, 1);
+    cache = put(cache, 20, 2);
+    cache = put(cache, 10, 9);
+    assert(cache.size == 2);
+    assert(cache.keys[0] == 20);
+    assert(cache.keys[1] == 10);
+    assert(cache.values[0] == 2);
+    assert(cache.values[1] == 9);
+    assert(get(cache, 10).? == 9);
+}
+
+test "put appends new keys until full" {
+    var cache = init();
+    cache = put(cache, 10, 1);
+    cache = put(cache, 20, 2);
+    cache = put(cache, 30, 3);
+    assert(cache.size == 3);
+    assert(cache.keys[0] == 10);
+    assert(cache.keys[1] == 20);
+    assert(cache.keys[2] == 30);
+    assert(get(cache, 30).? == 3);
+}
+
+test "put evicts the least recently used key when full" {
+    var cache = init();
+    cache = put(cache, 10, 1);
+    cache = put(cache, 20, 2);
+    cache = put(cache, 30, 3);
+    cache = put(cache, 40, 4);
+    cache = put(cache, 50, 5);
+    assert(cache.size == 4);
+    assert(cache.keys[0] == 20);
+    assert(cache.keys[1] == 30);
+    assert(cache.keys[2] == 40);
+    assert(cache.keys[3] == 50);
+    assert(cache.values[3] == 5);
+    assert(get(cache, 10) == null);
+    assert(get(cache, 50).? == 5);
+}

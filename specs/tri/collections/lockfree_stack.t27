@@ -1,79 +1,241 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Pop value (CAS-based) | φ² + 1/φ² = 3 | TRINITY
-
+//
+// Lock-free stack of i64 values backed by a fixed pool of 4 slots.
+//
+// The original spec used allocator nodes with optional pointers. The
+// reference compiler only accepts concrete struct types and value-based
+// data flow, so the stack is now three parallel slot arrays plus a head
+// index. Slot states mirror a node lifecycle: 0 is free, 1 is pushed on
+// the stack, 2 is popped and reusable. Every operation returns a new
+// value; no allocation, no mutation of the input.
+//
+// TRINITY: 3-6-9 | 6-3-9 | 9-6-3
 module TriLockfreeStack;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const LockFreeStack = struct {
+    values : [4]i64 = [4]i64{ 0, 0, 0, 0 },
+    states : [4]i64 = [4]i64{ 0, 0, 0, 0 },
+    nexts : [4]i64 = [4]i64{ -1, -1, -1, -1 },
+    head : i64 = -1,
+    count : i64 = 0,
+};
 
-    pub const LFNode = struct {
-        value : "i64",
-        next : "?*LFNode",
-    };
+pub fn init() -> LockFreeStack {
+    return LockFreeStack{};
+}
 
-    pub const LockFreeStack = struct {
-        head : "?*LFNode",
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // init() → LockFreeStack
-    fn init() -> LockFreeStack {
-        LockFreeStack { head = null }
-    }
-
-    // push(s: *LockFreeStack) → void
-    fn push(s: *LockFreeStack) -> void {
-        let new_node = LFNode { value = 0, next = s.head };
-        s.head = &new_node;
-    }
-
-    // pop(s: *LockFreeStack) → void
-    fn pop(s: *LockFreeStack) -> void {
-        if (s.head != null) {
-            s.head = s.head.next;
+fn first_free(states : [4]i64) -> i64 {
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (states[i] == 0 or states[i] == 2) {
+            return idx;
         }
+        idx = idx + 1;
+        i = i + 1;
     }
+    return -1;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+fn set_value(stack : LockFreeStack, slot : i64, value : i64) -> LockFreeStack {
+    var out : LockFreeStack = stack;
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (idx == slot) {
+            out.values[i] = value;
+        }
+        idx = idx + 1;
+        i = i + 1;
+    }
+    return out;
+}
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+fn set_state(stack : LockFreeStack, slot : i64, state : i64) -> LockFreeStack {
+    var out : LockFreeStack = stack;
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (idx == slot) {
+            out.states[i] = state;
+        }
+        idx = idx + 1;
+        i = i + 1;
+    }
+    return out;
+}
 
-    test push_basic_case
-        given input = default_input()
-        when result = push(input)
-        then result != undefined
+fn set_next(stack : LockFreeStack, slot : i64, index : i64) -> LockFreeStack {
+    var out : LockFreeStack = stack;
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (idx == slot) {
+            out.nexts[i] = index;
+        }
+        idx = idx + 1;
+        i = i + 1;
+    }
+    return out;
+}
 
-    test pop_basic_case
-        given input = default_input()
-        when result = pop(input)
-        then result != undefined
+fn value_at(stack : LockFreeStack, slot : i64) -> i64 {
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (idx == slot) {
+            return stack.values[i];
+        }
+        idx = idx + 1;
+        i = i + 1;
+    }
+    return 0;
+}
 
-    test "init returns valid stack"
-        given stack = init()
-        then stack != undefined
-        then stack.head == null
+fn next_of(stack : LockFreeStack, slot : i64) -> i64 {
+    var idx : i64 = 0;
+    var i : usize = 0;
+    while (i < 4) {
+        if (idx == slot) {
+            return stack.nexts[i];
+        }
+        idx = idx + 1;
+        i = i + 1;
+    }
+    return -1;
+}
 
-    test "push adds node to stack"
-        given stack = init()
-        when push(&stack, 42, allocator)
-        then stack.head != null
-        then stack.head.value == 42
+// Push a value on the top. Returns the stack unchanged when the pool is
+// full.
+pub fn push(stack : LockFreeStack, value : i64) -> LockFreeStack {
+    const slot : i64 = first_free(stack.states);
+    if (slot < 0) {
+        return stack;
+    }
+    var out : LockFreeStack = stack;
+    out = set_value(out, slot, value);
+    out = set_state(out, slot, 1);
+    out = set_next(out, slot, stack.head);
+    out.head = slot;
+    out.count = stack.count + 1;
+    return out;
+}
 
-    test "pop removes node from stack"
-        given stack = init()
-        when push(&stack, 42, allocator)
-        when pop(&stack, allocator)
-        then stack.head == null
+// Remove the top node. Its slot becomes popped (state 2) and reusable by
+// the next push. Popping an empty stack returns it unchanged.
+pub fn pop(stack : LockFreeStack) -> LockFreeStack {
+    if (stack.head < 0) {
+        return stack;
+    }
+    const above : i64 = next_of(stack, stack.head);
+    var out : LockFreeStack = stack;
+    out = set_state(out, stack.head, 2);
+    out.head = above;
+    out.count = stack.count - 1;
+    return out;
+}
 
+// Return the top value, or 0 when the stack is empty.
+pub fn peek(stack : LockFreeStack) -> i64 {
+    if (stack.head < 0) {
+        return 0;
+    }
+    return value_at(stack, stack.head);
+}
+
+pub fn is_empty(stack : LockFreeStack) -> bool {
+    return stack.head < 0;
+}
+
+pub fn size(stack : LockFreeStack) -> i64 {
+    return stack.count;
+}
+
+test "init creates an empty stack" {
+    const stack = init();
+    assert(is_empty(stack) == true);
+    assert(stack.head == -1);
+    assert(size(stack) == 0);
+}
+
+test "push adds a node on the top" {
+    const stack = push(init(), 42);
+    assert(stack.head == 0);
+    assert(stack.count == 1);
+    assert(peek(stack) == 42);
+    assert(stack.values[0] == 42);
+    assert(stack.states[0] == 1);
+    assert(stack.nexts[0] == -1);
+}
+
+test "peek exposes the most recent value" {
+    var stack = init();
+    stack = push(stack, 42);
+    stack = push(stack, 7);
+    assert(peek(stack) == 7);
+    assert(stack.head == 1);
+    assert(stack.nexts[1] == 0);
+    assert(size(stack) == 2);
+}
+
+test "pop removes the top node" {
+    var stack = init();
+    stack = push(stack, 42);
+    stack = push(stack, 7);
+    stack = pop(stack);
+    assert(peek(stack) == 42);
+    assert(size(stack) == 1);
+    assert(stack.states[1] == 2);
+    assert(stack.states[0] == 1);
+}
+
+test "pop on an empty stack is a no-op" {
+    const stack = pop(init());
+    assert(stack.head == -1);
+    assert(size(stack) == 0);
+    assert(is_empty(stack) == true);
+}
+
+test "push reuses popped slots" {
+    var stack = init();
+    stack = push(stack, 1);
+    stack = push(stack, 2);
+    stack = pop(stack);
+    stack = push(stack, 3);
+    assert(stack.head == 1);
+    assert(stack.count == 2);
+    assert(peek(stack) == 3);
+    assert(stack.values[1] == 3);
+    assert(next_of(stack, 1) == 0);
+}
+
+test "is_empty tracks pushes and pops" {
+    var stack = init();
+    assert(is_empty(stack) == true);
+    stack = push(stack, 9);
+    assert(is_empty(stack) == false);
+    stack = pop(stack);
+    assert(is_empty(stack) == true);
+}
+
+test "size counts live nodes" {
+    var stack = init();
+    stack = push(stack, 1);
+    stack = push(stack, 2);
+    stack = push(stack, 3);
+    assert(size(stack) == 3);
+    stack = pop(stack);
+    assert(size(stack) == 2);
+}
+
+test "push beyond capacity returns the stack unchanged" {
+    var stack = init();
+    stack = push(stack, 1);
+    stack = push(stack, 2);
+    stack = push(stack, 3);
+    stack = push(stack, 4);
+    const full = push(stack, 5);
+    assert(size(full) == 4);
+    assert(peek(full) == 4);
+    assert(first_free(full.states) == -1);
+}
