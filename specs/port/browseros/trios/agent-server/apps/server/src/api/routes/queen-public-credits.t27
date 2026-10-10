@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-public-credits.t27
+// Port of trios/agent-server/apps/server/src/api/routes/queen-public-credits.ts
+// (gHashTag/BrowserOS at 928e1624a50e) to t27.
+
+// A Hono GET route, `/queen/public-credits`: the board that serves, for each
+// open issue, the GitHub login of the person whose lane carried it -- the
+// data of `laneCredits(createQueenPool(process.env.DATABASE_URL))`, read by
+// the spec-authors board in gHashTag/trinity.
+//
+// Hono, the pool, the await and the read of `process.env.DATABASE_URL` are
+// plumbing and cannot be expressed here; the response the handler decides on
+// is. Three facts in, one response out: a missing DATABASE_URL answers 503
+// before anything is opened; a failed read answers 503 after the logger.warn;
+// a successful read answers 200 with the credits and a Cache-Control header.
+// The `warn` selection on the failed-read path -- `error instanceof Error ?
+// error.message : String(error)` -- is ported whole. The credits payload is
+// pass-through: the route never reads inside it, so it stays an opaque
+// string, and the real `laneCredits` would be reused, not re-implemented.
+
+// The response the handler writes. On either 503 path `err` carries the
+// `error` field of the JSON body, `cache_control` is empty -- the header is
+// not set -- and the payload is ignored, never echoed back. On the 200 path
+// `err` is empty, `credits` is the payload as the route received it from
+// laneCredits, and the header is set. Exactly one of `err` and `credits` is
+// non-empty. Named `err` rather than `error`: `error` is a keyword of the
+// Zig this compiles to, and a field of that name breaks the generated
+// struct literals.
+struct RouteResponse {
+    status: u16,
+    err: str,
+    credits: str,
+    cache_control: str,
+}
+
+// The route. `url_present` is `process.env.DATABASE_URL` set to a non-empty
+// value; `read_ok` is whether `laneCredits(createQueenPool(url))` resolved
+// rather than threw; `credits` is the payload laneCredits returned.
+pub fn createQueenPublicCreditsRoute(url_present: bool, read_ok: bool, credits: str) -> RouteResponse {
+    if (!url_present) {
+        return RouteResponse { status: 503, err: "No database configured", credits: "", cache_control: "" };
+    }
+    if (!read_ok) {
+        return RouteResponse { status: 503, err: "The lane credits are unavailable", credits: "", cache_control: "" };
+    }
+    return RouteResponse { status: 200, err: "", credits: credits, cache_control: "public, max-age=300" };
+}
+
+// The `error` field of the logger.warn call on the failed-read path: the
+// message of an Error, or its String() form for anything else thrown.
+pub fn warn_error_field(is_error: bool, message: str, str_form: str) -> str {
+    if (is_error) {
+        return message;
+    }
+    return str_form;
+}
+
+test noDatabaseConfigured {
+    const r = createQueenPublicCreditsRoute(false, true, "");
+    assert(r.status == 503);
+    assert(r.err == "No database configured");
+    assert(r.credits == "");
+    assert(r.cache_control == "");
+
+    // The payload the caller hands in is ignored on the 503 path -- the
+    // original's body there is a fixed dict, never an echo of the request.
+    const withPayload = createQueenPublicCreditsRoute(false, true, "some payload");
+    assert(withPayload.status == 503);
+    assert(withPayload.credits == "");
+}
+
+test laneCreditsUnavailable {
+    const r = createQueenPublicCreditsRoute(true, false, "");
+    assert(r.status == 503);
+    assert(r.err == "The lane credits are unavailable");
+    assert(r.credits == "");
+    assert(r.cache_control == "");
+
+    // The warning carries the message of an Error...
+    assert(warn_error_field(true, "relation does not exist", "Error: relation does not exist") == "relation does not exist");
+    // ...or the String() form of anything else thrown.
+    assert(warn_error_field(false, "relation does not exist", "Error: relation does not exist") == "Error: relation does not exist");
+}
+
+test creditsServedWithCacheHeader {
+    const r = createQueenPublicCreditsRoute(true, true, "credits payload");
+    assert(r.status == 200);
+    assert(r.err == "");
+    assert(r.credits == "credits payload");
+    assert(r.cache_control == "public, max-age=300");
+}
