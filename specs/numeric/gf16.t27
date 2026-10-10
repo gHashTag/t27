@@ -1359,6 +1359,12 @@ invariant gf16_identity_encoding {
     @compileAssert(gf16_from_components(0, 31, 0) == 0x3E00);
 }
 
+invariant gf16_one_encoding_bias31 {
+    // 1.0 stated in GF16's own bias 31 (#8519): gf16_from_components(0, 31, 0) == 0x3E00.
+    // 0x3C00 is IEEE binary16's 1.0 (bias 15) and 0 by construction here.
+    @compileAssert(gf16_from_components(0, 31, 0) == 0x3E00);
+}
+
 invariant gf16_sign_mask_bit_position {
     // SIGN_MASK = 0x8000 has bit 15 set (MSB)
     @compileAssert(SIGN_MASK == 0x8000);
