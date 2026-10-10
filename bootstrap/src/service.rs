@@ -5699,7 +5699,7 @@ pub fn run_frontier(list: bool, reseal: bool, audit: Option<u32>) -> anyhow::Res
         if (i as u32 + 1) % si::REMINT_CACHE_EVERY == 0 { let _ = std::fs::remove_dir_all(&zc); }
         let new: serde_json::Value = std::fs::read_to_string(&primary).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
         let keep = sealed && si::remint_keeps(new["seal_schema"].as_u64().unwrap_or(0) as u32, new.pointer("/tests/failed").and_then(|v| v.as_u64()) == Some(0), new.pointer("/tests/forced").and_then(|v| v.as_bool()) == Some(true), new.pointer("/tests/total").and_then(|v| v.as_u64()).unwrap_or(0) as u32, src.lines().filter(|l| l.trim_start().starts_with("invariant ")).count() as u32, !old.iter().any(|(f, _, mine)| f == &primary && !mine));
-        let same = |o: &str| serde_json::from_str::<serde_json::Value>(o).map_or(false, |mut v| { v["sealed_at"] = new["sealed_at"].clone(); v == new });
+        let same = |o: &str| serde_json::from_str::<serde_json::Value>(o).map_or(false, |mut v| { v["sealed_at"] = new["sealed_at"].clone(); v["built_by"] = new["built_by"].clone(); v == new }); // only when and by which build: no change
         if !keep && !old.iter().any(|(f, ..)| f == &primary) { let _ = std::fs::remove_file(&primary); }
         for (f, o, mine) in &old { std::fs::write(f, if keep && *mine && !same(o) { serde_json::to_string_pretty(&new)? } else { o.clone() })? }
         println!("{} {p}", if keep { "resealed" } else { "kept the old seal" });
