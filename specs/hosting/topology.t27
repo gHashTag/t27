@@ -1442,6 +1442,8 @@ test tiers {
     assert may_run_on(S_999_POSTGRES, TIER_TRUSTED) == false;
     var i : u32 = 0;
     while (i < SERVICE_COUNT) {
+        // tier_of is tier_rule over the row's own facts, personal data in transit included.
+        assert tier_of(i) == tier_rule(is_stateful(i), reaches_pii_at_rest(i), SERVICES[i].has_vars, holds_pii(i), is_checkable(i));
         assert may_run_on(i, TIER_OWNER);
         if (tier_of(i) == TIER_PUBLIC) {
             assert is_stateful(i) == false and SERVICES[i].has_vars == false and holds_pii(i) == false;
