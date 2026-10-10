@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/led_on.t27
+// Simplest possible LED test: LED always ON
+// Port of gHashTag/trinity fpga/openxc7-synth/led_on.v
+// Active-low LED: 0 = ON, 1 = OFF
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinity_top {
+
+    // LED output computation
+    // Returns false (0) for active-low LED ON, true (1) for OFF
+    pub fn led_output() -> bool {
+        // Active-low: 0 = LED ON, 1 = LED OFF
+        // Always return false (0) to keep LED ON
+        return false;
+    }
+
+    // Test that LED is always ON
+    test led_always_on {
+        // LED should always be ON (false for active-low)
+        assert(led_output() == false);
+    }
+
+    // Invariant: LED output should always be boolean
+    invariant led_boolean_output {
+        assert(led_output() == true or led_output() == false);
+    }
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
