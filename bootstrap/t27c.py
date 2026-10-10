@@ -1131,6 +1131,12 @@ def generate_zig(node: Node, indent: int = 0) -> str:
         emit("}")
 
     elif node.node_type == "expr_literal":
+        # Convert 0/1 to false/true in boolean contexts
+        if node.extra.get("extra_type") == "bool":
+            if node.value == "0":
+                return "false"
+            elif node.value == "1":
+                return "true"
         return node.value
 
     elif node.node_type == "expr_identifier":
