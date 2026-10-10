@@ -62,6 +62,10 @@ mod signed_receipt;
 #[path = "../gen/rust/verified/die_binding.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod die_binding;
+// specs/verified/bench_boards.t27 (#8662): the board table, the cable and die pick, the DNA reader, the BSCAN guard.
+#[path = "../gen/rust/verified/bench_boards.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod bench_boards;
 // specs/verified/corpus_receipt.t27 (#7576): corpus receipt layout and compare rules. Its RFC 6962 tree
 // (vectors: corpus_merkle.t27) runs below on the sha2 crate until gen-rust lowers slices (#7469).
 #[path = "../gen/rust/verified/corpus_receipt.rs"]
@@ -255,6 +259,9 @@ enum Commands {
         /// this verifier and only AUTHOR for any other (signed_receipt.t27).
         #[arg(long)]
         nonce: Option<String>,
+        /// #8662: the board's row in specs/verified/bench_boards.t27 (part, cable, JTAG chain); none is artix200t
+        #[arg(long)]
+        board: Option<String>,
     },
 
     /// THE SERVICE: compare a table PRINTED in a paper against the script that
@@ -11965,6 +11972,7 @@ async fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
             nonce,
+            board,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -11975,6 +11983,7 @@ async fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
             nonce,
+            board,
         )?,
         Commands::RecomputeDiff { script, tex, label, tol } => {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
@@ -12400,6 +12409,7 @@ fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
             nonce,
+            board,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -12410,6 +12420,7 @@ fn main() -> anyhow::Result<()> {
             skip_hardware,
             pnr_seed,
             nonce,
+            board,
         )?,
         Commands::RecomputeDiff { script, tex, label, tol } => {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?

@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+12c6d9140",
   "closure": [
     {
       "spec": "specs/verified/die_binding.t27",
-      "spec_hash": "sha256:5bc5c583cde121ae64a03b975aacce29dafcff2206cef394a3dc76a464846f9c"
+      "spec_hash": "sha256:eb146a950c204c2c4604848880dab379ed8878443a0cc1da0d7a35de1320fc21"
     },
     {
       "spec": "specs/verified/run_record.t27",
@@ -22,7 +22,7 @@
   "module": "VerifiedIndependence",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T15:00:59Z",
+  "sealed_at": "2026-10-10T19:35:59Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:4759b1048736e47e8fce6fbf054cd44d5222d1f317d63d17a02f206c33a67bf5",
   "spec_path": "specs/verified/independence.t27",
@@ -31,7 +31,8 @@
     "failing": [],
     "forced": false,
     "passed": 11,
-    "total": 11
+    "total": 11,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

@@ -37,12 +37,15 @@
 ;   so the DNA is inside verified bytes); the field is present; its text is DNA_HEX_LEN lowercase
 ;   hex digits. All three give DIE_NAMED, any failure DIE_NONE. A run's die level is its lowest
 ;   receipt's, like its authentication level.
-; - The reader runs only when exactly one JTAG cable is attached (dna_read_allowed): openocd opens
-;   the first FTDI cable it finds, and that order is not the --busdev-num (W838), so with two
+; - The reader runs only when exactly one JTAG cable could be the board's (dna_read_allowed): openocd
+;   opens the first FTDI cable it finds, and that order is not the --busdev-num (W838), so with two
 ;   cables the DNA could be the neighbouring board's. No read means no device_dna, never a guess.
-; - The reader is DNA_READER, and its output is parsed here (reader_raw), so t27c's Rust only runs
-;   two commands. The tests tie each opcode, the IR length, the IDCODE and the cable to
-;   device_dna.t27, and parse the bench's own output back to DNA_OBSERVED.
+; - Which cable is the board's, the die at its PL position, and the reader itself are composed from
+;   the board's row in specs/verified/bench_boards.t27 (#8662). Until then this file held one reader
+;   for one cable kind (0403:6014) and one TAP, and counted 0403:6014 cables only, so a Zynq run on a
+;   0403:6010 cable would have been signed with the neighbouring Artix's DNA. The reader's output is
+;   parsed here (reader_raw), so t27c's Rust only runs two commands; the tests parse the bench's own
+;   output back to DNA_OBSERVED.
 ; - A receipt is v2 exactly when its device_dna is text (receipt_version). Stripping the field or
 ;   adding one changes the message the signature covers, so neither forgery verifies.
 ; - distinct_dies3() counts the dies a run's three placements name; R3-3 decides what count it
@@ -90,30 +93,15 @@ pub fn receipt_version(dna_is_text: bool) -> u8 {
     return RECEIPT_V1;
 }
 
-/// Whether the producer may read the DNA: only with exactly one cable attached.
+/// Whether the producer may read the DNA: only when exactly one cable could be the board's.
 pub fn dna_read_allowed(cables: u32) -> bool {
     return cables == 1;
 }
 
-/// The reader t27c runs: device_dna.t27's openocd recipe as one -c script. Tcl `concat`, not
-/// quotes, tags each read, so the string needs no escape. The tests tie every opcode, the IR
-/// length, the expected IDCODE and the cable to device_dna.t27's constants.
-pub const DNA_READER : str = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6014; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x13636093; init; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
-pub const READER_IRSCAN : str = "irscan xc7.tap 0x";
+/// The reader (bench_boards.t27) echoes each read after its tag: Tcl `concat`, not quotes, so the
+/// script needs no escape.
 pub const READER_FUSE_TAG : str = "FUSE_DNA ";
 pub const READER_XSC_TAG : str = "XSC_DNA ";
-
-/// The cable as `openFPGALoader --scan-usb` lists it; the producer counts these lines.
-pub const CABLE_VID_PID : str = "0x0403:0x6014";
-pub const CABLE_VID : u64 = 0x0403;
-pub const CABLE_PID : u64 = 0x6014;
-
-/// How many cables a --scan-usb listing names.
-pub fn cables_listed(scan: string) -> u32 {
-    var n : u32 = 0;
-    while (text_find(scan, CABLE_VID_PID, n) != TEXT_NONE) { n = n + 1; }
-    return n;
-}
 
 /// No such text, no such number.
 pub const TEXT_NONE : u32 = 65535;
@@ -405,39 +393,6 @@ test "no die level rests on a die-held secret" {
     assert rooted == DEVICE_ROOTED_LEVELS;
 }
 
-test "the reader's opcodes are device_dna.t27's, in order" {
-    var r : string = DNA_READER;
-    assert text_hex_after(r, READER_IRSCAN, 0) == (OP_FUSE_DNA as u64);
-    assert text_hex_after(r, READER_IRSCAN, 1) == (OP_ISC_ENABLE as u64);
-    assert text_hex_after(r, READER_IRSCAN, 2) == (OP_XSC_DNA as u64);
-    assert text_hex_after(r, READER_IRSCAN, 3) == (OP_ISC_DISABLE as u64);
-    assert text_hex_after(r, READER_IRSCAN, 4) == (OP_BYPASS as u64);
-    assert text_hex_after(r, READER_IRSCAN, 5) == HEX_NONE;
-}
-
-test "the reader names the die's IR length, IDCODE and cable" {
-    var r : string = DNA_READER;
-    assert text_hex_after(r, "-irlen ", 0) == (IR_LEN as u64);
-    assert text_hex_after(r, "-expected-id 0x", 0) == IDCODE_OBSERVED;
-    assert text_hex_after(r, "vid_pid 0x", 0) == CABLE_VID;
-    var at : u32 = text_find(r, "vid_pid 0x", 0) + 10;
-    assert text_hex_at(r, text_hex_end(r, at) + 3) == CABLE_PID;
-    assert text_hex_after(CABLE_VID_PID, "0x", 0) == CABLE_VID;
-    assert text_hex_after(CABLE_VID_PID, ":0x", 0) == CABLE_PID;
-}
-
-test "each read is tagged between its own opcodes" {
-    var r : string = DNA_READER;
-    var f : u32 = text_find(r, READER_FUSE_TAG, 0);
-    var x : u32 = text_find(r, READER_XSC_TAG, 0);
-    assert text_find(r, READER_IRSCAN, 0) < f;
-    assert f < text_find(r, READER_IRSCAN, 1);
-    assert text_find(r, READER_IRSCAN, 2) < x;
-    assert x < text_find(r, READER_IRSCAN, 3);
-    assert text_find(r, READER_FUSE_TAG, 1) == TEXT_NONE;
-    assert text_find(r, READER_XSC_TAG, 1) == TEXT_NONE;
-}
-
 test "the bench's own output parses to the observed die" {
     // openocd 0.12.0 on the Wukong bench, 2026-10-07, lines joined with |
     var out : string = "Info : JTAG tap: xc7.tap | FUSE_DNA 41ab0a4f 2a19bf18 | XSC_DNA 30835614 fe54337e | shutdown";
@@ -478,19 +433,9 @@ test "a missing or malformed read is no read" {
 test "a pattern is found up to the text's last byte" {
     // seen >= n in text_find is an equivalent mutant: seen counts up from 0, so the first copy
     // with seen >= n is the copy with seen == n
-    assert text_find(CABLE_VID_PID, CABLE_VID_PID, 0) == 0;
+    assert text_find("0x0403:0x6014", "0x0403:0x6014", 0) == 0;
     assert text_find("ab", "b", 0) == 1;
     assert text_find("ab", "b", 1) == TEXT_NONE;
     assert text_find("a", "ab", 0) == TEXT_NONE;
-    assert cables_listed(CABLE_VID_PID) == 1;
-}
-
-test "the scan's cable count gates the read" {
-    var one : string = "Bus device vid:pid probe_type | 000 002 0x0403:0x6014 ft232H Digilent";
-    var two : string = "000 002 0x0403:0x6014 ft232H | 000 004 0x0403:0x6014 ft232H";
-    assert cables_listed("empty") == 0;
-    assert cables_listed(one) == 1;
-    assert cables_listed(two) == 2;
-    assert dna_read_allowed(cables_listed(one));
-    assert dna_read_allowed(cables_listed(two)) == false;
+    assert text_find("abab", "ab", 1) == 2;
 }

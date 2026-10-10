@@ -1946,43 +1946,11 @@ fn synth_xilinx_noshare(top: &str) -> String {
     )
 }
 
-/// The run of decimal digits at the start of `s`, or `None`.
-fn leading_number(s: &str) -> Option<u32> {
-    let d: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
-    if d.is_empty() { None } else { d.parse().ok() }
-}
-
-/// Extract `(chain, site)` from a FASM file: the enabled JTAG chain and the
-/// BSCAN site whose signals are actually routed. They must be equal.
-fn fasm_bscan_chain_and_site(fasm: &str) -> (Option<u32>, Vec<u32>) {
-    let mut chain = None;
-    let mut sites: Vec<u32> = Vec::new();
-    for line in fasm.lines() {
-        // W693: take ALL leading digits, not the first one. A single
-        // `chars().next()` reads site 12 as site 1 and reports "agree" -- a
-        // false PASS on the one guard this project says nothing else checks.
-        if let Some(i) = line.find("BSCAN.JTAG_CHAIN_") {
-            if let Some(n) = leading_number(&line[i + "BSCAN.JTAG_CHAIN_".len()..]) {
-                chain = Some(n);
-            }
-        }
-        if let Some(i) = line.find("CFG_CENTER_BSCAN") {
-            if let Some(n) = leading_number(&line[i + "CFG_CENTER_BSCAN".len()..]) {
-                if !sites.contains(&n) {
-                    sites.push(n);
-                }
-            }
-        }
-    }
-    sites.sort_unstable();
-    (chain, sites)
-}
-
 /// One `openFPGALoader` load. Returns the DONE bit the loader reports.
-fn load_bitstream(bit: &Path, busdev: &str) -> (Option<i32>, Option<u8>, String) {
+fn load_bitstream(bit: &Path, cable: &str, busdev: &str) -> (Option<i32>, Option<u8>, String) {
     let (c, out, err) = run(Command::new("openFPGALoader").args([
         "--cable",
-        "digilent_hs2",
+        cable,
         "--busdev-num",
         busdev,
         &bit.to_string_lossy(),
@@ -2095,28 +2063,24 @@ fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, Strin
 /// The whole `idcode 0x03636093` line from a detect/load log, trimmed. The
 /// receipt carries the line the tool read, not a re-typed constant -- the
 /// constant was wrong once (2026-08-14: docs said 100T, all boards said 200T).
-fn silicon_full_idcode_line(log: &str) -> Option<String> {
-    log.lines().find(|l| l.contains("idcode")).map(|l| l.trim().to_string())
+fn silicon_full_idcode_line(log: &str, pl_pos: u32) -> Option<String> {
+    log.lines().filter(|l| l.contains("idcode")).nth(pl_pos as usize).map(|l| l.trim().to_string())
 }
 
 /// R3-2 (#7452): one (FUSE_DNA, XSC_DNA) read, or None. Two commands; the cable
-/// rule, the script and the parse are generated from specs/verified/die_binding.t27.
-fn silicon_dna_pair() -> Option<(u64, u64)> {
-    use crate::die_binding as db;
+/// and die pick, the script and the parse are generated from specs/verified/bench_boards.t27 (#8662).
+fn silicon_dna_pair(b: u8, detect: &str) -> Option<(u64, u64)> {
+    use crate::bench_boards as bb;
     let (_, scan, scan_err) = run(Command::new("openFPGALoader").arg("--scan-usb"));
-    let cables = db::cables_listed(spec_str(&(scan + &scan_err)));
-    if !db::dna_read_allowed(cables) {
-        println!("  DNA not read: {cables} cables attached (die_binding.t27 reads with exactly one)");
-        return None;
+    let reader: String = (0..bb::reader_len(b)).map(|k| char::from(bb::reader_char(b, k) as u8)).collect();
+    let out = match bb::dna_pick(spec_str(&(scan + &scan_err)), spec_str(detect), b) {
+        bb::PICK_OK => { let (_, out, err) = run(Command::new("openocd").args(["-c", &reader])); spec_str(&(out + &err)) }
+        why => { println!("  DNA not read: {}", bb::pick_why(why)); return None; }
+    };
+    match bb::reader_first_wrong(out, b) {
+        bb::PICK_OK => Some((bb::reader_raw(out, bb::READER_FUSE_TAG), bb::reader_raw(out, bb::READER_XSC_TAG))),
+        why => { println!("  DNA not read: {}", bb::pick_why(why)); None }
     }
-    let (_, out, err) = run(Command::new("openocd").args(["-c", db::DNA_READER]));
-    let out = spec_str(&(out + &err));
-    let (f, x) = (db::reader_raw(out, db::READER_FUSE_TAG), db::reader_raw(out, db::READER_XSC_TAG));
-    if f == db::HEX_NONE || x == db::HEX_NONE {
-        println!("  DNA not read: openocd printed no tagged read");
-        return None;
-    }
-    Some((f, x))
 }
 
 /// The receipt's device_dna: the reads before and after the run name one die, or null.
@@ -4121,7 +4085,12 @@ pub fn run_silicon(
     skip_hardware: bool,
     pnr_seed: Option<u32>,
     nonce: Option<String>,
+    board: Option<String>,
 ) -> anyhow::Result<()> {
+    // #8662: the board's row (bench_boards.t27) names the part, the cable and the JTAG chain.
+    use crate::bench_boards as bb;
+    let b = bb::board_by_name(spec_str(board.as_deref().unwrap_or("")));
+    if b == bb::BOARD_NONE { println!("REFUSED -- silicon: --board {} is no row of specs/verified/bench_boards.t27", board.unwrap_or_default()); std::process::exit(2); }
     // R3-1 (#7332): a bad nonce or an unusable key is refused BEFORE the
     // boards are touched -- a run whose receipt cannot be what was asked for
     // is not started. No key at all is not a refusal: the run is written
@@ -4155,8 +4124,8 @@ pub fn run_silicon(
     let me = std::env::current_exe()?;
     let mut stages: Vec<Stage> = Vec::new();
 
-    let db = repo_root.join("build/fpga/openxc7/prjxray-db/artix7");
-    let chipdb = repo_root.join("build/fpga/openxc7/xc7a200tfbg676-1.bin");
+    let (part, cable) = (bb::board_part(b), bb::board_cable(b));
+    let (db, chipdb) = (repo_root.join("build/fpga/openxc7/prjxray-db").join(bb::board_family(b)), repo_root.join(format!("build/fpga/openxc7/{part}.bin")));
     // These live outside the worktree because they are multi-gigabyte checkouts
     // shared across worktrees, so the root is per-machine and comes from the
     // environment rather than from one developer's home directory.
@@ -4171,7 +4140,7 @@ pub fn run_silicon(
     let venv = root.join("venv/bin/python");
     let pnr = root.join("nextpnr-xilinx/build/nextpnr-xilinx");
 
-    println!("=== t27c silicon: {spec} ===");
+    println!("=== t27c silicon: {spec} on {} ({part}) ===", bb::board_name(b));
     // W706: this loop checked three of the five paths the run needs. `xr` and
     // `venv` were used twenty lines later without ever being tested, and their
     // absence surfaced as `could not spawn` with sixty characters of stderr that
@@ -4535,8 +4504,8 @@ pub fn run_silicon(
             std::process::exit(1);
         }
 
-        let fasm = std::fs::read_to_string(&fasm_path).unwrap_or_default();
-        let (chain, sites) = fasm_bscan_chain_and_site(&fasm);
+        let fasm = spec_str(&std::fs::read_to_string(&fasm_path).unwrap_or_default());
+        let (chain, sites): (Option<u32>, Vec<u32>) = (Some(bb::fasm_chain(fasm)).filter(|&c| c != bb::NOT_FOUND), (0..bb::fasm_site_count(fasm)).map(|n| bb::fasm_site(fasm, n)).collect());
         let agree = match (chain, sites.as_slice()) {
             (Some(ch), [s]) => ch == *s,
             (None, []) => true,
@@ -4612,7 +4581,7 @@ pub fn run_silicon(
         Command::new(&venv)
             .env("PYTHONPATH", &xr)
             .arg(xr.join("utils/fasm2frames.py"))
-            .args(["--db-root", &db.to_string_lossy(), "--part", "xc7a200tfbg676-1"])
+            .args(["--db-root", &db.to_string_lossy(), "--part", part])
             .arg(&fasm_path),
     );
     if c == Some(0) {
@@ -4635,8 +4604,8 @@ pub fn run_silicon(
     let t = Instant::now();
     let c = if frames_ok {
         let (c, _, _) = run(Command::new("xc7frames2bit").args([
-            "--part_file", &db.join("xc7a200tfbg676-1/part.yaml").to_string_lossy(),
-            "--part_name", "xc7a200tfbg676-1",
+            "--part_file", &db.join(part).join("part.yaml").to_string_lossy(),
+            "--part_name", part,
             "--frm_file", &frames_path.to_string_lossy(),
             "--output_file", &bit_path.to_string_lossy(),
         ]));
@@ -4694,24 +4663,24 @@ pub fn run_silicon(
     // measured. The detect runs before any load, so a load failure cannot take
     // the device record with it.
     let (_, dout, _) = run(Command::new("openFPGALoader")
-        .args(["-c", "digilent_hs2", "--busdev-num", &busdev, "--detect"]));
-    let full_idcode = silicon_full_idcode_line(&dout);
+        .args(["-c", cable, "--busdev-num", &busdev, "--detect"]));
+    let full_idcode = silicon_full_idcode_line(&dout, bb::pl_pos(b));
     match &full_idcode {
         Some(l) => println!("  idcode on {busdev}: {l}"),
         None => println!("  idcode on {busdev}: UNREADABLE -- the receipt carries null"),
     }
     // die_binding.t27 (#7452): the DNA is read before any load and again after the run.
-    let dna_before = silicon_dna_pair();
+    let dna_before = silicon_dna_pair(b, &dout);
 
     if let Some(wp) = &wrong_part {
-        let (_, done, _) = load_bitstream(Path::new(wp), &busdev);
+        let (_, done, _) = load_bitstream(Path::new(wp), cable, &busdev);
         let ok = done == Some(0);
         hw_ok &= ok;
         println!("  {} A1 wrong part      Done {:?}  (must be 0 -- `done 1` alone proves nothing)",
                  if ok { "OK  " } else { "FAIL" }, done);
     }
 
-    let (_, done, _) = load_bitstream(&bit_path, &busdev);
+    let (_, done, _) = load_bitstream(&bit_path, cable, &busdev);
     let ok = done == Some(1);
     hw_ok &= ok;
     println!("  {} B1 our bitstream   Done {:?}  (must be 1)",
@@ -4814,7 +4783,7 @@ pub fn run_silicon(
         // stops answering -- not that every board does. The index that loses the
         // magic IS the libftdi handle for this --busdev-num, derived rather than
         // assumed.
-        let (_, _, _) = load_bitstream(Path::new(nb), &busdev);
+        let (_, _, _) = load_bitstream(Path::new(nb), cable, &busdev);
         let (during, _, _, _) = read_verdict(repo_root, chain);
         let lost: Vec<usize> = before.iter().copied().filter(|i| !during.contains(i)).collect();
         let ok = lost.len() == 1;
@@ -4827,7 +4796,7 @@ pub fn run_silicon(
             println!("       -> --busdev-num {busdev} is libftdi index {}", lost[0]);
         }
 
-        let (_, _, _) = load_bitstream(&bit_path, &busdev);
+        let (_, _, _) = load_bitstream(&bit_path, cable, &busdev);
         let (after, _, _, _) = read_verdict(repo_root, chain);
         let returned = lost.iter().all(|i| after.contains(i));
         hw_ok &= returned;
@@ -4846,7 +4815,7 @@ pub fn run_silicon(
     let receipt = SiliconReceipt {
         device_record: Some(format!("--busdev-num {busdev}")),
         full_idcode,
-        device_dna: silicon_device_dna(dna_before, silicon_dna_pair()),
+        device_dna: silicon_device_dna(dna_before, silicon_dna_pair(b, &dout)),
         verdict_word: silicon_receipt_word(run_pass),
         seal_hash: silicon_seal_verify(&me, repo_root, spec),
         seeds: pnr_seed.into_iter().collect(),
@@ -4889,38 +4858,6 @@ pub fn run_silicon(
     } else {
         println!("FAIL -- see the line above. A read without its control is not a result.");
         std::process::exit(1);
-    }
-}
-
-#[cfg(test)]
-mod w693_bscan_parser {
-    use super::*;
-
-    /// W693: `chars().next()` read site 12 as site 1 and called it agreement.
-    #[test]
-    fn a_two_digit_site_is_not_read_as_one_digit() {
-        let fasm = "TILE.BSCAN.JTAG_CHAIN_1\nTILE.X.CFG_CENTER_BSCAN12_TDI\n";
-        let (chain, sites) = fasm_bscan_chain_and_site(fasm);
-        assert_eq!(chain, Some(1));
-        assert_eq!(sites, vec![12], "site 12 must not collapse to 1");
-    }
-
-    #[test]
-    fn agreement_and_mismatch_are_distinguished() {
-        let ok = "A.BSCAN.JTAG_CHAIN_3\nB.CFG_CENTER_BSCAN3_TDI\nC.CFG_CENTER_BSCAN3_TDO\n";
-        let (c, s) = fasm_bscan_chain_and_site(ok);
-        assert_eq!((c, s.as_slice()), (Some(3), [3].as_slice()));
-
-        let bad = "A.BSCAN.JTAG_CHAIN_3\nB.CFG_CENTER_BSCAN2_TDI\n";
-        let (c, s) = fasm_bscan_chain_and_site(bad);
-        assert_eq!((c, s.as_slice()), (Some(3), [2].as_slice()));
-    }
-
-    #[test]
-    fn a_design_with_no_bscan_is_not_a_mismatch() {
-        let (c, s) = fasm_bscan_chain_and_site("SOME.OTHER.FEATURE\n");
-        assert_eq!(c, None);
-        assert!(s.is_empty());
     }
 }
 
@@ -4972,8 +4909,8 @@ mod r2_silicon_receipt {
     #[test]
     fn idcode_is_the_line_the_tool_read_or_nothing() {
         let log = "Board 1:4\nidcode 0x03636093\nfamily artix a7 200t\n";
-        assert_eq!(silicon_full_idcode_line(log).as_deref(), Some("idcode 0x03636093"));
-        assert_eq!(silicon_full_idcode_line("family artix a7 200t"), None);
+        assert_eq!(silicon_full_idcode_line(log, 0).as_deref(), Some("idcode 0x03636093"));
+        assert_eq!(silicon_full_idcode_line("family artix a7 200t", 0), None);
     }
 
     /// The receipt's toolchain IS the seal's built_by vocabulary (#7076): one
