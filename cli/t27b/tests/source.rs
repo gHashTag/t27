@@ -2953,6 +2953,106 @@ fn parameter_discard_rejections() {
     }
 }
 
+// ------------------------------------------------------------ array length expressions
+
+/// An array length spelled as an expression (`[W+1]u8`, `[(W+1)*2]u16`) is
+/// folded at compile time, as Zig folds the text t27c prints: an untyped
+/// constant is a comptime_int, a typed one keeps its type.
+#[test]
+fn array_length_expression_folds() {
+    let src = "module a;
+
+const W = 4;
+const H: u32 = 3;
+const AREA = W * H;
+
+fn total(xs: [W * H]u32) -> u32 {
+    var s: u32 = 0;
+    for (xs) |x| {
+        s = s + x;
+    }
+    return s;
+}
+
+test ok {
+    var a: [W + 1]u8 = undefined;
+    a[0] = 1;
+    assert(a.len == 5);
+    var c: [(W + 1) * 2]u16 = undefined;
+    c[9] = 3;
+    assert(c.len == 10);
+    var d: [H * 2]u64 = undefined;
+    d[5] = 1;
+    assert(d.len == 6);
+    var b: [AREA - 2]u8 = undefined;
+    b[0] = 1;
+    assert(b.len == 10);
+    var r: [W * H]u32 = undefined;
+    for (0..r.len) |i| {
+        r[i] = 2;
+    }
+    assert(total(r) == 24);
+}
+
+test fails {
+    var a: [W - 1]u8 = undefined;
+    a[0] = 1;
+    assert(a.len == 4);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+}
+
+/// A length that is negative, reads a run-time value or calls a fn is
+/// refused as `type [N]T`; one that overflows its typed constant is refused
+/// by the fold. Zig refuses all but the call.
+#[test]
+fn array_length_expression_rejections() {
+    let cases: &[(&str, bool)] = &[
+        ("const W = 4;\nfn f() -> u32 {\n    var a: [W - 5]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", true),
+        ("fn f() -> u32 {\n    var n: u32 = 3;\n    n = n + 1;\n    var a: [n + 1]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", true),
+        ("fn g(x: u32) -> u32 {\n    return x;\n}\nfn f() -> u32 {\n    var a: [g(2) + 1]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", true),
+        ("const H: u8 = 200;\nfn f() -> u32 {\n    var a: [H + 100]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", false),
+    ];
+    for (body, len) in cases {
+        let m = rejected(&format!("module a;\n\n{}\ntest t {{\n    assert(f() == 1);\n}}\n", body));
+        let want = if *len { "t27b: unsupported construct type [N]T at line" } else { "t27b: unsupported construct" };
+        assert!(m.starts_with(want), "{}: {}", body, m);
+    }
+}
+
+/// A module const built from typed constants is folded as Zig folds it at
+/// compile time: a checked step out of range is refused, `+%` wraps.
+#[test]
+fn typed_constant_arithmetic_folds() {
+    let src = "module a;
+
+const H: u32 = 3;
+const A = H * 5;
+const Q: u8 = 250;
+const R = Q +% 10;
+
+fn next() -> u32 {
+    var x: u32 = A;
+    x = x + 1;
+    return x;
+}
+
+test ok {
+    assert(next() == 16);
+    assert(R == 4);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true)]);
+    let m = rejected("module a;\n\nconst B: u8 = 200;\nconst OV = B + 100;\n\ntest t {\n    assert(OV == 44);\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct ConstDecl at line"), "{}", m);
+    assert!(m.contains("`OV` overflows u8"), "{}", m);
+}
+
+
+
 // ------------------------------------------------------------- type alias
 
 /// `const Name = T;` with no annotation, where `T` spells a type, is a Zig
@@ -3090,104 +3190,6 @@ fn bare_abs_rejections() {
         let m = rejected(&format!("module a;\n\n{}\n", body));
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
-}
-
-// ------------------------------------------------------------ array length expressions
-
-/// An array length spelled as an expression (`[W+1]u8`, `[(W+1)*2]u16`) is
-/// folded at compile time, as Zig folds the text t27c prints: an untyped
-/// constant is a comptime_int, a typed one keeps its type.
-#[test]
-fn array_length_expression_folds() {
-    let src = "module a;
-
-const W = 4;
-const H: u32 = 3;
-const AREA = W * H;
-
-fn total(xs: [W * H]u32) -> u32 {
-    var s: u32 = 0;
-    for (xs) |x| {
-        s = s + x;
-    }
-    return s;
-}
-
-test ok {
-    var a: [W + 1]u8 = undefined;
-    a[0] = 1;
-    assert(a.len == 5);
-    var c: [(W + 1) * 2]u16 = undefined;
-    c[9] = 3;
-    assert(c.len == 10);
-    var d: [H * 2]u64 = undefined;
-    d[5] = 1;
-    assert(d.len == 6);
-    var b: [AREA - 2]u8 = undefined;
-    b[0] = 1;
-    assert(b.len == 10);
-    var r: [W * H]u32 = undefined;
-    for (0..r.len) |i| {
-        r[i] = 2;
-    }
-    assert(total(r) == 24);
-}
-
-test fails {
-    var a: [W - 1]u8 = undefined;
-    a[0] = 1;
-    assert(a.len == 4);
-}
-";
-    let r = run(src);
-    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
-}
-
-/// A length that is negative, reads a run-time value or calls a fn is
-/// refused as `type [N]T`; one that overflows its typed constant is refused
-/// by the fold. Zig refuses all but the call.
-#[test]
-fn array_length_expression_rejections() {
-    let cases: &[(&str, bool)] = &[
-        ("const W = 4;\nfn f() -> u32 {\n    var a: [W - 5]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", true),
-        ("fn f() -> u32 {\n    var n: u32 = 3;\n    n = n + 1;\n    var a: [n + 1]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", true),
-        ("fn g(x: u32) -> u32 {\n    return x;\n}\nfn f() -> u32 {\n    var a: [g(2) + 1]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", true),
-        ("const H: u8 = 200;\nfn f() -> u32 {\n    var a: [H + 100]u8 = undefined;\n    a[0] = 1;\n    return 1;\n}\n", false),
-    ];
-    for (body, len) in cases {
-        let m = rejected(&format!("module a;\n\n{}\ntest t {{\n    assert(f() == 1);\n}}\n", body));
-        let want = if *len { "t27b: unsupported construct type [N]T at line" } else { "t27b: unsupported construct" };
-        assert!(m.starts_with(want), "{}: {}", body, m);
-    }
-}
-
-/// A module const built from typed constants is folded as Zig folds it at
-/// compile time: a checked step out of range is refused, `+%` wraps.
-#[test]
-fn typed_constant_arithmetic_folds() {
-    let src = "module a;
-
-const H: u32 = 3;
-const A = H * 5;
-const Q: u8 = 250;
-const R = Q +% 10;
-
-fn next() -> u32 {
-    var x: u32 = A;
-    x = x + 1;
-    return x;
-}
-
-test ok {
-    assert(next() == 16);
-    assert(R == 4);
-}
-";
-    let r = run(src);
-    assert_eq!(names_ok(&r), vec![("ok", false, true)]);
-    let m = rejected("module a;\n\nconst B: u8 = 200;\nconst OV = B + 100;\n\ntest t {\n    assert(OV == 44);\n}\n");
-    assert!(m.starts_with("t27b: unsupported construct ConstDecl at line"), "{}", m);
-    assert!(m.contains("`OV` overflows u8"), "{}", m);
 }
 
 /// `return undefined;` in a void fn is a plain `return;`: the work before it
