@@ -5,7 +5,10 @@
   "gen_hash_zig": "sha256:d036e71c13d426609dfdaee3df74ac9aa5d5a95efdfaadd61e30868a595757bc",
   "module": "Pipeline",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
+  "sealed_at": "2026-10-10T14:33:39Z",
   "spec_hash": "sha256:e0d6c374bc0ec25395ed127af2cd8abdbc6fc6594b32e8fb7e4213e4b61d49e7",
-  "spec_path": "specs/compiler/pipeline.t27"
+  "spec_path": "specs/compiler/pipeline.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:1565:18: error: expected pointer dereference, optional unwrap, or field access, found 'error'"
+  }
 }

@@ -1,16 +1,28 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6a25047a49ea2adb5aaa6bd9a3bd403b1ad55b4aad1180a5b3b88753b9a0aaaa",
   "gen_hash_rust": "sha256:9f6d2839e5504d071d33ce94fb5aea13a55e98a558c6cf71da77097def8dd199",
   "gen_hash_verilog": "sha256:d96ae58e9711d2e8dcb81e72f9813dfa9fdc6c408e68d16eaa866e06a19b03ae",
-  "gen_hash_zig": "sha256:21e1c8129c4d1f98705e32f6da8d31470e2bb3f42f73b5c6208539cdd7962ff0",
+  "gen_hash_zig": "sha256:382b716b6405b579bdd80c89225529452a60f7bac11790b1c45c2cfa52c73093",
   "module": "TernaryEncoding",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:08:51Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:33:25Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ae3fdc3bffe75f5c693a42d8b9ba3c3a8704e7898507aeddad6708d86a7ea337",
   "spec_path": "specs/base/ternary_encoding.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:8:9: error: assertion failed"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/sync/schema.t27",
@@ -10,16 +10,16 @@
   "gen_hash_c": "sha256:97a7b67f459611839206e2f566edf989ca76574112b94b24a24391ad3b61e204",
   "gen_hash_rust": "sha256:c55dbc0e2fa5dafc61121cd7c7deefcc303bcf7cdb7af4b625dda64fc6c3996c",
   "gen_hash_verilog": "sha256:75009d5cece160f978da4a775e6586925176dd73618b168f90ad180bc65e6d19",
-  "gen_hash_zig": "sha256:fa1a6f09cd876dfa6965bfb8c268eef83a19b9fa44ec635022afe88227c172d2",
+  "gen_hash_zig": "sha256:3b270d0ff2bc05be3f7268dc9d35a4deac21b1477f973c73bfa267327388555d",
   "module": "sync-index",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T23:18:18Z",
+  "sealed_at": "2026-10-10T15:01:53Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cf881e126a13ece468c589da0d1a252ad98a07931d25268645071a9ea360a71c",
   "spec_path": "specs/sync/index.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:182:29: error: unused capture"
+    "blocked": "does not compile: spec.zig:180:29: error: unused capture"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

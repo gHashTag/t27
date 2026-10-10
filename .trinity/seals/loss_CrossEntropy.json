@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9528bceaff76a12a80a7e3b0a58fb50644e049958580c625a8c0526012b39419",
   "gen_hash_rust": "sha256:16db9234e2ba38e6cfb7e5804f53eedf49f220a72f8a3f4938bed8c54d309d82",
   "gen_hash_verilog": "sha256:65bb853f81141aa5bbf999c0e4a0987d9ad98aa1406d863f67824b946c626f24",
-  "gen_hash_zig": "sha256:9b10f51c31053eba4a707fe216d41b9d6e8df222382dc62d85120c2947c17024",
+  "gen_hash_zig": "sha256:bf6bf7029cb764181ffd93d625189ba3804cc1018bc6eb699c64da159a9b90b7",
   "module": "CrossEntropy",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:53Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:35:13Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f1d9ade24cadc884bd3b96ac17858e23e4b102de868d2264d80854226d762274",
   "spec_path": "specs/ml/loss/cross_entropy_loss.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-cross_entropy_loss-2905043/spec.zig:122:20: error: expected 4 argument(s), found 1"
+    "blocked": "does not compile: spec.zig:120:20: error: expected 4 argument(s), found 1"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

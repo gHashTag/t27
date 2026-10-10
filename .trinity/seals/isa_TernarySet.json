@@ -1,15 +1,28 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:b22dfe5bf2cd386646435dbd9aaaa6c9baa7a7d2b03a3bb567bce7c0c9fad017",
   "gen_hash_rust": "sha256:2958bd08177dfcb10362a0aa6c8de8632f37b8bd47e54e2670509c766480d4d0",
   "gen_hash_verilog": "sha256:ae32c0dbfd0ed329c4759637a632881b2d3e1d08958b5bca3d12b8feed869c95",
-  "gen_hash_zig": "sha256:6e322c932f3580eba791d140d67c89b8af49051dae29c1df18c2aca5e238f8a6",
+  "gen_hash_zig": "sha256:941376806fca76f777ded041e54cbf28da27d5513a26055e5ac661c7b98b7aac",
   "module": "TernarySet",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:28Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9f31f299bf8feb20f30634bf278318e04e0294700bd1c46fff873e0785c77fbd",
   "spec_path": "specs/isa/ternary_set.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-ternary_set-3666260/spec.zig:25:9: error: local variable is never mutated"
+    "blocked": "does not compile: spec.zig:149:9: error: use of undeclared identifier 'eq'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

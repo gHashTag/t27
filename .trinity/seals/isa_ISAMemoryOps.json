@@ -1,15 +1,28 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:501f63f6f282de270220748026572418c1dd2df9e9d0b82f0d1a8cd6131b88ee",
   "gen_hash_rust": "sha256:84ca0522a1d6ab82cc528ba3137e24cc7492757b2882a559b6aedd82e3c53969",
   "gen_hash_verilog": "sha256:0dccef9c3c538ea2399276395a58aaa116f002a42e4180c75d46756cb9f56e0b",
-  "gen_hash_zig": "sha256:7dd923ae6e17ec1d572280912500768773f85b8966f67bc21236311d62b9421d",
+  "gen_hash_zig": "sha256:e24477590209423ef6a48c28fc3205b0a4ad384fc7df3d09ce7d1b1bf1e97014",
   "module": "ISAMemoryOps",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:53:18Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:382cc20fb636d7a1ef757587a7394ed6819ff310bb4e91b152b6e189f5dcc5dc",
   "spec_path": "specs/isa/ternary_memory.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-ternary_memory-6500/spec.zig:90:9: error: local variable is never mutated"
+    "blocked": "does not compile: spec.zig:182:45: error: type '[7]u8' does not support struct initialization syntax"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:7895bcb81d66ffb1418e3b874fe406a7085fb3f73db3d6ceef2f5a2c4f105d72",
   "gen_hash_rust": "sha256:ec055c4424a3aab5567abc9b68f94a847ac87872c5222ddc65e51fba1bc3c6c0",
   "gen_hash_verilog": "sha256:db5cc810283311d0529c30a64fea270ba519ced8c2b71478a345305e0e037c3e",
-  "gen_hash_zig": "sha256:e5c4b09d44c68ab836cec3c85d8519318ad9bcb86d4b8fbb23233193ab75bb5c",
+  "gen_hash_zig": "sha256:7e0f827626abaf4805e255878f599a8339f4d577cea04f4c282af37f9091f23d",
   "module": "Relu",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:42Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:7c14260d50ae57f2603ecb1a689e44b34ac04a7e86c97555fc951cb654c4e15e",
-  "spec_path": "specs/ml/activation/relu_activation.t27"
+  "spec_path": "specs/ml/activation/relu_activation.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:49:20: error: expected 3 argument(s), found 1"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

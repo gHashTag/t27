@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:ae54003b7783abfc7331d7a2ffb627cadfdc07c72437389df80d865576fd1f32",
   "gen_hash_rust": "sha256:4e9989764fca093700e01f5072a6a4534fcf8b2be09d748a1abff4567b5842b5",
   "gen_hash_verilog": "sha256:2cc2d50f49fc951028a4ccba85beef8218b36ed971921b57847083a009967291",
-  "gen_hash_zig": "sha256:ec39ef2fcaa6edac9332cda91ae84b970362f77d8136d4e8790fc53f37f58a9a",
+  "gen_hash_zig": "sha256:7d86ff51145adcc9427a79c41632c7c67475e74ff71e032c6edcb9b31ed996dc",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:367e4fe497e230ce855aa8c59561bc62efd6e616b1276f98912da895764b88a3",
-  "spec_path": "specs/ml/layers/dropout_layer.t27"
+  "spec_path": "specs/ml/layers/dropout_layer.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:66:20: error: use of undeclared identifier 'allocf32'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

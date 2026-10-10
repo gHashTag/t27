@@ -1,16 +1,40 @@
 {
-  "built_by": "t27c-bootstrap@0.5.1+a6c8ab1ba",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/fpga/mac.t27",
+      "spec_hash": "sha256:8de13250bacc6dfcbea6f0793bed435605fdbfdcb75e094df82ab0993de0c350"
+    },
+    {
+      "spec": "specs/fpga/spi.t27",
+      "spec_hash": "sha256:5fc7caee4fd899cea6eb4d53b104e88d075d2d7c7dfe42f7ac244a3240811382"
+    },
+    {
+      "spec": "specs/fpga/uart.t27",
+      "spec_hash": "sha256:fe0d857d25e5dd7668b5a2ee59ea39ee5369a7ed269ae56d6634bac4a341936a"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a94d844a4e5db4cad07a876b50b0a2111183c087b75944cc5933c986d7e63e51",
   "gen_hash_rust": "sha256:e44544eb358c8f734f2e65ef904315499eae9a7b54fb74a20cac55c34e9b1ebf",
   "gen_hash_verilog": "sha256:70b1d3bc6cdf69490c1c50bf096c8a1ee065c8a75d9b678a8b218abbdd40819b",
-  "gen_hash_zig": "sha256:b6c675cd1b1a35609c87e93bb1315e767c9a15d5d0d370ef143a0421af10d863",
+  "gen_hash_zig": "sha256:e2b9bb060efaeffcee2185502d42f4cfcf7debe747bbebc07e5d99e4838b00fe",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:31:45Z",
-  "sealed_by": "t27c-bootstrap@0.5.1",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:18e1f5c84ec32537b9176be36b798c2743ea840058b5097550e32a2b0f02958e",
   "spec_path": "specs/fpga/bridge.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:192:44: error: use of undeclared identifier 'TernaryWord'"
+    "blocked": "does not compile: spec.zig:191:44: error: use of undeclared identifier 'TernaryWord'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

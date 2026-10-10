@@ -9031,10 +9031,12 @@ impl Codegen {
         // every body reference keeps its spec name.
         let mut body_muts: std::collections::HashSet<String> = std::collections::HashSet::new();
         collect_mutable_names(&node.children, &mut body_muts);
+        // #8641: a write THROUGH a pointer or slice parameter (`p.* = `, `s[i] = `) is no reassignment of it.
+        fn reassigned(nodes: &[Node], name: &str) -> bool { nodes.iter().any(|n| (n.kind == NodeKind::StmtAssign && n.children.first().map_or(false, |l| l.kind == NodeKind::ExprIdentifier && l.name == name)) || reassigned(&n.children, name)) }
         let shadowed: Vec<String> = node
             .params
             .iter()
-            .filter(|(pname, _)| pname != "self" && body_muts.contains(pname))
+            .filter(|(pname, ptype)| pname != "self" && body_muts.contains(pname) && (!(ptype.trim_start().starts_with('*') || ptype.trim_start().starts_with("[]")) || reassigned(&node.children, pname)))
             .map(|(pname, _)| pname.clone())
             .collect();
 

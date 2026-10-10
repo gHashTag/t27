@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -18,11 +18,11 @@
   "gen_hash_c": "sha256:be6168c31bbe01c6ded8cae01f789135c493364a95197e9458950588423f0e91",
   "gen_hash_rust": "sha256:d781387e7ed64dbf5b4a2211f0c7acaebcf55cd107b0b4dca3666e7d30508280",
   "gen_hash_verilog": "sha256:0409c3256a6ba67e31e99ccbd720aaed2d3734405ac543361ed71c124dd69126",
-  "gen_hash_zig": "sha256:656543a7d4df6862fb0495fe2407edd7549aad6c755ae38958965f0ef45d7bf3",
+  "gen_hash_zig": "sha256:b7ba592508a097774638953b8abfde2f8ceb0882be8040d06fd9d6cdc2f42c48",
   "module": "forward_pass",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T13:38:09Z",
+  "sealed_at": "2026-10-10T14:35:53Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:6099b2065543360ad54faefef4355b155972af956869391f561c397f6d03244d",
   "spec_path": "specs/neural/forward_pass.t27",

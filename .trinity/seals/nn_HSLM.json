@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+d2c750b54",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/ops.t27",
@@ -30,16 +30,16 @@
   "gen_hash_c": "sha256:981dd040e1a428a855b49a70a1057b15aec8b1ae983665ab56a12cf4dfebbe9b",
   "gen_hash_rust": "sha256:7ddc1fd7e157a82c262e7c7216c41091173141c42d0f2bd5843698f99c890321",
   "gen_hash_verilog": "sha256:b0fe9634a4234ef800d3351a47f89f20e884a4bc6e164a5cd20e0c0ae752c855",
-  "gen_hash_zig": "sha256:08a78e88ef14412a7c59ff9cc7de62e70ac207dcb1d1b5ee4f685621b7139d18",
+  "gen_hash_zig": "sha256:1931d30bda1c562642a2207a07955e5aad55ac71c2da44715d33a35369fd3aab",
   "module": "HSLM",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:42:43Z",
+  "sealed_at": "2026-10-10T14:35:58Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2056290affb21128c3fec58c0b04a3999569434cbfb2513ae7a58866026de4bf",
   "spec_path": "specs/nn/hslm.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:177:26: error: use of undeclared identifier 'tanh'"
+    "blocked": "does not compile: spec.zig:173:26: error: use of undeclared identifier 'tanh'"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

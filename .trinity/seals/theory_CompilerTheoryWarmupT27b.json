@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+927d1bdd3",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/compiler/theory/warmup.t27",
@@ -14,7 +14,7 @@
   "module": "CompilerTheoryWarmupT27b",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T15:35:26Z",
+  "sealed_at": "2026-10-10T14:34:06Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cd72839155edeb64bec0680d5e016b63db5a596a3bd4a34177b6e4518876ca75",
   "spec_path": "specs/compiler/theory/warmup_t27b.t27",

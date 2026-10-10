@@ -1,16 +1,32 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:fd1e6f1fcc32bc80bcc1e90c7dda2e7597a09dabe79b9172ec654ba0de73a5a4",
   "gen_hash_rust": "sha256:1257e807a86c5a2e92e4618d35171f2bc5b5b62af00377ebf79ff1e6cf0526d6",
   "gen_hash_verilog": "sha256:35160e16d50e646b00ac08e845609e079c98b704b15e5ec67e2196506c33191a",
-  "gen_hash_zig": "sha256:43632f9ec98a9515a3b1c4d81999226e9c669f0cb8c2dce65aba8f98ed21a51d",
+  "gen_hash_zig": "sha256:0df4f0c5460462bc6f7b8318685675554bb3993a82f563ac38d7628a80538fa1",
   "module": "TriRadixSort",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:32Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T15:04:02Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:dddaa952874e055c308a0e363e954008b31ff66f5f6842fbbf1143fdb5b7f7bb",
   "spec_path": "specs/tri/sort/radix_sort.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:109:10: error: expected type 'mem.Allocator', found '[8]usize'"
+    "blocked": "does not compile: spec.zig:107:10: error: expected type 'mem.Allocator', found '[8]usize'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

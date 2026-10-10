@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/tri/crypto/sha256.t27",
@@ -7,7 +7,7 @@
     },
     {
       "spec": "specs/verified/corpus_receipt.t27",
-      "spec_hash": "sha256:f37339613d0a1978a54e473689d4a1cf9854397d5287680f035e69dedc752098"
+      "spec_hash": "sha256:6a73dc9113c8bbcef29843651ac8dae34677ae44fb6d5613c4376ef07d447135"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
@@ -18,7 +18,7 @@
   "module": "VerifiedCorpusMerkle",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T15:00:39Z",
+  "sealed_at": "2026-10-10T15:06:07Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:62a21dc8e36f220d8ed404ef17d6acc5d71626ad7d6850c349f1dda581d145a8",
   "spec_path": "specs/verified/corpus_merkle.t27",

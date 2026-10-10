@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:8356c91727634ab9c655831d37c6ac181f4ed024e7e5e94062a10696235acabf",
   "gen_hash_rust": "sha256:94d7878e451028df24fd0e8847bb0a2153f158a82bf816f4dc424c33dc04c0b8",
   "gen_hash_verilog": "sha256:c7898409c91d6c71875cc69ac255d2044e1f6dd19ff062de6ad668fbb8fcd8b5",
-  "gen_hash_zig": "sha256:43694151182cbbf3a9c3576f056cb723ba66854d53df9244215d93734c325f22",
+  "gen_hash_zig": "sha256:a3e308ff3d6854cb0c5a668d157f32f1af86a98fcb4dd503e9f4f341dbcccf6f",
   "module": "TriRbTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-10T15:05:53Z",
   "spec_hash": "sha256:159ba92d97d04468764e051564870583f2d222e71cb6dad06c480767c8517136",
-  "spec_path": "specs/tri/trees/red_black_tree.t27"
+  "spec_path": "specs/tri/trees/red_black_tree.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:21:5: error: tuple field has a name"
+  }
 }

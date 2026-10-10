@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6c48dbb76",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -14,11 +14,11 @@
   "gen_hash_c": "sha256:94b60edd328d7a036c73d8d560c96a7b7bf8ebbcf5d81e8ed43e6b7cacaa1f6d",
   "gen_hash_rust": "sha256:4233e73ad353a7f6e437bbf3f7ffffb9dca7261e2f3dc419dee6f37342de3242",
   "gen_hash_verilog": "sha256:c4604e68a8e271e2d7b65e9f482d78712a97ee4e3ff67ff39014de5a6724efad",
-  "gen_hash_zig": "sha256:7d4a34f51fbce7f035ae60800929b0eed0ad95f2b58afcf40cbaf8b278531716",
+  "gen_hash_zig": "sha256:cc7efae38b9574f7f2ef20c65758a8a58af2de557c7667a96d51a5548c81db96",
   "module": "TriMatrix",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T23:18:29Z",
+  "sealed_at": "2026-10-10T15:03:24Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:41589d136c0718726a4641215c4ce3c8f5aa8545f536932160c99212702c5ba2",
   "spec_path": "specs/tri/math/matrix.t27",

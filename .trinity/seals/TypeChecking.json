@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:1309208ed7b409229c1dfa8c8c5113ec92d7a99c1133ed3c9f25402bd1234e02",
   "gen_hash_rust": "sha256:0f5385fb52046c937dbe2db1f85f20aa4b1d19fe6bc89290e325277bad7541d6",
   "gen_hash_verilog": "sha256:ac2009fcacfba8f411bd972c4a71fa12623cf37df61139429ea2d0df6d3dca0d",
-  "gen_hash_zig": "sha256:9f634decbad62ef1996cb275ed37819e155ee6b056de4b9fcc66c0c7cc4e7669",
+  "gen_hash_zig": "sha256:74f03f9ff550af2c6a696f3c09b8077f6351456a1a1af67aa3ec65d7ed80bf52",
   "module": "TypeChecking",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:41:25Z",
+  "sealed_at": "2026-10-10T14:34:07Z",
   "spec_hash": "sha256:3bf69264d0a8e2c38be6897aa44215f348051b350b1d8bcb15418ee771814a8c",
   "spec_path": "specs/compiler/typechecker.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-typechecker-3567294/spec.zig:80:53: error: expected ',' after initializer"
+    "blocked": "does not compile: spec.zig:80:53: error: expected ',' after initializer"
   }
 }

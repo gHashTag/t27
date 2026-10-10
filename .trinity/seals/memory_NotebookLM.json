@@ -1,16 +1,23 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:82e600ca4cc564120a082af226d7e43d98572b6682ba247f3fd1f98db9219cc3",
   "gen_hash_rust": "sha256:434bb37d28764e16d4421b428010cb86f794bb20dc7cf67ba6fc6a21cd0fe009",
   "gen_hash_verilog": "sha256:7716f39dc3d0baf658917208a7c294da3ed66d8d849778e3a0d170e7083115b4",
-  "gen_hash_zig": "sha256:bb6ccd062511af8cf494e7023abe2889e22ce3e10e990489a77c81bb5379b13c",
+  "gen_hash_zig": "sha256:fc04dfe29677e1b84a391259f73e0f30dc8985d9ad6700b251ad3aaeb55c7e6f",
   "module": "NotebookLM",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:07Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:dc5b054f79d747598c75190379fe4a36400bb27af13dffe06d438f145c1af96f",
   "spec_path": "specs/memory/notebooklm.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:254:29: error: incompatible types: 'spec.ErrorCode' and 'comptime_int'"
+    "blocked": "does not compile: spec.zig:253:29: error: incompatible types: 'spec.ErrorCode' and 'comptime_int'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

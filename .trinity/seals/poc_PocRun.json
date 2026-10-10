@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/verified/frontier.t27",
@@ -14,7 +14,7 @@
   "module": "PocRun",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T15:01:23Z",
+  "sealed_at": "2026-10-10T15:06:14Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5d56eba1822996b19213f3a1df5607e94df76d83420de14988fa3d4deb49d709",
   "spec_path": "specs/verified/poc/run.t27",

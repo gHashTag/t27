@@ -1,12 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:fdee1f03e41a62fd20daf472b36f4733bb0abddd5f7632ed5c38bc5d9fa526e3",
   "gen_hash_rust": "sha256:7378a5ecd369bcb9ccc6f5234e13933c826175931a1c4c8c2f628b432ebf9233",
   "gen_hash_verilog": "sha256:65a30cf287d159d35925dead93894afc79036a0b680f21d14d3f0b93f4a8b82c",
-  "gen_hash_zig": "sha256:8e50d53d0c57ddc82ba7ec9113d056211d7edbc07c819e3a050ce61ab7919a93",
+  "gen_hash_zig": "sha256:35e3b4d9ff29d1c575bac808fe1a3ec04be46d13b2ced862c014c6620e5ab85c",
   "module": "Softmax",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:bbb8bd0b871cfce47a1f3c8dd2336a7223ffc1ae4b24c134ebfed191d44fd959",
-  "spec_path": "specs/ml/activation/softmax.t27"
+  "spec_path": "specs/ml/activation/softmax.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:31:10: error: use of undeclared identifier 'range'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }

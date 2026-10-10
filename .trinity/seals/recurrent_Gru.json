@@ -1,16 +1,32 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:226c919bb4e395ee204478c1738e4063d95999f0fce0fd6a6aaaf91101e08c41",
   "gen_hash_rust": "sha256:20d6120c27a1e5479b4c035259b97d64c7e3171ae11d7968380b7999d2bea200",
   "gen_hash_verilog": "sha256:37758cd9c37f25d9d6b9586131c38fa212982c589d26ce9fcbdb6caff9a76387",
-  "gen_hash_zig": "sha256:00926e9cb1785b5e808ed2b40def8b7f7901647970c0597f68fe38b9f6e5629e",
+  "gen_hash_zig": "sha256:4abeb80ad3e58828e4382a9e2fdce3eb8f1f7f8d1f008ddd32dac9d181185fa9",
   "module": "Gru",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:08Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:35:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3ba89720971fd8fcfdb65f486cc2be5b56698d44fa1cdf1e154e307263cd8e39",
   "spec_path": "specs/ml/recurrent/gru_cell.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:43:24: error: use of undeclared identifier 'math'"
+    "blocked": "does not compile: spec.zig:42:24: error: use of undeclared identifier 'math'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

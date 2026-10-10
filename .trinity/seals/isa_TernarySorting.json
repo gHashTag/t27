@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -10,16 +10,16 @@
   "gen_hash_c": "sha256:45c45d185f4cc1ba17e77e9cdb6bd0ebc53fcb245b17bf1afab18e8af6c17258",
   "gen_hash_rust": "sha256:2e7c7c4d4e6e2011e7b2fb0b47c03dfc72d09725f676972d24ce2d44fd57d365",
   "gen_hash_verilog": "sha256:fd10987923e0fbf29e97062582d456bc70576824d543496e9c28a54c4bb94ba2",
-  "gen_hash_zig": "sha256:fca8f8bf5f14ce4669f22d7d7a5ab3b88696fc2e2fa9d360d52515db7699e12f",
+  "gen_hash_zig": "sha256:8249e939860b74f3919543dd95a9bfb940589b2c92ff2392382146a7f9d0d503",
   "module": "TernarySorting",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:33:01Z",
+  "sealed_at": "2026-10-10T14:34:34Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3d7fbd79b96b7b46ef0ed2af0d925a6d1e50cbccffdb39086c9c26aedfa69b1b",
   "spec_path": "specs/isa/ternary_sorting.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:139:9: error: use of undeclared identifier 'eq'"
+    "blocked": "does not compile: spec.zig:135:9: error: use of undeclared identifier 'eq'"
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

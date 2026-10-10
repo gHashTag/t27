@@ -1,16 +1,36 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+be9757784",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/ops.t27",
+      "spec_hash": "sha256:8e6c6168f64ff2d654a3b276d7f3ceee4fbd408d334590ce03467b1f3aaa68b3"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/isa/registers.t27",
+      "spec_hash": "sha256:ecd9513d1a791cad8f297eb7f3a7367650a9d8fd94dfb055812bcbfd350566aa"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0401ec65d13cafad059c81ccddea8113fbf0b64ac50eb393b1f9d726c4428aeb",
   "gen_hash_rust": "sha256:98f12ac7a6a7097ecc77fc7cb33283f2546b0077abb7934310c5eddae119fc86",
   "gen_hash_verilog": "sha256:986cde3e6919d9e51948fd2895a1e606c5741b23fe9c4f56ab2c2f4f58d267f4",
-  "gen_hash_zig": "sha256:7a31a6effa912ca4e36b462e113d21df4fa793427b828cd17e69047409fe4ce1",
+  "gen_hash_zig": "sha256:c6d04d983717b49ea8809d922539b5bdd7208acff756967f80a227b468f8cd40",
   "module": "ZeroDSP_MAC",
   "ring": 12,
-  "sealed_at": "2026-10-09T10:44:51Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:13Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8de13250bacc6dfcbea6f0793bed435605fdbfdcb75e094df82ab0993de0c350",
   "spec_path": "specs/fpga/mac.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:204:11: error: redeclaration of local constant 'a'"
+    "blocked": "does not compile: spec.zig:202:11: error: redeclaration of local constant 'a'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

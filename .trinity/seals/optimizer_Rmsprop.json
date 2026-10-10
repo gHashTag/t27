@@ -1,24 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     },
     {
       "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:c54fc78acbc77dc6f3f7dfaa07be6a8215569ff71270d0e34b51734a7e6754d9",
   "gen_hash_rust": "sha256:67013fd5fc35659b6f614433ca1e97b752612d44d324813c183c01c3ee88654d",
   "gen_hash_verilog": "sha256:04e4edf82c9f08c9eb27a107711838514bcf01037187a1ddd308dc7fa2d7aaab",
-  "gen_hash_zig": "sha256:2a20f8b5bcead111af5f7526996c3f3e75cf9e80b8661b8047c26fec91be3eb9",
+  "gen_hash_zig": "sha256:289645697f5bf30ce48bec1b39d50eb8586772ac4e5eb106418ce6393e62b2f4",
   "module": "Rmsprop",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:49:46Z",
+  "sealed_at": "2026-10-10T14:35:25Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:f483ccb6c0ffa9f2b941a64d00daae8d69823fb982fd2f2b1a9fca9638c44ab7",
   "spec_path": "specs/ml/optimizer/rmsprop.t27",

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+c494cc5",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/compiler/parser.t27",
@@ -10,11 +10,11 @@
   "gen_hash_c": "sha256:d3fde78fc40ef7e72364a01d1655fa9ef1c6b6dd8255af035683cdb10ebbed6d",
   "gen_hash_rust": "sha256:324462aee16212f9cfc93eeeb9d0a57b1e33e61f5c29a46060940edd59deb3d9",
   "gen_hash_verilog": "sha256:5209453943008e4f059320d9b48268cc63ffeb3c4dd40ebfa370d9166f429f1c",
-  "gen_hash_zig": "sha256:7dcee741e3f5f37fc14ab87b4dc8ab5a6e3aeec4ecddec6b7ba28653c205c648",
+  "gen_hash_zig": "sha256:8d1e77c2828e4b5b7630e0064101d4ba2e62ae3822aa43a0ef43799c61edfcb9",
   "module": "Optimization",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T13:08:48Z",
+  "sealed_at": "2026-10-10T14:33:38Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:9a46d144db087e38eaaea51e0b3a79b102942951824597edfaf9a7aa414951df",
   "spec_path": "specs/compiler/optimizer.t27",

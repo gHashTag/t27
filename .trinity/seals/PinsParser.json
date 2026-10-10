@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:a2d246976083268aa221bb133036dd822a8a59a89d5577867be50e760d693cae",
   "gen_hash_rust": "sha256:821bd96be78997e10294beb8af1ec434eac33efac19765b4d553489e2bbf294c",
   "gen_hash_verilog": "sha256:d83321903da73e4b7729242f6348209e7a5e09107c0e15af06530609b969894b",
-  "gen_hash_zig": "sha256:aa036d85538a9502816a5c8171510da299a91b8e6408f06d67212c2e8a183948",
+  "gen_hash_zig": "sha256:dedf1ed0b5e49618e87f27b617278220bab9df5e34a6b67f56db0b674fbcb126",
   "module": "PinsParser",
   "ring": 12,
-  "sealed_at": "2026-10-10T12:42:44Z",
+  "sealed_at": "2026-10-10T14:36:09Z",
   "spec_hash": "sha256:2136baa6752930a651ba388fd268c76b484e02dfb56510fae190614c4e1ead92",
   "spec_path": "specs/pins/parser.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:135:9: error: local variable is never mutated"
+    "blocked": "does not compile: spec.zig:712:39: error: expected type '[]spec.PinTok', found 'spec.PinTok'"
   }
 }

@@ -1,16 +1,32 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+3d289e0f6",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:755cdef94be3b57775d9a39756a70fe09f55284bdad8da2e500647083afdae35",
   "gen_hash_rust": "sha256:117b3be16db827897755960109d335e737d70d67e1d1d43e10f40626ba7252cc",
   "gen_hash_verilog": "sha256:141705374c872605513be2555f818e3893f333999f0003a95530b9c4e562a278",
-  "gen_hash_zig": "sha256:90706fe412340dbf053f12b6b3441afe913401742f940c15453f10641890ffca",
+  "gen_hash_zig": "sha256:9cdc6700d85d3202c509f3d412302834cd3944e53e92465870d620595b94778a",
   "module": "TriBitvector",
   "ring": 12,
-  "sealed_at": "2026-10-07T16:18:29Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T15:02:11Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:b22e499481d06696f59ed0d67cd0aa7bbb0611b8c16ffffa230a35396b722b57",
   "spec_path": "specs/tri/collections/bitvector.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:94:19: error: use of undeclared identifier 'default_input'"
+    "blocked": "does not compile: spec.zig:92:19: error: use of undeclared identifier 'default_input'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

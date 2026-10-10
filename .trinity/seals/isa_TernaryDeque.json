@@ -1,16 +1,28 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:61af6497f3b727046ac99c3f63e288f88d78a43511811160688aecbcc4242436",
   "gen_hash_rust": "sha256:39775f28924d46a013bca1164375d0ca342374efc8c761779c19cb8f47d6bdca",
   "gen_hash_verilog": "sha256:0c822e0a359b41b6737bed8d1deb75c2e7b22a095ba1626a08f0a1b8f162a043",
-  "gen_hash_zig": "sha256:f2f811e829a6d79866f5807a20d807ecfdcd6a647183ff546988ea15c0253713",
+  "gen_hash_zig": "sha256:40d7de6d76f172014cf21214ee702adea498577004ddee96d4487a834a36cc1e",
   "module": "TernaryDeque",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:00Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:56113a8df816d524442da3e153ea33d793de0d06087326161aefc18fb0281dd3",
   "spec_path": "specs/isa/ternary_deque.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:27:9: error: local variable is never mutated"
+    "blocked": "does not compile: spec.zig:8:9: error: assertion failed"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

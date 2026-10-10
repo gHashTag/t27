@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:169d38758a8671afc355477e0f81bb6fbd16d7969a4db52f02093efe7ddf154f",
   "gen_hash_rust": "sha256:ee1d209550760d3728ba4356a6431d0e263a275949e7ac473c746b4c354fa523",
   "gen_hash_verilog": "sha256:4b39f00f18c58de1210c3c02ced859f1b8c6fe801269042ad1774aa8db912a4c",
-  "gen_hash_zig": "sha256:58655723a90cdcc6aede591ca27287c5523dc3777ff6ccb3ad74f0fa8890f5bc",
+  "gen_hash_zig": "sha256:55d42ef752bb462f03ca4d797d3ea6a31b136a72e5e5198eab5f476d934b6d70",
   "module": "tricompiler-parser",
   "ring": 12,
-  "sealed_at": "2026-10-10T12:42:40Z",
+  "sealed_at": "2026-10-10T14:33:39Z",
   "spec_hash": "sha256:8b617c8818b6b456fdbf9040c24b415a2c8e65f597dadf08f5586835e3b7fbc4",
   "spec_path": "specs/compiler/parser.t27",
   "tests": {

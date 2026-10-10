@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:368e613a411016ec9764d2b70aeddf2d5703621dc96b4877c01668ed5612a970",
   "gen_hash_rust": "sha256:ad47f1072179d52df0d37da08850b36b6d8b98fe80a5fe0b77a371f598c62e59",
   "gen_hash_verilog": "sha256:950cd92bed4aced0f271fc2ce762ca519d010c4ea3b28311d4d6cea9a0ed3f89",
-  "gen_hash_zig": "sha256:1bb70a5eca036140cf79afe3b67ecbeaf256a6eb84f492d827fa06f06214e3ab",
+  "gen_hash_zig": "sha256:2fd933a8aa46c4a69472c7c1982de34fc52e38509f61f583eaf00d72e040f289",
   "module": "TriBuilder",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:41:44Z",
+  "sealed_at": "2026-10-10T15:03:28Z",
   "spec_hash": "sha256:b46bbf3c2d0d19ec3ce561adf04a530516191a5474b4cca2b7993bbeb1e7598e",
   "spec_path": "specs/tri/pipeline/builder.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-builder-763582/spec.zig:21:14: error: use of undeclared identifier 'T'"
+    "blocked": "does not compile: spec.zig:21:14: error: use of undeclared identifier 'T'"
   }
 }

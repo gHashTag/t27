@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:a94d844a4e5db4cad07a876b50b0a2111183c087b75944cc5933c986d7e63e51",
   "gen_hash_rust": "sha256:e44544eb358c8f734f2e65ef904315499eae9a7b54fb74a20cac55c34e9b1ebf",
   "gen_hash_verilog": "sha256:70b1d3bc6cdf69490c1c50bf096c8a1ee065c8a75d9b678a8b218abbdd40819b",
-  "gen_hash_zig": "sha256:b6c675cd1b1a35609c87e93bb1315e767c9a15d5d0d370ef143a0421af10d863",
+  "gen_hash_zig": "sha256:e2b9bb060efaeffcee2185502d42f4cfcf7debe747bbebc07e5d99e4838b00fe",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-10-08T12:31:45Z",
+  "sealed_at": "2026-10-10T14:34:12Z",
   "spec_hash": "sha256:18e1f5c84ec32537b9176be36b798c2743ea840058b5097550e32a2b0f02958e",
   "spec_path": "specs/fpga/bridge.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:192:44: error: use of undeclared identifier 'TernaryWord'"
+    "blocked": "does not compile: spec.zig:191:44: error: use of undeclared identifier 'TernaryWord'"
   }
 }

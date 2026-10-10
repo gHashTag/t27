@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+a561d6d13",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/tri/t27b/ast_walk.t27",
@@ -10,11 +10,11 @@
   "gen_hash_c": "sha256:3060476d493e9b2b227ce1224e72e5a8613e2427d3fe903fa7abe9867ef5abb8",
   "gen_hash_rust": "sha256:c8bcfcd4c12244899b7cf0da7169cf1fb47fd1f8f98b193cf02ce13f1ccf4ff2",
   "gen_hash_verilog": "sha256:83d48ad8acfa844b1e731d11cbc956ebc85a84a4761458286ffd8b0d705c6d69",
-  "gen_hash_zig": "sha256:c112aaab97457d0a16fb7c5549f05cc063118632920b7ba08899a128f2af6afa",
+  "gen_hash_zig": "sha256:bf2f713e49b8a2ce11eda85cfa18497c4ec4942c479cf1ebf53c184bf21de057",
   "module": "T27bAstScan",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:27:46Z",
+  "sealed_at": "2026-10-10T15:04:16Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:68f7b53aa8515cd7b83639e496debaa103f268dc571eacde5a219f02f09e9733",
   "spec_path": "specs/tri/t27b/ast_scan.t27",

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cfe753c9c",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -18,7 +18,7 @@
   "module": "TriEd25519",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:13:40Z",
+  "sealed_at": "2026-10-10T15:02:51Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:13915d74de7f5f3de9f13ce84ac87b964d8e183c31d2d5fc080a9994849b1617",
   "spec_path": "specs/tri/crypto/ed25519.t27",

@@ -1,24 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+5d5d2cdef",
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef"
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
     },
     {
       "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b"
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:32b6b2c006fea457a6912fbb8eeb241942c5d98edc762f34b07868909ff6d8a6",
   "gen_hash_rust": "sha256:6727821a7307011c3ebd8349d895370da58610b42c4d2607a34374efd97b6c74",
   "gen_hash_verilog": "sha256:362b0243dd283306b7d07aa1eebc8b34a00efd6d96071fed7cbda671a5c00f63",
-  "gen_hash_zig": "sha256:eafecf9c132193045d31e2231703704d58978b029248fe4d59897776f20c51c8",
+  "gen_hash_zig": "sha256:97202c8fca0060bb6adbdd803cf6b47cdaa09cc67e4359df5afc0987da0ee432",
   "module": "TriInsertionSort",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T14:58:20Z",
+  "sealed_at": "2026-10-10T15:03:39Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:07c7d53ea460108141f97afbdd7638eec558967485872af683324d731a4d99c0",
   "spec_path": "specs/tri/sort/insertion_sort.t27",

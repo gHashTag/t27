@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:66d0bac2dd0425d7ad71b1c6b44e380b490698b398f98383eceaa15870c641d4",
   "gen_hash_rust": "sha256:7b02fe487db823d5f01b57a7a6ba2eee106cd3d06b185d7e179768ad66967c29",
   "gen_hash_verilog": "sha256:efe463d8efce1649ea7326897755612c6a7f218008bccd3c39d72c807e9b0904",
-  "gen_hash_zig": "sha256:03108b2dcb8565badf3012f36df7a8bc311b1c779b2357e91ba3c410c42b11d6",
+  "gen_hash_zig": "sha256:1d754f356ccb14584e65ba03bf538c3249bd58066294830a2f0e018c8f054f29",
   "module": "TriRtree",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:58:07Z",
+  "sealed_at": "2026-10-10T15:05:56Z",
   "spec_hash": "sha256:fc5a0a02a3b1ddf0351f2df8482db8c20ecd08a506939189ababf03a07d88d80",
   "spec_path": "specs/tri/trees/rtree.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-rtree-3706033/spec.zig:115:21: error: trailing digit separator"
+    "blocked": "does not compile: spec.zig:113:21: error: trailing digit separator"
   }
 }

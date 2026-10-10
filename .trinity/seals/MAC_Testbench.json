@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:3313a2d4b4c2fb91e4bd95501d08d02dfa284d1f4c96996f47fb354ecc264193",
   "module": "MAC_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:53:15Z",
+  "sealed_at": "2026-10-10T14:34:14Z",
   "spec_hash": "sha256:af060b6e5cdb2ffe1de0a47995b2c621139367174cf85237d8217aa929af10f7",
   "spec_path": "specs/fpga/testbench/mac_tb.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-mac_tb-2426/spec.zig:84:20: error: use of undeclared identifier 'mac_multiply'"
+    "blocked": "does not compile: spec.zig:28:12: error: use of undeclared identifier 'TernaryWord'"
   }
 }

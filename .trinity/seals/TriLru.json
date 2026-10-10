@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:4c6c766c3224c193a1c33e9573190895d2f19d75567d1322c0b1474787ef7729",
   "gen_hash_rust": "sha256:f59360c1fc5df4c38fca429c1e52286e41dddda259c0c55b57d726433d3c1c5c",
   "gen_hash_verilog": "sha256:21c70743b2818f829a0f9009ee641d64fbc8dd8830401f711ff9d23ea87c8a2c",
-  "gen_hash_zig": "sha256:01ce5e7261839d724741bbfc98f6a0ee7e23cdc1af98bbcf13e4020ccb38137e",
+  "gen_hash_zig": "sha256:542fced445f98fa90c670efe0470f507103b1607d4fbfa45c98f573b4dbcd18c",
   "module": "TriLru",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-10T15:02:27Z",
   "spec_hash": "sha256:9db7b9aae9df933cfa9bffb07a24966ba99f4f39e795c642d8bea66cb3ffdfbc",
-  "spec_path": "specs/tri/collections/lru.t27"
+  "spec_path": "specs/tri/collections/lru.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:22:26: error: use of undeclared identifier 'K'"
+  }
 }

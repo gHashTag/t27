@@ -2,10 +2,10 @@
   "gen_hash_c": "sha256:64cc98a2d8a6874d5648322d454539821632ae913fab3dbebeb8265a4712d14f",
   "gen_hash_rust": "sha256:6a6f9b1bb3a544b27723987d6ad5f261a4e43f9a9d3b88588de90a289ce59a44",
   "gen_hash_verilog": "sha256:2e469acfecbbb53a7d0187c89ef6e8133bd185977fed689d5edd11b45a76f26c",
-  "gen_hash_zig": "sha256:9f017378aaa0f283cebc096ba204ef161d30fe00daef66d080805b7e8359086a",
+  "gen_hash_zig": "sha256:1a8ca800f2b2cb4496acfb41062a9ef5cda7634f84034f7f6363017f924d593f",
   "module": "Conv2d",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:32:25Z",
+  "sealed_at": "2026-10-10T14:34:54Z",
   "spec_hash": "sha256:90bf260b6fe12b6d64a323eec8c887a7ad4882d73f0307c20a240317ed64f543",
   "spec_path": "specs/ml/layers/conv2d_layer.t27",
   "tests": {

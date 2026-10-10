@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:4b9cd56e53ca14441d4203f26552a21db33a15302284dc292bdf2b3ba58086e9",
   "gen_hash_rust": "sha256:581c737ebc890028eb1df21d5ec8e3a13ac97f865012499922111503a61332f3",
   "gen_hash_verilog": "sha256:0c5b53a94b6fc4cd73c9da958ac20aa162c1490b095e695a63b1c4d236d78085",
-  "gen_hash_zig": "sha256:66d6620f955c9ee29b0e6e90b1905a9bf202fdc3ecf7aca2d780df4c11ca887a",
+  "gen_hash_zig": "sha256:14315b678f45a1e4be81f6fde04cd07b99db45caeb8292cef9ab54c6adf7471a",
   "module": "sync-schema",
   "ring": 12,
-  "sealed_at": "2026-10-09T23:18:19Z",
+  "sealed_at": "2026-10-10T15:01:56Z",
   "spec_hash": "sha256:022dea839139928d01a4116f8676fd8177271a63cc8fb5ea286dba7db2d66137",
   "spec_path": "specs/sync/schema.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:229:43: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:222:43: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

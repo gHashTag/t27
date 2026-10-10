@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:fa75dc86f3e364c8d1215f1faffc1dd8aa022a3985f38b876a7727122fd9387e",
   "gen_hash_rust": "sha256:ac297b43bcaecd55bc59d2156fcb8a58982bade78bd8009b446cdd91ebccd6ef",
   "gen_hash_verilog": "sha256:5f8ee5e758c6762b4594c320a402176dd0a6776e5ac517b8efe9c187fb3b4252",
-  "gen_hash_zig": "sha256:6a1f476ba0160edbaa93c603a765fab8ba9d88a1e7b74adcdfe0cb70135f03a6",
+  "gen_hash_zig": "sha256:dd27e085b9ca147f6ef9edd586e730093d2d5a306d07a1bf7623f1e53f72d27f",
   "module": "TriHeapSort",
   "ring": 12,
-  "sealed_at": "2026-10-05T20:06:45Z",
+  "sealed_at": "2026-10-10T15:03:33Z",
   "spec_hash": "sha256:f2335bdba185418e7c502a15d43aec7f3caa04700d09cd8ebb6e59863e9fdf62",
   "spec_path": "specs/tri/sort/heap_sort.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-heap_sort-1203783/spec.zig:75:17: error: operator == not allowed for type '[6]i64'"
+    "blocked": "does not compile: spec.zig:73:17: error: operator == not allowed for type '[6]i64'"
   }
 }

@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:0fd0ad143f7b9e36b2e3e87942e4de0b0200098dc20138ab0154bc5a967f28af",
   "gen_hash_rust": "sha256:5eaa910857a6b6edcf7a4bfa833f1487107e7e9b372dd454be90d36478e7b4a9",
   "gen_hash_verilog": "sha256:b3513bf4811f18ffa279918599da357443b953626e6e17342a7e4afc58c7b4f5",
-  "gen_hash_zig": "sha256:2ab9430f753ed4d7b8ad037cb2a98c4c9a6acb9f96cc9ca9bc78ff05163da139",
+  "gen_hash_zig": "sha256:ff35dcba8349656eead1db1edec4d6e1d4c7514dcb6c01cba1dd4c7cf693c0ac",
   "module": "Batchnorm",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:53:20Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:34:50Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2483dbb5c450a9ea3eb61694c6e58a22b1d24d88376982e78537f8dc119d516f",
   "spec_path": "specs/ml/layers/batchnorm_layer.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-batchnorm_layer-8052/spec.zig:97:17: error: use of undeclared identifier 'valid_input'"
+    "blocked": "does not compile: spec.zig:93:17: error: use of undeclared identifier 'valid_input'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,12 +1,52 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "closure": [
+    {
+      "spec": "specs/compiler/diagnostics.t27",
+      "spec_hash": "sha256:784e916ee5e71a1b7ad54f3d38cfbea8399c68b194ccf7710f4a79b25d4ce781"
+    },
+    {
+      "spec": "specs/compiler/lexer.t27",
+      "spec_hash": "sha256:dad76e110f828f726b197d002854b83550a7bf80a65999b6642778892f0a168a"
+    },
+    {
+      "spec": "specs/compiler/linker.t27",
+      "spec_hash": "sha256:7b9760ab43e69015f53615694002bbf6883bf0102b92807645b637a902e35224"
+    },
+    {
+      "spec": "specs/compiler/optimizer.t27",
+      "spec_hash": "sha256:9a46d144db087e38eaaea51e0b3a79b102942951824597edfaf9a7aa414951df"
+    },
+    {
+      "spec": "specs/compiler/parser.t27",
+      "spec_hash": "sha256:8b617c8818b6b456fdbf9040c24b415a2c8e65f597dadf08f5586835e3b7fbc4"
+    },
+    {
+      "spec": "specs/compiler/stdlib.t27",
+      "spec_hash": "sha256:fb78ae12983cc5b08cc552910a1088eec6c5b078c40053f127f75b516b3a0c8d"
+    },
+    {
+      "spec": "specs/compiler/typechecker.t27",
+      "spec_hash": "sha256:3bf69264d0a8e2c38be6897aa44215f348051b350b1d8bcb15418ee771814a8c"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:14da764c89c1a6579451ec62203cd7aa848dca51d816a1dd7ad7991717d4f798",
   "gen_hash_rust": "sha256:ee66faa17c0f020a6e5e4b285ff4a50b2f4cfc3c175a71ea41a6cc6f0fbc8031",
   "gen_hash_verilog": "sha256:70845949c6fd7204bda536b310b443b5b4ccd26cf5a37a1bf85397df32fa0322",
   "gen_hash_zig": "sha256:d036e71c13d426609dfdaee3df74ac9aa5d5a95efdfaadd61e30868a595757bc",
   "module": "Pipeline",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:42Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T14:33:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e0d6c374bc0ec25395ed127af2cd8abdbc6fc6594b32e8fb7e4213e4b61d49e7",
-  "spec_path": "specs/compiler/pipeline.t27"
+  "spec_path": "specs/compiler/pipeline.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:1565:18: error: expected pointer dereference, optional unwrap, or field access, found 'error'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
 }
