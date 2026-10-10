@@ -1,6 +1,6 @@
 BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
 
-  files read                    48
+  files read                    49
   lines naming either spelling  78
   of those, FETCH SITES         35
   refused as not a fetch        43   (--excluded prints them)
