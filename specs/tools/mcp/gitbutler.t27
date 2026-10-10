@@ -40,9 +40,17 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
-test basic_constants {
+test verify_gitbutler_constants {
     assert KIND == "tool";
     assert FAMILY == "mcp";
-    assert ID == "mcp/gitbutler";
+    assert SERVER_VERSION == "";
+    assert TRANSPORT == "stdio";
+    assert SCHEMA == 2;
+    assert REPO == "gHashTag/t27";
+    assert QUALIFIED_ID == "gHashTag/t27:mcp/gitbutler";
     assert ENABLED == true;
+    assert EXTERNAL == true;
+    assert AGENTS[0] == "T";
+    assert len(TOOLS) == 0;
+    assert ENV[0] == "GITBUTLER_REPO";
 }

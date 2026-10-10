@@ -40,9 +40,20 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
-test basic_constants {
+test verify_t27_traceability_constants {
     assert KIND == "tool";
     assert FAMILY == "mcp";
-    assert ID == "mcp/t27-traceability";
+    assert SERVER_VERSION == "1.0.0";
+    assert TRANSPORT == "stdio";
+    assert SCHEMA == 2;
+    assert REPO == "gHashTag/t27";
+    assert QUALIFIED_ID == "gHashTag/t27:mcp/t27-traceability";
     assert ENABLED == true;
+    assert EXTERNAL == false;
+    assert AGENTS[2] == "S";
+    assert len(TOOLS) == 4;
+    assert TOOLS[0] == "check_traceability";
+    assert TOOLS[3] == "get_phi_loop_template";
+    assert RESOURCES[0] == "docs/T27-CONSTITUTION.md";
+    assert ENV[1] == "ENFORCE_L1";
 }

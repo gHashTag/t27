@@ -40,9 +40,17 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
-test basic_constants {
+test verify_railway_mcp_server_constants {
     assert KIND == "tool";
     assert FAMILY == "mcp";
-    assert ID == "mcp/railway-mcp-server";
+    assert SERVER_VERSION == "";
+    assert TRANSPORT == "stdio";
+    assert SCHEMA == 2;
+    assert REPO == "gHashTag/trinity";
+    assert QUALIFIED_ID == "gHashTag/trinity:mcp/railway-mcp-server";
     assert ENABLED == true;
+    assert EXTERNAL == true;
+    assert AGENTS[0] == "T";
+    assert len(TOOLS) == 0;
+    assert len(ENV) == 0;
 }
