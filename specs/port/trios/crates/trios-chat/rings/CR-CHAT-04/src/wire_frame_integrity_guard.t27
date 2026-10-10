@@ -1,0 +1,166 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::wire_frame_integrity_guard;
+
+// CR-CHAT-04 — Wire frame integrity guard (Wave-65 Lane A).
+//
+// Ported from gHashTag/trios, crates/trios-chat/rings/CR-CHAT-04/src/wire_frame_integrity_guard.rs
+// (gHashTag/trios @ 8b229e9489ee) to .t27, so the code is generated from .t27
+// instead of written by hand. The original stays where it is.
+//
+// IDENTITY — wire envelopes must be structurally coherent, R-CHAT-4.
+//
+// A wire frame is header + payload + padding + AEAD tag, packed back to back.
+// A malformed frame lets an attacker splice regions together, hide bytes in
+// the padding, or smuggle an oversized header past the parser:
+//
+// * Length mismatch — the region lengths do not sum to the total.
+// * Offset out of bounds — a region starts beyond the frame.
+// * Region overlap — two regions claim the same bytes.
+// * Header too large — a header above `WFGI_MAX_HEADER` crowds out payload.
+// * Wrong tag length — a tag not exactly `WFGI_TAG_LEN` breaks AEAD framing.
+// * Frame too large — a total above `WFGI_MAX_FRAME` starves receivers.
+//
+// trios-chat enforces 6 rules:
+//
+// 1. `header_len + payload_len + padding_len + tag_len == total_len`.
+// 2. All region offsets are within the frame bounds.
+// 3. No region overlap (header before payload before padding before tag).
+// 4. `header_len <= WFGI_MAX_HEADER`.
+// 5. `tag_len == WFGI_TAG_LEN`.
+// 6. `total_len <= WFGI_MAX_FRAME`.
+//
+// Representation: the Rust original returns `Result<(), WireFrameError>`.
+// .t27 has no `Result`, so the verdict is an `i32`: `WFGI_OK` (0) is
+// `Ok(())`, and `WFGI_LENGTH_MISMATCH` (1) through `WFGI_FRAME_TOO_LARGE` (6)
+// are the six `WireFrameError` variants in the original's declaration order
+// (LengthMismatch, OffsetOutOfBounds, RegionOverlap, HeaderTooLarge,
+// WrongTagLength, FrameTooLarge).
+//
+// Anchored to the CR-CHAT-04 ring:
+// `phi^2 + phi^-2 = 3 * TRINITY * CHAT * WIRE-FRAME`
+
+// AEAD tag length (AES-128-GCM / ChaCha20-Poly1305).
+pub const WFGI_TAG_LEN: usize = 16;
+
+// Maximum header length.
+pub const WFGI_MAX_HEADER: usize = 64;
+
+// Maximum total frame length.
+pub const WFGI_MAX_FRAME: usize = 65536;
+
+// Verdict codes: 0 = Ok(()), 1..6 = WireFrameError variants in the original's
+// declaration order.
+pub const WFGI_OK: i32 = 0;
+pub const WFGI_LENGTH_MISMATCH: i32 = 1;
+pub const WFGI_OFFSET_OUT_OF_BOUNDS: i32 = 2;
+pub const WFGI_REGION_OVERLAP: i32 = 3;
+pub const WFGI_HEADER_TOO_LARGE: i32 = 4;
+pub const WFGI_WRONG_TAG_LENGTH: i32 = 5;
+pub const WFGI_FRAME_TOO_LARGE: i32 = 6;
+
+// [VERIFIED] Validate wire frame structure. Returns `WFGI_OK` when header,
+// payload, padding and tag exactly tile the frame; otherwise the verdict code
+// for the first rule the frame breaks, checked in the original's order:
+// frame size, header size, tag size, length sum, offsets, region overlap.
+pub fn validate_wire_frame(total_len: usize, header_len: usize, payload_len: usize, padding_len: usize, tag_len: usize) -> i32 {
+    if (total_len > WFGI_MAX_FRAME) {
+        return WFGI_FRAME_TOO_LARGE;
+    }
+    if (header_len > WFGI_MAX_HEADER) {
+        return WFGI_HEADER_TOO_LARGE;
+    }
+    if (tag_len != WFGI_TAG_LEN) {
+        return WFGI_WRONG_TAG_LENGTH;
+    }
+    const computed: usize = header_len + payload_len + padding_len + tag_len;
+    if (computed != total_len) {
+        return WFGI_LENGTH_MISMATCH;
+    }
+    const payload_start: usize = header_len;
+    const padding_start: usize = payload_start + payload_len;
+    const tag_start: usize = padding_start + padding_len;
+    // Carried faithfully from the original: the three region starts must land
+    // inside the frame. (With the sum check above passing, these cannot fire,
+    // but the guard keeps the original's belt-and-braces order.)
+    if (payload_start > total_len) {
+        return WFGI_OFFSET_OUT_OF_BOUNDS;
+    }
+    if (padding_start > total_len) {
+        return WFGI_OFFSET_OUT_OF_BOUNDS;
+    }
+    if (tag_start > total_len) {
+        return WFGI_OFFSET_OUT_OF_BOUNDS;
+    }
+    // Carried faithfully from the original: the payload must not overlap the
+    // header region.
+    if (header_len > 0 && payload_len > 0 && payload_start < header_len) {
+        return WFGI_REGION_OVERLAP;
+    }
+    return WFGI_OK;
+}
+
+// **WFGI-01** — length mismatch rejected.
+test wfgi_01_mismatch_rejected {
+    assert(validate_wire_frame(100, 16, 64, 0, WFGI_TAG_LEN) == WFGI_LENGTH_MISMATCH);
+}
+
+// **WFGI-02** — header too large rejected.
+test wfgi_02_header_large_rejected {
+    assert(validate_wire_frame(200, 65, 100, 0, WFGI_TAG_LEN) == WFGI_HEADER_TOO_LARGE);
+}
+
+// **WFGI-03** — wrong tag length rejected.
+test wfgi_03_wrong_tag_rejected {
+    assert(validate_wire_frame(100, 16, 68, 0, 32) == WFGI_WRONG_TAG_LENGTH);
+}
+
+// **WFGI-04** — frame too large rejected.
+test wfgi_04_frame_large_rejected {
+    assert(validate_wire_frame(WFGI_MAX_FRAME + 1, 16, 100, 0, WFGI_TAG_LEN) == WFGI_FRAME_TOO_LARGE);
+}
+
+// **WFGI-05** — a too-short total with oversized regions: the length sum is
+// checked before the offsets, so the original reports a length mismatch here.
+test wfgi_05_offset_oob_rejected {
+    assert(validate_wire_frame(32, 16, 100, 0, WFGI_TAG_LEN) == WFGI_LENGTH_MISMATCH);
+}
+
+// **WFGI-06** — valid frame accepted.
+test wfgi_06_valid_accepted {
+    assert(validate_wire_frame(96, 16, 64, 0, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// **WFGI-07** — valid frame with padding accepted.
+test wfgi_07_with_padding_accepted {
+    assert(validate_wire_frame(256, 16, 200, 24, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// **WFGI-08** — minimum frame accepted.
+test wfgi_08_min_frame_accepted {
+    assert(validate_wire_frame(17, 1, 0, 0, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// **WFGI-09** — header-only frame accepted.
+test wfgi_09_header_only_accepted {
+    assert(validate_wire_frame(32, 16, 0, 0, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// **WFGI-10** — maximum frame accepted (header 16 + payload 65504 + tag 16).
+test wfgi_10_max_frame_accepted {
+    const payload: usize = WFGI_MAX_FRAME - 16 - WFGI_TAG_LEN;
+    assert(validate_wire_frame(WFGI_MAX_FRAME, 16, payload, 0, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// Zero-length header/payload/padding over just a tag is a valid frame.
+test zero_length_regions_accepted {
+    assert(validate_wire_frame(16, 0, 0, 0, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// Header at the `WFGI_MAX_HEADER` boundary is accepted (only above it fails).
+test header_at_max_accepted {
+    assert(validate_wire_frame(WFGI_MAX_HEADER + WFGI_TAG_LEN, WFGI_MAX_HEADER, 0, 0, WFGI_TAG_LEN) == WFGI_OK);
+}
+
+// A tag length of 0 is not `WFGI_TAG_LEN` and is rejected.
+test tag_length_zero_rejected {
+    assert(validate_wire_frame(0, 0, 0, 0, 0) == WFGI_WRONG_TAG_LENGTH);
+}
