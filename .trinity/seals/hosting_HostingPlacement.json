@@ -1,20 +1,49 @@
 {
-  "built_by": "t27c-bootstrap@0.5.0+ef26684a1",
-  "gen_hash_c": "sha256:726029f063928de05ccf2534655698a03c02c7bf604c6cd576ab1d4ae173ae89",
-  "gen_hash_rust": "sha256:55f807a0934d63fa4dc3f0bda974e4d6ec25934074a52416e3b2d37cf643b7cb",
-  "gen_hash_verilog": "sha256:f3f18113990a8aea965da961420be76f75953479c77f7f8c8d9b2ac11d850d45",
-  "gen_hash_zig": "sha256:32acf1764b50f1e0ccedca4486d5e5a9da32221d53445580330f80226d46ade3",
+  "built_by": "t27c-bootstrap@0.5.2+cf42584c9",
+  "closure": [
+    {
+      "spec": "specs/hosting/host.t27",
+      "spec_hash": "sha256:f2ac0265cc5b43920bea8859f7984b74321de21a736392fd18ae27eefc717628"
+    },
+    {
+      "spec": "specs/hosting/proof.t27",
+      "spec_hash": "sha256:275c597fed67898846a8f25939462d8af15d69ae5eeb5b0b24dd4195eec6c04f"
+    },
+    {
+      "spec": "specs/hosting/row.t27",
+      "spec_hash": "sha256:6196b8ce1dbb733bbdd731add000d69dfcc880e6c59bc4772615aad14d6680f4"
+    },
+    {
+      "spec": "specs/hosting/toolchain.t27",
+      "spec_hash": "sha256:e92483c8cb64140246f362de00297583cc20df178af10b9ca7f34cc79b913b45"
+    },
+    {
+      "spec": "specs/queen/netlink.t27",
+      "spec_hash": "sha256:447de25019d810d96b164cfda863d4b4708eb567e6635933cafa9f41c980724a"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c5a6c98edd7e5ab0c02592d2bb26ba708ccf995ce35a6d5116f81d971c108023",
+  "gen_hash_rust": "sha256:671f79bdf324b927fdb90920a68dfa2c34024056b9dcdfb19ff2eb9687aec8fb",
+  "gen_hash_verilog": "sha256:33f6cbd635822dd232c1019c9055309b4e3048697108a28ba7bc6b4c7bac256a",
+  "gen_hash_zig": "sha256:f389eee3ceb07316a3dfcb6ae4512df5a8a9d3e62a9792a7fc955e058bbb4800",
   "module": "HostingPlacement",
   "ring": 12,
-  "sealed_at": "2026-10-10T17:37:44Z",
-  "sealed_by": "t27c-bootstrap@0.5.0",
-  "spec_hash": "sha256:8fa8862d5727535ed27ed34026cc2c8f60e1a2a9b3370f3f3c62d6042d0bc2df",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:00:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:000461bbc29d09c299ca40e1aa6a30e3df390a899ff6449de320d7e4c4d9d863",
   "spec_path": "specs/hosting/placement.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 7,
-    "total": 7
+    "passed": 9,
+    "total": 9,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

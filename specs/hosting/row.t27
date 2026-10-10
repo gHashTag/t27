@@ -1,0 +1,252 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/hosting/row.t27 -- the lab's verdict row for one spec, made by hosts: the two halves, the t27b
+; half's output, and the row assembled from both
+; gHashTag/trios#1761, lane A (part of #1756). Slice 1 ran half of what the t27b lab runs: the reference
+; (`t27c test-report`). The lab (contrib/railway/t27b-lab/lab.py) runs t27b on the same spec too, and
+; publishes one row per spec of the corpus at /runs/<sha>.json:
+;   file, reference, reference_detail, t27b, tests, invariants, asserts, blockers, detail,
+;   test_verdicts        when t27b ran the spec's tests,
+;   reference_tests      when the reference listed a verdict for every test it counted,
+;   reference_disagree   when both did: one line per test the two sides judge differently,
+;   retried_after_timeout  when t27b timed out under load and was run again alone.
+; `tri lab receipt` (specs/tri/lab/receipt.t27) reads file, reference, t27b, tests and asserts from it.
+; --
+; The halves. Each half of a row is a job of its own: k hosts run it and agree on its normalized output
+; (proof.t27 job_verdict), exactly as slice 1's shard.
+;   HALF_REFERENCE  `t27c test-report <spec> --specs-dir specs --verbose`; its output is proof.t27
+;                   section 1, v2 (it carries the blocked reason, the lab's reference_detail);
+;   HALF_T27B       `t27b corpus specs --json <file> --timeout-ms T27B_TIMEOUT_MS --jobs 1` over the
+;                   job's files: the lab's own command, one worker, its timeout; the half's output is
+;                   t27b's row for the spec (section 2).
+; t27b emits AArch64 and runs it in-process (cli/t27b/src/jit.rs: arm64 macOS and arm64 Linux), so
+; placement.t27 sends a t27b half to arm64 hosts only, and any host runs a reference half.
+; A row is COMPLETE when both halves are agreed. What must agree is each half's k replicas; the two
+; halves need not give one verdict. A spec the reference passes and t27b cannot compile yet is the row
+; (pass, blocked), and that difference is what the lab measures, not a fault.
+; --
+; The row is assembled the lab's way (section 3): t27b's row, then the reference's verdict, its
+; reason, its per-test verdicts when complete, and the per-test disagreements when both sides listed
+; theirs. The lab writes `reference_disagree` with cli/t27b/src/blockers.rs `disagreements`; the words
+; of each line are DISAGREE_TEXT's, the choice of line is disagreement().
+; --
+; What cannot be equal, and why (gHashTag/trios#1761): a timeout is no vote on either half (it is about
+; the host that minute; lab.py never caches it), so a lab row whose reference or t27b is `timeout`
+; has no agreed twin; it stays a half that is not agreed.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module HostingRow;
+
+use hosting::proof::RC_OK;
+use hosting::proof::JV_AGREED;
+use hosting::proof::VW_PASS;
+use hosting::proof::VW_FAIL;
+use hosting::proof::VW_BLOCKED;
+use hosting::proof::VW_TIMEOUT;
+use hosting::proof::verdict_votes;
+use hosting::proof::lists_tests;
+
+; --- 1. The halves -----------------------------------------------------------------------------------
+
+pub const HALF_REFERENCE : u8 = 0;
+pub const HALF_T27B : u8 = 1;
+pub const HALVES : u8 = 2;
+/// The word a job and a receipt carry for each half, by code.
+pub const HALF_WORDS : [2]str = ["reference", "t27b"];
+
+; --- 2. The t27b half --------------------------------------------------------------------------------
+
+pub const T27B_DOMAIN : str = "t27-hosting-t27b-v1";
+/// lab.py T27B_TIMEOUT_MS: one `t27b test` of one file.
+pub const T27B_TIMEOUT_MS : u32 = 60000;
+/// The spec line, as in proof.t27: `spec=<path>`.
+pub const T27B_SPEC_KEY : str = "spec";
+/// The keys of t27b's row the half reports, in the order t27b writes them: one line each,
+/// `key=<the value's JSON text>`, every line ending in a newline. A key t27b did not write is no line.
+/// t27b's `file`, `reference` and `reference_detail` are not reported: the file is the spec line, and
+/// t27b writes `skip` and "" for the reference it did not run.
+pub const T27B_ROW_KEYS : [8]str = ["t27b", "tests", "invariants", "asserts", "blockers", "detail", "test_verdicts", "retried_after_timeout"];
+pub const T27B_ROW_KEY_COUNT : u8 = 8;
+
+/// t27b's verdict words (cli/t27b/src/main.rs Outcome::label), then host_error: t27b did not start,
+/// or wrote no row for the spec.
+pub const T27B_WORDS : [10]str = ["pass", "pass_vacuous", "fail", "blocked", "frontend", "mismatch", "codegen", "timeout", "crash", "host_error"];
+pub const TW_PASS : u8 = 0;
+pub const TW_PASS_VACUOUS : u8 = 1;
+pub const TW_FAIL : u8 = 2;
+pub const TW_BLOCKED : u8 = 3;
+pub const TW_FRONTEND : u8 = 4;
+pub const TW_MISMATCH : u8 = 5;
+pub const TW_CODEGEN : u8 = 6;
+pub const TW_TIMEOUT : u8 = 7;
+pub const TW_CRASH : u8 = 8;
+pub const TW_HOST_ERROR : u8 = 9;
+pub const T27B_VERDICTS : u8 = 10;
+
+/// The t27b half's verdict: host_error when t27b did not start or wrote no row for the spec, else the
+/// row's word (a word t27b does not have is host_error too: the half reports nothing it cannot name).
+pub fn t27b_run_verdict(started: bool, wrote_row: bool, word: u8) -> u8 {
+    if (started == false) { return TW_HOST_ERROR; }
+    if (wrote_row == false) { return TW_HOST_ERROR; }
+    if (word >= T27B_VERDICTS) { return TW_HOST_ERROR; }
+    return word;
+}
+
+/// Whether a t27b verdict says something about the spec. A timeout is about the host's load (lab.py
+/// retries it alone), and host_error about the host; every other word is t27b's, the same on every
+/// arm64 machine for one binary and one spec -- a crash too.
+pub fn t27b_votes(verdict: u8) -> bool {
+    if (verdict >= T27B_VERDICTS) { return false; }
+    return verdict != TW_TIMEOUT and verdict != TW_HOST_ERROR;
+}
+
+/// Whether a receipt for a half is a vote: it passed every check (proof.t27 receipt_code), and its
+/// verdict, read in that half's words, votes.
+pub fn half_vote(code: u8, half: u8, verdict: u8) -> bool {
+    if (code != RC_OK) { return false; }
+    if (half == HALF_REFERENCE) { return verdict_votes(verdict); }
+    if (half == HALF_T27B) { return t27b_votes(verdict); }
+    return false;
+}
+
+; --- 3. The row --------------------------------------------------------------------------------------
+
+/// The row's keys in the lab's order. The first nine are in every row (reference_detail is "" for a
+/// pass); the last four only when the header says so.
+pub const ROW_KEYS : [13]str = ["file", "reference", "reference_detail", "t27b", "tests", "invariants", "asserts", "blockers", "detail", "test_verdicts", "retried_after_timeout", "reference_tests", "reference_disagree"];
+pub const ROW_KEY_COUNT : u8 = 13;
+
+/// Whether the row of a spec is complete: both halves agreed.
+pub fn row_complete(reference_verdict: u8, t27b_verdict: u8) -> bool {
+    return reference_verdict == JV_AGREED and t27b_verdict == JV_AGREED;
+}
+
+/// reference_detail, by the reference's verdict (lab.py reference_one): nothing for a pass; for a
+/// fail, "<fail> of <tests> tests fail"; for a blocked spec, its reason (proof.t27 reason_of); for a
+/// timeout, "over <s> s" -- which no agreed half can be.
+pub const DETAIL_NONE : u8 = 0;
+pub const DETAIL_FAIL_COUNT : u8 = 1;
+pub const DETAIL_REASON : u8 = 2;
+pub const DETAIL_TIMEOUT : u8 = 3;
+pub const DETAIL_FAIL_WORDS : [2]str = [" of ", " tests fail"];
+pub const DETAIL_TIMEOUT_WORDS : [2]str = ["over ", " s"];
+
+pub fn detail_kind(reference_verdict: u8) -> u8 {
+    if (reference_verdict == VW_FAIL) { return DETAIL_FAIL_COUNT; }
+    if (reference_verdict == VW_BLOCKED) { return DETAIL_REASON; }
+    if (reference_verdict == VW_TIMEOUT) { return DETAIL_TIMEOUT; }
+    return DETAIL_NONE;
+}
+
+/// reference_tests is written when the reference listed a verdict for every test it counted
+/// (lab.py parse_test_verdicts: a list shorter than `tests` could be partial, and is not written).
+pub fn reference_tests_listed(reference_verdict: u8, listed: u32, tests: u32) -> bool {
+    return lists_tests(reference_verdict) and listed == tests;
+}
+
+/// reference_disagree is written when both sides listed their per-test verdicts.
+pub fn disagree_listed(t27b_listed: bool, reference_listed: bool) -> bool {
+    return t27b_listed and reference_listed;
+}
+
+/// disagreement() answers: the line one test gets in reference_disagree, if any.
+pub const DIS_NONE : u8 = 0;
+pub const DIS_BOTH : u8 = 1;
+pub const DIS_T27B_ONLY : u8 = 2;
+pub const DIS_REFERENCE_ONLY : u8 = 3;
+/// The line of each answer, by code; {name} is the test, {t27b} and {reference} its two words.
+pub const DISAGREE_TEXT : [4]str = ["", "{name}: t27b {t27b}, reference {reference}", "{name}: t27b {t27b}, reference has no such test", "{name}: t27b has no such test, reference {reference}"];
+/// A test's word, by whether it passed: index 0 is a failure.
+pub const TEST_WORDS : [2]str = ["FAIL", "pass"];
+
+/// One test of the union of both sides' names, in name order (cli/t27b/src/blockers.rs disagreements):
+/// both ran it and judged it differently, or only one side has it.
+pub fn disagreement(t27b_has: bool, t27b_passed: bool, reference_has: bool, reference_passed: bool) -> u8 {
+    if (t27b_has and reference_has) {
+        if (t27b_passed != reference_passed) { return DIS_BOTH; }
+        return DIS_NONE;
+    }
+    if (t27b_has) { return DIS_T27B_ONLY; }
+    if (reference_has) { return DIS_REFERENCE_ONLY; }
+    return DIS_NONE;
+}
+
+; --- tests -------------------------------------------------------------------------------------------
+
+test a_row_is_complete_when_both_halves_agree {
+    assert row_complete(JV_AGREED, JV_AGREED) == true;
+    // one half still running, or given up, leaves the row open
+    assert row_complete(JV_AGREED, 0) == false;
+    assert row_complete(0, JV_AGREED) == false;
+    assert row_complete(JV_AGREED, 2) == false;
+    assert row_complete(3, JV_AGREED) == false;
+}
+
+test a_t27b_timeout_or_a_host_that_could_not_run_it_is_no_vote {
+    assert t27b_votes(TW_PASS) == true;
+    assert t27b_votes(TW_PASS_VACUOUS) == true;
+    assert t27b_votes(TW_FAIL) == true;
+    assert t27b_votes(TW_BLOCKED) == true;
+    assert t27b_votes(TW_FRONTEND) == true;
+    assert t27b_votes(TW_MISMATCH) == true;
+    assert t27b_votes(TW_CODEGEN) == true;
+    assert t27b_votes(TW_CRASH) == true;
+    assert t27b_votes(TW_TIMEOUT) == false;
+    assert t27b_votes(TW_HOST_ERROR) == false;
+    assert t27b_votes(T27B_VERDICTS) == false;
+    assert t27b_run_verdict(false, true, TW_PASS) == TW_HOST_ERROR;
+    assert t27b_run_verdict(true, false, TW_PASS) == TW_HOST_ERROR;
+    assert t27b_run_verdict(true, true, 77) == TW_HOST_ERROR;
+    assert t27b_run_verdict(true, true, TW_BLOCKED) == TW_BLOCKED;
+}
+
+test a_receipt_votes_in_its_halfs_words {
+    // pass is word 0 in both halves; blocked is 2 for the reference and 3 for t27b
+    assert half_vote(RC_OK, HALF_REFERENCE, VW_BLOCKED) == true;
+    assert half_vote(RC_OK, HALF_T27B, TW_BLOCKED) == true;
+    // the reference's word 3 is timeout, t27b's is blocked: the half decides which
+    assert half_vote(RC_OK, HALF_REFERENCE, VW_TIMEOUT) == false;
+    assert half_vote(RC_OK, HALF_T27B, 3) == true;
+    assert half_vote(RC_OK, HALF_T27B, TW_TIMEOUT) == false;
+    // a receipt that failed a check is no vote in either half, and a half that is not one has none
+    assert half_vote(1, HALF_REFERENCE, VW_PASS) == false;
+    assert half_vote(9, HALF_T27B, TW_PASS) == false;
+    assert half_vote(RC_OK, HALVES, VW_PASS) == false;
+}
+
+test the_row_is_assembled_the_labs_way {
+    assert detail_kind(VW_PASS) == DETAIL_NONE;
+    assert detail_kind(VW_FAIL) == DETAIL_FAIL_COUNT;
+    assert detail_kind(VW_BLOCKED) == DETAIL_REASON;
+    assert detail_kind(VW_TIMEOUT) == DETAIL_TIMEOUT;
+    // per-test verdicts only for a pass or a fail, and only when every test is listed
+    assert reference_tests_listed(VW_PASS, 3, 3) == true;
+    assert reference_tests_listed(VW_FAIL, 9, 9) == true;
+    assert reference_tests_listed(VW_PASS, 0, 0) == true;
+    assert reference_tests_listed(VW_PASS, 2, 3) == false;
+    assert reference_tests_listed(VW_BLOCKED, 0, 0) == false;
+    assert disagree_listed(true, true) == true;
+    assert disagree_listed(true, false) == false;
+    assert disagree_listed(false, true) == false;
+}
+
+test a_disagreement_names_the_side_that_differs {
+    assert disagreement(true, true, true, true) == DIS_NONE;
+    assert disagreement(true, false, true, false) == DIS_NONE;
+    assert disagreement(true, true, true, false) == DIS_BOTH;
+    assert disagreement(true, false, true, true) == DIS_BOTH;
+    assert disagreement(true, true, false, false) == DIS_T27B_ONLY;
+    assert disagreement(false, false, true, true) == DIS_REFERENCE_ONLY;
+    assert disagreement(false, true, false, true) == DIS_NONE;
+    assert DISAGREE_TEXT[DIS_NONE].len == 0;
+    assert TEST_WORDS[0].len == 4 and TEST_WORDS[1].len == 4;
+}
+
+/// The halves and the words are numbered as the glue and the tests above read them.
+invariant the_halves_and_words_are_numbered {
+    assert HALF_REFERENCE == 0 and HALF_T27B == 1 and HALVES == 2;
+    assert TW_PASS == 0 and TW_TIMEOUT == 7 and TW_HOST_ERROR == 9 and T27B_VERDICTS == 10;
+    assert T27B_ROW_KEY_COUNT == 8 and ROW_KEY_COUNT == 13;
+    assert DIS_NONE == 0 and DIS_BOTH == 1 and DIS_T27B_ONLY == 2 and DIS_REFERENCE_ONLY == 3;
+    assert T27B_TIMEOUT_MS == 60000;
+}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/hosting/host.t27 -- a computer that lends itself to the Queen: its trust tier, its capacity,
-; what it may run, its lease, and the toolchain it may install
+; what it may run, its lease, the toolchain it may install, and how it confines what it runs
 ; Owner, 2026-10-10 (gHashTag/trios#1756, translated): run the services we need on users' computers
 ; instead of a hosting provider, paid in TRI for proof of compute. This card decides what a host is to
 ; the Queen. placement.t27 decides which host runs what, proof.t27 whether a result is believed, and
@@ -28,7 +28,7 @@
 ; host id is a key id as verified/signed_receipt.t27 defines it (KEY_ID_HEX_LEN 16 hex characters of
 ; the SHA-256 of the Ed25519 public key).
 ; Not here: the store, the HTTP and the signatures themselves (gHashTag/trios); the pins of the
-; toolchain (toolchain.t27).
+; toolchain and the sandbox's own profile (toolchain.t27).
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -187,6 +187,80 @@ pub fn download_kept(digest_matches: bool, size_matches: bool) -> bool {
     return digest_matches and size_matches;
 }
 
+; --- 8. Isolation: what a job can reach on the host -------------------------------------------------------
+; gHashTag/trios#1761 (lane A). A host runs a shard's code: t27c compiles the spec, and zig builds and
+; runs its tests as a program on the host. Section 2 protects the job from the host (a host reads all a
+; workload holds); this section protects the host from the job. The levels, weakest first:
+;   ISO_NONE        the job runs as the operator's user, with the network and every file the user has;
+;   ISO_NO_NETWORK  no network, but a write can land anywhere the user can write (Linux `unshare` with
+;                   a network namespace and nothing else);
+;   ISO_JOBDIR      no network, and no write outside the job's own directory and zig's cache; a read
+;                   reaches only the tools, the job's files and the system's libraries (macOS
+;                   sandbox-exec with a deny-default profile; Linux bwrap; toolchain.t27 section 6);
+;   ISO_VM          a kernel of its own (a VM, gVisor). Nothing implements it yet; it is named so that
+;                   a rule can ask for it.
+; The host REPORTS its level when it registers (proof.t27 REGISTER_SIGNED_FIELDS), and the level it
+; reports is measured, not assumed: before it registers, the agent runs a planted job inside the sandbox
+; it chose -- a program that opens a socket to a listener the agent holds and writes a file outside the
+; job's directory -- and reports the sandbox's level only when both attempts failed (isolation_of).
+; The Queen cannot look inside a host, so the level stays a claim; but a false claim harms only the host
+; that makes it, whose own operator the isolation protects. The Queen uses the claim the other way:
+; a host that says it cannot isolate a job is never given a public job.
+; A PUBLIC job is one a public host may run (eligible for TIER_PUBLIC): it needs ISO_JOBDIR wherever it
+; runs, the owner's machines included, so a shard never runs unconfined. Any other job needs ISO_NONE:
+; a service has to reach the network to serve, and only named hosts run one.
+
+pub const ISO_NONE : u8 = 0;
+pub const ISO_NO_NETWORK : u8 = 1;
+pub const ISO_JOBDIR : u8 = 2;
+pub const ISO_VM : u8 = 3;
+pub const ISO_LEVELS : u8 = 4;
+
+/// The level a job needs on whatever host runs it.
+pub fn isolation_required(class: u8, holds_secret: bool, holds_personal: bool) -> u8 {
+    if (eligible(TIER_PUBLIC, class, holds_secret, holds_personal)) { return ISO_JOBDIR; }
+    return ISO_NONE;
+}
+
+/// Whether a host that reports `have` may run a job that needs `need`. A level that is not one counts
+/// as none.
+pub fn isolation_meets(have: u8, need: u8) -> bool {
+    var level : u8 = have;
+    if (level >= ISO_LEVELS) { level = ISO_NONE; }
+    return level >= need;
+}
+
+/// The sandboxes the host agent knows, by what they confine (toolchain.t27 section 6).
+pub const SANDBOX_NONE : u8 = 0;
+pub const SANDBOX_EXEC : u8 = 1;
+pub const SANDBOX_BWRAP : u8 = 2;
+pub const SANDBOX_UNSHARE : u8 = 3;
+pub const SANDBOXES : u8 = 4;
+
+/// Which sandbox the agent uses: on macOS sandbox-exec; on Linux bwrap, else unshare; else none. An
+/// operator who turns the sandbox off gets none, and with it no public job.
+pub fn sandbox_choice(macos: bool, has_sandbox_exec: bool, has_bwrap: bool, has_unshare: bool, turned_off: bool) -> u8 {
+    if (turned_off) { return SANDBOX_NONE; }
+    if (macos) {
+        if (has_sandbox_exec) { return SANDBOX_EXEC; }
+        return SANDBOX_NONE;
+    }
+    if (has_bwrap) { return SANDBOX_BWRAP; }
+    if (has_unshare) { return SANDBOX_UNSHARE; }
+    return SANDBOX_NONE;
+}
+
+/// The level a host reports: what its sandbox confines, and only when the planted job inside it could
+/// neither connect (connect_failed) nor write outside its directory (write_failed). A sandbox that let
+/// either through is reported as none.
+pub fn isolation_of(sandbox: u8, connect_failed: bool, write_failed: bool) -> u8 {
+    if (sandbox == SANDBOX_NONE or sandbox >= SANDBOXES) { return ISO_NONE; }
+    if (connect_failed == false) { return ISO_NONE; }
+    if (sandbox == SANDBOX_UNSHARE) { return ISO_NO_NETWORK; }
+    if (write_failed == false) { return ISO_NO_NETWORK; }
+    return ISO_JOBDIR;
+}
+
 ; --- tests ---------------------------------------------------------------------------------------------------
 
 test a_tier_is_granted_by_the_allowlist_never_claimed {
@@ -297,6 +371,53 @@ test a_host_runs_only_a_pinned_or_named_tool {
     assert download_kept(false, false) == false;
 }
 
+test a_public_job_never_runs_unconfined {
+    // a shard with nothing secret or personal is public: it needs no network and the job dir only
+    assert isolation_required(WC_SHARD, false, false) == ISO_JOBDIR;
+    assert isolation_meets(ISO_JOBDIR, ISO_JOBDIR) == true;
+    assert isolation_meets(ISO_VM, ISO_JOBDIR) == true;
+    assert isolation_meets(ISO_NO_NETWORK, ISO_JOBDIR) == false;
+    assert isolation_meets(ISO_NONE, ISO_JOBDIR) == false;
+    // a level that is not one is none
+    assert isolation_meets(ISO_LEVELS, ISO_JOBDIR) == false;
+    assert isolation_meets(255, ISO_NO_NETWORK) == false;
+    // a job only a named host may run asks for nothing more than its tier
+    assert isolation_required(WC_SHARD, true, false) == ISO_NONE;
+    assert isolation_required(WC_SERVICE, false, false) == ISO_NONE;
+    assert isolation_required(WC_STATEFUL, true, true) == ISO_NONE;
+    assert isolation_meets(ISO_NONE, ISO_NONE) == true;
+    assert isolation_meets(255, ISO_NONE) == true;
+}
+
+test a_host_reports_only_the_isolation_its_probe_measured {
+    assert isolation_of(SANDBOX_EXEC, true, true) == ISO_JOBDIR;
+    assert isolation_of(SANDBOX_BWRAP, true, true) == ISO_JOBDIR;
+    // a sandbox that let the socket through confines nothing worth naming
+    assert isolation_of(SANDBOX_EXEC, false, true) == ISO_NONE;
+    assert isolation_of(SANDBOX_BWRAP, false, false) == ISO_NONE;
+    // one that let the write through confines the network only
+    assert isolation_of(SANDBOX_EXEC, true, false) == ISO_NO_NETWORK;
+    // unshare never confines a write, whatever the probe saw
+    assert isolation_of(SANDBOX_UNSHARE, true, true) == ISO_NO_NETWORK;
+    assert isolation_of(SANDBOX_UNSHARE, false, true) == ISO_NONE;
+    assert isolation_of(SANDBOX_NONE, true, true) == ISO_NONE;
+    assert isolation_of(SANDBOXES, true, true) == ISO_NONE;
+}
+
+test the_sandbox_is_the_platforms_best {
+    assert sandbox_choice(true, true, false, false, false) == SANDBOX_EXEC;
+    assert sandbox_choice(true, false, true, true, false) == SANDBOX_NONE;
+    assert sandbox_choice(false, false, true, true, false) == SANDBOX_BWRAP;
+    assert sandbox_choice(false, false, false, true, false) == SANDBOX_UNSHARE;
+    assert sandbox_choice(false, false, false, false, false) == SANDBOX_NONE;
+    assert sandbox_choice(true, true, true, true, true) == SANDBOX_NONE;
+    assert sandbox_choice(false, true, true, true, true) == SANDBOX_NONE;
+    // so a host with no sandbox gets no public job
+    assert isolation_meets(isolation_of(sandbox_choice(false, false, false, false, false), true, true), isolation_required(WC_SHARD, false, false)) == false;
+    assert isolation_meets(isolation_of(sandbox_choice(false, false, false, true, false), true, true), isolation_required(WC_SHARD, false, false)) == false;
+    assert isolation_meets(isolation_of(sandbox_choice(true, true, false, false, false), true, true), isolation_required(WC_SHARD, false, false)) == true;
+}
+
 invariant tiers_are_ordered_by_trust {
     assert TIER_OWNER < TIER_TRUSTED and TIER_TRUSTED < TIER_PUBLIC and TIER_PUBLIC < TIERS;
     assert ALLOW_NONE >= TIERS;
@@ -312,4 +433,9 @@ invariant the_skew_outlasts_a_beat {
     assert REQUEST_SKEW_SECONDS >= NODE_HEARTBEAT_SECONDS;
     assert STRIKES_MAX > 1;
     assert TA_DOWNLOAD == 0 and TA_USE_LOCAL == 1 and TA_REFUSE == 2;
+}
+/// The levels are ordered by what they confine, and the public job's level confines both.
+invariant isolation_is_ordered {
+    assert ISO_NONE < ISO_NO_NETWORK and ISO_NO_NETWORK < ISO_JOBDIR and ISO_JOBDIR < ISO_VM and ISO_VM < ISO_LEVELS;
+    assert SANDBOX_NONE == 0 and SANDBOX_EXEC == 1 and SANDBOX_BWRAP == 2 and SANDBOX_UNSHARE == 3 and SANDBOXES == 4;
 }

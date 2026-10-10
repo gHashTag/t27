@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-; specs/hosting/placement.t27 -- which host runs which job: fit, spread over hosts, k replicas, and the
-; move of a replica whose lease lapsed
+; specs/hosting/placement.t27 -- which host runs which job: fit, spread over hosts, k replicas, the
+; move of a replica whose lease lapsed, and which host runs which half of a lab row
 ; gHashTag/trios#1756, slice 1. Hosts pull: an idle host asks the Queen for a lease on its beat, and
 ; the Queen answers with one replica of one job, or nothing. This card decides whether a given host may
 ; take a given job, which job it is offered first, and when a replica it holds is over without a result.
@@ -48,6 +48,14 @@ use hosting::host::STRIKES_MAX;
 use hosting::proof::REPLICAS_K;
 use hosting::proof::REPLICAS_MAX;
 use queen::netlink::NODE_TTL_SECONDS;
+use hosting::host::ISO_NONE;
+use hosting::host::ISO_JOBDIR;
+use hosting::host::isolation_required;
+use hosting::host::isolation_meets;
+use hosting::toolchain::ARCH_ARM64;
+use hosting::toolchain::ARCH_X64;
+use hosting::row::HALF_REFERENCE;
+use hosting::row::HALF_T27B;
 
 ; --- 1. Fit ------------------------------------------------------------------------------------------
 
@@ -125,6 +133,27 @@ pub const RECEIPT_GRACE_SECONDS : u32 = 30;
 pub fn replica_lapsed(beat_age_seconds: u32, run_age_seconds: u32) -> bool {
     if (host_up(beat_age_seconds) == false) { return true; }
     return run_age_seconds >= JOB_RUN_BOUND_SECONDS + RECEIPT_GRACE_SECONDS;
+}
+
+; --- 5. Which host runs which half, and in what --------------------------------------------------
+; gHashTag/trios#1761 (lane A). A row of the lab is two halves (row.t27), each a job of its own. The
+; reference half runs on any host. The t27b half runs only where t27b runs: t27b emits AArch64 and runs
+; it in-process, so an x64 host never takes one. And a job runs only on a host whose measured isolation
+; meets what the job needs (host.t27 section 8): a public job needs no network and the job's directory
+; only, so a host that cannot confine one is never given one.
+
+/// Whether a host of this instruction set (toolchain.t27 ARCH_*) can run this half.
+pub fn half_fits(half: u8, arch: u8) -> bool {
+    if (half == HALF_REFERENCE) { return true; }
+    if (half == HALF_T27B) { return arch == ARCH_ARM64; }
+    return false;
+}
+
+/// may_take, and the half fits the host's instruction set, and the host's isolation meets the job's.
+pub fn may_take_half(half: u8, arch: u8, isolation: u8, tier: u8, class: u8, holds_secret: bool, holds_personal: bool, beat_age_seconds: u32, strikes: u32, slots: u32, running: u32) -> bool {
+    if (half_fits(half, arch) == false) { return false; }
+    if (isolation_meets(isolation, isolation_required(class, holds_secret, holds_personal)) == false) { return false; }
+    return may_take(tier, class, holds_secret, holds_personal, beat_age_seconds, strikes, slots, running);
 }
 
 ; --- tests ---------------------------------------------------------------------------------------------
@@ -206,6 +235,30 @@ test a_lapsed_lease_frees_its_replica {
     // the host is up but the run never ended
     assert replica_lapsed(0, JOB_RUN_BOUND_SECONDS + RECEIPT_GRACE_SECONDS - 1) == false;
     assert replica_lapsed(0, JOB_RUN_BOUND_SECONDS + RECEIPT_GRACE_SECONDS) == true;
+}
+
+test a_t27b_half_goes_to_arm64_only {
+    assert half_fits(HALF_REFERENCE, ARCH_ARM64) == true;
+    assert half_fits(HALF_REFERENCE, ARCH_X64) == true;
+    assert half_fits(HALF_T27B, ARCH_ARM64) == true;
+    assert half_fits(HALF_T27B, ARCH_X64) == false;
+    // a half or an arch that is not one fits nowhere
+    assert half_fits(7, ARCH_ARM64) == false;
+    assert half_fits(HALF_T27B, 9) == false;
+    assert may_take_half(HALF_T27B, ARCH_ARM64, ISO_JOBDIR, TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 0) == true;
+    assert may_take_half(HALF_T27B, ARCH_X64, ISO_JOBDIR, TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 0) == false;
+    assert may_take_half(HALF_REFERENCE, ARCH_X64, ISO_JOBDIR, TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 0) == true;
+}
+
+test a_host_that_cannot_confine_a_public_job_gets_none {
+    assert may_take_half(HALF_REFERENCE, ARCH_ARM64, ISO_NONE, TIER_OWNER, WC_SHARD, false, false, 0, 0, 2, 0) == false;
+    assert may_take_half(HALF_REFERENCE, ARCH_ARM64, ISO_NONE, TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 0) == false;
+    // a job that declares a secret is no public job: a trusted host takes it as before
+    assert may_take_half(HALF_REFERENCE, ARCH_ARM64, ISO_NONE, TIER_TRUSTED, WC_SHARD, true, false, 0, 0, 2, 0) == true;
+    // may_take still holds every rule it held: full, down, suspended
+    assert may_take_half(HALF_REFERENCE, ARCH_ARM64, ISO_JOBDIR, TIER_PUBLIC, WC_SHARD, false, false, 0, 0, 2, 2) == false;
+    assert may_take_half(HALF_REFERENCE, ARCH_ARM64, ISO_JOBDIR, TIER_PUBLIC, WC_SHARD, false, false, NODE_TTL_SECONDS, 0, 2, 0) == false;
+    assert may_take_half(HALF_REFERENCE, ARCH_ARM64, ISO_JOBDIR, TIER_PUBLIC, WC_SHARD, false, false, 0, STRIKES_MAX, 2, 0) == false;
 }
 
 /// A job may lose every replica twice over before it is given up, and a tiebreak always fits.

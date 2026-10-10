@@ -1,22 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/hosting/toolchain.t27 -- what a host agent installs, from where, and the digest each file must
-; have: the pins, as data
+; have: the pins, as data; and the sandbox the agent runs a job in, as data
 ; Owner, 2026-10-10 (translated): "a fast loader of our service copy onto any machine that turns it
 ; into useful work". The host agent is one self-contained binary (`trios-host`). On its first run
-; (`trios-host join`) it fetches the toolchain a shard needs -- t27c, and the zig that t27c's
-; test-report compiles with -- into AGENT_DIR under the user's home, and keeps a file only when its
-; SHA-256 and its size are the ones pinned here (host.t27 download_kept). The pins are data in this
-; spec, not literals in the agent: a new zig or a new t27c release is a change to this file, reviewed
-; and sealed like any rule.
+; (`trios-host join`) it fetches the toolchain a shard needs -- t27c, t27b where the host can run it,
+; and the zig that t27c's test-report compiles with -- into AGENT_DIR under the user's home, and keeps
+; a file only when its SHA-256 and its size are the ones pinned here (host.t27 download_kept). The pins
+; are data in this spec, not literals in the agent: a new zig or a new t27c build is a change to this
+; file, reviewed and sealed like any rule.
 ; --
 ; zig 0.16.0: the URLs, digests and sizes are ziglang.org's own, from https://ziglang.org/download/
 ; index.json (entry 0.16.0, dated 2026-04-13), copied as published.
-; t27c: no release carries a t27c binary yet (the t27c 0.5.0 release holds the source signature and the
-; SBOM only), so there is nothing to pin, and the pins are empty. An empty pin is not a wildcard: a host
-; with no pin and no binary of its own does not run shards at all (host.t27 toolchain_action TA_REFUSE).
-; Until a release carries per-platform t27c assets, an operator names a t27c already on the machine
-; (`trios-host join --t27c <path>`), and every receipt carries that binary's digest (proof.t27
+; --
+; t27c and t27b (gHashTag/trios#1761, lane A): the GitHub prerelease RELEASE_TAG of gHashTag/trios
+; carries them, built from ONE t27 master commit, T27_COMMIT, and from nothing else:
+;   darwin-arm64  t27c and t27b: `cargo build --release -p t27c -p t27b` on the owner's Mac;
+;   linux-x64     t27c: `cargo build --release -p t27c` on the t27c lab (Debian 12, x86_64);
+;   linux-arm64   t27c and t27b: the same, `--target aarch64-unknown-linux-gnu`, on the t27c lab.
+; The linux builds need glibc 2.34 or newer. There is no t27b for linux-x64: t27b emits AArch64 and
+; runs it in-process (cli/t27b/src/jit.rs), so its pin there is empty, and placement.t27 never sends a
+; t27b half to an x64 host. The release is in gHashTag/trios, never in gHashTag/t27: a release there
+; fires the crates.io publish.
+; An empty pin is not a wildcard: a host with no pin and no binary of its own does not run that tool at
+; all (host.t27 toolchain_action TA_REFUSE). An operator may still name a binary already on the machine
+; (`trios-host join --t27c <path>`); every receipt carries the digest of the binary that ran (proof.t27
 ; model_hash), so the Queen and a reader see which build produced each result.
+; --
+; trios-host itself is pinned here too, for the one command line a new machine runs (download,
+; check, chmod, join). Its own rows are filled after it is built: a file cannot carry its own digest,
+; so the agent binary is built from this spec with those three rows empty, and never reads them.
 ; --
 ; The shard's inputs come from the t27 repository at the job's pinned commit: each file of the spec's
 ; `use` closure is fetched from SPEC_SOURCE_BASE + commit + "/" + path and checked against the SHA-256
@@ -24,7 +36,13 @@
 ; --
 ; The agent's own files: AGENT_DIR is created with AGENT_DIR_MODE (owner only); the Ed25519 private key
 ; lives in KEY_FILE inside it with KEY_FILE_MODE (owner read and write, nobody else), and is never sent
-; anywhere: only its public key and signatures leave the machine.
+; anywhere: only its public key and signatures leave the machine. The downloaded tools live in
+; TOOLS_DIR, the jobs run in WORK_DIR, zig's cache is CACHE_DIR: three directories beside the key, so a
+; sandboxed job is given the tools and its own directory and never the directory that holds the key.
+; --
+; The sandbox (host.t27 section 8): on macOS `sandbox-exec -f <profile>` with the profile below, its
+; parameters the tool and job paths; on Linux `bwrap` with the arguments below, or, without bwrap,
+; `unshare` with UNSHARE_ARGS, which takes the network away and nothing else.
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -33,24 +51,47 @@ module HostingToolchain;
 ; --- 1. Platforms ------------------------------------------------------------------------------------
 
 /// The platforms a host agent is built for and installs a toolchain on, in pin order.
-pub const PLATFORMS : [2]str = ["darwin-arm64", "linux-x64"];
-pub const PLATFORM_COUNT : u32 = 2;
+pub const PLATFORMS : [3]str = ["darwin-arm64", "linux-x64", "linux-arm64"];
+pub const PLATFORM_COUNT : u32 = 3;
+
+/// The instruction set of a platform: what decides which tools it can run (placement.t27).
+pub const ARCH_ARM64 : u8 = 0;
+pub const ARCH_X64 : u8 = 1;
+pub const ARCHS : u8 = 2;
+/// Each platform's instruction set, in PLATFORMS order.
+pub const PLATFORM_ARCH : [3]u8 = [0, 1, 0];
 
 ; --- 2. zig ------------------------------------------------------------------------------------------
 
 pub const ZIG_VERSION : str = "0.16.0";
-pub const ZIG_URLS : [2]str = ["https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz", "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"];
-pub const ZIG_SHA256 : [2]str = ["b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489", "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"];
-pub const ZIG_BYTES : [2]u64 = [52238004, 55478392];
-/// The directory each archive unpacks to, under AGENT_DIR; the zig binary is at its top.
-pub const ZIG_DIRS : [2]str = ["zig-aarch64-macos-0.16.0", "zig-x86_64-linux-0.16.0"];
+pub const ZIG_URLS : [3]str = ["https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz", "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz", "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz"];
+pub const ZIG_SHA256 : [3]str = ["b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489", "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00", "ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17"];
+pub const ZIG_BYTES : [3]u64 = [52238004, 55478392, 51211944];
+/// The directory each archive unpacks to, under TOOLS_DIR; the zig binary is at its top.
+pub const ZIG_DIRS : [3]str = ["zig-aarch64-macos-0.16.0", "zig-x86_64-linux-0.16.0", "zig-aarch64-linux-0.16.0"];
 
-; --- 3. t27c -----------------------------------------------------------------------------------------
+; --- 3. The release: t27c, t27b and trios-host -------------------------------------------------------
 
-/// Empty until a release carries a t27c binary per platform.
-pub const T27C_URLS : [2]str = ["", ""];
-pub const T27C_SHA256 : [2]str = ["", ""];
-pub const T27C_BYTES : [2]u64 = [0, 0];
+pub const RELEASE_REPO : str = "gHashTag/trios";
+pub const RELEASE_TAG : str = "trios-host-v0.1.0";
+/// Where GitHub serves the release's assets: every pin below is this, then `<tool>-<platform>`.
+pub const RELEASE_BASE : str = "https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/";
+/// The t27 master commit every t27c and t27b below was built from.
+pub const T27_COMMIT : str = "cf42584c9beaf48f9b615331c2837bfdaafb02a4";
+
+pub const T27C_URLS : [3]str = ["https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27c-darwin-arm64", "https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27c-linux-x64", "https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27c-linux-arm64"];
+pub const T27C_SHA256 : [3]str = ["f01f60e56af8c13bb4e51eaf5d073687e225b6dcb59c2a4ccaa27c599e6f89b9", "50345009b98c123229c9175125b4cf56ea852732d85761ef465655949f2e131a", "dd55e8902190ce32664c6bdbaf36ba2125bc64f88a3ed9c15d278224c5f4abe7"];
+pub const T27C_BYTES : [3]u64 = [9773360, 11892096, 11004200];
+
+/// Empty where the platform is not arm64: t27b runs nowhere else.
+pub const T27B_URLS : [3]str = ["https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27b-darwin-arm64", "", "https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27b-linux-arm64"];
+pub const T27B_SHA256 : [3]str = ["38d66e75856d8d87787d3e6e012ba334c5b54c101f0ee9fd67556ee3e2b02e46", "", "8da449a6b51f24008fde1f32078392f2c7a8b412eba110483934ac0b337550c8"];
+pub const T27B_BYTES : [3]u64 = [2472000, 0, 2794840];
+
+/// Filled after the agent is built (see the header): the agent never reads these three rows.
+pub const TRIOS_HOST_URLS : [3]str = ["", "", ""];
+pub const TRIOS_HOST_SHA256 : [3]str = ["", "", ""];
+pub const TRIOS_HOST_BYTES : [3]u64 = [0, 0, 0];
 
 ; --- 4. The shard's inputs ---------------------------------------------------------------------------
 
@@ -60,13 +101,37 @@ pub const SPEC_SOURCE_BASE : str = "https://raw.githubusercontent.com/gHashTag/t
 
 pub const AGENT_DIR : str = ".trios-host";
 pub const KEY_FILE : str = "key";
+pub const TOOLS_DIR : str = "tools";
+pub const WORK_DIR : str = "work";
+pub const CACHE_DIR : str = "cache";
 /// 0700 and 0600.
 pub const AGENT_DIR_MODE : u32 = 448;
 pub const KEY_FILE_MODE : u32 = 384;
 /// The bits of a mode that let anyone but the owner read, write or enter.
 pub const GROUP_OTHER_BITS : u32 = 63;
 
-; --- 6. What a pin may be ----------------------------------------------------------------------------
+; --- 6. The sandbox ----------------------------------------------------------------------------------
+; macOS: the profile, one line per entry, for `sandbox-exec -D T27C=<file> -D T27B=<file> -D ZIG=<dir>
+; -D JOB=<dir> -D CACHE=<dir> -f <profile>`. Everything is denied but what is named: the system's own
+; libraries (Apple's system.sb, which dyld needs), the job's two tools and zig, read and run; the job's
+; directory and zig's cache, read, written and run (zig writes the test binary there and runs it). The
+; network is denied last, so nothing above can open it. The key's directory is none of these.
+
+pub const SANDBOX_EXEC_PROFILE : [10]str = ["(version 1)", "(deny default)", "(import \"system.sb\")", "(allow process-fork)", "(allow signal (target same-sandbox))", "(allow sysctl-read)", "(allow file-read-metadata)", "(allow process-exec file-read* (literal (param \"T27C\")) (literal (param \"T27B\")) (subpath (param \"ZIG\")) (subpath (param \"JOB\")) (subpath (param \"CACHE\")))", "(allow file-write* (subpath (param \"JOB\")) (subpath (param \"CACHE\")))", "(deny network*)"];
+pub const SANDBOX_EXEC_PARAMS : [5]str = ["T27C", "T27B", "ZIG", "JOB", "CACHE"];
+
+; Linux: bwrap's arguments, before the command. `{NAME}` is the path of SANDBOX_EXEC_PARAMS' NAME. A new
+; namespace of every kind (the network among them: only a loopback nobody listens on); the system's
+; directories read-only; the tools read-only; the job's directory and zig's cache writable; a fresh /tmp
+; and nothing of the user's home but the job's own directory.
+pub const BWRAP_ARGS : [26]str = ["--unshare-all", "--die-with-parent", "--new-session", "--ro-bind", "/usr", "/usr", "--ro-bind-try", "/lib", "/lib", "--ro-bind-try", "/lib64", "/lib64", "--ro-bind-try", "/etc/ld.so.cache", "/etc/ld.so.cache", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--ro-bind", "{ZIG}", "{ZIG}", "--chdir", "{JOB}"];
+/// The binds bwrap needs beyond BWRAP_ARGS, one triple per path: the flag, the source and the target.
+pub const BWRAP_BINDS : [12]str = ["--ro-bind", "{T27C}", "{T27C}", "--ro-bind", "{T27B}", "{T27B}", "--bind", "{JOB}", "{JOB}", "--bind", "{CACHE}", "{CACHE}"];
+/// `unshare` without bwrap: a user namespace mapped to the caller and a network namespace. It confines
+/// the network and no file, so it is ISO_NO_NETWORK (host.t27), short of what a public job needs.
+pub const UNSHARE_ARGS : [3]str = ["--user", "--map-root-user", "--net"];
+
+; --- 7. What a pin may be ----------------------------------------------------------------------------
 
 pub const SHA256_HEX_LEN : u32 = 64;
 
@@ -102,6 +167,43 @@ pub fn url_allowed(url: string) -> bool {
     return url[0] == 104 and url[1] == 116 and url[2] == 116 and url[3] == 112 and url[4] == 115 and url[5] == 58 and url[6] == 47 and url[7] == 47;
 }
 
+/// Whether `text` ends with `tail`.
+pub fn ends_with(text: string, tail: string) -> bool {
+    if (tail.len > text.len) { return false; }
+    var k : usize = 0;
+    while (k < tail.len) {
+        if (text[text.len - tail.len + k] != tail[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Whether `text` begins with `head`.
+pub fn starts_with(text: string, head: string) -> bool {
+    if (head.len > text.len) { return false; }
+    var k : usize = 0;
+    while (k < head.len) {
+        if (text[k] != head[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// A release asset is the release's own and named `<tool>-<platform>`: RELEASE_BASE, the tool, a
+/// dash, the platform, and nothing else. No pin may point anywhere else.
+pub fn names_asset(url: string, tool: string, platform: string) -> bool {
+    if (url.len == 0) { return true; }
+    if (url.len != RELEASE_BASE.len + tool.len + 1 + platform.len) { return false; }
+    if (starts_with(url, RELEASE_BASE) == false) { return false; }
+    var k : usize = 0;
+    while (k < tool.len) {
+        if (url[RELEASE_BASE.len + k] != tool[k]) { return false; }
+        k = k + 1;
+    }
+    if (url[RELEASE_BASE.len + tool.len] != 45) { return false; }
+    return ends_with(url, platform);
+}
+
 ; --- tests -------------------------------------------------------------------------------------------
 
 test every_zig_pin_is_complete_and_https {
@@ -116,15 +218,52 @@ test every_zig_pin_is_complete_and_https {
     }
 }
 
-test an_empty_t27c_pin_is_complete_and_names_nothing {
+test every_t27c_pin_is_a_complete_release_asset {
     var k : u32 = 0;
     while (k < PLATFORM_COUNT) {
         assert pin_well_formed(T27C_SHA256[k]);
+        assert T27C_SHA256[k].len == 64;
         assert pin_complete(T27C_URLS[k], T27C_SHA256[k], T27C_BYTES[k]);
         assert url_allowed(T27C_URLS[k]);
-        assert T27C_SHA256[k].len == 0;
+        assert names_asset(T27C_URLS[k], "t27c", PLATFORMS[k]);
         k = k + 1;
     }
+}
+
+test t27b_is_pinned_exactly_where_the_platform_is_arm64 {
+    var k : u32 = 0;
+    while (k < PLATFORM_COUNT) {
+        assert pin_well_formed(T27B_SHA256[k]);
+        assert pin_complete(T27B_URLS[k], T27B_SHA256[k], T27B_BYTES[k]);
+        assert url_allowed(T27B_URLS[k]);
+        assert names_asset(T27B_URLS[k], "t27b", PLATFORMS[k]);
+        assert (T27B_SHA256[k].len == 64) == (PLATFORM_ARCH[k] == ARCH_ARM64);
+        k = k + 1;
+    }
+}
+
+test every_trios_host_pin_is_complete {
+    var k : u32 = 0;
+    while (k < PLATFORM_COUNT) {
+        assert pin_well_formed(TRIOS_HOST_SHA256[k]);
+        assert pin_complete(TRIOS_HOST_URLS[k], TRIOS_HOST_SHA256[k], TRIOS_HOST_BYTES[k]);
+        assert url_allowed(TRIOS_HOST_URLS[k]);
+        assert names_asset(TRIOS_HOST_URLS[k], "trios-host", PLATFORMS[k]);
+        k = k + 1;
+    }
+}
+
+test a_platform_names_its_arch {
+    var k : u32 = 0;
+    while (k < PLATFORM_COUNT) {
+        assert PLATFORM_ARCH[k] < ARCHS;
+        assert ends_with(PLATFORMS[k], "-arm64") == (PLATFORM_ARCH[k] == ARCH_ARM64);
+        assert ends_with(PLATFORMS[k], "-x64") == (PLATFORM_ARCH[k] == ARCH_X64);
+        k = k + 1;
+    }
+    assert T27_COMMIT.len == 40;
+    assert ends_with(RELEASE_BASE, "/trios-host-v0.1.0/") and starts_with(RELEASE_BASE, "https://github.com/gHashTag/trios/");
+    assert pin_well_formed("b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489");
 }
 
 test a_bad_pin_is_refused {
@@ -144,6 +283,18 @@ test a_bad_pin_is_refused {
     assert url_allowed("https://ziglang.org/x") == true;
 }
 
+test an_asset_from_anywhere_else_is_refused {
+    // another repository, another tag, another platform's file
+    assert names_asset("https://github.com/gHashTag/t27/releases/download/trios-host-v0.1.0/t27c-darwin-arm64", "t27c", "darwin-arm64") == false;
+    assert names_asset("https://github.com/gHashTag/trios/releases/download/trios-host-v0.0.9/t27c-darwin-arm64", "t27c", "darwin-arm64") == false;
+    assert names_asset("https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27c-linux-x64", "t27c", "darwin-arm64") == false;
+    assert names_asset("https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27c-darwin-arm64", "t27c", "darwin-arm64") == true;
+    assert names_asset("", "t27c", "darwin-arm64") == true;
+    // the right file with something after it, or another tool's file
+    assert names_asset("https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27c-darwin-arm64.old", "t27c", "darwin-arm64") == false;
+    assert names_asset("https://github.com/gHashTag/trios/releases/download/trios-host-v0.1.0/t27b-darwin-arm64", "t27c", "darwin-arm64") == false;
+}
+
 test the_key_is_the_owners_alone {
     assert (KEY_FILE_MODE & GROUP_OTHER_BITS) == 0;
     assert (AGENT_DIR_MODE & GROUP_OTHER_BITS) == 0;
@@ -153,11 +304,27 @@ test the_key_is_the_owners_alone {
     assert KEY_FILE.len > 0;
     assert AGENT_DIR[0] == 46;
     assert url_allowed(SPEC_SOURCE_BASE);
+    // a sandboxed job is given the tools, the work and the cache directories: none is the key
+    assert TOOLS_DIR[0] != KEY_FILE[0] and WORK_DIR[0] != KEY_FILE[0] and CACHE_DIR[0] != KEY_FILE[0];
+}
+
+test the_sandbox_denies_by_default_and_the_network_last {
+    assert starts_with(SANDBOX_EXEC_PROFILE[1], "(deny default)");
+    assert starts_with(SANDBOX_EXEC_PROFILE[9], "(deny network");
+    // writes only to the job and the cache: the one write rule names those two and nothing more
+    assert starts_with(SANDBOX_EXEC_PROFILE[8], "(allow file-write* (subpath (param \"JOB\")) (subpath (param \"CACHE\")))");
+    assert SANDBOX_EXEC_PARAMS[3].len == 3 and SANDBOX_EXEC_PARAMS[4].len == 5;
+    // bwrap: every namespace, the network among them, and only the job and the cache writable
+    assert starts_with(BWRAP_ARGS[0], "--unshare-all");
+    assert starts_with(BWRAP_BINDS[6], "--bind") and starts_with(BWRAP_BINDS[9], "--bind");
+    assert starts_with(BWRAP_BINDS[0], "--ro-bind") and starts_with(BWRAP_BINDS[3], "--ro-bind");
+    assert starts_with(UNSHARE_ARGS[2], "--net");
 }
 
 /// One pin per platform in every list.
 invariant one_pin_per_platform {
-    assert PLATFORM_COUNT == 2;
+    assert PLATFORM_COUNT == 3;
     assert SHA256_HEX_LEN == 64;
     assert KEY_FILE_MODE == 384 and AGENT_DIR_MODE == 448 and GROUP_OTHER_BITS == 63;
+    assert ARCH_ARM64 == 0 and ARCH_X64 == 1 and ARCHS == 2;
 }
