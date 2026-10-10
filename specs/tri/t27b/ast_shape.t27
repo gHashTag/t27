@@ -1,0 +1,751 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/ast_shape.t27 -- the shapes of a t27c AST node cli/t27b/src/lower.rs tests, and the two
+; scans it makes over a file's top-level items (port epic #6198, under #6063 and #5980). They were
+; hand-written Rust over `compiler::Node` (`is_repeat_op`, `find_const`, `simple_repeat_elem`,
+; `repeat_names`, `plain_lit`, `is_tagged_union`, `alias_text`, `is_char_literal`, `is_undefined`,
+; `strength_reduced` and `analyzed_fns`); they now reach cli/t27b only through `t27c gen-rust`
+; (gen/rust/tri/t27b/ast_shape.rs, mounted as `sh`).
+; --
+; A node arrives as ast_walk.t27's bytes (a record per node in preorder, then the text), the node itself
+; at index 0. A shape reads one node and its children. A scan over the top-level items walks the list by
+; subtree ends and writes MARK into marks[i] for each node it collects, as ast_scan.t27's scans do; the glue
+; passes zeros and takes the marked nodes in preorder.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bAstShape;
+
+use tri::t27b::ast_scan;
+
+/// A fn `analyzed` has reached and expanded; rewritten as MARK before it returns, so the glue sees marks only.
+pub const DONE : u8 = 2;
+
+pub const SPACE_BYTE : u8 = 32;
+pub const APOS_BYTE : u8 = 39;
+pub const COLON_BYTE : u8 = 58;
+
+/// Is text[from .. to] (a field) blank: empty once its White_Space is trimmed, as Rust's `trim` trims it?
+pub fn blank(text: []const u8, from: usize, to: usize) -> bool {
+    return trim_lo(text, from, to) == to;
+}
+
+/// Is field f of node i blank?
+pub fn field_blank(nodes: []const u8, text: []const u8, i: usize, f: usize) -> bool {
+    return blank(text, lo(nodes, i, f), hi(nodes, i, f));
+}
+
+/// The second child of node i, NO_NODE when it has fewer than two.
+pub fn second_child(nodes: []const u8, i: usize) -> i64 {
+    const e : usize = end(nodes, i);
+    if (i + 1 >= e) { return NO_NODE; }
+    const s : usize = end(nodes, i + 1);
+    if (s >= e) { return NO_NODE; }
+    return @intCast(s);
+}
+
+/// Is node i `[_]T{ ... } ** n`, which the parser builds as a `**` binary node of two children, the first an
+/// array literal (`is_repeat_op`)?
+pub fn repeat_op(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    if (kind(nodes, i) != K_EXPR_BINARY or !field_eq(nodes, text, i, F_OP, "**")) { return false; }
+    if (children(nodes, i) != 2) { return false; }
+    return kind(nodes, i + 1) == K_EXPR_ARRAY_LITERAL;
+}
+
+/// The value of every `const name = value;` (a constant declaration of exactly one child) at any depth
+/// (`find_const` takes the first in preorder).
+pub fn const_values(nodes: []const u8, text: []const u8, name: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (kind(nodes, i) == K_CONST_DECL and field_is(nodes, text, i, F_NAME, name) and children(nodes, i) == 1) {
+            marks[i + 1] = MARK;
+        }
+        i = i + 1;
+    }
+}
+
+/// Is node i one of the shapes a repeat element parsed back from its text may take (`simple_repeat_elem`):
+/// a childless literal, name or enum value; a field access or a call whose children all are; or a `-`
+/// of exactly one literal?
+pub fn simple_elem(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    const k : u8 = kind(nodes, i);
+    if (k == K_EXPR_LITERAL or k == K_EXPR_IDENTIFIER or k == K_EXPR_ENUM_VALUE) { return children(nodes, i) == 0; }
+    if (k == K_EXPR_FIELD_ACCESS or k == K_EXPR_CALL) {
+        var c : usize = i + 1;
+        while (c < end(nodes, i)) {
+            if (!simple_elem(nodes, text, c)) { return false; }
+            c = end(nodes, c);
+        }
+        return true;
+    }
+    if (k == K_EXPR_UNARY) {
+        if (!field_eq(nodes, text, i, F_OP, "-") or children(nodes, i) != 1) { return false; }
+        return kind(nodes, i + 1) == K_EXPR_LITERAL;
+    }
+    return false;
+}
+
+/// Every identifier (`repeat_names` takes the head of each one's name).
+pub fn idents(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var i : usize = 0;
+    while (i < count(nodes)) {
+        if (kind(nodes, i) == K_EXPR_IDENTIFIER) { marks[i] = MARK; }
+        i = i + 1;
+    }
+}
+
+/// How many bytes of a name come before its first `.` or `:`: the head of a dotted or scoped path, the
+/// whole name when it has neither.
+pub fn head_len(s: []const u8) -> usize {
+    var i : usize = 0;
+    while (i < s.len) {
+        if (s[i] == B_DOT or s[i] == COLON_BYTE) { return i; }
+        i = i + 1;
+    }
+    return s.len;
+}
+
+/// Is node i a literal, or a `-` of exactly one literal: an element evaluating does nothing for?
+pub fn plain_elem(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    const k : u8 = kind(nodes, i);
+    if (k == K_EXPR_LITERAL) { return true; }
+    if (k != K_EXPR_UNARY or !field_eq(nodes, text, i, F_OP, "-") or children(nodes, i) != 1) { return false; }
+    return kind(nodes, i + 1) == K_EXPR_LITERAL;
+}
+
+/// Is node i an array literal whose elements are all plain (`plain_lit`)? One with no elements is plain
+/// when its size text is blank.
+pub fn plain_lit(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    if (kind(nodes, i) != K_EXPR_ARRAY_LITERAL) { return false; }
+    if (children(nodes, i) == 0) { return field_blank(nodes, text, i, F_SIZE); }
+    var c : usize = i + 1;
+    while (c < end(nodes, i)) {
+        if (!plain_elem(nodes, text, c)) { return false; }
+        c = end(nodes, c);
+    }
+    return true;
+}
+
+/// Does text[from .. to] start with `w` once every space byte is taken out of it?
+pub fn spells_unspaced(text: []const u8, from: usize, to: usize, w: str) -> bool {
+    var i : usize = from;
+    var k : usize = 0;
+    while (k < w.len) {
+        while (i < to and text[i] == SPACE_BYTE) { i = i + 1; }
+        if (i >= to or text[i] != w[k]) { return false; }
+        i = i + 1;
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Is node i what t27c reads `const U = union(enum) { ... };` as: a constant declaration with no value and
+/// the declaration's tokens as its text (`is_tagged_union`)?
+pub fn tagged_union(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    if (kind(nodes, i) != K_CONST_DECL or children(nodes, i) != 0) { return false; }
+    return spells_unspaced(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE), "union(enum");
+}
+
+/// Is node i `const Name = T;` where `T` may be a type (`alias_text` takes the child's name): a constant,
+/// not a var, with no annotation and exactly one child, a childless identifier whose name is not blank?
+pub fn alias(nodes: []const u8, text: []const u8, i: usize, mutable: bool) -> bool {
+    if (kind(nodes, i) != K_CONST_DECL or mutable or !field_blank(nodes, text, i, F_TYPE)) { return false; }
+    if (children(nodes, i) != 1) { return false; }
+    const c : usize = i + 1;
+    if (kind(nodes, c) != K_EXPR_IDENTIFIER or children(nodes, c) != 0) { return false; }
+    return !field_blank(nodes, text, c, F_NAME);
+}
+
+/// Is node i a char literal (`'a'`, `'\n'`): a literal that is no string, whose value starts with an
+/// apostrophe once trimmed (`is_char_literal`)?
+pub fn char_literal(nodes: []const u8, text: []const u8, i: usize) -> bool {
+    if (kind(nodes, i) != K_EXPR_LITERAL or field_eq(nodes, text, i, F_KIND, "string")) { return false; }
+    const a : usize = trim_lo(text, lo(nodes, i, F_VALUE), hi(nodes, i, F_VALUE));
+    return a < hi(nodes, i, F_VALUE) and text[a] == APOS_BYTE;
+}
+
+/// Is a node of kind k named `name` the identifier `undefined` (`is_undefined`)?
+pub fn undefined_ident(k: u8, name: []const u8) -> bool {
+    return k == K_EXPR_IDENTIFIER and same(name, "undefined");
+}
+
+/// The `*` nodes under expression i that t27c's strength reduction reaches: through binary operators of
+/// two or more children only, each one's first two operands.
+pub fn reduced_in(nodes: []const u8, text: []const u8, i: usize, marks: []u8) -> void {
+    if (kind(nodes, i) != K_EXPR_BINARY) { return; }
+    const s : i64 = second_child(nodes, i);
+    if (s == NO_NODE) { return; }
+    const si : usize = @intCast(s);
+    reduced_in(nodes, text, i + 1, marks);
+    reduced_in(nodes, text, si, marks);
+    if (field_eq(nodes, text, i, F_OP, "*")) { marks[i] = MARK; }
+}
+
+/// `reduced_in` from the value of top-level statement s of a fn body: an assignment's value (its second
+/// child), a local's initializer or a `return`'s value (the first child).
+pub fn reduced_from(nodes: []const u8, text: []const u8, s: usize, marks: []u8) -> void {
+    const k : u8 = kind(nodes, s);
+    if (k == K_STMT_ASSIGN) {
+        const v : i64 = second_child(nodes, s);
+        if (v != NO_NODE) {
+            const vi : usize = @intCast(v);
+            reduced_in(nodes, text, vi, marks);
+        }
+    }
+    if ((k == K_STMT_LOCAL or k == K_EXPR_RETURN) and children(nodes, s) > 0) { reduced_in(nodes, text, s + 1, marks); }
+}
+
+/// The `*` expressions t27c's strength reduction rewrites as `<<` when the right side is a power-of-two
+/// literal (`strength_reduce` in bootstrap/src/compiler.rs): those reached from a top-level statement of a
+/// fn's body -- the fn's own children, and the children of each `body` module among them -- through
+/// binary operators only (`strength_reduced`). Nothing else is rewritten: not a test or an invariant, not
+/// a statement nested in an `if` or a loop, not a call argument.
+pub fn strength_reduced(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var r : usize = 0;
+    while (r < count(nodes)) {
+        if (kind(nodes, r) == K_FN_DECL) {
+            var c : usize = r + 1;
+            while (c < end(nodes, r)) {
+                reduced_from(nodes, text, c, marks);
+                if (kind(nodes, c) == K_MODULE and field_eq(nodes, text, c, F_NAME, "body")) {
+                    var s : usize = c + 1;
+                    while (s < end(nodes, c)) {
+                        reduced_from(nodes, text, s, marks);
+                        s = end(nodes, s);
+                    }
+                }
+                c = end(nodes, c);
+            }
+        }
+        r = end(nodes, r);
+    }
+}
+
+/// Does a node from `from` to `to` carry exactly `name` as its name?
+pub fn names_in(nodes: []const u8, text: []const u8, from: usize, to: usize, name: []const u8) -> bool {
+    var j : usize = from;
+    while (j < to) {
+        if (field_is(nodes, text, j, F_NAME, name)) { return true; }
+        j = j + 1;
+    }
+    return false;
+}
+
+/// Marks every unmarked top-level fn with a name that a node from `from` to `to` carries.
+pub fn reach_named(nodes: []const u8, text: []const u8, from: usize, to: usize, marks: []u8) -> void {
+    var g : usize = 0;
+    while (g < count(nodes)) {
+        if (kind(nodes, g) == K_FN_DECL and marks[g] == 0 and hi(nodes, g, F_NAME) > lo(nodes, g, F_NAME)) {
+            if (names_in(nodes, text, from, to, text[lo(nodes, g, F_NAME) .. hi(nodes, g, F_NAME)])) { marks[g] = MARK; }
+        }
+        g = end(nodes, g);
+    }
+}
+
+/// The fns Zig's lazy analysis may reach in `zig test` (`analyzed_fns`): the roots are every top-level item
+/// that is not a fn (tests; invariants, which t27c emits as `comptime` blocks; constants and vars), and a
+/// fn is reached when a root, or the body of a reached fn, names it: any node under the root, or under the
+/// fn, carries its name. `pub` does not make a fn a root, nor does `main`. A bench is not a root: t27c
+/// emits it as `fn bench_<name>() void`, which nothing calls. Nor is a top-level statement, which t27c does
+/// not emit at all. A fn with no name is never reached.
+pub fn analyzed(nodes: []const u8, text: []const u8, marks: []u8) -> void {
+    var r : usize = 0;
+    while (r < count(nodes)) {
+        const k : u8 = kind(nodes, r);
+        if (k != K_FN_DECL and k != K_BENCH_BLOCK and k != K_STMT_EXPR) { reach_named(nodes, text, r, end(nodes, r), marks); }
+        r = end(nodes, r);
+    }
+    var again : bool = true;
+    while (again) {
+        again = false;
+        var f : usize = 0;
+        while (f < count(nodes)) {
+            if (kind(nodes, f) == K_FN_DECL and marks[f] == MARK) {
+                marks[f] = DONE;
+                reach_named(nodes, text, f + 1, end(nodes, f), marks);
+                again = true;
+            }
+            f = end(nodes, f);
+        }
+    }
+    var d : usize = 0;
+    while (d < count(nodes)) {
+        if (marks[d] == DONE) { marks[d] = MARK; }
+        d = end(nodes, d);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------
+// Tests. The expected values are what the hand-written Rust of lower.rs (master 4e764b440) returns on the
+// same trees, built with ast_walk.t27's `node` and `set`. Their texts are slices of SHAPE_TEXT:
+//   0..2 `**`, 0..1 `*`, 2..3 `-`, 3..12 `undefined`, 12..22 `union(enum`, 22..33 `union (enum`,
+//   33..37 `body`, 37..43 `string`, 43 `f`, 44 `g`, 45 `h`, 46..50 ` 'a'`, 47..50 `'a'`, 48 `a`,
+//   50..53 `x.y`, 50 `x`, 53..56 `a:b`, 56..58 two spaces, 58..60 `u8`.
+// ----------------------------------------------------------------------------------------------------------
+
+const SHAPE_TEXT : str = "**-undefinedunion(enumunion (enumbodystringfgh 'a'x.ya:b  u8";
+
+/// Clears the first n marks.
+fn wipe(marks: []u8, n: usize) -> void {
+    var i : usize = 0;
+    while (i < n) {
+        marks[i] = 0;
+        i = i + 1;
+    }
+}
+
+/// Which of the first n marks are set: bit i of the result for mark i.
+fn bits(marks: []u8, n: usize) -> u32 {
+    var m : u32 = 0;
+    var bit : u32 = 1;
+    var i : usize = 0;
+    while (i < n) {
+        if (marks[i] == MARK) { m = m + bit; }
+        bit = bit * 2;
+        i = i + 1;
+    }
+    return m;
+}
+
+test a_field_is_blank_when_only_white_space_is_in_it {
+    assert blank(SHAPE_TEXT, 56, 58);
+    assert blank(SHAPE_TEXT, 56, 56);
+    assert !blank(SHAPE_TEXT, 46, 50);
+    assert !blank(SHAPE_TEXT, 58, 60);
+    var buf : [72]u8 = undefined;
+    node(buf[0 .. 72], 0, K_EXPR_LITERAL, 1, 56, 58);
+    assert field_blank(buf[0 .. 72], SHAPE_TEXT, 0, F_NAME);
+    assert field_blank(buf[0 .. 72], SHAPE_TEXT, 0, F_SIZE);
+    set(buf[0 .. 72], 0, F_SIZE, 58, 60);
+    assert !field_blank(buf[0 .. 72], SHAPE_TEXT, 0, F_SIZE);
+}
+
+test the_second_child_follows_the_first_subtree {
+    // 0 { 1 { 2 }, 3 }, 4 { 5 }, 6
+    var buf : [504]u8 = undefined;
+    node(buf[0 .. 504], 0, K_EXPR_BINARY, 4, 0, 0);
+    node(buf[0 .. 504], 1, K_EXPR_UNARY, 3, 0, 0);
+    node(buf[0 .. 504], 2, K_EXPR_LITERAL, 3, 0, 0);
+    node(buf[0 .. 504], 3, K_EXPR_LITERAL, 4, 0, 0);
+    node(buf[0 .. 504], 4, K_EXPR_BINARY, 6, 0, 0);
+    node(buf[0 .. 504], 5, K_EXPR_LITERAL, 6, 0, 0);
+    node(buf[0 .. 504], 6, K_EXPR_LITERAL, 7, 0, 0);
+    const ns : []const u8 = buf[0 .. 504];
+    assert second_child(ns, 0) == 3;
+    assert second_child(ns, 1) == NO_NODE;
+    assert second_child(ns, 4) == NO_NODE;
+    assert second_child(ns, 6) == NO_NODE;
+}
+
+test a_repeat_is_a_double_star_of_an_array_literal_and_a_count {
+    var buf : [216]u8 = undefined;
+    node(buf[0 .. 216], 0, K_EXPR_BINARY, 3, 0, 0);
+    set(buf[0 .. 216], 0, F_OP, 0, 2);
+    node(buf[0 .. 216], 1, K_EXPR_ARRAY_LITERAL, 2, 0, 0);
+    node(buf[0 .. 216], 2, K_EXPR_LITERAL, 3, 0, 0);
+    const ns : []const u8 = buf[0 .. 216];
+    assert repeat_op(ns, SHAPE_TEXT, 0);
+    set(buf[0 .. 216], 0, F_OP, 0, 1);
+    assert !repeat_op(ns, SHAPE_TEXT, 0);
+    set(buf[0 .. 216], 0, F_OP, 0, 2);
+    node(buf[0 .. 216], 1, K_EXPR_LITERAL, 2, 0, 0);
+    assert !repeat_op(ns, SHAPE_TEXT, 0);
+    node(buf[0 .. 216], 1, K_EXPR_ARRAY_LITERAL, 3, 0, 0);
+    assert !repeat_op(ns, SHAPE_TEXT, 0);
+    node(buf[0 .. 216], 1, K_EXPR_ARRAY_LITERAL, 2, 0, 0);
+    node(buf[0 .. 216], 0, K_EXPR_CALL, 3, 0, 0);
+    set(buf[0 .. 216], 0, F_OP, 0, 2);
+    assert !repeat_op(ns, SHAPE_TEXT, 0);
+    node(buf[0 .. 216], 0, K_EXPR_BINARY, 2, 0, 0);
+    set(buf[0 .. 216], 0, F_OP, 0, 2);
+    assert !repeat_op(buf[0 .. 144], SHAPE_TEXT, 0);
+}
+
+test the_value_of_each_one_child_constant_is_marked {
+    // 0 Module { 1 Const x { 2 Lit }, 3 Const x, 4 Const f { 5 Lit, 6 Lit }, 7 Const x { 8 Ident x } }
+    var buf : [648]u8 = undefined;
+    var m : [9]u8 = undefined;
+    node(buf[0 .. 648], 0, K_MODULE, 9, 0, 0);
+    node(buf[0 .. 648], 1, K_CONST_DECL, 3, 50, 51);
+    node(buf[0 .. 648], 2, K_EXPR_LITERAL, 3, 0, 0);
+    node(buf[0 .. 648], 3, K_CONST_DECL, 4, 50, 51);
+    node(buf[0 .. 648], 4, K_CONST_DECL, 7, 43, 44);
+    node(buf[0 .. 648], 5, K_EXPR_LITERAL, 6, 0, 0);
+    node(buf[0 .. 648], 6, K_EXPR_LITERAL, 7, 0, 0);
+    node(buf[0 .. 648], 7, K_CONST_DECL, 9, 50, 51);
+    node(buf[0 .. 648], 8, K_EXPR_IDENTIFIER, 9, 50, 51);
+    const ns : []const u8 = buf[0 .. 648];
+    wipe(m[0 .. 9], 9);
+    const_values(ns, SHAPE_TEXT, "x", m[0 .. 9]);
+    assert bits(m[0 .. 9], 9) == 260;
+    wipe(m[0 .. 9], 9);
+    const_values(ns, SHAPE_TEXT, "f", m[0 .. 9]);
+    assert bits(m[0 .. 9], 9) == 0;
+    wipe(m[0 .. 9], 9);
+    const_values(ns, SHAPE_TEXT, "", m[0 .. 9]);
+    assert bits(m[0 .. 9], 9) == 0;
+    node(buf[0 .. 648], 7, K_STMT_LOCAL, 9, 50, 51);
+    wipe(m[0 .. 9], 9);
+    const_values(ns, SHAPE_TEXT, "x", m[0 .. 9]);
+    assert bits(m[0 .. 9], 9) == 4;
+}
+
+test a_simple_element_is_a_literal_a_name_a_call_of_those_or_a_negated_literal {
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_EXPR_LITERAL, 1, 0, 0);
+    assert simple_elem(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 0, K_EXPR_IDENTIFIER, 1, 50, 51);
+    assert simple_elem(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 0, K_EXPR_ENUM_VALUE, 1, 50, 51);
+    assert simple_elem(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 0, K_EXPR_BINARY, 1, 0, 0);
+    assert !simple_elem(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 0, K_EXPR_CALL, 1, 43, 44);
+    assert simple_elem(buf[0 .. 72], SHAPE_TEXT, 0);
+    // Call f { Lit, Ident x }, then with a binary operand
+    node(buf[0 .. 288], 0, K_EXPR_CALL, 3, 43, 44);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_IDENTIFIER, 3, 50, 51);
+    assert simple_elem(buf[0 .. 216], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 2, K_EXPR_BINARY, 3, 0, 0);
+    assert !simple_elem(buf[0 .. 216], SHAPE_TEXT, 0);
+    // Ident x { Lit }: a name with a child
+    node(buf[0 .. 288], 0, K_EXPR_IDENTIFIER, 2, 50, 51);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    assert !simple_elem(buf[0 .. 144], SHAPE_TEXT, 0);
+    // FieldAccess g { Call f { Lit } }
+    node(buf[0 .. 288], 0, K_EXPR_FIELD_ACCESS, 3, 44, 45);
+    node(buf[0 .. 288], 1, K_EXPR_CALL, 3, 43, 44);
+    node(buf[0 .. 288], 2, K_EXPR_LITERAL, 3, 0, 0);
+    assert simple_elem(buf[0 .. 216], SHAPE_TEXT, 0);
+    // Unary - { Lit }, then of a name, with `**`, of none, of two
+    node(buf[0 .. 288], 0, K_EXPR_UNARY, 2, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    assert simple_elem(buf[0 .. 144], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 50, 51);
+    assert !simple_elem(buf[0 .. 144], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 0, 2);
+    assert !simple_elem(buf[0 .. 144], SHAPE_TEXT, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    node(buf[0 .. 288], 0, K_EXPR_UNARY, 1, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    assert !simple_elem(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 0, K_EXPR_UNARY, 3, 0, 0);
+    set(buf[0 .. 288], 0, F_OP, 2, 3);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_LITERAL, 3, 0, 0);
+    assert !simple_elem(buf[0 .. 216], SHAPE_TEXT, 0);
+}
+
+test identifiers_are_marked_and_a_name_ends_at_its_first_dot_or_colon {
+    // 0 Call f { 1 Ident x.y, 2 FieldAccess g { 3 Ident a:b }, 4 Lit x }
+    var buf : [360]u8 = undefined;
+    var m : [5]u8 = undefined;
+    node(buf[0 .. 360], 0, K_EXPR_CALL, 5, 43, 44);
+    node(buf[0 .. 360], 1, K_EXPR_IDENTIFIER, 2, 50, 53);
+    node(buf[0 .. 360], 2, K_EXPR_FIELD_ACCESS, 4, 44, 45);
+    node(buf[0 .. 360], 3, K_EXPR_IDENTIFIER, 4, 53, 56);
+    node(buf[0 .. 360], 4, K_EXPR_LITERAL, 5, 50, 51);
+    wipe(m[0 .. 5], 5);
+    idents(buf[0 .. 360], SHAPE_TEXT, m[0 .. 5]);
+    assert bits(m[0 .. 5], 5) == 10;
+    assert head_len("x.y") == 1;
+    assert head_len("a:b") == 1;
+    assert head_len("body") == 4;
+    assert head_len("") == 0;
+    assert head_len("u8") == 2;
+}
+
+test a_plain_literal_holds_literals_and_negated_literals_only {
+    // 0 ArrayLiteral { 1 Lit, 2 Unary - { 3 Lit } }
+    var buf : [288]u8 = undefined;
+    node(buf[0 .. 288], 0, K_EXPR_ARRAY_LITERAL, 4, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 288], 2, K_EXPR_UNARY, 4, 0, 0);
+    set(buf[0 .. 288], 2, F_OP, 2, 3);
+    node(buf[0 .. 288], 3, K_EXPR_LITERAL, 4, 0, 0);
+    const ns : []const u8 = buf[0 .. 288];
+    assert plain_lit(ns, SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 3, K_EXPR_IDENTIFIER, 4, 50, 51);
+    assert !plain_lit(ns, SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 3, K_EXPR_LITERAL, 4, 0, 0);
+    set(buf[0 .. 288], 2, F_OP, 0, 1);
+    assert !plain_lit(ns, SHAPE_TEXT, 0);
+    set(buf[0 .. 288], 2, F_OP, 2, 3);
+    node(buf[0 .. 288], 1, K_EXPR_IDENTIFIER, 2, 50, 51);
+    assert !plain_lit(ns, SHAPE_TEXT, 0);
+    node(buf[0 .. 288], 1, K_EXPR_LITERAL, 2, 0, 0);
+    node(buf[0 .. 288], 0, K_EXPR_TUPLE, 4, 0, 0);
+    assert !plain_lit(ns, SHAPE_TEXT, 0);
+    // A unary of two literals is no negated literal
+    node(buf[0 .. 288], 0, K_EXPR_ARRAY_LITERAL, 4, 0, 0);
+    node(buf[0 .. 288], 1, K_EXPR_UNARY, 4, 0, 0);
+    set(buf[0 .. 288], 1, F_OP, 2, 3);
+    node(buf[0 .. 288], 2, K_EXPR_LITERAL, 3, 0, 0);
+    assert !plain_lit(ns, SHAPE_TEXT, 0);
+    // No elements: plain when the size text is blank
+    node(buf[0 .. 288], 0, K_EXPR_ARRAY_LITERAL, 1, 0, 0);
+    assert plain_lit(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 288], 0, F_SIZE, 56, 58);
+    assert plain_lit(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 288], 0, F_SIZE, 58, 60);
+    assert !plain_lit(buf[0 .. 72], SHAPE_TEXT, 0);
+}
+
+test a_tagged_union_is_a_childless_constant_spelling_union_enum {
+    var buf : [144]u8 = undefined;
+    node(buf[0 .. 144], 0, K_CONST_DECL, 1, 50, 51);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 22);
+    assert tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 144], 0, F_VALUE, 22, 33);
+    assert tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 33);
+    assert tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 21);
+    assert !tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 144], 0, F_VALUE, 3, 12);
+    assert !tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 12);
+    assert !tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 22);
+    node(buf[0 .. 144], 0, K_STRUCT_DECL, 1, 50, 51);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 22);
+    assert !tagged_union(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 144], 0, K_CONST_DECL, 2, 50, 51);
+    set(buf[0 .. 144], 0, F_VALUE, 12, 22);
+    node(buf[0 .. 144], 1, K_EXPR_LITERAL, 2, 0, 0);
+    assert !tagged_union(buf[0 .. 144], SHAPE_TEXT, 0);
+    assert spells_unspaced(SHAPE_TEXT, 22, 33, "union(enum");
+    assert spells_unspaced(SHAPE_TEXT, 46, 50, "'a'");
+    assert !spells_unspaced(SHAPE_TEXT, 46, 49, "'a'");
+    assert !spells_unspaced(SHAPE_TEXT, 58, 60, "u8x");
+}
+
+test an_alias_is_an_untyped_constant_of_one_bare_name {
+    // 0 Const x { 1 Ident u8 }
+    var buf : [216]u8 = undefined;
+    node(buf[0 .. 216], 0, K_CONST_DECL, 2, 50, 51);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 58, 60);
+    const ns : []const u8 = buf[0 .. 144];
+    assert alias(ns, SHAPE_TEXT, 0, false);
+    assert !alias(ns, SHAPE_TEXT, 0, true);
+    set(buf[0 .. 216], 0, F_TYPE, 58, 60);
+    assert !alias(ns, SHAPE_TEXT, 0, false);
+    set(buf[0 .. 216], 0, F_TYPE, 56, 58);
+    assert alias(ns, SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 56, 58);
+    assert !alias(ns, SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 0, 0);
+    assert !alias(ns, SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 1, K_EXPR_LITERAL, 2, 58, 60);
+    assert !alias(ns, SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 3, 58, 60);
+    node(buf[0 .. 216], 2, K_EXPR_LITERAL, 3, 0, 0);
+    node(buf[0 .. 216], 0, K_CONST_DECL, 3, 50, 51);
+    assert !alias(buf[0 .. 216], SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 1, K_EXPR_IDENTIFIER, 2, 58, 60);
+    assert !alias(buf[0 .. 216], SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 0, K_FN_DECL, 2, 50, 51);
+    assert !alias(ns, SHAPE_TEXT, 0, false);
+    node(buf[0 .. 216], 0, K_CONST_DECL, 1, 50, 51);
+    assert !alias(buf[0 .. 72], SHAPE_TEXT, 0, false);
+}
+
+test a_char_literal_starts_with_an_apostrophe_after_the_blanks {
+    var buf : [72]u8 = undefined;
+    node(buf[0 .. 72], 0, K_EXPR_LITERAL, 1, 0, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 47, 50);
+    assert char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 46, 50);
+    assert char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 48, 49);
+    assert !char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 46, 47);
+    assert !char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 47, 47);
+    assert !char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 47, 50);
+    set(buf[0 .. 72], 0, F_KIND, 37, 43);
+    assert !char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    set(buf[0 .. 72], 0, F_KIND, 50, 51);
+    assert char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+    node(buf[0 .. 72], 0, K_EXPR_IDENTIFIER, 1, 0, 0);
+    set(buf[0 .. 72], 0, F_VALUE, 47, 50);
+    assert !char_literal(buf[0 .. 72], SHAPE_TEXT, 0);
+}
+
+test undefined_is_the_identifier_of_that_name {
+    assert undefined_ident(K_EXPR_IDENTIFIER, "undefined");
+    assert !undefined_ident(K_EXPR_LITERAL, "undefined");
+    assert !undefined_ident(K_EXPR_IDENTIFIER, "undefine");
+    assert !undefined_ident(K_EXPR_IDENTIFIER, "");
+}
+
+test strength_reduction_reaches_muls_from_top_level_statements_of_fn_bodies {
+    // 0 Fn f { 1 Local x { 2 Bin * { 3 Ident x, 4 Lit } }, 5 Module body { 6 Assign { 7 Ident x, 8 Bin + { 9 Bin * { 10 Lit,
+    // 11 Lit }, 12 Lit } }, 13 If { 14 Bin * { 15 Lit, 16 Lit, 17 Lit } } } }, 18 Test { 19 Local { 20 Bin * { 21 Lit, 22 Lit } } }
+    var buf : [1656]u8 = undefined;
+    var m : [23]u8 = undefined;
+    node(buf[0 .. 1656], 0, K_FN_DECL, 18, 43, 44);
+    node(buf[0 .. 1656], 1, K_STMT_LOCAL, 5, 50, 51);
+    node(buf[0 .. 1656], 2, K_EXPR_BINARY, 5, 0, 0);
+    set(buf[0 .. 1656], 2, F_OP, 0, 1);
+    node(buf[0 .. 1656], 3, K_EXPR_IDENTIFIER, 4, 50, 51);
+    node(buf[0 .. 1656], 4, K_EXPR_LITERAL, 5, 0, 0);
+    node(buf[0 .. 1656], 5, K_MODULE, 18, 33, 37);
+    node(buf[0 .. 1656], 6, K_STMT_ASSIGN, 13, 0, 0);
+    node(buf[0 .. 1656], 7, K_EXPR_IDENTIFIER, 8, 50, 51);
+    node(buf[0 .. 1656], 8, K_EXPR_BINARY, 13, 0, 0);
+    set(buf[0 .. 1656], 8, F_OP, 2, 3);
+    node(buf[0 .. 1656], 9, K_EXPR_BINARY, 12, 0, 0);
+    set(buf[0 .. 1656], 9, F_OP, 0, 1);
+    node(buf[0 .. 1656], 10, K_EXPR_LITERAL, 11, 0, 0);
+    node(buf[0 .. 1656], 11, K_EXPR_LITERAL, 12, 0, 0);
+    node(buf[0 .. 1656], 12, K_EXPR_LITERAL, 13, 0, 0);
+    node(buf[0 .. 1656], 13, K_STMT_IF, 18, 0, 0);
+    node(buf[0 .. 1656], 14, K_EXPR_BINARY, 18, 0, 0);
+    set(buf[0 .. 1656], 14, F_OP, 0, 1);
+    node(buf[0 .. 1656], 15, K_EXPR_LITERAL, 16, 0, 0);
+    node(buf[0 .. 1656], 16, K_EXPR_LITERAL, 17, 0, 0);
+    node(buf[0 .. 1656], 17, K_EXPR_LITERAL, 18, 0, 0);
+    node(buf[0 .. 1656], 18, K_TEST_BLOCK, 23, 0, 0);
+    node(buf[0 .. 1656], 19, K_STMT_LOCAL, 23, 50, 51);
+    node(buf[0 .. 1656], 20, K_EXPR_BINARY, 23, 0, 0);
+    set(buf[0 .. 1656], 20, F_OP, 0, 1);
+    node(buf[0 .. 1656], 21, K_EXPR_LITERAL, 22, 0, 0);
+    node(buf[0 .. 1656], 22, K_EXPR_LITERAL, 23, 0, 0);
+    const ns : []const u8 = buf[0 .. 1656];
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 516;
+    // A `return` at the top level is a root; an `if` is not
+    node(buf[0 .. 1656], 13, K_EXPR_RETURN, 18, 0, 0);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 16900;
+    node(buf[0 .. 1656], 13, K_STMT_IF, 18, 0, 0);
+    // The `+` above the `*`: the walk passes through it and marks it when it is a `*` too
+    set(buf[0 .. 1656], 9, F_OP, 2, 3);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 4;
+    set(buf[0 .. 1656], 8, F_OP, 0, 1);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 260;
+    set(buf[0 .. 1656], 8, F_OP, 2, 3);
+    set(buf[0 .. 1656], 9, F_OP, 0, 1);
+    // A module not named `body` is not looked into; a test is no fn
+    node(buf[0 .. 1656], 5, K_MODULE, 18, 50, 51);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 4;
+    node(buf[0 .. 1656], 5, K_MODULE, 18, 33, 37);
+    node(buf[0 .. 1656], 0, K_TEST_BLOCK, 18, 43, 44);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 0;
+    node(buf[0 .. 1656], 0, K_FN_DECL, 18, 43, 44);
+    // An assignment of one child has no value to walk
+    node(buf[0 .. 1656], 6, K_STMT_ASSIGN, 8, 0, 0);
+    node(buf[0 .. 1656], 8, K_STMT_EXPR, 13, 0, 0);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 4;
+    node(buf[0 .. 1656], 6, K_STMT_ASSIGN, 13, 0, 0);
+    node(buf[0 .. 1656], 8, K_EXPR_BINARY, 13, 0, 0);
+    set(buf[0 .. 1656], 8, F_OP, 2, 3);
+    // A value that is no binary operator is not walked, whatever its operator text and children
+    node(buf[0 .. 1656], 2, K_EXPR_CALL, 5, 43, 44);
+    set(buf[0 .. 1656], 2, F_OP, 0, 1);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 512;
+    // A binary operator of one child is not walked either
+    node(buf[0 .. 1656], 2, K_EXPR_BINARY, 4, 0, 0);
+    set(buf[0 .. 1656], 2, F_OP, 0, 1);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 512;
+    node(buf[0 .. 1656], 2, K_EXPR_BINARY, 5, 0, 0);
+    set(buf[0 .. 1656], 2, F_OP, 0, 1);
+    // A childless `return` has no value; the bare `*` statement after it is no root
+    node(buf[0 .. 1656], 13, K_EXPR_RETURN, 14, 0, 0);
+    wipe(m[0 .. 23], 23);
+    strength_reduced(ns, SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 516;
+    node(buf[0 .. 1656], 13, K_STMT_IF, 18, 0, 0);
+    // The fn as the last item of the list
+    wipe(m[0 .. 23], 23);
+    strength_reduced(buf[0 .. 1296], SHAPE_TEXT, m[0 .. 23]);
+    assert bits(m[0 .. 23], 23) == 516;
+}
+
+test analyzed_fns_are_named_by_a_root_or_by_a_reached_body {
+    // 0 Test { 1 StmtExpr { 2 Call f } }, 3 Fn f { 4 Module body { 5 StmtExpr { 6 Call g } } }, 7 Fn g { 8 Ident h },
+    // 9 Fn h, 10 Fn x { 11 Ident f }, 12 Bench { 13 Call x }, 14 StmtExpr { 15 Call x }, 16 Fn g { 17 Ident u8 },
+    // 18 Fn ``, 19 Const u8 { 20 Ident h }
+    var buf : [1512]u8 = undefined;
+    var m : [21]u8 = undefined;
+    node(buf[0 .. 1512], 0, K_TEST_BLOCK, 3, 0, 0);
+    node(buf[0 .. 1512], 1, K_STMT_EXPR, 3, 0, 0);
+    node(buf[0 .. 1512], 2, K_EXPR_CALL, 3, 43, 44);
+    node(buf[0 .. 1512], 3, K_FN_DECL, 7, 43, 44);
+    node(buf[0 .. 1512], 4, K_MODULE, 7, 33, 37);
+    node(buf[0 .. 1512], 5, K_STMT_EXPR, 7, 0, 0);
+    node(buf[0 .. 1512], 6, K_EXPR_CALL, 7, 44, 45);
+    node(buf[0 .. 1512], 7, K_FN_DECL, 9, 44, 45);
+    node(buf[0 .. 1512], 8, K_EXPR_IDENTIFIER, 9, 45, 46);
+    node(buf[0 .. 1512], 9, K_FN_DECL, 10, 45, 46);
+    node(buf[0 .. 1512], 10, K_FN_DECL, 12, 50, 51);
+    node(buf[0 .. 1512], 11, K_EXPR_IDENTIFIER, 12, 43, 44);
+    node(buf[0 .. 1512], 12, K_BENCH_BLOCK, 14, 0, 0);
+    node(buf[0 .. 1512], 13, K_EXPR_CALL, 14, 50, 51);
+    node(buf[0 .. 1512], 14, K_STMT_EXPR, 16, 0, 0);
+    node(buf[0 .. 1512], 15, K_EXPR_CALL, 16, 50, 51);
+    node(buf[0 .. 1512], 16, K_FN_DECL, 18, 44, 45);
+    node(buf[0 .. 1512], 17, K_EXPR_IDENTIFIER, 18, 58, 60);
+    node(buf[0 .. 1512], 18, K_FN_DECL, 19, 0, 0);
+    node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 58, 60);
+    node(buf[0 .. 1512], 20, K_EXPR_IDENTIFIER, 21, 45, 46);
+    const ns : []const u8 = buf[0 .. 1512];
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 66184;
+    // A bench is no root: f, and g through it, are gone; h stays through the constant
+    node(buf[0 .. 1512], 0, K_BENCH_BLOCK, 3, 0, 0);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 512;
+    // A root's own name counts: a constant named x reaches fn x, whose body names f
+    node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 50, 51);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 67208;
+    node(buf[0 .. 1512], 19, K_CONST_DECL, 21, 58, 60);
+    node(buf[0 .. 1512], 0, K_TEST_BLOCK, 3, 0, 0);
+    // An invariant is a root; a top-level statement is not, but any other kind is
+    node(buf[0 .. 1512], 12, K_INVARIANT_BLOCK, 14, 0, 0);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 67208;
+    node(buf[0 .. 1512], 12, K_BENCH_BLOCK, 14, 0, 0);
+    node(buf[0 .. 1512], 14, K_STMT_LOCAL, 16, 0, 0);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 67208;
+    node(buf[0 .. 1512], 14, K_STMT_EXPR, 16, 0, 0);
+    // The second g reaches what its body names once g is reached
+    node(buf[0 .. 1512], 17, K_EXPR_IDENTIFIER, 18, 50, 51);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 67208;
+    node(buf[0 .. 1512], 17, K_EXPR_IDENTIFIER, 18, 58, 60);
+    // No root at all: nothing is reached
+    node(buf[0 .. 1512], 0, K_BENCH_BLOCK, 3, 0, 0);
+    node(buf[0 .. 1512], 19, K_FN_DECL, 21, 58, 60);
+    wipe(m[0 .. 21], 21);
+    analyzed(ns, SHAPE_TEXT, m[0 .. 21]);
+    assert bits(m[0 .. 21], 21) == 0;
+}

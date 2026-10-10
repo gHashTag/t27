@@ -139,6 +139,8 @@ mod tuple;
 mod aw; // t27c gen-rust of specs/tri/t27b/ast_walk.t27: walks of a list of nodes, read from `flat`'s bytes
 #[path = "../../../gen/rust/tri/t27b/ast_scan.rs"] #[allow(dead_code, unused_parens, unused_variables)]
 mod ax; // t27c gen-rust of specs/tri/t27b/ast_scan.t27: the nodes a scan of a list collects, as marks
+#[path = "../../../gen/rust/tri/t27b/ast_shape.rs"] #[allow(dead_code, unused_parens, unused_variables)]
+mod sh; // t27c gen-rust of specs/tri/t27b/ast_shape.t27: a node's shape, and the scans of the top-level items
 
 /// A construct outside the supported subset (or a type error inside it).
 #[derive(Clone, Debug)]
@@ -618,7 +620,8 @@ fn lower_mode<'a>(
         }
     }
 
-    l.analyzed = analyzed_fns(&items);
+    // The fns Zig's lazy analysis reaches, and the `*` nodes t27c's strength reduction rewrites (ast_shape.t27).
+    l.analyzed = marked(items.iter().copied(), sh::analyzed).map(|n| n.name.clone()).collect();
     l.analyzed.extend(items.iter().filter(|c| c.name.starts_with(xp::HELPER)).map(|c| c.name.clone()));
     l.float_field_names(&items);
     for item in &items {
@@ -630,7 +633,7 @@ fn lower_mode<'a>(
         }
     }
     misprinted_ifs(ast, &mut l.misprinted_if);
-    strength_reduced(&items, &mut l.shifted_muls);
+    l.shifted_muls.extend(marked(items.iter().copied(), sh::strength_reduced).map(|n| n as *const Node as usize));
     l.reference_defects(ast);
 
     // Pass 1: signatures and constant declarations.
@@ -889,17 +892,14 @@ fn decl_line(src: &str, name: &str) -> Option<u32> {
 /// t27c reads `const U = union(enum) { ... };` as a `ConstDecl` with no value
 /// and the declaration's tokens as text.
 fn is_tagged_union(n: &Node) -> bool {
-    n.kind == NodeKind::ConstDecl && n.children.is_empty() && n.value.replace(' ', "").starts_with("union(enum")
+    let (a, t) = flat(std::slice::from_ref(n)); sh::tagged_union(&a, &t, 0)
 }
 
 /// The right-hand side of `const Name = T;` when it may be a type: no
 /// annotation, and a bare name (the parser keeps `[N]T` as one name too).
 fn alias_text(n: &Node) -> Option<&str> {
-    if n.kind != NodeKind::ConstDecl || n.extra_mutable || !n.extra_type.trim().is_empty() || n.children.len() != 1 {
-        return None;
-    }
-    let c = &n.children[0];
-    (c.kind == NodeKind::ExprIdentifier && c.children.is_empty() && !c.name.trim().is_empty()).then(|| c.name.trim())
+    let (a, t) = flat(std::slice::from_ref(n));
+    sh::alias(&a, &t, 0, n.extra_mutable).then(|| n.children[0].name.trim())
 }
 
 fn kind_name(n: &Node) -> String {
@@ -922,7 +922,7 @@ fn char_literal(s: &str) -> Result<i128, &'static str> {
 /// `n` is a char literal (`'a'`, `'\n'`): an untyped comptime_int in Zig that
 /// t27c's constant folder does not see as a literal.
 fn is_char_literal(n: &Node) -> bool {
-    n.kind == NodeKind::ExprLiteral && n.extra_kind != "string" && n.value.trim().starts_with('\'')
+    let (a, t) = flat(std::slice::from_ref(n)); sh::char_literal(&a, &t, 0)
 }
 
 fn parse_int(s: &str) -> Option<i128> {
@@ -7347,42 +7347,23 @@ const MAX_CONST_REPEAT: u64 = 1 << 16;
 
 /// `[_]T{ ... } ** n`, which the parser builds as a `**` binary node.
 fn is_repeat_op(n: &Node) -> bool {
-    n.kind == NodeKind::ExprBinary
-        && n.extra_op == "**"
-        && n.children.len() == 2
-        && n.children[0].kind == NodeKind::ExprArrayLiteral
+    let (a, t) = flat(std::slice::from_ref(n)); sh::repeat_op(&a, &t, 0)
 }
 
+/// The value of the first `const name = value;` under `n`, in preorder.
 fn find_const<'n>(n: &'n Node, name: &str) -> Option<&'n Node> {
-    if n.kind == NodeKind::ConstDecl && n.name == name && n.children.len() == 1 {
-        return Some(&n.children[0]);
-    }
-    n.children.iter().find_map(|c| find_const(c, name))
+    marked(std::slice::from_ref(n), |a, t, m| sh::const_values(a, t, name.as_bytes(), m)).next()
 }
 
 /// Whether a repeat element parsed back from its text is one of the shapes
 /// `repeat_elem` takes.
 fn simple_repeat_elem(n: &Node) -> bool {
-    match n.kind {
-        NodeKind::ExprLiteral | NodeKind::ExprIdentifier | NodeKind::ExprEnumValue => n.children.is_empty(),
-        NodeKind::ExprFieldAccess | NodeKind::ExprCall => n.children.iter().all(simple_repeat_elem),
-        NodeKind::ExprUnary => {
-            n.extra_op == "-" && n.children.len() == 1 && n.children[0].kind == NodeKind::ExprLiteral
-        }
-        _ => false,
-    }
+    let (a, t) = flat(std::slice::from_ref(n)); sh::simple_elem(&a, &t, 0)
 }
 
 /// The names a repeat element reads (the first segment of a dotted path).
 fn repeat_names(n: &Node, out: &mut Vec<String>) {
-    if n.kind == NodeKind::ExprIdentifier {
-        if let Some(h) = n.name.split(['.', ':']).next() {
-            out.push(h.to_string());
-        }
-    }
-    for c in &n.children {
-        repeat_names(c, out);
-    }
+    out.extend(marked(std::slice::from_ref(n), sh::idents).map(|c| c.name[..sh::head_len(c.name.as_bytes())].to_string()));
 }
 
 /// Parsed from text, a node has no line of its own; `see` then keeps the
@@ -7406,7 +7387,7 @@ fn decls_of<'n>(ns: &'n [Node], name: &str, out: &mut Vec<&'n Node>) {
 }
 
 /// `ns` as specs/tri/t27b/ast_walk.t27 reads it: a record per node in preorder, then the fields' text.
-fn flat(ns: &[Node]) -> (Vec<u8>, Vec<u8>) {
+fn flat<'n>(ns: impl IntoIterator<Item = &'n Node>) -> (Vec<u8>, Vec<u8>) {
     fn put(n: &Node, a: &mut Vec<u8>, t: &mut Vec<u8>) {
         let at = a.len();
         a.extend_from_slice(&[n.kind.clone() as u8, 0, 0, 0, 0, 0, 0, 0]);
@@ -7420,17 +7401,17 @@ fn flat(ns: &[Node]) -> (Vec<u8>, Vec<u8>) {
         a[at + 4..at + 8].copy_from_slice(&end.to_le_bytes());
     }
     let (mut a, mut t) = (Vec::new(), Vec::new());
-    ns.iter().for_each(|n| put(n, &mut a, &mut t));
+    ns.into_iter().for_each(|n| put(n, &mut a, &mut t));
     (a, t)
 }
 const _: () = assert!(NodeKind::StmtExpr as u8 == aw::K_STMT_EXPR && NodeKind::ExprRange as u8 == aw::K_EXPR_RANGE);
 /// The nodes of `ns` in preorder that `scan`, a fn of specs/tri/t27b/ast_scan.t27, marks.
-fn marked<'n>(ns: &'n [Node], scan: impl Fn(&[u8], &[u8], &mut [u8])) -> impl Iterator<Item = &'n Node> {
-    fn pre<'n>(ns: &'n [Node], v: &mut Vec<&'n Node>) { ns.iter().for_each(|n| { v.push(n); pre(&n.children, v) }) }
-    let ((a, t), mut v) = (flat(ns), Vec::new());
+fn marked<'n, I: IntoIterator<Item = &'n Node> + Clone>(ns: I, scan: impl Fn(&[u8], &[u8], &mut [u8])) -> impl Iterator<Item = &'n Node> {
+    fn pre<'n>(n: &'n Node, v: &mut Vec<&'n Node>) { v.push(n); n.children.iter().for_each(|c| pre(c, v)) }
+    let ((a, t), mut v) = (flat(ns.clone()), Vec::new());
     let mut m = vec![0u8; a.len() / aw::REC];
     scan(&a, &t, &mut m);
-    pre(ns, &mut v);
+    ns.into_iter().for_each(|n| pre(n, &mut v));
     v.into_iter().zip(m).filter(|p| p.1 == ax::MARK).map(|p| p.0)
 }
 
@@ -7455,19 +7436,7 @@ fn discard_count(ns: &[Node], name: &str) -> usize {
 /// An array literal whose elements are all plain literals (a negated one
 /// too): evaluating it does nothing.
 fn plain_lit(n: &Node) -> bool {
-    if n.kind != NodeKind::ExprArrayLiteral {
-        return false;
-    }
-    if n.children.is_empty() {
-        return n.extra_size.trim().is_empty();
-    }
-    n.children.iter().all(|c| {
-        c.kind == NodeKind::ExprLiteral
-            || (c.kind == NodeKind::ExprUnary
-                && c.extra_op == "-"
-                && c.children.len() == 1
-                && c.children[0].kind == NodeKind::ExprLiteral)
-    })
+    let (a, t) = flat(std::slice::from_ref(n)); sh::plain_lit(&a, &t, 0)
 }
 
 fn calls_in<'n>(ns: &'n [Node], out: &mut Vec<&'n Node>) {
@@ -7613,7 +7582,7 @@ fn pure_addr(e: &Expr) -> bool {
 }
 
 fn is_undefined(n: &Node) -> bool {
-    n.kind == NodeKind::ExprIdentifier && n.name == "undefined"
+    sh::undefined_ident(n.kind.clone() as u8, n.name.as_bytes())
 }
 
 /// Names whose address is taken (`&name`) anywhere in a body.
@@ -7645,68 +7614,6 @@ fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
 /// statement) renders as the empty string.
 fn zig_renders(k: &NodeKind) -> bool {
     aw::renders(k.clone() as u8)
-}
-
-/// Collect the `*` expressions t27c's strength reduction rewrites as `<<`
-/// when the right side is a power-of-two literal (`strength_reduce` in
-/// bootstrap/src/compiler.rs): those reached from a top-level statement of a
-/// module-level fn body -- an assignment's value, a local's initializer, a
-/// `return` value -- through binary operators only. Nothing else is
-/// rewritten: not a test or an invariant, not a statement nested in an `if`
-/// or a loop, not a call argument.
-fn strength_reduced(items: &[&Node], out: &mut HashSet<usize>) {
-    fn walk(n: &Node, out: &mut HashSet<usize>) {
-        if n.kind == NodeKind::ExprBinary && n.children.len() >= 2 {
-            walk(&n.children[0], out);
-            walk(&n.children[1], out);
-            if n.extra_op == "*" {
-                out.insert(n as *const Node as usize);
-            }
-        }
-    }
-    for f in items.iter().filter(|n| n.kind == NodeKind::FnDecl) {
-        let body = f.children.iter().filter(|c| c.kind == NodeKind::Module && c.name == "body");
-        for s in f.children.iter().chain(body.flat_map(|c| c.children.iter())) {
-            match s.kind {
-                NodeKind::StmtAssign if s.children.len() >= 2 => walk(&s.children[1], out),
-                NodeKind::StmtLocal | NodeKind::ExprReturn if !s.children.is_empty() => walk(&s.children[0], out),
-                _ => {}
-            }
-        }
-    }
-}
-
-/// The fns Zig's lazy analysis may reach in `zig test`: the roots are every
-/// top-level item that is not a fn (tests; invariants, which t27c emits as
-/// `comptime` blocks; constants and vars), and a fn is reached when a reached
-/// body names it. `pub` does not make a fn a root, nor does `main`. A bench
-/// is not a root: t27c emits it as `fn bench_<name>() void`, which nothing
-/// calls, so neither its body nor a fn only it names is analyzed. Nor is a
-/// top-level statement, which t27c does not emit at all.
-fn analyzed_fns(items: &[&Node]) -> HashSet<String> {
-    let mut bodies: HashMap<&str, Vec<&Node>> = HashMap::new();
-    let mut work: HashSet<String> = HashSet::new();
-    for item in items {
-        if item.kind == NodeKind::FnDecl {
-            bodies.entry(item.name.as_str()).or_default().push(item);
-        } else if !matches!(item.kind, NodeKind::BenchBlock | NodeKind::StmtExpr) {
-            names_in(std::slice::from_ref(*item), &mut work);
-        }
-    }
-    let mut reached: HashSet<String> = HashSet::new();
-    let mut stack: Vec<String> = work.into_iter().collect();
-    while let Some(name) = stack.pop() {
-        let Some(fns) = bodies.get(name.as_str()) else { continue };
-        if !reached.insert(name.clone()) {
-            continue;
-        }
-        let mut more = HashSet::new();
-        for f in fns {
-            names_in(&f.children, &mut more);
-        }
-        stack.extend(more.into_iter().filter(|m| !reached.contains(m)));
-    }
-    reached
 }
 
 /// #6315, t27c `zig_tail_returns`: the reference turns the last statement of

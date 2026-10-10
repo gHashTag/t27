@@ -316,7 +316,11 @@ measure it are written in **t27**, not in Rust or Python by hand.
   now `int_cast_plan.t27`'s `widens`, -5 net, 0 and 0 on master e4338f46e's
   14510 plus 1222 and 8284; 14498 plus 1222, 15720 in all, and tests 8284, after
   #7909 deleted the stale refusal of a repeat local passed as an array, -7, 0
-  and 0 on master 6a03402c5's 14505 plus 1222 and 8284),
+  and 0 on master 6a03402c5's 14505 plus 1222 and 8284; 14405 plus 1222, 15627
+  in all, and tests 8284, after #8563 moved the node shapes and item scans of
+  `lower.rs` (`is_repeat_op`, `plain_lit`, `alias_text`, `strength_reduced`,
+  `analyzed_fns` and six more) to `specs/tri/t27b/ast_shape.t27`, -93, 0 and 0
+  on master 4e764b440's 14498 plus 1222 and 8284),
   `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.

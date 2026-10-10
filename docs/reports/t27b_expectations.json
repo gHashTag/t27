@@ -1088,6 +1088,7 @@
   {"path": "specs/tri/t27b/any_param_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/arith_op.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/ast_scan.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/ast_shape.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/ast_walk.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/bit_cast_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/blockers.t27", "t27b": "pass"},
