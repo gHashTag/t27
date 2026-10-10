@@ -377,6 +377,7 @@
   {"path": "specs/math/constants.t27", "t27b": "blocked", "blocker": "ExprCall(@cos)", "reason": "unimplemented"},
   {"path": "specs/math/gf_competitive.t27", "t27b": "pass"},
   {"path": "specs/memory/graph/crypt.t27", "t27b": "pass"},
+  {"path": "specs/memory/graph/ingest.t27", "t27b": "pass"},
   {"path": "specs/memory/graph/scope.t27", "t27b": "pass"},
   {"path": "specs/memory/graph/temporal.t27", "t27b": "pass"},
   {"path": "specs/memory/graph/types.t27", "t27b": "pass"},
