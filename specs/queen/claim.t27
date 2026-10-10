@@ -1,0 +1,260 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/claim.t27 -- what a finished dispatch's row claims as its state, from the word the reviewer left
+; The Queen's rule of 2026-09-04, kept since (gHashTag/t27#8765): a finished dispatch's row claims its state
+; from the verdict word the reviewer left on it and the row's own counters and clocks -- never from what the
+; row wrote about itself, and never from a timer alone. This file is the one home of that rule for the
+; supervisor's stateOfDispatch. Runtimes read it, nobody restates it: the trios supervisor
+; (gHashTag/BrowserOS, trios/agent-server queen-tick.ts) mirrors claim_of line for line and imports the
+; constants from `t27c gen-js` of this file; `gen/c/queen/claim.c` is the executable copy.
+; ---
+; The word the reviewer left. The supervisor maps the row's review_state to a V_ code below: 'accept',
+; 'failed', 'cancelled', 'empty', 'stale-contract', the valve's own OBSOLETE_STATE ('obsolete'), 'sendBack',
+; 'escalate', and the unjudged 'wait'. An empty review_state and 'wait' share one branch (both are an
+; unjudged wait); every other word the supervisor has no word for is V_NONE and never claims failure.
+; A verdict the row never wrote is still the reviewer's word: on 2026-09-04 five dispatches were set to
+; 'failed' and 'cancelled' by the reviewer with no review_state on the row at all, and they stay failed.
+; ---
+; The clocks. idle_minutes is floor((now - finished_at) / 60000) of the row's finished_at; the supervisor
+; compares the same row against its ms floors, which are whole minutes of the same clocks, so the two agree:
+;   EMPTY_ATTEMPT_FLOOR_MS  = RETRY_FLOOR_MINUTES * 60000  (30 min)  -- the empty-attempt floor
+;   SEND_BACK_IDLE_FLOOR_MS = CEILING_FLOOR_MINUTES * 60000 (60 min) -- the send-back hour
+;   WAIT_FROZEN_FLOOR_MS    = 21_600_000                    (360 min) -- the six-hour frozen close
+; An empty attempt with nothing to judge is rejected before its floor and failed after it (2026-09-17:
+; empty waits were being sent back with no work done for them -- the floor ends that). A wait word fails
+; after six idle hours while the send-backs are under the ceiling. A 'stale-contract' fails outright
+; (2026-09-19: it ended 126 issues and 72 of 86 pull requests, none of them the Queen's work). The valve's
+; own OBSOLETE_STATE word is cancelled (2026-10-05: 144 of 219 cards in review were skipped this way).
+; 'sendBack' fails once the row has run out its hour and its send-backs are still under the ceiling;
+; otherwise the valve's step decides, with the row held as rejected. 'escalate' lets the row's own counters
+; name the kind (escalation_kind from review_valve.t27) and the valve's step decides, with the row held as
+; awaiting review -- a missing criteria column reads as one (criteria_read_as below), so a row that was
+; never mislabeled is never closed as no-criteria.
+; ---
+; Not here: the QUEEN's row-of-record clock (rings/T27-02/tick_core.t27 MAX_TICKS and the created_at
+; column -- a different clock on the same row), the actuator's own grace (MAX_TICKS with no heartbeat),
+; run-level mirrors (the compiler's run mirror), lanes, the issue's pull-request conflict steps
+; (review_valve.t27 conflict_step), the review policy's own verdicts (QueenReviewDecision), the send-back
+; and wait floors that already have clocks (queen-tick.ts SEND_BACK_IDLE_FLOOR_MS, WAIT_FROZEN_FLOOR_MS),
+; and the old hand-written dispatch.t27, a different and older spec of a different module (t27#6934,
+; t27#5452, t27#7430).
+; ---
+; ASCII only (L3). phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenClaim;
+
+use queen::review_valve::STEP_HOLD;
+use queen::review_valve::STEP_RELEASE;
+use queen::review_valve::STEP_BACKFILL;
+use queen::review_valve::STEP_CLOSE;
+use queen::review_valve::KIND_SEND_BACK_CEILING;
+use queen::review_valve::RETRY_FLOOR_MINUTES;
+use queen::review_valve::CEILING_FLOOR_MINUTES;
+use queen::review_valve::BACKFILL_WINDOW_MINUTES;
+use queen::review_valve::POLICY_HOLD_MINUTES;
+use queen::review_valve::MAX_RELEASES;
+use queen::review_valve::escalation_kind;
+use queen::review_valve::next_step;
+
+/// The claim a finished dispatch's row can carry. Mirrored by number from the supervisor's words:
+/// a new word takes the next code, none moves (like the valve's step and kind codes).
+pub const CL_RUNNING : u8 = 0;
+pub const CL_ACCEPTED : u8 = 1;
+pub const CL_REJECTED : u8 = 2;
+pub const CL_AWAITING_REVIEW : u8 = 3;
+pub const CL_FAILED : u8 = 4;
+pub const CL_CANCELLED : u8 = 5;
+
+/// The verdict words the supervisor reads off a finished row's review_state, mapped to codes by number:
+/// 1 'accept', 2 'failed', 3 'cancelled', 4 'empty', 5 'stale-contract', 6 review_valve.t27's
+/// OBSOLETE_STATE ('obsolete'), 7 'sendBack', 8 'escalate'. 9 V_WAIT covers the 'wait' word and the empty
+/// review_state: they share one branch in the supervisor. 0 V_NONE is every other word the valve has no
+/// word for: an unjudged row, never failed by its word alone.
+pub const V_NONE : u8 = 0;
+pub const V_ACCEPT : u8 = 1;
+pub const V_FAILED : u8 = 2;
+pub const V_CANCELLED : u8 = 3;
+pub const V_EMPTY : u8 = 4;
+pub const V_STALE_CONTRACT : u8 = 5;
+pub const V_OBSOLETE : u8 = 6;
+pub const V_SEND_BACK : u8 = 7;
+pub const V_ESCALATE : u8 = 8;
+pub const V_WAIT : u8 = 9;
+
+/// The idle minute an attempt with nothing to judge waits before its claim is failure, not rejection.
+/// The supervisor's EMPTY_ATTEMPT_FLOOR_MS is RETRY_FLOOR_MINUTES * 60000.
+pub const EMPTY_ATTEMPT_FLOOR : u32 = RETRY_FLOOR_MINUTES;
+
+/// The idle hour a send-back waits before its claim is failure while its send-backs stay under the
+/// ceiling. The supervisor's SEND_BACK_IDLE_FLOOR_MS is CEILING_FLOOR_MINUTES * 60000.
+pub const SEND_BACK_IDLE_FLOOR : u32 = CEILING_FLOOR_MINUTES;
+
+/// The six idle hours a wait word waits before its claim is failure while its send-backs stay under the
+/// ceiling. The supervisor's WAIT_FROZEN_FLOOR_MS is 21600000.
+pub const WAIT_FROZEN_FLOOR : u32 = 360;
+
+/// The empty attempts a row may count before the valve is told the letter is dead.
+pub const FREE_ATTEMPT_CEILING : u32 = 3;
+
+/// The reviewer misses a row may count before the valve is told the reviewer gave up.
+pub const REVIEWER_MISS_CEILING : u32 = 3;
+
+/// What a row's criteria read as, for the valve's kind. A row that selected no criteria list is not read
+/// as having none: that would close it as a mislabeled row when nothing was ever wrong, so it reads as
+/// one criterion. A row that selected one reads as the count of what it selected -- so an empty list is
+/// none, and goes back for criteria.
+pub fn criteria_read_as(selected: bool, count: u32) -> u32 {
+    if (selected) { return count; }
+    return 1;
+}
+
+/// The claim of a row the valve has stepped. A release is the end of the work: the row fails and the
+/// issue goes back to the swarm. A close is cancelled. Anything else keeps the word the row was held with.
+pub fn claim_of_step(step: u8, held: u8) -> u8 {
+    if (step == STEP_RELEASE) { return CL_FAILED; }
+    if (step == STEP_CLOSE) { return CL_CANCELLED; }
+    return held;
+}
+
+/// What a finished dispatch's row claims as its state, from the word the reviewer left on it and the
+/// row's own counters and clocks. A row that is not finished is still running, whatever else it carries.
+/// idle_minutes is floor((now - finished_at) / 60000); send_backs, ceiling and releases are the row's
+/// send-back, ceiling and release counters; criteria_read says whether the row selected a criteria list
+/// at all, and criteria is its count; free_attempts and reviewer_misses are the row's own escalation
+/// counters. The supervisor's stateOfDispatch mirrors this line for line.
+pub fn claim_of(finished: bool, verdict: u8, idle_minutes: u32, send_backs: u32, ceiling: u32, releases: u32, criteria_read: bool, criteria: u32, free_attempts: u32, reviewer_misses: u32) -> u8 {
+    if (finished == false) { return CL_RUNNING; }
+    if (verdict == V_ACCEPT) { return CL_ACCEPTED; }
+    if (verdict == V_FAILED || verdict == V_CANCELLED) { return CL_FAILED; }
+    if (verdict == V_EMPTY) {
+        if (idle_minutes >= EMPTY_ATTEMPT_FLOOR) { return CL_FAILED; }
+        return CL_REJECTED;
+    }
+    if (verdict == V_STALE_CONTRACT) { return CL_FAILED; }
+    if (verdict == V_OBSOLETE) { return CL_CANCELLED; }
+    if (verdict == V_SEND_BACK) {
+        if (idle_minutes >= SEND_BACK_IDLE_FLOOR && send_backs < ceiling) { return CL_FAILED; }
+        return claim_of_step(next_step(KIND_SEND_BACK_CEILING, idle_minutes, releases), CL_REJECTED);
+    }
+    if (verdict == V_ESCALATE) {
+        var kind : u8 = escalation_kind(criteria_read_as(criteria_read, criteria), send_backs >= ceiling, free_attempts >= FREE_ATTEMPT_CEILING, reviewer_misses >= REVIEWER_MISS_CEILING);
+        return claim_of_step(next_step(kind, idle_minutes, releases), CL_AWAITING_REVIEW);
+    }
+    if (verdict == V_WAIT) {
+        if (idle_minutes >= WAIT_FROZEN_FLOOR && send_backs < ceiling) { return CL_FAILED; }
+    }
+    return CL_AWAITING_REVIEW;
+}
+
+// -- tests -----------------------------------------------------------------
+
+test a_running_row_claims_running {
+    assert claim_of(false, V_ACCEPT, 0, 0, 2, 0, false, 3, 0, 0) == CL_RUNNING;
+    assert claim_of(false, V_FAILED, 0, 0, 2, 0, false, 3, 0, 0) == CL_RUNNING;
+    assert claim_of(false, V_NONE, 100000, 5, 2, 1, true, 0, 9, 9) == CL_RUNNING;
+}
+
+test accept_wins_before_any_clock {
+    assert claim_of(true, V_ACCEPT, 0, 0, 2, 0, false, 3, 0, 0) == CL_ACCEPTED;
+    assert claim_of(true, V_ACCEPT, 100000, 5, 2, 1, true, 0, 9, 9) == CL_ACCEPTED;
+}
+
+test a_verdict_the_row_never_wrote_is_still_the_reviewers_word {
+    assert claim_of(true, V_FAILED, 0, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_CANCELLED, 0, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_STALE_CONTRACT, 0, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_OBSOLETE, 0, 0, 2, 0, false, 3, 0, 0) == CL_CANCELLED;
+}
+
+test an_empty_attempt_waits_out_the_retry_floor {
+    assert claim_of(true, V_EMPTY, 29, 0, 2, 0, false, 3, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_EMPTY, 30, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_EMPTY, 100000, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+}
+
+test a_send_back_under_its_ceiling_fails_at_the_hour {
+    assert claim_of(true, V_SEND_BACK, 59, 1, 2, 0, false, 3, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_SEND_BACK, 60, 1, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, 61, 1, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, 59, 2, 2, 0, false, 3, 0, 0) == CL_REJECTED;
+    assert claim_of(true, V_SEND_BACK, 60, 2, 2, 1, false, 3, 0, 0) == CL_CANCELLED;
+}
+
+test an_escalated_row_reads_its_own_kind {
+    assert claim_of(true, V_ESCALATE, 29, 0, 2, 0, false, 3, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 0, 0, 2, 0, true, 0, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 120, 0, 2, 0, true, 0, 0, 0) == CL_CANCELLED;
+    assert claim_of(true, V_ESCALATE, 29, 0, 2, 0, true, 4, 3, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 0, true, 4, 3, 0) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 30, 0, 2, 0, true, 4, 0, 3) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 59, 2, 2, 0, true, 4, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_ESCALATE, 60, 2, 2, 0, true, 4, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_ESCALATE, 0, 0, 2, 1, true, 4, 3, 0) == CL_CANCELLED;
+}
+
+test a_wait_word_fails_after_six_hours {
+    assert claim_of(true, V_WAIT, 359, 0, 2, 0, false, 3, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_WAIT, 360, 0, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_WAIT, 360, 2, 2, 0, false, 3, 0, 0) == CL_AWAITING_REVIEW;
+    assert claim_of(true, V_NONE, 100000, 0, 2, 0, false, 3, 0, 0) == CL_AWAITING_REVIEW;
+}
+
+test a_missing_criteria_column_is_never_none {
+    assert criteria_read_as(false, 0) == 1;
+    assert criteria_read_as(false, 7) == 1;
+    assert criteria_read_as(true, 0) == 0;
+    assert criteria_read_as(true, 4) == 4;
+}
+
+test claim_of_step_words {
+    assert claim_of_step(STEP_RELEASE, CL_REJECTED) == CL_FAILED;
+    assert claim_of_step(STEP_CLOSE, CL_AWAITING_REVIEW) == CL_CANCELLED;
+    assert claim_of_step(STEP_BACKFILL, CL_AWAITING_REVIEW) == CL_AWAITING_REVIEW;
+    assert claim_of_step(STEP_HOLD, CL_REJECTED) == CL_REJECTED;
+}
+
+// -- invariants ------------------------------------------------------------
+
+/// The claim codes and verdict words never move: the supervisor imports the constants from
+/// `t27c gen-js` and maps the row's words and claims by number, so a moved code is a silent lie
+/// about a row (gHashTag/t27#8765, like the valve's own codes).
+invariant the_codes_never_move {
+    assert CL_RUNNING == 0;
+    assert CL_ACCEPTED == 1;
+    assert CL_REJECTED == 2;
+    assert CL_AWAITING_REVIEW == 3;
+    assert CL_FAILED == 4;
+    assert CL_CANCELLED == 5;
+    assert V_NONE == 0;
+    assert V_ACCEPT == 1;
+    assert V_FAILED == 2;
+    assert V_CANCELLED == 3;
+    assert V_EMPTY == 4;
+    assert V_STALE_CONTRACT == 5;
+    assert V_OBSOLETE == 6;
+    assert V_SEND_BACK == 7;
+    assert V_ESCALATE == 8;
+    assert V_WAIT == 9;
+}
+
+/// Every clock in this file ends before the policy's own hold on an awaitingReview boundary, so
+/// nothing here waits on a person: the empty floor is the valve's own retry floor, the send-back
+/// hour is the valve's own ceiling floor, the frozen close is past the valve's backfill window,
+/// and all of them are short of the policy's hold.
+invariant every_clock_ends_before_the_policy_hold {
+    assert EMPTY_ATTEMPT_FLOOR == RETRY_FLOOR_MINUTES;
+    assert SEND_BACK_IDLE_FLOOR == CEILING_FLOOR_MINUTES;
+    assert SEND_BACK_IDLE_FLOOR < BACKFILL_WINDOW_MINUTES;
+    assert BACKFILL_WINDOW_MINUTES < WAIT_FROZEN_FLOOR;
+    assert WAIT_FROZEN_FLOOR < POLICY_HOLD_MINUTES;
+}
+
+/// A release fires once. The first send-back after its hour releases a row that is still under
+/// its ceiling; once the release counter is spent the same word closes the row -- the valve's
+/// release never runs past its own counter.
+invariant a_release_is_never_endless {
+    assert next_step(KIND_SEND_BACK_CEILING, SEND_BACK_IDLE_FLOOR, 0) == STEP_RELEASE;
+    assert next_step(KIND_SEND_BACK_CEILING, SEND_BACK_IDLE_FLOOR, MAX_RELEASES) == STEP_CLOSE;
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_IDLE_FLOOR, 2, 2, 0, false, 3, 0, 0) == CL_FAILED;
+    assert claim_of(true, V_SEND_BACK, SEND_BACK_IDLE_FLOOR, 2, 2, MAX_RELEASES, false, 3, 0, 0) == CL_CANCELLED;
+}
