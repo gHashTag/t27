@@ -1,0 +1,36 @@
+module port::read_soul;
+
+pub fn createSoulReadTool() {
+    // This function is plumbing - it returns a tool object in the original
+    // We're only porting the decision logic below
+    return;
+}
+
+// Helper function containing the decision logic from the original execute function
+pub fn handleSoulRead(content: []const u8) -> []const u8 {
+    if (content.len == 0) {
+        return "SOUL.md is empty or does not exist yet.";
+    }
+    return content;
+}
+
+test handle_soul_read_with_content {
+    // Test the decision logic: when content exists, return it
+    const content = "SOUL.md content";
+    const result = handleSoulRead(content);
+    assert(result == "SOUL.md content");
+}
+
+test handle_soul_read_empty {
+    // Test the case where SOUL.md is empty
+    const content = "";
+    const result = handleSoulRead(content);
+    assert(result == "SOUL.md is empty or does not exist yet.");
+}
+
+test handle_soul_read_null_like {
+    // Test the case where SOUL.md doesn't exist (simulated with empty content)
+    const content = "";
+    const result = handleSoulRead(content);
+    assert(result == "SOUL.md is empty or does not exist yet.");
+}
