@@ -1,0 +1,534 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w699.t27
+// Port of scripts/gen_w699.py (gHashTag/t27 @ 88821271d8be), the generator of
+// specs/scratch/w699_bench_module_217x2p6_aos_var_call_write.t27: a
+// [217][2][2][2][2][2][2]Pt grid literal whose points are numbered in
+// row-major order and folded into i16 through % 32768.
+//
+// The script's one side effect - writing that file and printing a line about
+// it (lines 138-141) - is plumbing and stays unported in generate(). What the
+// script DECIDES is ported and tested here:
+//
+//   indent        "    " * level, as the actual spaces      (line 24)
+//   elem_x/elem_y x=(2e+offset)%32768, y=+1                 (lines 41-42)
+//   leaf_entry    one Pt row of a leaf                      (lines 40-43)
+//   next_base     base + product(shape)                     (lines 46, 58)
+//   dims_of       "[" + "][".join(str(d)) + "]"             (lines 50, 70)
+//   build_tree    the recursive literal text                (lines 28-58)
+//   shift_indent  one more "    " per line                  (lines 64-68)
+//   is_ascii      the non-ASCII refusal                     (lines 135-136)
+//   constants     OUTER/TOTAL/LAST/MID/WRAP + shape         (lines 9-21, 62)
+//
+// gen_w699.py assembles its text with f-strings and ",\n".join over Python
+// lists; .t27 has neither string concatenation nor growable lists, so
+// build_tree writes the same bytes into a fixed buffer instead. The
+// recursion, the join points and every value are unchanged. Bounds the
+// Python does not have: 64 KiB of text, shape depth 8, and the u32 domain
+// of the original (dims 217 and 2, offsets 0..65535 - nothing here is
+// ever negative).
+module port::gen_w699 {
+    const OUTER: u32 = 217;          // line 9
+    const TOTAL: u32 = OUTER * 64;   // line 10: OUTER * 2 ** 6
+    const WRAP: u32 = 32768;         // the fold the x/y values wrap into
+    const LAST_IDX: u32 = OUTER - 1; // line 11
+    const MID_IDX: u32 = OUTER / 2;  // line 12: 108; the "# 99" comment there is stale
+
+    // ------------------------------------------------------------------
+    // indent - gen_w699.py line 24: return "    " * level
+    // ------------------------------------------------------------------
+    // .t27 has no string repetition, so the spaces are written into a
+    // buffer: 4 bytes per level, levels 0..16. The script itself only
+    // ever asks for indent(1) and indent(2).
+    var g_indent: [64]u8 = [_]u8{32} ** 64;
+
+    fn indent(level: u32) -> []const u8 {
+        var n4: u32 = level * 4;
+        var n: usize = n4 as usize;
+        if (n > 64) {
+            n = 64;
+        }
+        var w: usize = 0;
+        while (w < n) {
+            g_indent[w] = 32; // ' '
+            w = w + 1;
+        }
+        return g_indent[0..n];
+    }
+
+    // ------------------------------------------------------------------
+    // decimal digits - the str() inside the f-strings on lines 37-57
+    // ------------------------------------------------------------------
+    // Every number this script formats is non-negative: dims, and x/y
+    // values folded into 0..32767.
+    const DIGITS: [10]u8 = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57]; // '0'..'9'
+    var g_digits: [12]u8 = [_]u8{0} ** 12;
+
+    // The decimal digits of v, most significant first; returns the count.
+    fn u32_digits(v: u32) -> usize {
+        var m: usize = 0;
+        if (v == 0) {
+            g_digits[0] = DIGITS[0];
+            return 1;
+        }
+        var rest: u32 = v;
+        while (rest > 0) {
+            const d10: u32 = rest % 10;
+            const di: usize = d10 as usize;
+            g_digits[m] = DIGITS[di];
+            m = m + 1;
+            rest = rest / 10;
+        }
+        var lo: usize = 0;
+        var hi: usize = m;
+        while (lo + 1 < hi) {
+            hi = hi - 1;
+            const c: u8 = g_digits[lo];
+            g_digits[lo] = g_digits[hi];
+            g_digits[hi] = c;
+            lo = lo + 1;
+        }
+        return m;
+    }
+
+    // ------------------------------------------------------------------
+    // the text buffer - build_tree's first tuple element
+    // ------------------------------------------------------------------
+    var g_text: [65536]u8 = [_]u8{0} ** 65536;
+    var g_len: usize = 0;
+
+    fn emit_byte(c: u8) {
+        if (g_len < g_text.len) {
+            g_text[g_len] = c;
+            g_len = g_len + 1;
+        }
+    }
+
+    fn emit_str(s: []const u8) {
+        for c in s {
+            emit_byte(c);
+        }
+    }
+
+    fn emit_u32(v: u32) {
+        const m: usize = u32_digits(v);
+        var i: usize = 0;
+        while (i < m) {
+            emit_byte(g_digits[i]);
+            i = i + 1;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // dims - gen_w699.py lines 50 and 70
+    // ------------------------------------------------------------------
+    var g_dims: [96]u8 = [_]u8{0} ** 96;
+
+    // Python: dims = "[" + "][".join(str(d) for d in shape) + "]", taken
+    // over shape[from..]; dims_of(shape, 0) is the line-70 call.
+    fn dims_of(shape: []const u32, from: usize) -> []const u8 {
+        var w: usize = 0;
+        var i: usize = from;
+        while (i < shape.len) {
+            g_dims[w] = 91; // '['
+            w = w + 1;
+            const m: usize = u32_digits(shape[i]);
+            var j: usize = 0;
+            while (j < m) {
+                g_dims[w] = g_digits[j];
+                w = w + 1;
+                j = j + 1;
+            }
+            g_dims[w] = 93; // ']'
+            w = w + 1;
+            i = i + 1;
+        }
+        return g_dims[0..w];
+    }
+
+    // ------------------------------------------------------------------
+    // the element values - gen_w699.py lines 41-42
+    // ------------------------------------------------------------------
+    fn elem_x(e: u32, offset: u32) -> u32 {
+        return (2 * e + offset) % WRAP;
+    }
+
+    fn elem_y(e: u32, offset: u32) -> u32 {
+        return (2 * e + offset + 1) % WRAP;
+    }
+
+    // struct Pt { x : i16, y : i16 } - the struct the generated benchmark
+    // declares (line 77); leaf_entry names one row's decision.
+    struct Pt { x: i16, y: i16, }
+
+    // Lines 40-43: leaf entry i of a literal whose elements start at
+    // number `base` is Pt{ .x = (2*(base+i)+offset) % 32768, .y = ... }.
+    fn leaf_entry(base: u32, i: u32, offset: u32) -> Pt {
+        const e: u32 = base + i;
+        const xi: u32 = elem_x(e, offset);
+        const yi: u32 = elem_y(e, offset);
+        const x: i16 = xi as i16;
+        const y: i16 = yi as i16;
+        return Pt { x: x, y: y };
+    }
+
+    // ------------------------------------------------------------------
+    // the base advancement - gen_w699.py lines 46 and 58
+    // ------------------------------------------------------------------
+    // The leaf returns base + n (line 46); inner levels thread the base
+    // through the recursion (lines 54-58). A literal for `shape` therefore
+    // consumes exactly product(shape) element numbers.
+    fn next_base(shape: []const u32, base: u32) -> u32 {
+        var n: u32 = 1;
+        for d in shape {
+            n = n * d;
+        }
+        return base + n;
+    }
+
+    // ------------------------------------------------------------------
+    // build_tree - gen_w699.py lines 28-58
+    // ------------------------------------------------------------------
+    // The original returns (text, next_base); the port returns both as a
+    // struct, text being the assembled literal indented relative to
+    // level 0.
+    struct Literal { text: []const u8, next_base: u32, }
+
+    // Line 43: f"{indent(2)}Pt{{ .x = {x}, .y = {y} }}"
+    fn emit_entry(x: u32, y: u32) {
+        emit_str("Pt{ .x = ");
+        emit_u32(x);
+        emit_str(", .y = ");
+        emit_u32(y);
+        emit_str(" }");
+    }
+
+    // One node of the literal. Every header and footer sits at indent(1)
+    // and every leaf entry at indent(2) - the Python indents relative to
+    // level 0 and does not draw the nesting (lines 37, 43, 45, 51, 57).
+    fn emit_node(shape: []const u32, d: usize, base: u32, offset: u32) -> u32 {
+        emit_str(indent(1));
+        emit_str(dims_of(shape, d));
+        emit_str("Pt{\n");
+        var b: u32 = base;
+        if (d + 1 == shape.len) {
+            var i: u32 = 0;
+            while (i < shape[d]) {
+                if (i > 0) {
+                    emit_str(",\n");
+                }
+                emit_str(indent(2));
+                emit_entry(elem_x(b + i, offset), elem_y(b + i, offset));
+                i = i + 1;
+            }
+            b = base + shape[d]; // line 46: return ..., base + n
+        } else {
+            var c: u32 = 0;
+            while (c < shape[d]) {
+                if (c > 0) {
+                    emit_str(",\n");
+                }
+                b = emit_node(shape, d + 1, b, offset); // line 54
+                c = c + 1;
+            }
+        }
+        emit_str("\n");
+        emit_str(indent(1));
+        emit_str("}");
+        return b;
+    }
+
+    fn build_tree(shape: []const u32, base: u32, offset: u32) -> Literal {
+        g_len = 0;
+        const b: u32 = emit_node(shape, 0, base, offset);
+        return Literal { text: g_text[0..g_len], next_base: b };
+    }
+
+    // ------------------------------------------------------------------
+    // generate's re-indent - gen_w699.py lines 64-68
+    // ------------------------------------------------------------------
+    var g_shift: [65536]u8 = [_]u8{0} ** 65536;
+
+    // make_grid's body is the literal with one more "    " prefixed to
+    // every line: literal.split("\n", 1) first, then "    " + line for
+    // each splitlines() line. The literal never ends in a newline, so
+    // splitlines' dropped tail never bites.
+    fn shift_indent(src: []const u8) -> []const u8 {
+        var w: usize = 0;
+        var at_start: bool = true;
+        for c in src {
+            if (at_start) {
+                if (w + 4 <= g_shift.len) {
+                    g_shift[w] = 32;
+                    g_shift[w + 1] = 32;
+                    g_shift[w + 2] = 32;
+                    g_shift[w + 3] = 32;
+                    w = w + 4;
+                }
+                at_start = false;
+            }
+            if (w < g_shift.len) {
+                g_shift[w] = c;
+                w = w + 1;
+            }
+            if (c == 10) { // '\n'
+                at_start = true;
+            }
+        }
+        return g_shift[0..w];
+    }
+
+    // ------------------------------------------------------------------
+    // generate's decisions - gen_w699.py lines 9-21 and 61-141
+    // ------------------------------------------------------------------
+
+    // Line 62: shape = [OUTER, 2, 2, 2, 2, 2, 2]
+    fn grid_shape() -> [7]u32 {
+        return [OUTER, 2, 2, 2, 2, 2, 2];
+    }
+
+    // Lines 13-14: LAST_X / LAST_Y
+    fn last_x() -> u32 {
+        return elem_x(TOTAL - 1, 0);
+    }
+
+    fn last_y() -> u32 {
+        return elem_y(TOTAL - 1, 0);
+    }
+
+    // Lines 15-17: index [MID_IDX][1][0][0][0][0][0] is element
+    // MID_IDX * 64 + 32 - row-major over strides 64, 32, 16, 8, 4, 2, 1.
+    fn mid_elem() -> u32 {
+        return MID_IDX * 64 + 32;
+    }
+
+    // Lines 18-19: MID_X / MID_Y
+    fn mid_x() -> u32 {
+        return elem_x(mid_elem(), 0);
+    }
+
+    fn mid_y() -> u32 {
+        return elem_y(mid_elem(), 0);
+    }
+
+    // Lines 20-21: the explicit modulo-wrap check with offset 32768,
+    // which folds back onto the offset-0 values.
+    fn wrap_last_x() -> u32 {
+        return elem_x(TOTAL - 1, WRAP);
+    }
+
+    fn wrap_last_y() -> u32 {
+        return elem_y(TOTAL - 1, WRAP);
+    }
+
+    // ------------------------------------------------------------------
+    // the ASCII gate - gen_w699.py lines 135-136
+    // ------------------------------------------------------------------
+    // The script raises before writing anything carrying a byte >= 128.
+    fn is_ascii_byte(c: u8) -> bool {
+        return c < 128;
+    }
+
+    fn is_ascii(s: []const u8) -> bool {
+        for c in s {
+            if (!is_ascii_byte(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // generate - gen_w699.py lines 61-141
+    // ------------------------------------------------------------------
+    // The Python body assembles header + make_grid + footer and writes
+    // specs/scratch/w699_bench_module_217x2p6_aos_var_call_write.t27,
+    // then prints a line about it (lines 138-141). Writing the file and
+    // printing are plumbing; the decisions it carries - the shape (line
+    // 62), the derived constants (lines 9-21), the dims in the make_grid
+    // signature (lines 70-72), the re-indent (lines 64-68) and the ASCII
+    // gate (lines 135-136) - are ported above and tested. The body stays
+    // unported and no test calls it.
+    fn generate() {
+        undefined;
+    }
+
+    // ------------------------------------------------------------------
+    // tests - each asserts what gen_w699.py produces
+    // ------------------------------------------------------------------
+
+    test indent_levels {
+        var s0: []const u8 = indent(0);
+        var s1: []const u8 = indent(1);
+        var s2: []const u8 = indent(2);
+        var s3: []const u8 = indent(3);
+        assert(s0 == "");
+        assert(s1 == "    ");
+        assert(s2 == "        ");
+        assert(s3 == "            ");
+    }
+
+    test elem_values {
+        // lines 41-42 and the constants the generated test asserts
+        assert(elem_x(0, 0) == 0);
+        assert(elem_y(0, 0) == 1);
+        assert(elem_x(1, 0) == 2);
+        assert(elem_y(1, 0) == 3);
+        assert(elem_x(16384, 0) == 0); // 32768 folds back to 0
+        assert(elem_y(16384, 0) == 1);
+        assert(last_x() == 27774);
+        assert(last_y() == 27775);
+        assert(wrap_last_x() == 27774);
+        assert(wrap_last_y() == 27775);
+    }
+
+    test derived_constants {
+        // lines 9-21; the "# 99" comment on line 12 is stale, the code
+        // computes 217 / 2 = 108
+        assert(TOTAL == 13888);
+        assert(LAST_IDX == 216);
+        assert(MID_IDX == 108);
+        assert(mid_elem() == 6944);
+        assert(mid_x() == 13888);
+        assert(mid_y() == 13889);
+    }
+
+    test leaf_entry_rows {
+        const p0: Pt = leaf_entry(0, 0, 0);
+        assert(p0.x == 0);
+        assert(p0.y == 1);
+        const p1: Pt = leaf_entry(0, 1, 0);
+        assert(p1.x == 2);
+        assert(p1.y == 3);
+    const p2: Pt = leaf_entry(TOTAL - 1, 0, WRAP);
+    assert(p2.x == 27774);
+    assert(p2.y == 27775);
+    }
+
+    test dims_annotation {
+        // lines 50 and 70
+        var full: [7]u32 = [217, 2, 2, 2, 2, 2, 2];
+        var d1: []const u8 = dims_of(&full, 0);
+        assert(d1 == "[217][2][2][2][2][2][2]");
+        var d2: []const u8 = dims_of(&full, 1);
+        assert(d2 == "[2][2][2][2][2][2]");
+        var one: [1]u32 = [64];
+        var d3: []const u8 = dims_of(&one, 0);
+        assert(d3 == "[64]");
+    }
+
+    test next_base_advances {
+        // lines 46 and 58: base + product(shape)
+        var small: [3]u32 = [2, 1, 2];
+        assert(next_base(&small, 10) == 14);
+        var full: [7]u32 = [217, 2, 2, 2, 2, 2, 2];
+        assert(next_base(&full, 0) == TOTAL);
+    }
+
+    test build_tree_leaf {
+        var shape: [1]u32 = [2];
+        const lit: Literal = build_tree(&shape, 0, 0);
+        assert(lit.next_base == 2);
+        const t: []const u8 = lit.text;
+        assert(t == "    [2]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    }");
+    }
+
+    test build_tree_nested {
+        var shape: [2]u32 = [2, 2];
+        const lit: Literal = build_tree(&shape, 0, 0);
+        assert(lit.next_base == 4);
+        const t: []const u8 = lit.text;
+        assert(t == "    [2][2]Pt{\n    [2]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    },\n    [2]Pt{\n        Pt{ .x = 4, .y = 5 },\n        Pt{ .x = 6, .y = 7 }\n    }\n    }");
+    }
+
+    test build_tree_depth3 {
+        var shape: [3]u32 = [2, 1, 2];
+        const lit: Literal = build_tree(&shape, 0, 0);
+        assert(lit.next_base == 4);
+        const t: []const u8 = lit.text;
+        assert(t == "    [2][1][2]Pt{\n    [1][2]Pt{\n    [2]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    }\n    },\n    [1][2]Pt{\n    [2]Pt{\n        Pt{ .x = 4, .y = 5 },\n        Pt{ .x = 6, .y = 7 }\n    }\n    }\n    }");
+    }
+
+    test build_tree_base_and_offset {
+        // base 5, offset 32768: elements 5 and 6 fold to x=10,11 / 12,13
+        var shape: [1]u32 = [2];
+        const lit: Literal = build_tree(&shape, 5, WRAP);
+        assert(lit.next_base == 7);
+        const t: []const u8 = lit.text;
+        assert(t == "    [2]Pt{\n        Pt{ .x = 10, .y = 11 },\n        Pt{ .x = 12, .y = 13 }\n    }");
+        // build_tree advances the base exactly like next_base
+        var two: [2]u32 = [2, 2];
+        const lit2: Literal = build_tree(&two, 40, 0);
+        assert(lit2.next_base == next_base(&two, 40));
+    }
+
+    test shift_indent_lines {
+        // lines 64-68: make_grid's body is the literal with one more
+        // "    " prefixed to every line
+        const t: []const u8 = shift_indent("    [2]Pt{\n        Pt{ .x = 0, .y = 1 }\n    }");
+        assert(t == "        [2]Pt{\n            Pt{ .x = 0, .y = 1 }\n        }");
+    }
+
+    test generate_shape {
+        // line 62
+        var sh: [7]u32 = grid_shape();
+        const d: []const u8 = dims_of(&sh, 0);
+        assert(d == "[217][2][2][2][2][2][2]");
+        assert(next_base(&sh, 0) == TOTAL);
+    }
+
+    test ascii_gate {
+        // lines 135-136
+        assert(is_ascii("module w699_bench_module_217x2p6_aos_var_call_write\n\n"));
+        var s: []const u8 = "plain ascii text";
+        assert(is_ascii(s));
+        var c: u8 = 200;
+        assert(!is_ascii_byte(c));
+        var ok: u8 = 127;
+        assert(is_ascii_byte(ok));
+        var nb: [3]u8 = [111, 107, 200]; // 'o', 'k', then one non-ASCII byte
+        assert(!is_ascii(&nb));
+    }
+
+    test emit_helpers {
+        // the fixed-buffer stand-in for the Python's f-strings: emit_byte,
+        // emit_str and emit_u32 append bytes; u32_digits orders most
+        // significant first
+        g_len = 0;
+        emit_byte(65); // 'A'
+        emit_str("bc");
+        emit_u32(305);
+        assert(g_len == 6);
+        assert(g_text[0] == 65); // 'A'
+        assert(g_text[1] == 98); // 'b'
+        assert(g_text[2] == 99); // 'c'
+        assert(g_text[3] == 51); // '3'
+        assert(g_text[4] == 48); // '0'
+        assert(g_text[5] == 53); // '5'
+        assert(u32_digits(305) == 3);
+        assert(g_digits[0] == 51);
+        assert(g_digits[1] == 48);
+        assert(g_digits[2] == 53);
+        assert(u32_digits(7) == 1);
+        assert(g_digits[0] == 55);
+        assert(u32_digits(0) == 1);
+        assert(g_digits[0] == 48);
+    }
+
+    test emit_entry_row {
+        // line 43, as bytes: "Pt{ .x = 0, .y = 1 }" is 20 characters
+        g_len = 0;
+        emit_entry(0, 1);
+        assert(g_len == 20);
+        assert(g_text[0..g_len] == "Pt{ .x = 0, .y = 1 }");
+    }
+
+    test emit_node_leaf {
+        // emit_node on a depth-1 shape is the leaf branch build_tree uses
+        var shape: [1]u32 = [2];
+        g_len = 0;
+    const b: u32 = emit_node(&shape, 0, 0, 0);
+    assert(b == 2);
+    assert(g_len == 75); // the 4 build_tree tests pin these exact bytes
+    assert(g_text[0..g_len] == "    [2]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    }");
+    }
+}
