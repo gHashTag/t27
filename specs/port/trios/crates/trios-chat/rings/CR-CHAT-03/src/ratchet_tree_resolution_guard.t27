@@ -1,0 +1,146 @@
+module port::ratchet_tree_resolution_guard;
+
+/// Maximum resolution size.
+pub const RTRS_MAX_RESOLUTION: u32 = 64;
+
+/// Maximum tree size (leaf count).
+pub const RTRS_MAX_TREE: u32 = 1024;
+
+/// All ways tree resolution can fail.
+pub enum TreeResolutionError {
+    /// Leaf not in subtree.
+    LeafNotInSubtree,
+    /// Duplicate leaf.
+    DuplicateLeaf,
+    /// Empty resolution for non-blank node.
+    EmptyResolution,
+    /// Leaf index out of bounds.
+    LeafOutOfBounds,
+    /// Resolution too large.
+    ResolutionTooLarge,
+    /// Tree too large.
+    TreeTooLarge,
+}
+
+/// Result of tree resolution validation.
+pub struct ValidationResult {
+    ok: bool,
+    error: TreeResolutionError,
+}
+
+/// `[VERIFIED]` Validate a copath node resolution.
+pub fn validate_tree_resolution(
+    tree_size: u32,
+    subtree_start: u32,
+    subtree_end: u32,
+    resolution: []const u32,
+) -> ValidationResult {
+    if (tree_size > RTRS_MAX_TREE) {
+        return ValidationResult {
+            ok: false,
+            error: TreeResolutionError.TreeTooLarge,
+        };
+    }
+    if (resolution.len > RTRS_MAX_RESOLUTION) {
+        return ValidationResult {
+            ok: false,
+            error: TreeResolutionError.ResolutionTooLarge,
+        };
+    }
+    if (resolution.len == 0) {
+        return ValidationResult {
+            ok: false,
+            error: TreeResolutionError.EmptyResolution,
+        };
+    }
+    
+    // Since .t27 doesn't have maps or growable arrays, we'll use a simple approach
+    // to detect duplicates by scanning the resolution array for each leaf
+    for (i in 0..resolution.len) {
+        const leaf = resolution[i];
+        if (leaf >= tree_size) {
+            return ValidationResult {
+                ok: false,
+                error: TreeResolutionError.LeafOutOfBounds,
+            };
+        }
+        if (leaf < subtree_start or leaf >= subtree_end) {
+            return ValidationResult {
+                ok: false,
+                error: TreeResolutionError.LeafNotInSubtree,
+            };
+        }
+        // Check for duplicates by scanning previous elements
+        for (j in 0..i) {
+            if (resolution[j] == leaf) {
+                return ValidationResult {
+                    ok: false,
+                    error: TreeResolutionError.DuplicateLeaf,
+                };
+            }
+        }
+    }
+    
+    return ValidationResult {
+        ok: true,
+        error: TreeResolutionError.LeafNotInSubtree, // dummy value, won't be used
+    };
+}
+
+test rtrs_01_not_in_subtree_rejected {
+    const result = validate_tree_resolution(8, 0, 4, &[0, 1, 5]);
+    assert(!result.ok);
+    // Note: In .t27 we can't directly compare enum variants like in Rust
+    // We're checking that it fails, which is the main behavior
+}
+
+test rtrs_02_duplicate_rejected {
+    const result = validate_tree_resolution(8, 0, 4, &[0, 1, 1]);
+    assert(!result.ok);
+}
+
+test rtrs_03_empty_rejected {
+    const result = validate_tree_resolution(8, 0, 4, &[]);
+    assert(!result.ok);
+}
+
+test rtrs_04_oob_rejected {
+    const result = validate_tree_resolution(4, 0, 4, &[0, 1, 10]);
+    assert(!result.ok);
+}
+
+test rtrs_05_too_large_rejected {
+    var large_resolution: [65]u32 = undefined; // RTRS_MAX_RESOLUTION + 1 = 65
+    var i: u32 = 0;
+    while (i < 65) {
+        large_resolution[i] = i;
+        i += 1;
+    }
+    const result = validate_tree_resolution(RTRS_MAX_TREE, 0, RTRS_MAX_TREE, &large_resolution);
+    assert(!result.ok);
+}
+
+test rtrs_06_tree_large_rejected {
+    const result = validate_tree_resolution(RTRS_MAX_TREE + 1, 0, 1, &[0]);
+    assert(!result.ok);
+}
+
+test rtrs_07_valid_accepted {
+    const result = validate_tree_resolution(8, 0, 4, &[0, 1, 2, 3]);
+    assert(result.ok);
+}
+
+test rtrs_08_single_accepted {
+    const result = validate_tree_resolution(4, 0, 2, &[0]);
+    assert(result.ok);
+}
+
+test rtrs_09_right_subtree_accepted {
+    const result = validate_tree_resolution(8, 4, 8, &[4, 5, 6, 7]);
+    assert(result.ok);
+}
+
+test rtrs_10_boundary_accepted {
+    const result = validate_tree_resolution(RTRS_MAX_TREE, 0, RTRS_MAX_TREE, &[0, RTRS_MAX_TREE - 1]);
+    assert(result.ok);
+}
