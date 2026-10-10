@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/opt_void.t27 -- `?void`, an optional with a zero-bit payload, as the reference runs
+; it (gHashTag/t27#8694, a lane of #6063). Every test here passes `t27c test-report`; t27b must give the same
+; verdict on each, or refuse the file.
+; What t27c's Zig backend prints: `?void`, `return null;` and `return undefined;` as written. Zig lays the
+; optional out as one flag byte. `null` is the flag 0; `undefined` is the Debug build's fill byte 0xAA, which
+; reads as non-null. The corpus shape is gen_websocket.t27's `WebSocket_send`: null when closed, undefined when
+; open. Then: the value passed on as a `?void` parameter, held in a struct field between two others, and held
+; in a local that is written twice. Every test reads a field the calls write, so each has a runtime assert.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceOptVoid;
+
+const OvChan = struct {
+    open: bool,
+    sent: u32,
+};
+
+const OvSlot = struct {
+    lo: u8,
+    ack: ?void,
+    hi: u32,
+};
+
+/// gen_websocket.t27's WebSocket_send: null when closed, undefined (non-null) when open.
+fn ov_send(c: *OvChan) -> ?void {
+    if (!c.open) {
+        return null;
+    }
+    c.sent = c.sent + 1;
+    return undefined;
+}
+
+/// 1 for a non-null `?void`, 0 for null.
+fn ov_bit(a: ?void) -> u32 {
+    if (a == null) {
+        return 0;
+    }
+    return 1;
+}
+
+test closed_sends_null {
+    var c = OvChan{ .open = false, .sent = 0 };
+    assert(ov_send(&c) == null);
+    assert(c.sent == 0);
+}
+
+test open_sends_non_null {
+    var c = OvChan{ .open = true, .sent = 0 };
+    assert(ov_send(&c) != null);
+    assert(c.sent == 1);
+}
+
+test passed_on_as_a_parameter {
+    var c = OvChan{ .open = true, .sent = 0 };
+    assert(ov_bit(ov_send(&c)) == 1);
+    c.open = false;
+    assert(ov_bit(ov_send(&c)) == 0);
+    assert(c.sent == 1);
+}
+
+test held_in_a_field_between_two_others {
+    var c = OvChan{ .open = true, .sent = 0 };
+    var s = OvSlot{ .lo = 7, .ack = ov_send(&c), .hi = 40000 };
+    assert(s.ack != null);
+    assert(s.lo == 7 and s.hi == 40000);
+    c.open = false;
+    s.ack = ov_send(&c);
+    assert(s.ack == null);
+    assert(s.lo == 7 and s.hi == 40000 and c.sent == 1);
+}
+
+test held_in_a_local_written_twice {
+    var c = OvChan{ .open = false, .sent = 0 };
+    var a = ov_send(&c);
+    assert(a == null);
+    c.open = true;
+    a = ov_send(&c);
+    assert(a != null);
+    assert(c.sent == 1);
+}

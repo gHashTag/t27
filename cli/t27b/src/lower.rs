@@ -4457,11 +4457,6 @@ impl<'a> Lower<'a> {
             if matches!(inner, LTy::Opt(_)) {
                 return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
             }
-            // Its only non-null value is `undefined`, which Zig coerces to
-            // an undefined optional, null flag included.
-            if self.is_void(&inner) {
-                return self.reject("type ?void", format!("`{}`", t));
-            }
             return Ok(LTy::Opt(Box::new(inner)));
         }
         // A scoped path under `*` or `const`: t27c's type mapper replaces the
@@ -6285,6 +6280,9 @@ impl<'a> Lower<'a> {
     fn init(&mut self, n: &Node, dst: Place, fresh: bool, out: &mut Vec<Stmt>) -> R<()> {
         self.see(n);
         if is_undefined(n) {
+            if matches!(&dst.ty, LTy::Opt(t) if vb::undefined_optional(self.is_void(t)) == vb::SET_FLAG) { // `?void`: void_bind_plan.t27
+                out.push(Stmt::Store { addr: dst.addr, off: dst.off, value: Expr { ty: Ty::Bool, kind: ExprKind::Const(1) } });
+            }
             return Ok(());
         }
         let t = dst.ty.clone();
