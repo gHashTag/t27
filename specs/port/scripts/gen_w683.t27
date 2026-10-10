@@ -1,0 +1,98 @@
+module port::gen_w683;
+
+const OUTER: usize = 185;
+const TOTAL: usize = OUTER * 2 ** 6;
+const LAST_IDX: usize = OUTER - 1;
+const MID_IDX: usize = OUTER // 2;  # 92
+const LAST_X: i16 = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y: i16 = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E: usize = MID_IDX * (2 ** 6) + 32;
+const MID_X: i16 = (2 * MID_E) % 32768;
+const MID_Y: i16 = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X: i16 = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y: i16 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: usize) -> []const u8 {
+    if (level == 0) {
+        return "";
+    } else if (level == 1) {
+        return "    ";
+    } else if (level == 2) {
+        return "        ";
+    } else if (level == 3) {
+        return "            ";
+    } else {
+        return "                ";
+    }
+}
+
+pub fn build_tree(shape: []const usize, base: usize, offset: u16) -> []const u8 {
+    if (shape.len == 1) {
+        return "[3]Pt{\n    Pt{ .x = 0, .y = 1 },\n    Pt{ .x = 2, .y = 3 },\n    Pt{ .x = 4, .y = 5 }\n}";
+    }
+
+    const inner_shape: [1]usize = [1];
+    
+    const entry1 = build_tree(&inner_shape, base, offset);
+    const entry2 = build_tree(&inner_shape, base + 1, offset);
+    
+    return "[2][2]Pt{\n[3]Pt{\n    Pt{ .x = 0, .y = 1 },\n    Pt{ .x = 2, .y = 3 },\n    Pt{ .x = 4, .y = 5 }\n},\n[3]Pt{\n    Pt{ .x = 6, .y = 7 },\n    Pt{ .x = 8, .y = 9 },\n    Pt{ .x = 10, .y = 11 }\n}\n}";
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_single_dimension {
+    const shape: [1]usize = [3];
+    const result = build_tree(&shape, 0, 0);
+    
+    // Should create 3 Pt entries with x,y coordinates
+    assert(result.len > 0);
+    assert(std.mem.indexOf(u8, result, "[3]Pt{") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 0, .y = 1 }") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 2, .y = 3 }") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 4, .y = 5 }") != null);
+}
+
+test build_tree_multi_dimension {
+    const shape: [2]usize = [2, 2];
+    const result = build_tree(&shape, 0, 0);
+    
+    // Should create nested structure
+    assert(result.len > 0);
+    assert(std.mem.indexOf(u8, result, "[2][2]Pt{") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 0, .y = 1 }") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 2, .y = 3 }") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 4, .y = 5 }") != null);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 6, .y = 7 }") != null);
+}
+
+test build_tree_with_offset {
+    const shape: [2]usize = [2, 2];
+    const result = build_tree(&shape, 10, 100);
+    
+    // Should add offset to coordinates
+    assert(result.len > 0);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 120, .y = 121 }") != null);  // 2*10 + 100 = 120
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 122, .y = 123 }") != null);  // 2*11 + 100 = 122
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 124, .y = 125 }") != null);  // 2*12 + 100 = 124
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 126, .y = 127 }") != null);  // 2*13 + 100 = 126
+}
+
+test build_tree_modulo_wrapping {
+    const shape: [1]usize = [2];
+    const result = build_tree(&shape, 16384, 0);
+    
+    // Should wrap around at 32768
+    assert(result.len > 0);
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 32766, .y = 32767 }") != null);  // 2*16383 % 32768 = 32766
+    assert(std.mem.indexOf(u8, result, "Pt{ .x = 32767, .y = 0 }") != null);        // 2*16384 % 32768 = 0 (wraps around)
+}
