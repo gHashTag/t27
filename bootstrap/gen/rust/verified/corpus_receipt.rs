@@ -116,7 +116,7 @@ pub const REQUEST_NAMES: [&'static str; 6] = ["ADMIT", "BAD_NAME", "QUEUE_FULL",
 
 pub const REQUEST_SHA_LEN: u32 = 40;
 
-pub const REQUEST_QUEUE_MAX: u32 = 4;
+pub const REQUEST_QUEUE_MAX: u32 = 8;
 
 pub const REQUEST_AGE_MAX_S: u32 = 21600;
 

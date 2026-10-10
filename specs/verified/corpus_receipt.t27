@@ -182,8 +182,9 @@ pub const REQUEST_NAMES : [6]str = ["ADMIT", "BAD_NAME", "QUEUE_FULL", "EXPIRED"
 
 /// A request names a full commit sha, in git's lowercase spelling.
 pub const REQUEST_SHA_LEN : u32 = 40;
-/// At most this many requests wait; a lab run takes about 10 minutes.
-pub const REQUEST_QUEUE_MAX : u32 = 4;
+/// At most this many requests wait (#8637): a master run is followed by up to two requests (#8588), so
+/// eight drain in about four master cycles, inside REQUEST_AGE_MAX_S.
+pub const REQUEST_QUEUE_MAX : u32 = 8;
 /// A request not started within 6 hours of being written is dropped unrun.
 pub const REQUEST_AGE_MAX_S : u32 = 21600;
 /// A request whose sha is not on origin waits this long before it is dropped (#8320): long enough
@@ -759,7 +760,8 @@ test "a request runs only when every bound holds, its name judged first" {
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 0, true) == REQ_ADMIT;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 21600, 3, true) == REQ_ADMIT;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 21601, 0, true) == REQ_EXPIRED;
-    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 4, true) == REQ_QUEUE_FULL;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 8, true) == REQ_QUEUE_FULL;
+    assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 7, true) == REQ_ADMIT;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 0, 0, false) == REQ_WAIT_ORIGIN;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 1800, 3, false) == REQ_WAIT_ORIGIN;
     assert request_verdict("5f308712519557028d680357280bcc941e0ec222", 1801, 0, false) == REQ_NOT_ON_ORIGIN;
@@ -777,6 +779,6 @@ test "a request runs only when every bound holds, its name judged first" {
     assert text_is(REQUEST_NAMES[REQ_WAIT_ORIGIN], "WAIT_ORIGIN") == true;
     assert REQUEST_ORIGIN_GRACE_S == 1800;
     assert REQUEST_SHA_LEN == 40;
-    assert REQUEST_QUEUE_MAX == 4;
+    assert REQUEST_QUEUE_MAX == 8;
     assert REQUEST_AGE_MAX_S == 21600;
 }
