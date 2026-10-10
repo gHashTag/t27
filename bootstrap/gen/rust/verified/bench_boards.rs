@@ -325,27 +325,13 @@ pub fn reader_matches(b: u8, text: &'static str) -> bool {
     return true;
 }
 
-pub fn text_same(a: &'static str, b: &'static str) -> bool {
-    if ((a.len() as u32) != (b.len() as u32)) {
-        return false;
-    }
-    let mut k: u32 = 0;
-    while (k < (a.len() as u32)) {
-        if ((a.as_bytes()[(k) as usize] as u32) != (b.as_bytes()[(k) as usize] as u32)) {
-            return false;
-        }
-        k = (k + 1);
-    }
-    return true;
-}
-
 pub fn board_by_name(name: &'static str) -> u8 {
     if ((name.len() as u32) == 0) {
         return BOARD_DEFAULT;
     }
     let mut b: u8 = 0;
     while (b < BOARD_COUNT) {
-        if text_same(name, board_name(b)) {
+        if text_is(name, board_name(b)) {
             return b;
         }
         b = (b + 1);
@@ -618,6 +604,20 @@ pub fn fasm_site(fasm: &'static str, n: u32) -> u32 {
         k = (k + 1);
     }
     return s;
+}
+
+pub fn text_is(a: &'static str, b: &'static str) -> bool {
+    if ((a.len() as u32) != (b.len() as u32)) {
+        return false;
+    }
+    let mut k: u32 = 0;
+    while (k < (a.len() as u32)) {
+        if ((a.as_bytes()[(k) as usize] as u32) != (b.as_bytes()[(k) as usize] as u32)) {
+            return false;
+        }
+        k = (k + 1);
+    }
+    return true;
 }
 
 pub const AGREE_DIFFER: u8 = 3;

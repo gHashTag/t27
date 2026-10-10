@@ -7,6 +7,7 @@
 ; - specs/verified/device_dna.t27 owns the read itself: opcodes, decoding, well-formedness, agreement.
 ; - specs/verified/die_binding.t27 owns the v2 message, the die level, the count rule
 ;   dna_read_allowed() (exactly one cable), and the parse of a tagged read (reader_raw).
+; - specs/verified/corpus_receipt.t27's text_is() compares two names (tools/dupe_scan.py).
 ; --
 ; Why: until this file, t27c silicon had one part (xc7a200tfbg676-1), one cable kind (FT232H 0403:6014)
 ; and one TAP (irlen 6, 0x13636093) in its Rust and in die_binding.t27's DNA_READER. Its cable rule
@@ -58,6 +59,7 @@ module VerifiedBenchBoards;
 
 use verified::device_dna;
 use verified::die_binding;
+use verified::corpus_receipt;
 
 /// The rows. --board names one by board_name(); no name is the default row.
 pub const BOARD_ARTIX200T : u8 = 0;
@@ -300,22 +302,12 @@ pub fn reader_matches(b: u8, text: string) -> bool {
 
 ; --- Which row --board names ----------------------------------------------------------------------
 
-pub fn text_same(a: string, b: string) -> bool {
-    if ((a.len as u32) != (b.len as u32)) { return false; }
-    var k : u32 = 0;
-    while (k < (a.len as u32)) {
-        if ((a[k] as u32) != (b[k] as u32)) { return false; }
-        k = k + 1;
-    }
-    return true;
-}
-
 /// The row a name picks: no name is the default row, an unknown name is BOARD_NONE.
 pub fn board_by_name(name: string) -> u8 {
     if ((name.len as u32) == 0) { return BOARD_DEFAULT; }
     var b : u8 = 0;
     while (b < BOARD_COUNT) {
-        if (text_same(name, board_name(b))) { return b; }
+        if (text_is(name, board_name(b))) { return b; }
         b = b + 1;
     }
     return BOARD_NONE;
@@ -541,9 +533,9 @@ pub fn fasm_site(fasm: string, n: u32) -> u32 {
 test "the default row is what t27c silicon assumed until now" {
     var b : u8 = BOARD_ARTIX200T;
     assert board_by_name("") == b;
-    assert text_same(board_part(b), "xc7a200tfbg676-1");
-    assert text_same(board_family(b), "artix7");
-    assert text_same(board_cable(b), "digilent_hs2");
+    assert text_is(board_part(b), "xc7a200tfbg676-1");
+    assert text_is(board_family(b), "artix7");
+    assert text_is(board_cable(b), "digilent_hs2");
     assert board_pid(b) == 0x6014;
     assert board_has_serial(b) == false;
     assert chain_len(b) == 1;
@@ -571,8 +563,8 @@ test "the ax7203 row picks its cable by serial and keeps the one-TAP chain" {
     var r : string = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6014; adapter serial 210512180081; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x13636093; init; irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
     assert reader_matches(BOARD_AX7203, r);
     assert board_by_name("ax7203") == BOARD_AX7203;
-    assert text_same(board_part(BOARD_AX7203), "xc7a200tfbg484-2");
-    assert text_same(board_family(BOARD_AX7203), "artix7");
+    assert text_is(board_part(BOARD_AX7203), "xc7a200tfbg484-2");
+    assert text_is(board_family(BOARD_AX7203), "artix7");
     assert board_idcode(BOARD_AX7203) == board_idcode(BOARD_ARTIX200T);
     assert reader_len(BOARD_AX7203) == reader_len(BOARD_ARTIX200T) + 29;
 }
@@ -582,9 +574,9 @@ test "die D's row declares the Zynq chain and opens its own cable" {
     var r : string = "adapter driver ftdi; ftdi vid_pid 0x0403 0x6010; adapter serial 210203859289; ftdi channel 0; ftdi layout_init 0x00e8 0x60eb; adapter speed 1000; transport select jtag; jtag newtap xc7 tap -irlen 6 -expected-id 0x23727093; jtag newtap arm dap -irlen 4 -expected-id 0x4ba00477; init; irscan xc7.tap 0x09; echo [concat PL_IDCODE [drscan xc7.tap 32 0]]; irscan xc7.tap 0x32; echo [concat FUSE_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; irscan xc7.tap 0x10; runtest 64; irscan xc7.tap 0x17; echo [concat XSC_DNA [drscan xc7.tap 32 0xffffffff 32 0xffffffff]]; runtest 64; irscan xc7.tap 0x16; runtest 64; irscan xc7.tap 0x3f; shutdown";
     assert reader_matches(b, r);
     assert board_by_name("pzsdr-d") == b;
-    assert text_same(board_part(b), "xc7z020clg400-1");
-    assert text_same(board_family(b), "zynq7");
-    assert text_same(board_cable(b), "digilent");
+    assert text_is(board_part(b), "xc7z020clg400-1");
+    assert text_is(board_family(b), "zynq7");
+    assert text_is(board_cable(b), "digilent");
     assert board_pid(b) == 0x6010;
     assert chain_len(b) == 2;
     assert pl_pos(b) == 1;
@@ -668,7 +660,7 @@ test "a name that is not a row picks no board" {
     assert board_by_name("ax72033") == BOARD_NONE;
     assert board_by_name("PZSDR-D") == BOARD_NONE;
     assert board_by_name("zynq") == BOARD_NONE;
-    assert text_same(board_name(BOARD_NONE), "");
+    assert text_is(board_name(BOARD_NONE), "");
     assert dna_pick("", "", BOARD_NONE) == PICK_NO_BOARD;
     assert dna_pick("", "", BOARD_COUNT) == PICK_NO_BOARD;
 }
@@ -800,9 +792,9 @@ test "every refusal says why, and only PICK_OK reads" {
         c = c + 1;
     }
     assert named == 8;
-    assert text_same(pick_why(PICK_OK), "read");
-    assert text_same(pick_why(PICK_TWO_CABLES), pick_why(PICK_NO_CABLE)) == false;
-    assert text_same(pick_why(PICK_WRONG_DIE), pick_why(PICK_READ_WRONG_DIE)) == false;
+    assert text_is(pick_why(PICK_OK), "read");
+    assert text_is(pick_why(PICK_TWO_CABLES), pick_why(PICK_NO_CABLE)) == false;
+    assert text_is(pick_why(PICK_WRONG_DIE), pick_why(PICK_READ_WRONG_DIE)) == false;
 }
 
 test "a two-digit BSCAN site is not read as one digit (W693)" {

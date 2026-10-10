@@ -1,6 +1,10 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+12c6d9140",
+  "built_by": "t27c-bootstrap@0.5.2+ddb84c5f5",
   "closure": [
+    {
+      "spec": "specs/verified/corpus_receipt.t27",
+      "spec_hash": "sha256:e0d40083b6171c1e31f06f2e9c196ee5987930ec135241ed99661bef9808a4bd"
+    },
     {
       "spec": "specs/verified/device_dna.t27",
       "spec_hash": "sha256:04b88f6195af63fa1bc343ab0d874b5e5444d1b3c770990894ba4a747c4182e5"
@@ -11,16 +15,16 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:711e421a6f11dab9b6090689a064ad9b8bdd56d48a3b7998b86e37a046393020",
-  "gen_hash_rust": "sha256:4cfaef3f81adec04dbb580382e645995d5e18955f655a6870f0981468721ae40",
-  "gen_hash_verilog": "sha256:0e116742ab53643a2d265fe9b142ed1b5f969463d46f87f93892fccaf3bd60dc",
-  "gen_hash_zig": "sha256:1fb3ec18b35533869bd01ab73b05f2adf24b7a163cd3d501af8668ed3aae15cb",
+  "gen_hash_c": "sha256:6d4e895b76556d203e6defbbc7e77f0412976a137ead3ac853eda1095a8431ac",
+  "gen_hash_rust": "sha256:adc58adeb455a476dbdd5dff1be07b0cf6088e3e0d956bab0acff3bfe25aea88",
+  "gen_hash_verilog": "sha256:a72d9cf93c900f72acd7de1697caafd40adb675eadadd460f4223257ee61e966",
+  "gen_hash_zig": "sha256:335d9084567b2ae296770df3b4251241a206a77f9918edc1840ee75ccd5ea850",
   "module": "VerifiedBenchBoards",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T19:35:58Z",
+  "sealed_at": "2026-10-10T20:15:31Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:8f76f880cd535d4b096d4ab3fc09830893e05eab6db4ed2107f2b0138fb35af2",
+  "spec_hash": "sha256:16e3572c3a25b6ac813a84bed798480c2012d1f98479fb58216e542032c72b12",
   "spec_path": "specs/verified/bench_boards.t27",
   "tests": {
     "failed": 0,
