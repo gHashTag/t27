@@ -1,0 +1,898 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/vault/policy.t27 -- the vault: who may lease which secret, for how long, to which host, and
+; who may put, rotate, export or break the glass
+; The owner, 2026-10-10 (gHashTag/trios#1759, translated): build our own service for storing keys, in
+; .t27, and for managing them: for working with agents and for convenient migration.
+; Measured before this card:
+; - the keys live in Railway variables, spread over 59 services (hosting/topology.t27 counts 48 rows
+;   that hold any variable), in an account that may be cut off (gHashTag/t27#8675). A second copy of
+;   many of them lives in Infisical. The only portable copy is the owner's `age` file of 2026-10-10;
+; - agents read keys today by running `railway variables --kv` or `infisical secrets get NAME`, so a
+;   value lands in the agent's own context and in its tool log.
+; The design rules of #1759, as this card holds them:
+; - an agent asks for a capability by NAME, through a scope. The vault puts the values straight into
+;   the environment of a child process (`run --scope S -- cmd`); no value reaches stdout, a log, an
+;   event, a receipt or a response body. Not even the lease response carries one in the clear: it is
+;   encrypted to a recipient the requesting process made for that one lease;
+; - only the owner enters or rotates a value, at a terminal prompt. A pipe is accepted only when the
+;   owner says so with an explicit flag, for an import;
+; - every value is encrypted at rest with age (X25519, ChaCha20-Poly1305) to the vault's identity and
+;   to the owner's recovery recipient, so the store alone moves to a new machine;
+; - a requester proves who it is with an Ed25519 signature over the request (a host key of
+;   gHashTag/trios#1756, or a per-service key). There is no bearer password;
+; - every lease, deny, put, rotate and export is an event (audit.t27). An event names names, scopes and
+;   hashes of ciphertexts and requests, never a value and never a hash of a value.
+; Reused, not restated: the trust tiers, the workload rule and the request window of hosting/host.t27
+; (TIER_*, TIERS, eligible, WC_SERVICE, REQUEST_SKEW_SECONDS, request_fresh), and the nonce and key id
+; sizes of verified/signed_receipt.t27 (NONCE_MIN_BYTES, KEY_ID_HEX_LEN). Whether a host may hold a
+; secret at all, and whether it may hold personal data, is host.t27 eligible, asked here for a service
+; that holds a secret; this card adds only how far each class of secret may go below that.
+; Not here: what an event carries (audit.t27); how two imported copies of a value are found and merged
+; (merge.t27); the store, the HTTP, the signatures and age itself (gHashTag/trios).
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VaultPolicy;
+
+use hosting::host::TIER_OWNER;
+use hosting::host::TIER_TRUSTED;
+use hosting::host::TIER_PUBLIC;
+use hosting::host::TIERS;
+use hosting::host::WC_SERVICE;
+use hosting::host::eligible;
+use hosting::host::REQUEST_SKEW_SECONDS;
+use hosting::host::request_fresh;
+use verified::signed_receipt::NONCE_MIN_BYTES;
+use verified::signed_receipt::KEY_ID_HEX_LEN;
+
+; --- 1. Outcomes ----------------------------------------------------------------------------------
+; One code space for every decision of the vault, so a deny event carries one number and the reader
+; looks it up in CODE_NAMES. merge.t27 decides with the same codes.
+
+pub const CODE_OK : u8 = 0;
+pub const DENY_SIGNATURE : u8 = 1;
+pub const DENY_STALE : u8 = 2;
+pub const DENY_REPLAY : u8 = 3;
+pub const DENY_PUBLIC_TIER : u8 = 4;
+pub const DENY_NO_GRANT : u8 = 5;
+pub const DENY_NOT_IN_SCOPE : u8 = 6;
+pub const DENY_CLASS_TIER : u8 = 7;
+pub const DENY_LEASE_UNKNOWN : u8 = 8;
+pub const DENY_LEASE_EXPIRED : u8 = 9;
+pub const DENY_RENEWALS_SPENT : u8 = 10;
+pub const DENY_LEASE_REVOKED : u8 = 11;
+pub const DENY_NOT_HOLDER : u8 = 12;
+pub const DENY_NOT_OWNER : u8 = 13;
+pub const DENY_NOT_TTY : u8 = 14;
+pub const DENY_EXPORT_TARGET : u8 = 15;
+pub const DENY_NO_REASON : u8 = 16;
+pub const DENY_NO_AUDIT : u8 = 17;
+pub const DENY_BAD_NAME : u8 = 18;
+pub const DENY_EXISTS : u8 = 19;
+pub const DENY_MISSING : u8 = 20;
+pub const DENY_BAD_CIPHERTEXT : u8 = 21;
+pub const DENY_EMPTY_SCOPE : u8 = 22;
+pub const DENY_TOO_MANY : u8 = 23;
+pub const DENY_NONCE_FULL : u8 = 24;
+pub const DENY_GRANT_TIER : u8 = 25;
+pub const DENY_DUPLICATE_IN_STREAM : u8 = 26;
+pub const DENY_MERGE_SMALL : u8 = 27;
+pub const DENY_MERGE_CONFLICT : u8 = 28;
+pub const DENY_MERGE_KEEPER : u8 = 29;
+pub const DENY_MERGE_TAKEN : u8 = 30;
+pub const DENY_MERGE_CLASS : u8 = 31;
+pub const DENY_ALIAS : u8 = 32;
+pub const DENY_LEASE_ROTATED : u8 = 33;
+pub const CODES : u8 = 34;
+pub const CODE_NAMES : [34]str = ["ok", "signature", "stale", "replay", "public-tier", "no-grant", "not-in-scope", "class-tier", "lease-unknown", "lease-expired", "renewals-spent", "lease-revoked", "not-holder", "not-owner", "not-tty", "export-target", "no-reason", "no-audit", "bad-name", "exists", "missing", "bad-ciphertext", "empty-scope", "too-many", "nonce-full", "grant-tier", "duplicate-in-stream", "merge-small", "merge-conflict", "merge-keeper", "merge-taken", "merge-class", "alias", "lease-rotated"];
+
+; --- 2. Secret classes ----------------------------------------------------------------------------
+; What kind of thing a secret is decides how far it may travel and how long it may live.
+; - provider-api-key: a key to a paid API (an LLM, an image model). Leaks cost money, and the provider
+;   can revoke it in a minute.
+; - db-url: a connection string to a store. A store holds personal data at rest (topology.t27 counts it
+;   so), and host.t27 eligible never gives personal data to a trusted host, so a db-url stays on the
+;   owner's machines: CLASS_PERSONAL says so, and host.t27 decides it.
+; - bot-token: a Telegram or other bot token. It speaks as the bot, but it reaches no stored data.
+; - signing-key: a key that signs receipts, releases or payouts. Whoever holds it is the project; it
+;   stays on the owner's machines.
+; - oauth: a client secret or a refresh token of an OAuth app.
+; - other: anything not yet classified. Unknown is treated as the worst case (it may reach personal
+;   data and it may be a signing key), so it stays on the owner's machines until the owner names its
+;   class.
+; A secret of a class reaches a host when host.t27 eligible lets that host run a service holding a
+; secret, and personal data when CLASS_PERSONAL says the class may reach it; and when the host is no
+; less trusted than CLASS_TIER_CEILING. The ceiling holds only what host.t27 does not say: a signing key
+; stays on the owner's machines. eligible never lets a public host hold a secret, and never lets a
+; trusted one reach personal data, so those two refusals are host.t27's, not restated here.
+
+pub const CLASS_PROVIDER_API_KEY : u8 = 0;
+pub const CLASS_DB_URL : u8 = 1;
+pub const CLASS_BOT_TOKEN : u8 = 2;
+pub const CLASS_SIGNING_KEY : u8 = 3;
+pub const CLASS_OAUTH : u8 = 4;
+pub const CLASS_OTHER : u8 = 5;
+pub const SECRET_CLASSES : u8 = 6;
+pub const CLASS_NONE : u8 = 255;
+pub const CLASS_NAMES : [6]str = ["provider-api-key", "db-url", "bot-token", "signing-key", "oauth", "other"];
+pub const CLASS_TIER_CEILING : [6]u8 = [1, 1, 1, 0, 1, 1];
+pub const CLASS_PERSONAL : [6]u8 = [0, 1, 0, 0, 0, 1];
+
+/// The class a request names, or the worst case for a number that is not one.
+pub fn class_or_other(class: u8) -> u8 {
+    if (class < SECRET_CLASSES) { return class; }
+    return CLASS_OTHER;
+}
+
+/// Whether a host of this tier may hold any secret at all: host.t27's rule for a service that holds
+/// one and no personal data. A tier that is not one holds nothing.
+pub fn may_hold_secret(tier: u8) -> bool {
+    return eligible(tier, WC_SERVICE, true, false);
+}
+
+/// Whether a secret of this class may go to a host of this tier.
+pub fn class_reaches(class: u8, tier: u8) -> bool {
+    var c : u8 = class_or_other(class);
+    if (eligible(tier, WC_SERVICE, true, CLASS_PERSONAL[c] == 1) == false) { return false; }
+    return tier <= CLASS_TIER_CEILING[c];
+}
+
+; --- 3. Names, scopes, sources ---------------------------------------------------------------------
+; A secret's NAME is the name of the environment variable it becomes: a letter or an underscore, then
+; letters, digits and underscores, at most NAME_MAX. A name is the only thing an agent ever holds.
+; A scope is a set of names one workload leases together (one service, usually). A scope name and a
+; source label are tokens: letters, digits and `.`, `_`, `-`; a source label may also hold `:`
+; (`infisical:prod`, `railway:999`).
+; A secret's id is its NAME when the owner put it, and `source/service/NAME` (or `source/NAME` when the
+; source has no services) when it was imported, so two services' DATABASE_URL never collide. An id is
+; at most ID_MAX, and what follows its last `/` is a NAME.
+
+pub const NAME_MAX : usize = 64;
+pub const SCOPE_MAX : usize = 64;
+pub const ID_MAX : usize = 192;
+
+pub fn name_char(c: u8, first: bool) -> bool {
+    if (c >= 65 and c <= 90) { return true; }
+    if (c >= 97 and c <= 122) { return true; }
+    if (c == 95) { return true; }
+    if (first) { return false; }
+    return c >= 48 and c <= 57;
+}
+
+pub fn name_ok(buf: []const u8, n: usize) -> bool {
+    if (n == 0 or n > NAME_MAX) { return false; }
+    var i : usize = 0;
+    while (i < n) {
+        if (name_char(buf[i], i == 0) == false) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn token_char(c: u8, colon: bool) -> bool {
+    if (c >= 65 and c <= 90) { return true; }
+    if (c >= 97 and c <= 122) { return true; }
+    if (c >= 48 and c <= 57) { return true; }
+    if (c == 46 or c == 95 or c == 45) { return true; }
+    return colon and c == 58;
+}
+
+pub fn scope_ok(buf: []const u8, n: usize) -> bool {
+    if (n == 0 or n > SCOPE_MAX) { return false; }
+    var i : usize = 0;
+    while (i < n) {
+        if (token_char(buf[i], false) == false) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn source_ok(buf: []const u8, n: usize) -> bool {
+    if (n == 0 or n > SCOPE_MAX) { return false; }
+    var i : usize = 0;
+    while (i < n) {
+        if (token_char(buf[i], true) == false) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// An id: one to three `/`-separated parts, none empty, the last a NAME, the others tokens (`:` too).
+pub fn id_ok(buf: []const u8, n: usize) -> bool {
+    if (n == 0 or n > ID_MAX) { return false; }
+    var parts : u32 = 1;
+    var start : usize = 0;
+    var i : usize = 0;
+    while (i < n) {
+        var c : u8 = buf[i];
+        if (c == 47) {
+            if (i == start) { return false; }
+            parts = parts + 1;
+            if (parts > 3) { return false; }
+            start = i + 1;
+        } else {
+            if (token_char(c, true) == false) { return false; }
+        }
+        i = i + 1;
+    }
+    if (start >= n) { return false; }
+    if (n - start > NAME_MAX) { return false; }
+    var j : usize = start;
+    while (j < n) {
+        if (name_char(buf[j], j == start) == false) { return false; }
+        j = j + 1;
+    }
+    return true;
+}
+
+; --- 4. Requests ----------------------------------------------------------------------------------
+; Every request is signed with the requester's Ed25519 key over REQUEST_DOMAIN, then one `name=value`
+; line per REQUEST_SIGNED_FIELDS (signed_receipt.t27's layout). The time keeps a captured request from
+; being used later (host.t27 request_fresh); the nonce keeps it from being used twice inside the window.
+; A nonce is kept until its request's time is out of the window, and no longer: past that the time
+; alone refuses it. The cache is bounded; when it is full the vault refuses rather than forgets.
+; The order matters: an unsigned request is refused before it can spend a place in the nonce cache.
+; A captured lease request is worth nothing even when replayed in time: its answer is encrypted to the
+; one-lease recipient of the process that made it.
+
+pub const REQUEST_DOMAIN : str = "trios-vault-request-v1";
+pub const REQUEST_SIGNED_FIELDS : [6]str = ["method", "path", "key", "utc_unix", "nonce", "body_sha256"];
+pub const NONCE_CACHE_MAX : u32 = 100000;
+
+pub fn request_code(key_known: bool, signature_ok: bool, skew_seconds: u32, nonce_bytes: u32, nonce_seen: bool, cache_size: u32) -> u8 {
+    if (key_known == false or signature_ok == false) { return DENY_SIGNATURE; }
+    if (nonce_bytes < (NONCE_MIN_BYTES as u32)) { return DENY_SIGNATURE; }
+    if (request_fresh(skew_seconds) == false) { return DENY_STALE; }
+    if (nonce_seen) { return DENY_REPLAY; }
+    if (cache_size >= NONCE_CACHE_MAX) { return DENY_NONCE_FULL; }
+    return CODE_OK;
+}
+
+/// When a nonce may be forgotten: the moment its request's own time leaves the window.
+pub fn nonce_forget_at(utc_unix: u64) -> u64 {
+    return utc_unix + (REQUEST_SKEW_SECONDS as u64) + 1;
+}
+
+; Which refusals are written to the audit (audit.t27 EV_DENY). A request from a key the vault has not
+; granted is refused without a record: it carries only what a stranger chose to send, and recording it
+; would let anyone on the network grow the owner's database one row per request. Every refusal of a
+; key the vault knows is recorded, the owner's included.
+pub fn deny_recorded(key_known: bool) -> bool {
+    return key_known;
+}
+
+; --- 5. Operations, and who may do each -------------------------------------------------------------
+; A workload (a granted key of a trusted or owner tier) leases, renews, revokes and lists the names it
+; may lease. Everything that adds, changes, reads out or reorganizes secrets is the owner's alone: an
+; owner-tier key. Reading the audit log is the owner's too: it lists which services hold what.
+
+pub const OP_LEASE : u8 = 0;
+pub const OP_RENEW : u8 = 1;
+pub const OP_REVOKE : u8 = 2;
+pub const OP_NAMES : u8 = 3;
+pub const OP_PUT : u8 = 4;
+pub const OP_ROTATE : u8 = 5;
+pub const OP_IMPORT : u8 = 6;
+pub const OP_EXPORT : u8 = 7;
+pub const OP_GRANT : u8 = 8;
+pub const OP_AUDIT : u8 = 9;
+pub const OP_BREAK_GLASS : u8 = 10;
+pub const OP_DEDUP : u8 = 11;
+pub const OP_MERGE : u8 = 12;
+pub const OP_CLASS : u8 = 13;
+pub const OP_BIND : u8 = 14;
+pub const OPS : u8 = 15;
+pub const OP_NAMES_TEXT : [15]str = ["lease", "renew", "revoke", "names", "put", "rotate", "import", "export", "grant", "audit", "break-glass", "dedup", "merge", "class", "bind"];
+pub const OP_OWNER_ONLY : [15]u8 = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+pub fn op_code(tier: u8, op: u8) -> u8 {
+    if (op >= OPS) { return DENY_NOT_OWNER; }
+    if (may_hold_secret(tier) == false) { return DENY_PUBLIC_TIER; }
+    if (OP_OWNER_ONLY[op] == 1 and tier != TIER_OWNER) { return DENY_NOT_OWNER; }
+    return CODE_OK;
+}
+
+/// A grant names a workload key, its tier and its scopes. Only a tier that may hold a secret at all
+/// can be granted: a public host never holds one (host.t27 eligible). An owner key is granted its
+/// scopes like any other: being the owner lets a key put and export, not lease every scope; outside
+/// its grants the owner leases only through break-glass (section 11).
+pub fn grant_code(tier: u8) -> u8 {
+    if (may_hold_secret(tier) == false) { return DENY_GRANT_TIER; }
+    return CODE_OK;
+}
+
+; --- 6. Leasing ------------------------------------------------------------------------------------
+; A lease is for one scope. The scope is judged first (scope_code): the requester's tier may hold a
+; secret and the scope is granted to its key; so a key without the grant learns nothing about the
+; scope, not even whether it is empty. Then each name bound in the scope is judged on its own: it is
+; bound to a secret that exists, and that secret's class reaches the tier. The lease is all or nothing:
+; one refused name refuses the lease, with that name's code, so a workload never starts with half its
+; environment. An empty scope is refused too, so a typo in a scope name is an error, not a child
+; started with nothing. Listing a scope's names (OP_NAMES) asks scope_code alone.
+
+pub fn scope_code(tier: u8, granted: bool) -> u8 {
+    if (may_hold_secret(tier) == false) { return DENY_PUBLIC_TIER; }
+    if (granted == false) { return DENY_NO_GRANT; }
+    return CODE_OK;
+}
+
+pub fn lease_code(tier: u8, granted: bool, bound: bool, class: u8) -> u8 {
+    var scoped : u8 = scope_code(tier, granted);
+    if (scoped != CODE_OK) { return scoped; }
+    if (bound == false) { return DENY_NOT_IN_SCOPE; }
+    if (class_reaches(class, tier) == false) { return DENY_CLASS_TIER; }
+    return CODE_OK;
+}
+
+pub fn lease_admitted(bound_names: u32, refused_names: u32, first_refusal: u8) -> u8 {
+    if (bound_names == 0) { return DENY_EMPTY_SCOPE; }
+    if (refused_names > 0) {
+        if (first_refusal == CODE_OK or first_refusal >= CODES) { return DENY_NOT_IN_SCOPE; }
+        return first_refusal;
+    }
+    return CODE_OK;
+}
+
+; A lease lives LEASE_TTL_SECONDS and may be renewed RENEWALS_MAX times, each renewal giving a fresh
+; TTL from the moment of the renewal; then the workload must lease again. The numbers are a choice, not
+; a measurement: fifteen minutes is short enough that a revoked or rotated name stops being renewed
+; within a quarter hour, and 96 renewals keep a service up for a day before it leases anew.
+; The workload renews once RENEW_AT_PERCENT of its TTL has passed. When a renewal is refused, or the
+; lease runs out because the vault could not be reached, `run` stops its child: a value is not used past
+; its lease. Rotating a name, giving it a new class, or a merge that drops its value (merge.t27
+; merge_revokes) marks every lease holding it rotated, and a rotated lease is refused its next renewal;
+; so a new value, or a narrower reach, applies to every running workload within one TTL, through a
+; fresh lease that is judged again.
+
+pub const LEASE_TTL_SECONDS : u64 = 900;
+pub const RENEWALS_MAX : u32 = 96;
+pub const RENEW_AT_PERCENT : u64 = 50;
+pub const LEASE_LIFETIME_MAX_SECONDS : u64 = 90000;
+pub const BREAK_GLASS_TTL_SECONDS : u64 = 300;
+
+pub fn lease_ttl(break_glass: bool) -> u64 {
+    if (break_glass) { return BREAK_GLASS_TTL_SECONDS; }
+    return LEASE_TTL_SECONDS;
+}
+
+pub fn renewals_cap(break_glass: bool) -> u32 {
+    if (break_glass) { return 0; }
+    return RENEWALS_MAX;
+}
+
+pub fn expires_at(now: u64, break_glass: bool) -> u64 {
+    return now + lease_ttl(break_glass);
+}
+
+pub fn lease_live(now: u64, expires: u64) -> bool {
+    return now < expires;
+}
+
+pub fn renew_code(holder: bool, revoked: bool, rotated: bool, now: u64, expires: u64, renewals: u32, break_glass: bool) -> u8 {
+    if (holder == false) { return DENY_NOT_HOLDER; }
+    if (revoked) { return DENY_LEASE_REVOKED; }
+    if (rotated) { return DENY_LEASE_ROTATED; }
+    if (lease_live(now, expires) == false) { return DENY_LEASE_EXPIRED; }
+    if (renewals >= renewals_cap(break_glass)) { return DENY_RENEWALS_SPENT; }
+    return CODE_OK;
+}
+
+/// Revoking is the holder's or the owner's; a lease already revoked or expired revokes again quietly.
+pub fn revoke_code(holder: bool, owner: bool) -> u8 {
+    if (holder or owner) { return CODE_OK; }
+    return DENY_NOT_HOLDER;
+}
+
+pub fn renew_due(held_seconds: u64, break_glass: bool) -> bool {
+    if (renewals_cap(break_glass) == 0) { return false; }
+    return held_seconds * 100 >= lease_ttl(break_glass) * RENEW_AT_PERCENT;
+}
+
+pub fn child_must_stop(refused: bool, left_seconds: u64) -> bool {
+    return refused or left_seconds == 0;
+}
+
+; --- 7. Delivery -----------------------------------------------------------------------------------
+; The audit event is written before anything is delivered. A lease, an export or a break-glass whose
+; event could not be written is refused: an access with no record is the one thing the vault must
+; never do.
+
+pub fn deliver_code(audit_written: bool) -> u8 {
+    if (audit_written) { return CODE_OK; }
+    return DENY_NO_AUDIT;
+}
+
+; --- 8. Putting and rotating -----------------------------------------------------------------------
+; Only the owner, and only from a terminal: the CLI reads the value at a prompt with echo off and
+; refuses a stdin that is not a terminal unless the owner passed --stdin (an import pipeline). A value
+; is never an argument, so it never lands in a shell history or a process list. The vault cannot see
+; the owner's terminal; it records which of the two the CLI used.
+; The CLI encrypts the value itself, to the vault's recipient and the recovery recipient, and sends
+; only the ciphertext. The vault keeps a row only when it opens with the vault's identity (into nothing:
+; the plaintext is discarded unread) and carries exactly ROW_RECIPIENTS recipient stanzas.
+; put makes a new name and refuses an existing one; rotate replaces an existing one and refuses a new
+; one, so a typo in rotate never creates a second secret.
+
+pub const INPUT_TTY : u8 = 0;
+pub const INPUT_STDIN : u8 = 1;
+pub const INPUT_NAMES : [2]str = ["tty", "stdin"];
+pub const ROW_RECIPIENTS : u32 = 2;
+
+pub fn input_code(is_tty: bool, stdin_flag: bool) -> u8 {
+    if (is_tty or stdin_flag) { return CODE_OK; }
+    return DENY_NOT_TTY;
+}
+
+pub fn put_code(id_valid: bool, exists: bool, rotate: bool) -> u8 {
+    if (id_valid == false) { return DENY_BAD_NAME; }
+    if (rotate == false and exists) { return DENY_EXISTS; }
+    if (rotate and exists == false) { return DENY_MISSING; }
+    return CODE_OK;
+}
+
+pub fn row_code(opens: bool, stanzas: u32) -> u8 {
+    if (opens == false or stanzas != ROW_RECIPIENTS) { return DENY_BAD_CIPHERTEXT; }
+    return CODE_OK;
+}
+
+; --- 9. Rotation age -------------------------------------------------------------------------------
+; A value older than its class's ROTATE_AFTER_DAYS is due for rotation, and so is every value a
+; break-glass lease touched, whatever its age. An imported value's age is counted from its import: the
+; vault cannot know when a provider issued it. A due name raises one alarm event, then again every
+; ALARM_EVERY_SECONDS while it stays due. The days are a choice: provider keys and OAuth secrets
+; quarterly, connection strings and bot tokens twice a year, signing keys yearly.
+; The vault looks for due names, and for leases that ran out (an expire event each), when a request
+; arrives SWEEP_EVERY_SECONDS or more after its last look. A vault nobody asks writes nothing; the next
+; request finds what fell due meanwhile.
+
+pub const ROTATE_AFTER_DAYS : [6]u32 = [90, 180, 180, 365, 90, 180];
+pub const ALARM_EVERY_SECONDS : u32 = 86400;
+pub const SWEEP_EVERY_SECONDS : u32 = 3600;
+
+pub fn sweep_due(seconds_since: u32, swept_before: bool) -> bool {
+    if (swept_before == false) { return true; }
+    return seconds_since >= SWEEP_EVERY_SECONDS;
+}
+
+pub fn rotation_due(class: u8, age_days: u32, broken_glass: bool) -> bool {
+    if (broken_glass) { return true; }
+    return age_days >= ROTATE_AFTER_DAYS[class_or_other(class)];
+}
+
+pub fn alarm_due(due: bool, alarmed_before: bool, seconds_since: u32) -> bool {
+    if (due == false) { return false; }
+    if (alarmed_before == false) { return true; }
+    return seconds_since >= ALARM_EVERY_SECONDS;
+}
+
+; --- 10. Export ------------------------------------------------------------------------------------
+; An export is one age file holding every secret as `NAME=value` lines, encrypted to the recovery
+; recipient alone: not to the vault, not to any other recipient a request names. So it opens with the
+; owner's recovery identity, which lives only in his password manager, on any machine, with the stock
+; `age` tool, and `import` reads it back. Nothing leaves the vault in the clear.
+
+pub const EXPORT_RECIPIENTS : u32 = 1;
+
+pub fn export_code(tier: u8, to_recovery: bool, recipients: u32) -> u8 {
+    if (tier != TIER_OWNER) { return DENY_NOT_OWNER; }
+    if (to_recovery == false or recipients != EXPORT_RECIPIENTS) { return DENY_EXPORT_TARGET; }
+    return CODE_OK;
+}
+
+; --- 11. Break-glass -------------------------------------------------------------------------------
+; When a workload cannot lease what it needs and the owner must act now, the owner may lease named
+; secrets outside every grant. It is the owner's key only, never a public host (op_code), with a reason
+; of REASON_MIN to REASON_MAX bytes, for at most BREAK_GLASS_NAMES_MAX names, for BREAK_GLASS_TTL_SECONDS
+; with no renewal. It raises its own event, and every name it touched is due for rotation at once.
+; The reason is the owner's free text, so the event carries its length and a hash, never the text.
+
+pub const BREAK_GLASS_NAMES_MAX : u32 = 8;
+pub const REASON_MIN : u32 = 8;
+pub const REASON_MAX : u32 = 200;
+
+pub fn break_glass_code(tier: u8, reason_bytes: u32, names: u32) -> u8 {
+    if (may_hold_secret(tier) == false) { return DENY_PUBLIC_TIER; }
+    if (tier != TIER_OWNER) { return DENY_NOT_OWNER; }
+    if (reason_bytes < REASON_MIN or reason_bytes > REASON_MAX) { return DENY_NO_REASON; }
+    if (names == 0) { return DENY_EMPTY_SCOPE; }
+    if (names > BREAK_GLASS_NAMES_MAX) { return DENY_TOO_MANY; }
+    return CODE_OK;
+}
+
+; --- 12. Binding ------------------------------------------------------------------------------------
+; A binding says that in scope S the environment variable ENV is the value of secret ID (an id or an
+; alias of one). It is what a lease reads, so it is what a service sees. One ENV per scope: a second
+; binding of the same ENV in a scope is refused, never stacked, so a workload never gets two values
+; under one name. The owner moves a binding to a new id with BIND_REPLACE (how a service is switched to
+; a canonical id after a merge) and drops it with BIND_REMOVE. put and import bind with BIND_ADD.
+; A replace or a remove that changes the secret a name resolves to marks every lease of that scope
+; rotated, as a rotation does (section 6): a running workload gets the new value, or loses the name,
+; within one TTL. A replace that lands on the same secret (an alias switched to its canonical id) moves
+; no value and ends no lease.
+
+pub const BIND_ADD : u8 = 0;
+pub const BIND_REPLACE : u8 = 1;
+pub const BIND_REMOVE : u8 = 2;
+pub const BIND_MODES : u8 = 3;
+pub const BIND_MODE_NAMES : [3]str = ["add", "replace", "remove"];
+
+pub fn bind_code(mode: u8, id_exists: bool, taken: bool) -> u8 {
+    if (mode >= BIND_MODES) { return DENY_BAD_NAME; }
+    if (mode == BIND_REMOVE) {
+        if (taken == false) { return DENY_MISSING; }
+        return CODE_OK;
+    }
+    if (id_exists == false) { return DENY_MISSING; }
+    if (mode == BIND_ADD and taken) { return DENY_EXISTS; }
+    if (mode == BIND_REPLACE and taken == false) { return DENY_MISSING; }
+    return CODE_OK;
+}
+
+pub fn bind_rotates(mode: u8, same_secret: bool) -> bool {
+    if (mode == BIND_ADD) { return false; }
+    if (mode == BIND_REMOVE) { return true; }
+    return same_secret == false;
+}
+
+; --- 13. Starting -----------------------------------------------------------------------------------
+; The vault runs inside the Queen's server and is off unless FLAG_VAR is FLAG_ON. Off means off: the
+; server boots as it did before the vault, every vault route answers that the vault is unavailable,
+; and the vault touches no database, so no table is created.
+; On, it needs, before it touches the database:
+; - IDENTITY_VAR: the vault's own age identity (an `AGE-SECRET-KEY-1...` line). It is the one secret
+;   the platform holds for the vault, and the only one: every other value is a row it opens;
+; - RECOVERY_VAR: the owner's recovery recipient (`age1...`), a public key. Every row is also
+;   encrypted to it, and an export only to it;
+; - OWNER_KEYS_VAR: the owner's Ed25519 public keys, hex, separated by commas: the keys that may put,
+;   import, merge and export. Public keys, not secrets;
+; - a database for the store and the events bus;
+; - the age tool (`age` and `age-keygen`) on the server's PATH: it is the vault's encryption, and a
+;   vault that cannot run it can open no row.
+; Then the store must agree with them: a store written under another identity cannot be opened by
+; this one, and a store whose rows were sealed to another recovery recipient would leave the owner's
+; recovery key unable to open the new rows. Changing either is a re-keying, not a restart, so the
+; vault refuses to start rather than mix them. A refusal is logged by its START_NAMES word and the
+; variable it concerns, never a value.
+
+pub const FLAG_VAR : str = "TRIOS_VAULT";
+pub const FLAG_ON : str = "on";
+pub const IDENTITY_VAR : str = "TRIOS_VAULT_IDENTITY";
+pub const RECOVERY_VAR : str = "TRIOS_VAULT_RECOVERY";
+pub const OWNER_KEYS_VAR : str = "TRIOS_VAULT_OWNER_KEYS";
+
+pub const START_ON : u8 = 0;
+pub const START_OFF : u8 = 1;
+pub const START_NO_DATABASE : u8 = 2;
+pub const START_NO_TOOL : u8 = 3;
+pub const START_NO_IDENTITY : u8 = 4;
+pub const START_BAD_IDENTITY : u8 = 5;
+pub const START_NO_RECOVERY : u8 = 6;
+pub const START_NO_OWNER : u8 = 7;
+pub const START_IDENTITY_CHANGED : u8 = 8;
+pub const START_RECOVERY_CHANGED : u8 = 9;
+pub const STARTS : u8 = 10;
+pub const START_NAMES : [10]str = ["on", "off", "no-database", "no-age", "no-identity", "bad-identity", "no-recovery", "no-owner", "identity-changed", "recovery-changed"];
+
+/// Whether the vault starts. The store facts are asked after the database is reached; before it, the
+/// caller passes them as true, so a bad variable is refused before any table is created.
+pub fn start_code(flag_on: bool, database: bool, tool: bool, identity_set: bool, identity_ok: bool, recovery_ok: bool, owners_ok: bool, same_identity: bool, same_recovery: bool) -> u8 {
+    if (flag_on == false) { return START_OFF; }
+    if (database == false) { return START_NO_DATABASE; }
+    if (tool == false) { return START_NO_TOOL; }
+    if (identity_set == false) { return START_NO_IDENTITY; }
+    if (identity_ok == false) { return START_BAD_IDENTITY; }
+    if (recovery_ok == false) { return START_NO_RECOVERY; }
+    if (owners_ok == false) { return START_NO_OWNER; }
+    if (same_identity == false) { return START_IDENTITY_CHANGED; }
+    if (same_recovery == false) { return START_RECOVERY_CHANGED; }
+    return START_ON;
+}
+
+/// Whether the vault's routes serve requests: only a vault that started.
+pub fn serves(start: u8) -> bool {
+    return start == START_ON;
+}
+
+; --- tests ----------------------------------------------------------------------------------------
+
+test classes_never_reach_a_public_host {
+    var c : u8 = 0;
+    while (c < SECRET_CLASSES) {
+        assert class_reaches(c, TIER_PUBLIC) == false;
+        assert class_reaches(c, TIER_OWNER) == true;
+        c = c + 1;
+    }
+    assert class_reaches(CLASS_PROVIDER_API_KEY, TIER_TRUSTED) == true;
+    assert class_reaches(CLASS_BOT_TOKEN, TIER_TRUSTED) == true;
+    assert class_reaches(CLASS_OAUTH, TIER_TRUSTED) == true;
+    assert class_reaches(CLASS_DB_URL, TIER_TRUSTED) == false;
+    assert class_reaches(CLASS_SIGNING_KEY, TIER_TRUSTED) == false;
+    assert class_reaches(CLASS_OTHER, TIER_TRUSTED) == false;
+    // a class that is not one is the worst case
+    assert class_or_other(9) == CLASS_OTHER;
+    assert class_reaches(9, TIER_TRUSTED) == false;
+    assert class_reaches(CLASS_NONE, TIER_OWNER) == true;
+    // a tier that is not one reaches nothing
+    assert class_reaches(CLASS_PROVIDER_API_KEY, TIERS) == false;
+    assert class_reaches(CLASS_PROVIDER_API_KEY, 255) == false;
+    // whether a host may hold a secret at all is host.t27's answer for a service holding one
+    assert may_hold_secret(TIER_OWNER) == true;
+    assert may_hold_secret(TIER_TRUSTED) == true;
+    assert may_hold_secret(TIER_PUBLIC) == false;
+    assert may_hold_secret(TIERS) == false;
+    assert may_hold_secret(TIER_TRUSTED) == eligible(TIER_TRUSTED, WC_SERVICE, true, false);
+    // a db-url is kept off a trusted host by host.t27's personal-data rule, not by its ceiling alone
+    assert eligible(TIER_TRUSTED, WC_SERVICE, true, CLASS_PERSONAL[CLASS_DB_URL] == 1) == false;
+    assert eligible(TIER_OWNER, WC_SERVICE, true, CLASS_PERSONAL[CLASS_DB_URL] == 1) == true;
+}
+
+test names_are_environment_variable_names {
+    assert name_ok("OPENAI_API_KEY", 14) == true;
+    assert name_ok("_X", 2) == true;
+    assert name_ok("db_url2", 7) == true;
+    assert name_ok("", 0) == false;
+    assert name_ok("2FA", 3) == false;
+    assert name_ok("A-B", 3) == false;
+    assert name_ok("A B", 3) == false;
+    assert name_ok("A=B", 3) == false;
+    assert name_ok("A/B", 3) == false;
+    assert name_ok("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 64) == true;
+    assert name_ok("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 65) == false;
+}
+
+test scopes_sources_and_ids {
+    assert scope_ok("999-multibots-telegraf", 22) == true;
+    assert scope_ok("bot.a_b", 7) == true;
+    assert scope_ok("a:b", 3) == false;
+    assert scope_ok("a/b", 3) == false;
+    assert scope_ok("", 0) == false;
+    assert source_ok("infisical:prod", 14) == true;
+    assert source_ok("railway:999", 11) == true;
+    assert source_ok("rail way", 8) == false;
+    // an id the owner put is a name; an imported one carries its source and service
+    assert id_ok("OPENAI_API_KEY", 14) == true;
+    assert id_ok("infisical:prod/OPENAI_API_KEY", 29) == true;
+    assert id_ok("railway:999/ai-server/DATABASE_URL", 34) == true;
+    assert id_ok("railway:999/ai-server/x/DATABASE_URL", 36) == false;
+    assert id_ok("railway:999//DATABASE_URL", 25) == false;
+    assert id_ok("/DATABASE_URL", 13) == false;
+    assert id_ok("railway:999/", 12) == false;
+    assert id_ok("railway:999/9LIVES", 18) == false;
+    assert id_ok("railway:999/A-B", 15) == false;
+    assert id_ok("rail way/A", 10) == false;
+    assert id_ok("", 0) == false;
+}
+
+test an_unsigned_stale_or_replayed_request_is_refused {
+    assert request_code(true, true, 0, 16, false, 0) == CODE_OK;
+    assert request_code(true, true, REQUEST_SKEW_SECONDS, 32, false, 0) == CODE_OK;
+    assert request_code(false, true, 0, 16, false, 0) == DENY_SIGNATURE;
+    assert request_code(true, false, 0, 16, false, 0) == DENY_SIGNATURE;
+    assert request_code(true, true, 0, 15, false, 0) == DENY_SIGNATURE;
+    assert request_code(true, true, REQUEST_SKEW_SECONDS + 1, 16, false, 0) == DENY_STALE;
+    assert request_code(true, true, 0, 16, true, 0) == DENY_REPLAY;
+    assert request_code(true, true, 0, 16, false, NONCE_CACHE_MAX) == DENY_NONCE_FULL;
+    // a bad signature is refused before its nonce is looked at, and a stale time before the nonce
+    assert request_code(true, false, 0, 16, true, NONCE_CACHE_MAX) == DENY_SIGNATURE;
+    assert request_code(true, true, 3600, 16, true, 0) == DENY_STALE;
+    assert nonce_forget_at(1000) == 1031;
+    // a stranger's refused request writes nothing; a known key's refusal is always written
+    assert deny_recorded(false) == false;
+    assert deny_recorded(true) == true;
+}
+
+test owner_operations_are_the_owners {
+    assert op_code(TIER_OWNER, OP_PUT) == CODE_OK;
+    assert op_code(TIER_OWNER, OP_LEASE) == CODE_OK;
+    assert op_code(TIER_TRUSTED, OP_LEASE) == CODE_OK;
+    assert op_code(TIER_TRUSTED, OP_RENEW) == CODE_OK;
+    assert op_code(TIER_TRUSTED, OP_NAMES) == CODE_OK;
+    assert op_code(TIER_TRUSTED, OP_PUT) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_ROTATE) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_EXPORT) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_AUDIT) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_BREAK_GLASS) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_MERGE) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_BIND) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_DEDUP) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_IMPORT) == DENY_NOT_OWNER;
+    assert op_code(TIER_TRUSTED, OP_REVOKE) == CODE_OK;
+    assert op_code(TIER_OWNER, OP_BIND) == CODE_OK;
+    assert op_code(TIER_PUBLIC, OP_LEASE) == DENY_PUBLIC_TIER;
+    assert op_code(TIER_PUBLIC, OP_NAMES) == DENY_PUBLIC_TIER;
+    assert op_code(7, OP_LEASE) == DENY_PUBLIC_TIER;
+    assert op_code(TIER_OWNER, OPS) == DENY_NOT_OWNER;
+    assert grant_code(TIER_OWNER) == CODE_OK;
+    assert grant_code(TIER_TRUSTED) == CODE_OK;
+    assert grant_code(TIER_PUBLIC) == DENY_GRANT_TIER;
+    assert grant_code(9) == DENY_GRANT_TIER;
+}
+
+test a_lease_crosses_no_scope_and_no_tier {
+    assert lease_code(TIER_TRUSTED, true, true, CLASS_PROVIDER_API_KEY) == CODE_OK;
+    assert lease_code(TIER_OWNER, true, true, CLASS_SIGNING_KEY) == CODE_OK;
+    // the scope is not this workload's
+    assert lease_code(TIER_TRUSTED, false, true, CLASS_PROVIDER_API_KEY) == DENY_NO_GRANT;
+    // the name is not in the scope
+    assert lease_code(TIER_TRUSTED, true, false, CLASS_PROVIDER_API_KEY) == DENY_NOT_IN_SCOPE;
+    // a public host is refused whatever it was granted
+    assert lease_code(TIER_PUBLIC, true, true, CLASS_PROVIDER_API_KEY) == DENY_PUBLIC_TIER;
+    assert lease_code(TIERS, true, true, CLASS_PROVIDER_API_KEY) == DENY_PUBLIC_TIER;
+    // a trusted host never gets a store or a signing key
+    assert lease_code(TIER_TRUSTED, true, true, CLASS_DB_URL) == DENY_CLASS_TIER;
+    assert lease_code(TIER_TRUSTED, true, true, CLASS_SIGNING_KEY) == DENY_CLASS_TIER;
+    assert lease_code(TIER_TRUSTED, true, true, CLASS_OTHER) == DENY_CLASS_TIER;
+    // all or nothing, refused with the refused name's own code
+    assert lease_admitted(3, 0, CODE_OK) == CODE_OK;
+    assert lease_admitted(3, 1, DENY_CLASS_TIER) == DENY_CLASS_TIER;
+    assert lease_admitted(3, 1, DENY_NOT_IN_SCOPE) == DENY_NOT_IN_SCOPE;
+    assert lease_admitted(3, 1, CODE_OK) == DENY_NOT_IN_SCOPE;
+    assert lease_admitted(3, 1, CODES) == DENY_NOT_IN_SCOPE;
+    assert lease_admitted(0, 0, CODE_OK) == DENY_EMPTY_SCOPE;
+    // the scope is judged before its names
+    assert scope_code(TIER_TRUSTED, true) == CODE_OK;
+    assert scope_code(TIER_TRUSTED, false) == DENY_NO_GRANT;
+    assert scope_code(TIER_PUBLIC, true) == DENY_PUBLIC_TIER;
+    assert scope_code(TIER_OWNER, false) == DENY_NO_GRANT;
+}
+
+test a_lease_expires_and_renews_only_up_to_its_cap {
+    var t : u64 = 1000000;
+    var e : u64 = expires_at(t, false);
+    assert e == t + LEASE_TTL_SECONDS;
+    assert lease_live(t, e) == true;
+    assert lease_live(e - 1, e) == true;
+    assert lease_live(e, e) == false;
+    assert renew_code(true, false, false, t + 10, e, 0, false) == CODE_OK;
+    assert renew_code(true, false, false, e, e, 0, false) == DENY_LEASE_EXPIRED;
+    assert renew_code(true, false, false, t, e, RENEWALS_MAX - 1, false) == CODE_OK;
+    assert renew_code(true, false, false, t, e, RENEWALS_MAX, false) == DENY_RENEWALS_SPENT;
+    assert renew_code(false, false, false, t, e, 0, false) == DENY_NOT_HOLDER;
+    assert renew_code(true, true, false, t, e, 0, false) == DENY_LEASE_REVOKED;
+    // a rotated name refuses the renewal even of a live lease with renewals left
+    assert renew_code(true, false, true, t + 10, e, 0, false) == DENY_LEASE_ROTATED;
+    assert renew_code(true, true, true, t + 10, e, 0, false) == DENY_LEASE_REVOKED;
+    assert revoke_code(true, false) == CODE_OK;
+    assert revoke_code(false, true) == CODE_OK;
+    assert revoke_code(false, false) == DENY_NOT_HOLDER;
+    // a renewal is due at half the TTL
+    assert renew_due(LEASE_TTL_SECONDS / 2 - 1, false) == false;
+    assert renew_due(LEASE_TTL_SECONDS / 2, false) == true;
+    assert child_must_stop(false, 10) == false;
+    assert child_must_stop(true, 10) == true;
+    assert child_must_stop(false, 0) == true;
+}
+
+test break_glass_is_short_owned_reasoned_and_unrenewable {
+    assert break_glass_code(TIER_OWNER, 20, 1) == CODE_OK;
+    assert break_glass_code(TIER_TRUSTED, 20, 1) == DENY_NOT_OWNER;
+    assert break_glass_code(TIER_PUBLIC, 20, 1) == DENY_PUBLIC_TIER;
+    assert break_glass_code(TIER_OWNER, REASON_MIN - 1, 1) == DENY_NO_REASON;
+    assert break_glass_code(TIER_OWNER, REASON_MAX + 1, 1) == DENY_NO_REASON;
+    assert break_glass_code(TIER_OWNER, REASON_MAX, 1) == CODE_OK;
+    assert break_glass_code(TIER_OWNER, 20, 0) == DENY_EMPTY_SCOPE;
+    assert break_glass_code(TIER_OWNER, 20, BREAK_GLASS_NAMES_MAX) == CODE_OK;
+    assert break_glass_code(TIER_OWNER, 20, BREAK_GLASS_NAMES_MAX + 1) == DENY_TOO_MANY;
+    var t : u64 = 5000;
+    assert expires_at(t, true) == t + BREAK_GLASS_TTL_SECONDS;
+    assert renew_code(true, false, false, t, expires_at(t, true), 0, true) == DENY_RENEWALS_SPENT;
+    assert renew_due(BREAK_GLASS_TTL_SECONDS, true) == false;
+    assert rotation_due(CLASS_SIGNING_KEY, 0, true) == true;
+}
+
+test only_the_owner_puts_from_a_terminal {
+    assert input_code(true, false) == CODE_OK;
+    assert input_code(false, true) == CODE_OK;
+    assert input_code(true, true) == CODE_OK;
+    assert input_code(false, false) == DENY_NOT_TTY;
+    assert put_code(true, false, false) == CODE_OK;
+    assert put_code(true, true, false) == DENY_EXISTS;
+    assert put_code(true, true, true) == CODE_OK;
+    assert put_code(true, false, true) == DENY_MISSING;
+    assert put_code(false, false, false) == DENY_BAD_NAME;
+    assert row_code(true, ROW_RECIPIENTS) == CODE_OK;
+    assert row_code(false, ROW_RECIPIENTS) == DENY_BAD_CIPHERTEXT;
+    assert row_code(true, 1) == DENY_BAD_CIPHERTEXT;
+    assert row_code(true, 3) == DENY_BAD_CIPHERTEXT;
+}
+
+test rotation_age_and_alarms {
+    assert rotation_due(CLASS_PROVIDER_API_KEY, 89, false) == false;
+    assert rotation_due(CLASS_PROVIDER_API_KEY, 90, false) == true;
+    assert rotation_due(CLASS_SIGNING_KEY, 364, false) == false;
+    assert rotation_due(CLASS_SIGNING_KEY, 365, false) == true;
+    assert rotation_due(CLASS_DB_URL, 180, false) == true;
+    assert rotation_due(42, 180, false) == true;
+    assert rotation_due(42, 179, false) == false;
+    assert alarm_due(false, false, 0) == false;
+    assert alarm_due(true, false, 0) == true;
+    assert alarm_due(true, true, ALARM_EVERY_SECONDS - 1) == false;
+    assert alarm_due(true, true, ALARM_EVERY_SECONDS) == true;
+    assert sweep_due(0, false) == true;
+    assert sweep_due(SWEEP_EVERY_SECONDS - 1, true) == false;
+    assert sweep_due(SWEEP_EVERY_SECONDS, true) == true;
+}
+
+test one_binding_per_name_in_a_scope {
+    assert bind_code(BIND_ADD, true, false) == CODE_OK;
+    assert bind_code(BIND_ADD, true, true) == DENY_EXISTS;
+    assert bind_code(BIND_ADD, false, false) == DENY_MISSING;
+    assert bind_code(BIND_REPLACE, true, true) == CODE_OK;
+    assert bind_code(BIND_REPLACE, true, false) == DENY_MISSING;
+    assert bind_code(BIND_REPLACE, false, true) == DENY_MISSING;
+    assert bind_code(BIND_REMOVE, false, true) == CODE_OK;
+    assert bind_code(BIND_REMOVE, true, false) == DENY_MISSING;
+    assert bind_code(BIND_MODES, true, false) == DENY_BAD_NAME;
+    // a binding that moves a value, or takes one away, ends the scope's leases at their next renewal
+    assert bind_rotates(BIND_ADD, false) == false;
+    assert bind_rotates(BIND_REPLACE, true) == false;
+    assert bind_rotates(BIND_REPLACE, false) == true;
+    assert bind_rotates(BIND_REMOVE, true) == true;
+}
+
+test export_goes_only_to_the_recovery_recipient {
+    assert export_code(TIER_OWNER, true, 1) == CODE_OK;
+    assert export_code(TIER_TRUSTED, true, 1) == DENY_NOT_OWNER;
+    assert export_code(TIER_OWNER, false, 1) == DENY_EXPORT_TARGET;
+    assert export_code(TIER_OWNER, true, 2) == DENY_EXPORT_TARGET;
+    assert export_code(TIER_OWNER, true, 0) == DENY_EXPORT_TARGET;
+    assert deliver_code(true) == CODE_OK;
+    assert deliver_code(false) == DENY_NO_AUDIT;
+}
+
+test off_means_off_and_a_bad_variable_is_refused_before_the_database {
+    // start_code(flag_on, database, tool, identity_set, identity_ok, recovery_ok, owners_ok,
+    //            same_identity, same_recovery)
+    assert start_code(true, true, true, true, true, true, true, true, true) == START_ON;
+    assert serves(START_ON) == true;
+    // off wins over everything, so an unset flag never reads a variable or the database
+    assert start_code(false, true, true, true, true, true, true, true, true) == START_OFF;
+    assert start_code(false, false, false, false, false, false, false, false, false) == START_OFF;
+    assert serves(START_OFF) == false;
+    assert start_code(true, false, true, true, true, true, true, true, true) == START_NO_DATABASE;
+    assert start_code(true, true, false, true, true, true, true, true, true) == START_NO_TOOL;
+    assert start_code(true, true, true, false, false, true, true, true, true) == START_NO_IDENTITY;
+    assert start_code(true, true, true, true, false, true, true, true, true) == START_BAD_IDENTITY;
+    assert start_code(true, true, true, true, true, false, true, true, true) == START_NO_RECOVERY;
+    assert start_code(true, true, true, true, true, true, false, true, true) == START_NO_OWNER;
+    assert start_code(true, true, true, true, true, true, true, false, true) == START_IDENTITY_CHANGED;
+    assert start_code(true, true, true, true, true, true, true, true, false) == START_RECOVERY_CHANGED;
+    assert serves(START_NO_IDENTITY) == false;
+    assert serves(START_RECOVERY_CHANGED) == false;
+}
+
+/// The tiers are host.t27's, in its order: a smaller number is more trust.
+invariant the_tiers_are_the_hosting_tiers {
+    assert TIER_OWNER == 0 and TIER_TRUSTED == 1 and TIER_PUBLIC == 2 and TIERS == 3;
+}
+/// No ceiling is a public host; a signing key's is the owner; a store and the unknown reach personal
+/// data, which host.t27 keeps on the owner's machines.
+invariant no_class_reaches_a_public_host {
+    assert CLASS_TIER_CEILING[0] < TIER_PUBLIC and CLASS_TIER_CEILING[1] < TIER_PUBLIC;
+    assert CLASS_TIER_CEILING[2] < TIER_PUBLIC and CLASS_TIER_CEILING[3] < TIER_PUBLIC;
+    assert CLASS_TIER_CEILING[4] < TIER_PUBLIC and CLASS_TIER_CEILING[5] < TIER_PUBLIC;
+    assert CLASS_TIER_CEILING[CLASS_SIGNING_KEY] == TIER_OWNER;
+    assert SECRET_CLASSES == 6 and CLASS_NONE >= SECRET_CLASSES;
+    assert CLASS_PERSONAL[CLASS_DB_URL] == 1 and CLASS_PERSONAL[CLASS_OTHER] == 1;
+    assert CLASS_PERSONAL[CLASS_PROVIDER_API_KEY] == 0 and CLASS_PERSONAL[CLASS_BOT_TOKEN] == 0;
+    assert CLASS_PERSONAL[CLASS_SIGNING_KEY] == 0 and CLASS_PERSONAL[CLASS_OAUTH] == 0;
+}
+/// A lease ends within a bounded time, and break-glass is shorter than a lease.
+invariant leases_are_bounded {
+    assert LEASE_TTL_SECONDS * ((RENEWALS_MAX as u64) + 1) <= LEASE_LIFETIME_MAX_SECONDS;
+    assert BREAK_GLASS_TTL_SECONDS < LEASE_TTL_SECONDS;
+    assert RENEW_AT_PERCENT > 0 and RENEW_AT_PERCENT < 100;
+    assert LEASE_TTL_SECONDS > (REQUEST_SKEW_SECONDS as u64);
+}
+/// Every operation has a name and an owner bit; every code has a name.
+invariant the_tables_are_complete {
+    assert OPS == 15 and CODES == 34;
+    assert OP_OWNER_ONLY[OP_LEASE] == 0 and OP_OWNER_ONLY[OP_NAMES] == 0;
+    assert OP_OWNER_ONLY[OP_EXPORT] == 1 and OP_OWNER_ONLY[OP_AUDIT] == 1;
+    assert OP_OWNER_ONLY[OP_BIND] == 1 and OP_BIND + 1 == OPS;
+    assert DENY_LEASE_ROTATED + 1 == CODES;
+    assert BIND_REMOVE + 1 == BIND_MODES;
+    assert START_RECOVERY_CHANGED + 1 == STARTS and START_ON == 0;
+    assert ROW_RECIPIENTS == 2 and EXPORT_RECIPIENTS == 1;
+    assert KEY_ID_HEX_LEN == 16 and NONCE_MIN_BYTES == 16;
+}

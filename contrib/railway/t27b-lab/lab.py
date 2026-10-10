@@ -950,12 +950,12 @@ def serve():
     httpd.serve_forever()
 
 
-def lane_request(master):
-    """#7672: master's t27c judges each SRV/requests/<sha> (corpus_receipt.t27 request_verdict), exit 1 drops it; run and
-    sign the oldest admitted one, its text the challenge, into /runs/<sha>.json and its receipt. True when one ran."""
+def lane_request():
+    """#7672: master's t27c judges each SRV/requests/<sha> (corpus_receipt.t27 request_verdict), on origin read from a fetch
+    made now, not the master last run (#8785); exit 1 drops it. Run and sign the oldest admitted one, its text the challenge. True when one ran."""
     q = sorted((SRV / "requests").glob("*"), key=lambda p: p.stat().st_mtime) if JUDGE.exists() else []
-    out = lambda *a, **kw: subprocess.run(a, capture_output=True, text=True, timeout=300, **kw).stdout.split()  # noqa: E731
-    known = set(out("git", "ls-remote", "--heads", REPO) + out("git", "rev-list", "--first-parent", master, cwd=CLONE)) if q else ()
+    out = lambda *a: subprocess.run(("git",) + a, cwd=CLONE, capture_output=True, text=True, timeout=300).stdout.split()  # noqa: E731
+    known = set(out("ls-remote", "--heads", REPO) + out("fetch", "-q", "origin", "+%s:refs/remotes/origin/%s" % (REF, REF)) + out("rev-list", "--first-parent", "refs/remotes/origin/" + REF)) if q else ()
     waiting = []
     for r in q:
         facts = "%d,%d,%d" % (time.time() - r.stat().st_mtime, len(waiting), r.name in known)
@@ -1012,7 +1012,7 @@ def main():
                 log.close()
                 last = sha if run_done(doc) else None
             set_status(phase="idle", commit=sha, next_poll_in_s=POLL, retry=last is None)
-            ran = sum(lane_request(sha) for _ in range(2)) > 0  # #8586: up to two lane requests per master run
+            ran = sum(lane_request() for _ in range(2)) > 0  # #8586: up to two lane requests per master run
         except Exception as e:
             print("lab loop error: %s" % e, flush=True)
             set_status(phase="error", error=str(e))

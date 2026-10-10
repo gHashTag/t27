@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/jobs/network_job.t27 -- one network job, as a job the Queen runs (specs/queen/jobs.t27): a t27 commit
+; is run by the labs, each lab signs a corpus receipt for it, the receipts are verified and counted, and the
+; work earns one PENDING test credit that turns FINAL after the challenge window. The network MVP's step b
+; (actors dispatch a real job) through f (pending and final credit); see #8613 and #8685.
+; The job starts with one parameter, the commit sha. Its steps:
+;   0 CHECK  job-commit         the sha names a commit of REPO (GitHub answers it); pinned as the subject
+;   1 EFFECT lab-challenge      one fresh 40-hex challenge per job, kept in the effects journal (a Queen that
+;                               restarts reuses it, never draws a second); written as the text of
+;                               LAB_REQUEST_DIR/<sha> into every lab whose LAB_REQUEST_PATH is not "none"
+;   2 WAIT   lab-receipts       every lab publishes RECEIPT_PATH_PREFIX + sha + RECEIPT_PATH_SUFFIX; a
+;                               challenged lab's receipt carries the challenge as its nonce
+;   3 CHECK  receipts-verified  each receipt judged by RULES (job_rules.t27 receipt_auth): its message is a
+;                               corpus message (corpus_receipt.t27) for this commit, its key is registered,
+;                               its Ed25519 signature verifies over those bytes (tri/crypto/ed25519.t27), and
+;                               a challenged lab's nonce is the challenge; the receipts' results agree
+;   4 CHECK  quorum             the authenticated, agreeing receipts become votes, deduplicated by key id and
+;                               then by operator (KEY_OPERATOR); job_rules.t27 quorum_verdict judges them
+;                               against the trusted N, F and M
+;   5 EFFECT settle-credit      trinet/ledger.t27 settle() of the job; its credit is one PENDING row keyed by
+;                               the job sha (exactly once), in the shape of hosting/statement.t27's leaf
+;                               (host key id, kind, mtri, receipt ids)
+;   6 WAIT   challenge-window   CHALLENGE_WINDOW_MINUTES pass with no challenge open; the row turns FINAL
+; Every EFFECT goes through the effects journal (control.t27 section 7) under JOURNAL_PREFIX + sha + ":" +
+; its STEP_WHAT, so a Queen that restarts mid-step looks before she acts.
+; GAP, stated so nobody reads it as closed: a lab's request queue is written over ssh with a key only an
+; operator's machine holds, so the deployed Queen has no request path to either lab, and t27b-lab-2 has no
+; request path at all (LAB_REQUEST_PATHS "none"); see #8791. A lab with no request path contributes the
+; receipt of its own master run of the sha: no challenge, so job_rules.t27 judges it at LEVEL_AUTHOR, not
+; LEVEL_FRESH.
+; The trust ceiling: both labs and every registered key belong to one operator (KEY_OPERATOR), so the
+; network casts ONE independent vote however many labs sign. Credits are test credits (CREDIT_IS_TEST): not
+; money, non-transferable (verified/payout.t27 CREDIT_TRANSFERABLE).
+; Read at run time by the supervisor's vendored compiler wasm: the supervisor reads the constants; the two
+; functions are only what the card's tests ask of them. The decisions are in RULES, compiled to wasm.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module JobNetworkJob;
+
+pub const JOB_NAME : str = "network-job";
+pub const REPO : str = "gHashTag/t27";
+pub const BASE_BRANCH : str = "master";
+pub const RULES : str = "specs/network/job_rules.t27";
+pub const JOURNAL_PREFIX : str = "network-job:";
+
+/// The one parameter a job of this card starts with: the commit, 40 lowercase hex digits.
+pub const PARAMS : [1]str = ["sha"];
+
+/// The labs, in the order their receipts are read. The first lab with a request path is the executor.
+pub const LAB_COUNT : u32 = 2;
+pub const LAB_NAMES : [2]str = ["t27b-lab", "t27b-lab-2"];
+pub const LAB_URLS : [2]str = ["https://t27b-lab-production.up.railway.app", "https://t27b-lab-2-production.up.railway.app"];
+/// How the supervisor writes a request into a lab's queue: "ssh" (an ssh host the deployment names), or
+/// "none": the lab has no request path, and its own master run of the sha is read instead.
+pub const LAB_REQUEST_PATHS : [2]str = ["ssh", "none"];
+pub const LAB_REQUEST_DIR : str = "/srv/requests";
+pub const RECEIPT_PATH_PREFIX : str = "/runs/";
+pub const RECEIPT_PATH_SUFFIX : str = ".receipt.json";
+
+/// The registered receipt keys (signed_receipt.t27 KEY_DIR, .trinity/keys/<id>.pub) and the operator each
+/// belongs to. Operator 1 is the project itself (gHashTag): the labs, the bench and the Mac.
+pub const KEY_COUNT : u32 = 5;
+pub const KEY_IDS : [5]str = ["3d7ba020ec48adc6", "4d2ffce012238bd4", "71c5670c1011b42c", "a05db80f53c317f6", "fed03daa6459a7fa"];
+pub const KEY_OPERATOR : [5]u32 = [1, 1, 1, 1, 1];
+pub const OPERATOR_NAMES : [2]str = ["", "gHashTag"];
+
+/// The challenge window a settled credit waits through before it is final. TEMP for the test network.
+pub const CHALLENGE_WINDOW_MINUTES : u32 = 15;
+
+/// The credit: the executor's fee (verified/payout.t27 EXECUTOR_FEE, the word hosting/statement.t27 writes
+/// in a leaf), a test credit.
+pub const CREDIT_KIND_WORD : str = "executor_fee";
+pub const CREDIT_IS_TEST : bool = true;
+
+/// Step kinds by number (specs/queen/jobs.t27: CHECK 0, WAIT 1, EFFECT 2), and the executor each step names.
+pub const STEP_COUNT : u32 = 7;
+pub const STEP_KIND : [7]u8 = [0, 2, 1, 0, 0, 2, 1];
+pub const STEP_WHAT : [7]str = [
+    "job-commit", "lab-challenge", "lab-receipts", "receipts-verified", "quorum", "settle-credit", "challenge-window"
+];
+
+/// The first EFFECT. Only the CHECK that pins the subject comes before it.
+pub const PUBLISH_STEP : u32 = 1;
+/// The EFFECT that moves a balance. Every judgment of the receipts comes before it.
+pub const CREDIT_STEP : u32 = 5;
+
+/// The kind of step i (jobs.t27 CHECK 0, WAIT 1, EFFECT 2), or 3 past the last step: what the tests read.
+pub fn kind_of(i: u32) -> u8 {
+    if (i >= STEP_COUNT) { return 3; }
+    return STEP_KIND[i];
+}
+
+/// The operator of the k-th registered key, or 0 past the last one.
+pub fn operator_of(k: u32) -> u32 {
+    if (k >= KEY_COUNT) { return 0; }
+    return KEY_OPERATOR[k];
+}
+
+test the_card_challenges_after_pinning_and_credits_after_judging {
+    assert kind_of(0) == 0;
+    assert kind_of(PUBLISH_STEP) == 2;
+    assert kind_of(2) == 1;
+    assert kind_of(3) == 0;
+    assert kind_of(4) == 0;
+    assert kind_of(CREDIT_STEP) == 2;
+    assert kind_of(6) == 1;
+    assert kind_of(STEP_COUNT) == 3;
+}
+
+test every_registered_key_is_the_one_operator {
+    var k : u32 = 0;
+    while (k < KEY_COUNT) {
+        assert operator_of(k) == 1;
+        k = k + 1;
+    }
+    assert operator_of(KEY_COUNT) == 0;
+    assert LAB_COUNT == 2;
+    assert CHALLENGE_WINDOW_MINUTES > 0;
+    assert CREDIT_IS_TEST;
+}
+
+invariant the_credit_follows_the_judgment {
+    assert PUBLISH_STEP < CREDIT_STEP;
+    assert CREDIT_STEP + 1 < STEP_COUNT;
+}
