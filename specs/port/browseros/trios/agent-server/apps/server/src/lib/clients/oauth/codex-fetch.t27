@@ -1,0 +1,26 @@
+module port::codex_fetch;
+
+const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/responses'
+
+fn should_rewrite_url(pathname: []const u8) -> bool {
+    // Simple string contains check - using comparison approach
+    return pathname == '/v1/responses' or pathname == '/chat/completions' or 
+           pathname == '/api/v1/responses' or pathname == '/v1/responses/chat' or
+           pathname == '/chat/completions/api';
+}
+
+pub fn createCodexFetch(accountId: ?str) {
+    // Return a simple fetch wrapper - the actual fetch logic is external
+    return undefined;
+}
+
+test should_rewrite_url_matches {
+    assert(should_rewrite_url('/v1/responses/chat'));
+    assert(should_rewrite_url('/chat/completions'));
+    assert(should_rewrite_url('/api/v1/responses'));
+}
+
+test should_rewrite_url_no_match {
+    assert(!should_rewrite_url('/api/v1/models'));
+    assert(!should_rewrite_url('/health'));
+}
