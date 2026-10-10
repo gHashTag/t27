@@ -49,6 +49,14 @@
 ; Settlement is defined and shut. No function here moves a balance between keys, and nothing calls a
 ; chain: the statement is a record of work, not a transfer. settlement_gate_open is false until
 ; VALUE_GATE_OPEN is set by a spec change after counsel, and SETTLEMENT_ENABLED with it.
+; --
+; The Queen's ledger key (section 6, the release of 2026-10-11): ONE deployment variable,
+; LEDGER_KEY_VARIABLE, which the owner sets on the Queen's service and nobody else reads. It holds the
+; 32-byte Ed25519 seed as LEDGER_KEY_HEX_LEN lowercase hex characters, one line, so a platform's
+; variable editor cannot fold it. A missing or malformed value closes nothing: every epoch stays open
+; and unsigned, the Queen says so in one log line that names the variable and never its value, and
+; nothing else changes. A key is never generated in its place: a statement signed by a key nobody
+; holds would be a record nobody can stand behind.
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -257,6 +265,30 @@ pub fn settlement_gate_open(counsel_cleared: bool, chain: u8) -> bool {
     return chain == CHAIN_OF_RECORD;
 }
 
+; --- 6. The Queen's ledger key -----------------------------------------------------------------------------
+
+pub const LEDGER_KEY_VARIABLE : str = "TRIOS_HOSTING_LEDGER_KEY";
+pub const LEDGER_KEY_HEX_LEN : u32 = 64;
+
+/// ledger_key_state() answers.
+pub const LK_OK : u8 = 0;
+pub const LK_MISSING : u8 = 1;
+pub const LK_MALFORMED : u8 = 2;
+
+/// The state of the variable's value: unset or empty, the wrong length or not all lowercase hex, or a
+/// seed.
+pub fn ledger_key_state(set: bool, length: u32, all_lower_hex: bool) -> u8 {
+    if (set == false or length == 0) { return LK_MISSING; }
+    if (length != LEDGER_KEY_HEX_LEN) { return LK_MALFORMED; }
+    if (all_lower_hex == false) { return LK_MALFORMED; }
+    return LK_OK;
+}
+
+/// Whether epochs close and are signed: only with a seed. Otherwise they stay open and unsigned.
+pub fn epochs_close(key_state: u8) -> bool {
+    return key_state == LK_OK;
+}
+
 ; --- tests ------------------------------------------------------------------------------------------------
 
 test the_executor_and_the_verifiers_are_paid_by_kind {
@@ -382,6 +414,18 @@ test settlement_stays_shut {
     assert CHAIN_OF_RECORD == CHAIN_TON;
 }
 
+test without_a_ledger_key_epochs_stay_open {
+    assert ledger_key_state(false, 0, false) == LK_MISSING;
+    assert ledger_key_state(true, 0, true) == LK_MISSING;
+    assert ledger_key_state(true, 63, true) == LK_MALFORMED;
+    assert ledger_key_state(true, 128, true) == LK_MALFORMED;
+    assert ledger_key_state(true, 64, false) == LK_MALFORMED;
+    assert ledger_key_state(true, 64, true) == LK_OK;
+    assert epochs_close(LK_OK) == true;
+    assert epochs_close(LK_MISSING) == false;
+    assert epochs_close(LK_MALFORMED) == false;
+}
+
 /// A record of work, never a transfer: no value moves, and no second supply exists.
 invariant nothing_moves_value {
     assert VALUE_GATE_OPEN == false;
@@ -403,4 +447,9 @@ invariant the_kinds_are_reused {
     assert EXECUTOR_FEE == 2 and PROVIDER_FEE == 3 and VERIFIER_FEE == 4;
     assert ENTRY_SLASH == 9;
     assert CLOSES_PER_CALL_MAX > 0;
+}
+/// One variable, one 32-byte seed.
+invariant the_ledger_key_is_one_seed {
+    assert LEDGER_KEY_HEX_LEN == 64;
+    assert LK_OK == 0 and LK_MISSING == 1 and LK_MALFORMED == 2;
 }
