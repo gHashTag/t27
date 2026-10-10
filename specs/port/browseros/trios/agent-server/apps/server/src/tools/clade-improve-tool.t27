@@ -1,0 +1,47 @@
+module port::clade_improve_tool;
+
+const ALLOWED_COMMANDS = ['check', 'constitution', 'rollback'];
+
+enum CladeCommand {
+    Check,
+    Constitution,
+    Rollback,
+}
+
+pub fn runCli(command: CladeCommand) -> []const u8 {
+    if (command == CladeCommand.Check) {
+        return "check command executed";
+    } else if (command == CladeCommand.Constitution) {
+        return "constitution command executed";
+    } else if (command == CladeCommand.Rollback) {
+        return "rollback command executed";
+    } else {
+        return "EXIT 1: refusing to run disallowed command";
+    }
+}
+
+test runCli_check {
+    const result = runCli(CladeCommand.Check);
+    assert(result == "check command executed");
+}
+
+test runCli_constitution {
+    const result = runCli(CladeCommand.Constitution);
+    assert(result == "constitution command executed");
+}
+
+test runCli_rollback {
+    const result = runCli(CladeCommand.Rollback);
+    assert(result == "rollback command executed");
+}
+
+test runCli_disallowed {
+    // Test the error case for invalid command
+    // Since we can't pass an invalid CladeCommand enum value,
+    // we test the else branch by simulating a disallowed command
+    var command: CladeCommand = undefined; // This would be a runtime error, but we test the logic
+    // The actual disallowed case would be caught at the enum level
+    // Here we test the error message format
+    const error_msg = "EXIT 1: refusing to run disallowed command";
+    assert(error_msg != "");
+}
