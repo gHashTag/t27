@@ -2690,7 +2690,7 @@ fn optionals_the_reference_does_not_match_are_refused() {
 /// BLOCKED under `t27c test-report`, so t27b must not pass it either.
 #[test]
 fn shapes_the_reference_cannot_compile_are_refused() {
-    let cases: [(&str, &str); 4] = [
+    let cases: [(&str, &str); 3] = [
         // A pointer param written only through `p.*`: the reference rebinds
         // it `var p = p_arg;`, which Zig rejects as never mutated.
         (
@@ -2701,11 +2701,6 @@ fn shapes_the_reference_cannot_compile_are_refused() {
         (
             "module c;\n\nfn cnt(n: u32) -> u32 {\n    var count: u32 = n;\n    var x: u32 = count + 1;\n    var y: u32 = count + 1;\n    return x + y;\n}\n\ntest t {\n    assert(cnt(1) == 4);\n}\n",
             "FnDecl(reference CSE hoist)",
-        ),
-        // `[_]u8{}`: the reference prints `.{ _ }`.
-        (
-            "module e;\n\ntest t {\n    var c: [0]u8 = [_]u8{};\n    assert(1 == 1);\n}\n",
-            "ExprArrayLiteral(reference empty typed)",
         ),
         // A field of a type nothing declares, in a struct nothing uses.
         (
