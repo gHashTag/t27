@@ -57,6 +57,13 @@ pub fn hw_field_honest(reported_hw: u8, evidence_hw: u8) -> bool {
     return reported_hw == evidence_hw;
 }
 
+/// Whether a comment counts as the mark of a head: only a comment the app itself wrote. The
+/// live app on 999 may write neither commit statuses nor check runs (t27#8328), so the mark is
+/// one PR comment; a person who pastes the marker cannot make a head look checked.
+pub fn comment_is_mark(has_marker: bool, by_this_app: bool) -> bool {
+    return has_marker && by_this_app;
+}
+
 test "a whole chain with all three references passes" {
     assert record_status(true, true, true, LINKED) == PASS;
 }
@@ -91,4 +98,17 @@ test "the hardware field is verbatim, never upgraded" {
 test "pass never implies hardware" {
     assert run_verdict(LINKED) == PASS;
     assert hw_field_honest(HW_UNPROVEN, HW_UNPROVEN) == true;
+}
+
+test "an app-authored marker is a mark" {
+    assert comment_is_mark(true, true) == true;
+}
+
+test "a human-pasted marker is not a mark" {
+    assert comment_is_mark(true, false) == false;
+}
+
+test "no marker is not a mark" {
+    assert comment_is_mark(false, true) == false;
+    assert comment_is_mark(false, false) == false;
 }

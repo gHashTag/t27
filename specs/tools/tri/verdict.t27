@@ -35,9 +35,30 @@ pub const WHEN_TO_USE : str = "Checks for toxic regressions by analyzing swarm h
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
+; Whether a comment counts as the mark of a head: only a comment the app itself wrote
+; (t27#8328; the host 999 app may write neither commit statuses nor check runs, so the mark is
+; one PR comment). Same predicate the verdict specs own; a person who pastes the marker cannot
+; make a head look checked.
+pub fn comment_is_mark(has_marker: bool, by_this_app: bool) -> bool {
+    return has_marker && by_this_app;
+}
+
 test verify_tool_constants {
   assert KIND == "tool";
   assert FAMILY == "tri-cli";
   assert SCHEMA == 2;
   assert ENABLED == true;
+}
+
+test app_authored_marker_is_a_mark {
+  assert comment_is_mark(true, true) == true;
+}
+
+test human_pasted_marker_is_not_a_mark {
+  assert comment_is_mark(true, false) == false;
+}
+
+test no_marker_is_not_a_mark {
+  assert comment_is_mark(false, true) == false;
+  assert comment_is_mark(false, false) == false;
 }
