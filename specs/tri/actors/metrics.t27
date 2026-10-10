@@ -1,0 +1,531 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/actors/metrics.t27 -- what `tri actors` reads in the Queen's actor telemetry, and its verdict
+; The Queen's actor runtime (gHashTag/trios, trios/agent-server) serves what specs/queen/telemetry.t27
+; counts at GET /queen/actors/metrics, and its decision log at GET /queen/actors/decisions?limit=N, both
+; read-only and only while TRIOS_QUEEN_ACTORS_TELEMETRY=on (else `{"enabled": false, ...}`). The night
+; loop read them with curl and jq, and judged a deep mailbox or a long turn by eye.
+; This spec holds every decision of `tri actors`: where to read, which sections and columns are shown,
+; how each row is judged, which rows are listed, and the exit code. The thresholds are not restated:
+; depth_on_at, long_at_ms, kept, the event names and DLOG_PER_FN_PER_WINDOW are telemetry.t27's,
+; MAILBOX_CAP is actors.t27's, and the default turn bound is reviewer.t27's REVIEW_ROW_SECONDS (the
+; reviewer is the actor tree that serves the endpoint). The command (cli/tri/src/main.rs, through
+; `t27c gen-rust` in gen/rust/tri/actors/metrics.rs) is glue: curl, serde_json's pretty print, the walk
+; below, print.
+; The text read is serde_json::to_string_pretty of the endpoint's JSON: two spaces per level, one key
+; per line, keys in byte order (no preserve_order in this workspace). A section is a top-level key at
+; indent 2 whose value opens a list `[` or a map `{`; its rows open at indent 4, their keys at 6, a
+; nested map's keys at 8. The line readers are specs/tri/lab/receipt.t27's, imported.
+; --replay reads the decision log too. tri runs no wasm, so it calls no card: it lists the records the
+; sampling rule (kept) would refuse, and says the replay itself is trios' replayDecisions. An empty log
+; is no verdict, as telemetry.t27 replay_verdict calls an empty replay RV_EMPTY.
+; Fixtures: the endpoint's real answer from the trios runtime (actors-next, VirtualClock: a reviewer
+; turn 150 s in, a supervisor three restarts into its period, a mailbox of 256), shortened.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriActorsMetrics;
+
+use tri::lab::receipt::line_end;
+use tri::lab::receipt::span_is;
+use tri::lab::receipt::line_is;
+use tri::lab::receipt::key_value;
+use tri::lab::receipt::key_at;
+use tri::lab::receipt::value_from;
+use tri::lab::receipt::value_to;
+use queen::telemetry::depth_on_at;
+use queen::telemetry::long_at_ms;
+use queen::telemetry::kept;
+use queen::telemetry::TEL_EVENT_NAMES;
+use queen::telemetry::EV_TURN_LONG;
+use queen::telemetry::EV_WAIT_LONG;
+use queen::telemetry::DLOG_PER_FN_PER_WINDOW;
+use queen::telemetry::DLOG_RING;
+use queen::actors::MAILBOX_CAP;
+use queen::reviewer::REVIEW_ROW_SECONDS;
+
+// Where to read. The glue appends METRICS (and DECISIONS with --replay) to the base URL.
+pub const QUEEN_URL : str = "https://trios-agent-server-production.up.railway.app";
+pub const METRICS : str = "/queen/actors/metrics";
+/// The whole ring: the limit is DLOG_RING (a test holds the two equal).
+pub const DECISIONS : str = "/queen/actors/decisions?limit=4096";
+/// A turn in progress is judged against this bound, in seconds, unless --bound names another.
+pub const DEFAULT_BOUND : u32 = REVIEW_ROW_SECONDS;
+
+// The sections, in the order they are printed. Each reads one document: 0 the metrics, 1 the log.
+pub const S_KIND : u8 = 0;
+pub const S_MAILBOX : u8 = 1;
+pub const S_SUPERVISOR : u8 = 2;
+pub const S_EVENT : u8 = 3;
+pub const S_DECISION : u8 = 4;
+pub const SECTIONS : u8 = 5;
+
+// The verdict on one row. ALARM ones move the exit to 1; UNREAD moves it to 2.
+pub const V_OK : u8 = 0;
+pub const V_DEEP : u8 = 1;
+pub const V_LONG : u8 = 2;
+pub const V_STORM : u8 = 3;
+pub const V_GAVE_UP : u8 = 4;
+pub const V_LONG_PAST : u8 = 5;
+pub const V_HISTORY : u8 = 6;
+pub const V_UNSAMPLED : u8 = 7;
+pub const V_UNREAD : u8 = 8;
+pub const VERDICTS : u8 = 9;
+
+// The exit codes, numbered as `tri lab receipt` numbers them: 0 quiet, 1 an alarm, 2 no verdict.
+pub const EXIT_OK : u8 = 0;
+pub const EXIT_ALARM : u8 = 1;
+pub const EXIT_UNREAD : u8 = 2;
+
+pub const REPLAY_NOTE : str = "not replayed here: tri runs no wasm, so it calls no card; trios' replayDecisions runs each record on a fresh instance of its pinned card";
+
+invariant the_sections_and_verdicts_are_numbered { assert SECTIONS == 5 and S_DECISION == 4 and VERDICTS == 9 and V_UNREAD == 8 and EXIT_UNREAD == 2; }
+
+/// The section's name, printed first on each of its rows.
+pub fn section_name(s: u8) -> string {
+    if (s == S_KIND) { return "kind"; }
+    if (s == S_MAILBOX) { return "mailbox"; }
+    if (s == S_SUPERVISOR) { return "supervisor"; }
+    if (s == S_EVENT) { return "event"; }
+    return "decision";
+}
+
+/// The top-level key a section reads.
+pub fn section_key(s: u8) -> string {
+    if (s == S_KIND) { return "kinds"; }
+    if (s == S_MAILBOX) { return "top"; }
+    if (s == S_SUPERVISOR) { return "supervisors"; }
+    if (s == S_EVENT) { return "events"; }
+    return "records";
+}
+
+/// Which document the section reads: 0 the metrics, 1 the decision log (only with --replay).
+pub fn doc_of(s: u8) -> u8 {
+    if (s == S_DECISION) { return 1; }
+    return 0;
+}
+
+/// Is the section a map, whose rows are named by their key (column 0)? Else a list.
+pub fn is_map(s: u8) -> bool {
+    return s == S_KIND or s == S_SUPERVISOR;
+}
+
+/// How many columns a row of the section prints.
+pub fn columns(s: u8) -> u8 {
+    if (s == S_KIND) { return 10; }
+    if (s == S_SUPERVISOR) { return 5; }
+    if (s == S_EVENT) { return 4; }
+    return 5;
+}
+
+/// The key column k of a section reads; column 0 of a map is the row's own name ("name").
+pub fn key(s: u8, k: u8) -> string {
+    if (s == S_KIND) {
+        if (k == 0) { return "name"; }
+        if (k == 1) { return "queen.actor.live"; }
+        if (k == 2) { return "queen.actor.turns"; }
+        if (k == 3) { return "queen.actor.busy_permille"; }
+        if (k == 4) { return "maxMs"; }
+        if (k == 5) { return "alarmsOn"; }
+        if (k == 6) { return "queen.actor.crashes"; }
+        if (k == 7) { return "queen.actor.kills"; }
+        if (k == 8) { return "queen.actor.restarts"; }
+        return "queen.actor.dead_letters";
+    }
+    if (s == S_MAILBOX) {
+        if (k == 0) { return "kind"; }
+        if (k == 1) { return "pid"; }
+        if (k == 2) { return "depth"; }
+        if (k == 3) { return "busy"; }
+        return "turnAgeMs";
+    }
+    if (s == S_SUPERVISOR) {
+        if (k == 0) { return "name"; }
+        if (k == 1) { return "queen.actor.restarts"; }
+        if (k == 2) { return "inPeriod"; }
+        if (k == 3) { return "storm"; }
+        return "queen.actor.give_ups";
+    }
+    if (s == S_EVENT) {
+        if (k == 0) { return "event"; }
+        if (k == 1) { return "kind"; }
+        if (k == 2) { return "value"; }
+        return "at";
+    }
+    if (k == 0) { return "card"; }
+    if (k == 1) { return "fn"; }
+    if (k == 2) { return "kind"; }
+    if (k == 3) { return "n"; }
+    return "at";
+}
+
+/// The label printed before a column's value: the key without the `queen.actor.` prefix, and the two
+/// nested keys of a kind named for the map that holds them.
+pub fn label(s: u8, k: u8) -> string {
+    if (s == S_KIND) {
+        if (k == 1) { return "live"; }
+        if (k == 2) { return "turns"; }
+        if (k == 3) { return "busy_permille"; }
+        if (k == 4) { return "turn_max_ms"; }
+        if (k == 5) { return "depth_alarms_on"; }
+        if (k == 6) { return "crashes"; }
+        if (k == 7) { return "kills"; }
+        if (k == 8) { return "restarts"; }
+        if (k == 9) { return "dead_letters"; }
+    }
+    if (s == S_SUPERVISOR) {
+        if (k == 1) { return "restarts"; }
+        if (k == 4) { return "give_ups"; }
+    }
+    return key(s, k);
+}
+
+/// The indent of column k's key: a row's own keys at 6; a kind's maxMs (in queen.actor.turn_time_ms)
+/// and alarmsOn (in queen.actor.mailbox_depth) at 8, the only keys of those names in a kind.
+pub fn indent(s: u8, k: u8) -> usize {
+    if (s == S_KIND and (k == 4 or k == 5)) { return 8; }
+    return 6;
+}
+
+/// The offset of the section's first row line: the line after `  "<key>": [` (or `{`); text.len when
+/// the section is missing or empty (`[]`, `{}`).
+pub fn section_at(text: string, s: u8) -> usize {
+    var at : usize = 0;
+    while (at < text.len) {
+        const end : usize = line_end(text, at);
+        const v : usize = key_value(text, at, end, 2, section_key(s));
+        if (v <= end) {
+            if (v + 1 == end and (text[v] == 91 or text[v] == 123)) { return end + 1; }
+            return text.len;
+        }
+        at = end + 1;
+    }
+    return text.len;
+}
+
+/// Does the line text[at..end] open a row: `{` at indent 4 in a list, `"<name>": {` at indent 4 in a map?
+pub fn opens_row(text: string, at: usize, end: usize, s: u8) -> bool {
+    if (is_map(s) == false) { return line_is(text, at, end, 4, "{"); }
+    if (end < at + 9 or text[end - 1] != 123 or text[end - 2] != 32 or text[end - 3] != 58 or text[end - 4] != 34) { return false; }
+    return line_is(text, at, at + 5, 4, "\"");
+}
+
+/// The offset of the next row at or after `at`; text.len at the section's end (a line at indent 2).
+pub fn next_item(text: string, at: usize, s: u8) -> usize {
+    var k : usize = at;
+    while (k < text.len) {
+        const end : usize = line_end(text, k);
+        if (opens_row(text, k, end, s)) { return k; }
+        if (line_is(text, k, end, 2, "]") or line_is(text, k, end, 2, "}")) { return text.len; }
+        k = end + 1;
+    }
+    return text.len;
+}
+
+/// The offset of the end of the row that opens at `at`: its closing `}` line at indent 4, or text.len.
+pub fn item_end(text: string, at: usize) -> usize {
+    var k : usize = line_end(text, at) + 1;
+    while (k < text.len) {
+        const end : usize = line_end(text, k);
+        if (line_is(text, k, end, 4, "}")) { return end; }
+        k = end + 1;
+    }
+    return text.len;
+}
+
+/// Where cell k of the row text[o..e] starts; a map row's name for column 0; text.len when it has none.
+pub fn cell_from(text: string, o: usize, e: usize, s: u8, k: u8) -> usize {
+    if (k == 0 and is_map(s)) { return o + 5; }
+    return value_from(text, key_at(text, o, e, indent(s, k), key(s, k)));
+}
+
+/// Where cell k ends.
+pub fn cell_to(text: string, o: usize, e: usize, s: u8, k: u8) -> usize {
+    if (k == 0 and is_map(s)) { return line_end(text, o) - 4; }
+    return value_to(text, key_at(text, o, e, indent(s, k), key(s, k)));
+}
+
+pub fn has_cell(text: string, o: usize, e: usize, s: u8, k: u8) -> bool {
+    if (k == 0 and is_map(s)) { return true; }
+    return key_at(text, o, e, indent(s, k), key(s, k)) <= text.len;
+}
+
+pub fn cell_is(text: string, o: usize, e: usize, s: u8, k: u8, lit: string) -> bool {
+    return span_is(text, cell_from(text, o, e, s, k), cell_to(text, o, e, s, k), lit);
+}
+
+/// Cell k as a count: its decimal digits (a string's too, as pids and u64s come quoted), or 0.
+pub fn count(text: string, o: usize, e: usize, s: u8, k: u8) -> u64 {
+    const from : usize = cell_from(text, o, e, s, k);
+    const to : usize = cell_to(text, o, e, s, k);
+    if (to <= from or to - from > 18) { return 0; }
+    var n : u64 = 0;
+    var i : usize = from;
+    while (i < to) {
+        if (text[i] < 48 or text[i] > 57) { return 0; }
+        n = n * 10 + ((text[i] as u64) - 48);
+        i = i + 1;
+    }
+    return n;
+}
+
+/// The verdict on one row, given the bound (seconds) a turn in progress is judged against.
+///   kind        DEEP while any of its mailboxes has its depth alarm on.
+///   mailbox     DEEP at or above depth_on_at(MAILBOX_CAP), where the runtime raises the alarm; LONG
+///               when busy with a turn of at least long_at_ms(bound).
+///   supervisor  GAVE_UP once it gave up; STORM while one restart from giving up.
+///   event       LONG_PAST for turn_time_limit and mailbox_time_limit: the runtime judged that turn or
+///               wait long against its own kind's bound. The other events are HISTORY: the alarm they
+///               raised or cleared is read live in the sections above.
+///   decision    UNSAMPLED when the sampling rule would not have kept it (replay_verdict RV_UNSAMPLED).
+/// A row without the key its verdict reads is UNREAD.
+pub fn verdict(text: string, o: usize, e: usize, s: u8, bound: u32) -> u8 {
+    if (s == S_KIND) {
+        if (has_cell(text, o, e, s, 5) == false) { return V_UNREAD; }
+        if (count(text, o, e, s, 5) > 0) { return V_DEEP; }
+        return V_OK;
+    }
+    if (s == S_MAILBOX) {
+        if (has_cell(text, o, e, s, 2) == false or has_cell(text, o, e, s, 3) == false) { return V_UNREAD; }
+        if (count(text, o, e, s, 2) >= (depth_on_at(MAILBOX_CAP) as u64)) { return V_DEEP; }
+        if (cell_is(text, o, e, s, 3, "true") and count(text, o, e, s, 4) >= long_at_ms(bound) and bound > 0) { return V_LONG; }
+        return V_OK;
+    }
+    if (s == S_SUPERVISOR) {
+        if (has_cell(text, o, e, s, 3) == false) { return V_UNREAD; }
+        if (count(text, o, e, s, 4) > 0) { return V_GAVE_UP; }
+        if (cell_is(text, o, e, s, 3, "true")) { return V_STORM; }
+        return V_OK;
+    }
+    if (s == S_EVENT) {
+        if (has_cell(text, o, e, s, 0) == false) { return V_UNREAD; }
+        if (cell_is(text, o, e, s, 0, TEL_EVENT_NAMES[EV_TURN_LONG]) or cell_is(text, o, e, s, 0, TEL_EVENT_NAMES[EV_WAIT_LONG])) { return V_LONG_PAST; }
+        return V_HISTORY;
+    }
+    if (has_cell(text, o, e, s, 3) == false) { return V_UNREAD; }
+    const n : u64 = count(text, o, e, s, 3);
+    if (n > 4294967295 or kept(n as u32, DLOG_PER_FN_PER_WINDOW) == false) { return V_UNSAMPLED; }
+    return V_OK;
+}
+
+/// Is the row printed? Every row of the metrics is (each section is short: TOP_N mailboxes, a ring of
+/// EVENT_RING events). Of the decision log's DLOG_RING records only those that are not V_OK are.
+pub fn listed(s: u8, v: u8) -> bool {
+    if (s == S_DECISION) { return v != V_OK; }
+    return true;
+}
+
+/// Does the verdict move the exit to ALARM?
+pub fn is_alarm(v: u8) -> bool {
+    return v == V_DEEP or v == V_LONG or v == V_STORM or v == V_GAVE_UP or v == V_LONG_PAST or v == V_UNSAMPLED;
+}
+
+/// Is a row of this section a decision record (for the empty-log rule)?
+pub fn is_record(s: u8) -> bool {
+    return s == S_DECISION;
+}
+
+/// The verdict's words, printed at the end of its row.
+pub fn why(v: u8) -> string {
+    if (v == V_OK) { return "ok"; }
+    if (v == V_DEEP) { return "DEEP: at or above the depth where the runtime raises its alarm (depth_on_at of MAILBOX_CAP)"; }
+    if (v == V_LONG) { return "LONG: a turn in progress past half its bound (long_at_ms)"; }
+    if (v == V_STORM) { return "STORM: one restart from giving up"; }
+    if (v == V_GAVE_UP) { return "GAVE UP: the supervisor exceeded its restart intensity"; }
+    if (v == V_LONG_PAST) { return "LONG: the runtime judged this turn or wait long against its kind's bound"; }
+    if (v == V_HISTORY) { return "history: its alarm is read live above"; }
+    if (v == V_UNSAMPLED) { return "UNSAMPLED: the sampling rule would not keep it, so a replay fails"; }
+    return "UNREAD: the key its verdict reads is missing";
+}
+
+/// Is the telemetry on? The metrics' top-level `"enabled": true`. An unreachable Queen reads as off.
+pub fn enabled(text: string) -> bool {
+    const v : usize = key_at(text, 0, text.len, 2, "enabled");
+    return span_is(text, value_from(text, v), value_to(text, v), "true");
+}
+
+/// The exit code: no verdict when the telemetry is off or unreachable, a row is UNREAD, or --replay
+/// found an empty log; ALARM when a row is; else OK.
+pub fn exit_code(on: bool, alarms: u64, unread: u64, replay: bool, records: u64) -> u8 {
+    if (on == false or unread > 0) { return EXIT_UNREAD; }
+    if (replay and records == 0) { return EXIT_UNREAD; }
+    if (alarms > 0) { return EXIT_ALARM; }
+    return EXIT_OK;
+}
+
+pub fn exit_why(x: u8) -> string {
+    if (x == EXIT_OK) { return "exit 0: no alarm"; }
+    if (x == EXIT_ALARM) { return "exit 1: an alarm: a deep mailbox, a long turn, a restart storm or give-up, or an unsampled record"; }
+    return "exit 2: no verdict -- the telemetry is off (TRIOS_QUEEN_ACTORS_TELEMETRY) or unreachable, a row cannot be read, or the decision log is empty";
+}
+
+/// The decimal number at the end of a string (the limit in DECISIONS), for the test that ties it to
+/// DLOG_RING.
+pub fn tail_number(t: string) -> u64 {
+    var i : usize = t.len;
+    while (i > 0 and t[i - 1] >= 48 and t[i - 1] <= 57) {
+        i = i - 1;
+    }
+    var n : u64 = 0;
+    while (i < t.len) {
+        n = n * 10 + ((t[i] as u64) - 48);
+        i = i + 1;
+    }
+    return n;
+}
+
+const LIVE : string = "{\n  \"enabled\": true,\n  \"events\": [\n    {\n      \"at\": 31000,\n      \"event\": \"queen.actor.restart_storm\",\n      \"kind\": \"flaky-domain\",\n      \"value\": 3\n    },\n    {\n      \"at\": 250000,\n      \"event\": \"queen.actor.mailbox_depth_limit\",\n      \"kind\": \"slow\",\n      \"value\": 192\n    },\n    {\n      \"at\": 260000,\n      \"event\": \"queen.actor.turn_time_limit\",\n      \"kind\": \"reviewer\",\n      \"value\": 160000\n    }\n  ],\n  \"kinds\": {\n    \"slow\": {\n      \"events\": {\n        \"queen.actor.mailbox_depth_limit\": 1\n      },\n      \"queen.actor.crashes\": 0,\n      \"queen.actor.dead_letters\": 4,\n      \"queen.actor.kills\": 0,\n      \"queen.actor.live\": 1,\n      \"queen.actor.mailbox_depth\": {\n        \"alarmsOn\": 1,\n        \"max\": 256\n      },\n      \"queen.actor.restarts\": 0,\n      \"queen.actor.turn_time_ms\": {\n        \"buckets\": [],\n        \"count\": 0,\n        \"maxMs\": 0\n      },\n      \"queen.actor.turns\": 0\n    }\n  },\n  \"messages\": [\n    {\n      \"at\": 1000,\n      \"end\": 1,\n      \"kind\": \"flaky\",\n      \"turn_ms\": 0,\n      \"wait_ms\": 0\n    }\n  ],\n  \"supervisors\": {\n    \"flaky-domain\": {\n      \"inPeriod\": 3,\n      \"queen.actor.give_ups\": 0,\n      \"queen.actor.restarts\": 3,\n      \"storm\": true\n    }\n  },\n  \"top\": [\n    {\n      \"busy\": false,\n      \"depth\": 256,\n      \"kind\": \"slow\",\n      \"pid\": \"12884901889\",\n      \"turnAgeMs\": 0\n    },\n    {\n      \"busy\": false,\n      \"depth\": 3,\n      \"kind\": \"echo\",\n      \"pid\": \"17179869185\",\n      \"turnAgeMs\": 0\n    },\n    {\n      \"busy\": true,\n      \"depth\": 1,\n      \"kind\": \"reviewer\",\n      \"pid\": \"4294967297\",\n      \"turnAgeMs\": 150000\n    }\n  ]\n}";
+
+const LOG : string = "{\n  \"enabled\": true,\n  \"fields\": [\n    \"card\",\n    \"fn\",\n    \"args\",\n    \"result\",\n    \"kind\",\n    \"at\",\n    \"n\"\n  ],\n  \"records\": [\n    {\n      \"args\": [\n        300\n      ],\n      \"at\": 0,\n      \"card\": \"queen/telemetry.wasm\",\n      \"fn\": \"long_at_ms\",\n      \"kind\": \"-\",\n      \"n\": 0,\n      \"result\": \"150000\"\n    },\n    {\n      \"args\": [\n        0,\n        8\n      ],\n      \"at\": 0,\n      \"card\": \"queen/telemetry.wasm\",\n      \"fn\": \"kept\",\n      \"kind\": \"-\",\n      \"n\": 0,\n      \"result\": 1\n    },\n    {\n      \"args\": [\n        0,\n        8\n      ],\n      \"at\": 5000,\n      \"card\": \"queen/telemetry.wasm\",\n      \"fn\": \"kept\",\n      \"kind\": \"-\",\n      \"n\": 16,\n      \"result\": 1\n    }\n  ]\n}";
+
+// Scenario: each section of the live answer is found at its top-level key, and its rows are walked
+// once each: one kind, three mailboxes, one supervisor, three events. The messages list and a kind's
+// own `events` map are not rows of any section.
+test each_section_walks_its_own_rows {
+    var s : u8 = 0;
+    var rows : [4]u64 = [0, 0, 0, 0];
+    while (s < 4) {
+        var o : usize = next_item(LIVE, section_at(LIVE, s), s);
+        while (o < LIVE.len) {
+            rows[s] = rows[s] + 1;
+            o = next_item(LIVE, item_end(LIVE, o), s);
+        }
+        s = s + 1;
+    }
+    assert rows[0] == 1 and rows[1] == 3 and rows[2] == 1 and rows[3] == 3;
+    assert section_at(LIVE, S_DECISION) == LIVE.len;
+    assert section_at(LOG, S_DECISION) < LOG.len;
+}
+
+// Scenario: the cells of a row: a map row's name, a nested key at indent 8, a quoted pid read as a count.
+test a_row_reads_its_cells {
+    const k : usize = next_item(LIVE, section_at(LIVE, S_KIND), S_KIND);
+    const ke : usize = item_end(LIVE, k);
+    assert cell_is(LIVE, k, ke, S_KIND, 0, "slow");
+    assert count(LIVE, k, ke, S_KIND, 5) == 1;
+    assert cell_is(LIVE, k, ke, S_KIND, 4, "0");
+    assert count(LIVE, k, ke, S_KIND, 9) == 4;
+    const sv : usize = next_item(LIVE, section_at(LIVE, S_SUPERVISOR), S_SUPERVISOR);
+    const se : usize = item_end(LIVE, sv);
+    assert cell_is(LIVE, sv, se, S_SUPERVISOR, 0, "flaky-domain");
+    assert count(LIVE, sv, se, S_SUPERVISOR, 1) == 3;
+    const m : usize = next_item(LIVE, section_at(LIVE, S_MAILBOX), S_MAILBOX);
+    const me : usize = item_end(LIVE, m);
+    assert count(LIVE, m, me, S_MAILBOX, 1) == 12884901889;
+    assert cell_is(LIVE, m, me, S_MAILBOX, 0, "slow");
+    assert span_is(label(S_KIND, 4), 0, 11, "turn_max_ms");
+    assert span_is(label(S_MAILBOX, 4), 0, 9, "turnAgeMs");
+}
+
+// Scenario: the live answer judged row by row with the reviewer's bound (300 s: long at 150 s).
+test the_live_rows_are_judged {
+    const k : usize = next_item(LIVE, section_at(LIVE, S_KIND), S_KIND);
+    assert verdict(LIVE, k, item_end(LIVE, k), S_KIND, DEFAULT_BOUND) == V_DEEP;
+    const a : usize = next_item(LIVE, section_at(LIVE, S_MAILBOX), S_MAILBOX);
+    const ae : usize = item_end(LIVE, a);
+    const b : usize = next_item(LIVE, ae, S_MAILBOX);
+    const be : usize = item_end(LIVE, b);
+    const c : usize = next_item(LIVE, be, S_MAILBOX);
+    const ce : usize = item_end(LIVE, c);
+    assert verdict(LIVE, a, ae, S_MAILBOX, DEFAULT_BOUND) == V_DEEP;
+    assert verdict(LIVE, b, be, S_MAILBOX, DEFAULT_BOUND) == V_OK;
+    assert verdict(LIVE, c, ce, S_MAILBOX, DEFAULT_BOUND) == V_LONG;
+    assert verdict(LIVE, c, ce, S_MAILBOX, 301) == V_OK;
+    assert verdict(LIVE, c, ce, S_MAILBOX, 0) == V_OK;
+    const sv : usize = next_item(LIVE, section_at(LIVE, S_SUPERVISOR), S_SUPERVISOR);
+    assert verdict(LIVE, sv, item_end(LIVE, sv), S_SUPERVISOR, DEFAULT_BOUND) == V_STORM;
+    const e1 : usize = next_item(LIVE, section_at(LIVE, S_EVENT), S_EVENT);
+    const e1e : usize = item_end(LIVE, e1);
+    const e2 : usize = next_item(LIVE, e1e, S_EVENT);
+    const e2e : usize = item_end(LIVE, e2);
+    const e3 : usize = next_item(LIVE, e2e, S_EVENT);
+    assert verdict(LIVE, e1, e1e, S_EVENT, DEFAULT_BOUND) == V_HISTORY;
+    assert verdict(LIVE, e2, e2e, S_EVENT, DEFAULT_BOUND) == V_HISTORY;
+    assert verdict(LIVE, e3, item_end(LIVE, e3), S_EVENT, DEFAULT_BOUND) == V_LONG_PAST;
+    assert enabled(LIVE) == true;
+}
+
+// Scenario: the thresholds are telemetry.t27's on actors.t27's cap: 192 of 256 is DEEP, 191 is not.
+test the_depth_threshold_is_the_runtimes {
+    const at : string = "    {\n      \"busy\": false,\n      \"depth\": 192\n    }";
+    const below : string = "    {\n      \"busy\": false,\n      \"depth\": 191\n    }";
+    assert verdict(at, 0, at.len, S_MAILBOX, DEFAULT_BOUND) == V_DEEP;
+    assert verdict(below, 0, below.len, S_MAILBOX, DEFAULT_BOUND) == V_OK;
+    const idle : string = "    {\n      \"busy\": false,\n      \"depth\": 1,\n      \"turnAgeMs\": 900000\n    }";
+    assert verdict(idle, 0, idle.len, S_MAILBOX, DEFAULT_BOUND) == V_OK;
+    const short : string = "    {\n      \"busy\": true,\n      \"depth\": 1,\n      \"turnAgeMs\": 149999\n    }";
+    assert verdict(short, 0, short.len, S_MAILBOX, DEFAULT_BOUND) == V_OK;
+    assert DEFAULT_BOUND == 300;
+}
+
+// Scenario: a supervisor that gave up, and rows without the key their verdict reads.
+test give_up_and_unread_rows {
+    const gave : string = "    \"d\": {\n      \"queen.actor.give_ups\": 1,\n      \"storm\": false\n    }";
+    assert verdict(gave, 0, gave.len, S_SUPERVISOR, DEFAULT_BOUND) == V_GAVE_UP;
+    const calm : string = "    \"d\": {\n      \"queen.actor.give_ups\": 0,\n      \"storm\": false\n    }";
+    assert verdict(calm, 0, calm.len, S_SUPERVISOR, DEFAULT_BOUND) == V_OK;
+    const nostorm : string = "    \"d\": {\n      \"queen.actor.give_ups\": 0\n    }";
+    assert verdict(nostorm, 0, nostorm.len, S_SUPERVISOR, DEFAULT_BOUND) == V_UNREAD;
+    const nodepth : string = "    {\n      \"busy\": true\n    }";
+    assert verdict(nodepth, 0, nodepth.len, S_MAILBOX, DEFAULT_BOUND) == V_UNREAD;
+    const nokind : string = "    \"k\": {\n      \"queen.actor.live\": 1\n    }";
+    assert verdict(nokind, 0, nokind.len, S_KIND, DEFAULT_BOUND) == V_UNREAD;
+    const wait : string = "    {\n      \"event\": \"queen.actor.mailbox_time_limit\"\n    }";
+    assert verdict(wait, 0, wait.len, S_EVENT, DEFAULT_BOUND) == V_LONG_PAST;
+}
+
+// Scenario: the decision log: a record numbered DLOG_PER_FN_PER_WINDOW (16) in its window is one the
+// sampling rule refuses; only it is listed.
+test the_log_lists_what_sampling_refuses {
+    const r1 : usize = next_item(LOG, section_at(LOG, S_DECISION), S_DECISION);
+    const r1e : usize = item_end(LOG, r1);
+    const r2 : usize = next_item(LOG, r1e, S_DECISION);
+    const r2e : usize = item_end(LOG, r2);
+    const r3 : usize = next_item(LOG, r2e, S_DECISION);
+    const r3e : usize = item_end(LOG, r3);
+    assert verdict(LOG, r1, r1e, S_DECISION, DEFAULT_BOUND) == V_OK;
+    assert verdict(LOG, r2, r2e, S_DECISION, DEFAULT_BOUND) == V_OK;
+    assert verdict(LOG, r3, r3e, S_DECISION, DEFAULT_BOUND) == V_UNSAMPLED;
+    assert next_item(LOG, r3e, S_DECISION) == LOG.len;
+    assert cell_is(LOG, r1, r1e, S_DECISION, 1, "long_at_ms");
+    assert listed(S_DECISION, V_OK) == false;
+    assert listed(S_DECISION, V_UNSAMPLED) == true;
+    assert listed(S_MAILBOX, V_OK) == true;
+    assert tail_number(DECISIONS) == (DLOG_RING as u64);
+}
+
+// Scenario: the telemetry off, the Queen unreachable (nothing read), and an empty section.
+test off_and_empty_are_no_verdict {
+    const off : string = "{\n  \"enabled\": false,\n  \"flag\": \"TRIOS_QUEEN_ACTORS_TELEMETRY\"\n}";
+    assert enabled(off) == false;
+    assert enabled("") == false;
+    assert section_at(off, S_MAILBOX) == off.len;
+    const empty : string = "{\n  \"enabled\": true,\n  \"events\": [],\n  \"supervisors\": {},\n  \"top\": []\n}";
+    assert enabled(empty) == true;
+    assert section_at(empty, S_EVENT) == empty.len;
+    assert section_at(empty, S_SUPERVISOR) == empty.len;
+    assert section_at(empty, S_MAILBOX) == empty.len;
+    assert exit_code(false, 0, 0, false, 0) == EXIT_UNREAD;
+    assert exit_code(true, 0, 1, false, 0) == EXIT_UNREAD;
+    assert exit_code(true, 0, 0, true, 0) == EXIT_UNREAD;
+    assert exit_code(true, 2, 0, true, 3) == EXIT_ALARM;
+    assert exit_code(true, 0, 0, true, 3) == EXIT_OK;
+    assert exit_code(true, 0, 0, false, 0) == EXIT_OK;
+}
+
+// Scenario: which verdicts are alarms, and the words.
+test alarms_and_words {
+    assert is_alarm(V_OK) == false;
+    assert is_alarm(V_HISTORY) == false;
+    assert is_alarm(V_UNREAD) == false;
+    assert is_alarm(V_DEEP) and is_alarm(V_LONG) and is_alarm(V_STORM) and is_alarm(V_GAVE_UP) and is_alarm(V_LONG_PAST) and is_alarm(V_UNSAMPLED);
+    assert is_record(S_DECISION) == true and is_record(S_EVENT) == false;
+    assert why(V_OK)[0] == 111;
+    assert why(V_DEEP)[0] == 68;
+    assert why(V_LONG)[0] == 76 and why(V_LONG_PAST)[6] == 116;
+    assert why(V_STORM)[0] == 83 and why(V_GAVE_UP)[0] == 71;
+    assert why(V_HISTORY)[0] == 104 and why(V_UNSAMPLED)[0] == 85 and why(V_UNREAD)[2] == 82;
+    assert exit_why(EXIT_OK)[5] == 48 and exit_why(EXIT_ALARM)[5] == 49 and exit_why(EXIT_UNREAD)[5] == 50;
+    assert span_is(section_name(S_SUPERVISOR), 0, 10, "supervisor");
+    assert doc_of(S_DECISION) == 1 and doc_of(S_KIND) == 0;
+    assert columns(S_KIND) == 10 and columns(S_EVENT) == 4;
+}

@@ -44,6 +44,7 @@ mod red;
 #[path = "../../../gen/rust/tri/test/report.rs"] #[allow(dead_code, unused_parens)]
 mod report; // t27c gen-rust of specs/tri/test/report.t27 (#7369): every rule of reading `t27c test-report`
 #[path = "../../../gen/rust/tri/lab/receipt.rs"] #[allow(dead_code, unused_parens)] mod lab; // t27c gen-rust of specs/tri/lab/receipt.t27: every rule of `tri lab receipt`
+#[path = "../../../gen/rust/tri/actors/metrics.rs"] #[allow(dead_code, unused_parens)] mod act; // t27c gen-rust of specs/tri/actors/metrics.t27: every rule of `tri actors`
 mod renum;
 mod reseal;
 mod rtl;
@@ -369,6 +370,15 @@ enum Commands {
         #[arg(long)] specs: Option<String>,
         /// A full master commit sha: its run instead of the newest. Twice: compare the two commits' receipts.
         #[arg(long)] sha: Vec<String>,
+    },
+    /// The Queen's actor telemetry: kinds, the deepest mailboxes, supervisors and threshold events, each row judged (rules: specs/tri/actors/metrics.t27, thresholds from specs/queen/telemetry.t27).
+    Actors {
+        /// The Queen's base URL.
+        #[arg(long, default_value = act::QUEEN_URL)] url: String,
+        /// The bound, in seconds, a turn in progress is judged against (long at half of it).
+        #[arg(long, default_value_t = act::DEFAULT_BOUND)] bound: u32,
+        /// Also read the decision log: list the records the sampling rule would refuse.
+        #[arg(long)] replay: bool,
     },
 }
 
@@ -957,6 +967,28 @@ fn cmd_lab(specs: Option<&str>, sha: &[String]) -> Result<u8> {
     Ok(x)
 }
 
+/// `tri actors`: curl the telemetry (and with --replay the decision log), pretty-print it, and print what specs/tri/actors/metrics.t27 reads in it.
+fn cmd_actors(url: &str, bound: u32, replay: bool) -> Result<u8> {
+    let get = |p: &str| -> Result<&'static str> { let o = Command::new("curl").args(["-fsSL", "--max-time", "60", &format!("{url}{p}")]).output()?; Ok(serde_json::from_slice::<serde_json::Value>(&o.stdout).ok().and_then(|v| serde_json::to_string_pretty(&v).ok()).unwrap_or_default().leak()) };
+    let docs = [get(act::METRICS)?, if replay { get(act::DECISIONS)? } else { "" }];
+    let (mut n, mut alarms, mut records) = ([0u64; act::VERDICTS as usize], 0u64, 0u64);
+    for s in 0..act::SECTIONS {
+        let t = docs[act::doc_of(s) as usize];
+        let mut o = act::next_item(t, act::section_at(t, s), s);
+        while o < t.len() {
+            let e = act::item_end(t, o);
+            let v = act::verdict(t, o, e, s, bound);
+            (n[v as usize], alarms, records) = (n[v as usize] + 1, alarms + act::is_alarm(v) as u64, records + act::is_record(s) as u64);
+            if act::listed(s, v) { println!("{} {}  {}", act::section_name(s), (0..act::columns(s)).map(|k| format!("{}={}", act::label(s, k), &t[act::cell_from(t, o, e, s, k)..act::cell_to(t, o, e, s, k)])).collect::<Vec<_>>().join(" "), act::why(v)); }
+            o = act::next_item(t, e, s);
+        }
+    }
+    if replay { println!("decision log: {records} records; {}", act::REPLAY_NOTE); }
+    let x = act::exit_code(act::enabled(docs[0]), alarms, n[act::V_UNREAD as usize], replay, records);
+    println!("{}", act::exit_why(x));
+    Ok(x)
+}
+
 fn cmd_verdict(toxic: bool) -> Result<()> {
     run_t27c(&["validate-seals"])?;
     run_t27c(&["validate-phi-identity"])?;
@@ -1199,6 +1231,7 @@ fn main() -> Result<()> {
         Commands::Seals { action } => seals::run(action)?,
         Commands::Hooks { action } => hooks::run(action)?,
         Commands::Lab { specs, sha, .. } => std::process::exit(cmd_lab(specs.as_deref(), sha)? as i32),
+        Commands::Actors { url, bound, replay } => std::process::exit(cmd_actors(url, *bound, *replay)? as i32),
     }
 
     Ok(())

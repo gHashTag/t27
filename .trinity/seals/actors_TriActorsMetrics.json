@@ -1,0 +1,44 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+b8781fb75",
+  "closure": [
+    {
+      "spec": "specs/queen/actors.t27",
+      "spec_hash": "sha256:73c4135bfcb8442a96bfc64977048d75055bb55e5c3e04e49a20966dada4b722"
+    },
+    {
+      "spec": "specs/queen/reviewer.t27",
+      "spec_hash": "sha256:31bbca9567a54822fd12dd34b24cf3a15db37627e21700c83b80542cea50e71d"
+    },
+    {
+      "spec": "specs/queen/telemetry.t27",
+      "spec_hash": "sha256:007d2562943afa47b3a4ed7bb5c9a28caf70e32fc9a64b855b478cc693ac4faf"
+    },
+    {
+      "spec": "specs/tri/lab/receipt.t27",
+      "spec_hash": "sha256:00d9eec8d7be84dde596c9990b3a5574de24aff9f7a94579fc620eb585712441"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:33b85a30a84f951d9f7bdd74a6087894df37250bb717c4276844ce07b529c38b",
+  "gen_hash_rust": "sha256:1e698069d642b08d4499c9f4de81d432734f7e0063072879b900812593fdfdcf",
+  "gen_hash_verilog": "sha256:581a774c94caa4810ada274d50dfbbe45e8f5ac843013746948d6f67bfab15ac",
+  "gen_hash_zig": "sha256:85572abb24b8359889d35646afe2afd4b9db2fc5797de9d9d8cdeb3bd9b109b6",
+  "module": "TriActorsMetrics",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T13:37:24Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:afda88aedb0f4af28fc6b0e71cb718f90acc703fdf8d88c1df310be2d65498ca",
+  "spec_path": "specs/tri/actors/metrics.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
