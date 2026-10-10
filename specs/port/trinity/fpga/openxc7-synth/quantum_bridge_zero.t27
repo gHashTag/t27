@@ -1,0 +1,327 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/quantum_bridge_zero.t27
+// Port of gHashTag/trinity fpga/openxc7-synth/quantum_bridge_zero.v
+//
+// Quantum Bridge Template — Dynamic Quantum State (set during build)
+// Implements the LED blinker logic from the original Verilog module
+// with counter-based patterns for different quantum states.
+//
+// Clock:    50 MHz (QMTECH Artix-7 XC7A100T)
+// LED:      D5 (T23) - Active LOW
+//
+// Quantum States:
+//   00 = SEPARABLE   -> Medium blink (~3 Hz) - classical physics
+//   01 = VIOLATION   -> Fast chaos (~6 Hz) - CGLMP > 2.0 (quantum!)
+//   10 = ZERO        -> Slow blink (~0.4 Hz) - orthogonal
+//   11 = NEGATIVE    -> Steady ON - anti-correlated
+//
+// Build system replaces QUANTUM_STATE value during build
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module quantum_bridge_top {
+
+    // === Module constants (from the original's header comments) ===
+
+    pub const CLK_MHZ : u32 = 50;              // 50 MHz clock
+    pub const COUNTER_WIDTH : u32 = 26;       // 26-bit counter for precise timing
+    pub const LED_ACTIVE_LOW : bool = true;    // Active LOW LED
+
+    // Quantum State encoding (2-bit, widened to u8 for T27 compatibility)
+    pub const STATE_SEPARABLE : u8 = 0b00;     // 2'b00 — separable
+    pub const STATE_VIOLATION : u8 = 0b01;    // 2'b01 — violation
+    pub const STATE_ZERO : u8 = 0b10;         // 2'b10 — zero
+    pub const STATE_NEGATIVE : u8 = 0b11;     // 2'b11 — negative
+
+    // Counter bit selection for different blink rates (from original comments)
+    pub const BIT_SEPARABLE : u32 = 23;       // counter[23] = ~3 Hz
+    pub const BIT_VIOLATION : u32 = 22;       // counter[22] = ~6 Hz
+    pub const BIT_ZERO : u32 = 25;            // counter[25] = ~0.4 Hz
+
+    // === Input/Output types ===
+
+    pub struct BridgeInputs {
+        clk : bool,        // input wire clk — 50 MHz
+    }
+
+    pub struct Outputs {
+        led : bool,        // output wire led — D5 (T23), active LOW
+    }
+
+    // === Port record constructors ===
+
+    fn inputs(clk: bool) -> BridgeInputs {
+        return BridgeInputs{ .clk = clk };
+    }
+
+    fn outputs(led: bool) -> Outputs {
+        return Outputs{ .led = led };
+    }
+
+    // === Quantum state decision (set during build in original) ===
+
+    // In the original, this is set by sed during build: localparam QUANTUM_STATE = 2'b10;
+    // Here we provide the default value (ZERO state) that the original had
+    fn quantum_state() -> u8 {
+        return STATE_ZERO;  // 2'b10 — ZERO state
+    }
+
+    // === Mode predicates (the original's encoding table as code) ===
+
+    fn is_separable(state: u8) -> bool {
+        return state == STATE_SEPARABLE;
+    }
+
+    fn is_violation(state: u8) -> bool {
+        return state == STATE_VIOLATION;
+    }
+
+    fn is_zero(state: u8) -> bool {
+        return state == STATE_ZERO;
+    }
+
+    fn is_negative(state: u8) -> bool {
+        return state == STATE_NEGATIVE;
+    }
+
+    // === Counter logic ===
+
+    // 26-bit counter increment (from original: counter <= counter + 1'b1)
+    // Simulates the counter behavior for testing LED patterns
+    fn simulate_counter_increment(current: u32) -> u32 {
+        return current + 1;
+    }
+
+    // Extract specific bit from counter (simulates Verilog bit selection)
+    fn counter_bit(counter: u32, bit_index: u32) -> bool {
+        if (bit_index >= 32) {
+            return false;  // Invalid bit index
+        }
+        return (counter >> bit_index) & 1 == 1;
+    }
+
+    // === LED pattern computation (core logic from original) ===
+
+    // Implements the original case statement:
+    // case (QUANTUM_STATE)
+    //     2'b00: led_pattern = counter[23];   // SEPARABLE: ~3 Hz
+    //     2'b01: led_pattern = counter[22];   // VIOLATION: ~6 Hz
+    //     2'b10: led_pattern = counter[25];   // ZERO: ~0.4 Hz
+    //     2'b11: led_pattern = 1'b0;         // NEGATIVE: ON
+    //     default: led_pattern = 1'b1;        // OFF
+    // endcase
+    fn compute_led_pattern(state: u8, counter: u32) -> bool {
+        if (state == STATE_SEPARABLE) {
+            return counter_bit(counter, BIT_SEPARABLE);  // counter[23]
+        } else if (state == STATE_VIOLATION) {
+            return counter_bit(counter, BIT_VIOLATION);  // counter[22]
+        } else if (state == STATE_ZERO) {
+            return counter_bit(counter, BIT_ZERO);  // counter[25]
+        } else if (state == STATE_NEGATIVE) {
+            return false;  // 1'b0 — steady ON (since LED is active LOW)
+        } else {
+            return true;   // 1'b1 — OFF (default case)
+        }
+    }
+
+    // LED level conversion (active LOW: 0 = ON, 1 = OFF)
+    // Implements: assign led = ~led_pattern;
+    fn led_output(led_pattern: bool) -> bool {
+        return !led_pattern;  // Active LOW inversion
+    }
+
+    // === High-level interface function ===
+
+    // Computes the complete LED output given current state and counter
+    fn compute_led_output(state: u8, counter: u32) -> bool {
+        const led_pattern : bool = compute_led_pattern(state, counter);
+        return led_output(led_pattern);
+    }
+
+    // === Tests ===
+
+    test quantum_state_default {
+        assert(quantum_state() == STATE_ZERO);
+        assert(is_zero(quantum_state()));
+        assert(!is_separable(quantum_state()));
+        assert(!is_violation(quantum_state()));
+        assert(!is_negative(quantum_state()));
+    }
+
+    test counter_bit_extraction {
+        var counter : u32 = 0;
+        
+        // Test bit 0 (LSB)
+        assert(counter_bit(counter, 0) == false);
+        counter = simulate_counter_increment(counter);
+        assert(counter_bit(counter, 0) == true);
+        
+        // Test higher bits
+        counter = 0b100;  // Only bit 2 set
+        assert(counter_bit(counter, 0) == false);
+        assert(counter_bit(counter, 1) == false);
+        assert(counter_bit(counter, 2) == true);
+        assert(counter_bit(counter, 3) == false);
+        
+        // Test edge case
+        assert(counter_bit(counter, 31) == false);
+    }
+
+    test led_pattern_separable {
+        var counter : u32 = 0;
+        const state : u8 = STATE_SEPARABLE;
+        
+        // Test with counter where bit 23 is 0
+        assert(compute_led_pattern(state, 0) == false);
+        
+        // Test with counter where bit 23 is 1
+        var counter_bit23_set : u32 = 1 << BIT_SEPARABLE;
+        assert(compute_led_pattern(state, counter_bit23_set) == true);
+    }
+
+    test led_pattern_violation {
+        var counter : u32 = 0;
+        const state : u8 = STATE_VIOLATION;
+        
+        // Test with counter where bit 22 is 0
+        assert(compute_led_pattern(state, 0) == false);
+        
+        // Test with counter where bit 22 is 1
+        var counter_bit22_set : u32 = 1 << BIT_VIOLATION;
+        assert(compute_led_pattern(state, counter_bit22_set) == true);
+    }
+
+    test led_pattern_zero {
+        var counter : u32 = 0;
+        const state : u8 = STATE_ZERO;
+        
+        // Test with counter where bit 25 is 0
+        assert(compute_led_pattern(state, 0) == false);
+        
+        // Test with counter where bit 25 is 1
+        var counter_bit25_set : u32 = 1 << BIT_ZERO;
+        assert(compute_led_pattern(state, counter_bit25_set) == true);
+    }
+
+    test led_pattern_negative {
+        const state : u8 = STATE_NEGATIVE;
+        // Should always return false (steady ON)
+        assert(compute_led_pattern(state, 0) == false);
+        assert(compute_led_pattern(state, 0xFFFFFFFF) == false);
+        assert(compute_led_pattern(state, 123456) == false);
+    }
+
+    test led_pattern_default {
+        const state : u8 = 0xFF;  // Invalid state
+        // Should always return true (OFF)
+        assert(compute_led_pattern(state, 0) == true);
+        assert(compute_led_pattern(state, 0xFFFFFFFF) == true);
+        assert(compute_led_pattern(state, 123456) == true);
+    }
+
+    test led_output_active_low {
+        // LED pattern true should output false (OFF)
+        assert(led_output(true) == false);
+        
+        // LED pattern false should output true (ON)
+        assert(led_output(false) == true);
+    }
+
+    test complete_led_output_separable {
+        const state : u8 = STATE_SEPARABLE;
+        var counter : u32 = 0;
+        
+        // Counter bit 23 = 0 -> LED pattern = false -> LED output = true (ON)
+        assert(compute_led_output(state, counter) == true);
+        
+        // Counter bit 23 = 1 -> LED pattern = true -> LED output = false (OFF)
+        var counter_bit23_set : u32 = 1 << BIT_SEPARABLE;
+        assert(compute_led_output(state, counter_bit23_set) == false);
+    }
+
+    test complete_led_output_negative {
+        const state : u8 = STATE_NEGATIVE;
+        var counter : u32 = 0;
+        
+        // Should always be ON (false pattern -> true output)
+        assert(compute_led_output(state, counter) == true);
+        assert(compute_led_output(state, 0xFFFFFFFF) == true);
+    }
+
+    test complete_led_output_default {
+        const state : u8 = 0xFF;  // Invalid state
+        var counter : u32 = 0;
+        
+        // Should always be OFF (true pattern -> false output)
+        assert(compute_led_output(state, counter) == false);
+        assert(compute_led_output(state, 0xFFFFFFFF) == false);
+    }
+
+    test quantum_state_encoding {
+        assert(STATE_SEPARABLE == 0b00);
+        assert(STATE_VIOLATION == 0b01);
+        assert(STATE_ZERO == 0b10);
+        assert(STATE_NEGATIVE == 0b11);
+        
+        assert(is_separable(0b00));
+        assert(is_violation(0b01));
+        assert(is_zero(0b10));
+        assert(is_negative(0b11));
+        
+        assert(!is_separable(0b01));
+        assert(!is_violation(0b00));
+        assert(!is_zero(0b11));
+        assert(!is_negative(0b00));
+    }
+
+    test counter_increment_simulation {
+        var counter : u32 = 0;
+        const original : u32 = counter;
+        
+        counter = simulate_counter_increment(counter);
+        assert(counter == original + 1);
+        
+        counter = simulate_counter_increment(counter);
+        assert(counter == original + 2);
+    }
+
+    // === Benchmarks ===
+
+    bench led_pattern_computation_latency {
+        assert(compute_led_pattern(STATE_SEPARABLE, 123456) == false);
+    }
+
+    bench counter_bit_extraction_latency {
+        assert(counter_bit(123456, 23) == true);
+    }
+
+    bench complete_led_output_latency {
+        assert(compute_led_output(STATE_VIOLATION, 654321) == false);
+    }
+
+    // === Invariants (checked at compile time) ===
+
+    invariant quantum_state_values {
+        assert(STATE_SEPARABLE == 0);
+        assert(STATE_VIOLATION == 1);
+        assert(STATE_ZERO == 2);
+        assert(STATE_NEGATIVE == 3);
+    }
+
+    invariant counter_bit_indices_valid {
+        assert(BIT_SEPARABLE == 23);
+        assert(BIT_VIOLATION == 22);
+        assert(BIT_ZERO == 25);
+    }
+
+    invariant counter_width_positive {
+        assert(COUNTER_WIDTH == 26);
+        assert(COUNTER_WIDTH > 0);
+    }
+
+    invariant clk_frequency_valid {
+        assert(CLK_MHZ == 50);
+        assert(CLK_MHZ > 0);
+    }
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
