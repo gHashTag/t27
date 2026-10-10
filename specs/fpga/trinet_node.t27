@@ -669,8 +669,12 @@ test j_go_rises_exactly_when_a_job_starts {
     
     // End the frame with ok=1 (accepted)
     on_clock(0, 0, 0, 1, 1);
-    
-    // Check that j_go rose for exactly one clock when the job started
+
+    // j_go is registered on the accept edge, so the strobe is high in exactly the
+    // one cycle after that call -- observe it there, not a cycle later.
+    assert_eq(j_go, 1);
+
+    // Then it never rises again while the job runs and the engine returns to idle
     t = 0;
     seen_go = 0;
     while (t < 100) {
@@ -680,8 +684,8 @@ test j_go_rises_exactly_when_a_job_starts {
         }
         t = t + 1;
     }
-    
-    assert_eq(seen_go, 1);
+
+    assert_eq(seen_go, 0);
     assert_eq(n_req, 1);
     assert_eq(n_busy, 0);
     assert_eq(n_bad, 0);
