@@ -1,0 +1,210 @@
+module port::browseros::trios::agent_server::api::services::mcp::mcp_server;
+
+struct McpServerConfig {
+    name: []const u8,
+    title: []const u8,
+    version: []const u8,
+}
+
+struct McpServerCapabilities {
+    logging: bool,
+    instructions: []const u8,
+}
+
+struct ToolRegistrationParams {
+    browser: usize,
+    working_dir: []const u8,
+    resources_dir: []const u8,
+    acl_rules: usize,
+    observer: usize,
+    default_window_id: ?i32,
+}
+
+struct KlavisRegistrationParams {
+    handle: usize,
+    observer: usize,
+}
+
+struct McpServiceDeps {
+    version: []const u8,
+    registry: usize,
+    browser: usize,
+    execution_dir: []const u8,
+    resources_dir: []const u8,
+    acl_rules: ?usize,
+    klavis_ref: ?usize,
+    observer: ?usize,
+    default_window_id: ?i32,
+}
+
+pub fn build_mcp_server_config(deps: McpServiceDeps) -> McpServerConfig {
+    return McpServerConfig {
+        name: "browseros_mcp",
+        title: "BrowserOS MCP server",
+        version: deps.version,
+    };
+}
+
+pub fn build_mcp_server_capabilities() -> McpServerCapabilities {
+    return McpServerCapabilities {
+        logging: true,
+        instructions: "MCP_INSTRUCTIONS",
+    };
+}
+
+pub fn build_tool_registration_params(deps: McpServiceDeps) -> ToolRegistrationParams {
+    const acl_rules_val = if (deps.acl_rules != null) deps.acl_rules.? else 0;
+    const observer_val = if (deps.observer != null) deps.observer.? else 0;
+    return ToolRegistrationParams {
+        browser: deps.browser,
+        working_dir: deps.execution_dir,
+        resources_dir: deps.resources_dir,
+        acl_rules: acl_rules_val,
+        observer: observer_val,
+        default_window_id: deps.default_window_id,
+    };
+}
+
+pub fn should_register_klavis_tools(deps: McpServiceDeps) -> bool {
+    return deps.klavis_ref != null;
+}
+
+pub fn build_klavis_registration_params(deps: McpServiceDeps) -> KlavisRegistrationParams {
+    const handle_val = if (deps.klavis_ref != null) deps.klavis_ref.? else 0;
+    const observer_val = if (deps.observer != null) deps.observer.? else 0;
+    return KlavisRegistrationParams {
+        handle: handle_val,
+        observer: observer_val,
+    };
+}
+
+pub fn createMcpServer(deps: McpServiceDeps) -> usize {
+    undefined;
+}
+
+test build_mcp_server_config_uses_deps_version {
+    var deps = McpServiceDeps {
+        version: "1.2.3",
+        registry: 0,
+        browser: 0,
+        execution_dir: "/exec",
+        resources_dir: "/res",
+        acl_rules: null,
+        klavis_ref: null,
+        observer: null,
+        default_window_id: null,
+    };
+    const config = build_mcp_server_config(deps);
+    assert(config.name == "browseros_mcp");
+    assert(config.title == "BrowserOS MCP server");
+    assert(config.version == "1.2.3");
+}
+
+test build_mcp_server_capabilities_has_logging_and_instructions {
+    const caps = build_mcp_server_capabilities();
+    assert(caps.logging == true);
+    assert(caps.instructions == "MCP_INSTRUCTIONS");
+}
+
+test build_tool_registration_params_copies_fields {
+    var deps = McpServiceDeps {
+        version: "1.0.0",
+        registry: 42,
+        browser: 100,
+        execution_dir: "/work",
+        resources_dir: "/resources",
+        acl_rules: 200,
+        klavis_ref: null,
+        observer: 300,
+        default_window_id: 5,
+    };
+    const params = build_tool_registration_params(deps);
+    assert(params.browser == 100);
+    assert(params.working_dir == "/work");
+    assert(params.resources_dir == "/resources");
+    assert(params.acl_rules == 200);
+    assert(params.observer == 300);
+    assert(params.default_window_id != null and params.default_window_id.? == 5);
+}
+
+test build_tool_registration_params_handles_null_optional_fields {
+    var deps = McpServiceDeps {
+        version: "1.0.0",
+        registry: 0,
+        browser: 100,
+        execution_dir: "/work",
+        resources_dir: "/resources",
+        acl_rules: null,
+        klavis_ref: null,
+        observer: null,
+        default_window_id: null,
+    };
+    const params = build_tool_registration_params(deps);
+    assert(params.acl_rules == 0);
+    assert(params.observer == 0);
+    assert(params.default_window_id == null);
+}
+
+test should_register_klavis_tools_true_when_handle_present {
+    var deps = McpServiceDeps {
+        version: "1.0.0",
+        registry: 0,
+        browser: 0,
+        execution_dir: "/exec",
+        resources_dir: "/res",
+        acl_rules: null,
+        klavis_ref: 999,
+        observer: null,
+        default_window_id: null,
+    };
+    assert(should_register_klavis_tools(deps) == true);
+}
+
+test should_register_klavis_tools_false_when_handle_absent {
+    var deps = McpServiceDeps {
+        version: "1.0.0",
+        registry: 0,
+        browser: 0,
+        execution_dir: "/exec",
+        resources_dir: "/res",
+        acl_rules: null,
+        klavis_ref: null,
+        observer: null,
+        default_window_id: null,
+    };
+    assert(should_register_klavis_tools(deps) == false);
+}
+
+test build_klavis_registration_params_copies_handle_and_observer {
+    var deps = McpServiceDeps {
+        version: "1.0.0",
+        registry: 0,
+        browser: 0,
+        execution_dir: "/exec",
+        resources_dir: "/res",
+        acl_rules: null,
+        klavis_ref: 777,
+        observer: 888,
+        default_window_id: null,
+    };
+    const params = build_klavis_registration_params(deps);
+    assert(params.handle == 777);
+    assert(params.observer == 888);
+}
+
+test build_klavis_registration_params_handles_null_observer {
+    var deps = McpServiceDeps {
+        version: "1.0.0",
+        registry: 0,
+        browser: 0,
+        execution_dir: "/exec",
+        resources_dir: "/res",
+        acl_rules: null,
+        klavis_ref: 777,
+        observer: null,
+        default_window_id: null,
+    };
+    const params = build_klavis_registration_params(deps);
+    assert(params.handle == 777);
+    assert(params.observer == 0);
+}
