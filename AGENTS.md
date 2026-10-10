@@ -170,160 +170,22 @@ measure it are written in **t27**, not in Rust or Python by hand.
 - A hand-written addition or modification is denied by the gate in "Only t27"
   above unless the owner labels the pull request `owner-approved-foreign`; such
   a PR still names the spec that will replace it and links the port epic #6198.
-- The debt only shrinks. On 2026-10-05 (master c532fcae5, `wc -l`) it is
-  `cli/t27b/src/*.rs` 8247 lines plus `cli/t27b/tests/*.rs` 2865 (Rust, and
-  it mounts `bootstrap/src/compiler.rs`; 14338 plus 7070 after #6864's
-  brace-invariant predicates, +54 and +53; 14327 plus 7072 after #6911's
-  module-var-in-test fix, -11 and +2; 15453 plus 7719 after #7368's odd-width
-  integers, +111 and +42 on master cd6708d32's 15342 plus 7677; 14952 plus 7757
-  after #7531 moved the A64 encoders to `specs/tri/t27b/a64.t27`, -520 on master
-  ec5c3cf78's 15472 plus 7757; 14847 plus 7775 after #7526's Mach-O port to
-  `specs/tri/t27b/macho.t27`, -132 and 0 on master 27493414d's 14979 plus
-  7775; 14745 plus 7775 after #7549 moved `bitmask_imm`, `logic_imm` and
-  `mov_imm` to `a64.t27` too, -102 on master 499487306's 14847 plus 7775;
-  14812 plus 7814 after #7394's glue for `@abs`, `@max`, `@min` and
-  `std.math.pi` / `e`, whose plan is `specs/tri/t27b/builtin_plan.t27`, +43
-  and 0 on master 95182e95b's 14769 plus 7814; 14848 plus 7833 after #7412's
-  glue for `@intCast` with an integer result type, whose plan is
-  `specs/tri/t27b/int_cast_plan.t27`, +36 and +19 on master 1120d30ae's 14812
-  plus 7814; 14881 plus 7848 after #7391's glue for `@exp`, whose plan is
-  `specs/tri/t27b/libm_plan.t27` and whose routines are
-  `specs/tri/t27b/libm.t27`, +33 and +15 on master 6fba037d1's 14848 plus
-  7833; 14881 plus 7858 after #7217's `@log` from the same plan, 0 and +10
-  on master 8c7b2ccff's 14881 plus 7848; 14917 plus 7877 after #7423's glue
-  for integer constants wider than 64 bits, whose plan is
-  `specs/tri/t27b/wide_plan.t27`, +36 and +19 on master 8415029ea's 14881
-  plus 7858; 14945 plus 7877 after #7550's refusal of a return that hands
-  out the address of the fn's own frame, +28 and 0 on master 5f3087125's
-  14917 plus 7877; 14919 plus 7874 after #7422 removed the stale
-  `StmtAssign(reference redeclares)` scan, -26 and -3 on master 2eabc3edd's
-  14945 plus 7877; 14876 plus 7874 after #7673 moved the greedy blockers
-  order, its replay and FNV-1a to `specs/tri/t27b/blockers.t27`, -43 and 0
-  on master ef26684a1's 14919 plus 7874; 14842 plus 7866 after #7680's glue
-  for array literals the reference prints as `@constCast(&[_]E{ ... })`,
-  whose plan is `specs/tri/t27b/slice_lit_plan.t27`, -34 and -8 on master
-  3d7130691's 14876 plus 7874; 14873 plus 7905 after #7459's glue for
-  `@setEvalBranchQuota`, +31 and +39 on master 6157f8d07's 14842 plus 7866;
-  14885 plus 7924 after #7740's glue for the
-  `type mismatch` family, whose plan is `specs/tri/t27b/coerce_plan.t27`,
-  +12 and +19 on master b8cb93f34's 14873 plus 7905; 14905 plus 7942 after
-  #7690's glue for a local bound to a void fn's result, whose plan is
-  `specs/tri/t27b/void_bind_plan.t27`, +20 and +18 on master 1d9c5960d's
-  14885 plus 7924; 14944 plus 7964 after #7691's glue for a local bound to
-  the W585 scaffold the reference never calls, whose plan is
-  `specs/tri/t27b/scaffold_plan.t27`, +39 and +22 on master d42df2b06's
-  14905 plus 7942; 14967 plus 7987 after #7448's glue for module vars that
-  hold a string or start undefined, +23 and +23 on master 579bc55aa's 14944
-  plus 7964; `cli/t27b/src/*/*.rs`, which the glob above never counted, is
-  1222 more on master 1f2448e98, 16189 in all; 14995 plus 1166, 16161 in
-  all, after #7524's `.len` call port, +28 glue and -56; 15026 plus 1177,
-  16203 in all, and `cli/t27b/tests/*.rs` 8005, after #7735's glue for `.{}`
-  by its result type and the refusal of a store of the fn's own frame address,
-  whose plans are `specs/tri/t27b/empty_lit_plan.t27` and
-  `specs/tri/t27b/frame_store_plan.t27`, +31, +11 and +18 on master
-  4d7d2d3bd's 14995 plus 1166 and 7987; 15043 plus 1202, 16245 in all, and
-  tests 8027, after #7765's refusal of a write through an array literal the
-  reference prints as `@constCast(&[_]E{ ... })`, whose plan is
-  `specs/tri/t27b/slice_lit_plan.t27`, +17, +25 and +22 on master 0c729d928;
-  15064 plus 1202, 16266 in all, and tests 8043, after #7796's glue for
-  `undefined` as an argument the callee never reads, whose plan is
-  `specs/tri/t27b/undefined_arg_plan.t27`, +21 and +16 in the tests on master
-  7f7bf2cb6's 15043 plus 1202 and 8027; 15100 plus 1202, 16302 in all, and tests
-  8062, after #7791's glue for `@bitCast` and `@intFromBool`, whose plan is
-  `specs/tri/t27b/bit_cast_plan.t27`, and for `std.math.nan`, `isNan`,
-  `isPositiveInf` and `isNegativeInf` from `libm_plan.t27`, +36 and +19 on
-  master f53a734b7's 15064 plus 1202 and 8043; 15145 plus 1202, 16347 in all,
-  and `cli/t27b/tests/*.rs` 8094, after #7790's glue for `@divTrunc` and a
-  `@panic` statement (`specs/tri/t27b/builtin_plan.t27`), +16 and +19 on
-  master 14e1c7be9's 15129 plus 1202 and 8075; 15183 plus 1202, 16385 in all,
-  and tests 8105, after #7737's glue for `?*anyopaque` and `@ptrFromInt` to an
-  optional pointer, whose plan is `specs/tri/t27b/opaque_plan.t27`, +38, 0 and
-  +11 on master 81da89413's 15145 plus 1202 and 8094; 15191 plus 1202, 16393
-  in all, and tests 8119, after #7819's glue for `@floor`, `@ceil`, `@round`,
-  `@trunc` and `@rem` of an f32 from `libm_plan.t27`, +8 and +14 on master
-  bbb77f0c3's 15183 plus 1202 and 8105; 15195 plus 1202, 16397 in all, and
-  `cli/t27b/tests/*.rs` 8134, after #7803's glue for `@floatFromInt` of a
-  comptime_int (`specs/tri/t27b/coerce_plan.t27`), +4 and +15 on master
-  10831352c's 15191 plus 1202 and 8119; 15224 plus 1202, 16426 in all, and
-  tests 8149, after #7810's glue for `_ = e;` with e not a bare name, whose
-  plan is `specs/tri/t27b/discard_plan.t27`, +29 and +15 on master 3d16be1f2's
-  15195 plus 1202 and 8134; 15227 plus 1202, 16429 in all, and tests 8164,
-  after #7811's glue for an optional enum compared with a variant, whose plan
-  is `specs/tri/t27b/optional_compare_plan.t27`, +6 -3 and +15 on master
-  824c82d78's 15224 plus 1202 and 8149; 15232 plus 1233, 16465 in all, and tests
-  8183, after #7857's glue for `anytype` and `[*]T` in the signature of a fn
-  nothing analyzed reaches (`specs/tri/t27b/lazy_sig_plan.t27`), +5, +31 and +19
-  on master 408d740d9's 15227 plus 1202 and 8164; 15271 plus 1233, 16504 in
-  all, and tests 8191, after #7742's glue for `==` and `!=` between pointers
-  and optional pointers, whose plan is `specs/tri/t27b/ptr_eq_plan.t27`, +39,
-  0 and +8 on master 42707603a's 15232 plus 1233 and 8183; 15271 plus 1239,
-  16510 in all, and `cli/t27b/tests/*.rs` 8205, after #7805's glue for a call
-  of a fn returning a float in `x as T` (`specs/tri/t27b/float_as_plan.t27`),
-  +6 and +14 on master 2dfe9786f's 15271 plus 1233 and 8191; 15271 plus 1239,
-  16510 in all, and tests 8215, after #7822's `@bitCast` result type from an
-  assignment, for the f32 `@log`, `@log2` and `@log10` ports, +0 and +10 on
-  master 09ffc2fc5's 15271 plus 1239 and 8205; 15273 plus 1239, 16512 in all, and
-  tests 8226, after #7910's glue for a module var of an optional type that
-  starts as `null`, +2 and +11 on master 12ee225c5's 15271 plus 1239 and
-  8215; 15276 plus 1239, 16515 in all, and tests 8247, after #7923's glue for
-  `std.math.log` with base `std.math.e` (`std.math.inf`, `std.math.log1p` and
-  an f64 `@round` are plan and routines only, `libm_plan.t27` and `libm.t27`),
-  +3 and +21 on master 35e69962d's 15273 plus 1239 and 8226; 15281 plus 1239,
-  16520 in all, and `cli/t27b/tests/*.rs` 8261, after #7809's glue for a minus
-  the parser folds into a float literal (`specs/tri/t27b/literal_plan.t27`),
-  +5 and +14 on master a97cb9e55's 15276 plus 1239 and 8247; 15308 plus 1263,
-  16571 in all, and tests 8274, after #7833's glue for an array literal of
-  strings for a slice, whose plan is `specs/tri/t27b/slice_lit_plan.t27`, +24
-  and +13 on master 3d2ea886e's 15308 plus 1239 and 8261;
-  15261 plus 1263, 16524 in all, and tests 8274, after #8057 moved
-  `eval::arith`, the reference interpreter's exact arithmetic, to
-  `specs/tri/t27b/eval_arith.t27`, -47, 0 and 0 on master a561d6d13's 15308
-  plus 1263 and 8274; 14880 plus 1263, 16143 in all, and tests 8274, after
-  #8244 moved the comptime_float arithmetic of `lower_float.rs` (`Big`,
-  `round_bits`, `Q`) to `specs/tri/t27b/comptime_float.t27`, -384, 0 and 0 on
-  master ca9866b73's 15264 plus 1263 and 8274; 14750 plus 1263, 16013 in all,
-  and tests 8274, after #8229 moved the type-text rules of `lower.rs`
-  (`type_base`, `close_of_open`, `type_construct`'s shape and four more) to
-  `specs/tri/t27b/type_text.t27`, -130, 0 and 0 on master 0fca4bdfd's 14880
-  plus 1263 and 8274; 14763 plus 1222, 15985 in all, and tests 8284, after
-  #8050's glue for an untyped list local read as a tuple, whose plan is
-  `specs/tri/t27b/tuple_local_plan.t27`, +13, +-41 and +10 on master
-  d2b5fc129's 14750 plus 1263 and 8274; 14694 plus 1222, 15916 in all, and
-  tests 8284, after #8248 moved the source-text rules of `lower.rs`
-  (`parse_int`, `char_literal`, `int_lit_width`, `header_line` and more) to
-  `specs/tri/t27b/source_text.t27`, -69, 0 and 0 on master b9d22d0f4's 14763
-  plus 1222 and 8284; 14687 plus 1222, 15909 in all, and tests 8284, after
-  #7876's glue for an `anytype` parameter the body never reads
-  (`specs/tri/t27b/any_param_plan.t27`), +23, with `CmpOp`'s `symbol`,
-  `negate`, `swap` and `holds_f64` moved from `ir.rs` to
-  `specs/tri/t27b/cmp_op.t27`, -30, net -7, 0 and 0 on master 3ac8bef87's
-  14694 plus 1222 and 8284; 14622 plus 1222, 15844 in all, and tests 8284,
-  after #8249 moved the body walks of `lower.rs` (`name_count`, `mutated`,
-  `zig_mutates` and six more, over the body's bytes) to
-  `specs/tri/t27b/ast_walk.t27`, -65, 0 and 0 on master 95ae4bcd6's 14687
-  plus 1222 and 8284; 14601 plus 1222, 15823 in all, and tests 8284, after
-  #7812's glue for `/` and `%` of two integer constants
-  (`specs/tri/t27b/const_div_plan.t27`), +3, with `ArithOp`'s `symbol`,
-  `is_shift` and `commutative` moved from `ir.rs` to
-  `specs/tri/t27b/arith_op.t27`, -24, net -21, 0 and 0 on master ab5b3b7e1's
-  14622 plus 1222 and 8284; 14510 plus 1222, 15732 in all, and tests 8284,
-  after #8347 moved the node scans of `lower.rs` (`calls_in`, `decls_of`,
-  `ref_mutable_names`, `misprinted_ifs`, `mark_tail_returns` and four more)
-  to `specs/tri/t27b/ast_scan.t27`, -91, 0 and 0 on master 54f3c140c's 14601
-  plus 1222 and 8284; 14505 plus 1222, 15727 in all, and tests 8284, after
-  #7902's glue for `@intCast` as an index or a slice bound
-  (`specs/tri/t27b/int_cast_plan.t27`), with `Ty::can_widen_from` in `ir.rs`
-  now `int_cast_plan.t27`'s `widens`, -5 net, 0 and 0 on master e4338f46e's
-  14510 plus 1222 and 8284; 14498 plus 1222, 15720 in all, and tests 8284, after
-  #7909 deleted the stale refusal of a repeat local passed as an array, -7, 0
-  and 0 on master 6a03402c5's 14505 plus 1222 and 8284; 14405 plus 1222, 15627
-  in all, and tests 8284, after #8563 moved the node shapes and item scans of
-  `lower.rs` (`is_repeat_op`, `plain_lit`, `alias_text`, `strength_reduced`,
-  `analyzed_fns` and six more) to `specs/tri/t27b/ast_shape.t27`, -93, 0 and 0
-  on master 4e764b440's 14498 plus 1222 and 8284),
-  `scripts/tri_loop/t27b.py` 1829
-  (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
-  Railway lab; 956 on master 0fbb0a033, 986 after #7672's lane requests). Update these numbers in the PR that moves them.
+- The current size of the debt, and the command that reproduces it. Run from
+  the repository root; it prints the line counts of the hand-written foreign
+  code and exits 0:
+
+  ```sh
+  wc -l cli/t27b/src/*.rs cli/t27b/src/*/*.rs cli/t27b/tests/*.rs scripts/tri_loop/t27b.py scripts/tri_loop/t27b_reduce.py contrib/railway/t27b-lab/lab.py
+  ```
+
+  Measured on 2026-10-10 at 69adbf4f3 (`wc -l`): `cli/t27b/src/*.rs` 14405
+  lines plus `cli/t27b/src/*/*.rs` 1222 (15627 in all), `cli/t27b/tests/*.rs`
+  8284, `scripts/tri_loop/t27b.py` 1864 (Python, `tri t27b`),
+  `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`; its
+  decisions are `specs/tri/t27b/reduce.t27`), and
+  `contrib/railway/t27b-lab/lab.py` 1023 (Python, the Railway lab). This is a
+  measurement, not a log: no pull request appends its counts to this file, and
+  the command above reproduces the numbers at any time.
 
 This is the "Own language first" rule below, applied to code: a project whose
 claim is "here is a language worth writing" writes its own backend in it.
