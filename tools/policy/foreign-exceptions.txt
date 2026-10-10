@@ -254,12 +254,6 @@ fpga/verilog/eth_beacon_top.xdc
 # plus its unit tests; the card is specs/tools/tri/mutate.t27. Debt #5980.
 cli/tri/src/mutate.rs
 
-# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
-# work", translated): t27b coverage lane 1, issue #7347 -- an array length that is a compile-time expression
-# (`[N + 1]T`) is folded as Zig folds it. Conformance spec first: specs/tri/t27b/conformance/array_len_expr.t27.
-cli/t27b/src/lower.rs
-cli/t27b/tests/source.rs
-
 
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #6961 ("add the label yourself and
 # do the work", translated): t27b lowers std.mem.eql / indexOf on bytes in a buffer ([]u8, *[N]u8).
@@ -337,6 +331,12 @@ bootstrap/stage0/FROZEN_HASH
 # first: specs/tri/t27b/conformance/const_optional.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7347 -- an array length that is a compile-time expression
+# (`[N + 1]T`) is folded as Zig folds it. Conformance spec first: specs/tri/t27b/conformance/array_len_expr.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
 
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issues #7175 / #7179 ("add the label
 # yourself and do the work", translated): t27b coverage lane 2 -- a fn no test reaches may name a struct
