@@ -1,0 +1,147 @@
+module port::trinity::src::tri::gen_hash_table;
+
+// Port of src/tri/gen_hash_table.zig from gHashTag/trinity.
+//
+// The original module is a four-function open-addressing hash table whose
+// methods are declared inside `pub const HashTable = struct { ... }`:
+//
+//   pub fn init(allocator: std.mem.Allocator, capacity: usize) !HashTable
+//   pub fn insert(table: *HashTable, key: i32, value: i32) !void
+//   pub fn get(table: *const HashTable, key: i32) ?i32
+//   pub fn deinit(table: *HashTable) void
+//
+// Port decisions (the logic, not the plumbing):
+// - The allocator is plumbing: init keeps the parameter for interface
+//   symmetry (typed `usize`, the .t27 stand-in for std.mem.Allocator)
+//   and stores it on the struct, but nothing dereferences it. deinit's
+//   allocator.free call is plumbing too: this table owns its storage by
+//   value, so there is nothing to free and the body just drops the table.
+// - `!T` error unions do not exist in .t27: init and insert return their
+//   plain values (allocation and slot writes cannot fail here).
+// - The original allocates `capacity` entries at runtime; here the table
+//   holds a fixed [16]Entry array (the stand-in for the growable slice)
+//   and stores the requested capacity in the struct. Callers must pass
+//   capacity <= 16; every hash index then stays inside the array.
+// - `@intCast(@abs(key)) % table.capacity` is ported as a sign-extended
+//   i64 absolute value, which handles INT_MIN exactly like @abs does:
+//   insert(-5, v) and insert(5, v) land on the same slot |5| % capacity.
+
+pub const Entry = struct {
+    key: i32,
+    value: i32,
+    used: bool,
+};
+
+pub const HashTable = struct {
+    entries: [16]Entry,
+    capacity: usize,
+    allocator: usize,
+};
+
+pub fn HashTable_init(allocator: usize, capacity: usize) HashTable {
+    return HashTable{
+        .entries = [_]Entry{ Entry{ .key = 0, .value = 0, .used = false } } ** 16,
+        .capacity = capacity,
+        .allocator = allocator,
+    };
+}
+
+pub fn HashTable_insert(table: *HashTable, key: i32, value: i32) void {
+    var ak: i64 = key as i64;
+    if (ak < 0) {
+        ak = 0 - ak;
+    }
+    const idx: usize = (ak as usize) % table.capacity;
+    table.entries[idx] = Entry{ .key = key, .value = value, .used = true };
+}
+
+pub fn HashTable_get(table: *const HashTable, key: i32) ?i32 {
+    var ak: i64 = key as i64;
+    if (ak < 0) {
+        ak = 0 - ak;
+    }
+    const idx: usize = (ak as usize) % table.capacity;
+    const e: Entry = table.entries[idx];
+    if (e.used and e.key == key) {
+        return e.value;
+    }
+    return null;
+}
+
+pub fn HashTable_deinit(table: *HashTable) void {
+    _ = table;
+    return;
+}
+
+// The original zeroes every slot at init, so a fresh table holds no
+// key/value pairs and every lookup misses.
+test "hash table init starts empty" {
+    const table: HashTable = HashTable_init(0, 16);
+    assert(table.capacity == 16);
+    assert(table.entries[0].used == false);
+    assert(table.entries[15].key == 0);
+    assert(HashTable_get(&table, 7) == null);
+}
+
+// The original stores key, value and used = true at idx, so the value
+// inserted for a key is the value a later get returns for that key.
+test "insert then get round trips" {
+    var table: HashTable = HashTable_init(0, 16);
+    HashTable_insert(&table, 5, 42);
+    assert(HashTable_get(&table, 5) == 42);
+}
+
+// A lookup only returns the stored value when the slot is used and its
+// key equals the requested key; any other key misses.
+test "get missing key returns null" {
+    var table: HashTable = HashTable_init(0, 16);
+    assert(HashTable_get(&table, 7) == null);
+    HashTable_insert(&table, 5, 42);
+    assert(HashTable_get(&table, 7) == null);
+}
+
+// The original hashes @abs(key), so -5 and 5 land on the same slot:
+// get(-5) finds the value stored for -5, and the later insert(5, ...)
+// overwrites that slot, evicting the earlier key.
+test "negative key uses absolute value" {
+    var table: HashTable = HashTable_init(0, 16);
+    HashTable_insert(&table, -5, 9);
+    assert(HashTable_get(&table, -5) == 9);
+    assert(HashTable_get(&table, 5) == null);
+    HashTable_insert(&table, 5, 42);
+    assert(HashTable_get(&table, -5) == null);
+    assert(HashTable_get(&table, 5) == 42);
+}
+
+// Two distinct keys with the same idx (5 and 21 both give 5 % 16) write
+// to the same slot, so the later insert wins and the earlier key misses;
+// re-inserting the same key overwrites its own value in place.
+test "collision overwrites keeps latest key" {
+    var table: HashTable = HashTable_init(0, 16);
+    HashTable_insert(&table, 5, 42);
+    HashTable_insert(&table, 21, 7);
+    assert(HashTable_get(&table, 21) == 7);
+    assert(HashTable_get(&table, 5) == null);
+    HashTable_insert(&table, 0, 1);
+    assert(HashTable_get(&table, 0) == 1);
+    HashTable_insert(&table, 0, 2);
+    assert(HashTable_get(&table, 0) == 2);
+}
+
+// @abs widens i32 to unsigned before the modulo, so INT_MIN maps to
+// |INT_MIN| % capacity instead of overflowing; i64 reproduces that.
+test "int min key uses widened absolute value" {
+    var table: HashTable = HashTable_init(0, 16);
+    HashTable_insert(&table, -2147483648, 1);
+    assert(HashTable_get(&table, -2147483648) == 1);
+}
+
+// The original hands the entry array back to the allocator here; this
+// port's table owns its storage by value, so deinit drops the table and
+// callers keep the original defer-after-use discipline.
+test "hash table deinit releases table" {
+    var table: HashTable = HashTable_init(0, 16);
+    defer HashTable_deinit(&table);
+    HashTable_insert(&table, 5, 42);
+    assert(HashTable_get(&table, 5) == 42);
+}
