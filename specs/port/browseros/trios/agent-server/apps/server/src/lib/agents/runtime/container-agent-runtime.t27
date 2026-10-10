@@ -1,0 +1,95 @@
+module port::browseros::trios::agent_server::apps::server::src::lib::agents::runtime::container_agent_runtime;
+
+enum ContainerState {
+    running,
+    stopped,
+    error,
+}
+
+struct ContainerStatusSnapshot {
+    adapterId: []const u8,
+    containerName: []const u8,
+    state: ContainerState,
+    isReady: bool,
+    lastError: ?[]const u8,
+    lastErrorAt: ?i64,
+}
+
+struct RuntimeAction {
+    actionType: []const u8,
+}
+
+// RuntimeCapability is an alias for string slices
+
+pub fn ContainerAgentRuntime_getCapabilities() -> []const u8 {
+    return "install,start,stop,restart,reset-soft,reset-wipe-agent,reset-hard,logs";
+}
+
+pub fn ContainerAgentRuntime_getStatusSnapshot(
+    state: ContainerState,
+    adapterId: []const u8,
+    containerName: []const u8,
+    lastError: ?[]const u8,
+    lastErrorAt: ?i64,
+) -> ContainerStatusSnapshot {
+    return ContainerStatusSnapshot{
+        .adapterId = adapterId,
+        .containerName = containerName,
+        .state = state,
+        .isReady = state == .running,
+        .lastError = lastError,
+        .lastErrorAt = lastErrorAt,
+    };
+}
+
+pub fn ContainerAgentRuntime_subscribe(listener: anytype) -> void {
+    return undefined; // Port the decision, not the plumbing
+}
+
+pub fn actionToCapability(action: RuntimeAction) -> []const u8 {
+    // The action.actionType strings happen to coincide with capability
+    // strings 1:1, so this is currently identity. Pulled out as a
+    // function so the gate can grow more nuanced (e.g. action-specific
+    // sub-capabilities) without re-flowing the dispatcher.
+    return action.actionType;
+}
+
+test getCapabilities_returns_default_list {
+    const capabilities = ContainerAgentRuntime_getCapabilities();
+    assert(capabilities == "install,start,stop,restart,reset-soft,reset-wipe-agent,reset-hard,logs");
+}
+
+test getStatusSnapshot_running_is_ready {
+    const snapshot = ContainerAgentRuntime_getStatusSnapshot(
+        .running,  // state
+        "test-adapter", // adapterId
+        "test-container", // containerName
+        null,      // lastError
+        null,      // lastErrorAt
+    );
+    assert(snapshot.isReady == true);
+    assert(snapshot.adapterId == "test-adapter");
+    assert(snapshot.containerName == "test-container");
+}
+
+test getStatusSnapshot_not_running_is_not_ready {
+    const snapshot = ContainerAgentRuntime_getStatusSnapshot(
+        .stopped,  // state
+        "test-adapter", // adapterId
+        "test-container", // containerName
+        null,      // lastError
+        null,      // lastErrorAt
+    );
+    assert(snapshot.isReady == false);
+    assert(snapshot.state == .stopped);
+}
+
+test actionToCapability_maps_identity {
+    const action = RuntimeAction{ .actionType = "install" };
+    const capability = actionToCapability(action);
+    assert(capability == "install");
+    
+    const action2 = RuntimeAction{ .actionType = "stop" };
+    const capability2 = actionToCapability(action2);
+    assert(capability2 == "stop");
+}
