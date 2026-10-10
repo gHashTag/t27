@@ -1,0 +1,101 @@
+module port::trios::git::branch;
+
+pub fn create_branch(repo_open_ok: bool, head_ok: bool, branch_create_ok: bool) -> bool {
+    return repo_open_ok && head_ok && branch_create_ok;
+}
+
+pub fn switch_branch(
+    open_ok: bool,
+    find_branch_ok: bool,
+    peel_to_commit_ok: bool,
+    checkout_tree_ok: bool,
+    set_head_ok: bool
+) -> bool {
+    return open_ok && find_branch_ok && peel_to_commit_ok && checkout_tree_ok && set_head_ok;
+}
+
+struct BranchInfoInput {
+    name: []const u8,
+    upstream: ?[]const u8,
+}
+
+struct BranchInfo {
+    name: []const u8,
+    is_current: bool,
+    upstream: ?[]const u8,
+    commit_count: ?i32,
+}
+
+struct BranchInfoList {
+    items: [10]BranchInfo,
+    len: usize,
+}
+
+pub fn list_branches(has_head: bool, head_name: []const u8, branches: []const BranchInfoInput, n: usize) -> BranchInfoList {
+    var result: BranchInfoList;
+    result.len = 0;
+    var i: usize = 0;
+    while (i < n and i < 10) {
+        let input = branches[i];
+        let name = input.name;
+        let is_current: bool;
+        if (!has_head) {
+            is_current = false;
+        } else {
+            is_current = (name == head_name);
+        }
+        let upstream = input.upstream;
+        let info = BranchInfo {
+            .name = name,
+            .is_current = is_current,
+            .upstream = upstream,
+            .commit_count = null,
+        };
+        result.items[result.len] = info;
+        result.len = result.len + 1;
+        i = i + 1;
+    }
+    return result;
+}
+
+test create_branch_all_true {
+    assert(create_branch(true, true, true) == true);
+}
+
+test create_branch_false_on_first_false {
+    assert(create_branch(false, true, true) == false);
+}
+
+test create_branch_false_on_second_false {
+    assert(create_branch(true, false, true) == false);
+}
+
+test list_branches_simple {
+    let result = list_branches(true, "main", &[
+        BranchInfoInput { .name = "main", .upstream = null },
+        BranchInfoInput { .name = "feature", .upstream = null },
+    ], 2);
+    assert(result.len == 2);
+    assert(result.items[0].name == "main");
+    assert(result.items[0].is_current == true);
+    assert(result.items[1].name == "feature");
+    assert(result.items[1].is_current == false);
+}
+
+test list_branches_head_null {
+    let result = list_branches(false, "", &[
+        BranchInfoInput { .name = "main", .upstream = null },
+    ], 1);
+    assert(result.len == 1);
+    assert(result.items[0].name == "main");
+    assert(result.items[0].is_current == false);
+}
+
+test list_branches_unnamed {
+    let result = list_branches(true, "main", &[
+        BranchInfoInput { .name = "<unnamed>", .upstream = null },
+    ], 1);
+    assert(result.len == 1);
+    assert(result.items[0].name == "<unnamed>");
+    assert(result.items[0].is_current == false);
+}
