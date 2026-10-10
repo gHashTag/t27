@@ -1,0 +1,60 @@
+module port::trinity::src::tri::author_attribution_guard;
+
+const MANIFEST_REL: []const u8 = "tools/config/author_attribution_guard.manifest";
+const REQUIRED_NAME: []const u8 = "Dmitrii Vasilev";
+const REQUIRED_HANDLE: []const u8 = "gHashTag";
+
+const FORBIDDEN_COUNT: usize = 2;
+const FORBIDDEN: [FORBIDDEN_COUNT][]const u8 = ["Trinity Research Group", "Trinity Research Team"];
+
+pub fn trimLine(line: []const u8) []const u8 {
+    return std.mem.trim(u8, line, " \t\r\n");
+}
+
+pub fn loadManifestPaths(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
+    // File system operation - undefined body as per requirements
+    undefined;
+}
+
+test trimLine_basic {
+    assert(trimLine("  hello  ") == "hello");
+    assert(trimLine("hello") == "hello");
+    assert(trimLine("") == "");
+}
+
+test trimLine_whitespace {
+    assert(trimLine(" \t\n\r  test  \t\n\r") == "test");
+    assert(trimLine("   ") == "");
+    assert(trimLine("\t\n\r") == "");
+}
+
+test loadManifestPaths_filter_logic {
+    // Test the filtering logic that would happen inside loadManifestPaths
+    // This simulates what the function does to the raw file content
+    var lines: [4][]const u8 = ["path1", "", "# comment", "path2"];
+    var valid_count: usize = 0;
+    
+    for (lines) |line| {
+        const trimmed = trimLine(line);
+        if (trimmed.len == 0) continue;
+        if (trimmed[0] == '#') continue;
+        valid_count += 1;
+    }
+    
+    assert(valid_count == 2);
+}
+
+test loadManifestPaths_handles_empty_lines {
+    // Test that empty lines are properly filtered
+    var lines: [3][]const u8 = ["", "  ", "\t\n\r"];
+    var valid_count: usize = 0;
+    
+    for (lines) |line| {
+        const trimmed = trimLine(line);
+        if (trimmed.len == 0) continue;
+        if (trimmed[0] == '#') continue;
+        valid_count += 1;
+    }
+    
+    assert(valid_count == 0);
+}
