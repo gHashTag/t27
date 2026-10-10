@@ -2,7 +2,7 @@
   "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
   "verdicts": {
     "DRIFT": 51,
-    "DISTINCT": 37
+    "DISTINCT": 36
   },
   "names": [
     {
@@ -523,16 +523,7 @@
       "confidence": "certain -- per-module port bundles; agreement between two of them is coincidence of a one-LED design",
       "suggested_action": "No defect. Prefix per module if names must resolve across specs."
     },
-    {
-      "name": "Pair",
-      "sites": [
-        "specs/compiler/zig_empty_typed_array.t27:16",
-        "specs/dataset/igla_coder_manifest.tri:36",
-        "specs/port/tools/verify_multitarget.t27:13"
-      ],
-      "verdict": "DISTINCT",
-      "evidence": "zig_empty_typed_array.t27:16 `pub const Pair = struct { a: u8, b: u8 }` exists only as the element type of an empty typed array (compiler conformance fixture). igla_coder_manifest.tri:36 `pub type Pair = struct { pair_id, spec_path, spec_sha256, gen_path_opt, gen_sha256_opt, target_lang }` is a dataset manifest row pairing a spec with its generated target. verify_multitarget.t27:13 `pub const Pair = struct { a: i32, b: i32 }` (ported from tools/verify_multitarget) is the deterministic test generator's payload. Fixture pair, manifest record, test payload: three concepts on a trivially generic name."
-    },
+    
     {
       "name": "ParseError",
       "sites": [
