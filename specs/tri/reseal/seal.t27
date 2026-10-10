@@ -1,0 +1,347 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/reseal/seal.t27 -- every rule of `tri reseal`: how bootstrap/stage0/FROZEN_HASH is read,
+; judged against the file it seals, and rewritten. Issue #8716: the port of cli/tri/src/reseal.rs,
+; whose Rust is now glue (git rev-parse, the SHA-256, the file write) around `t27c gen-rust` of this
+; file in gen/rust/tri/reseal/seal.rs.
+; --
+; The seal is a drift detector: bootstrap/build.rs refuses to build while it disagrees with
+; sha256(bootstrap/src/compiler.rs). Moving it with a deliberate compiler change is routine; the case
+; worth a command is the MERGE. When two branches both changed the compiler, git leaves FROZEN_HASH
+; conflicted with two candidate hashes and neither is correct: each describes its own side's file,
+; not the merged one (measured on a real conflict: ours 8e62cacb81c6e84d, theirs 4f003654a44a4348,
+; truth 6e2bad56817414a6).
+; --
+; The rules:
+; - The seal file is `<64-hex> <WS> <repo-relative path>` (FROZEN.md section 4). build.rs takes the
+;   first line that, trimmed, is neither empty nor a `#` comment, and that line's first
+;   whitespace-separated token. That token is the digest compared; the next token is the path. The
+;   whole line is never compared against a bare digest: on the two-token file that comparison can
+;   never hold (check printed two identical hashes and exited 1 on every clean checkout, and write
+;   then dropped the path token #3280 had restored).
+; - A seal with a line that starts `<<<<<<<`, `=======` or `>>>>>>>` holds a merge conflict, not a
+;   hash that happens to be wrong. Checked by line prefix: a hash is hex and never starts with one, and
+;   a file that merely mentions a marker mid-line is not conflicted.
+; - check: conflicted -- say so, exit 1; the digest matches -- exit 0; otherwise both hashes and the
+;   way out, exit 1. write: conflicted -- discard both candidates and write; matches -- write nothing;
+;   otherwise write. Every exit of write is 0.
+; - A rewrite is `<digest> <path>\n`, written to a .tmp file and renamed over the seal (a seal
+;   truncated by an interrupted write agrees with nothing, and nobody could tell it from a stale one).
+;   It keeps the file's path token: build.rs reads only the digest, so dropping the path fails
+;   nowhere, which is how an older rewrite silently reverted #3280. With no path token, or a conflicted
+;   file, the path is SEALED. (The Rust this replaces took a conflicted file's path token from its
+;   first marker line, so `<<<<<<< HEAD` wrote the path `HEAD`; that is the one change.)
+; - A hash is shown by its first SHORT characters, an empty one as EMPTY. Whitespace is ASCII's.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriResealSeal;
+
+/// The file sealed, and the seal, relative to the repository root.
+pub const SEALED : str = "bootstrap/src/compiler.rs";
+pub const SEAL : str = "bootstrap/stage0/FROZEN_HASH";
+
+/// How many characters of a hash are shown, and what an empty one shows.
+pub const SHORT : usize = 16;
+pub const EMPTY : str = "(empty)";
+
+/// The placeholders of a message line: the seal's digest and the sealed file's, each shown short.
+pub const HAVE : str = "$HAVE";
+pub const WANT : str = "$WANT";
+
+/// The verdicts: the command, then what the seal holds.
+pub const V_CHECK_CONFLICT : u8 = 0;
+pub const V_CHECK_MATCH : u8 = 1;
+pub const V_CHECK_DRIFT : u8 = 2;
+pub const V_WRITE_CONFLICT : u8 = 3;
+pub const V_WRITE_MATCH : u8 = 4;
+pub const V_WRITE_DRIFT : u8 = 5;
+
+/// write_at of a verdict that writes nothing: past every line.
+pub const NO_WRITE : u8 = 255;
+
+invariant the_verdicts_are_numbered { assert V_CHECK_CONFLICT == 0 and V_WRITE_DRIFT == 5 and NO_WRITE == 255 and SHORT == 16; }
+
+pub fn is_space(c: u8) -> bool {
+    return c == 32 or c == 9 or c == 10 or c == 11 or c == 12 or c == 13;
+}
+
+/// The end of the line that starts at `at`: the offset of its '\n', or raw.len.
+pub fn line_stop(raw: string, at: usize) -> usize {
+    var k : usize = at;
+    while (k < raw.len and raw[k] != 10) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// The first byte of raw[at..end] that is not whitespace (end when all of it is).
+pub fn skip_space(raw: string, at: usize, end: usize) -> usize {
+    var k : usize = at;
+    while (k < end and is_space(raw[k])) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// The first whitespace byte of raw[at..end] (end when there is none).
+pub fn skip_token(raw: string, at: usize, end: usize) -> usize {
+    var k : usize = at;
+    while (k < end and is_space(raw[k]) == false) {
+        k = k + 1;
+    }
+    return k;
+}
+
+/// Where the seal line starts once trimmed: the first line that is neither blank nor a `#` comment.
+/// raw.len when there is none.
+pub fn line_from(raw: string) -> usize {
+    var at : usize = 0;
+    while (at < raw.len) {
+        const end : usize = line_stop(raw, at);
+        const f : usize = skip_space(raw, at, end);
+        if (f < end and raw[f] != 35) { return f; }
+        at = end + 1;
+    }
+    return raw.len;
+}
+
+/// Where the seal line ends once trimmed.
+pub fn line_to(raw: string) -> usize {
+    const f : usize = line_from(raw);
+    var e : usize = line_stop(raw, f);
+    while (e > f and is_space(raw[e - 1])) {
+        e = e - 1;
+    }
+    return e;
+}
+
+/// The digest: the seal line's first token. An empty span (raw.len) when the file has no seal line.
+pub fn digest_from(raw: string) -> usize {
+    return line_from(raw);
+}
+
+pub fn digest_to(raw: string) -> usize {
+    return skip_token(raw, line_from(raw), line_to(raw));
+}
+
+/// The path: the seal line's second token. An empty span when there is none.
+pub fn path_from(raw: string) -> usize {
+    return skip_space(raw, digest_to(raw), line_to(raw));
+}
+
+pub fn path_to(raw: string) -> usize {
+    return skip_token(raw, path_from(raw), line_to(raw));
+}
+
+pub fn has_path(raw: string) -> bool {
+    return path_to(raw) > path_from(raw);
+}
+
+/// Does raw[at..] start with lit?
+pub fn starts_at(raw: string, at: usize, lit: string) -> bool {
+    if (at + lit.len > raw.len) { return false; }
+    var k : usize = 0;
+    while (k < lit.len) {
+        if (raw[at + k] != lit[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Does the seal hold a merge conflict: a line that starts with a conflict marker?
+pub fn is_conflicted(raw: string) -> bool {
+    var at : usize = 0;
+    while (at < raw.len) {
+        if (starts_at(raw, at, "<<<<<<<") or starts_at(raw, at, "=======") or starts_at(raw, at, ">>>>>>>")) { return true; }
+        at = line_stop(raw, at) + 1;
+    }
+    return false;
+}
+
+/// Does a rewrite keep the file's own path token? Only a clean seal that has one.
+pub fn keeps_path(raw: string) -> bool {
+    return has_path(raw) and is_conflicted(raw) == false;
+}
+
+/// The end of the first SHORT characters of s, counted as UTF-8 characters (a continuation byte is
+/// not a character), so the cut never splits one. 0 for an empty s, which shows as EMPTY.
+pub fn short_to(s: string) -> usize {
+    var k : usize = 0;
+    var n : usize = 0;
+    while (k < s.len) {
+        if ((s[k] & 192) != 128) {
+            if (n == SHORT) { return k; }
+            n = n + 1;
+        }
+        k = k + 1;
+    }
+    return s.len;
+}
+
+/// The verdict on a seal.
+pub fn verdict(conflicted: bool, matches: bool, write: bool) -> u8 {
+    var base : u8 = V_CHECK_CONFLICT;
+    if (write) { base = V_WRITE_CONFLICT; }
+    if (conflicted) { return base; }
+    if (matches) { return base + 1; }
+    return base + 2;
+}
+
+/// How many lines a verdict prints.
+pub fn lines(v: u8) -> u8 {
+    if (v == V_CHECK_CONFLICT or v == V_WRITE_CONFLICT or v == V_WRITE_DRIFT) { return 3; }
+    if (v == V_CHECK_DRIFT) { return 6; }
+    return 1;
+}
+
+/// Line k of a verdict, with HAVE and WANT where the hashes go.
+pub fn line(v: u8, k: u8) -> string {
+    if (v == V_CHECK_CONFLICT) {
+        if (k == 0) { return "bootstrap/stage0/FROZEN_HASH still holds conflict markers."; }
+        if (k == 1) { return "Neither side is right after a merge: each hash describes its own"; }
+        return "side's bootstrap/src/compiler.rs, not the merged bytes. Run `tri reseal write`.";
+    }
+    if (v == V_CHECK_MATCH) { return "seal matches: $WANT"; }
+    if (v == V_CHECK_DRIFT) {
+        if (k == 0) { return "seal:   $HAVE"; }
+        if (k == 1) { return "actual: $WANT"; }
+        if (k == 2) { return ""; }
+        if (k == 3) { return "`cargo build` in bootstrap/ reads the first token and will refuse"; }
+        if (k == 4) { return "until these agree."; }
+        return "If the change to bootstrap/src/compiler.rs is deliberate: tri reseal write";
+    }
+    if (v == V_WRITE_MATCH) { return "seal already matches ($WANT); nothing written."; }
+    if (k == 0) {
+        if (v == V_WRITE_CONFLICT) { return "bootstrap/stage0/FROZEN_HASH held conflict markers; both candidates discarded."; }
+        return "was:  $HAVE";
+    }
+    if (k == 1) { return "now:  $WANT"; }
+    return "sealed bootstrap/src/compiler.rs";
+}
+
+/// Before which line the seal is rewritten; NO_WRITE when it is not.
+pub fn write_at(v: u8) -> u8 {
+    if (v == V_WRITE_CONFLICT or v == V_WRITE_DRIFT) { return 1; }
+    return NO_WRITE;
+}
+
+/// The exit code: 1 when check finds the seal conflicted or drifted, 0 otherwise.
+pub fn exit_code(v: u8) -> u8 {
+    if (v == V_CHECK_CONFLICT or v == V_CHECK_DRIFT) { return 1; }
+    return 0;
+}
+
+; --- Fixtures ----------------------------------------------------------------------------------
+
+/// The shape actually on disk, which no fixture of the Rust this replaces carried at first.
+const REAL : string = "23f03e8a97d5588d06cdb84d3e59baa03c5474d9a28ef361f9bc26bd9b72f6d1 bootstrap/src/compiler.rs\n";
+const DIGEST : string = "23f03e8a97d5588d06cdb84d3e59baa03c5474d9a28ef361f9bc26bd9b72f6d1";
+/// The merge: two candidates and the markers.
+const CONFLICT : string = "<<<<<<< HEAD\n8e62cacb81c6e84d\n=======\n4f003654a44a4348\n>>>>>>> master\n";
+
+// Scenario: the case this command exists for. A merged seal holds two hashes and neither is right, so
+// the file is recognised as unusable, not trimmed into a comparison against whichever line came first.
+test a_conflicted_seal_is_not_a_hash {
+    assert is_conflicted(CONFLICT);
+    // what a trim would have produced had the markers gone unnoticed: the first marker line
+    assert span_is_lit(CONFLICT, line_from(CONFLICT), line_to(CONFLICT), "<<<<<<< HEAD");
+    assert is_conflicted("4f003654a44a4348aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n") == false;
+    assert is_conflicted("") == false;
+    assert is_conflicted("abc def\n# a note about <<<<<<< markers\n") == false;
+    assert is_conflicted("abc\n=======\n");
+    assert verdict(true, true, false) == V_CHECK_CONFLICT;
+    assert verdict(true, true, true) == V_WRITE_CONFLICT;
+}
+
+// Scenario: a hash is hex, so no legitimate seal starts with a marker character.
+test a_real_seal_never_looks_conflicted {
+    assert is_conflicted("0123456789abcdef\n") == false;
+    assert is_conflicted(REAL) == false;
+    assert starts_at("0123456789abcdef", 0, "<") == false;
+    assert starts_at("0123456789abcdef", 0, "=") == false;
+    assert starts_at("0123456789abcdef", 0, ">") == false;
+}
+
+// Scenario: a hash is shown by 16 characters, an empty one as EMPTY, and the cut never splits a character.
+test short_survives_an_empty_or_stubby_seal {
+    assert short_to("") == 0;
+    assert short_to("abc") == 3;
+    assert short_to("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == 16;
+    assert short_to(DIGEST) == SHORT;
+    assert span_is_lit(EMPTY, 0, 7, "(empty)");
+}
+
+// Scenario: the two-token seal reads as its digest and its path.
+test the_two_token_seal_reads_as_its_digest {
+    assert span_is_lit(REAL, digest_from(REAL), digest_to(REAL), DIGEST);
+    assert span_is_lit(REAL, path_from(REAL), path_to(REAL), "bootstrap/src/compiler.rs");
+    assert has_path(REAL);
+}
+
+// Scenario: the control. The old code compared the whole trimmed line against a bare digest; on the real
+// shape that never holds. If this fails, the fixture no longer reproduces the defect.
+test the_whole_line_is_not_the_digest {
+    assert line_to(REAL) - line_from(REAL) == 90;
+    assert digest_to(REAL) - digest_from(REAL) == 64;
+    assert digest_from(REAL) == line_from(REAL);
+    assert span_is_lit(REAL, line_from(REAL), line_to(REAL), DIGEST) == false;
+}
+
+// Scenario: a bare digest still reads, and has no path.
+test a_bare_digest_still_reads_and_has_no_path {
+    assert span_is_lit("abc\n", digest_from("abc\n"), digest_to("abc\n"), "abc");
+    assert has_path("abc\n") == false;
+    assert keeps_path("abc\n") == false;
+    assert span_is_lit("  abc  \r\n", digest_from("  abc  \r\n"), digest_to("  abc  \r\n"), "abc");
+}
+
+// Scenario: comments and blank lines are not the seal (bootstrap/build.rs reads it the same way).
+test comments_and_blank_lines_are_not_the_seal {
+    assert span_is_lit("\n# regenerated by tri reseal write\n\nabc def\n", digest_from("\n# regenerated by tri reseal write\n\nabc def\n"), digest_to("\n# regenerated by tri reseal write\n\nabc def\n"), "abc");
+    assert span_is_lit("\n# regenerated by tri reseal write\n\nabc def\n", path_from("\n# regenerated by tri reseal write\n\nabc def\n"), path_to("\n# regenerated by tri reseal write\n\nabc def\n"), "def");
+    assert digest_from("# only a comment\n") == digest_to("# only a comment\n");
+    assert digest_from("") == 0 and digest_to("") == 0;
+    assert has_path("# only a comment\n") == false;
+    assert span_is_lit("   # indented note\n\t x y z\n", digest_from("   # indented note\n\t x y z\n"), digest_to("   # indented note\n\t x y z\n"), "x");
+}
+
+// Scenario: the defect was in a write site. A rewrite keeps the path of a clean two-token seal, and
+// falls back to SEALED with no path token or a conflicted file (whose first marker line is no path).
+test the_rewrite_preserves_the_path_token {
+    assert keeps_path(REAL);
+    assert keeps_path(CONFLICT) == false;
+    assert has_path(CONFLICT);
+    assert span_is_lit(CONFLICT, path_from(CONFLICT), path_to(CONFLICT), "HEAD");
+    assert span_is_lit(SEALED, 0, 25, "bootstrap/src/compiler.rs");
+    assert write_at(V_WRITE_DRIFT) == 1 and write_at(V_WRITE_CONFLICT) == 1;
+    assert write_at(V_WRITE_MATCH) == NO_WRITE and write_at(V_CHECK_DRIFT) == NO_WRITE;
+}
+
+// Scenario: each verdict prints its lines and exits as the Rust it replaces did: check fails on a
+// conflict or a drift, write never fails, and a matching seal is never rewritten.
+test each_verdict_prints_and_exits_as_before {
+    assert verdict(false, true, false) == V_CHECK_MATCH and exit_code(V_CHECK_MATCH) == 0 and lines(V_CHECK_MATCH) == 1;
+    assert verdict(false, false, false) == V_CHECK_DRIFT and exit_code(V_CHECK_DRIFT) == 1 and lines(V_CHECK_DRIFT) == 6;
+    assert exit_code(V_CHECK_CONFLICT) == 1 and lines(V_CHECK_CONFLICT) == 3;
+    assert verdict(false, true, true) == V_WRITE_MATCH and exit_code(V_WRITE_MATCH) == 0 and lines(V_WRITE_MATCH) == 1;
+    assert verdict(false, false, true) == V_WRITE_DRIFT and exit_code(V_WRITE_DRIFT) == 0 and lines(V_WRITE_DRIFT) == 3;
+    assert exit_code(V_WRITE_CONFLICT) == 0 and lines(V_WRITE_CONFLICT) == 3;
+    assert span_is_lit(line(V_CHECK_MATCH, 0), 0, 19, "seal matches: $WANT");
+    assert span_is_lit(line(V_CHECK_DRIFT, 0), 0, 13, "seal:   $HAVE");
+    assert span_is_lit(line(V_CHECK_DRIFT, 2), 0, 0, "");
+    assert span_is_lit(line(V_WRITE_DRIFT, 0), 0, 11, "was:  $HAVE");
+    assert span_is_lit(line(V_WRITE_DRIFT, 1), 0, 11, "now:  $WANT");
+    assert span_is_lit(line(V_WRITE_CONFLICT, 2), 0, 32, "sealed bootstrap/src/compiler.rs");
+    assert span_is_lit(line(V_CHECK_CONFLICT, 0), 0, 28, SEAL);
+}
+
+/// Is s[from..to] byte for byte lit? (Tests only.)
+pub fn span_is_lit(s: string, from: usize, to: usize, lit: string) -> bool {
+    if (to < from or to - from != lit.len or to > s.len) { return false; }
+    var k : usize = 0;
+    while (k < lit.len) {
+        if (s[from + k] != lit[k]) { return false; }
+        k = k + 1;
+    }
+    return true;
+}

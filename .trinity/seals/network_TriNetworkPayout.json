@@ -1,0 +1,40 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+6a8e44b5f",
+  "closure": [
+    {
+      "spec": "specs/network/attribution.t27",
+      "spec_hash": "sha256:e8fa862c0d5ff353cd3248e0c55b5d9690d7d18088742f51793883e7bf3f7cf7"
+    },
+    {
+      "spec": "specs/network/usage.t27",
+      "spec_hash": "sha256:92ed936bcee894992d5ff23cdaa4a713b6876a9f409a2c7e5a9289ce700a125b"
+    },
+    {
+      "spec": "specs/tri/lab/receipt.t27",
+      "spec_hash": "sha256:00d9eec8d7be84dde596c9990b3a5574de24aff9f7a94579fc620eb585712441"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:a0bded5b8a609163171bca04160a27a2fa09759495a76faee0d1dd8815068bc4",
+  "gen_hash_rust": "sha256:a921ef0fe74e80b7610e79f2295b8b1bad547fbc4a0036c3ab509c709fa8f6df",
+  "gen_hash_verilog": "sha256:d45ad9dd2c21464ef11ccce8753c9da4c87b5a0cc6d7dc00f99e56ad8322b977",
+  "gen_hash_zig": "sha256:ebaa10862c9f903b12d0a948386c5ef47278f01184555a2a4adccbb93d00d1cb",
+  "module": "TriNetworkPayout",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T17:58:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:beb650066b950544566d578650df1a93da1c589eb12f6042db24fb0014280b3d",
+  "spec_path": "specs/tri/network/payout.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
