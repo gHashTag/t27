@@ -605,7 +605,7 @@ pub fn ev_epoch(ev: u64) -> u32 { return (ev & 16777215) as u32; }
 
 pub const PLAN_CAP : u32 = 48;
 
-pub struct Plan {
+pub struct TreasuryPlan {
     n: u32,
     overflow: u32,
     ev: [48]u64,
@@ -617,17 +617,17 @@ pub struct Plan {
     src: [48]u8,
 }
 
-pub fn plan_empty() -> Plan {
-    return Plan { n: 0, overflow: 0, ev: [0; 48], op: [0; 48], job: [0; 48], who: [0; 48], arg: [0; 48], amt: [0; 48], src: [0; 48] };
+pub fn plan_empty() -> TreasuryPlan {
+    return TreasuryPlan { n: 0, overflow: 0, ev: [0; 48], op: [0; 48], job: [0; 48], who: [0; 48], arg: [0; 48], amt: [0; 48], src: [0; 48] };
 }
 
-pub fn plan_at(p: *Plan, i: u32) -> Entry {
+pub fn plan_at(p: *TreasuryPlan, i: u32) -> Entry {
     let k : usize = i as usize;
     return Entry { ev: p.ev[k], op: p.op[k], job: p.job[k], who: p.who[k], arg: p.arg[k], amt: p.amt[k], src: p.src[k] };
 }
 
 /// Add a step to the plan, and apply it to the plan's scratch state, so later steps see it.
-pub fn plan_push(p: *Plan, s: *Treasury, e: Entry) -> void {
+pub fn plan_push(p: *TreasuryPlan, s: *Treasury, e: Entry) -> void {
     if (p.n >= PLAN_CAP) {
         p.overflow = p.overflow + 1;
         return;
@@ -649,7 +649,7 @@ pub fn plan_push(p: *Plan, s: *Treasury, e: Entry) -> void {
 pub const SHARE_CONTINUED : u32 = 256;
 
 /// One pool share: from the escrow while it lasts, then from the emission. Returns the escrow left.
-pub fn pay_share(p: *Plan, s: *Treasury, ev: u64, job: u32, holder: u32, kind: u8, amt: u64, escrow_left: u64) -> u64 {
+pub fn pay_share(p: *TreasuryPlan, s: *Treasury, ev: u64, job: u32, holder: u32, kind: u8, amt: u64, escrow_left: u64) -> u64 {
     var from_escrow : u64 = amt;
     if (from_escrow > escrow_left) { from_escrow = escrow_left; }
     if (from_escrow > 0) { plan_push(p, s, entry_of(ev, JO_PENDING, job, holder, kind as u32, from_escrow, SRC_ESCROW)); }
@@ -662,8 +662,8 @@ pub fn pay_share(p: *Plan, s: *Treasury, ev: u64, job: u32, holder: u32, kind: u
 /// The admitted job's settlement: the deposit, one settle per claim the signature and the request
 /// vouch for, the pool's shares (one base verifier fee per agreeing operator besides the executor's),
 /// the slash bonus on top, the bounty, the refund, and the window opened.
-pub fn plan_admit(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan {
-    var p : Plan = plan_empty();
+pub fn plan_admit(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> TreasuryPlan {
+    var p : TreasuryPlan = plan_empty();
     var s : Treasury = before;
     let job : u32 = ev_job(ev);
     plan_push(&p, &s, entry_of(ev, JO_DEPOSIT, job, HV_REQUESTER, 0, C3_ESCROW, SRC_ESCROW));
@@ -737,8 +737,8 @@ pub fn plan_admit(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Pla
 }
 
 /// A refused job: the deposit and its refund, and the job closed.
-pub fn plan_refuse(before: Treasury, ev: u64) -> Plan {
-    var p : Plan = plan_empty();
+pub fn plan_refuse(before: Treasury, ev: u64) -> TreasuryPlan {
+    var p : TreasuryPlan = plan_empty();
     var s : Treasury = before;
     let job : u32 = ev_job(ev);
     plan_push(&p, &s, entry_of(ev, JO_DEPOSIT, job, HV_REQUESTER, 0, C3_ESCROW, SRC_ESCROW));
@@ -749,8 +749,8 @@ pub fn plan_refuse(before: Treasury, ev: u64) -> Plan {
 
 /// A challenge: open inside the window, against a job still pending and not already challenged, by
 /// the watcher or by a griefer with stake to post; stale otherwise.
-pub fn plan_challenge(before: Treasury, ev: u64) -> Plan {
-    var p : Plan = plan_empty();
+pub fn plan_challenge(before: Treasury, ev: u64) -> TreasuryPlan {
+    var p : TreasuryPlan = plan_empty();
     var s : Treasury = before;
     let job : u32 = ev_job(ev);
     let by : u8 = ev_by(ev);
@@ -768,8 +768,8 @@ pub fn plan_challenge(before: Treasury, ev: u64) -> Plan {
 
 /// The epoch's tick: open challenges resolve C3_RESOLVE epochs after they open; then every pending job
 /// whose window has passed and that no challenge holds finalizes.
-pub fn plan_tick(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan {
-    var p : Plan = plan_empty();
+pub fn plan_tick(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> TreasuryPlan {
+    var p : TreasuryPlan = plan_empty();
     var s : Treasury = before;
     let now : u32 = ev_epoch(ev);
     var j : u32 = 0;
@@ -843,7 +843,7 @@ pub fn plan_tick(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan
     return p;
 }
 
-pub fn plan_of(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> Plan {
+pub fn plan_of(before: Treasury, ev: u64, rec: *Net3, c: QuorumConfig) -> TreasuryPlan {
     let kind : u64 = ev_kind(ev);
     if (kind == EV3_ADMIT) { return plan_admit(before, ev, rec, c); }
     if (kind == EV3_REFUSE) { return plan_refuse(before, ev); }
@@ -879,7 +879,7 @@ pub fn consume(t: Treasury, jr: *Journal, ev: u64, rec: *Net3, c: QuorumConfig, 
     out.resumed_from = k;
     var before : Treasury = t;
     if (k > 0) { before = rebuild(jr, journal_first_ev(jr, ev), c); }
-    var p : Plan = plan_of(before, ev, rec, c);
+    var p : TreasuryPlan = plan_of(before, ev, rec, c);
     out.overflow = p.overflow;
     var i : u32 = k;
     while (i < p.n) {
@@ -1524,7 +1524,7 @@ test a_challenge_inside_the_window_overturns_through_the_ledger {
     assert r.t.emitted == 0 and r.t.granted == 0;
     // the same challenge one window late is stale and moves nothing
     var late : Treasury = r.t;
-    var stale : Plan = plan_challenge(late, ev_id(EV3_CHALLENGE, 0, BY_THE_WATCHER, CHALLENGE_WINDOW));
+    var stale : TreasuryPlan = plan_challenge(late, ev_id(EV3_CHALLENGE, 0, BY_THE_WATCHER, CHALLENGE_WINDOW));
     assert stale.n == 1 and stale.op[0] == JO_CH_STALE;
     // a second overturn of the same key charges nothing more
     let again : Ledger = overturn(r.t.lg, 3, issued_nonce(0, 2));

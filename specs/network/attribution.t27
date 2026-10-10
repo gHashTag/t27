@@ -1,28 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/network/attribution.t27 -- who wrote a .t27 spec, as weights anyone can recompute from git
-; history. Issue #8604 (GOLDEN CHAIN, see #8609; network MVP, see #8613). Accounting only: nothing
-; moves here. specs/verified/payout.t27 names AUTHOR_ROYALTY and keeps credits non-transferable;
-; specs/network/usage.t27 splits a royalty pool with the weights defined here.
+; history. Issue #8604 (GOLDEN CHAIN, see #8609; network MVP, see #8613); the row statuses, issue #8789.
+; Accounting only: nothing moves here. specs/verified/payout.t27 names AUTHOR_ROYALTY and keeps credits
+; non-transferable; specs/network/usage.t27 splits a royalty pool with the weights defined here.
 ; --
-; The facts. One row per commit that still has lines alive at HEAD in a spec, or wrote a test,
-; invariant or bench block still there. A generator reads them from git and from GitHub's
-; signature check; this file only weighs them:
-;   spec    the spec's index in the corpus path list, sorted in byte order; NO_SPEC marks an
-;           empty row of the fixed-size table;
-;   author  the GitHub account id that signed the commit, as GitHub reports it;
-;   lines   lines of the spec alive at HEAD that `git blame` gives to the commit;
-;   tests   test, invariant and bench blocks alive at HEAD that the commit wrote;
-;   flags   F_VERIFIED    GitHub verified the commit's signature;
-;           F_AGENT       the commit declares a non-human author: an agent Co-Authored-By trailer
-;                         (Claude), a [bot] account, or a Queen bee branch;
-;           F_SEAL_GREEN  `t27c seal --verify` matched and the spec's tests passed at that commit.
+; The facts. One row per (commit, author) that still has lines alive at HEAD in a spec, or wrote a
+; test, invariant or bench block still there. A generator reads them from git and from GitHub; this
+; file only weighs them.
+; - A commit's authors are the authors of its ORIGINAL commits and every Co-authored-by trailer. For
+;   a squash or a merge made on github.com, the original commits are the pull request's own; otherwise
+;   the commit is its own original. Never its committer, and never whoever signed a merge or a squash:
+;   GitHub's web-flow key signs every merge made in its UI, and a maintainer who merges writes nothing
+;   by merging. author_part() splits a commit's lines and tests among its authors.
+; - The columns:
+;   spec    the spec's index in the corpus path list, sorted in byte order; NO_SPEC marks an empty row
+;           of the fixed-size table;
+;   author  the GitHub account id of the row's author, as GitHub links it to the author's email;
+;           NO_AUTHOR when no account is linked;
+;   lines   lines of the spec alive at HEAD that `git blame` gives to the commit (the author's part);
+;   tests   test, invariant and bench blocks alive at HEAD that the commit wrote (the author's part);
+;   flags   F_VERIFIED       GitHub verified a signature on the author's original commit;
+;           F_AGENT          the author is declared non-human: an agent (Claude), a [bot] account, a
+;                            Queen bee, or an agent Co-Authored-By trailer on the commit;
+;           F_SEAL_GREEN     `t27c seal --verify` matched and the spec's tests passed at that commit;
+;           F_AUTHOR_SIGNED  that signature is the author's own: the commit's committer is its author
+;                            (the same email), not GitHub's web-flow (noreply@github.com), not a merger.
 ; --
-; The rules:
-; - A row is credited to its signer only when GitHub verified the signature and the commit declares
-;   no agent. Every other row -- unsigned, unverified, an agent committing under the owner's
-;   account, no account at all -- is credited to POOL_ID, the declared pool, never to a person.
-;   Nothing guesses an author: a name in a commit header, a Co-Authored-By trailer or a committer
-;   field is never read as one, so no one can claim another's work by typing their name.
+; The statuses (row_status), and who a row is credited to (credited_to):
+; - AGENT: the row declares an agent or a bee. Credited to POOL_ID, the declared pool, never to the
+;   account it was committed under.
+; - CONFIRMED: GitHub verified the author's own signature (F_VERIFIED and F_AUTHOR_SIGNED) and the
+;   author has an account. Credited to the author.
+; - DISPUTED: every other row -- an unsigned commit (old history included), a signature that is not
+;   the author's (a squash GitHub signed, a merger's key), an author with no linked account. GitHub
+;   Verified alone proves who signed, not who wrote. The author is KEPT: the row is credited to
+;   held_id(author), the author's id with HELD_BIT set, so its weight belongs to that author and to
+;   no one else. specs/network/usage.t27 holds such a share in the pool, unpaid, until the author
+;   confirms; a signed commit of the author's own makes the row CONFIRMED and moves the weight from
+;   held_id(author) to the author, changing no other weight. A row with no account is held unclaimed,
+;   under held_id(NO_AUTHOR).
+; Nothing guesses an author from free text: a name in a commit header or a committer field is never
+; read as one, and a trailer names a co-author whose row stays DISPUTED until that author signs.
+; --
+; The weights:
 ; - A row's score is W_LINE per line, plus W_TEST per test only when the seal was kept green: the
 ;   seal is how the corpus knows a test passes. Both counts are clamped (LINES_MAX, TESTS_MAX), so
 ;   no table can overflow the arithmetic. Rows credited to one id add up.
@@ -32,9 +52,9 @@
 ;   Nothing is rounded away and nothing is created: no dust. The answer does not depend on row
 ;   order. A spec with no score at all is POOL_ID's, all of it.
 ; --
-; The honest limits: GitHub's verification is a fact this file is given, not one it checks; an
-; agent commit that omits its trailer reads as its signer's. The generator that reads git history
-; and the per-merge digest of the table are follow-ups.
+; The honest limits: GitHub's verification and its link from an email to an account are facts this
+; file is given, not ones it checks; an agent commit that omits its declaration reads as its author's.
+; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module NetworkAttribution;
@@ -51,13 +71,24 @@ pub const NO_SPEC : u32 = 65535;
 /// No account. Never a person.
 pub const NO_AUTHOR : u64 = 0;
 
-/// The declared pool: every row no verified human signed is credited here. No GitHub account id is it.
+/// The declared pool: every agent row is credited here. No GitHub account id is it.
 pub const POOL_ID : u64 = 18446744073709551615;
 
 /// Row flags.
 pub const F_VERIFIED : u8 = 1;
 pub const F_AGENT : u8 = 2;
 pub const F_SEAL_GREEN : u8 = 4;
+pub const F_AUTHOR_SIGNED : u8 = 8;
+
+/// Row statuses.
+pub const ST_CONFIRMED : u8 = 1;
+pub const ST_DISPUTED : u8 = 2;
+pub const ST_AGENT : u8 = 3;
+
+/// A DISPUTED row is credited to its author's held id: the author's id with this bit set. The largest
+/// account id is ACCOUNT_MAX, so no held id is POOL_ID; an id past it is no account.
+pub const HELD_BIT : u64 = 9223372036854775808;
+pub const ACCOUNT_MAX : u64 = 9223372036854775806;
 
 /// What a line and a test are worth. A spec file's parameters: changing them is a PR like any other.
 pub const W_LINE : u64 = 1;
@@ -76,13 +107,59 @@ pub fn attr_clamp(v: u64, top: u64) -> u64 {
     return v;
 }
 
-/// Who a row is credited to: its signer when GitHub verified the signature and the commit declares
-/// no agent; the pool otherwise. The author field of an unverified row is never read.
+/// An author id that names an account: not NO_AUTHOR, and not past ACCOUNT_MAX.
+pub fn account_known(author: u64) -> bool {
+    return author != NO_AUTHOR and author <= ACCOUNT_MAX;
+}
+
+/// A row's status: AGENT when it declares an agent; CONFIRMED when GitHub verified the author's own
+/// signature and the author has an account; DISPUTED otherwise.
+pub fn row_status(author: u64, flags: u8) -> u8 {
+    if (attr_flag(flags, F_AGENT)) { return ST_AGENT; }
+    if (account_known(author) and attr_flag(flags, F_VERIFIED) and attr_flag(flags, F_AUTHOR_SIGNED)) { return ST_CONFIRMED; }
+    return ST_DISPUTED;
+}
+
+/// The id a DISPUTED row of `author` is credited to: the author's own, held. HELD_BIT alone for a row
+/// with no account (held unclaimed).
+pub fn held_id(author: u64) -> u64 {
+    if (account_known(author) == false) { return HELD_BIT; }
+    return HELD_BIT | author;
+}
+
+/// Is `id` a held id?
+pub fn is_held(id: u64) -> bool {
+    return id != POOL_ID and id >= HELD_BIT;
+}
+
+/// The author a held id is held for; NO_AUTHOR for an id that is not held, or held unclaimed.
+pub fn held_author(id: u64) -> u64 {
+    if (is_held(id) == false) { return NO_AUTHOR; }
+    return id - HELD_BIT;
+}
+
+/// Is `id` one a share may be paid to: a confirmed author's account, never the pool, no account, or a
+/// held id.
+pub fn payable(id: u64) -> bool {
+    return account_known(id);
+}
+
+/// Who a row is credited to: the author when CONFIRMED, the author's held id when DISPUTED, the pool
+/// when AGENT.
 pub fn credited_to(author: u64, flags: u8) -> u64 {
-    if (attr_flag(flags, F_VERIFIED) == false) { return POOL_ID; }
-    if (attr_flag(flags, F_AGENT)) { return POOL_ID; }
-    if (author == NO_AUTHOR) { return POOL_ID; }
-    return author;
+    let st : u8 = row_status(author, flags);
+    if (st == ST_AGENT) { return POOL_ID; }
+    if (st == ST_CONFIRMED) { return author; }
+    return held_id(author);
+}
+
+/// A commit with k authors: author i's part (i < k, in the generator's order) of its n lines or tests.
+/// Each gets n / k, the first n mod k one more, so the parts add up to n.
+pub fn author_part(n: u64, k: u64, i: u64) -> u64 {
+    if (k == 0 or i >= k) { return 0; }
+    var p : u64 = n / k;
+    if (i < n % k) { p = p + 1; }
+    return p;
 }
 
 /// A row's score: its lines, and its tests only when the seal was kept green.
@@ -203,20 +280,22 @@ pub fn weights_sum(specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]
 }
 
 ; --- The worked example (the PR body shows the same numbers) ------------------------------------
-; Accounts: alice 101, bob 202, carol 303, dave 404, the owner 900 (Claude and the Queen bees
-; commit under it). Specs 0, 1, 2 have rows; spec 3 has none.
-;   row spec author lines tests flags                score  credited to
-;   0   0    alice  300   10    verified, green      500    alice
-;   1   0    bob    100   5     verified, green      200    bob
-;   2   0    owner  200   5     verified, agent, grn 300    POOL (an agent commit)
-;   3   1    carol  120   3     verified, green      180    carol
-;   4   1    dave   80    4     verified, seal red   80     dave (the tests do not count)
-;   5   1    alice  100   2     NOT verified, green  140    POOL (a typed name claims nothing)
-;   6   1    carol  30    0     verified, green      30     carol
-;   7-9 2    alice, dave, bob: 50 lines, 1 test, verified, green: 70 each
+; Accounts: alice 101, bob 202, carol 303, dave 404, the owner 900 (Claude and the Queen bees commit
+; under it). held(x) is x's held id. Specs 0, 1, 2 have rows; spec 3 has none.
+;   row spec author lines tests flags                        score  status     credited to
+;   0   0    alice  300   10    verified, own key, green      500    CONFIRMED  alice
+;   1   0    bob    100   5     verified, own key, green      200    CONFIRMED  bob
+;   2   0    owner  200   5     verified, agent, green        300    AGENT      POOL
+;   3   1    carol  120   3     verified, own key, green      180    CONFIRMED  carol
+;   4   1    dave   80    4     verified, own key, seal red   80     CONFIRMED  dave (the tests do not count)
+;   5   1    alice  100   2     unsigned, green               140    DISPUTED   held(alice): an old unsigned commit
+;   6   1    carol  30    0     verified, own key, green      30     CONFIRMED  carol
+;   7   2    alice  50    1     verified, own key, green      70     CONFIRMED  alice
+;   8   2    dave   50    1     verified by web-flow, green   70     DISPUTED   held(dave): a squash GitHub signed
+;   9   2    bob    50    1     verified, own key, green      70     CONFIRMED  bob
 ; spec 0: total 1000 -> alice 5000, bob 2000, POOL 3000 (exact).
-; spec 1: total 430 -> floors carol 4883 (rem 310), dave 1860 (rem 200), POOL 3255 (rem 350);
-;         2 points left: POOL and carol -> carol 4884, dave 1860, POOL 3256.
+; spec 1: total 430 -> floors carol 4883 (rem 310), dave 1860 (rem 200), held(alice) 3255 (rem 350);
+;         2 points left: held(alice) and carol -> carol 4884, dave 1860, held(alice) 3256.
 ; spec 2: total 210 -> 3333 each, rem 70 each, 1 point left, the tie to the lower id: alice 3334.
 ; spec 3: no score -> POOL 10000.
 
@@ -224,21 +303,22 @@ pub const AX_SPEC : [16]u32 = [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 65535, 65535, 65535
 pub const AX_AUTHOR : [16]u64 = [101, 202, 900, 303, 404, 101, 303, 101, 404, 202, 0, 0, 0, 0, 0, 0];
 pub const AX_LINES : [16]u64 = [300, 100, 200, 120, 80, 100, 30, 50, 50, 50, 0, 0, 0, 0, 0, 0];
 pub const AX_TESTS : [16]u64 = [10, 5, 5, 3, 4, 2, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0];
-pub const AX_FLAGS : [16]u8 = [5, 5, 7, 5, 1, 4, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0];
+pub const AX_FLAGS : [16]u8 = [13, 13, 7, 13, 9, 4, 13, 13, 5, 13, 0, 0, 0, 0, 0, 0];
 
 /// The same rows, reversed, with the empty rows first.
 pub const AR_SPEC : [16]u32 = [65535, 65535, 65535, 65535, 65535, 65535, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0];
 pub const AR_AUTHOR : [16]u64 = [0, 0, 0, 0, 0, 0, 202, 404, 101, 303, 101, 404, 303, 900, 202, 101];
 pub const AR_LINES : [16]u64 = [0, 0, 0, 0, 0, 0, 50, 50, 50, 30, 100, 80, 120, 200, 100, 300];
 pub const AR_TESTS : [16]u64 = [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 2, 4, 3, 5, 5, 10];
-pub const AR_FLAGS : [16]u8 = [0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 4, 1, 5, 7, 5, 5];
+pub const AR_FLAGS : [16]u8 = [0, 0, 0, 0, 0, 0, 13, 5, 13, 13, 4, 9, 13, 7, 13, 13];
 
-/// The ids the example asks about, and the weights it expects per spec (spec 0..3, ids in this order).
-pub const AX_IDS : [6]u64 = [101, 202, 303, 404, 900, 18446744073709551615];
-pub const AX_W0 : [6]u64 = [5000, 2000, 0, 0, 0, 3000];
-pub const AX_W1 : [6]u64 = [0, 0, 4884, 1860, 0, 3256];
-pub const AX_W2 : [6]u64 = [3334, 3333, 0, 3333, 0, 0];
-pub const AX_W3 : [6]u64 = [0, 0, 0, 0, 0, 10000];
+/// The ids the example asks about, and the weights it expects per spec (spec 0..3, ids in this
+/// order): alice, bob, carol, dave, the owner, the pool, held(alice), held(dave).
+pub const AX_IDS : [8]u64 = [101, 202, 303, 404, 900, 18446744073709551615, 9223372036854775909, 9223372036854776212];
+pub const AX_W0 : [8]u64 = [5000, 2000, 0, 0, 0, 3000, 0, 0];
+pub const AX_W1 : [8]u64 = [0, 0, 4884, 1860, 0, 0, 3256, 0];
+pub const AX_W2 : [8]u64 = [3334, 3333, 0, 0, 0, 0, 0, 3333];
+pub const AX_W3 : [8]u64 = [0, 0, 0, 0, 0, 10000, 0, 0];
 
 pub fn ax_expected(spec: u32, k: u32) -> u64 {
     if (spec == 0) { return AX_W0[k]; }
@@ -247,17 +327,18 @@ pub fn ax_expected(spec: u32, k: u32) -> u64 {
     return AX_W3[k];
 }
 
-/// Rows built to leave remainders everywhere: four specs, seven people, pool rows, clamped rows.
+/// Rows built to leave remainders everywhere: four specs, seven people, every status, clamped rows.
 pub const AE_SPEC : [16]u32 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3];
 pub const AE_AUTHOR : [16]u64 = [11, 12, 13, 11, 14, 15, 16, 17, 15, 12, 13, 0, 17, 16, 14, 11];
 pub const AE_LINES : [16]u64 = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 99999999, 41, 43, 47];
 pub const AE_TESTS : [16]u64 = [0, 1, 0, 2, 3, 0, 5, 1, 0, 2, 2, 9, 1, 3000000, 0, 1];
-pub const AE_FLAGS : [16]u8 = [5, 5, 1, 4, 7, 5, 5, 3, 5, 1, 5, 5, 5, 5, 0, 5];
+pub const AE_FLAGS : [16]u8 = [13, 5, 9, 4, 7, 13, 5, 3, 13, 1, 13, 13, 5, 13, 0, 13];
 
-/// The credited_to cases: author, flags, expected id.
-pub const CT_AUTHOR : [8]u64 = [101, 101, 101, 101, 0, 900, 900, 202];
-pub const CT_FLAGS : [8]u8 = [1, 0, 3, 5, 1, 7, 5, 4];
-pub const CT_EXPECT : [8]u64 = [101, 18446744073709551615, 18446744073709551615, 101, 18446744073709551615, 18446744073709551615, 900, 18446744073709551615];
+/// The credited_to cases: author, flags, expected id, expected status.
+pub const CT_AUTHOR : [10]u64 = [101, 101, 101, 101, 101, 101, 0, 900, 900, 202];
+pub const CT_FLAGS : [10]u8 = [9, 13, 1, 0, 8, 11, 9, 7, 13, 4];
+pub const CT_EXPECT : [10]u64 = [101, 101, 9223372036854775909, 9223372036854775909, 9223372036854775909, 18446744073709551615, 9223372036854775808, 18446744073709551615, 900, 9223372036854776010];
+pub const CT_STATUS : [10]u8 = [1, 1, 2, 2, 2, 3, 2, 3, 1, 2];
 
 /// The row_score cases: lines, tests, flags, expected score.
 pub const RS_LINES : [8]u64 = [0, 10, 10, 10, 20000000, 0, 7, 3];
@@ -265,22 +346,58 @@ pub const RS_TESTS : [8]u64 = [0, 0, 2, 2, 0, 2000000, 1, 1];
 pub const RS_FLAGS : [8]u8 = [5, 5, 5, 1, 1, 4, 0, 6];
 pub const RS_EXPECT : [8]u64 = [0, 10, 50, 10, 16777216, 20971520, 7, 23];
 
-test only_a_verified_human_signer_is_credited {
+/// One commit with three authors -- alice, who signed it; bob, named in a trailer; an agent trailer --
+/// split 101 lines and 3 tests three ways; and carol's squash, which GitHub's web-flow signed. Then
+/// the same table after bob signs a commit of his own.
+pub const CO_SPEC : [16]u32 = [0, 0, 0, 0, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535];
+pub const CO_AUTHOR : [16]u64 = [101, 202, 900, 303, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const CO_LINES : [16]u64 = [34, 34, 33, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const CO_TESTS : [16]u64 = [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const CO_FLAGS : [16]u8 = [13, 4, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const CO_FLAGS_BOB_SIGNED : [16]u8 = [13, 13, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+/// alice, held(bob), the pool, held(carol), bob.
+pub const CO_IDS : [5]u64 = [101, 9223372036854776010, 18446744073709551615, 9223372036854776111, 202];
+pub const CO_W : [5]u64 = [2559, 2559, 2512, 2370, 0];
+pub const CO_W_BOB_SIGNED : [5]u64 = [2559, 0, 2512, 2370, 2559];
+
+test only_the_authors_own_verified_signature_confirms_a_row {
     var i : u32 = 0;
-    var people : u32 = 0;
-    while (i < 8) {
+    var confirmed : u32 = 0;
+    var disputed : u32 = 0;
+    var agents : u32 = 0;
+    while (i < 10) {
+        let st : u8 = row_status(CT_AUTHOR[i], CT_FLAGS[i]);
         let c : u64 = credited_to(CT_AUTHOR[i], CT_FLAGS[i]);
+        assert st == CT_STATUS[i];
         assert c == CT_EXPECT[i];
-        if (c != POOL_ID) {
-            // a person only through a verified signature and no agent declared
-            assert attr_flag(CT_FLAGS[i], F_VERIFIED);
+        if (st == ST_CONFIRMED) {
+            // a person only through a verified signature of their own, and no agent declared
+            assert attr_flag(CT_FLAGS[i], F_VERIFIED) and attr_flag(CT_FLAGS[i], F_AUTHOR_SIGNED);
             assert attr_flag(CT_FLAGS[i], F_AGENT) == false;
-            assert c == CT_AUTHOR[i];
-            people = people + 1;
+            assert c == CT_AUTHOR[i] and payable(c);
+            confirmed = confirmed + 1;
+        }
+        if (st == ST_DISPUTED) {
+            // the author is kept, held: never the pool, never paid
+            assert is_held(c) and payable(c) == false and c != POOL_ID;
+            assert held_author(c) == CT_AUTHOR[i];
+            disputed = disputed + 1;
+        }
+        if (st == ST_AGENT) {
+            assert c == POOL_ID and payable(c) == false;
+            agents = agents + 1;
         }
         i = i + 1;
     }
-    assert people == 3;
+    assert confirmed == 3 and disputed == 5 and agents == 2;
+    // GitHub Verified alone (a squash its web-flow key signed) confirms nobody
+    assert row_status(6774813, F_VERIFIED | F_SEAL_GREEN) == ST_DISPUTED;
+    // an id past ACCOUNT_MAX names no account: held unclaimed, never the pool
+    assert account_known(ACCOUNT_MAX) and account_known(ACCOUNT_MAX + 1) == false;
+    assert credited_to(ACCOUNT_MAX + 1, 13) == HELD_BIT;
+    assert held_id(ACCOUNT_MAX) != POOL_ID and is_held(held_id(ACCOUNT_MAX));
+    assert is_held(POOL_ID) == false and is_held(101) == false and held_author(101) == NO_AUTHOR;
+    assert payable(NO_AUTHOR) == false and payable(POOL_ID) == false;
 }
 
 test a_test_counts_only_while_the_seal_is_green {
@@ -289,9 +406,10 @@ test a_test_counts_only_while_the_seal_is_green {
         let s : u64 = row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i]);
         assert s == RS_EXPECT[i];
         // a red seal scores the lines alone, whatever the tests
-        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] & 3) == attr_clamp(RS_LINES[i], LINES_MAX) * W_LINE;
-        // the score is the row's, whoever it is credited to
+        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] & 11) == attr_clamp(RS_LINES[i], LINES_MAX) * W_LINE;
+        // the score is the row's, whoever it is credited to and whatever its status
         assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] | F_AGENT) == s;
+        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] | F_AUTHOR_SIGNED) == s;
         i = i + 1;
     }
 }
@@ -300,7 +418,7 @@ test the_worked_example_weighs_as_the_table_says {
     var spec : u32 = 0;
     while (spec < 4) {
         var k : u32 = 0;
-        while (k < 6) {
+        while (k < 8) {
             assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, AX_IDS[k]) == ax_expected(spec, k);
             k = k + 1;
         }
@@ -311,27 +429,72 @@ test the_worked_example_weighs_as_the_table_says {
     assert spec_leftover(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 1) == 2;
     assert spec_leftover(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 2) == 1;
     assert spec_ids(AX_SPEC, AX_AUTHOR, AX_FLAGS, 1) == 3;
+    assert AX_IDS[6] == held_id(101) and AX_IDS[7] == held_id(404);
 }
 
-test a_typed_name_and_an_agent_commit_go_to_the_pool {
-    // row 5 names alice without a verified signature: alice gets nothing in spec 1
+// An old unsigned commit keeps its author: alice's row 5 is held for alice, not given to the pool. An
+// agent commit under the owner's account goes to the pool, and the owner gets nothing.
+test an_unsigned_author_is_kept_and_held_and_an_agent_commit_goes_to_the_pool {
     assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 1, 101) == 0;
-    // row 2 is the owner's account with an agent declared: the owner gets nothing anywhere
+    assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 1, held_id(101)) == 3256;
     var spec : u32 = 0;
     var pool : u64 = 0;
+    var held : u64 = 0;
     while (spec < 4) {
         assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, 900) == 0;
         pool = pool + weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, POOL_ID);
+        held = held + weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, held_id(101));
+        held = held + weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, held_id(404));
         spec = spec + 1;
     }
-    assert pool == 3000 + 3256 + 10000;
+    assert pool == 3000 + 10000;
+    assert held == 3256 + 3333;
+}
+
+// The merge or squash signer is never an author; a commit's authors share its lines; and when a
+// trailer's co-author signs a commit of their own, their held weight becomes theirs and nothing else
+// moves.
+test the_merge_signer_is_never_an_author_and_co_authors_share_a_commit {
+    // the parts of n among k authors add up to n, and differ by at most one
+    var n : u64 = 0;
+    while (n < 40) {
+        var k : u64 = 1;
+        while (k <= 5) {
+            var sum : u64 = 0;
+            var i : u64 = 0;
+            while (i < k) {
+                let p : u64 = author_part(n, k, i);
+                assert p == n / k or p == n / k + 1;
+                sum = sum + p;
+                i = i + 1;
+            }
+            assert sum == n;
+            assert author_part(n, k, k) == 0;
+            k = k + 1;
+        }
+        n = n + 3;
+    }
+    assert author_part(101, 3, 0) == 34 and author_part(101, 3, 1) == 34 and author_part(101, 3, 2) == 33;
+    assert author_part(5, 0, 0) == 0;
+    // a verified signature that is not the author's own confirms no one: a squash GitHub signed (row 3)
+    assert row_status(303, CO_FLAGS[3]) == ST_DISPUTED;
+    var j : u32 = 0;
+    while (j < 5) {
+        assert weight_of(CO_SPEC, CO_AUTHOR, CO_LINES, CO_TESTS, CO_FLAGS, 0, CO_IDS[j]) == CO_W[j];
+        assert weight_of(CO_SPEC, CO_AUTHOR, CO_LINES, CO_TESTS, CO_FLAGS_BOB_SIGNED, 0, CO_IDS[j]) == CO_W_BOB_SIGNED[j];
+        j = j + 1;
+    }
+    assert weights_sum(CO_SPEC, CO_AUTHOR, CO_LINES, CO_TESTS, CO_FLAGS, 0) == BP_TOTAL;
+    assert weights_sum(CO_SPEC, CO_AUTHOR, CO_LINES, CO_TESTS, CO_FLAGS_BOB_SIGNED, 0) == BP_TOTAL;
+    // the owner's account, under which the agent committed, is credited nothing
+    assert weight_of(CO_SPEC, CO_AUTHOR, CO_LINES, CO_TESTS, CO_FLAGS, 0, 900) == 0;
 }
 
 test the_weights_do_not_depend_on_row_order {
     var spec : u32 = 0;
     while (spec < 4) {
         var k : u32 = 0;
-        while (k < 6) {
+        while (k < 8) {
             let a : u64 = weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, AX_IDS[k]);
             let b : u64 = weight_of(AR_SPEC, AR_AUTHOR, AR_LINES, AR_TESTS, AR_FLAGS, spec, AX_IDS[k]);
             assert a == b;
@@ -369,4 +532,11 @@ test every_spec_sums_to_exactly_ten_thousand_with_no_dust {
     // a spec nobody has rows in is the pool's; an empty row is not a spec
     assert weight_of(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, 5, POOL_ID) == BP_TOTAL;
     assert weights_sum(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, NO_SPEC) == 0;
+}
+
+invariant held_ids_never_name_the_pool_or_a_person {
+    assert HELD_BIT > ACCOUNT_MAX;
+    assert (HELD_BIT | ACCOUNT_MAX) != POOL_ID;
+    assert ST_CONFIRMED != ST_DISPUTED and ST_DISPUTED != ST_AGENT and ST_AGENT != ST_CONFIRMED;
+    assert F_AUTHOR_SIGNED != F_VERIFIED and F_AUTHOR_SIGNED != F_AGENT and F_AUTHOR_SIGNED != F_SEAL_GREEN;
 }
