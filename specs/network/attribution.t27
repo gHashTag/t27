@@ -1,0 +1,372 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/attribution.t27 -- who wrote a .t27 spec, as weights anyone can recompute from git
+; history. Issue #8604 (GOLDEN CHAIN, see #8609; network MVP, see #8613). Accounting only: nothing
+; moves here. specs/verified/payout.t27 names AUTHOR_ROYALTY and keeps credits non-transferable;
+; specs/network/usage.t27 splits a royalty pool with the weights defined here.
+; --
+; The facts. One row per commit that still has lines alive at HEAD in a spec, or wrote a test,
+; invariant or bench block still there. A generator reads them from git and from GitHub's
+; signature check; this file only weighs them:
+;   spec    the spec's index in the corpus path list, sorted in byte order; NO_SPEC marks an
+;           empty row of the fixed-size table;
+;   author  the GitHub account id that signed the commit, as GitHub reports it;
+;   lines   lines of the spec alive at HEAD that `git blame` gives to the commit;
+;   tests   test, invariant and bench blocks alive at HEAD that the commit wrote;
+;   flags   F_VERIFIED    GitHub verified the commit's signature;
+;           F_AGENT       the commit declares a non-human author: an agent Co-Authored-By trailer
+;                         (Claude), a [bot] account, or a Queen bee branch;
+;           F_SEAL_GREEN  `t27c seal --verify` matched and the spec's tests passed at that commit.
+; --
+; The rules:
+; - A row is credited to its signer only when GitHub verified the signature and the commit declares
+;   no agent. Every other row -- unsigned, unverified, an agent committing under the owner's
+;   account, no account at all -- is credited to POOL_ID, the declared pool, never to a person.
+;   Nothing guesses an author: a name in a commit header, a Co-Authored-By trailer or a committer
+;   field is never read as one, so no one can claim another's work by typing their name.
+; - A row's score is W_LINE per line, plus W_TEST per test only when the seal was kept green: the
+;   seal is how the corpus knows a test passes. Both counts are clamped (LINES_MAX, TESTS_MAX), so
+;   no table can overflow the arithmetic. Rows credited to one id add up.
+; - A spec's weights are basis points that sum to exactly BP_TOTAL. Each credited id gets
+;   floor(score x BP_TOTAL / total); the points left over (always fewer than the ids) go one each
+;   to the ids with the largest remainder, a tie to the lower id (the largest-remainder method).
+;   Nothing is rounded away and nothing is created: no dust. The answer does not depend on row
+;   order. A spec with no score at all is POOL_ID's, all of it.
+; --
+; The honest limits: GitHub's verification is a fact this file is given, not one it checks; an
+; agent commit that omits its trailer reads as its signer's. The generator that reads git history
+; and the per-merge digest of the table are follow-ups.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkAttribution;
+
+/// A spec's weights always sum to this: basis points.
+pub const BP_TOTAL : u64 = 10000;
+
+/// The fixed size of a contribution table.
+pub const ATTR_ROWS : u32 = 16;
+
+/// An empty row's spec index.
+pub const NO_SPEC : u32 = 65535;
+
+/// No account. Never a person.
+pub const NO_AUTHOR : u64 = 0;
+
+/// The declared pool: every row no verified human signed is credited here. No GitHub account id is it.
+pub const POOL_ID : u64 = 18446744073709551615;
+
+/// Row flags.
+pub const F_VERIFIED : u8 = 1;
+pub const F_AGENT : u8 = 2;
+pub const F_SEAL_GREEN : u8 = 4;
+
+/// What a line and a test are worth. A spec file's parameters: changing them is a PR like any other.
+pub const W_LINE : u64 = 1;
+pub const W_TEST : u64 = 20;
+
+/// The clamps: a row's score is below 2^26, a table's below 2^30, times BP_TOTAL below 2^44.
+pub const LINES_MAX : u64 = 16777216;
+pub const TESTS_MAX : u64 = 1048576;
+
+pub fn attr_flag(flags: u8, f: u8) -> bool {
+    return (flags & f) != 0;
+}
+
+pub fn attr_clamp(v: u64, top: u64) -> u64 {
+    if (v > top) { return top; }
+    return v;
+}
+
+/// Who a row is credited to: its signer when GitHub verified the signature and the commit declares
+/// no agent; the pool otherwise. The author field of an unverified row is never read.
+pub fn credited_to(author: u64, flags: u8) -> u64 {
+    if (attr_flag(flags, F_VERIFIED) == false) { return POOL_ID; }
+    if (attr_flag(flags, F_AGENT)) { return POOL_ID; }
+    if (author == NO_AUTHOR) { return POOL_ID; }
+    return author;
+}
+
+/// A row's score: its lines, and its tests only when the seal was kept green.
+pub fn row_score(lines: u64, tests: u64, flags: u8) -> u64 {
+    let l : u64 = attr_clamp(lines, LINES_MAX) * W_LINE;
+    if (attr_flag(flags, F_SEAL_GREEN) == false) { return l; }
+    return l + attr_clamp(tests, TESTS_MAX) * W_TEST;
+}
+
+/// The score of one credited id in one spec: its rows added up.
+pub fn id_score(specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, spec: u32, id: u64) -> u64 {
+    var s : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (specs[i] == spec and credited_to(authors[i], flags[i]) == id) {
+            s = s + row_score(lines[i], tests[i], flags[i]);
+        }
+        i = i + 1;
+    }
+    return s;
+}
+
+/// A spec's total score.
+pub fn spec_score(specs: [16]u32, lines: [16]u64, tests: [16]u64, flags: [16]u8, spec: u32) -> u64 {
+    var s : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (specs[i] == spec) { s = s + row_score(lines[i], tests[i], flags[i]); }
+        i = i + 1;
+    }
+    return s;
+}
+
+/// Whether row i is the first row of its spec credited to its id: one row stands for each id.
+pub fn first_of_id(specs: [16]u32, authors: [16]u64, flags: [16]u8, i: u32) -> bool {
+    let c : u64 = credited_to(authors[i], flags[i]);
+    var j : u32 = 0;
+    while (j < i) {
+        if (specs[j] == specs[i] and credited_to(authors[j], flags[j]) == c) { return false; }
+        j = j + 1;
+    }
+    return true;
+}
+
+/// The number of distinct ids a spec's rows are credited to.
+pub fn spec_ids(specs: [16]u32, authors: [16]u64, flags: [16]u8, spec: u32) -> u64 {
+    var n : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (specs[i] == spec and first_of_id(specs, authors, flags, i)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// The basis points a spec's floors leave over, to be handed out one each. 0 for a spec with no score.
+pub fn spec_leftover(specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, spec: u32) -> u64 {
+    let total : u64 = spec_score(specs, lines, tests, flags, spec);
+    if (total == 0) { return 0; }
+    var floors : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (specs[i] == spec and first_of_id(specs, authors, flags, i)) {
+            let c : u64 = credited_to(authors[i], flags[i]);
+            floors = floors + id_score(specs, authors, lines, tests, flags, spec, c) * BP_TOTAL / total;
+        }
+        i = i + 1;
+    }
+    return BP_TOTAL - floors;
+}
+
+/// The weight of `id` in `spec`, in basis points: its floor, plus one when fewer ids than the
+/// leftover beat it (a larger remainder, or the same remainder and a lower id).
+pub fn weight_of(specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, spec: u32, id: u64) -> u64 {
+    if (spec == NO_SPEC) { return 0; }
+    let total : u64 = spec_score(specs, lines, tests, flags, spec);
+    if (total == 0) {
+        if (id == POOL_ID) { return BP_TOTAL; }
+        return 0;
+    }
+    let own : u64 = id_score(specs, authors, lines, tests, flags, spec, id);
+    if (own == 0) { return 0; }
+    let base : u64 = own * BP_TOTAL / total;
+    let rem : u64 = own * BP_TOTAL - base * total;
+    var beaten : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (specs[i] == spec and first_of_id(specs, authors, flags, i)) {
+            let c : u64 = credited_to(authors[i], flags[i]);
+            if (c != id) {
+                let sc : u64 = id_score(specs, authors, lines, tests, flags, spec, c) * BP_TOTAL;
+                let rc : u64 = sc - (sc / total) * total;
+                if (rc > rem or (rc == rem and c < id)) { beaten = beaten + 1; }
+            }
+        }
+        i = i + 1;
+    }
+    if (beaten < spec_leftover(specs, authors, lines, tests, flags, spec)) { return base + 1; }
+    return base;
+}
+
+/// The conservation check: the weights of every id a spec credits, the pool's included once.
+/// BP_TOTAL for every spec; 0 for NO_SPEC, which is not a spec.
+pub fn weights_sum(specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, spec: u32) -> u64 {
+    var sum : u64 = 0;
+    var pool_seen : bool = false;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (specs[i] == spec and first_of_id(specs, authors, flags, i)) {
+            let c : u64 = credited_to(authors[i], flags[i]);
+            if (c == POOL_ID) { pool_seen = true; }
+            sum = sum + weight_of(specs, authors, lines, tests, flags, spec, c);
+        }
+        i = i + 1;
+    }
+    if (pool_seen == false) { sum = sum + weight_of(specs, authors, lines, tests, flags, spec, POOL_ID); }
+    return sum;
+}
+
+; --- The worked example (the PR body shows the same numbers) ------------------------------------
+; Accounts: alice 101, bob 202, carol 303, dave 404, the owner 900 (Claude and the Queen bees
+; commit under it). Specs 0, 1, 2 have rows; spec 3 has none.
+;   row spec author lines tests flags                score  credited to
+;   0   0    alice  300   10    verified, green      500    alice
+;   1   0    bob    100   5     verified, green      200    bob
+;   2   0    owner  200   5     verified, agent, grn 300    POOL (an agent commit)
+;   3   1    carol  120   3     verified, green      180    carol
+;   4   1    dave   80    4     verified, seal red   80     dave (the tests do not count)
+;   5   1    alice  100   2     NOT verified, green  140    POOL (a typed name claims nothing)
+;   6   1    carol  30    0     verified, green      30     carol
+;   7-9 2    alice, dave, bob: 50 lines, 1 test, verified, green: 70 each
+; spec 0: total 1000 -> alice 5000, bob 2000, POOL 3000 (exact).
+; spec 1: total 430 -> floors carol 4883 (rem 310), dave 1860 (rem 200), POOL 3255 (rem 350);
+;         2 points left: POOL and carol -> carol 4884, dave 1860, POOL 3256.
+; spec 2: total 210 -> 3333 each, rem 70 each, 1 point left, the tie to the lower id: alice 3334.
+; spec 3: no score -> POOL 10000.
+
+pub const AX_SPEC : [16]u32 = [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 65535, 65535, 65535, 65535, 65535, 65535];
+pub const AX_AUTHOR : [16]u64 = [101, 202, 900, 303, 404, 101, 303, 101, 404, 202, 0, 0, 0, 0, 0, 0];
+pub const AX_LINES : [16]u64 = [300, 100, 200, 120, 80, 100, 30, 50, 50, 50, 0, 0, 0, 0, 0, 0];
+pub const AX_TESTS : [16]u64 = [10, 5, 5, 3, 4, 2, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0];
+pub const AX_FLAGS : [16]u8 = [5, 5, 7, 5, 1, 4, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0];
+
+/// The same rows, reversed, with the empty rows first.
+pub const AR_SPEC : [16]u32 = [65535, 65535, 65535, 65535, 65535, 65535, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0];
+pub const AR_AUTHOR : [16]u64 = [0, 0, 0, 0, 0, 0, 202, 404, 101, 303, 101, 404, 303, 900, 202, 101];
+pub const AR_LINES : [16]u64 = [0, 0, 0, 0, 0, 0, 50, 50, 50, 30, 100, 80, 120, 200, 100, 300];
+pub const AR_TESTS : [16]u64 = [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 2, 4, 3, 5, 5, 10];
+pub const AR_FLAGS : [16]u8 = [0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 4, 1, 5, 7, 5, 5];
+
+/// The ids the example asks about, and the weights it expects per spec (spec 0..3, ids in this order).
+pub const AX_IDS : [6]u64 = [101, 202, 303, 404, 900, 18446744073709551615];
+pub const AX_W0 : [6]u64 = [5000, 2000, 0, 0, 0, 3000];
+pub const AX_W1 : [6]u64 = [0, 0, 4884, 1860, 0, 3256];
+pub const AX_W2 : [6]u64 = [3334, 3333, 0, 3333, 0, 0];
+pub const AX_W3 : [6]u64 = [0, 0, 0, 0, 0, 10000];
+
+pub fn ax_expected(spec: u32, k: u32) -> u64 {
+    if (spec == 0) { return AX_W0[k]; }
+    if (spec == 1) { return AX_W1[k]; }
+    if (spec == 2) { return AX_W2[k]; }
+    return AX_W3[k];
+}
+
+/// Rows built to leave remainders everywhere: four specs, seven people, pool rows, clamped rows.
+pub const AE_SPEC : [16]u32 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3];
+pub const AE_AUTHOR : [16]u64 = [11, 12, 13, 11, 14, 15, 16, 17, 15, 12, 13, 0, 17, 16, 14, 11];
+pub const AE_LINES : [16]u64 = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 99999999, 41, 43, 47];
+pub const AE_TESTS : [16]u64 = [0, 1, 0, 2, 3, 0, 5, 1, 0, 2, 2, 9, 1, 3000000, 0, 1];
+pub const AE_FLAGS : [16]u8 = [5, 5, 1, 4, 7, 5, 5, 3, 5, 1, 5, 5, 5, 5, 0, 5];
+
+/// The credited_to cases: author, flags, expected id.
+pub const CT_AUTHOR : [8]u64 = [101, 101, 101, 101, 0, 900, 900, 202];
+pub const CT_FLAGS : [8]u8 = [1, 0, 3, 5, 1, 7, 5, 4];
+pub const CT_EXPECT : [8]u64 = [101, 18446744073709551615, 18446744073709551615, 101, 18446744073709551615, 18446744073709551615, 900, 18446744073709551615];
+
+/// The row_score cases: lines, tests, flags, expected score.
+pub const RS_LINES : [8]u64 = [0, 10, 10, 10, 20000000, 0, 7, 3];
+pub const RS_TESTS : [8]u64 = [0, 0, 2, 2, 0, 2000000, 1, 1];
+pub const RS_FLAGS : [8]u8 = [5, 5, 5, 1, 1, 4, 0, 6];
+pub const RS_EXPECT : [8]u64 = [0, 10, 50, 10, 16777216, 20971520, 7, 23];
+
+test only_a_verified_human_signer_is_credited {
+    var i : u32 = 0;
+    var people : u32 = 0;
+    while (i < 8) {
+        let c : u64 = credited_to(CT_AUTHOR[i], CT_FLAGS[i]);
+        assert c == CT_EXPECT[i];
+        if (c != POOL_ID) {
+            // a person only through a verified signature and no agent declared
+            assert attr_flag(CT_FLAGS[i], F_VERIFIED);
+            assert attr_flag(CT_FLAGS[i], F_AGENT) == false;
+            assert c == CT_AUTHOR[i];
+            people = people + 1;
+        }
+        i = i + 1;
+    }
+    assert people == 3;
+}
+
+test a_test_counts_only_while_the_seal_is_green {
+    var i : u32 = 0;
+    while (i < 8) {
+        let s : u64 = row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i]);
+        assert s == RS_EXPECT[i];
+        // a red seal scores the lines alone, whatever the tests
+        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] & 3) == attr_clamp(RS_LINES[i], LINES_MAX) * W_LINE;
+        // the score is the row's, whoever it is credited to
+        assert row_score(RS_LINES[i], RS_TESTS[i], RS_FLAGS[i] | F_AGENT) == s;
+        i = i + 1;
+    }
+}
+
+test the_worked_example_weighs_as_the_table_says {
+    var spec : u32 = 0;
+    while (spec < 4) {
+        var k : u32 = 0;
+        while (k < 6) {
+            assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, AX_IDS[k]) == ax_expected(spec, k);
+            k = k + 1;
+        }
+        assert weights_sum(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec) == BP_TOTAL;
+        spec = spec + 1;
+    }
+    assert spec_score(AX_SPEC, AX_LINES, AX_TESTS, AX_FLAGS, 1) == 430;
+    assert spec_leftover(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 1) == 2;
+    assert spec_leftover(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 2) == 1;
+    assert spec_ids(AX_SPEC, AX_AUTHOR, AX_FLAGS, 1) == 3;
+}
+
+test a_typed_name_and_an_agent_commit_go_to_the_pool {
+    // row 5 names alice without a verified signature: alice gets nothing in spec 1
+    assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, 1, 101) == 0;
+    // row 2 is the owner's account with an agent declared: the owner gets nothing anywhere
+    var spec : u32 = 0;
+    var pool : u64 = 0;
+    while (spec < 4) {
+        assert weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, 900) == 0;
+        pool = pool + weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, POOL_ID);
+        spec = spec + 1;
+    }
+    assert pool == 3000 + 3256 + 10000;
+}
+
+test the_weights_do_not_depend_on_row_order {
+    var spec : u32 = 0;
+    while (spec < 4) {
+        var k : u32 = 0;
+        while (k < 6) {
+            let a : u64 = weight_of(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, spec, AX_IDS[k]);
+            let b : u64 = weight_of(AR_SPEC, AR_AUTHOR, AR_LINES, AR_TESTS, AR_FLAGS, spec, AX_IDS[k]);
+            assert a == b;
+            k = k + 1;
+        }
+        assert weights_sum(AR_SPEC, AR_AUTHOR, AR_LINES, AR_TESTS, AR_FLAGS, spec) == BP_TOTAL;
+        spec = spec + 1;
+    }
+}
+
+test every_spec_sums_to_exactly_ten_thousand_with_no_dust {
+    var spec : u32 = 0;
+    while (spec < 6) {
+        assert weights_sum(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, spec) == BP_TOTAL;
+        let total : u64 = spec_score(AE_SPEC, AE_LINES, AE_TESTS, AE_FLAGS, spec);
+        let ids : u64 = spec_ids(AE_SPEC, AE_AUTHOR, AE_FLAGS, spec);
+        let left : u64 = spec_leftover(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, spec);
+        if (total > 0) { assert left < ids; }
+        var i : u32 = 0;
+        while (i < ATTR_ROWS) {
+            if (AE_SPEC[i] == spec and first_of_id(AE_SPEC, AE_AUTHOR, AE_FLAGS, i)) {
+                let c : u64 = credited_to(AE_AUTHOR[i], AE_FLAGS[i]);
+                let own : u64 = id_score(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, spec, c);
+                let w : u64 = weight_of(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, spec, c);
+                // each weight is its exact share rounded down, or up by one point
+                assert w * total <= own * BP_TOTAL + total;
+                assert w * total + total > own * BP_TOTAL;
+            }
+            i = i + 1;
+        }
+        spec = spec + 1;
+    }
+    // the clamped rows: spec 3 is dominated by 2^24 lines and 2^20 tests at most
+    assert spec_score(AE_SPEC, AE_LINES, AE_TESTS, AE_FLAGS, 3) == 16777216 + 20 + 41 + 20971520 + 43 + 47 + 20;
+    // a spec nobody has rows in is the pool's; an empty row is not a spec
+    assert weight_of(AE_SPEC, AE_AUTHOR, AE_LINES, AE_TESTS, AE_FLAGS, 5, POOL_ID) == BP_TOTAL;
+    assert weights_sum(AX_SPEC, AX_AUTHOR, AX_LINES, AX_TESTS, AX_FLAGS, NO_SPEC) == 0;
+}

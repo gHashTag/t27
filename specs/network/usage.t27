@@ -1,0 +1,446 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/network/usage.t27 -- which specs admitted runs actually read, per epoch, and the
+; AUTHOR_ROYALTY split that follows from it. Issue #8605 (GOLDEN CHAIN, see #8609; network MVP, see
+; #8613). Accounting only: nothing moves here, and credits are non-transferable (payout.t27).
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/corpus_receipt.t27: a corpus receipt's input leaves name every spec file the run
+;   read (path TAB sha256), bound under its signed input_root, and a receipt is judged by
+;   signed_receipt's rules before its leaves are read at all. A row below is a receipt whose leaves
+;   already rehash to its signed roots; `reads` is its input leaves as a mask over the corpus path
+;   list (bit s: spec s, the same index specs/network/attribution.t27 uses).
+; - specs/verified/signed_receipt.t27: the key registry and receipt_level decide a receipt's level;
+;   usage_level passes a row's facts to receipt_level unchanged.
+; - specs/network/attribution.t27: per-spec author weights in basis points, and POOL_ID.
+; --
+; A receipt row: commit (the receipted commit, its sha's first 16 hex digits read as a u64), key
+; (the signer's key id, KEY_ID_HEX_LEN hex digits read as a u64), epoch (the settlement epoch the
+; receipt arrived in), auth (the U_* bits for the facts receipt_level reads), nonce (nonce bytes),
+; reads (the mask above). NO_COMMIT marks an empty row of the fixed-size table.
+; --
+; The rules:
+; - A receipt counts only when its key is registered and receipt_level gives it at least
+;   LEVEL_AUTHOR. Any other receipt counts for nothing, toward nothing.
+; - A commit belongs to the first epoch a counting receipt of it arrived in. Receipts of it that
+;   arrive in a later epoch count for nothing, so a settled epoch never changes.
+; - A commit receipted twice by the same key counts once: per spec, a key either read it on that
+;   commit or did not.
+; - A spec's count in an epoch is the number of that epoch's commits whose counting receipts read
+;   it. Each such use weighs the number of distinct keys that read it on that commit, capped at
+;   QUORUM_CAP: a quorum of keys raises the weight, never the count. A spec's usage is the sum of
+;   its uses' weights. None of it depends on row order.
+; - An epoch's AUTHOR_ROYALTY pool is split by usage x attribution weight. An id's claim is the sum
+;   over specs of usage(spec) x weight_of(spec, id); a person's share is
+;   floor(pool x claim / total claim), computed without overflow for any u64 pool. POOL_ID is never
+;   paid out: its share and the integer remainder stay in the pool, so the split never pays more
+;   than the pool and never mints dust.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NetworkUsage;
+
+use verified::signed_receipt;
+use network::attribution;
+
+/// The fixed size of a receipt table, and how many specs a usage vector covers.
+pub const USAGE_ROWS : u32 = 8;
+pub const USAGE_SPECS : u32 = 8;
+
+/// An empty row's commit.
+pub const NO_COMMIT : u64 = 0;
+
+/// The epoch of a commit no counting receipt names.
+pub const NO_EPOCH : u64 = 18446744073709551615;
+
+/// A use weighs at most this many keys: the network MVP admits a run at three agreeing receipts.
+pub const QUORUM_CAP : u64 = 3;
+
+/// A royalty split reads at most this much usage per spec, so the claim total stays below 2^31.
+pub const USAGE_MAX : u64 = 16384;
+
+/// The receipt facts receipt_level reads, as bits of a row's auth byte.
+pub const U_SIGNED : u8 = 1;
+pub const U_KEY_REGISTERED : u8 = 2;
+pub const U_SIGNATURE_VALID : u8 = 4;
+pub const U_CHALLENGE_GIVEN : u8 = 8;
+pub const U_NONCE_IS_CHALLENGE : u8 = 16;
+
+pub fn usage_bit(auth: u8, b: u8) -> bool {
+    return (auth & b) != 0;
+}
+
+/// The level signed_receipt.t27 gives a row's receipt.
+pub fn usage_level(auth: u8, nonce: u8) -> u8 {
+    return receipt_level(usage_bit(auth, U_SIGNED), usage_bit(auth, U_KEY_REGISTERED), usage_bit(auth, U_SIGNATURE_VALID), usage_bit(auth, U_CHALLENGE_GIVEN), nonce, usage_bit(auth, U_NONCE_IS_CHALLENGE));
+}
+
+/// Whether a receipt counts at all: a commit, a registered key, and at least LEVEL_AUTHOR.
+pub fn usage_counts(commit: u64, auth: u8, nonce: u8) -> bool {
+    if (commit == NO_COMMIT) { return false; }
+    if (usage_bit(auth, U_KEY_REGISTERED) == false) { return false; }
+    return usage_level(auth, nonce) >= LEVEL_AUTHOR;
+}
+
+pub fn usage_reads(mask: u64, spec: u32) -> bool {
+    if (spec >= 64) { return false; }
+    return ((mask >> (spec as u64)) & 1) == 1;
+}
+
+/// The first epoch a counting receipt of `commit` arrived in, or NO_EPOCH.
+pub fn usage_commit_epoch(commits: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, commit: u64) -> u64 {
+    var e : u64 = NO_EPOCH;
+    var i : u32 = 0;
+    while (i < USAGE_ROWS) {
+        if (commits[i] == commit and usage_counts(commits[i], auths[i], nonces[i]) and epochs[i] < e) { e = epochs[i]; }
+        i = i + 1;
+    }
+    return e;
+}
+
+/// Whether row i says its key read `spec` on its commit, in the commit's epoch.
+pub fn usage_row_reads(commits: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, reads: [8]u64, i: u32, spec: u32) -> bool {
+    if (usage_counts(commits[i], auths[i], nonces[i]) == false) { return false; }
+    if (usage_reads(reads[i], spec) == false) { return false; }
+    return epochs[i] == usage_commit_epoch(commits, epochs, auths, nonces, commits[i]);
+}
+
+/// Whether row i is the first to say its key read `spec` on its commit: a second receipt of the
+/// same commit by the same key adds nothing.
+pub fn usage_key_first(commits: [8]u64, keys: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, reads: [8]u64, i: u32, spec: u32) -> bool {
+    if (usage_row_reads(commits, epochs, auths, nonces, reads, i, spec) == false) { return false; }
+    var j : u32 = 0;
+    while (j < i) {
+        if (commits[j] == commits[i] and keys[j] == keys[i] and usage_row_reads(commits, epochs, auths, nonces, reads, j, spec)) { return false; }
+        j = j + 1;
+    }
+    return true;
+}
+
+/// The distinct keys that read `spec` on `commit`, in its epoch.
+pub fn usage_keys_reading(commits: [8]u64, keys: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, reads: [8]u64, commit: u64, spec: u32) -> u64 {
+    var n : u64 = 0;
+    var i : u32 = 0;
+    while (i < USAGE_ROWS) {
+        if (commits[i] == commit and usage_key_first(commits, keys, epochs, auths, nonces, reads, i, spec)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+/// Whether row i stands for its commit's use of `spec`: the first row any key read it in.
+pub fn usage_use_first(commits: [8]u64, keys: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, reads: [8]u64, i: u32, spec: u32) -> bool {
+    if (usage_key_first(commits, keys, epochs, auths, nonces, reads, i, spec) == false) { return false; }
+    var j : u32 = 0;
+    while (j < i) {
+        if (commits[j] == commits[i] and usage_key_first(commits, keys, epochs, auths, nonces, reads, j, spec)) { return false; }
+        j = j + 1;
+    }
+    return true;
+}
+
+/// How many of the epoch's commits read `spec`.
+pub fn usage_count(commits: [8]u64, keys: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, reads: [8]u64, spec: u32, epoch: u64) -> u64 {
+    var n : u64 = 0;
+    var i : u32 = 0;
+    while (i < USAGE_ROWS) {
+        if (epochs[i] == epoch and usage_use_first(commits, keys, epochs, auths, nonces, reads, i, spec)) { n = n + 1; }
+        i = i + 1;
+    }
+    return n;
+}
+
+pub fn usage_weight(keys_reading: u64) -> u64 {
+    if (keys_reading > QUORUM_CAP) { return QUORUM_CAP; }
+    return keys_reading;
+}
+
+/// A spec's usage in an epoch: each use weighs its distinct keys, capped.
+pub fn usage_of(commits: [8]u64, keys: [8]u64, epochs: [8]u64, auths: [8]u8, nonces: [8]u8, reads: [8]u64, spec: u32, epoch: u64) -> u64 {
+    var u : u64 = 0;
+    var i : u32 = 0;
+    while (i < USAGE_ROWS) {
+        if (epochs[i] == epoch and usage_use_first(commits, keys, epochs, auths, nonces, reads, i, spec)) {
+            u = u + usage_weight(usage_keys_reading(commits, keys, epochs, auths, nonces, reads, commits[i], spec));
+        }
+        i = i + 1;
+    }
+    return u;
+}
+
+pub fn royalty_usage(u: u64) -> u64 {
+    if (u > USAGE_MAX) { return USAGE_MAX; }
+    return u;
+}
+
+/// The whole claim: every spec's usage times the BP_TOTAL its weights always sum to.
+pub fn royalty_total(usage: [8]u64) -> u64 {
+    var t : u64 = 0;
+    var s : u32 = 0;
+    while (s < USAGE_SPECS) {
+        t = t + royalty_usage(usage[s]) * BP_TOTAL;
+        s = s + 1;
+    }
+    return t;
+}
+
+/// An id's claim: usage x attribution weight, over the specs.
+pub fn royalty_claim(usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, id: u64) -> u64 {
+    var c : u64 = 0;
+    var s : u32 = 0;
+    while (s < USAGE_SPECS) {
+        c = c + royalty_usage(usage[s]) * weight_of(specs, authors, lines, tests, flags, s, id);
+        s = s + 1;
+    }
+    return c;
+}
+
+/// floor(pool x claim / total) without the product: pool = q x total + r, so the share is
+/// q x claim + floor(r x claim / total), and r x claim < 2^62.
+pub fn royalty_floor(pool: u64, claim: u64, total: u64) -> u64 {
+    if (total == 0) { return 0; }
+    let q : u64 = pool / total;
+    let r : u64 = pool - q * total;
+    return q * claim + (r * claim) / total;
+}
+
+/// A person's share of the epoch's pool. POOL_ID is never paid out.
+pub fn royalty_share(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8, id: u64) -> u64 {
+    if (id == POOL_ID) { return 0; }
+    if (id == NO_AUTHOR) { return 0; }
+    return royalty_floor(pool, royalty_claim(usage, specs, authors, lines, tests, flags, id), royalty_total(usage));
+}
+
+/// Whether row i is the first row, over every spec, credited to its id.
+pub fn royalty_first_id(specs: [16]u32, authors: [16]u64, flags: [16]u8, i: u32) -> bool {
+    if (specs[i] == NO_SPEC) { return false; }
+    let c : u64 = credited_to(authors[i], flags[i]);
+    var j : u32 = 0;
+    while (j < i) {
+        if (specs[j] != NO_SPEC and credited_to(authors[j], flags[j]) == c) { return false; }
+        j = j + 1;
+    }
+    return true;
+}
+
+/// Everything paid to people: each person's share once.
+pub fn royalty_paid(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8) -> u64 {
+    var p : u64 = 0;
+    var i : u32 = 0;
+    while (i < ATTR_ROWS) {
+        if (royalty_first_id(specs, authors, flags, i)) {
+            p = p + royalty_share(pool, usage, specs, authors, lines, tests, flags, credited_to(authors[i], flags[i]));
+        }
+        i = i + 1;
+    }
+    return p;
+}
+
+/// What stays in the pool: the pool's own share and the integer remainder.
+pub fn royalty_left(pool: u64, usage: [8]u64, specs: [16]u32, authors: [16]u64, lines: [16]u64, tests: [16]u64, flags: [16]u8) -> u64 {
+    return pool - royalty_paid(pool, usage, specs, authors, lines, tests, flags);
+}
+
+; --- The worked example (the PR body shows the same numbers) ------------------------------------
+; Three specs, four authors, five receipts, all arriving in epoch 7. Keys K1 = 0x11 and K2 = 0x22
+; are registered, K3 = 0x33 is not. Commits C1 = 0xc1 and C2 = 0xc2.
+;   receipt commit key level        reads      counts?
+;   R0      C1     K1  FRESH        0, 1, 2    yes
+;   R1      C1     K1  FRESH        0, 1, 2    yes, but the same key on the same commit: adds nothing
+;   R2      C1     K2  AUTHOR       0, 1       yes (no challenge: AUTHOR is enough)
+;   R3      C2     K2  FRESH        0          yes
+;   R4      C2     K3  unregistered 0, 1, 2    no
+; Usage in epoch 7 (count, usage): spec 0: C1 read by K1 and K2 (weight 2), C2 by K2 (1): 2, 3.
+; spec 1: C1 by K1 and K2: 1, 2. spec 2: C1 by K1 only (R1 is R0 again): 1, 1. Total usage 6.
+; Attribution: spec 0 alice 7500, bob 2500; spec 1 bob 4000, carol 6000; spec 2 carol 5000,
+; dave 3000, POOL 2000 (an agent commit under the owner's account).
+; Claims (usage x weight): alice 3 x 7500 = 22500; bob 3 x 2500 + 2 x 4000 = 15500;
+; carol 2 x 6000 + 1 x 5000 = 17000; dave 3000; POOL 2000; total 6 x 10000 = 60000.
+; An AUTHOR_ROYALTY pool of 1000: alice 375, bob 258, carol 283, dave 50. Paid 966; 34 stay in the
+; pool (POOL's 33 and 1 of rounding).
+
+pub const UX_COMMIT : [8]u64 = [193, 193, 193, 194, 194, 0, 0, 0];
+pub const UX_KEY : [8]u64 = [17, 17, 34, 34, 51, 0, 0, 0];
+pub const UX_EPOCH : [8]u64 = [7, 7, 7, 7, 7, 0, 0, 0];
+pub const UX_AUTH : [8]u8 = [31, 31, 7, 31, 29, 0, 0, 0];
+pub const UX_NONCE : [8]u8 = [32, 32, 0, 32, 32, 0, 0, 0];
+pub const UX_READS : [8]u64 = [7, 7, 3, 1, 7, 0, 0, 0];
+
+/// The same receipts in the reverse order, the empty rows first.
+pub const UR_COMMIT : [8]u64 = [0, 0, 0, 194, 194, 193, 193, 193];
+pub const UR_KEY : [8]u64 = [0, 0, 0, 51, 34, 34, 17, 17];
+pub const UR_EPOCH : [8]u64 = [0, 0, 0, 7, 7, 7, 7, 7];
+pub const UR_AUTH : [8]u8 = [0, 0, 0, 29, 31, 7, 31, 31];
+pub const UR_NONCE : [8]u8 = [0, 0, 0, 32, 32, 0, 32, 32];
+pub const UR_READS : [8]u64 = [0, 0, 0, 7, 1, 3, 7, 7];
+
+pub const UX_COUNT : [8]u64 = [2, 1, 1, 0, 0, 0, 0, 0];
+pub const UX_USAGE : [8]u64 = [3, 2, 1, 0, 0, 0, 0, 0];
+pub const UZ_USAGE : [8]u64 = [0, 0, 0, 0, 0, 0, 0, 0];
+
+/// The attribution rows of the example (specs 0..2; alice 101, bob 202, carol 303, dave 404, owner 900).
+pub const UA_SPEC : [16]u32 = [0, 0, 1, 1, 2, 2, 2, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535];
+pub const UA_AUTHOR : [16]u64 = [101, 202, 202, 303, 303, 404, 900, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const UA_LINES : [16]u64 = [300, 100, 40, 70, 50, 30, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const UA_TESTS : [16]u64 = [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub const UA_FLAGS : [16]u8 = [5, 5, 5, 5, 5, 5, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+pub const UA_IDS : [6]u64 = [101, 202, 303, 404, 900, 18446744073709551615];
+pub const UA_CLAIM : [6]u64 = [22500, 15500, 17000, 3000, 0, 2000];
+pub const UA_SHARE : [6]u64 = [375, 258, 283, 50, 0, 0];
+
+/// Epochs and the quorum cap: C 300 in epoch 7 by K1, again in epoch 8 by K2 (too late); C 301 in
+/// epoch 8; C 303 read by five registered keys in epoch 8.
+pub const UE_COMMIT : [8]u64 = [300, 300, 301, 303, 303, 303, 303, 303];
+pub const UE_KEY : [8]u64 = [17, 34, 34, 17, 34, 51, 68, 85];
+pub const UE_EPOCH : [8]u64 = [7, 8, 8, 8, 8, 8, 8, 8];
+pub const UE_AUTH : [8]u8 = [31, 31, 7, 31, 31, 31, 31, 31];
+pub const UE_NONCE : [8]u8 = [32, 32, 0, 32, 32, 32, 32, 32];
+pub const UE_READS : [8]u64 = [1, 1, 1, 2, 2, 2, 2, 2];
+
+/// The receipt_level cases as auth bits and nonce bytes: which count.
+pub const UL_AUTH : [8]u8 = [31, 7, 29, 27, 30, 15, 0, 23];
+pub const UL_NONCE : [8]u8 = [32, 0, 32, 32, 32, 32, 0, 8];
+pub const UL_COUNTS : [8]u8 = [1, 1, 0, 0, 0, 1, 0, 1];
+
+test only_registered_receipts_at_author_level_count {
+    var i : u32 = 0;
+    var counted : u32 = 0;
+    while (i < 8) {
+        let c : bool = usage_counts(193, UL_AUTH[i], UL_NONCE[i]);
+        assert c == (UL_COUNTS[i] == 1);
+        if (c) {
+            assert usage_level(UL_AUTH[i], UL_NONCE[i]) >= LEVEL_AUTHOR;
+            assert usage_bit(UL_AUTH[i], U_KEY_REGISTERED);
+            counted = counted + 1;
+        }
+        // an empty row never counts, whatever its facts
+        assert usage_counts(NO_COMMIT, UL_AUTH[i], UL_NONCE[i]) == false;
+        i = i + 1;
+    }
+    assert counted == 4;
+    assert usage_level(31, 32) == LEVEL_FRESH;
+    assert usage_level(7, 0) == LEVEL_AUTHOR;
+    assert usage_level(29, 32) == LEVEL_NONE;
+}
+
+test the_worked_example_counts_three_specs_from_five_receipts {
+    var s : u32 = 0;
+    var total : u64 = 0;
+    while (s < USAGE_SPECS) {
+        assert usage_count(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, s, 7) == UX_COUNT[s];
+        assert usage_of(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, s, 7) == UX_USAGE[s];
+        // nothing arrived in another epoch
+        assert usage_count(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, s, 8) == 0;
+        total = total + usage_of(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, s, 7);
+        s = s + 1;
+    }
+    assert total == 6;
+}
+
+test the_same_key_twice_on_one_commit_counts_once {
+    // R0 and R1: K1 on C1. Spec 2 is read by K1 only, so its use weighs 1, not 2.
+    assert usage_keys_reading(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 193, 2) == 1;
+    assert usage_key_first(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 0, 2);
+    assert usage_key_first(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 1, 2) == false;
+    // R1 alone, without R0, reads exactly what R0 read: a duplicate, not an absence
+    assert usage_row_reads(UX_COMMIT, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 1, 2);
+}
+
+test a_quorum_raises_the_weight_never_the_count {
+    // spec 0 on C1: K1 and K2 -> one use of weight 2
+    assert usage_keys_reading(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 193, 0) == 2;
+    var spec : u32 = 0;
+    while (spec < 3) {
+        let n : u64 = usage_count(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, spec, 7);
+        let u : u64 = usage_of(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, spec, 7);
+        // two commits in the table: never more uses than commits, never less weight than uses
+        assert n <= 2;
+        assert u >= n;
+        assert u <= n * QUORUM_CAP;
+        spec = spec + 1;
+    }
+    // C 303: five keys read spec 1 -> one use, weight capped at 3
+    assert usage_keys_reading(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 303, 1) == 5;
+    assert usage_count(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 1, 8) == 1;
+    assert usage_of(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 1, 8) == QUORUM_CAP;
+}
+
+test an_unregistered_key_counts_for_nothing {
+    // R4 is K3 on C2 reading every spec; C2 is still read only where R3 read it
+    var spec : u32 = 0;
+    while (spec < 3) {
+        assert usage_row_reads(UX_COMMIT, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 4, spec) == false;
+        var want : u64 = 0;
+        if (spec == 0) { want = 1; }
+        assert usage_keys_reading(UX_COMMIT, UX_KEY, UX_EPOCH, UX_AUTH, UX_NONCE, UX_READS, 194, spec) == want;
+        spec = spec + 1;
+    }
+}
+
+test a_settled_epoch_never_changes {
+    // C 300 belongs to epoch 7; K2's receipt of it in epoch 8 counts for nothing
+    assert usage_commit_epoch(UE_COMMIT, UE_EPOCH, UE_AUTH, UE_NONCE, 300) == 7;
+    assert usage_commit_epoch(UE_COMMIT, UE_EPOCH, UE_AUTH, UE_NONCE, 999) == NO_EPOCH;
+    assert usage_of(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 0, 7) == 1;
+    assert usage_of(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 0, 8) == 1;
+    assert usage_keys_reading(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 300, 0) == 1;
+    var e : u64 = 6;
+    var all : u64 = 0;
+    while (e < 10) {
+        all = all + usage_count(UE_COMMIT, UE_KEY, UE_EPOCH, UE_AUTH, UE_NONCE, UE_READS, 0, e);
+        e = e + 1;
+    }
+    // C 300 and C 301, each once, over every epoch
+    assert all == 2;
+}
+
+test usage_does_not_depend_on_row_order {
+    var s : u32 = 0;
+    while (s < USAGE_SPECS) {
+        assert usage_count(UR_COMMIT, UR_KEY, UR_EPOCH, UR_AUTH, UR_NONCE, UR_READS, s, 7) == UX_COUNT[s];
+        assert usage_of(UR_COMMIT, UR_KEY, UR_EPOCH, UR_AUTH, UR_NONCE, UR_READS, s, 7) == UX_USAGE[s];
+        s = s + 1;
+    }
+}
+
+test the_royalty_splits_by_usage_times_weight {
+    assert royalty_total(UX_USAGE) == 60000;
+    var k : u32 = 0;
+    var sum : u64 = 0;
+    while (k < 6) {
+        assert royalty_claim(UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, UA_IDS[k]) == UA_CLAIM[k];
+        assert royalty_share(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, UA_IDS[k]) == UA_SHARE[k];
+        sum = sum + UA_CLAIM[k];
+        k = k + 1;
+    }
+    // the claims are the whole total: every spec's weights sum to BP_TOTAL
+    assert sum == royalty_total(UX_USAGE);
+    assert royalty_paid(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 966;
+    assert royalty_left(1000, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 34;
+}
+
+test the_split_never_mints_dust {
+    // a pool that divides evenly leaves exactly POOL's share: 2000 of every 60000
+    var m : u64 = 1;
+    while (m < 9) {
+        let pool : u64 = m * 60000;
+        assert royalty_paid(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 58000;
+        assert royalty_left(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == m * 2000;
+        m = m + 1;
+    }
+    // any pool: never more paid than the pool, the pool's share always kept
+    var k : u64 = 0;
+    while (k < 12) {
+        let pool : u64 = k * k * 7919 + k * 104729 + 1;
+        let paid : u64 = royalty_paid(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS);
+        assert paid <= pool;
+        assert royalty_left(pool, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == pool - paid;
+        assert pool - paid >= royalty_floor(pool, 2000, 60000);
+        k = k + 1;
+    }
+    // the top of u64 does not overflow: q x claim + floor(r x claim / total)
+    let top : u64 = 18446744073709551615;
+    assert royalty_share(top, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS, 101) == 6917529027641081855;
+    assert royalty_paid(top, UX_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) <= top;
+    // no usage, no royalty: the whole pool stays
+    assert royalty_left(1000, UZ_USAGE, UA_SPEC, UA_AUTHOR, UA_LINES, UA_TESTS, UA_FLAGS) == 1000;
+}

@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+a6627d1bb",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:960f1d8d44ed6bedc88df64a1a10753f15dee3f776bfb24519d8404bab60f513",
+  "gen_hash_rust": "sha256:42ae239a1cfd4e8558caa5390d38488fd23fe86fe02d8af5d6ad82ec33a83cb5",
+  "gen_hash_verilog": "sha256:af5ed409651c8dab7e3cd47afa61c1ff85961f5f29bcd1462216e4a23310b687",
+  "gen_hash_zig": "sha256:ea29fe7807551e20aa87262be735c4ef48c259eab3e9aa5f9ab388bdf6f677dc",
+  "module": "NetworkAttribution",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T15:18:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:e8fa862c0d5ff353cd3248e0c55b5d9690d7d18088742f51793883e7bf3f7cf7",
+  "spec_path": "specs/network/attribution.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
