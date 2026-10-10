@@ -1478,12 +1478,28 @@ impl<'a> Lower<'a> {
             }
             return self.rodata(init, t);
         }
+        let saved_sites = self.sites.len();
         let v = if node.extra_type.trim().is_empty() {
             self.expr(init)?
         } else {
             let ty = self.ty(&node.extra_type)?;
             let v = self.expr_as(init, &LTy::S(ty))?;
             Val::E(self.coerce(v, ty)?)
+        };
+        // `const AREA = W * H;` with a typed `H`: Zig folds the typed
+        // arithmetic at compile time, and a step out of range is an error.
+        let v = match v {
+            Val::E(x) if !matches!(x.kind, ExprKind::Const(_)) => match const_eval(&x, self.mode == OverflowMode::Trap) {
+                Some(Some(c)) => {
+                    self.sites.truncate(saved_sites);
+                    Val::E(Expr { kind: ExprKind::Const(c), ty: x.ty })
+                }
+                Some(None) => {
+                    return self.reject("ConstDecl", format!("`{}` overflows {}", node.name, x.ty.name()))
+                }
+                None => Val::E(x),
+            },
+            v => v,
         };
         match &v {
             Val::Ct(_) | Val::Cf(..) | Val::S(..) | Val::A(..) | Val::Poison => Ok(v),
@@ -4601,6 +4617,8 @@ impl<'a> Lower<'a> {
                 Some(Val::E(Expr { kind: ExprKind::Const(c), ty })) if ty.is_int() => Some(c),
                 _ => None,
             }
+        } else if let Some(e) = len_expr(len) {
+            self.fold_len(&e)?
         } else {
             None
         };
@@ -4609,6 +4627,34 @@ impl<'a> Lower<'a> {
             Some(c) => self.reject("type [N]T", format!("`{}`: length {} out of range", t, c)),
             None => self.reject("type [N]T", format!("`{}`: length `{}` is not a compile-time integer", t, len)),
         }
+    }
+
+    /// A length spelled as an expression (`N+1`, `(W+1)*2`): t27c prints the
+    /// text unchanged and Zig folds it, so it is folded here the way a
+    /// module constant is -- run-time names are not visible, and a typed
+    /// constant keeps its type. None when the value is not an integer known
+    /// at compile time.
+    fn fold_len(&mut self, e: &Node) -> R<Option<i128>> {
+        let saved_line = self.line;
+        let saved_ct = std::mem::replace(&mut self.comptime, true);
+        let saved_sites = self.sites.len();
+        let r = self.expr(e);
+        self.comptime = saved_ct;
+        // The trap sites of the folded tree are never emitted.
+        self.sites.truncate(saved_sites);
+        self.line = saved_line;
+        Ok(match r? {
+            Val::Poison => return Err(()),
+            Val::Ct(c) => Some(c),
+            Val::E(x) => match const_eval(&x, self.mode == OverflowMode::Trap) {
+                Some(Some(c)) => Some(c),
+                Some(None) => {
+                    return self.reject("type [N]T", format!("length overflows {}", x.ty.name()))
+                }
+                None => None,
+            },
+            _ => None,
+        })
     }
 
     /// The fieldless, zero-size struct that stands for `void`. Its key is
@@ -7358,6 +7404,64 @@ fn find_const<'n>(n: &'n Node, name: &str) -> Option<&'n Node> {
         return Some(&n.children[0]);
     }
     n.children.iter().find_map(|c| find_const(c, name))
+}
+
+/// An array length kept as text (`N+1`) parsed back as an expression, when it
+/// is built only from integer literals, names, `+ - *` and parentheses.
+/// The value of a typed integer expression built only from constants, `+ - *`
+/// and widenings, as Zig evaluates it at compile time: every checked step
+/// must fit its type, and `+% -% *%` wrap. None when the tree is not of that
+/// shape; Some(None) when a checked step leaves its type's range (a compile
+/// error in Zig). `trap` is false when `+` itself lowers to a wrapping op,
+/// so a wrapping op cannot be told from a checked one and is not folded.
+fn const_eval(e: &Expr, trap: bool) -> Option<Option<i128>> {
+    if !e.ty.is_int() {
+        return None;
+    }
+    let v = match &e.kind {
+        ExprKind::Const(c) => Some(*c),
+        ExprKind::Widen(x) => const_eval(x, trap)?,
+        ExprKind::Arith { op, lhs, rhs, .. } => {
+            let (x, y) = match (const_eval(lhs, trap)?, const_eval(rhs, trap)?) {
+                (Some(x), Some(y)) => (x, y),
+                _ => return Some(None),
+            };
+            match op {
+                ArithOp::Add => x.checked_add(y),
+                ArithOp::Sub => x.checked_sub(y),
+                ArithOp::Mul => x.checked_mul(y),
+                ArithOp::AddW if trap => return Some(Some(e.ty.wrap(x.wrapping_add(y)))),
+                ArithOp::SubW if trap => return Some(Some(e.ty.wrap(x.wrapping_sub(y)))),
+                ArithOp::MulW if trap => return Some(Some(e.ty.wrap(x.wrapping_mul(y)))),
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    Some(v.filter(|v| e.ty.fits(*v)))
+}
+
+fn len_expr(len: &str) -> Option<Node> {
+    if !len.contains(['+', '-', '*', '(']) {
+        return None;
+    }
+    let src = format!("module r {{ const r = {}; }}", len);
+    let ast = crate::compiler::Compiler::parse_ast_strict(&src).ok()?;
+    let mut e = find_const(&ast, "r")?.clone();
+    fn ok(n: &Node) -> bool {
+        match n.kind {
+            NodeKind::ExprLiteral => n.children.is_empty() && parse_int(&n.value).is_some(),
+            NodeKind::ExprIdentifier => n.children.is_empty() && !n.name.contains("::"),
+            NodeKind::ExprBinary => matches!(n.extra_op.as_str(), "+" | "-" | "*") && n.children.len() == 2 && n.children.iter().all(ok),
+            NodeKind::ExprUnary => n.extra_op == "-" && n.children.len() == 1 && ok(&n.children[0]),
+            _ => false,
+        }
+    }
+    if !ok(&e) {
+        return None;
+    }
+    zero_lines(&mut e);
+    Some(e)
 }
 
 /// Whether a repeat element parsed back from its text is one of the shapes
