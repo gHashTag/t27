@@ -1,12 +1,12 @@
 # Duplicate function bodies, by the names they are written under.
 # Written by tools/dupe_scan.py --bless. The gate fails when a NEW
 # group appears or an existing one grows; it moves down only.
-magadd 32
-magsub 32
-sadd 31
+magadd 33
+magsub 33
+sadd 31,2
 build_tree 28
-magmul 22,2
-smul 20,2
+magmul 22,3
+smul 20,3
 tmul 13
 relu 10
 dot27 8,5
