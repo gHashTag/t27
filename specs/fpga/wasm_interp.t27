@@ -1,0 +1,919 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/fpga/wasm_interp.t27 -- an AI-written interpreter for a subset of WebAssembly,
+; as one spec. This file answers one question: can a whole interpreter for a real
+; binary ISA be written as executable t27, checked by t27c's own test runner, and
+; lowered to Verilog by t27c gen-verilog? Nothing here is hand-written RTL and
+; nothing here is a transcription of an existing interpreter: the language subset,
+; the byte encodings and the interpreter structure were produced by an AI agent
+; (Claude, 2026-10-11) from the WebAssembly MVP specification, and every claim the
+; file makes is checked by a test block below.
+; ----
+; WHY. Community challenge, owner, 2026-10-11: "use AI to generate hardware for
+; FPGA which does execute WASM". The honest first step is not a soft core: it is
+; proof that the language carries a real ISA interpreter end to end -- spec tests
+; pass, the generated Verilog simulates the same programs, and the same source is
+; the board cell candidate. Epic: gHashTag/trinity-fpga "AI-generated FPGA hardware
+; that executes WASM".
+; ----
+; THE SUBSET. WASM MVP opcodes, final encodings from the WebAssembly Section 5
+; instruction table (no draft bytes, no extensions):
+;   control   if 0x04 (blocktype byte follows), else 0x05, end 0x0B, return 0x0F
+;   locals    local.get 0x20, local.set 0x21, local.tee 0x22 (one index byte each)
+;   const     i32.const 0x41 (signed LEB128 immediate)
+;   compare   i32.eqz 0x45, i32.eq 0x46, i32.ne 0x47, i32.lt_s 0x48, i32.gt_s 0x4A,
+;             i32.le_s 0x4D, i32.ge_s 0x4F
+;   arithmetic i32.add 0x6A, i32.sub 0x6B, i32.mul 0x6C
+;   bitwise   i32.and 0x71, i32.or 0x72, i32.xor 0x73, i32.shl 0x74, i32.shr_s 0x75
+; Out of scope for the MVP, by decision: block/loop/br/br_if (need a label stack),
+; memory and globals, i64/f32/f64, call (need a frame stack), sign-extension ops.
+; Every opcode listed above is executed by at least one program below; nothing
+; untested is implemented. test opcode_bytes_are_real_wasm pins every constant.
+; ----
+; THE PROGRAMS. Real WebAssembly function bodies, byte for byte, in the text each
+; one implements (param $a i32) (param $b i32) (result i32); locals 0 and 1 are the
+; params, locals 2 and 3 start at zero:
+;   ADD_DOUBLE  local.get a  local.get b  i32.add  i32.const 2  i32.mul  end
+;   ANSWER      i32.const 42  end
+;   MIN_S       local.get a  local.get b  i32.lt_s  (if i32) local.get a  else
+;               local.get b  end  end
+;   XMUL_NOT    local.get a  i32.const 2  i32.mul  i32.const -1  i32.xor  end
+;   SUB_AND_OR  local.get a  local.get b  i32.sub  local.get a  local.get b
+;               i32.and  i32.or  end
+;   SHL_SAR     local.get a  i32.const 3  i32.shl  i32.const 1  i32.shr_s  end
+;   EQ NE LE_S GE_S GT_S   local.get a  local.get b  <compare>  end
+;   EQZ         local.get a  i32.eqz  end
+;   SET_GET     local.get a  i32.const 3  i32.mul  local.set 2  local.get 2
+;               local.get b  i32.add  end
+;   TEE_DUP     local.get a  local.tee 3  local.get 3  i32.add  end
+;   RET7        local.get a  i32.eqz  (if i32) i32.const 7  return  else
+;               local.get a  local.get b  i32.add  end  end
+;   BAD         local.get a  0xFF  end   -- one opcode outside the subset
+; The first body is the one in trinity-fpga src/b2t/test_add.wat (add_double),
+; whose export this interpreter's MVP status is recorded against.
+; ----
+; ORACLE. Expected values below are the WebAssembly semantics of those bodies,
+; worked by hand and written as i32 bit patterns (u32 here); each test names its
+; inputs in decimal, including the negative ones as their two's-complement u32.
+; LEB128 notes for the reader: i32.const 2 is 41 02, i32.const 42 is 41 2A,
+; i32.const -1 is 41 7F (single byte, sign bit set), i32.const 3 is 41 03.
+; WHAT A PASS SAYS. t27c test-report green says the interpreter computes the
+; i32 semantics of all sixteen bodies on the vectors below, including two
+; operators with signed wraparound edge cases and one arithmetic-shift vector
+; that fails if shr_s is lowered as a logical shift. icarus-simulate green says
+; the Verilog t27c generates from this same file computes the same values.
+; WHAT IT DOES NOT SAY. Nothing about speed, nothing about a board: no synthesis
+; and no hardware measurement is claimed by this file. The board phase is the
+; epic's, not this spec's.
+; ASCII only, English only.
+
+module fpga_wasm_interp;
+
+pub const STACK_MAX : u32 = 64;
+pub const LOCALS_MAX : u32 = 8;
+pub const CODE_MAX : u32 = 64;
+pub const STEP_LIMIT : u32 = 1000;
+pub const I32_MASK : u64 = 0xFFFFFFFF;
+
+; --- opcodes, WebAssembly MVP final bytes (pinned by test opcode_bytes_are_real_wasm)
+pub const OP_IF : u8 = 0x04;
+pub const OP_ELSE : u8 = 0x05;
+pub const OP_END : u8 = 0x0B;
+pub const OP_RETURN : u8 = 0x0F;
+pub const OP_LOCAL_GET : u8 = 0x20;
+pub const OP_LOCAL_SET : u8 = 0x21;
+pub const OP_LOCAL_TEE : u8 = 0x22;
+pub const OP_I32_CONST : u8 = 0x41;
+pub const OP_I32_EQZ : u8 = 0x45;
+pub const OP_I32_EQ : u8 = 0x46;
+pub const OP_I32_NE : u8 = 0x47;
+pub const OP_I32_LT_S : u8 = 0x48;
+pub const OP_I32_GT_S : u8 = 0x4A;
+pub const OP_I32_LE_S : u8 = 0x4D;
+pub const OP_I32_GE_S : u8 = 0x4F;
+pub const OP_I32_ADD : u8 = 0x6A;
+pub const OP_I32_SUB : u8 = 0x6B;
+pub const OP_I32_MUL : u8 = 0x6C;
+pub const OP_I32_AND : u8 = 0x71;
+pub const OP_I32_OR : u8 = 0x72;
+pub const OP_I32_XOR : u8 = 0x73;
+pub const OP_I32_SHL : u8 = 0x74;
+pub const OP_I32_SHR_S : u8 = 0x75;
+
+; --- error codes
+pub const ERR_NONE : u8 = 0;
+pub const ERR_STACK : u8 = 1;
+pub const ERR_LOCAL : u8 = 2;
+pub const ERR_PC : u8 = 3;
+pub const ERR_STEP : u8 = 4;
+pub const ERR_OPCODE : u8 = 5;
+pub const ERR_LEB : u8 = 6;
+pub const ERR_PROG : u8 = 7;
+
+; --- program ids
+pub const ID_ADD_DOUBLE : u32 = 0;
+pub const ID_ANSWER : u32 = 1;
+pub const ID_MIN_S : u32 = 2;
+pub const ID_XMUL_NOT : u32 = 3;
+pub const ID_SUB_AND_OR : u32 = 4;
+pub const ID_SHL_SAR : u32 = 5;
+pub const ID_EQ : u32 = 6;
+pub const ID_NE : u32 = 7;
+pub const ID_LE_S : u32 = 8;
+pub const ID_GE_S : u32 = 9;
+pub const ID_EQZ : u32 = 10;
+pub const ID_GT_S : u32 = 11;
+pub const ID_SET_GET : u32 = 12;
+pub const ID_TEE_DUP : u32 = 13;
+pub const ID_RET7 : u32 = 14;
+pub const ID_BAD : u32 = 15;
+pub const PROGS : u32 = 16;
+
+; --- machine state
+var stack : [STACK_MAX]u32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var locals : [LOCALS_MAX]u32 = [0, 0, 0, 0, 0, 0, 0, 0];
+var code : [CODE_MAX]u8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var sp : u32 = 0;
+var pc : u32 = 0;
+var ctl : u32 = 0;
+var code_len : u32 = 0;
+var err : u8 = 0;
+
+; --- the sixteen bodies, real WASM bytes
+pub const LEN_ADD_DOUBLE : u32 = 9;
+pub const PROG_ADD_DOUBLE : [LEN_ADD_DOUBLE]u8 = [
+    0x20, 0x00, 0x20, 0x01, 0x6A, 0x41, 0x02, 0x6C, 0x0B,
+];
+pub const LEN_ANSWER : u32 = 3;
+pub const PROG_ANSWER : [LEN_ANSWER]u8 = [0x41, 0x2A, 0x0B];
+pub const LEN_MIN_S : u32 = 14;
+pub const PROG_MIN_S : [LEN_MIN_S]u8 = [
+    0x20, 0x00, 0x20, 0x01, 0x48, 0x04, 0x7F, 0x20, 0x00, 0x05, 0x20, 0x01, 0x0B, 0x0B,
+];
+pub const LEN_XMUL_NOT : u32 = 9;
+pub const PROG_XMUL_NOT : [LEN_XMUL_NOT]u8 = [
+    0x20, 0x00, 0x41, 0x02, 0x6C, 0x41, 0x7F, 0x73, 0x0B,
+];
+pub const LEN_SUB_AND_OR : u32 = 12;
+pub const PROG_SUB_AND_OR : [LEN_SUB_AND_OR]u8 = [
+    0x20, 0x00, 0x20, 0x01, 0x6B, 0x20, 0x00, 0x20, 0x01, 0x71, 0x72, 0x0B,
+];
+pub const LEN_SHL_SAR : u32 = 9;
+pub const PROG_SHL_SAR : [LEN_SHL_SAR]u8 = [
+    0x20, 0x00, 0x41, 0x03, 0x74, 0x41, 0x01, 0x75, 0x0B,
+];
+pub const LEN_EQ : u32 = 6;
+pub const PROG_EQ : [LEN_EQ]u8 = [0x20, 0x00, 0x20, 0x01, 0x46, 0x0B];
+pub const LEN_NE : u32 = 6;
+pub const PROG_NE : [LEN_NE]u8 = [0x20, 0x00, 0x20, 0x01, 0x47, 0x0B];
+pub const LEN_LE_S : u32 = 6;
+pub const PROG_LE_S : [LEN_LE_S]u8 = [0x20, 0x00, 0x20, 0x01, 0x4D, 0x0B];
+pub const LEN_GE_S : u32 = 6;
+pub const PROG_GE_S : [LEN_GE_S]u8 = [0x20, 0x00, 0x20, 0x01, 0x4F, 0x0B];
+pub const LEN_EQZ : u32 = 4;
+pub const PROG_EQZ : [LEN_EQZ]u8 = [0x20, 0x00, 0x45, 0x0B];
+pub const LEN_GT_S : u32 = 6;
+pub const PROG_GT_S : [LEN_GT_S]u8 = [0x20, 0x00, 0x20, 0x01, 0x4A, 0x0B];
+pub const LEN_SET_GET : u32 = 13;
+pub const PROG_SET_GET : [LEN_SET_GET]u8 = [
+    0x20, 0x00, 0x41, 0x03, 0x6C, 0x21, 0x02, 0x20, 0x02, 0x20, 0x01, 0x6A, 0x0B,
+];
+pub const LEN_TEE_DUP : u32 = 8;
+pub const PROG_TEE_DUP : [LEN_TEE_DUP]u8 = [
+    0x20, 0x00, 0x22, 0x03, 0x20, 0x03, 0x6A, 0x0B,
+];
+pub const LEN_RET7 : u32 = 16;
+pub const PROG_RET7 : [LEN_RET7]u8 = [
+    0x20, 0x00, 0x45, 0x04, 0x7F, 0x41, 0x07, 0x0F,
+    0x05, 0x20, 0x00, 0x20, 0x01, 0x6A, 0x0B, 0x0B,
+];
+pub const LEN_BAD : u32 = 4;
+pub const PROG_BAD : [LEN_BAD]u8 = [0x20, 0x00, 0xFF, 0x0B];
+
+; --- stack ops
+pub fn push(v : u32) u32 {
+    if (sp < STACK_MAX) {
+        stack[sp] = v;
+        sp = sp + 1;
+    } else {
+        err = ERR_STACK;
+    }
+    return sp;
+}
+
+pub fn pop() u32 {
+    if (sp == 0) {
+        err = ERR_STACK;
+        return 0;
+    }
+    sp = sp - 1;
+    return stack[sp];
+}
+
+; --- i32.wrap: every arithmetic result is widened to u64, computed, masked back.
+; The mask IS the wraparound: no overflow check anywhere, which is the WASM rule.
+pub fn wrap32(v : u64) u32 {
+    return (v & I32_MASK) as u32;
+}
+
+; Signed order on the u32 bit patterns: bias both by flipping the sign bit.
+; (x ^ 0x80000000) < (y ^ 0x80000000) holds exactly when x <s y.
+pub fn lt_s(x : u32, y : u32) u32 {
+    if (((x ^ 0x80000000) < (y ^ 0x80000000))) {
+        return 1;
+    }
+    return 0;
+}
+
+; Arithmetic right shift by n in 1..31, unsigned ops only: shift, then fill the
+; opened high bits with ones when the sign bit was set.
+pub fn sar32(x : u32, n : u32) u32 {
+    if (n == 0) {
+        return x;
+    }
+    var r : u32 = x >> n;
+    if ((x & 0x80000000) != 0) {
+        r = r | (0xFFFFFFFF << (32 - n));
+    }
+    return r;
+}
+
+; Signed LEB128 immediate at pc, decoded into its i32 bit pattern. A valid i32
+; sleb uses at most five bytes; a continuation past that sets ERR_LEB. If the
+; last byte's bit 6 is set, every bit above it is sign-extended to one, which
+; after the I32_MASK cut reproduces the two's-complement pattern.
+pub fn read_sleb() u32 {
+    var result : u64 = 0;
+    var shift : u32 = 0;
+    var b : u8 = 0;
+    while (shift < 35) {
+        b = code[pc];
+        pc = pc + 1;
+        result = result | (((b as u64) & 0x7F) << shift);
+        if ((b & 0x80) == 0) {
+            break;
+        }
+        shift = shift + 7;
+    }
+    if ((b & 0x80) != 0) {
+        err = ERR_LEB;
+    }
+    if ((b & 0x40) != 0) {
+        result = result | (0xFFFFFFFFFFFFFFFF << (shift + 6));
+    }
+    return (result & I32_MASK) as u32;
+}
+
+; Skip forward to the else (want_else == 1) or the end (want_else == 0) of the
+; enclosing if, counting nested ifs. Returns 1 if it stopped at an else, 0 at an
+; end. Immediates are decoded, not scanned byte-wise, so an i32.const whose LEB
+; bytes contain 0x04, 0x05 or 0x0B cannot derail the match.
+pub fn skip_to(want_else : u8) u8 {
+    var level : u32 = 1;
+    var op : u8 = 0;
+    var b : u8 = 0;
+    while (pc < code_len) {
+        op = code[pc];
+        pc = pc + 1;
+        if (op == OP_IF) {
+            pc = pc + 1;
+            level = level + 1;
+        }
+        if (op == OP_END) {
+            level = level - 1;
+            if (level == 0) {
+                return 0;
+            }
+        }
+        if (op == OP_ELSE) {
+            if (level == 1 and want_else == 1) {
+                return 1;
+            }
+        }
+        if (op == OP_I32_CONST) {
+            b = code[pc];
+            pc = pc + 1;
+            while ((b & 0x80) != 0 and pc < code_len) {
+                b = code[pc];
+                pc = pc + 1;
+            }
+        }
+        if (op == OP_LOCAL_GET or op == OP_LOCAL_SET or op == OP_LOCAL_TEE) {
+            pc = pc + 1;
+        }
+    }
+    err = ERR_PC;
+    return 0;
+}
+
+; Load one body into code[] and set code_len. The chain is flat on purpose:
+; each branch copies its own const array, so a length mismatch between the
+; array type and the loop bound is a compile error, not a runtime one.
+pub fn load_prog(prog : u32) u32 {
+    var i : u32 = 0;
+    while (i < CODE_MAX) {
+        code[i] = 0;
+        i = i + 1;
+    }
+    if (prog == ID_ADD_DOUBLE) {
+        i = 0;
+        while (i < LEN_ADD_DOUBLE) { code[i] = PROG_ADD_DOUBLE[i]; i = i + 1; }
+        code_len = LEN_ADD_DOUBLE;
+        return code_len;
+    }
+    if (prog == ID_ANSWER) {
+        i = 0;
+        while (i < LEN_ANSWER) { code[i] = PROG_ANSWER[i]; i = i + 1; }
+        code_len = LEN_ANSWER;
+        return code_len;
+    }
+    if (prog == ID_MIN_S) {
+        i = 0;
+        while (i < LEN_MIN_S) { code[i] = PROG_MIN_S[i]; i = i + 1; }
+        code_len = LEN_MIN_S;
+        return code_len;
+    }
+    if (prog == ID_XMUL_NOT) {
+        i = 0;
+        while (i < LEN_XMUL_NOT) { code[i] = PROG_XMUL_NOT[i]; i = i + 1; }
+        code_len = LEN_XMUL_NOT;
+        return code_len;
+    }
+    if (prog == ID_SUB_AND_OR) {
+        i = 0;
+        while (i < LEN_SUB_AND_OR) { code[i] = PROG_SUB_AND_OR[i]; i = i + 1; }
+        code_len = LEN_SUB_AND_OR;
+        return code_len;
+    }
+    if (prog == ID_SHL_SAR) {
+        i = 0;
+        while (i < LEN_SHL_SAR) { code[i] = PROG_SHL_SAR[i]; i = i + 1; }
+        code_len = LEN_SHL_SAR;
+        return code_len;
+    }
+    if (prog == ID_EQ) {
+        i = 0;
+        while (i < LEN_EQ) { code[i] = PROG_EQ[i]; i = i + 1; }
+        code_len = LEN_EQ;
+        return code_len;
+    }
+    if (prog == ID_NE) {
+        i = 0;
+        while (i < LEN_NE) { code[i] = PROG_NE[i]; i = i + 1; }
+        code_len = LEN_NE;
+        return code_len;
+    }
+    if (prog == ID_LE_S) {
+        i = 0;
+        while (i < LEN_LE_S) { code[i] = PROG_LE_S[i]; i = i + 1; }
+        code_len = LEN_LE_S;
+        return code_len;
+    }
+    if (prog == ID_GE_S) {
+        i = 0;
+        while (i < LEN_GE_S) { code[i] = PROG_GE_S[i]; i = i + 1; }
+        code_len = LEN_GE_S;
+        return code_len;
+    }
+    if (prog == ID_EQZ) {
+        i = 0;
+        while (i < LEN_EQZ) { code[i] = PROG_EQZ[i]; i = i + 1; }
+        code_len = LEN_EQZ;
+        return code_len;
+    }
+    if (prog == ID_GT_S) {
+        i = 0;
+        while (i < LEN_GT_S) { code[i] = PROG_GT_S[i]; i = i + 1; }
+        code_len = LEN_GT_S;
+        return code_len;
+    }
+    if (prog == ID_SET_GET) {
+        i = 0;
+        while (i < LEN_SET_GET) { code[i] = PROG_SET_GET[i]; i = i + 1; }
+        code_len = LEN_SET_GET;
+        return code_len;
+    }
+    if (prog == ID_TEE_DUP) {
+        i = 0;
+        while (i < LEN_TEE_DUP) { code[i] = PROG_TEE_DUP[i]; i = i + 1; }
+        code_len = LEN_TEE_DUP;
+        return code_len;
+    }
+    if (prog == ID_RET7) {
+        i = 0;
+        while (i < LEN_RET7) { code[i] = PROG_RET7[i]; i = i + 1; }
+        code_len = LEN_RET7;
+        return code_len;
+    }
+    if (prog == ID_BAD) {
+        i = 0;
+        while (i < LEN_BAD) { code[i] = PROG_BAD[i]; i = i + 1; }
+        code_len = LEN_BAD;
+        return code_len;
+    }
+    err = ERR_PROG;
+    code_len = 0;
+    return 0;
+}
+
+; The body length load_prog installs for each id, so a test can pin that the
+; loader and the declared arrays agree.
+pub fn prog_len(prog : u32) u32 {
+    if (prog == ID_ADD_DOUBLE) { return LEN_ADD_DOUBLE; }
+    if (prog == ID_ANSWER) { return LEN_ANSWER; }
+    if (prog == ID_MIN_S) { return LEN_MIN_S; }
+    if (prog == ID_XMUL_NOT) { return LEN_XMUL_NOT; }
+    if (prog == ID_SUB_AND_OR) { return LEN_SUB_AND_OR; }
+    if (prog == ID_SHL_SAR) { return LEN_SHL_SAR; }
+    if (prog == ID_EQ) { return LEN_EQ; }
+    if (prog == ID_NE) { return LEN_NE; }
+    if (prog == ID_LE_S) { return LEN_LE_S; }
+    if (prog == ID_GE_S) { return LEN_GE_S; }
+    if (prog == ID_EQZ) { return LEN_EQZ; }
+    if (prog == ID_GT_S) { return LEN_GT_S; }
+    if (prog == ID_SET_GET) { return LEN_SET_GET; }
+    if (prog == ID_TEE_DUP) { return LEN_TEE_DUP; }
+    if (prog == ID_RET7) { return LEN_RET7; }
+    if (prog == ID_BAD) { return LEN_BAD; }
+    return 0;
+}
+
+pub fn last_err() u8 {
+    return err;
+}
+
+; The interpreter. Runs the body in code[] with locals[0] = a, locals[1] = b,
+; fresh stack and counters, and returns the i32 result bit pattern, or 0 with
+; err set. ctl counts the ifs whose branch is being executed: an end inside
+; such a block closes the block, an end at ctl == 0 closes the function body.
+; The dispatch is flat -- one self-contained if per opcode, matched set to 1 --
+; so no branch of it can swallow another's bytes.
+pub fn exec() u32 {
+    sp = 0;
+    pc = 0;
+    ctl = 0;
+    err = 0;
+    var steps : u32 = 0;
+    var result : u32 = 0;
+    var matched : u8 = 0;
+    var op : u8 = 0;
+    var idx : u32 = 0;
+    var cond : u32 = 0;
+    var stopped : u8 = 0;
+    var y : u32 = 0;
+    var x : u32 = 0;
+    var flag : u32 = 0;
+    while (err == 0) {
+        steps = steps + 1;
+        if (steps > STEP_LIMIT) {
+            err = ERR_STEP;
+            break;
+        }
+        if (pc >= code_len) {
+            err = ERR_PC;
+            break;
+        }
+        op = code[pc];
+        pc = pc + 1;
+        matched = 0;
+
+        if (op == OP_I32_CONST) {
+            push(read_sleb());
+            matched = 1;
+        }
+        if (op == OP_LOCAL_GET) {
+            idx = code[pc] as u32;
+            pc = pc + 1;
+            if (idx < LOCALS_MAX) {
+                push(locals[idx]);
+                matched = 1;
+            } else {
+                err = ERR_LOCAL;
+            }
+        }
+        if (op == OP_LOCAL_SET) {
+            idx = code[pc] as u32;
+            pc = pc + 1;
+            if (idx < LOCALS_MAX) {
+                locals[idx] = pop();
+                matched = 1;
+            } else {
+                err = ERR_LOCAL;
+            }
+        }
+        if (op == OP_LOCAL_TEE) {
+            idx = code[pc] as u32;
+            pc = pc + 1;
+            if (idx < LOCALS_MAX) {
+                locals[idx] = pop();
+                push(locals[idx]);
+                matched = 1;
+            } else {
+                err = ERR_LOCAL;
+            }
+        }
+        if (op == OP_IF) {
+            pc = pc + 1;
+            cond = pop();
+            if (cond != 0) {
+                ctl = ctl + 1;
+            } else {
+                stopped = skip_to(1);
+                if (stopped == 1) {
+                    ctl = ctl + 1;
+                }
+            }
+            matched = 1;
+        }
+        if (op == OP_ELSE) {
+            skip_to(0);
+            ctl = ctl - 1;
+            matched = 1;
+        }
+        if (op == OP_END) {
+            if (ctl > 0) {
+                ctl = ctl - 1;
+            } else {
+                break;
+            }
+            matched = 1;
+        }
+        if (op == OP_RETURN) {
+            break;
+        }
+        if (op == OP_I32_ADD) {
+            y = pop();
+            x = pop();
+            push(wrap32((x as u64) + (y as u64)));
+            matched = 1;
+        }
+        if (op == OP_I32_SUB) {
+            y = pop();
+            x = pop();
+            push(wrap32((x as u64) + ((0xFFFFFFFF - y) as u64) + 1));
+            matched = 1;
+        }
+        if (op == OP_I32_MUL) {
+            y = pop();
+            x = pop();
+            push(wrap32((x as u64) * (y as u64)));
+            matched = 1;
+        }
+        if (op == OP_I32_AND) {
+            y = pop();
+            x = pop();
+            push(x & y);
+            matched = 1;
+        }
+        if (op == OP_I32_OR) {
+            y = pop();
+            x = pop();
+            push(x | y);
+            matched = 1;
+        }
+        if (op == OP_I32_XOR) {
+            y = pop();
+            x = pop();
+            push(x ^ y);
+            matched = 1;
+        }
+        if (op == OP_I32_SHL) {
+            y = pop();
+            x = pop();
+            push(wrap32((x as u64) << (y & 31)));
+            matched = 1;
+        }
+        if (op == OP_I32_SHR_S) {
+            y = pop();
+            x = pop();
+            push(sar32(x, y & 31));
+            matched = 1;
+        }
+        if (op == OP_I32_EQZ) {
+            x = pop();
+            if (x == 0) {
+                push(1);
+            } else {
+                push(0);
+            }
+            matched = 1;
+        }
+        if (op == OP_I32_EQ) {
+            y = pop();
+            x = pop();
+            if (x == y) {
+                push(1);
+            } else {
+                push(0);
+            }
+            matched = 1;
+        }
+        if (op == OP_I32_NE) {
+            y = pop();
+            x = pop();
+            if (x != y) {
+                push(1);
+            } else {
+                push(0);
+            }
+            matched = 1;
+        }
+        if (op == OP_I32_LT_S) {
+            y = pop();
+            x = pop();
+            push(lt_s(x, y));
+            matched = 1;
+        }
+        if (op == OP_I32_GT_S) {
+            y = pop();
+            x = pop();
+            push(lt_s(y, x));
+            matched = 1;
+        }
+        if (op == OP_I32_LE_S) {
+            y = pop();
+            x = pop();
+            flag = lt_s(x, y);
+            if (x == y) {
+                flag = 1;
+            }
+            push(flag);
+            matched = 1;
+        }
+        if (op == OP_I32_GE_S) {
+            y = pop();
+            x = pop();
+            flag = lt_s(y, x);
+            if (x == y) {
+                flag = 1;
+            }
+            push(flag);
+            matched = 1;
+        }
+
+        if (matched == 0) {
+            err = ERR_OPCODE;
+        }
+    }
+    if (err == 0 and sp > 0) {
+        result = stack[sp - 1];
+    }
+    return result;
+}
+
+; One run: load the body, set the two params, execute.
+pub fn wasm_run(prog : u32, a : u32, b : u32) u32 {
+    load_prog(prog);
+    var i : u32 = 0;
+    while (i < LOCALS_MAX) {
+        locals[i] = 0;
+        i = i + 1;
+    }
+    locals[0] = a;
+    locals[1] = b;
+    return exec();
+}
+
+; --- structural pins ------------------------------------------------------------------
+
+; Every opcode const, pinned to its WebAssembly byte two ways: against the
+; live code[] the loader installs (a runtime read of module state), and against
+; the literal. Const-to-const asserts fold at comptime and count as vacuous
+; (#6509), so each pin goes through code[] instead.
+test opcode_bytes_are_real_wasm {
+    wasm_run(ID_ADD_DOUBLE, 0, 0);
+    assert code[0] == OP_LOCAL_GET;    assert code[0] == 0x20;
+    assert code[4] == OP_I32_ADD;      assert code[4] == 0x6A;
+    assert code[5] == OP_I32_CONST;    assert code[5] == 0x41;
+    assert code[7] == OP_I32_MUL;      assert code[7] == 0x6C;
+    wasm_run(ID_MIN_S, 0, 0);
+    assert code[4] == OP_I32_LT_S;     assert code[4] == 0x48;
+    assert code[5] == OP_IF;           assert code[5] == 0x04;
+    assert code[9] == OP_ELSE;         assert code[9] == 0x05;
+    assert code[12] == OP_END;         assert code[12] == 0x0B;
+    wasm_run(ID_RET7, 0, 0);
+    assert code[2] == OP_I32_EQZ;      assert code[2] == 0x45;
+    assert code[7] == OP_RETURN;       assert code[7] == 0x0F;
+    wasm_run(ID_SHL_SAR, 0, 0);
+    assert code[4] == OP_I32_SHL;      assert code[4] == 0x74;
+    assert code[7] == OP_I32_SHR_S;    assert code[7] == 0x75;
+    wasm_run(ID_XMUL_NOT, 0, 0);
+    assert code[7] == OP_I32_XOR;      assert code[7] == 0x73;
+    wasm_run(ID_SUB_AND_OR, 0, 0);
+    assert code[4] == OP_I32_SUB;      assert code[4] == 0x6B;
+    assert code[9] == OP_I32_AND;      assert code[9] == 0x71;
+    assert code[10] == OP_I32_OR;      assert code[10] == 0x72;
+    wasm_run(ID_EQ, 0, 0);
+    assert code[4] == OP_I32_EQ;       assert code[4] == 0x46;
+    wasm_run(ID_NE, 0, 0);
+    assert code[4] == OP_I32_NE;       assert code[4] == 0x47;
+    wasm_run(ID_LE_S, 0, 0);
+    assert code[4] == OP_I32_LE_S;     assert code[4] == 0x4D;
+    wasm_run(ID_GE_S, 0, 0);
+    assert code[4] == OP_I32_GE_S;     assert code[4] == 0x4F;
+    wasm_run(ID_GT_S, 0, 0);
+    assert code[4] == OP_I32_GT_S;     assert code[4] == 0x4A;
+    wasm_run(ID_SET_GET, 0, 0);
+    assert code[5] == OP_LOCAL_SET;    assert code[5] == 0x21;
+    wasm_run(ID_TEE_DUP, 0, 0);
+    assert code[2] == OP_LOCAL_TEE;    assert code[2] == 0x22;
+}
+
+; The bytes of the two bodies a reader can check against a published module:
+; ADD_DOUBLE is add_double from src/b2t/test_add.wat, ANSWER is its second
+; export, answer. i32.const -1 as 41 7F is pinned by its own byte below.
+test first_bytes_match_the_wat {
+    wasm_run(ID_ADD_DOUBLE, 0, 0);
+    assert code[0] == 0x20;
+    assert code[1] == 0x00;
+    assert code[2] == 0x20;
+    assert code[3] == 0x01;
+    assert code[4] == 0x6A;
+    assert code[5] == 0x41;
+    assert code[6] == 0x02;
+    assert code[7] == 0x6C;
+    assert code[8] == 0x0B;
+    wasm_run(ID_ANSWER, 0, 0);
+    assert code[0] == 0x41;
+    assert code[1] == 0x2A;
+    assert code[2] == 0x0B;
+    wasm_run(ID_XMUL_NOT, 0, 0);
+    assert code[5] == 0x41;
+    assert code[6] == 0x7F;
+    wasm_run(ID_MIN_S, 0, 0);
+    assert code[4] == 0x48;
+    assert code[5] == 0x04;
+    assert code[6] == 0x7F;
+    assert code[9] == 0x05;
+}
+
+test loader_installs_what_prog_len_declares {
+    var p : u32 = 0;
+    while (p < PROGS) {
+        wasm_run(p, 0, 0);
+        assert code_len == prog_len(p);
+        assert code_len > 0;
+        p = p + 1;
+    }
+}
+
+; --- execution vectors -----------------------------------------------------------------
+
+; add_double(3, 4) = (3 + 4) * 2 = 14
+test add_double_basic {
+    assert wasm_run(ID_ADD_DOUBLE, 3, 4) == 14;
+    assert last_err() == ERR_NONE;
+}
+
+; add_double(2147483647, 1): 0x7FFFFFFF + 1 = 0x80000000, doubled and cut to
+; 32 bits is 0. This is the wraparound the i32.add rule mandates.
+test add_double_wraps_at_2_to_31 {
+    assert wasm_run(ID_ADD_DOUBLE, 2147483647, 1) == 0;
+    assert last_err() == ERR_NONE;
+}
+
+test answer_is_42 {
+    assert wasm_run(ID_ANSWER, 0, 0) == 42;
+    assert last_err() == ERR_NONE;
+}
+
+; min_s, signed: 3 <s 7 so the then branch (a) runs.
+test min_s_returns_the_smaller {
+    assert wasm_run(ID_MIN_S, 3, 7) == 3;
+    assert wasm_run(ID_MIN_S, 7, 3) == 3;
+    assert last_err() == ERR_NONE;
+}
+
+; min_s(-2, 5): -2 is 0xFFFFFFFE, and -2 <s 5, so the then branch runs and the
+; RESULT is the bit pattern of -2. A comparison done unsigned would take the
+; else branch and return 5, so this vector fails an unsigned lowering.
+test min_s_compares_signed {
+    assert wasm_run(ID_MIN_S, 4294967294, 5) == 4294967294;
+    assert last_err() == ERR_NONE;
+}
+
+; (a * 2) ^ -1: for a = 5 that is 10 ^ 0xFFFFFFFF = 0xFFFFFFF5.
+test xmul_not {
+    assert wasm_run(ID_XMUL_NOT, 5, 0) == 4294967285;
+    assert wasm_run(ID_XMUL_NOT, 0, 0) == 4294967295;
+    assert last_err() == ERR_NONE;
+}
+
+; (a - b) | (a & b): for (12, 10) that is 2 | 8 = 10.
+test sub_and_or {
+    assert wasm_run(ID_SUB_AND_OR, 12, 10) == 10;
+    assert last_err() == ERR_NONE;
+}
+
+; (0 - 5) wraps to 0xFFFFFFFB, and 0 & 5 = 0, so the or keeps the sub result.
+test sub_wraps_below_zero {
+    assert wasm_run(ID_SUB_AND_OR, 0, 5) == 4294967291;
+    assert last_err() == ERR_NONE;
+}
+
+; (a << 3) >>s 1 for a = 0xF0000000: the shl keeps bit 31 and drops the rest of
+; the sign nibble (0x80000000), and the arithmetic shift refills with ones
+; (0xC0000000). A logical shift would give 0x40000000 and fail this assert.
+test shr_s_is_arithmetic_not_logical {
+    assert wasm_run(ID_SHL_SAR, 4026531840, 0) == 3221225472;
+    assert last_err() == ERR_NONE;
+}
+
+; Same body, positive operand: (5 << 3) >>s 1 = 40 >>s 1 = 20.
+test shl_sar_positive {
+    assert wasm_run(ID_SHL_SAR, 5, 0) == 20;
+    assert last_err() == ERR_NONE;
+}
+
+; a = 0x40000000 loses its single set bit to the left shift; the shift back
+; gives 0. Shift amounts are masked to 5 bits per the WASM rule, which this
+; body does not exceed.
+test shl_drops_high_bits {
+    assert wasm_run(ID_SHL_SAR, 1073741824, 0) == 0;
+    assert last_err() == ERR_NONE;
+}
+
+test eq {
+    assert wasm_run(ID_EQ, 7, 7) == 1;
+    assert wasm_run(ID_EQ, 7, 8) == 0;
+    assert wasm_run(ID_EQ, 4294967295, 4294967295) == 1;
+    assert last_err() == ERR_NONE;
+}
+
+test ne {
+    assert wasm_run(ID_NE, 2, 3) == 1;
+    assert wasm_run(ID_NE, 2, 2) == 0;
+    assert last_err() == ERR_NONE;
+}
+
+; le_s(-1, 0) is true: -1 is 0xFFFFFFFF.
+test le_s_signed {
+    assert wasm_run(ID_LE_S, 3, 7) == 1;
+    assert wasm_run(ID_LE_S, 4294967295, 0) == 1;
+    assert wasm_run(ID_LE_S, 1, 0) == 0;
+    assert last_err() == ERR_NONE;
+}
+
+; ge_s(-1, 0) is false.
+test ge_s_signed {
+    assert wasm_run(ID_GE_S, 5, 5) == 1;
+    assert wasm_run(ID_GE_S, 4294967295, 0) == 0;
+    assert wasm_run(ID_GE_S, 7, 3) == 1;
+    assert last_err() == ERR_NONE;
+}
+
+test eqz {
+    assert wasm_run(ID_EQZ, 0, 0) == 1;
+    assert wasm_run(ID_EQZ, 9, 0) == 0;
+    assert last_err() == ERR_NONE;
+}
+
+test gt_s {
+    assert wasm_run(ID_GT_S, 9, 4) == 1;
+    assert wasm_run(ID_GT_S, 4, 9) == 0;
+    assert last_err() == ERR_NONE;
+}
+
+; set_get(5, 4): local 2 = 5 * 3 = 15, then 15 + 4 = 19. The body reads local
+; 2 back, so a set that does not store would return a + b or 9, not 19.
+test local_set_then_get {
+    assert wasm_run(ID_SET_GET, 5, 4) == 19;
+    assert last_err() == ERR_NONE;
+}
+
+; set_get(0, -2): 0 * 3 + (-2) = 0xFFFFFFFE.
+test local_set_keeps_bits {
+    assert wasm_run(ID_SET_GET, 0, 4294967294) == 4294967294;
+    assert last_err() == ERR_NONE;
+}
+
+; tee stores AND leaves the value: tee 3, get 3, add gives a + a.
+test local_tee_keeps_the_value {
+    assert wasm_run(ID_TEE_DUP, 21, 0) == 42;
+    assert last_err() == ERR_NONE;
+}
+
+; ret7(0, 9): eqz takes the then branch, pushes 7, and return ends the body
+; with 7 on the stack. ret7(5, 4): the else branch, 5 + 4 = 9.
+test return_ends_the_body {
+    assert wasm_run(ID_RET7, 0, 9) == 7;
+    assert wasm_run(ID_RET7, 5, 4) == 9;
+    assert last_err() == ERR_NONE;
+}
+
+; BAD is local.get a followed by 0xFF, which no WASM core decodes and this
+; subset does not claim: the run must stop with ERR_OPCODE and answer 0.
+test unknown_opcode_stops_the_run {
+    assert wasm_run(ID_BAD, 7, 0) == 0;
+    assert last_err() == ERR_OPCODE;
+}
+
+; The signed order the whole compare family rests on, stated once: -1 <s 0.
+invariant signed_order_holds {
+    lt_s(0xFFFFFFFF, 0) == 1
+}

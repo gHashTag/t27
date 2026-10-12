@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+840176a88",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:5193a5cb5116345d0f0694d421f081fde8f65198a856ba02bc3fde795d339936",
+  "gen_hash_rust": "sha256:2bad6949c066ff16a32fce76a20cda3b709d5fac81966b9b3f0ba4403512e41b",
+  "gen_hash_verilog": "sha256:90073a994606718cffd7240de54bcbcbdb5989848908a50150b40883973952b0",
+  "gen_hash_zig": "sha256:dbfe100594400b5de348ab4c8ec610d2065b6c6960c732b150b9fe545502dc12",
+  "module": "fpga_wasm_interp",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T17:10:42Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:a725487a3fdee2c906ddf96549a6c1fec864fb73d6a99d0a1f45fba80528a4c1",
+  "spec_path": "specs/fpga/wasm_interp.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 25,
+    "total": 25,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
