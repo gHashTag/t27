@@ -1,0 +1,242 @@
+//! # CR-CHAT-06 — Agent context window budget guard
+//!
+//! Port of gHashTag/trios `crates/trios-chat/rings/CR-CHAT-06/src/agent_context_window_budget_guard.rs`.
+//! AGENT SAFETY — bounded ring context. R-CHAT-7 requires the ring's context
+//! window to admit only batches that (a) carry a positive token count per
+//! entry, (b) use ids unique inside the window, (c) keep the running token
+//! sum inside the context budget, and (d) keep the entry count inside the
+//! entry limit. This module is that pure admission decision; the ring calls
+//! it before mutating the context window.
+//!
+//! Mapping notes (Rust -> t27):
+//! - `Result<(), ContextBudgetError>` -> `?ContextBudgetError`, with `null`
+//!   standing for `Ok(())`.
+//! - `Vec<u8>` entry ids -> `[]const u8`; the original's `BTreeSet` dedup
+//!   becomes a scan over the earlier entries with byte-wise `ids_equal`.
+//! - `usize::checked_add` overflow and the follow-up `total > ACWB_MAX_BUDGET`
+//!   check collapse into one pre-add guard, `tokens > ACWB_MAX_BUDGET - total`;
+//!   `total <= ACWB_MAX_BUDGET` is a loop invariant, so the subtraction cannot
+//!   underflow, and the verdict set is unchanged.
+
+// ------------------------------------------------------------- module ----
+
+/// Maximum context budget (tokens). Original: `pub const ACWB_MAX_BUDGET: usize = 128_000;`
+pub const ACWB_MAX_BUDGET: usize = 128_000;
+
+/// Maximum number of context entries. Original: `pub const ACWB_MAX_ENTRIES: usize = 256;`
+pub const ACWB_MAX_ENTRIES: usize = 256;
+
+/// One context entry: a byte-string id and its token cost.
+/// Original: `pub struct ContextEntry { pub id: Vec<u8>, pub tokens: usize }`.
+pub struct ContextEntry {
+    /// Unique byte-string id (original: `Vec<u8>`).
+    id: []const u8,
+    /// Token cost of the entry; must be positive.
+    tokens: usize,
+}
+
+/// All ways budget validation can fail. Original: `pub enum ContextBudgetError`.
+pub enum ContextBudgetError {
+    /// Running token sum would leave `0..=ACWB_MAX_BUDGET`.
+    BudgetExceeded,
+    /// An entry declares zero tokens.
+    ZeroTokens,
+    /// More than `ACWB_MAX_ENTRIES` entries.
+    TooManyEntries,
+    /// The same id appears twice.
+    DuplicateId,
+}
+
+/// Byte-wise equality for entry ids. The original compares `Vec<u8>` keys
+/// inside a `BTreeSet`; t27 slices have no structural `==`, so ids are
+/// compared length-first, then element-wise (the same pattern as `str_eq`
+/// in the CR-CHAT-LAWS port of this crate).
+fn ids_equal(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+/// Decides whether `entries` fit the ring's context budget.
+///
+/// Check order matches the original: entry count first, then per entry —
+/// zero tokens, duplicate id, budget overflow — so the first failure a batch
+/// hits is the same one the Rust guard reports.
+///
+/// Returns `null` when the batch is admissible (original `Ok(())`), else the
+/// `ContextBudgetError` the original returns.
+///
+/// Original: `pub fn validate_context_budget(entries: &[ContextEntry]) -> Result<(), ContextBudgetError>`.
+pub fn validate_context_budget(entries: []ContextEntry) -> ?ContextBudgetError {
+    // Original: `entries.len() > ACWB_MAX_ENTRIES` -> `TooManyEntries`.
+    if (entries.len > ACWB_MAX_ENTRIES) {
+        return .TooManyEntries;
+    }
+
+    // Running token sum; never exceeds `ACWB_MAX_BUDGET` (guard below).
+    var total: usize = 0;
+
+    var i: usize = 0;
+    while (i < entries.len) {
+        // Original: `entry.tokens == 0` -> `ZeroTokens`.
+        if (entries[i].tokens == 0) {
+            return .ZeroTokens;
+        }
+
+        // Original dedup: `seen.insert(entry.id.clone())` over a `BTreeSet`.
+        // t27 has no set, so scan the earlier entries for the same id.
+        var j: usize = 0;
+        while (j < i) {
+            if (ids_equal(entries[j].id, entries[i].id)) {
+                return .DuplicateId;
+            }
+            j += 1;
+        }
+
+        // Original: `checked_add` overflow or `total > ACWB_MAX_BUDGET` ->
+        // `BudgetExceeded`. Both collapse into this pre-add guard: adding
+        // `tokens` must keep `total` inside `0..=ACWB_MAX_BUDGET`, and since
+        // `total <= ACWB_MAX_BUDGET` held on entry, the subtraction below
+        // cannot underflow.
+        if (entries[i].tokens > ACWB_MAX_BUDGET - total) {
+            return .BudgetExceeded;
+        }
+        total += entries[i].tokens;
+
+        i += 1;
+    }
+
+    // Original: `Ok(())`.
+    return null;
+}
+
+// ---------------------------------------------------------------- tests ----
+
+/// test count: 11
+
+// ACWB-01 — one entry whose tokens exceed the whole budget -> BudgetExceeded.
+test acwb_01_single_entry_over_budget_rejected {
+    var over: [1]ContextEntry = [ContextEntry { id: "e1", tokens: ACWB_MAX_BUDGET + 1 }];
+    assert(validate_context_budget(&over) == ContextBudgetError.BudgetExceeded);
+}
+
+// ACWB-02 — a zero-token entry -> ZeroTokens.
+test acwb_02_zero_tokens_rejected {
+    var zero: [1]ContextEntry = [ContextEntry { id: "e1", tokens: 0 }];
+    assert(validate_context_budget(&zero) == ContextBudgetError.ZeroTokens);
+}
+
+// ACWB-03 — more than ACWB_MAX_ENTRIES entries -> TooManyEntries. The count
+// is checked before anything else, so the identical entries below never
+// reach the dedup scan.
+test acwb_03_too_many_entries_rejected {
+    var entries: [ACWB_MAX_ENTRIES + 1]ContextEntry = undefined;
+    var i: usize = 0;
+    while (i < ACWB_MAX_ENTRIES + 1) {
+        entries[i] = ContextEntry { id: "e", tokens: 1 };
+        i += 1;
+    }
+    assert(validate_context_budget(&entries) == ContextBudgetError.TooManyEntries);
+}
+
+// ACWB-04 — the same id twice -> DuplicateId.
+test acwb_04_duplicate_id_rejected {
+    var dup: [3]ContextEntry = [ContextEntry { id: "e1", tokens: 10 }, ContextEntry { id: "e2", tokens: 20 }, ContextEntry { id: "e1", tokens: 30 }];
+    assert(validate_context_budget(&dup) == ContextBudgetError.DuplicateId);
+}
+
+// ACWB-05 — (ACWB_MAX_BUDGET - 1) + 10 tokens exceeds the budget ->
+// BudgetExceeded, even though each entry alone fits.
+test acwb_05_cumulative_excess_rejected {
+    var sum: [2]ContextEntry = [ContextEntry { id: "e1", tokens: ACWB_MAX_BUDGET - 1 }, ContextEntry { id: "e2", tokens: 10 }];
+    assert(validate_context_budget(&sum) == ContextBudgetError.BudgetExceeded);
+}
+
+// ACWB-06 — distinct valid entries -> Ok (null).
+test acwb_06_valid_entries_accepted {
+    var ok: [3]ContextEntry = [ContextEntry { id: "e1", tokens: 100 }, ContextEntry { id: "e2", tokens: 200 }, ContextEntry { id: "e3", tokens: 300 }];
+    assert(validate_context_budget(&ok) == null);
+}
+
+// ACWB-07 — total exactly ACWB_MAX_BUDGET -> Ok (the inclusive boundary).
+test acwb_07_exact_budget_accepted {
+    var exact: [2]ContextEntry = [ContextEntry { id: "e1", tokens: ACWB_MAX_BUDGET / 2 }, ContextEntry { id: "e2", tokens: ACWB_MAX_BUDGET / 2 }];
+    assert(validate_context_budget(&exact) == null);
+}
+
+// ACWB-08 — one small valid entry -> Ok.
+test acwb_08_single_entry_accepted {
+    var one: [1]ContextEntry = [ContextEntry { id: "solo", tokens: 1 }];
+    assert(validate_context_budget(&one) == null);
+}
+
+// ACWB-09 — no entries at all -> Ok.
+test acwb_09_empty_entries_accepted {
+    var none: [0]ContextEntry = [];
+    assert(validate_context_budget(&none) == null);
+}
+
+// ACWB helper — `ids_equal` contract: byte-wise equality, not prefix
+// equality (the `BTreeSet<Vec<u8>>` semantics this port must preserve).
+test acwb_ids_equal_helper_contract {
+    assert(ids_equal("e1", "e1") == true);
+    assert(ids_equal("e1", "e2") == false);
+    assert(ids_equal("e1", "e10") == false);
+    assert(ids_equal("e10", "e1") == false);
+    assert(ids_equal("", "") == true);
+}
+
+// ACWB-10 — exactly ACWB_MAX_ENTRIES entries with distinct ids at one token
+// each -> Ok: one below the count limit, and the dedup scan must not
+// false-positive across 256 byte-string ids.
+test acwb_10_max_entries_accepted {
+    var ids: [ACWB_MAX_ENTRIES][]const u8 = [
+    "aa", "ab", "ac", "ad", "ae", "af", "ag", "ah",
+    "ai", "aj", "ak", "al", "am", "an", "ao", "ap",
+    "ba", "bb", "bc", "bd", "be", "bf", "bg", "bh",
+    "bi", "bj", "bk", "bl", "bm", "bn", "bo", "bp",
+    "ca", "cb", "cc", "cd", "ce", "cf", "cg", "ch",
+    "ci", "cj", "ck", "cl", "cm", "cn", "co", "cp",
+    "da", "db", "dc", "dd", "de", "df", "dg", "dh",
+    "di", "dj", "dk", "dl", "dm", "dn", "do", "dp",
+    "ea", "eb", "ec", "ed", "ee", "ef", "eg", "eh",
+    "ei", "ej", "ek", "el", "em", "en", "eo", "ep",
+    "fa", "fb", "fc", "fd", "fe", "ff", "fg", "fh",
+    "fi", "fj", "fk", "fl", "fm", "fn", "fo", "fp",
+    "ga", "gb", "gc", "gd", "ge", "gf", "gg", "gh",
+    "gi", "gj", "gk", "gl", "gm", "gn", "go", "gp",
+    "ha", "hb", "hc", "hd", "he", "hf", "hg", "hh",
+    "hi", "hj", "hk", "hl", "hm", "hn", "ho", "hp",
+    "ia", "ib", "ic", "id", "ie", "if", "ig", "ih",
+    "ii", "ij", "ik", "il", "im", "in", "io", "ip",
+    "ja", "jb", "jc", "jd", "je", "jf", "jg", "jh",
+    "ji", "jj", "jk", "jl", "jm", "jn", "jo", "jp",
+    "ka", "kb", "kc", "kd", "ke", "kf", "kg", "kh",
+    "ki", "kj", "kk", "kl", "km", "kn", "ko", "kp",
+    "la", "lb", "lc", "ld", "le", "lf", "lg", "lh",
+    "li", "lj", "lk", "ll", "lm", "ln", "lo", "lp",
+    "ma", "mb", "mc", "md", "me", "mf", "mg", "mh",
+    "mi", "mj", "mk", "ml", "mm", "mn", "mo", "mp",
+    "na", "nb", "nc", "nd", "ne", "nf", "ng", "nh",
+    "ni", "nj", "nk", "nl", "nm", "nn", "no", "np",
+    "oa", "ob", "oc", "od", "oe", "of", "og", "oh",
+    "oi", "oj", "ok", "ol", "om", "on", "oo", "op",
+    "pa", "pb", "pc", "pd", "pe", "pf", "pg", "ph",
+    "pi", "pj", "pk", "pl", "pm", "pn", "po", "pp"
+    ];
+    var entries: [ACWB_MAX_ENTRIES]ContextEntry = undefined;
+    var i: usize = 0;
+    while (i < ACWB_MAX_ENTRIES) {
+        entries[i] = ContextEntry { id: ids[i], tokens: 1 };
+        i += 1;
+    }
+    assert(validate_context_budget(&entries) == null);
+}

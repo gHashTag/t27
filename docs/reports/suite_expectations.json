@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 74,
+  "max_entries": 75,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -753,6 +753,13 @@
       "phase": "gen-verilog",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
       "issue": 5549,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-06/src/agent_context_window_budget_guard.t27",
+      "phase": "gen-verilog",
+      "reason": "ported for #8800; the port must stay faithful to the Rust trios-chat CR-CHAT-06 agent_context_window_budget_guard.rs source, which declares `ids : [256][]const u8` (line 201). gen-verilog refuses it as 2-D array-of-aggregate -- the same class as orchestrator_bench (#8521) (docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md). Ledgered until the W469 lowering lands.",
+      "issue": 8800,
       "expires": "2026-11-30"
     },
     {
