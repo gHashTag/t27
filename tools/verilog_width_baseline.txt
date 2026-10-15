@@ -38,17 +38,3 @@ specs/compiler/stdlib.t27
 # spec asked for something with no hardware form. TRIT_CAPACITY is 27, which
 # is 3^3 -- the size is deliberate, not a slip.
 specs/base/ternary_memory.t27
-#
-# specs/tri/t27b/conformance/big_frame.t27 -- the THIRD line, added with the
-# spec in #8764 (see #8902). Same class again: no subtraction, a size the spec
-# asks for on purpose. It is t27b's frame-size conformance spec (#8758), whose
-# whole point is local arrays of more than 1 MiB on the stack:
-#
-#   far_ends   low, high : [600000]u8   = 600000*8   = 4,800,000 bits
-#   deep_big   block     : [1200000]u8  = 1200000*8  = 9,600,000 bits
-#
-# `[4799999:0]` and `[9599999:0]`, as the emitter prints them. Its other
-# locals stay under 2^20 bits (Tape is 65536*8 + 64 = 524,352; mid_frames'
-# block is 80,000), and its test body's [1100000]u8 is not emitted at all.
-# Smaller arrays would remove what the spec tests; it has no hardware form.
-specs/tri/t27b/conformance/big_frame.t27

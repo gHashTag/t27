@@ -16,6 +16,10 @@
 ; same two SUB words.
 ; Not here: a frame of 16 MiB or more (t27b refuses it as FnDecl(frame size)), and a frame larger than the
 ; stack, which crashes both backends.
+; #8756: declare the large, index-only function-local arrays without an initializer. T27's Zig path
+; supplies the same `undefined`; native lowering treats both spellings as uninitialized aggregates.
+; The Verilog path then holds bytes as unpacked memory, rather than packing an `undefined` initializer
+; into a 4800000- or 9600000-bit vector. Sizes, every write/read and the large-stack checks stay intact.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module T27bConformanceBigFrame;
@@ -72,8 +76,8 @@ fn twenty_steps(t: Tape) -> Tape {
 // Every 4096th byte of each gets seed + m (m counts the marks, back to 0 after 49), one more in `high`, and
 // the last byte of each its own value; the result adds back all that was read.
 fn far_ends(seed: u8) -> u32 {
-    var low: [600000]u8 = undefined;
-    var high: [600000]u8 = undefined;
+    var low: [600000]u8;
+    var high: [600000]u8;
     var i: usize = 0;
     var m: u8 = 0;
     while (i < 600000) {
@@ -107,7 +111,7 @@ fn far_ends(seed: u8) -> u32 {
 // 1200000 bytes per frame. Each level marks its array every 1000 bytes, calls the next level down, and then
 // checks every mark: if the two frames overlapped, the deeper level's marks would show through.
 fn deep_big(depth: u8) -> u32 {
-    var block: [1200000]u8 = undefined;
+    var block: [1200000]u8;
     var i: usize = 0;
     while (i < 1200000) {
         block[i] = depth + 1;

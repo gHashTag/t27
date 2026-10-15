@@ -1,5 +1,8 @@
 module port::bogatyrs_spec_structure;
 
+// Refs #8767: executable, host-independent key-presence validation.
+// This accepts arbitrary values; it is not a parser or schema validator.
+
 // VIBEE BOGATYR - Spec Structure Validator
 // Checks withto .tri withandtoand
 // φ² + 1/φ² = 3 | PHOENIX = 999
@@ -26,22 +29,34 @@ pub fn validateSpecStructure(ctx: []const u8) -> bool {
             line_end += 1;
         }
         
-        var line: []const u8 = ctx[line_ptr..line_end];
+        var start: usize = line_ptr;
+        var stop: usize = line_end;
         line_ptr = line_end + 1;
-        
-        // Skip empty lines and comments
-        var trimmed = std.mem.trim(u8, line, " \t\r");
-        if (trimmed.len == 0 or trimmed[0] == '#') continue;
 
-        // Check for colon separator
-        var colon_idx = std.mem.indexOfScalar(u8, trimmed, ':');
-        if (colon_idx != null and colon_idx.? > 0) {
-            var key = std.mem.trim(u8, trimmed[0..colon_idx.?], " ");
+        // Trim exactly the original line whitespace set: space, tab, CR.
+        while (start < stop and (ctx[start] == ' ' or ctx[start] == '\t' or ctx[start] == '\r')) {
+            start += 1;
+        }
+        while (stop > start and (ctx[stop - 1] == ' ' or ctx[stop - 1] == '\t' or ctx[stop - 1] == '\r')) {
+            stop -= 1;
+        }
+        if (start == stop or ctx[start] == '#') continue;
 
-            if (std.mem.eql(u8, key, "name")) has_name = true;
-            if (std.mem.eql(u8, key, "version")) has_version = true;
-            if (std.mem.eql(u8, key, "language")) has_language = true;
-            if (std.mem.eql(u8, key, "module")) has_module = true;
+        var colon: usize = start;
+        while (colon < stop and ctx[colon] != ':') {
+            colon += 1;
+        }
+        if (colon < stop and colon > start) {
+            // Key trimming removes spaces only, as in the original.
+            var key_stop: usize = colon;
+            while (key_stop > start and ctx[key_stop - 1] == ' ') {
+                key_stop -= 1;
+            }
+            var key: []const u8 = ctx[start..key_stop];
+            if (key == "name") has_name = true;
+            if (key == "version") has_version = true;
+            if (key == "language") has_language = true;
+            if (key == "module") has_module = true;
         }
     }
 
@@ -97,8 +112,55 @@ test "spec structure - whitespace handling" {
     assert(result == true);
 }
 
+// Eight Newton steps from 2 approximate sqrt(5) in f64. This replaces the
+// host sqrt builtin for this one fixture; no general square-root API is claimed.
+fn structure_sqrt_five() -> f64 {
+    var root: f64 = 2.0;
+    var step: usize = 0;
+    while (step < 8) {
+        root = 0.5 * (root + 5.0 / root);
+        step += 1;
+    }
+    return root;
+}
+
 test "phi constant" {
-    const phi: f64 = (1.0 + @sqrt(5.0)) / 2.0;
+    const root: f64 = structure_sqrt_five();
+    assert(root > 0.0);
+    assert(root * root > 4.999999999999 and root * root < 5.000000000001);
+    const phi: f64 = (1.0 + root) / 2.0;
     const result = phi * phi + 1.0 / (phi * phi);
-    assert(std.math.approxEqAbs(f64, 3.0, result, 0.0001));
+    assert(result >= 2.9999 and result <= 3.0001);
+}
+
+test "spec structure - empty or comments only" {
+    assert(!validateSpecStructure(""));
+    assert(!validateSpecStructure(" \t\r\n  # name: a\n# version: b\n# language: c\n# module: d\n"));
+}
+
+test "spec structure - CRLF and outer tabs" {
+    assert(validateSpecStructure("\t name: a \r\n\tversion: b\r\nlanguage: c\r\nmodule: d\r\n"));
+}
+
+test "spec structure - empty and missing colon" {
+    assert(!validateSpecStructure(":name\nversion: b\nlanguage: c\nmodule: d"));
+    assert(!validateSpecStructure("name\nversion: b\nlanguage: c\nmodule: d"));
+}
+
+test "spec structure - exact case sensitive keys" {
+    assert(!validateSpecStructure("Name: a\nversion: b\nlanguage: c\nmodule: d"));
+    assert(!validateSpecStructure("namespace: a\nversion: b\nlanguage: c\nmodule: d"));
+    assert(!validateSpecStructure("namf: a\nversion: b\nlanguage: c\nmodule: d"));
+}
+
+test "spec structure - tab inside key is not a space" {
+    assert(!validateSpecStructure("name\t: a\nversion: b\nlanguage: c\nmodule: d"));
+}
+
+test "spec structure - arbitrary empty and colon values" {
+    assert(validateSpecStructure("name:\nversion: a:b\nlanguage:\nmodule:\n"));
+}
+
+test "spec structure - repeated key cannot replace missing key" {
+    assert(!validateSpecStructure("name: a\nname: b\nversion: c\nlanguage: d"));
 }
