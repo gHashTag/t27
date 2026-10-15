@@ -9,7 +9,7 @@ module gf16_matmul_top {
 
     // Simulate one tick of the oscillator (rising edge increments counter)
     fn tick() -> void {
-        counter = counter + 1;
+        counter = (counter + 1) & 0x7FFFFF;
     }
 
     // Output led_r23 = ~counter[20]
@@ -20,12 +20,12 @@ module gf16_matmul_top {
     }
 
     // Output led_t23 = ~(dot_ok ^ counter[19])
-    // We assume dot_ok is true (1) based on the fixed inputs to gf16_dot4.
-    // If this assumption is wrong, the tests may fail and we can adjust.
+    // This counter/LED model assumes the fixed gf16_dot4 inputs pass.
+    // It does not evaluate the dot product or establish a silicon verdict.
     fn led_t23() -> bool {
         let dot_ok: bool = true;
         let bit = (counter >> 19) & 1;
-        return !(dot_ok ^ bit);
+        return dot_ok == (bit != 0);
     }
 }
 
@@ -74,4 +74,30 @@ test tick_increments_counter {
     let c = counter;
     tick();
     assert(counter == c + 1);
+}
+
+test led_bit_boundaries {
+    counter = 524287;
+    assert(led_r23() == true);
+    assert(led_t23() == false);
+    tick();
+    assert(led_r23() == true);
+    assert(led_t23() == true);
+
+    counter = 1048575;
+    assert(led_r23() == true);
+    assert(led_t23() == true);
+    tick();
+    assert(led_r23() == false);
+    assert(led_t23() == false);
+}
+
+test counter_wraps_at_23_bits {
+    counter = 8388607;
+    assert(led_r23() == false);
+    assert(led_t23() == true);
+    tick();
+    assert(counter == 0);
+    assert(led_r23() == true);
+    assert(led_t23() == false);
 }

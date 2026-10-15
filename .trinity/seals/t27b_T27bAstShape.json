@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+9e6cb1b98",
   "closure": [
     {
       "spec": "specs/tri/t27b/ast_scan.t27",
-      "spec_hash": "sha256:e6f28b9bceb1b0fd5315e80a66beed3d791311dacf2bd5d5b7cbc79250d8b385"
+      "spec_hash": "sha256:7e38ade9f1dc1c8f06a3c48063f060407b2d85d776aa8695dd6ef42b16d88a17"
     },
     {
       "spec": "specs/tri/t27b/verilog_plan.t27",
@@ -11,16 +11,16 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:b70ca0678c9fd2dade9f9f7ffbbcf6c4408067ff9f3830ab7db53158c0c8e2ab",
-  "gen_hash_rust": "sha256:3f2bdb7aa8877ba5795a53a9e5b67523aa8988dc22acd8cdcc3a71059472af1c",
-  "gen_hash_verilog": "sha256:2659bb0f87d1a7c6357c8b4905ca2e4654154811d33523ce21c8969155aab3c2",
-  "gen_hash_zig": "sha256:ea05914b0925772d3e13290c6f2f7a6b1553685fcfca1d2d6ee4986a4179e78a",
+  "gen_hash_c": "sha256:5d364480d3529b6009756d84116d9d481e321d8c320ce24a843041a7f29dfc26",
+  "gen_hash_rust": "sha256:4e704d25b7f4b792aa6ce89f4f3a50806f8c54b01b67c558f08f8ff2bf394c3d",
+  "gen_hash_verilog": "sha256:2c2142b41244b4590d814516841a2317aed3338f3219604f5e0be4ea79402c0f",
+  "gen_hash_zig": "sha256:6674efe14d8e5383ab45ce65943404f8240f2094b6e05b4a5987e095783cc78d",
   "module": "T27bAstShape",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:29Z",
+  "sealed_at": "2026-10-11T14:36:34Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:fef40e3e7885265523c48d4a936c033bbc929b80dbf3ec06f79332dd63834134",
+  "spec_hash": "sha256:ae2a008a6d8716ece11fb99ceb2301cbb0918cdf508b18445c45648cd09a28b4",
   "spec_path": "specs/tri/t27b/ast_shape.t27",
   "tests": {
     "failed": 0,

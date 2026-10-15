@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+209be2e08",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:2b8ad0413ded3965bc1cb9cb5d0477c257c295d8e7cd84dcd395d69f5e445d4e",
+  "gen_hash_rust": "sha256:6dd58ebfcc2417828319dba94c5d1eddac5f013fb8c8013ffc85f8eafa2da5af",
+  "gen_hash_verilog": "sha256:770b970eed1361c3af6be016cd8aaa7996c377ab5a4ee9fc25a793ecea0ac8cf",
+  "gen_hash_zig": "sha256:048390de58ae67dcd849f8d298ae933d0b559c865d99b50491084590f1208c92",
+  "module": "mvp_ternary_classifier_jtag_noport",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T19:44:04Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:07ce75c2594c92ae7b7d8bffcb2abe55b40093b704b4c5b7c4b5891ad24095fd",
+  "spec_path": "specs/port/fpga/verilog/mvp_ternary_classifier_jtag_noport.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 18,
+    "total": 18,
+    "vacuous": 2
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

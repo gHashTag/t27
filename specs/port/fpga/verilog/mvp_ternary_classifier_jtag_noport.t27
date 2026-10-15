@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/port/fpga/verilog/mvp_ternary_classifier_jtag_noport.t27
 // MVP Ternary Classifier JTAG No-Port Module Specification
+// Native literal restoration: Refs #8762.
+// Pure protocol/configuration model; it does not instantiate FPGA primitives.
 // Ports the original Verilog module to T27 for generation via t27c gen-verilog
 // Based on gHashTag/t27 fpga/verilog/mvp_ternary_classifier_jtag_noport.v
 
@@ -50,8 +52,8 @@ module mvp_ternary_classifier_jtag_noport {
     //   [0]    = ok (1 = all inputs classified correctly since power-up)
     // On SHIFT: walks out LSB first (tdo = sr[0], sr = {tdi, sr[31:1]})
 
-    pub const MAGIC_28BIT : u32 = 0xA5A5A5Au32;
-    pub const INITIAL_SR : u32 = 0xA5A5A5A4u32;  // {MAGIC_28BIT, 4'b0100}
+    pub const MAGIC_28BIT : u32 = 0xA5A5A5A;
+    pub const INITIAL_SR : u32 = 0xA5A5A5A4;  // {MAGIC_28BIT, 4'b0100}
 
     pub struct ClassifierShiftRegister {
         data : u32,
@@ -65,9 +67,9 @@ module mvp_ternary_classifier_jtag_noport {
 
     fn capture_verdict_word(beat: bool, ok: bool) -> u32 {
         // {28'hA5A5A5A, 1'b0, 1'b1, beat, ok}
-        let beat_bit: u32 = if (beat) 1u32 else 0u32;
-        let ok_bit: u32 = if (ok) 1u32 else 0u32;
-        return (MAGIC_28BIT << 4) | (0u32 << 3) | (1u32 << 2) | (beat_bit << 1) | ok_bit;
+        let beat_bit: u32 = if (beat) 1 else 0;
+        let ok_bit: u32 = if (ok) 1 else 0;
+        return (MAGIC_28BIT << 4) | (0 << 3) | (1 << 2) | (beat_bit << 1) | ok_bit;
     }
 
     fn shift_register_capture(reg: ClassifierShiftRegister, beat: bool, ok: bool) -> ClassifierShiftRegister {
@@ -77,7 +79,7 @@ module mvp_ternary_classifier_jtag_noport {
     }
 
     fn shift_register_shift(reg: ClassifierShiftRegister, tdi: bool) -> ClassifierShiftRegister {
-        let tdi_bit: u32 = if (tdi) 0x80000000u32 else 0u32;
+        let tdi_bit: u32 = if (tdi) 0x80000000 else 0;
         let shifted: u32 = (reg.data >> 1) | tdi_bit;
         return ClassifierShiftRegister{
             .data = shifted,
@@ -85,7 +87,7 @@ module mvp_ternary_classifier_jtag_noport {
     }
 
     fn shift_register_tdo(reg: ClassifierShiftRegister) -> bool {
-        return (reg.data & 1u32) != 0;
+        return (reg.data & 1) != 0;
     }
 
     // === JTAG state machine ===
@@ -163,35 +165,35 @@ module mvp_ternary_classifier_jtag_noport {
         // beat = true, ok = true
         // Expected: {28'hA5A5A5A, 1'b0, 1'b1, 1, 1} = 0xA5A5A5A7
         let word = capture_verdict_word(true, true);
-        assert(word == 0xA5A5A5A7u32);
+        assert(word == 0xA5A5A5A7);
     }
 
     test capture_verdict_word_ok_false {
         // beat = false, ok = false
         // Expected: {28'hA5A5A5A, 1'b0, 1'b1, 0, 0} = 0xA5A5A5A4
         let word = capture_verdict_word(false, false);
-        assert(word == 0xA5A5A5A4u32);
+        assert(word == 0xA5A5A5A4);
     }
 
     test capture_verdict_word_beat_false_ok_true {
         // beat = false, ok = true
         // Expected: {28'hA5A5A5A, 1'b0, 1'b1, 0, 1} = 0xA5A5A5A5
         let word = capture_verdict_word(false, true);
-        assert(word == 0xA5A5A5A5u32);
+        assert(word == 0xA5A5A5A5);
     }
 
     test capture_verdict_word_beat_true_ok_false {
         // beat = true, ok = false
         // Expected: {28'hA5A5A5A, 1'b0, 1'b1, 1, 0} = 0xA5A5A5A6
         let word = capture_verdict_word(true, false);
-        assert(word == 0xA5A5A5A6u32);
+        assert(word == 0xA5A5A5A6);
     }
 
     test initial_shift_register_value {
         let reg = initial_shift_register();
         assert(reg.data == INITIAL_SR);
         // Initial value has beat=0, ok=0 (LSBs = 0b0100 = 0x4)
-        assert((reg.data & 0xFu32) == 0x4u32);
+        assert((reg.data & 0xF) == 0x4);
     }
 
     test shift_register_capture_updates_to_verdict {
@@ -199,26 +201,26 @@ module mvp_ternary_classifier_jtag_noport {
         let beat = true;
         let ok = true;
         let new_reg = shift_register_capture(reg, beat, ok);
-        assert(new_reg.data == 0xA5A5A5A7u32);
+        assert(new_reg.data == 0xA5A5A5A7);
     }
 
     test shift_register_shift_with_tdi_high {
-        let reg = ClassifierShiftRegister{ .data = 0x12345678u32 };
+        let reg = ClassifierShiftRegister{ .data = 0x12345678 };
         let new_reg = shift_register_shift(reg, true);
         // {1, 0x12345678 >> 1} = {1, 0x091A2B3C} = 0x891A2B3C
-        assert(new_reg.data == 0x891A2B3Cu32);
+        assert(new_reg.data == 0x891A2B3C);
     }
 
     test shift_register_shift_with_tdi_low {
-        let reg = ClassifierShiftRegister{ .data = 0x12345678u32 };
+        let reg = ClassifierShiftRegister{ .data = 0x12345678 };
         let new_reg = shift_register_shift(reg, false);
         // {0, 0x12345678 >> 1} = 0x091A2B3C
-        assert(new_reg.data == 0x091A2B3Cu32);
+        assert(new_reg.data == 0x091A2B3C);
     }
 
     test shift_register_tdo_is_lsb {
-        let reg0 = ClassifierShiftRegister{ .data = 0x12345678u32 }; // LSB = 0
-        let reg1 = ClassifierShiftRegister{ .data = 0x12345679u32 }; // LSB = 1
+        let reg0 = ClassifierShiftRegister{ .data = 0x12345678 }; // LSB = 0
+        let reg1 = ClassifierShiftRegister{ .data = 0x12345679 }; // LSB = 1
         assert(shift_register_tdo(reg0) == false);
         assert(shift_register_tdo(reg1) == true);
     }
@@ -229,25 +231,25 @@ module mvp_ternary_classifier_jtag_noport {
         let ok = true;
         let sig = JtagSignals{ .drck = true, .sel = true, .shift = false, .capture = true, .tdi = false };
         let (new_reg, tdo) = next_shift_register_and_tdo(reg, beat, ok, sig);
-        assert(new_reg.data == 0xA5A5A5A7u32);
+        assert(new_reg.data == 0xA5A5A5A7);
         // TDO is LSB of old reg (INITIAL_SR = 0xA5A5A5A4, LSB = 0)
         assert(tdo == false);
     }
 
     test next_state_shift_cycle {
-        let reg = ClassifierShiftRegister{ .data = 0xA5A5A5A7u32 };
+        let reg = ClassifierShiftRegister{ .data = 0xA5A5A5A7 };
         let beat = false;
         let ok = false;
         let sig = JtagSignals{ .drck = true, .sel = true, .shift = true, .capture = false, .tdi = true };
         let (new_reg, tdo) = next_shift_register_and_tdo(reg, beat, ok, sig);
         // Shift with tdi=1: {1, 0xA5A5A5A7 >> 1} = 0xD2D2D2D3
-        assert(new_reg.data == 0xD2D2D2D3u32);
+        assert(new_reg.data == 0xD2D2D2D3);
         // TDO is LSB of old reg (0xA5A5A5A7, LSB = 1)
         assert(tdo == true);
     }
 
     test next_state_no_change_when_drck_low {
-        let reg = ClassifierShiftRegister{ .data = 0xFFFFFFFFu32 };
+        let reg = ClassifierShiftRegister{ .data = 0xFFFFFFFF };
         let beat = true;
         let ok = true;
         let sig = JtagSignals{ .drck = false, .sel = true, .shift = true, .capture = false, .tdi = true };
@@ -257,7 +259,7 @@ module mvp_ternary_classifier_jtag_noport {
     }
 
     test next_state_no_change_when_sel_low {
-        let reg = ClassifierShiftRegister{ .data = 0xFFFFFFFFu32 };
+        let reg = ClassifierShiftRegister{ .data = 0xFFFFFFFF };
         let beat = true;
         let ok = true;
         let sig = JtagSignals{ .drck = true, .sel = false, .shift = true, .capture = false, .tdi = true };
@@ -273,15 +275,15 @@ module mvp_ternary_classifier_jtag_noport {
 
     test magic_constant_width {
         // MAGIC_28BIT is 28 bits: 0xA5A5A5A = 28'hA5A5A5A
-        assert(MAGIC_28BIT == 0xA5A5A5Au32);
-        assert(MAGIC_28BIT <= 0xFFFFFFFu32); // fits in 28 bits
+        assert(MAGIC_28BIT == 0xA5A5A5A);
+        assert(MAGIC_28BIT <= 0xFFFFFFF); // fits in 28 bits
     }
 
     test initial_sr_construction {
         // INITIAL_SR = {MAGIC_28BIT, 4'b0100} = 0xA5A5A5A4
-        let expected = (MAGIC_28BIT << 4) | 0x4u32;
+        let expected = (MAGIC_28BIT << 4) | 0x4;
         assert(INITIAL_SR == expected);
-        assert(INITIAL_SR == 0xA5A5A5A4u32);
+        assert(INITIAL_SR == 0xA5A5A5A4);
     }
 
     // === Invariants ===
@@ -295,23 +297,23 @@ module mvp_ternary_classifier_jtag_noport {
     invariant capture_word_format_bit3 {
         // Bit 3 is always 0
         let w = capture_verdict_word(true, true);
-        assert ((w >> 3) & 1u32) == 0u32
+        assert ((w >> 3) & 1) == 0
     }
 
     invariant capture_word_format_bit2 {
         // Bit 2 is always 1
         let w = capture_verdict_word(true, true);
-        assert ((w >> 2) & 1u32) == 1u32
+        assert ((w >> 2) & 1) == 1
     }
 
     invariant shift_register_32bit {
         let r = initial_shift_register();
-        assert r.data <= 0xFFFFFFFFu32
+        assert r.data <= 0xFFFFFFFF
     }
 
     invariant tdo_is_lsb {
         let r = initial_shift_register();
-        assert shift_register_tdo(r) == ((r.data & 1u32) != 0)
+        assert shift_register_tdo(r) == ((r.data & 1) != 0)
     }
 
     invariant bscan_chain_parameter {

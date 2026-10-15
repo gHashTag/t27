@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 83,
+  "max_entries": 82,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -753,13 +753,6 @@
       "phase": "gen-verilog",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
       "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/trinity/src/tri/orchestrator_bench.t27",
-      "phase": "gen-verilog",
-      "reason": "ported 2026-10-09 (7cec0a0cf); the port must stay faithful to the Zig source, which declares `commands : [10][]const u8` (line 47). gen-verilog refuses it as 2-D array-of-aggregate -- the same class as validation_engine above and #8521's seven catalog-broken ports (docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md). Ledgered until the W469 lowering lands.",
-      "issue": 8521,
       "expires": "2026-11-30"
     },
     {

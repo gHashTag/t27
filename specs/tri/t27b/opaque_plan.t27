@@ -51,6 +51,8 @@
 
 module T27bOpaquePlan;
 
+use tri::t27b::type_text;
+
 // The answers.
 pub const OPAQUE : u8 = 0;
 pub const REFUSE_BY_VALUE : u8 = 1;
@@ -82,23 +84,14 @@ pub fn opaque_type(by_value: bool) -> u8 {
     return OPAQUE;
 }
 
-/// Is the text exactly `w`?
-fn same(s: []const u8, w: str) -> bool {
-    if (s.len != w.len) { return false; }
-    var k : usize = 0;
-    while (k < w.len) {
-        if (s[k] != w[k]) { return false; }
-        k = k + 1;
-    }
-    return true;
-}
+// Reuse type_text::same rather than another byte-comparison body (#8756).
 
 /// The type named `t` where a type is read, by_value as in opaque_type: OPAQUE or REFUSE_BY_VALUE for
 /// `anyopaque`, CARRY for `std.mem.Allocator`, CARRY_LIST for `std.ArrayList(T)`, CARRY_MAP for
 /// `std.StringHashMap(V)`, NOT_MINE for any other name.
 pub fn named(t: []const u8, by_value: bool) -> u8 {
-    if (same(t, "anyopaque")) { return opaque_type(by_value); }
-    if (same(t, "std.mem.Allocator")) { return CARRY; }
+    if (type_text::same(t, "anyopaque")) { return opaque_type(by_value); }
+    if (type_text::same(t, "std.mem.Allocator")) { return CARRY; }
     if (instance(t, "std.ArrayList(")) { return CARRY_LIST; }
     if (instance(t, "std.StringHashMap(")) { return CARRY_MAP; }
     return NOT_MINE;
@@ -112,7 +105,7 @@ const B_RPAREN : u8 = 41;
 /// Does the text begin with `w`?
 fn begins(s: []const u8, w: str) -> bool {
     if (s.len < w.len) { return false; }
-    return same(s[0 .. w.len], w);
+    return type_text::same(s[0 .. w.len], w);
 }
 
 /// Is the text `head` (which ends in `(`), an argument, and the `)` that closes that `(` as its last byte?
@@ -169,13 +162,13 @@ fn dotted(s: []const u8) -> bool {
 /// The construct a call of `name` that no declared fn answers is refused as; "" means `ExprCall(<name>)`.
 pub fn call_what(name: []const u8) -> str {
     if (name.len > 0 and name[0] == B_AT) { return ""; }
-    if (same(name, "assert") or same(name, "assert_eq")) { return "ExprCall(assert in expression)"; }
-    if (same(name, "Ok") or same(name, "Err") or same(name, "Some") or same(name, "None")) {
+    if (type_text::same(name, "assert") or type_text::same(name, "assert_eq")) { return "ExprCall(assert in expression)"; }
+    if (type_text::same(name, "Ok") or type_text::same(name, "Err") or type_text::same(name, "Some") or type_text::same(name, "None")) {
         return "ExprCall(Result/Option constructor)";
     }
     if (begins(name, "std.")) { return "ExprCall(std.*)"; }
     if (dotted(name)) { return "ExprCall(method)"; }
-    if (same(name, "len") or same(name, "expect")) { return ""; }
+    if (type_text::same(name, "len") or type_text::same(name, "expect")) { return ""; }
     return "ExprCall(undeclared fn)";
 }
 
@@ -197,7 +190,7 @@ pub fn align(act: u8) -> u32 {
 /// `std.<ns>.<name>` read as a value: CARRY for `std.testing.allocator`, the one source of a carried allocator,
 /// whose type is `carried_type`; NOT_MINE for any other.
 pub fn std_value(ns: []const u8, name: []const u8) -> u8 {
-    if (same(ns, "testing") and same(name, "allocator")) { return CARRY; }
+    if (type_text::same(ns, "testing") and type_text::same(name, "allocator")) { return CARRY; }
     return NOT_MINE;
 }
 

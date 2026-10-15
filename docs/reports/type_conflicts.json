@@ -19,7 +19,6 @@
     "Diagnostic",
     "Entry",
     "EnvVar",
-    "Episode",
     "ErrorResponse",
     "EvalResult",
     "FFNConfig",
@@ -112,5 +111,6 @@
     "VcdVar",
     "VerificationReport",
     "VersionInfo"
-  ]
+  ],
+  "count": 109
 }

@@ -13,7 +13,7 @@ dot27 8,5
 contrib 7
 activate 6
 clamp 6
-clear 6,2
+clear 6
 match_at 6
 quantize 6,5
 relu_prime 6
@@ -55,7 +55,6 @@ on_comb 3,2
 pack2 3
 pow2_frac 3
 publish_result_to_string 3
-same 3
 source_upload_file 3
 starts_with_at 3
 strings_equal 3
@@ -74,7 +73,6 @@ assert_pass 2
 axi4_full_master 2
 axi4_lite_master 2
 beam_search_prm_pipeline 2
-bits 2
 booth_mul_i16 2
 booth_mul_u32_inner 2
 build_edges_from_shared_ports 2
