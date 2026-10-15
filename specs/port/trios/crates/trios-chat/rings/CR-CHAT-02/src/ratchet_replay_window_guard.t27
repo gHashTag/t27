@@ -1,0 +1,199 @@
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-02/src/ratchet_replay_window_guard.rs
+// (189 lines at 8b229e9489ee), re-authored so the code is generated from .t27
+// instead of written by hand.
+//
+// CR-CHAT-02 -- Ratchet replay window guard (R-CHAT-2, Wave-47 Lane A). Each
+// ratchet session assigns a strictly monotonic counter to every outgoing
+// message. trios-chat enforces 6 rules:
+//   1. Counter is strictly monotonic (new > last seen).
+//   2. Gap between consecutive counters <= RPL_MAX_GAP.
+//   3. Counter never exceeds RPL_MAX_COUNTER.
+//   4. Replay window rejects duplicates within the sliding window.
+//   5. Counter must be non-zero.
+//   6. Window size is bounded by RPL_MAX_WINDOW.
+//
+// The original returns Result<(), RatchetReplayError>. t27 has no Result, so
+// every verdict function here returns i32: RPL_OK (0) stands for Ok(()) and
+// 1..=6 stand for the six RatchetReplayError variants in declaration order
+// (NotAdvanced, GapTooLarge, ExceedsMaxCounter, DuplicateInWindow,
+// ZeroCounter, WindowTooLarge). window.contains(&counter) and window.last()
+// become a single scan that also remembers the last element. Both functions
+// are pure decisions with no plumbing, so both keep real bodies.
+//
+// Anchor: phi^2 + phi^-2 = 3 * TRINITY * CHAT * RATCHET-REPLAY
+
+module port::ratchet_replay_window_guard;
+
+/// Maximum allowed gap between consecutive counters.
+pub const RPL_MAX_GAP: u64 = 64;
+
+/// Maximum counter value: (1u64 << 40) - 1 in the original.
+pub const RPL_MAX_COUNTER: u64 = 1099511627775;
+
+/// Maximum replay window size.
+pub const RPL_MAX_WINDOW: usize = 128;
+
+/// Verdict codes standing in for Result<(), RatchetReplayError>:
+/// 0 is Ok(()), then the six variants in declaration order.
+pub const RPL_OK: i32 = 0;
+pub const RPL_ERR_NOT_ADVANCED: i32 = 1;
+pub const RPL_ERR_GAP_TOO_LARGE: i32 = 2;
+pub const RPL_ERR_EXCEEDS_MAX_COUNTER: i32 = 3;
+pub const RPL_ERR_DUPLICATE_IN_WINDOW: i32 = 4;
+pub const RPL_ERR_ZERO_COUNTER: i32 = 5;
+pub const RPL_ERR_WINDOW_TOO_LARGE: i32 = 6;
+
+/// [VERIFIED] Validate a single counter against the last-seen value.
+/// Original signature: validate_counter_advance(last_seen: u64,
+/// proposed: u64) -> Result<(), RatchetReplayError>. Returns RPL_OK when the
+/// advance obeys rules 5, 3, 1 and 2; otherwise the code of the first rule
+/// it breaks, checked in the original's order.
+pub fn validate_counter_advance(last_seen: u64, proposed: u64) -> i32 {
+    if (proposed == 0) {
+        return RPL_ERR_ZERO_COUNTER;
+    }
+    if (proposed > RPL_MAX_COUNTER) {
+        return RPL_ERR_EXCEEDS_MAX_COUNTER;
+    }
+    if (proposed <= last_seen) {
+        return RPL_ERR_NOT_ADVANCED;
+    }
+    if (proposed - last_seen > RPL_MAX_GAP) {
+        return RPL_ERR_GAP_TOO_LARGE;
+    }
+    return RPL_OK;
+}
+
+/// [VERIFIED] Check a counter against a replay window (sliding set of
+/// recently seen counters). Returns RPL_OK if the counter is fresh.
+/// Original signature: check_replay_window(window: &[u64], counter: u64)
+/// -> Result<(), RatchetReplayError>. The window is ordered oldest first, so
+/// its last element is the most recent counter, as in the original.
+pub fn check_replay_window(window: []const u64, counter: u64) -> i32 {
+    if (counter == 0) {
+        return RPL_ERR_ZERO_COUNTER;
+    }
+    if (counter > RPL_MAX_COUNTER) {
+        return RPL_ERR_EXCEEDS_MAX_COUNTER;
+    }
+    if (window.len() > RPL_MAX_WINDOW) {
+        return RPL_ERR_WINDOW_TOO_LARGE;
+    }
+    var last: u64 = 0;
+    var have_last: bool = false;
+    for entry in window {
+        if (entry == counter) {
+            return RPL_ERR_DUPLICATE_IN_WINDOW;
+        }
+        last = entry;
+        have_last = true;
+    }
+    if (have_last) {
+        if (counter <= last) {
+            return RPL_ERR_NOT_ADVANCED;
+        }
+        if (counter - last > RPL_MAX_GAP) {
+            return RPL_ERR_GAP_TOO_LARGE;
+        }
+    }
+    return RPL_OK;
+}
+
+// --- Tests. RPLA-01..10 mirror the original test module; RPLA-11..17 pin
+// --- window-side edges of the same decisions.
+
+/// RPLA-01 -- zero counter rejected.
+test rpla_01_zero_counter_rejected {
+    assert(validate_counter_advance(0, 0) == RPL_ERR_ZERO_COUNTER);
+}
+
+/// RPLA-02 -- counter not advanced rejected.
+test rpla_02_not_advanced_rejected {
+    assert(validate_counter_advance(5, 5) == RPL_ERR_NOT_ADVANCED);
+}
+
+/// RPLA-03 -- counter rollback rejected.
+test rpla_03_rollback_rejected {
+    assert(validate_counter_advance(10, 3) == RPL_ERR_NOT_ADVANCED);
+}
+
+/// RPLA-04 -- gap too large rejected.
+test rpla_04_gap_too_large_rejected {
+    assert(validate_counter_advance(1, 66) == RPL_ERR_GAP_TOO_LARGE);
+}
+
+/// RPLA-05 -- exceeds max counter rejected.
+test rpla_05_exceeds_max_rejected {
+    assert(validate_counter_advance(RPL_MAX_COUNTER - 1, RPL_MAX_COUNTER + 1) == RPL_ERR_EXCEEDS_MAX_COUNTER);
+}
+
+/// RPLA-06 -- valid advance accepted.
+test rpla_06_valid_advance_accepted {
+    assert(validate_counter_advance(5, 6) == RPL_OK);
+}
+
+/// RPLA-07 -- exact max gap accepted.
+test rpla_07_exact_max_gap_accepted {
+    assert(validate_counter_advance(1, 65) == RPL_OK);
+}
+
+/// RPLA-08 -- duplicate in window rejected.
+test rpla_08_duplicate_in_window_rejected {
+    var window: [5]u64 = [1, 2, 3, 4, 5];
+    assert(check_replay_window(&window, 3) == RPL_ERR_DUPLICATE_IN_WINDOW);
+}
+
+/// RPLA-09 -- fresh counter in window accepted.
+test rpla_09_fresh_counter_accepted {
+    var window: [3]u64 = [1, 2, 3];
+    assert(check_replay_window(&window, 4) == RPL_OK);
+}
+
+/// RPLA-10 -- empty window, fresh counter accepted.
+test rpla_10_empty_window_accepted {
+    var window: [0]u64 = [_]u64{};
+    assert(check_replay_window(&window, 1) == RPL_OK);
+}
+
+/// RPLA-11 -- zero counter rejected before the window is read.
+test rpla_11_window_zero_counter_rejected {
+    var window: [2]u64 = [1, 2];
+    assert(check_replay_window(&window, 0) == RPL_ERR_ZERO_COUNTER);
+}
+
+/// RPLA-12 -- rollback below the most recent window entry rejected.
+test rpla_12_window_not_advanced_rejected {
+    var window: [1]u64 = [5];
+    assert(check_replay_window(&window, 3) == RPL_ERR_NOT_ADVANCED);
+}
+
+/// RPLA-13 -- gap above the most recent window entry rejected.
+test rpla_13_window_gap_too_large_rejected {
+    var window: [1]u64 = [1];
+    assert(check_replay_window(&window, 66) == RPL_ERR_GAP_TOO_LARGE);
+}
+
+/// RPLA-14 -- a window longer than RPL_MAX_WINDOW is rejected before any
+/// element is read (129 zero entries, fresh counter 5).
+test rpla_14_window_too_large_rejected {
+    var window: [129]u64 = [_]u64{0} ** 129;
+    assert(check_replay_window(&window, 5) == RPL_ERR_WINDOW_TOO_LARGE);
+}
+
+/// RPLA-15 -- advancing to exactly RPL_MAX_COUNTER is accepted.
+test rpla_15_advance_to_exact_max_accepted {
+    assert(validate_counter_advance(RPL_MAX_COUNTER - 1, RPL_MAX_COUNTER) == RPL_OK);
+}
+
+/// RPLA-16 -- a counter equal to the most recent entry is a duplicate: the
+/// window scan runs before the monotonic check, as in the original.
+test rpla_16_equal_to_last_is_duplicate {
+    var window: [1]u64 = [5];
+    assert(check_replay_window(&window, 5) == RPL_ERR_DUPLICATE_IN_WINDOW);
+}
+
+/// RPLA-17 -- a window of exactly RPL_MAX_WINDOW entries is accepted.
+test rpla_17_window_at_max_accepted {
+    var window: [128]u64 = [_]u64{0} ** 128;
+    assert(check_replay_window(&window, 5) == RPL_OK);
+}
