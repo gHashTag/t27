@@ -1,0 +1,179 @@
+module port::trinity::create_test_mistral;
+
+// Port of gHashTag/trinity:src/vibeec/create_test_mistral.zig (at
+// ee512359254b, 129 lines) - t27 issue #9644, Roadmap Stage 5 (goal
+// #4547), target t27c gen-rust. The safetensors builder's decisions as
+// pure functions: the mini Mistral config, the per-layer tensor shape
+// table, the f32 tensor byte rule, the comma rule of the JSON header,
+// the payload totals and the sample range of the random data. The
+// header string building, the file write and the PRNG itself are the
+// caller's plumbing.
+
+// The mini Mistral config (original lines 12-21).
+pub const MISTRAL_TEST_VOCAB: usize = 256;
+pub const MISTRAL_TEST_HIDDEN: usize = 64;
+pub const MISTRAL_TEST_INTERMEDIATE: usize = 128;
+pub const MISTRAL_TEST_LAYERS: usize = 2;
+pub const MISTRAL_TEST_HEADS: usize = 4;
+pub const MISTRAL_TEST_KV_HEADS: usize = 2;
+
+// Line 46: every tensor is f32 - 4 bytes per element.
+pub const MISTRAL_TEST_F32_BYTES: usize = 4;
+
+// Line 110: the test data is seeded, not random-random.
+pub const MISTRAL_TEST_PRNG_SEED: u32 = 42;
+
+// Line 21: head_dim = hidden_size / num_heads.
+pub fn mistral_test_head_dim(hidden_size: usize, num_heads: usize) -> usize {
+    return hidden_size / num_heads;
+}
+
+// Lines 46-49: a 2-D tensor's byte size - 4 bytes per element times the
+// product of its two dimensions.
+pub fn mistral_test_tensor_bytes_2(dim0: usize, dim1: usize) -> usize {
+    return MISTRAL_TEST_F32_BYTES * dim0 * dim1;
+}
+
+// Lines 62-89: the shape table. Per layer the tensors are
+// q [hidden, hidden], k [kv_heads*head_dim, hidden],
+// v [kv_heads*head_dim, hidden], o [hidden, hidden],
+// gate [intermediate, hidden], up [intermediate, hidden],
+// down [hidden, intermediate] - slot codes 0 to 6 in that order.
+pub fn mistral_test_layer_rows(slot: u8, hidden: usize, intermediate: usize, kv_dim: usize) -> usize {
+    if (slot == 1 or slot == 2) {
+        return kv_dim;
+    }
+    if (slot == 4 or slot == 5) {
+        return intermediate;
+    }
+    return hidden;
+}
+
+pub fn mistral_test_layer_cols(slot: u8, hidden: usize, intermediate: usize) -> usize {
+    if (slot == 6) {
+        return intermediate;
+    }
+    return hidden;
+}
+
+// Lines 61-93: the file holds the embedding, seven tensors per layer,
+// and the lm head - 2 + 7*num_layers tensors in total.
+pub fn mistral_test_tensors_total(num_layers: usize) -> usize {
+    return 2 + num_layers * 7;
+}
+
+// The whole payload's byte count: the embedding and the lm head share
+// the [vocab, hidden] shape; every layer contributes q, k, v, o, gate,
+// up and down.
+pub fn mistral_test_param_bytes(vocab: usize, hidden: usize, intermediate: usize, num_layers: usize, kv_dim: usize) -> usize {
+    const embed_side: usize = MISTRAL_TEST_F32_BYTES * vocab * hidden;
+    const square_attn: usize = MISTRAL_TEST_F32_BYTES * hidden * hidden;
+    const kv_attn: usize = MISTRAL_TEST_F32_BYTES * kv_dim * hidden;
+    const mlp_wide: usize = MISTRAL_TEST_F32_BYTES * intermediate * hidden;
+    const mlp_down: usize = MISTRAL_TEST_F32_BYTES * hidden * intermediate;
+    const per_layer: usize = square_attn + kv_attn + kv_attn + square_attn + mlp_wide + mlp_wide + mlp_down;
+    return embed_side * 2 + per_layer * num_layers;
+}
+
+// Line 125: the parameter count the builder reports - one f32 per
+// 4 bytes of payload.
+pub fn mistral_test_total_params(offset_bytes: usize) -> usize {
+    return offset_bytes / MISTRAL_TEST_F32_BYTES;
+}
+
+// Line 128: the file size - the 8-byte header-size prefix, the JSON
+// header, and the tensor payload.
+pub fn mistral_test_file_size(header_len: usize, offset_bytes: usize) -> usize {
+    return 8 + header_len + offset_bytes;
+}
+
+// Lines 41-44: the JSON header separates entries with a comma - every
+// entry except the first one.
+pub fn mistral_test_entry_needs_comma(is_first: bool) -> bool {
+    if (is_first) {
+        return false;
+    }
+    return true;
+}
+
+// Line 118: the data is filled with samples scaled from the PRNG's
+// [0,1) float into [-1, 1).
+pub fn mistral_test_scale_sample(u: f32) -> f32 {
+    return u * 2.0 - 1.0;
+}
+
+// Line 7: main builds the mini model and reports its parameter count -
+// the payload the writer emits, halved twice into f32 elements.
+pub fn main(vocab: usize, hidden: usize, intermediate: usize, num_layers: usize, kv_dim: usize) -> usize {
+    const offset = mistral_test_param_bytes(vocab, hidden, intermediate, num_layers, kv_dim);
+    return mistral_test_total_params(offset);
+}
+
+test head_dim_is_hidden_over_heads {
+    assert(mistral_test_head_dim(64, 4) == 16);
+    assert(mistral_test_head_dim(64, 8) == 8);
+    assert(mistral_test_head_dim(48, 4) == 12);
+    assert(mistral_test_head_dim(40, 5) == 8);
+}
+
+test tensor_bytes_rule {
+    assert(mistral_test_tensor_bytes_2(256, 64) == 65536);
+    assert(mistral_test_tensor_bytes_2(64, 64) == 16384);
+    assert(mistral_test_tensor_bytes_2(32, 64) == 8192);
+    assert(mistral_test_tensor_bytes_2(128, 64) == 32768);
+    assert(mistral_test_tensor_bytes_2(64, 128) == 32768);
+    assert(mistral_test_tensor_bytes_2(1, 1) == 4);
+    assert(mistral_test_tensor_bytes_2(0, 5) == 0);
+}
+
+test layer_shape_table {
+    assert(mistral_test_layer_rows(0, 64, 128, 32) == 64);
+    assert(mistral_test_layer_rows(1, 64, 128, 32) == 32);
+    assert(mistral_test_layer_rows(2, 64, 128, 32) == 32);
+    assert(mistral_test_layer_rows(3, 64, 128, 32) == 64);
+    assert(mistral_test_layer_rows(4, 64, 128, 32) == 128);
+    assert(mistral_test_layer_rows(5, 64, 128, 32) == 128);
+    assert(mistral_test_layer_rows(6, 64, 128, 32) == 64);
+    assert(mistral_test_layer_cols(0, 64, 128) == 64);
+    assert(mistral_test_layer_cols(4, 64, 128) == 64);
+    assert(mistral_test_layer_cols(6, 64, 128) == 128);
+}
+
+test tensor_count {
+    assert(mistral_test_tensors_total(2) == 16);
+    assert(mistral_test_tensors_total(0) == 2);
+    assert(mistral_test_tensors_total(3) == 23);
+}
+
+test payload_bytes {
+    assert(mistral_test_param_bytes(256, 64, 128, 2, 32) == 425984);
+    assert(mistral_test_param_bytes(10, 4, 8, 1, 2) == 896);
+    assert(mistral_test_param_bytes(256, 64, 128, 0, 32) == 131072);
+}
+
+test param_and_file_totals {
+    assert(mistral_test_total_params(425984) == 106496);
+    assert(mistral_test_total_params(896) == 224);
+    assert(mistral_test_total_params(0) == 0);
+    assert(mistral_test_total_params(4) == 1);
+    assert(mistral_test_file_size(100, 425984) == 426092);
+    assert(mistral_test_file_size(0, 0) == 8);
+    assert(mistral_test_file_size(1, 0) == 9);
+}
+
+test header_comma_rule {
+    assert(mistral_test_entry_needs_comma(true) == false);
+    assert(mistral_test_entry_needs_comma(false) == true);
+}
+
+test sample_range_is_minus_one_to_one {
+    assert(mistral_test_scale_sample(0.0) == -1.0);
+    assert(mistral_test_scale_sample(0.5) == 0.0);
+    assert(mistral_test_scale_sample(0.75) == 0.5);
+    assert(mistral_test_scale_sample(0.25) == -0.5);
+}
+
+test main_reports_param_count {
+    assert(main(256, 64, 128, 2, 32) == 106496);
+    assert(main(10, 4, 8, 1, 2) == 224);
+}
