@@ -1,15 +1,15 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:69086d36c79a7be340a1f8271a654c30e9aff68df37104abf6c1346474746cce",
-  "gen_hash_rust": "sha256:5983941107884dca413c809393caf11d13f93c4dd41beda7b399dbbfed4e8b5d",
+  "gen_hash_rust": "sha256:d66f0b86ab4f668e731d959add5f3b804d4e674a43d5613eaa662811f259e394",
   "gen_hash_verilog": "sha256:e456919e2fbdfd2f6ded0b5ba195de533c0f612b2f303af755b611a293646fde",
   "gen_hash_zig": "sha256:7922cf58fa403c317a51b8bb488057e4e074c734ec43cd27ce4aa1e7d1bc2adb",
   "module": "gen_semaphore",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T14:55:28Z",
+  "sealed_at": "2026-10-11T15:13:42Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ca6e4827cedc796f23701fef2ab9913e249422d2c3263d298c9db20590da6e29",
   "spec_path": "specs/port/trinity/src/tri/gen_semaphore.t27",
@@ -18,7 +18,8 @@
     "failing": [],
     "forced": false,
     "passed": 5,
-    "total": 5
+    "total": 5,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

@@ -1,15 +1,15 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+0d573722c",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6ba1a78a43fa4da81b622c38fc2e5c60a2e6d57ce3e6146485675b23213c2d26",
-  "gen_hash_rust": "sha256:2d0853331b2c2eb115ee0e6dfac4e25060232d919f674f4b6a669ffc267861f1",
+  "gen_hash_rust": "sha256:5bd53d268cc2ef83cdebb23e8d556fb58a1ed1c133668ba8a4b31247ccaa84e1",
   "gen_hash_verilog": "sha256:c7a6d47f4803acd7547de0dea9c6d553ffa894b96e5875f70e19d63ed5e5f52d",
   "gen_hash_zig": "sha256:87f2fa8b80bd11cd8a0fe9c46fa0e57c94c534c0aef7f384c498badcd6350cb0",
   "module": "brain-unified-state",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-09T20:27:20Z",
+  "sealed_at": "2026-10-11T15:13:22Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:dabe7d471d36694586e35a6f92d85c5f08080f4214ada0aa1c46cb40eeea1ec0",
   "spec_path": "specs/brain/unified_state.t27",
@@ -18,7 +18,8 @@
     "failing": [],
     "forced": false,
     "passed": 3,
-    "total": 3
+    "total": 3,
+    "vacuous": 1
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

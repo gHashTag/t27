@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/sync/schema.t27",
@@ -8,13 +8,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:97a7b67f459611839206e2f566edf989ca76574112b94b24a24391ad3b61e204",
-  "gen_hash_rust": "sha256:c8e2ae109aadf72d2cc001a4e28e9b11603f65908fa9a8fd8bec5e3eb33691c5",
+  "gen_hash_rust": "sha256:90ec72bc705a1578210421e82b976a653fd9fc408e2d9f5a8dc07a57cbe0c711",
   "gen_hash_verilog": "sha256:75009d5cece160f978da4a775e6586925176dd73618b168f90ad180bc65e6d19",
   "gen_hash_zig": "sha256:3b270d0ff2bc05be3f7268dc9d35a4deac21b1477f973c73bfa267327388555d",
   "module": "sync-index",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:27Z",
+  "sealed_at": "2026-10-11T15:13:49Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:cf881e126a13ece468c589da0d1a252ad98a07931d25268645071a9ea360a71c",
   "spec_path": "specs/sync/index.t27",

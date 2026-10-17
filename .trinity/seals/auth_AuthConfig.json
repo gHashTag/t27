@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
+  "closure": [
+    {
+      "spec": "specs/account/schema.t27",
+      "spec_hash": "sha256:6e79aa7dfb52d6bbfa75189b40679bbc7c071fa43b9a72b1933bf6bd9f6cc5cb"
+    },
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:1f617fd8e151215144f7a3f5d8a0e1b1b4b1d470aeaaae73f43be9715050ae20",
-  "gen_hash_rust": "sha256:a3671ac23e7411c77f381079f48dfc1bb9e67b5a87247b6800fe9d329f220b47",
+  "gen_hash_rust": "sha256:dca071691da64f12d5083725e678427595d78405a6e599d3d54800e56c29b76c",
   "gen_hash_verilog": "sha256:9afe61648b5b94c1b18d5effda10c5adc0a1ea0d554c0321cb29a1b90289fba6",
   "gen_hash_zig": "sha256:d5257d0caacf75d70a130378d7e388e4aad14252f67c91304625c1e5aa9215e2",
   "module": "AuthConfig",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:28:32Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T15:13:19Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:42767a6bc1c93513de738fba57f17f82e2e945435ff464d1ef9538a549d60945",
   "spec_path": "specs/auth/config.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-config-582196/spec.zig:45:33: error: use of undeclared identifier 'Result'"
+    "blocked": "does not compile: spec.zig:45:33: error: use of undeclared identifier 'Result'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

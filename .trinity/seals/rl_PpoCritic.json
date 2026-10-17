@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -16,13 +16,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:dfe4928caf3eb0da2a106905e3a49faedc393248d9b0ad584d90e6a687c93739",
-  "gen_hash_rust": "sha256:af10aa62f8a7b60eda7f93922ca7e7547ace10645ca6cafff951c27c897bfb29",
+  "gen_hash_rust": "sha256:06d8334fc48c1bc40b2dad281f4170c7159ca7e510cd8c8a08b4135203014d6b",
   "gen_hash_verilog": "sha256:6b8841784e9aaf4927d43fd379b638a02182657882f35222fb977a7efea72521",
   "gen_hash_zig": "sha256:3af885cdbc8395d8b20dfdb34113a0d32b248f60b7fc7d1f2abf070b0b434004",
   "module": "PpoCritic",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:21Z",
+  "sealed_at": "2026-10-11T15:13:28Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:e9f86be672a9d2741ff8dd621803bd6df93768c54ea98eed45f2f4d81bc266ba",
   "spec_path": "specs/ml/rl/ppo_critic.t27",

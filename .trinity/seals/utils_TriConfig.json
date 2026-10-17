@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -12,13 +12,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5db3173c5d5d39513e958b685ad19380d6beef3e2e0c28a7e624a4e20686a6ec",
-  "gen_hash_rust": "sha256:d6c1bfc27137c9c4acab4bd0452b0fb0cda7ba2acb48c407463124afc136a72f",
+  "gen_hash_rust": "sha256:65977f4772d64eef9812ed22c104191a49d85e6725bd118a3ecd39f4ea8dd322",
   "gen_hash_verilog": "sha256:56d2eeb60b68e271520851a1d2fa5e0de5f671a115a9bb3430b1a2c056c2de8f",
   "gen_hash_zig": "sha256:6218804cda4125182b3112e211fcc5514694bb63fc9ebaba754efd3410fb82ec",
   "module": "TriConfig",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:29:45Z",
+  "sealed_at": "2026-10-11T15:13:54Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:5b0ee6c43560598a035ff97271295ba459930140467cae84b14ce25d95d494c9",
   "spec_path": "specs/tri/utils/config.t27",

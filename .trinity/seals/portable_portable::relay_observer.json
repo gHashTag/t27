@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/compiler/lexer.t27",
@@ -8,13 +8,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:d02b79f3cf1e7980767cb71d681bf84a0a469ecef63a920bd4481540d49eb07c",
-  "gen_hash_rust": "sha256:0a448001c5a8fcfaffe1a4a3e26bf55878b3a362660bcddb491fc1e634f05a1a",
+  "gen_hash_rust": "sha256:f1a42ca9de96aa2110dbffed77a32ecd6c1f436bc801b382b189d72b75bf39ab",
   "gen_hash_verilog": "sha256:3e079c9ecdb0c46626d301b159ec40a69ef35b45923ca94d66dc4605e2efd01e",
   "gen_hash_zig": "sha256:077b2af08680dd114b3849393733c439c61381074485028a4f7c1089656de8bb",
   "module": "portable::relay_observer",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:26Z",
+  "sealed_at": "2026-10-11T15:13:47Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:22eb9b38f7ce6a91d5e60f5cc789b52824a928275923b7e0af500b9e98beca9e",
   "spec_path": "specs/portable/relay_observer.t27",

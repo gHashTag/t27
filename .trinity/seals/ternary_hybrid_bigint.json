@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+d2c750b54",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
     },
     {
       "spec": "specs/numeric/gf16.t27",
@@ -16,13 +16,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:016bb76e312aa1db5c905bed7e2c705fd8a1f55155544e0dc63234ad502d5425",
-  "gen_hash_rust": "sha256:aa5db8b3e2a9169c0fdae53ad35fa6c0d8bdd099005d32f328344ac30ec8ff80",
+  "gen_hash_rust": "sha256:0ce4ab38b9605bdc10cf06ebe9220cec77f2c3663d50d57b3bd72558e77fd9a4",
   "gen_hash_verilog": "sha256:72c49ed3f111af5dc4b098314a7d4c1ebd3a45c593d925e2320fa76838cebd3c",
   "gen_hash_zig": "sha256:d67d67b80fc86f55b22c1409ac33d9675a69aeb3a68c5cc3c1a09604c7323e78",
   "module": "hybrid_bigint",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:42:46Z",
+  "sealed_at": "2026-10-11T15:13:50Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:0c6a410bd57a3c1490b4754dc41e2bcbadd163164aef083225e809a857c3dbea",
   "spec_path": "specs/ternary/hybrid_bigint.t27",

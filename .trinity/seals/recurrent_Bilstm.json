@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -16,13 +16,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:36d162b43b399a65f7f81412ca08419a9b3874245289988c78222cac4e8db0f0",
-  "gen_hash_rust": "sha256:a73948d9b1c686280a33f5bfe7bf429c93a31579e1f9dd0ccc08c78f9c717830",
+  "gen_hash_rust": "sha256:46d6427a8d780cb22f4b10c62103d9541eb92874e336a92627e5da6250bfbefa",
   "gen_hash_verilog": "sha256:d304d2d9c18879c385e2bfffbee17e8116d480b9478c496440f846427f3080fb",
   "gen_hash_zig": "sha256:30ba571314d22ee7d73ee06e401d9994becac949abe17c7b149d4cd9a003790e",
   "module": "Bilstm",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:20Z",
+  "sealed_at": "2026-10-11T15:13:26Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:d9e758b520a636bb30f403dae2bc73376bc5c6e22d34f699e1274ba2b2c28398",
   "spec_path": "specs/ml/recurrent/bilstm.t27",

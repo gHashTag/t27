@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/ops.t27",
@@ -16,13 +16,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:a2d246976083268aa221bb133036dd822a8a59a89d5577867be50e760d693cae",
-  "gen_hash_rust": "sha256:69b425a5237b062deaed1ffd1c0a58d4b23ba51f60b9e7d163659c134bf00221",
+  "gen_hash_rust": "sha256:c9fdbca01a0259e028b7fdda879a58f99d293d985ee79c3e61e75fb80bde8149",
   "gen_hash_verilog": "sha256:d83321903da73e4b7729242f6348209e7a5e09107c0e15af06530609b969894b",
   "gen_hash_zig": "sha256:d79abdf777a78fbc95321a0f1f9c60cbff837bad8eed4f2945ee9f56c008c577",
   "module": "PinsParser",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:29:23Z",
+  "sealed_at": "2026-10-11T15:13:28Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:2136baa6752930a651ba388fd268c76b484e02dfb56510fae190614c4e1ead92",
   "spec_path": "specs/pins/parser.t27",

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:558974c9775c8afd224608730fc60ad97c17a494e890347692ece3b671fb1cfc",
-  "gen_hash_rust": "sha256:61c129c5d0f08620757d9216395b4b779d2a42f27b54d9c9f338f945df224f54",
+  "gen_hash_rust": "sha256:8ea7969a3d96f9d6701c63474642b9bad231db894ce7ae6853d85a40b4ff044e",
   "gen_hash_verilog": "sha256:1f1bc8bcb1a74652239215569cab7131e96eebc805642407fbcd613ec95153d4",
   "gen_hash_zig": "sha256:b58b55c4072ac54b89002deaf86d5d38155e004c94b1395b2760f113ed0abf1a",
   "module": "TriDisjointSet",
   "ring": 12,
-  "sealed_at": "2026-10-10T15:03:20Z",
+  "sealed_at": "2026-10-11T15:13:50Z",
   "spec_hash": "sha256:4afd8be294df59ba422ee072a9545d06538b3fefcb4ba33af9cc832746161711",
   "spec_path": "specs/tri/graph/disjoint_set.t27",
   "tests": {

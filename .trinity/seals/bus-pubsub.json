@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:102f13a39782d4087a4604a4b8cbc0e460d8175925136d085dcdd4d351ae3b96",
-  "gen_hash_rust": "sha256:e3d925ea223ee14963a36ac5540d043073bccfa6c29d01b4d124c647961cad31",
+  "gen_hash_rust": "sha256:f9d934919f903ab25ebeefc0879a49fcab1143e0dbb8172791fe5f2e1118497b",
   "gen_hash_verilog": "sha256:6e335f45fb2f1e959a071005d2dc0140ab7c87ce96756cff6b6da20712ff1f7d",
   "gen_hash_zig": "sha256:5baa2c4d2f69485d93106e10f5cb207aaca5a742bc2ca20921009c774b89e6dd",
   "module": "bus-pubsub",
   "ring": 12,
-  "sealed_at": "2026-10-11T10:43:11Z",
+  "sealed_at": "2026-10-11T15:13:20Z",
   "spec_hash": "sha256:382751dfba3a4c31595948fd481c50c2e383881399e6f3ce87516c03d33324e9",
   "spec_path": "specs/bus/pubsub.t27",
   "tests": {

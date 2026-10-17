@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
+    },
+    {
+      "spec": "specs/math/constants.t27",
+      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:2624c5821c3b06e9834ad61d95d74f7945a02f1e19750b71c3336c7b2b0c92d6",
-  "gen_hash_rust": "sha256:75dc19ed777c5ff8a3783cc008058e735cc440cced749c90893325037ab6fe48",
+  "gen_hash_rust": "sha256:a0daaa2edd8fd6aaa0db0da0f4458b8dfe17ffbe275c95e26580025d1af435f9",
   "gen_hash_verilog": "sha256:d869774154125092ddc7a25cee0f388c8ce2188ed3ccd0a779ed7f8c00cae305",
   "gen_hash_zig": "sha256:84026e91685cc043932a7878b09840baa9dc76ea7e719ce804fcd4e4bbb4d6b9",
   "module": "TriSuffixArray",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:33Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T15:13:53Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:969e923513f9a00d7129d617f51e007aeffaf65c24305f40d537c87a3b013db5",
   "spec_path": "specs/tri/trees/suffix_array.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-suffix_array-3534637/spec.zig:52:26: error: use of undeclared identifier 'allocator'"
+    "blocked": "does not compile: spec.zig:52:26: error: use of undeclared identifier 'allocator'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

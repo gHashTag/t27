@@ -714,3 +714,25 @@ fn c_declares_a_local_nested_array_as_a_matrix() {
     };
     assert_eq!(out, "4 8 32", "every cell of a local matrix keeps its own value");
 }
+
+/// #8891: specs/compiler/codegen_conformance.t27 passed test-report while its gen-rust output did not
+/// compile. rustc builds it now, and the #8891 cases compute what the spec's Zig tests assert.
+#[test]
+fn the_codegen_conformance_spec_compiles_and_runs_as_rust() {
+    let main = "fn main(){ let mut t = tally(&[1u8, 2, 3][..]); let n = t.n; println!(\"{} {} {} {} {:?} {} {}\", size_of(11) == Some(Size::big), \
+                size_name(Size::big), name_len(2), verdict(11).code, head(&[9u8, 8, 7][..], 2), n, tally_bump(&mut t, 2)); }\n";
+    let Some(out) = rust_says(include_str!("../../specs/compiler/codegen_conformance.t27"), main, "rust-codegen-conformance") else {
+        return;
+    };
+    assert_eq!(out, "true big 3 1 [9, 8] 3 5");
+}
+
+/// #8891: `@log2` reached rustc verbatim. It is a method, as `@sqrt` is.
+#[test]
+fn rust_lowers_log2_to_a_method() {
+    let spec = "module lg\npub fn lg(v: f64) f64 {\n    return @log2(v);\n}\n";
+    let Some(out) = rust_says(spec, "fn main(){ println!(\"{}\", lg(8.0)); }\n", "rust-log2") else {
+        return;
+    };
+    assert_eq!(out, "3");
+}

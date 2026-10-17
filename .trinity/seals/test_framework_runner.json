@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/test_framework/core.t27",
@@ -8,13 +8,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:6e77244454b333ba5227bb833a8c17dbd9d32f95d90a1132c6e39eabd0e383ec",
-  "gen_hash_rust": "sha256:08e01ce910eca40aabc8793bd6bf405e96e5ea12aa6e59b23d8ddf3785607a3d",
+  "gen_hash_rust": "sha256:3cf5c5c297683672e9884cf12118a7e5dffd72a5932ce5d7b060f07752d696b4",
   "gen_hash_verilog": "sha256:bc31fb46be22b95d35b765f9e6cb02a17e045ebc2ddd68abfd1118bfaf7a728d",
   "gen_hash_zig": "sha256:85e6b94ee909b29fe54ddb1e397c2840bd7e2b38f684b490c1cdd864e056579b",
   "module": "runner",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T15:02:09Z",
+  "sealed_at": "2026-10-11T15:13:50Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:430bfca8d5891151528caf595b22e48b2a3a3db77bfd14eb48056cff2fe150b2",
   "spec_path": "specs/test_framework/runner.t27",

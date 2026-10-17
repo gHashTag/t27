@@ -1,9 +1,9 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
     },
     {
       "spec": "specs/compiler/lexer.t27",
@@ -12,13 +12,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:169d38758a8671afc355477e0f81bb6fbd16d7969a4db52f02093efe7ddf154f",
-  "gen_hash_rust": "sha256:ee1d209550760d3728ba4356a6431d0e263a275949e7ac473c746b4c354fa523",
+  "gen_hash_rust": "sha256:bda895427b426809d310b0ee7e7111a0c3565aae153aba2a5b101edcea19a275",
   "gen_hash_verilog": "sha256:4b39f00f18c58de1210c3c02ced859f1b8c6fe801269042ad1774aa8db912a4c",
   "gen_hash_zig": "sha256:55d42ef752bb462f03ca4d797d3ea6a31b136a72e5e5198eab5f476d934b6d70",
   "module": "Parsing",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T14:33:39Z",
+  "sealed_at": "2026-10-11T15:13:21Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8b617c8818b6b456fdbf9040c24b415a2c8e65f597dadf08f5586835e3b7fbc4",
   "spec_path": "specs/compiler/parser.t27",

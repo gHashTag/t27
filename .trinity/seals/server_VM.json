@@ -1,16 +1,40 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
+    },
+    {
+      "spec": "specs/hybrid_arithmetic.t27",
+      "spec_hash": "missing"
+    },
+    {
+      "spec": "specs/numeric/gf16.t27",
+      "spec_hash": "sha256:2a33d77db23966331716955924d08e30d12a3af361067da0a2c7072b7f4b7b0d"
+    },
+    {
+      "spec": "specs/vsa/core.t27",
+      "spec_hash": "missing"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:5f3cfce6951bce236ff7f73aa5af71c99d83abe41da1ee06ae036c9abdde98af",
-  "gen_hash_rust": "sha256:c92ba04227d5a204d8a7f3b296bcc944d48d61cc6588a37539a12fd7efd9346a",
+  "gen_hash_rust": "sha256:77680584316341dbc2bc70439cc75ad4f29c724ca8b0ae756a05bbb0ce48ba19",
   "gen_hash_verilog": "sha256:a77b68fe170204c69286d2191e62ddec1dd7f82a529467bd025ef7a36ed83a51",
   "gen_hash_zig": "sha256:e02e484f54eb8c19f69d63dd7390a85a8b393f621166272430ff74203ee30438",
   "module": "VM",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:09:24Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T15:13:49Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:3ea09ea9d529ec1b2e7b98a598eb7b356a763104384915f25794266e1f6a6706",
   "spec_path": "specs/server/vm.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:48:9: error: use of undeclared identifier 'hybrid_arithmetic'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3a55691994f0b48444fa7d118e69ac14a37827468319c330b3fc23815d7ac3b3",
-  "gen_hash_rust": "sha256:f1b356320a784b0ce927831bc133636060b9a7cf1a396ec701bad098fba7f6b2",
+  "gen_hash_rust": "sha256:eab72fb71adc11da75394aa3d3abdf98c3665143d20fbd86d1e57a2025be5527",
   "gen_hash_verilog": "sha256:60c582a3f47d655fec90d88ab3d0b0c82d83a1b160a1d0b3eab5d67bdcb0d4af",
   "gen_hash_zig": "sha256:06374623b7179a0f0e21559f8ca7c58f03e123e2706f84f3b8c7285c8a796d70",
   "module": "Gru",
   "ring": 12,
-  "sealed_at": "2026-10-11T10:43:20Z",
+  "sealed_at": "2026-10-11T15:13:26Z",
   "spec_hash": "sha256:c191eb8649f58b0c1e1580164ad215b8c4b548e77dbf32bc4f5ebf4c837dc5a8",
   "spec_path": "specs/ml/recurrent/gru_cell.t27",
   "tests": {

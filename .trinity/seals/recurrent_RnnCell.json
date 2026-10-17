@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -12,13 +12,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e677424e4496577dc01a8e17d01ef62688aca9e496698d1c8fcb724d89146f01",
-  "gen_hash_rust": "sha256:ccebe6465a7c9b3d62cca9eec2da0641a834572828061e1faf5f39c56460cae5",
+  "gen_hash_rust": "sha256:3ff2ac16d685d33341814205853d1acf8d038298df22322f7aef0f86271014a1",
   "gen_hash_verilog": "sha256:b566b12ac3c311ed309eb719558b56c9d2ed9f3068c2a1470053d1a863d01ed8",
   "gen_hash_zig": "sha256:955445b259e2ca54159413a727129e119d1a61e8e38ff67b4e4a3f2c48257540",
   "module": "RnnCell",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:21Z",
+  "sealed_at": "2026-10-11T15:13:27Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:09f67415a49b61d028c7a15e93caff8f3d3d309b7bb9452b1b6260132caf8887",
   "spec_path": "specs/ml/recurrent/rnn_cell.t27",

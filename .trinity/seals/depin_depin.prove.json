@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/tri/crypto/sha256.t27",
@@ -8,13 +8,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:9b62b16eddc61a99dc2850fd78897196b247289dff1336b80b1de0c7c8a42d38",
-  "gen_hash_rust": "sha256:ea857f04f72d1180acda6c2708e037cb3b54d48f564d3aea1e84f8d4e94d15df",
+  "gen_hash_rust": "sha256:6874de68f94a8c1d7827b2d9ae7b067f8287183f052e56f8d5bfa8770d2214ef",
   "gen_hash_verilog": "sha256:33c6bbf3c0b221401a0e17f3cf6778b3790a00e69e87d619d4be9e4f840da645",
   "gen_hash_zig": "sha256:575aa59e61b3339edd9894103eb185628cb3b423b1e8ea93473136747a77d697",
   "module": "depin.prove",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:29:08Z",
+  "sealed_at": "2026-10-11T15:13:22Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:399edc0d7c3c0631ae4eab7918fbde7e5e2902db807bb59f19975b0743eee539",
   "spec_path": "specs/depin/prove.t27",

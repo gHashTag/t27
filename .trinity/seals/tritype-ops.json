@@ -3,13 +3,13 @@
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:2c253c12da1b7a0158d79e21339c5d7fceb27570d8431b8dd0c87cd758ee85dc",
-  "gen_hash_rust": "sha256:6a9b0cfad2bde6c784c3a23ba8dd32b6a711c537cccc617e067dae1ae380d8ab",
+  "gen_hash_rust": "sha256:fe57c7c05d7a0059cfa7b626acab5d7a38b049f290759042a95879f5600e8870",
   "gen_hash_verilog": "sha256:9a493af5cd53af9501cf06387caae485815555ea8166dd90e17fcca640374908",
   "gen_hash_zig": "sha256:6b523cff65edf58917acf7c6b8d53ce202ada60fbd2ddccad3bd4e3a9f78a16e",
   "module": "tritype-ops",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T12:12:15Z",
+  "sealed_at": "2026-10-11T15:13:22Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:8e6c6168f64ff2d654a3b276d7f3ceee4fbd408d334590ce03467b1f3aaa68b3",
   "spec_path": "specs/base/ops.t27",
@@ -18,7 +18,8 @@
     "failing": [],
     "forced": false,
     "passed": 95,
-    "total": 95
+    "total": 95,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

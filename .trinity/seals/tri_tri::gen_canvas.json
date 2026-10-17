@@ -1,15 +1,15 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:54647b531a8d7b73c0aadd682a1d14f3018ac2ba38aed08f9cffc02af0c7ed80",
-  "gen_hash_rust": "sha256:6869423845bcd7b0dac1a25713b6459f9b58582b99b10b71826c0d7363766491",
+  "gen_hash_rust": "sha256:f95873278617d03b8be947af9628ab9bcba2e60bbd56b39326628a79e59dbfe0",
   "gen_hash_verilog": "sha256:a2483ed61b91fc8ffaac76dfabf7727e6294dea18177153dd278f8f687b00c8b",
   "gen_hash_zig": "sha256:a5fd6e2a881d7ce85d1f331acbcb66ec42dac2f2dd8e12098b370a2ce43f34ea",
   "module": "tri::gen_canvas",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T14:43:54Z",
+  "sealed_at": "2026-10-11T15:13:39Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:56bc96623d23d3517fc2698897e68ee3d815563d0795054b2667e78f1d12be61",
   "spec_path": "specs/port/trinity/src/tri/gen_canvas.t27",
@@ -18,7 +18,8 @@
     "failing": [],
     "forced": false,
     "passed": 5,
-    "total": 5
+    "total": 5,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

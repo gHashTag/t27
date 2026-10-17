@@ -1,14 +1,14 @@
 {
   "gen_hash_c": "sha256:3d4df16f98e5c132da31122529db5748193ff6ae991abd3fbed9241f08c70db5",
-  "gen_hash_rust": "sha256:f01ef5e088a39be0bb2a82a218f35bdbb74850f979c431af53928af397fa18ec",
+  "gen_hash_rust": "sha256:c3c7e64c99412afe2aaaad41d0de86b281e281d7670224ce1b572aa50d71297f",
   "gen_hash_verilog": "sha256:ff4d69c51f98767ed6faa252f7a475825b3081054a054e37219c5fe789638709",
   "gen_hash_zig": "sha256:891c3d16eb8f263b55f426e0b6ef955f500343dbcdf4b20bbd9f5b6393b4c7e5",
   "module": "TriLogging",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:58Z",
+  "sealed_at": "2026-10-11T15:13:54Z",
   "spec_hash": "sha256:392e71d52d9e5c586f8470b1d50f860a2256f732b92e9c77951fb62417b4257f",
   "spec_path": "specs/tri/utils/logging.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-logging-1848800/spec.zig:77:22: error: use of undeclared identifier 'tag'"
+    "blocked": "does not compile: spec.zig:77:22: error: use of undeclared identifier 'tag'"
   }
 }

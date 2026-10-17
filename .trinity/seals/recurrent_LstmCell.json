@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+8cc6f0334",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -12,13 +12,13 @@
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:67e9d46e36a19b3474cc6dbae920d6927ff3a482210ea848d0f608d0ccef17af",
-  "gen_hash_rust": "sha256:e3291879649177dfaf33c7a52e3111896a77ec3d8d6329ab8cf9cfc3381242f2",
+  "gen_hash_rust": "sha256:f273354cdd17b00779ddaa9bf430ba76eabf674b7c0c2e751f0cbb6e5f6eda77",
   "gen_hash_verilog": "sha256:3a7ceb27aa49602fde255db6321a7a453cf6ebc8e87bad57c4970f57ef804769",
   "gen_hash_zig": "sha256:f7f1c164368fa4912292a1d7c2f0cb6b23a3d78bd7a97f5f40dd73b0bd8ec6db",
   "module": "LstmCell",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:21Z",
+  "sealed_at": "2026-10-11T15:13:27Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ef4ffa30e7adf81c8467768ec637ba33643c7872f6746cf244cdaa12eff68385",
   "spec_path": "specs/ml/recurrent/lstm_single.t27",
