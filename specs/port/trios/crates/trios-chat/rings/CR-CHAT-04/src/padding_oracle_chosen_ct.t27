@@ -1,0 +1,372 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_oracle_chosen_ct;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_oracle_chosen_ct.rs
+// (CR-CHAT-04 - Chosen-ciphertext padding-oracle guard, Wave-25
+// Lane A, requirement R-CHAT-4).
+//
+// An active adversary submits chosen ciphertexts and reads back
+// which error path fired. A Vaudenay-style oracle leaks plaintext
+// a byte at a time when bad padding, bad framing and short buffers
+// answer differently, so every reject must collapse into the
+// single opaque error class this module declares; the length tag
+// forgery, the class-edge collision and the multi-class span all
+// land on DeclaredLengthOverflow or NotACanonicalClass, never on a
+// class-specific tag. The tail bytes are never read - mutating one
+// deep in the zero region cannot flip a verdict - and the guard
+// reasons over the layout only: a zero declared length with a
+// non-zero tail still accepts.
+//
+// The original returns Result<usize, PaddingOracleCtError> and
+// threads a mutable VerdictLedger through every call: sixteen
+// consecutive rejects lock the session, an accept resets the
+// streak. t27 functions are pure, so the ledger passes by value
+// and the verdict carries the state the call leaves behind -
+// the reject count and the session id - exactly the original's
+// &mut threading in the fixed form. The verdict codes keep the
+// original's declaration order: Ok first, then
+// NotACanonicalClass, BufferTooShort, DeclaredLengthOverflow and
+// ProbeBudgetExceeded.
+//
+// The class ladder is the original's crate::CLASSES, and the
+// declared length is the big-endian u32 of the buffer's first
+// four bytes, folded byte by byte through the int-widening cast -
+// no shift-and-truncate anywhere. The saturating increment of the
+// reject streak becomes a helper with an explicit ceiling guard.
+
+// Maximum consecutive rejects from one probe session before the
+// oracle hard-fails.
+pub const PROBE_BUDGET: u32 = 16;
+
+// The four canonical padding classes, ascending - the original's
+// crate::CLASSES entry by entry.
+pub const CCT_CLASSES: [4]usize = [4]usize{256, 1024, 4096, 16384,};
+
+// The probe session id of the fixtures, one byte repeated
+// thirty-two times - the original's s().
+pub const SESSION_32: [32]u8 = [32]u8{170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170,};
+
+// A probe-session ledger: the opaque session id and the count of
+// consecutive rejects.
+pub struct VerdictLedger {
+    session: [32]u8,
+    rejects: u32,
+}
+
+// Verdict codes: Ok(usize) and PaddingOracleCtError's variants, in declaration order.
+pub enum PaddingOracleCtCode {
+    Ok,
+    NotACanonicalClass,
+    BufferTooShort,
+    DeclaredLengthOverflow,
+    ProbeBudgetExceeded,
+}
+
+// The verdict of one probe: the code, the plaintext length on
+// accept, and the ledger state the call leaves behind.
+pub struct ProbeVerdict {
+    code: PaddingOracleCtCode,
+    plaintext_len: usize,
+    rejects: u32,
+    session: [32]u8,
+}
+
+// Whether the length is one of the four canonical classes - the
+// original's CLASSES.contains, answered by a scan.
+pub fn is_class(len: usize) -> bool {
+    for c in CCT_CLASSES {
+        if (c == len) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The big-endian u32 of the buffer's first four bytes - the
+// original's u32::from_be_bytes, folded byte by byte through the
+// int-widening cast.
+pub fn read_be32(b: []const u8) -> u32 {
+    var v: u32 = 0;
+    var wide: u32 = 0;
+    for i in 0..4 {
+        wide = @as(u32, b[i]);
+        v = v * 256 + wide;
+    }
+    return v;
+}
+
+// The reject streak after one more reject - the original's
+// saturating_add(1), ceiling guard explicit.
+pub fn next_rejects(rejects: u32) -> u32 {
+    var bumped: u32 = rejects;
+    if (bumped < 4294967295) {
+        bumped = bumped + 1;
+    }
+    return bumped;
+}
+
+// Whole-form equality over the fixed thirty-two session bytes.
+pub fn sessions_equal(a: [32]u8, b: [32]u8) -> bool {
+    for i in 0..32 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// [VERIFIED] Verify a chosen-ciphertext probe against the
+// padding-oracle guard. Returns Ok with the plaintext length only
+// when every rule holds, checked in the original's order: the
+// session lock first - which never bumps the streak - then the
+// buffer floor, the canonical-class scan and the declared-length
+// ceiling, each reject bumping the streak, and an accept resetting
+// it to zero.
+pub fn verify_probe(buf: []const u8, ledger: VerdictLedger) -> ProbeVerdict {
+    if (ledger.rejects >= PROBE_BUDGET) {
+        return ProbeVerdict { code: PaddingOracleCtCode.ProbeBudgetExceeded, plaintext_len: 0, rejects: ledger.rejects, session: ledger.session, };
+    }
+    if (buf.len < 4) {
+        return ProbeVerdict { code: PaddingOracleCtCode.BufferTooShort, plaintext_len: 0, rejects: next_rejects(ledger.rejects), session: ledger.session, };
+    }
+    if (!is_class(buf.len)) {
+        return ProbeVerdict { code: PaddingOracleCtCode.NotACanonicalClass, plaintext_len: 0, rejects: next_rejects(ledger.rejects), session: ledger.session, };
+    }
+    const len32: u32 = read_be32(buf);
+    const len: usize = @as(usize, len32);
+    if (len + 4 > buf.len) {
+        return ProbeVerdict { code: PaddingOracleCtCode.DeclaredLengthOverflow, plaintext_len: 0, rejects: next_rejects(ledger.rejects), session: ledger.session, };
+    }
+    return ProbeVerdict { code: PaddingOracleCtCode.Ok, plaintext_len: len, rejects: 0, session: ledger.session, };
+}
+
+// **CCT-01** - a well-formed probe accepted, the streak reset: the
+// ledger enters with five rejects and leaves clean.
+test cct01_valid_probe_accepted_and_counter_resets {
+    var buf: [256]u8;
+    for j in 0..256 {
+        buf[j] = 0;
+    }
+    buf[3] = 10;
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 5, };
+    const r = verify_probe(&buf, led);
+    assert(r.code == PaddingOracleCtCode.Ok);
+    assert(r.plaintext_len == 10);
+    assert(r.rejects == 0);
+}
+
+// **CCT-02** - the length-tag forge: a 256-buffer declaring 253
+// lands on the single opaque overflow tag, never a class-specific
+// one.
+test cct02_length_tag_forge_uniform_error {
+    var buf: [256]u8;
+    for j in 0..256 {
+        buf[j] = 0;
+    }
+    buf[3] = 253;
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const r = verify_probe(&buf, led);
+    assert(r.code == PaddingOracleCtCode.DeclaredLengthOverflow);
+    assert(r.rejects == 1);
+}
+
+// **CCT-03** - the tail-byte probe: a byte deep in the zero tail
+// flipped cannot flip the verdict - both probes answer Ok with
+// the same plaintext length.
+test cct03_tail_byte_mutation_no_verdict_flip {
+    var a: [256]u8;
+    for j in 0..256 {
+        a[j] = 0;
+    }
+    a[3] = 4;
+    a[200] = 0;
+    var b: [256]u8;
+    for j in 0..256 {
+        b[j] = 0;
+    }
+    b[3] = 4;
+    b[200] = 255;
+    const led_a: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const led_b: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const ra = verify_probe(&a, led_a);
+    const rb = verify_probe(&b, led_b);
+    assert(ra.code == rb.code);
+    assert(ra.plaintext_len == rb.plaintext_len);
+    assert(ra.code == PaddingOracleCtCode.Ok);
+    assert(ra.plaintext_len == 4);
+}
+
+// **CCT-04** - the class-edge collision: 255 and 257 both reject
+// with the same NotACanonicalClass tag.
+test cct04_class_edge_collision_same_error {
+    var lo: [255]u8;
+    for j in 0..255 {
+        lo[j] = 0;
+    }
+    var hi: [257]u8;
+    for j in 0..257 {
+        hi[j] = 0;
+    }
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const r1 = verify_probe(&lo, led);
+    const r2 = verify_probe(&hi, led);
+    assert(r1.code == PaddingOracleCtCode.NotACanonicalClass);
+    assert(r2.code == PaddingOracleCtCode.NotACanonicalClass);
+}
+
+// **CCT-05** - the multi-class span: a 1024-buffer claiming 4000
+// lands on the opaque overflow tag, not a class-confusion one.
+test cct05_multi_class_span_rejected_as_overflow {
+    var buf: [1024]u8;
+    for j in 0..1024 {
+        buf[j] = 0;
+    }
+    buf[2] = 15;
+    buf[3] = 160;
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const r = verify_probe(&buf, led);
+    assert(r.code == PaddingOracleCtCode.DeclaredLengthOverflow);
+}
+
+// **CCT-06** - the zero-length forgery: a 256-buffer declaring
+// zero with a non-zero tail accepts - layout-only reasoning, the
+// tail is never inspected.
+test cct06_zero_length_nonzero_tail_accepted {
+    var buf: [256]u8;
+    for j in 0..256 {
+        buf[j] = 0;
+    }
+    for j in 4..256 {
+        buf[j] = 205;
+    }
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const r = verify_probe(&buf, led);
+    assert(r.code == PaddingOracleCtCode.Ok);
+    assert(r.plaintext_len == 0);
+}
+
+// **CCT-07** - a three-byte buffer collapses to BufferTooShort
+// without inspecting any payload.
+test cct07_short_buffer_uniform_error {
+    var short: [3]u8 = [3]u8{0, 0, 0,};
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const r = verify_probe(&short, led);
+    assert(r.code == PaddingOracleCtCode.BufferTooShort);
+    assert(r.rejects == 1);
+}
+
+// **CCT-08** - the probe budget: sixteen consecutive rejects lock
+// the session; the seventeenth call answers ProbeBudgetExceeded
+// even for an otherwise-valid buffer, and the lock never bumps
+// the streak further.
+test cct08_probe_budget_locks_session {
+    var bad: [200]u8;
+    for j in 0..200 {
+        bad[j] = 0;
+    }
+    var led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    var r: ProbeVerdict = ProbeVerdict { code: PaddingOracleCtCode.Ok, plaintext_len: 0, rejects: 0, session: SESSION_32, };
+    for _ in 0..16 {
+        r = verify_probe(&bad, led);
+        led = VerdictLedger { session: r.session, rejects: r.rejects };
+    }
+    assert(r.code == PaddingOracleCtCode.NotACanonicalClass);
+    assert(led.rejects == 16);
+    var good: [256]u8;
+    for j in 0..256 {
+        good[j] = 0;
+    }
+    good[3] = 4;
+    const final = verify_probe(&good, led);
+    assert(final.code == PaddingOracleCtCode.ProbeBudgetExceeded);
+    assert(final.rejects == 16);
+}
+
+// **CCT-09** - an accept resets the streak: fifteen rejects count
+// up, one valid frame zeroes the count.
+test cct09_accept_resets_streak {
+    var bad: [200]u8;
+    for j in 0..200 {
+        bad[j] = 0;
+    }
+    var led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    var r: ProbeVerdict = ProbeVerdict { code: PaddingOracleCtCode.Ok, plaintext_len: 0, rejects: 0, session: SESSION_32, };
+    for _ in 0..15 {
+        r = verify_probe(&bad, led);
+        led = VerdictLedger { session: r.session, rejects: r.rejects };
+    }
+    assert(led.rejects == 15);
+    var good: [256]u8;
+    for j in 0..256 {
+        good[j] = 0;
+    }
+    good[3] = 4;
+    const after = verify_probe(&good, led);
+    assert(after.code == PaddingOracleCtCode.Ok);
+    assert(after.plaintext_len == 4);
+    assert(after.rejects == 0);
+}
+
+// **CCT-10** - green: the budget constant is public and a fresh
+// ledger carries the session and a zero streak.
+test cct10_green_module_exports {
+    assert(PROBE_BUDGET == 16);
+    const led: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    assert(sessions_equal(led.session, SESSION_32));
+    assert(led.rejects == 0);
+}
+
+// The four helpers have direct tests (coverage: Untested 0).
+test helpers_answer {
+    assert(is_class(256));
+    assert(is_class(1024));
+    assert(is_class(4096));
+    assert(is_class(16384));
+    assert(!is_class(200));
+    assert(!is_class(255));
+    assert(!is_class(257));
+    assert(!is_class(0));
+
+    var ten: [4]u8 = [4]u8{0, 0, 0, 10,};
+    assert(read_be32(&ten) == 10);
+    var span_len: [4]u8 = [4]u8{0, 0, 15, 160,};
+    assert(read_be32(&span_len) == 4000);
+    var zero: [4]u8 = [4]u8{0, 0, 0, 0,};
+    assert(read_be32(&zero) == 0);
+
+    assert(next_rejects(0) == 1);
+    assert(next_rejects(15) == 16);
+    assert(next_rejects(4294967295) == 4294967295);
+
+    assert(sessions_equal(SESSION_32, SESSION_32));
+    var alt: [32]u8;
+    for j in 0..32 {
+        alt[j] = 170;
+    }
+    alt[0] = 171;
+    assert(!sessions_equal(alt, SESSION_32));
+}
+
+// Rule order is the original's: the session lock before anything -
+// it never bumps the streak - the buffer floor before the class
+// scan, and the class scan before the declared-length ceiling.
+test rule_order_matches_original {
+    const locked: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 16, };
+    var short: [3]u8 = [3]u8{0, 0, 0,};
+    const v1 = verify_probe(&short, locked);
+    assert(v1.code == PaddingOracleCtCode.ProbeBudgetExceeded);
+    assert(v1.rejects == 16);
+
+    const fresh: VerdictLedger = VerdictLedger { session: SESSION_32, rejects: 0, };
+    const v2 = verify_probe(&short, fresh);
+    assert(v2.code == PaddingOracleCtCode.BufferTooShort);
+    assert(v2.rejects == 1);
+
+    var span: [200]u8;
+    for j in 0..200 {
+        span[j] = 0;
+    }
+    span[2] = 117;
+    span[3] = 48;
+    const v3 = verify_probe(&span, fresh);
+    assert(v3.code == PaddingOracleCtCode.NotACanonicalClass);
+}
