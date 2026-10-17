@@ -1,0 +1,211 @@
+module port::trinity_vibeec_updated_codex;
+
+// Port of gHashTag/trinity src/vibeec/updated_codex.zig @ aa30f374eee0
+// ("UPDATED CODEX - THE VOICE (STREAMING & ADAPTIVE)", 108 lines, 5 functions)
+// to a .t27 spec, per the roadmap stage-5 port rules.
+//
+// Ported here is the decision core:
+//   - the initial streaming state (128-byte buffer, STANDARD mode),
+//   - the metabolic buffer thresholds (input > 1000 -> 1024, > 100 -> 512,
+//     else 128) and the announce-only-on-change condition behind the print,
+//   - the ten-step streaming loop: hit rate starting at 1.0 and decaying by
+//     0.05 per step, a STANDARD-mode run mutating once the rate drops below
+//     0.70 and recovering to 0.95,
+//   - the mutation decision itself: the mode switch to TURBO (the simulated
+//     AVX2 backend change), and
+//   - main's scenario: a short input first, then a 2000-byte one.
+//
+// Left out as plumbing, per the port rules: the allocator and the
+// AdaptiveCache handle (heap plus an imported module - adaptive_cache.zig),
+// the cache.evolveCache() call, the std.debug.print chatter, the
+// std.Thread.sleep pacing, and the heap/cache setup in main. The caller
+// prints, sleeps and owns the cache; the printed words are data flowing out,
+// not decisions.
+
+enum InferenceMode {
+    STANDARD,
+    TURBO,
+}
+
+// The original struct also stores the allocator and the cache handle; both
+// are plumbing and take no part in a decision, so they stay out.
+struct StreamingInference {
+    buffer_size: usize,
+    mode: InferenceMode,
+}
+
+// One simulated run's outcome. The original carries the same facts in self
+// (buffer_size, mode) and the local hit_rate_sim; the mutation count makes
+// "mutated exactly once" assertable.
+struct RunResult {
+    buffer_size: usize,
+    mode: InferenceMode,
+    hit_rate: f32,
+    mutations: usize,
+}
+
+// Port of init (line 19): start small - 128 bytes - in STANDARD mode.
+pub fn StreamingInference_init() -> StreamingInference {
+    return StreamingInference { buffer_size: 128, mode: .STANDARD };
+}
+
+// The metabolic buffer decision from adaptBuffer (lines 32-38).
+pub fn buffer_size_for(input_len: usize) -> usize {
+    if (input_len > 1000) {
+        return 1024;
+    }
+    if (input_len > 100) {
+        return 512;
+    }
+    return 128;
+}
+
+// adaptBuffer (line 40) announces the adjustment only when the size actually
+// changed; printing is the caller's job, so the decision is this predicate.
+pub fn resize_announced(old_size: usize, input_len: usize) -> bool {
+    return buffer_size_for(input_len) != old_size;
+}
+
+// Port of adaptBuffer (line 29). The original mutates self in place; here the
+// updated state is returned.
+pub fn StreamingInference_adaptBuffer(self: StreamingInference, input_len: usize) -> StreamingInference {
+    return StreamingInference { buffer_size: buffer_size_for(input_len), mode: self.mode };
+}
+
+// Port of mutate (line 73): the decision is the mode transition to TURBO,
+// keeping the buffer. The stdout chatter and the cache.evolveCache() call are
+// plumbing (the cache lives in adaptive_cache.zig) and stay with the caller.
+pub fn StreamingInference_mutate(self: StreamingInference) -> StreamingInference {
+    return StreamingInference { buffer_size: self.buffer_size, mode: .TURBO };
+}
+
+// The real-time mutation check from the stream loop (line 65): only a
+// STANDARD-mode run mutates, and only once the simulated hit rate has fallen
+// below 0.70. f32 matches the original's hit_rate_sim.
+pub fn should_mutate(hit_rate: f32, mode: InferenceMode) -> bool {
+    return hit_rate < 0.70 and mode == InferenceMode.STANDARD;
+}
+
+// Port of stream (line 46). The sleeps and the stdout chatter are plumbing;
+// the loop's decision is this simulation: ten steps, each decaying the
+// simulated hit rate by 0.05 from 1.0, mutating a STANDARD-mode run that
+// falls below the trigger and recovering the rate to 0.95. The input bytes
+// only feed the printer in the original, so the decision reads their length.
+pub fn StreamingInference_stream(self: StreamingInference, input_len: usize) -> RunResult {
+    var state = StreamingInference_adaptBuffer(self, input_len);
+    var hit_rate: f32 = 1.0;
+    var mutations: usize = 0;
+    var i: usize = 0;
+    while (i < 10) {
+        i += 1;
+        hit_rate -= 0.05;
+        if (should_mutate(hit_rate, state.mode)) {
+            state = StreamingInference_mutate(state);
+            hit_rate = 0.95;
+            mutations += 1;
+        }
+    }
+    return RunResult { buffer_size: state.buffer_size, mode: state.mode, hit_rate: hit_rate, mutations: mutations };
+}
+
+// The scenario main (lines 98-106) runs: the 11 bytes of "Hello world"
+// first, then a 2000-byte input, against a cache of capacity 10. The cache
+// capacity is plumbing (the cache never enters a decision); the two input
+// lengths are the scenario's decision.
+pub fn demo_input_lens() -> (usize, usize) {
+    return (11, 2000);
+}
+
+// Port of main (line 84). The heap setup, the cache construction, the sleeps
+// and the stdout banner are process plumbing and stay in Zig; the run the
+// demo performs is pure and stays here: stream a short input first, then a
+// 2000-byte one, and report the second run.
+pub fn main() -> RunResult {
+    const (short_len, long_len) = demo_input_lens();
+    const s = StreamingInference_init();
+    const first = StreamingInference_stream(s, short_len);
+    const mid = StreamingInference { buffer_size: first.buffer_size, mode: first.mode };
+    return StreamingInference_stream(mid, long_len);
+}
+
+test init_starts_small_in_standard {
+    const s = StreamingInference_init();
+    assert(s.buffer_size == 128);
+    assert(s.mode == InferenceMode.STANDARD);
+}
+
+test buffer_thresholds_match_the_original {
+    assert(buffer_size_for(0) == 128);
+    assert(buffer_size_for(11) == 128);
+    assert(buffer_size_for(100) == 128);
+    assert(buffer_size_for(101) == 512);
+    assert(buffer_size_for(1000) == 512);
+    assert(buffer_size_for(1001) == 1024);
+    assert(buffer_size_for(2000) == 1024);
+}
+
+test adapt_returns_new_state_and_announces_only_changes {
+    const s = StreamingInference_init();
+    const grown = StreamingInference_adaptBuffer(s, 2000);
+    assert(grown.buffer_size == 1024);
+    assert(grown.mode == InferenceMode.STANDARD);
+    assert(resize_announced(s.buffer_size, 2000));
+    assert(!resize_announced(s.buffer_size, 11));
+    const shrunk = StreamingInference_adaptBuffer(grown, 200);
+    assert(shrunk.buffer_size == 512);
+    assert(resize_announced(grown.buffer_size, 200));
+    assert(!resize_announced(shrunk.buffer_size, 300));
+}
+
+test mutate_switches_to_turbo_and_keeps_the_buffer {
+    const s = StreamingInference_init();
+    const adapted = StreamingInference_adaptBuffer(s, 2000);
+    const evolved = StreamingInference_mutate(adapted);
+    assert(evolved.buffer_size == 1024);
+    assert(evolved.mode == InferenceMode.TURBO);
+}
+
+test mutation_needs_standard_mode_and_a_low_hit_rate {
+    const standard = StreamingInference_init();
+    const turbo = StreamingInference_mutate(standard);
+    assert(should_mutate(0.65, standard.mode));
+    assert(!should_mutate(0.80, standard.mode));
+    assert(!should_mutate(0.65, turbo.mode));
+}
+
+test standard_run_mutates_once_and_recovers {
+    const s = StreamingInference_init();
+    const run = StreamingInference_stream(s, 11);
+    assert(run.mutations == 1);
+    assert(run.mode == InferenceMode.TURBO);
+    assert(run.hit_rate > 0.70 and run.hit_rate < 0.85);
+    assert(run.buffer_size == 128);
+}
+
+test turbo_run_never_mutates {
+    const base = StreamingInference_init();
+    const turbo = StreamingInference_mutate(base);
+    const run = StreamingInference_stream(turbo, 11);
+    assert(run.mutations == 0);
+    assert(run.mode == InferenceMode.TURBO);
+    assert(run.hit_rate > 0.45 and run.hit_rate < 0.55);
+}
+
+test long_input_resizes_during_stream {
+    const s = StreamingInference_init();
+    const run = StreamingInference_stream(s, 2000);
+    assert(run.buffer_size == 1024);
+    assert(run.mutations == 1);
+}
+
+test main_runs_short_then_long {
+    const (short_len, long_len) = demo_input_lens();
+    assert(short_len == 11);
+    assert(long_len == 2000);
+    const run = main();
+    // The first run has already evolved the mode to TURBO, so the long run
+    // decays without mutating - the behaviour of the original's two calls.
+    assert(run.buffer_size == 1024);
+    assert(run.mutations == 0);
+    assert(run.mode == InferenceMode.TURBO);
+}
