@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+01d0a635f",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:be20f438dccaebbbd587e10408b2b600bfd00744b9ad2d8ed9f9e772a3f9344a",
+  "gen_hash_rust": "sha256:0bedd81ef362b765f3b40bbffba01f3f562c96b2a07805cea66739962f0bb756",
+  "gen_hash_verilog": "sha256:5f9145d2a92a659392fdca31233636fb05a8038301f805779672f55f8b473a9e",
+  "gen_hash_zig": "sha256:f24be9ab393ce805a1250c07946da9b7ab8cebf82f48c58680fa4b43f9e9e7dd",
+  "module": "port::trios::crates::trios-chat::rings::CR-CHAT-03::src::commit_signature",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-17T09:05:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:4313afdc6bf088d0209a9e70f3689465f0abf76ee0941fbddf9fa576b63183bd",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/commit_signature.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

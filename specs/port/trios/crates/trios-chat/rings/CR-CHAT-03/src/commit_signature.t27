@@ -1,0 +1,246 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-03::src::commit_signature;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-03/src/commit_signature.rs
+// (CR-CHAT-03 - Commit signature forgery defense, Wave-24,
+// Lane A, L-CHAT-3-csig, R-CHAT-3, RFC 9420 6.1/12).
+//
+// Every MLS Commit is signed by its committer leaf key. The
+// forgery gate pins the binding invariants before the caller
+// delegates to the real signature check: a zero-length or
+// all-zero signature blob is a lazy-verifier trap, a stale
+// pre-rotation key must not verify, a transcript from
+// another group, another epoch or another commit body is a
+// splice, and a removed leaf must not sign at all. The
+// rules, in the original's fixed order: the blob non-empty
+// and non-zero, the group agreement, the epoch agreement,
+// the committer a current member, the signer key the stored
+// leaf-public, and the ops hash the locally computed one.
+//
+// The original returns Result<(), CommitSigError>. This
+// port carries the verdict as a named struct (owner decision
+// D5): Ok first, then the six variants in the original's
+// declaration order - EmptySignature, StaleSignerKey,
+// GroupIdSplice, EpochMismatch, NonMemberSigner,
+// TranscriptMismatch - with every payload field: the
+// EpochMismatch carries the receiver's current epoch and
+// the transcript's claimed one.
+//
+// The original's transcript and view structs become flat
+// parameters, the signature blob arriving as a plain slice.
+// The view's Option<[u8; 32]> committer key becomes a
+// member flag plus the stored key (the key unread when the
+// flag answers non-member) - the sentinel convention. The
+// transcript's sender leaf rides along unread by every rule,
+// exactly as in the original. The original's tenth test is
+// a tautology green summary (a count asserted against
+// itself); this port replaces it with a live gate call, the
+// WPS-10 precedent, so no test passes vacuously.
+
+// Verdict codes: Ok(()) and CommitSigError's variants, in declaration order.
+pub enum CsfCode {
+    Ok,
+    EmptySignature,
+    StaleSignerKey,
+    GroupIdSplice,
+    EpochMismatch,
+    NonMemberSigner,
+    TranscriptMismatch,
+}
+
+// The verdict of the commit-signature gate, with the one
+// payload pair: the current and claimed epochs of the epoch
+// rule.
+pub struct CsfVerdict {
+    code: CsfCode,
+    current: u64,
+    claimed: u64,
+}
+
+// Whole-form equality over the thirty-two-byte keys, group
+// identifiers and ops hashes - the original's array equality.
+pub fn bytes32_equal(a: [32]u8, b: [32]u8) -> bool {
+    for i in 0..32 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether every byte of the blob is zero - the original's
+// all-zero probe of the lazy-verifier trap.
+pub fn all_zero_bytes(blob: []const u8) -> bool {
+    for i in 0..blob.len {
+        if (blob[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// [VERIFIED] Verify the binding layer of a signed commit.
+// Returns Ok only when every rule holds, checked in the
+// original's fixed order: the blob non-empty and non-zero,
+// the group, the epoch, the membership, the signer key and
+// the ops hash.
+pub fn verify_commit_signature(t_group_id: [32]u8, from_epoch: u64, sender_leaf: u32, t_ops_hash: [32]u8, sig_pubkey: [32]u8, sig_blob: []const u8, view_group_id: [32]u8, current_epoch: u64, committer_is_member: bool, committer_leaf_key: [32]u8, local_ops_hash: [32]u8) -> CsfVerdict {
+    if (sig_blob.len == 0) {
+        return CsfVerdict { code: CsfCode.EmptySignature, current: 0, claimed: 0, };
+    }
+    if (all_zero_bytes(sig_blob)) {
+        return CsfVerdict { code: CsfCode.EmptySignature, current: 0, claimed: 0, };
+    }
+    if (!bytes32_equal(t_group_id, view_group_id)) {
+        return CsfVerdict { code: CsfCode.GroupIdSplice, current: 0, claimed: 0, };
+    }
+    if (from_epoch != current_epoch) {
+        return CsfVerdict { code: CsfCode.EpochMismatch, current: current_epoch, claimed: from_epoch, };
+    }
+    if (!committer_is_member) {
+        return CsfVerdict { code: CsfCode.NonMemberSigner, current: 0, claimed: 0, };
+    }
+    if (!bytes32_equal(sig_pubkey, committer_leaf_key)) {
+        return CsfVerdict { code: CsfCode.StaleSignerKey, current: 0, claimed: 0, };
+    }
+    if (!bytes32_equal(t_ops_hash, local_ops_hash)) {
+        return CsfVerdict { code: CsfCode.TranscriptMismatch, current: 0, claimed: 0, };
+    }
+    return CsfVerdict { code: CsfCode.Ok, current: 0, claimed: 0, };
+}
+
+// The fixture bytes: the group of eleven-hex, the ops hash
+// of twenty-two-hex, the leaf key of thirty-three-hex, the
+// splice probes and the sixty-four-byte signature blob of
+// double-A-hex.
+pub const GOOD_GID: [32]u8 = [32]u8{17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,}
+pub const GOOD_OPS: [32]u8 = [32]u8{34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34,}
+pub const LEAF_KEY: [32]u8 = [32]u8{51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51,}
+pub const BAD_GID: [32]u8 = [32]u8{204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204,}
+pub const STALE_KEY: [32]u8 = [32]u8{238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238, 238,}
+pub const BAD_OPS: [32]u8 = [32]u8{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,}
+pub const GOOD_BLOB: [64]u8 = [64]u8{171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171, 171,}
+pub const ZERO_BLOB: [64]u8 = [64]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}
+
+// The canonical gate call of the fixtures: the good commit
+// against the good view.
+fn canonical_call() -> CsfVerdict {
+    const v = verify_commit_signature(GOOD_GID, 4, 7, GOOD_OPS, LEAF_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    return v;
+}
+
+// **CSF-01** - the happy path accepted: every field matched.
+test csf_01_happy_path_accepted {
+    const v = canonical_call();
+    assert(v.code == CsfCode.Ok);
+}
+
+// **CSF-02** - the empty signature blob rejected.
+test csf_02_empty_signature_rejected {
+    const empty_blob: [0]u8 = [0]u8{};
+    const v = verify_commit_signature(GOOD_GID, 4, 7, GOOD_OPS, LEAF_KEY, &empty_blob, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.EmptySignature);
+}
+
+// **CSF-03** - the all-zero signature blob rejected: the
+// lazy-verifier trap.
+test csf_03_zero_byte_signature_rejected {
+    const v = verify_commit_signature(GOOD_GID, 4, 7, GOOD_OPS, LEAF_KEY, &ZERO_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.EmptySignature);
+}
+
+// **CSF-04** - the group identifier splice rejected: the
+// transcript claims another group.
+test csf_04_group_id_splice_rejected {
+    const v = verify_commit_signature(BAD_GID, 4, 7, GOOD_OPS, LEAF_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.GroupIdSplice);
+}
+
+// **CSF-05** - the epoch mismatch rejected: the transcript
+// claims three of a current four, the verdict carrying both.
+test csf_05_epoch_mismatch_rejected {
+    const v = verify_commit_signature(GOOD_GID, 3, 7, GOOD_OPS, LEAF_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.EpochMismatch);
+    assert(v.current == 4);
+    assert(v.claimed == 3);
+}
+
+// **CSF-06** - the committer not a current member
+// rejected.
+test csf_06_non_member_signer_rejected {
+    const v = verify_commit_signature(GOOD_GID, 4, 7, GOOD_OPS, LEAF_KEY, &GOOD_BLOB, GOOD_GID, 4, false, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.NonMemberSigner);
+}
+
+// **CSF-07** - the stale signer key rejected: the
+// pre-rotation key does not match the stored leaf-public.
+test csf_07_stale_signer_key_rejected {
+    const v = verify_commit_signature(GOOD_GID, 4, 7, GOOD_OPS, STALE_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.StaleSignerKey);
+}
+
+// **CSF-08** - the transcript ops hash mismatch rejected:
+// the signature covers another commit body.
+test csf_08_transcript_ops_hash_mismatch_rejected {
+    const v = verify_commit_signature(GOOD_GID, 4, 7, BAD_OPS, LEAF_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.TranscriptMismatch);
+}
+
+// **CSF-09** - the check-order invariant: with every other
+// field also wrong, the empty signature is still the
+// answer.
+test csf_09_check_order_empty_signature_first {
+    const empty_blob: [0]u8 = [0]u8{};
+    const v = verify_commit_signature(BAD_GID, 99, 7, BAD_OPS, STALE_KEY, &empty_blob, GOOD_GID, 4, false, LEAF_KEY, GOOD_OPS);
+    assert(v.code == CsfCode.EmptySignature);
+}
+
+// **CSF-10** - the green summary as a live call: the
+// original's tenth test was a tautology (a count asserted
+// against itself); this port pins the gate active with a
+// live canonical pass instead, the WPS-10 precedent.
+test csf_10_green_summary {
+    const v = canonical_call();
+    assert(v.code == CsfCode.Ok);
+    assert(v.current == 0);
+    assert(v.claimed == 0);
+}
+
+// The helpers have direct tests (coverage: Untested 0).
+test bytes32_equal_answers {
+    assert(bytes32_equal(GOOD_GID, GOOD_GID));
+    assert(!bytes32_equal(GOOD_GID, BAD_GID));
+    assert(!bytes32_equal(LEAF_KEY, STALE_KEY));
+    assert(!bytes32_equal(GOOD_OPS, BAD_OPS));
+}
+
+test all_zero_bytes_answers {
+    assert(all_zero_bytes(&ZERO_BLOB));
+    assert(!all_zero_bytes(&GOOD_BLOB));
+}
+
+// Rule order is the original's fixed ladder, each probe
+// stacking every later violation under the earlier one: the
+// zero blob over all five others, the group splice over the
+// four below it, the epoch over the three, the membership
+// over the two, the stale key over the ops hash.
+test rule_order_matches_original {
+    const v1 = verify_commit_signature(BAD_GID, 99, 7, BAD_OPS, STALE_KEY, &ZERO_BLOB, GOOD_GID, 4, false, LEAF_KEY, GOOD_OPS);
+    assert(v1.code == CsfCode.EmptySignature);
+
+    const v2 = verify_commit_signature(BAD_GID, 99, 7, BAD_OPS, STALE_KEY, &GOOD_BLOB, GOOD_GID, 4, false, LEAF_KEY, GOOD_OPS);
+    assert(v2.code == CsfCode.GroupIdSplice);
+
+    const v3 = verify_commit_signature(GOOD_GID, 99, 7, BAD_OPS, STALE_KEY, &GOOD_BLOB, GOOD_GID, 4, false, LEAF_KEY, GOOD_OPS);
+    assert(v3.code == CsfCode.EpochMismatch);
+    assert(v3.current == 4);
+    assert(v3.claimed == 99);
+
+    const v4 = verify_commit_signature(GOOD_GID, 4, 7, BAD_OPS, STALE_KEY, &GOOD_BLOB, GOOD_GID, 4, false, LEAF_KEY, GOOD_OPS);
+    assert(v4.code == CsfCode.NonMemberSigner);
+
+    const v5 = verify_commit_signature(GOOD_GID, 4, 7, BAD_OPS, STALE_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v5.code == CsfCode.StaleSignerKey);
+
+    const v6 = verify_commit_signature(GOOD_GID, 4, 7, BAD_OPS, LEAF_KEY, &GOOD_BLOB, GOOD_GID, 4, true, LEAF_KEY, GOOD_OPS);
+    assert(v6.code == CsfCode.TranscriptMismatch);
+}
