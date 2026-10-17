@@ -14,12 +14,15 @@
 ; runs; as one batch it is about 48.
 ; --
 ; Rule 2, budget. Each author may hold at most OPEN_CAP open non-draft PRs. Every author counts the
-; same, the owner's account and the Queen's bees included: the cap is on the queue, not on a person.
+; same, the owner's account included: the cap is on the queue, not on a person. One exception, the
+; owner's decision of 2026-10-18 (#10074): a PR on a `queen-` branch of this repository is a Queen
+; bee's, does not count, and is never held. The branch must live here, not in a fork, because a fork
+; can name a branch anything.
 ; When the cap is full, the excess is held as a draft, and drafts are promoted in order as slots free.
 ; Nothing is closed and no work is refused; a held PR only waits.
 ; --
-; This card is the rule only. Wiring it into a gate that drafts the excess is a follow-up; until then
-; nothing reads this file but its own tests.
+; The gate (#10074) is .github/workflows/pr-budget.yml: plumbing around budget() below, lowered by
+; `t27c gen-c` to gen/c/policy/pr_budget.c (L2).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module PolicyPrBudget;
@@ -126,6 +129,169 @@ pub fn permille(part: u32, whole: u32) -> u32 {
     return part * 1000 / whole;
 }
 
+; --- The gate (#10074) ------------------------------------------------------------------------------
+; .github/workflows/pr-budget.yml feeds budget() one row per line and carries out what it prints. A row
+; is `S X N BRANCH`: S the state, X `1` when the head branch lives in a fork and `0` when it lives here,
+; N the PR number in decimal, BRANCH the head branch. The first row is the PR the event is about: S is
+; `O` when it asks to be ready (opened, reopened or ready_for_review, and not a draft) and `C` when a
+; slot may have freed (closed, converted to a draft, opened as a draft). Every further row is another
+; open PR of the same author, oldest first: `R` ready, `H` a draft this gate holds (label
+; pr-budget-held), `D` a draft its author made, which is never promoted. A row that does not read is
+; skipped. budget() prints `draft N` for an `O` PR the cap holds and `ready N` for each held draft
+; promoted() frees, oldest first. No output closes a PR.
+
+pub const EXEMPT_BRANCH : str = "queen-";
+pub const EXEMPT_BRANCH_LEN : usize = 6;
+pub const ACT_DRAFT : str = "draft ";
+pub const ACT_READY : str = "ready ";
+pub const ACT_LEN : usize = 6;
+
+/// Does buf[s..e] start with p[0..pn]?
+pub fn has_prefix_at(buf: []const u8, s: usize, e: usize, p: []const u8, pn: usize) -> bool {
+    if (s + pn > e) { return false; }
+    var i : usize = 0;
+    while (i < pn) {
+        if (buf[s + i] != p[i]) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+/// Is the branch buf[s..e] a Queen bee's? Only a `queen-` branch that lives in this repository.
+pub fn is_exempt_at(buf: []const u8, s: usize, e: usize, fork: bool) -> bool {
+    if (fork) { return false; }
+    return has_prefix_at(buf, s, e, EXEMPT_BRANCH, EXEMPT_BRANCH_LEN);
+}
+
+pub fn is_exempt(branch: []const u8, bn: usize, fork: bool) -> bool {
+    return is_exempt_at(branch, 0, bn, fork);
+}
+
+pub fn is_digit(c: u8) -> bool {
+    return c >= '0' and c <= '9';
+}
+
+/// The end of the row that starts at s: the index of its '\n', or n.
+pub fn line_end(buf: []const u8, n: usize, s: usize) -> usize {
+    var e : usize = s;
+    while (e < n and buf[e] != '\n') { e += 1; }
+    return e;
+}
+
+/// Where the digits of the row buf[s..e] stop.
+pub fn digits_end(buf: []const u8, s: usize, e: usize) -> usize {
+    var i : usize = s + 4;
+    while (i < e and is_digit(buf[i])) { i += 1; }
+    return i;
+}
+
+/// Does buf[s..e] read as `S X N BRANCH`, X `0` or `1`, N at most 9 digits, BRANCH not empty?
+pub fn row_ok(buf: []const u8, s: usize, e: usize) -> bool {
+    if (e < s + 7) { return false; }
+    if (buf[s + 1] != ' ' or buf[s + 3] != ' ') { return false; }
+    if (buf[s + 2] != '0' and buf[s + 2] != '1') { return false; }
+    const d : usize = digits_end(buf, s, e);
+    if (d == s + 4 or d > s + 13) { return false; }
+    return d + 1 < e and buf[d] == ' ';
+}
+
+/// The PR number of a row that reads.
+pub fn row_number(buf: []const u8, s: usize, e: usize) -> u32 {
+    const d : usize = digits_end(buf, s, e);
+    var v : u32 = 0;
+    var i : usize = s + 4;
+    while (i < d) {
+        v = v * 10 + @as(u32, buf[i] - '0');
+        i += 1;
+    }
+    return v;
+}
+
+/// Is the PR of a row that reads exempt from the cap?
+pub fn row_exempt(buf: []const u8, s: usize, e: usize) -> bool {
+    return is_exempt_at(buf, digits_end(buf, s, e) + 1, e, buf[s + 2] == '1');
+}
+
+/// Does the row buf[s..e] read, carry state st, and count against the cap?
+pub fn row_counts(buf: []const u8, s: usize, e: usize, st: u8) -> bool {
+    if (row_ok(buf, s, e) == false) { return false; }
+    if (buf[s] != st) { return false; }
+    return row_exempt(buf, s, e) == false;
+}
+
+/// How many rows after the first carry state st and count against the cap.
+pub fn count_state(buf: []const u8, n: usize, st: u8) -> u32 {
+    var c : u32 = 0;
+    var s : usize = line_end(buf, n, 0) + 1;
+    while (s < n) {
+        const e : usize = line_end(buf, n, s);
+        if (row_counts(buf, s, e, st)) { c += 1; }
+        s = e + 1;
+    }
+    return c;
+}
+
+/// Write one byte at w if it fits; the returned position keeps counting past the end.
+pub fn put(out: []u8, w: usize, cap: usize, c: u8) -> usize {
+    if (w < cap) { out[w] = c; }
+    return w + 1;
+}
+
+/// Write `draft N` or `ready N` and a newline.
+pub fn put_act(out: []u8, w: usize, cap: usize, act: []const u8, v: u32) -> usize {
+    var p : usize = w;
+    var i : usize = 0;
+    while (i < ACT_LEN) {
+        p = put(out, p, cap, act[i]);
+        i += 1;
+    }
+    var d : u32 = 1;
+    while (v / d >= 10) { d = d * 10; }
+    while (d > 0) {
+        var c : u8 = '0';
+        var r : u32 = (v / d) % 10;
+        while (r > 0) {
+            c += 1;
+            r -= 1;
+        }
+        p = put(out, p, cap, c);
+        d = d / 10;
+    }
+    return put(out, p, cap, '\n');
+}
+
+/// Read the rows buf[0..n], write the actions into out[0..cap], and return how many there are.
+pub fn budget(buf: []const u8, n: usize, out: []u8, cap: usize) -> u32 {
+    return budget_with(buf, n, out, cap, OPEN_CAP);
+}
+
+/// budget() with the cap as an input, so the tests can drive it with a small one.
+pub fn budget_with(buf: []const u8, n: usize, out: []u8, cap: usize, limit: u32) -> u32 {
+    const e0 : usize = line_end(buf, n, 0);
+    if (row_ok(buf, 0, e0) == false) { return 0; }
+    const ready : u32 = count_state(buf, n, 'R');
+    if (buf[0] == 'O') {
+        if (row_exempt(buf, 0, e0)) { return 0; }
+        if (admit(ready, limit) == READY) { return 0; }
+        if (put_act(out, 0, cap, ACT_DRAFT, row_number(buf, 0, e0)) > cap) { return 1; }
+        return 1;
+    }
+    if (buf[0] != 'C') { return 0; }
+    const k : u32 = promoted(ready, count_state(buf, n, 'H'), limit);
+    var acts : u32 = 0;
+    var w : usize = 0;
+    var s : usize = e0 + 1;
+    while (s < n and acts < k) {
+        const e : usize = line_end(buf, n, s);
+        if (row_counts(buf, s, e, 'H')) {
+            w = put_act(out, w, cap, ACT_READY, row_number(buf, s, e));
+            acts += 1;
+        }
+        s = e + 1;
+    }
+    return acts;
+}
+
 test port_prs_are_named_by_title_or_branch {
     assert is_port_pr("spec(port): port specs/port/trios-railway/crates/trios-igla-race/src/race.t27", 77, "x", 1) == true;
     assert is_port_pr("chore: x", 8, "zcode-port-9776", 15) == true;
@@ -190,9 +356,10 @@ test measured_2026_10_17_open_prs_against_the_cap {
     // read as if every open PR were ready: the share of each queue the cap would hold back
     assert held_as_draft(0, M_OPEN_FEDOROV, OPEN_CAP) == 108;
     assert held_as_draft(0, M_OPEN_GHASHTAG, OPEN_CAP) == 142;
-    // the owner's account is not exempt, and most of its queue is the Queen's bees
+    // most of the owner's queue is the Queen's bees, which are exempt (#10074): only 31 count
     assert M_OPEN_GHASHTAG_QUEEN * 2 > M_OPEN_GHASHTAG;
     assert M_OPEN_GHASHTAG - M_OPEN_GHASHTAG_QUEEN == 31;
+    assert held_as_draft(0, M_OPEN_GHASHTAG - M_OPEN_GHASHTAG_QUEEN, OPEN_CAP) == 11;
 }
 
 test measured_2026_10_17_rate_fills_the_cap_in_hours {
@@ -212,6 +379,89 @@ test measured_2026_10_17_actions_runs {
     // at 18:00Z, one author held more than half of the queue
     assert permille(M_QUEUED_FEDOROV, M_QUEUED) == 568;
     assert M_QUEUED_FEDOROV * 2 > M_QUEUED;
+}
+
+test queen_branches_here_are_exempt_and_forks_are_not {
+    assert is_exempt("queen-10046", 11, false) == true;
+    assert is_exempt("queen-10046", 11, true) == false;
+    assert is_exempt("queen", 5, false) == false;
+    assert is_exempt("Queen-1", 7, false) == false;
+    assert is_exempt("zcode-port-9776", 15, false) == false;
+}
+
+test a_row_reads_or_is_skipped {
+    assert row_ok("O 1 10070 port-x", 0, 16) == true;
+    assert row_number("O 1 10070 port-x", 0, 16) == 10070;
+    assert row_ok("O 2 1 a-1", 0, 9) == false;
+    assert row_ok("O 1 x port", 0, 10) == false;
+    assert row_ok("O 1 1 ", 0, 6) == false;
+    assert row_ok("O 1 1", 0, 5) == false;
+    assert row_ok("O 1 1234567890 a", 0, 16) == false;
+    assert row_ok("O 1 123456789 a", 0, 15) == true;
+    assert row_number("O 1 123456789 a", 0, 15) == 123456789;
+    assert row_exempt("R 0 1 queen-1", 0, 13) == true;
+    assert row_exempt("R 1 1 queen-1", 0, 13) == false;
+}
+
+test put_act_writes_the_number_in_decimal {
+    var out : [32]u8 = undefined;
+    assert put_act(&out, 0, 32, ACT_DRAFT, 10070) == 12;
+    assert has_prefix(&out, 12, "draft 10070\n", 12) == true;
+    assert put_act(&out, 0, 32, ACT_READY, 0) == 8;
+    assert has_prefix(&out, 8, "ready 0\n", 8) == true;
+    assert put_act(&out, 0, 32, ACT_READY, 999999999) == 16;
+    assert has_prefix(&out, 16, "ready 999999999\n", 16) == true;
+    // a short buffer is never written past; the position still counts
+    var tiny : [4]u8 = undefined;
+    assert put_act(&tiny, 0, 4, ACT_DRAFT, 7) == 8;
+}
+
+test the_pr_over_the_cap_is_drafted {
+    var out : [64]u8 = undefined;
+    assert budget_with("O 1 10070 port-x\nR 1 10001 a-1\nR 1 10002 a-2\n", 45, &out, 64, 2) == 1;
+    assert has_prefix(&out, 12, "draft 10070\n", 12) == true;
+    // one slot left: admitted, nothing printed
+    assert budget_with("O 1 10070 port-x\nR 1 10001 a-1\n", 31, &out, 64, 2) == 0;
+}
+
+test the_cap_of_20_holds_the_21st_and_admits_the_20th {
+    var out : [64]u8 = undefined;
+    const twenty : []const u8 = "O 1 99 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\nR 1 1 b\n";
+    assert budget(twenty, 169, &out, 64) == 1;
+    assert has_prefix(&out, 9, "draft 99\n", 9) == true;
+    // the same rows less the last one: 19 ready, so the 20th is admitted
+    assert budget(twenty, 161, &out, 64) == 0;
+}
+
+test bees_are_never_drafted_and_never_counted {
+    var out : [64]u8 = undefined;
+    // a queen- branch here, over the cap: still admitted
+    assert budget_with("O 0 10070 queen-10070\nR 0 1 x-1\nR 0 2 x-2\n", 42, &out, 64, 2) == 0;
+    // a fork's queen- branch is not a bee
+    assert budget_with("O 1 10070 queen-1\nR 1 1 x-1\nR 1 2 x-2\n", 38, &out, 64, 2) == 1;
+    // the author's open bee PRs do not fill the cap: one counted ready PR of 2
+    assert budget_with("O 0 10070 fix-a\nR 0 1 queen-1\nR 0 2 queen-2\nR 0 3 b-3\n", 54, &out, 64, 2) == 0;
+}
+
+test a_freed_slot_promotes_the_oldest_held_drafts {
+    var out : [64]u8 = undefined;
+    // 1 ready, 3 held, cap 3: the 2 oldest held are promoted; the author's own draft 6 is not touched
+    assert budget_with("C 1 9 port-9\nR 1 1 a-1\nH 1 5 a-5\nD 1 6 a-6\nH 1 7 a-7\nH 1 8 a-8\n", 63, &out, 64, 3) == 2;
+    assert has_prefix(&out, 16, "ready 5\nready 7\n", 16) == true;
+    // no free slot: nothing
+    assert budget_with("C 1 9 port-9\nR 1 1 a-1\nH 1 5 a-5\nD 1 6 a-6\nH 1 7 a-7\nH 1 8 a-8\n", 63, &out, 64, 1) == 0;
+}
+
+test rows_that_do_not_read_are_skipped {
+    var out : [64]u8 = undefined;
+    // a first row that does not read: nothing at all
+    assert budget_with("O 1 x port\nR 1 1 a\nR 1 2 b\n", 27, &out, 64, 1) == 0;
+    assert budget_with("X 1 1 a-1\nR 1 2 b-2\n", 20, &out, 64, 1) == 0;
+    // three broken rows after the first are not counted: 1 ready of 2 admits, of 1 holds
+    assert budget_with("O 1 7 a-7\nR 1 1 a-1\nR 2 2 b-2\nR 1 3\nR 1 x c-4\n", 46, &out, 64, 2) == 0;
+    assert budget_with("O 1 7 a-7\nR 1 1 a-1\nR 2 2 b-2\nR 1 3\nR 1 x c-4\n", 46, &out, 64, 1) == 1;
+    // a last row without its newline still reads
+    assert budget_with("O 1 99 b", 8, &out, 64, 0) == 1;
 }
 
 invariant credit_does_not_depend_on_pr_count {

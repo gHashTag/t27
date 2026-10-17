@@ -23,7 +23,7 @@
 ;   it does not know is not a gate list (fail-closed applies to the inventory reader in T2).
 ; EVENTS are the `on:` trigger keys of each workflow, comma-joined, as measured 2026-10-12; they
 ; are recorded data for the report, not a class rule -- the class rule above is the law.
-; Snapshot: 66 workflows on master, 2026-10-13. Census: 61 blocking + 3 soft + 2 reporting.
+; Snapshot: 67 workflows on master, 2026-10-18 (pr-budget added, #10074). Census: 62 blocking + 3 soft + 2 reporting.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module ClawGates;
@@ -37,11 +37,11 @@ pub const G_UNKNOWN : u8 = 255;
 
 /// Total workflow files in .github/workflows/ this inventory claims to cover.
 /// T2 fails when the directory and this number disagree.
-pub const COUNT : u32 = 66;
+pub const COUNT : u32 = 67;
 
 /// Workflow names (file stems, no .yml), alphabetical. Row i of NAMES, CLASSES
 /// and EVENTS describes the same workflow -- the alignment is pinned by tests.
-pub const NAMES : [66]str = [
+pub const NAMES : [67]str = [
     "agent-runner-docker", "auto-merge-ready-prs", "bootstrap-tests", "build-paper", "build-vivado-image",
     "catalog-count-gate", "cli-tri", "conflict-markers", "conformance-integrity-gate",
     "coq-kernel", "coq-proofs", "corpus-ratchet", "damage-negatives", "deploy-api",
@@ -49,7 +49,7 @@ pub const NAMES : [66]str = [
     "fpga-build", "gate-topology", "gf-wide-conformance", "gf16-conformance", "harness-scratch",
     "issue-gate", "l1-traceability", "lean-proofs", "loop-tools-gate", "needs-boundary",
     "oracle-nightly", "orphan-modules", "own-language", "pack-index-consistency-gate", "phi-loop-ci",
-    "pr-dashboard", "pusher", "queen-doctor", "queen-export-push", "queen-feed-empty-bodies",
+    "pr-budget", "pr-dashboard", "pusher", "queen-doctor", "queen-export-push", "queen-feed-empty-bodies",
     "queen-feed-roadmap", "queen-feed-untested", "queen-publish", "queen-refile", "queen-watchdog",
     "release", "rings-rust", "sandbox-docker", "sbom", "schema-validation",
     "scorecard", "seal-coverage", "seal-staleness-warn", "secret-scan", "sign-release",
@@ -63,13 +63,13 @@ pub const NAMES : [66]str = [
 /// affected.t27 idiom); this table is the one hand-generated piece and the
 /// test len_tables_match_their_strings pins each row to NAMES[i].len, so a
 /// wrong number fails the suite rather than miscomparing.
-pub const NAME_LENS : [66]usize = [
+pub const NAME_LENS : [67]usize = [
     19, 20, 15, 11, 18, 18,
     7, 16, 26, 10, 10, 14,
     16, 10, 19, 12, 18, 18,
     18, 10, 13, 19, 16, 15,
     10, 15, 11, 15, 14, 14,
-    14, 12, 27, 11, 12, 6,
+    14, 12, 27, 11, 9, 12, 6,
     12, 17, 23, 18, 19, 13,
     12, 14, 7, 10, 14, 4,
     17, 9, 13, 19, 11, 12,
@@ -79,7 +79,7 @@ pub const NAME_LENS : [66]usize = [
 
 /// Class of row i, as literals so the array cannot silently depend on another
 /// const: 0 blocking, 1 soft, 2 reporting. The mapping is pinned right below.
-pub const CLASSES : [66]u8 = [
+pub const CLASSES : [67]u8 = [
     0, 2, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0, 0,
@@ -87,7 +87,7 @@ pub const CLASSES : [66]u8 = [
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0,
     1, 0, 0, 0, 0,
-    0, 0, 1, 0, 0,
+    0, 0, 0, 1, 0, 0,
     0, 0, 2, 0, 0,
     0, 1, 0, 0, 0,
     0, 0, 0, 0, 0,
@@ -97,7 +97,7 @@ pub const CLASSES : [66]u8 = [
 ];
 
 /// Trigger keys of row i, comma-joined, as measured 2026-10-12 (see header).
-pub const EVENTS : [66]str = [
+pub const EVENTS : [67]str = [
     "push,workflow_dispatch", "schedule,pull_request_target,workflow_dispatch", "push,pull_request,workflow_dispatch", "push,pull_request,workflow_dispatch", "workflow_dispatch",
     "pull_request,workflow_dispatch", "pull_request,push", "pull_request,push,workflow_dispatch", "push,pull_request,workflow_dispatch",
     "push,pull_request,workflow_dispatch", "push,pull_request,workflow_dispatch", "pull_request,push,workflow_dispatch", "pull_request,push,workflow_dispatch", "push,workflow_dispatch",
@@ -105,7 +105,7 @@ pub const EVENTS : [66]str = [
     "pull_request,push,workflow_dispatch", "pull_request,push,workflow_dispatch", "push,pull_request,workflow_dispatch", "push,pull_request,workflow_dispatch", "pull_request,push,workflow_dispatch",
     "pull_request_target,workflow_dispatch", "pull_request,workflow_dispatch", "pull_request,workflow_dispatch", "pull_request,push,workflow_dispatch", "schedule,workflow_dispatch",
     "schedule,workflow_dispatch", "pull_request,push,workflow_dispatch", "pull_request", "push,pull_request,workflow_dispatch", "pull_request,workflow_dispatch",
-    "workflow_dispatch,pull_request", "schedule,workflow_dispatch", "schedule,workflow_dispatch", "schedule,workflow_dispatch", "schedule,workflow_dispatch",
+    "pull_request_target", "workflow_dispatch,pull_request", "schedule,workflow_dispatch", "schedule,workflow_dispatch", "schedule,workflow_dispatch", "schedule,workflow_dispatch",
     "schedule,workflow_dispatch", "schedule,workflow_dispatch", "push,schedule,workflow_dispatch", "schedule,workflow_dispatch", "schedule,workflow_dispatch",
     "release", "push,pull_request,workflow_dispatch", "push,workflow_dispatch", "push,release,workflow_dispatch", "pull_request,push,workflow_dispatch",
     "branch_protection_rule,schedule,push,workflow_dispatch", "pull_request,push,workflow_dispatch", "pull_request,workflow_dispatch", "push,pull_request,workflow_dispatch", "release,workflow_dispatch",
@@ -118,7 +118,7 @@ pub const EVENTS : [66]str = [
 /// inventory. name_len is explicit: gen-c lowers str to const char* and
 /// carries no .len (the affected.t27 idiom, kept everywhere in this module).
 pub fn class_of(name: str, name_len: usize) -> u8 {
-    for i in 0..66 {
+    for i in 0..67 {
         if str_eq(NAMES[i], NAME_LENS[i], name, name_len) { return CLASSES[i]; }
     }
     return G_UNKNOWN;
@@ -132,7 +132,7 @@ pub fn is_blocking(name: str, name_len: usize) -> bool {
 
 /// Trigger keys of one workflow name; "" when the name is not in the inventory.
 pub fn events_of(name: str, name_len: usize) -> str {
-    for i in 0..66 {
+    for i in 0..67 {
         if str_eq(NAMES[i], NAME_LENS[i], name, name_len) { return EVENTS[i]; }
     }
     return "";
@@ -141,7 +141,7 @@ pub fn events_of(name: str, name_len: usize) -> str {
 /// How many workflows carry a given class.
 pub fn count_class(c: u8) -> u32 {
     let mut n : u32 = 0;
-    for i in 0..66 {
+    for i in 0..67 {
         if CLASSES[i] == c { n += 1; }
     }
     return n;
@@ -149,7 +149,7 @@ pub fn count_class(c: u8) -> u32 {
 
 /// Every row has a name and a recorded trigger set.
 pub fn every_row_filled() -> bool {
-    for i in 0..66 {
+    for i in 0..67 {
         if NAMES[i] == "" { return false; }
         if EVENTS[i] == "" { return false; }
     }
@@ -171,8 +171,8 @@ pub fn str_eq(a: str, alen: usize, b: str, blen: usize) -> bool {
 }
 
 pub fn all_names_unique() -> bool {
-    for i in 0..66 {
-        for j in (i + 1)..66 {
+    for i in 0..67 {
+        for j in (i + 1)..67 {
             if str_eq(NAMES[i], NAME_LENS[i], NAMES[j], NAME_LENS[j]) { return false; }
         }
     }
@@ -181,7 +181,7 @@ pub fn all_names_unique() -> bool {
 
 /// Every class literal in CLASSES is one of the three real classes.
 pub fn all_classes_known() -> bool {
-    for i in 0..66 {
+    for i in 0..67 {
         if CLASSES[i] != G_BLOCKING {
             if CLASSES[i] != G_SOFT {
                 if CLASSES[i] != G_REPORTING {
@@ -267,7 +267,7 @@ pub fn dir_has(dir_text : []const u8, dir_len : usize, name : str, name_len : us
 
 /// Whether one directory line names any inventory row -- the DIR-ONLY lookup.
 fn line_in_names(dir_text : []const u8, start : usize, len : usize) -> bool {
-    for i in 0..66 {
+    for i in 0..67 {
         if (line_eq_name(dir_text, start, len, NAMES[i], NAME_LENS[i])) { return true; }
     }
     return false;
@@ -353,7 +353,7 @@ pub fn claw_status(dir_text : []const u8, dir_len : usize, out : []u8, out_cap :
     w = put_str(out, out_cap, w, AUDIT_HEAD, HEAD_LEN);
     w = put_str(out, out_cap, w, "\n", 1);
     // spec rows whose workflow file is gone
-    for i in 0..66 {
+    for i in 0..67 {
         if (dir_has(dir_text, dir_len, NAMES[i], NAME_LENS[i]) == false) {
             w = put_str(out, out_cap, w, LINE_PREFIX[P_SPEC_ONLY], PREFIX_LENS[P_SPEC_ONLY]);
             w = put_str(out, out_cap, w, NAMES[i], NAME_LENS[i]);
@@ -410,7 +410,7 @@ pub fn claw_coverage_report(out : []u8, out_cap : usize) -> usize {
         w = put_str(out, out_cap, w, " blocking=", 10);
         var shown : usize = 0;
         var i : usize = 0;
-        while (i < 66) {
+        while (i < 67) {
             if (shown < 3) {
                 if (CLASSES[i] == c) {
                     if (shown == 0) {
@@ -474,8 +474,8 @@ test critical_gates_present_and_blocking {
     assert is_blocking(c, 12) == true;
 }
 
-test class_census_61_3_2 {
-    assert count_class(G_BLOCKING) == 61;
+test class_census_62_3_2 {
+    assert count_class(G_BLOCKING) == 62;
     assert count_class(G_SOFT) == 3;
     assert count_class(G_REPORTING) == 2;
 }
@@ -486,7 +486,7 @@ test rows_stay_aligned_name_class_events {
     // hand-counted literals (gen-c carries no .len); the tables are pinned in
     // gates_pins.t27.
     var want1 : str = "auto-merge-ready-prs";
-    var want41 : str = "queen-publish";
+    var want42 : str = "queen-publish";
     var want29 : str = "oracle-nightly";
     var qp : str = "queen-publish";
     var ol : str = "own-language";
@@ -494,8 +494,8 @@ test rows_stay_aligned_name_class_events {
     var ev_ol : str = "pull_request";
     assert NAMES[1] == want1;
     assert CLASSES[1] == G_REPORTING;
-    assert NAMES[41] == want41;
-    assert CLASSES[41] == G_REPORTING;
+    assert NAMES[42] == want42;
+    assert CLASSES[42] == G_REPORTING;
     assert NAMES[29] == want29;
     assert CLASSES[29] == G_SOFT;
     assert events_of(qp, 13) == ev_qp;
@@ -523,7 +523,7 @@ test audit_clean_when_directory_matches_inventory {
     // a synthetic directory: every inventory name, one per line
     var dir : [8192]u8 = undefined;
     var w : usize = 0;
-    for i in 0..66 {
+    for i in 0..67 {
         w = put_str(&dir, 8192, w, NAMES[i], NAME_LENS[i]);
         w = put_str(&dir, 8192, w, "\n", 1);
     }
@@ -539,7 +539,7 @@ test audit_spec_only_when_a_workflow_file_is_missing {
     // row 0 left out of the directory: its file is gone
     var dir : [8192]u8 = undefined;
     var w : usize = 0;
-    for i in 1..66 {
+    for i in 1..67 {
         w = put_str(&dir, 8192, w, NAMES[i], NAME_LENS[i]);
         w = put_str(&dir, 8192, w, "\n", 1);
     }
@@ -554,7 +554,7 @@ test audit_dir_only_for_an_unknown_workflow {
     // the directory lists one workflow the inventory does not know
     var dir : [8192]u8 = undefined;
     var w : usize = 0;
-    for i in 0..66 {
+    for i in 0..67 {
         w = put_str(&dir, 8192, w, NAMES[i], NAME_LENS[i]);
         w = put_str(&dir, 8192, w, "\n", 1);
     }
@@ -569,7 +569,7 @@ test audit_ignores_blank_lines_in_the_directory {
     // one must not turn cleanliness into drift: blank lines are skipped
     var dir : [8192]u8 = undefined;
     var w : usize = 0;
-    for i in 0..66 {
+    for i in 0..67 {
         w = put_str(&dir, 8192, w, NAMES[i], NAME_LENS[i]);
         w = put_str(&dir, 8192, w, "\n", 1);
     }
@@ -591,11 +591,11 @@ test audit_prefixes_name_the_problem_kind {
 }
 test every_row_round_trips_through_the_name_lookup {
     // Before T8, 8 of 66 names ever went through class_of -- a class swap
-    // between two unexercised rows passed every test. This drives all 66
+    // between two unexercised rows passed every test. This drives all 67
     // rows through the lookup, and the merge verdict with them: blocking
     // iff the class is G_BLOCKING, for every row.
     var i : usize = 0;
-    while (i < 66) {
+    while (i < 67) {
         assert class_of(NAMES[i], NAME_LENS[i]) == CLASSES[i];
         if (CLASSES[i] == G_BLOCKING) {
             assert is_blocking(NAMES[i], NAME_LENS[i]) == true;
@@ -629,11 +629,11 @@ test coverage_report_carries_every_class {
     assert buf_has(&out, w, "G_BLOCKING", 10) == true;
     assert buf_has(&out, w, "G_SOFT", 6) == true;
     assert buf_has(&out, w, "G_REPORTING", 11) == true;
-    assert buf_has(&out, w, "n=61", 4) == true;
+    assert buf_has(&out, w, "n=62", 4) == true;
     assert buf_has(&out, w, "n=3", 3) == true;
     assert buf_has(&out, w, "n=2", 3) == true;
     assert buf_has(&out, w, "n=0", 3) == true;
-    assert buf_has(&out, w, "n=62", 4) == false;
+    assert buf_has(&out, w, "n=63", 4) == false;
     assert buf_has(&out, w, "G_UNKNOWN", 9) == true;
 }
 

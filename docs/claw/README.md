@@ -17,10 +17,10 @@ behind one front door, with the gate logic in `.t27` specs. Epic
 
 ## The inventory spec and how to regenerate it
 
-`specs/claw/gates.t27` holds three parallel `[66]str`-shaped arrays — `NAMES`
+`specs/claw/gates.t27` holds three parallel `[67]str`-shaped arrays — `NAMES`
 (workflow file stems), `CLASSES` (0 blocking / 1 soft / 2 reporting), `EVENTS`
 (trigger keys, comma-joined). Rows stay alphabetical and aligned; tests pin
-the alignment, the census (61/3/2), pairwise name uniqueness, and the
+the alignment, the census (62/3/2), pairwise name uniqueness, and the
 merge-critical rows.
 
 The class rule is mechanical, so the regeneration is too:

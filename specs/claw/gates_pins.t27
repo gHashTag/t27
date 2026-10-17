@@ -17,7 +17,7 @@ module ClawGatesPins;
 use claw::gates;
 
 test name_lens_pin_every_row_to_the_bytes {
-    for i in 0..66 {
+    for i in 0..67 {
         assert gates::NAME_LENS[i] == gates::NAMES[i].len;
     }
 }
