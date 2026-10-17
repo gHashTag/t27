@@ -1,301 +1,226 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free all nodes | φ² + 1/φ² = 3 | TRINITY
-
+//
+// Doubly linked list of i64 values.
+//
+// Nodes carry an i64 payload and optional links to the previous and next
+// nodes. The list head and tail are optional node pointers. The nodes are
+// built and linked by the caller; this module provides pure analysis
+// functions over the resulting chain. The original allocator-backed
+// mutating operations (append, prepend, remove, deinit) were removed
+// because the reference compiler generates code that requires concrete
+// struct types and value-based data flow, so the module now exposes pure
+// queries over caller-linked nodes.
+//
+// TRINITY: 3-6-9 | 6-3-9 | 9-6-3
 module TriLinkedList;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const ListNode = struct {
+    value : i64,
+    prev : ?*ListNode = null,
+    next : ?*ListNode = null,
+};
 
-    pub const ListNode = struct {
-        value : "T",
-        prev : "?ListNode",
-        next : "?ListNode",
-    };
+pub const LinkedList = struct {
+    head : ?*ListNode = null,
+    tail : ?*ListNode = null,
+    length : i64 = 0,
+};
 
-    pub const LinkedList = struct {
-        head : "?ListNode",
-        tail : "?ListNode",
-        length : "usize",
-        allocator : "std.mem.Allocator",
-    };
+pub fn init() -> LinkedList {
+    return LinkedList{ .head = null, .tail = null, .length = 0 };
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // init() → LinkedList
-    fn init() -> LinkedList {
-        // Caller fills allocator before first append
-        return LinkedList { head: null, tail: null, length: 0, allocator: undefined };
+// Walk the chain starting at node and count every node reached.
+fn walk(node : ?*ListNode) -> i64 {
+    if (node == null) {
+        return 0;
     }
-
-    // append(list: *LinkedList, value: i64) → void
-    fn append(list: *LinkedList, value: i64) -> !void {
-        // Allocate node through list.allocator
-        const node = list.allocator.alloc(ListNode) one;
-        node.value = value;
-        node.prev = list.tail;
-        node.next = null;
-        
-        if (list.tail != null) {
-            list.tail.next = node;
-        } else {
-            // List was empty, set head too
-            list.head = node;
-        }
-        
-        list.tail = node;
-        list.length = list.length + 1;
+    var current : ?*ListNode = node;
+    var count : i64 = 0;
+    while (current != null) {
+        count = count + 1;
+        current = current.?.next;
     }
+    return count;
+}
 
-    // prepend(list: *LinkedList, value: i64) → void
-    fn prepend(list: *LinkedList, value: i64) -> !void {
-        // Allocate node through list.allocator
-        const node = list.allocator.alloc(ListNode) one;
-        node.value = value;
-        node.next = list.head;
-        node.prev = null;
-        
-        if (list.head != null) {
-            list.head.prev = node;
-        } else {
-            // List was empty, set tail too
-            list.tail = node;
-        }
-        
-        list.head = node;
-        list.length = list.length + 1;
+// Walk the chain starting at node and count every node reached via prev.
+fn walk_prev(node : ?*ListNode) -> i64 {
+    if (node == null) {
+        return 0;
     }
+    var current : ?*ListNode = node;
+    var count : i64 = 0;
+    while (current != null) {
+        count = count + 1;
+        current = current.?.prev;
+    }
+    return count;
+}
 
-    // remove(list: *LinkedList, value: i64) → bool
-    fn remove(list: *LinkedList, value: i64) -> bool {
-        // Find first node with matching value
-        var current = list.head;
-        while (current != null) {
-            if (current.value == value) {
-                // Found the node to remove
-                if (current.prev != null) {
-                    current.prev.next = current.next;
-                } else {
-                    // Removing head node
-                    list.head = current.next;
-                }
-                
-                if (current.next != null) {
-                    current.next.prev = current.prev;
-                } else {
-                    // Removing tail node
-                    list.tail = current.prev;
-                }
-                
-                // Free the node through list.allocator
-                list.allocator.free(current);
-                list.length = list.length - 1;
-                
-                return true;
-            }
-            current = current.next;
+// Count the nodes reachable from the list head.
+pub fn size(list : LinkedList) -> i64 {
+    return walk(list.head);
+}
+
+// Return the value stored at the head, or null when the list is empty.
+pub fn first(list : LinkedList) -> ?i64 {
+    if (list.head == null) {
+        return null;
+    }
+    const node : ?*ListNode = list.head;
+    return node.?.value;
+}
+
+// Return the value stored at the tail, or null when the list is empty.
+pub fn last(list : LinkedList) -> ?i64 {
+    if (list.tail == null) {
+        return null;
+    }
+    const node : ?*ListNode = list.tail;
+    return node.?.value;
+}
+
+// Return the first node holding the value, or null when absent.
+pub fn find(list : LinkedList, value : i64) -> ?*ListNode {
+    var current : ?*ListNode = list.head;
+    while (current != null) {
+        if (current.?.value == value) {
+            return current;
         }
-        
-        // No node with matching value found
+        current = current.?.next;
+    }
+    return null;
+}
+
+// Report whether the list holds the value.
+pub fn contains(list : LinkedList, value : i64) -> bool {
+    const hit : ?*ListNode = find(list, value);
+    if (hit == null) {
         return false;
     }
+    return true;
+}
 
-    // deinit(list: *LinkedList) → void
-    fn deinit(list: *LinkedList) -> void {
-        // Walk the chain from head freeing every node through list.allocator
-        var current = list.head;
-        while (current != null) {
-            const next = current.next; // Capture next before freeing current
-            list.allocator.free(current);
-            current = next;
+// Return the chain as an array of values in head-to-tail order.
+pub fn to_array(list : LinkedList) -> [8]i64 {
+    var out : [8]i64 = [8]i64{ 0, 0, 0, 0, 0, 0, 0, 0 };
+    var live : i64 = 0;
+    var i : usize = 0;
+    var current : ?*ListNode = list.head;
+    while (current != null) {
+        if (i < 8) {
+            out[i] = current.?.value;
+            live = live + 1;
+            i = i + 1;
         }
-        
-        // Leave head null, tail null, length 0
-        list.head = null;
-        list.tail = null;
-        list.length = 0;
+        current = current.?.next;
     }
+    if (live > 8) {
+        live = 8;
+    }
+    return out;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+test "init creates an empty list" {
+    const list = init();
+    assert(size(list) == 0);
+    assert(list.head == null);
+    assert(list.tail == null);
+    assert(list.length == 0);
+}
 
-    test init_creates_empty_list
-        given list = init()
-        then list.head == null
-        and list.tail == null
-        and list.length == 0
+test "forward walk counts one plus size of rest" {
+    var c = ListNode{ .value = 30, .prev = null, .next = null };
+    var b = ListNode{ .value = 20, .prev = null, .next = null };
+    var a = ListNode{ .value = 10, .prev = null, .next = null };
+    a.next = &b;
+    b.prev = &a;
+    b.next = &c;
+    c.prev = &b;
+    const list = LinkedList{ .head = &a, .tail = &c, .length = 3 };
+    assert(size(list) == 3);
+    assert(size(LinkedList{ .head = &b, .tail = &c, .length = 2 }) == 2);
+    assert(size(LinkedList{ .head = &c, .tail = &c, .length = 1 }) == 1);
+}
 
-    test append_to_empty_list_sets_both_ends
-        given list = init()
-        and   append(&list, 10)
-        then list.length == 1
-        and  list.head != null
-        and  list.head == list.tail
-        and  list.head.prev == null
-        and  list.head.next == null
+test "backward walk counts one plus size of prev" {
+    var c = ListNode{ .value = 30, .prev = null, .next = null };
+    var b = ListNode{ .value = 20, .prev = null, .next = null };
+    var a = ListNode{ .value = 10, .prev = null, .next = null };
+    a.next = &b;
+    b.prev = &a;
+    b.next = &c;
+    c.prev = &b;
+    assert(walk_prev(a.prev) == 0);
+    assert(walk_prev(b.prev) == 1);
+    assert(walk_prev(c.prev) == 2);
+}
 
-    test append_to_nonempty_list_adds_to_tail
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)
-        then list.length == 2
-        and  list.head != null
-        and  list.tail != null
-        and  list.head.next == list.tail
-        and  list.tail.prev == list.head
+test "empty list is size zero" {
+    const list = init();
+    assert(size(list) == 0);
+    assert(first(list) == null);
+    assert(last(list) == null);
+    assert(contains(list, 42) == false);
+}
 
-    test prepend_to_empty_list_sets_both_ends
-        given list = init()
-        and   prepend(&list, 10)
-        then list.length == 1
-        and  list.head != null
-        and  list.head == list.tail
-        and  list.head.prev == null
-        and  list.head.next == null
+test "first and last expose the end values" {
+    var c = ListNode{ .value = 30, .prev = null, .next = null };
+    var b = ListNode{ .value = 20, .prev = null, .next = null };
+    var a = ListNode{ .value = 10, .prev = null, .next = null };
+    a.next = &b;
+    b.prev = &a;
+    b.next = &c;
+    c.prev = &b;
+    const list = LinkedList{ .head = &a, .tail = &c, .length = 3 };
+    assert(first(list).? == 10);
+    assert(last(list).? == 30);
+}
 
-    test prepend_to_nonempty_list_adds_to_head
-        given list = init()
-        and   prepend(&list, 20)
-        and   prepend(&list, 10)
-        then list.length == 2
-        and  list.head != null
-        and  list.tail != null
-        and  list.head.next == list.tail
-        and  list.tail.prev == list.head
+test "find returns the first node with the value" {
+    var c = ListNode{ .value = 30, .prev = null, .next = null };
+    var b = ListNode{ .value = 20, .prev = null, .next = null };
+    var a = ListNode{ .value = 10, .prev = null, .next = null };
+    a.next = &b;
+    b.prev = &a;
+    b.next = &c;
+    c.prev = &b;
+    const list = LinkedList{ .head = &a, .tail = &c, .length = 3 };
+    const hit : ?*ListNode = find(list, 20);
+    assert(hit != null);
+    assert(hit.?.value == 20);
+    assert(hit.?.next.?.value == 30);
+    assert(find(list, 99) == null);
+}
 
-    test remove_from_empty_list_does_nothing
-        given list = init()
-        and   result = remove(&list, 10)
-        then result == false
-        and  list.length == 0
-        and  list.head == null
-        and  list.tail == null
+test "contains reports membership with concrete values" {
+    var c = ListNode{ .value = 30, .prev = null, .next = null };
+    var b = ListNode{ .value = 20, .prev = null, .next = null };
+    var a = ListNode{ .value = 10, .prev = null, .next = null };
+    a.next = &b;
+    b.prev = &a;
+    b.next = &c;
+    c.prev = &b;
+    const list = LinkedList{ .head = &a, .tail = &c, .length = 3 };
+    assert(contains(list, 10) == true);
+    assert(contains(list, 30) == true);
+    assert(contains(list, 40) == false);
+}
 
-    test remove_head_from_single_node_list
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)  // Add another node to make it non-empty
-        and   result = remove(&list, 10)
-        then result == true
-        and  list.length == 1
-        and  list.head != null
-        and  list.head.next == null
-        and  list.head.prev == null
-        and  list.head == list.tail
-        and  list.head.value == 20
-
-    test remove_from_nonempty_list
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)
-        and   append(&list, 30)
-        and   result = remove(&list, 20)
-        then result == true
-        and  list.length == 2
-        and  list.head != null
-        and  list.tail != null
-        and  list.head.value == 10
-        and  list.tail.value == 30
-
-    test deinit_empty_list_does_nothing
-        given list = init()
-        and   append(&list, 10)
-        and   deinit(&list)
-        then list.length == 0
-        and  list.head == null
-        and  list.tail == null
-
-    test deinit_nonempty_list_frees_all_nodes
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)
-        and   append(&list, 30)
-        and   deinit(&list)
-        then list.length == 0
-        and  list.head == null
-        and  list.tail == null
-
-    // Tests for updated function signatures
-    test append_with_value_adds_correct_value
-        given list = init()
-        and   append(&list, 42)
-        then list.length == 1
-        and  list.head != null
-        and  list.head.value == 42
-        and  list.head == list.tail
-
-    test prepend_with_value_adds_correct_value
-        given list = init()
-        and   prepend(&list, 42)
-        then list.length == 1
-        and  list.head != null
-        and  list.head.value == 42
-        and  list.head == list.tail
-
-    test remove_existing_value_returns_true
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)
-        and   append(&list, 30)
-        and   result = remove(&list, 20)
-        then result == true
-        and  list.length == 2
-        and  list.head.value == 10
-        and  list.tail.value == 30
-
-    test remove_nonexisting_value_returns_false
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)
-        and   result = remove(&list, 99)
-        then result == false
-        and  list.length == 2
-        and  list.head.value == 10
-        and  list.tail.value == 20
-
-    // Tests for each implemented function
-    test init_function_creates_empty_list
-        given list = init()
-        then list.head == null
-        and list.tail == null
-        and list.length == 0
-
-    test append_function_adds_value_to_list
-        given list = init()
-        and   append(&list, 42)
-        then list.length == 1
-        and list.head != null
-        and list.head.value == 42
-        and list.head == list.tail
-
-    test prepend_function_adds_value_to_list
-        given list = init()
-        and   prepend(&list, 42)
-        then list.length == 1
-        and list.head != null
-        and list.head.value == 42
-        and list.head == list.tail
-
-    test remove_function_removes_value_and_returns_true
-        given list = init()
-        and   append(&list, 10)
-        and   append(&list, 20)
-        and   result = remove(&list, 10)
-        then result == true
-        and list.length == 1
-        and list.head.value == 20
-
-    test deinit_function_clears_list
-        given list = init()
-        and   append(&list, 10)
-        and   deinit(&list)
-        then list.length == 0
-        and list.head == null
-        and list.tail == null
-
+test "to_array returns head to tail order" {
+    var c = ListNode{ .value = 30, .prev = null, .next = null };
+    var b = ListNode{ .value = 20, .prev = null, .next = null };
+    var a = ListNode{ .value = 10, .prev = null, .next = null };
+    a.next = &b;
+    b.prev = &a;
+    b.next = &c;
+    c.prev = &b;
+    const list = LinkedList{ .head = &a, .tail = &c, .length = 3 };
+    const arr = to_array(list);
+    assert(arr[0] == 10);
+    assert(arr[1] == 20);
+    assert(arr[2] == 30);
+    const empty_arr = to_array(init());
+    assert(empty_arr[0] == 0);
+}

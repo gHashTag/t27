@@ -1,14 +1,18 @@
 {
-  "gen_hash_c": "sha256:460266c5f736e998392b5d7d8597560a9b6b32281482bdb4f621bd7b5b572c12",
-  "gen_hash_rust": "sha256:84bb498ab6de46bd7547b45945dcac5110370c789e87edd9bbefef926d1529de",
-  "gen_hash_verilog": "sha256:41dbc37fbc3bbd13548fc7d9b53833d459c3c553bf4ea7439b548d71baacbe46",
-  "gen_hash_zig": "sha256:51ad8c9dac8d42e2d7fdaa6b763fedb3ef9894b278e91a97db21c3ed117962c1",
+  "gen_hash_c": "sha256:b1b05bfc8bdbc593a19c8fd561eabdcdeaedc21f21603231200dea397de4ad03",
+  "gen_hash_rust": "sha256:132c1d41532de85a867ac1720153142ebc220f575986af6110f2254e47b35017",
+  "gen_hash_verilog": "sha256:f18db2553cfbb32819dacb4d47cfb5377fb0342757170bce8e54af3d11a0c714",
+  "gen_hash_zig": "sha256:d5542313ecb4c9e8dbd6adb096968fc36f46a07cc2738d83a451cdf9f1208045",
   "module": "TriLockfreeStack",
   "ring": 12,
-  "sealed_at": "2026-10-10T15:02:24Z",
-  "spec_hash": "sha256:1ef70526fe10446d1799503c97c7bb9ae25a1c6c879aa08c311a58b7c0a605e2",
+  "sealed_at": "2026-10-10T18:58:54Z",
+  "spec_hash": "sha256:b437b433d0ef94f5606318cabbd38ec0a50c9e535eb9bca7b42b4ae2af7c0a1b",
   "spec_path": "specs/tri/collections/lockfree_stack.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:40:19: error: use of undeclared identifier 'default_input'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
   }
 }

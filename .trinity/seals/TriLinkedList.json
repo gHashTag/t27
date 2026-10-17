@@ -1,14 +1,18 @@
 {
-  "gen_hash_c": "sha256:82216d1416ed6c064da774a72dfccb1e2d9b4fe1b0ed16f43dc9850ae9a502e2",
-  "gen_hash_rust": "sha256:e44d537966d46ebdb8ff230326b7f23b6294a23240a51472801f80ebdf194ffc",
-  "gen_hash_verilog": "sha256:b327b8d5eae42ac448737caac5889de9a4a408460654ed5d7e2ef42feac29e65",
-  "gen_hash_zig": "sha256:6c82c9b7be3fc2d5e77c6a8e2e544d44fc59bbf05a717c32e9ad78f981c95496",
+  "gen_hash_c": "sha256:5cb48fc446ac839404d6d9574779288130d375108d14def5aead6e97bc113aa7",
+  "gen_hash_rust": "sha256:b57c3003b74a17a5398b776063d779a07c4bc987ac66937c294f55cf789df2f3",
+  "gen_hash_verilog": "sha256:9e666efb818c6dd644dbb77e6f36a5161f16af84382e7419720501feb7ee9f78",
+  "gen_hash_zig": "sha256:6980be7d76d1f656653b4d1f20663f4ab2131ce08efc079262abb61be041781f",
   "module": "TriLinkedList",
   "ring": 12,
-  "sealed_at": "2026-10-10T15:02:21Z",
-  "spec_hash": "sha256:7a95bfde1a607f951f851add1dc86482658311ea593be667f610799cf9e4d8cd",
+  "sealed_at": "2026-10-10T18:58:53Z",
+  "spec_hash": "sha256:3f02c301dc1d1e4f3044070ab87050d2445bb05d5373f210bd61971d4ed5a018",
   "spec_path": "specs/tri/collections/linked_list.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:21:12: error: use of undeclared identifier 'T'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
   }
 }

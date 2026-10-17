@@ -1,29 +1,24 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+f1f8a6980",
-  "closure": [
-    {
-      "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:9d02d8b1016993658e1e9748e4bc13bc4f3732535c16e3484abdaeeafcf608bc"
-    },
-    {
-      "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
-    }
-  ],
+  "built_by": "t27c-bootstrap@0.5.2+unknown",
+  "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:b27f8e315d5ff33fe264d0d4a3d870ee8e304726f5aad1d97f181e40b4a938d8",
-  "gen_hash_rust": "sha256:0d4b92767d8b3ad39c8236ff6c222a02375661bf8e77bd54ba70ab410418b8be",
-  "gen_hash_verilog": "sha256:b1e2088c529ff6782ddf7ad064cf809aec55e5140f55d29f198756fe53f228ac",
-  "gen_hash_zig": "sha256:b5b8820940a9857408d08e890c4e683e50d80219b2460fdfcb9d9b06d6beb886",
+  "gen_hash_c": "sha256:01db14bbf9afd9348a1a7afe1574cca79691f3452a478ebf4ff803e128f3d12b",
+  "gen_hash_rust": "sha256:8061ff5aa9a97dc1e5c1b2f5e09c92212df908d52b73d40a2231d7eaf119f9af",
+  "gen_hash_verilog": "sha256:edc99c8068fe28269d07a24ecd4f9e501c31681dbf4646c13617f41deda71883",
+  "gen_hash_zig": "sha256:99e39dc62df8e49ed92ce403a23b56660db1dc1da28e1304df5a562d34fe152d",
   "module": "TriLruCache",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-10T15:02:31Z",
+  "sealed_at": "2026-10-10T18:58:55Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:70b805b6793e4167ade9a8b98665931fa7d1c064f79aed28c1aaf78bc95207e1",
+  "spec_hash": "sha256:bc9b1a848e3a2813b883c423b9ce4b0663f4f97330ee65173f2076aba6ed1568",
   "spec_path": "specs/tri/collections/lru_cache.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:21:5: error: tuple field has a name"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
