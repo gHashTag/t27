@@ -1,0 +1,325 @@
+// Port of scripts/gen_w726.py (gHashTag/t27 at 010e26c0cc4b), the
+// deterministic generator of
+// specs/scratch/w726_bench_module_271x2p6_aos_var_call_write.t27: a
+// 271 x 2**6 array-of-structs benchmark module (a make_grid function, a
+// whole-array equality test and a write bench).
+//
+// The port keeps the generator's decisions, not its string plumbing. The
+// original assembles its whole output as one string with f-strings, join
+// and repetition; no .t27 library grows strings or lists, so the built
+// literal text becomes the numeric decisions that determine it:
+// - indent carries "    " * level (lines 24-25);
+// - elem_x / elem_y carry the element rule x = (2e + offset) % 32768 and
+//   y = (2e + offset + 1) % 32768 (lines 40-42);
+// - build_level / build_tree carry the recursive walk and how the element
+//   base threads through the shape (lines 28-58); the built text itself is
+//   string plumbing .t27 cannot express;
+// - flat_index carries the row-major element numbering behind the header
+//   constants and the emitted footer (lines 15-17);
+// - is_ascii carries the gate before the write (lines 135-136).
+// The constants carry the header values the emitted footer test asserts on.
+// generate() only moves data out (writes DST and prints a summary,
+// lines 138-141): its body stays undefined and no test calls it.
+
+module port::scripts::gen_w726;
+
+// Header constants (lines 9-21), verbatim arithmetic.
+const COORD_MOD: i64 = 32768;
+const OUTER: i64 = 271;
+const TOTAL: i64 = OUTER * 64; // OUTER * 2**6
+const LAST_IDX: i64 = OUTER - 1;
+const MID_IDX: i64 = OUTER / 2;
+// Index [MID_IDX][1][0][0][0][0][0] is element MID_IDX * 64 + 32.
+const MID_E: i64 = MID_IDX * 64 + 32;
+const LAST_X: i64 = (2 * (TOTAL - 1)) % COORD_MOD;
+const LAST_Y: i64 = (2 * (TOTAL - 1) + 1) % COORD_MOD;
+const MID_X: i64 = (2 * MID_E) % COORD_MOD;
+const MID_Y: i64 = (2 * MID_E + 1) % COORD_MOD;
+const WRAP_LAST_X: i64 = (2 * (TOTAL - 1) + COORD_MOD) % COORD_MOD;
+const WRAP_LAST_Y: i64 = (2 * (TOTAL - 1) + 1 + COORD_MOD) % COORD_MOD;
+
+// What the recursion decides for one literal: the first and last element
+// coordinates, the number of Pt entries, and the next free element index.
+// The original returns the built text plus the advanced base (line 29);
+// the text is the string plumbing named in the header, these numbers are
+// what it encodes.
+pub struct TreeBuild {
+    first_x: i64,
+    first_y: i64,
+    last_x: i64,
+    last_y: i64,
+    leaves: i64,
+    next_base: i64,
+}
+
+// Original line 24: def indent(level: int) -> str. "    " * level cannot be
+// written in .t27 (no string repetition), so the levels the generator can
+// reach are spelled out; above level 7 the result clamps at the deepest
+// string here. Negative levels are "" as in Python ("    " * -2 == "").
+pub fn indent(level: i64) -> str {
+    if (level <= 0) {
+        return "";
+    }
+    if (level == 1) {
+        return "    ";
+    }
+    if (level == 2) {
+        return "        ";
+    }
+    if (level == 3) {
+        return "            ";
+    }
+    if (level == 4) {
+        return "                ";
+    }
+    if (level == 5) {
+        return "                    ";
+    }
+    if (level == 6) {
+        return "                        ";
+    }
+    return "                            ";
+}
+
+// Original lines 40-42: x = (2 * e + offset) % 32768 for entry e of a leaf
+// run. Python's % and the generated % agree on this non-negative domain.
+pub fn elem_x(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset) % COORD_MOD;
+}
+
+// Original lines 41-42: y is x + 1 under the same modulus.
+pub fn elem_y(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset + 1) % COORD_MOD;
+}
+
+// The recursion of original lines 28-58, over (shape, dim) because .t27
+// cannot slice shape[1:]. The leaf case (dim is the last dimension) walks
+// entries e = base .. base+n-1 through elem_x/elem_y and advances the base
+// by n (lines 35-46). An inner node threads the base through its n
+// children unchanged and reports the first child's and last child's
+// decisions (lines 48-58). A zero-width dimension emits no children and
+// leaves the base untouched, as range(0) does in Python.
+fn build_level(shape: []const i64, dim: usize, base: i64, offset: i64) -> TreeBuild {
+    const n: i64 = shape[dim];
+    if (dim + 1 == shape.len) {
+        // Leaf case: entries e = base .. base+n-1, each mapped through
+        // x = (2*e + offset) % 32768 and y = (2*e + offset + 1) % 32768
+        // (original lines 40-42).
+        return TreeBuild {
+            first_x: elem_x(base, offset),
+            first_y: elem_y(base, offset),
+            last_x: elem_x(base + n - 1, offset),
+            last_y: elem_y(base + n - 1, offset),
+            leaves: n,
+            next_base: base + n,
+        };
+    }
+    if (n < 1) {
+        // Python emits no children for a zero-width dimension and leaves
+        // base untouched.
+        return TreeBuild {
+            first_x: elem_x(base, offset),
+            first_y: elem_y(base, offset),
+            last_x: elem_x(base, offset),
+            last_y: elem_y(base, offset),
+            leaves: 0,
+            next_base: base,
+        };
+    }
+    var b: i64 = base;
+    var first: TreeBuild = build_level(shape, dim + 1, b, offset);
+    var last: TreeBuild = first;
+    b = first.next_base;
+    var i: i64 = 1;
+    while (i < n) {
+        last = build_level(shape, dim + 1, b, offset);
+        b = last.next_base;
+        i += 1;
+    }
+    return TreeBuild {
+        first_x: first.first_x,
+        first_y: first.first_y,
+        last_x: last.last_x,
+        last_y: last.last_y,
+        leaves: last.leaves * n,
+        next_base: b,
+    };
+}
+
+// Original line 28: def build_tree(shape: list[int], base: int, offset: int)
+// -> tuple[str, int]. The port returns the numeric decisions (TreeBuild)
+// instead of the built text; the text itself is string plumbing .t27 cannot
+// express.
+pub fn build_tree(shape: []const i64, base: i64, offset: i64) -> TreeBuild {
+    return build_level(shape, 0, base, offset);
+}
+
+// Row-major flat element number of a multi-dimensional index. The original
+// computes [MID_IDX][1][0][0][0][0][0] as MID_IDX * 64 + 32 (lines 15-17)
+// and the footer it emits asserts through such indices.
+pub fn flat_index(shape: []const i64, idx: []const i64) -> i64 {
+    var flat: i64 = 0;
+    var i: usize = 0;
+    while (i < shape.len) {
+        flat = flat * shape[i] + idx[i];
+        i += 1;
+    }
+    return flat;
+}
+
+// The original refuses to write the file unless every character is ASCII
+// (original line 136: raise ValueError). Ported as a pure predicate; the
+// raise itself is the caller's plumbing.
+pub fn is_ascii(s: []const u8) -> bool {
+    for c in s {
+        if (c > 127) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Original line 61: def generate() -> None. Writes the assembled text to
+// specs/scratch/w726_bench_module_271x2p6_aos_var_call_write.t27 and prints
+// a one-line summary - pure data moving out (file, stdout). Its decisions
+// live in the consts and helpers above; the body stays undefined and no
+// test calls it.
+pub fn generate() -> i64 {
+    undefined;
+}
+
+test indent_levels {
+    const l0: str = indent(0);
+    const l1: str = indent(1);
+    const l2: str = indent(2);
+    const l3: str = indent(3);
+    assert(l0 == "");
+    assert(l1 == "    ");
+    assert(l2 == "        ");
+    assert(l3 == "            ");
+    assert(l1.len == 4);
+    assert(l2.len == 8);
+    assert(l3.len == 12);
+    // Python: "    " * -2 is "".
+    assert(indent(-2) == "");
+}
+
+test indent_deep_levels {
+    const l4: str = indent(4);
+    const l7: str = indent(7);
+    assert(l4.len == 16);
+    assert(l7.len == 28);
+}
+
+test bench_constants_match_original {
+    // Each constant against the value the original computes for it. The
+    // comparison runs through runtime memory so the harness executes it
+    // instead of folding it away.
+    var c: [11]i64 = [OUTER, TOTAL, LAST_IDX, MID_IDX, LAST_X, LAST_Y, MID_E, MID_X, MID_Y, WRAP_LAST_X, WRAP_LAST_Y];
+    var want: [11]i64 = [271, 17344, 270, 135, 1918, 1919, 8672, 17344, 17345, 1918, 1919];
+    var i: usize = 0;
+    while (i < 11) {
+        assert(c[i] == want[i]);
+        i += 1;
+    }
+}
+
+test elem_coords_match_emitted_assertions {
+    // dst[0][0][0][0][0][0][0].x == 0 and .y == 1 in the emitted footer.
+    assert(elem_x(0, 0) == 0);
+    assert(elem_y(0, 0) == 1);
+    // dst[LAST_IDX][1][1][1][1][1][1] is element TOTAL-1 = 17343.
+    assert(elem_x(17343, 0) == 1918);
+    assert(elem_y(17343, 0) == 1919);
+    // make_grid(32768) folds offset 32768 back onto offset 0.
+    assert(elem_x(17343, 32768) == 1918);
+    assert(elem_y(17343, 32768) == 1919);
+    // dst[MID_IDX][1][0][0][0][0][0] is element MID_E = 8672.
+    assert(elem_x(8672, 0) == 17344);
+    assert(elem_y(8672, 0) == 17345);
+}
+
+test build_tree_leaf_walks_base {
+    var shape: [1]i64 = [5];
+    const t: TreeBuild = build_tree(&shape, 3, 0);
+    assert(t.first_x == 6);
+    assert(t.first_y == 7);
+    assert(t.last_x == 14);
+    assert(t.last_y == 15);
+    assert(t.leaves == 5);
+    assert(t.next_base == 8);
+}
+
+test build_tree_nested_threads_base {
+    var shape: [2]i64 = [2, 2];
+    const t: TreeBuild = build_tree(&shape, 7, 0);
+    assert(t.first_x == 14);
+    assert(t.first_y == 15);
+    assert(t.last_x == 20);
+    assert(t.last_y == 21);
+    assert(t.leaves == 4);
+    assert(t.next_base == 11);
+}
+
+test build_tree_offset_shifts_both_coords {
+    var shape: [1]i64 = [2];
+    const t: TreeBuild = build_tree(&shape, 0, 1);
+    assert(t.first_x == 1);
+    assert(t.first_y == 2);
+    assert(t.last_x == 3);
+    assert(t.last_y == 4);
+}
+
+test build_tree_coords_fold_modulo {
+    var shape: [1]i64 = [2];
+    const t: TreeBuild = build_tree(&shape, 16383, 0);
+    assert(t.first_x == 32766);
+    assert(t.first_y == 32767);
+    assert(t.last_x == 0);
+    assert(t.last_y == 1);
+}
+
+test build_tree_zero_width_dim_keeps_base {
+    var shape: [2]i64 = [0, 3];
+    const t: TreeBuild = build_tree(&shape, 5, 0);
+    assert(t.leaves == 0);
+    assert(t.next_base == 5);
+}
+
+test build_tree_full_bench_shape_matches_footer {
+    var shape: [7]i64 = [OUTER, 2, 2, 2, 2, 2, 2];
+    const t: TreeBuild = build_tree(&shape, 0, 0);
+    // First leaf: dst[0][0][0][0][0][0][0] -> x 0, y 1.
+    assert(t.first_x == 0);
+    assert(t.first_y == 1);
+    // Last leaf in row-major order: dst[270][1][1][1][1][1][1] -> LAST_X, LAST_Y.
+    assert(t.last_x == LAST_X);
+    assert(t.last_y == LAST_Y);
+    assert(t.leaves == TOTAL);
+    assert(t.next_base == TOTAL);
+}
+
+test build_level_leaf_direct {
+    var shape: [2]i64 = [2, 3];
+    const t: TreeBuild = build_level(&shape, 1, 10, 0);
+    assert(t.first_x == 20);
+    assert(t.last_x == 24);
+    assert(t.leaves == 3);
+    assert(t.next_base == 13);
+}
+
+test flat_index_matches_original_comment {
+    var shape: [7]i64 = [OUTER, 2, 2, 2, 2, 2, 2];
+    var mid: [7]i64 = [135, 1, 0, 0, 0, 0, 0];
+    var last: [7]i64 = [270, 1, 1, 1, 1, 1, 1];
+    // MID_IDX * 64 + 32, from the original's lines 15-17.
+    assert(flat_index(&shape, &mid) == 8672);
+    assert(flat_index(&shape, &last) == 17343);
+}
+
+test is_ascii_gate {
+    assert(is_ascii("module w726_bench_module_271x2p6_aos_var_call_write\n"));
+    assert(is_ascii(""));
+    var bad: [4]u8 = [80, 116, 210, 10];
+    assert(!is_ascii(&bad));
+}
