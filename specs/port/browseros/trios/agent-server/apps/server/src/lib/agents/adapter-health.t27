@@ -1,0 +1,82 @@
+module port::adapter_health;
+
+pub struct AdapterHealth {
+  healthy: bool,
+  reason: []const u8,
+  checkedAt: i64,
+}
+
+pub struct RuntimeSnapshot {
+  isReady: bool,
+  lastError: []const u8,
+  probedAt: i64,
+  lastErrorAt: i64,
+}
+
+pub fn runtimeSnapshotToHealth(snap: RuntimeSnapshot) -> AdapterHealth {
+  return AdapterHealth {
+    healthy: snap.isReady,
+    reason: if (snap.isReady) "" else snap.lastError,
+    checkedAt: snap.probedAt,
+  };
+}
+
+pub fn openclawFallback(adapter: []const u8) -> AdapterHealth {
+  if (adapter[0] == 'o' and adapter[1] == 'p' and adapter[2] == 'e' and adapter[3] == 'n' and adapter[4] == 'c' and adapter[5] == 'l' and adapter[6] == 'a' and adapter[7] == 'w') {
+    return AdapterHealth {
+      healthy: true,
+      reason: "",
+      checkedAt: 1640995200000,
+    };
+  }
+  return AdapterHealth {
+    healthy: false,
+    reason: "No runtime registered for adapter",
+    checkedAt: 1640995200000,
+  };
+}
+
+pub fn AdapterHealthChecker_getHealth(adapter: anytype) -> AdapterHealth {
+  undefined;
+}
+
+test runtimeSnapshotToHealth_ready {
+  const snap = RuntimeSnapshot {
+    isReady: true,
+    lastError: "",
+    probedAt: 1640995200000,
+    lastErrorAt: 0,
+  };
+  
+  const result = runtimeSnapshotToHealth(snap);
+  assert(result.healthy == true);
+  assert(result.reason == "");
+  assert(result.checkedAt == 1640995200000);
+}
+
+test runtimeSnapshotToHealth_unready {
+  const error_msg = "Connection failed";
+  const snap = RuntimeSnapshot {
+    isReady: false,
+    lastError: error_msg,
+    probedAt: 0,
+    lastErrorAt: 1640995200000,
+  };
+  
+  const result = runtimeSnapshotToHealth(snap);
+  assert(result.healthy == false);
+  assert(result.reason == error_msg);
+  assert(result.checkedAt == 0);
+}
+
+test openclawFallback_openclaw {
+  const result = openclawFallback("openclaw");
+  assert(result.healthy == true);
+  assert(result.reason == "");
+}
+
+test openclawFallback_other {
+  const result = openclawFallback("other_adapter");
+  assert(result.healthy == false);
+  assert(result.reason == "No runtime registered for adapter");
+}
