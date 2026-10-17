@@ -1,0 +1,27 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+3d1a4fe8b",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:13b3157d7c3c594e07a366c8a70e51ae30bc417469f1667629e7f225c1fa4978",
+  "gen_hash_rust": "sha256:4e01fc48edd77ad6fd23ea0569429452bb46b98948f64c5ad43de905c87032c1",
+  "gen_hash_verilog": "sha256:57c94ba2b72f88a236fab6f0ad7ed0c19d1c9d94c36c65b6842265113b4726ed",
+  "gen_hash_zig": "sha256:a75c41635d6ebe7055db5123c64dc35116402e49c19a845ad37d083ec44faaaa",
+  "module": "EthReply",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T12:51:32Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:46ff1cc40922c5b434077c47180e78440187910a866f4d87e76142aac2a0a71a",
+  "spec_path": "specs/fpga/eth_reply.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
