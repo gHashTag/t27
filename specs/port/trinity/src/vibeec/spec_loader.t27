@@ -1,0 +1,261 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Port of gHashTag/trinity src/vibeec/spec_loader.zig (trinity@990aa6f23054).
+//
+// The original loadSpecs (line 5) opened the base directory, walked it with
+// std.fs.Dir.walk, kept only regular files whose path ends in ".tri", read
+// each one under a 1 MiB cap, and appended a `// FILE: <path>\n<content>\n\n`
+// block per kept file; the whole list was framed by a
+// "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n" header and a "[/DIVINE LAW]\n"
+// footer, the loaded count was printed, and the concatenation was returned.
+// The original main (line 52) built a GPA allocator, called
+// loadSpecs(allocator, "../../specs"), and printed the result between
+// `--- DIVINE MANDATE ---` markers.
+//
+// Only the decision logic is ported. The plumbing — the allocator, the
+// directory walk, the bounded read enforcing the cap, and the printing —
+// becomes parameters: the caller hands over the walker entries already read
+// (`read_ok` false stands for a failed or over-cap read, exactly the cases
+// the original skipped with a warning) and a buffer to assemble into, in
+// place of the original's allocator-owned concatenation.
+//
+// The original grew its specs list dynamically. Growable lists do not exist
+// in a spec, so Segments carries a fixed array bounded by the literal 512;
+// each kept file contributes five segments, and the buffer passed to
+// loadSpecs must hold the assembled total.
+
+const MAX_FILE_BYTES: usize = 1048576; // 1 MiB, the original's max_file_size
+
+enum EntryKind { File, Dir, SymLink, }
+
+pub struct WalkerEntry {
+    kind: EntryKind,
+    path: []const u8,
+    read_ok: bool,
+    content: []const u8,
+}
+
+pub struct Segments {
+    items: [512][]const u8,
+    len: usize,
+}
+
+// The original kept a walked entry only when its kind was .file
+// (directories and symlinks never became segments).
+pub fn is_spec_entry(kind: EntryKind, path: []const u8) -> bool {
+    if (kind != .File) {
+        return false;
+    }
+    return ends_with(path, ".tri");
+}
+
+// The original used std.mem.endsWith(u8, entry.path, ".tri").
+pub fn ends_with(path: []const u8, suffix: []const u8) -> bool {
+    if (path.len < suffix.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < suffix.len) {
+        if (path[path.len - suffix.len + i] != suffix[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// The original read each file with readToEndAlloc(..., max_file_size); a
+// file over the cap fails the read and is skipped like any other read
+// error. Here the caller applies this decision when filling WalkerEntry,
+// which is why an over-cap file arrives as read_ok = false.
+pub fn within_size_cap(size: usize) -> bool {
+    return size <= MAX_FILE_BYTES;
+}
+
+// Port of loadSpecs' assembly loop. Segments in emission order: the header;
+// then, per kept and readable spec file, `// FILE: `, the path, a newline,
+// the contents, and a blank line; then the footer. When the base directory
+// could not be opened the original returned early with nothing walked —
+// here that is the header plus a note, and the footer is deliberately
+// absent, matching the early return.
+pub fn mandate_segments(dir_opened: bool, entries: []const WalkerEntry) -> Segments {
+    var items: [512][]const u8 = undefined;
+    var n: usize = 0;
+
+    items[n] = "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n";
+    n += 1;
+
+    if (!dir_opened) {
+        items[n] = "// No specifications found\n";
+        n += 1;
+        return Segments { items: items, len: n };
+    }
+
+    for (entries) |entry| {
+        if (!is_spec_entry(entry.kind, entry.path)) {
+            continue;
+        }
+        if (!entry.read_ok) {
+            continue;
+        }
+        items[n] = "// FILE: ";
+        n += 1;
+        items[n] = entry.path;
+        n += 1;
+        items[n] = "\n";
+        n += 1;
+        items[n] = entry.content;
+        n += 1;
+        items[n] = "\n\n";
+        n += 1;
+    }
+
+    items[n] = "[/DIVINE LAW]\n";
+    n += 1;
+
+    return Segments { items: items, len: n };
+}
+
+// The original counted every spec file it actually read (loaded_specs) and
+// printed `vibeec: loaded {d} specifications`. Printing is plumbing; the
+// count is a decision, so it is returned.
+pub fn loaded_file_count(dir_opened: bool, entries: []const WalkerEntry) -> usize {
+    if (!dir_opened) {
+        return 0;
+    }
+    var n: usize = 0;
+    for (entries) |entry| {
+        if (is_spec_entry(entry.kind, entry.path) && entry.read_ok) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// Port of loadSpecs (original line 5), keeping the name. The original
+// concatenated its segments into an allocator-owned string; growable lists
+// do not exist here, so the caller owns the memory instead: `out` must hold
+// the assembled mandate and the returned slice aliases it — the same
+// caller-owned-buffer contract trinity_tokenizer.t27 uses for tokens.
+pub fn loadSpecs(dir_opened: bool, entries: []const WalkerEntry, out: []u8) -> []const u8 {
+    const doc: Segments = mandate_segments(dir_opened, entries);
+
+    var filled: usize = 0;
+    var i: usize = 0;
+    while (i < doc.len) {
+        var j: usize = 0;
+        while (j < doc.items[i].len) {
+            out[filled] = doc.items[i][j];
+            filled += 1;
+            j += 1;
+        }
+        i += 1;
+    }
+
+    return out[0..filled];
+}
+
+// Port of main (original line 52). The original built a GPA, called
+// loadSpecs(allocator, "../../specs"), and printed the result between
+// `--- DIVINE MANDATE ---` markers. Allocator setup and printing are
+// plumbing: the allocator becomes the caller's `out` buffer, the hardcoded
+// "../../specs" walk becomes the caller-supplied entries, and the verdict
+// left is that main returns exactly the mandate loadSpecs assembled.
+pub fn main(_allocator: usize, _base_path: []const u8, dir_opened: bool, entries: []const WalkerEntry, out: []u8) -> []const u8 {
+    return loadSpecs(dir_opened, entries, out);
+}
+
+test "spec entries are exactly regular files ending in .tri" {
+    assert(is_spec_entry(.File, "mandate.tri"));
+    assert(is_spec_entry(.File, "a/b/c.tri"));
+    assert(is_spec_entry(.File, ".tri"));
+    assert(!is_spec_entry(.Dir, "specs"));
+    assert(!is_spec_entry(.SymLink, "alias.tri"));
+    assert(!is_spec_entry(.File, "README.md"));
+    assert(!is_spec_entry(.File, "spec.trix"));
+    assert(!is_spec_entry(.File, "tri"));
+    assert(!is_spec_entry(.File, "mandate.TRI"));
+    assert(ends_with("x.tri", ".tri"));
+    assert(!ends_with("tri", ".tri"));
+}
+
+test "the read cap is the original's one mebibyte" {
+    assert(within_size_cap(0));
+    assert(within_size_cap(1048576));
+    assert(!within_size_cap(1048577));
+    assert(!within_size_cap(2 * 1048576));
+}
+
+test "the mandate assembles header, file blocks, footer in order" {
+    var entries: [3]WalkerEntry = [
+        WalkerEntry { kind: .File, path: "mandate.tri", read_ok: true, content: "Ternary is base 3.\n" },
+        WalkerEntry { kind: .Dir, path: "subdir", read_ok: false, content: "" },
+        WalkerEntry { kind: .File, path: "notes.md", read_ok: false, content: "" },
+    ];
+    const doc: Segments = mandate_segments(true, &entries);
+    assert(doc.len == 7);
+    assert(doc.items[0] == "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n");
+    assert(doc.items[1] == "// FILE: ");
+    assert(doc.items[2] == "mandate.tri");
+    assert(doc.items[3] == "\n");
+    assert(doc.items[4] == "Ternary is base 3.\n");
+    assert(doc.items[5] == "\n\n");
+    assert(doc.items[6] == "[/DIVINE LAW]\n");
+    assert(loaded_file_count(true, &entries) == 1);
+}
+
+test "unreadable and over-cap entries are skipped, footer still written" {
+        // A 1 MiB + 1 byte file exceeds the cap, so its read fails.
+        const fits_cap: bool = within_size_cap(1048577);
+        var entries: [4]WalkerEntry = [
+            WalkerEntry { kind: .Dir, path: "subdir", read_ok: false, content: "" },
+            WalkerEntry { kind: .File, path: "locked.tri", read_ok: false, content: "" },
+            WalkerEntry { kind: .File, path: "huge.tri", read_ok: fits_cap, content: "" },
+        WalkerEntry { kind: .File, path: "last.tri", read_ok: true, content: "ok\n" },
+    ];
+    const doc: Segments = mandate_segments(true, &entries);
+    assert(doc.len == 7);
+    assert(doc.items[1] == "// FILE: ");
+    assert(doc.items[2] == "last.tri");
+    assert(doc.items[4] == "ok\n");
+    assert(doc.items[6] == "[/DIVINE LAW]\n");
+    assert(loaded_file_count(true, &entries) == 1);
+}
+
+test "an unopenable base directory yields header and note, no footer" {
+    var entries: [1]WalkerEntry = [ WalkerEntry { kind: .File, path: "mandate.tri", read_ok: true, content: "x" } ];
+    const doc: Segments = mandate_segments(false, &entries);
+    assert(doc.len == 2);
+    assert(doc.items[0] == "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n");
+    assert(doc.items[1] == "// No specifications found\n");
+    assert(loaded_file_count(false, &entries) == 0);
+}
+
+test "loadSpecs concatenates the exact mandate string" {
+    var entries: [2]WalkerEntry = [
+        WalkerEntry { kind: .File, path: "a.tri", read_ok: true, content: "one\n" },
+        WalkerEntry { kind: .File, path: "b.tri", read_ok: true, content: "two\n" },
+    ];
+    var buf: [256]u8 = undefined;
+    const mandate = loadSpecs(true, &entries, &buf);
+    assert(mandate == "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n// FILE: a.tri\none\n\n\n// FILE: b.tri\ntwo\n\n\n[/DIVINE LAW]\n");
+    assert(mandate.len == 93);
+}
+
+test "loadSpecs with nothing kept yields header and footer only" {
+    var entries: [2]WalkerEntry = [
+        WalkerEntry { kind: .Dir, path: "specs", read_ok: false, content: "" },
+        WalkerEntry { kind: .File, path: "notes.md", read_ok: false, content: "" },
+    ];
+    var buf: [64]u8 = undefined;
+    const mandate = loadSpecs(true, &entries, &buf);
+    assert(mandate == "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n[/DIVINE LAW]\n");
+    assert(mandate.len == 51);
+}
+
+test "main returns exactly what loadSpecs assembled" {
+    var entries: [1]WalkerEntry = [ WalkerEntry { kind: .File, path: "a.tri", read_ok: true, content: "body\n" } ];
+    var buf: [128]u8 = undefined;
+    const via_main = main(0, "../../specs", true, &entries, &buf);
+    assert(via_main == "[DIVINE LAW - VIBEE SPECIFICATIONS]\n\n// FILE: a.tri\nbody\n\n\n[/DIVINE LAW]\n");
+}
