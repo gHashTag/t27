@@ -1,0 +1,308 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_key_derivation_uniqueness_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_key_derivation_uniqueness_guard.rs
+// (CR-CHAT-04 - Padding key derivation uniqueness guard, Wave-85
+// Lane A, requirement R-CHAT-4).
+//
+// Every padding operation must draw a fresh key off the ratchet:
+// a reused key XOR-correlates two messages, groups traffic by
+// sender through identical padding patterns, and makes the
+// padding strippable and the payload sizes recoverable. The
+// rules, in the original's order: the batch ceiling, then per
+// derivation the empty-label probe, the key-length check, the
+// zero-key probe, the strictly-increasing index and the
+// repeated-key scan.
+//
+// The original returns Result<(), PadKeyError>. This port
+// carries the verdict as a named struct (owner decision D5): Ok
+// first, then the six error variants in the original's
+// declaration order - DuplicateKey, IndexNotIncreasing,
+// WrongKeyLen, TooManyDerivations, EmptyLabel, ZeroKey - with
+// every payload field: the offending index for
+// IndexNotIncreasing and ZeroKey, the expected and got lengths
+// for WrongKeyLen, and the batch got and max for the ceiling.
+//
+// The original's Vec<u8> key becomes the fixed [32]u8 form plus
+// its length (the bytes stay; the zero probe and the dedup read
+// them), and the String label becomes its length - the only
+// property any rule reads. The BTreeSet dedup becomes a scan
+// over the derivations already visited; the boundary fixture's
+// little-endian index bytes come out of the identity byte
+// table, no narrowing anywhere.
+
+// Expected padding key length.
+pub const PKDU_KEY_LEN: usize = 32;
+
+// Maximum derivations per session.
+pub const PKDU_MAX_DERIVATIONS: usize = 65536;
+
+// The identity byte table: slot n carries byte n. Indexing it
+// with a value 0..255 is the cast the backends lower.
+pub const PKDU_BYTE_TABLE: [256]u8 = [256]u8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255,};
+
+// A padding key derivation record: the index, the key material
+// with its length, and the label's length.
+pub struct PadKeyDerivation {
+    index: u64,
+    key: [32]u8,
+    key_len: usize,
+    label_len: usize,
+}
+
+// Verdict codes: Ok(()) and PadKeyError's variants, in declaration order.
+pub enum PadKeyCode {
+    Ok,
+    DuplicateKey,
+    IndexNotIncreasing,
+    WrongKeyLen,
+    TooManyDerivations,
+    EmptyLabel,
+    ZeroKey,
+}
+
+// The verdict of the pad key validation, with every error payload
+// field.
+pub struct PadKeyVerdict {
+    code: PadKeyCode,
+    got: usize,
+    bound: usize,
+    got64: u64,
+}
+
+// Whole-form equality over the fixed thirty-two key bytes.
+pub fn keys_equal(a: [32]u8, b: [32]u8) -> bool {
+    for i in 0..32 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero key - the original's iter().all zero probe.
+pub fn key_zero(k: [32]u8) -> bool {
+    for i in 0..32 {
+        if (k[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether derivation i repeats an earlier key - the original's
+// BTreeSet insert probe, answered by a scan.
+pub fn key_seen_before(derivations: []const PadKeyDerivation, i: usize) -> bool {
+    for j in 0..i {
+        if (keys_equal(derivations[j].key, derivations[i].key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate padding key derivation uniqueness.
+// Returns Ok only when every rule holds, checked in the
+// original's order: the batch ceiling, then per derivation the
+// empty label, the key length, the zero key, the strictly
+// increasing index and the repeated key.
+pub fn validate_pad_key_derivations(derivations: []const PadKeyDerivation) -> PadKeyVerdict {
+    if (derivations.len > PKDU_MAX_DERIVATIONS) {
+        return PadKeyVerdict { code: PadKeyCode.TooManyDerivations, got: derivations.len, bound: PKDU_MAX_DERIVATIONS, got64: 0, };
+    }
+    for i in 0..derivations.len {
+        if (derivations[i].label_len == 0) {
+            return PadKeyVerdict { code: PadKeyCode.EmptyLabel, got: 0, bound: 0, got64: 0, };
+        }
+        if (derivations[i].key_len != PKDU_KEY_LEN) {
+            return PadKeyVerdict { code: PadKeyCode.WrongKeyLen, got: derivations[i].key_len, bound: PKDU_KEY_LEN, got64: 0, };
+        }
+        if (key_zero(derivations[i].key)) {
+            return PadKeyVerdict { code: PadKeyCode.ZeroKey, got: 0, bound: 0, got64: derivations[i].index, };
+        }
+        if (i > 0) {
+            if (derivations[i].index <= derivations[i - 1].index) {
+                return PadKeyVerdict { code: PadKeyCode.IndexNotIncreasing, got: 0, bound: 0, got64: derivations[i].index, };
+            }
+        }
+        if (key_seen_before(derivations, i)) {
+            return PadKeyVerdict { code: PadKeyCode.DuplicateKey, got: 0, bound: 0, got64: 0, };
+        }
+    }
+    return PadKeyVerdict { code: PadKeyCode.Ok, got: 0, bound: 0, got64: 0, };
+}
+
+// The key material of the fixtures, one byte repeated thirty-two
+// times - the original's key(byte) helper, entry by entry.
+pub const KEY_AA: [32]u8 = [32]u8{170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170,};
+pub const KEY_BB: [32]u8 = [32]u8{187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187,};
+pub const KEY_CC: [32]u8 = [32]u8{204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204,};
+pub const KEY_FF: [32]u8 = [32]u8{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,};
+pub const KEY_ZERO: [32]u8 = [32]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,};
+
+// **PKDU-01** - duplicate key rejected: the second derivation
+// repeats the first's material under a fresh index.
+test pkdu_01_duplicate_rejected {
+    const ds: [2]PadKeyDerivation = [2]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_AA, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 2, key: KEY_AA, key_len: 32, label_len: 5, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.DuplicateKey);
+}
+
+// **PKDU-02** - index not increasing rejected: the second
+// derivation carries index one under a first of two.
+test pkdu_02_index_not_increasing_rejected {
+    const ds: [2]PadKeyDerivation = [2]PadKeyDerivation{
+        PadKeyDerivation { index: 2, key: KEY_AA, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 1, key: KEY_BB, key_len: 32, label_len: 5, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.IndexNotIncreasing);
+    assert(v.got64 == 1);
+}
+
+// **PKDU-03** - wrong key length rejected: sixteen bytes of the
+// thirty-two expected.
+test pkdu_03_wrong_key_len_rejected {
+    const ds: [1]PadKeyDerivation = [1]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_AA, key_len: 16, label_len: 5, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.WrongKeyLen);
+    assert(v.got == 16);
+    assert(v.bound == 32);
+}
+
+// **PKDU-04** - too many rejected: 65537 derivations of a maximum
+// 65536, built in a loop like the original's. The batch rule
+// fires before any derivation is examined.
+test pkdu_04_too_many_rejected {
+    var ds: [65537]PadKeyDerivation;
+    for i in 0..65537 {
+        ds[i] = PadKeyDerivation { index: @as(u64, i), key: KEY_AA, key_len: 32, label_len: 1, };
+    }
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.TooManyDerivations);
+    assert(v.got == 65537);
+    assert(v.bound == 65536);
+}
+
+// **PKDU-05** - empty label rejected under live key material.
+test pkdu_05_empty_label_rejected {
+    const ds: [1]PadKeyDerivation = [1]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_AA, key_len: 32, label_len: 0, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.EmptyLabel);
+}
+
+// **PKDU-06** - all-zero key rejected, its index carried back.
+test pkdu_06_zero_key_rejected {
+    const ds: [1]PadKeyDerivation = [1]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_ZERO, key_len: 32, label_len: 5, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.ZeroKey);
+    assert(v.got64 == 1);
+}
+
+// **PKDU-07** - the valid derivations accepted: three indices,
+// three key materials.
+test pkdu_07_valid_accepted {
+    const ds: [3]PadKeyDerivation = [3]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_AA, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 2, key: KEY_BB, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 3, key: KEY_CC, key_len: 32, label_len: 5, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.Ok);
+}
+
+// **PKDU-08** - an empty batch accepted.
+test pkdu_08_empty_accepted {
+    const ds: [0]PadKeyDerivation = [0]PadKeyDerivation{};
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.Ok);
+}
+
+// **PKDU-09** - a single derivation accepted.
+test pkdu_09_single_accepted {
+    const ds: [1]PadKeyDerivation = [1]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_FF, key_len: 32, label_len: 5, },
+    };
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.Ok);
+}
+
+// **PKDU-10** - the maximum boundary accepted: 65536 derivations,
+// each key the little-endian bytes of its index with a live
+// ninth byte, indices walking zero upward.
+test pkdu_10_max_boundary_accepted {
+    var ds: [65536]PadKeyDerivation;
+    for i in 0..65536 {
+        var k: [32]u8 = [32]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        k[0] = PKDU_BYTE_TABLE[i % 256];
+        k[1] = PKDU_BYTE_TABLE[(i / 256) % 256];
+        k[8] = 1;
+        ds[i] = PadKeyDerivation { index: @as(u64, i), key: k, key_len: 32, label_len: 1, };
+    }
+    const v = validate_pad_key_derivations(&ds);
+    assert(v.code == PadKeyCode.Ok);
+}
+
+// The three helpers have direct tests (coverage: Untested 0).
+test pkdu_helpers_answer {
+    assert(keys_equal(KEY_AA, KEY_AA));
+    assert(!keys_equal(KEY_AA, KEY_BB));
+    assert(key_zero(KEY_ZERO));
+    assert(!key_zero(KEY_AA));
+    const three: [3]PadKeyDerivation = [3]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_AA, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 2, key: KEY_BB, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 3, key: KEY_AA, key_len: 32, label_len: 5, },
+    };
+    assert(!key_seen_before(&three, 0));
+    assert(!key_seen_before(&three, 1));
+    assert(key_seen_before(&three, 2));
+}
+
+// Rule order is the original's: the empty label before the key
+// length, the key length before the zero probe, the zero probe
+// before the index, the index before the repeated key - and the
+// batch ceiling before any derivation.
+test rule_order_matches_original {
+    const empty_short: [1]PadKeyDerivation = [1]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_ZERO, key_len: 16, label_len: 0, },
+    };
+    const v1 = validate_pad_key_derivations(&empty_short);
+    assert(v1.code == PadKeyCode.EmptyLabel);
+
+    const short_zero: [1]PadKeyDerivation = [1]PadKeyDerivation{
+        PadKeyDerivation { index: 1, key: KEY_ZERO, key_len: 16, label_len: 5, },
+    };
+    const v2 = validate_pad_key_derivations(&short_zero);
+    assert(v2.code == PadKeyCode.WrongKeyLen);
+
+    const zero_backstep: [2]PadKeyDerivation = [2]PadKeyDerivation{
+        PadKeyDerivation { index: 5, key: KEY_AA, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 3, key: KEY_ZERO, key_len: 32, label_len: 5, },
+    };
+    const v3 = validate_pad_key_derivations(&zero_backstep);
+    assert(v3.code == PadKeyCode.ZeroKey);
+    assert(v3.got64 == 3);
+
+    const backstep_twin: [2]PadKeyDerivation = [2]PadKeyDerivation{
+        PadKeyDerivation { index: 2, key: KEY_AA, key_len: 32, label_len: 5, },
+        PadKeyDerivation { index: 1, key: KEY_AA, key_len: 32, label_len: 5, },
+    };
+    const v4 = validate_pad_key_derivations(&backstep_twin);
+    assert(v4.code == PadKeyCode.IndexNotIncreasing);
+
+    var flooded: [65537]PadKeyDerivation;
+    for i in 0..65537 {
+        flooded[i] = PadKeyDerivation { index: 1, key: KEY_ZERO, key_len: 32, label_len: 0, };
+    }
+    const v5 = validate_pad_key_derivations(&flooded);
+    assert(v5.code == PadKeyCode.TooManyDerivations);
+}
