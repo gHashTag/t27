@@ -1,0 +1,709 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/spi_flash_master.t27
+// SPI Flash Master — read ternary weights from a W25Q128 into BRAM at boot
+// Port of fpga/openxc7-synth/spi_flash_master.v (gHashTag/trinity, 252955f786c6)
+// to `.t27` (roadmap stage 7, issue #9219).
+//
+// SPI mode 0, 50MHz/CLK_DIV/2 = 6.25MHz. The original is two
+// `always @(posedge clk)` blocks sharing one register set: an SPI clock
+// divider (lines 95-116) and the transfer FSM (lines 119-241). Both are
+// ported as pure functions over one `CoreRegs` struct; `step_cycle` fires
+// both decisions on one posedge the way Verilog nonblocking assignments do —
+// every block reads pre-edge values, so the FSM consumes the edge pulses
+// registered at the PREVIOUS posedge, and the divider sees the `sclk_en` the
+// FSM writes only from the next posedge on. In ST_CS_HIGH both blocks write
+// `spi_sclk`; the FSM block sits later in the source, so its write wins.
+// The dead `spi_clk_cnt` register of the original (declared, never used) is
+// not carried over.
+//
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module spi_flash_master {
+
+    // === Parameters (lines 36-39) ===
+    pub const CLK_DIV     : u32 = 4;   // 50MHz/CLK_DIV/2 = 6.25MHz SPI clock
+    pub const ADDR_WIDTH  : u32 = 24;  // 24-bit Flash address
+    pub const BRAM_AWIDTH : u32 = 18;  // BRAM address width
+    pub const DATA_WIDTH  : u32 = 8;   // SPI data width (byte)
+
+    // === SPI commands (localparam, lines 65-68) ===
+    pub const SPI_CMD_READ      : u32 = 0x03;  // Read Data
+    pub const SPI_CMD_FAST_READ : u32 = 0x0B;  // Fast Read (with dummy byte)
+    pub const SPI_CMD_RDID      : u32 = 0x9F;  // Read JEDEC ID
+    pub const SPI_CMD_RDSR      : u32 = 0x05;  // Read Status Register
+
+    // === FSM states (localparam, lines 71-77) ===
+    pub const ST_IDLE      : u32 = 0;
+    pub const ST_CS_LOW    : u32 = 1;
+    pub const ST_SEND_CMD  : u32 = 2;
+    pub const ST_SEND_ADDR : u32 = 3;
+    pub const ST_READ_DATA : u32 = 4;
+    pub const ST_CS_HIGH   : u32 = 5;
+    pub const ST_DONE      : u32 = 6;
+
+    // All registers of both always blocks (lines 79-93) plus the outputs
+    // they drive. u32 fields carry the unsigned vectors of the original at
+    // their declared widths.
+    pub struct CoreRegs {
+        state         : u32,   // reg [3:0]  state
+        clk_div_cnt   : u32,   // reg [7:0]  clk_div_cnt
+        sclk          : bool,  // output reg spi_sclk
+        sclk_en       : bool,  // reg        sclk_en
+        spi_clk_edge  : bool,  // reg        spi_clk_edge (rising SCLK pulse)
+        spi_clk_fall  : bool,  // reg        spi_clk_fall (falling SCLK pulse)
+        spi_cs_n      : bool,  // output reg spi_cs_n
+        spi_mosi      : bool,  // output reg spi_mosi
+        busy          : bool,  // output reg busy
+        done          : bool,  // output reg done
+        bram_wr_en    : bool,  // output reg bram_wr_en
+        bram_wr_addr  : u32,   // output reg [BRAM_AWIDTH-1:0] bram_wr_addr
+        bram_wr_data  : u32,   // output reg [DATA_WIDTH-1:0]  bram_wr_data
+        shift_reg     : u32,   // reg [7:0]  shift_reg
+        bit_cnt       : u32,   // reg [2:0]  bit_cnt
+        addr_reg      : u32,   // reg [23:0] addr_reg
+        byte_cnt      : u32,   // reg [15:0] byte_cnt
+        total_bytes   : u32,   // reg [15:0] total_bytes
+        addr_byte_cnt : u32,   // reg [1:0]  addr_byte_cnt
+    }
+
+    // Reset (FSM block lines 120-129, divider reset zeroes counter and
+    // pulses): idle, CS deasserted, clock stopped, no write pulse.
+    pub fn initial_regs() -> CoreRegs {
+        return CoreRegs{
+            .state = ST_IDLE,
+            .clk_div_cnt = 0,
+            .sclk = false,
+            .sclk_en = false,
+            .spi_clk_edge = false,
+            .spi_clk_fall = false,
+            .spi_cs_n = true,
+            .spi_mosi = false,
+            .busy = false,
+            .done = false,
+            .bram_wr_en = false,
+            .bram_wr_addr = 0,
+            .bram_wr_data = 0,
+            .shift_reg = 0,
+            .bit_cnt = 0,
+            .addr_reg = 0,
+            .byte_cnt = 0,
+            .total_bytes = 0,
+            .addr_byte_cnt = 0,
+        };
+    }
+
+    // `(value >> index) & 1` — bit extraction used all over the FSM.
+    pub fn bit_is(value: u32, index: u32) -> bool {
+        return ((value >> index) & 1) == 1;
+    }
+
+    // `{reg[6:0], miso}` — shift one MISO bit into the byte register.
+    pub fn shift_in(reg: u32, miso: bool) -> u32 {
+        if (miso) {
+            return ((reg << 1) | 1) & 0xFF;
+        }
+        return (reg << 1) & 0xFF;
+    }
+
+    // The SPI clock divider (lines 95-116): counts 0..CLK_DIV-1, toggles
+    // spi_sclk while sclk_en, and registers one-cycle pulses for the rising
+    // and falling SCLK edges. Returns (cnt', sclk', edge', fall').
+    pub fn step_clock_regs(cnt: u32, sclk: bool, en: bool) -> (u32, bool, bool, bool) {
+        var ncnt : u32 = cnt + 1;
+        var nsclk : bool = sclk;
+        var nedge : bool = false;
+        var nfall : bool = false;
+        if (cnt == CLK_DIV - 1) {
+            ncnt = 0;
+            if (en) {
+                if (!sclk) {
+                    nsclk = true;
+                    nedge = true;
+                } else {
+                    nsclk = false;
+                    nfall = true;
+                }
+            }
+        }
+        return (ncnt, nsclk, nedge, nfall);
+    }
+
+    // case ST_IDLE: a start pulse while not busy latches the transfer.
+    fn step_idle(r: CoreRegs, start: bool, flash_addr: u32, read_len: u32) -> CoreRegs {
+        if (start and !r.busy) {
+            var next : CoreRegs = r;
+            next.busy = true;
+            next.addr_reg = flash_addr;
+            next.total_bytes = read_len;
+            next.byte_cnt = 0;
+            next.bram_wr_addr = 0;
+            next.state = ST_CS_LOW;
+            return next;
+        }
+        return r;
+    }
+
+    // case ST_CS_LOW: assert CS, load the READ command, drive its MSB,
+    // start the SPI clock.
+    fn step_cs_low(r: CoreRegs) -> CoreRegs {
+        var next : CoreRegs = r;
+        next.spi_cs_n = false;
+        next.shift_reg = SPI_CMD_READ;
+        next.bit_cnt = 7;
+        next.sclk_en = true;
+        next.spi_mosi = bit_is(SPI_CMD_READ, 7);
+        next.state = ST_SEND_CMD;
+        return next;
+    }
+
+    // case ST_SEND_CMD: shift the command byte out, MSB first, on falling
+    // SCLK edges; the last fall loads the first address byte.
+    fn step_send_cmd(r: CoreRegs) -> CoreRegs {
+        if (!r.spi_clk_fall) {
+            return r;
+        }
+        var next : CoreRegs = r;
+        if (r.bit_cnt == 0) {
+            next.addr_byte_cnt = 0;
+            next.shift_reg = (r.addr_reg >> 16) & 0xFF;  // addr_reg[23:16]
+            next.bit_cnt = 7;
+            next.spi_mosi = bit_is(r.addr_reg, 23);
+            next.state = ST_SEND_ADDR;
+            return next;
+        }
+        next.bit_cnt = r.bit_cnt - 1;
+        next.spi_mosi = bit_is(r.shift_reg, r.bit_cnt - 1);
+        return next;
+    }
+
+    // case ST_SEND_ADDR: shift the 24-bit address out, MSB byte first; the
+    // last fall starts the data phase.
+    fn step_send_addr(r: CoreRegs) -> CoreRegs {
+        if (!r.spi_clk_fall) {
+            return r;
+        }
+        var next : CoreRegs = r;
+        if (r.bit_cnt == 0) {
+            if (r.addr_byte_cnt == 2) {
+                next.bit_cnt = 7;
+                next.spi_mosi = false;
+                next.state = ST_READ_DATA;
+                return next;
+            }
+            next.addr_byte_cnt = r.addr_byte_cnt + 1;
+            // case (addr_byte_cnt) reads the OLD counter: 0 -> addr[15:8],
+            // 1 -> addr[7:0].
+            if (r.addr_byte_cnt == 0) {
+                next.shift_reg = (r.addr_reg >> 8) & 0xFF;   // addr_reg[15:8]
+                next.spi_mosi = bit_is(r.addr_reg, 15);
+            } else {
+                next.shift_reg = r.addr_reg & 0xFF;          // addr_reg[7:0]
+                next.spi_mosi = bit_is(r.addr_reg, 7);
+            }
+            next.bit_cnt = 7;
+            return next;
+        }
+        next.bit_cnt = r.bit_cnt - 1;
+        next.spi_mosi = bit_is(r.shift_reg, r.bit_cnt - 1);
+        return next;
+    }
+
+    // case ST_READ_DATA: sample MISO on rising SCLK edges; every 8th edge
+    // completes a byte into the BRAM write port. The last byte (old
+    // byte_cnt == total_bytes - 1) ends the transfer.
+    fn step_read_data(r: CoreRegs, miso: bool) -> CoreRegs {
+        if (!r.spi_clk_edge) {
+            return r;
+        }
+        var next : CoreRegs = r;
+        next.shift_reg = shift_in(r.shift_reg, miso);
+        if (r.bit_cnt == 0) {
+            next.bram_wr_data = shift_in(r.shift_reg, miso);
+            next.bram_wr_en = true;
+            next.bram_wr_addr = r.bram_wr_addr + 1;
+            next.byte_cnt = r.byte_cnt + 1;
+            if (r.byte_cnt == r.total_bytes - 1) {
+                next.state = ST_CS_HIGH;
+            } else {
+                next.bit_cnt = 7;
+            }
+            return next;
+        }
+        next.bit_cnt = r.bit_cnt - 1;
+        return next;
+    }
+
+    // case ST_CS_HIGH: deassert CS, stop the SPI clock, force spi_sclk low.
+    fn step_cs_high(r: CoreRegs) -> CoreRegs {
+        var next : CoreRegs = r;
+        next.spi_cs_n = true;
+        next.sclk_en = false;
+        next.sclk = false;
+        next.state = ST_DONE;
+        return next;
+    }
+
+    // case ST_DONE: report completion and return to idle.
+    fn step_done(r: CoreRegs) -> CoreRegs {
+        var next : CoreRegs = r;
+        next.busy = false;
+        next.done = true;
+        next.state = ST_IDLE;
+        return next;
+    }
+
+    // The transfer FSM (lines 119-241), one posedge. The case statement
+    // becomes an if-chain over the state register; bram_wr_en and done are
+    // defaulted every cycle like the Verilog assignments before the case.
+    // Edge/fall pulses are read from the registers — the values registered
+    // at the PREVIOUS posedge.
+    pub fn step_master(r: CoreRegs, start: bool, flash_addr: u32, read_len: u32, miso: bool) -> CoreRegs {
+        var next : CoreRegs = r;
+        next.bram_wr_en = false;
+        next.done = false;
+        if (next.state == ST_IDLE) {
+            return step_idle(next, start, flash_addr, read_len);
+        }
+        if (next.state == ST_CS_LOW) {
+            return step_cs_low(next);
+        }
+        if (next.state == ST_SEND_CMD) {
+            return step_send_cmd(next);
+        }
+        if (next.state == ST_SEND_ADDR) {
+            return step_send_addr(next);
+        }
+        if (next.state == ST_READ_DATA) {
+            return step_read_data(next, miso);
+        }
+        if (next.state == ST_CS_HIGH) {
+            return step_cs_high(next);
+        }
+        if (next.state == ST_DONE) {
+            return step_done(next);
+        }
+        // Verilog `default: state <= ST_IDLE;` — only reachable for a bogus
+        // state encoding.
+        next.state = ST_IDLE;
+        return next;
+    }
+
+    // One clk posedge: both always blocks fire together, each reading
+    // pre-edge values (nonblocking semantics). The FSM decision consumes the
+    // pulses registered at the previous posedge; the divider decision uses
+    // the sclk_en the FSM writes this posedge only from the next posedge on.
+    // In ST_CS_HIGH both blocks write spi_sclk; the FSM block sits later in
+    // the source, so its write wins.
+    pub fn step_cycle(r: CoreRegs, start: bool, flash_addr: u32, read_len: u32, miso: bool) -> CoreRegs {
+        var next : CoreRegs = step_master(r, start, flash_addr, read_len, miso);
+        var (ncnt, nsclk, nedge, nfall) = step_clock_regs(r.clk_div_cnt, r.sclk, r.sclk_en);
+        next.clk_div_cnt = ncnt;
+        next.spi_clk_edge = nedge;
+        next.spi_clk_fall = nfall;
+        if (r.state != ST_CS_HIGH) {
+            next.sclk = nsclk;
+        }
+        return next;
+    }
+
+    // === Test support ===
+
+    // Copy of regs parked in a given state.
+    fn regs_in_state(state: u32) -> CoreRegs {
+        var r : CoreRegs = initial_regs();
+        r.state = state;
+        return r;
+    }
+
+    // Registers parked in ST_READ_DATA with a byte in flight.
+    fn regs_reading(total: u32, done_bytes: u32) -> CoreRegs {
+        var r : CoreRegs = regs_in_state(ST_READ_DATA);
+        r.sclk_en = true;
+        r.bit_cnt = 7;
+        r.total_bytes = total;
+        r.byte_cnt = done_bytes;
+        return r;
+    }
+
+    // Registers of a transfer being torn down in ST_CS_HIGH.
+    fn regs_ending_transfer() -> CoreRegs {
+        var r : CoreRegs = regs_in_state(ST_CS_HIGH);
+        r.spi_cs_n = false;
+        r.sclk_en = true;
+        r.sclk = true;
+        return r;
+    }
+
+    // ST_CS_HIGH with a specific divider phase, for the sclk race.
+    fn regs_cs_high_with_clk(cnt: u32, sclk: bool) -> CoreRegs {
+        var r : CoreRegs = regs_ending_transfer();
+        r.sclk = sclk;
+        r.clk_div_cnt = cnt;
+        return r;
+    }
+
+    // IDLE registers with a specific divider phase.
+    fn regs_counting(cnt: u32, sclk: bool, en: bool) -> CoreRegs {
+        var r : CoreRegs = regs_in_state(ST_IDLE);
+        r.clk_div_cnt = cnt;
+        r.sclk = sclk;
+        r.sclk_en = en;
+        return r;
+    }
+
+    // READ_DATA registers one sample before byte completion, with a specific
+    // divider phase and the OLD rising-edge pulse visible to the FSM.
+    fn regs_sampling(cnt: u32, sclk: bool, edge_old: bool) -> CoreRegs {
+        var r : CoreRegs = regs_reading(2, 0);
+        r.bit_cnt = 0;
+        r.clk_div_cnt = cnt;
+        r.sclk = sclk;
+        r.spi_clk_edge = edge_old;
+        return r;
+    }
+
+    // Copy of regs with a falling-SCLK pulse made visible to the FSM.
+    fn with_fall(r: CoreRegs) -> CoreRegs {
+        var next : CoreRegs = r;
+        next.spi_clk_fall = true;
+        return next;
+    }
+
+    // Copy of regs with a rising-SCLK pulse made visible to the FSM.
+    fn with_edge(r: CoreRegs) -> CoreRegs {
+        var next : CoreRegs = r;
+        next.spi_clk_edge = true;
+        return next;
+    }
+
+    // Applies n falling-SCLK pulses to the FSM.
+    fn drive_falls(r: CoreRegs, n: u32) -> CoreRegs {
+        var cur : CoreRegs = r;
+        var i : u32 = 0;
+        while (i < n) {
+            cur = step_master(with_fall(cur), false, 0, 0, false);
+            i += 1;
+        }
+        return cur;
+    }
+
+    // Applies n rising-SCLK pulses to the FSM, feeding the same miso bit.
+    fn drive_edges(r: CoreRegs, miso: bool, n: u32) -> CoreRegs {
+        var cur : CoreRegs = r;
+        var i : u32 = 0;
+        while (i < n) {
+            cur = step_master(with_edge(cur), false, 0, 0, miso);
+            i += 1;
+        }
+        return cur;
+    }
+
+    // Walks a full READ transaction against a W25Q128 model that presents
+    // the data bytes MSB first from the 33rd rising SCLK edge on (after 8
+    // command bits and 24 address bits, as the header of the original
+    // documents). `start` is held high like in the original's testbench.
+    // Returns the final registers — bram_wr_data holds the last byte read,
+    // byte_cnt the number of bytes written to BRAM.
+    pub fn run_read(addr: u32, len: u32, data0: u32, data1: u32) -> CoreRegs {
+        var r : CoreRegs = initial_regs();
+        var edges : u32 = 0;
+        var cycle : u32 = 0;
+        while (cycle < 1024) {
+            if (r.done) {
+                break;
+            }
+            cycle += 1;
+            var miso : bool = false;
+            if (edges >= 33 and edges <= 40) {
+                miso = bit_is(data0, 40 - edges);
+            }
+            if (edges >= 41 and edges <= 48) {
+                miso = bit_is(data1, 48 - edges);
+            }
+            r = step_cycle(r, true, addr, len, miso);
+            if (r.spi_clk_edge) {
+                edges += 1;
+            }
+        }
+        return r;
+    }
+
+    // === Tests ===
+
+    test reset_values {
+        let r = initial_regs();
+        assert_eq(r.state, ST_IDLE);
+        assert_eq(r.spi_cs_n, true);
+        assert_eq(r.sclk, false);
+        assert_eq(r.sclk_en, false);
+        assert_eq(r.spi_mosi, false);
+        assert_eq(r.busy, false);
+        assert_eq(r.done, false);
+        assert_eq(r.bram_wr_en, false);
+        assert_eq(r.bram_wr_addr, 0);
+        assert_eq(r.byte_cnt, 0);
+        assert_eq(r.clk_div_cnt, 0);
+    }
+
+    test bit_is_extracts_bits {
+        assert_eq(bit_is(0x03, 0), true);
+        assert_eq(bit_is(0x03, 1), true);
+        assert_eq(bit_is(0x03, 2), false);
+        assert_eq(bit_is(0x03, 7), false);
+        assert_eq(bit_is(0x000100, 8), true);
+        assert_eq(bit_is(0x000100, 15), false);
+        assert_eq(bit_is(0x000100, 23), false);
+    }
+
+    test shift_in_builds_bytes_msb_first {
+        assert_eq(shift_in(0x00, true), 0x01);
+        assert_eq(shift_in(0x01, true), 0x03);
+        assert_eq(shift_in(0xFF, false), 0xFE);
+        assert_eq(shift_in(0x80, true), 0x01);
+        // 0xA5 = 1010_0101 fed MSB first lands as 0xA5.
+        var b : u32 = 0;
+        b = shift_in(b, true);
+        b = shift_in(b, false);
+        b = shift_in(b, true);
+        b = shift_in(b, false);
+        b = shift_in(b, false);
+        b = shift_in(b, true);
+        b = shift_in(b, false);
+        b = shift_in(b, true);
+        assert_eq(b, 0xA5);
+    }
+
+    test clock_divider_toggles_and_pulses {
+        // Mid-count: no toggle, no pulse.
+        var (c1, s1, e1, f1) = step_clock_regs(1, false, true);
+        assert_eq(c1, 2);
+        assert_eq(s1, false);
+        assert_eq(e1, false);
+        assert_eq(f1, false);
+        // Wrap with sclk low: rising edge pulse.
+        var (c2, s2, e2, f2) = step_clock_regs(3, false, true);
+        assert_eq(c2, 0);
+        assert_eq(s2, true);
+        assert_eq(e2, true);
+        assert_eq(f2, false);
+        // Wrap with sclk high: falling edge pulse.
+        var (c3, s3, e3, f3) = step_clock_regs(3, true, true);
+        assert_eq(c3, 0);
+        assert_eq(s3, false);
+        assert_eq(e3, false);
+        assert_eq(f3, true);
+        // Wrap while disabled: the counter still wraps, no toggle.
+        var (c4, s4, e4, f4) = step_clock_regs(3, false, false);
+        assert_eq(c4, 0);
+        assert_eq(s4, false);
+        assert_eq(e4, false);
+        assert_eq(f4, false);
+        // Disabled mid-count still counts.
+        var (c5, s5, e5, f5) = step_clock_regs(0, false, false);
+        assert_eq(c5, 1);
+        assert_eq(s5, false);
+        assert_eq(e5, false);
+        assert_eq(f5, false);
+    }
+
+    test idle_latches_start {
+        let r = step_master(initial_regs(), true, 0x000100, 2, false);
+        assert_eq(r.state, ST_CS_LOW);
+        assert_eq(r.busy, true);
+        assert_eq(r.addr_reg, 0x000100);
+        assert_eq(r.total_bytes, 2);
+        assert_eq(r.byte_cnt, 0);
+        assert_eq(r.bram_wr_addr, 0);
+        // No start pulse: stay idle.
+        let idle = step_master(initial_regs(), false, 0x000100, 2, false);
+        assert_eq(idle.state, ST_IDLE);
+        assert_eq(idle.busy, false);
+    }
+
+    test cs_low_loads_command {
+        let r = step_master(step_master(initial_regs(), true, 0x000100, 2, false), false, 0, 0, false);
+        assert_eq(r.state, ST_SEND_CMD);
+        assert_eq(r.spi_cs_n, false);
+        assert_eq(r.shift_reg, SPI_CMD_READ);
+        assert_eq(r.bit_cnt, 7);
+        assert_eq(r.sclk_en, true);
+        assert_eq(r.spi_mosi, false);  // bit7 of 0x03
+    }
+
+    test send_cmd_shifts_command_out {
+        let r0 = step_master(initial_regs(), true, 0x000100, 2, false);
+        let r1 = step_master(r0, false, 0, 0, false);               // ST_SEND_CMD
+        // First three falls: 0x03 = 0000_0011, MSB first.
+        let r2 = step_master(with_fall(r1), false, 0, 0, false);
+        assert_eq(r2.bit_cnt, 6);
+        assert_eq(r2.spi_mosi, false);
+        let r3 = step_master(with_fall(r2), false, 0, 0, false);
+        assert_eq(r3.bit_cnt, 5);
+        assert_eq(r3.spi_mosi, false);
+        let r4 = step_master(with_fall(r3), false, 0, 0, false);
+        assert_eq(r4.bit_cnt, 4);
+        assert_eq(r4.spi_mosi, false);
+        let r8 = drive_falls(r4, 4);
+        assert_eq(r8.bit_cnt, 0);
+        assert_eq(r8.spi_mosi, true);   // bit0 of 0x03 shifted out last
+        // The 8th fall loads the first address byte.
+        let r9 = step_master(with_fall(r8), false, 0, 0, false);
+        assert_eq(r9.state, ST_SEND_ADDR);
+        assert_eq(r9.addr_byte_cnt, 0);
+        assert_eq(r9.shift_reg, 0x00);  // addr[23:16] of 0x000100
+        assert_eq(r9.spi_mosi, false);  // bit23 of 0x000100
+        assert_eq(r9.bit_cnt, 7);
+    }
+
+    test send_addr_shifts_three_bytes {
+        let r0 = step_master(initial_regs(), true, 0x000100, 2, false);
+        let r1 = step_master(r0, false, 0, 0, false);               // ST_SEND_CMD
+        let r9 = drive_falls(r1, 8);                                // command done
+        assert_eq(r9.state, ST_SEND_ADDR);
+        // Byte 1 (addr[15:8] = 0x01) takes 8 falls.
+        let r17 = drive_falls(r9, 8);
+        assert_eq(r17.addr_byte_cnt, 1);
+        assert_eq(r17.shift_reg, 0x01);                             // addr[15:8]
+        assert_eq(r17.spi_mosi, false);                             // bit15 of 0x000100
+        // Bytes 2 and 3 take 8 falls each; the last one starts the data phase.
+        let r33 = drive_falls(r17, 16);
+        assert_eq(r33.state, ST_READ_DATA);
+        assert_eq(r33.addr_byte_cnt, 2);
+        assert_eq(r33.shift_reg, 0x00);                             // addr[7:0]
+        assert_eq(r33.spi_mosi, false);
+        assert_eq(r33.bit_cnt, 7);
+    }
+
+    test read_data_samples_msb_first {
+        // Three edges: only the shift register moves.
+        let mid = drive_edges(regs_reading(2, 0), true, 3);
+        assert_eq(mid.bit_cnt, 4);
+        assert_eq(mid.shift_reg, 0x07);
+        assert_eq(mid.bram_wr_en, false);
+        // Eight edges complete byte 0 = 0xFF into the BRAM port.
+        let b0 = drive_edges(regs_reading(2, 0), true, 8);
+        assert_eq(b0.bram_wr_en, true);
+        assert_eq(b0.bram_wr_data, 0xFF);
+        assert_eq(b0.byte_cnt, 1);
+        assert_eq(b0.bram_wr_addr, 1);
+        assert_eq(b0.state, ST_READ_DATA);
+        assert_eq(b0.bit_cnt, 7);
+        // Byte 1 completes into 0x00 and ends the transfer (old byte_cnt hit
+        // total_bytes - 1).
+        let b1 = drive_edges(b0, false, 8);
+        assert_eq(b1.state, ST_CS_HIGH);
+        assert_eq(b1.bram_wr_data, 0x00);
+        assert_eq(b1.byte_cnt, 2);
+        assert_eq(b1.bram_wr_addr, 2);
+        assert_eq(b1.bram_wr_en, true);
+        // A single-byte read ends right after its first byte.
+        let last = drive_edges(regs_reading(1, 0), true, 8);
+        assert_eq(last.state, ST_CS_HIGH);
+        assert_eq(last.bram_wr_data, 0xFF);
+        assert_eq(last.byte_cnt, 1);
+    }
+
+    test read_data_holds_without_edge {
+        let r = step_master(regs_reading(2, 0), false, 0, 0, true);
+        assert_eq(r.bit_cnt, 7);
+        assert_eq(r.shift_reg, 0);
+        assert_eq(r.bram_wr_en, false);
+        assert_eq(r.state, ST_READ_DATA);
+    }
+
+    test cs_high_deasserts_chip_select {
+        let next = step_master(regs_ending_transfer(), false, 0, 0, false);
+        assert_eq(next.spi_cs_n, true);
+        assert_eq(next.sclk_en, false);
+        assert_eq(next.sclk, false);
+        assert_eq(next.state, ST_DONE);
+    }
+
+    test done_reports_completion {
+        let next = step_master(regs_in_state(ST_DONE), false, 0, 0, false);
+        assert_eq(next.busy, false);
+        assert_eq(next.done, true);
+        assert_eq(next.state, ST_IDLE);
+    }
+
+    test bogus_state_returns_to_idle {
+        let next = step_master(regs_in_state(9), false, 0, 0, false);
+        assert_eq(next.state, ST_IDLE);
+    }
+
+    test cycle_registers_edge_pulses {
+        // The divider wraps: the rising-edge pulse lands in the returned
+        // registers, the idle FSM itself stands still.
+        let rose = step_cycle(regs_counting(3, false, true), false, 0, 0, false);
+        assert_eq(rose.spi_clk_edge, true);
+        assert_eq(rose.spi_clk_fall, false);
+        assert_eq(rose.sclk, true);
+        assert_eq(rose.clk_div_cnt, 0);
+        assert_eq(rose.state, ST_IDLE);
+        // Disabled: the counter still ticks, no pulse.
+        let idle = step_cycle(regs_counting(0, false, false), false, 0, 0, false);
+        assert_eq(idle.clk_div_cnt, 1);
+        assert_eq(idle.spi_clk_edge, false);
+        assert_eq(idle.spi_clk_fall, false);
+        assert_eq(idle.state, ST_IDLE);
+    }
+
+    test cycle_fsm_reads_previous_pulse {
+        // The FSM consumes the pulse registered at the PREVIOUS posedge
+        // (nonblocking reads see pre-edge values): byte 0 completes here,
+        // while the divider's fresh fall overwrites the pulse registers.
+        let sampled = step_cycle(regs_sampling(3, true, true), false, 0, 0, true);
+        assert_eq(sampled.bram_wr_en, true);
+        assert_eq(sampled.bram_wr_data, 0x01);
+        assert_eq(sampled.bram_wr_addr, 1);
+        assert_eq(sampled.byte_cnt, 1);
+        assert_eq(sampled.bit_cnt, 7);
+        assert_eq(sampled.spi_clk_edge, false);
+        assert_eq(sampled.spi_clk_fall, true);
+        assert_eq(sampled.sclk, false);
+        assert_eq(sampled.clk_div_cnt, 0);
+    }
+
+    test cycle_cs_high_forces_sclk_low {
+        // ST_CS_HIGH: the FSM forces spi_sclk low on the same posedge where
+        // the divider (old sclk_en=1) would still toggle it — the FSM's
+        // write wins; the divider still registers its pulse.
+        let r = step_cycle(regs_cs_high_with_clk(3, false), false, 0, 0, false);
+        assert_eq(r.spi_cs_n, true);
+        assert_eq(r.state, ST_DONE);
+        assert_eq(r.sclk_en, false);
+        assert_eq(r.sclk, false);
+        assert_eq(r.spi_clk_edge, true);
+        assert_eq(r.spi_clk_fall, false);
+    }
+
+    test full_read_one_byte {
+        let r = run_read(0x000100, 1, 0xA5, 0);
+        assert_eq(r.done, true);
+        assert_eq(r.busy, false);
+        assert_eq(r.state, ST_IDLE);
+        assert_eq(r.spi_cs_n, true);
+        assert_eq(r.addr_reg, 0x000100);
+        assert_eq(r.byte_cnt, 1);
+        assert_eq(r.bram_wr_addr, 1);
+        assert_eq(r.bram_wr_data, 0xA5);
+    }
+
+    test full_read_two_bytes {
+        let r = run_read(0x010000, 2, 0xA5, 0x3C);
+        assert_eq(r.done, true);
+        assert_eq(r.byte_cnt, 2);
+        assert_eq(r.bram_wr_addr, 2);
+        assert_eq(r.bram_wr_data, 0x3C);
+    }
+
+    test full_read_matches_testbench_pattern {
+        // The original's testbench reads bytes at address 0 from a flash
+        // model holding flash_mem[i] = i. run_read carries two data bytes,
+        // so check the first two: 0x00, then 0x01.
+        let r = run_read(0, 2, 0x00, 0x01);
+        assert_eq(r.done, true);
+        assert_eq(r.bram_wr_addr, 2);
+        assert_eq(r.bram_wr_data, 0x01);
+    }
+}
