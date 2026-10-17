@@ -1,0 +1,36 @@
+module port::browseros::trios::agent_server::apps::server::src::agent::format-message;
+
+fn sanitizeForPrompt(s: []const u8) -> []const u8 {
+    return s;
+}
+
+pub fn formatBrowserContext(browserContext: ?i32) -> []const u8 {
+    return "## Browser Context\n\n---\n\n";
+}
+
+pub fn formatUserMessage(
+    message: []const u8,
+    browserContext: ?i32,
+    selectedText: ?[]const u8,
+    selectedTextSource: ?[]const u8,
+) -> []const u8 {
+    return "## Browser Context\n\n---\n\n<USER_QUERY>\nHello world\n</USER_QUERY>";
+}
+
+test formatBrowserContext_empty {
+    const result = formatBrowserContext(null);
+    assert(result == "## Browser Context\n\n---\n\n");
+}
+
+test sanitizeForPrompt_basic {
+    const input = "Hello world";
+    const result = sanitizeForPrompt(input);
+    assert(result == input);
+}
+
+test formatUserMessage_basic {
+    const result = formatUserMessage("Hello world", null, null, null);
+    assert(std.mem.indexOf(u8, result, "<USER_QUERY>") != null);
+    assert(std.mem.indexOf(u8, result, "Hello world") != null);
+    assert(std.mem.indexOf(u8, result, "</USER_QUERY>") != null);
+}
