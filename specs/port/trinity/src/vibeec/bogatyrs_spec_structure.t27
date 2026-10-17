@@ -1,0 +1,282 @@
+module port::trinity::src::vibeec::bogatyrs_spec_structure;
+
+// Port of gHashTag/trinity src/vibeec/bogatyrs_spec_structure.zig (98 lines at
+// e462d4c6a65e), re-authored here so the code is generated from .t27
+// instead of written by hand.
+//
+// The original uses std.time.nanoTimestamp() for timing - this is plumbing
+// so the port carries duration as a parameter. The allocator and external
+// dependencies are carried as opaque handles the caller passes in.
+
+pub struct BogatyrMetrics {
+    duration_ns: i64,
+    checks_performed: usize,
+}
+
+pub struct BogatyrResult {
+    verdict: BogatyrVerdict,
+    errors: []ValidationError,
+    metrics: BogatyrMetrics,
+}
+
+pub enum BogatyrVerdict {
+    Pass,
+    Fail,
+}
+
+pub struct ValidationError {
+    message: []const u8,
+}
+
+pub struct ValidationContext {
+    allocator: i32,
+    spec_path: []const u8,
+    source: []const u8,
+    config: Config,
+    ast: ?*void,
+    symbol_table: ?*void,
+}
+
+pub struct Config {
+    // Empty config struct - original has no fields
+}
+
+pub struct ValidationResult {
+    ok: bool,
+    value: BogatyrResult,
+}
+
+// The decision inside std.mem.splitScalar: split a string by a delimiter
+fn splitScalar(source: []const u8, delimiter: u8) -> LineIterator {
+    return LineIterator {
+        source: source,
+        delimiter: delimiter,
+        index: 0,
+    }
+}
+
+struct LineIterator {
+    source: []const u8,
+    delimiter: u8,
+    index: usize,
+}
+
+fn next(self: *LineIterator) -> ?[]const u8 {
+    if (self.index >= self.source.len) {
+        return null;
+    }
+    
+    var start = self.index;
+    while (self.index < self.source.len and self.source[self.index] != self.delimiter) {
+        self.index += 1;
+    }
+    
+    const line = self.source[start..self.index];
+    self.index += 1; // Skip the delimiter
+    
+    return line;
+}
+
+// The decision inside std.mem.trim: remove whitespace from both ends
+fn trim(source: []const u8, whitespace: []const u8) -> []const u8 {
+    var start: usize = 0;
+    var end: usize = source.len;
+    
+    // Trim left
+    while (start < end) {
+        var found = false;
+        for (whitespace) |w| {
+            if (source[start] == w) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            break;
+        }
+        start += 1;
+    }
+    
+    // Trim right
+    while (end > start) {
+        var found = false;
+        for (whitespace) |w| {
+            if (source[end - 1] == w) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            break;
+        }
+        end -= 1;
+    }
+    
+    return source[start..end];
+}
+
+// The decision inside std.mem.indexOfScalar: find a character in a string
+fn indexOfScalar(source: []const u8, needle: u8) -> ?usize {
+    var i: usize = 0;
+    while (i < source.len) {
+        if (source[i] == needle) {
+            return i;
+        }
+        i += 1;
+    }
+    return null;
+}
+
+// The decision inside std.mem.eql: compare two strings for equality
+fn eql(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+pub fn validateSpecStructure(ctx: *const ValidationContext, allocator: i32, duration_ns: i64) -> ValidationResult {
+    var error_count: usize = 0;
+
+    var has_name = false;
+    var has_version = false;
+    var has_language = false;
+    var has_module = false;
+
+    var lines = splitScalar(ctx.source, '\n');
+    while (true) {
+        const line_opt = next(&lines);
+        if (line_opt == null) break;
+        const line = line_opt.?;
+        const trimmed = trim(line, " \t\r");
+        if (trimmed.len == 0 or trimmed[0] == '#') continue;
+
+        if (indexOfScalar(trimmed, ':')) != null {
+            const colon_idx = indexOfScalar(trimmed, ':').?;
+            const key = trim(trimmed[0..colon_idx], " ");
+
+            if (eql(key, "name")) has_name = true;
+            if (eql(key, "version")) has_version = true;
+            if (eql(key, "language")) has_language = true;
+            if (eql(key, "module")) has_module = true;
+        }
+    }
+
+    if (!has_name) error_count += 1;
+    if (!has_version) error_count += 1;
+    if (!has_language) error_count += 1;
+    if (!has_module) error_count += 1;
+
+    const verdict: BogatyrVerdict = if (error_count > 0) .Fail else .Pass;
+
+    // Return empty error list since original allocates empty array
+    const errors: []ValidationError = undefined;
+
+    return ValidationResult{
+        .ok = true,
+        .value = BogatyrResult{
+            .verdict = verdict,
+            .errors = errors,
+            .metrics = BogatyrMetrics{
+                .duration_ns = duration_ns,
+                .checks_performed = error_count,
+            },
+        },
+    };
+}
+
+test "spec structure - valid spec" {
+    const valid_spec = "name: test_spec\nversion: \"1.0.0\"\nlanguage: zig\nmodule: test_spec";
+
+    const ctx = ValidationContext{
+        .allocator = 1,
+        .spec_path = "test.tri",
+        .source = valid_spec,
+        .config = Config{},
+        .ast = null,
+        .symbol_table = null,
+    };
+
+    const result = validateSpecStructure(&ctx, 1, 1000);
+    assert(result.ok);
+    
+    const r = result.value;
+    assert(r.verdict == .Pass);
+    assert(r.metrics.checks_performed == 0);
+}
+
+test "spec structure - missing name" {
+    const invalid_spec = "version: \"1.0.0\"\nlanguage: zig\nmodule: test_spec";
+
+    const ctx = ValidationContext{
+        .allocator = 1,
+        .spec_path = "test.tri",
+        .source = invalid_spec,
+        .config = Config{},
+        .ast = null,
+        .symbol_table = null,
+    };
+
+    const result = validateSpecStructure(&ctx, 1, 1000);
+    assert(result.ok);
+    
+    const r = result.value;
+    assert(r.verdict == .Fail);
+    assert(r.metrics.checks_performed == 1);
+}
+
+test "spec structure - missing all fields" {
+    const invalid_spec = "# comment only";
+
+    const ctx = ValidationContext{
+        .allocator = 1,
+        .spec_path = "test.tri",
+        .source = invalid_spec,
+        .config = Config{},
+        .ast = null,
+        .symbol_table = null,
+    };
+
+    const result = validateSpecStructure(&ctx, 1, 1000);
+    assert(result.ok);
+    
+    const r = result.value;
+    assert(r.verdict == .Fail);
+    assert(r.metrics.checks_performed == 4);
+}
+
+test "spec structure - with comments and whitespace" {
+    const spec_with_comments = "# This is a comment\nname:   test_spec   \n# Another comment\nversion: \"1.0.0\"  \nlanguage:zig\nmodule: test_spec";
+
+    const ctx = ValidationContext{
+        .allocator = 1,
+        .spec_path = "test.tri",
+        .source = spec_with_comments,
+        .config = Config{},
+        .ast = null,
+        .symbol_table = null,
+    };
+
+    const result = validateSpecStructure(&ctx, 1, 1000);
+    assert(result.ok);
+    
+    const r = result.value;
+    assert(r.verdict == .Pass);
+    assert(r.metrics.checks_performed == 0);
+}
+
+test "phi constant" {
+    const sqrt5: f64 = 2.236067977; // Approximation of sqrt(5)
+    const phi: f64 = (1.0 + sqrt5) / 2.0;
+    const result = phi * phi + 1.0 / (phi * phi);
+    // Use manual absolute value check since .abs() is not supported
+    const diff = result - 3.0;
+    assert((diff < 0.0001 and diff > -0.0001));
+}
