@@ -1,0 +1,312 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_key_rotation_uniformity_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_key_rotation_uniformity_guard.rs
+// (CR-CHAT-04 - Padding key rotation uniformity guard, Wave-101
+// Lane A, requirement R-CHAT-4).
+//
+// Padding keys must rotate on a uniform clock: regular rotation
+// lets an observer align size-class changes with key boundaries,
+// a stale key repeats the class-selection pattern across epochs,
+// and irregular timing leaks load. The rules, in the original's
+// order: the batch ceiling, then per rotation the zero-key
+// probe, the interval floor and ceiling, the monotonic
+// non-decreasing check and the repeated-key scan - equal
+// intervals pass.
+//
+// The original returns Result<(), KeyRotationError>. This port
+// carries the verdict as a named struct (owner decision D5): Ok
+// first, then the six error variants in the original's
+// declaration order - TooFrequent, TooSlow, NotMonotonic,
+// DuplicateKey, ZeroKey, TooMany - with every payload field: idx
+// and the measured/min or measured/max interval for the bounds,
+// idx with prev and current for the monotonic break, idx for the
+// id rules, and got and max for the ceiling.
+//
+// The BTreeSet dedup becomes a scan over the rotations already
+// visited; the intervals stay the original's u64 arithmetic.
+
+// Minimum rotation interval (messages).
+pub const PKRU_MIN_INTERVAL: u64 = 100;
+
+// Maximum rotation interval (messages).
+pub const PKRU_MAX_INTERVAL: u64 = 10000;
+
+// Maximum rotations per batch.
+pub const PKRU_MAX_ROTATIONS: usize = 1024;
+
+// Key ID length.
+pub const PKRU_KEY_ID_LEN: usize = 16;
+
+// A padding key rotation record.
+pub struct KeyRotation {
+    key_id: [16]u8,
+    interval: u64,
+}
+
+// Verdict codes: Ok(()) and KeyRotationError's variants, in declaration order.
+pub enum KeyRotationCode {
+    Ok,
+    TooFrequent,
+    TooSlow,
+    NotMonotonic,
+    DuplicateKey,
+    ZeroKey,
+    TooMany,
+}
+
+// The verdict of the key rotation validation, with every error
+// payload field.
+pub struct KeyRotationVerdict {
+    code: KeyRotationCode,
+    idx: usize,
+    got: usize,
+    bound: usize,
+    got64: u64,
+    bound64: u64,
+}
+
+// Whole-form equality over the fixed sixteen key-id bytes.
+pub fn key_ids_equal(a: [16]u8, b: [16]u8) -> bool {
+    for i in 0..16 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero key id - the original's [0u8; 16] probe.
+pub fn key_id_zero(id: [16]u8) -> bool {
+    for i in 0..16 {
+        if (id[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether rotation i repeats an earlier key - the original's
+// BTreeSet insert probe, answered by a scan.
+pub fn key_seen_before(rotations: []const KeyRotation, i: usize) -> bool {
+    for j in 0..i {
+        if (key_ids_equal(rotations[j].key_id, rotations[i].key_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate padding key rotation uniformity. Returns
+// Ok only when every rule holds, checked in the original's
+// order: the batch ceiling, then per rotation the zero key, the
+// interval floor and ceiling, the monotonic check and the
+// repeated key.
+pub fn validate_key_rotations(rotations: []const KeyRotation) -> KeyRotationVerdict {
+    if (rotations.len > PKRU_MAX_ROTATIONS) {
+        return KeyRotationVerdict { code: KeyRotationCode.TooMany, idx: 0, got: rotations.len, bound: PKRU_MAX_ROTATIONS, got64: 0, bound64: 0, };
+    }
+    var prev: u64 = 0;
+    for i in 0..rotations.len {
+        if (key_id_zero(rotations[i].key_id)) {
+            return KeyRotationVerdict { code: KeyRotationCode.ZeroKey, idx: i, got: 0, bound: 0, got64: 0, bound64: 0, };
+        }
+        if (rotations[i].interval < PKRU_MIN_INTERVAL) {
+            return KeyRotationVerdict { code: KeyRotationCode.TooFrequent, idx: i, got: 0, bound: 0, got64: rotations[i].interval, bound64: PKRU_MIN_INTERVAL, };
+        }
+        if (rotations[i].interval > PKRU_MAX_INTERVAL) {
+            return KeyRotationVerdict { code: KeyRotationCode.TooSlow, idx: i, got: 0, bound: 0, got64: rotations[i].interval, bound64: PKRU_MAX_INTERVAL, };
+        }
+        if (i > 0) {
+            if (rotations[i].interval < prev) {
+                return KeyRotationVerdict { code: KeyRotationCode.NotMonotonic, idx: i, got: 0, bound: 0, got64: rotations[i].interval, bound64: prev, };
+            }
+        }
+        if (key_seen_before(rotations, i)) {
+            return KeyRotationVerdict { code: KeyRotationCode.DuplicateKey, idx: i, got: 0, bound: 0, got64: 0, bound64: 0, };
+        }
+        prev = rotations[i].interval;
+    }
+    return KeyRotationVerdict { code: KeyRotationCode.Ok, idx: 0, got: 0, bound: 0, got64: 0, bound64: 0, };
+}
+
+// The key ids of the fixtures, one byte repeated sixteen times -
+// the original's kid(byte) helper, entry by entry.
+pub const KID_01: [16]u8 = [16]u8{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+pub const KID_02: [16]u8 = [16]u8{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,};
+pub const KID_03: [16]u8 = [16]u8{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,};
+pub const ZERO_KID: [16]u8 = [16]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,};
+
+// The leading key bytes of the too-many fixture: the original's
+// (i % 254 + 1) walk over 0..=1024.
+pub const PKRU_FLOOD_1025: [1025]u8 = [1025]u8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 1, 2, 3, 4, 5, 6, 7, 8, 9,};
+
+// **PKRU-01** - too frequent rejected: ninety-nine messages of a
+// floor hundred.
+test pkru_01_too_frequent_rejected {
+    const rs: [1]KeyRotation = [1]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 99, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.TooFrequent);
+    assert(v.idx == 0);
+    assert(v.got64 == 99);
+    assert(v.bound64 == 100);
+}
+
+// **PKRU-02** - too slow rejected: 10001 messages of a ceiling
+// ten thousand.
+test pkru_02_too_slow_rejected {
+    const rs: [1]KeyRotation = [1]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 10001, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.TooSlow);
+    assert(v.idx == 0);
+    assert(v.got64 == 10001);
+    assert(v.bound64 == 10000);
+}
+
+// **PKRU-03** - not monotonic rejected: four hundred after five
+// hundred.
+test pkru_03_not_monotonic_rejected {
+    const rs: [2]KeyRotation = [2]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_02, interval: 400, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.NotMonotonic);
+    assert(v.idx == 1);
+    assert(v.got64 == 400);
+    assert(v.bound64 == 500);
+}
+
+// **PKRU-04** - duplicate key rejected: the second rotation
+// repeats the first's id.
+test pkru_04_duplicate_rejected {
+    const rs: [2]KeyRotation = [2]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_01, interval: 600, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.DuplicateKey);
+    assert(v.idx == 1);
+}
+
+// **PKRU-05** - zero key rejected under a live interval.
+test pkru_05_zero_key_rejected {
+    const rs: [1]KeyRotation = [1]KeyRotation{
+        KeyRotation { key_id: ZERO_KID, interval: 500, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.ZeroKey);
+    assert(v.idx == 0);
+}
+
+// **PKRU-06** - too many rejected: 1025 rotations of a maximum
+// 1024, built in a loop like the original's, each key carrying
+// its walk byte and the minimum interval. The batch rule fires
+// before any rotation is examined.
+test pkru_06_too_many_rejected {
+    var rs: [1025]KeyRotation;
+    for i in 0..1025 {
+        var id: [16]u8 = [16]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        id[0] = PKRU_FLOOD_1025[i];
+        rs[i] = KeyRotation { key_id: id, interval: 100, };
+    }
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.TooMany);
+    assert(v.got == 1025);
+    assert(v.bound == 1024);
+}
+
+// **PKRU-07** - the valid rotations accepted: five hundred,
+// five hundred, six hundred - non-decreasing.
+test pkru_07_valid_accepted {
+    const rs: [3]KeyRotation = [3]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_02, interval: 500, },
+        KeyRotation { key_id: KID_03, interval: 600, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.Ok);
+}
+
+// **PKRU-08** - an empty batch accepted.
+test pkru_08_empty_accepted {
+    const rs: [0]KeyRotation = [0]KeyRotation{};
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.Ok);
+}
+
+// **PKRU-09** - a single rotation at the exact floor accepted.
+test pkru_09_min_interval_accepted {
+    const rs: [1]KeyRotation = [1]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 100, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.Ok);
+}
+
+// **PKRU-10** - equal intervals accepted: non-decreasing means
+// equal passes.
+test pkru_10_equal_intervals_accepted {
+    const rs: [3]KeyRotation = [3]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_02, interval: 500, },
+        KeyRotation { key_id: KID_03, interval: 500, },
+    };
+    const v = validate_key_rotations(&rs);
+    assert(v.code == KeyRotationCode.Ok);
+}
+
+// The three helpers have direct tests (coverage: Untested 0).
+test pkru_helpers_answer {
+    assert(key_ids_equal(KID_01, KID_01));
+    assert(!key_ids_equal(KID_01, KID_02));
+    assert(key_id_zero(ZERO_KID));
+    assert(!key_id_zero(KID_01));
+    const three: [3]KeyRotation = [3]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_02, interval: 500, },
+        KeyRotation { key_id: KID_01, interval: 500, },
+    };
+    assert(!key_seen_before(&three, 0));
+    assert(!key_seen_before(&three, 1));
+    assert(key_seen_before(&three, 2));
+}
+
+// Rule order is the original's: the zero key before the interval
+// floor, the floor before the monotonic check, the ceiling
+// before the repeated key, the monotonic check before the
+// repeated key.
+test rule_order_matches_original {
+    const zero_fast: [1]KeyRotation = [1]KeyRotation{
+        KeyRotation { key_id: ZERO_KID, interval: 50, },
+    };
+    const v1 = validate_key_rotations(&zero_fast);
+    assert(v1.code == KeyRotationCode.ZeroKey);
+
+    const fast_backstep: [2]KeyRotation = [2]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_02, interval: 50, },
+    };
+    const v2 = validate_key_rotations(&fast_backstep);
+    assert(v2.code == KeyRotationCode.TooFrequent);
+    assert(v2.idx == 1);
+
+    const slow_twin: [2]KeyRotation = [2]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_01, interval: 20000, },
+    };
+    const v3 = validate_key_rotations(&slow_twin);
+    assert(v3.code == KeyRotationCode.TooSlow);
+    assert(v3.idx == 1);
+
+    const backstep_twin: [2]KeyRotation = [2]KeyRotation{
+        KeyRotation { key_id: KID_01, interval: 500, },
+        KeyRotation { key_id: KID_01, interval: 400, },
+    };
+    const v4 = validate_key_rotations(&backstep_twin);
+    assert(v4.code == KeyRotationCode.NotMonotonic);
+    assert(v4.idx == 1);
+}
