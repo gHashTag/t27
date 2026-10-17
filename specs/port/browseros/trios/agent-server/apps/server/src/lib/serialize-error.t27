@@ -1,0 +1,24 @@
+module port::serialize_error;
+
+pub fn serializeError(error: []const u8) -> []const u8 {
+    if (error == "null") {
+        return "null";
+    }
+    
+    return error;
+}
+
+test serialize_error_string {
+    const result = serializeError("test error");
+    assert(result == "test error");
+}
+
+test serialize_error_number {
+    const result = serializeError("404");
+    assert(result == "404");
+}
+
+test serialize_error_null {
+    const result = serializeError("null");
+    assert(result == "null");
+}
