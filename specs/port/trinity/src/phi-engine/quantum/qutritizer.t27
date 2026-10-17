@@ -1,0 +1,208 @@
+module port::trinity::qutritizer;
+
+// Port of gHashTag/trinity:src/phi-engine/quantum/qutritizer.zig (at
+// ee512359254b, ~110 lines) - t27 issue #9781, Roadmap Stage 5 (goal
+// #4547), target t27c gen-rust. The trit-to-qutrit converter's decisions
+// as pure functions: the uniform 1/sqrt(3) superposition the state starts
+// from, the sign-bucket threshold, the strict-majority bias (only a trit
+// class strictly more frequent than BOTH others gets the 0.1 boost - a tie
+// boosts nothing), and the norm that brings the amplitudes back to unit
+// length. Newton's method replaces the math library sqrt, as in the
+// earlier sqrt ports of this series.
+
+// The boost targets of the frequency argmax; NONE covers every tie.
+pub const QUTRITIZER_BOOST_MINUS: i32 = 0;
+pub const QUTRITIZER_BOOST_ZERO: i32 = 1;
+pub const QUTRITIZER_BOOST_PLUS: i32 = 2;
+pub const QUTRITIZER_BOOST_NONE: i32 = 3;
+
+// The MVP bias of the original (line 62).
+pub const QUTRITIZER_BIAS: f64 = 0.1;
+
+// QutritState (original lines 20-27): the three amplitudes of
+// psi = alpha|-1> + beta|0> + gamma|+1>.
+pub struct QutritState {
+    alpha: f64,
+    beta: f64,
+    gamma: f64,
+}
+
+// Newton's method for sqrt, 40 rounds - the series' portable square root.
+pub fn qutritizer_sqrt(x: f64) -> f64 {
+    if (x <= 0.0) {
+        return 0.0;
+    }
+    var g: f64 = x;
+    var i: usize = 0;
+    while (i < 40) {
+        g = (g + x / g) / 2.0;
+        i += 1;
+    }
+    return g;
+}
+
+// Line 36: the uniform superposition amplitude 1/sqrt(3).
+pub fn qutritizer_uniform_amplitude() -> f64 {
+    const s = qutritizer_sqrt(3.0);
+    return 1.0 / s;
+}
+
+// Lines 46-54: the MVP threshold - strictly positive trits are plus,
+// strictly negative are minus, zero is zero.
+pub fn qutritizer_trit_bucket(t: i8) -> i32 {
+    if (t > 0) {
+        return 1;
+    }
+    if (t < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+// Lines 66-72: only the strictly most frequent class is boosted - ties
+// and second places boost nothing.
+pub fn qutritizer_strict_argmax(count_minus: i64, count_zero: i64, count_plus: i64) -> i32 {
+    if (count_minus > count_zero and count_minus > count_plus) {
+        return QUTRITIZER_BOOST_MINUS;
+    }
+    if (count_zero > count_minus and count_zero > count_plus) {
+        return QUTRITIZER_BOOST_ZERO;
+    }
+    if (count_plus > count_minus and count_plus > count_zero) {
+        return QUTRITIZER_BOOST_PLUS;
+    }
+    return QUTRITIZER_BOOST_NONE;
+}
+
+// Line 33: the conversion. The state starts uniform; with at least one
+// trit the strictly most frequent class takes the 0.1 bias and the three
+// amplitudes are renormalized to unit length; an empty input returns the
+// raw uniform superposition.
+pub fn tritsToQutrit(trits: []const i8) -> QutritState {
+    var count_minus: i64 = 0;
+    var count_zero: i64 = 0;
+    var count_plus: i64 = 0;
+    for t in trits {
+        const bucket = qutritizer_trit_bucket(t);
+        if (bucket == 1) {
+            count_plus += 1;
+        }
+        if (bucket == -1) {
+            count_minus += 1;
+        }
+        if (bucket == 0) {
+            count_zero += 1;
+        }
+    }
+    const total: i64 = count_minus + count_zero + count_plus;
+    const uniform = qutritizer_uniform_amplitude();
+    var alpha: f64 = uniform;
+    var beta: f64 = uniform;
+    var gamma: f64 = uniform;
+    if (total > 0) {
+        const target = qutritizer_strict_argmax(count_minus, count_zero, count_plus);
+        if (target == QUTRITIZER_BOOST_MINUS) {
+            alpha = alpha + QUTRITIZER_BIAS;
+        }
+        if (target == QUTRITIZER_BOOST_ZERO) {
+            beta = beta + QUTRITIZER_BIAS;
+        }
+        if (target == QUTRITIZER_BOOST_PLUS) {
+            gamma = gamma + QUTRITIZER_BIAS;
+        }
+        const norm = qutritizer_sqrt(alpha * alpha + beta * beta + gamma * gamma);
+        if (norm > 0.0) {
+            alpha = alpha / norm;
+            beta = beta / norm;
+            gamma = gamma / norm;
+        }
+    }
+    return QutritState { alpha: alpha, beta: beta, gamma: gamma };
+}
+
+test sqrt_newton_converges {
+    assert(qutritizer_sqrt(0.0) == 0.0);
+    assert(qutritizer_sqrt(4.0) > 1.9999);
+    assert(qutritizer_sqrt(4.0) < 2.0001);
+    assert(qutritizer_sqrt(9.0) > 2.9998);
+    assert(qutritizer_sqrt(9.0) < 3.0002);
+    assert(qutritizer_sqrt(3.0) > 1.7320);
+    assert(qutritizer_sqrt(3.0) < 1.7321);
+}
+
+test uniform_amplitude_is_inverse_sqrt3 {
+    const u = qutritizer_uniform_amplitude();
+    assert(u > 0.5772);
+    assert(u < 0.5775);
+}
+
+test bucket_threshold {
+    assert(qutritizer_trit_bucket(1) == 1);
+    assert(qutritizer_trit_bucket(13) == 1);
+    assert(qutritizer_trit_bucket(0) == 0);
+    assert(qutritizer_trit_bucket(-1) == -1);
+    assert(qutritizer_trit_bucket(-13) == -1);
+}
+
+test strict_majority_only {
+    assert(qutritizer_strict_argmax(4, 2, 1) == QUTRITIZER_BOOST_MINUS);
+    assert(qutritizer_strict_argmax(0, 3, 1) == QUTRITIZER_BOOST_ZERO);
+    assert(qutritizer_strict_argmax(1, 2, 4) == QUTRITIZER_BOOST_PLUS);
+    assert(qutritizer_strict_argmax(0, 0, 5) == QUTRITIZER_BOOST_PLUS);
+    assert(qutritizer_strict_argmax(2, 2, 1) == QUTRITIZER_BOOST_NONE);
+    assert(qutritizer_strict_argmax(3, 1, 3) == QUTRITIZER_BOOST_NONE);
+    assert(qutritizer_strict_argmax(1, 1, 1) == QUTRITIZER_BOOST_NONE);
+}
+
+test empty_input_is_raw_uniform {
+    var none: [0]i8 = [];
+    const q = tritsToQutrit(&none);
+    assert(q.alpha > 0.5772);
+    assert(q.alpha < 0.5775);
+    assert(q.beta > 0.5772);
+    assert(q.gamma > 0.5772);
+}
+
+test balanced_input_stays_uniform {
+    var mixed: [3]i8 = [-1, 0, 1];
+    const q = tritsToQutrit(&mixed);
+    assert(q.alpha > 0.5772);
+    assert(q.alpha < 0.5775);
+    assert(q.beta > 0.5772);
+    assert(q.beta < 0.5775);
+    assert(q.gamma > 0.5772);
+    assert(q.gamma < 0.5775);
+}
+
+test zero_majority_boosts_beta {
+    var zeros: [3]i8 = [0, 0, 0];
+    const q = tritsToQutrit(&zeros);
+    assert(q.beta > 0.637);
+    assert(q.beta < 0.639);
+    assert(q.alpha > 0.5441);
+    assert(q.alpha < 0.5443);
+    assert(q.gamma > 0.5441);
+    assert(q.gamma < 0.5443);
+}
+
+test plus_majority_boosts_gamma {
+    var plus: [3]i8 = [1, 1, 0];
+    const q = tritsToQutrit(&plus);
+    assert(q.gamma > 0.637);
+    assert(q.gamma < 0.639);
+    assert(q.beta > 0.5441);
+    assert(q.beta < 0.5443);
+    assert(q.alpha > 0.5441);
+    assert(q.alpha < 0.5443);
+}
+
+test minus_majority_boosts_alpha {
+    var minus: [3]i8 = [-5, -6, 7];
+    const q = tritsToQutrit(&minus);
+    assert(q.alpha > 0.637);
+    assert(q.alpha < 0.639);
+    assert(q.beta > 0.5441);
+    assert(q.beta < 0.5443);
+    assert(q.gamma > 0.5441);
+    assert(q.gamma < 0.5443);
+}
