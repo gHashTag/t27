@@ -1,0 +1,153 @@
+module port::trinity::soul_collector;
+
+// Port of gHashTag/trinity:src/vibeec/soul_collector.zig (at ee512359254b,
+// 69 lines) - t27 issue #9719, Roadmap Stage 5 (goal #4547), target t27c
+// gen-rust. The corpus builder's decisions as pure functions: the sacred
+// filter (a file enters the corpus exactly when it ends with .tri or .zig
+// and mentions none of the profane markers), and the 10 MB read cap that
+// silently skips a file it cannot read. The directory walk, the reads and
+// the corpus writes are the caller's plumbing.
+
+// The sacred extensions (original lines 31-32).
+pub const SOUL_COLLECTOR_VIBEE_EXT = ".tri";
+pub const SOUL_COLLECTOR_ZIG_EXT = ".zig";
+
+// The profane markers (original lines 35-37).
+pub const SOUL_COLLECTOR_GIT_DIR = ".git";
+pub const SOUL_COLLECTOR_ZIG_CACHE = "zig-cache";
+pub const SOUL_COLLECTOR_TEMP_DIR = "temp_generated";
+
+// Line 47: a file larger than 10 MB fails the capped read and the walk
+// continues without it.
+pub const SOUL_COLLECTOR_READ_CAP: usize = 10 * 1024 * 1024;
+
+// The per-file outcomes of the walk.
+pub const SOUL_COLLECTOR_SKIPPED: i32 = 0;
+pub const SOUL_COLLECTOR_ABSORBED: i32 = 1;
+
+// Lines 31-32 and 35-37 rest on ends-with and contains scans; the suffix
+// check compares the path's last suffix.len bytes, and the containment
+// check slides a window across the path.
+pub fn soul_collector_ends_with(path: []const u8, suffix: []const u8) -> bool {
+    if (path.len < suffix.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < suffix.len) {
+        if (path[path.len - suffix.len + i] != suffix[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+pub fn soul_collector_contains(path: []const u8, marker: []const u8) -> bool {
+    if (marker.len == 0) {
+        return true;
+    }
+    if (path.len < marker.len) {
+        return false;
+    }
+    var start: usize = 0;
+    while (start + marker.len <= path.len) {
+        var k: usize = 0;
+        var all_match = true;
+        while (k < marker.len) {
+            if (path[start + k] != marker[k]) {
+                all_match = false;
+            }
+            k += 1;
+        }
+        if (all_match) {
+            return true;
+        }
+        start += 1;
+    }
+    return false;
+}
+
+// Lines 39: the sacred filter - .tri or .zig, and none of .git,
+// zig-cache, temp_generated anywhere in the path.
+pub fn soul_collector_file_is_sacred(path: []const u8) -> bool {
+    const is_vibee = soul_collector_ends_with(path, SOUL_COLLECTOR_VIBEE_EXT);
+    const is_zig = soul_collector_ends_with(path, SOUL_COLLECTOR_ZIG_EXT);
+    if (!(is_vibee or is_zig)) {
+        return false;
+    }
+    if (soul_collector_contains(path, SOUL_COLLECTOR_GIT_DIR)) {
+        return false;
+    }
+    if (soul_collector_contains(path, SOUL_COLLECTOR_ZIG_CACHE)) {
+        return false;
+    }
+    if (soul_collector_contains(path, SOUL_COLLECTOR_TEMP_DIR)) {
+        return false;
+    }
+    return true;
+}
+
+// Line 47: only a file at most the cap in size can be absorbed.
+pub fn soul_collector_file_absorbable(size_bytes: usize) -> bool {
+    return size_bytes <= SOUL_COLLECTOR_READ_CAP;
+}
+
+// Line 3: the walk's decision per file - a path passes the sacred filter
+// and fits the cap exactly when it lands in the corpus.
+pub fn main(path: []const u8, size_bytes: usize) -> i32 {
+    if (!soul_collector_file_is_sacred(path)) {
+        return SOUL_COLLECTOR_SKIPPED;
+    }
+    if (!soul_collector_file_absorbable(size_bytes)) {
+        return SOUL_COLLECTOR_SKIPPED;
+    }
+    return SOUL_COLLECTOR_ABSORBED;
+}
+
+test ends_with_suffix_scan {
+    assert(soul_collector_ends_with("src/main.zig", ".zig") == true);
+    assert(soul_collector_ends_with("ritual.tri", ".tri") == true);
+    assert(soul_collector_ends_with("a.zig.txt", ".zig") == false);
+    assert(soul_collector_ends_with("zig", ".zig") == false);
+    assert(soul_collector_ends_with("", ".zig") == false);
+    assert(soul_collector_ends_with(".zig", ".zig") == true);
+    assert(soul_collector_ends_with("any", "") == true);
+}
+
+test contains_marker_scan {
+    assert(soul_collector_contains("src/.git/config", ".git") == true);
+    assert(soul_collector_contains(".gitignore", ".git") == true);
+    assert(soul_collector_contains("src/main.zig", ".git") == false);
+    assert(soul_collector_contains("build/zig-cache/a.zig", "zig-cache") == true);
+    assert(soul_collector_contains("gen/temp_generated/b.tri", "temp_generated") == true);
+    assert(soul_collector_contains("abc", "abcd") == false);
+    assert(soul_collector_contains("hello", "ll") == true);
+    assert(soul_collector_contains("", "") == true);
+}
+
+test sacred_filter {
+    assert(soul_collector_file_is_sacred("src/main.zig") == true);
+    assert(soul_collector_file_is_sacred("ritual.tri") == true);
+    assert(soul_collector_file_is_sacred("notes.txt") == false);
+    assert(soul_collector_file_is_sacred("src/.git/x.zig") == false);
+    assert(soul_collector_file_is_sacred("build/zig-cache/a.zig") == false);
+    assert(soul_collector_file_is_sacred("gen/temp_generated/b.tri") == false);
+    assert(soul_collector_file_is_sacred(".gitignore.zig") == false);
+    assert(soul_collector_file_is_sacred("") == false);
+}
+
+test read_cap_boundary {
+    assert(soul_collector_file_absorbable(0) == true);
+    assert(soul_collector_file_absorbable(10485760) == true);
+    assert(soul_collector_file_absorbable(10485761) == false);
+    assert(soul_collector_file_absorbable(999999999) == false);
+}
+
+test walk_decision_per_file {
+    assert(main("src/main.zig", 100) == SOUL_COLLECTOR_ABSORBED);
+    assert(main("ritual.tri", 10485760) == SOUL_COLLECTOR_ABSORBED);
+    assert(main("notes.txt", 100) == SOUL_COLLECTOR_SKIPPED);
+    assert(main("src/main.zig", 10485761) == SOUL_COLLECTOR_SKIPPED);
+    assert(main("a/.git/x.tri", 10) == SOUL_COLLECTOR_SKIPPED);
+    assert(main("b/zig-cache/y.zig", 10) == SOUL_COLLECTOR_SKIPPED);
+}
