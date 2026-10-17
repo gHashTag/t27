@@ -1,16 +1,27 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+be9757784",
-  "gen_hash_c": "sha256:2efafeb873627616f3f9535cddea4b67ccde0aaeb2129de6d1dc0918dbc69c99",
-  "gen_hash_rust": "sha256:5200570816b6ee18bd47c9cfd423d5cbb8857e16ff620f4a61781db9ad724f3d",
-  "gen_hash_verilog": "sha256:dc46c7cc342e1d5c184f89bd629832be5d5e0f274e13d3e1319e0ca9dccb126a",
-  "gen_hash_zig": "sha256:02d315c87e9b655b288368c12d2801431f35c9f94d96ea55a86805cff56bba26",
+  "built_by": "t27c-bootstrap@0.5.2+unknown",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ea34e433d42c7fc90408db994b08f067ee23949c80f312f8f2489ee8cb92348a",
+  "gen_hash_rust": "sha256:ac5edf567000975cdd5a960349e3196b8a488fc38de0a73258bb8cb7faded75e",
+  "gen_hash_verilog": "sha256:0e3b16b70cc9feb4814dfbacd1bb9a7bce5830733c1f89bed3be0c2c4fd7486c",
+  "gen_hash_zig": "sha256:228fccdd66159884ddc3f1ebe35d83e3bd5d24b573bdd1d2113acb831c09d1df",
   "module": "QueenLotus",
   "ring": 12,
-  "sealed_at": "2026-10-09T10:44:52Z",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T00:48:40Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:2ee3475de53c70acf4ff6d36080d1b943e0b5d57450569326518ae4479b1b22c",
+  "spec_hash": "sha256:c00ea4f923dd663acd43f51f02468cda88e175478ad29b59abc23ffa1475f34a",
   "spec_path": "specs/queen/lotus.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:426:5: error: use of undeclared identifier 'then'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }
