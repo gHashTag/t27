@@ -1,0 +1,150 @@
+module port::trios_railway::debug_queue;
+
+// Port of gHashTag/trios-railway:crates/trios-igla-race/src/bin/debug_queue.rs
+// (at 46ea51e585ee, 53 lines) - t27 issue #9704, Roadmap Stage 6 (goal #4548),
+// target t27c gen-rust. The queue inspector's decisions as pure functions: the
+// neon URL resolution under the L-NEON-RENAME law, the pending listing shape
+// (at most 10 rows, priority DESC then id ASC), the stale-running reset (a
+// claim older than 30 minutes) and the bogus-done reset (final_step 0). The
+// Postgres connection, raw_query and raw_execute are the caller's plumbing.
+
+// The CLI's exit codes (line 14: Result<()> - Ok is 0, an Err aborts the run).
+pub const DEBUG_QUEUE_EXIT_OK: i32 = 0;
+pub const DEBUG_QUEUE_EXIT_FAIL: i32 = 1;
+
+// URL sources of the L-NEON-RENAME law (lines 17-22): the RAILWAY_POSTGRES_URL
+// flag is primary, NEON_DATABASE_URL is the legacy fallback.
+pub const NEON_URL_SOURCE_MISSING: i32 = 0;
+pub const NEON_URL_SOURCE_CLI: i32 = 1;
+pub const NEON_URL_SOURCE_LEGACY_ENV: i32 = 2;
+
+// The original's error text when neither source holds a URL (line 20).
+pub const URL_MISSING_MESSAGE = "RAILWAY_POSTGRES_URL (or legacy NEON_DATABASE_URL) not set";
+
+// The listing shows at most 10 pending rows (line 29: LIMIT 10).
+pub const DEBUG_QUEUE_PENDING_LIMIT: usize = 10;
+
+// A running claim older than 30 minutes is stale (line 46: INTERVAL '30 minutes').
+pub const DEBUG_QUEUE_STALE_MINUTES: i64 = 30;
+
+// Lines 17-22: a present, non-empty --neon-url flag wins; an absent or empty
+// flag falls back to the legacy NEON_DATABASE_URL; when neither holds a URL
+// the run dies with the missing-URL error.
+pub fn resolve_neon_url_source(cli_url: []const u8, cli_flag_present: bool, legacy_env_present: bool) -> i32 {
+    if (cli_flag_present and cli_url.len > 0) {
+        return NEON_URL_SOURCE_CLI;
+    }
+    if (legacy_env_present) {
+        return NEON_URL_SOURCE_LEGACY_ENV;
+    }
+    return NEON_URL_SOURCE_MISSING;
+}
+
+// Line 29: LIMIT 10 - at most 10 of the pending rows are listed.
+pub fn debug_queue_rows_shown(pending_total: usize) -> usize {
+    if (pending_total < DEBUG_QUEUE_PENDING_LIMIT) {
+        return pending_total;
+    }
+    return DEBUG_QUEUE_PENDING_LIMIT;
+}
+
+// Line 28: ORDER BY priority DESC, id ASC - row a is listed before row b when
+// its priority is higher, or the priorities tie and its id is smaller.
+pub fn debug_queue_pending_first(a_priority: i32, a_id: i64, b_priority: i32, b_id: i64) -> bool {
+    if (a_priority != b_priority) {
+        return a_priority > b_priority;
+    }
+    return a_id < b_id;
+}
+
+// Line 28: WHERE status = 'pending' - only pending rows enter the listing.
+pub fn debug_queue_row_is_pending(status: []const u8) -> bool {
+    return status == "pending";
+}
+
+// Line 46: a running experiment claimed more than 30 minutes ago goes back to
+// pending. The SQL comparison is a strict <, so a claim of exactly 30 minutes
+// is not reset yet - 31 is, 30 is not.
+pub fn debug_queue_stale_running(status: []const u8, minutes_since_claim: i64) -> bool {
+    if (!(status == "running")) {
+        return false;
+    }
+    return minutes_since_claim > DEBUG_QUEUE_STALE_MINUTES;
+}
+
+// Line 49: a done experiment whose final_step is present and 0 is bogus and
+// goes back to pending. SQL final_step=0 does not match NULL, so a done row
+// without a final step is kept.
+pub fn debug_queue_bogus_done(status: []const u8, final_step_present: bool, final_step: i32) -> bool {
+    if (!(status == "done")) {
+        return false;
+    }
+    if (!final_step_present) {
+        return false;
+    }
+    return final_step == 0;
+}
+
+// Line 14: main resolves the URL first. When neither the flag nor the legacy
+// variable holds one, the run fails before any queue work; with a URL the
+// listing, the stale reset and the bogus reset all run and the CLI exits 0.
+pub fn main(cli_url: []const u8, cli_flag_present: bool, legacy_env_present: bool) -> i32 {
+    const source = resolve_neon_url_source(cli_url, cli_flag_present, legacy_env_present);
+    if (source == NEON_URL_SOURCE_MISSING) {
+        return DEBUG_QUEUE_EXIT_FAIL;
+    }
+    return DEBUG_QUEUE_EXIT_OK;
+}
+
+test url_resolution_prefers_the_cli_flag {
+    assert(resolve_neon_url_source("postgres://railway/db", true, true) == NEON_URL_SOURCE_CLI);
+    assert(resolve_neon_url_source("postgres://railway/db", true, false) == NEON_URL_SOURCE_CLI);
+}
+
+test url_resolution_falls_back_to_legacy_env {
+    assert(resolve_neon_url_source("", false, true) == NEON_URL_SOURCE_LEGACY_ENV);
+    assert(resolve_neon_url_source("", true, true) == NEON_URL_SOURCE_LEGACY_ENV);
+}
+
+test url_resolution_missing_is_the_error {
+    assert(resolve_neon_url_source("", false, false) == NEON_URL_SOURCE_MISSING);
+    assert(resolve_neon_url_source("", true, false) == NEON_URL_SOURCE_MISSING);
+    assert(URL_MISSING_MESSAGE == "RAILWAY_POSTGRES_URL (or legacy NEON_DATABASE_URL) not set");
+}
+
+test main_gates_on_the_url {
+    assert(main("postgres://railway/db", true, false) == DEBUG_QUEUE_EXIT_OK);
+    assert(main("", false, true) == DEBUG_QUEUE_EXIT_OK);
+    assert(main("", false, false) == DEBUG_QUEUE_EXIT_FAIL);
+    assert(main("", true, false) == DEBUG_QUEUE_EXIT_FAIL);
+}
+
+test pending_listing_shape {
+    assert(debug_queue_rows_shown(0) == 0);
+    assert(debug_queue_rows_shown(5) == 5);
+    assert(debug_queue_rows_shown(10) == 10);
+    assert(debug_queue_rows_shown(11) == 10);
+    assert(debug_queue_rows_shown(100) == 10);
+}
+
+test pending_order_priority_desc_id_asc {
+    assert(debug_queue_pending_first(5, 9, 3, 1) == true);
+    assert(debug_queue_pending_first(3, 1, 5, 9) == false);
+    assert(debug_queue_pending_first(3, 9, 3, 1) == false);
+    assert(debug_queue_pending_first(3, 1, 3, 9) == true);
+    assert(debug_queue_pending_first(3, 7, 3, 7) == false);
+    assert(debug_queue_row_is_pending("pending") == true);
+    assert(debug_queue_row_is_pending("running") == false);
+    assert(debug_queue_row_is_pending("done") == false);
+}
+
+test resets_stale_running_and_bogus_done {
+    assert(debug_queue_stale_running("running", 31) == true);
+    assert(debug_queue_stale_running("running", 30) == false);
+    assert(debug_queue_stale_running("running", 29) == false);
+    assert(debug_queue_stale_running("pending", 999) == false);
+    assert(debug_queue_bogus_done("done", true, 0) == true);
+    assert(debug_queue_bogus_done("done", true, 5) == false);
+    assert(debug_queue_bogus_done("done", false, 0) == false);
+    assert(debug_queue_bogus_done("pending", true, 0) == false);
+}
