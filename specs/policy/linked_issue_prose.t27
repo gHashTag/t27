@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/policy/linked_issue_prose.t27 -- what the required context check-linked-issue reads, stated once (#5744).
+; --
+; The gate is .github/workflows/issue-gate.yml, step "Check for linked issues in PR". It does not grep the pull
+; request body as written. It first runs the body through an awk program (added under #3388):
+;     /^[[:space:]]*```/ { fence = !fence; next }
+;     fence { next }
+;     /^[[:space:]]*>/ { next }
+;     { print }
+; then prints the title and that prose, and greps them one line at a time, case-folded, for
+;     (Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*
+; `tri gates preview` (cli/tri/src/gates.rs, fn ask_linked_issue) matched the same pattern over the whole title
+; and body instead. Measured 2026-10-03 on PR #5732's head (ad43b6092), the gate's own step run with bash:
+; a reference only inside a fence, only in a `>` quote, or split as `refs` / `#1` over two lines makes the
+; gate exit 1, and the preview read PASS for all three. That is a false PASS on a required context.
+; --
+; This file is the rule both readers must follow. A preview generated from it, or one the owner approves,
+; matches it; hand-written Rust and the workflow are not edited here (only-t27, specs/policy/own_language.t27).
+; Decisions, stated where the rule lives:
+; - A body line is one of four kinds, in the awk program's order: a fence marker (optional [[:space:]] then
+;   three backticks) toggles the fence and is dropped; a line inside a fence is dropped; a line whose first
+;   non-space byte is '>' is dropped; anything else is prose. A fence that is never closed runs to the end.
+; - The title is not markdown: every line of it is read as written, fence and quote included.
+; - A reference is found on ONE line: a keyword stem (close, fixe, resolve, ref, update; ASCII case-folded),
+;   one optional 's', any run of [[:space:]], '#', then a digit 1-9. The stem may sit inside a word
+;   (`prefs #1` counts), `#0` does not, and `Fix #1` does not: `Fixes?` needs the 'e'. These are the gate's
+;   quirks, kept on purpose; the preview follows the gate.
+; - [[:space:]] is the six ASCII bytes 9-13 and 32. A line ends at '\n' only; a '\r' stays in the line, as it
+;   does for awk and grep, and is a space byte.
+; - The reading: PASS or FAIL only when the plumbing has read the gate's awk program and grep out of
+;   issue-gate.yml and found them exactly as above. A gate that filters or greps any other way, or a step the
+;   plumbing cannot read, gives UNAVAILABLE, never PASS.
+; - Open, not decided here: whether the gate should also drop `~~~` fences or four-space code (it does not
+;   today), and non-ASCII bytes that a UTF-8 locale's awk or grep may fold or call space.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module PolicyLinkedIssueProse;
+
+/// line_end: where a line of a byte buffer ends, written once.
+use policy::text_lines;
+
+/// What the gate's awk program does with one body line. None is 0, so a zeroed kind is never prose.
+pub const LINE_FENCE_MARKER : u8 = 1;
+pub const LINE_FENCED : u8 = 2;
+pub const LINE_QUOTED : u8 = 3;
+pub const LINE_PROSE : u8 = 4;
+
+/// The preview's row for check-linked-issue. None is 0, so a zeroed reading is never PASS.
+pub const READ_PASS : u8 = 1;
+pub const READ_FAIL : u8 = 2;
+pub const READ_UNAVAILABLE : u8 = 3;
+
+/// [[:space:]] in the C locale: tab, newline, vertical tab, form feed, carriage return, space.
+pub fn posix_space(c: u8) -> bool {
+    if (c == ' ') { return true; }
+    return c >= 9 and c <= 13;
+}
+
+/// First byte of buf[s..e] that is not [[:space:]], or e.
+pub fn indent_end(buf: []const u8, s: usize, e: usize) -> usize {
+    var i : usize = s;
+    while (i < e and posix_space(buf[i])) { i += 1; }
+    return i;
+}
+
+/// `/^[[:space:]]*```/`: three backticks after the indent.
+pub fn starts_fence(buf: []const u8, s: usize, e: usize) -> bool {
+    const i : usize = indent_end(buf, s, e);
+    if (i + 3 > e) { return false; }
+    return buf[i] == '`' and buf[i + 1] == '`' and buf[i + 2] == '`';
+}
+
+/// `/^[[:space:]]*>/`: a '>' after the indent.
+pub fn starts_quote(buf: []const u8, s: usize, e: usize) -> bool {
+    const i : usize = indent_end(buf, s, e);
+    if (i >= e) { return false; }
+    return buf[i] == '>';
+}
+
+/// The awk program's three rules, in its order: the marker toggles the fence even inside one, a fenced line
+/// is dropped before it can be read as a quote, and what is left is prose.
+pub fn line_kind(starts_fence: bool, in_fence: bool, starts_quote: bool) -> u8 {
+    if (starts_fence) { return LINE_FENCE_MARKER; }
+    if (in_fence) { return LINE_FENCED; }
+    if (starts_quote) { return LINE_QUOTED; }
+    return LINE_PROSE;
+}
+
+/// Does buf[i..] spell w[0..len], ASCII case-folded, without running past e? (c | 32) folds exactly the
+/// letters: only 'A'-'Z' and 'a'-'z' land on 'a'-'z'.
+pub fn folded_at(buf: []const u8, e: usize, i: usize, w: []const u8, len: usize) -> bool {
+    if (i + len > e) { return false; }
+    var k : usize = 0;
+    while (k < len) {
+        if ((buf[i + k] | 32) != w[k]) { return false; }
+        k += 1;
+    }
+    return true;
+}
+
+/// Length of the keyword stem at buf[i], or 0: the gate's alternatives without their optional 's'.
+pub fn stem_len(buf: []const u8, e: usize, i: usize) -> usize {
+    if (folded_at(buf, e, i, "close", 5)) { return 5; }
+    if (folded_at(buf, e, i, "fixe", 4)) { return 4; }
+    if (folded_at(buf, e, i, "resolve", 7)) { return 7; }
+    if (folded_at(buf, e, i, "ref", 3)) { return 3; }
+    if (folded_at(buf, e, i, "update", 6)) { return 6; }
+    return 0;
+}
+
+/// Does the gate's pattern match at buf[i], inside the line that ends at e? The optional 's' is taken when
+/// it is there: an 's' is neither [[:space:]] nor '#', so leaving it untaken cannot match.
+pub fn ref_at(buf: []const u8, e: usize, i: usize) -> bool {
+    const k : usize = stem_len(buf, e, i);
+    if (k == 0) { return false; }
+    var j : usize = i + k;
+    if (j < e and (buf[j] | 32) == 's') { j += 1; }
+    while (j < e and posix_space(buf[j])) { j += 1; }
+    if (j + 1 >= e) { return false; }
+    return buf[j] == '#' and buf[j + 1] >= '1' and buf[j + 1] <= '9';
+}
+
+/// The gate's grep on one line buf[s..e].
+pub fn has_reference(buf: []const u8, s: usize, e: usize) -> bool {
+    var i : usize = s;
+    while (i < e) {
+        if (ref_at(buf, e, i)) { return true; }
+        i += 1;
+    }
+    return false;
+}
+
+/// Does any line of buf[0..n] carry a reference? The title, read as written.
+pub fn any_line_refers(buf: []const u8, n: usize) -> bool {
+    var s : usize = 0;
+    while (s < n) {
+        const e : usize = line_end(buf, s, n);
+        if (has_reference(buf, s, e)) { return true; }
+        s = e + 1;
+    }
+    return false;
+}
+
+/// Does a prose line of the body carry a reference? The body through the awk program, then the grep.
+pub fn prose_line_refers(buf: []const u8, n: usize) -> bool {
+    var s : usize = 0;
+    var fence : bool = false;
+    while (s < n) {
+        const e : usize = line_end(buf, s, n);
+        const k : u8 = line_kind(starts_fence(buf, s, e), fence, starts_quote(buf, s, e));
+        if (k == LINE_FENCE_MARKER) { fence = fence == false; }
+        if (k == LINE_PROSE and has_reference(buf, s, e)) { return true; }
+        s = e + 1;
+    }
+    return false;
+}
+
+/// What check-linked-issue decides for a title and a body: PASS only when the title or a prose line of
+/// the body carries a reference on that one line.
+pub fn body_passes(title: []const u8, tn: usize, body: []const u8, bn: usize) -> bool {
+    if (any_line_refers(title, tn)) { return true; }
+    return prose_line_refers(body, bn);
+}
+
+/// The preview's row. program_read: the plumbing read the gate's awk program and grep out of issue-gate.yml
+/// and found them as this file states. Anything else is UNAVAILABLE, whatever body_passes said.
+pub fn preview_reading(program_read: bool, passes: bool) -> u8 {
+    if (program_read == false) { return READ_UNAVAILABLE; }
+    if (passes) { return READ_PASS; }
+    return READ_FAIL;
+}
+
+// FR-003: the four bodies measured 2026-10-03 on PR #5732's head (ad43b6092), title "feat: x". The gate's
+// own step exited 1 on the first three and 0 on the control; the preview read PASS on all four.
+test the_four_bodies_measured_on_pr_5732 {
+    assert body_passes("feat: x", 7, "Summary.\n\n```\nCloses #1\n```\n", 28) == false;
+    assert body_passes("feat: x", 7, "> Closes #1", 11) == false;
+    assert body_passes("feat: x", 7, "This refs\n#1", 12) == false;
+    assert body_passes("feat: x", 7, "Closes #1", 9) == true;
+}
+
+test a_line_kind_follows_the_awk_program_order {
+    assert line_kind(false, false, false) == LINE_PROSE;
+    assert line_kind(false, false, true) == LINE_QUOTED;
+    assert line_kind(false, true, false) == LINE_FENCED;
+    assert line_kind(false, true, true) == LINE_FENCED;
+    assert line_kind(true, false, false) == LINE_FENCE_MARKER;
+    assert line_kind(true, true, false) == LINE_FENCE_MARKER;
+    assert line_kind(true, true, true) == LINE_FENCE_MARKER;
+}
+
+test a_fence_or_a_quote_opens_after_the_indent {
+    assert starts_fence("```", 0, 3) == true;
+    assert starts_fence("   ```text", 0, 10) == true;
+    assert starts_fence("``", 0, 2) == false;
+    assert starts_fence("~~~", 0, 3) == false;
+    assert starts_fence("a ```", 0, 5) == false;
+    assert starts_fence("> ```", 0, 5) == false;
+    assert starts_fence("x```", 1, 4) == true;
+    assert starts_quote(">", 0, 1) == true;
+    assert starts_quote("  > x", 0, 5) == true;
+    assert starts_quote("a > b", 0, 5) == false;
+    assert starts_quote("   ", 0, 3) == false;
+    assert starts_quote("", 0, 0) == false;
+}
+
+test a_reference_is_a_stem_then_a_number_on_one_line {
+    assert has_reference("Closes #1", 0, 9) == true;
+    assert has_reference("closes #12", 0, 10) == true;
+    assert has_reference("CLOSES   #7", 0, 11) == true;
+    assert has_reference("Close #7", 0, 8) == true;
+    assert has_reference("Closes#1", 0, 8) == true;
+    assert has_reference("Fixes #3", 0, 8) == true;
+    assert has_reference("Fixe #3", 0, 7) == true;
+    assert has_reference("Resolves #4", 0, 11) == true;
+    assert has_reference("Refs #5", 0, 7) == true;
+    assert has_reference("Ref #5", 0, 6) == true;
+    assert has_reference("Updates #6", 0, 10) == true;
+    assert has_reference("see it, prefs #1", 0, 16) == true;
+    assert has_reference("Fix #3", 0, 6) == false;
+    assert has_reference("Fixed #3", 0, 8) == false;
+    assert has_reference("Closed #1", 0, 9) == false;
+    assert has_reference("Closess #1", 0, 10) == false;
+    assert has_reference("Closes #0", 0, 9) == false;
+    assert has_reference("Closes # 1", 0, 10) == false;
+    assert has_reference("Closes #", 0, 8) == false;
+    assert has_reference("see #1", 0, 6) == false;
+    // the line's own end bounds the match: a digit past e is not read
+    assert has_reference("Closes #1", 0, 8) == false;
+    assert has_reference("xCloses #1", 1, 10) == true;
+}
+
+// The table run through the gate's own step on 2026-10-03 (cb696fa7, the Rust attempt this file replaces),
+// with the measured answer. Some rows are the gate's quirks, kept on purpose.
+test the_title_is_read_as_written_and_the_body_as_prose {
+    assert body_passes("feat: x", 7, "```\nCloses #1\n```", 17) == false;
+    assert body_passes("feat: x", 7, "Summary.\n```text\nCloses #1\n", 27) == false;
+    assert body_passes("feat: x", 7, "As the earlier PR said:\n  > Closes #1\n", 38) == false;
+    assert body_passes("feat: x", 7, "```\nquoted\n```\nRefs #1", 22) == true;
+    assert body_passes("feat: x", 7, "  ```\nCloses #1\n  ```\nRefs #2", 29) == true;
+    assert body_passes("feat: x", 7, "Closes #0", 9) == false;
+    assert body_passes("feat: x", 7, "~~~\nCloses #1\n~~~", 17) == true;
+    assert body_passes("feat: x", 7, "    Closes #1", 13) == true;
+    assert body_passes("feat: x", 7, "prefs #1", 8) == true;
+    assert body_passes("feat: x", 7, "", 0) == false;
+    assert body_passes("> Closes #1", 11, "", 0) == true;
+    assert body_passes("> Refs #1", 9, "```\nCloses #2\n```", 17) == true;
+    assert body_passes("feat: closes", 12, "#1", 2) == false;
+}
+
+// Bytes 13 (CR) and 9 (tab) are set by number: t27c does not read "\r" in a string literal as an escape
+// (specs/policy/text_lines.t27). '%' stands for a CR and '^' for a tab in the source text.
+test a_carriage_return_or_a_tab_is_a_space_byte {
+    const crlf_fenced : []const u8 = "a%\n```%\nCloses #1%\n```%\n";
+    var b : [24]u8 = undefined;
+    var i : usize = 0;
+    while (i < 24) {
+        b[i] = crlf_fenced[i];
+        if (crlf_fenced[i] == '%') { b[i] = 13; }
+        i += 1;
+    }
+    assert body_passes("feat: x", 7, &b, 24) == false;
+    const crlf_prose : []const u8 = "a%\nCloses #1%\n";
+    var c : [14]u8 = undefined;
+    i = 0;
+    while (i < 14) {
+        c[i] = crlf_prose[i];
+        if (crlf_prose[i] == '%') { c[i] = 13; }
+        i += 1;
+    }
+    assert body_passes("feat: x", 7, &c, 14) == true;
+    const tabbed : []const u8 = "^```\nCloses #1\n^```\nRefs^#2";
+    var t : [27]u8 = undefined;
+    i = 0;
+    while (i < 27) {
+        t[i] = tabbed[i];
+        if (tabbed[i] == '^') { t[i] = 9; }
+        i += 1;
+    }
+    assert body_passes("feat: x", 7, &t, 27) == true;
+    assert body_passes("feat: x", 7, &t, 19) == false;
+}
+
+test the_row_is_unavailable_when_the_gate_was_not_read {
+    assert preview_reading(false, true) == READ_UNAVAILABLE;
+    assert preview_reading(false, false) == READ_UNAVAILABLE;
+    assert preview_reading(true, true) == READ_PASS;
+    assert preview_reading(true, false) == READ_FAIL;
+}
+
+invariant the_codes_are_distinct_and_never_zero {
+    assert LINE_FENCE_MARKER != 0;
+    assert LINE_FENCE_MARKER != LINE_FENCED;
+    assert LINE_FENCED != LINE_QUOTED;
+    assert LINE_QUOTED != LINE_PROSE;
+    assert LINE_FENCE_MARKER < LINE_FENCED and LINE_FENCED < LINE_QUOTED and LINE_QUOTED < LINE_PROSE;
+    assert READ_PASS != 0;
+    assert READ_PASS < READ_FAIL and READ_FAIL < READ_UNAVAILABLE;
+}

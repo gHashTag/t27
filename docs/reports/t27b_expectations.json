@@ -520,6 +520,7 @@
   {"path": "specs/policy/issue_shape.t27", "t27b": "pass"},
   {"path": "specs/policy/l2_generation.t27", "t27b": "pass"},
   {"path": "specs/policy/lang_en.t27", "t27b": "pass"},
+  {"path": "specs/policy/linked_issue_prose.t27", "t27b": "pass"},
   {"path": "specs/policy/merge_ours.t27", "t27b": "pass"},
   {"path": "specs/policy/own_language.t27", "t27b": "pass"},
   {"path": "specs/policy/required_contexts.t27", "t27b": "pass"},
