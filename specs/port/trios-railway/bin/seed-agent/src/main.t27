@@ -1,0 +1,146 @@
+module port::trios_railway::seed_agent_main;
+
+// Port of gHashTag/trios-railway:bin/seed-agent/src/main.rs (at
+// 5cc46e798dda, main from line 89) - t27 issue #9800, Roadmap Stage 6
+// (goal #4548), target t27c gen-rust. The ADR-0081 pull-based trainer
+// worker's boot decisions as pure functions: the L-NEON-RENAME URL
+// chain, the connect-retry patience (30 attempts, 2s apart), the pull
+// loop's wait shape (trained and pruned pull next at once, idle waits
+// the poll interval, an error backs off), the shutdown release, and the
+// early-stop rule the CLI carries. The TLS setup, the Postgres
+// connection, the UUID, the worker registration and the iteration runs
+// are the caller's plumbing.
+
+// CLI defaults (original lines 43-84).
+pub const SEED_AGENT_DEFAULT_ACC = "acc1";
+pub const SEED_AGENT_DEFAULT_SVC_ID = "local-perplexity";
+pub const SEED_AGENT_DEFAULT_SVC_NAME = "seed-agent-auto";
+pub const SEED_AGENT_POLL_IDLE_SECS: u64 = 30;
+pub const SEED_AGENT_EARLY_STOP_STEP: i32 = 1000;
+pub const SEED_AGENT_EARLY_STOP_BPB_CEILING: f64 = 2.60;
+pub const SEED_AGENT_TRAINER_KIND = "external";
+
+// Lines 152-166: the connect retry - up to 30 attempts, 2s apart;
+// attempt 30 is the bail.
+pub const SEED_AGENT_MAX_CONNECT_ATTEMPTS: u32 = 30;
+pub const SEED_AGENT_CONNECT_RETRY_SLEEP_SECS: u64 = 2;
+
+// Line 206: an iteration error backs off before the next pull.
+pub const SEED_AGENT_ERROR_BACKOFF_SECS: u64 = 30;
+
+// Exit codes (R5 - honest exits: the missing URL is the one boot
+// failure that surfaces).
+pub const SEED_AGENT_EXIT_OK: i32 = 0;
+pub const SEED_AGENT_EXIT_FAIL: i32 = 1;
+
+// The iteration outcomes of the pull loop (lines 193-207).
+pub const SEED_AGENT_OUTCOME_TRAINED: i32 = 0;
+pub const SEED_AGENT_OUTCOME_PRUNED: i32 = 1;
+pub const SEED_AGENT_OUTCOME_IDLE: i32 = 2;
+pub const SEED_AGENT_OUTCOME_ERROR: i32 = 3;
+
+// Lines 110-115, the L-NEON-RENAME chain: a present, non-empty --neon-url
+// flag (clap-bound to RAILWAY_POSTGRES_URL) wins; an absent or empty one
+// falls back to the legacy NEON_DATABASE_URL; neither is the boot error.
+pub fn seed_agent_url_source(neon_flag_present: bool, neon_flag: []const u8, legacy_env_present: bool) -> i32 {
+    if (neon_flag_present and neon_flag.len > 0) {
+        return 1;
+    }
+    if (legacy_env_present) {
+        return 2;
+    }
+    return 0;
+}
+
+// Lines 151-169: the connect loop stays patient while attempts remain -
+// the attempt that reaches the cap is the bail.
+pub fn seed_agent_retry_still_patient(attempt: u32) -> bool {
+    return attempt < SEED_AGENT_MAX_CONNECT_ATTEMPTS;
+}
+
+// Lines 193-207: the loop's wait - a finished experiment (trained or
+// pruned) pulls the next at once, an idle queue waits the poll interval,
+// an iteration error backs off.
+pub fn seed_agent_iteration_wait_secs(outcome: i32) -> u64 {
+    if (outcome == SEED_AGENT_OUTCOME_IDLE) {
+        return SEED_AGENT_POLL_IDLE_SECS;
+    }
+    if (outcome == SEED_AGENT_OUTCOME_ERROR) {
+        return SEED_AGENT_ERROR_BACKOFF_SECS;
+    }
+    return 0;
+}
+
+// Lines 188-192: the shutdown signal ends the loop - the claimed row is
+// released and the worker stops; anything else keeps pulling.
+pub fn seed_agent_loop_continues(shutdown_seen: bool) -> bool {
+    if (shutdown_seen) {
+        return false;
+    }
+    return true;
+}
+
+// Lines 66-68, the early-stop rule the CLI carries: at the early-stop
+// step, a BPB exceeding the ceiling prunes the experiment - strictly
+// exceeding; the ceiling itself does not prune.
+pub fn seed_agent_early_stop_prunes(bpb: f64, ceiling: f64) -> bool {
+    if (bpb > ceiling) {
+        return true;
+    }
+    return false;
+}
+
+// Line 89: the boot gate - the worker resolves its Postgres URL first;
+// with none from any source the boot fails before the retry loop or the
+// pull loop can start. With a URL the worker registers and pulls until
+// the shutdown signal, exiting cleanly.
+pub fn main(neon_flag_present: bool, neon_flag: []const u8, legacy_env_present: bool) -> i32 {
+    const source = seed_agent_url_source(neon_flag_present, neon_flag, legacy_env_present);
+    if (source == 0) {
+        return SEED_AGENT_EXIT_FAIL;
+    }
+    return SEED_AGENT_EXIT_OK;
+}
+
+test url_chain_l_neon_rename {
+    assert(seed_agent_url_source(true, "postgres://railway/db", false) == 1);
+    assert(seed_agent_url_source(true, "postgres://railway/db", true) == 1);
+    assert(seed_agent_url_source(true, "", true) == 2);
+    assert(seed_agent_url_source(false, "", true) == 2);
+    assert(seed_agent_url_source(false, "", false) == 0);
+    assert(seed_agent_url_source(true, "", false) == 0);
+}
+
+test boot_gate_exits_on_missing_url {
+    assert(main(true, "postgres://railway/db", false) == SEED_AGENT_EXIT_OK);
+    assert(main(false, "", true) == SEED_AGENT_EXIT_OK);
+    assert(main(false, "", false) == SEED_AGENT_EXIT_FAIL);
+    assert(main(true, "", false) == SEED_AGENT_EXIT_FAIL);
+}
+
+test connect_retry_patience {
+    assert(seed_agent_retry_still_patient(0) == true);
+    assert(seed_agent_retry_still_patient(1) == true);
+    assert(seed_agent_retry_still_patient(29) == true);
+    assert(seed_agent_retry_still_patient(30) == false);
+    assert(seed_agent_retry_still_patient(31) == false);
+}
+
+test loop_wait_shape {
+    assert(seed_agent_iteration_wait_secs(SEED_AGENT_OUTCOME_TRAINED) == 0);
+    assert(seed_agent_iteration_wait_secs(SEED_AGENT_OUTCOME_PRUNED) == 0);
+    assert(seed_agent_iteration_wait_secs(SEED_AGENT_OUTCOME_IDLE) == 30);
+    assert(seed_agent_iteration_wait_secs(SEED_AGENT_OUTCOME_ERROR) == 30);
+}
+
+test shutdown_ends_the_loop {
+    assert(seed_agent_loop_continues(false) == true);
+    assert(seed_agent_loop_continues(true) == false);
+}
+
+test early_stop_ceiling_is_strict {
+    assert(seed_agent_early_stop_prunes(2.61, 2.60) == true);
+    assert(seed_agent_early_stop_prunes(2.60, 2.60) == false);
+    assert(seed_agent_early_stop_prunes(2.59, 2.60) == false);
+    assert(seed_agent_early_stop_prunes(3.0, 2.60) == true);
+}
