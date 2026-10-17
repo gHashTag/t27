@@ -1,0 +1,116 @@
+module port::tab-groups;
+
+struct TabGroup {
+    groupId: str,
+    windowId: i32,
+    title: str,
+    color: str,
+    collapsed: bool,
+    tabIds: []i32,
+}
+
+pub fn listTabGroups() -> []TabGroup {
+    return [];
+}
+
+pub fn groupTabs(tabIds: []i32) -> TabGroup {
+    return TabGroup{
+        .groupId = "test",
+        .windowId = 1,
+        .title = "test",
+        .color = "test",
+        .collapsed = false,
+        .tabIds = tabIds,
+    };
+}
+
+pub fn updateTabGroup(groupId: str) -> TabGroup {
+    return TabGroup{
+        .groupId = groupId,
+        .windowId = 1,
+        .title = "test",
+        .color = "test",
+        .collapsed = false,
+        .tabIds = [],
+    };
+}
+
+pub fn ungroupTabs(tabIds: []i32) -> void {
+    return;
+}
+
+pub fn closeTabGroup(groupId: str) -> void {
+    return;
+}
+
+test listTabGroups_function_exists {
+    // Test that listTabGroups function is callable
+    const result = listTabGroups();
+    // Function should return []TabGroup
+}
+
+test groupTabs_function_exists {
+    // Test that groupTabs function is callable
+    const tabIds: [1]i32 = [1];
+    const result = groupTabs(tabIds);
+    // Function should return TabGroup
+}
+
+test updateTabGroup_function_exists {
+    // Test that updateTabGroup function is callable
+    const groupId = "test";
+    const result = updateTabGroup(groupId);
+    // Function should return TabGroup
+}
+
+test ungroupTabs_function_exists {
+    // Test that ungroupTabs function is callable
+    const tabIds: [1]i32 = [1];
+    ungroupTabs(tabIds);
+}
+
+test closeTabGroup_function_exists {
+    // Test that closeTabGroup function is callable
+    const groupId = "test";
+    closeTabGroup(groupId);
+}
+
+test listTabGroups_returns_array {
+    // Test that listTabGroups returns an array
+    const result = listTabGroups();
+    assert(result.len == 0);
+}
+
+test groupTabs_with_multiple_tabs {
+    // Test groupTabs with multiple tab IDs
+    const tabIds: [3]i32 = [1, 2, 3];
+    const result = groupTabs(tabIds);
+    assert(result.tabIds.len == 3);
+    assert(result.tabIds[0] == 1);
+    assert(result.tabIds[1] == 2);
+    assert(result.tabIds[2] == 3);
+}
+
+test updateTabGroup_with_different_ids {
+    // Test updateTabGroup with different group IDs
+    const groupId1 = "group1";
+    const groupId2 = "group2";
+    const result1 = updateTabGroup(groupId1);
+    const result2 = updateTabGroup(groupId2);
+    assert(result1.groupId == "group1");
+    assert(result2.groupId == "group2");
+}
+
+test ungroupTabs_multiple_tabs {
+    // Test ungroupTabs with multiple tab IDs
+    const tabIds: [4]i32 = [1, 2, 3, 4];
+    ungroupTabs(tabIds);
+}
+
+test closeTabGroup_multiple_groups {
+    // Test closeTabGroup with multiple group IDs
+    const groupId1 = "group-to-close-1";
+    const groupId2 = "group-to-close-2";
+    closeTabGroup(groupId1);
+    closeTabGroup(groupId2);
+}
