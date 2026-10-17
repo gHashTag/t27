@@ -1,0 +1,401 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/trinity/src/background_agent/config.t27
+//
+// Port of gHashTag/trinity src/background_agent/config.zig (341f1d150c70)
+// to t27, issue t27#9325.
+//
+// WHY (issue t27#9325): the original module reads the process environment
+// through std.process.getEnvVarOwned, Zig error unions, and a
+// std.mem.Allocator. t27 has none of that machinery, and the port must not
+// re-invent it. The port therefore injects the environment: every lookup the
+// original performs arrives as a (present, raw) pair on EnvMap, so the five
+// named functions — getEnv, getEnvOr, validateConfig, loadConfig,
+// isLocalMode — stay in charge of the decisions, and the process-level
+// plumbing (the getEnvVarOwned call itself, the allocator, the u16 parse
+// that std.fmt.parseInt provides) stays with the caller.
+//
+// Decisions carried, name for name with the original:
+//   getEnv         a missing required variable is the MissingEnv failure,
+//                  never a default value;
+//   getEnvOr       a failed lookup is replaced by the default, so in
+//                  practice the call never fails (the original exploits that
+//                  with `catch ""`);
+//   validateConfig the config is unusable exactly when database_url is
+//                  empty — the api token and auth secret are deliberately
+//                  not checked, because they are optional at boot (Railway
+//                  health checks do not need them) and validated when used;
+//   loadConfig     the assembly order and its failure precedence: PORT
+//                  parses first (InvalidPort on garbage), then DATABASE_URL
+//                  must be present (MissingEnv), then validateConfig's pass
+//                  (MissingEnv when DATABASE_URL is the empty string);
+//   isLocalMode    LOCAL_MODE means local exactly for "true" or "1",
+//                  case-sensitively; everything else, including the "false"
+//                  default, means not local.
+//
+// The original's `pub const Error = error{ MissingEnv, InvalidPort }` has no
+// t27 equivalent, so failures are carried as i32 verdict codes on LoadResult
+// — the exit-code pattern.
+
+module port::trinity_background_agent_config {
+
+    // === verdict codes: the original's error{MissingEnv, InvalidPort} ===
+
+    const ERR_OK           : i32 = 0;
+    const ERR_MISSING_ENV  : i32 = 1;
+    const ERR_INVALID_PORT : i32 = 2;
+
+    // Config's field defaults from the original struct: host "::", port 3000,
+    // the strings "", local_mode false. t27 struct fields carry no default
+    // values, so loadConfig applies them here and via getEnvOr.
+    const DEFAULT_HOST: str = "::";
+    const DEFAULT_PORT: u16 = 3000;
+
+    // === the data shapes ===
+
+    // pub const Config = struct — configuration for the background-agent API.
+    pub struct Config {
+        host: str,
+        port: u16,
+        railway_api_token: str,
+        railway_project_id: str,
+        auth_secret: str,
+        database_url: str,
+        local_mode: bool,
+    }
+
+    // The outcome of one environment lookup: getEnv either yields the value
+    // (ok) or the MissingEnv failure (!ok), never a default.
+    struct EnvLookup {
+        ok: bool,
+        value: str,
+    }
+
+    // The outcome of parsing PORT: ok=false covers the empty string,
+    // non-digits, and values that do not fit u16.
+    struct PortParse {
+        ok: bool,
+        port: u16,
+    }
+
+    // The outcome of loadConfig. ok=false means err carries the failure code
+    // and config is the zero config; ok=true means err is ERR_OK.
+    struct LoadResult {
+        ok: bool,
+        err: i32,
+        config: Config,
+    }
+
+    // The six variables the original reads — PORT, RAILWAY_API_TOKEN,
+    // RAILWAY_PROJECT_ID, AUTH_SECRET, DATABASE_URL, LOCAL_MODE — each as
+    // the (present, raw) result of the lookup the caller performed. t27 has
+    // no map library; a fixed record of exactly the facts the logic reads is
+    // the sanctioned shape.
+    pub struct EnvMap {
+        port_present: bool,
+        port_raw: str,
+        token_present: bool,
+        token_raw: str,
+        project_present: bool,
+        project_raw: str,
+        secret_present: bool,
+        secret_raw: str,
+        db_present: bool,
+        db_raw: str,
+        local_present: bool,
+        local_raw: str,
+    }
+
+    // === the five named functions ===
+
+    // Original line 22: fn getEnv(allocator, key) ![]const u8 — the value or
+    // error.MissingEnv. The allocator and the std.process.getEnvVarOwned
+    // call are plumbing: the caller has already looked the variable up and
+    // hands over (present, raw). A missing required variable is the
+    // MissingEnv failure — never a default value.
+    pub fn getEnv(present: bool, raw: str) EnvLookup {
+        if (present) {
+            return EnvLookup { ok: true, value: raw };
+        }
+        return EnvLookup { ok: false, value: "" };
+    }
+
+    // Original line 31: fn getEnvOr(allocator, key, default_value)
+    // ![]const u8 — the default replaces a failed lookup, so in practice the
+    // call never fails; the original's callers exploit that with `catch ""`.
+    pub fn getEnvOr(present: bool, raw: str, default_value: str) str {
+        if (present) {
+            return raw;
+        }
+        return default_value;
+    }
+
+    // std.fmt.parseInt(u16, port_str, 10), which the original applies to
+    // PORT: plain decimal digits, value must fit u16. Zig's parseInt also
+    // accepts '+', '-', and '_' separators — that grammar is std-library
+    // behavior, not a decision of this module, so the port accepts digits
+    // only and the loadConfig tests never feed it anything else.
+    pub fn parsePort(raw: str) PortParse {
+        if (raw.len == 0) {
+            return PortParse { ok: false, port: 0 };
+        }
+        var n: u32 = 0;
+        for c in raw {
+            if (!(c >= '0' and c <= '9')) {
+                return PortParse { ok: false, port: 0 };
+            }
+            var d: u32 = 0;
+            if (c == '1') { d = 1; }
+            if (c == '2') { d = 2; }
+            if (c == '3') { d = 3; }
+            if (c == '4') { d = 4; }
+            if (c == '5') { d = 5; }
+            if (c == '6') { d = 6; }
+            if (c == '7') { d = 7; }
+            if (c == '8') { d = 8; }
+            if (c == '9') { d = 9; }
+            n = n * 10 + d;
+            if (n > 65535) {
+                return PortParse { ok: false, port: 0 };
+            }
+        }
+        return PortParse { ok: true, port: n as u16 };
+    }
+
+    // Original line 40: pub fn validateConfig(config: *const Config) !void —
+    // pure in the original too. The original takes a *const Config pointer;
+    // t27 passes the struct by value, and validateConfig only reads it.
+    pub fn validateConfig(config: Config) i32 {
+        if (config.database_url.len == 0) {
+            return ERR_MISSING_ENV;
+        }
+        return ERR_OK;
+    }
+
+    // Original line 67: fn isLocalMode(allocator) !bool — reads LOCAL_MODE
+    // with the default "false", and means local exactly for "true" or "1",
+    // case-sensitively. The lookup is injected; the default and the truth
+    // values are the decision and stay here.
+    pub fn isLocalMode(local_present: bool, local_raw: str) bool {
+        const local = getEnvOr(local_present, local_raw, "false");
+        if (local == "true" or local == "1") {
+            return true;
+        }
+        return false;
+    }
+
+    // The zero config a failed load carries: the struct's own defaults,
+    // with port 0 because PORT never parsed successfully.
+    fn zeroConfig() Config {
+        return Config { host: DEFAULT_HOST, port: 0, railway_api_token: "", railway_project_id: "", auth_secret: "", database_url: "", local_mode: false };
+    }
+
+    fn failedLoad(err: i32) LoadResult {
+        return LoadResult { ok: false, err: err, config: zeroConfig() };
+    }
+
+    // Original line 49: pub fn loadConfig(allocator) !Config. The six
+    // std.process lookups are injected on env, in the order the original
+    // reads them. Failure precedence follows the original: a malformed PORT
+    // fails first (InvalidPort), then a missing DATABASE_URL (MissingEnv),
+    // and finally validateConfig's pass (MissingEnv when DATABASE_URL was
+    // set to the empty string).
+    pub fn loadConfig(env: EnvMap) LoadResult {
+        const parsed = parsePort(getEnvOr(env.port_present, env.port_raw, "3000"));
+        if (!parsed.ok) {
+            return failedLoad(ERR_INVALID_PORT);
+        }
+        const db = getEnv(env.db_present, env.db_raw);
+        if (!db.ok) {
+            return failedLoad(ERR_MISSING_ENV);
+        }
+        const config = Config {
+            host: DEFAULT_HOST,
+            port: parsed.port,
+            railway_api_token: getEnvOr(env.token_present, env.token_raw, ""),
+            railway_project_id: getEnvOr(env.project_present, env.project_raw, ""),
+            auth_secret: getEnvOr(env.secret_present, env.secret_raw, ""),
+            database_url: db.value,
+            local_mode: isLocalMode(env.local_present, env.local_raw),
+        };
+        const verdict = validateConfig(config);
+        if (verdict != ERR_OK) {
+            return LoadResult { ok: false, err: verdict, config: config };
+        }
+        return LoadResult { ok: true, err: ERR_OK, config: config };
+    }
+
+    // === tests: the original's three, then the decision edges ===
+
+    fn sampleConfig(database_url: str) Config {
+        return Config { host: DEFAULT_HOST, port: DEFAULT_PORT, railway_api_token: "", railway_project_id: "", auth_secret: "", database_url: database_url, local_mode: false };
+    }
+
+    test "loadConfig: a fully set environment loads every field"
+        const env = EnvMap {
+            port_present: true, port_raw: "8080",
+            token_present: true, token_raw: "test_token",
+            project_present: true, project_raw: "proj_123",
+            secret_present: true, secret_raw: "secret123",
+            db_present: true, db_raw: "postgres://localhost/test",
+            local_present: true, local_raw: "false",
+        };
+        const r = loadConfig(env);
+        assert(r.ok);
+        assert(r.err == ERR_OK);
+        assert(r.config.host == "::");
+        assert(r.config.port == 8080);
+        assert(r.config.railway_api_token == "test_token");
+        assert(r.config.railway_project_id == "proj_123");
+        assert(r.config.auth_secret == "secret123");
+        assert(r.config.database_url == "postgres://localhost/test");
+        assert(!r.config.local_mode);
+
+    test "loadConfig: absent variables leave the defaults — port 3000, empty strings, local_mode false"
+        const env = EnvMap {
+            port_present: false, port_raw: "",
+            token_present: false, token_raw: "",
+            project_present: false, project_raw: "",
+            secret_present: false, secret_raw: "",
+            db_present: true, db_raw: "postgres://localhost/test",
+            local_present: false, local_raw: "",
+        };
+        const r = loadConfig(env);
+        assert(r.ok);
+        assert(r.config.host == "::");
+        assert(r.config.port == 3000);
+        assert(r.config.railway_api_token == "");
+        assert(r.config.railway_project_id == "");
+        assert(r.config.auth_secret == "");
+        assert(!r.config.local_mode);
+
+    test "loadConfig: the api token, the auth secret, and the project id are optional"
+        const env = EnvMap {
+            port_present: false, port_raw: "",
+            token_present: false, token_raw: "",
+            project_present: true, project_raw: "proj_present",
+            secret_present: false, secret_raw: "",
+            db_present: true, db_raw: "postgres://localhost/test",
+            local_present: false, local_raw: "",
+        };
+        const r = loadConfig(env);
+        assert(r.ok);
+        assert(r.config.railway_api_token == "");
+        assert(r.config.auth_secret == "");
+        assert(r.config.railway_project_id == "proj_present");
+
+    test "loadConfig: a missing database url is the MissingEnv failure"
+        const env = EnvMap {
+            port_present: false, port_raw: "",
+            token_present: false, token_raw: "",
+            project_present: true, project_raw: "proj_test",
+            secret_present: false, secret_raw: "",
+            db_present: false, db_raw: "",
+            local_present: false, local_raw: "",
+        };
+        const r = loadConfig(env);
+        assert(!r.ok);
+        assert(r.err == ERR_MISSING_ENV);
+
+    test "loadConfig: an empty database url string fails validateConfig's pass"
+        const env = EnvMap {
+            port_present: false, port_raw: "",
+            token_present: false, token_raw: "",
+            project_present: false, project_raw: "",
+            secret_present: false, secret_raw: "",
+            db_present: true, db_raw: "",
+            local_present: false, local_raw: "",
+        };
+        const r = loadConfig(env);
+        assert(!r.ok);
+        assert(r.err == ERR_MISSING_ENV);
+
+    test "loadConfig: a malformed port is the InvalidPort failure"
+        const env = EnvMap {
+            port_present: true, port_raw: "not-a-port",
+            token_present: false, token_raw: "",
+            project_present: false, project_raw: "",
+            secret_present: false, secret_raw: "",
+            db_present: true, db_raw: "postgres://localhost/test",
+            local_present: false, local_raw: "",
+        };
+        const r = loadConfig(env);
+        assert(!r.ok);
+        assert(r.err == ERR_INVALID_PORT);
+
+    test "loadConfig: LOCAL_MODE one means local"
+        const env = EnvMap {
+            port_present: false, port_raw: "",
+            token_present: false, token_raw: "",
+            project_present: false, project_raw: "",
+            secret_present: false, secret_raw: "",
+            db_present: true, db_raw: "postgres://localhost/test",
+            local_present: true, local_raw: "1",
+        };
+        const r = loadConfig(env);
+        assert(r.ok);
+        assert(r.config.local_mode);
+
+    test "getEnv: a present variable yields its value"
+        const lookup = getEnv(true, "postgres://localhost/test");
+        assert(lookup.ok);
+        assert(lookup.value == "postgres://localhost/test");
+
+    test "getEnv: an absent variable is the MissingEnv failure, not a default"
+        const lookup = getEnv(false, "");
+        assert(!lookup.ok);
+        assert(lookup.value == "");
+
+    test "getEnvOr: a present variable wins over the default"
+        const v = getEnvOr(true, "8080", "3000");
+        assert(v == "8080");
+
+    test "getEnvOr: an absent variable takes the default, including the empty one"
+        const v = getEnvOr(false, "", "3000");
+        const w = getEnvOr(false, "ignored", "");
+        assert(v == "3000");
+        assert(w == "");
+
+    test "isLocalMode: exactly the strings true and 1 mean local"
+        assert(isLocalMode(true, "true"));
+        assert(isLocalMode(true, "1"));
+        assert(!isLocalMode(true, "false"));
+        assert(!isLocalMode(true, "0"));
+        assert(!isLocalMode(true, "TRUE"));
+        assert(!isLocalMode(true, ""));
+
+    test "isLocalMode: an absent LOCAL_MODE defaults to not local"
+        assert(!isLocalMode(false, ""));
+
+    test "validateConfig: a config with a database url is usable"
+        const c = sampleConfig("postgres://localhost/test");
+        assert(validateConfig(c) == ERR_OK);
+
+    test "validateConfig: an empty database url is the MissingEnv failure"
+        const c = sampleConfig("");
+        assert(validateConfig(c) == ERR_MISSING_ENV);
+
+    test "parsePort: plain decimal digits parse, and the value must fit u16"
+        const p = parsePort("8080");
+        const d = parsePort("3000");
+        const max = parsePort("65535");
+        const over = parsePort("65536");
+        const far = parsePort("999999999999");
+        assert(p.ok);
+        assert(p.port == 8080);
+        assert(d.ok);
+        assert(d.port == 3000);
+        assert(max.ok);
+        assert(max.port == 65535);
+        assert(!over.ok);
+        assert(!far.ok);
+
+    test "parsePort: the empty string and non-digits fail"
+        const e = parsePort("");
+        const mid = parsePort("80a0");
+        const dash = parsePort("-1");
+        const space = parsePort(" 80");
+        assert(!e.ok);
+        assert(!mid.ok);
+        assert(!dash.ok);
+        assert(!space.ok);
+}
