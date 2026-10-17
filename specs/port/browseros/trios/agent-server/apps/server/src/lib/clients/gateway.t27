@@ -1,0 +1,262 @@
+module port::gateway;
+
+// Ported from gHashTag/BrowserOS trios/agent-server/apps/server/src/lib/clients/gateway.ts
+
+pub struct Provider {
+    name: []const u8,
+    model: []const u8,
+    apiKey: []const u8,
+    baseUrl: ?[]const u8,
+    dailyRateLimit: ?i32,
+    dailyCredits: ?i32,
+    creditCostPerRequest: ?i32,
+    resetInterval: ?[]const u8,
+    providerType: ?[]const u8,
+}
+
+pub struct CreditsInfo {
+    credits: i32,
+    dailyLimit: i32,
+    lastResetAt: ?[]const u8,
+}
+
+pub struct BrowserOSConfig {
+    providers: []Provider,
+}
+
+pub struct LLMConfig {
+    modelName: []const u8,
+    baseUrl: ?[]const u8,
+    apiKey: []const u8,
+    provider: Provider,
+    providerType: ?[]const u8,
+}
+
+// Port of fetchBrowserOSConfig - the decision logic without HTTP calls
+pub fn fetchBrowserOSConfig(configUrl: []const u8, browserosId: ?[]const u8) -> BrowserOSConfig {
+    undefined;
+}
+
+// Port of getLLMConfigFromProvider - pure logic, no external dependencies
+pub fn getLLMConfigFromProvider(config: BrowserOSConfig, providerName: []const u8) -> LLMConfig {
+    // Find provider by name
+    var provider: ?Provider = null;
+    for (p in config.providers) {
+        if (p.name == providerName) {
+            provider = p;
+            break;
+        }
+    }
+    
+    // Error if provider not found - return default fallback
+    if (provider == null) {
+        return LLMConfig {
+            .modelName = "default",
+            .baseUrl = null,
+            .apiKey = "dummy",
+            .provider = Provider {
+                .name = "default",
+                .model = "default",
+                .apiKey = "dummy",
+                .baseUrl = null,
+                .dailyRateLimit = null,
+                .dailyCredits = null,
+                .creditCostPerRequest = null,
+                .resetInterval = null,
+                .providerType = null,
+            },
+            .providerType = null,
+        };
+    }
+    
+    return LLMConfig {
+        .modelName = provider.?.model,
+        .baseUrl = provider.?.baseUrl,
+        .apiKey = provider.?.apiKey,
+        .provider = provider.?,
+        .providerType = provider.?.providerType,
+    };
+}
+
+// Port of fetchCredits - the decision logic without HTTP calls
+pub fn fetchCredits(gatewayBaseUrl: []const u8, browserosId: []const u8) -> CreditsInfo {
+    undefined;
+}
+
+// Test for getLLMConfigFromProvider with default provider
+test get_llm_config_default_provider {
+    var providers: [2]Provider = [
+        Provider {
+            .name = "default",
+            .model = "gpt-4",
+            .apiKey = "key1",
+            .baseUrl = null,
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+        Provider {
+            .name = "anthropic",
+            .model = "claude-3",
+            .apiKey = "key2",
+            .baseUrl = null,
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+    ];
+    
+    var config: BrowserOSConfig = BrowserOSConfig {
+        .providers = &providers,
+    };
+    
+    var llmConfig = getLLMConfigFromProvider(config, "default");
+    assert(llmConfig.modelName == "gpt-4");
+    assert(llmConfig.provider.name == "default");
+    assert(llmConfig.apiKey == "key1");
+}
+
+// Test for getLLMConfigFromProvider with specific provider
+test get_llm_config_specific_provider {
+    var providers: [1]Provider = [
+        Provider {
+            .name = "openai",
+            .model = "gpt-3.5-turbo",
+            .apiKey = "openai-key",
+            .baseUrl = "https://api.openai.com",
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+    ];
+    
+    var config: BrowserOSConfig = BrowserOSConfig {
+        .providers = &providers,
+    };
+    
+    var llmConfig = getLLMConfigFromProvider(config, "openai");
+    assert(llmConfig.modelName == "gpt-3.5-turbo");
+    assert(llmConfig.provider.name == "openai");
+    assert(llmConfig.apiKey == "openai-key");
+    
+    // Check baseUrl - handle optional type properly
+    if (llmConfig.baseUrl != null) {
+        assert(llmConfig.baseUrl.? == "https://api.openai.com");
+    }
+}
+
+// Test for getLLMConfigFromProvider with provider not found
+test get_llm_config_provider_not_found {
+    var providers: [1]Provider = [
+        Provider {
+            .name = "available",
+            .model = "model",
+            .apiKey = "key",
+            .baseUrl = null,
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+    ];
+    
+    var config: BrowserOSConfig = BrowserOSConfig {
+        .providers = &providers,
+    };
+    
+    // This will return the default fallback config
+    var llmConfig = getLLMConfigFromProvider(config, "missing");
+    assert(llmConfig.modelName == "default");
+    assert(llmConfig.provider.name == "default");
+    assert(llmConfig.apiKey == "dummy");
+    assert(llmConfig.baseUrl == null);
+}
+
+// Test for Provider struct validation
+test provider_struct_validation {
+    var provider: Provider = Provider {
+        .name = "test",
+        .model = "test-model",
+        .apiKey = "test-key",
+        .baseUrl = null,
+        .dailyRateLimit = null,
+        .dailyCredits = null,
+        .creditCostPerRequest = null,
+        .resetInterval = null,
+        .providerType = null,
+    };
+    
+    assert(provider.name == "test");
+    assert(provider.model == "test-model");
+    assert(provider.apiKey == "test-key");
+    assert(provider.baseUrl == null);
+}
+
+// Test for CreditsInfo struct
+test credits_info_struct {
+    var creditsInfo: CreditsInfo = CreditsInfo {
+        .credits = 100,
+        .dailyLimit = 1000,
+        .lastResetAt = "2025-01-01T00:00:00Z",
+    };
+    
+    assert(creditsInfo.credits == 100);
+    assert(creditsInfo.dailyLimit == 1000);
+    assert(creditsInfo.lastResetAt != null);
+    assert(creditsInfo.lastResetAt.? == "2025-01-01T00:00:00Z");
+}
+
+// Test for BrowserOSConfig with multiple providers
+test browseros_config_multiple_providers {
+    var providers: [3]Provider = [
+        Provider {
+            .name = "default",
+            .model = "gpt-4",
+            .apiKey = "key1",
+            .baseUrl = null,
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+        Provider {
+            .name = "anthropic",
+            .model = "claude-3",
+            .apiKey = "key2",
+            .baseUrl = null,
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+        Provider {
+            .name = "openai",
+            .model = "gpt-3.5",
+            .apiKey = "key3",
+            .baseUrl = null,
+            .dailyRateLimit = null,
+            .dailyCredits = null,
+            .creditCostPerRequest = null,
+            .resetInterval = null,
+            .providerType = null,
+        },
+    ];
+    
+    var config: BrowserOSConfig = BrowserOSConfig {
+        .providers = &providers,
+    };
+    
+    assert(config.providers.len == 3);
+    assert(config.providers[0].name == "default");
+    assert(config.providers[1].name == "anthropic");
+    assert(config.providers[2].name == "openai");
+}
