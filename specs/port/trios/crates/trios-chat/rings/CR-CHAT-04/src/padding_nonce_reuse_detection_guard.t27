@@ -1,0 +1,334 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_nonce_reuse_detection_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_nonce_reuse_detection_guard.rs
+// (CR-CHAT-04 - Padding nonce reuse detection guard, Wave-105 Lane A,
+// requirement R-CHAT-4).
+//
+// Padding nonces must never repeat under the same key: a repeated
+// nonce XORs two ciphertexts into the XOR of their plaintexts,
+// enables third-ciphertext forgeries, and in some AEAD modes a
+// practical key recovery. The rules, in the original's order: the
+// batch ceiling, then per record the zero-key probe, the zero-nonce
+// probe, the nonce-value ceiling and the repeated-pair scan.
+//
+// The original returns Result<(), NonceReuseError>. This port
+// carries the verdict as a named struct (owner decision D5): Ok
+// first, then the five error variants in the original's declaration
+// order - Duplicate, ZeroNonce, ZeroKey, NonceOverflow, TooMany -
+// with every payload field: idx for Duplicate, ZeroNonce, ZeroKey
+// and NonceOverflow, got and max for TooMany.
+//
+// The original's BTreeSet of (key_id, nonce) pairs becomes a scan
+// over the records already visited (conventions section 4). The
+// nonce value is the big-endian u64 of the nonce's last eight
+// bytes, folded byte by byte with the int-widening cast both
+// backends lower - no shift-and-truncate anywhere.
+
+// Nonce length.
+pub const PNRD_NONCE_LEN: usize = 12;
+
+// Key ID length.
+pub const PNRD_KEY_ID_LEN: usize = 16;
+
+// Maximum records per batch.
+pub const PNRD_MAX_RECORDS: usize = 10000;
+
+// Maximum nonce value (big-endian u96): two to the forty-eighth
+// less one, the original's (1 << 48) - 1.
+pub const PNRD_MAX_NONCE: u64 = 281474976710655;
+
+// A nonce usage record.
+pub struct NonceRecord {
+    key_id: [16]u8,
+    nonce: [12]u8,
+}
+
+// Verdict codes: Ok(()) and NonceReuseError's variants, in declaration order.
+pub enum NonceReuseCode {
+    Ok,
+    Duplicate,
+    ZeroNonce,
+    ZeroKey,
+    NonceOverflow,
+    TooMany,
+}
+
+// The verdict of the nonce reuse validation, with every error
+// payload field.
+pub struct NonceReuseVerdict {
+    code: NonceReuseCode,
+    idx: usize,
+    got: usize,
+    bound: usize,
+}
+
+// Whole-form equality over the fixed sixteen key ID bytes.
+pub fn key_ids_equal(a: [16]u8, b: [16]u8) -> bool {
+    for i in 0..16 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero key ID - the original's [0u8; 16] probe.
+pub fn key_id_zero(k: [16]u8) -> bool {
+    for i in 0..16 {
+        if (k[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whole-form equality over the fixed twelve nonce bytes.
+pub fn nonces_equal(a: [12]u8, b: [12]u8) -> bool {
+    for i in 0..12 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero nonce - the original's [0u8; 12] probe.
+pub fn nonce_zero(n: [12]u8) -> bool {
+    for i in 0..12 {
+        if (n[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The big-endian u64 of the nonce's last eight bytes - the
+// original's nonce_to_u64, folded byte by byte through the
+// int-widening cast.
+pub fn nonce_to_u64(n: [12]u8) -> u64 {
+    var v: u64 = 0;
+    var wide: u64 = 0;
+    for i in 0..8 {
+        wide = @as(u64, n[i + 4]);
+        v = v * 256 + wide;
+    }
+    return v;
+}
+
+// Whether record i repeats an earlier (key ID, nonce) pair - the
+// original's BTreeSet insert probe, answered by a scan.
+pub fn pair_seen_before(records: []const NonceRecord, i: usize) -> bool {
+    for j in 0..i {
+        if (key_ids_equal(records[j].key_id, records[i].key_id)) {
+            if (nonces_equal(records[j].nonce, records[i].nonce)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate padding nonce reuse. Returns Ok only when
+// every rule holds, checked in the original's order: the batch
+// ceiling, then per record the zero key, the zero nonce, the nonce
+// value ceiling and the repeated pair.
+pub fn validate_nonce_reuse(records: []const NonceRecord) -> NonceReuseVerdict {
+    if (records.len > PNRD_MAX_RECORDS) {
+        return NonceReuseVerdict { code: NonceReuseCode.TooMany, idx: 0, got: records.len, bound: PNRD_MAX_RECORDS, };
+    }
+    for i in 0..records.len {
+        if (key_id_zero(records[i].key_id)) {
+            return NonceReuseVerdict { code: NonceReuseCode.ZeroKey, idx: i, got: 0, bound: 0, };
+        }
+        if (nonce_zero(records[i].nonce)) {
+            return NonceReuseVerdict { code: NonceReuseCode.ZeroNonce, idx: i, got: 0, bound: 0, };
+        }
+        if (nonce_to_u64(records[i].nonce) > PNRD_MAX_NONCE) {
+            return NonceReuseVerdict { code: NonceReuseCode.NonceOverflow, idx: i, got: 0, bound: 0, };
+        }
+        if (pair_seen_before(records, i)) {
+            return NonceReuseVerdict { code: NonceReuseCode.Duplicate, idx: i, got: 0, bound: 0, };
+        }
+    }
+    return NonceReuseVerdict { code: NonceReuseCode.Ok, idx: 0, got: 0, bound: 0, };
+}
+
+// The key IDs of the fixtures, one byte repeated sixteen times.
+pub const KID_01: [16]u8 = [16]u8{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+pub const KID_02: [16]u8 = [16]u8{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,};
+pub const ZERO_KID: [16]u8 = [16]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,};
+
+// The nonces of the fixtures: twelve bytes, the last eight the
+// big-endian form of the value - the original's nonce(val)
+// helper, entry by entry.
+pub const NONCE_1: [12]u8 = [12]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,};
+pub const NONCE_2: [12]u8 = [12]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,};
+pub const NONCE_42: [12]u8 = [12]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42,};
+pub const NONCE_MAX: [12]u8 = [12]u8{0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255,};
+pub const NONCE_OVER: [12]u8 = [12]u8{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,};
+pub const ZERO_NONCE: [12]u8 = [12]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,};
+
+// **PNRD-01** - duplicate rejected: the second record repeats the
+// first's key and nonce.
+test pnrd_01_duplicate_rejected {
+    const records: [2]NonceRecord = [2]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_42, },
+        NonceRecord { key_id: KID_01, nonce: NONCE_42, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.Duplicate);
+    assert(v.idx == 1);
+}
+
+// **PNRD-02** - zero nonce rejected under a live key.
+test pnrd_02_zero_nonce_rejected {
+    const records: [1]NonceRecord = [1]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: ZERO_NONCE, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.ZeroNonce);
+    assert(v.idx == 0);
+}
+
+// **PNRD-03** - zero key rejected under a live nonce.
+test pnrd_03_zero_key_rejected {
+    const records: [1]NonceRecord = [1]NonceRecord{
+        NonceRecord { key_id: ZERO_KID, nonce: NONCE_1, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.ZeroKey);
+    assert(v.idx == 0);
+}
+
+// **PNRD-04** - nonce overflow rejected: the nonce carries two to
+// the forty-eighth, one over the maximum.
+test pnrd_04_nonce_overflow_rejected {
+    const records: [1]NonceRecord = [1]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_OVER, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.NonceOverflow);
+    assert(v.idx == 0);
+}
+
+// **PNRD-05** - too many rejected: 10001 records of a maximum
+// 10000, built in a loop like the original's. The batch rule fires
+// before any record is examined, so every record carries the same
+// minimal pair.
+test pnrd_05_too_many_rejected {
+    var records: [10001]NonceRecord;
+    for i in 0..10001 {
+        records[i] = NonceRecord { key_id: KID_01, nonce: NONCE_1, };
+    }
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.TooMany);
+    assert(v.got == 10001);
+    assert(v.bound == 10000);
+}
+
+// **PNRD-06** - the same nonce under a different key accepted.
+test pnrd_06_same_nonce_diff_key_accepted {
+    const records: [2]NonceRecord = [2]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_42, },
+        NonceRecord { key_id: KID_02, nonce: NONCE_42, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.Ok);
+}
+
+// **PNRD-07** - the valid batch accepted: two nonces under the
+// first key, the first nonce again under the second.
+test pnrd_07_valid_accepted {
+    const records: [3]NonceRecord = [3]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_1, },
+        NonceRecord { key_id: KID_01, nonce: NONCE_2, },
+        NonceRecord { key_id: KID_02, nonce: NONCE_1, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.Ok);
+}
+
+// **PNRD-08** - an empty batch accepted.
+test pnrd_08_empty_accepted {
+    const records: [0]NonceRecord = [0]NonceRecord{};
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.Ok);
+}
+
+// **PNRD-09** - a single record accepted.
+test pnrd_09_single_accepted {
+    const records: [1]NonceRecord = [1]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_1, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.Ok);
+}
+
+// **PNRD-10** - the boundary nonce accepted: the maximum value
+// itself, one byte over nothing.
+test pnrd_10_boundary_nonce_accepted {
+    const records: [1]NonceRecord = [1]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_MAX, },
+    };
+    const v = validate_nonce_reuse(&records);
+    assert(v.code == NonceReuseCode.Ok);
+}
+
+// The six helpers have direct tests (coverage: Untested 0).
+test byte_form_helpers_answer {
+    assert(key_ids_equal(KID_01, KID_01));
+    assert(!key_ids_equal(KID_01, KID_02));
+    assert(key_id_zero(ZERO_KID));
+    assert(!key_id_zero(KID_01));
+    assert(nonces_equal(NONCE_1, NONCE_1));
+    assert(!nonces_equal(NONCE_1, NONCE_2));
+    assert(nonce_zero(ZERO_NONCE));
+    assert(!nonce_zero(NONCE_1));
+}
+
+test nonce_to_u64_answers {
+    assert(nonce_to_u64(NONCE_1) == 1);
+    assert(nonce_to_u64(NONCE_42) == 42);
+    assert(nonce_to_u64(NONCE_MAX) == 281474976710655);
+    assert(nonce_to_u64(NONCE_OVER) == 281474976710656);
+    assert(nonce_to_u64(ZERO_NONCE) == 0);
+}
+
+test pair_seen_before_answers {
+    const records: [3]NonceRecord = [3]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_1, },
+        NonceRecord { key_id: KID_01, nonce: NONCE_2, },
+        NonceRecord { key_id: KID_01, nonce: NONCE_1, },
+    };
+    assert(!pair_seen_before(&records, 0));
+    assert(!pair_seen_before(&records, 1));
+    assert(pair_seen_before(&records, 2));
+}
+
+// Rule order is the original's: the zero key before the zero nonce,
+// the zero nonce before the repeated pair, and the nonce ceiling
+// before the repeated pair.
+test rule_order_matches_original {
+    const both_zero: [1]NonceRecord = [1]NonceRecord{
+        NonceRecord { key_id: ZERO_KID, nonce: ZERO_NONCE, },
+    };
+    const v1 = validate_nonce_reuse(&both_zero);
+    assert(v1.code == NonceReuseCode.ZeroKey);
+    assert(v1.idx == 0);
+
+    const zero_twice: [2]NonceRecord = [2]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: ZERO_NONCE, },
+        NonceRecord { key_id: KID_01, nonce: ZERO_NONCE, },
+    };
+    const v2 = validate_nonce_reuse(&zero_twice);
+    assert(v2.code == NonceReuseCode.ZeroNonce);
+    assert(v2.idx == 0);
+
+    const over_twice: [2]NonceRecord = [2]NonceRecord{
+        NonceRecord { key_id: KID_01, nonce: NONCE_OVER, },
+        NonceRecord { key_id: KID_01, nonce: NONCE_OVER, },
+    };
+    const v3 = validate_nonce_reuse(&over_twice);
+    assert(v3.code == NonceReuseCode.NonceOverflow);
+    assert(v3.idx == 0);
+}

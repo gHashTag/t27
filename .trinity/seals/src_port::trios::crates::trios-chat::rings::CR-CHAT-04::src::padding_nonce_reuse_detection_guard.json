@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+01d0a635f",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:e09fb9e8609322c41c0b6a2eeef34f6b78e4658f2b15a0b2f4818095dc3c2d36",
+  "gen_hash_rust": "sha256:d6896ae0f3a1fc107b179595cf2e4100e829bcce92165fc0c7d26c941046df89",
+  "gen_hash_verilog": "sha256:25d44a0d44280b968fd2edea0fdd45b9ee206cc2be7a8163bfbb49cc5efd8606",
+  "gen_hash_zig": "sha256:80de8b3e760d686f40edf0a0c6fb46361965ca6e85d56ef1402192b4d9f5da98",
+  "module": "port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_nonce_reuse_detection_guard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-16T07:45:10Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:5fd4eef52999efffced9dd17cd07a74688ae32e35c6f00ec33dfdaf168366f02",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-04/src/padding_nonce_reuse_detection_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
