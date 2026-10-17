@@ -1353,6 +1353,7 @@
   {"path": "specs/tri/utils/args.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/exit_codes.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/template.t27", "t27b": "pass"},
+  {"path": "specs/trinet/eth_top_ax7203.t27", "t27b": "pass"},
   {"path": "specs/trinet/etx.t27", "t27b": "pass"},
   {"path": "specs/trinet/ledger.t27", "t27b": "pass"},
   {"path": "specs/trinet/mint_authority.t27", "t27b": "pass"},

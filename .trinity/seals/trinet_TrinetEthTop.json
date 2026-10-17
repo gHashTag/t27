@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+c9ab3e78d",
+  "closure": [
+    {
+      "spec": "specs/physics/xc7_primitives.t27",
+      "spec_hash": "sha256:e28f94d3d76c2830a63efe3f0f5d6ded85aead5ac005b625992c6775608abc4c"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:f6c799e45a841980b6ca11d5c1028ef733275e37199988b281dcf64ca2352d09",
+  "gen_hash_rust": "sha256:51011c716f45e28d6992db63a56f52093f862bc73d4713cf14b1a4d9a62396cb",
+  "gen_hash_verilog": "sha256:0f048f0f0497754b1d7ae5e584f6fd4b53f9c024042fdc13fc3b1178d27a4ceb",
+  "gen_hash_zig": "sha256:76e03e361e4e0d6751f3a3691f7ab33b9c411dd9b56940982671992023dad7dd",
+  "module": "TrinetEthTop",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-12T11:32:33Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:751ea2567800890f0b6b060946e5218b9239f2dadd9b5928896530c027008b40",
+  "spec_path": "specs/trinet/eth_top_ax7203.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

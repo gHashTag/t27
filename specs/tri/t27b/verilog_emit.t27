@@ -1493,6 +1493,87 @@ pub fn functions(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta
     return rr;
 }
 
+/// The pin declaration of port p with the suffix suf (#8889): the top-level `str` const named `<port><suf>`, or
+/// NO_NODE.
+pub fn pin_decl(nodes: []const u8, text: []const u8, p: usize, suf: str) -> i64 {
+    var d : usize = 1;
+    while (d < end(nodes, 0)) {
+        if (kind(nodes, d) == K_CONST_DECL and type_code(text, lo(nodes, d, F_TYPE), hi(nodes, d, F_TYPE)) == TY_STR and declares_for(text, lo(nodes, d, F_NAME), hi(nodes, d, F_NAME), lo(nodes, p, F_NAME), hi(nodes, p, F_NAME), suf)) {
+            const di : i64 = @intCast(d);
+            return di;
+        }
+        d = end(nodes, d);
+    }
+    return NO_NODE;
+}
+
+/// Is c a port of the module: an input (`undefined` const) or an output?
+pub fn is_port_item(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, c: usize, dp: bool) -> bool {
+    if (item_class(nodes, text, meta, ptext, c) == C_INPUT) { return true; }
+    return kind(nodes, c) == K_CONST_DECL and is_output(nodes, text, meta, ptext, c, dp);
+}
+
+/// Does the pin declaration d name a port of this module?
+pub fn pin_named(nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, d: usize) -> bool {
+    const dp : bool = declares_ports(nodes, text, meta, ptext);
+    const ca : usize = lo(nodes, d, F_NAME);
+    const cb : usize = hi(nodes, d, F_NAME);
+    var c : usize = 1;
+    while (c < end(nodes, 0)) {
+        if (c != d and is_port_item(nodes, text, meta, ptext, c, dp)) {
+            const pa : usize = lo(nodes, c, F_NAME);
+            const pb : usize = hi(nodes, c, F_NAME);
+            if (declares_for(text, ca, cb, pa, pb, PIN_SUFFIX) or declares_for(text, ca, cb, pa, pb, IOSTANDARD_SUFFIX) or declares_for(text, ca, cb, pa, pb, SLEW_SUFFIX)) { return true; }
+        }
+        c = end(nodes, c);
+    }
+    return false;
+}
+
+/// Writes one attribute of port p, `NAME = "value"`, after "(* " when it is the first and ", " otherwise; returns
+/// the position after it, at itself when p has no declaration with suf, or a failure.
+pub fn put_pin_attr(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, p: usize, suf: str, attr: str, first: bool) -> i64 {
+    const d : i64 = pin_decl(nodes, text, p, suf);
+    if (d == NO_NODE) {
+        const r0 : i64 = @intCast(at);
+        return r0;
+    }
+    const du : usize = @intCast(d);
+    const v : usize = du + 1;
+    if (v >= end(nodes, du) or kind(nodes, v) != K_EXPR_LITERAL or !field_eq(nodes, text, v, F_KIND, "string")) {
+        return fail(out, nodes, meta, text, du, "pin declaration that is no string literal", lo(nodes, du, F_NAME), hi(nodes, du, F_NAME));
+    }
+    var q : usize = at;
+    if (first) {
+        q = put_text(out, q, "(* ");
+    } else {
+        q = put_text(out, q, ", ");
+    }
+    q = put_text(out, q, attr);
+    q = put_text(out, q, " = \"");
+    q = put_bytes(out, q, text, lo(nodes, v, F_VALUE), hi(nodes, v, F_VALUE));
+    q = put_text(out, q, "\"");
+    const rq : i64 = @intCast(q);
+    return rq;
+}
+
+/// Writes the pin attributes of port p (#8889), `(* PACKAGE_PIN = "B17", IOSTANDARD = "LVCMOS33" *) `, or
+/// nothing when p has no pin declaration.
+pub fn put_pins(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, p: usize) -> i64 {
+    const r1 : i64 = put_pin_attr(out, at, nodes, text, meta, p, PIN_SUFFIX, "PACKAGE_PIN", true);
+    if (r1 < 0) { return r1; }
+    const q1 : usize = @intCast(r1);
+    const r2 : i64 = put_pin_attr(out, q1, nodes, text, meta, p, IOSTANDARD_SUFFIX, "IOSTANDARD", q1 == at);
+    if (r2 < 0) { return r2; }
+    const q2 : usize = @intCast(r2);
+    const r3 : i64 = put_pin_attr(out, q2, nodes, text, meta, p, SLEW_SUFFIX, "SLEW", q2 == at);
+    if (r3 < 0) { return r3; }
+    var q : usize = @intCast(r3);
+    if (q != at) { q = put_text(out, q, " *) "); }
+    const rq : i64 = @intCast(q);
+    return rq;
+}
+
 /// Writes the port list of the module: the implicit inputs, on_clock's unbound parameters, the outputs.
 pub fn ports(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []const u8, ptext: []const u8, oc: i64) -> i64 {
     var q : usize = at;
@@ -1537,7 +1618,11 @@ pub fn ports(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []
             const it : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, ci), 0);
             if (!ty_scalar(it)) { return fail(out, nodes, meta, text, ci, "input that is no integer or bool", lo(nodes, ci, F_NAME), hi(nodes, ci, F_NAME)); }
             if (!first) { q = put_text(out, q, ","); }
-            q = put_text(out, q, "\n    input  wire ");
+            q = put_text(out, q, "\n    ");
+            const rpi : i64 = put_pins(out, q, nodes, text, meta, ci);
+            if (rpi < 0) { return rpi; }
+            q = @intCast(rpi);
+            q = put_text(out, q, "input  wire ");
             q = put_range(out, q, it);
             q = put_name(out, q, text, lo(nodes, ci, F_NAME), hi(nodes, ci, F_NAME));
             first = false;
@@ -1551,10 +1636,14 @@ pub fn ports(out: []u8, at: usize, nodes: []const u8, text: []const u8, meta: []
             const t : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
             if (!ty_scalar(t)) { return fail(out, nodes, meta, text, c, "port that is no integer or bool", lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)); }
             if (!first) { q = put_text(out, q, ","); }
+            q = put_text(out, q, "\n    ");
+            const rpo : i64 = put_pins(out, q, nodes, text, meta, c);
+            if (rpo < 0) { return rpo; }
+            q = @intCast(rpo);
             if (item_class(nodes, text, meta, ptext, c) == C_VAR) {
-                q = put_text(out, q, "\n    output reg  ");
+                q = put_text(out, q, "output reg  ");
             } else {
-                q = put_text(out, q, "\n    output wire ");
+                q = put_text(out, q, "output wire ");
             }
             q = put_range(out, q, t);
             q = put_name(out, q, text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
@@ -1765,6 +1854,9 @@ pub fn module_text(out: []u8, at: usize, nodes: []const u8, text: []const u8, me
         if (k == K_STMT_LOCAL or k == K_STMT_ASSIGN or k == K_STMT_EXPR) { return fail(out, nodes, meta, text, c, kind_label(k), lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)); }
         if (cl == C_CONST and is_period_name(text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)) and !period_named(nodes, text, meta, ptext, c)) {
             return fail(out, nodes, meta, text, c, "clock period declared for no instance output", lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
+        }
+        if (k == K_CONST_DECL and type_code(text, lo(nodes, c, F_TYPE), hi(nodes, c, F_TYPE)) == TY_STR and is_pin_name(text, lo(nodes, c, F_NAME), hi(nodes, c, F_NAME)) and !pin_named(nodes, text, meta, ptext, c)) {
+            return fail(out, nodes, meta, text, c, "pin declared for no port", lo(nodes, c, F_NAME), hi(nodes, c, F_NAME));
         }
         if (cl == C_VAR) {
             const t : i64 = sym_type(nodes, text, meta, ptext, 0, sym_of(SYM_TOP, c), 0);
@@ -2399,6 +2491,58 @@ test early_exits_are_found_where_they_belong {
     // the return is not the fn's last statement, so the fn needs t27_done
     assert needs_done(ns, 0);
     assert child_holding(ns, 0, 3) == 1 and parent_of(ns, 0, 3) == 2 and parent_of(ns, 0, 4) == 0;
+}
+
+test a_pin_declaration_becomes_attributes_on_its_port {
+    // module S { const x : bool; const x_PIN : str = "B17"; const x_IOSTANDARD : str = "LVCMOS33";
+    //            const w : bool; const z_PIN : str = C13 (a number); const z : bool; }
+    // text: S 0..1, x 1..2, bool 2..6, x_PIN 6..11, str 11..14, B17 14..17, string 17..23, x_IOSTANDARD 23..35, LVCMOS33 35..43, w 43..44, z_PIN 44..49, C13 49..52, number 52..58, z 58..59
+    const tx : str = "Sxboolx_PINstrB17stringx_IOSTANDARDLVCMOS33wz_PINC13numberz";
+    var nb : [720]u8 = undefined;
+    tnode(nb[0 .. 720], 0, K_MODULE, 10, 0, 1);
+    tnode(nb[0 .. 720], 1, K_CONST_DECL, 2, 1, 2);
+    vset(nb[0 .. 720], 1, F_TYPE, 2, 6);
+    tnode(nb[0 .. 720], 2, K_CONST_DECL, 4, 6, 11);
+    vset(nb[0 .. 720], 2, F_TYPE, 11, 14);
+    tnode(nb[0 .. 720], 3, K_EXPR_LITERAL, 4, 0, 0);
+    vset(nb[0 .. 720], 3, F_VALUE, 14, 17);
+    vset(nb[0 .. 720], 3, F_KIND, 17, 23);
+    tnode(nb[0 .. 720], 4, K_CONST_DECL, 6, 23, 35);
+    vset(nb[0 .. 720], 4, F_TYPE, 11, 14);
+    tnode(nb[0 .. 720], 5, K_EXPR_LITERAL, 6, 0, 0);
+    vset(nb[0 .. 720], 5, F_VALUE, 35, 43);
+    vset(nb[0 .. 720], 5, F_KIND, 17, 23);
+    tnode(nb[0 .. 720], 6, K_CONST_DECL, 7, 43, 44);
+    vset(nb[0 .. 720], 6, F_TYPE, 2, 6);
+    tnode(nb[0 .. 720], 7, K_CONST_DECL, 9, 44, 49);
+    vset(nb[0 .. 720], 7, F_TYPE, 11, 14);
+    tnode(nb[0 .. 720], 8, K_EXPR_LITERAL, 9, 0, 0);
+    vset(nb[0 .. 720], 8, F_VALUE, 49, 52);
+    vset(nb[0 .. 720], 8, F_KIND, 52, 58);
+    tnode(nb[0 .. 720], 9, K_CONST_DECL, 10, 58, 59);
+    vset(nb[0 .. 720], 9, F_TYPE, 2, 6);
+    var mb : [160]u8 = undefined;
+    var i : usize = 0;
+    while (i < 10) {
+        tmeta(mb[0 .. 160], i, 0, i + 1);
+        i = i + 1;
+    }
+    var out : [4096]u8 = undefined;
+    // x has a pin and an I/O standard, no slew
+    assert pin_decl(nb[0 .. 720], tx, 1, PIN_SUFFIX) == 2;
+    assert pin_decl(nb[0 .. 720], tx, 1, IOSTANDARD_SUFFIX) == 4;
+    assert pin_decl(nb[0 .. 720], tx, 1, SLEW_SUFFIX) == NO_NODE;
+    const r0 : i64 = put_pins(out[0 .. 4096], 0, nb[0 .. 720], tx, mb[0 .. 160], 1);
+    assert r0 == 51;
+    assert holds(out[0 .. 4096], 51, "(* PACKAGE_PIN = \"B17\", IOSTANDARD = \"LVCMOS33\" *) ");
+    // w has none: nothing is written
+    assert put_pins(out[0 .. 4096], 7, nb[0 .. 720], tx, mb[0 .. 160], 6) == 7;
+    // a pin that is no string literal is refused by name
+    const r1 : i64 = put_pins(out[0 .. 4096], 0, nb[0 .. 720], tx, mb[0 .. 160], 9);
+    assert r1 < 0;
+    const n1 : usize = @intCast(0 - r1);
+    // the message is written at the end of the buffer, as fail() does for every refusal
+    assert holds(out[4096 - MSG_ROOM .. 4096], n1, "unsupported construct pin declaration that is no string literal `z_PIN` at line 8");
 }
 
 test a_declared_clock_period_rides_on_the_wire_of_the_output_it_names {

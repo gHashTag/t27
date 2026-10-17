@@ -34,11 +34,30 @@ pub struct BufgOut { O: bool }
 pub fn BUFG(I: bool) -> BufgOut {}
 
 /// The outputs of BSCANE2 a design reads.
-pub struct Bscane2Out { CAPTURE: bool, SEL: bool, SHIFT: bool, TCK: bool, TDI: bool }
+pub struct Bscane2Out { CAPTURE: bool, DRCK: bool, SEL: bool, SHIFT: bool, TCK: bool, TDI: bool }
 
 /// BSCANE2: the JTAG USER chain JTAG_CHAIN (1 to 4); `keep` keeps the cell through synthesis; TDO is its one
 /// input.
 pub fn BSCANE2(JTAG_CHAIN: comptime_int, keep: bool, TDO: bool) -> Bscane2Out {}
+
+/// The output of IBUFDS.
+pub struct IbufdsOut { O: bool }
+
+/// IBUFDS: a differential input buffer (the AX7203's 200 MHz oscillator on R4/T4).
+pub fn IBUFDS(I: bool, IB: bool) -> IbufdsOut {}
+
+/// The outputs of PLLE2_ADV a design reads.
+pub struct Plle2AdvOut { CLKFBOUT: bool, CLKOUT0: bool, CLKOUT1: bool, LOCKED: bool }
+
+/// PLLE2_ADV: a phase-locked loop with two outputs; CLKFBIN takes its own CLKFBOUT. The dynamic
+/// reconfiguration port is left out (DCLK, DEN and DWE tied low).
+pub fn PLLE2_ADV(CLKIN1_PERIOD: f64, CLKFBOUT_MULT: comptime_int, DIVCLK_DIVIDE: comptime_int, CLKOUT0_DIVIDE: comptime_int, CLKOUT1_DIVIDE: comptime_int, CLKOUT1_PHASE: f64, CLKIN1: bool, CLKIN2: bool, CLKINSEL: bool, CLKFBIN: bool, PWRDWN: bool, RST: bool, DCLK: bool, DEN: bool, DWE: bool) -> Plle2AdvOut {}
+
+/// The output of ODDR.
+pub struct OddrOut { Q: bool }
+
+/// ODDR: an output register for both edges of C (D1 on the rising edge, D2 on the falling edge).
+pub fn ODDR(C: bool, CE: bool, D1: bool, D2: bool, R: bool, S: bool) -> OddrOut {}
 
 /// The BYPASS instruction: all ones in the 6-bit IR.
 pub const IR_BYPASS : u8 = 63;

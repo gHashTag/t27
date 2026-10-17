@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/trinet/eth_top_ax7203.t27 -- the TRI-NET node on the ALINX AX7203 at 100 Mb/s, PHY 1 (issue #8889, part of
+; #8327): device primitives and wiring around the six t27 modules, written by t27b's Verilog path
+; (specs/tri/t27b/verilog_plan.t27). It replaces the hand-written wrapper of #8772's first commit.
+; --
+; - The 200 MHz oscillator (IBUFDS, BUFG) clocks Mdio100m (specs/fpga/mdio_100m.t27): the PHY reset hold and
+;   the MDIO writes that bring the KSZ9031 up at 100 Mb/s.
+; - The PHY's RXC (25 MHz) feeds a PLL held in reset with the PHYs: CLKOUT0 at 0 degrees samples RX and clocks
+;   Rgmii100, EthRx, TrinetNode and EthReply; CLKOUT1 at 180 degrees drives TXC through an ODDR, so the PHY
+;   samples each TX nibble in its middle.
+; - BSCANE2 on chain 3 (USER3, JTAG instruction 0x22) clocks JtagStatus with its DRCK; TDO is its tdo.
+; The primitives are declared in specs/physics/xc7_primitives.t27; the six modules are extern modules here, by
+; the ports gen-verilog gives them. The clocks are declared (#8839) on the BUFG outputs, and the pins (#8889)
+; on the ports, so no constraint file is written by hand.
+; It lives outside specs/fpga, as specs/queen/actors_hw_top.t27 does: t27c's gen-verilog, which the fpga gates
+; run on that directory, cannot instantiate an extern module (#8660); t27b verilog is this top's path.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TrinetEthTop;
+
+use physics::xc7_primitives;
+
+// ---- the six modules, as extern modules: inputs in order, the outputs read here as struct fields ----------
+
+pub struct Mdio100mOut { phy_rst_n: u8, mdc: u8, mdio: u8 }
+pub fn Mdio100m(clk_: bool, rst_n_: bool, en_: bool) -> Mdio100mOut {}
+
+pub struct Rgmii100Out { rx_en: u8, rx_dv: u8, rx_b: u8, pv: u8, dn: u8, tick: u8, take: u8, go: u8, tx_en: u8, tx_nib: u8, led: u8, status: u64 }
+pub fn Rgmii100(clk_: bool, rst_n_: bool, en_: bool, rxctl: u8, rxd: u8, pay_v: u8, rdone: u8, j_go: u8, resp_v: u8, txd: u8, txe: u8, n_ok: u32, n_drop: u32, n_sent: u32, why: u8) -> Rgmii100Out {}
+
+pub struct EthRxOut { pay_v: u8, pay_b: u8, pay_i: u16, done: u8, ok: u8, why: u8, src_mac: u64, src_ip: u32, src_port: u16, n_ok: u32, n_drop: u32 }
+pub fn EthRx(clk_: bool, rst_n_: bool, en_: bool, dv: u8, b: u8) -> EthRxOut {}
+
+pub struct TrinetNodeOut { resp_v: u8, r_y: u8, r_st: u8, r_n: u32, r_tag: u64, j_go: u8 }
+pub fn TrinetNode(clk_: bool, rst_n_: bool, en_: bool, pv: u8, pb: u8, pi: u16, dn: u8, okf: u8) -> TrinetNodeOut {}
+
+pub struct EthReplyOut { txd: u8, tx_en: u8, n_sent: u32 }
+pub fn EthReply(clk_: bool, rst_n_: bool, en_: bool, take: u8, smac: u64, sip: u32, sport: u16, go: u8, ry: u8, rs: u8, rn: u32, rtag: u64) -> EthReplyOut {}
+
+pub struct JtagStatusOut { tdo: u8 }
+pub fn JtagStatus(clk_: bool, rst_n_: bool, en_: bool, sel: u8, cap: u8, shift: u8, tdi: u8, word: u64) -> JtagStatusOut {}
+
+// ---- the pins ----------------------------------------------------------------------------------------
+
+const clk200_p : bool = undefined;
+const clk200_n : bool = undefined;
+const e1_rxc : bool = undefined;
+const e1_rxctl : bool = undefined;
+const e1_rxd0 : bool = undefined;
+const e1_rxd1 : bool = undefined;
+const e1_rxd2 : bool = undefined;
+const e1_rxd3 : bool = undefined;
+
+/// 1 when bit 0 of v is set.
+fn b0(v: u8) -> bool {
+    return (v & 1) == 1;
+}
+
+fn as_u8(b: bool) -> u8 {
+    if (b) { return 1; }
+    return 0;
+}
+
+/// Bit k of v.
+fn bit_of(v: u8, k: u8) -> bool {
+    return ((v >> k) & 1) == 1;
+}
+
+/// Four pins as a nibble, d0 the least significant.
+fn nibble(d0: bool, d1: bool, d2: bool, d3: bool) -> u8 {
+    return as_u8(d0) | (as_u8(d1) << 1) | (as_u8(d2) << 2) | (as_u8(d3) << 3);
+}
+
+// ---- 200 MHz: the PHY reset hold and MDIO ------------------------------------------------------------
+
+const osc : IbufdsOut = IBUFDS(clk200_p, clk200_n);
+const g200 : BufgOut = BUFG(osc.O);
+/// The oscillator: 200 MHz.
+const g200_O_PERIOD_PS : u64 = 5000;
+const mdio : Mdio100mOut = Mdio100m(g200.O, true, true);
+
+// ---- 25 MHz from RXC ---------------------------------------------------------------------------------
+
+const pll : Plle2AdvOut = PLLE2_ADV(40.0, 40, 1, 40, 40, 180.0, e1_rxc, false, true, pll.CLKFBOUT, false, b0(mdio.phy_rst_n) == false, false, false, false);
+const g0 : BufgOut = BUFG(pll.CLKOUT0);
+const g180 : BufgOut = BUFG(pll.CLKOUT1);
+/// RXC at 100 Mb/s: 25 MHz, both PLL outputs at the same rate.
+const g0_O_PERIOD_PS : u64 = 40000;
+const g180_O_PERIOD_PS : u64 = 40000;
+
+const rg : Rgmii100Out = Rgmii100(g0.O, pll.LOCKED, true, as_u8(e1_rxctl), nibble(e1_rxd0, e1_rxd1, e1_rxd2, e1_rxd3), rx.pay_v, rx.done, node.j_go, node.resp_v, tx.txd, tx.tx_en, rx.n_ok, rx.n_drop, tx.n_sent, rx.why);
+const rx : EthRxOut = EthRx(g0.O, pll.LOCKED, b0(rg.rx_en), rg.rx_dv, rg.rx_b);
+const node : TrinetNodeOut = TrinetNode(g0.O, pll.LOCKED, true, rg.pv, rx.pay_b, rx.pay_i, rg.dn, rx.ok);
+const tx : EthReplyOut = EthReply(g0.O, pll.LOCKED, b0(rg.tick), rg.take, rx.src_mac, rx.src_ip, rx.src_port, rg.go, node.r_y, node.r_st, node.r_n, node.r_tag);
+const txc : OddrOut = ODDR(g180.O, true, true, false, false, false);
+
+// ---- JTAG USER3 --------------------------------------------------------------------------------------
+
+const bscan : Bscane2Out = BSCANE2(3, true, b0(jst.tdo));
+const jst : JtagStatusOut = JtagStatus(bscan.DRCK, true, true, as_u8(bscan.SEL), as_u8(bscan.CAPTURE), as_u8(bscan.SHIFT), as_u8(bscan.TDI), rg.status);
+
+// ---- the outputs -------------------------------------------------------------------------------------
+
+pub const e1_rst_n : bool = b0(mdio.phy_rst_n);
+pub const e2_rst_n : bool = b0(mdio.phy_rst_n);
+pub const e1_mdc : bool = b0(mdio.mdc);
+pub const e1_mdio : bool = b0(mdio.mdio);
+pub const e1_txc : bool = txc.Q;
+pub const e1_txctl : bool = b0(rg.tx_en);
+pub const e1_txd0 : bool = bit_of(rg.tx_nib, 0);
+pub const e1_txd1 : bool = bit_of(rg.tx_nib, 1);
+pub const e1_txd2 : bool = bit_of(rg.tx_nib, 2);
+pub const e1_txd3 : bool = bit_of(rg.tx_nib, 3);
+pub const led0 : bool = bit_of(rg.led, 0);
+pub const led1 : bool = bit_of(rg.led, 1);
+pub const led2 : bool = bit_of(rg.led, 2);
+pub const led3 : bool = bit_of(rg.led, 3);
+
+// ---- pin declarations (#8889): package pins of the AX7203 (ALINX AX7203 manual; PHY 1 is the KSZ9031 whose
+// RJ-45 carries the cable), written by t27b verilog as attributes on the ports -------------------------------
+
+const clk200_p_PIN : str = "R4";
+const clk200_p_IOSTANDARD : str = "DIFF_SSTL15";
+const clk200_n_PIN : str = "T4";
+const clk200_n_IOSTANDARD : str = "DIFF_SSTL15";
+const e1_rxc_PIN : str = "B17";
+const e1_rxc_IOSTANDARD : str = "LVCMOS33";
+const e1_rxctl_PIN : str = "A15";
+const e1_rxctl_IOSTANDARD : str = "LVCMOS33";
+const e1_rxd0_PIN : str = "A16";
+const e1_rxd0_IOSTANDARD : str = "LVCMOS33";
+const e1_rxd1_PIN : str = "B18";
+const e1_rxd1_IOSTANDARD : str = "LVCMOS33";
+const e1_rxd2_PIN : str = "C18";
+const e1_rxd2_IOSTANDARD : str = "LVCMOS33";
+const e1_rxd3_PIN : str = "C19";
+const e1_rxd3_IOSTANDARD : str = "LVCMOS33";
+const e1_rst_n_PIN : str = "D16";
+const e1_rst_n_IOSTANDARD : str = "LVCMOS33";
+const e2_rst_n_PIN : str = "B22";
+const e2_rst_n_IOSTANDARD : str = "LVCMOS33";
+const e1_mdc_PIN : str = "B16";
+const e1_mdc_IOSTANDARD : str = "LVCMOS33";
+const e1_mdio_PIN : str = "B15";
+const e1_mdio_IOSTANDARD : str = "LVCMOS33";
+const e1_txc_PIN : str = "E18";
+const e1_txc_IOSTANDARD : str = "LVCMOS33";
+const e1_txc_SLEW : str = "FAST";
+const e1_txctl_PIN : str = "F18";
+const e1_txctl_IOSTANDARD : str = "LVCMOS33";
+const e1_txctl_SLEW : str = "FAST";
+const e1_txd0_PIN : str = "C20";
+const e1_txd0_IOSTANDARD : str = "LVCMOS33";
+const e1_txd0_SLEW : str = "FAST";
+const e1_txd1_PIN : str = "D20";
+const e1_txd1_IOSTANDARD : str = "LVCMOS33";
+const e1_txd1_SLEW : str = "FAST";
+const e1_txd2_PIN : str = "A19";
+const e1_txd2_IOSTANDARD : str = "LVCMOS33";
+const e1_txd2_SLEW : str = "FAST";
+const e1_txd3_PIN : str = "A18";
+const e1_txd3_IOSTANDARD : str = "LVCMOS33";
+const e1_txd3_SLEW : str = "FAST";
+const led0_PIN : str = "B13";
+const led0_IOSTANDARD : str = "LVCMOS33";
+const led1_PIN : str = "C13";
+const led1_IOSTANDARD : str = "LVCMOS33";
+const led2_PIN : str = "D14";
+const led2_IOSTANDARD : str = "LVCMOS33";
+const led3_PIN : str = "D15";
+const led3_IOSTANDARD : str = "LVCMOS33";
+
+test the_bit_helpers_read_bit_0 {
+    assert(b0(1));
+    assert(b0(3));
+    assert(b0(2) == false);
+    assert_eq(as_u8(true), 1);
+    assert_eq(as_u8(false), 0);
+    assert_eq(nibble(true, false, true, true), 13);
+    assert(bit_of(10, 1));
+    assert(bit_of(10, 2) == false);
+}
+
+test the_clocks_are_declared_at_the_rates_they_run {
+    // the board oscillator and the 100 Mb/s line, in Hz and bit/s; RGMII moves
+    // one nibble per RXC cycle at 100 Mb/s; one second in picoseconds
+    var osc_hz : u64 = 200000000;
+    var line_bps : u64 = 100000000;
+    var nibble_bits : u64 = 4;
+    var second_ps : u64 = 1000000000000;
+    // one period of each clock, times its rate, is exactly one second
+    assert g200_O_PERIOD_PS * osc_hz == second_ps;
+    assert g0_O_PERIOD_PS * (line_bps / nibble_bits) == second_ps;
+    // the 180 degree clock is the same PLL output frequency, shifted
+    assert g180_O_PERIOD_PS * (line_bps / nibble_bits) == second_ps;
+}

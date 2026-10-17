@@ -41,6 +41,12 @@
 ;   so a divided clock is checked at the rate it runs at and no constraint file is written by hand. A
 ;   declaration that names no instance output, or whose value is 0, is refused by name: a constraint that
 ;   constrains nothing would leave its clock at the global target without a word.
+; - A PIN DECLARATION is a `str` CONSTANT named `<port>_PIN`, `<port>_IOSTANDARD` or `<port>_SLEW` (#8889),
+;   where <port> is an input (`undefined` const) or an output (`pub const`, `pub var`) of the module. They are
+;   written as the attributes PACKAGE_PIN, IOSTANDARD and SLEW on that port, `(* PACKAGE_PIN = "B17",
+;   IOSTANDARD = "LVCMOS33" *) input  wire e1_rxc`, which yosys keeps on the top's port and nextpnr-xilinx
+;   places from as from an XDC, so a board top needs no constraint file written by hand. Only a `str` const
+;   is one (a numeric `LED_PIN` stays a constant), and one that names no port is refused by name.
 ; - A NAME THAT IS A T27 KEYWORD (#10061). The lexer reserves `in`, `for`, `test` and the rest of
 ;   T27_KEYWORDS, so `const in : u8 = undefined;` does not parse, and a fixed interface that needs a port
 ;   `in` (CVDP 8x3_priority_encoder) could not be declared. Such a name is spelled with one trailing `_`:
@@ -582,6 +588,42 @@ pub fn binds(ps: []const u8, a: usize, b: usize, text: []const u8, ia: usize, ib
     if (!has_at(ps, a, a + n, text[ia .. ib])) { return false; }
     if (ps[a + n] != 95) { return false; }
     return has_at(ps, a + n + 1, b, text[fa .. fb]);
+}
+
+/// The ends of a pin declaration's name (#8889), and the attribute each one writes.
+pub const PIN_SUFFIX : str = "_PIN";
+pub const IOSTANDARD_SUFFIX : str = "_IOSTANDARD";
+pub const SLEW_SUFFIX : str = "_SLEW";
+
+/// Is the const name text[ca .. cb] the port name text[pa .. pb] followed by suf?
+pub fn declares_for(text: []const u8, ca: usize, cb: usize, pa: usize, pb: usize, suf: str) -> bool {
+    const n : usize = pb - pa;
+    if (n == 0 or cb - ca != n + suf.len) { return false; }
+    if (!has_at(text, ca, ca + n, text[pa .. pb])) { return false; }
+    return same(text[ca + n .. cb], suf);
+}
+
+/// Does the const name text[ca .. cb] end with suf, with a name before it?
+pub fn ends_with(text: []const u8, ca: usize, cb: usize, suf: str) -> bool {
+    if (cb < ca + suf.len + 1) { return false; }
+    return same(text[cb - suf.len .. cb], suf);
+}
+
+/// Does the const name text[ca .. cb] have the form of a pin declaration: a name, then one of the suffixes?
+pub fn is_pin_name(text: []const u8, ca: usize, cb: usize) -> bool {
+    return ends_with(text, ca, cb, PIN_SUFFIX) or ends_with(text, ca, cb, IOSTANDARD_SUFFIX) or ends_with(text, ca, cb, SLEW_SUFFIX);
+}
+
+test a_pin_is_declared_by_the_name_of_a_port {
+    // "e1_rxc_PIN" (0..10), "e1_rxc_IOSTANDARD" (10..27), "e1_rxc" (27..33), "e1_rx" (33..38), "_PIN" (38..42)
+    const s : str = "e1_rxc_PINe1_rxc_IOSTANDARDe1_rxce1_rx_PIN";
+    assert declares_for(s, 0, 10, 27, 33, PIN_SUFFIX);
+    assert declares_for(s, 10, 27, 27, 33, IOSTANDARD_SUFFIX);
+    assert is_pin_name(s, 0, 10) and is_pin_name(s, 10, 27);
+    // another port, another suffix, or the suffix alone declares nothing
+    assert !declares_for(s, 0, 10, 33, 38, PIN_SUFFIX);
+    assert !declares_for(s, 0, 10, 27, 33, SLEW_SUFFIX);
+    assert !is_pin_name(s, 38, 42) and !is_pin_name(s, 27, 33);
 }
 
 /// The end of a clock declaration's name (#8839).

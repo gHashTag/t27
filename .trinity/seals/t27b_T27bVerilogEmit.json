@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+063da04",
+  "built_by": "t27c-bootstrap@0.5.2+4fcba024d",
   "closure": [
     {
       "spec": "specs/tri/t27b/emit_kit; // byte writers, to_front, line_near, resolve and symbols, test trees.t27",
@@ -11,27 +11,27 @@
     },
     {
       "spec": "specs/tri/t27b/verilog_plan.t27",
-      "spec_hash": "sha256:c7eb1749b322a318ec71a2544172783a77361cf9a2083b88fcc7afd3c5a44708"
+      "spec_hash": "sha256:62d09576f5e21fefcb1318aa8a8324b8e77c4bad332e989888eab0f88c47eb65"
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:d4a0c1d16b2e75c1d7028eae7133c8af8359b1e90ada94289435881e2c31a2dc",
-  "gen_hash_rust": "sha256:daa741c306509d8baabb4130273593065066784a63697e693d5287bca45ce7d8",
-  "gen_hash_verilog": "sha256:81f1f5903b2800ed2d684e7ceb986eb7106e8ec9f6978d329afe7313b1565a3c",
-  "gen_hash_zig": "sha256:abf0fbf7e8028b15f30438cae0a89bb32a2b5257576e7f1d2f1027958b1d6d6f",
+  "gen_hash_c": "sha256:7911a626ddffa6d58e5a63065b90ededfe4c3df0302c5511066cecfd22f5d7ec",
+  "gen_hash_rust": "sha256:c8e5f9fd05c6392e76082f423962ce3cdd2938c84e37578948efe6bf50453573",
+  "gen_hash_verilog": "sha256:4fca239ac145adc3027d725fa6283e9576208dcf4859db2a74f942071ddc7dd3",
+  "gen_hash_zig": "sha256:4e4b9f0ff1c1790f1eeded2c17fd756d59787bcedc92ba3f9ab91f2c8bb2615b",
   "module": "T27bVerilogEmit",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-17T18:12:17Z",
+  "sealed_at": "2026-10-17T18:54:55Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:b28baac32b8d291619dfe2664fe4167287f6705ec901fa0e87200ee95523a84d",
+  "spec_hash": "sha256:24d4ea0d2ccd12b019e5ea01afbeeb3a2128157b84005d32c373aa81ce009b8b",
   "spec_path": "specs/tri/t27b/verilog_emit.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 8,
-    "total": 8,
+    "passed": 9,
+    "total": 9,
     "vacuous": 0
   },
   "toolchain": {
