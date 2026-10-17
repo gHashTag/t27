@@ -1,0 +1,218 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w734.t27
+// Port of scripts/gen_w734.py to t27
+
+// Generate the W734 benchmark spec: one module whose dst field is a
+// 287 x 2^6 array-of-structs of i16 pairs, written out as a full 18368-entry
+// literal, with a make_grid(offset) helper and a footer of asserts and a
+// bench block.
+//
+// WHAT THIS PORT DELIBERATELY DOES NOT CONTAIN
+//
+// The text. The original assembles the whole spec with f-strings,
+// "\n".join over growable lists and an indent() prefix pass, then writes
+// it with write_text and prints the byte count. .t27 has no string
+// building, and the write moves bytes - both stay in Python's hands,
+// exactly as the sibling port gen_w309 keeps its file walk out. What
+// decided is here, and every test asserts one of these decisions:
+//
+// - the constants the emitted footer's asserts are phrased in
+//   (scripts/gen_w734.py lines 9-22)
+// - entry_x / entry_y: the coordinate rule every element obeys (lines 40-42,
+//   the same rule the emitted make_grid applies)
+// - build_tree: how many Pt entries a shape denotes and where the base
+//   threading of the recursion lands (lines 28-58)
+// - flat_index: which flat element a 7-dimensional subscript names (lines
+//   15-16)
+// - the ASCII gate (lines 135-136)
+
+module port::scripts::gen_w734;
+
+// scripts/gen_w734.py lines 9-22. SUB is the original's 2 ** 6, the product
+// of the six inner dimensions; every coordinate is taken modulo 32768, the
+// i16 pair period the emitted footer relies on.
+const OUTER: i64 = 287;
+const SUB: i64 = 2 * 2 * 2 * 2 * 2 * 2;
+const TOTAL: i64 = OUTER * SUB;
+const LAST_IDX: i64 = OUTER - 1;
+const MID_IDX: i64 = OUTER / 2;
+const MID_E: i64 = MID_IDX * 64 + 32;
+const LAST_X: i64 = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y: i64 = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_X: i64 = (2 * MID_E) % 32768;
+const MID_Y: i64 = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X: i64 = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y: i64 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+// Python: build_tree's (text, next_base) pair, as numbers. The text spells
+// entries Pt blocks; what it encodes is how many, where the base ends up,
+// and the coordinates the first entry carries.
+pub struct Tree {
+    entries: i64,
+    next_base: i64,
+    first_x: i64,
+    first_y: i64,
+}
+
+// Python lines 24-25: "    " * level. There is no string repetition here,
+// so the levels the original actually calls it with - 1 and 2 (lines 37,
+// 43, 45, 51, 57) - are spelled out, with level 0 as the empty prefix. A
+// deeper level would need concatenation and never occurs in the original.
+pub fn indent(level: i64) -> str {
+    if (level <= 0) {
+        return "";
+    }
+    if (level == 1) {
+        return "    ";
+    }
+    return "        ";
+}
+
+// Python lines 41-42, the leaf-entry rule: a flat element e under a grid
+// offset is the i16 pair ((2*e + offset) % 32768, (2*e + offset + 1) % 32768).
+// The emitted make_grid(offset) applies the same rule to every element, and
+// its period 32768 is why the footer can assert offset 32768 behaves like
+// offset 0.
+pub fn entry_x(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset) % 32768;
+}
+
+pub fn entry_y(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset + 1) % 32768;
+}
+
+// Python lines 28-58. The original recursion returns the built text plus the
+// base threaded through the children (line 52 reassigns base per child; the
+// leaf returns base + n at line 46). The text is f-strings and join, which
+// this port cannot express, so what is carried is the recursion's fixed
+// point: a shape denotes product(shape) Pt entries in total, leaves the
+// base at base + product(shape), and the entry the text opens with is
+// element `base` under the leaf rule above.
+pub fn build_tree(shape: []const i64, base: i64, offset: i64) -> Tree {
+    var entries: i64 = 1;
+    var i: usize = 0;
+    while (i < shape.len) {
+        entries = entries * shape[i];
+        i += 1;
+    }
+    const next: i64 = base + entries;
+    return Tree { entries: entries, next_base: next, first_x: entry_x(base, offset), first_y: entry_y(base, offset) };
+}
+
+// Python lines 15-16: the flat element number a 7-dimensional subscript
+// denotes. The emitted footer's asserts are phrased in terms of it - for
+// example dst[LAST_IDX][1][1][1][1][1][1] is element LAST_IDX * 64 + 63,
+// and dst[MID_IDX][1][0][0][0][0][0] is element MID_E.
+pub fn flat_index(i0: i64, i1: i64, i2: i64, i3: i64, i4: i64, i5: i64, i6: i64) -> i64 {
+    return i0 * 64 + i1 * 32 + i2 * 16 + i3 * 8 + i4 * 4 + i5 * 2 + i6;
+}
+
+// Python line 135: ord(ch) < 128 for every byte of the generated text;
+// generate raises ValueError instead of writing when it fails.
+pub fn is_ascii_byte(c: u8) -> bool {
+    return c < 128;
+}
+
+pub fn is_ascii(text: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < text.len) {
+        if (!is_ascii_byte(text[i])) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// Python lines 61-141. The decisions live in the constants and helpers
+// above; what remains here is plumbing - composing the text needs f-strings
+// over growable lists and string concatenation, and lines 138-141 write
+// specs/scratch/w734_bench_module_287x2p6_aos_var_call_write.t27 and print
+// the byte count. Like gen_w309's process_specs, this keeps the name with
+// an undefined body, and no test calls it.
+pub fn generate() {
+    return;
+}
+
+test indent_levels {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+}
+
+test entry_coordinates_wrap_mod_32768 {
+    // Element 0 under make_grid(0) - footer lines 87-88 of the original.
+    assert(entry_x(0, 0) == 0);
+    assert(entry_y(0, 0) == 1);
+    // Element TOTAL - 1 = 18367: 2*18367 = 36734 wraps mod 32768. The
+    // original pins these values as LAST_X and LAST_Y (lines 14, 20).
+    assert(entry_x(TOTAL - 1, 0) == LAST_X);
+    assert(entry_y(TOTAL - 1, 0) == LAST_Y);
+    assert(entry_x(18367, 0) == 3966);
+    assert(entry_y(18367, 0) == 3967);
+    // Element MID_E = 9184: 2*9184 = 18368 stays under the modulus, the
+    // original's MID_X and MID_Y (lines 18-19).
+    assert(entry_x(MID_E, 0) == MID_X);
+    assert(entry_y(MID_E, 0) == MID_Y);
+    assert(entry_x(9184, 0) == 18368);
+    assert(entry_y(9184, 0) == 18369);
+    // Period identity - footer lines 93-96: offset 32768 is congruent to 0,
+    // the original's WRAP_LAST_X and WRAP_LAST_Y (lines 21-22).
+    assert(entry_x(TOTAL - 1, 32768) == WRAP_LAST_X);
+    assert(entry_y(TOTAL - 1, 32768) == WRAP_LAST_Y);
+    assert(entry_x(TOTAL - 1, 32768) == entry_x(TOTAL - 1, 0));
+    assert(entry_y(TOTAL - 1, 32768) == entry_y(TOTAL - 1, 0));
+}
+
+test build_tree_leaf_advances_base {
+    var shape: [1]i64 = [5];
+    const leaf = build_tree(&shape, 7, 3);
+    // Line 46: the leaf returns base + n, and n entries.
+    assert(leaf.entries == 5);
+    assert(leaf.next_base == 12);
+    // Lines 40-42: the first entry is element 7 under offset 3.
+    assert(leaf.first_x == 17);
+    assert(leaf.first_y == 18);
+}
+
+test build_tree_threads_base_through_children {
+    var shape: [2]i64 = [3, 2];
+    const tree = build_tree(&shape, 10, 0);
+    // Lines 51-54: three children of two entries each; the base threads
+    // 10 -> 12 -> 14 -> 16 and the text spells six entries.
+    assert(tree.entries == 6);
+    assert(tree.next_base == 16);
+    assert(tree.first_x == 20);
+    assert(tree.first_y == 21);
+}
+
+test build_tree_spans_the_bench_shape {
+    var shape: [7]i64 = [287, 2, 2, 2, 2, 2, 2];
+    const grid = build_tree(&shape, 0, 0);
+    // Lines 62-63: the generator builds exactly this shape at base 0, and
+    // the literal it spells is TOTAL entries long.
+    assert(grid.entries == TOTAL);
+    assert(grid.next_base == TOTAL);
+    assert(grid.first_x == 0);
+    assert(grid.first_y == 1);
+}
+
+test flat_index_maps_the_footers_subscripts {
+    // The original's comment (lines 15-16) works the mid example out, both
+    // through the named constants and as plain numbers.
+    assert(flat_index(MID_IDX, 1, 0, 0, 0, 0, 0) == MID_E);
+    assert(flat_index(LAST_IDX, 1, 1, 1, 1, 1, 1) == TOTAL - 1);
+    assert(flat_index(0, 0, 0, 0, 0, 0, 0) == 0);
+    assert(flat_index(143, 1, 0, 0, 0, 0, 0) == 9184);
+    assert(flat_index(286, 1, 1, 1, 1, 1, 1) == 18367);
+}
+
+test ascii_gate {
+    assert(is_ascii("module w734_bench_module_287x2p6_aos_var_call_write {"));
+    assert(is_ascii("Pt { .x = 3966, .y = 3967 },"));
+    assert(is_ascii(""));
+    // The gate the original raises on (line 135): any byte above 127.
+    assert(!is_ascii_byte(128));
+    assert(is_ascii_byte(127));
+    assert(is_ascii_byte(0));
+}
