@@ -113,7 +113,6 @@ exp2 2
 extract_mantissa 2,2
 fallback_to_template 2
 find_shared_port_names 2
-flat_index 2
 full_adder 2
 generate_diverse_candidates 2
 generate_diverse_candidates_inner 2
@@ -135,7 +134,6 @@ has_at 2
 hw_place_before 2
 instantiate_modules 2
 instantiate_ports 2
-is_ascii 2
 is_counter_power_of_two 2
 is_name_byte 2
 kill 2

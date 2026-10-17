@@ -23,6 +23,8 @@
 
 module port::scripts::gen_w713;
 
+use port::scripts::gen_w_tree;
+
 // Header constants (lines 9-21), verbatim arithmetic.
 const COORD_MOD: i64 = 32768;
 const OUTER: i64 = 245;
@@ -38,146 +40,9 @@ const MID_Y: i64 = (2 * MID_E + 1) % COORD_MOD;
 const WRAP_LAST_X: i64 = (2 * (TOTAL - 1) + COORD_MOD) % COORD_MOD;
 const WRAP_LAST_Y: i64 = (2 * (TOTAL - 1) + 1 + COORD_MOD) % COORD_MOD;
 
-// What the recursion decides for one literal: the first and last element
-// coordinates, the number of Pt entries, and the next free element index.
-// The original returns the built text plus the advanced base (line 29);
-// the text is the string plumbing named in the header, these numbers are
-// what it encodes.
-pub struct TreeBuild {
-    first_x: i64,
-    first_y: i64,
-    last_x: i64,
-    last_y: i64,
-    leaves: i64,
-    next_base: i64,
-}
-
-// Original line 24: def indent(level: int) -> str. "    " * level cannot be
-// written in .t27 (no string repetition), so the levels the generator can
-// reach are spelled out; above level 7 the result clamps at the deepest
-// string here. Negative levels are "" as in Python ("    " * -2 == "").
-pub fn indent(level: i64) -> str {
-    if (level <= 0) {
-        return "";
-    }
-    if (level == 1) {
-        return "    ";
-    }
-    if (level == 2) {
-        return "        ";
-    }
-    if (level == 3) {
-        return "            ";
-    }
-    if (level == 4) {
-        return "                ";
-    }
-    if (level == 5) {
-        return "                    ";
-    }
-    if (level == 6) {
-        return "                        ";
-    }
-    return "                            ";
-}
-
-// Original lines 40-42: x = (2 * e + offset) % 32768 for entry e of a leaf
-// run. Python's % and the generated % agree on this non-negative domain.
-pub fn elem_x(e: i64, offset: i64) -> i64 {
-    return (2 * e + offset) % COORD_MOD;
-}
-
-// Original lines 41-42: y is x + 1 under the same modulus.
-pub fn elem_y(e: i64, offset: i64) -> i64 {
-    return (2 * e + offset + 1) % COORD_MOD;
-}
-
-// The recursion of original lines 28-58, over (shape, dim) because .t27
-// cannot slice shape[1:]. The leaf case (dim is the last dimension) walks
-// entries e = base .. base+n-1 through elem_x/elem_y and advances the base
-// by n (lines 35-46). An inner node threads the base through its n
-// children unchanged and reports the first child's and last child's
-// decisions (lines 48-57). A zero-width dimension emits no children and
-// leaves the base untouched, as range(0) does in Python.
-fn build_level(shape: []const i64, dim: usize, base: i64, offset: i64) -> TreeBuild {
-    const n: i64 = shape[dim];
-    if (dim + 1 == shape.len) {
-        // Leaf case: entries e = base .. base+n-1, each mapped through
-        // x = (2*e + offset) % 32768 and y = (2*e + offset + 1) % 32768
-        // (original lines 40-42).
-        return TreeBuild {
-            first_x: elem_x(base, offset),
-            first_y: elem_y(base, offset),
-            last_x: elem_x(base + n - 1, offset),
-            last_y: elem_y(base + n - 1, offset),
-            leaves: n,
-            next_base: base + n,
-        };
-    }
-    if (n < 1) {
-        // Python emits no children for a zero-width dimension and leaves
-        // base untouched.
-        return TreeBuild {
-            first_x: elem_x(base, offset),
-            first_y: elem_y(base, offset),
-            last_x: elem_x(base, offset),
-            last_y: elem_y(base, offset),
-            leaves: 0,
-            next_base: base,
-        };
-    }
-    var b: i64 = base;
-    var first: TreeBuild = build_level(shape, dim + 1, b, offset);
-    var last: TreeBuild = first;
-    b = first.next_base;
-    var i: i64 = 1;
-    while (i < n) {
-        last = build_level(shape, dim + 1, b, offset);
-        b = last.next_base;
-        i += 1;
-    }
-    return TreeBuild {
-        first_x: first.first_x,
-        first_y: first.first_y,
-        last_x: last.last_x,
-        last_y: last.last_y,
-        leaves: last.leaves * n,
-        next_base: b,
-    };
-}
-
-// Original line 28: def build_tree(shape: list[int], base: int, offset: int)
-// -> tuple[str, int]. The port returns the numeric decisions (TreeBuild)
-// instead of the built text; the text itself is string plumbing .t27 cannot
-// express.
-pub fn build_tree(shape: []const i64, base: i64, offset: i64) -> TreeBuild {
-    return build_level(shape, 0, base, offset);
-}
-
-// Row-major flat element number of a multi-dimensional index. The original
-// computes [MID_IDX][1][0][0][0][0][0] as MID_IDX * 64 + 32 (lines 15-17)
-// and the footer it emits asserts through such indices.
-pub fn flat_index(shape: []const i64, idx: []const i64) -> i64 {
-    var flat: i64 = 0;
-    var i: usize = 0;
-    while (i < shape.len) {
-        flat = flat * shape[i] + idx[i];
-        i += 1;
-    }
-    return flat;
-}
-
-// The original refuses to write the file unless every character is ASCII
-// (original line 136: raise ValueError). Ported as a pure predicate; the
-// raise itself is the caller's plumbing.
-pub fn is_ascii(s: []const u8) -> bool {
-    for c in s {
-        if (c > 127) {
-            return false;
-        }
-    }
-    return true;
-}
+// TreeBuild, indent, elem_x, elem_y, build_level, build_tree, flat_index and is_ascii
+// (original lines 24-25, 28-58, 40-42 and 136) live in gen_w_tree.t27, shared by the
+// eight gen_w bench ports.
 
 // Original line 61: def generate() -> None. Writes the assembled text to
 // specs/scratch/w713_bench_module_245x2p6_aos_var_call_write.t27 and prints

@@ -1,0 +1,224 @@
+// SPDX-License-Identifier: Apache-2.0
+// The tree-walk helpers the ports of scripts/gen_w698.py, gen_w709.py, gen_w713.py,
+// gen_w716.py, gen_w721.py, gen_w728.py, gen_w729.py and gen_w732.py share, written once.
+// Each of those scripts generates a "bench module" for an N x 2**6 array-of-structs grid and
+// carries the same helpers: the indent table, the coordinate rule, the recursive build over a
+// shape, the row-major flat index and the ASCII gate. The eight ports had copied every one of
+// them, and the duplicate-bodies gate went red on master (build_level, indent, flat_index and
+// is_ascii each copied 7 or 8 times). Each port now keeps only its own header constants, its
+// generate() stub and its own tests; the helpers resolve through `use`, as the gen_w310 ..
+// gen_w322 ports resolve gen_w_blocks.t27.
+// The helpers carry the generators' decisions, not their string plumbing: the built literal
+// text becomes the numeric decisions that determine it (TreeBuild).
+module port::scripts::gen_w_tree;
+
+// The modulus every coordinate folds through (original lines 13-21, 41-42).
+const COORD_MOD: i64 = 32768;
+
+// What the recursion decides for one literal: the first and last element
+// coordinates, the number of Pt entries, and the next free element index.
+// The original returns the built text plus the advanced base (line 28);
+// the text is string plumbing .t27 cannot express, these numbers are what it encodes.
+pub struct TreeBuild {
+    first_x: i64,
+    first_y: i64,
+    last_x: i64,
+    last_y: i64,
+    leaves: i64,
+    next_base: i64,
+}
+
+// Original lines 24-25: def indent(level: int) -> str. "    " * level cannot be
+// written in .t27 (no string repetition), so the levels the generator can
+// reach are spelled out; above level 7 the result clamps at the deepest
+// string here. Negative levels are "" as in Python ("    " * -2 == "").
+pub fn indent(level: i64) -> str {
+    if (level <= 0) {
+        return "";
+    }
+    if (level == 1) {
+        return "    ";
+    }
+    if (level == 2) {
+        return "        ";
+    }
+    if (level == 3) {
+        return "            ";
+    }
+    if (level == 4) {
+        return "                ";
+    }
+    if (level == 5) {
+        return "                    ";
+    }
+    if (level == 6) {
+        return "                        ";
+    }
+    return "                            ";
+}
+
+// Original lines 40-42: x = (2 * e + offset) % 32768 for entry e of a leaf run.
+// Python's % and the generated % agree on this non-negative domain.
+pub fn elem_x(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset) % COORD_MOD;
+}
+
+// Original lines 41-42: y is x + 1 under the same modulus.
+pub fn elem_y(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset + 1) % COORD_MOD;
+}
+
+// The recursion of original lines 28-58, over (shape, dim) because .t27
+// cannot slice shape[1:]. The leaf case (dim is the last dimension) walks
+// entries e = base .. base+n-1 through elem_x/elem_y and advances the base
+// by n (lines 35-46). An inner node threads the base through its n
+// children unchanged and reports the first child's and last child's
+// decisions (lines 48-58). A zero-width dimension emits no children and
+// leaves the base untouched, as range(0) does in Python.
+fn build_level(shape: []const i64, dim: usize, base: i64, offset: i64) -> TreeBuild {
+    const n: i64 = shape[dim];
+    if (dim + 1 == shape.len) {
+        // Leaf case: entries e = base .. base+n-1, each mapped through
+        // x = (2*e + offset) % 32768 and y = (2*e + offset + 1) % 32768
+        // (original lines 40-42).
+        return TreeBuild {
+            first_x: elem_x(base, offset),
+            first_y: elem_y(base, offset),
+            last_x: elem_x(base + n - 1, offset),
+            last_y: elem_y(base + n - 1, offset),
+            leaves: n,
+            next_base: base + n,
+        };
+    }
+    if (n < 1) {
+        // Python emits no children for a zero-width dimension and leaves
+        // base untouched.
+        return TreeBuild {
+            first_x: elem_x(base, offset),
+            first_y: elem_y(base, offset),
+            last_x: elem_x(base, offset),
+            last_y: elem_y(base, offset),
+            leaves: 0,
+            next_base: base,
+        };
+    }
+    var b: i64 = base;
+    var first: TreeBuild = build_level(shape, dim + 1, b, offset);
+    var last: TreeBuild = first;
+    b = first.next_base;
+    var i: i64 = 1;
+    while (i < n) {
+        last = build_level(shape, dim + 1, b, offset);
+        b = last.next_base;
+        i += 1;
+    }
+    return TreeBuild {
+        first_x: first.first_x,
+        first_y: first.first_y,
+        last_x: last.last_x,
+        last_y: last.last_y,
+        leaves: last.leaves * n,
+        next_base: b,
+    };
+}
+
+// Original line 28: def build_tree(shape: list[int], base: int, offset: int)
+// -> tuple[str, int]. The port returns the numeric decisions (TreeBuild)
+// instead of the built text.
+pub fn build_tree(shape: []const i64, base: i64, offset: i64) -> TreeBuild {
+    return build_level(shape, 0, base, offset);
+}
+
+// Row-major flat element number of a multi-dimensional index. The original
+// computes [MID_IDX][1][0][0][0][0][0] as MID_IDX * 64 + 32 (lines 15-17)
+// and the footer it emits asserts through such indices.
+pub fn flat_index(shape: []const i64, idx: []const i64) -> i64 {
+    var flat: i64 = 0;
+    var i: usize = 0;
+    while (i < shape.len) {
+        flat = flat * shape[i] + idx[i];
+        i += 1;
+    }
+    return flat;
+}
+
+// The original refuses to write the file unless every character is ASCII
+// (original line 136: raise ValueError). Ported as a pure predicate; the
+// raise itself is the caller's plumbing.
+pub fn is_ascii(s: []const u8) -> bool {
+    for c in s {
+        if (c > 127) {
+            return false;
+        }
+    }
+    return true;
+}
+
+test indent_clamps_and_folds_negative {
+    const l1: str = indent(1);
+    const l2: str = indent(2);
+    const l7: str = indent(7);
+    const l99: str = indent(99);
+    assert(indent(0) == "");
+    assert(indent(-2) == "");
+    assert(l1 == "    ");
+    assert(l2.len == 8);
+    assert(l7.len == 28);
+    assert(l99.len == 28);
+}
+
+test elem_coords_fold_modulo {
+    assert(elem_x(0, 0) == 0);
+    assert(elem_y(0, 0) == 1);
+    assert(elem_x(16383, 0) == 32766);
+    assert(elem_y(16383, 0) == 32767);
+    assert(elem_x(16384, 0) == 0);
+    assert(elem_y(16384, 0) == 1);
+    assert(elem_x(5, 32768) == 10);
+}
+
+test build_tree_leaf_walks_base {
+    var shape: [1]i64 = [5];
+    const t: TreeBuild = build_tree(&shape, 3, 0);
+    assert(t.first_x == 6);
+    assert(t.first_y == 7);
+    assert(t.last_x == 14);
+    assert(t.last_y == 15);
+    assert(t.leaves == 5);
+    assert(t.next_base == 8);
+}
+
+test build_tree_nested_threads_base {
+    var shape: [2]i64 = [2, 2];
+    const t: TreeBuild = build_tree(&shape, 7, 0);
+    assert(t.first_x == 14);
+    assert(t.first_y == 15);
+    assert(t.last_x == 20);
+    assert(t.last_y == 21);
+    assert(t.leaves == 4);
+    assert(t.next_base == 11);
+}
+
+test build_tree_zero_width_dim_keeps_base {
+    var shape: [2]i64 = [0, 3];
+    const t: TreeBuild = build_tree(&shape, 5, 0);
+    assert(t.leaves == 0);
+    assert(t.next_base == 5);
+}
+
+test flat_index_is_row_major {
+    var shape: [3]i64 = [4, 3, 2];
+    var first: [3]i64 = [0, 0, 0];
+    var mid: [3]i64 = [1, 2, 1];
+    var last: [3]i64 = [3, 2, 1];
+    assert(flat_index(&shape, &first) == 0);
+    assert(flat_index(&shape, &mid) == 11);
+    assert(flat_index(&shape, &last) == 23);
+}
+
+test is_ascii_gate {
+    assert(is_ascii("module w_tree\n"));
+    assert(is_ascii(""));
+    var bad: [4]u8 = [80, 116, 210, 10];
+    assert(!is_ascii(&bad));
+}

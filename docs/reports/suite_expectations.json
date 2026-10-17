@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 83,
+  "max_entries": 82,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -683,13 +683,6 @@
       "phase": "gen-verilog",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
       "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/scripts/gen_w698.t27",
-      "phase": "gen-verilog",
-      "reason": "gen-verilog cannot lower 2-D arrays of aggregate type ([8][]const u8 pads, [1][]const u8 sub_args): W469 2-D array-of-struct lowering is still unimplemented (docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md). Port spec keeps upstream shape; recorded until the emitter grows the lowering.",
-      "issue": 1959,
       "expires": "2026-11-30"
     },
     {

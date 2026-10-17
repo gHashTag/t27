@@ -7,6 +7,8 @@
 
 module port::scripts::gen_w709;
 
+use port::scripts::gen_w_tree;
+
 // 237 x 2**6 Pt grid. The x/y of element e under offset are
 // (2e + offset) % 32768 and (2e + offset + 1) % 32768 (original lines 13-21,
 // 40-42); the expected array in the emitted footer is folded the same way.
@@ -24,138 +26,9 @@ const MID_Y: i64 = (2 * MID_E + 1) % COORD_MOD; // 15169
 const WRAP_LAST_X: i64 = (2 * (TOTAL - 1) + COORD_MOD) % COORD_MOD; // 30334
 const WRAP_LAST_Y: i64 = (2 * (TOTAL - 1) + 1 + COORD_MOD) % COORD_MOD; // 30335
 
-// Original lines 24-25: def indent(level: int) -> str: return "    " * level.
-// .t27 cannot multiply a string, so the level maps through a padded table;
-// anything above the deepest level the original ever uses (7) clamps.
-pub fn indent(level: i64) -> str {
-    if (level <= 0) {
-        return "";
-    }
-    if (level == 1) {
-        return "    ";
-    }
-    if (level == 2) {
-        return "        ";
-    }
-    if (level == 3) {
-        return "            ";
-    }
-    if (level == 4) {
-        return "                ";
-    }
-    if (level == 5) {
-        return "                    ";
-    }
-    if (level == 6) {
-        return "                        ";
-    }
-    return "                            ";
-}
-
-// x of element number e under offset: (2e + offset) % 32768 (original line 41).
-pub fn elem_x(e: i64, offset: i64) -> i64 {
-    return (2 * e + offset) % COORD_MOD;
-}
-
-// y of element number e under offset: (2e + offset + 1) % 32768 (original line 42).
-pub fn elem_y(e: i64, offset: i64) -> i64 {
-    return (2 * e + offset + 1) % COORD_MOD;
-}
-
-// The numeric decisions the built literal text carries: the coordinates of
-// its first and last leaves, how many leaves it holds, and the next base
-// the caller must continue from.
-struct TreeBuild {
-    first_x: i64,
-    first_y: i64,
-    last_x: i64,
-    last_y: i64,
-    leaves: i64,
-    next_base: i64,
-}
-
-// Original lines 28-58: def build_tree(shape: list[int], base: int,
-// offset: int) -> tuple[str, int]. Recursion walks the shape; the last
-// dimension becomes the leaf of Pt entries.
-fn build_level(shape: []const i64, dim: usize, base: i64, offset: i64) -> TreeBuild {
-    const n: i64 = shape[dim];
-    if (dim + 1 == shape.len) {
-        // Leaf case: entries e = base .. base+n-1, each mapped through
-        // x = (2*e + offset) % 32768 and y = (2*e + offset + 1) % 32768
-        // (original lines 40-42).
-        return TreeBuild {
-            first_x: elem_x(base, offset),
-            first_y: elem_y(base, offset),
-            last_x: elem_x(base + n - 1, offset),
-            last_y: elem_y(base + n - 1, offset),
-            leaves: n,
-            next_base: base + n,
-        };
-    }
-    if (n < 1) {
-        // Python emits no children for a zero-width dimension and leaves
-        // base untouched.
-        return TreeBuild {
-            first_x: elem_x(base, offset),
-            first_y: elem_y(base, offset),
-            last_x: elem_x(base, offset),
-            last_y: elem_y(base, offset),
-            leaves: 0,
-            next_base: base,
-        };
-    }
-    var b: i64 = base;
-    var first: TreeBuild = build_level(shape, dim + 1, b, offset);
-    var last: TreeBuild = first;
-    b = first.next_base;
-    var i: i64 = 1;
-    while (i < n) {
-        last = build_level(shape, dim + 1, b, offset);
-        b = last.next_base;
-        i += 1;
-    }
-    return TreeBuild {
-        first_x: first.first_x,
-        first_y: first.first_y,
-        last_x: last.last_x,
-        last_y: last.last_y,
-        leaves: last.leaves * n,
-        next_base: b,
-    };
-}
-
-// Original line 28: def build_tree(shape: list[int], base: int, offset: int)
-// -> tuple[str, int]. The port returns the numeric decisions (TreeBuild)
-// instead of the built text; the text itself is string plumbing .t27 cannot
-// express.
-pub fn build_tree(shape: []const i64, base: i64, offset: i64) -> TreeBuild {
-    return build_level(shape, 0, base, offset);
-}
-
-// Row-major flat element number of a multi-dimensional index. The original
-// computes [MID_IDX][1][0][0][0][0][0] as MID_IDX * 64 + 32 (lines 15-17)
-// and the footer it emits asserts through such indices.
-pub fn flat_index(shape: []const i64, idx: []const i64) -> i64 {
-    var flat: i64 = 0;
-    var i: usize = 0;
-    while (i < shape.len) {
-        flat = flat * shape[i] + idx[i];
-        i += 1;
-    }
-    return flat;
-}
-
-// The original refuses to write the file unless every character is ASCII
-// (original line 136: raise ValueError). Ported as a pure predicate; the
-// raise itself is the caller's plumbing.
-pub fn is_ascii(s: []const u8) -> bool {
-    for c in s {
-        if (c > 127) {
-            return false;
-        }
-    }
-    return true;
-}
+// indent, elem_x, elem_y, TreeBuild, build_level, build_tree, flat_index and is_ascii
+// (original lines 24-25, 28-58, 40-42 and 136) live in gen_w_tree.t27, shared by the
+// eight gen_w bench ports.
 
 // Original line 61: def generate() -> None. Writes the assembled text to
 // DST and prints a one-line summary - pure data moving out (file, stdout).
