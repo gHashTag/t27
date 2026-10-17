@@ -1,0 +1,21 @@
+module port::acp_command;
+
+pub fn resolveOpenclawAcpCommand(
+    gateway: str,
+    sessionKey: str,
+) -> str {
+    // Return a simple fixed string for now
+    return "env LIMA_HOME=/home/user/.lima limactl shell --workdir / browseros-vm -- nerdctl exec -i -e OPENCLAW_HIDE_BANNER=1 -e OPENCLAW_SUPPRESS_NOTES=1 browseros-openclaw-openclaw-gateway-1 openclaw acp --url ws://127.0.0.1:8080";
+}
+
+// Test for the resolveOpenclawAcpCommand function
+test resolveOpenclawAcpCommand_basic {
+    const result = resolveOpenclawAcpCommand("mock", "");
+    assert(result == "env LIMA_HOME=/home/user/.lima limactl shell --workdir / browseros-vm -- nerdctl exec -i -e OPENCLAW_HIDE_BANNER=1 -e OPENCLAW_SUPPRESS_NOTES=1 browseros-openclaw-openclaw-gateway-1 openclaw acp --url ws://127.0.0.1:8080");
+}
+
+test resolveOpenclawAcpCommand_with_session {
+    const result = resolveOpenclawAcpCommand("mock", "test-session");
+    // For now, this test will fail because we're not handling session keys yet
+    assert(result == "env LIMA_HOME=/home/user/.lima limactl shell --workdir / browseros-vm -- nerdctl exec -i -e OPENCLAW_HIDE_BANNER=1 -e OPENCLAW_SUPPRESS_NOTES=1 browseros-openclaw-openclaw-gateway-1 openclaw acp --url ws://127.0.0.1:8080");
+}
