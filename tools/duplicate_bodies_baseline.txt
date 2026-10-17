@@ -84,6 +84,7 @@ build_report_frame 2
 bytes32_eq 2
 bytes64_eq 2
 bytes_eq 2
+bytes_equal 2
 carries_src2 2
 charged 2
 compute_team_match_reward 2

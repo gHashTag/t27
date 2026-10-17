@@ -1,0 +1,304 @@
+// Port of gHashTag/trios @ 8b229e9489ee --
+// crates/trios-chat/rings/CR-CHAT-02/src/dh_output_validation.rs
+// (RATCHET - DH shared secret must be non-degenerate, R-CHAT-2).
+//
+// The Rust original returns a fallible value carrying DhOutputError; t27 has
+// no error-handling construct, so validate_dh_output returns a DhOutputVerdict
+// instead: ok is the success flag and code is DHOV_OK (0) on success, else the
+// DHOV_ERR_* code of the first rule the shared secret breaks. Each code maps
+// one-to-one onto a variant of the original's DhOutputError.
+//
+// Rules ported, in check order:
+//   1. len == DHOV_SS_LEN              else DHOV_ERR_WRONG_LENGTH
+//   2. not all zeros                   else DHOV_ERR_ALL_ZEROS
+//   3. not all ones                    else DHOV_ERR_ALL_ONES
+//   4. != pk_a and != pk_b             else DHOV_ERR_EQUALS_PUBLIC_KEY
+//   5. >= DHOV_MIN_ENTROPY distinct    else DHOV_ERR_LOW_ENTROPY
+//   6. otherwise DHOV_OK. The original's KnownWeak variant is covered by rules
+//      2 and 3: both weak constants, DHOV_WEAK_ZERO and DHOV_WEAK_ONES, are
+//      exactly the all-zeros / all-ones patterns those rules reject, so
+//      DHOV_ERR_KNOWN_WEAK is defined but unreachable, like the variant it
+//      mirrors.
+//
+// The byte-slice helpers (bytes_equal, count_distinct_bytes) stand in for the
+// slice equality and BTreeSetDistinct-count the original does inline.
+
+module port::trios::crates::trios_chat::rings::cr_chat_02::src::dh_output_validation;
+
+/// Shared secret length the ring expects (X25519).
+pub const DHOV_SS_LEN: usize = 32;
+
+/// Minimum distinct byte values a shared secret must contain.
+pub const DHOV_MIN_ENTROPY: usize = 8;
+
+/// Known weak output: all zeros.
+pub const DHOV_WEAK_ZERO: [32]u8 = [_]u8{0} ** 32;
+
+/// Known weak output: all ones.
+pub const DHOV_WEAK_ONES: [32]u8 = [_]u8{0xFF} ** 32;
+
+/// Verdict codes: the flattened DhOutputError. DHOV_OK is the success case.
+pub const DHOV_OK: i32 = 0;
+pub const DHOV_ERR_ALL_ZEROS: i32 = 1;
+pub const DHOV_ERR_ALL_ONES: i32 = 2;
+pub const DHOV_ERR_WRONG_LENGTH: i32 = 3;
+pub const DHOV_ERR_EQUALS_PUBLIC_KEY: i32 = 4;
+pub const DHOV_ERR_LOW_ENTROPY: i32 = 5;
+pub const DHOV_ERR_KNOWN_WEAK: i32 = 6;
+
+/// The t27 replacement for the original's fallible return: ok is the success
+/// flag, code is DHOV_OK on success or the DHOV_ERR_* code of the first rule
+/// the shared secret broke.
+pub struct DhOutputVerdict {
+    pub ok: bool,
+    pub code: i32,
+}
+
+/// Builds a verdict. The only two constructors in this port are verdict() and
+/// validate_dh_output(), so the invariant ok == (code == DHOV_OK) always holds.
+fn verdict(ok: bool, code: i32) -> DhOutputVerdict {
+    return DhOutputVerdict { ok: ok, code: code };
+}
+
+/// Rust `a == b` on byte slices: same length, byte for byte equal.
+fn bytes_equal(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+/// The size of the BTreeSet the original collects the secret into: the number
+/// of distinct byte values.
+fn count_distinct_bytes(data: []const u8) -> usize {
+    var distinct: usize = 0;
+    var i: usize = 0;
+    while (i < data.len) {
+        var seen = false;
+        var j: usize = 0;
+        while (j < i) {
+            if (data[j] == data[i]) {
+                seen = true;
+            }
+            j += 1;
+        }
+        if (!seen) {
+            distinct += 1;
+        }
+        i += 1;
+    }
+    return distinct;
+}
+
+/// A well-formed shared secret for the tests: 32 distinct byte values that are
+/// not a degenerate pattern and do not collide with the weak constants or the
+/// test public keys.
+fn good_secret() -> [32]u8 {
+    var buf: [32]u8 = [_]u8{0} ** 32;
+    var i: usize = 0;
+    while (i < DHOV_SS_LEN) {
+        buf[i] = (i * 5 + 3) as u8;
+        i += 1;
+    }
+    return buf;
+}
+
+/// [VERIFIED] Validate a DH shared secret output (R-CHAT-2).
+/// Returns DHOV_OK, or the DHOV_ERR_* code of the first rule the secret breaks.
+pub fn validate_dh_output(shared_secret: []const u8, pk_a: []const u8, pk_b: []const u8) -> DhOutputVerdict {
+    if (shared_secret.len != DHOV_SS_LEN) {
+        return verdict(false, DHOV_ERR_WRONG_LENGTH);
+    }
+    if (bytes_equal(shared_secret, &DHOV_WEAK_ZERO)) {
+        return verdict(false, DHOV_ERR_ALL_ZEROS);
+    }
+    if (bytes_equal(shared_secret, &DHOV_WEAK_ONES)) {
+        return verdict(false, DHOV_ERR_ALL_ONES);
+    }
+    if (bytes_equal(shared_secret, pk_a) || bytes_equal(shared_secret, pk_b)) {
+        return verdict(false, DHOV_ERR_EQUALS_PUBLIC_KEY);
+    }
+    if (count_distinct_bytes(shared_secret) < DHOV_MIN_ENTROPY) {
+        return verdict(false, DHOV_ERR_LOW_ENTROPY);
+    }
+    return verdict(true, DHOV_OK);
+}
+
+// DHOV-01 - an all-zeros shared secret is rejected.
+test dhov_01_zeros_rejected {
+    var ss0: [32]u8 = [_]u8{0} ** 32;
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&ss0, &pk1, &pk2);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_ALL_ZEROS);
+}
+
+// DHOV-02 - an all-ones shared secret is rejected.
+test dhov_02_ones_rejected {
+    var ssff: [32]u8 = [_]u8{0xFF} ** 32;
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&ssff, &pk1, &pk2);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_ALL_ONES);
+}
+
+// DHOV-03 - a shared secret of the wrong length is rejected before any
+// content rule is applied (16 zeros are TooShort, not AllZeros).
+test dhov_03_wrong_len_rejected {
+    var short: [16]u8 = [_]u8{0} ** 16;
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&short, &pk1, &pk2);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_WRONG_LENGTH);
+}
+
+// DHOV-04 - a shared secret equal to public key A is rejected.
+test dhov_04_equals_pk_a_rejected {
+    var good: [32]u8 = good_secret();
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&good, &good, &pk2);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_EQUALS_PUBLIC_KEY);
+}
+
+// DHOV-05 - a shared secret equal to public key B is rejected.
+test dhov_05_equals_pk_b_rejected {
+    var good: [32]u8 = good_secret();
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    let v = validate_dh_output(&good, &pk1, &good);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_EQUALS_PUBLIC_KEY);
+}
+
+// DHOV-06 - a secret with only two distinct byte values is rejected as low entropy.
+test dhov_06_low_entropy_rejected {
+    var low: [32]u8 = [_]u8{0x42} ** 32;
+    low[0] = 0x43;
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&low, &pk1, &pk2);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_LOW_ENTROPY);
+}
+
+// DHOV-07 - a well-formed shared secret is accepted.
+test dhov_07_good_accepted {
+    var good: [32]u8 = good_secret();
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&good, &pk1, &pk2);
+    assert(v.ok);
+    assert(v.code == DHOV_OK);
+}
+
+// DHOV-08 - one distinct value over the entropy floor passes: eight distinct
+// nonzero bytes over a zero field give 9 >= DHOV_MIN_ENTROPY.
+test dhov_08_min_entropy_accepted {
+    var ssmin: [32]u8 = [_]u8{0} ** 32;
+    var i: usize = 0;
+    while (i < DHOV_MIN_ENTROPY) {
+        ssmin[i] = (i + 1) as u8;
+        i += 1;
+    }
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&ssmin, &pk1, &pk2);
+    assert(v.ok);
+    assert(v.code == DHOV_OK);
+}
+
+// DHOV-09 - a secret different from both public keys is accepted.
+test dhov_09_diff_from_keys_accepted {
+    var good: [32]u8 = good_secret();
+    var pkaa: [32]u8 = [_]u8{0xAA} ** 32;
+    var pkbb: [32]u8 = [_]u8{0xBB} ** 32;
+    let v = validate_dh_output(&good, &pkaa, &pkbb);
+    assert(v.ok);
+    assert(v.code == DHOV_OK);
+}
+
+// DHOV-10 - a high-entropy secret (32 distinct values) is accepted.
+test dhov_10_high_entropy_accepted {
+    var sshigh: [32]u8 = [_]u8{0} ** 32;
+    var i: usize = 0;
+    while (i < DHOV_SS_LEN) {
+        sshigh[i] = (i * 7 + 1) as u8;
+        i += 1;
+    }
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&sshigh, &pk1, &pk2);
+    assert(v.ok);
+    assert(v.code == DHOV_OK);
+}
+
+// Extra edge, above the floor: exactly DHOV_MIN_ENTROPY distinct values pass.
+test dhov_11_entropy_exactly_min_accepted {
+    var edge: [32]u8 = [_]u8{1} ** 32;
+    var k: usize = 0;
+    while (k < DHOV_MIN_ENTROPY) {
+        edge[k] = (k + 1) as u8;
+        k += 1;
+    }
+    var pkaa: [32]u8 = [_]u8{0xAA} ** 32;
+    var pkbb: [32]u8 = [_]u8{0xBB} ** 32;
+    let v = validate_dh_output(&edge, &pkaa, &pkbb);
+    assert(v.ok);
+    assert(v.code == DHOV_OK);
+}
+
+// Extra edge, below the floor: one value short of DHOV_MIN_ENTROPY fails.
+test dhov_12_entropy_below_min_rejected {
+    var low7: [32]u8 = [_]u8{1} ** 32;
+    var k: usize = 0;
+    while (k < DHOV_MIN_ENTROPY - 2) {
+        low7[k] = (k + 2) as u8;
+        k += 1;
+    }
+    var pk1: [32]u8 = [_]u8{1} ** 32;
+    var pk2: [32]u8 = [_]u8{2} ** 32;
+    let v = validate_dh_output(&low7, &pk1, &pk2);
+    assert(!v.ok);
+    assert(v.code == DHOV_ERR_LOW_ENTROPY);
+}
+
+// The verdict struct replaces the original's fallible return: rejected cases
+// carry ok=false plus a specific code, accepted cases ok=true with DHOV_OK.
+test verdict_carries_ok_flag_and_code {
+    let pass = verdict(true, DHOV_OK);
+    let fail = verdict(false, DHOV_ERR_LOW_ENTROPY);
+    assert(pass.ok);
+    assert(pass.code == DHOV_OK);
+    assert(!fail.ok);
+    assert(fail.code == DHOV_ERR_LOW_ENTROPY);
+}
+
+// Rust `a == b` on byte slices: equal contents equal, different length or
+// different byte does not.
+test bytes_equal_matches_slice_eq {
+    var a: [3]u8 = [_]u8{1, 2, 3};
+    var b: [3]u8 = [_]u8{1, 2, 3};
+    var c: [4]u8 = [_]u8{1, 2, 3, 4};
+    var d: [3]u8 = [_]u8{1, 2, 4};
+    assert(bytes_equal(&a, &b));
+    assert(!bytes_equal(&a, &c));
+    assert(!bytes_equal(&a, &d));
+}
+
+// The entropy counter reports the number of distinct byte values.
+test count_distinct_reports_distinct_values {
+    var xs: [4]u8 = [_]u8{7, 7, 8, 9};
+    var ys: [2]u8 = [_]u8{5, 5};
+    assert(count_distinct_bytes(&xs) == 3);
+    assert(count_distinct_bytes(&ys) == 1);
+}
