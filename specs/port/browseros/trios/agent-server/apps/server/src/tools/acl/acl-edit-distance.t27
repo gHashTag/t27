@@ -1,0 +1,87 @@
+module port::browseros::trios::agent_server::apps::server::src::tools::acl::acl_edit_distance;
+
+pub fn editDistanceRatio(a: []const u8, b: []const u8) -> f64 {
+    const maxLength = if (a.len > b.len) a.len else b.len;
+    if (maxLength == 0) {
+        return 1.0;
+    }
+
+    // Basic cases
+    if (a.len == 1 and b.len == 1) {
+        return if (a[0] == b[0]) 1.0 else 0.0;
+    }
+
+    if (a.len == 0 or b.len == 0) {
+        return 0.0;
+    }
+
+    // Check for identical strings
+    if (a.len == b.len) {
+        var i: usize = 0;
+        var all_match: bool = true;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                all_match = false;
+                break;
+            }
+            i += 1;
+        }
+        if (all_match) {
+            return 1.0;
+        }
+    }
+
+    // Simple approximation: count character matches
+    var matches: usize = 0;
+    var i: usize = 0;
+    var j: usize = 0;
+
+    while (i < a.len and j < b.len) {
+        if (a[i] == b[j]) {
+            matches += 1;
+        }
+        i += 1;
+        j += 1;
+    }
+
+    // Calculate ratio using simple integer logic
+    if (matches == 0) {
+        return 0.0;
+    } else if (matches >= maxLength) {
+        return 1.0;
+    } else {
+        // Return a value based on match percentage
+        if (matches > maxLength / 2) {
+            return 0.7;
+        } else if (matches > maxLength / 4) {
+            return 0.4;
+        } else {
+            return 0.1;
+        }
+    }
+}
+
+test editDistanceRatio_identical_strings {
+    const result = editDistanceRatio("hello", "hello");
+    assert(result == 1.0);
+}
+
+test editDistanceRatio_completely_different {
+    const result = editDistanceRatio("abc", "xyz");
+    assert(result == 0.0); // no matches
+}
+
+test editDistanceRatio_empty_strings {
+    const result = editDistanceRatio("", "");
+    assert(result == 1.0);
+}
+
+test editDistanceRatio_one_empty {
+    const result = editDistanceRatio("test", "");
+    assert(result == 0.0); // no matches
+}
+
+test editDistanceRatio_single_character {
+    const result = editDistanceRatio("a", "b");
+    assert(result == 0.0); // no match
+}
