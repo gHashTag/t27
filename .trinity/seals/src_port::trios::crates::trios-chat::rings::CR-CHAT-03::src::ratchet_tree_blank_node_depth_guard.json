@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+01d0a635f",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ba06a2fb7a879fea8da979a667bfeca97b847922cabe27a7e71b22bdd88a4a39",
+  "gen_hash_rust": "sha256:59c23e091c5501c518842bf68c9d05b3574460129743fefb4617c0015e019d50",
+  "gen_hash_verilog": "sha256:3de3c18bba4145b501fa40d2ad07da1d2744c3c9d931ffd980732ab520b67414",
+  "gen_hash_zig": "sha256:f11c47a2921e62d37edb5e13f0b8160e8f687dd682b2d68c9985800bab538847",
+  "module": "port::trios::crates::trios-chat::rings::CR-CHAT-03::src::ratchet_tree_blank_node_depth_guard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-17T13:47:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:edb2a371cdc0aefe35fa8ff0a96acf6ff928ff3a8bb9ee942bbf9bdb6ff132f2",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/ratchet_tree_blank_node_depth_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

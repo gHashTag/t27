@@ -1,0 +1,260 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-03::src::ratchet_tree_blank_node_depth_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-03/src/ratchet_tree_blank_node_depth_guard.rs
+// (CR-CHAT-03 - Ratchet tree blank node depth guard, Wave-75
+// Lane A, R-CHAT-2).
+//
+// TreeKEM resolution skips blank nodes, and a deep run of
+// consecutive blanks from a leaf toward the root leaves a
+// subtree unresolvable - no member can encrypt to it, the
+// resolution collapses to an empty set, and an update
+// path that cannot encrypt through the chain blocks
+// entirely. The gate, in the original's fixed order: the
+// tree non-empty, then per node the depth ceiling
+// (sixteen), the never-blank leaf probe, and the
+// consecutive-blank run with its ceiling (four) - a
+// non-blank node resets the run - and after the walk the
+// root must not be blank. The prose lists a
+// non-blank-after-chain rule and the enum declares
+// NonBlankAfterBlank, but no code path ever answers it -
+// the run reset is silent; the variant stays in the enum,
+// declared and unreachable exactly as in the original.
+//
+// The original returns Result<(), BlankDepthError>. This
+// port carries the verdict as a named struct (owner
+// decision D5): Ok first, then the six variants in the
+// original's declaration order - BlankTooDeep,
+// BlankAtRoot, MaxDepthExceeded, LeafIsBlank, TreeEmpty,
+// NonBlankAfterBlank - with every payload field: the
+// measured run of the too-deep rule.
+
+// Maximum consecutive blank node depth.
+pub const RBND_MAX_BLANK_DEPTH: usize = 4;
+
+// Maximum tree depth.
+pub const RBND_MAX_TREE_DEPTH: usize = 16;
+
+// A node in the ratchet tree.
+pub struct TreeNode {
+    blank: bool,
+    depth: usize,
+    leaf: bool,
+}
+
+// Verdict codes: Ok(()) and BlankDepthError's variants, in declaration order.
+pub enum RbndCode {
+    Ok,
+    BlankTooDeep,
+    BlankAtRoot,
+    MaxDepthExceeded,
+    LeafIsBlank,
+    TreeEmpty,
+    NonBlankAfterBlank,
+}
+
+// The verdict of the blank-depth validation, with the
+// measured run of the too-deep rule.
+pub struct RbndVerdict {
+    code: RbndCode,
+    run: usize,
+}
+
+// [VERIFIED] Validate that blank nodes do not exceed the
+// allowed depth. Returns Ok only when every rule holds,
+// checked in the original's fixed order: the non-empty
+// tree, then per node the depth ceiling, the leaf probe
+// and the consecutive-blank run, then the resolved root.
+pub fn validate_blank_node_depth(nodes: []const TreeNode) -> RbndVerdict {
+    if (nodes.len == 0) {
+        return RbndVerdict { code: RbndCode.TreeEmpty, run: 0, };
+    }
+    var current_blank_run: usize = 0;
+    for i in 0..nodes.len {
+        if (nodes[i].depth > RBND_MAX_TREE_DEPTH) {
+            return RbndVerdict { code: RbndCode.MaxDepthExceeded, run: 0, };
+        }
+        if (nodes[i].leaf) {
+            if (nodes[i].blank) {
+                return RbndVerdict { code: RbndCode.LeafIsBlank, run: 0, };
+            }
+        }
+        if (nodes[i].blank) {
+            current_blank_run = current_blank_run + 1;
+            if (current_blank_run > RBND_MAX_BLANK_DEPTH) {
+                return RbndVerdict { code: RbndCode.BlankTooDeep, run: current_blank_run, };
+            }
+        } else {
+            current_blank_run = 0;
+        }
+    }
+    if (nodes[0].blank) {
+        return RbndVerdict { code: RbndCode.BlankAtRoot, run: 0, };
+    }
+    return RbndVerdict { code: RbndCode.Ok, run: 0, };
+}
+
+// **RBND-01** - the blank chain too deep rejected: a run
+// of five over the ceiling of four, the verdict carrying
+// the measured run.
+test rbnd_01_too_deep_rejected {
+    const tree: [6]TreeNode = [6]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: true, depth: 1, leaf: false, },
+        TreeNode { blank: true, depth: 2, leaf: false, },
+        TreeNode { blank: true, depth: 3, leaf: false, },
+        TreeNode { blank: true, depth: 4, leaf: false, },
+        TreeNode { blank: true, depth: 5, leaf: false, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.BlankTooDeep);
+    assert(v.run == 5);
+}
+
+// **RBND-02** - the blank root rejected - after the walk,
+// exactly as the original checks it last.
+test rbnd_02_blank_root_rejected {
+    const tree: [3]TreeNode = [3]TreeNode{
+        TreeNode { blank: true, depth: 0, leaf: false, },
+        TreeNode { blank: false, depth: 1, leaf: true, },
+        TreeNode { blank: false, depth: 2, leaf: true, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.BlankAtRoot);
+}
+
+// **RBND-03** - the tree too deep rejected: a node at
+// depth seventeen of the ceiling of sixteen.
+test rbnd_03_too_deep_rejected {
+    const tree: [2]TreeNode = [2]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: false, depth: 17, leaf: false, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.MaxDepthExceeded);
+}
+
+// **RBND-04** - the blank leaf rejected: a leaf carrying
+// the blank form.
+test rbnd_04_leaf_blank_rejected {
+    const tree: [2]TreeNode = [2]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: true, depth: 1, leaf: true, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.LeafIsBlank);
+}
+
+// **RBND-05** - the empty tree rejected.
+test rbnd_05_empty_rejected {
+    const tree: [0]TreeNode = [0]TreeNode{};
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.TreeEmpty);
+}
+
+// **RBND-06** - the valid tree accepted: one blank inside
+// the ceiling, resolved at both ends.
+test rbnd_06_valid_accepted {
+    const tree: [5]TreeNode = [5]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: false, depth: 1, leaf: true, },
+        TreeNode { blank: true, depth: 2, leaf: false, },
+        TreeNode { blank: false, depth: 3, leaf: true, },
+        TreeNode { blank: false, depth: 4, leaf: true, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.Ok);
+}
+
+// **RBND-07** - the maximum blank depth accepted: a run of
+// exactly four, resolved before the root.
+test rbnd_07_max_blank_accepted {
+    const tree: [6]TreeNode = [6]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: true, depth: 1, leaf: false, },
+        TreeNode { blank: true, depth: 2, leaf: false, },
+        TreeNode { blank: true, depth: 3, leaf: false, },
+        TreeNode { blank: true, depth: 4, leaf: false, },
+        TreeNode { blank: false, depth: 5, leaf: true, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.Ok);
+}
+
+// **RBND-08** - the tree with no blanks accepted.
+test rbnd_08_no_blanks_accepted {
+    const tree: [3]TreeNode = [3]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: false, depth: 1, leaf: true, },
+        TreeNode { blank: false, depth: 2, leaf: true, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.Ok);
+}
+
+// **RBND-09** - the single resolved root accepted.
+test rbnd_09_single_root_accepted {
+    const tree: [1]TreeNode = [1]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.Ok);
+}
+
+// **RBND-10** - the chain reset after a non-blank
+// accepted: two runs of two, each inside the ceiling.
+test rbnd_10_chain_reset_accepted {
+    const tree: [7]TreeNode = [7]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: true, depth: 1, leaf: false, },
+        TreeNode { blank: true, depth: 2, leaf: false, },
+        TreeNode { blank: false, depth: 3, leaf: true, },
+        TreeNode { blank: true, depth: 4, leaf: false, },
+        TreeNode { blank: true, depth: 5, leaf: false, },
+        TreeNode { blank: false, depth: 6, leaf: true, },
+    };
+    const v = validate_blank_node_depth(&tree);
+    assert(v.code == RbndCode.Ok);
+}
+
+// Rule order is the original's fixed ladder: the emptiness
+// first, then per node the depth ceiling over the leaf
+// probe over the run probe, and the run probe over the
+// root check - a five-blank chain ending in a blank root
+// answers the run rule, never the root rule.
+test rule_order_matches_original {
+    const empty: [0]TreeNode = [0]TreeNode{};
+    const v1 = validate_blank_node_depth(&empty);
+    assert(v1.code == RbndCode.TreeEmpty);
+
+    const stacked: [3]TreeNode = [3]TreeNode{
+        TreeNode { blank: true, depth: 17, leaf: true, },
+        TreeNode { blank: true, depth: 17, leaf: true, },
+        TreeNode { blank: true, depth: 17, leaf: true, },
+    };
+    const v2 = validate_blank_node_depth(&stacked);
+    assert(v2.code == RbndCode.MaxDepthExceeded);
+
+    const blank_leaf: [2]TreeNode = [2]TreeNode{
+        TreeNode { blank: false, depth: 0, leaf: false, },
+        TreeNode { blank: true, depth: 1, leaf: true, },
+    };
+    const v3 = validate_blank_node_depth(&blank_leaf);
+    assert(v3.code == RbndCode.LeafIsBlank);
+
+    const deep_root: [5]TreeNode = [5]TreeNode{
+        TreeNode { blank: true, depth: 0, leaf: false, },
+        TreeNode { blank: true, depth: 1, leaf: false, },
+        TreeNode { blank: true, depth: 2, leaf: false, },
+        TreeNode { blank: true, depth: 3, leaf: false, },
+        TreeNode { blank: true, depth: 4, leaf: false, },
+    };
+    const v4 = validate_blank_node_depth(&deep_root);
+    assert(v4.code == RbndCode.BlankTooDeep);
+    assert(v4.run == 5);
+
+    const root_only: [1]TreeNode = [1]TreeNode{
+        TreeNode { blank: true, depth: 0, leaf: false, },
+    };
+    const v5 = validate_blank_node_depth(&root_only);
+    assert(v5.code == RbndCode.BlankAtRoot);
+}
