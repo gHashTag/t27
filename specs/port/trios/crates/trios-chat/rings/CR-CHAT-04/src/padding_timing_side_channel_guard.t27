@@ -1,0 +1,350 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_timing_side_channel_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_timing_side_channel_guard.rs
+// (CR-CHAT-04 - Padding timing side-channel guard, Wave-123 Lane A,
+// requirement R-CHAT-4).
+//
+// Padding must cost constant time: a routine measurably slower on
+// real messages than on cover traffic lets an observer sort them
+// by latency, data-dependent memory access opens cache side
+// channels, and server-side variance propagates to network
+// timing a middlebox can read. The rules, in the original's
+// order: the batch ceiling, then per measurement the zero-duration
+// probe, the duration floor and ceiling, and the repeated-op-id
+// scan, then over the whole batch the variance ceiling - the
+// widest minus the narrowest duration, checked only once at
+// least two measurements exist.
+//
+// The original returns Result<(), TimingSideChannelError>. This
+// port carries the verdict as a named struct (owner decision D5):
+// Ok first, then the six error variants in the original's
+// declaration order - TooFast, TooSlow, ZeroDuration,
+// HighVariance, DuplicateOpId, TooMany - with every payload
+// field: idx and the got/min or got/max durations for the
+// per-record rules, the measured/max variance for the batch
+// rule, and got and max for the ceiling.
+//
+// The BTreeSet dedup becomes a scan over the measurements
+// already visited; the min/max tracking stays the original's
+// u64 arithmetic, the saturating subtraction guarded explicitly.
+
+// Minimum allowed duration in microseconds.
+pub const PTSC_MIN_DURATION_US: u64 = 100;
+
+// Maximum allowed duration in microseconds.
+pub const PTSC_MAX_DURATION_US: u64 = 10000;
+
+// Maximum variance across the batch in microseconds.
+pub const PTSC_MAX_VARIANCE_US: u64 = 1000;
+
+// Maximum operations per batch.
+pub const PTSC_MAX_OPS: usize = 1024;
+
+// Operation ID length.
+pub const PTSC_OP_ID_LEN: usize = 32;
+
+// A padding timing measurement.
+pub struct TimingMeasurement {
+    op_id: [32]u8,
+    duration_us: u64,
+}
+
+// Verdict codes: Ok(()) and TimingSideChannelError's variants, in declaration order.
+pub enum TimingSideChannelCode {
+    Ok,
+    TooFast,
+    TooSlow,
+    ZeroDuration,
+    HighVariance,
+    DuplicateOpId,
+    TooMany,
+}
+
+// The verdict of the timing constancy validation, with every
+// error payload field.
+pub struct TimingSideChannelVerdict {
+    code: TimingSideChannelCode,
+    idx: usize,
+    got: usize,
+    bound: usize,
+    got64: u64,
+    bound64: u64,
+}
+
+// Whole-form equality over the fixed thirty-two op-id bytes.
+pub fn op_ids_equal(a: [32]u8, b: [32]u8) -> bool {
+    for i in 0..32 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero operation id - the original's [0u8; 32] probe.
+pub fn op_id_zero(id: [32]u8) -> bool {
+    for i in 0..32 {
+        if (id[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether measurement i repeats an earlier op id - the original's
+// BTreeSet insert probe, answered by a scan.
+pub fn op_seen_before(measurements: []const TimingMeasurement, i: usize) -> bool {
+    for j in 0..i {
+        if (op_ids_equal(measurements[j].op_id, measurements[i].op_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate padding timing side-channel resistance.
+// Returns Ok only when every rule holds, checked in the
+// original's order: the batch ceiling, then per measurement the
+// zero duration, the duration floor and ceiling and the repeated
+// op id, then over the whole batch the variance ceiling.
+pub fn validate_timing_constancy(measurements: []const TimingMeasurement) -> TimingSideChannelVerdict {
+    if (measurements.len > PTSC_MAX_OPS) {
+        return TimingSideChannelVerdict { code: TimingSideChannelCode.TooMany, idx: 0, got: measurements.len, bound: PTSC_MAX_OPS, got64: 0, bound64: 0, };
+    }
+    var min_dur: u64 = 18446744073709551615;
+    var max_dur: u64 = 0;
+    for i in 0..measurements.len {
+        if (measurements[i].duration_us == 0) {
+            return TimingSideChannelVerdict { code: TimingSideChannelCode.ZeroDuration, idx: i, got: 0, bound: 0, got64: 0, bound64: 0, };
+        }
+        if (measurements[i].duration_us < PTSC_MIN_DURATION_US) {
+            return TimingSideChannelVerdict { code: TimingSideChannelCode.TooFast, idx: i, got: 0, bound: 0, got64: measurements[i].duration_us, bound64: PTSC_MIN_DURATION_US, };
+        }
+        if (measurements[i].duration_us > PTSC_MAX_DURATION_US) {
+            return TimingSideChannelVerdict { code: TimingSideChannelCode.TooSlow, idx: i, got: 0, bound: 0, got64: measurements[i].duration_us, bound64: PTSC_MAX_DURATION_US, };
+        }
+        if (op_seen_before(measurements, i)) {
+            return TimingSideChannelVerdict { code: TimingSideChannelCode.DuplicateOpId, idx: i, got: 0, bound: 0, got64: 0, bound64: 0, };
+        }
+        if (measurements[i].duration_us < min_dur) {
+            min_dur = measurements[i].duration_us;
+        }
+        if (measurements[i].duration_us > max_dur) {
+            max_dur = measurements[i].duration_us;
+        }
+    }
+    if (measurements.len >= 2) {
+        var variance: u64 = 0;
+        if (max_dur >= min_dur) {
+            variance = max_dur - min_dur;
+        }
+        if (variance > PTSC_MAX_VARIANCE_US) {
+            return TimingSideChannelVerdict { code: TimingSideChannelCode.HighVariance, idx: 0, got: 0, bound: 0, got64: variance, bound64: PTSC_MAX_VARIANCE_US, };
+        }
+    }
+    return TimingSideChannelVerdict { code: TimingSideChannelCode.Ok, idx: 0, got: 0, bound: 0, got64: 0, bound64: 0, };
+}
+
+// The operation ids of the fixtures, one byte repeated thirty-two
+// times - the original's oid(byte) helper, entry by entry.
+pub const OPID_01: [32]u8 = [32]u8{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+pub const OPID_02: [32]u8 = [32]u8{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,};
+pub const OPID_03: [32]u8 = [32]u8{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,};
+pub const OPID_04: [32]u8 = [32]u8{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,};
+
+// The two id bytes of the too-many fixture: the original writes
+// the big-endian u64 of i + 1 into id[0..8], and for every value
+// in 1..=1025 only the last two of those eight bytes can carry a
+// nonzero digit.
+pub const PTSC_ID6_1025: [1025]u8 = [1025]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4,};
+pub const PTSC_ID7_1025: [1025]u8 = [1025]u8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1,};
+
+// **PTSC-01** - too fast rejected: ninety-nine microseconds of a
+// floor hundred.
+test ptsc_01_too_fast_rejected {
+    const ms: [1]TimingMeasurement = [1]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 99, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.TooFast);
+    assert(v.idx == 0);
+    assert(v.got64 == 99);
+    assert(v.bound64 == 100);
+}
+
+// **PTSC-02** - too slow rejected: 10001 microseconds of a
+// ceiling ten thousand.
+test ptsc_02_too_slow_rejected {
+    const ms: [1]TimingMeasurement = [1]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 10001, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.TooSlow);
+    assert(v.idx == 0);
+    assert(v.got64 == 10001);
+    assert(v.bound64 == 10000);
+}
+
+// **PTSC-03** - zero duration rejected.
+test ptsc_03_zero_duration_rejected {
+    const ms: [1]TimingMeasurement = [1]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 0, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.ZeroDuration);
+    assert(v.idx == 0);
+}
+
+// **PTSC-04** - high variance rejected: a spread of 1001
+// microseconds over the ceiling of a thousand.
+test ptsc_04_high_variance_rejected {
+    const ms: [2]TimingMeasurement = [2]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_02, duration_us: 1501, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.HighVariance);
+    assert(v.got64 == 1001);
+    assert(v.bound64 == 1000);
+}
+
+// **PTSC-05** - duplicate operation id rejected: the second
+// measurement repeats the first's id.
+test ptsc_05_duplicate_rejected {
+    const ms: [2]TimingMeasurement = [2]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.DuplicateOpId);
+    assert(v.idx == 1);
+}
+
+// **PTSC-06** - too many rejected: 1025 measurements of a maximum
+// 1024, built in a loop like the original's, each id carrying the
+// big-endian u64 of its index plus one. The batch rule fires
+// before any measurement is examined.
+test ptsc_06_too_many_rejected {
+    var ms: [1025]TimingMeasurement;
+    for i in 0..1025 {
+        var id: [32]u8;
+        for j in 0..32 {
+            id[j] = 0;
+        }
+        id[6] = PTSC_ID6_1025[i];
+        id[7] = PTSC_ID7_1025[i];
+        ms[i] = TimingMeasurement { op_id: id, duration_us: 500, };
+    }
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.TooMany);
+    assert(v.got == 1025);
+    assert(v.bound == 1024);
+}
+
+// **PTSC-07** - the valid batch accepted: durations 500, 550,
+// 480 and 520 - a spread of seventy.
+test ptsc_07_valid_accepted {
+    const ms: [4]TimingMeasurement = [4]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_02, duration_us: 550, },
+        TimingMeasurement { op_id: OPID_03, duration_us: 480, },
+        TimingMeasurement { op_id: OPID_04, duration_us: 520, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.Ok);
+}
+
+// **PTSC-08** - an empty batch accepted.
+test ptsc_08_empty_accepted {
+    const ms: [0]TimingMeasurement = [0]TimingMeasurement{};
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.Ok);
+}
+
+// **PTSC-09** - a single measurement accepted - the variance
+// ceiling checks nothing below two.
+test ptsc_09_single_accepted {
+    const ms: [1]TimingMeasurement = [1]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.Ok);
+}
+
+// **PTSC-10** - the boundary variance accepted: a spread of
+// exactly a thousand.
+test ptsc_10_boundary_variance_accepted {
+    const ms: [2]TimingMeasurement = [2]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_02, duration_us: 1500, },
+    };
+    const v = validate_timing_constancy(&ms);
+    assert(v.code == TimingSideChannelCode.Ok);
+}
+
+// The three helpers have direct tests (coverage: Untested 0).
+test op_id_helpers_answer {
+    assert(op_ids_equal(OPID_01, OPID_01));
+    assert(!op_ids_equal(OPID_01, OPID_02));
+    var zero: [32]u8;
+    for j in 0..32 {
+        zero[j] = 0;
+    }
+    assert(op_id_zero(zero));
+    assert(!op_id_zero(OPID_01));
+    const ms: [3]TimingMeasurement = [3]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_02, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+    };
+    assert(!op_seen_before(&ms, 0));
+    assert(!op_seen_before(&ms, 1));
+    assert(op_seen_before(&ms, 2));
+}
+
+// Rule order is the original's: the zero duration before the
+// floor, the floor before the repeated id, the ceiling before
+// the repeated id, the repeated id before the batch variance -
+// and the batch ceiling before any measurement.
+test rule_order_matches_original {
+    const zero_fast: [1]TimingMeasurement = [1]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 0, },
+    };
+    const v1 = validate_timing_constancy(&zero_fast);
+    assert(v1.code == TimingSideChannelCode.ZeroDuration);
+
+    const fast_twins: [2]TimingMeasurement = [2]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 99, },
+        TimingMeasurement { op_id: OPID_01, duration_us: 99, },
+    };
+    const v2 = validate_timing_constancy(&fast_twins);
+    assert(v2.code == TimingSideChannelCode.TooFast);
+    assert(v2.idx == 0);
+
+    const slow_twins: [2]TimingMeasurement = [2]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 10001, },
+        TimingMeasurement { op_id: OPID_01, duration_us: 10001, },
+    };
+    const v3 = validate_timing_constancy(&slow_twins);
+    assert(v3.code == TimingSideChannelCode.TooSlow);
+    assert(v3.idx == 0);
+
+    const dup_high_variance: [2]TimingMeasurement = [2]TimingMeasurement{
+        TimingMeasurement { op_id: OPID_01, duration_us: 500, },
+        TimingMeasurement { op_id: OPID_01, duration_us: 1501, },
+    };
+    const v4 = validate_timing_constancy(&dup_high_variance);
+    assert(v4.code == TimingSideChannelCode.DuplicateOpId);
+    assert(v4.idx == 1);
+
+    var flooded: [1025]TimingMeasurement;
+    for i in 0..1025 {
+        var id: [32]u8;
+        for j in 0..32 {
+            id[j] = 0;
+        }
+        flooded[i] = TimingMeasurement { op_id: id, duration_us: 0, };
+    }
+    const v5 = validate_timing_constancy(&flooded);
+    assert(v5.code == TimingSideChannelCode.TooMany);
+}
