@@ -1,0 +1,348 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_block_alignment_uniformity_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_block_alignment_uniformity_guard.rs
+// (CR-CHAT-04 - Padding block alignment uniformity guard, Wave-158
+// Lane A, requirement R-CHAT-4).
+//
+// Padded blocks must share one alignment: varying alignment
+// reveals where the payload ends and the padding begins,
+// fingerprints size classes, and leaks the payload size
+// distribution over many messages. The rules, in the original's
+// order: the batch ceiling, then per block the zero-id probe,
+// the repeated-id scan, the alignment floor and the power-of-two
+// probe, and finally the uniformity check against the first
+// block's alignment.
+//
+// The original returns Result<(), AlignmentUniformityError>. This
+// port carries the verdict as a named struct (owner decision D5):
+// Ok first, then the six error variants in the original's
+// declaration order - NonUniform, ZeroBlockId, DuplicateBlockId,
+// NotPowerOfTwo, BelowMinimum, TooMany - with every payload field:
+// idx, expected and found for NonUniform, idx for the id rules,
+// idx and got for NotPowerOfTwo, idx, got and min for
+// BelowMinimum, and got and max for the batch ceiling.
+//
+// The original's Option<usize> first-alignment becomes the
+// sentinel zero: the floor rule runs before the uniformity check,
+// so every tracked alignment is at least sixteen and the sentinel
+// never collides. The original's is_power_of_two becomes a
+// halving loop - sixty-four iterations cover every usize, the
+// residue one marking the powers. The BTreeSet dedup becomes a
+// scan over the blocks already visited.
+
+// Maximum blocks per batch.
+pub const PBAU_MAX_BLOCKS: usize = 1024;
+
+// Minimum alignment (bytes).
+pub const PBAU_MIN_ALIGNMENT: usize = 16;
+
+// Block ID length.
+pub const PBAU_BLOCK_ID_LEN: usize = 16;
+
+// A padding block alignment record.
+pub struct AlignmentRecord {
+    block_id: [16]u8,
+    alignment: usize,
+}
+
+// Verdict codes: Ok(()) and AlignmentUniformityError's variants, in declaration order.
+pub enum AlignmentUniformityCode {
+    Ok,
+    NonUniform,
+    ZeroBlockId,
+    DuplicateBlockId,
+    NotPowerOfTwo,
+    BelowMinimum,
+    TooMany,
+}
+
+// The verdict of the alignment uniformity validation, with every
+// error payload field.
+pub struct AlignmentUniformityVerdict {
+    code: AlignmentUniformityCode,
+    idx: usize,
+    got: usize,
+    bound: usize,
+}
+
+// Whole-form equality over the fixed sixteen block-id bytes.
+pub fn block_ids_equal(a: [16]u8, b: [16]u8) -> bool {
+    for i in 0..16 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero block id - the original's [0u8; 16] probe.
+pub fn block_id_zero(id: [16]u8) -> bool {
+    for i in 0..16 {
+        if (id[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether block i repeats an earlier id - the original's
+// BTreeSet insert probe, answered by a scan.
+pub fn block_seen_before(blocks: []const AlignmentRecord, i: usize) -> bool {
+    for j in 0..i {
+        if (block_ids_equal(blocks[j].block_id, blocks[i].block_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Whether the alignment is a power of two - the original's
+// is_power_of_two, answered by halving: sixty-four iterations
+// cover every usize, and only the powers halve down to one.
+pub fn is_power_of_two(a: usize) -> bool {
+    var v: usize = a;
+    for _ in 0..64 {
+        if (v % 2 == 0) {
+            v = v / 2;
+        }
+    }
+    return v == 1;
+}
+
+// [VERIFIED] Validate padding block alignment uniformity.
+// Returns Ok only when every rule holds, checked in the
+// original's order: the batch ceiling, then per block the zero
+// id, the repeated id, the alignment floor and the power-of-two
+// probe, then the uniformity check against the first alignment.
+pub fn validate_alignment_uniformity(blocks: []const AlignmentRecord) -> AlignmentUniformityVerdict {
+    if (blocks.len > PBAU_MAX_BLOCKS) {
+        return AlignmentUniformityVerdict { code: AlignmentUniformityCode.TooMany, idx: 0, got: blocks.len, bound: PBAU_MAX_BLOCKS, };
+    }
+    var first_alignment: usize = 0;
+    for i in 0..blocks.len {
+        if (block_id_zero(blocks[i].block_id)) {
+            return AlignmentUniformityVerdict { code: AlignmentUniformityCode.ZeroBlockId, idx: i, got: 0, bound: 0, };
+        }
+        if (block_seen_before(blocks, i)) {
+            return AlignmentUniformityVerdict { code: AlignmentUniformityCode.DuplicateBlockId, idx: i, got: 0, bound: 0, };
+        }
+        if (blocks[i].alignment < PBAU_MIN_ALIGNMENT) {
+            return AlignmentUniformityVerdict { code: AlignmentUniformityCode.BelowMinimum, idx: i, got: blocks[i].alignment, bound: PBAU_MIN_ALIGNMENT, };
+        }
+        if (!is_power_of_two(blocks[i].alignment)) {
+            return AlignmentUniformityVerdict { code: AlignmentUniformityCode.NotPowerOfTwo, idx: i, got: blocks[i].alignment, bound: 0, };
+        }
+        if (first_alignment == 0) {
+            first_alignment = blocks[i].alignment;
+        } else {
+            if (blocks[i].alignment != first_alignment) {
+                return AlignmentUniformityVerdict { code: AlignmentUniformityCode.NonUniform, idx: i, got: blocks[i].alignment, bound: first_alignment, };
+            }
+        }
+    }
+    return AlignmentUniformityVerdict { code: AlignmentUniformityCode.Ok, idx: 0, got: 0, bound: 0, };
+}
+
+// The block ids of the fixtures, one byte repeated sixteen
+// times - the original's bid(byte) helper, entry by entry.
+pub const BID_01: [16]u8 = [16]u8{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+pub const BID_02: [16]u8 = [16]u8{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,};
+pub const BID_03: [16]u8 = [16]u8{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,};
+pub const ZERO_BID: [16]u8 = [16]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,};
+
+// The leading id bytes of the many-uniform fixture.
+pub const PBAU_ID_BYTES_50: [50]u8 = [50]u8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,};
+
+// The two id bytes of the too-many fixture: the original writes
+// the big-endian u64 of i + 1 into id[0..8], and for every value
+// in 1..=1025 only the last two of those eight bytes can carry a
+// nonzero digit.
+pub const PBAU_ID6_1025: [1025]u8 = [1025]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4,};
+pub const PBAU_ID7_1025: [1025]u8 = [1025]u8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1,};
+
+// **PBAU-01** - non-uniform rejected: the second block aligns to
+// thirty-two where the first set sixteen.
+test pbau_01_non_uniform_rejected {
+    const blocks: [2]AlignmentRecord = [2]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+        AlignmentRecord { block_id: BID_02, alignment: 32, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.NonUniform);
+    assert(v.idx == 1);
+    assert(v.bound == 16);
+    assert(v.got == 32);
+}
+
+// **PBAU-02** - zero block id rejected.
+test pbau_02_zero_id_rejected {
+    const blocks: [1]AlignmentRecord = [1]AlignmentRecord{
+        AlignmentRecord { block_id: ZERO_BID, alignment: 16, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.ZeroBlockId);
+    assert(v.idx == 0);
+}
+
+// **PBAU-03** - duplicate block id rejected: the second block
+// repeats the first's id.
+test pbau_03_duplicate_rejected {
+    const blocks: [2]AlignmentRecord = [2]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.DuplicateBlockId);
+    assert(v.idx == 1);
+}
+
+// **PBAU-04** - not a power of two rejected: twenty-four.
+test pbau_04_not_power_of_two_rejected {
+    const blocks: [1]AlignmentRecord = [1]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 24, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.NotPowerOfTwo);
+    assert(v.idx == 0);
+    assert(v.got == 24);
+}
+
+// **PBAU-05** - below the minimum rejected: eight of a floor
+// sixteen.
+test pbau_05_below_min_rejected {
+    const blocks: [1]AlignmentRecord = [1]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 8, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.BelowMinimum);
+    assert(v.idx == 0);
+    assert(v.got == 8);
+    assert(v.bound == 16);
+}
+
+// **PBAU-06** - too many rejected: 1025 blocks of a maximum
+// 1024, built in a loop like the original's, each id carrying
+// the big-endian u64 of its index plus one. The batch rule fires
+// before any block is examined.
+test pbau_06_too_many_rejected {
+    var blocks: [1025]AlignmentRecord;
+    for i in 0..1025 {
+        var id: [16]u8;
+        for j in 0..16 {
+            id[j] = 0;
+        }
+        id[6] = PBAU_ID6_1025[i];
+        id[7] = PBAU_ID7_1025[i];
+        blocks[i] = AlignmentRecord { block_id: id, alignment: 16, };
+    }
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.TooMany);
+    assert(v.got == 1025);
+    assert(v.bound == 1024);
+}
+
+// **PBAU-07** - the valid batch accepted: three blocks aligned
+// to sixteen.
+test pbau_07_valid_accepted {
+    const blocks: [3]AlignmentRecord = [3]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+        AlignmentRecord { block_id: BID_02, alignment: 16, },
+        AlignmentRecord { block_id: BID_03, alignment: 16, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.Ok);
+}
+
+// **PBAU-08** - an empty batch accepted.
+test pbau_08_empty_accepted {
+    const blocks: [0]AlignmentRecord = [0]AlignmentRecord{};
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.Ok);
+}
+
+// **PBAU-09** - a single block accepted, alignment sixty-four.
+test pbau_09_single_accepted {
+    const blocks: [1]AlignmentRecord = [1]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 64, },
+    };
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.Ok);
+}
+
+// **PBAU-10** - many uniform blocks accepted: fifty blocks all
+// aligned to thirty-two.
+test pbau_10_many_uniform_accepted {
+    var blocks: [50]AlignmentRecord;
+    for i in 0..50 {
+        var id: [16]u8;
+        for j in 0..16 {
+            id[j] = 0;
+        }
+        id[0] = PBAU_ID_BYTES_50[i];
+        blocks[i] = AlignmentRecord { block_id: id, alignment: 32, };
+    }
+    const v = validate_alignment_uniformity(&blocks);
+    assert(v.code == AlignmentUniformityCode.Ok);
+}
+
+// The four helpers have direct tests (coverage: Untested 0).
+test pbau_helpers_answer {
+    assert(block_ids_equal(BID_01, BID_01));
+    assert(!block_ids_equal(BID_01, BID_02));
+    assert(block_id_zero(ZERO_BID));
+    assert(!block_id_zero(BID_01));
+    const three: [3]AlignmentRecord = [3]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+        AlignmentRecord { block_id: BID_02, alignment: 16, },
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+    };
+    assert(!block_seen_before(&three, 0));
+    assert(!block_seen_before(&three, 1));
+    assert(block_seen_before(&three, 2));
+    assert(is_power_of_two(1));
+    assert(is_power_of_two(2));
+    assert(is_power_of_two(16));
+    assert(is_power_of_two(1024));
+    assert(!is_power_of_two(0));
+    assert(!is_power_of_two(24));
+    assert(!is_power_of_two(48));
+    assert(!is_power_of_two(18446744073709551615));
+}
+
+// Rule order is the original's: the zero id before the duplicate,
+// the duplicate before the alignment floor, the floor before the
+// power-of-two probe, and the power probe before the uniformity
+// check.
+test rule_order_matches_original {
+    const zero_twins: [2]AlignmentRecord = [2]AlignmentRecord{
+        AlignmentRecord { block_id: ZERO_BID, alignment: 16, },
+        AlignmentRecord { block_id: ZERO_BID, alignment: 16, },
+    };
+    const v1 = validate_alignment_uniformity(&zero_twins);
+    assert(v1.code == AlignmentUniformityCode.ZeroBlockId);
+    assert(v1.idx == 0);
+
+    const dup_low: [2]AlignmentRecord = [2]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 16, },
+        AlignmentRecord { block_id: BID_01, alignment: 8, },
+    };
+    const v2 = validate_alignment_uniformity(&dup_low);
+    assert(v2.code == AlignmentUniformityCode.DuplicateBlockId);
+    assert(v2.idx == 1);
+
+    const floor_non_power: [1]AlignmentRecord = [1]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 12, },
+    };
+    const v3 = validate_alignment_uniformity(&floor_non_power);
+    assert(v3.code == AlignmentUniformityCode.BelowMinimum);
+    assert(v3.got == 12);
+
+    const power_before_uniform: [2]AlignmentRecord = [2]AlignmentRecord{
+        AlignmentRecord { block_id: BID_01, alignment: 32, },
+        AlignmentRecord { block_id: BID_02, alignment: 24, },
+    };
+    const v4 = validate_alignment_uniformity(&power_before_uniform);
+    assert(v4.code == AlignmentUniformityCode.NotPowerOfTwo);
+    assert(v4.idx == 1);
+    assert(v4.got == 24);
+}
