@@ -49,7 +49,7 @@ walkdir = "2"
 # of reqwest's defaults are kept as they were.
 reqwest = { version = "0.13", default-features = false, features = ["native-tls", "charset", "http2", "system-proxy", "json", "blocking", "stream"], optional = true }
 colored = "2"
-tower-http = { version = "0.6", features = ["fs"], optional = true }
+tower-http = { version = "0.7", features = ["fs"], optional = true }
 tokio-stream = { version = "0.1", features = ["sync", "time"], optional = true }
 futures-util = { version = "0.3", optional = true }
 jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto", "hmac", "sha2", "use_pem"], optional = true }
