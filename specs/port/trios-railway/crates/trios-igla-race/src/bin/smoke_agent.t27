@@ -1,0 +1,81 @@
+module port::trios_railway::smoke_agent;
+
+// Port of gHashTag/trios-railway:crates/trios-igla-race/src/bin/smoke_agent.rs
+// (at 46ea51e585ee, 86 lines) - t27 issue #9714, Roadmap Stage 6 (goal #4548),
+// target t27c gen-rust. ADR-002's synthetic smoke agent: the CLI defaults, the
+// pass rule of the synthetic run, the fail_on_error exit and the smoke-feature
+// gate are the decisions, ported as pure functions. The tracing subscriber, the
+// SmokeConfig run_local call and the prints are the caller's plumbing.
+
+// Exit codes: main returns Ok (0) on a finished run; a bail or the
+// fail_on_error abort exits 1 (lines 72 and 83).
+pub const SMOKE_AGENT_EXIT_OK: i32 = 0;
+pub const SMOKE_AGENT_EXIT_FAIL: i32 = 1;
+
+// CLI defaults (lines 27-31): steps 1, seed 42.
+pub const SMOKE_AGENT_DEFAULT_STEPS: u32 = 1;
+pub const SMOKE_AGENT_DEFAULT_SEED: u64 = 42;
+
+// The bail text when the smoke feature is off (line 83).
+pub const SMOKE_FEATURE_MESSAGE = "smoke-agent requires the 'smoke' feature. Build with: --features smoke";
+
+// Lines 27-31: the defaults a bare `smoke-agent` invocation runs with.
+pub fn smoke_agent_default_cli() -> (u32, u64) {
+    return (SMOKE_AGENT_DEFAULT_STEPS, SMOKE_AGENT_DEFAULT_SEED);
+}
+
+// Lines 66-76: the smoke run passes when it produced at least one jsonl line
+// per requested step - jsonl_lines >= steps; fewer lines than steps fails.
+pub fn smoke_agent_smoke_passed(steps: usize, jsonl_lines: usize) -> bool {
+    return jsonl_lines >= steps;
+}
+
+// Line 37: main. Without the smoke feature the agent bails (exit 1) before
+// any run. With it, a passing run exits 0; a failing run exits 1 only when
+// --fail-on-error was asked for, otherwise the run still ends Ok (0).
+pub fn main(smoke_feature_on: bool, fail_on_error: bool, steps: usize, jsonl_lines: usize) -> i32 {
+    if (!smoke_feature_on) {
+        return SMOKE_AGENT_EXIT_FAIL;
+    }
+    if (!smoke_agent_smoke_passed(steps, jsonl_lines)) {
+        if (fail_on_error) {
+            return SMOKE_AGENT_EXIT_FAIL;
+        }
+    }
+    return SMOKE_AGENT_EXIT_OK;
+}
+
+test default_cli_is_one_step_seed_42 {
+    const (steps, seed) = smoke_agent_default_cli();
+    assert(steps == 1);
+    assert(seed == 42);
+    assert(SMOKE_AGENT_DEFAULT_STEPS == 1);
+    assert(SMOKE_AGENT_DEFAULT_SEED == 42);
+}
+
+test smoke_pass_rule {
+    assert(smoke_agent_smoke_passed(1, 1) == true);
+    assert(smoke_agent_smoke_passed(1, 2) == true);
+    assert(smoke_agent_smoke_passed(5, 5) == true);
+    assert(smoke_agent_smoke_passed(1, 0) == false);
+    assert(smoke_agent_smoke_passed(5, 4) == false);
+}
+
+test feature_gate_bails_without_smoke {
+    assert(main(false, true, 1, 1) == SMOKE_AGENT_EXIT_FAIL);
+    assert(main(false, false, 1, 100) == SMOKE_AGENT_EXIT_FAIL);
+    assert(SMOKE_FEATURE_MESSAGE == "smoke-agent requires the 'smoke' feature. Build with: --features smoke");
+}
+
+test fail_on_error_controls_the_exit {
+    assert(main(true, true, 1, 0) == SMOKE_AGENT_EXIT_FAIL);
+    assert(main(true, false, 1, 0) == SMOKE_AGENT_EXIT_OK);
+    assert(main(true, true, 3, 2) == SMOKE_AGENT_EXIT_FAIL);
+    assert(main(true, false, 3, 2) == SMOKE_AGENT_EXIT_OK);
+}
+
+test passing_run_exits_zero {
+    assert(main(true, false, 1, 1) == SMOKE_AGENT_EXIT_OK);
+    assert(main(true, true, 5, 7) == SMOKE_AGENT_EXIT_OK);
+    assert(main(true, false, 1, 0) == SMOKE_AGENT_EXIT_OK);
+}
