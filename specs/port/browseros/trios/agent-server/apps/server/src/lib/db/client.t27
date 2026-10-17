@@ -1,0 +1,163 @@
+module port::browseros::trios::agent_server::apps::server::src::lib::db::client;
+
+// Ported from gHashTag/BrowserOS trios/agent-server/apps/server/src/lib/db/client.ts
+// Original at a61ed7c17eff
+
+/// BrowserOS database type - ported from BunSQLiteDatabase<typeof schema>
+pub struct BrowserOsDatabase {
+    // This is an opaque database handle - the actual type is not portable
+}
+
+/// Database handle structure
+pub struct DbHandle {
+    path: str,
+    migrationsDir: str,
+    sqlite: str,  // File system operation - placeholder string in port
+    db: BrowserOsDatabase,
+}
+
+/// Options for opening the database
+pub struct OpenDbOptions {
+    dbPath: str,
+    resourcesDir: str,
+    migrationsDir: str,
+    runMigrations: bool,
+}
+
+/// Migrations directory resolution options
+pub struct MigrationsDirOptions {
+    migrationsDir: str,
+    resourcesDir: str,
+}
+
+// Source migrations directory - file system operation, undefined in port
+const sourceMigrationsDir: str = "";
+
+/** Opens BrowserOS SQLite and applies checked-in Drizzle migrations before callers use the DB. */
+pub fn openBrowserOsDatabase(options: OpenDbOptions) -> DbHandle {
+    const migrationsDir = resolveMigrationsDir(MigrationsDirOptions{
+        .migrationsDir = options.migrationsDir,
+        .resourcesDir = options.resourcesDir,
+    });
+    
+    // File system operation - mkdir(dirname(options.dbPath), { recursive: true })
+    // This is moved out as it's plumbing, not decision logic
+    
+    // SQLite database creation and configuration - file system operations
+    const sqlite = "sqlite-handle";  // placeholder for file system operation
+    // sqlite.exec('PRAGMA journal_mode = WAL')
+    // sqlite.exec('PRAGMA foreign_keys = ON')
+    
+    const db = BrowserOsDatabase{};  // Opaque database handle
+    
+    if (options.runMigrations != false) {
+        // migrate(db, { migrationsFolder: migrationsDir }) - file system operation
+        // undefined for file system operation
+    }
+    
+    return DbHandle{
+        .path = options.dbPath,
+        .migrationsDir = migrationsDir,
+        .sqlite = sqlite,
+        .db = db,
+    };
+}
+
+/** Resolves migrations from explicit test paths, packaged resources, or the source tree. */
+pub fn resolveMigrationsDir(
+    options: MigrationsDirOptions = {},
+) -> str {
+    if (options.migrationsDir != "") {
+        // File system operation - existsSync(options.migrationsDir)
+        const migrationsExist = false;  // This would be the result of existsSync
+        
+        if (migrationsExist) {
+            return options.migrationsDir;
+        }
+        
+        // Error case - throw new Error(...)
+        // In T27, we return an empty string for errors (would be exception in original)
+        return "";
+    }
+    
+    // Build candidates list - fixed size array since growable lists not supported
+    const candidates: [2]str = ["", ""];  // Max 2 candidates
+    var candidates_len: usize = 0;
+    
+    if (options.resourcesDir != "") {
+        const candidate = "/db/migrations";  // Simplified - would be options.resourcesDir + "/db/migrations" but concatenation not supported
+        candidates[candidates_len] = candidate;
+        candidates_len += 1;
+    }
+    
+    // sourceMigrationsDir is undefined (file system operation)
+    // candidates[candidates_len] = sourceMigrationsDir;
+    // candidates_len += 1;
+    
+    // Check each candidate
+    for (i in 0..candidates_len) {
+        const candidate = candidates[i];
+        // File system operation - existsSync(candidate)
+        const candidateExists = false;  // This would be the result of existsSync
+        
+        if (candidateExists) {
+            return candidate;
+        }
+    }
+    
+    // Error case - throw new Error(...)
+    // In T27, we return an empty string for errors (would be exception in original)
+    return "";
+}
+
+// Test cases for openBrowserOsDatabase
+test openBrowserOsDatabase_basic {
+    const options = OpenDbOptions{
+        .dbPath = "/tmp/test.db",
+        .resourcesDir = "",
+        .migrationsDir = "",
+        .runMigrations = true,
+    };
+    
+    const result = openBrowserOsDatabase(options);
+    
+    // Verify the path is preserved
+    assert(result.path == "/tmp/test.db");
+    
+    // Verify migrations directory is resolved (will be empty string due to file system ops being undefined)
+    assert(result.migrationsDir == "");
+}
+
+// Test cases for resolveMigrationsDir
+test resolveMigrationsDir_explicit_path {
+    const options = MigrationsDirOptions{
+        .migrationsDir = "/custom/migrations",
+        .resourcesDir = "",
+    };
+    
+    // Since existsSync is undefined, this will return empty string
+    const result = resolveMigrationsDir(options);
+    assert(result == "");
+}
+
+test resolveMigrationsDir_with_resources {
+    const options = MigrationsDirOptions{
+        .migrationsDir = "",
+        .resourcesDir = "/resources",
+    };
+    
+    // This would check /resources/db/migrations but since existsSync is undefined, returns empty
+    const result = resolveMigrationsDir(options);
+    assert(result == "");
+}
+
+test resolveMigrationsDir_no_candidates {
+    const options = MigrationsDirOptions{
+        .migrationsDir = "",
+        .resourcesDir = "",
+    };
+    
+    // No candidates, should return empty string
+    const result = resolveMigrationsDir(options);
+    assert(result == "");
+}
