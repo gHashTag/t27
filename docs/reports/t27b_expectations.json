@@ -853,6 +853,7 @@
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-02/src/epoch_rollover_wraparound_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/ratchet_tree_resolution_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/unmerged_leaves_bound_guard.t27", "t27b": "pass"},
+  {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-04/src/padding_response_timing_fingerprint_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-05/src/envelope_size_distribution_uniformity.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-07/src/cover_decoy_ratio_governor.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-LAWS/src/lib.t27", "t27b": "pass"},
