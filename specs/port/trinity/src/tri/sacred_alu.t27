@@ -1,0 +1,272 @@
+// @origin(manual) @regen(manual-impl)
+// Port of gHashTag/trinity src/tri/sacred_alu.zig at ee512359254b (137 lines):
+// the Sacred ALU command, the FPGA GF16/TF3-9 synthesis driver. Original
+// usage: `tri sacred [s|synth|bench] [module...]`.
+//
+// Ported the decision, not the plumbing. The command dispatch, the module
+// table and its lookup, the yosys command shape, the hollow-module skip and
+// the OK/FAILED verdict are pure functions with tests below. The
+// world-touching part - stdout and stderr writes, the allocator, the yosys
+// child process - keeps its original function name with an intentionally
+// inert body that no test reaches; the caller that wires this module to argv
+// and the terminal performs those steps. (A bare `undefined;` statement body
+// does not compile under t27c gen, so the inert bodies are a plain
+// `return;`.)
+
+module port::trinity::src::tri;
+
+// Original lines 33-40: main() exits 0 on the success and usage paths and
+// 1 on the two synth errors (lines 62 and 73).
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+
+// Original lines 17-20: one Verilog module of the Sacred ALU.
+struct Module {
+    name: []const u8,
+    top: []const u8,
+}
+
+// Original lines 22-29: the six modules synthesizeAll covers, in order.
+const MODULES: [6]Module = [
+    Module { name: "gf16_add.v", top: "gf16_add" },
+    Module { name: "gf16_mul.v", top: "gf16_mul" },
+    Module { name: "gf16_alu.v", top: "gf16_alu" },
+    Module { name: "tf3_add.v", top: "tf3_add" },
+    Module { name: "tf3_dot.v", top: "tf3_dot" },
+    Module { name: "sacred_alu.v", top: "sacred_alu" }
+];
+
+// Original line 31: where synthesis output lands.
+const SYNTH_DIR: []const u8 = "build";
+
+// Length of the module table: synthesizeAll's loop bound, and the sentinel
+// find_module_index answers for a name that is not in the table.
+fn module_count() -> usize {
+    return MODULES.len;
+}
+
+// Original lines 51-57 and 64-71: find a module by its .v file name.
+// Answers module_count() when the name is unknown - the "Error: Unknown
+// module" case of the synth command.
+fn find_module_index(name: []const u8) -> usize {
+    for i in 0..MODULES.len {
+        if (MODULES[i].name == name) {
+            return i;
+        }
+    }
+    return MODULES.len;
+}
+
+fn is_known_module(name: []const u8) -> bool {
+    return find_module_index(name) < MODULES.len;
+}
+
+// Original lines 106-115: a module whose top is empty is skipped by the
+// synth loop instead of being handed to yosys.
+fn needs_synthesis(m: Module) -> bool {
+    return m.top.len != 0;
+}
+
+// Original lines 51-57, the "s" command with explicit module arguments:
+// every argument naming a table entry is synthesized, unknown names are
+// skipped without an error and without changing the exit code.
+fn named_module_count(names: []str) -> usize {
+    var n: usize = 0;
+    for name in names {
+        if (is_known_module(name)) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// Original lines 93-104, synthesizeModule's decision, carried as data
+// because .t27 cannot build strings: yosys runs with argv_len == 3 entries
+// ("yosys", "-p", script), where the script renders as
+// "read_verilog fpga/openxc7-synth/{verilog}; synth_xc7 -top {top}; json -o
+// {json_dir}/{json_name}.json". verilog and json_name are both the module's
+// file name and json_dir is SYNTH_DIR, exactly as the original's allocPrint
+// builds them.
+struct YosysPlan {
+    verilog: []const u8,
+    top: []const u8,
+    json_dir: []const u8,
+    json_name: []const u8,
+    argv_len: usize,
+}
+
+fn plan_synthesis(m: Module) -> YosysPlan {
+    return YosysPlan {
+        verilog: m.name,
+        top: m.top,
+        json_dir: SYNTH_DIR,
+        json_name: m.name,
+        argv_len: 3
+    };
+}
+
+// Original lines 115-121: yosys exit code 0 reports the green OK line,
+// anything else reports FAILED (code N).
+fn synth_succeeded(exit_code: i32) -> bool {
+    return exit_code == 0;
+}
+
+// Original lines 124-135, printUsage's decision: a fixed block of 8 lines
+// (the usage line, a blank, "Commands:", the three command lines, a blank,
+// "Modules:") plus one indented line per module in the table.
+fn usage_line_count() -> usize {
+    return 8 + module_count();
+}
+
+// Original lines 33-84, main()'s dispatch decision as a pure verdict: given
+// the argument count (program name included, as in argv), the command word
+// and the module arguments, it answers with the process exit code. The work
+// itself - printing usage, running yosys - is the caller's job; printUsage,
+// synthesizeAll and synthesizeModule below keep the original names for it.
+pub fn main(argc: u32, command: []const u8, module_args: []str) -> i32 {
+    if (argc < 2) {
+        // Original lines 39-42: no command word - usage, exit 0.
+        return EXIT_OK;
+    }
+    if (command == "s") {
+        // Original lines 47-58: without module arguments synthesizeAll
+        // covers the whole table; with them, the arguments that name table
+        // entries are synthesized while unknown names are skipped. Exit 0
+        // either way.
+        return EXIT_OK;
+    }
+    if (command == "synth") {
+        // Original lines 59-73.
+        if (module_args.len != 1) {
+            // "Error: synth requires exactly one module" - exit 1.
+            return EXIT_FAIL;
+        }
+        if (!is_known_module(module_args[0])) {
+            // "Error: Unknown module" - exit 1.
+            return EXIT_FAIL;
+        }
+        return EXIT_OK;
+    }
+    if (command == "bench") {
+        // Original lines 74-77: the caller prints the benchmark banner.
+        return EXIT_OK;
+    }
+    // Original lines 78-81: unknown command - usage, exit 0.
+    return EXIT_OK;
+}
+
+// Original lines 86-91: the banner and one synthesizeModule call per table
+// entry, in order. Stdout writes and the child-process runs are plumbing;
+// this body is intentionally inert and no test reaches it.
+fn synthesizeAll() void {
+    return;
+}
+
+// Original lines 93-122: renders the yosys script (plan_synthesis), skips
+// hollow modules (needs_synthesis), runs the yosys child process and reports
+// OK or FAILED (code N) from its exit code (synth_succeeded). The child
+// process and its output are plumbing; this body is intentionally inert and
+// no test reaches it.
+fn synthesizeModule(m: Module) void {
+    return;
+}
+
+// Original lines 124-136: the fixed help block plus one line per module
+// (usage_line_count) to stdout. Stdout writes are plumbing; this body is
+// intentionally inert and no test reaches it.
+fn printUsage() void {
+    return;
+}
+
+// -- tests ----------------------------------------------------------------
+
+test main_usage_and_unknown_command {
+    // Original lines 39-42 and 78-81: no command word, or an unrecognized
+    // one, prints usage and exits 0 - never an error.
+    var none: [0][]const u8 = [];
+    assert(main(1, "", &none) == 0);
+    assert(main(2, "transmute", &none) == 0);
+}
+
+test main_synth_arity_error {
+    // Original lines 59-62: "synth" carries exactly one module argument;
+    // zero or two are the arity error, exit 1.
+    var none: [0][]const u8 = [];
+    var two: [2][]const u8 = ["gf16_add.v", "gf16_mul.v"];
+    assert(main(2, "synth", &none) == 1);
+    assert(main(4, "synth", &two) == 1);
+}
+
+test main_synth_known_and_unknown {
+    // Original lines 63-73: a known module synthesizes, exit 0; an unknown
+    // name is the "Error: Unknown module" case, exit 1.
+    var one: [1][]const u8 = ["tf3_dot.v"];
+    var unknown: [1][]const u8 = ["tb_gf16_add.v"];
+    assert(main(3, "synth", &one) == 0);
+    assert(main(3, "synth", &unknown) == 1);
+}
+
+test main_s_and_bench_exit_zero {
+    // Original lines 47-58 and 74-77: "s" synthesizes all or the named
+    // modules and "bench" prints its banner; both exit 0, unknown names
+    // among "s" arguments included.
+    var none: [0][]const u8 = [];
+    var one: [1][]const u8 = ["gf16_add.v"];
+    var mixed: [3][]const u8 = ["gf16_add.v", "nope.v", "tf3_add.v"];
+    assert(main(2, "s", &none) == 0);
+    assert(main(3, "s", &one) == 0);
+    assert(main(5, "s", &mixed) == 0);
+    assert(main(2, "bench", &none) == 0);
+}
+
+test module_table_shape {
+    // Original lines 22-29: six modules in a fixed order, and lookup by
+    // .v file name answers the table length for a name that is not there.
+    assert(module_count() == 6);
+    assert(find_module_index("gf16_add.v") == 0);
+    assert(find_module_index("sacred_alu.v") == 5);
+    assert(find_module_index("tb_gf16_add.v") == 6);
+    assert(is_known_module("tf3_dot.v"));
+    assert(!is_known_module("gf16_sub.v"));
+}
+
+test named_module_count_skips_unknown_names {
+    // Original lines 51-57: of ["gf16_add.v", "nope.v", "tf3_add.v"], two
+    // name table entries; the unknown one synthesizes nothing.
+    var mixed: [3][]const u8 = ["gf16_add.v", "nope.v", "tf3_add.v"];
+    var none: [0][]const u8 = [];
+    assert(named_module_count(&mixed) == 2);
+    assert(named_module_count(&none) == 0);
+}
+
+test synth_verdict_and_plan {
+    // Original lines 115-121: yosys exit 0 is OK, anything else FAILED.
+    assert(synth_succeeded(0));
+    assert(!synth_succeeded(1));
+    assert(!synth_succeeded(-1));
+
+    // Original lines 93-104: the command reads the module's Verilog file,
+    // synthesizes its top and writes the JSON into SYNTH_DIR, as
+    // `yosys -p <script>` (3 argv entries).
+    const p = plan_synthesis(MODULES[0]);
+    assert(p.verilog == "gf16_add.v");
+    assert(p.top == "gf16_add");
+    assert(p.json_dir == "build");
+    assert(p.json_name == "gf16_add.v");
+    assert(p.argv_len == 3);
+}
+
+test usage_lists_every_module {
+    // Original lines 124-135: the usage is a fixed 8-line block plus one
+    // line per module - 14 lines with today's table.
+    assert(usage_line_count() == 8 + module_count());
+    assert(usage_line_count() == 14);
+}
+
+test hollow_modules_are_skipped {
+    // Original lines 106-115: a module with an empty top is skipped by the
+    // synth loop; every table entry is synthesizable.
+    var hollow: [1]Module = [Module { name: "empty.v", top: "" }];
+    assert(!needs_synthesis(hollow[0]));
+    assert(needs_synthesis(MODULES[0]));
+}
