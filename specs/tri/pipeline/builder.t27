@@ -78,6 +78,10 @@ module TriBuilder;
         builder.len = 0;
     }
 
+    pub fn default_input() -> Builder(T) {
+        return empty();
+    
+    pub fn default_input() -> Builder(T) {\n        return empty();\n    }
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
