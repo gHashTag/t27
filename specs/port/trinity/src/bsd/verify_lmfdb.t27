@@ -1,0 +1,136 @@
+module port::trinity::verify_lmfdb;
+
+// Port of gHashTag/trinity:src/bsd/verify_lmfdb.zig (at ee512359254b,
+// 84 lines) - t27 issue #9611, Roadmap Stage 5 (goal #4547), target t27c
+// gen-rust. The BSD verification command's decisions as pure functions:
+// the usage gate, the --test default path, the rank-0 filter, the BSD
+// formula Sha = L(E,1) * torsion^2 / (Omega * c_p) carried as
+// special_value * torsion^2 / c_p, the 0.5 match window, and the summary
+// verdict. The JSON load, the table prints and the colour codes are the
+// caller's plumbing.
+
+// The command's terminal states, as exit markers.
+pub const VERIFY_LMFDB_USAGE: i32 = 0;
+pub const VERIFY_LMFDB_ALL_PASSED: i32 = 1;
+pub const VERIFY_LMFDB_SOME_FAILED: i32 = 2;
+
+// Lines 18-23: with no argument the command prints the usage block and
+// returns - no curve is loaded, no verification runs.
+pub fn verify_lmfdb_needs_usage(arg_count: usize) -> bool {
+    return arg_count < 1;
+}
+
+// Lines 26-29: --test selects the built-in curve file; anything else is
+// taken as the JSON path as-is.
+pub fn verify_lmfdb_json_path(arg: []const u8) -> []const u8 {
+    if (arg == "--test") {
+        return "bsd_test_curves.json";
+    }
+    return arg;
+}
+
+// Line 50: only rank 0 curves are verified - everything else is skipped.
+pub fn verify_lmfdb_rank_eligible(rank: i32) -> bool {
+    return rank == 0;
+}
+
+// Lines 52-58: the BSD formula. special_value = L(E,1)/Omega, so
+// Sha = special_value * torsion^2 / c_p. The orders are widened to f64
+// BEFORE the square, so no integer multiply can overflow.
+pub fn verify_lmfdb_sha_from_formula(special_value: f64, torsion_order: i64, tamagawa_product: i64) -> f64 {
+    const torsion: f64 = torsion_order as f64;
+    const tamagawa: f64 = tamagawa_product as f64;
+    return special_value * (torsion * torsion) / tamagawa;
+}
+
+// Lines 61-64: the computed Sha matches the known order when the two sit
+// within 0.5 of each other - strictly: a difference of exactly 0.5 fails.
+pub fn verify_lmfdb_sha_matches(sha_from_formula: f64, sha_order: i64) -> bool {
+    const known: f64 = sha_order as f64;
+    const diff = sha_from_formula - known;
+    if (diff < 0.0) {
+        return -diff < 0.5;
+    }
+    return diff < 0.5;
+}
+
+// Lines 76-80: the summary says ALL PASSED exactly when nothing failed -
+// a run with no eligible curves also reaches it (0/0 verified).
+pub fn verify_lmfdb_all_passed(failed: usize) -> bool {
+    return failed == 0;
+}
+
+// Line 7: the command itself. No argument: usage, nothing verified. With
+// a path: each rank-0 curve is checked by the BSD formula and the 0.5
+// window; rank!=0 curves are skipped without failing anything. The
+// summary is ALL PASSED when the failure count is zero, else SOME
+// FAILED.
+pub fn runVerifyLMFDBCommand(arg_count: usize, curve_rank: i32, special_value: f64, torsion_order: i64, tamagawa_product: i64, sha_order: i64) -> i32 {
+    if (verify_lmfdb_needs_usage(arg_count)) {
+        return VERIFY_LMFDB_USAGE;
+    }
+    if (!verify_lmfdb_rank_eligible(curve_rank)) {
+        return VERIFY_LMFDB_ALL_PASSED;
+    }
+    const sha = verify_lmfdb_sha_from_formula(special_value, torsion_order, tamagawa_product);
+    if (verify_lmfdb_sha_matches(sha, sha_order)) {
+        return VERIFY_LMFDB_ALL_PASSED;
+    }
+    return VERIFY_LMFDB_SOME_FAILED;
+}
+
+test usage_gate_without_arguments {
+    assert(verify_lmfdb_needs_usage(0) == true);
+    assert(verify_lmfdb_needs_usage(1) == false);
+    assert(verify_lmfdb_needs_usage(3) == false);
+    assert(runVerifyLMFDBCommand(0, 0, 1.0, 1, 1, 1) == VERIFY_LMFDB_USAGE);
+}
+
+test test_flag_selects_builtin_file {
+    assert(verify_lmfdb_json_path("--test") == "bsd_test_curves.json");
+    assert(verify_lmfdb_json_path("my_curves.json") == "my_curves.json");
+    assert(verify_lmfdb_json_path("--testx") == "--testx");
+    assert(verify_lmfdb_json_path("") == "");
+}
+
+test only_rank_zero_verified {
+    assert(verify_lmfdb_rank_eligible(0) == true);
+    assert(verify_lmfdb_rank_eligible(1) == false);
+    assert(verify_lmfdb_rank_eligible(2) == false);
+    assert(verify_lmfdb_rank_eligible(-1) == false);
+    assert(runVerifyLMFDBCommand(1, 1, 99.0, 5, 5, 1) == VERIFY_LMFDB_ALL_PASSED);
+    assert(runVerifyLMFDBCommand(2, 3, 99.0, 5, 5, 1) == VERIFY_LMFDB_ALL_PASSED);
+}
+
+test bsd_formula_values {
+    assert(verify_lmfdb_sha_from_formula(2.0, 2, 2) == 4.0);
+    assert(verify_lmfdb_sha_from_formula(0.5, 2, 4) == 0.5);
+    assert(verify_lmfdb_sha_from_formula(1.5, 3, 2) == 6.75);
+    assert(verify_lmfdb_sha_from_formula(1.0, 1, 1) == 1.0);
+    assert(verify_lmfdb_sha_from_formula(3.0, 2, 4) == 3.0);
+}
+
+test match_window_is_half_open {
+    assert(verify_lmfdb_sha_matches(6.0, 6) == true);
+    assert(verify_lmfdb_sha_matches(6.4, 6) == true);
+    assert(verify_lmfdb_sha_matches(5.6, 6) == true);
+    assert(verify_lmfdb_sha_matches(6.5, 6) == false);
+    assert(verify_lmfdb_sha_matches(5.5, 6) == false);
+    assert(verify_lmfdb_sha_matches(6.6, 6) == false);
+    assert(verify_lmfdb_sha_matches(5.4, 6) == false);
+    assert(verify_lmfdb_sha_matches(0.25, 0) == true);
+}
+
+test summary_verdict {
+    assert(verify_lmfdb_all_passed(0) == true);
+    assert(verify_lmfdb_all_passed(1) == false);
+    assert(verify_lmfdb_all_passed(7) == false);
+}
+
+test command_verifies_one_curve {
+    assert(runVerifyLMFDBCommand(1, 0, 2.0, 2, 2, 4) == VERIFY_LMFDB_ALL_PASSED);
+    assert(runVerifyLMFDBCommand(1, 0, 2.0, 2, 2, 6) == VERIFY_LMFDB_SOME_FAILED);
+    assert(runVerifyLMFDBCommand(1, 0, 1.5, 3, 2, 7) == VERIFY_LMFDB_ALL_PASSED);
+    assert(runVerifyLMFDBCommand(2, 0, 1.5, 3, 2, 6) == VERIFY_LMFDB_SOME_FAILED);
+    assert(runVerifyLMFDBCommand(1, 0, 1.5, 3, 2, 3) == VERIFY_LMFDB_SOME_FAILED);
+}
