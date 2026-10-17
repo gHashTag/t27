@@ -1,0 +1,739 @@
+module port::trios::crates::trios_rainbow_bridge::src::bridge;
+
+// Port of gHashTag/trios crates/trios-rainbow-bridge/src/bridge.rs
+// (8b229e9489ee, 252 lines, 5 public functions) to .t27.
+//
+// The decision this file carries is the seven-branch legality predicate
+// (INV-8) inside Bridge::accept, in the original's order: channel/payload
+// mismatch, Lamport monotonicity per agent, duplicate claim, heartbeat
+// staleness, unsigned honey, split-brain State commits, funnel latency
+// budget. Every branch keeps real code here.
+//
+// Everything that touches the world is plumbing the caller drives:
+// - FunnelClient::publish(&ev) -> latency_ms is a network call; the measured
+//   latency arrives as the funnel_latency_ms parameter of Bridge_accept.
+// - HoneySigner::verify(key, line, sig) is crypto; the caller runs it and
+//   passes the answer as the event's sig_ok field. is_signed stands in for
+//   the original's ev.is_signed().
+// - MerkleChain::append updates the hash chain; the port tracks how many
+//   events were appended (merkle_len) because the hash primitive itself is
+//   not portable. Bridge_merkle_root_hex keeps its name with an undefined
+//   body that no test calls: the hex root is data moving out through the
+//   missing primitive, not a decision.
+//
+// Mapping notes (constructs .t27 cannot express were not faked):
+// - HashMaps lane -> claim / lane -> heartbeat / lamport -> first committer /
+//   agent -> key become fixed-capacity parallel arrays with a len slot
+//   (MAX_SLOTS = 8). Inserts beyond capacity are dropped; the original maps
+//   are unbounded and every test stays inside capacity.
+// - The original's lanes are Strings used only as map keys; a lane is a u64
+//   key here, which preserves every comparison in the predicate.
+// - BridgeError is an enum with payloads; .t27 enum variants carry none, so
+//   the verdict is a struct: the error kind plus one named slot per variant
+//   payload.
+// - The payload dispatch inside accept is an else-if chain on the kind enum:
+//   .t27 statement switches stay single-expression (sibling ports do the
+//   same), while the channel_of_payload mapping stays a switch expression.
+// - SubscriberId and VerifyingKey are opaque in the predicate (compared for
+//   equality, registered and looked up), so they are u64 handles here.
+// - Bridge_new(funnel: F) keeps the funnel as an opaque handle: the caller
+//   owns the client, and only its measured latency reaches the predicate.
+// - accept(&mut self) -> Result<(), BridgeError> mutates in place; here the
+//   updated bridge and the verdict come back as one AcceptResult value.
+// - HEARTBEAT_MAX_S and LATENCY_P95_MS live in the crate root and their
+//   values are not quoted in the porting order, so this file fixes the
+//   thresholds (30 s, 250 ms). Every decision only compares against them.
+
+const HEARTBEAT_MAX_S: u64 = 30;
+const LATENCY_P95_MS: u64 = 250;
+const MAX_SLOTS: usize = 8;
+
+// ---------------------------------------------------------------------------
+// The event vocabulary
+// ---------------------------------------------------------------------------
+
+// crate::channel::Channel, and the kind tag of crate::payload::Payload.
+pub enum Channel {
+    Claim,
+    Heartbeat,
+    Honey,
+    State,
+    Done,
+    Violation,
+    Victory
+}
+
+pub enum PayloadKind {
+    Claim,
+    Heartbeat,
+    Honey,
+    State,
+    Done,
+    Violation,
+    Victory
+}
+
+// Payload::Claim { lane }, Payload::Heartbeat { lane }, Payload::Honey {
+// line }, Payload::State { .. }: one tag plus the two fields the predicate
+// reads. `line` only ever feeds the signer, so the port carries it and never
+// reads it.
+pub struct Payload {
+    kind: PayloadKind,
+    lane: u64,
+    line: str
+}
+
+pub struct RainbowEvent {
+    agent: u64,
+    lamport: u64,
+    channel: Channel,
+    payload: Payload,
+    is_signed: bool,
+    sig_ok: bool
+}
+
+// channel_of_payload: the channel the payload kind implies (crate::channel).
+pub fn channel_of_payload(kind: PayloadKind) -> Channel {
+    const ch = switch (kind) {
+        .Claim => Channel.Claim,
+        .Heartbeat => Channel.Heartbeat,
+        .Honey => Channel.Honey,
+        .State => Channel.State,
+        .Done => Channel.Done,
+        .Violation => Channel.Violation,
+        .Victory => Channel.Victory
+    };
+    return ch;
+}
+
+// ---------------------------------------------------------------------------
+// The Lamport clock
+// ---------------------------------------------------------------------------
+
+pub struct LamportClock {
+    agent: [MAX_SLOTS]u64,
+    value: [MAX_SLOTS]u64,
+    len: usize
+}
+
+// last_seen(&agent) -> Option<u64>, as struct { found, value }.
+pub struct LastSeen {
+    found: bool,
+    value: u64
+}
+
+pub fn LamportClock_new() -> LamportClock {
+    var c: LamportClock = undefined;
+    c.agent = [_]u64{0} ** MAX_SLOTS;
+    c.value = [_]u64{0} ** MAX_SLOTS;
+    c.len = 0;
+    return c;
+}
+
+pub fn LamportClock_last_seen(c: LamportClock, agent: u64) -> LastSeen {
+    var i: usize = 0;
+    while (i < c.len) {
+        if (c.agent[i] == agent) {
+            return LastSeen { .found = true, .value = c.value[i] };
+        }
+        i += 1;
+    }
+    return LastSeen { .found = false, .value = 0 };
+}
+
+// advance(agent, lamport): the clock only moves forward for an agent, because
+// accept rejects a regression before advancing. Insert semantics: overwrite
+// when the agent is present, append when new, drop at capacity.
+pub fn LamportClock_advance(c: LamportClock, agent: u64, lamport: u64) -> LamportClock {
+    var out: LamportClock = c;
+    var i: usize = 0;
+    while (i < out.len) {
+        if (out.agent[i] == agent) {
+            out.value[i] = lamport;
+            return out;
+        }
+        i += 1;
+    }
+    if (out.len < MAX_SLOTS) {
+        out.agent[out.len] = agent;
+        out.value[out.len] = lamport;
+        out.len += 1;
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// The verdict: BridgeError as data
+// ---------------------------------------------------------------------------
+
+pub enum BridgeErr {
+    NoError,
+    ChannelMismatch,
+    LamportRegression,
+    DuplicateClaim,
+    HeartbeatStale,
+    UnsignedHoney,
+    SplitBrainDetected,
+    FunnelUnreachable
+}
+
+pub struct BridgeVerdict {
+    ok: bool,
+    err: BridgeErr,
+    // ChannelMismatch { declared, expected }.
+    declared: Channel,
+    expected: Channel,
+    // LamportRegression { agent, new, prev } and UnsignedHoney { agent }.
+    agent: u64,
+    new_lamport: u64,
+    prev: u64,
+    // DuplicateClaim { lane, agent_a, agent_b, lamport } and
+    // SplitBrainDetected { lamport, agent_a, agent_b }.
+    lane: u64,
+    agent_a: u64,
+    agent_b: u64,
+    lamport: u64,
+    // HeartbeatStale { lane, age_s, max_s }.
+    age_s: u64,
+    max_s: u64,
+    // FunnelUnreachable { latency_ms, budget_ms }.
+    latency_ms: u64,
+    budget_ms: u64
+}
+
+fn Bridge_verdict_ok() -> BridgeVerdict {
+    return BridgeVerdict { .ok = true, .err = BridgeErr.NoError, .declared = Channel.Done, .expected = Channel.Done, .agent = 0, .new_lamport = 0, .prev = 0, .lane = 0, .agent_a = 0, .agent_b = 0, .lamport = 0, .age_s = 0, .max_s = 0, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_mismatch(declared: Channel, expected: Channel) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.ChannelMismatch, .declared = declared, .expected = expected, .agent = 0, .new_lamport = 0, .prev = 0, .lane = 0, .agent_a = 0, .agent_b = 0, .lamport = 0, .age_s = 0, .max_s = 0, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_regression(agent: u64, new_lamport: u64, prev: u64) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.LamportRegression, .declared = Channel.Done, .expected = Channel.Done, .agent = agent, .new_lamport = new_lamport, .prev = prev, .lane = 0, .agent_a = 0, .agent_b = 0, .lamport = 0, .age_s = 0, .max_s = 0, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_duplicate(lane: u64, agent_a: u64, agent_b: u64, lamport: u64) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.DuplicateClaim, .declared = Channel.Done, .expected = Channel.Done, .agent = 0, .new_lamport = 0, .prev = 0, .lane = lane, .agent_a = agent_a, .agent_b = agent_b, .lamport = lamport, .age_s = 0, .max_s = 0, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_stale(lane: u64, age_s: u64, max_s: u64) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.HeartbeatStale, .declared = Channel.Done, .expected = Channel.Done, .agent = 0, .new_lamport = 0, .prev = 0, .lane = lane, .agent_a = 0, .agent_b = 0, .lamport = 0, .age_s = age_s, .max_s = max_s, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_unsigned(agent: u64) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.UnsignedHoney, .declared = Channel.Done, .expected = Channel.Done, .agent = agent, .new_lamport = 0, .prev = 0, .lane = 0, .agent_a = 0, .agent_b = 0, .lamport = 0, .age_s = 0, .max_s = 0, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_split(lamport: u64, agent_a: u64, agent_b: u64) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.SplitBrainDetected, .declared = Channel.Done, .expected = Channel.Done, .agent = 0, .new_lamport = 0, .prev = 0, .lane = 0, .agent_a = agent_a, .agent_b = agent_b, .lamport = lamport, .age_s = 0, .max_s = 0, .latency_ms = 0, .budget_ms = 0 };
+}
+
+fn Bridge_verdict_funnel(latency_ms: u64, budget_ms: u64) -> BridgeVerdict {
+    return BridgeVerdict { .ok = false, .err = BridgeErr.FunnelUnreachable, .declared = Channel.Done, .expected = Channel.Done, .agent = 0, .new_lamport = 0, .prev = 0, .lane = 0, .agent_a = 0, .agent_b = 0, .lamport = 0, .age_s = 0, .max_s = 0, .latency_ms = latency_ms, .budget_ms = budget_ms };
+}
+
+// ---------------------------------------------------------------------------
+// The bridge: crate::bridge::Bridge with its HashMaps as fixed arrays
+// ---------------------------------------------------------------------------
+
+pub struct Bridge {
+    funnel: u64,
+    clock: LamportClock,
+    claim_lane: [MAX_SLOTS]u64,
+    claim_agent: [MAX_SLOTS]u64,
+    claim_lamport: [MAX_SLOTS]u64,
+    claim_len: usize,
+    hb_lane: [MAX_SLOTS]u64,
+    hb_ts: [MAX_SLOTS]u64,
+    hb_len: usize,
+    commit_lamport: [MAX_SLOTS]u64,
+    commit_agent: [MAX_SLOTS]u64,
+    commit_len: usize,
+    key_agent: [MAX_SLOTS]u64,
+    key_val: [MAX_SLOTS]u64,
+    key_len: usize,
+    merkle_len: usize
+}
+
+pub struct ClaimLookup {
+    found: bool,
+    agent: u64,
+    lamport: u64
+}
+
+pub struct HbLookup {
+    found: bool,
+    index: usize,
+    ts: u64
+}
+
+pub struct CommitLookup {
+    found: bool,
+    agent: u64
+}
+
+pub struct KeyLookup {
+    found: bool,
+    key: u64
+}
+
+// accept() returns the updated bridge plus the verdict; the original mutates
+// self in place and returns Result<(), BridgeError>.
+pub struct AcceptResult {
+    bridge: Bridge,
+    verdict: BridgeVerdict
+}
+
+// Bridge::new (bridge.rs line 121): every layer empty.
+pub fn Bridge_new(funnel: u64) -> Bridge {
+    var b: Bridge = undefined;
+    b.funnel = funnel;
+    b.clock = LamportClock_new();
+    b.claim_lane = [_]u64{0} ** MAX_SLOTS;
+    b.claim_agent = [_]u64{0} ** MAX_SLOTS;
+    b.claim_lamport = [_]u64{0} ** MAX_SLOTS;
+    b.claim_len = 0;
+    b.hb_lane = [_]u64{0} ** MAX_SLOTS;
+    b.hb_ts = [_]u64{0} ** MAX_SLOTS;
+    b.hb_len = 0;
+    b.commit_lamport = [_]u64{0} ** MAX_SLOTS;
+    b.commit_agent = [_]u64{0} ** MAX_SLOTS;
+    b.commit_len = 0;
+    b.key_agent = [_]u64{0} ** MAX_SLOTS;
+    b.key_val = [_]u64{0} ** MAX_SLOTS;
+    b.key_len = 0;
+    b.merkle_len = 0;
+    return b;
+}
+
+// register_honey_key (line 134): HashMap::insert — the same agent
+// re-registering replaces its key.
+pub fn Bridge_register_honey_key(b: Bridge, agent: u64, key: u64) -> Bridge {
+    var out: Bridge = b;
+    var i: usize = 0;
+    while (i < out.key_len) {
+        if (out.key_agent[i] == agent) {
+            out.key_val[i] = key;
+            return out;
+        }
+        i += 1;
+    }
+    if (out.key_len < MAX_SLOTS) {
+        out.key_agent[out.key_len] = agent;
+        out.key_val[out.key_len] = key;
+        out.key_len += 1;
+    }
+    return out;
+}
+
+// merkle_root_hex (line 139): the operator-facing hex of the current Merkle
+// root. MerkleChain::root_hex hashes the appended events — a crypto primitive
+// this port does not reimplement — so the body stays undefined and no test
+// calls it. The decision-shaped fact it summarizes is merkle_len.
+pub fn Bridge_merkle_root_hex(b: Bridge) -> str {
+    undefined;
+}
+
+// lamport (line 144): the underlying Lamport clock, for inspection.
+pub fn Bridge_lamport(b: Bridge) -> LamportClock {
+    return b.clock;
+}
+
+// u64::saturating_sub.
+fn Bridge_sat_sub(a: u64, b: u64) -> u64 {
+    if (a >= b) {
+        return a - b;
+    }
+    return 0;
+}
+
+fn Bridge_find_claim(b: Bridge, lane: u64) -> ClaimLookup {
+    var i: usize = 0;
+    while (i < b.claim_len) {
+        if (b.claim_lane[i] == lane) {
+            return ClaimLookup { .found = true, .agent = b.claim_agent[i], .lamport = b.claim_lamport[i] };
+        }
+        i += 1;
+    }
+    return ClaimLookup { .found = false, .agent = 0, .lamport = 0 };
+}
+
+fn Bridge_insert_claim(b: Bridge, lane: u64, agent: u64, lamport: u64) -> Bridge {
+    var out: Bridge = b;
+    if (out.claim_len < MAX_SLOTS) {
+        out.claim_lane[out.claim_len] = lane;
+        out.claim_agent[out.claim_len] = agent;
+        out.claim_lamport[out.claim_len] = lamport;
+        out.claim_len += 1;
+    }
+    return out;
+}
+
+fn Bridge_find_hb(b: Bridge, lane: u64) -> HbLookup {
+    var i: usize = 0;
+    while (i < b.hb_len) {
+        if (b.hb_lane[i] == lane) {
+            return HbLookup { .found = true, .index = i, .ts = b.hb_ts[i] };
+        }
+        i += 1;
+    }
+    return HbLookup { .found = false, .index = 0, .ts = 0 };
+}
+
+fn Bridge_upsert_hb(b: Bridge, lane: u64, ts: u64) -> Bridge {
+    var out: Bridge = b;
+    const hb = Bridge_find_hb(out, lane);
+    if (hb.found) {
+        out.hb_ts[hb.index] = ts;
+        return out;
+    }
+    if (out.hb_len < MAX_SLOTS) {
+        out.hb_lane[out.hb_len] = lane;
+        out.hb_ts[out.hb_len] = ts;
+        out.hb_len += 1;
+    }
+    return out;
+}
+
+fn Bridge_find_commit(b: Bridge, lamport: u64) -> CommitLookup {
+    var i: usize = 0;
+    while (i < b.commit_len) {
+        if (b.commit_lamport[i] == lamport) {
+            return CommitLookup { .found = true, .agent = b.commit_agent[i] };
+        }
+        i += 1;
+    }
+    return CommitLookup { .found = false, .agent = 0 };
+}
+
+fn Bridge_insert_commit(b: Bridge, lamport: u64, agent: u64) -> Bridge {
+    var out: Bridge = b;
+    if (out.commit_len < MAX_SLOTS) {
+        out.commit_lamport[out.commit_len] = lamport;
+        out.commit_agent[out.commit_len] = agent;
+        out.commit_len += 1;
+    }
+    return out;
+}
+
+fn Bridge_find_key(b: Bridge, agent: u64) -> KeyLookup {
+    var i: usize = 0;
+    while (i < b.key_len) {
+        if (b.key_agent[i] == agent) {
+            return KeyLookup { .found = true, .key = b.key_val[i] };
+        }
+        i += 1;
+    }
+    return KeyLookup { .found = false, .key = 0 };
+}
+
+// accept (line 150): enforce INV-8 for one event. The funnel's measured
+// publish latency arrives as funnel_latency_ms; everything else is state
+// transitions in the original's branch order.
+pub fn Bridge_accept(b: Bridge, ev: RainbowEvent, now_unix_s: u64, funnel_latency_ms: u64) -> AcceptResult {
+    var out: Bridge = b;
+
+    // (7) Channel <-> payload mismatch — cheapest, structural check first.
+    const expected = channel_of_payload(ev.payload.kind);
+    if (ev.channel != expected) {
+        return AcceptResult { .bridge = out, .verdict = Bridge_verdict_mismatch(ev.channel, expected) };
+    }
+
+    // (3) Lamport monotonicity per agent.
+    const seen = LamportClock_last_seen(out.clock, ev.agent);
+    if (seen.found) {
+        if (ev.lamport <= seen.value) {
+            return AcceptResult { .bridge = out, .verdict = Bridge_verdict_regression(ev.agent, ev.lamport, seen.value) };
+        }
+    }
+
+    if (ev.payload.kind == PayloadKind.Claim) {
+        // (1) duplicate claim.
+        const claim = Bridge_find_claim(out, ev.payload.lane);
+        if (claim.found) {
+            if (claim.agent != ev.agent && claim.lamport == ev.lamport) {
+                return AcceptResult { .bridge = out, .verdict = Bridge_verdict_duplicate(ev.payload.lane, claim.agent, ev.agent, ev.lamport) };
+            }
+        } else {
+            out = Bridge_insert_claim(out, ev.payload.lane, ev.agent, ev.lamport);
+        }
+    } else if (ev.payload.kind == PayloadKind.Heartbeat) {
+        // (2) heartbeat staleness.
+        const hb = Bridge_find_hb(out, ev.payload.lane);
+        if (hb.found) {
+            const age = Bridge_sat_sub(now_unix_s, hb.ts);
+            if (age > HEARTBEAT_MAX_S) {
+                return AcceptResult { .bridge = out, .verdict = Bridge_verdict_stale(ev.payload.lane, age, HEARTBEAT_MAX_S) };
+            }
+        }
+        out = Bridge_upsert_hb(out, ev.payload.lane, now_unix_s);
+    } else if (ev.payload.kind == PayloadKind.Honey) {
+        // (4) unsigned honey.
+        if (!ev.is_signed) {
+            return AcceptResult { .bridge = out, .verdict = Bridge_verdict_unsigned(ev.agent) };
+        }
+        const k = Bridge_find_key(out, ev.agent);
+        if (k.found) {
+            if (!ev.sig_ok) {
+                return AcceptResult { .bridge = out, .verdict = Bridge_verdict_unsigned(ev.agent) };
+            }
+        }
+    } else if (ev.payload.kind == PayloadKind.State) {
+        // (5) split brain on State.
+        const c = Bridge_find_commit(out, ev.lamport);
+        if (c.found) {
+            if (c.agent != ev.agent) {
+                return AcceptResult { .bridge = out, .verdict = Bridge_verdict_split(ev.lamport, c.agent, ev.agent) };
+            }
+        } else {
+            out = Bridge_insert_commit(out, ev.lamport, ev.agent);
+        }
+    }
+    // Done, Violation, Victory: no lane-specific side-condition.
+
+    // All checks passed — advance layers.
+    out.clock = LamportClock_advance(out.clock, ev.agent, ev.lamport);
+    out.merkle_len += 1;
+
+    // (6) funnel reachability — latency budget. As in the original, the
+    // layers have already advanced when the funnel reports back.
+    if (funnel_latency_ms > LATENCY_P95_MS) {
+        return AcceptResult { .bridge = out, .verdict = Bridge_verdict_funnel(funnel_latency_ms, LATENCY_P95_MS) };
+    }
+
+    return AcceptResult { .bridge = out, .verdict = Bridge_verdict_ok() };
+}
+
+// ---------------------------------------------------------------------------
+// Test event builders
+// ---------------------------------------------------------------------------
+
+fn ev_claim(agent: u64, lamport: u64, lane: u64) -> RainbowEvent {
+    var ev: RainbowEvent = undefined;
+    ev.agent = agent;
+    ev.lamport = lamport;
+    ev.channel = Channel.Claim;
+    ev.payload = Payload { .kind = PayloadKind.Claim, .lane = lane, .line = "" };
+    ev.is_signed = true;
+    ev.sig_ok = true;
+    return ev;
+}
+
+fn ev_heartbeat(agent: u64, lamport: u64, lane: u64) -> RainbowEvent {
+    var ev: RainbowEvent = undefined;
+    ev.agent = agent;
+    ev.lamport = lamport;
+    ev.channel = Channel.Heartbeat;
+    ev.payload = Payload { .kind = PayloadKind.Heartbeat, .lane = lane, .line = "" };
+    ev.is_signed = true;
+    ev.sig_ok = true;
+    return ev;
+}
+
+fn ev_honey(agent: u64, lamport: u64, is_signed: bool, sig_ok: bool) -> RainbowEvent {
+    var ev: RainbowEvent = undefined;
+    ev.agent = agent;
+    ev.lamport = lamport;
+    ev.channel = Channel.Honey;
+    ev.payload = Payload { .kind = PayloadKind.Honey, .lane = 0, .line = "honey" };
+    ev.is_signed = is_signed;
+    ev.sig_ok = sig_ok;
+    return ev;
+}
+
+fn ev_state(agent: u64, lamport: u64) -> RainbowEvent {
+    var ev: RainbowEvent = undefined;
+    ev.agent = agent;
+    ev.lamport = lamport;
+    ev.channel = Channel.State;
+    ev.payload = Payload { .kind = PayloadKind.State, .lane = 0, .line = "" };
+    ev.is_signed = true;
+    ev.sig_ok = true;
+    return ev;
+}
+
+fn ev_done(agent: u64, lamport: u64) -> RainbowEvent {
+    var ev: RainbowEvent = undefined;
+    ev.agent = agent;
+    ev.lamport = lamport;
+    ev.channel = Channel.Done;
+    ev.payload = Payload { .kind = PayloadKind.Done, .lane = 0, .line = "" };
+    ev.is_signed = true;
+    ev.sig_ok = true;
+    return ev;
+}
+
+fn ev_violation(agent: u64, lamport: u64) -> RainbowEvent {
+    var ev: RainbowEvent = undefined;
+    ev.agent = agent;
+    ev.lamport = lamport;
+    ev.channel = Channel.Violation;
+    ev.payload = Payload { .kind = PayloadKind.Violation, .lane = 0, .line = "" };
+    ev.is_signed = true;
+    ev.sig_ok = true;
+    return ev;
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+test bridge_new_starts_empty {
+    const b = Bridge_new(0);
+    const seen = LamportClock_last_seen(Bridge_lamport(b), 1);
+    assert(!seen.found);
+    assert(b.claim_len == 0);
+    assert(b.hb_len == 0);
+    assert(b.commit_len == 0);
+    assert(b.key_len == 0);
+    assert(b.merkle_len == 0);
+}
+
+test channel_of_payload_matches_kind {
+    assert(channel_of_payload(PayloadKind.Claim) == Channel.Claim);
+    assert(channel_of_payload(PayloadKind.Heartbeat) == Channel.Heartbeat);
+    assert(channel_of_payload(PayloadKind.Honey) == Channel.Honey);
+    assert(channel_of_payload(PayloadKind.State) == Channel.State);
+    assert(channel_of_payload(PayloadKind.Done) == Channel.Done);
+}
+
+test register_honey_key_upserts {
+    const b0 = Bridge_new(1);
+    const b1 = Bridge_register_honey_key(b0, 7, 100);
+    const b2 = Bridge_register_honey_key(b1, 8, 200);
+    assert(b2.key_len == 2);
+    // HashMap::insert: the same agent re-registering replaces its key.
+    const b3 = Bridge_register_honey_key(b2, 7, 111);
+    assert(b3.key_len == 2);
+    const k7 = Bridge_find_key(b3, 7);
+    assert(k7.found && k7.key == 111);
+}
+
+test accept_rejects_channel_mismatch {
+    // A Heartbeat declared over a Claim payload: branch (7) fires before
+    // anything moves.
+    var ev = ev_claim(1, 5, 10);
+    ev.channel = Channel.Heartbeat;
+    const r = Bridge_accept(Bridge_new(0), ev, 0, 0);
+    assert(!r.verdict.ok);
+    assert(r.verdict.err == BridgeErr.ChannelMismatch);
+    assert(r.verdict.declared == Channel.Heartbeat && r.verdict.expected == Channel.Claim);
+    // The structural check returns first: the clock did not advance.
+    const seen = LamportClock_last_seen(Bridge_lamport(r.bridge), 1);
+    assert(!seen.found);
+}
+
+test accept_rejects_lamport_regression {
+    const b0 = Bridge_new(0);
+    const r1 = Bridge_accept(b0, ev_claim(1, 5, 10), 0, 0);
+    assert(r1.verdict.ok);
+    // Same agent, same lamport: a regression, with new = prev = 5.
+    const r2 = Bridge_accept(r1.bridge, ev_claim(1, 5, 11), 0, 0);
+    assert(r2.verdict.err == BridgeErr.LamportRegression);
+    assert(r2.verdict.new_lamport == 5 && r2.verdict.prev == 5);
+    // Lower still: prev stays the newest observed value.
+    const r3 = Bridge_accept(r1.bridge, ev_claim(1, 2, 12), 0, 0);
+    assert(r3.verdict.err == BridgeErr.LamportRegression);
+    assert(r3.verdict.new_lamport == 2 && r3.verdict.prev == 5);
+    // Another agent starts from its own lamport: no regression.
+    const r4 = Bridge_accept(r1.bridge, ev_claim(2, 1, 20), 0, 0);
+    assert(r4.verdict.ok);
+}
+
+test accept_detects_duplicate_claim {
+    const b0 = Bridge_new(0);
+    const r1 = Bridge_accept(b0, ev_claim(1, 10, 7), 0, 0);
+    assert(r1.verdict.ok);
+    // A second agent claims the same lane from the same base lamport.
+    const r2 = Bridge_accept(r1.bridge, ev_claim(2, 10, 7), 0, 0);
+    assert(r2.verdict.err == BridgeErr.DuplicateClaim);
+    assert(r2.verdict.lane == 7);
+    assert(r2.verdict.agent_a == 1 && r2.verdict.agent_b == 2);
+    assert(r2.verdict.lamport == 10);
+    // A different lane at the same lamport is a fresh claim.
+    const r3 = Bridge_accept(r1.bridge, ev_claim(2, 10, 8), 0, 0);
+    assert(r3.verdict.ok);
+    // The same lane at a later lamport is not a duplicate.
+    const r4 = Bridge_accept(r1.bridge, ev_claim(2, 11, 7), 0, 0);
+    assert(r4.verdict.ok);
+}
+
+test accept_heartbeat_staleness {
+    const b0 = Bridge_new(0);
+    // A first heartbeat on a lane has nothing to compare against.
+    const r1 = Bridge_accept(b0, ev_heartbeat(1, 1, 5), 100, 0);
+    assert(r1.verdict.ok);
+    // 31 s later: older than HEARTBEAT_MAX_S (30).
+    const r2 = Bridge_accept(r1.bridge, ev_heartbeat(1, 2, 5), 131, 0);
+    assert(r2.verdict.err == BridgeErr.HeartbeatStale);
+    assert(r2.verdict.age_s == 31 && r2.verdict.max_s == HEARTBEAT_MAX_S);
+    // Exactly 30 s is not stale: the predicate is age > max.
+    const r3 = Bridge_accept(r1.bridge, ev_heartbeat(1, 2, 5), 130, 0);
+    assert(r3.verdict.ok);
+    // saturating_sub: a heartbeat older than now gives age 0, not a wrapped
+    // u64.
+    const r4 = Bridge_accept(r1.bridge, ev_heartbeat(1, 3, 5), 90, 0);
+    assert(r4.verdict.ok);
+}
+
+test accept_honey_signature_rules {
+    const b0 = Bridge_new(0);
+    // Unsigned honey: rejected before any key lookup.
+    const r1 = Bridge_accept(b0, ev_honey(1, 1, false, true), 0, 0);
+    assert(r1.verdict.err == BridgeErr.UnsignedHoney);
+    assert(r1.verdict.agent == 1);
+    // Signed, key registered, bad signature: rejected.
+    const b1 = Bridge_register_honey_key(b0, 1, 42);
+    const r2 = Bridge_accept(b1, ev_honey(1, 1, true, false), 0, 0);
+    assert(r2.verdict.err == BridgeErr.UnsignedHoney);
+    // Signed, key registered, good signature: accepted.
+    const r3 = Bridge_accept(b1, ev_honey(1, 1, true, true), 0, 0);
+    assert(r3.verdict.ok);
+    // Signed with no key registered: the original verifies only when a key is
+    // present, so this passes too.
+    const r4 = Bridge_accept(b0, ev_honey(2, 1, true, true), 0, 0);
+    assert(r4.verdict.ok);
+}
+
+test accept_detects_split_brain {
+    const b0 = Bridge_new(0);
+    const r1 = Bridge_accept(b0, ev_state(1, 20), 0, 0);
+    assert(r1.verdict.ok);
+    // A different agent committing state from the same base lamport.
+    const r2 = Bridge_accept(r1.bridge, ev_state(2, 20), 0, 0);
+    assert(r2.verdict.err == BridgeErr.SplitBrainDetected);
+    assert(r2.verdict.lamport == 20);
+    assert(r2.verdict.agent_a == 1 && r2.verdict.agent_b == 2);
+    // The same agent committing again at a newer lamport is fine.
+    const r3 = Bridge_accept(r1.bridge, ev_state(1, 21), 0, 0);
+    assert(r3.verdict.ok);
+}
+
+test accept_reports_funnel_latency {
+    const b0 = Bridge_new(0);
+    // One millisecond past the budget: branch (6) reports unreachable.
+    const r1 = Bridge_accept(b0, ev_claim(1, 5, 10), 0, LATENCY_P95_MS + 1);
+    assert(r1.verdict.err == BridgeErr.FunnelUnreachable);
+    assert(r1.verdict.latency_ms == LATENCY_P95_MS + 1 && r1.verdict.budget_ms == LATENCY_P95_MS);
+    // The event was already committed to the layers: the clock advanced and
+    // the merkle chain grew before the funnel reported back.
+    const seen = LamportClock_last_seen(Bridge_lamport(r1.bridge), 1);
+    assert(seen.found && seen.value == 5);
+    assert(r1.bridge.merkle_len == 1);
+    // Inside the budget: ok.
+    const r2 = Bridge_accept(b0, ev_claim(1, 5, 10), 0, LATENCY_P95_MS);
+    assert(r2.verdict.ok);
+}
+
+test accept_plain_channels_pass {
+    const b0 = Bridge_new(0);
+    const r1 = Bridge_accept(b0, ev_done(1, 3), 0, 0);
+    assert(r1.verdict.ok);
+    const r2 = Bridge_accept(r1.bridge, ev_violation(2, 4), 0, 0);
+    assert(r2.verdict.ok);
+    // The layers still advanced.
+    const seen = LamportClock_last_seen(Bridge_lamport(r2.bridge), 2);
+    assert(seen.found && seen.value == 4);
+    assert(r2.bridge.merkle_len == 2);
+}
