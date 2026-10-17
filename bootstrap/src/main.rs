@@ -1293,6 +1293,9 @@ enum Commands {
         /// Input file path
         input: String,
     },
+    /// Print the IGLA board event a .t27 spec states, as one JSON object
+    #[command(name = "gen-json")]
+    GenJson { input: String },
 
     /// Compute deterministic test_vector_hash from conformance JSON
     Conformance {
@@ -5635,6 +5638,31 @@ fn run_gen_python(input_path: &str) -> anyhow::Result<()> {
         }
         Err(e) => anyhow::bail!("{}", e),
     }
+}
+
+/// `gen-json` (#10050): the IGLA board event a spec states, as one JSON object. Every value comes
+/// through the gen-js layer, which spells it as JSON does; this only arranges them, cells zipped.
+fn run_gen_json(input_path: &str) -> anyhow::Result<()> {
+    let (ast, _) = ast_for_codegen(input_path)?;
+    let scope = codegen_js::Bound::in_spec(&ast);
+    let v = |name: &str| -> anyhow::Result<String> {
+        let found = ast.children.iter().find(|n| n.kind == compiler::NodeKind::ConstDecl && n.name == name);
+        let node = found.ok_or_else(|| anyhow::anyhow!("gen-json: the spec declares no const {name}"))?;
+        codegen_js::const_value(&codegen_js::JS, node, &scope).map_err(anyhow::Error::msg)
+    };
+    let items = |name: &str| -> anyhow::Result<Vec<String>> {
+        let s = v(name)?;
+        Ok(s.trim_matches(|c| c == '[' || c == ']').split(", ").map(String::from).collect())
+    };
+    let (status, pct) = (items("CELL_STATUS")?, items("CELL_PCT")?);
+    anyhow::ensure!(status.len() == pct.len(), "gen-json: {} statuses, {} percents", status.len(), pct.len());
+    let (ks, kp) = (v("KEY_STATUS")?, v("KEY_PCT")?);
+    let cells: Vec<_> = status.iter().zip(&pct).map(|(s, p)| format!("{{{ks}:{s},{kp}:{p}}}")).collect();
+    let lens = items("LENS_PCT")?.join(",");
+    let metrics = format!("{{{}:[{lens}],{}:[{}]}}", v("KEY_LENS")?, v("KEY_CELLS")?, cells.join(","));
+    let (job, stage, msg, progress) = (v("JOB")?, v("STAGE")?, v("MSG")?, v("PROGRESS")?);
+    println!("{{\"job\":{job},\"stage\":{stage},\"msg\":{msg},\"progress\":{progress},\"metrics\":{metrics}}}");
+    Ok(())
 }
 
 fn sha256_hex(data: &[u8]) -> String {
@@ -11968,6 +11996,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenJs { input } => run_gen_js(&input)?,
         Commands::GenTs { input } => run_gen_ts(&input)?,
         Commands::GenPython { input } => run_gen_python(&input)?,
+        Commands::GenJson { input } => run_gen_json(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
@@ -12405,6 +12434,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenJs { input } => run_gen_js(&input)?,
         Commands::GenTs { input } => run_gen_ts(&input)?,
         Commands::GenPython { input } => run_gen_python(&input)?,
+        Commands::GenJson { input } => run_gen_json(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
