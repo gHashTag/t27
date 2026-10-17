@@ -55,31 +55,96 @@ module PackedVsa {
     // Bind two packed vectors using lookup table
     // Element-wise multiplication: bind = a * b
     // Complexity: O(n/5) where n = max trit length
-    pub fn packedBind(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt { }
+    pub fn packedBind(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt {
+    if a.data.len != b.data.len {
+        // For simplicity, we assume equal length; otherwise return zero vector.
+        return PackedBigInt{ data: &[], sign: 0, magnitude: 0 };
+    }
+    const len = a.data.len;
+    const result_data = std.heap.page_allocator.alloc(u8, len) orelse {
+        return PackedBigInt{ data: &[], sign: 0, magnitude: 0 };
+    };
+    for i in 0..len {
+        const byte_a = a.data[i];
+        const byte_b = b.data[i];
+        const index = byte_a * LUT_DIM + byte_b;
+        result_data[i] = BindLookupTable[index];
+    }
+    return PackedBigInt{
+        data: result_data[0..len],
+        sign: 0,
+        magnitude: a.magnitude,
+    };
+}
 
     // packedBundle(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt
     // Bundle two packed vectors using lookup table
     // Element-wise sum with threshold normalization
     // Complexity: O(n/5) where n = max trit length
-    pub fn packedBundle(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt { }
+    pub fn packedBundle(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt {
+    if a.data.len != b.data.len {
+        return PackedBigInt{ data: &[], sign: 0, magnitude: 0 };
+    }
+    const len = a.data.len;
+    const result_data = std.heap.page_allocator.alloc(u8, len) orelse {
+        return PackedBigInt{ data: &[], sign: 0, magnitude: 0 };
+    };
+    for i in 0..len {
+        const byte_a = a.data[i];
+        const byte_b = b.data[i];
+        const index = byte_a * LUT_DIM + byte_b;
+        result_data[i] = BundleLookupTable[index];
+    }
+    return PackedBigInt{
+        data: result_data[0..len],
+        sign: 0,
+        magnitude: a.magnitude,
+    };
+}
 
     // packedDot(a: &PackedBigInt, b: &PackedBigInt) -> i64
     // Dot product using lookup table
     // Returns sum of element-wise products
     // Complexity: O(n/5) where n = min trit length
-    pub fn packedDot(a: &PackedBigInt, b: &PackedBigInt) -> i64 { }
+    pub fn packedDot(a: &PackedBigInt, b: &PackedBigInt) -> i64 {
+    const len_a = a.data.len;
+    const len_b = b.data.len;
+    const len = if len_a < len_b len_a else len_b;
+    var total: i64 = 0;
+    for i in 0..len {
+        const byte_a = a.data[i];
+        const byte_b = b.data[i];
+        const index = byte_a * LUT_DIM + byte_b;
+        const chunk_sum = @intCast(i64, DotLookupTable[index]) - 5;
+        total += chunk_sum;
+    }
+    return total;
+}
 
     // packedUnbind(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt
     // Unbind operation using bind (since b^2 = 1 for trits)
     // Unbind: packedBind(a, b) where b ∈ {-1, 1}
     // Complexity: O(n/5) where n = trit length
-    pub fn packedUnbind(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt { }
+    pub fn packedUnbind(a: &PackedBigInt, b: &PackedBigInt) -> PackedBigInt {
+    return packedBind(a, b);
+}
 
     // packedCosineSimilarity(a: &PackedBigInt, b: &PackedBigInt) -> f64
     // Cosine similarity using dot product and magnitudes
     // Returns normalized similarity in [-1, 1]
     // Complexity: O(n/5) for dot products + O(1) for sqrt
-    pub fn packedCosineSimilarity(a: &PackedBigInt, b: &PackedBigInt) -> f64 { }
+    pub fn packedCosineSimilarity(a: &PackedBigInt, b: &PackedBigInt) -> f64 {
+    let dot_ab = packedDot(a, b);
+    let mag2_a = packedDot(a, a);
+    let mag2_b = packedDot(b, b);
+    if mag2_a == 0 || mag2_b == 0 {
+        return 0.0;
+    }
+    let mag_a = @sqrt(@intCast(f64, mag2_a));
+    let mag_b = @sqrt(@intCast(f64, mag2_b));
+    let dot_f = @intCast(f64, dot_ab);
+    return dot_f / (mag_a * mag_b);
+}
 
     // ========================================================================
     // 4. Conversion Functions
