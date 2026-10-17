@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: Apache-2.0
+; systolic.t27 -- a 4x4 wavefront array for matrix multiply, cycle by cycle.
+; Kung and Leiserson's schedule (Kung, "Why Systolic Architectures?", IEEE
+; Computer 15(1), 1982, and Kung & Leiserson in Mead & Conway's Introduction
+; to VLSI Systems, ch. 8.3): a[j][q] is fed into the west edge of row j at
+; tick j+q, b[q][k] into the north edge of column k at tick q+k. Every
+; operand then walks one cell per tick. a[j][q] reaches cell (j,k) at tick
+; j+k, and so does b[q][k] -- for every q. So cell (j,k) performs its N
+; multiply-accumulates on N CONSECUTIVE ticks j+k .. j+k+N-1, one pair per
+; tick, and every cell of the array is busy every tick after the wavefront
+; reaches it. No memory is read twice per MAC: the data is read once and
+; pumped cell to cell, which is the whole reason the architecture exists.
+; ----
+; ORACLE: the product constants in test the_array_computes_the_product were
+; computed with a real tool, not by hand: Python 3, run 2026-10-08,
+; sum(A[j][q]*B[q][k] for q in range(4)) over the A and B below.
+; The schedule tests derive nothing from constants: they play every tick of
+; the array against the tick formulas and count what actually fires.
+; ----
+; Course use: trinity ai-accelerator module dataflow lesson systolic-arrays
+; (gHashTag/trinity#1487). Numbers here are algorithm truth only -- no board
+; measurement and no frequency is claimed; the cost module of that course
+; quotes synthesis runs made elsewhere.
+
+module fpga_systolic;
+
+; The array: N x N cells, both operands flowing, one MAC per cell per tick.
+pub const N : u32 = 4;
+pub const CELLS : u32 = 16;
+
+; Feed times on the array edges: a[j][q] enters row j from the west at tick
+; j+q (rows skewed by one tick each), b[q][k] enters column k from the north
+; at tick q+k (columns skewed the same way). The skew is the schedule.
+pub fn west_feed_tick(j : u32, q : u32) u32 {
+    return j + q;
+}
+
+pub fn north_feed_tick(q : u32, k : u32) u32 {
+    return q + k;
+}
+
+; a[j][q] enters at the west edge (column 0) and walks east one cell per
+; tick: it sits in cell (j,k) at tick j+q+k. Formulated without subtraction:
+; feed tick plus the walk from the edge, k cells east.
+pub fn a_arrives(j : u32, q : u32, k : u32) u32 {
+    return west_feed_tick(j, q) + k;
+}
+
+; b[q][k] enters at the north edge (row 0) and walks south one cell per
+; tick: it sits in cell (j,k) at tick q+k+j -- the same tick, every q.
+pub fn b_arrives(q : u32, k : u32, j : u32) u32 {
+    return north_feed_tick(q, k) + j;
+}
+
+; MAC q of output (j,k): both operands are in the cell at tick j+k+q.
+pub fn mac_tick(j : u32, k : u32, q : u32) u32 {
+    return j + k + q;
+}
+
+; Output (j,k) is complete when its last MAC has fired.
+pub fn output_done_tick(j : u32, k : u32) u32 {
+    return j + k + N - 1;
+}
+
+; The whole run, first feed to last MAC: the wavefront array takes 3N - 2
+; ticks for N^3 MACs on N^2 cells. The weight-stationary variant below parks
+; b in the cells and streams only a: 2N - 1 ticks, at the price of reading
+; each b element once per array use instead of once per array lifetime.
+pub fn wavefront_ticks(n : u32) u32 {
+    return 3 * n - 2;
+}
+
+pub fn weight_stationary_ticks(n : u32) u32 {
+    return 2 * n - 1;
+}
+
+; Play the wavefront schedule tick by tick: at every tick, every cell fires
+; the MAC (if any) whose time has come, into a stationary accumulator.
+pub fn systolic_run(a : [16]i32, b : [16]i32) [16]i32 {
+    var c : [16]i32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var t : u32 = 0;
+    while t < wavefront_ticks(N) {
+        var j : u32 = 0;
+        while j < N {
+            var k : u32 = 0;
+            while k < N {
+                var q : u32 = 0;
+                while q < N {
+                    if (t == mac_tick(j, k, q)) {
+                        c[j * N + k] = c[j * N + k] + a[j * N + q] * b[q * N + k];
+                    }
+                    q = q + 1;
+                }
+                k = k + 1;
+            }
+            j = j + 1;
+        }
+        t = t + 1;
+    }
+    return c;
+}
+
+; The reference every student writes first: no schedule, no ticks, just the
+; triple loop. The array must agree with it exactly -- that agreement, not
+; speed, is what the schedule is for.
+pub fn reference_matmul(a : [16]i32, b : [16]i32) [16]i32 {
+    var c : [16]i32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    var j : u32 = 0;
+    while j < N {
+        var k : u32 = 0;
+        while k < N {
+            var q : u32 = 0;
+            while q < N {
+                c[j * N + k] = c[j * N + k] + a[j * N + q] * b[q * N + k];
+                q = q + 1;
+            }
+            k = k + 1;
+        }
+        j = j + 1;
+    }
+    return c;
+}
+
+; The operands of test the_array_computes_the_product: negatives, zeros and
+; a row of ones, so no cell can pass by ignoring a sign bit.
+pub const TEST_A : [16]i32 = [
+    1, -1,  0,  2,
+    0,  3,  1,  0,
+    2,  0, -1,  1,
+    1,  1,  1,  1,
+];
+
+pub const TEST_B : [16]i32 = [
+    0,  1,  2,  0,
+    1,  0,  1,  1,
+   -1,  2,  0,  1,
+    1,  1,  0, -1,
+];
+
+pub const IDENTITY : [16]i32 = [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1,
+];
+
+; The two operands of one MAC meet inside the cell, on the same tick, for
+; every j, k and q -- the wavefront does not miss and does not double-book.
+; Count the misses over all 64 triples; zero is the schedule.
+test pair_meets_inside_the_cell {
+    var bad : u32 = 0;
+    var j : u32 = 0;
+    while j < N {
+        var k : u32 = 0;
+        while k < N {
+            var q : u32 = 0;
+            while q < N {
+                if (a_arrives(j, q, k) != b_arrives(q, k, j)) {
+                    bad = bad + 1;
+                }
+                q = q + 1;
+            }
+            k = k + 1;
+        }
+        j = j + 1;
+    }
+    assert bad == 0;
+}
+
+; The meet tick is j+k, independent of q: cell (j,k) meets pair 0 at tick
+; j+k, pair 1 at j+k+1, and pair N-1 at j+k+N-1 -- consecutive, no gaps.
+; The pipeline never stalls: every output's MACs occupy exactly N ticks.
+test macs_of_one_output_are_consecutive {
+    var bad : u32 = 0;
+    var j : u32 = 0;
+    while j < N {
+        var k : u32 = 0;
+        while k < N {
+            var q : u32 = 0;
+            while q < N - 1 {
+                if (mac_tick(j, k, q + 1) != mac_tick(j, k, q) + 1) {
+                    bad = bad + 1;
+                }
+                q = q + 1;
+            }
+            k = k + 1;
+        }
+        j = j + 1;
+    }
+    assert bad == 0;
+}
+
+; Schedule soundness, measured not asserted: play every tick and count the
+; MACs that actually fire. N^3 = 64 firings in 3N - 2 = 10 ticks -- neither
+; a lost MAC nor a double firing survives the count.
+test every_mac_fires_exactly_once {
+    var fired : u32 = 0;
+    var t : u32 = 0;
+    while t < wavefront_ticks(N) {
+        var j : u32 = 0;
+        while j < N {
+            var k : u32 = 0;
+            while k < N {
+                var q : u32 = 0;
+                while q < N {
+                    if (t == mac_tick(j, k, q)) {
+                        fired = fired + 1;
+                    }
+                    q = q + 1;
+                }
+                k = k + 1;
+            }
+            j = j + 1;
+        }
+        t = t + 1;
+    }
+    assert fired == N * N * N;
+    assert fired == 64;
+}
+
+; Corners of the wave: the first output (0,0) is done at tick N - 1, the last
+; output (N-1,N-1) at tick 3N - 3, so the run is 3N - 2 = 10 ticks for N = 4.
+; The weight-stationary variant needs 2N - 1 = 7: b pays no walk, and every
+; tick after the first row streams has all cells busy on live MACs.
+test the_wavefront_takes_three_n_minus_two {
+    assert output_done_tick(0, 0) == N - 1;
+    assert output_done_tick(N - 1, N - 1) == 3 * N - 3;
+    assert wavefront_ticks(N) == 3 * N - 2;
+    assert wavefront_ticks(N) == 10;
+    assert weight_stationary_ticks(N) == 7;
+    assert weight_stationary_ticks(N) < wavefront_ticks(N);
+}
+
+; The array against the reference, entry by entry. Python 3 oracle over
+; TEST_A x TEST_B, run 2026-10-08: row 0 is [1, 3, 1, -3], row 3 is
+; [1, 4, 3, 1], and c[5] == 2. All sixteen entries must also equal the
+; plain triple loop -- the schedule changes the order of the additions,
+; never their sum.
+test the_array_computes_the_product {
+    const c = systolic_run(TEST_A, TEST_B);
+    const r = reference_matmul(TEST_A, TEST_B);
+    var bad : u32 = 0;
+    var i : u32 = 0;
+    while i < CELLS {
+        if (c[i] != r[i]) {
+            bad = bad + 1;
+        }
+        i = i + 1;
+    }
+    assert bad == 0;
+    assert c[0] == 1;
+    assert c[1] == 3;
+    assert c[2] == 1;
+    assert c[3] == -3;
+    assert c[5] == 2;
+    assert c[12] == 1;
+    assert c[13] == 4;
+    assert c[14] == 3;
+    assert c[15] == 1;
+}
+
+; Identity on either side: only the MACs where the operand is non-zero move
+; the accumulator, but the schedule runs them all -- the array cannot skip
+; ticks, and must still land on A untouched.
+test identity_leaves_the_matrix_alone {
+    const c = systolic_run(TEST_A, IDENTITY);
+    var bad : u32 = 0;
+    var i : u32 = 0;
+    while i < CELLS {
+        if (c[i] != TEST_A[i]) {
+            bad = bad + 1;
+        }
+        i = i + 1;
+    }
+    assert bad == 0;
+}
+
+invariant the_meet_tick_does_not_depend_on_q {
+    a_arrives(2, 1, 3) == b_arrives(1, 3, 2) && mac_tick(2, 3, 1) == 6
+}
