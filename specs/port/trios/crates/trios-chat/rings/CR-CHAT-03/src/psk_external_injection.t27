@@ -1,0 +1,385 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-03::src::psk_external_injection;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-03/src/psk_external_injection.rs
+// (CR-CHAT-03 - MLS PSK external/resumption injection
+// defense, Wave-26 Lane A, L-CHAT-3-psk, RFC 9420
+// 5.3/12.4.4).
+//
+// A smuggled Pre-Shared Key reference must never reach the
+// key schedule: an External PSK the group never
+// provisioned, a Resumption PSK spliced from another
+// group or forward-referencing an epoch not yet accepted
+// (a state-rollback primitive), a nonce of the wrong
+// length, or a replay of a quad the ledger already
+// consumed. The rules, in the original's fixed order: the
+// canonical nonce length (thirty-two), the External
+// identifier provisioned, the Resumption group equal to
+// the local one, the Resumption epoch strictly earlier
+// than the current one, and the (identifier, group, epoch,
+// nonce) quad fresh.
+//
+// The original returns Result<(), PskInjectionError>. This
+// port carries the verdict as a named struct (owner
+// decision D5): Ok first, then the five variants in the
+// original's declaration order - NonCanonicalNonceLength,
+// UnprovisionedExternalId, ResumptionGroupSplice,
+// ResumptionEpochRollback, NonceReplay. Every original
+// variant carries no payload, so the code is the whole
+// verdict.
+//
+// The original's reference and view structs become flat
+// parameters, the byte vectors arriving as plain slices.
+// The provisioned-identifier set becomes a slice of
+// records holding the identifier with its length, the
+// consumed-quad ledger a slice of records holding the
+// identifier, the group identifier (possibly empty - the
+// external form carries none), the epoch and the canonical
+// nonce - both original BTreeSet contains answered by
+// scans.
+
+// Canonical length of a PSK nonce (32 bytes).
+pub const PSK_NONCE_LEN: usize = 32;
+
+// The PSK kind - the original's PskType in declaration
+// order.
+pub enum PskKind {
+    External,
+    Resumption,
+}
+
+// A provisioned External PSK identifier.
+pub struct ProvisionedId {
+    id: [32]u8,
+    id_len: usize,
+}
+
+// A consumed (identifier, group, epoch, nonce) quad.
+pub struct UsedNonce {
+    id: [32]u8,
+    id_len: usize,
+    gid: [32]u8,
+    gid_len: usize,
+    epoch: u64,
+    nonce: [32]u8,
+}
+
+// Verdict codes: Ok(()) and PskInjectionError's variants, in declaration order.
+pub enum PskInjCode {
+    Ok,
+    NonCanonicalNonceLength,
+    UnprovisionedExternalId,
+    ResumptionGroupSplice,
+    ResumptionEpochRollback,
+    NonceReplay,
+}
+
+// The verdict of the PSK reference validation - the
+// original's variants carry no payload, so the code alone
+// carries it.
+pub struct PskInjVerdict {
+    code: PskInjCode,
+}
+
+// Content equality over two byte slices - the original's
+// Vec equality on the group identifiers.
+pub fn bytes_equal(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    for i in 0..a.len {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether the External identifier was provisioned - the
+// original's BTreeSet contains, answered by a scan.
+pub fn id_provisioned(provisioned: []const ProvisionedId, psk_id: []const u8) -> bool {
+    for i in 0..provisioned.len {
+        if (provisioned[i].id_len == psk_id.len) {
+            var same: bool = true;
+            for j in 0..psk_id.len {
+                if (provisioned[i].id[j] != psk_id[j]) {
+                    same = false;
+                }
+            }
+            if (same) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Whether this (identifier, group, epoch, nonce) quad was
+// already consumed - the original's BTreeSet contains
+// over the replay ledger, the nonce compared behind the
+// canonical length rule one already guaranteed.
+pub fn nonce_quad_used(used: []const UsedNonce, psk_id: []const u8, psk_group_id: []const u8, psk_epoch: u64, psk_nonce: []const u8) -> bool {
+    if (psk_nonce.len != 32) {
+        return false;
+    }
+    for i in 0..used.len {
+        if (used[i].id_len == psk_id.len) {
+            if (used[i].gid_len == psk_group_id.len) {
+                if (used[i].epoch == psk_epoch) {
+                    var same: bool = true;
+                    for j in 0..psk_id.len {
+                        if (used[i].id[j] != psk_id[j]) {
+                            same = false;
+                        }
+                    }
+                    for j in 0..psk_group_id.len {
+                        if (used[i].gid[j] != psk_group_id[j]) {
+                            same = false;
+                        }
+                    }
+                    for j in 0..32 {
+                        if (used[i].nonce[j] != psk_nonce[j]) {
+                            same = false;
+                        }
+                    }
+                    if (same) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate a PSK reference against the
+// receiving group's view. Returns Ok only when every rule
+// holds, checked in the original's fixed order: the
+// canonical nonce length, the provisioned External
+// identifier, the Resumption group, the strictly earlier
+// Resumption epoch and the fresh quad.
+pub fn validate_psk_ref(psk_type: PskKind, psk_id: []const u8, psk_group_id: []const u8, psk_epoch: u64, psk_nonce: []const u8, provisioned: []const ProvisionedId, local_group_id: []const u8, current_epoch: u64, used_nonces: []const UsedNonce) -> PskInjVerdict {
+    if (psk_nonce.len != PSK_NONCE_LEN) {
+        return PskInjVerdict { code: PskInjCode.NonCanonicalNonceLength, };
+    }
+    if (psk_type == PskKind.External) {
+        if (!id_provisioned(provisioned, psk_id)) {
+            return PskInjVerdict { code: PskInjCode.UnprovisionedExternalId, };
+        }
+    }
+    if (psk_type == PskKind.Resumption) {
+        if (!bytes_equal(psk_group_id, local_group_id)) {
+            return PskInjVerdict { code: PskInjCode.ResumptionGroupSplice, };
+        }
+        if (psk_epoch >= current_epoch) {
+            return PskInjVerdict { code: PskInjCode.ResumptionEpochRollback, };
+        }
+    }
+    if (nonce_quad_used(used_nonces, psk_id, psk_group_id, psk_epoch, psk_nonce)) {
+        return PskInjVerdict { code: PskInjCode.NonceReplay, };
+    }
+    return PskInjVerdict { code: PskInjCode.Ok, };
+}
+
+// The fixture bytes: the local group of double-A-hex, the
+// stranger's group of double-B-hex, the identifier labels
+// of the fixtures, and the nonces of the per-fixture
+// bytes.
+pub const LOCAL_GID: [32]u8 = [32]u8{170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170, 170,}
+pub const OTHER_GID: [32]u8 = [32]u8{187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187, 187,}
+pub const TEAM_ALPHA: [10]u8 = [10]u8{116, 101, 97, 109, 45, 97, 108, 112, 104, 97,}
+pub const TEAM: [4]u8 = [4]u8{116, 101, 97, 109,}
+pub const TEAM_EVIL: [9]u8 = [9]u8{116, 101, 97, 109, 45, 101, 118, 105, 108,}
+pub const RESUME7: [8]u8 = [8]u8{114, 101, 115, 117, 109, 101, 45, 55,}
+pub const RESUME: [6]u8 = [6]u8{114, 101, 115, 117, 109, 101,}
+pub const N11: [32]u8 = [32]u8{17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,}
+pub const N22: [32]u8 = [32]u8{34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34,}
+pub const N44: [32]u8 = [32]u8{68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68,}
+pub const N55: [32]u8 = [32]u8{85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85,}
+pub const N66: [32]u8 = [32]u8{102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102,}
+pub const N77: [32]u8 = [32]u8{119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119, 119,}
+pub const N88: [32]u8 = [32]u8{136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136, 136,}
+
+// **PSK-01** - the valid External PSK with the provisioned
+// identifier accepted.
+test psk_01_valid_external_accepted {
+    const empty_gid: [0]u8 = [0]u8{};
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 45, 97, 108, 112, 104, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 10, },
+    };
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const v = validate_psk_ref(PskKind.External, &TEAM_ALPHA, &empty_gid, 0, &N11, &provisioned, &LOCAL_GID, 5, &none);
+    assert(v.code == PskInjCode.Ok);
+}
+
+// **PSK-02** - the valid Resumption PSK chaining from the
+// earlier epoch accepted.
+test psk_02_valid_resumption_accepted {
+    const empty_provisioned: [0]ProvisionedId = [0]ProvisionedId{};
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const v = validate_psk_ref(PskKind.Resumption, &RESUME7, &LOCAL_GID, 7, &N22, &empty_provisioned, &LOCAL_GID, 10, &none);
+    assert(v.code == PskInjCode.Ok);
+}
+
+// **PSK-03** - the thirty-one-byte nonce rejected.
+test psk_03_short_nonce_rejected {
+    const empty_gid: [0]u8 = [0]u8{};
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, },
+    };
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    var short_nonce: [31]u8;
+    for j in 0..31 {
+        short_nonce[j] = 51;
+    }
+    const v = validate_psk_ref(PskKind.External, &TEAM, &empty_gid, 0, &short_nonce, &provisioned, &LOCAL_GID, 5, &none);
+    assert(v.code == PskInjCode.NonCanonicalNonceLength);
+}
+
+// **PSK-04** - the empty nonce rejected before any other
+// check.
+test psk_04_empty_nonce_rejected {
+    const empty_gid: [0]u8 = [0]u8{};
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, },
+    };
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const empty_nonce: [0]u8 = [0]u8{};
+    const v = validate_psk_ref(PskKind.External, &TEAM, &empty_gid, 0, &empty_nonce, &provisioned, &LOCAL_GID, 5, &none);
+    assert(v.code == PskInjCode.NonCanonicalNonceLength);
+}
+
+// **PSK-05** - the unprovisioned External identifier
+// rejected.
+test psk_05_unprovisioned_external_rejected {
+    const empty_gid: [0]u8 = [0]u8{};
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 45, 97, 108, 112, 104, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 10, },
+    };
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const v = validate_psk_ref(PskKind.External, &TEAM_EVIL, &empty_gid, 0, &N44, &provisioned, &LOCAL_GID, 5, &none);
+    assert(v.code == PskInjCode.UnprovisionedExternalId);
+}
+
+// **PSK-06** - the Resumption group splice rejected: the
+// stranger's group.
+test psk_06_resumption_group_splice_rejected {
+    const empty_provisioned: [0]ProvisionedId = [0]ProvisionedId{};
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const v = validate_psk_ref(PskKind.Resumption, &RESUME7, &OTHER_GID, 7, &N55, &empty_provisioned, &LOCAL_GID, 10, &none);
+    assert(v.code == PskInjCode.ResumptionGroupSplice);
+}
+
+// **PSK-07** - the Resumption epoch equal to the current
+// one rejected: the reference must chain strictly earlier.
+test psk_07_resumption_forward_epoch_rejected {
+    const empty_provisioned: [0]ProvisionedId = [0]ProvisionedId{};
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const v = validate_psk_ref(PskKind.Resumption, &RESUME7, &LOCAL_GID, 10, &N66, &empty_provisioned, &LOCAL_GID, 10, &none);
+    assert(v.code == PskInjCode.ResumptionEpochRollback);
+}
+
+// **PSK-08** - the Resumption epoch past the current one
+// rejected.
+test psk_08_resumption_epoch_overflow_rejected {
+    const empty_provisioned: [0]ProvisionedId = [0]ProvisionedId{};
+    const none: [0]UsedNonce = [0]UsedNonce{};
+    const v = validate_psk_ref(PskKind.Resumption, &RESUME7, &LOCAL_GID, 11, &N66, &empty_provisioned, &LOCAL_GID, 10, &none);
+    assert(v.code == PskInjCode.ResumptionEpochRollback);
+}
+
+// **PSK-09** - the replayed quad rejected: this very
+// (identifier, empty group, epoch, nonce) was consumed
+// before.
+test psk_09_replayed_nonce_rejected {
+    const empty_gid: [0]u8 = [0]u8{};
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, },
+    };
+    const used: [1]UsedNonce = [1]UsedNonce{
+        UsedNonce { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, gid: [32]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, gid_len: 0, epoch: 0, nonce: N77, },
+    };
+    const v = validate_psk_ref(PskKind.External, &TEAM, &empty_gid, 0, &N77, &provisioned, &LOCAL_GID, 5, &used);
+    assert(v.code == PskInjCode.NonceReplay);
+}
+
+// **PSK-10** - the same nonce at a different epoch fresh:
+// the replay ledger keys on the whole quad, never the
+// nonce alone.
+test psk_10_same_nonce_different_epoch_accepted {
+    const empty_provisioned: [0]ProvisionedId = [0]ProvisionedId{};
+    const used: [1]UsedNonce = [1]UsedNonce{
+        UsedNonce { id: [32]u8{114, 101, 115, 117, 109, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 6, gid: LOCAL_GID, gid_len: 32, epoch: 7, nonce: N88, },
+    };
+    const v = validate_psk_ref(PskKind.Resumption, &RESUME, &LOCAL_GID, 8, &N88, &empty_provisioned, &LOCAL_GID, 10, &used);
+    assert(v.code == PskInjCode.Ok);
+}
+
+// The helpers have direct tests (coverage: Untested 0).
+test bytes_equal_answers {
+    assert(bytes_equal(&LOCAL_GID, &LOCAL_GID));
+    assert(!bytes_equal(&LOCAL_GID, &OTHER_GID));
+    assert(!bytes_equal(&TEAM, &TEAM_ALPHA));
+}
+
+test id_provisioned_answers {
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 45, 97, 108, 112, 104, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 10, },
+    };
+    assert(id_provisioned(&provisioned, &TEAM_ALPHA));
+    assert(!id_provisioned(&provisioned, &TEAM_EVIL));
+    const empty: [0]ProvisionedId = [0]ProvisionedId{};
+    assert(!id_provisioned(&empty, &TEAM_ALPHA));
+}
+
+test nonce_quad_used_answers {
+    const empty_gid: [0]u8 = [0]u8{};
+    const used: [1]UsedNonce = [1]UsedNonce{
+        UsedNonce { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, gid: [32]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, gid_len: 0, epoch: 0, nonce: N77, },
+    };
+    assert(nonce_quad_used(&used, &TEAM, &empty_gid, 0, &N77));
+    assert(!nonce_quad_used(&used, &TEAM, &empty_gid, 1, &N77));
+    assert(!nonce_quad_used(&used, &TEAM, &empty_gid, 0, &N88));
+    assert(!nonce_quad_used(&used, &TEAM_ALPHA, &empty_gid, 0, &N77));
+    var short_nonce: [31]u8;
+    for j in 0..31 {
+        short_nonce[j] = 119;
+    }
+    assert(!nonce_quad_used(&used, &TEAM, &empty_gid, 0, &short_nonce));
+}
+
+// Rule order is the original's fixed ladder, each probe
+// stacking the earlier rule's violation on the later ones
+// - the consumed quad riding under every earlier rule.
+test rule_order_matches_original {
+    const empty_gid: [0]u8 = [0]u8{};
+    const empty_provisioned: [0]ProvisionedId = [0]ProvisionedId{};
+    const used: [1]UsedNonce = [1]UsedNonce{
+        UsedNonce { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, gid: [32]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, gid_len: 0, epoch: 0, nonce: N77, },
+    };
+    var short_nonce: [31]u8;
+    for j in 0..31 {
+        short_nonce[j] = 119;
+    }
+    const empty_nonce: [0]u8 = [0]u8{};
+
+    const v1 = validate_psk_ref(PskKind.Resumption, &RESUME7, &OTHER_GID, 11, &short_nonce, &empty_provisioned, &LOCAL_GID, 10, &used);
+    assert(v1.code == PskInjCode.NonCanonicalNonceLength);
+
+    const v2 = validate_psk_ref(PskKind.Resumption, &RESUME7, &OTHER_GID, 11, &empty_nonce, &empty_provisioned, &LOCAL_GID, 10, &used);
+    assert(v2.code == PskInjCode.NonCanonicalNonceLength);
+
+    const v3 = validate_psk_ref(PskKind.External, &TEAM_EVIL, &empty_gid, 0, &N44, &empty_provisioned, &LOCAL_GID, 5, &used);
+    assert(v3.code == PskInjCode.UnprovisionedExternalId);
+
+    const v4 = validate_psk_ref(PskKind.Resumption, &RESUME7, &OTHER_GID, 11, &N55, &empty_provisioned, &LOCAL_GID, 10, &used);
+    assert(v4.code == PskInjCode.ResumptionGroupSplice);
+
+    const v5 = validate_psk_ref(PskKind.Resumption, &RESUME7, &LOCAL_GID, 11, &N66, &empty_provisioned, &LOCAL_GID, 10, &used);
+    assert(v5.code == PskInjCode.ResumptionEpochRollback);
+
+    const provisioned: [1]ProvisionedId = [1]ProvisionedId{
+        ProvisionedId { id: [32]u8{116, 101, 97, 109, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,}, id_len: 4, },
+    };
+    const v6 = validate_psk_ref(PskKind.External, &TEAM, &empty_gid, 0, &N77, &provisioned, &LOCAL_GID, 5, &used);
+    assert(v6.code == PskInjCode.NonceReplay);
+}

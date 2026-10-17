@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+01d0a635f",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d5ba232a682541f6bb1556bca819e324506d9f12102960296d32cb44e3fea442",
+  "gen_hash_rust": "sha256:edf4c0daa05cc6ff4b870983f1b96e85df649b5dfdec9865943531485f3e866e",
+  "gen_hash_verilog": "sha256:3e91ad61ec7f4f6bfeb64ab7af5e9d049ec6bb797c9d2facf6fe659f7b46b1cc",
+  "gen_hash_zig": "sha256:b266cbeb0d3a9710f4a7af75ae5b3a3676fa6ba84d4797014aab199f13ba06f5",
+  "module": "port::trios::crates::trios-chat::rings::CR-CHAT-03::src::psk_external_injection",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-17T13:37:37Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:3aaf6ad51b1ffc5521110605f0082ed7df00a3190dde72e3b96aa389ad35563c",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/psk_external_injection.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
