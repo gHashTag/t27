@@ -1,0 +1,245 @@
+// @license
+// Copyright 2025 BrowserOS
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// Port of gHashTag/BrowserOS trios/agent-server/apps/server/src/lib/vm/lima-config.ts
+// (at c25e1b0278a6, 26 lines, one function: renderLimaTemplate).
+//
+// The original builds a Lima mounts block from cfg.vmStateDir (four lines joined
+// with \n), throws when the template does not contain the "mounts: []" marker,
+// and returns the template with the FIRST marker replaced by the block (the
+// semantics of String.prototype.replace with a string argument).
+//
+// .t27 mapping:
+//   - the cfg object becomes the LimaConfig struct;
+//   - the thrown Error becomes an ok/reason verdict on RenderResult;
+//   - the grown joined string becomes a fixed-capacity character buffer, because
+//     .t27 has no string concatenation and no growable list. A render that would
+//     not fit returns ok=false with a reason - the one behaviour the original
+//     does not have, forced by the fixed buffer.
+
+module port::lima_config;
+
+pub const MARKER: []const u8 = "mounts: []";
+pub const MISSING_MARKER_MESSAGE: []const u8 = "BrowserOS VM Lima template is missing mounts: [] marker";
+pub const CAPACITY_MESSAGE: []const u8 = "rendered template exceeds the fixed buffer capacity";
+
+// The four lines of the mounts block, in order, joined with \n when rendered.
+pub const MOUNTS_HEADER: []const u8 = "mounts:";
+pub const LOCATION_PREFIX: []const u8 = "- location: \"";
+pub const LOCATION_SUFFIX: []const u8 = "\"";
+pub const MOUNT_POINT_LINE: []const u8 = "  mountPoint: \"/mnt/browseros/vm\"";
+pub const WRITABLE_LINE: []const u8 = "  writable: true";
+
+// Fixed capacity standing in for the growable JS string.
+// Keep in sync with the [512]u8 field of RenderResult below.
+pub const MAX_OUTPUT: usize = 512;
+
+pub struct LimaConfig { vm_state_dir: []const u8, }
+
+pub struct MountsBlock { header: []const u8, location_prefix: []const u8, vm_state_dir: []const u8, location_suffix: []const u8, mount_point_line: []const u8, writable_line: []const u8, }
+
+pub struct RenderResult { ok: bool, reason: []const u8, chars: [512]u8, len: usize, }
+
+// Index of the first occurrence of needle in haystack, or -1 when absent.
+// This is the lookup behind String.prototype.includes and String.prototype.replace.
+fn find_first(haystack: []const u8, needle: []const u8) -> i64 {
+    if (needle.len == 0) {
+        return 0;
+    }
+    if (haystack.len < needle.len) {
+        return -1;
+    }
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) {
+        var j: usize = 0;
+        var matched: bool = true;
+        while (j < needle.len) {
+            if (haystack[i + j] != needle[j]) {
+                matched = false;
+                break;
+            }
+            j += 1;
+        }
+        if (matched) {
+            return i as i64;
+        }
+        i += 1;
+    }
+    return -1;
+}
+
+// String.prototype.includes: does haystack contain needle?
+fn contains(haystack: []const u8, needle: []const u8) -> bool {
+    return find_first(haystack, needle) >= 0;
+}
+
+// The original's validation decision: !template.includes('mounts: []') throws,
+// so true here means the render may proceed.
+pub fn template_has_marker(template: []const u8) -> bool {
+    return contains(template, MARKER);
+}
+
+// The original's `mounts` variable: the four lines the marker is replaced with.
+pub fn mounts_block(cfg: LimaConfig) -> MountsBlock {
+    return MountsBlock { header: MOUNTS_HEADER, location_prefix: LOCATION_PREFIX, vm_state_dir: cfg.vm_state_dir, location_suffix: LOCATION_SUFFIX, mount_point_line: MOUNT_POINT_LINE, writable_line: WRITABLE_LINE };
+}
+
+// Length of the rendered template: the template with the marker swapped for the
+// joined block. The fixed part of the block is 73 characters (7 + 1 + 13 + 1 + 1
+// + 33 + 1 + 16: four lines plus the three joining newlines), plus the state dir.
+pub fn rendered_len(template_len: usize, vm_state_dir_len: usize) -> usize {
+    var block: usize = MOUNTS_HEADER.len + 1;
+    block += LOCATION_PREFIX.len + vm_state_dir_len + LOCATION_SUFFIX.len + 1;
+    block += MOUNT_POINT_LINE.len + 1;
+    block += WRITABLE_LINE.len;
+    return template_len + block - MARKER.len;
+}
+
+// Char-by-char comparison of a rendered result against an expected string.
+fn result_equals(out: RenderResult, expected: []const u8) -> bool {
+    if (out.len != expected.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < out.len) {
+        if (out.chars[i] != expected[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// Port of renderLimaTemplate. Where the original threw, this returns ok=false
+// with the error message as the reason; on success the replaced template is in
+// chars[0..len]. Like String.prototype.replace, only the FIRST marker is replaced.
+pub fn renderLimaTemplate(template: []const u8, cfg: LimaConfig) -> RenderResult {
+    var out: RenderResult = RenderResult { ok: false, reason: "", chars: [_]u8{0} ** 512, len: 0 };
+    const idx: i64 = find_first(template, MARKER);
+    if (idx < 0) {
+        out.reason = MISSING_MARKER_MESSAGE;
+        return out;
+    }
+    if (rendered_len(template.len, cfg.vm_state_dir.len) > MAX_OUTPUT) {
+        out.reason = CAPACITY_MESSAGE;
+        return out;
+    }
+    const m: usize = idx as usize;
+    var k: usize = 0;
+    var i: usize = 0;
+    while (i < m) {
+        out.chars[k] = template[i];
+        k += 1;
+        i += 1;
+    }
+    var c: usize = 0;
+    while (c < MOUNTS_HEADER.len) {
+        out.chars[k] = MOUNTS_HEADER[c];
+        k += 1;
+        c += 1;
+    }
+    out.chars[k] = '\n';
+    k += 1;
+    c = 0;
+    while (c < LOCATION_PREFIX.len) {
+        out.chars[k] = LOCATION_PREFIX[c];
+        k += 1;
+        c += 1;
+    }
+    c = 0;
+    while (c < cfg.vm_state_dir.len) {
+        out.chars[k] = cfg.vm_state_dir[c];
+        k += 1;
+        c += 1;
+    }
+    c = 0;
+    while (c < LOCATION_SUFFIX.len) {
+        out.chars[k] = LOCATION_SUFFIX[c];
+        k += 1;
+        c += 1;
+    }
+    out.chars[k] = '\n';
+    k += 1;
+    c = 0;
+    while (c < MOUNT_POINT_LINE.len) {
+        out.chars[k] = MOUNT_POINT_LINE[c];
+        k += 1;
+        c += 1;
+    }
+    out.chars[k] = '\n';
+    k += 1;
+    c = 0;
+    while (c < WRITABLE_LINE.len) {
+        out.chars[k] = WRITABLE_LINE[c];
+        k += 1;
+        c += 1;
+    }
+    i = m + MARKER.len;
+    while (i < template.len) {
+        out.chars[k] = template[i];
+        k += 1;
+        i += 1;
+    }
+    out.ok = true;
+    out.len = k;
+    return out;
+}
+
+test contains_marker {
+    assert(contains("mounts: []", MARKER));
+    assert(contains("vm:\nmounts: []\nproxy: on", MARKER));
+    assert(!contains("mounts:[]", MARKER));
+    assert(!contains("", MARKER));
+}
+
+test template_has_marker_cases {
+    assert(template_has_marker("mounts: []"));
+    assert(!template_has_marker("mounts: [ ]"));
+}
+
+test find_first_index {
+    assert(find_first("abc mounts: [] def", MARKER) == 4);
+    assert(find_first("no marker here", MARKER) == -1);
+    assert(find_first("mounts: []", MARKER) == 0);
+}
+
+test mounts_block_lines {
+    var cfg: LimaConfig = LimaConfig { vm_state_dir: "/state/vm" };
+    var block: MountsBlock = mounts_block(cfg);
+    assert(block.header == "mounts:");
+    assert(block.location_prefix == "- location: \"");
+    assert(block.vm_state_dir == "/state/vm");
+    assert(block.location_suffix == "\"");
+    assert(block.mount_point_line == "  mountPoint: \"/mnt/browseros/vm\"");
+    assert(block.writable_line == "  writable: true");
+}
+
+test rendered_len_arithmetic {
+    assert(rendered_len(10, 9) == 82);
+    assert(rendered_len(0, 0) == 63);
+}
+
+test render_replaces_first_marker {
+    var cfg: LimaConfig = LimaConfig { vm_state_dir: "/state/vm" };
+    var out: RenderResult = renderLimaTemplate("images:\n  - browseros-image\nmounts: []\nproxy:\n  enabled: false", cfg);
+    assert(out.ok);
+    var expected: []const u8 = "images:\n  - browseros-image\nmounts:\n- location: \"/state/vm\"\n  mountPoint: \"/mnt/browseros/vm\"\n  writable: true\nproxy:\n  enabled: false";
+    assert(result_equals(out, expected));
+}
+
+test render_missing_marker_is_not_ok {
+    var cfg: LimaConfig = LimaConfig { vm_state_dir: "/state/vm" };
+    var out: RenderResult = renderLimaTemplate("mounts: [ ]", cfg);
+    assert(!out.ok);
+    assert(out.len == 0);
+    assert(out.reason == "BrowserOS VM Lima template is missing mounts: [] marker");
+}
+
+test render_replaces_only_first_occurrence {
+    var cfg: LimaConfig = LimaConfig { vm_state_dir: "/s" };
+    var out: RenderResult = renderLimaTemplate("mounts: [] mounts: []", cfg);
+    assert(out.ok);
+    var expected: []const u8 = "mounts:\n- location: \"/s\"\n  mountPoint: \"/mnt/browseros/vm\"\n  writable: true mounts: []";
+    assert(result_equals(out, expected));
+}
