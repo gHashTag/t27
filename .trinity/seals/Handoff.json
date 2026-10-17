@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:28ca59f3df55be21cb6b94f9bb6fdf1d06e7d6d3c063d1701a0a93b0ae62f3b9",
-  "gen_hash_rust": "sha256:329b631443dfcdf6fe07bdc2c048e55764cd605eb3d83950f5fceda45fa3dd5f",
-  "gen_hash_verilog": "sha256:2f48eefb0b172baa464c31ab585b17739048819b081db705728d4176e0642f2d",
-  "gen_hash_zig": "sha256:0c2213a1a6f12dc35c412d41fa2159cf2fdd1514bfb9a3f06f03810d5c784d1f",
+  "gen_hash_c": "sha256:95ffaba3cf73956fcd7095b1867ef49f216dc5c887d06ae9273898d292f7c84f",
+  "gen_hash_rust": "sha256:f1438eb4b1487ce8d2528e5a3a165332ef89fbdd9383791ad68ce219678f3871",
+  "gen_hash_verilog": "sha256:a38c36345bdff2734fc16d7a11d453d567dd1fce0c6f80e045f89560626c0db1",
+  "gen_hash_zig": "sha256:26e5dfc70921021ddbfb18834a98b780551d030b28ac933b1f1ab93f1bc93124",
   "module": "Handoff",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:4c776204371d57c29ea666ad5f1f7c46a04d402208a4b93d2d15428315e94c11",
-  "spec_path": "specs/tri/agent/handoff.t27"
+  "sealed_at": "2026-10-05T17:02:28Z",
+  "spec_hash": "sha256:e6c9c87c394d04710b0edc567f247d37482e2e52271357b7ef0526674b6790e2",
+  "spec_path": "specs/tri/agent/handoff.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
 }
