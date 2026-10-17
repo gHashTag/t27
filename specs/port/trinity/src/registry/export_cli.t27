@@ -1,0 +1,74 @@
+module port::trinity::export_cli;
+
+// Port of gHashTag/trinity:src/registry/export_cli.zig (at ee512359254b,
+// 77 lines) - t27 issue #9725, Roadmap Stage 5 (goal #4547), target t27c
+// gen-rust. The registry export CLI's decisions as pure functions: the two
+// positional output paths with their defaults, and the shape of the stats
+// report the run ends with. The registry export, the MCP schema export and
+// the stats gathering itself live in mcp_gen and are the caller's plumbing.
+
+// Line 20: the default registry destination.
+pub const EXPORT_CLI_DEFAULT_REGISTRY_PATH = ".trinity/registry.json";
+
+// Line 29: the default MCP schemas destination.
+pub const EXPORT_CLI_DEFAULT_SCHEMAS_PATH = ".trinity/mcp_schemas.json";
+
+// Lines 17-20: the first user argument (argv beyond the program name)
+// overrides the registry destination; without it the default stands.
+pub fn export_cli_registry_path(arg_count: usize, arg: []const u8) -> []const u8 {
+    if (arg_count > 1) {
+        return arg;
+    }
+    return EXPORT_CLI_DEFAULT_REGISTRY_PATH;
+}
+
+// Lines 26-29: the SECOND user argument overrides the schemas destination -
+// one argument is not enough, the bar is args.len > 2.
+pub fn export_cli_schemas_path(arg_count: usize, arg: []const u8) -> []const u8 {
+    if (arg_count > 2) {
+        return arg;
+    }
+    return EXPORT_CLI_DEFAULT_SCHEMAS_PATH;
+}
+
+// Lines 36-76: the stats block the run ends with - the two top counts
+// (total commands, MCP-enabled) plus one line per mode, per stability and
+// per namespace.
+pub fn export_cli_report_line_count(mode_count: usize, stability_count: usize, namespace_count: usize) -> usize {
+    return 2 + mode_count + stability_count + namespace_count;
+}
+
+// Line 8: the run - both exports happen, then the stats print. The number
+// the printed block carries is its line count for the registry's shape:
+// 3 modes (sync, job, stream), 3 stabilities (stable, experimental,
+// dangerous), 6 namespaces (core, dev, forge, agent, mcp, system).
+pub fn main(mode_count: usize, stability_count: usize, namespace_count: usize) -> usize {
+    return export_cli_report_line_count(mode_count, stability_count, namespace_count);
+}
+
+test registry_path_default_and_override {
+    assert(export_cli_registry_path(0, "custom.json") == ".trinity/registry.json");
+    assert(export_cli_registry_path(1, "custom.json") == ".trinity/registry.json");
+    assert(export_cli_registry_path(2, "custom.json") == "custom.json");
+    assert(export_cli_registry_path(3, "deep/custom.json") == "deep/custom.json");
+}
+
+test schemas_path_needs_the_second_argument {
+    assert(export_cli_schemas_path(1, "s.json") == ".trinity/mcp_schemas.json");
+    assert(export_cli_schemas_path(2, "s.json") == ".trinity/mcp_schemas.json");
+    assert(export_cli_schemas_path(3, "s.json") == "s.json");
+    assert(export_cli_schemas_path(4, "x/s.json") == "x/s.json");
+}
+
+test stats_block_shape {
+    assert(export_cli_report_line_count(3, 3, 6) == 14);
+    assert(export_cli_report_line_count(0, 0, 0) == 2);
+    assert(export_cli_report_line_count(1, 1, 1) == 5);
+    assert(export_cli_report_line_count(3, 2, 6) == 13);
+}
+
+test main_prints_the_registry_shape {
+    assert(main(3, 3, 6) == 14);
+    assert(main(0, 0, 0) == 2);
+    assert(main(1, 0, 0) == 3);
+}
