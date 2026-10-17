@@ -1,15 +1,28 @@
 {
-  "gen_hash_c": "sha256:c1ffc73158a92a9f49e55f207e5f276d2c8baa920148c50298262cb04e9e0745",
-  "gen_hash_rust": "sha256:4103f37d410a47bf04847d23ed9d0b0e9118ead81d5916190e5ff27e024e7d58",
-  "gen_hash_verilog": "sha256:693e81d13041c2e73a9d0221d880f9a94ca58a1a8d79136e56e828a89cdc8891",
-  "gen_hash_zig": "sha256:5e3b76036b6368f12c1abc9dfd9403a35ccd9d133d5ba460465475968da0a75c",
+  "built_by": "t27c-bootstrap@0.5.2+unknown",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:17f7a63b6d9c148a485a12bd7edeab10e1b44a8ab59b3c3c167d744854cf6135",
+  "gen_hash_rust": "sha256:d7a87ba01ebd2628eacf739ca0260d2a2c8e5b1242793c8166d1d658c954949a",
+  "gen_hash_verilog": "sha256:b8838be89ca06517f4bee10b2ea2ea70447603c73496a3b717ad6312cd497336",
+  "gen_hash_zig": "sha256:8244ae05ac9afa82a10adf70534df7407d8abd7718391f4e71fe42bf492c66e2",
   "module": "TriAsync",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:40Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:2fde9ff4608d65c32b1bfa37544af1fdea98de8c2cfade0efede957588954fac",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-12T01:52:12Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:f81e362273ef1526b728d98db7e40f8c36894be06a13f79f07dc805f45c36cf7",
   "spec_path": "specs/tri/net/async.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-async-38528/spec.zig:22:12: error: use of undeclared identifier 'T'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

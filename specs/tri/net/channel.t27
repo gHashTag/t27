@@ -1,85 +1,175 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Go-like channel semantics | φ² + 1/φ² = 3 | TRINITY
+; specs/tri/net/channel.t27 -- Go-like channels in the value semantics the compiler proves.
+; The original draft declared a generic `Channel(T)` with sender/receiver bookkeeping, a
+; `send -> bool`, a `recv -> Maybe(T)`, and a `close -> void` -- but nothing was observable,
+; because every function dropped its mutations and `new_channel` could not even return the
+; channel its signature named. This rewrite keeps the names and the contracts in the value
+; form: every function takes the channel by value and returns the updated channel beside its
+; result (the StackI64 pattern from specs/tri/agent/stack.t27). Maybe(T) becomes `?i64` --
+; the Maybe(T) -> T? mapping the issue calls for -- and the generic `Channel(T)` becomes the
+; concrete ChannelI64, because generics do not lower yet.
+; The backing store is a fixed 8-slot ring: the declared capacity is honored up to that
+; limit, recv never spins (an empty channel yields null), a closed channel refuses sends but
+; stays readable until drained.
+; Go-like channel semantics | φ² + 1/φ² = 3 | TRINITY
 
 module TriChannel;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const CHANNEL_CAPACITY_MAX: usize = 8;
 
-    pub const Channel(T) = struct {
-        capacity : usize,
-        sender_count : usize,
-        receiver_count : usize,
+pub const ChannelI64 = struct {
+    capacity: usize,
+    items: [CHANNEL_CAPACITY_MAX]i64,
+    head: usize,
+    count: usize,
+    closed: bool,
+};
+
+pub const SendOutcome = struct {
+    ch: ChannelI64,
+    ok: bool,
+};
+
+pub const RecvOutcome = struct {
+    ch: ChannelI64,
+    value: ?i64,
+};
+
+// new_channel(capacity: usize) -> ChannelI64
+// An open, empty channel with the requested capacity. The original draft's sender_count and
+// receiver_count fields carried no observable meaning and are gone.
+pub fn new_channel(capacity: usize) -> ChannelI64 {
+    return ChannelI64{
+        .capacity = capacity,
+        .items = [_]i64{ 0, 0, 0, 0, 0, 0, 0, 0 },
+        .head = 0,
+        .count = 0,
+        .closed = false,
     };
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+// send(ch: ChannelI64, value: i64) -> SendOutcome
+// Enqueues value at the back of the ring. Fails (ok == false) -- leaving the channel
+// unchanged -- when the channel is closed or already holds its capacity of items. The
+// original draft's bare `send -> bool` could not carry the updated channel; SendOutcome
+// returns both.
+pub fn send(ch: ChannelI64, value: i64) -> SendOutcome {
+    if (ch.closed) {
+        return SendOutcome{ .ch = ch, .ok = false };
+    }
+    if (ch.count >= ch.capacity or ch.count >= CHANNEL_CAPACITY_MAX) {
+        return SendOutcome{ .ch = ch, .ok = false };
+    }
+    var slot: usize = ch.head + ch.count;
+    if (slot >= CHANNEL_CAPACITY_MAX) {
+        slot = slot - CHANNEL_CAPACITY_MAX;
+    }
+    var out: ChannelI64 = ch;
+    out.items[slot] = value;
+    out.count = out.count + 1;
+    return SendOutcome{ .ch = out, .ok = true };
+}
 
-    // new_channel(capacity: usize) → void
-    fn new_channel(capacity: usize) -> Channel(T) {
-        Channel(T) {
-            capacity = capacity,
-            sender_count = 0,
-            receiver_count = 0,
+// recv(ch: ChannelI64) -> RecvOutcome
+// Dequeues from the front of the ring. An empty channel yields value == null and an
+// unchanged channel: recv never spins, and a closed channel reads exactly like an empty
+// one (Go's closed-channel zero-value read).
+pub fn recv(ch: ChannelI64) -> RecvOutcome {
+    if (ch.count == 0) {
+        return RecvOutcome{ .ch = ch, .value = null };
+    }
+    const value: i64 = ch.items[ch.head];
+    var out: ChannelI64 = ch;
+    out.head = out.head + 1;
+    if (out.head >= CHANNEL_CAPACITY_MAX) {
+        out.head = 0;
+    }
+    out.count = out.count - 1;
+    return RecvOutcome{ .ch = out, .value = value };
+}
+
+// close(ch: ChannelI64) -> ChannelI64
+// Marks the channel closed. Sends are refused afterwards; already-buffered items stay
+// readable until drained.
+pub fn close(ch: ChannelI64) -> ChannelI64 {
+    var out: ChannelI64 = ch;
+    out.closed = true;
+    return out;
+}
+
+test new_channel_basic_case {
+    const channel = new_channel(10);
+    assert(channel.capacity == 10);
+    assert(channel.count == 0);
+    assert(channel.closed == false);
+}
+
+test send_basic_case {
+    const result = send(new_channel(5), 42);
+    assert(result.ok == true);
+    assert(result.ch.count == 1);
+}
+
+test send_recv_round_trip {
+    const sent = send(new_channel(5), 42);
+    const result = recv(sent.ch);
+    assert(result.value == 42);
+    assert(result.ch.count == 0);
+}
+
+test recv_basic_case {
+    const result = recv(new_channel(3));
+    assert(result.value == null);
+    assert(result.ch.count == 0);
+}
+
+test send_recv_preserves_fifo_order {
+    const c1 = send(new_channel(3), 1).ch;
+    const c2 = send(c1, 2).ch;
+    const c3 = send(c2, 3).ch;
+    const r1 = recv(c3);
+    const r2 = recv(r1.ch);
+    const r3 = recv(r2.ch);
+    assert(r1.value == 1);
+    assert(r2.value == 2);
+    assert(r3.value == 3);
+    assert(recv(r3.ch).value == null);
+}
+
+test send_refuses_when_the_channel_is_full {
+    const c1 = send(new_channel(2), 1).ch;
+    const c2 = send(c1, 2).ch;
+    const full = send(c2, 3);
+    assert(full.ok == false);
+    assert(full.ch.count == 2);
+}
+
+test close_basic_case {
+    const closed = close(new_channel(2));
+    assert(closed.closed == true);
+}
+
+test send_refuses_after_close_and_recv_drains {
+    const c1 = send(new_channel(2), 7).ch;
+    const closed = close(c1);
+    assert(send(closed, 9).ok == false);
+    const drained = recv(closed);
+    assert(drained.value == 7);
+    assert(recv(drained.ch).value == null);
+}
+
+test the_backing_store_holds_at_most_eight_items {
+    var ch = new_channel(8);
+    var i: i64 = 0;
+    var sends_ok = true;
+    while (i < 8) {
+        const out = send(ch, i);
+        if (out.ok == false) {
+            sends_ok = false;
         }
+        ch = out.ch;
+        i = i + 1;
     }
-
-    // send(channel: Channel(T)) → void
-    fn send(channel: Channel(T), value: T) -> bool {
-        // Simple implementation: always allow sending for now
-        // In a real implementation, this would check channel capacity and state
-        true
-    }
-
-    // recv(channel: Channel(T)) → void
-    fn recv(channel: Channel(T)) -> Maybe(T) {
-        // Simple implementation: always return None for now
-        // In a real implementation, this would actually receive values from the channel
-        Maybe(T) {
-            computed = false,
-            value = 0,  // default value for generic type T
-        }
-    }
-
-    // close(channel: Channel(T)) → void
-    fn close(channel: Channel(T)) -> void {
-        // Simple implementation: mark channel as closed by incrementing sender_count
-        // In a real implementation, this would update the channel state
-        // For now, we just mark it as closed by setting sender_count to a special value
-        // This is a placeholder implementation
-        return; // explicit no-op for void function
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
-
-    test new_channel_basic_case
-        given input = 10
-        when channel = new_channel(input)
-        then channel.capacity == input
-        then channel.sender_count == 0
-        then channel.receiver_count == 0
-
-    test send_basic_case
-        given channel = new_channel(5)
-        when result = send(channel, 42)
-        then result == true
-
-    test recv_basic_case {
-        // Nothing was sent, so recv yields an empty Maybe: computed is false.
-        var channel = new_channel(3);
-        var result = recv(channel);
-        assert(result.computed == false);
-    }
-
-    test close_basic_case
-        given channel = new_channel(2)
-        when close(channel)
-        then channel != undefined
-
+    assert(sends_ok == true);
+    assert(send(ch, 99).ok == false);
+}

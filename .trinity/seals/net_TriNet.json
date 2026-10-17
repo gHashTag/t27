@@ -1,29 +1,25 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
-  "closure": [
-    {
-      "spec": "specs/base/types.t27",
-      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
-    },
-    {
-      "spec": "specs/math/constants.t27",
-      "spec_hash": "sha256:57187e7afda1d88167b2af0382ad7f0623aa6b269ba020a78e3ffeebba1161bb"
-    }
-  ],
+  "built_by": "t27c-bootstrap@0.5.2+unknown",
+  "closure": [],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:bd1c8adc9fea51361564b3d1cb6d344adce5e4b858b98560d0a71f96f6ada716",
-  "gen_hash_rust": "sha256:68cb2bfa94204e91af52766c22930d149c522d82c79a8bcab8ab8a189bce422a",
-  "gen_hash_verilog": "sha256:e3716333b26a0a2fc2b4b55ac9f7560dbf2e1b193aebdd7670ee7da303092797",
-  "gen_hash_zig": "sha256:ed06cb73c19e15c189e677fc62d90b1bee0d515a1a32dda812bd801612aa4473",
+  "gen_hash_c": "sha256:0caf36fddef33deb98650b97809e90a68e3a07372f037ce5401c468320da1018",
+  "gen_hash_rust": "sha256:63cdc19366b85d5a0d80c6490b041e9b70af6c353ec8e8873d1f90e482b01996",
+  "gen_hash_verilog": "sha256:e2477447c774e847c9efb314e216c4d2a151d56bd5311a04b0133046ae17c004",
+  "gen_hash_zig": "sha256:a052dec178ef2631b84c7e87da6b6d8a2e32cc3214410358c55184b8670b94e3",
   "module": "TriNet",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:29:40Z",
+  "sealed_at": "2026-10-12T01:52:14Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:a198ce48a8c8597fe287a781d33086e369c4c317d9d42b406a9dfbf1cf33a346",
+  "spec_hash": "sha256:29faf91f2bea13f0f3118e2804bdb866c3d221d8c68a3a8593adf44e33c0f69d",
   "spec_path": "specs/tri/net/net.t27",
   "tests": {
-    "blocked": "does not compile: spec.zig:110:19: error: operator != not allowed for type '?spec.IpAddress'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7,
+    "vacuous": 0
   },
   "toolchain": {
     "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",

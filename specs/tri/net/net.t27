@@ -1,181 +1,376 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Supports both IPv4 and IPv6 | φ² + 1/φ² = 3 | TRINITY
+; specs/tri/net/net.t27 -- IP address and socket parsing over the proven string subset.
+; The original draft sketched parse_ip with ad-hoc single-character checks (no loops, no
+; digit grammar), is_localhost over hand-built byte arrays, and tests in the unimplemented
+; given/when/then form. This rewrite parses for real. IPv4: four dot-separated decimal
+; octets in 0..255. IPv6: hex groups separated by ':', at most one '::' compression marker;
+; embedded IPv4 forms like ::ffff:127.0.0.1 are refused by parse_ip (mixed '.' and ':' is
+; rejected) but the constructed form still works, and is_localhost still accepts the
+; ::ffff:a.b.c.d mapping exactly as the original's test built it. Both share one 16-byte
+; IpAddress representation, as the original declared.
+; Proven-construct notes: std.mem.indexOf/startsWith with null checks and .?, string
+; slicing with both endpoints written, while loops over indices, char range comparisons,
+; struct returns, optional returns (`-> ?IpAddress`, `== null`, `.?`), @intCast (as in
+; specs/tri/vsa/vsa_core.t27). No break: loop exits use conditions and returns.
+; RFC socket semantics | φ² + 1/φ² = 3 | TRINITY
 
 module TriNet;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const IpAddress = struct {
+    is_v6: bool,
+    bytes: [16]u8,
+};
 
-    pub const IpAddress = struct {
-        is_v6 : bool,
-        bytes : [16]u8,
-    };
+pub const SocketAddr = struct {
+    ip: IpAddress,
+    port: u16,
+};
 
-    pub const SocketAddr = struct {
-        ip : IpAddress,
-        port : u16,
-    };
+fn hex_value(c: u8) -> usize {
+    if (c >= '0' and c <= '9') {
+        return @as(usize, c - '0');
+    }
+    if (c >= 'a' and c <= 'f') {
+        return @as(usize, 10 + c - 'a');
+    }
+    if (c >= 'A' and c <= 'F') {
+        return @as(usize, 10 + c - 'A');
+    }
+    return 16;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // parse_ip(addr: []const u8) → ?IpAddress
-    fn parse_ip(addr: []const u8) -> ?IpAddress {
-        if len(addr) == 0 {
-            return null;
-        }
-        
-        // Simple implementation - just check if it contains dots or colons
-        let mut has_dot = false;
-        let mut has_colon = false;
-        
-        // Basic character checking without loops
-        if (len(addr) >= 7 and addr[0] >= '0' and addr[0] <= '9' and addr[1] >= '0' and addr[1] <= '9' and addr[2] >= '0' and addr[2] <= '9') {
-            if (addr[3] == '.' and addr[4] >= '0' and addr[4] <= '9' and addr[5] >= '0' and addr[5] <= '9' and addr[6] == '.') {
-                has_dot = true;
-            }
-        }
-        
-        if (len(addr) >= 5 and addr[0] == '2' and addr[1] == '0' and addr[2] == '0' and addr[3] == '1' and addr[4] == ':') {
-            has_colon = true;
-        }
-        
-        if (has_dot) {
-            // IPv4 address
-            let result: IpAddress;
-            result.is_v6 = false;
-            // Initialize bytes to zero
-            let mut i = 0;
-            while (i < 16) {
-                result.bytes[i] = 0;
-                i = i + 1;
-            }
-            return result;
-        } else if (has_colon) {
-            // IPv6 address
-            let result: IpAddress;
-            result.is_v6 = true;
-            // Initialize bytes to zero
-            let mut i = 0;
-            while (i < 16) {
-                result.bytes[i] = 0;
-                i = i + 1;
-            }
-            return result;
-        }
-        
+// parse_ip(addr: []const u8) -> ?IpAddress
+// Dispatches on the address shape: a '.' makes it IPv4, a ':' makes it IPv6, both at once
+// is rejected, anything else is not an address. Returns null for anything malformed.
+pub fn parse_ip(addr: []const u8) -> ?IpAddress {
+    if (addr.len == 0) {
         return null;
     }
+    var has_dot = false;
+    var has_colon = false;
+    var i: usize = 0;
+    while (i < addr.len) {
+        const c = addr[i];
+        if (c == '.') {
+            has_dot = true;
+        }
+        if (c == ':') {
+            has_colon = true;
+        }
+        i = i + 1;
+    }
+    if (has_dot and has_colon) {
+        return null;
+    }
+    if (has_dot) {
+        return parse_ipv4(addr);
+    }
+    if (has_colon) {
+        return parse_ipv6(addr);
+    }
+    return null;
+}
 
-    // is_localhost(addr: IpAddress) → bool
-    fn is_localhost(addr: IpAddress) -> bool {
-        // Check for IPv4 localhost: 127.0.0.1/8
-        if (!addr.is_v6) {
-            // 127.0.0.1 - first byte should be 127
-            return addr.bytes[0] == 127;
-        } else {
-            // IPv6 localhost ::1 or ::ffff:127.0.0.1
-            // Check for ::1 (all zeros except last two bytes)
-            let mut is_localhost_v6 = true;
-            let mut i = 0;
-            while (i < 14) {
-                if (addr.bytes[i] != 0) {
-                    is_localhost_v6 = false;
-                    break;
+fn parse_ipv4(addr: []const u8) -> ?IpAddress {
+    var bytes: [16]u8 = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    var octets: usize = 0;
+    var i: usize = 0;
+    var start: usize = 0;
+    while (i < addr.len) {
+        if (addr[i] == '.') {
+            if (i == start) {
+                return null; // empty octet: leading dot or doubled dot
+            }
+            if (octets >= 4) {
+                return null; // more than four octets
+            }
+            var value: usize = 0;
+            var j: usize = start;
+            while (j < i) {
+                const c = addr[j];
+                if (c < '0' or c > '9') {
+                    return null; // only decimal digits inside an octet
                 }
-                i = i + 1;
-            }
-            if (is_localhost_v6 and addr.bytes[14] == 0 and addr.bytes[15] == 1) {
-                return true;
-            }
-            
-            // Check for IPv4-mapped IPv6 localhost ::ffff:127.0.0.1
-            // First 10 bytes should be 0, next 2 should be 0xFF, then IPv4 localhost
-            let mut is_mapped_localhost = true;
-            let mut j = 0;
-            while (j < 10) {
-                if (addr.bytes[j] != 0) {
-                    is_mapped_localhost = false;
-                    break;
+                value = value * 10 + (c - '0');
+                if (value > 255) {
+                    return null;
                 }
                 j = j + 1;
             }
-            
-            if (is_mapped_localhost and addr.bytes[10] == 0xFF and addr.bytes[11] == 0xFF) {
-                return addr.bytes[12] == 127;
-            }
-            
-            return false;
+            bytes[octets] = @intCast(value);
+            octets = octets + 1;
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+    if (start == addr.len) {
+        return null; // trailing dot
+    }
+    if (octets != 3) {
+        return null; // need exactly four octets
+    }
+    var last: usize = 0;
+    var k: usize = start;
+    while (k < addr.len) {
+        const c = addr[k];
+        if (c < '0' or c > '9') {
+            return null;
+        }
+        last = last * 10 + (c - '0');
+        if (last > 255) {
+            return null;
+        }
+        k = k + 1;
+    }
+    bytes[3] = @intCast(last);
+    return IpAddress{ .is_v6 = false, .bytes = bytes };
+}
+
+fn parse_ipv6(addr: []const u8) -> ?IpAddress {
+    var bytes: [16]u8 = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+    // Split at the '::' compression marker, if present (at most one is allowed).
+    var left: []const u8 = addr;
+    var right: []const u8 = "";
+    var compressed = false;
+    const dc = std.mem.indexOf(u8, addr, "::");
+    if (dc != null) {
+        compressed = true;
+        left = addr[0..dc.?];
+        right = addr[dc.? + 2 .. addr.len];
+        if (std.mem.indexOf(u8, right, "::") != null) {
+            return null; // a second '::' is ambiguous
         }
     }
 
-    // is_valid_port(port: u16) → bool
-    fn is_valid_port(port: u16) -> bool {
-        // Valid port range is typically 1-65535 (0 is reserved)
-        return port > 0 and port <= 65535;
+    // Parse the left-hand group list into bytes[0..2*left_count].
+    var left_count: usize = 0;
+    var i: usize = 0;
+    var start: usize = 0;
+    while (i < left.len) {
+        if (left[i] == ':') {
+            if (i == start) {
+                return null; // empty group
+            }
+            if (left_count >= 8) {
+                return null;
+            }
+            var value: usize = 0;
+            var j: usize = start;
+            while (j < i) {
+                const d = hex_value(left[j]);
+                if (d == 16) {
+                    return null; // not a hex digit
+                }
+                value = value * 16 + d;
+                j = j + 1;
+            }
+            bytes[left_count * 2] = @intCast(value / 256);
+            bytes[left_count * 2 + 1] = @intCast(value - (value / 256) * 256);
+            left_count = left_count + 1;
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+    if (left.len > 0) {
+        if (left.len == start) {
+            return null; // trailing ':'
+        }
+        if (left_count >= 8) {
+            return null;
+        }
+        var value: usize = 0;
+        var j: usize = start;
+        while (j < left.len) {
+            const d = hex_value(left[j]);
+            if (d == 16) {
+                return null;
+            }
+            value = value * 16 + d;
+            j = j + 1;
+        }
+        bytes[left_count * 2] = @intCast(value / 256);
+        bytes[left_count * 2 + 1] = @intCast(value - (value / 256) * 256);
+        left_count = left_count + 1;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    // Count the right-hand groups so they can be stored flush against bytes[16].
+    var right_count: usize = 0;
+    if (compressed and right.len > 0) {
+        var i2: usize = 0;
+        while (i2 < right.len) {
+            if (right[i2] == ':') {
+                right_count = right_count + 1;
+            }
+            i2 = i2 + 1;
+        }
+        right_count = right_count + 1; // groups == separators + 1
+    }
 
-    test parse_ip_valid_ipv4
-        given input = "192.168.1.1"
-        when result = parse_ip(input)
-        then result != undefined and result.is_v6 == false
+    const total = left_count + right_count;
+    if (compressed) {
+        if (total >= 8) {
+            return null; // '::' must stand for at least one zero group
+        }
+    } else {
+        if (total != 8) {
+            return null; // the uncompressed form has exactly eight groups
+        }
+    }
 
-    test parse_ip_valid_ipv6
-        given input = "2001:db8::1"
-        when result = parse_ip(input)
-        then result != undefined and result.is_v6 == true
+    // Parse the right-hand group list into the last 2*right_count bytes.
+    var ridx: usize = 0;
+    var ri: usize = 0;
+    var rstart: usize = 0;
+    while (ri < right.len) {
+        if (right[ri] == ':') {
+            if (ri == rstart) {
+                return null; // empty group
+            }
+            var value: usize = 0;
+            var j: usize = rstart;
+            while (j < ri) {
+                const d = hex_value(right[j]);
+                if (d == 16) {
+                    return null;
+                }
+                value = value * 16 + d;
+                j = j + 1;
+            }
+            const pos: usize = 16 - right_count * 2 + ridx * 2;
+            bytes[pos] = @intCast(value / 256);
+            bytes[pos + 1] = @intCast(value - (value / 256) * 256);
+            ridx = ridx + 1;
+            rstart = ri + 1;
+        }
+        ri = ri + 1;
+    }
+    if (right.len > 0) {
+        if (right.len == rstart) {
+            return null; // trailing ':' after the '::'
+        }
+        var value: usize = 0;
+        var j: usize = rstart;
+        while (j < right.len) {
+            const d = hex_value(right[j]);
+            if (d == 16) {
+                return null;
+            }
+            value = value * 16 + d;
+            j = j + 1;
+        }
+        const pos: usize = 16 - right_count * 2 + ridx * 2;
+        bytes[pos] = @intCast(value / 256);
+        bytes[pos + 1] = @intCast(value - (value / 256) * 256);
+        ridx = ridx + 1;
+    }
 
-    test parse_ip_invalid_address
-        given input = "invalid.address"
-        when result = parse_ip(input)
-        then result == null
+    return IpAddress{ .is_v6 = true, .bytes = bytes };
+}
 
-    test is_localhost_ipv4
-        given input = IpAddress{ .is_v6 = false, .bytes = [127, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
-        when result = is_localhost(input)
-        then result == true
+// is_localhost(addr: IpAddress) -> bool
+// Same contract as the original draft: IPv4 loopback is 127.0.0.0/8 (first octet 127);
+// IPv6 loopback is ::1; the IPv4-mapped form ::ffff:a.b.c.d counts as loopback when its
+// embedded IPv4 first octet is 127.
+pub fn is_localhost(addr: IpAddress) -> bool {
+    if (!addr.is_v6) {
+        return addr.bytes[0] == 127;
+    }
+    var head_zero = true;
+    var i: usize = 0;
+    while (i < 15) {
+        if (addr.bytes[i] != 0) {
+            head_zero = false;
+        }
+        i = i + 1;
+    }
+    if (head_zero and addr.bytes[15] == 1) {
+        return true; // ::1
+    }
+    var mapped_prefix = true;
+    var j: usize = 0;
+    while (j < 10) {
+        if (addr.bytes[j] != 0) {
+            mapped_prefix = false;
+        }
+        j = j + 1;
+    }
+    if (mapped_prefix and addr.bytes[10] == 255 and addr.bytes[11] == 255 and addr.bytes[12] == 127) {
+        return true; // ::ffff:127.x.x.x
+    }
+    return false;
+}
 
-    test is_localhost_ipv6_loopback
-        given input = IpAddress{ .is_v6 = true, .bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] }
-        when result = is_localhost(input)
-        then result == true
+// is_valid_port(port: u16) -> bool
+// Same contract as the original draft's parse_port/is_valid_port pair: port 0 is not a
+// usable port, and the u16 parameter type itself rejects anything above 65535 at the type
+// boundary.
+pub fn is_valid_port(port: u16) -> bool {
+    return port > 0 and port <= 65535;
+}
 
-    test is_localhost_non_localhost
-        given input = IpAddress{ .is_v6 = false, .bytes = [8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
-        when result = is_localhost(input)
-        then result == false
+test parse_ip_reads_an_ipv4_address {
+    const parsed = parse_ip("192.168.1.1");
+    assert(parsed != null);
+    assert(parsed.?.is_v6 == false);
+    assert(parsed.?.bytes[0] == 192);
+    assert(parsed.?.bytes[1] == 168);
+    assert(parsed.?.bytes[2] == 1);
+    assert(parsed.?.bytes[3] == 1);
+}
 
-    test is_valid_port_valid_range
-        given input = 8080
-        when result = is_valid_port(input)
-        then result == true
+test parse_ip_reads_an_ipv6_address {
+    const parsed = parse_ip("2001:db8::1");
+    assert(parsed != null);
+    assert(parsed.?.is_v6 == true);
+    assert(parsed.?.bytes[0] == 32); // 0x2001
+    assert(parsed.?.bytes[1] == 1);
+    assert(parsed.?.bytes[2] == 13); // 0x0db8
+    assert(parsed.?.bytes[3] == 184);
+    assert(parsed.?.bytes[15] == 1);
+}
 
-    test is_valid_port_edge_case_min
-        given input = 1
-        when result = is_valid_port(input)
-        then result == true
+test parse_ip_rejects_malformed_addresses {
+    assert(parse_ip("") == null);
+    assert(parse_ip("invalid") == null);
+    assert(parse_ip("999.1.1.1") == null);
+    assert(parse_ip("1.2.3") == null);
+    assert(parse_ip("1.2.3.4.5") == null);
+    assert(parse_ip("1..2.3") == null);
+    assert(parse_ip("1.2.3.4.") == null);
+    assert(parse_ip("abc:def::xyz") == null);
+    assert(parse_ip("1:2:3") == null);
+}
 
-    test is_valid_port_edge_case_max
-        given input = 65535
-        when result = is_valid_port(input)
-        then result == true
+test is_localhost_knows_the_loopback_addresses {
+    assert(is_localhost(parse_ip("127.0.0.1").?) == true);
+    assert(is_localhost(parse_ip("127.255.0.9").?) == true);
+    assert(is_localhost(parse_ip("8.8.8.8").?) == false);
+    assert(is_localhost(parse_ip("::1").?) == true);
+    assert(is_localhost(parse_ip("::").?) == false);
+    assert(is_localhost(parse_ip("2001:db8::1").?) == false);
+}
 
-    test is_valid_port_zero_invalid
-        given input = 0
-        when result = is_valid_port(input)
-        then result == false
+test is_localhost_accepts_the_v4_mapped_form {
+    var bytes: [16]u8 = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 127, 0, 0, 1 };
+    const mapped = IpAddress{ .is_v6 = true, .bytes = bytes };
+    assert(is_localhost(mapped) == true);
+    bytes[12] = 8;
+    const not_loopback = IpAddress{ .is_v6 = true, .bytes = bytes };
+    assert(is_localhost(not_loopback) == false);
+}
 
-    test is_valid_port_too_large
-        given input = 65536
-        when result = is_valid_port(input)
-        then result == false
+test is_valid_port_bounds_the_port_space {
+    assert(is_valid_port(80) == true);
+    assert(is_valid_port(65535) == true);
+    assert(is_valid_port(0) == false);
+}
 
+test socket_addr_pairs_an_ip_with_a_port {
+    const ip = parse_ip("127.0.0.1");
+    assert(ip != null);
+    const addr = SocketAddr{ .ip = ip.?, .port = 8080 };
+    assert(addr.port == 8080);
+    assert(addr.ip.bytes[0] == 127);
+    assert(is_localhost(addr.ip) == true);
+}

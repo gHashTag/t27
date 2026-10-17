@@ -1,141 +1,415 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// RFC 3986 compliant | φ² + 1/φ² = 3 | TRINITY
+; specs/tri/net/url.t27 -- RFC 3986 URL splitting and percent-encoding over the proven subset.
+; The original draft promised `parse(raw, allocator) -> !Url` (error unions), percent
+; encode/decode through allocator-backed buffers, and an ArrayList string builder; none of
+; those lower yet. This rewrite keeps the names and contracts in the value form the compiler
+; proves: parse returns `?Url` (null instead of an error) and takes no allocator; the port
+; field is `?u16` -- a real optional number, as in specs/tri/t27b/conformance/const_optional.t27;
+; encode/decode/to_string write into module buffers (`var ... = undefined`, as in
+; undefined_module_var.t27) and return `?[]const u8` -- null on overflow or bad input. The
+; buffers are reused between calls: each result is valid until the next call of the same
+; function, and each function writes only the bytes it returns.
+; parse splits scheme://host[:port]path?query#fragment at the generic-delimiter characters
+; ('/', '?', '#'); a colon inside the authority is only legal before a valid port, so
+; bracketed IPv6 host literals are out of scope for now.
+; RFC 3986 URL semantics | φ² + 1/φ² = 3 | TRINITY
 
 module TriUrl;
-    use base::types;
-    use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+pub const Url = struct {
+    scheme: []const u8,
+    host: []const u8,
+    port: ?u16,
+    path: []const u8,
+    query: []const u8,
+    fragment: []const u8,
+};
 
-    pub const Url = struct {
-        scheme : []const u8,
-        host : []const u8,
-        port : "?u16",
-        path : []const u8,
-        query : []const u8,
-        fragment : []const u8,
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // parse(str: []const u8, allocator: std.mem.Allocator) → !Url
-    fn parse(str: []const u8, allocator: std.mem.Allocator) -> !Url {
-        // Basic URL parsing implementation
-        var url = Url{
-            .scheme = "http",
-            .host = "example.com",
-            .port = null,
-            .path = "/",
-            .query = "",
-            .fragment = "",
-        };
-        return url;
-    }
-
-    // encode(component: []const u8, allocator: std.mem.Allocator) → ![]u8
-    fn encode(component: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic URL encoding implementation
-        var result = allocator.dupe(u8, component);
-        if (result) |r| {
-            return r;
-        } else {
-            return error.OutOfMemory;
-        }
-    }
-
-    // decode(encoded: []const u8, allocator: std.mem.Allocator) → ![]u8
-    fn decode(encoded: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic URL decoding implementation
-        var result = allocator.dupe(u8, encoded);
-        if (result) |r| {
-            return r;
-        } else {
-            return error.OutOfMemory;
-        }
-    }
-
-    // to_string(url: Url, allocator: std.mem.Allocator) → ![]u8
-    fn to_string(url: Url, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic URL to string implementation
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
-        
-        var result1 = buffer.appendSlice(url.scheme);
-        if (result1 != 0) return error.OutOfMemory;
-        
-        var result2 = buffer.appendSlice("://");
-        if (result2 != 0) return error.OutOfMemory;
-        
-        var result3 = buffer.appendSlice(url.host);
-        if (result3 != 0) return error.OutOfMemory;
-        
-        if (url.port) |port| {
-            var result4 = buffer.appendSlice(":");
-            if (result4 != 0) return error.OutOfMemory;
-            
-            var port_str = std.fmt.allocPrint(allocator, "{d}", .{port});
-            if (port_str) |ps| {
-                var result5 = buffer.appendSlice(ps);
-                allocator.free(ps);
-                if (result5 != 0) return error.OutOfMemory;
-            } else {
-                return error.OutOfMemory;
+// First index of any character in `chars` inside `s`, or s.len when none is present.
+fn first_of_any(s: []const u8, chars: []const u8) -> usize {
+    var i: usize = 0;
+    while (i < s.len) {
+        var j: usize = 0;
+        while (j < chars.len) {
+            if (s[i] == chars[j]) {
+                return i;
             }
+            j = j + 1;
         }
-        
-        var result6 = buffer.appendSlice(url.path);
-        if (result6 != 0) return error.OutOfMemory;
-        
-        if (url.query.len > 0) {
-            var result7 = buffer.appendSlice("?");
-            if (result7 != 0) return error.OutOfMemory;
-            
-            var result8 = buffer.appendSlice(url.query);
-            if (result8 != 0) return error.OutOfMemory;
+        i = i + 1;
+    }
+    return s.len;
+}
+
+fn parse_port(authority: []const u8) -> ?u16 {
+    const colon = std.mem.indexOfScalar(u8, authority, ':');
+    if (colon == null) {
+        return null;
+    }
+    const port_str: []const u8 = authority[colon.? + 1 .. authority.len];
+    if (port_str.len == 0) {
+        return null;
+    }
+    var value: usize = 0;
+    var i: usize = 0;
+    while (i < port_str.len) {
+        const c = port_str[i];
+        if (c < '0' or c > '9') {
+            return null;
         }
-        
-        if (url.fragment.len > 0) {
-            var result9 = buffer.appendSlice("#");
-            if (result9 != 0) return error.OutOfMemory;
-            
-            var result10 = buffer.appendSlice(url.fragment);
-            if (result10 != 0) return error.OutOfMemory;
+        value = value * 10 + (c - '0');
+        if (value > 65535) {
+            return null;
         }
-        
-        var result11 = buffer.toOwnedSlice();
-        if (result11) |r| {
-            return r;
+        i = i + 1;
+    }
+    const port: u16 = @intCast(value);
+    return port;
+}
+
+// parse(raw: []const u8) -> ?Url
+// Splits raw at the generic delimiters. scheme and host are required: without "://" or
+// with an empty authority the result is null. port, query, and fragment are present only
+// when written; path is the empty slice when the URL has none.
+pub fn parse(raw: []const u8) -> ?Url {
+    const sep = std.mem.indexOf(u8, raw, "://");
+    if (sep == null) {
+        return null;
+    }
+    const scheme: []const u8 = raw[0..sep.?];
+    if (scheme.len == 0) {
+        return null;
+    }
+    const rest: []const u8 = raw[sep.? + 3 .. raw.len];
+    if (rest.len == 0) {
+        return null; // "http://" with no authority
+    }
+
+    // The authority (host[:port]) ends at the first '/', '?' or '#'.
+    const auth_end = first_of_any(rest, "/?#");
+    const authority: []const u8 = rest[0..auth_end];
+    if (authority.len == 0) {
+        return null;
+    }
+    const tail: []const u8 = rest[auth_end..rest.len];
+
+    // Host and optional port inside the authority.
+    const colon = std.mem.indexOfScalar(u8, authority, ':');
+    const host: []const u8 = if (colon == null) authority else authority[0..colon.?];
+    const port = parse_port(authority);
+    if (colon != null and port == null) {
+        return null; // a ':' is only legal before a valid port
+    }
+
+    // Fragment: everything after the first '#'.
+    const hash = std.mem.indexOfScalar(u8, tail, '#');
+    const pre_frag: []const u8 = if (hash == null) tail else tail[0..hash.?];
+    const fragment: []const u8 = if (hash == null) "" else tail[hash.? + 1 .. tail.len];
+
+    // Query: between the first '?' (before the fragment) and the fragment.
+    const mark = std.mem.indexOfScalar(u8, pre_frag, '?');
+    const path: []const u8 = if (mark == null) pre_frag else pre_frag[0..mark.?];
+    const query: []const u8 = if (mark == null) "" else pre_frag[mark.? + 1 .. pre_frag.len];
+
+    return Url{
+        .scheme = scheme,
+        .host = host,
+        .port = port,
+        .path = path,
+        .query = query,
+        .fragment = fragment,
+    };
+}
+
+// is_unreserved(c: u8) -> bool
+// RFC 3986's unreserved set: ALPHA / DIGIT / '-' / '.' / '_' / '~'.
+pub fn is_unreserved(c: u8) -> bool {
+    if (c >= 'a' and c <= 'z') {
+        return true;
+    }
+    if (c >= 'A' and c <= 'Z') {
+        return true;
+    }
+    if (c >= '0' and c <= '9') {
+        return true;
+    }
+    if (c == '-' or c == '.' or c == '_' or c == '~') {
+        return true;
+    }
+    return false;
+}
+
+fn hex_lower(v: usize) -> u8 {
+    if (v < 10) {
+        const d: u8 = @intCast('0' + v);
+        return d;
+    }
+    const l: u8 = @intCast('a' + v - 10);
+    return l;
+}
+
+var ENC_BUF: [128]u8 = undefined;
+
+// encode(component: []const u8) -> ?[]const u8
+// Percent-encodes every byte outside the unreserved set as %XX (lowercase hex), writing
+// into a module buffer that the next encode call reuses. Returns null when the component
+// does not fit the buffer.
+pub fn encode(component: []const u8) -> ?[]const u8 {
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < component.len) {
+        const c = component[i];
+        if (n + 3 > ENC_BUF.len) {
+            return null;
+        }
+        if (is_unreserved(c)) {
+            ENC_BUF[n] = c;
+            n = n + 1;
         } else {
-            return error.OutOfMemory;
+            const hi: usize = c / 16;
+            const lo: usize = c - hi * 16;
+            ENC_BUF[n] = '%';
+            ENC_BUF[n + 1] = hex_lower(hi);
+            ENC_BUF[n + 2] = hex_lower(lo);
+            n = n + 3;
+        }
+        i = i + 1;
+    }
+    return ENC_BUF[0..n];
+}
+
+fn hex_digit(c: u8) -> usize {
+    if (c >= '0' and c <= '9') {
+        return @as(usize, c - '0');
+    }
+    if (c >= 'a' and c <= 'f') {
+        return @as(usize, 10 + c - 'a');
+    }
+    if (c >= 'A' and c <= 'F') {
+        return @as(usize, 10 + c - 'A');
+    }
+    return 16;
+}
+
+var DEC_BUF: [128]u8 = undefined;
+
+// decode(encoded: []const u8) -> ?[]const u8
+// The inverse of encode: %XX escapes become their bytes, everything else passes through.
+// Returns null on a truncated or non-hex escape, or when the result does not fit the
+// module buffer (which the next decode call reuses).
+pub fn decode(encoded: []const u8) -> ?[]const u8 {
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < encoded.len) {
+        const c = encoded[i];
+        if (c == '%') {
+            if (i + 2 >= encoded.len) {
+                return null; // truncated escape
+            }
+            const hi = hex_digit(encoded[i + 1]);
+            const lo = hex_digit(encoded[i + 2]);
+            if (hi == 16 or lo == 16) {
+                return null; // not a hex escape
+            }
+            if (n >= DEC_BUF.len) {
+                return null;
+            }
+            DEC_BUF[n] = @intCast(hi * 16 + lo);
+            n = n + 1;
+            i = i + 3;
+        } else {
+            if (n >= DEC_BUF.len) {
+                return null;
+            }
+            DEC_BUF[n] = c;
+            n = n + 1;
+            i = i + 1;
+        }
+    }
+    return DEC_BUF[0..n];
+}
+
+var TOS_BUF: [256]u8 = undefined;
+
+// to_string(url: Url) -> ?[]const u8
+// Reassembles scheme://host[:port]path?query#fragment into a module buffer (reused by the
+// next call). The port prints in decimal; query and fragment print only when present.
+pub fn to_string(url: Url) -> ?[]const u8 {
+    var n: usize = 0;
+
+    // scheme "://"
+    if (n + url.scheme.len + 3 > TOS_BUF.len) {
+        return null;
+    }
+    var i: usize = 0;
+    while (i < url.scheme.len) {
+        TOS_BUF[n] = url.scheme[i];
+        n = n + 1;
+        i = i + 1;
+    }
+    TOS_BUF[n] = ':';
+    TOS_BUF[n + 1] = '/';
+    TOS_BUF[n + 2] = '/';
+    n = n + 3;
+
+    // host
+    if (n + url.host.len > TOS_BUF.len) {
+        return null;
+    }
+    i = 0;
+    while (i < url.host.len) {
+        TOS_BUF[n] = url.host[i];
+        n = n + 1;
+        i = i + 1;
+    }
+
+    // ":port", only when the URL carries one
+    if (url.port != null) {
+        if (n + 6 > TOS_BUF.len) {
+            return null; // ':' plus at most five digits
+        }
+        TOS_BUF[n] = ':';
+        n = n + 1;
+        var digits: [5]u8 = [_]u8{ 0, 0, 0, 0, 0 };
+        var value: usize = url.port.?;
+        var nd: usize = 0;
+        while (value > 0) {
+            const q: usize = value / 10;
+            const r: usize = value - q * 10;
+            const d: u8 = @intCast('0' + r);
+            digits[nd] = d;
+            nd = nd + 1;
+            value = q;
+        }
+        if (nd == 0) {
+            digits[0] = '0'; // port 0 still prints
+            nd = 1;
+        }
+        var ri: usize = 0;
+        while (ri < nd) {
+            TOS_BUF[n] = digits[nd - 1 - ri];
+            n = n + 1;
+            ri = ri + 1;
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    // path
+    if (n + url.path.len > TOS_BUF.len) {
+        return null;
+    }
+    i = 0;
+    while (i < url.path.len) {
+        TOS_BUF[n] = url.path[i];
+        n = n + 1;
+        i = i + 1;
+    }
 
-    test parse_basic_case
-        given input = "http://example.com/path", allocator = std.testing.allocator
-        when result = parse(input, allocator)
-        then result != undefined
+    // "?query" and "#fragment", only when present
+    if (url.query.len > 0) {
+        if (n + url.query.len + 1 > TOS_BUF.len) {
+            return null;
+        }
+        TOS_BUF[n] = '?';
+        n = n + 1;
+        i = 0;
+        while (i < url.query.len) {
+            TOS_BUF[n] = url.query[i];
+            n = n + 1;
+            i = i + 1;
+        }
+    }
+    if (url.fragment.len > 0) {
+        if (n + url.fragment.len + 1 > TOS_BUF.len) {
+            return null;
+        }
+        TOS_BUF[n] = '#';
+        n = n + 1;
+        i = 0;
+        while (i < url.fragment.len) {
+            TOS_BUF[n] = url.fragment[i];
+            n = n + 1;
+            i = i + 1;
+        }
+    }
 
-    test encode_basic_case
-        given input = "hello world", allocator = std.testing.allocator
-        when result = encode(input, allocator)
-        then result != undefined
+    return TOS_BUF[0..n];
+}
 
-    test decode_basic_case
-        given input = "hello%20world", allocator = std.testing.allocator
-        when result = decode(input, allocator)
-        then result != undefined
+test parse_splits_scheme_host_and_path {
+    const u = parse("http://example.com/path");
+    assert(u != null);
+    assert(std.mem.eql(u8, u.?.scheme, "http"));
+    assert(std.mem.eql(u8, u.?.host, "example.com"));
+    assert(std.mem.eql(u8, u.?.path, "/path"));
+    assert(u.?.port == null);
+    assert(std.mem.eql(u8, u.?.query, ""));
+    assert(std.mem.eql(u8, u.?.fragment, ""));
+}
 
-    test to_string_basic_case
-        given url = Url{ .scheme = "https", .host = "test.com", .port = null, .path = "/test", .query = "id=123", .fragment = "section" }, allocator = std.testing.allocator
-        when result = to_string(url, allocator)
-        then result != undefined
+test parse_reads_port_query_and_fragment {
+    const u = parse("https://test.com:8443/test?id=123#section");
+    assert(u != null);
+    assert(u.?.port != null);
+    assert(u.?.port.? == 8443);
+    assert(std.mem.eql(u8, u.?.path, "/test"));
+    assert(std.mem.eql(u8, u.?.query, "id=123"));
+    assert(std.mem.eql(u8, u.?.fragment, "section"));
+}
 
+test parse_rejects_urls_without_scheme_or_authority {
+    assert(parse("example.com/path") == null);
+    assert(parse("") == null);
+    assert(parse("http://") == null);
+    assert(parse("http:///x") == null);
+}
+
+test parse_rejects_bad_ports {
+    assert(parse("http://example.com:/x") == null);
+    assert(parse("http://example.com:70000/x") == null);
+    assert(parse("http://exa:mple.com/x") == null);
+}
+
+test encode_escapes_reserved_bytes {
+    const e = encode("hello world");
+    assert(e != null);
+    assert(std.mem.eql(u8, e.?, "hello%20world"));
+}
+
+test encode_keeps_the_unreserved_set {
+    const e = encode("aA9-._~");
+    assert(e != null);
+    assert(std.mem.eql(u8, e.?, "aA9-._~"));
+}
+
+test encode_reports_overflow_instead_of_truncating {
+    const long = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+    assert(encode(long) == null);
+}
+
+test decode_turns_escapes_back_into_bytes {
+    const d = decode("hello%20world");
+    assert(d != null);
+    assert(std.mem.eql(u8, d.?, "hello world"));
+}
+
+test decode_rejects_truncated_and_bad_escapes {
+    assert(decode("abc%") == null);
+    assert(decode("abc%2") == null);
+    assert(decode("%zz") == null);
+    assert(decode("%2g") == null);
+}
+
+test to_string_round_trips_a_full_url {
+    const url = Url{ .scheme = "https", .host = "test.com", .port = 8443, .path = "/test", .query = "id=123", .fragment = "section" };
+    const s = to_string(url);
+    assert(s != null);
+    assert(std.mem.eql(u8, s.?, "https://test.com:8443/test?id=123#section"));
+}
+
+test to_string_omits_absent_parts {
+    const parsed = parse("http://example.com/x");
+    assert(parsed != null);
+    const s = to_string(parsed.?);
+    assert(s != null);
+    assert(std.mem.eql(u8, s.?, "http://example.com/x"));
+}
