@@ -1,0 +1,257 @@
+module port::trios_railway::reset_queue;
+
+// Port of gHashTag/trios-railway:crates/trios-igla-race/src/bin/reset_queue.rs
+// (at 5cc46e798dda, 78 lines) - t27 issue #9743, Roadmap Stage 6 (goal #4548),
+// target t27c gen-rust. The queue reset tool's decisions as pure functions:
+// the three-tier postgres URL chain (R5/GitGuardian: never hardcode,
+// L-NEON-RENAME: RAILWAY_POSTGRES_URL over legacy NEON_DATABASE_URL), the
+// --cpu-batch LR sweep (four LRs x three seeds, priority 99, the fixed sweep
+// constants), the active-row filter and order, and the SQL quote doubling.
+// The PullQueueDb connection, raw_query and raw_execute are the caller's
+// plumbing. The original's error text names $1 and both variables and ends
+// with "never hardcode"; it is the caller's to print.
+
+// Exit codes (line 5: Result<()> - Ok is 0, the missing-URL error aborts).
+pub const RESET_QUEUE_EXIT_OK: i32 = 0;
+pub const RESET_QUEUE_EXIT_FAIL: i32 = 1;
+
+// The URL chain of lines 11-19: $1 wins, then RAILWAY_POSTGRES_URL, then the
+// legacy NEON_DATABASE_URL; when none holds a URL the tool dies.
+pub const RESET_QUEUE_URL_MISSING: i32 = 0;
+pub const RESET_QUEUE_URL_ARG1: i32 = 1;
+pub const RESET_QUEUE_URL_RAILWAY_ENV: i32 = 2;
+pub const RESET_QUEUE_URL_LEGACY_ENV: i32 = 3;
+
+// Lines 25-26: the sweep grid - four learning rates, three seeds.
+pub const RESET_QUEUE_LRS: [4]f64 = [0.001, 0.0015, 0.003, 0.004];
+pub const RESET_QUEUE_SEEDS: [3]i32 = [42, 43, 44];
+
+// Lines 38-47: the fixed shape of one sweep experiment.
+pub const RESET_QUEUE_SWEEP_PRIORITY: i32 = 99;
+pub const RESET_QUEUE_SWEEP_STEPS: u32 = 120000;
+pub const RESET_QUEUE_SWEEP_H: usize = 1024;
+pub const RESET_QUEUE_SWEEP_CTX: usize = 12;
+pub const RESET_QUEUE_SWEEP_PHASE = "CPU-LR-SWEEP";
+pub const RESET_QUEUE_SWEEP_ACCOUNT = "acc0";
+pub const RESET_QUEUE_SWEEP_AUTHOR = "seed-agent";
+
+// Lines 36-43: the JSON config of one sweep experiment, as the typed facts.
+pub struct ResetQueueSweepPlan {
+    lr: f64,
+    seed: i32,
+    h: usize,
+    ctx: usize,
+    steps: u32,
+    priority: i32,
+    phase: []const u8,
+    account: []const u8,
+    author: []const u8,
+}
+
+// Lines 11-19: the three-tier URL chain - an explicit $1 beats both
+// variables, RAILWAY_POSTGRES_URL beats the legacy NEON_DATABASE_URL,
+// and only when all three are absent does the tool die.
+pub fn reset_queue_url_source(arg1_present: bool, railway_env_present: bool, legacy_env_present: bool) -> i32 {
+    if (arg1_present) {
+        return RESET_QUEUE_URL_ARG1;
+    }
+    if (railway_env_present) {
+        return RESET_QUEUE_URL_RAILWAY_ENV;
+    }
+    if (legacy_env_present) {
+        return RESET_QUEUE_URL_LEGACY_ENV;
+    }
+    return RESET_QUEUE_URL_MISSING;
+}
+
+// Line 24: the --cpu-batch switch - one argument is the switch exactly when
+// it equals the flag text.
+pub fn reset_queue_arg_is_batch(arg: []const u8) -> bool {
+    return arg == "--cpu-batch";
+}
+
+// Line 24: the sweep runs when ANY argument is the switch. argv is walked
+// by the caller; this is the same decision over three fixed argument slots,
+// counting how many of them carry the flag (empty slots hold nothing).
+pub fn reset_queue_batch_flag_count(a1: []const u8, a2: []const u8, a3: []const u8) -> usize {
+    var n: usize = 0;
+    if (reset_queue_arg_is_batch(a1)) {
+        n += 1;
+    }
+    if (reset_queue_arg_is_batch(a2)) {
+        n += 1;
+    }
+    if (reset_queue_arg_is_batch(a3)) {
+        n += 1;
+    }
+    return n;
+}
+
+// Lines 28-32: the nested loop is a flat 12-step walk - flat index i maps to
+// (lr index, seed index) with the seed running fastest.
+pub fn reset_queue_batch_index(flat: usize) -> (usize, usize) {
+    const lr_index = flat / RESET_QUEUE_SEEDS.len;
+    const seed_index = flat % RESET_QUEUE_SEEDS.len;
+    return (lr_index, seed_index);
+}
+
+// Line 57: the batch holds every LR paired with every seed.
+pub fn reset_queue_batch_total() -> usize {
+    return RESET_QUEUE_LRS.len * RESET_QUEUE_SEEDS.len;
+}
+
+// Lines 36-43: one sweep experiment's fixed facts (the TRAIN_V2/AdamW CPU
+// sweep at h=1024, ctx=12, 120000 steps, priority 99, filed by seed-agent).
+pub fn reset_queue_sweep_plan(lr: f64, seed: i32) -> ResetQueueSweepPlan {
+    return ResetQueueSweepPlan {
+        lr: lr,
+        seed: seed,
+        h: RESET_QUEUE_SWEEP_H,
+        ctx: RESET_QUEUE_SWEEP_CTX,
+        steps: RESET_QUEUE_SWEEP_STEPS,
+        priority: RESET_QUEUE_SWEEP_PRIORITY,
+        phase: RESET_QUEUE_SWEEP_PHASE,
+        account: RESET_QUEUE_SWEEP_ACCOUNT,
+        author: RESET_QUEUE_SWEEP_AUTHOR,
+    };
+}
+
+// Line 62: the listing holds pending, claimed and running rows - done and
+// everything else stay out.
+pub fn reset_queue_row_is_active(status: []const u8) -> bool {
+    return status == "pending" or status == "claimed" or status == "running";
+}
+
+// Line 62: ORDER BY priority DESC, id - among two active rows the higher
+// priority is listed first, and a priority tie is broken by the smaller id.
+pub fn reset_queue_active_first(a_priority: i32, a_id: i64, b_priority: i32, b_id: i64) -> bool {
+    const priority_decides = a_priority != b_priority;
+    if (priority_decides) {
+        return a_priority > b_priority;
+    }
+    return a_id < b_id;
+}
+
+// Lines 48-49: every single quote in the canon name and the config is doubled
+// before it lands in the SQL string - the count of bytes that get doubled.
+pub fn reset_queue_doubled_quotes(name: []const u8) -> usize {
+    var n: usize = 0;
+    for c in name {
+        if (c == 39) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// Line 5: main walks the URL chain first; with no URL from any tier the tool
+// dies before touching the queue. With a URL the optional sweep insert runs
+// first, then the active listing, and the tool exits 0.
+pub fn main(arg1_present: bool, railway_env_present: bool, legacy_env_present: bool) -> i32 {
+    const source = reset_queue_url_source(arg1_present, railway_env_present, legacy_env_present);
+    if (source == RESET_QUEUE_URL_MISSING) {
+        return RESET_QUEUE_EXIT_FAIL;
+    }
+    return RESET_QUEUE_EXIT_OK;
+}
+
+test url_chain_three_tiers {
+    assert(reset_queue_url_source(true, true, true) == RESET_QUEUE_URL_ARG1);
+    assert(reset_queue_url_source(true, false, false) == RESET_QUEUE_URL_ARG1);
+    assert(reset_queue_url_source(false, true, true) == RESET_QUEUE_URL_RAILWAY_ENV);
+    assert(reset_queue_url_source(false, true, false) == RESET_QUEUE_URL_RAILWAY_ENV);
+    assert(reset_queue_url_source(false, false, true) == RESET_QUEUE_URL_LEGACY_ENV);
+    assert(reset_queue_url_source(false, false, false) == RESET_QUEUE_URL_MISSING);
+}
+
+test main_gates_on_the_url_chain {
+    assert(main(true, false, false) == RESET_QUEUE_EXIT_OK);
+    assert(main(false, true, false) == RESET_QUEUE_EXIT_OK);
+    assert(main(false, false, true) == RESET_QUEUE_EXIT_OK);
+    assert(main(false, false, false) == RESET_QUEUE_EXIT_FAIL);
+}
+
+test cpu_batch_switch {
+    assert(reset_queue_arg_is_batch("--cpu-batch") == true);
+    assert(reset_queue_arg_is_batch("--cpu") == false);
+    assert(reset_queue_arg_is_batch("list") == false);
+    assert(reset_queue_arg_is_batch("") == false);
+    assert(reset_queue_batch_flag_count("--cpu-batch", "", "") == 1);
+    assert(reset_queue_batch_flag_count("list", "--cpu-batch", "extra") == 1);
+    assert(reset_queue_batch_flag_count("--cpu-batch", "--cpu-batch", "") == 2);
+    assert(reset_queue_batch_flag_count("list", "--cpu", "x") == 0);
+    assert(reset_queue_batch_flag_count("", "", "") == 0);
+}
+
+test batch_grid_shape {
+    assert(reset_queue_batch_total() == 12);
+    assert(RESET_QUEUE_LRS.len == 4);
+    assert(RESET_QUEUE_SEEDS.len == 3);
+    const (lr0, s0) = reset_queue_batch_index(0);
+    assert(lr0 == 0);
+    assert(s0 == 0);
+    const (lr1, s2) = reset_queue_batch_index(2);
+    assert(lr1 == 0);
+    assert(s2 == 2);
+    const (lr2, s3) = reset_queue_batch_index(3);
+    assert(lr2 == 1);
+    assert(s3 == 0);
+    const (lr5, s5) = reset_queue_batch_index(5);
+    assert(lr5 == 1);
+    assert(s5 == 2);
+    const (lr11, s11) = reset_queue_batch_index(11);
+    assert(lr11 == 3);
+    assert(s11 == 2);
+}
+
+test sweep_grid_constants {
+    var zero: usize = 0;
+    var one: usize = 1;
+    var two: usize = 2;
+    var three: usize = 3;
+    assert(RESET_QUEUE_LRS[zero] == 0.001);
+    assert(RESET_QUEUE_LRS[one] == 0.0015);
+    assert(RESET_QUEUE_LRS[two] == 0.003);
+    assert(RESET_QUEUE_LRS[three] == 0.004);
+    assert(RESET_QUEUE_SEEDS[zero] == 42);
+    assert(RESET_QUEUE_SEEDS[one] == 43);
+    assert(RESET_QUEUE_SEEDS[two] == 44);
+    assert(reset_queue_batch_total() == 12);
+}
+
+test sweep_plan_fixed_facts {
+    const plan = reset_queue_sweep_plan(0.0015, 43);
+    assert(plan.lr == 0.0015);
+    assert(plan.seed == 43);
+    assert(plan.h == 1024);
+    assert(plan.ctx == 12);
+    assert(plan.steps == 120000);
+    assert(plan.priority == 99);
+    assert(plan.phase == "CPU-LR-SWEEP");
+    assert(plan.account == "acc0");
+    assert(plan.author == "seed-agent");
+}
+
+test active_filter_three_states {
+    assert(reset_queue_row_is_active("pending") == true);
+    assert(reset_queue_row_is_active("claimed") == true);
+    assert(reset_queue_row_is_active("running") == true);
+    assert(reset_queue_row_is_active("done") == false);
+    assert(reset_queue_row_is_active("idle") == false);
+    assert(reset_queue_row_is_active("") == false);
+}
+
+test active_order_priority_desc_id_asc {
+    assert(reset_queue_active_first(99, 7, 5, 1) == true);
+    assert(reset_queue_active_first(5, 1, 99, 7) == false);
+    assert(reset_queue_active_first(99, 12, 99, 3) == false);
+    assert(reset_queue_active_first(99, 3, 99, 12) == true);
+    assert(reset_queue_active_first(42, 8, 42, 8) == false);
+}
+
+test quotes_double_for_sql {
+    assert(reset_queue_doubled_quotes("CPU-LR-SWEEP-h1024-lr0.0010-s42") == 0);
+    assert(reset_queue_doubled_quotes("o'brien") == 1);
+    assert(reset_queue_doubled_quotes("it's a 'test'") == 3);
+    assert(reset_queue_doubled_quotes("") == 0);
+}
