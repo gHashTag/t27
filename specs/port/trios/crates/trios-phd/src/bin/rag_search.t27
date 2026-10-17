@@ -1,0 +1,400 @@
+module port::trios::trios_phd::rag_search;
+
+// Port of gHashTag/trios crates/trios-phd/src/bin/rag_search.rs (251
+// lines): the RAG retrieval binary over ssot.embeddings -- one query,
+// lexical pg_trgm similarity or dense BGE-M3 cosine, one optional kind
+// filter, one limit, anchored on phi^2 + phi^-2 = 3.
+//
+// What the original decides, and what this port carries:
+//
+//   - a whitespace-only --query is the error, not an empty search
+//     (107-109); the original trims Unicode whitespace, the port decides
+//     the ASCII set, carriage return included;
+//   - the --database-url flag wins over the DATABASE_URL environment
+//     variable, and neither present is the "is required" error (111-115);
+//   - --kind accepts exactly frontmatter | chapter | appendix and is
+//     validated before it ever reaches the SQL (84-89), becoming one
+//     `AND chunk_kind = '<kind>'` clause in both SQL builds (173-176,
+//     199-202);
+//   - an empty SSOT is an explicit error (133-137) and --dense with zero
+//     embedded rows is another -- no silent fallback to lexical (141-145);
+//   - the query embedding must be vector(1024) or --dense refuses
+//     (161-163);
+//   - the pgvector literal: brackets, a ',' before every element but the
+//     first, six fractional digits per element, a String sized len*8+2
+//     (91-102);
+//   - the two mode names -- `dense_bge_m3` / `lexical_pg_trgm` in the
+//     JSON payload (221), `dense (BGE-M3)` / `lexical (pg_trgm)` in the
+//     human header (233);
+//   - FASTEMBED_CACHE defaults to $HOME/.cache/fastembed and HOME itself
+//     falls back to /tmp (146-149);
+//   - the anchor constant echoed to stderr, into the JSON payload and
+//     into the human header (40, 117, 219, 229).
+//
+// What is plumbing and is not ported: tokio, the postgres connection and
+// its two queries, the fastembed BGE-M3 model load, the environment
+// reads, stdout and stderr. `main` keeps its name with an `undefined;`
+// body that no test calls; its decisions are `main_verdict` and the
+// helpers it is built from, all tested here.
+//
+// Two constructs are not in the language yet and are named rather than
+// faked: string building (the SQL text, the `%query%` ILIKE pattern of
+// line 191, the `{home}/.cache/fastembed` join of lines 146-149) and
+// `{:.6}` float formatting (line 98). `format_pg_vector` therefore keeps
+// its name with an `undefined;` body too; its decisions are
+// `needs_comma`, `comma_count`, `vector_capacity` and `scaled6`, tested
+// below. The embedding it formats is one fastembed call's output; the
+// call itself is plumbing.
+
+const ANCHOR: str = "phi^2 + phi^-2 = 3";
+
+// The original's anyhow errors become the process verdict.
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+
+// Line 161: BGE-M3 must return vector(1024).
+const DENSE_DIM: usize = 1024;
+
+// Lines 48-72: the clap flags. An Option<String> becomes the presence bit
+// plus the value; limit and json are pass-throughs of the printers, kept
+// for the record's shape.
+pub struct Cli {
+    query: str,
+    dense: bool,
+    kind_given: bool,
+    kind: str,
+    dsn_flag_given: bool,
+    dsn_flag: str,
+    limit: u32,
+    json: bool,
+}
+
+// Lines 127-131: the ssot.rag_status row the original reads before it
+// decides anything about modes.
+pub struct Status {
+    total: i64,
+    embedded: i64,
+}
+
+// Lines 84-89: the original's Result<&str>: ok carries the validated kind
+// through, !ok is the anyhow error "--kind must be
+// frontmatter|chapter|appendix".
+pub struct KindVerdict {
+    ok: bool,
+    value: str,
+}
+
+// Lines 74-82: one retrieval hit as the original maps each row. Both
+// printers are plumbing; the record shape is kept for the port.
+pub struct Hit {
+    id: i64,
+    chapter_slug: str,
+    chunk_index: i32,
+    chunk_kind: str,
+    preview: str,
+    score: f64,
+}
+
+// The green-path Cli of the tests below: a real query, lexical mode, no
+// kind filter, a --database-url flag.
+fn cli_green() -> Cli {
+    return Cli{ .query = "phi^2 + phi^-2 = 3", .dense = false, .kind_given = false, .kind = "", .dsn_flag_given = true, .dsn_flag = "postgres://ssot", .limit = 5, .json = false };
+}
+
+// Lines 105-249: the process entry. It owns the tokio runtime, the
+// postgres connection and its two queries, the fastembed model load, the
+// environment and stdout. Every decision it makes is ported and tested
+// below; nothing calls this.
+pub fn main() -> i32 {
+    undefined;
+}
+
+// Lines 105-249: main as a verdict over the flags it reads, the
+// environment it would read and the ssot.rag_status row it would query.
+// The check order follows the original: the query (107), the DSN (115),
+// the empty SSOT (133), the dense gates (141, 161) and last the --kind
+// validation, which the original runs when it builds the SQL (174, 200).
+// The dense gates are skipped in lexical mode, so this one order matches
+// both modes. EXIT_FAIL is every anyhow `?`; EXIT_OK is the Ok(()) after
+// the printer has run.
+pub fn main_verdict(flags: Cli, dsn_env: str, st: Status, embed_dim: usize) -> i32 {
+    if (query_is_blank(flags.query)) {
+        return EXIT_FAIL;
+    }
+    const dsn = resolve_dsn(flags.dsn_flag_given, flags.dsn_flag, dsn_env);
+    if (dsn == "") {
+        return EXIT_FAIL;
+    }
+    if (ssot_usable(st.total) == false) {
+        return EXIT_FAIL;
+    }
+    if (flags.dense and dense_ready(st.embedded) == false) {
+        return EXIT_FAIL;
+    }
+    if (flags.dense and embedding_dim_ok(embed_dim) == false) {
+        return EXIT_FAIL;
+    }
+    if (flags.kind_given) {
+        const check = validate_kind(flags.kind);
+        if (check.ok == false) {
+            return EXIT_FAIL;
+        }
+    }
+    return EXIT_OK;
+}
+
+// Lines 84-89: --kind accepts exactly the three chunk kinds; the original
+// bails with the anyhow message before the kind reaches the SQL.
+pub fn validate_kind(k: str) -> KindVerdict {
+    if (k == "frontmatter") {
+        return KindVerdict{ .ok = true, .value = k };
+    }
+    if (k == "chapter") {
+        return KindVerdict{ .ok = true, .value = k };
+    }
+    if (k == "appendix") {
+        return KindVerdict{ .ok = true, .value = k };
+    }
+    return KindVerdict{ .ok = false, .value = "" };
+}
+
+// Lines 91-102: the original builds "[x,y]" in a String sized len*8+2
+// (line 92), pushes a ',' before every element but the first (95-97) and
+// renders each element with six fractional digits (98). String building
+// and float formatting are named in the header, so the function keeps its
+// name with an undefined body; its decisions are the four helpers below.
+pub fn format_pg_vector(v: []const f32) -> str {
+    undefined;
+}
+
+// Lines 95-97: a ',' is pushed before every element except the first.
+pub fn needs_comma(i: usize) -> bool {
+    return i > 0;
+}
+
+// Lines 95-97, counted: a vector of n elements carries n-1 commas, so the
+// empty vector is "[]" with no commas at all.
+pub fn comma_count(n: usize) -> usize {
+    if (n == 0) {
+        return 0;
+    }
+    return n - 1;
+}
+
+// Line 92: the capacity plan -- 8 bytes per element plus the two brackets.
+pub fn vector_capacity(n: usize) -> usize {
+    return n * 8 + 2;
+}
+
+// Line 98: six fractional digits per element; this is the signed value
+// those digits carry. The cast truncates -- a rounding builtin is not in
+// the language.
+pub fn scaled6(x: f64) -> i64 {
+    return (x * 1000000.0) as i64;
+}
+
+// Line 40, echoed at 117 (stderr), 219 (JSON payload) and 229 (human
+// header): the anchor (R7).
+pub fn anchor() -> str {
+    return ANCHOR;
+}
+
+// Lines 107-109: `cli.query.trim().is_empty()` -- a query of only
+// whitespace is rejected. The original trims Unicode whitespace; the port
+// decides the ASCII set, carriage return included.
+pub fn query_is_blank(q: str) -> bool {
+    var i: usize = 0;
+    while (i < q.len) {
+        if (q[i] != ' ' and q[i] != '\t' and q[i] != '\n' and q[i] != '\r') {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// Lines 111-115: the --database-url flag wins over the DATABASE_URL
+// environment variable; `given` is the flag's Option::Some. An empty
+// result is what the original turns into its "is required" error.
+pub fn resolve_dsn(given: bool, flag: str, env_value: str) -> str {
+    if (given) {
+        return flag;
+    }
+    return env_value;
+}
+
+// Lines 146-149: FASTEMBED_CACHE defaults to $HOME/.cache/fastembed and
+// HOME itself falls back to /tmp. The caller passes HOME (empty when
+// unset); joining the cache path needs string building, named in the
+// header, so only the fallback root is decided here.
+pub fn cache_home(home: str) -> str {
+    if (home == "") {
+        return "/tmp";
+    }
+    return home;
+}
+
+// Lines 133-137: an empty SSOT is an explicit error (R5 -- honest), not
+// an empty result.
+pub fn ssot_usable(total: i64) -> bool {
+    return total != 0;
+}
+
+// Lines 141-145: --dense with zero embedded rows is an explicit error --
+// no silent fallback to lexical.
+pub fn dense_ready(embedded: i64) -> bool {
+    return embedded != 0;
+}
+
+// Lines 161-163: the query embedding must be vector(1024).
+pub fn embedding_dim_ok(dim: usize) -> bool {
+    return dim == DENSE_DIM;
+}
+
+// Line 221: the JSON payload's `mode` field.
+pub fn mode_name_json(dense: bool) -> str {
+    if (dense) {
+        return "dense_bge_m3";
+    }
+    return "lexical_pg_trgm";
+}
+
+// Line 233: the human header's mode tag.
+pub fn mode_name_human(dense: bool) -> str {
+    if (dense) {
+        return "dense (BGE-M3)";
+    }
+    return "lexical (pg_trgm)";
+}
+
+// Lines 173-176 and 199-202: a given --kind becomes one
+// `AND chunk_kind = '<kind>'` clause in both SQL builds. The original
+// validates the kind before it ever reaches here (line 87), so the filter
+// only ever applies to the three chunk kinds.
+pub fn kind_filter_applied(kind_given: bool, kind: str) -> bool {
+    const check = validate_kind(kind);
+    if (kind_given and check.ok) {
+        return true;
+    }
+    return false;
+}
+
+test validate_kind_accepts_exactly_the_three_chunk_kinds {
+    const f = validate_kind("frontmatter");
+    assert(f.ok);
+    assert(f.value == "frontmatter");
+    const c = validate_kind("chapter");
+    assert(c.ok);
+    assert(c.value == "chapter");
+    const a = validate_kind("appendix");
+    assert(a.ok);
+    assert(a.value == "appendix");
+}
+
+test validate_kind_rejects_everything_else {
+    const bad = validate_kind("section");
+    assert(!bad.ok);
+    assert(bad.value == "");
+    const empty = validate_kind("");
+    assert(!empty.ok);
+}
+
+test pg_vector_separator_and_capacity_plan {
+    assert(needs_comma(0) == false);
+    assert(needs_comma(1) == true);
+    assert(needs_comma(1023) == true);
+    assert(comma_count(0) == 0);
+    assert(comma_count(1) == 0);
+    assert(comma_count(4) == 3);
+    assert(vector_capacity(0) == 2);
+    assert(vector_capacity(1024) == 8194);
+}
+
+test scaled6_six_fractional_digits {
+    assert(scaled6(0.5) == 500000);
+    assert(scaled6(1.25) == 1250000);
+}
+
+test anchor_is_the_phi_identity {
+    assert(anchor() == "phi^2 + phi^-2 = 3");
+}
+
+test query_must_be_non_blank {
+    assert(query_is_blank("") == true);
+    assert(query_is_blank("   ") == true);
+    assert(query_is_blank(" \t\n ") == true);
+    assert(query_is_blank("phi^2 + phi^-2 = 3") == false);
+    assert(query_is_blank(" trit exhaustive ") == false);
+}
+
+test dsn_flag_wins_over_the_environment {
+    assert(resolve_dsn(true, "postgres://flag", "postgres://env") == "postgres://flag");
+    assert(resolve_dsn(false, "postgres://flag", "postgres://env") == "postgres://env");
+    assert(resolve_dsn(false, "", "") == "");
+}
+
+test cache_home_falls_back_to_tmp {
+    assert(cache_home("") == "/tmp");
+    assert(cache_home("/root") == "/root");
+}
+
+test ssot_and_dense_gates {
+    assert(ssot_usable(0) == false);
+    assert(ssot_usable(41) == true);
+    assert(dense_ready(0) == false);
+    assert(dense_ready(1) == true);
+    assert(embedding_dim_ok(1024) == true);
+    assert(embedding_dim_ok(768) == false);
+}
+
+test mode_names_by_retrieval_mode {
+    assert(mode_name_json(true) == "dense_bge_m3");
+    assert(mode_name_json(false) == "lexical_pg_trgm");
+    assert(mode_name_human(true) == "dense (BGE-M3)");
+    assert(mode_name_human(false) == "lexical (pg_trgm)");
+}
+
+test kind_filter_needs_a_valid_kind {
+    assert(kind_filter_applied(true, "chapter") == true);
+    assert(kind_filter_applied(true, "bogus") == false);
+    assert(kind_filter_applied(false, "chapter") == false);
+    assert(kind_filter_applied(false, "") == false);
+}
+
+test main_verdict_gates {
+    // the green lexical path: real query, DSN flag, non-empty SSOT
+    assert(main_verdict(cli_green(), "", Status{ .total = 41, .embedded = 0 }, 0) == EXIT_OK);
+    // line 107: a whitespace-only query is the error, not an empty search
+    var blank_flags = cli_green();
+    blank_flags.query = "   ";
+    assert(main_verdict(blank_flags, "", Status{ .total = 41, .embedded = 0 }, 0) == EXIT_FAIL);
+    // line 115: neither the flag nor the environment carries a DSN
+    var naked = cli_green();
+    naked.dsn_flag_given = false;
+    assert(main_verdict(naked, "", Status{ .total = 41, .embedded = 0 }, 0) == EXIT_FAIL);
+    // lines 111-115: the environment covers an absent flag
+    var env_only = cli_green();
+    env_only.dsn_flag_given = false;
+    assert(main_verdict(env_only, "postgres://env", Status{ .total = 41, .embedded = 0 }, 0) == EXIT_OK);
+    // line 133: an empty SSOT is an explicit error
+    assert(main_verdict(cli_green(), "", Status{ .total = 0, .embedded = 0 }, 0) == EXIT_FAIL);
+    // line 141: --dense over zero embedded rows refuses -- no silent
+    // fallback to lexical
+    var dense = cli_green();
+    dense.dense = true;
+    assert(main_verdict(dense, "", Status{ .total = 41, .embedded = 0 }, 1024) == EXIT_FAIL);
+    // line 161: the query embedding must be vector(1024)
+    var dense_rows = cli_green();
+    dense_rows.dense = true;
+    assert(main_verdict(dense_rows, "", Status{ .total = 41, .embedded = 41 }, 768) == EXIT_FAIL);
+    assert(main_verdict(dense_rows, "", Status{ .total = 41, .embedded = 41 }, 1024) == EXIT_OK);
+    // line 87 and 174/200: an unvalidated --kind never reaches the SQL
+    var bad_kind = cli_green();
+    bad_kind.kind_given = true;
+    bad_kind.kind = "bogus";
+    assert(main_verdict(bad_kind, "", Status{ .total = 41, .embedded = 0 }, 0) == EXIT_FAIL);
+    var good_kind = cli_green();
+    good_kind.kind_given = true;
+    good_kind.kind = "chapter";
+    assert(main_verdict(good_kind, "", Status{ .total = 41, .embedded = 0 }, 0) == EXIT_OK);
+}
