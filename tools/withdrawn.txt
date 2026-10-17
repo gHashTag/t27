@@ -18,3 +18,13 @@
 322\s*MHz            | same ring-oscillator net as 323 MHz (GF16 dot4 row) | RESEARCH_CLAIMS.md Retraction 2026-08-18
 97\.67\s*%?\s*MNIST  | no artifact produces it; the only MNIST run is untrained | RESEARCH_CLAIMS.md Retraction 2026-08-18
 FROZEN\s+SILICON     | STATUS.md reserves SILICON for a received die, and forbids it in t27 | STATUS.md:33,112
+
+# Added 2026-10-09. Prop. 173d is withdrawn. It published that `$( ... 2>&1 )`
+# failed to capture stderr across a multi-line command substitution. Re-tested,
+# that claim does not reproduce: a multi-line command substitution captures
+# 132931 bytes with the warning present, and with -q restored it returns 178
+# bytes while still containing the exact pattern the guard greps for. Two
+# changes went in together (dropping -q and redirecting to a file) and the
+# working result was attributed to the wrong one. The fix stands on its
+# verification; the explanation does not.
+capture\s+stderr\s+across\s+a\s+multi-line\s+command\s+substitution | Prop. 173d: the stderr-capture claim cannot be reproduced; the fix (removing -q and redirecting output to a file) stands on its verification | issue gHashTag/t27#2118 Withdrawal 2026-10-09
