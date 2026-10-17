@@ -851,6 +851,7 @@
   {"path": "specs/port/trios/crates/trios-bridge/src/main.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-01/src/key_package_expiry_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-02/src/epoch_rollover_wraparound_guard.t27", "t27b": "pass"},
+  {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/concurrent_add_remove.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/ratchet_tree_resolution_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-03/src/unmerged_leaves_bound_guard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-05/src/envelope_size_distribution_uniformity.t27", "t27b": "pass"},

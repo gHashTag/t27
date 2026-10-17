@@ -1,0 +1,460 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-03::src::concurrent_add_remove;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-03/src/concurrent_add_remove.rs
+// (CR-CHAT-03 - Concurrent Add/Remove ordering and ghost-member
+// detection, Wave-20, L-CHAT-3-add, RFC 9420 12.2).
+//
+// Two members racing to commit against the same base epoch
+// need a deterministic order: Updates first (rotate the
+// keys of active leaves), then Removes (drop leaves), then
+// Adds (fill the freed slots), ties broken by leaf index
+// then hash id ascending. A wrong order leaves a ghost
+// member, resurrects a removed leaf, hides which racing
+// KeyPackage won, aborts a whole commit on a duplicate
+// remove, or panics on a self-remove paired with an
+// update. The original sorts the proposal set by the
+// triple, rejects an exact duplicate sort key up front (a
+// caller canonicalisation bug), then applies each proposal
+// against the intermediate membership: an Update must find
+// its leaf a member, a Remove must find it a member, an Add
+// must find it absent - each violation answering with the
+// leaf it names.
+//
+// The original returns Result<MembershipDelta,
+// ConcurrencyError>. This port carries the verdict as a
+// named struct (owner decision D5): Ok first, then the
+// four variants in the original's declaration order -
+// RemoveNonMember, AddExisting, UpdateNonMember,
+// DuplicateSortKey - with every payload field: the error
+// leaf, and on success the whole delta by value - the
+// added, removed and updated lists in canonical
+// application order and the final membership - each list a
+// fixed capacity with its length, the final members a
+// member array whose set semantics the tests read through
+// a set-equality probe.
+//
+// The original's stable sort becomes a selection sort over
+// a local copy of the proposals, ordered by a
+// lexicographic before-probe over priority, leaf and hash
+// id - the sorted result is the same permutation the
+// original's sort produces, the tie key making it total.
+// The BTreeSet of members becomes a fixed member array
+// plus its length: contains a scan, insert an append,
+// remove a shift-left compaction. The proposal enum
+// becomes a kind enum plus one record form.
+
+// Canonical class priorities - smaller is earlier.
+pub const PRI_UPDATE: u32 = 0;
+pub const PRI_REMOVE: u32 = 1;
+pub const PRI_ADD: u32 = 2;
+
+// The record capacity: every original fixture stays well
+// under eight.
+pub const CAR_CAP: usize = 8;
+
+// The proposal class.
+pub enum ProposalKind {
+    Update,
+    Remove,
+    Add,
+}
+
+// The proposal record: the class, the target leaf and the
+// tie-break id.
+pub struct ProposalRec {
+    kind: ProposalKind,
+    leaf: u32,
+    hash_id: u64,
+}
+
+// Verdict codes: Ok(MembershipDelta) and ConcurrencyError's variants, in declaration order.
+pub enum CarCode {
+    Ok,
+    RemoveNonMember,
+    AddExisting,
+    UpdateNonMember,
+    DuplicateSortKey,
+}
+
+// The verdict of the concurrent reconciliation: the error
+// leaf, or the whole membership delta by value on success.
+pub struct CarVerdict {
+    code: CarCode,
+    err_leaf: u32,
+    added: [8]u32,
+    added_len: usize,
+    removed: [8]u32,
+    removed_len: usize,
+    updated: [8]u32,
+    updated_len: usize,
+    final_members: [8]u32,
+    final_len: usize,
+}
+
+// The class priority of a proposal - the original's
+// priority() probe.
+pub fn proposal_priority(p: ProposalRec) -> u32 {
+    if (p.kind == ProposalKind.Update) {
+        return PRI_UPDATE;
+    }
+    if (p.kind == ProposalKind.Remove) {
+        return PRI_REMOVE;
+    }
+    return PRI_ADD;
+}
+
+// Whether proposal a sorts strictly before proposal b -
+// the original's (priority, leaf, hash_id) key compared
+// lexicographically.
+pub fn proposal_before(a: ProposalRec, b: ProposalRec) -> bool {
+    if (proposal_priority(a) != proposal_priority(b)) {
+        return proposal_priority(a) < proposal_priority(b);
+    }
+    if (a.leaf != b.leaf) {
+        return a.leaf < b.leaf;
+    }
+    return a.hash_id < b.hash_id;
+}
+
+// Whether two proposals share the exact sort key - the
+// original's duplicate-key collision.
+pub fn sort_keys_equal(a: ProposalRec, b: ProposalRec) -> bool {
+    if (proposal_priority(a) != proposal_priority(b)) {
+        return false;
+    }
+    if (a.leaf != b.leaf) {
+        return false;
+    }
+    return a.hash_id == b.hash_id;
+}
+
+// Whether the member array holds this leaf - the original's
+// BTreeSet contains.
+pub fn member_contains(members: [8]u32, members_len: usize, leaf: u32) -> bool {
+    for i in 0..members_len {
+        if (members[i] == leaf) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Apply a set of concurrent proposals against the
+// base membership in the canonical RFC 9420 12.2 order.
+// Returns Ok with the whole delta only when every proposal
+// is structurally valid against the intermediate state at
+// the moment it is applied.
+pub fn apply_concurrent(base_members: []const u32, proposals: []const ProposalRec) -> CarVerdict {
+    var sorted: [8]ProposalRec = [8]ProposalRec{ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, }, ProposalRec { kind: ProposalKind.Update, leaf: 0, hash_id: 0, },}
+    var sorted_len: usize = proposals.len;
+    for i in 0..proposals.len {
+        sorted[i] = proposals[i];
+    }
+    for i in 0..sorted_len {
+        var best: usize = i;
+        for j in (i + 1)..sorted_len {
+            if (proposal_before(sorted[j], sorted[best])) {
+                best = j;
+            }
+        }
+        var tmp: ProposalRec = sorted[i];
+        sorted[i] = sorted[best];
+        sorted[best] = tmp;
+    }
+    for i in 0..sorted_len {
+        if (i > 0) {
+            if (sort_keys_equal(sorted[i - 1], sorted[i])) {
+                return CarVerdict { code: CarCode.DuplicateSortKey, err_leaf: 0, added: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, added_len: 0, removed: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, removed_len: 0, updated: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, updated_len: 0, final_members: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, final_len: 0, };
+            }
+        }
+    }
+    var members: [8]u32 = [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}
+    var members_len: usize = base_members.len;
+    for i in 0..base_members.len {
+        members[i] = base_members[i];
+    }
+    var added: [8]u32 = [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}
+    var added_len: usize = 0;
+    var removed: [8]u32 = [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}
+    var removed_len: usize = 0;
+    var updated: [8]u32 = [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}
+    var updated_len: usize = 0;
+    for i in 0..sorted_len {
+        if (sorted[i].kind == ProposalKind.Update) {
+            if (!member_contains(members, members_len, sorted[i].leaf)) {
+                return CarVerdict { code: CarCode.UpdateNonMember, err_leaf: sorted[i].leaf, added: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, added_len: 0, removed: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, removed_len: 0, updated: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, updated_len: 0, final_members: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, final_len: 0, };
+            }
+            updated[updated_len] = sorted[i].leaf;
+            updated_len = updated_len + 1;
+        }
+        if (sorted[i].kind == ProposalKind.Remove) {
+            if (!member_contains(members, members_len, sorted[i].leaf)) {
+                return CarVerdict { code: CarCode.RemoveNonMember, err_leaf: sorted[i].leaf, added: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, added_len: 0, removed: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, removed_len: 0, updated: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, updated_len: 0, final_members: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, final_len: 0, };
+            }
+            var found_at: usize = 0;
+            for m in 0..members_len {
+                if (members[m] == sorted[i].leaf) {
+                    found_at = m;
+                }
+            }
+            for m in found_at..(members_len - 1) {
+                members[m] = members[m + 1];
+            }
+            members_len = members_len - 1;
+            removed[removed_len] = sorted[i].leaf;
+            removed_len = removed_len + 1;
+        }
+        if (sorted[i].kind == ProposalKind.Add) {
+            if (member_contains(members, members_len, sorted[i].leaf)) {
+                return CarVerdict { code: CarCode.AddExisting, err_leaf: sorted[i].leaf, added: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, added_len: 0, removed: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, removed_len: 0, updated: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, updated_len: 0, final_members: [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}, final_len: 0, };
+            }
+            members[members_len] = sorted[i].leaf;
+            members_len = members_len + 1;
+            added[added_len] = sorted[i].leaf;
+            added_len = added_len + 1;
+        }
+    }
+    return CarVerdict { code: CarCode.Ok, err_leaf: 0, added: added, added_len: added_len, removed: removed, removed_len: removed_len, updated: updated, updated_len: updated_len, final_members: members, final_len: members_len, };
+}
+
+// **CAR-01** - the add-after-remove ghost: with seven a
+// member, the canonical order removes it first and the add
+// re-adds it - the final set holds seven, no ghost.
+test car_01_add_after_remove_ghost {
+    const base: [3]u32 = [3]u32{1, 2, 7,};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 7, hash_id: 100, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 7, hash_id: 99, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.Ok);
+    assert(d.removed_len == 1);
+    assert(d.removed[0] == 7);
+    assert(d.added_len == 1);
+    assert(d.added[0] == 7);
+    assert(d.final_len == 3);
+    assert(member_contains(d.final_members, d.final_len, 1));
+    assert(member_contains(d.final_members, d.final_len, 2));
+    assert(member_contains(d.final_members, d.final_len, 7));
+}
+
+// **CAR-02** - the remove-after-add resurrection: the
+// canonical order applies the remove first, and with seven
+// absent from the base there is no leaf to remove.
+test car_02_remove_after_add_resurrection {
+    const base: [2]u32 = [2]u32{1, 2,};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 7, hash_id: 100, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 7, hash_id: 99, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.RemoveNonMember);
+    assert(d.err_leaf == 7);
+}
+
+// **CAR-03** - the duplicate add: two adds of the same leaf
+// with different tie ids - the second answers AddExisting.
+test car_03_duplicate_add {
+    const base: [2]u32 = [2]u32{1, 2,};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 9, hash_id: 1, },
+        ProposalRec { kind: ProposalKind.Add, leaf: 9, hash_id: 2, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.AddExisting);
+    assert(d.err_leaf == 9);
+}
+
+// **CAR-04** - the duplicate remove: two removes of the
+// same leaf - the second answers RemoveNonMember, the
+// different tie ids keeping it out of the duplicate-key
+// rule.
+test car_04_duplicate_remove {
+    const base: [3]u32 = [3]u32{1, 2, 5,};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Remove, leaf: 5, hash_id: 1, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 5, hash_id: 2, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.RemoveNonMember);
+    assert(d.err_leaf == 5);
+}
+
+// **CAR-05** - the self-remove with update: the update
+// applies first on the member, the remove then drops it -
+// the commit succeeds and the leaf is gone.
+test car_05_self_remove_with_update {
+    const base: [3]u32 = [3]u32{1, 2, 3,};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Update, leaf: 2, hash_id: 1, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 2, hash_id: 2, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.Ok);
+    assert(d.updated_len == 1);
+    assert(d.updated[0] == 2);
+    assert(d.removed_len == 1);
+    assert(d.removed[0] == 2);
+    assert(d.final_len == 2);
+    assert(member_contains(d.final_members, d.final_len, 1));
+    assert(member_contains(d.final_members, d.final_len, 3));
+    assert(!member_contains(d.final_members, d.final_len, 2));
+}
+
+// **CAR-06** - the empty proposal set: the delta carries
+// no change and the final set equals the base.
+test car_06_empty_proposal_set {
+    const base: [3]u32 = [3]u32{1, 2, 3,};
+    const props: [0]ProposalRec = [0]ProposalRec{};
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.Ok);
+    assert(d.added_len == 0);
+    assert(d.removed_len == 0);
+    assert(d.updated_len == 0);
+    assert(d.final_len == 3);
+    assert(member_contains(d.final_members, d.final_len, 1));
+    assert(member_contains(d.final_members, d.final_len, 2));
+    assert(member_contains(d.final_members, d.final_len, 3));
+}
+
+// **CAR-07** - the order determinism: two permutations of
+// one proposal set answer identical deltas.
+test car_07_order_determinism {
+    const base: [2]u32 = [2]u32{1, 2,};
+    const a: [3]ProposalRec = [3]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 11, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 1, hash_id: 22, },
+        ProposalRec { kind: ProposalKind.Update, leaf: 2, hash_id: 33, },
+    };
+    const b: [3]ProposalRec = [3]ProposalRec{
+        ProposalRec { kind: ProposalKind.Update, leaf: 2, hash_id: 33, },
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 11, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 1, hash_id: 22, },
+    };
+    const d1 = apply_concurrent(&base, &a);
+    const d2 = apply_concurrent(&base, &b);
+    assert(d1.code == CarCode.Ok);
+    assert(d2.code == CarCode.Ok);
+    assert(d1.added_len == d2.added_len);
+    assert(d1.added[0] == d2.added[0]);
+    assert(d1.removed_len == d2.removed_len);
+    assert(d1.removed[0] == d2.removed[0]);
+    assert(d1.updated_len == d2.updated_len);
+    assert(d1.updated[0] == d2.updated[0]);
+    assert(d1.final_len == d2.final_len);
+    assert(member_contains(d1.final_members, d1.final_len, 2));
+    assert(member_contains(d1.final_members, d1.final_len, 5));
+    assert(member_contains(d2.final_members, d2.final_len, 2));
+    assert(member_contains(d2.final_members, d2.final_len, 5));
+}
+
+// **CAR-08** - the tie-break by hash id: two adds of one
+// leaf sort by the tie id, the lower one first - the
+// second answers AddExisting.
+test car_08_tie_break_by_hash_id {
+    const base: [0]u32 = [0]u32{};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 99, },
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.AddExisting);
+    assert(d.err_leaf == 5);
+}
+
+// **CAR-09** - the duplicate sort key: the exact triple
+// twice answers up front, before any proposal applies.
+test car_09_duplicate_sort_key {
+    const base: [0]u32 = [0]u32{};
+    const props: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, },
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.DuplicateSortKey);
+}
+
+// **CAR-10** - the module reachable: the original's tenth
+// test pinned the priority constants alone, and constant
+// comparisons fold at compile time in the reference path -
+// the port pins the gate live instead (the WPS-10
+// precedent): one add against an empty base answers Ok with
+// the leaf added, the class priorities asserted alongside.
+test car_10_green_each {
+    const base: [0]u32 = [0]u32{};
+    const props: [1]ProposalRec = [1]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 4, hash_id: 1, },
+    };
+    const d = apply_concurrent(&base, &props);
+    assert(d.code == CarCode.Ok);
+    assert(d.added_len == 1);
+    assert(d.added[0] == 4);
+    assert(d.final_len == 1);
+    assert(d.final_members[0] == 4);
+    assert(PRI_UPDATE == 0);
+    assert(PRI_REMOVE == 1);
+    assert(PRI_ADD == 2);
+}
+
+// The helpers have direct tests (coverage: Untested 0).
+test proposal_priority_answers {
+    assert(proposal_priority(ProposalRec { kind: ProposalKind.Update, leaf: 1, hash_id: 1, }) == PRI_UPDATE);
+    assert(proposal_priority(ProposalRec { kind: ProposalKind.Remove, leaf: 1, hash_id: 1, }) == PRI_REMOVE);
+    assert(proposal_priority(ProposalRec { kind: ProposalKind.Add, leaf: 1, hash_id: 1, }) == PRI_ADD);
+}
+
+test proposal_before_answers {
+    assert(proposal_before(ProposalRec { kind: ProposalKind.Update, leaf: 9, hash_id: 9, }, ProposalRec { kind: ProposalKind.Remove, leaf: 1, hash_id: 1, }));
+    assert(!proposal_before(ProposalRec { kind: ProposalKind.Remove, leaf: 1, hash_id: 1, }, ProposalRec { kind: ProposalKind.Update, leaf: 9, hash_id: 9, }));
+    assert(proposal_before(ProposalRec { kind: ProposalKind.Add, leaf: 1, hash_id: 50, }, ProposalRec { kind: ProposalKind.Add, leaf: 1, hash_id: 99, }));
+    assert(proposal_before(ProposalRec { kind: ProposalKind.Add, leaf: 1, hash_id: 99, }, ProposalRec { kind: ProposalKind.Add, leaf: 2, hash_id: 1, }));
+}
+
+test sort_keys_equal_answers {
+    assert(sort_keys_equal(ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, }, ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, }));
+    assert(!sort_keys_equal(ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, }, ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 2, }));
+    assert(!sort_keys_equal(ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, }, ProposalRec { kind: ProposalKind.Remove, leaf: 5, hash_id: 1, }));
+    assert(!sort_keys_equal(ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, }, ProposalRec { kind: ProposalKind.Add, leaf: 6, hash_id: 1, }));
+}
+
+test member_contains_answers {
+    var members: [8]u32 = [8]u32{0, 0, 0, 0, 0, 0, 0, 0,}
+    members[0] = 1;
+    members[1] = 2;
+    members[2] = 7;
+    assert(member_contains(members, 3, 7));
+    assert(!member_contains(members, 3, 5));
+    assert(!member_contains(members, 0, 1));
+}
+
+// Rule order is the original's: the duplicate-key rule
+// answers before any proposal applies - a set carrying both
+// a duplicate key and an apply-time violation answers the
+// duplicate - and the sort runs before the apply - the
+// same leaf's remove answers before its add under a base
+// that holds it, and after its add under a base that does
+// not.
+test rule_order_matches_original {
+    const base: [2]u32 = [2]u32{1, 2,};
+    const dup_and_bad: [3]ProposalRec = [3]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, },
+        ProposalRec { kind: ProposalKind.Add, leaf: 5, hash_id: 1, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 99, hash_id: 7, },
+    };
+    const v1 = apply_concurrent(&base, &dup_and_bad);
+    assert(v1.code == CarCode.DuplicateSortKey);
+
+    const holds: [3]u32 = [3]u32{1, 2, 7,};
+    const same_leaf: [2]ProposalRec = [2]ProposalRec{
+        ProposalRec { kind: ProposalKind.Add, leaf: 7, hash_id: 100, },
+        ProposalRec { kind: ProposalKind.Remove, leaf: 7, hash_id: 99, },
+    };
+    const v2 = apply_concurrent(&holds, &same_leaf);
+    assert(v2.code == CarCode.Ok);
+    assert(v2.final_len == 3);
+    assert(member_contains(v2.final_members, v2.final_len, 7));
+
+    const absent: [2]u32 = [2]u32{1, 2,};
+    const v3 = apply_concurrent(&absent, &same_leaf);
+    assert(v3.code == CarCode.RemoveNonMember);
+}
