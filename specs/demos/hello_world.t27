@@ -44,7 +44,8 @@ module HelloWorld {
     // Explicit signatures ensure type safety across hardware boundaries.
     pub fn calculate_area(config : ConfigPacked) -> u16 {
         // Type conversion is explicit: u8 * u8 -> u16 prevents overflow
-        let area : u16 = cast(config.width) * cast(config.height);
+        // Use simple multiplication and let compiler handle extension
+        let area : u16 = config.width * config.height;
         return area;
     }
     
@@ -62,6 +63,15 @@ module HelloWorld {
             return false;
         }
         return config.enable;
+    }
+    
+    // Combinational logic entry point: creates the hardware interface
+    // This function drives the outputs and connects the internal logic
+    pub fn on_comb(width : u8, height : u8, depth : u8) -> (ConfigPacked, u16, bool) {
+        let config = create_config(width, height, depth);
+        let area = calculate_area(config);
+        let valid = is_config_valid(config);
+        return (config, area, valid);
     }
     
     // Test block: tests verify specific behaviors with concrete examples.
