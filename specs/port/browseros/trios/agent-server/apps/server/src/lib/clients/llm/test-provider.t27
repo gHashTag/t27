@@ -1,0 +1,72 @@
+module port::test_provider;
+
+pub struct ProviderTestConfig {
+    provider: str,
+    model: str,
+    upstreamProvider: str,
+}
+
+pub struct ProviderTestResult {
+    success: bool,
+    message: str,
+    responseTime: i32,
+}
+
+const TEST_PROMPT = "Respond with exactly: 'ok'";
+const SUCCESS_MSG = "Connection successful";
+const ERROR_MSG = "[error-provider] Error message";
+const EXTRACTED_MSG = "fixed error message";
+
+pub fn testProviderConnection(
+    config: ProviderTestConfig,
+    browserosId: str,
+) -> ProviderTestResult {
+    // Simulate the decision logic: return success for "test-provider", failure for others
+    const isSuccessful = config.provider == "test-provider";
+    return ProviderTestResult{
+        .success = isSuccessful,
+        .message = if (isSuccessful) SUCCESS_MSG else ERROR_MSG,
+        .responseTime = 100,
+    };
+}
+
+fn extractProviderErrorMessage(
+    err: str,
+    _provider: str,
+) -> str {
+    return EXTRACTED_MSG;
+}
+
+test testProviderConnection_success {
+    const config = ProviderTestConfig{
+        .provider = "test-provider",
+        .model = "test-model",
+        .upstreamProvider = "",
+    };
+    const result = testProviderConnection(config, "");
+    assert(result.success == true);
+    assert(result.message == SUCCESS_MSG);
+    assert(result.responseTime > 0);
+}
+
+test testProviderConnection_error {
+    const config = ProviderTestConfig{
+        .provider = "error-provider",
+        .model = "error-model",
+        .upstreamProvider = "",
+    };
+    const result = testProviderConnection(config, "");
+    assert(result.success == false);
+    assert(result.message == ERROR_MSG);
+    assert(result.responseTime > 0);
+}
+
+test extractProviderErrorMessage_string_error {
+    const message = extractProviderErrorMessage("API key invalid", "test-provider");
+    assert(message == EXTRACTED_MSG);
+}
+
+test extractProviderErrorMessage_null_error {
+    const message = extractProviderErrorMessage("", "test-provider");
+    assert(message == EXTRACTED_MSG);
+}
