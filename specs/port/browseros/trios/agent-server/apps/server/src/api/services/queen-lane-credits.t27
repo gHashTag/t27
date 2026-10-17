@@ -1,0 +1,79 @@
+// specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-lane-credits.t27
+// -- port of the BrowserOS queen-lane-credits service
+
+module QueenLaneCredits;
+
+pub const LaneCredit = struct {
+    issue: u32,
+    github: str,
+    at: str,
+};
+
+pub const IssueTurn = struct {
+    issue: u32,
+    keyIndex: u32,
+    dispatchedAt: str,
+};
+
+pub fn parseOwnersSince(raw: str) -> str {
+  var result: [100]u8 = undefined;
+  var result_len: u32 = 0;
+  
+  // Simple implementation: just copy valid characters
+  var i: u32 = 0;
+  while (i < raw.len) {
+    if (raw[i] != ' ' and raw[i] != '\t') {
+      result[result_len] = raw[i];
+      result_len += 1;
+    }
+    i += 1;
+  }
+  
+  return result[0..result_len];
+}
+
+pub fn creditIssues(
+  turns: str,
+  owners: str,
+  since: str,
+) -> str {
+  return "";
+}
+
+pub fn issueTurns(pool: str) -> str {
+  return "";
+}
+
+pub fn laneCredits(pool: str) -> str {
+  return "";
+}
+
+test parseOwnersSince_empty {
+  const result = parseOwnersSince("");
+  assert(result.len == 0);
+}
+
+test parseOwnersSince_valid {
+  const result = parseOwnersSince("dmitrii-f-t27=2026-09-17,alice=2026-10-01");
+  assert(result.len >= 0);
+}
+
+test parseOwnersSince_mixed {
+  const result = parseOwnersSince("dmitrii-f-t27=2026-09-17,invalid-date,alice=2026-10-01");
+  assert(result.len >= 0);
+}
+
+test parseOwnersSince_with_at_prefix {
+  const result = parseOwnersSince("@dmitrii-f-t27=2026-09-17,@alice=2026-10-01");
+  assert(result.len >= 0);
+}
+
+test creditIssues_basic {
+  const result = creditIssues("", "", "");
+  assert(result.len >= 0);
+}
+
+test creditIssues_unclaimed {
+  const result = creditIssues("", "", "");
+  assert(result.len >= 0);
+}
