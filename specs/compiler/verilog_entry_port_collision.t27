@@ -1,0 +1,121 @@
+; specs/compiler/verilog_entry_port_collision.t27 -- an entry-point parameter that is named like a
+; boilerplate port of the module header (issue #5649).
+; --
+; The decision lives here. `t27c gen-rust` lowers it to
+; bootstrap/gen/rust/compiler/verilog_entry_port_collision.rs, which bootstrap/src/compiler.rs mounts
+; by #[path] and only prints. Never hand-edit the generated copy.
+; --
+; `t27c gen-verilog` opens every module with three 1-bit inputs, `clk`, `rst_n` and `en`, unless the
+; spec declares a module `var`/`const` of that name (W649). Each parameter of `fn on_comb` /
+; `fn on_clock` then becomes one more `input` port. A parameter named like one of those three was
+; declared a second time, and iverilog refused the module:
+;     'clk' has already been declared in this scope.
+; Five corpus specs on master 295b2c5c: d_bank13_test, d_direct, led_simple_test and led_test_inv
+; (`fn on_comb(clk: bool) -> bool`), and dsp_probe (`fn on_clock(cfgmclk: bool, rst_n: bool, en: bool)`).
+; --
+; The rule, for one entry-point parameter:
+; 1. its name is not a boilerplate port the header emits: PORT_OWN, an `input` port of its own.
+; 2. it is one unsigned bit wide: PORT_SHARED. It IS that port. The header declares the name once
+;    (the boilerplate line), and every use -- the arguments of `assign result = on_comb(...)`, the
+;    body of `on_clock` -- keeps the name.
+; 3. otherwise (wider than one bit, or signed): PORT_REFUSED. Merged into the 1-bit port it would be
+;    narrowed without a word, so the entry point is refused, loudly, in the generated source, as
+;    W699 refuses a parameter whose width cannot be derived.
+; --
+; What this does NOT do, stated where the rule is read:
+; - Rename a parameter. The name is the signal the author means: `clk` is the clock pin routed to the
+;   LED in the openxc7 bring-up tests; `rst_n` and `en` are the reset and enable of the process.
+; - Judge a parameter named like an output port (`ready`, `result`). No corpus spec has one.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerilogEntryPortCollision;
+
+/// The parameter gets an `input` port of its own.
+pub const PORT_OWN : u8 = 0;
+/// The parameter is the boilerplate port of the same name; the header declares it once.
+pub const PORT_SHARED : u8 = 1;
+/// The parameter cannot be the 1-bit boilerplate port; the entry point is refused.
+pub const PORT_REFUSED : u8 = 2;
+
+/// The width of each boilerplate port (`clk`, `rst_n`, `en`), in bits.
+pub const BOILERPLATE_BITS : u32 = 1;
+
+/// The port of one entry-point parameter. `collides`: its name is a boilerplate port that the header
+/// emits. `bits` and `is_signed`: the width and signedness derived for the parameter.
+pub fn entry_param_port(collides: bool, bits: u32, is_signed: bool) -> u8 {
+    if (collides) {
+        if (bits == BOILERPLATE_BITS) {
+            if (is_signed) {
+                return PORT_REFUSED;
+            }
+            return PORT_SHARED;
+        }
+        return PORT_REFUSED;
+    }
+    return PORT_OWN;
+}
+
+/// How many times the header declares the parameter's name: the boilerplate line, when the name
+/// collides, plus the parameter's own line, when it has one.
+pub fn header_declarations(collides: bool, port: u8) -> u32 {
+    if (port == PORT_OWN) {
+        if (collides) {
+            return 2;
+        }
+        return 1;
+    }
+    if (collides) {
+        return 1;
+    }
+    return 0;
+}
+
+// Scenario: d_bank13_test, d_direct, led_simple_test, led_test_inv -- `fn on_comb(clk: bool) -> bool`.
+test a_bool_clk_parameter_is_the_clk_port {
+    assert entry_param_port(true, 1, false) == PORT_SHARED;
+    assert header_declarations(true, entry_param_port(true, 1, false)) == 1;
+}
+
+// Scenario: dsp_probe -- `fn on_clock(cfgmclk: bool, rst_n: bool, en: bool)`. rst_n and en are the
+// boilerplate ports; cfgmclk keeps its own port.
+test dsp_probe_declares_each_port_once {
+    assert entry_param_port(true, 1, false) == PORT_SHARED;
+    assert entry_param_port(false, 1, false) == PORT_OWN;
+    assert header_declarations(true, PORT_SHARED) == 1;
+    assert header_declarations(false, PORT_OWN) == 1;
+}
+
+// Scenario: ternary_node -- no parameter collides, so every parameter keeps its own port (FR-004).
+test no_collision_keeps_every_port {
+    assert entry_param_port(false, 1, false) == PORT_OWN;
+    assert entry_param_port(false, 8, false) == PORT_OWN;
+    assert entry_param_port(false, 32, true) == PORT_OWN;
+    assert entry_param_port(false, 1, true) == PORT_OWN;
+}
+
+// FR-003: a wider parameter named like a boilerplate port is refused, never narrowed into it.
+test a_wide_collision_is_refused {
+    assert entry_param_port(true, 2, false) == PORT_REFUSED;
+    assert entry_param_port(true, 8, false) == PORT_REFUSED;
+    assert entry_param_port(true, 32, true) == PORT_REFUSED;
+    assert header_declarations(true, PORT_REFUSED) == 1;
+}
+
+// A signed bit is not the unsigned boilerplate bit either.
+test a_signed_bit_collision_is_refused {
+    assert entry_param_port(true, 1, true) == PORT_REFUSED;
+}
+
+// FR-001: whatever the parameter, the header declares its name at most once.
+test every_name_is_declared_at_most_once {
+    assert header_declarations(true, entry_param_port(true, 1, false)) <= 1;
+    assert header_declarations(true, entry_param_port(true, 1, true)) <= 1;
+    assert header_declarations(true, entry_param_port(true, 64, false)) <= 1;
+    assert header_declarations(false, entry_param_port(false, 1, false)) <= 1;
+    assert header_declarations(false, entry_param_port(false, 64, true)) <= 1;
+}
+
+// Before #5649 every parameter was PORT_OWN, which declared a colliding name twice.
+test the_old_rule_declared_a_collision_twice {
+    assert header_declarations(true, PORT_OWN) == 2;
+}

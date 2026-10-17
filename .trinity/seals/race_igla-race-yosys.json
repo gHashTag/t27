@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+cc19d1fcd",
+  "built_by": "t27c-bootstrap@0.5.2+dcf9c6f04",
   "closure": [
     {
       "spec": "specs/base/types.t27",
@@ -17,12 +17,12 @@
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e992b938503579674c717ac5a3ebef993ae86ceb3eccce46da5312800c36efe1",
   "gen_hash_rust": "sha256:452d17d4fac9d07ae98e9a3495a357211c35fef1e10dbce9d7fc90117f8059bc",
-  "gen_hash_verilog": "sha256:824a0d62f756931a5711d0d94d822a09ea2b2b7a1f39ff2e5a83fd32b8ecac6d",
+  "gen_hash_verilog": "sha256:f8ccdb54f11e2e13fb6d4f601fef63d7a9fda25511f94b26cd2a0393a97edeb7",
   "gen_hash_zig": "sha256:e9909396ed1f8465aff40b200b9d99fe4eebcf7fa45848b3a7075d302de6ab3f",
   "module": "igla-race-yosys",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-11T10:43:16Z",
+  "sealed_at": "2026-10-11T14:45:13Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1c2c4ed75fb636b5111a9da51fa55a1fa03fc689daab0159c3d2dfce66984c99",
   "spec_path": "specs/igla/race/yosys.t27",

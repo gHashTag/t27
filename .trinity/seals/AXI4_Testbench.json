@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:801a835a275675d3dd9acdc351e2f0b4f59f9817798fc12d9b61b2f1717e3cd0",
   "gen_hash_rust": "sha256:e1f40c8bd3f8999a818e50817b6fde921c0abe6791e534ce9e9187c292fea6a2",
-  "gen_hash_verilog": "sha256:aef56b89e64059229ee1755898365c3a53681a691e7ccf0f1e59e16c8801619e",
+  "gen_hash_verilog": "sha256:4608bf8cea96f417496b5d706f77368cd7700d48290a6b2b081e1b05d2d42b7f",
   "gen_hash_zig": "sha256:5bd56928f14e63bc5476b01e735e9c237eb5aa708ff3f0a242cd3f204c2c56a3",
   "module": "AXI4_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:50:39Z",
+  "sealed_at": "2026-10-11T15:01:45Z",
   "spec_hash": "sha256:551ac2de0ab4d6ece6e536bb8d56d9564bbf3539592dc403c8d9d260249bc926",
   "spec_path": "specs/fpga/testbench/axi4_tb.t27",
   "tests": {
@@ -19,6 +19,7 @@
     ],
     "forced": true,
     "passed": 3,
-    "total": 8
+    "total": 8,
+    "vacuous": 2
   }
 }

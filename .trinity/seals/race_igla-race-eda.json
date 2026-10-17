@@ -1,15 +1,32 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+dcf9c6f04",
+  "closure": [
+    {
+      "spec": "specs/base/types.t27",
+      "spec_hash": "sha256:3c2fb2a2edf20e90bc76798fb5d12690b2f60fc0f5bbf2f6052936e22d6e62e2"
+    },
+    {
+      "spec": "specs/igla/race/rtl.t27",
+      "spec_hash": "sha256:d062a67d5cea57f6533fdc506780b589c98ff079f673b59676d7062dc3ae2b56"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:354b227a1b2afa6eafd1796476f021b94ed931ff509686b45b7b0fbaa0518ab2",
   "gen_hash_rust": "sha256:842b705e528cbd884afda84dac14a8dea9bd48ec8db503ba5532ac9507f559b3",
-  "gen_hash_verilog": "sha256:067413bf2da4752214c260dd88f7bb1421280afc2a936b6e5fd8c0c870294c6b",
+  "gen_hash_verilog": "sha256:ab642391d7cb6fffd8fe35475dba76d2ff406875dee4121624ab8b1175a140da",
   "gen_hash_zig": "sha256:2ac1f6921da1b2313551f168791c707568aa8a1ba3038057280b53838bad2590",
   "module": "igla-race-eda",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:22Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T14:49:28Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:d690f4e6293ffb745638b1a134bfddb550b6a4dd96f358abebb240e8c5190f27",
   "spec_path": "specs/igla/race/eda.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-eda-3532650/spec.zig:381:5: error: use of undeclared identifier 'latency_ms'"
+    "blocked": "does not compile: spec.zig:381:5: error: use of undeclared identifier 'latency_ms'"
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

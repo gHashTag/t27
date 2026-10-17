@@ -1,12 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+dcf9c6f04",
+  "closure": [
+    {
+      "spec": "specs/fpga/apb_bridge.t27",
+      "spec_hash": "sha256:b5d5ab2b04d04b08a4f307d4744cde9b0c95e7aa000f971bf648f33ca50717ca"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:e1944e634f1275e338b9d5077bb8a9ee992b73cf792b06c0bb8c169d651a4161",
   "gen_hash_rust": "sha256:d9d85bc3f193ecc8046f569cc40b58d196b6b8b6d084b16f49935fecaeb7dc31",
-  "gen_hash_verilog": "sha256:00679fb9f3a59006a4c98271fd272d50ca446ab4c92e7e88f123fbf0bfe5db81",
+  "gen_hash_verilog": "sha256:15ec93331a6f38629fecdc40e1ab1f2007a4cc2647b9ca0c2f475d129b9c876e",
   "gen_hash_zig": "sha256:32252748e207639ed8a461cea7a2bffdac3ec948723e05e64c9f818d908505ef",
   "module": "APB_Bridge_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-06T14:45:59Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T14:44:46Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:a41ff0f86946e5b1cca828a990c7765b6455f3fa9dbfeff066e20b801978c66c",
   "spec_path": "specs/fpga/testbench/apb_bridge_tb.t27",
   "tests": {
@@ -21,6 +30,11 @@
     ],
     "forced": true,
     "passed": 2,
-    "total": 8
+    "total": 8,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+6aeca4178",
+  "built_by": "t27c-bootstrap@0.5.2+f042d0009",
   "closure": [
     {
       "spec": "specs/std/collections.t27",
@@ -13,12 +13,12 @@
   "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:64bb94ceb4defe6da7e92912479adbba6461200afad76b2ae856aa4106df2e1d",
   "gen_hash_rust": "sha256:537cab23d7d8eaafbdd67483c132561086b8e869e0f533e23822aa799321966c",
-  "gen_hash_verilog": "sha256:09b701001b994a95e7e1c9f8bce7ff0780ab3d802232f20e620a88408e671e11",
+  "gen_hash_verilog": "sha256:8f22bac1ab3f7153369c2e5bcf1c2ef28ef0d6698b49fab81cd8b08d262d9aa8",
   "gen_hash_zig": "sha256:f17bee852840dc7e08f3420dbfd84bebf12600b3325a7264e78bda7ada9ff7d1",
   "module": "GraphDriftDetection",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-12T13:17:19Z",
+  "sealed_at": "2026-10-12T22:52:06Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:ff78b40510c0e100aa692f8c75d15578b09ff26d9bd89d0e5d7ee81e17302e67",
   "spec_path": "specs/test_framework/graph_drift_detection.t27",

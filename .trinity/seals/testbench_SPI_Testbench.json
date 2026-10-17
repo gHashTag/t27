@@ -1,12 +1,21 @@
 {
+  "built_by": "t27c-bootstrap@0.5.2+dcf9c6f04",
+  "closure": [
+    {
+      "spec": "specs/fpga/spi.t27",
+      "spec_hash": "sha256:5fc7caee4fd899cea6eb4d53b104e88d075d2d7c7dfe42f7ac244a3240811382"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
   "gen_hash_c": "sha256:f89a358ad5db4c89eef0e33aaceba35b54d9d65307f64c4b7677baed2eb283be",
   "gen_hash_rust": "sha256:c082ab4d6a2657ad06ba312deec9c852f7905da4ee8b29eed0a253fafc24ff13",
-  "gen_hash_verilog": "sha256:05fbc6d8c12a8baed873815cc756aa3861cad917d79df6009e815b3e7616c43b",
+  "gen_hash_verilog": "sha256:34f35c59264d9a296b89416cfa0fdc232b932093677b3b9586c1c0d80b7f45cf",
   "gen_hash_zig": "sha256:0bd5ccb2afb1711544e9dc7c4091a23129083a5faf8f89cd50158fba99b3c096",
   "module": "SPI_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-06T14:46:01Z",
-  "sealed_by": "t27c-bootstrap@0.4.0",
+  "seal_schema": 2,
+  "sealed_at": "2026-10-11T14:49:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
   "spec_hash": "sha256:1779796fd051a1df582aa00ce71e8030fb357ed85bbb4b407c5242ecfda23c64",
   "spec_path": "specs/fpga/testbench/spi_tb.t27",
   "tests": {
@@ -21,6 +30,11 @@
     ],
     "forced": true,
     "passed": 1,
-    "total": 7
+    "total": 7,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
   }
 }

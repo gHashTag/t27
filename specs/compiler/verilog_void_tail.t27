@@ -1,0 +1,69 @@
+; specs/compiler/verilog_void_tail.t27 -- which final expression statement gen-verilog lowers to an
+; implicit return (issue #5651, see t27#1948).
+; --
+; The decision lives here. `t27c gen-rust` lowers it to bootstrap/gen/rust/compiler/verilog_void_tail.rs,
+; which bootstrap/src/compiler.rs mounts by #[path] and only prints. Never hand-edit the generated copy.
+; --
+; t27 has tail expressions: the final bare expression of a body is the function's value. Verilog has
+; none, so gen-verilog lowers that final statement to `<fn> = <expr>;` (t27#1948). That is right only
+; for a function that returns a value. A t27 fn with no return type, or `-> void`, is a Verilog
+; `task` (W705), and `fn on_clock` is an `always` process; neither has a variable named after it.
+; The lowering still wrote one:
+;     task reset; ... reset = tick(1'b0); ... endtask     (`fn reset() { ...; tick(); }`, 22 testbenches)
+;     on_clock <= f(d);                                    (`fn on_clock(d: u8) -> void { f(d); }`)
+; iverilog: Could not find variable ``reset''. The predicate tested only the spelling "void", and the
+; clocked process never set the return type it was judged by, so it saw whatever was left there.
+; --
+; The rule: the final expression statement of a body is lowered to an implicit return only when the
+; body belongs to a function (not a test, not the module level) whose return type is written and is
+; not `void`. Otherwise it is an ordinary statement, emitted by the path every other statement takes.
+; `fn on_clock` is judged by its own return type. The final-if/else rule of t27#1948 reads the same
+; predicate, so the two cannot disagree.
+; --
+; What this does NOT do, stated where the rule is read:
+; - Change a value-returning function: its tail expression is still `<fn> = <expr>;` (t27#1948).
+; - Change the `task` / `input _unused;` shape of a returnless function, or its `1'b0` call sites.
+; - Make a value-returning call in statement position a task call. iverilog accepts it with a warning
+;   ("being called as a task"); that is a separate defect class.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerilogVoidTail;
+
+/// Is the final expression statement of a body the return value? `in_function`: the body is a
+/// function's. `has_return_type`: the function writes `-> T`. `returns_void`: that T is `void`.
+pub fn tail_is_return(in_function: bool, has_return_type: bool, returns_void: bool) -> bool {
+    if (in_function) {
+        if (has_return_type) {
+            if (returns_void) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
+// Scenario: specs/fpga/testbench/bridge_tb.t27 -- `fn reset() { rst_n = false; tick(); ...; tick(); }`.
+// No return type: the final `tick();` is a statement, not `reset = tick(1'b0);`.
+test a_fn_without_a_return_type_has_no_tail_return {
+    assert tail_is_return(true, false, false) == false;
+}
+
+// Scenario: `fn on_clock(x: u8) -> void { g(x); }` -- the clocked body ends in a call.
+test a_void_fn_has_no_tail_return {
+    assert tail_is_return(true, true, true) == false;
+}
+
+// Scenario: specs/port/fpga/verilog/ternary_mac_synth.t27 -- `product` returns a value and ends in a
+// tail expression: still `product = __mul_noop(...);` (FR-004).
+test a_value_returning_fn_keeps_its_tail_return {
+    assert tail_is_return(true, true, false) == true;
+}
+
+// A test body or a module-level statement list is not a function: nothing to assign to.
+test outside_a_function_there_is_no_tail_return {
+    assert tail_is_return(false, true, false) == false;
+    assert tail_is_return(false, false, false) == false;
+    assert tail_is_return(false, true, true) == false;
+}

@@ -1,0 +1,28 @@
+; specs/compiler/verilog_on_comb_zero_arg.t27 -- a zero-parameter `on_comb` is driven with the W530
+; placeholder argument (issue #5650; the emitter was fixed by #5955 for #5904).
+; --
+; gen-verilog declares a zero-parameter function that returns a value with W530's dummy `input _unused;`,
+; and every call site passes `1'b0` for it. The one call written as a format string,
+; `assign result = on_comb(...)`, passed nothing -- `on_comb()` -- and iverilog refused it:
+;     The function on_comb has been called with missing/empty parameters.
+; Two corpus specs had that entry point: specs/port/trinity/fpga/openxc7-synth/d_full_path.t27 and
+; d_static_one.t27. They share the module name `trinity_top` with other specs in that directory, so their
+; seal file is taken (#8540); this spec carries the shape instead.
+; --
+; This is a fixture: its own sealed gen_hash_verilog pins the emitted lines
+;     input _unused;
+;     assign result = on_comb(1'b0);
+; and t27c's seal-verify phase reports any change to them. The test checks the entry point's value.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerilogOnCombZeroArg;
+
+/// The entry point: no parameters, a 1-bit value.
+pub fn on_comb() -> bool {
+    return true;
+}
+
+// Scenario: `fn on_comb() -> bool` (d_full_path.t27's shape) is driven by `assign result = on_comb(1'b0);`.
+test a_zero_parameter_entry_point_returns_its_value {
+    assert on_comb() == true;
+}

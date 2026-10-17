@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+f226c8de3",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:c47ebbbd16f25fb05f6dd37596faa395a19df841f908b9d0488fb551ca5ae7c2",
+  "gen_hash_rust": "sha256:bcb4ed46dbd91ede1f741cc646e81b1eb5802824dad493e7123f2e9eba23808a",
+  "gen_hash_verilog": "sha256:7b6c2940c2df8622395f4c00978a65706cc261544876ccef93dcdbaa8411265d",
+  "gen_hash_zig": "sha256:a1f22775491725e5a0a526e6eeb0fb7dc92eeaf027ddeeddbce55bb3637b3172",
+  "module": "VerilogVoidTail",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-10T23:09:55Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:7a830dbd5bfc07874621eea7a9e354d013e149856373af912f3f73ec84610798",
+  "spec_path": "specs/compiler/verilog_void_tail.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}
