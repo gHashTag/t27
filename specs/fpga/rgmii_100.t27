@@ -1,0 +1,249 @@
+// SPDX-License-Identifier: Apache-2.0
+module Rgmii100;
+// specs/fpga/rgmii_100.t27 -- E2e of the Ethernet job link (#8770, part of #8327): RGMII at
+// 100 Mb/s between the KSZ9031 and the TRI-NET node (EthRx -> TrinetNode -> EthReply).
+//
+// At 100 Mb/s RGMII carries one nibble per rising edge of a 25 MHz clock, low nibble first
+// (RGMII v2.0, 10/100 mode), and this module runs on that clock (the PHY's RXC through a PLL).
+// EthRx, TrinetNode and EthReply are unchanged; the wrapper wires them to the ports below.
+//
+// Receive. rxctl and rxd are the pins; they are registered once (dv, lo) before use. A frame is
+// aligned on the SFD: nibble 5 followed by nibble D, both with RX_DV high. From there nibbles
+// pair low first into bytes. EthRx gets one strobe per byte (rx_en, with rx_dv 1 and the byte
+// in rx_b; the first byte it sees is the SFD, 0xD5) and one more when RX_DV drops (rx_dv 0):
+// the end of the frame.
+//
+// TrinetNode runs every clock and wants each EthRx event once: pv and dn are EthRx's pay_v and
+// done for one clock, two clocks after the strobe (fresh is the strobe one clock later). Its
+// pb, pi and okf come straight from EthRx: EthRx moves only on a strobe, and strobes of
+// payload bytes are two clocks apart (the frame ends with four FCS bytes), so they still hold
+// the strobed byte when TrinetNode reads pv.
+//
+// Transmit. EthReply makes one step every second clock (its en is tick), so each byte stays two
+// clocks on txd; tx_nib sends it low nibble first. TrinetNode's j_go and resp_v are one-clock
+// pulses; take and go hold them until EthReply's next step. The wrapper puts tx_en and tx_nib on
+// the pins as they are and forwards TXC half a period later, so the PHY samples mid-nibble.
+//
+// Status. led is active low for the AX7203's LEDs: bit 0 a frame accepted (EthRx n_ok), bit 1 a
+// frame dropped (n_drop), bit 2 a receipt sent (EthReply n_sent), bit 3 blinks (hb bit 26,
+// about 2.7 s at 25 MHz). status is the word JTAG USER3 reads (specs/fpga/jtag_status.t27):
+// bits 7..0 0xE3, 15..8 EthRx why, then the low 16 bits of n_ok, n_drop and n_sent.
+//
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at
+// most once on each path, and no var is read after it was written in the same call.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+const MARKER : u64 = 227
+
+var dv : u8 = 0
+var lo : u8 = 0
+var prev : u8 = 0
+var low : u8 = 0
+var dvp : u8 = 0
+var synced : u8 = 0
+var half : u8 = 0
+var rx_en : u8 = 0
+var rx_dv : u8 = 0
+var rx_b : u8 = 0
+var fresh : u8 = 0
+var pv : u8 = 0
+var dn : u8 = 0
+var tick : u8 = 0
+var take : u8 = 0
+var go : u8 = 0
+var tx_en : u8 = 0
+var tx_nib : u8 = 0
+var hb : u32 = 0
+var led : u8 = 15
+var status : u64 = 227
+
+fn if1(c: u8, v: u8) -> u8 {
+    if (c == 1) { return v; }
+    return 0;
+}
+
+fn nz(v: u32) -> u8 {
+    if (v != 0) { return 1; }
+    return 0;
+}
+
+// A one-clock pulse p held until the step s of EthReply takes it.
+fn hold(p: u8, s: u8, h: u8) -> u8 {
+    if ((p & 1) == 1) { return 1; }
+    if (s == 1) { return 0; }
+    return h;
+}
+
+fn status_of(why: u8, n_ok: u32, n_drop: u32, n_sent: u32) -> u64 {
+    return MARKER | ((why as u64) << 8) | (((n_ok & 65535) as u64) << 16) | (((n_drop & 65535) as u64) << 32) | (((n_sent & 65535) as u64) << 48);
+}
+
+// rxctl, rxd: the pins. pay_v, rdone: EthRx's pay_v and done. j_go, resp_v: TrinetNode's.
+// txd, txe: EthReply's. n_ok, n_drop, why: EthRx's; n_sent: EthReply's.
+fn on_clock(rxctl: u8, rxd: u8, pay_v: u8, rdone: u8, j_go: u8, resp_v: u8, txd: u8, txe: u8, n_ok: u32, n_drop: u32, n_sent: u32, why: u8) {
+    pv = if1(fresh, pay_v);
+    dn = if1(fresh, rdone);
+    fresh = rx_en;
+    if (dv == 0) {
+        if (synced == 1) {
+            rx_en = 1;
+            rx_dv = 0;
+            rx_b = 0;
+            synced = 0;
+        } else {
+            rx_en = 0;
+        }
+    } else {
+        if (synced == 0) {
+            if (dvp == 1 and prev == 5 and lo == 13) {
+                rx_en = 1;
+                rx_dv = 1;
+                rx_b = 213;
+                synced = 1;
+                half = 0;
+            } else {
+                rx_en = 0;
+            }
+        } else {
+            if (half == 0) {
+                rx_en = 0;
+                low = lo;
+                half = 1;
+            } else {
+                rx_en = 1;
+                rx_dv = 1;
+                rx_b = (lo << 4) | low;
+                half = 0;
+            }
+        }
+        prev = lo;
+    }
+    dvp = dv;
+    dv = rxctl & 1;
+    lo = rxd & 15;
+    tx_en = txe & 1;
+    if (tick == 1) {
+        tx_nib = txd >> 4;
+    } else {
+        tx_nib = txd & 15;
+    }
+    take = hold(j_go, tick, take);
+    go = hold(resp_v, tick, go);
+    tick = 1 - tick;
+    led = 15 ^ (nz(n_ok) | (nz(n_drop) << 1) | (nz(n_sent) << 2) | ((((hb >> 26) & 1) as u8) << 3));
+    hb = hb + 1;
+    status = status_of(why, n_ok, n_drop, n_sent);
+}
+
+// ---------------------------------------------------------------------------
+// Tests. dv and lo register the pins, so RX acts on each nibble one call later.
+
+test bytes_pair_low_nibble_first_from_the_sfd_and_the_frame_end_is_one_more_strobe {
+    dv = 0; lo = 0; prev = 0; low = 0; dvp = 0; synced = 0; half = 0;
+    rx_en = 0; rx_dv = 0; rx_b = 0; fresh = 0; pv = 0; dn = 0;
+    var k : u32 = 0;
+    var n : u32 = 0;
+    var sum : u32 = 0;
+    var ends : u32 = 0;
+    // preamble: 15 nibbles of 5, then D (the SFD 0xD5 sent low nibble first); then three bytes
+    // 0x12, 0xAB, 0xF0, low nibble first, and RX_DV drops. dv and lo are a clock behind the pins.
+    while (k < 15) {
+        on_clock(1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (rx_en == 1) { n = n + 1; }
+        k = k + 1;
+    }
+    on_clock(1, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; }
+    on_clock(1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; sum = sum + (rx_b as u32); }
+    on_clock(1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; sum = sum + (rx_b as u32); }
+    on_clock(1, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; sum = sum + (rx_b as u32); }
+    on_clock(1, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; sum = sum + (rx_b as u32); }
+    on_clock(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; sum = sum + (rx_b as u32); }
+    on_clock(1, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); if (rx_en == 1) { n = n + 1; sum = sum + (rx_b as u32); }
+    k = 0;
+    while (k < 8) {
+        on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (rx_en == 1) {
+            if (rx_dv == 0) { ends = ends + 1; } else { n = n + 1; sum = sum + (rx_b as u32); }
+        }
+        k = k + 1;
+    }
+    // SFD (213) + 0x12 (18) + 0xAB (171) + 0xF0 (240): four byte strobes, then one end strobe
+    assert_eq(n, 4);
+    assert_eq(sum, 213 + 18 + 171 + 240);
+    assert_eq(ends, 1);
+    assert_eq(synced, 0);
+}
+
+test a_nibble_d_without_a_5_before_it_is_not_an_sfd {
+    dv = 0; lo = 0; prev = 0; low = 0; dvp = 0; synced = 0; half = 0;
+    rx_en = 0; rx_dv = 0; rx_b = 0; fresh = 0; pv = 0; dn = 0;
+    var k : u32 = 0;
+    var n : u32 = 0;
+    on_clock(1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(1, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(1, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    while (k < 6) {
+        on_clock(1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (rx_en == 1) { n = n + 1; }
+        k = k + 1;
+    }
+    assert_eq(n, 0);
+    assert_eq(synced, 0);
+}
+
+test trinetnode_sees_each_ethrx_event_for_one_clock_two_clocks_after_the_strobe {
+    dv = 0; lo = 0; prev = 0; low = 0; dvp = 0; synced = 0; half = 0;
+    rx_en = 0; rx_dv = 0; rx_b = 0; fresh = 0; pv = 0; dn = 0;
+    rx_en = 1;
+    // EthRx's pay_v and done stay 1 the whole time; only the strobed clock passes them
+    on_clock(0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0);
+    assert_eq(pv, 0);
+    assert_eq(fresh, 1);
+    on_clock(0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0);
+    assert_eq(pv, 1);
+    assert_eq(dn, 1);
+    on_clock(0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0);
+    assert_eq(pv, 0);
+    assert_eq(dn, 0);
+}
+
+test a_byte_goes_out_low_nibble_first_over_two_clocks {
+    tick = 0; tx_en = 0;
+    // EthReply holds 0xA5 for its step; tick 0 then 1
+    on_clock(0, 0, 0, 0, 0, 0, 165, 1, 0, 0, 0, 0);
+    assert_eq(tx_en, 1);
+    assert_eq(tx_nib, 5);
+    assert_eq(tick, 1);
+    on_clock(0, 0, 0, 0, 0, 0, 165, 1, 0, 0, 0, 0);
+    assert_eq(tx_nib, 10);
+    assert_eq(tick, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    assert_eq(tx_en, 0);
+}
+
+test take_and_go_wait_for_the_next_step_of_ethreply {
+    tick = 1; take = 0; go = 0;
+    // the pulses come on the clock EthReply steps (tick is 1), so they wait two clocks for the next
+    on_clock(0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0);
+    assert_eq(take, 1);
+    assert_eq(go, 1);
+    assert_eq(tick, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    assert_eq(take, 1);
+    assert_eq(tick, 1);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    assert_eq(take, 0);
+    assert_eq(go, 0);
+}
+
+test the_leds_and_the_status_word_show_the_counters {
+    hb = 0;
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 7, 3);
+    // n_ok and n_sent nonzero: bits 0 and 2 lit (low), bit 1 and the blink dark
+    assert_eq(led, 10);
+    assert_eq(status, 227 | (3 << 8) | (5 << 16) | 1970324836974592);
+    hb = 67108864;
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 65537, 2, 0, 0);
+    assert_eq(led, 4);
+    assert_eq(status, 227 | (1 << 16) | 8589934592);
+}

@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0
+module JtagStatus;
+// specs/fpga/jtag_status.t27 -- E2e of the Ethernet job link (#8770, part of #8327): the 64-bit
+// data register a host reads over JTAG (USER3, IR 0x22 on the xc7a200t) to see the node's
+// counters without a UART.
+//
+// It runs on BSCANE2's DRCK (the JTAG clock while USER3 is selected) and takes BSCANE2's
+// SEL, CAPTURE, SHIFT and TDI; tdo goes back to BSCANE2's TDO. On CAPTURE-DR it loads word
+// (Rgmii100's status, from the 25 MHz domain: a field may be read while it changes, which is
+// acceptable for counters a person reads); on SHIFT-DR it shifts right, TDI into bit 63, so the
+// host gets bit 0 first. tdo is the register's bit 0, kept as its own register.
+//
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at
+// most once on each path, and no var is read after it was written in the same call.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+var sr : u64 = 0
+var tdo : u8 = 0
+
+fn on_clock(sel: u8, cap: u8, shift: u8, tdi: u8, word: u64) {
+    if ((sel & 1) == 1) {
+        if ((cap & 1) == 1) {
+            sr = word;
+            tdo = (word & 1) as u8;
+        } else {
+            if ((shift & 1) == 1) {
+                tdo = ((sr >> 1) & 1) as u8;
+                sr = (sr >> 1) | (((tdi & 1) as u64) << 63);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+test a_capture_then_64_shifts_read_the_word_bit_0_first {
+    sr = 0; tdo = 0;
+    // 0xAAAA5555F00F00E3
+    var w : u64 = 12297735560076656867;
+    var got : u64 = 0;
+    var k : u64 = 0;
+    on_clock(1, 1, 0, 0, w);
+    // the TAP samples tdo, then the clock shifts; TDI brings ones in behind
+    while (k < 64) {
+        got = got | ((tdo as u64) << k);
+        on_clock(1, 0, 1, 1, 0);
+        k = k + 1;
+    }
+    assert_eq(got, w);
+    assert_eq(sr, 18446744073709551615);
+    assert_eq(tdo, 1);
+}
+
+test without_sel_the_register_keeps_its_value {
+    sr = 5; tdo = 1;
+    on_clock(0, 1, 1, 0, 0);
+    assert_eq(sr, 5);
+    assert_eq(tdo, 1);
+}

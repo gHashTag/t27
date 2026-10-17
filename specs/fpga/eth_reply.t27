@@ -1,169 +1,127 @@
 // SPDX-License-Identifier: Apache-2.0
 module EthReply;
-// specs/fpga/eth_reply.t27 -- E2c of the Ethernet job link (#8388, part of #8327): the transmit
-// half of a TRI-NET node on the ALINX AX7203. It takes the receipt data from TrinetNode and the
-// sender info from EthRx, then sends a unicast UDP datagram back to the original sender with the
-// 19-byte receipt payload.
+// specs/fpga/eth_reply.t27 -- E2c of the Ethernet job link (#8388, #8530, part of #8327): the receipt
+// of TrinetNode (specs/fpga/trinet_node.t27) goes out as one unicast UDP datagram to the host
+// whose request started the job, on the byte stream EthBeacon drives (tx_en and txd, one byte
+// per 125 MHz clock; the wrapper turns them into RGMII with ODDR).
 //
-// Frame format (R1):
+// The frame, byte for byte (73 on the wire):
 //   0..6    preamble 0x55, 7 SFD 0xD5                         (not covered by the FCS)
-//   8..13   destination MAC (sender's MAC from EthRx)
-//   14..19  source MAC 02:27:00:00:00:01                      (locally administered)
-//   20..21  ethertype 0x0800                                  (IPv4)
-//   22..41  IPv4 header: 45 00 | len 47 | id 0 | DF | ttl 64 | UDP | checksum | src | dst
-//   42..49  UDP header: port 27028 -> sender's port, length 27, checksum 0
-//   50..68  payload: A5 Y STATUS NONCE[4] NODE_ID[4] TAG[8]   (little-endian fields)
+//   8..13   destination MAC: the requester's                   (EthRx src_mac)
+//   14..19  source MAC 02:27:00:00:00:01                      (the node, as EthBeacon)
+//   20..21  ethertype 0x0800
+//   22..41  IPv4: 45 00 | len 47 | id 0 | DF | ttl 64 | UDP | checksum | 192.168.1.227 | requester
+//   42..49  UDP: port 27028 -> the requester's port, length 27, checksum 0 (allowed for IPv4)
+//   50..68  payload, the 19-byte v2 receipt of protocol.zig:
+//           A5 Y STATUS NONCE[4] NODE_ID[4] TAG[8], NODE_ID and TAG little-endian, NONCE as
+//           received (TrinetNode's r_n holds the first nonce byte in its low byte)
 //   69..72  FCS: CRC-32 over bytes 8..68, least significant byte first
+// 61 data bytes are more than the 60 Ethernet needs, so there is no padding.
 //
-// The IPv4 checksum is computed during the preamble using registered steps to avoid adder chains
-// in front of the byte stream. The sender's MAC, IP and port are latched when j_go rises from
-// TrinetNode, ensuring the correct sender is used even if other frames arrive before the receipt
-// is ready.
+// Which host: TrinetNode's receipt comes 59 clocks after the frame that started the job, and by
+// then EthRx may hold another frame's sender. So the sender is taken when the job starts
+// (take = TrinetNode's j_go) and kept apart; the receipt (go = resp_v) copies it into the frame
+// registers. The IPv4 checksum of that sender is a three-stage pipeline that runs on every
+// clock (sum, fold, fold and invert); it is ready three clocks after take, long before go.
 //
-// Interface, per clock:
-//   on_clock(j_go, src_mac, src_ip, src_port, r_y, r_st, r_n, r_tag)
-//     j_go: 1 for one clock when TrinetNode starts a job (latches sender info)
-//     src_mac, src_ip, src_port: sender info from EthRx (latched when j_go=1)
-//     r_y, r_st, r_n, r_tag: receipt data from TrinetNode (valid when resp_v=1)
-//   tx_en, txd: transmit interface (one byte per 125 MHz clock, same as EthBeacon)
-//   n_sent: count of frames sent since reset
+// One frame at a time: a receipt that comes while a frame is on the line or inside the
+// 12-clock inter-frame gap is counted in n_drop and not sent. At line rate it cannot happen:
+// a request frame with its gap takes 90 clocks, a reply frame with its gap 86.
 //
-// Reference frame computed independently (Python struct, RFC 791, zlib.crc32):
-//   Destination: 02:00:00:00:00:99, 192.168.1.101:50000
-//   Source: 02:27:00:00:00:01, 192.168.1.227:27028
-//   IPv4 checksum: 0x8A4C (computed from destination fields)
-//   FCS: 0x2C 0x7B 0x8E 0x91 (CRC-32 over data bytes)
+// Reference values were computed independently (Python struct, the RFC 791 sum and
+// zlib.crc32) before this spec was written. The V1 keyed receipt of protocol.zig (y 1,
+// status 1, nonce 7, tag 9706109019689513616) to 192.168.1.101:50000, MAC 02:00:00:00:00:99:
+// IPv4 checksum 0xB625, FCS 05 C5 5F 98, data byte sum 3987. The V6 receipt (y 224, nonce 12,
+// tag 13200515888575913244) to 192.168.1.50:40000, MAC 02:00:00:00:00:42: checksum 0xB658,
+// FCS 72 9F AC EE.
+//
+// Sequential (test) and nonblocking (hardware) semantics agree: every var is assigned at
+// most once on each path, and no var is read after it was written in the same call.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
-const FRAME_BYTES : u8 = 73
-const FRAME_LAST : u8 = 72
-const DATA_FIRST : u8 = 8
-const DATA_END : u8 = 69
-const GAP_CYCLES : u32 = 16777216
 const CRC_INIT : u32 = 4294967295
 const CRC_POLY : u32 = 3988292384
-const IP_TOTAL_LEN : u32 = 47
-const UDP_LEN : u32 = 27
-const SRC_MAC : u64 = 305419897 // 02:27:00:00:00:01
-const SRC_IP : u32 = 3232236003 // 192.168.1.227
 const SRC_PORT : u32 = 27028
+const NODE_ID : u32 = 1414678862
+const IP_FIXED : u32 = 100299
+const DATA_FIRST : u8 = 8
+const DATA_END : u8 = 69
+const FRAME_LAST : u8 = 72
+const IFG : u8 = 12
 
-// Latched sender info (captured when j_go rises)
-var latched_src_mac : u64 = 0
-var latched_src_ip : u32 = 0
-var latched_src_port : u32 = 0
-
-// Frame transmission state
+var st : u8 = 0
 var pos : u8 = 0
-var np : u8 = 1
-var gap : u32 = 0
+var gap : u8 = 0
 var crc : u32 = 4294967295
-var count : u32 = 0
 var txd : u8 = 0
 var tx_en : u8 = 0
-var nb : u8 = 0
-var ip_checksum : u32 = 0
-var ip_checksum_step : u8 = 0
+var p_mac : u64 = 0
+var p_ip : u32 = 0
+var p_port : u16 = 0
+var pc0 : u32 = 0
+var pc1 : u32 = 0
+var pcs : u32 = 0
+var s0 : u64 = 0
+var s1 : u64 = 0
+var s2 : u64 = 0
+var s3 : u64 = 0
+var s4 : u64 = 0
+var s5 : u64 = 0
+var s6 : u64 = 0
+var s7 : u64 = 0
 var n_sent : u32 = 0
+var n_drop : u32 = 0
 
-// Receipt data (captured when resp_v rises, but sent from latched sender)
-var receipt_ready : u8 = 0
-var r_y_latched : u8 = 0
-var r_st_latched : u8 = 0
-var r_n_latched : u32 = 0
-var r_tag_latched : u64 = 0
-
-fn byte_of(w: u64, k: u8) -> u8 {
-    return ((w >> ((8 * k) as u64)) & 255) as u8;
+// Byte k (0 = least significant) of a word; k is a constant at every call.
+fn b32(w: u32, k: u8) -> u8 {
+    return ((w >> ((k as u32) << 3)) & 255) as u8;
 }
 
-// RFC 791: one's complement of the one's complement sum of the IPv4 header fields
-fn compute_ip_checksum(dst_ip: u32) -> u32 {
-    const a : u32 = 17664 + IP_TOTAL_LEN + 16384 + 16401 + (SRC_IP >> 16) + (SRC_IP & 65535) + (dst_ip >> 16) + (dst_ip & 65535);
-    const b : u32 = (a & 65535) + (a >> 16);
-    const c : u32 = (b & 65535) + (b >> 16);
-    return (c ^ 65535) & 65535;
+fn b64(w: u64, k: u8) -> u8 {
+    return ((w >> ((k as u64) << 3)) & 255) as u8;
 }
 
-// Compute IPv4 checksum in steps during preamble to avoid adder chains
-fn ip_checksum_step_fn(step: u8, dst_ip: u32) -> u32 {
-    if (step == 0) { return 17664 + IP_TOTAL_LEN; }
-    if (step == 1) { return 16384 + 16401; }
-    if (step == 2) { return (SRC_IP >> 16) + (SRC_IP & 65535); }
-    if (step == 3) { return (dst_ip >> 16) + (dst_ip & 65535); }
-    return 0;
+// RFC 791 over the header with checksum 0: IP_FIXED is the sum of every word but the
+// destination's (4500 002F 0000 4000 4011 C0A8 01E3), so three stages finish it.
+fn ip_sum(d: u32) -> u32 {
+    return IP_FIXED + (d >> 16) + (d & 65535);
 }
 
-// Frame byte at position p (0..68) for the current receipt
-fn frame_byte(p: u8) -> u8 {
-    if (p < 7) { return 85; }
-    if (p == 7) { return 213; }
-    // Destination MAC (latched)
-    if (p == 8) { return byte_of(latched_src_mac, 5); }
-    if (p == 9) { return byte_of(latched_src_mac, 4); }
-    if (p == 10) { return byte_of(latched_src_mac, 3); }
-    if (p == 11) { return byte_of(latched_src_mac, 2); }
-    if (p == 12) { return byte_of(latched_src_mac, 1); }
-    if (p == 13) { return byte_of(latched_src_mac, 0); }
-    // Source MAC (constant)
-    if (p == 14) { return byte_of(SRC_MAC, 5); }
-    if (p == 15) { return byte_of(SRC_MAC, 4); }
-    if (p == 16) { return byte_of(SRC_MAC, 3); }
-    if (p == 17) { return byte_of(SRC_MAC, 2); }
-    if (p == 18) { return byte_of(SRC_MAC, 1); }
-    if (p == 19) { return byte_of(SRC_MAC, 0); }
-    // EtherType
-    if (p == 20) { return 8; }
-    if (p == 21) { return 0; }
-    // IPv4 header
-    if (p == 22) { return 69; }
-    if (p == 23) { return 0; }
-    if (p == 24) { return byte_of(IP_TOTAL_LEN, 1); }
-    if (p == 25) { return byte_of(IP_TOTAL_LEN, 0); }
-    if (p < 28) { return 0; }
-    if (p == 28) { return 64; }
-    if (p == 29) { return 0; }
-    if (p == 30) { return 64; }
-    if (p == 31) { return 17; }
-    if (p == 32) { return byte_of(ip_checksum, 1); }
-    if (p == 33) { return byte_of(ip_checksum, 0); }
-    if (p == 34) { return byte_of(SRC_IP, 3); }
-    if (p == 35) { return byte_of(SRC_IP, 2); }
-    if (p == 36) { return byte_of(SRC_IP, 1); }
-    if (p == 37) { return byte_of(SRC_IP, 0); }
-    if (p == 38) { return byte_of(latched_src_ip, 3); }
-    if (p == 39) { return byte_of(latched_src_ip, 2); }
-    if (p == 40) { return byte_of(latched_src_ip, 1); }
-    if (p == 41) { return byte_of(latched_src_ip, 0); }
-    // UDP header
-    if (p == 42) { return byte_of(SRC_PORT, 1); }
-    if (p == 43) { return byte_of(SRC_PORT, 0); }
-    if (p == 44) { return byte_of(SRC_PORT, 1); }
-    if (p == 45) { return byte_of(SRC_PORT, 0); }
-    if (p == 46) { return byte_of(UDP_LEN, 1); }
-    if (p == 47) { return byte_of(UDP_LEN, 0); }
-    if (p < 50) { return 0; }
-    // Payload: A5 Y STATUS NONCE[4] NODE_ID[4] TAG[8] (little-endian)
-    if (p == 50) { return 165; } // A5
-    if (p == 51) { return r_y_latched; } // Y
-    if (p == 52) { return r_st_latched; } // STATUS
-    if (p == 53) { return byte_of(r_n_latched, 0); } // NONCE[0]
-    if (p == 54) { return byte_of(r_n_latched, 1); } // NONCE[1]
-    if (p == 55) { return byte_of(r_n_latched, 2); } // NONCE[2]
-    if (p == 56) { return byte_of(r_n_latched, 3); } // NONCE[3]
-    if (p == 57) { return byte_of(1414678862, 0); } // NODE_ID[0] (1414678862 = 0x543E2F5E)
-    if (p == 58) { return byte_of(1414678862, 1); } // NODE_ID[1]
-    if (p == 59) { return byte_of(1414678862, 2); } // NODE_ID[2]
-    if (p == 60) { return byte_of(1414678862, 3); } // NODE_ID[3]
-    if (p == 61) { return byte_of(r_tag_latched, 0); } // TAG[0]
-    if (p == 62) { return byte_of(r_tag_latched, 1); } // TAG[1]
-    if (p == 63) { return byte_of(r_tag_latched, 2); } // TAG[2]
-    if (p == 64) { return byte_of(r_tag_latched, 3); } // TAG[3]
-    if (p == 65) { return byte_of(r_tag_latched, 4); } // TAG[4]
-    if (p == 66) { return byte_of(r_tag_latched, 5); } // TAG[5]
-    if (p == 67) { return byte_of(r_tag_latched, 6); } // TAG[6]
-    if (p == 68) { return byte_of(r_tag_latched, 7); } // TAG[7]
-    return 0;
+fn ip_fold(s: u32) -> u32 {
+    return (s & 65535) + (s >> 16);
+}
+
+fn ip_final(s: u32) -> u32 {
+    return (((s & 65535) + (s >> 16)) ^ 65535) & 65535;
+}
+
+// The 61 data bytes (wire bytes 8..68) as eight little-endian words: data byte k is byte k % 8 of
+// word k / 8. They are loaded in one clock when the receipt comes and shifted out a byte a clock,
+// so no clock selects among 61 bytes (a table on the position was nine LUTs deep in the node).
+fn byte_at(v: u64, k: u8) -> u64 {
+    return (v >> ((k as u64) << 3)) & 255;
+}
+
+fn word(k: u8, mac: u64, ip: u32, port: u16, cs: u32, y: u8, st: u8, n: u32, tag: u64) -> u64 {
+    if (k == 0) {
+        return byte_at(mac, 5) | (byte_at(mac, 4) << 8) | (byte_at(mac, 3) << 16) | (byte_at(mac, 2) << 24) | (byte_at(mac, 1) << 32) | (byte_at(mac, 0) << 40) | (2 << 48) | (39 << 56);
+    }
+    if (k == 1) { return (1 << 24) | (8 << 32) | (69 << 48); }
+    if (k == 2) { return (47 << 8) | (64 << 32) | (64 << 48) | (17 << 56); }
+    if (k == 3) {
+        return byte_at(cs as u64, 1) | (byte_at(cs as u64, 0) << 8) | (192 << 16) | (168 << 24) | (1 << 32) | (227 << 40) | (byte_at(ip as u64, 3) << 48) | (byte_at(ip as u64, 2) << 56);
+    }
+    if (k == 4) {
+        return byte_at(ip as u64, 1) | (byte_at(ip as u64, 0) << 8) | (byte_at(SRC_PORT as u64, 1) << 16) | (byte_at(SRC_PORT as u64, 0) << 24) | (byte_at(port as u64, 1) << 32) | (byte_at(port as u64, 0) << 40) | (27 << 56);
+    }
+    if (k == 5) { return (165 << 16) | ((y as u64) << 24) | ((st as u64) << 32) | (((n as u64) & 16777215) << 40); }
+    if (k == 6) { return ((n as u64) >> 24) | ((NODE_ID as u64) << 8) | ((tag & 16777215) << 40); }
+    return tag >> 24;
+}
+
+// One byte out: each word passes its low byte down to the word below.
+fn shift(v: u64, above: u64) -> u64 {
+    return (v >> 8) | ((above & 255) << 56);
 }
 
 fn crc_step(c: u32) -> u32 {
@@ -175,236 +133,246 @@ fn crc_byte(c: u32, b: u8) -> u32 {
     return crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(crc_step(c ^ (b as u32)))))))));
 }
 
-// FCS byte k (0..3) from the running CRC: final xor, least significant byte first
-fn fcs_byte(c: u32, k: u8) -> u8 {
-    return byte_of(c ^ CRC_INIT, k);
+fn fcs_of(c: u32, k: u8) -> u8 {
+    return b32(c ^ CRC_INIT, k);
 }
 
-// Latch sender info when j_go rises
-fn latch_sender_info(j_go: u8, src_mac: u64, src_ip: u32, src_port: u32) {
-    if (j_go == 1) {
-        latched_src_mac = src_mac;
-        latched_src_ip = src_ip;
-        latched_src_port = src_port;
+fn busy_go(go: u8, s: u8) -> u32 {
+    if (go == 1) {
+        if (s != 0) { return 1; }
     }
+    return 0;
 }
 
-// Latch receipt data when it becomes available
-fn latch_receipt_data(r_y: u8, r_st: u8, r_n: u32, r_tag: u64) {
-    receipt_ready = 1;
-    r_y_latched = r_y;
-    r_st_latched = r_st;
-    r_n_latched = r_n;
-    r_tag_latched = r_tag;
+fn sel64(s: u8, nv: u64, v: u64) -> u64 {
+    if (s == 1) { return nv; }
+    return v;
 }
 
-// Clear receipt data after sending
-fn clear_receipt_data() {
-    receipt_ready = 0;
-    r_y_latched = 0;
-    r_st_latched = 0;
-    r_n_latched = 0;
-    r_tag_latched = 0;
+fn sel32(s: u8, nv: u32, v: u32) -> u32 {
+    if (s == 1) { return nv; }
+    return v;
 }
 
-fn on_clock(j_go: u8, src_mac: u64, src_ip: u32, src_port: u32, r_y: u8, r_st: u8, r_n: u32, r_tag: u64) {
-    // Latch sender info when job starts
-    latch_sender_info(j_go, src_mac, src_ip, src_port);
-    
-    // Latch receipt data when available
-    if (r_y != 0 || r_st != 0 || r_n != 0 || r_tag != 0) {
-        latch_receipt_data(r_y, r_st, r_n, r_tag);
-    }
-    
-    // Frame transmission logic
-    if (gap != 0) {
-        gap = gap - 1;
+fn sel16(s: u8, nv: u16, v: u16) -> u16 {
+    if (s == 1) { return nv; }
+    return v;
+}
+
+// take, smac, sip, sport: TrinetNode's j_go and EthRx's src_mac, src_ip, src_port.
+// go, ry, rs, rn, rtag: TrinetNode's resp_v, r_y, r_st, r_n, r_tag.
+fn on_clock(take: u8, smac: u64, sip: u32, sport: u16, go: u8, ry: u8, rs: u8, rn: u32, rtag: u64) {
+    n_drop = n_drop + busy_go(go, st);
+    if (st == 0) {
         tx_en = 0;
         txd = 0;
-    } else {
-        tx_en = 1;
-        if (pos < DATA_END) {
-            txd = nb;
-        } else {
-            txd = fcs_byte(crc, pos - DATA_END);
-        }
-        if (pos == FRAME_LAST) {
+        if (go == 1) {
+            s0 = word(0, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s1 = word(1, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s2 = word(2, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s3 = word(3, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s4 = word(4, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s5 = word(5, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s6 = word(6, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            s7 = word(7, p_mac, p_ip, p_port, pcs, ry, rs, rn, rtag);
+            st = 1;
             pos = 0;
-            np = 1;
-            gap = GAP_CYCLES;
-            count = count + 1;
             crc = CRC_INIT;
-            ip_checksum = 0;
-            ip_checksum_step = 0;
-            nb = 85;
-            n_sent = n_sent + 1;
-            clear_receipt_data();
-        } else {
-            if (pos >= DATA_FIRST) {
-                if (pos < DATA_END) {
-                    crc = crc_byte(crc, nb);
+        }
+    } else {
+        if (st == 1) {
+            tx_en = 1;
+            if (pos < 7) {
+                txd = 85;
+            } else {
+                if (pos == 7) {
+                    txd = 213;
+                } else {
+                    if (pos < DATA_END) {
+                        txd = (s0 & 255) as u8;
+                        crc = crc_byte(crc, (s0 & 255) as u8);
+                        s0 = shift(s0, s1);
+                        s1 = shift(s1, s2);
+                        s2 = shift(s2, s3);
+                        s3 = shift(s3, s4);
+                        s4 = shift(s4, s5);
+                        s5 = shift(s5, s6);
+                        s6 = shift(s6, s7);
+                        s7 = s7 >> 8;
+                    } else {
+                        txd = fcs_of(crc, pos - DATA_END);
+                    }
                 }
             }
-            nb = frame_byte(np);
-            pos = np;
-            np = np + 1;
+            if (pos == FRAME_LAST) {
+                st = 2;
+                gap = IFG;
+                n_sent = n_sent + 1;
+            } else {
+                pos = pos + 1;
+            }
+        } else {
+            tx_en = 0;
+            txd = 0;
+            if (gap <= 1) {
+                st = 0;
+                gap = 0;
+            } else {
+                gap = gap - 1;
+            }
         }
     }
+    pcs = ip_final(pc1);
+    pc1 = ip_fold(pc0);
+    pc0 = ip_sum(p_ip);
+    p_mac = sel64(take, smac, p_mac);
+    p_ip = sel32(take, sip, p_ip);
+    p_port = sel16(take, sport, p_port);
 }
 
-// Test: frame format and checksum computation
-test the_ipv4_checksum_matches_rfc_791 {
-    const checksum = compute_ip_checksum(3232235969); // 192.168.1.193
-    assert_eq(checksum, 46537); // 0xB5C9
+// ---------------------------------------------------------------------------
+// Test-only helpers. Sender A is the canonical EthRx test sender; sender B another host.
+
+const A_MAC : u64 = 2199023255705
+const A_IP : u32 = 3232235877
+const A_PORT : u16 = 50000
+const B_MAC : u64 = 2199023255618
+const B_IP : u32 = 3232235826
+const B_PORT : u16 = 40000
+
+invariant the_frame_is_the_data_plus_the_fcs {
+    assert_eq(FRAME_LAST, DATA_END + 3);
+    assert_eq(DATA_END - DATA_FIRST, 61);
 }
 
-test frame_byte_returns_correct_preamble_and_sfd {
-    // Test preamble bytes
-    assert_eq(frame_byte(0), 85);
-    assert_eq(frame_byte(1), 85);
-    assert_eq(frame_byte(2), 85);
-    assert_eq(frame_byte(3), 85);
-    assert_eq(frame_byte(4), 85);
-    assert_eq(frame_byte(5), 85);
-    assert_eq(frame_byte(6), 85);
-    // Test SFD
-    assert_eq(frame_byte(7), 213);
+test the_checksum_pipeline_gives_the_rfc_791_values {
+    assert_eq(ip_final(ip_fold(ip_sum(A_IP))), 46629);
+    assert_eq(ip_final(ip_fold(ip_sum(B_IP))), 46680);
+    assert_eq(IP_FIXED, 17664 + 47 + 16384 + 16401 + 49320 + 483);
 }
 
-test frame_byte_returns_correct_ethernet_header {
-    // Test with latched MAC 02:00:00:00:00:99
-    latched_src_mac = 0x990000000000;
-    latched_src_ip = 3232235969; // 192.168.1.193
-    ip_checksum = compute_ip_checksum(latched_src_ip);
-    
-    assert_eq(frame_byte(8), 153);  // 02:00:00:00:00:99 byte 5
-    assert_eq(frame_byte(9), 0);    // byte 4
-    assert_eq(frame_byte(10), 0);   // byte 3
-    assert_eq(frame_byte(11), 0);   // byte 2
-    assert_eq(frame_byte(12), 0);   // byte 1
-    assert_eq(frame_byte(13), 2);   // byte 0
-    // Test source MAC (constant)
-    assert_eq(frame_byte(14), 2);   // 02:27:00:00:00:01 byte 5
-    assert_eq(frame_byte(15), 39);  // byte 4
-    assert_eq(frame_byte(16), 0);   // byte 3
-    assert_eq(frame_byte(17), 0);   // byte 2
-    assert_eq(frame_byte(18), 0);   // byte 1
-    assert_eq(frame_byte(19), 1);   // byte 0
-}
-
-test frame_byte_returns_correct_ipv4_header {
-    latched_src_mac = 0x990000000000;
-    latched_src_ip = 3232235969; // 192.168.1.193
-    latched_src_port = 50000;
-    ip_checksum = compute_ip_checksum(latched_src_ip);
-    
-    assert_eq(frame_byte(20), 8);   // EtherType 0x0800
-    assert_eq(frame_byte(21), 0);
-    assert_eq(frame_byte(22), 69);  // IPv4 header version + IHL
-    assert_eq(frame_byte(23), 0);   // DSCP + ECN
-    assert_eq(frame_byte(24), 0);   // Total length high byte (47 = 0x002F)
-    assert_eq(frame_byte(25), 47);  // Low byte
-    assert_eq(frame_byte(32), byte_of(ip_checksum, 1)); // IPv4 checksum
-    assert_eq(frame_byte(33), byte_of(ip_checksum, 0));
-    assert_eq(frame_byte(38), 193);  // Destination IP 192.168.1.193 byte 3
-    assert_eq(frame_byte(39), 168); // byte 2
-    assert_eq(frame_byte(40), 1);   // byte 1
-    assert_eq(frame_byte(41), 192); // byte 0
-}
-
-test frame_byte_returns_correct_udp_header {
-    latched_src_mac = 0x990000000000;
-    latched_src_ip = 3232235969; // 192.168.1.193
-    latched_src_port = 50000;
-    ip_checksum = compute_ip_checksum(latched_src_ip);
-    
-    assert_eq(frame_byte(42), 105);  // Source port 27028 high byte
-    assert_eq(frame_byte(43), 147); // Low byte
-    assert_eq(frame_byte(46), 0);   // UDP length 27 high byte
-    assert_eq(frame_byte(47), 27);  // Low byte
-}
-
-test frame_byte_returns_correct_payload {
-    latched_src_mac = 0x990000000000;
-    latched_src_ip = 3232235969; // 192.168.1.193
-    latched_src_port = 50000;
-    ip_checksum = compute_ip_checksum(latched_src_ip);
-    
-    r_y_latched = 1;
-    r_st_latched = 2;
-    r_n_latched = 0x12345678;
-    r_tag_latched = 0x1122334455667788;
-    
-    assert_eq(frame_byte(50), 165); // A5
-    assert_eq(frame_byte(51), 1);   // Y
-    assert_eq(frame_byte(52), 2);   // STATUS
-    assert_eq(frame_byte(53), 120); // NONCE[0] (0x78)
-    assert_eq(frame_byte(54), 86);  // NONCE[1] (0x56)
-    assert_eq(frame_byte(55), 52);  // NONCE[2] (0x34)
-    assert_eq(frame_byte(56), 18);  // NONCE[3] (0x12)
-    assert_eq(frame_byte(61), 94);  // NODE_ID[3] (0x5E)
-    assert_eq(frame_byte(68), 136); // TAG[7] (0x88)
-}
-
-test crc_computation_matches_reference {
+test a_receipt_goes_to_the_sender_taken_at_job_start_with_the_reference_fcs {
+    st = 0; gap = 0; n_sent = 0; n_drop = 0; tx_en = 0;
+    var k : u32 = 0;
+    var n : u32 = 0;
+    var sum : u32 = 0;
     var c : u32 = CRC_INIT;
-    // Test CRC computation with known values
-    c = crc_byte(c, 0x55); // Preamble byte
-    c = crc_byte(c, 0x55); // Preamble byte
-    c = crc_byte(c, 0x55); // Preamble byte
-    const fcs = c ^ CRC_INIT;
-    // CRC of three 0x55 bytes should give a known result
-    assert_eq(fcs, 0xDB7E0F42); // Reference value for three 0x55 bytes
-}
-
-test latch_sender_info_updates_latched_values {
-    latched_src_mac = 0;
-    latched_src_ip = 0;
-    latched_src_port = 0;
-    
-    on_clock(1, 0x990000000000, 3232235969, 50000, 0, 0, 0, 0);
-    
-    assert_eq(latched_src_mac, 0x990000000000);
-    assert_eq(latched_src_ip, 3232235969);
-    assert_eq(latched_src_port, 50000);
-}
-
-test latch_receipt_data_captures_receipt {
-    r_y_latched = 0;
-    r_st_latched = 0;
-    r_n_latched = 0;
-    r_tag_latched = 0;
-    receipt_ready = 0;
-    
-    on_clock(0, 0, 0, 0, 1, 2, 0x12345678, 0x1122334455667788);
-    
-    assert_eq(receipt_ready, 1);
-    assert_eq(r_y_latched, 1);
-    assert_eq(r_st_latched, 2);
-    assert_eq(r_n_latched, 0x12345678);
-    assert_eq(r_tag_latched, 0x1122334455667788);
-}
-
-test clear_receipt_data_resets_values {
-    receipt_ready = 1;
-    r_y_latched = 1;
-    r_st_latched = 2;
-    r_n_latched = 0x12345678;
-    r_tag_latched = 0x1122334455667788;
-    
-    clear_receipt_data();
-    
-    assert_eq(receipt_ready, 0);
-    assert_eq(r_y_latched, 0);
-    assert_eq(r_st_latched, 0);
-    assert_eq(r_n_latched, 0);
-    assert_eq(r_tag_latched, 0);
-}
-
-test the_line_is_idle_during_the_gap {
-    pos = 0; gap = 3; crc = CRC_INIT; count = 0; txd = 9; tx_en = 1;
-    on_clock(0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(1, A_MAC, A_IP, A_PORT, 0, 0, 0, 0, 0);
+    // another frame from B passes through EthRx while the job runs; take stays 0
+    while (k < 59) {
+        on_clock(0, B_MAC, B_IP, B_PORT, 0, 0, 0, 0, 0);
+        k = k + 1;
+    }
+    assert_eq(pcs, 46629);
+    on_clock(0, B_MAC, B_IP, B_PORT, 1, 1, 1, 7, 9706109019689513616);
     assert_eq(tx_en, 0);
-    assert_eq(txd, 0);
-    assert_eq(gap, 2);
+    k = 0;
+    while (k < 100) {
+        on_clock(0, B_MAC, B_IP, B_PORT, 0, 0, 0, 0, 0);
+        if (tx_en == 1) {
+            if (n < 7) { assert_eq(txd, 85); }
+            if (n == 7) { assert_eq(txd, 213); }
+            if (n == 8) { assert_eq(txd, 2); }
+            if (n == 13) { assert_eq(txd, 153); }
+            if (n == 32) { assert_eq(txd, 182); }
+            if (n == 33) { assert_eq(txd, 37); }
+            if (n == 41) { assert_eq(txd, 101); }
+            if (n == 44) { assert_eq(txd, 195); }
+            if (n == 45) { assert_eq(txd, 80); }
+            if (n == 50) { assert_eq(txd, 165); }
+            if (n == 53) { assert_eq(txd, 7); }
+            if (n == 57) { assert_eq(txd, 78); }
+            if (n == 68) { assert_eq(txd, 134); }
+            if (n == 69) { assert_eq(txd, 5); }
+            if (n == 70) { assert_eq(txd, 197); }
+            if (n == 71) { assert_eq(txd, 95); }
+            if (n == 72) { assert_eq(txd, 152); }
+            if (n >= 8) {
+                if (n < 69) {
+                    sum = sum + (txd as u32);
+                    c = crc_byte(c, txd);
+                }
+            }
+            n = n + 1;
+        }
+        k = k + 1;
+    }
+    assert_eq(n, 73);
+    assert_eq(sum, 3987);
+    assert_eq(fcs_of(c, 0), 5);
+    assert_eq(n_sent, 1);
+    assert_eq(n_drop, 0);
+}
+
+test a_receipt_while_a_frame_is_on_the_line_is_dropped_and_counted {
+    st = 0; gap = 0; n_sent = 0; n_drop = 0; tx_en = 0;
+    var k : u32 = 0;
+    var n : u32 = 0;
+    on_clock(1, A_MAC, A_IP, A_PORT, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 1, 1, 1, 7, 9706109019689513616);
+    while (k < 30) {
+        on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (tx_en == 1) { n = n + 1; }
+        k = k + 1;
+    }
+    on_clock(0, 0, 0, 0, 1, 2, 2, 9, 1);
+    if (tx_en == 1) { n = n + 1; }
+    k = 0;
+    while (k < 150) {
+        on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (tx_en == 1) { n = n + 1; }
+        k = k + 1;
+    }
+    assert_eq(n, 73);
+    assert_eq(n_sent, 1);
+    assert_eq(n_drop, 1);
+}
+
+test two_receipts_leave_at_least_twelve_idle_clocks_and_the_second_goes_to_its_own_sender {
+    st = 0; gap = 0; n_sent = 0; n_drop = 0; tx_en = 0;
+    var k : u32 = 0;
+    var n : u32 = 0;
+    var idle : u32 = 0;
+    var c : u32 = CRC_INIT;
+    on_clock(1, A_MAC, A_IP, A_PORT, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    on_clock(0, 0, 0, 0, 1, 1, 1, 7, 9706109019689513616);
+    on_clock(1, B_MAC, B_IP, B_PORT, 0, 0, 0, 0, 0);
+    while (st != 0) {
+        on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (tx_en == 0) { idle = idle + 1; }
+        k = k + 1;
+    }
+    assert_eq(idle, 12);
+    assert_eq(pcs, 46680);
+    on_clock(0, 0, 0, 0, 1, 224, 1, 12, 13200515888575913244);
+    k = 0;
+    while (k < 100) {
+        on_clock(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (tx_en == 1) {
+            if (n == 13) { assert_eq(txd, 66); }
+            if (n == 32) { assert_eq(txd, 182); }
+            if (n == 33) { assert_eq(txd, 88); }
+            if (n == 41) { assert_eq(txd, 50); }
+            if (n == 51) { assert_eq(txd, 224); }
+            if (n == 69) { assert_eq(txd, 114); }
+            if (n == 70) { assert_eq(txd, 159); }
+            if (n == 71) { assert_eq(txd, 172); }
+            if (n == 72) { assert_eq(txd, 238); }
+            if (n >= 8) {
+                if (n < 69) { c = crc_byte(c, txd); }
+            }
+            n = n + 1;
+        }
+        k = k + 1;
+    }
+    assert_eq(n, 73);
+    assert_eq(fcs_of(c, 3), 238);
+    assert_eq(n_sent, 2);
+    assert_eq(n_drop, 0);
 }
