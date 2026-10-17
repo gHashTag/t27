@@ -1,0 +1,158 @@
+module port::trinity::tri_record;
+
+// Port of gHashTag/trinity:src/cli/tri_record.zig (at ee512359254b, 157
+// lines) - t27 issue #9620, Roadmap Stage 5 (goal #4547), target t27c
+// gen-rust. The terminal-recording wrapper's decisions as pure
+// functions: the usage gate, the environment overrides with their
+// keep-the-default fallback, the overwrite flag, the basename cut at the
+// first space, the existing-GIF block, the exit-code cascade of the
+// asciinema/agg stages, and the KB size display. The argv read, the
+// environment reads, the directory creation, the file checks, the
+// subprocess runs and the prints are the caller's plumbing. The
+// original's Config record lives here as its five carried defaults
+// (cols 120, rows 40, idle_max 3, overwrite false, output_dir
+// "recordings") plus the override rule as a function.
+
+// Exit codes of the command (main returns u8: 1 on every failure, 0 on
+// a finished recording).
+pub const TRI_REC_EXIT_OK: i32 = 0;
+pub const TRI_REC_EXIT_FAIL: i32 = 1;
+
+// The Config defaults (original lines 17-23).
+pub const TRI_REC_DEFAULT_COLS: u16 = 120;
+pub const TRI_REC_DEFAULT_ROWS: u16 = 40;
+pub const TRI_REC_DEFAULT_IDLE_MAX: u16 = 3;
+pub const TRI_REC_DEFAULT_OUTPUT_DIR = "recordings";
+
+// The GIF conversion speed of the agg stage (line 131).
+pub const TRI_REC_AGG_FPS: u32 = 30;
+
+// Lines 29-46: the command needs a tri-command argument - with only the
+// program name the usage block prints and the run exits 1.
+pub fn tri_record_needs_usage(arg_count: usize) -> bool {
+    return arg_count < 2;
+}
+
+// Lines 52-59: an environment override takes effect only when it parses;
+// a present-but-invalid value keeps the default (the catch in the
+// original). An absent variable also keeps the default.
+pub fn tri_record_config_or_default(env_present: bool, parsed_ok: bool, parsed_value: u16, default_value: u16) -> u16 {
+    if (!env_present) {
+        return default_value;
+    }
+    if (!parsed_ok) {
+        return default_value;
+    }
+    return parsed_value;
+}
+
+// Lines 61-63: TRI_REC_OVERWRITE turns the overwrite on whenever the
+// variable is present - any value, no parsing.
+pub fn tri_record_overwrite_flag(env_present: bool) -> bool {
+    if (env_present) {
+        return true;
+    }
+    return false;
+}
+
+// Lines 72-75: the GIF is named after the command's first word - the
+// basename is the command up to its first space, or the whole command
+// when it has none. The length of that basename is the portable fact.
+pub fn tri_record_basename_len(command: []const u8) -> usize {
+    var n: usize = 0;
+    for c in command {
+        if (c == ' ') {
+            return n;
+        }
+        n += 1;
+    }
+    return command.len;
+}
+
+// Lines 89-95: without overwrite an already-existing GIF stops the run
+// before any recording starts; with overwrite the run proceeds.
+pub fn tri_record_existing_file_blocks(overwrite: bool, gif_exists: bool) -> bool {
+    if (overwrite) {
+        return false;
+    }
+    return gif_exists;
+}
+
+// Lines 149-152: the final report shows the file size in KB - the byte
+// count divided by 1024, truncated.
+pub fn tri_record_kb(size_bytes: u64) -> u64 {
+    return size_bytes / 1024;
+}
+
+// Line 25: the command's exit cascade. Usage exits 1; an existing GIF
+// without overwrite exits 1; an asciinema failure exits 1; an agg
+// failure exits 1; only a recording that ran and converted exits 0.
+pub fn main(arg_count: usize, overwrite: bool, gif_exists: bool, asciinema_ok: bool, agg_ok: bool) -> i32 {
+    if (tri_record_needs_usage(arg_count)) {
+        return TRI_REC_EXIT_FAIL;
+    }
+    if (tri_record_existing_file_blocks(overwrite, gif_exists)) {
+        return TRI_REC_EXIT_FAIL;
+    }
+    if (!asciinema_ok) {
+        return TRI_REC_EXIT_FAIL;
+    }
+    if (!agg_ok) {
+        return TRI_REC_EXIT_FAIL;
+    }
+    return TRI_REC_EXIT_OK;
+}
+
+test usage_gate_needs_a_command {
+    assert(tri_record_needs_usage(0) == true);
+    assert(tri_record_needs_usage(1) == true);
+    assert(tri_record_needs_usage(2) == false);
+    assert(tri_record_needs_usage(3) == false);
+    assert(main(1, false, false, true, true) == TRI_REC_EXIT_FAIL);
+}
+
+test env_override_keeps_default_when_absent_or_invalid {
+    assert(tri_record_config_or_default(false, true, 200, 120) == 120);
+    assert(tri_record_config_or_default(true, true, 200, 120) == 200);
+    assert(tri_record_config_or_default(true, false, 999, 120) == 120);
+    assert(tri_record_config_or_default(true, true, 80, 120) == 80);
+    assert(tri_record_config_or_default(false, false, 999, 40) == 40);
+    assert(tri_record_config_or_default(true, true, 5, 3) == 5);
+}
+
+test overwrite_flag_is_presence_only {
+    assert(tri_record_overwrite_flag(true) == true);
+    assert(tri_record_overwrite_flag(false) == false);
+}
+
+test basename_cuts_at_first_space {
+    assert(tri_record_basename_len("benchmark") == 9);
+    assert(tri_record_basename_len("math demo") == 4);
+    assert(tri_record_basename_len("test --fast extra") == 4);
+    assert(tri_record_basename_len("") == 0);
+    assert(tri_record_basename_len(" x") == 0);
+    assert(tri_record_basename_len("a b c") == 1);
+}
+
+test existing_gif_blocks_without_overwrite {
+    assert(tri_record_existing_file_blocks(false, true) == true);
+    assert(tri_record_existing_file_blocks(true, true) == false);
+    assert(tri_record_existing_file_blocks(false, false) == false);
+    assert(tri_record_existing_file_blocks(true, false) == false);
+}
+
+test kb_size_truncates {
+    assert(tri_record_kb(0) == 0);
+    assert(tri_record_kb(1023) == 0);
+    assert(tri_record_kb(1024) == 1);
+    assert(tri_record_kb(2048) == 2);
+    assert(tri_record_kb(1048576) == 1024);
+}
+
+test exit_cascade_of_the_stages {
+    assert(main(2, false, false, true, true) == TRI_REC_EXIT_OK);
+    assert(main(2, false, true, true, true) == TRI_REC_EXIT_FAIL);
+    assert(main(2, true, true, true, true) == TRI_REC_EXIT_OK);
+    assert(main(2, false, false, false, true) == TRI_REC_EXIT_FAIL);
+    assert(main(2, false, false, true, false) == TRI_REC_EXIT_FAIL);
+}
