@@ -15,9 +15,9 @@ by openFPGALoader on all three boards -- so a correct read proves the transport
 and a wrong one cannot be mistaken for success. That is lesson 429: compare
 against a case whose right answer you already have.
 """
-import ctypes, sys, time
-
-LIB = "/opt/homebrew/lib/libftdi1.2.dylib"
+import ctypes, ctypes.util, os, sys, time
+# libftdi1: $T27_LIBFTDI if set; else Homebrew on macOS; else the loader search, so B2 reads on Linux (#7927).
+LIB = os.environ.get("T27_LIBFTDI") or ("/opt/homebrew/lib/libftdi1.2.dylib" if sys.platform == "darwin" else ctypes.util.find_library("ftdi1") or "libftdi1.so.2")
 VID, PID = 0x0403, 0x6014
 
 # MPSSE opcodes
