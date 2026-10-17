@@ -1,0 +1,104 @@
+module port::trios::crates::trios_igla_race::src::status;
+
+// Port of gHashTag/trios crates/trios-igla-race/src/status.rs -- the IGLA
+// RACE leaderboard table (show_status) and the best-trial card (show_best).
+// Both only move rows between the database and stderr, so per the issue they
+// keep their names with undefined bodies that no test calls; every decision
+// they make about ranking and display is ported below as a pure helper with
+// tests on values read out of the original.
+
+pub struct NeonDb {}
+
+// I/O shell -- the SQL query and the eprintln table are plumbing.
+pub fn show_status(db: &NeonDb) -> ?void {
+    undefined;
+}
+
+// I/O shell -- the SQL query and the eprintln card are plumbing.
+pub fn show_best(db: &NeonDb) -> ?void {
+    undefined;
+}
+
+// Decision: show_status ranks rows with ORDER BY COALESCE(best_bpb, 9999)
+// ASC -- a trial with no best yet sorts as if it scored 9999, behind every
+// real score, and real scores sort by value.
+pub fn rank_key(best_bpb: ?f64) -> f64 {
+    if (best_bpb == null) {
+        return 9999.0;
+    }
+    return best_bpb.?;
+}
+
+// Decision: show_best reduces the table with WHERE best_bpb IS NOT NULL
+// ORDER BY best_bpb ASC LIMIT 1 -- best_of folds one row at a time. A null
+// never wins, the smaller real score wins, and two nulls leave the table
+// empty (the "No completed trials yet" branch).
+pub fn best_of(a: ?f64, b: ?f64) -> ?f64 {
+    if (a == null) {
+        return b;
+    }
+    if (b == null) {
+        return a;
+    }
+    const av = a.?;
+    const bv = b.?;
+    if (bv < av) {
+        return bv;
+    }
+    return av;
+}
+
+// Decision: show_status's tid_trunc -- a trial id longer than 18 chars
+// prints as its first 16 chars followed by "..".
+pub fn truncate_trial_id(trial_id: []const u8) -> []const u8 {
+    if (trial_id.len > 18) {
+        return trial_id[0:16] ++ "..";
+    }
+    return trial_id;
+}
+
+test rank_key_treats_a_missing_best_as_9999 {
+    // COALESCE(best_bpb, 9999): null -> 9999, a real score -> itself.
+    assert(rank_key(null) == 9999.0);
+    assert(rank_key(0.31) == 0.31);
+    // Any real score ranks ahead of a trial with no best yet.
+    assert(rank_key(0.31) < rank_key(null));
+    assert(rank_key(9998.5) < rank_key(null));
+}
+
+test rank_key_orders_real_scores_by_value {
+    assert(rank_key(1.2) > rank_key(0.9));
+    assert(rank_key(0.0) < rank_key(0.1));
+}
+
+test best_of_never_lets_a_null_win {
+    assert(best_of(null, 0.9) == 0.9);
+    assert(best_of(1.2, null) == 1.2);
+    // Two trials with no best leave the table empty.
+    assert(best_of(null, null) == null);
+}
+
+test best_of_keeps_the_smaller_real_score {
+    assert(best_of(1.2, 0.9) == 0.9);
+    assert(best_of(0.9, 1.2) == 0.9);
+    assert(best_of(0.5, 0.5) == 0.5);
+}
+
+test truncate_trial_id_cuts_long_ids_to_16_plus_dots {
+    const t = truncate_trial_id("abcdefghij0123456789"); // 20 chars
+    assert(t.len == 18);
+    assert(t[0] == 'a');
+    assert(t[15] == '5');
+    assert(t[16] == '.');
+    assert(t[17] == '.');
+}
+
+test truncate_trial_id_keeps_short_ids_whole {
+    // 18 chars is the boundary: the id stays verbatim.
+    assert(truncate_trial_id("123456789012345678").len == 18);
+    assert(truncate_trial_id("123456789012345678")[17] == '8');
+    const t = truncate_trial_id("trial-0042");
+    assert(t.len == 10);
+    assert(t[0] == 't');
+    assert(t[9] == '2');
+}
