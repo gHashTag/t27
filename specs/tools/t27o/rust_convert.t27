@@ -6206,8 +6206,10 @@ pub fn out_format(src: []const u8, st: []usize, out: []u8, a: usize, ret: bool) 
     const f : usize = skip_ws(src, lp + 1);
     if (!str_tok(src, f)) { refuse(st, R_STRUSE, a, a, fe); return; }
     const fq : usize = quoted_end(src, f);
+    // `f + 1` is spelled once: repeated, it became a `_cse` temporary that t27c writes above `const f`
+    // (t27b: FnDecl(reference CSE hoist), #9632).
     var p : usize = f + 1;
-    var piece : usize = f + 1;
+    var piece : usize = p;
     // the arguments start after the format string's comma: format!(FMT, a0, a1, ..)
     var arg : usize = skip_ws(src, fq);
     if (tok_is(src, arg, ",")) { arg = skip_ws(src, tok_end(src, arg)); }
@@ -6240,7 +6242,8 @@ pub fn out_format(src: []const u8, st: []usize, out: []u8, a: usize, ret: bool) 
         refuse(st, R_STRUSE, a, a, fe);
         return;
     }
-    if (fq - 1 > piece) { put_out_piece(src, st, out, piece, fq - 1); newline(st, out); }
+    const tail_end : usize = fq - 1;
+    if (tail_end > piece) { put_out_piece(src, st, out, piece, tail_end); newline(st, out); }
     st[P] = skip_ws(src, rp);
     if (ret) { puts(st, out, "return t27o_w;"); }
 }

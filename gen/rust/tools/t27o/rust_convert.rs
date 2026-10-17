@@ -7262,7 +7262,7 @@ pub fn out_format(src: &[u8], st: &mut [usize], out: &mut [u8], a: usize, ret: b
     }
     let fq: usize = quoted_end(src, f);
     let mut p: usize = (f + 1);
-    let mut piece: usize = (f + 1);
+    let mut piece: usize = p;
     let mut arg: usize = skip_ws(src, fq);
     if tok_is(src, arg, b",") {
         arg = skip_ws(src, tok_end(src, arg));
@@ -7310,8 +7310,9 @@ pub fn out_format(src: &[u8], st: &mut [usize], out: &mut [u8], a: usize, ret: b
         refuse(st, R_STRUSE, a, a, fe);
         return ();
     }
-    if ((fq - 1) > piece) {
-        put_out_piece(src, st, out, piece, (fq - 1));
+    let tail_end: usize = (fq - 1);
+    if (tail_end > piece) {
+        put_out_piece(src, st, out, piece, tail_end);
         newline(st, out);
     }
     st[(P) as usize] = skip_ws(src, rp);

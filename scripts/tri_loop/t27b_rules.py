@@ -94,8 +94,8 @@ def _build():
     so.unlisted.restype = ctypes.c_bool
     so.over_cap.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
     so.over_cap.restype = ctypes.c_bool
-    so.ratchet_is_red.argtypes = [ctypes.c_uint8]
-    so.ratchet_is_red.restype = ctypes.c_bool
+    so.ratchet_red.argtypes = [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_bool]
+    so.ratchet_red.restype = ctypes.c_bool
     so.bless_reason.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
     so.bless_reason.restype = ctypes.c_uint8
     so.cap_rises.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
@@ -189,8 +189,8 @@ def over_cap(not_pass, cap):
     return bool(lib().over_cap(not_pass, cap if has else 0, has))
 
 
-def ratchet_is_red(kind):
-    return bool(lib().ratchet_is_red(RATCHETS.index(kind)))
+def ratchet_is_red(kind, t27b="pass", pr=False):
+    return bool(lib().ratchet_red(RATCHETS.index(kind), verdict(t27b), bool(pr)))
 
 
 def bless_reason(got, kept):

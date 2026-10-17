@@ -398,10 +398,12 @@ module port::trios_mesh_node_crypto {
     // crypto.rs lines 41-50: rand fills 32 bytes and they become the secret
     // directly -- no stretching, unlike from_seed. The OS randomness is the
     // parameter here; everything after it is the derivation from_seed tails
-    // with.
-    pub fn MeshKeypair_random(entropy: [32]u8) -> MeshKeypair {
-        const public: [32]u8 = pubkey_from_secret(entropy);
-        const digest: [32]u8 = sha256_32(public);
+    // with. The X25519 public key of the entropy and the SHA-256 of that public key
+    // are the host's results (the header: primitives are declared, never called by a
+    // test), so they arrive as parameters like the entropy; a body that called the
+    // undefined primitives read bytes nothing wrote, which t27b's interpreter refuses
+    // and Zig only hides by filling them.
+    pub fn MeshKeypair_random(entropy: [32]u8, public: [32]u8, digest: [32]u8) -> MeshKeypair {
         return keypair_from_public(entropy, public, digest);
     }
 
@@ -600,8 +602,15 @@ module port::trios_mesh_node_crypto {
         // lines 43-45: the raw 32 random bytes ARE the secret -- no 0xA3
         // layout, no stretching; only from_seed does that.
         const e: [32]u8 = stretch_seed(6);
-        const kp: MeshKeypair = MeshKeypair_random(e);
+        const p: [32]u8 = stretch_seed(7);
+        const d: [32]u8 = stretch_seed(8);
+        const kp: MeshKeypair = MeshKeypair_random(e, p, d);
         assert(arr32_eq(kp.secret, e));
+        assert(arr32_eq(kp.public, p));
+        assert(kp.secret[0] == 6);
+        assert(kp.public[0] == 7);
+        assert(kp.dest_hash[0] == 8);
+        assert(kp.dest_hash[1] == 0xA3);
     }
 
     test b64_alphabet_table {

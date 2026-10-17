@@ -28,6 +28,7 @@ bool unlisted(uint8_t reference, bool listed);
 bool over_cap(uint32_t not_pass, uint32_t cap, bool has_cap);
 bool ratchet_is_red(uint8_t code);
 bool is_unimplemented(uint8_t v);
+bool ratchet_red(uint8_t code, uint8_t got, bool pr);
 uint8_t bless_reason(uint8_t got, uint8_t kept);
 bool cap_rises(uint32_t not_pass, uint32_t old_cap, bool has_old);
 bool lab_stale(uint32_t age_min, uint32_t limit_min);
@@ -217,6 +218,34 @@ bool is_unimplemented(uint8_t v) {
         return true;
     }
     if ((v == 4)) {
+        return true;
+    }
+    return false;
+}
+
+bool ratchet_red(uint8_t code, uint8_t got, bool pr) {
+    if ((pr == false)) {
+        return ratchet_is_red(code);
+    }
+    if ((code == 2)) {
+        return true;
+    }
+    if ((code == 8)) {
+        return true;
+    }
+    if ((code == 9)) {
+        return true;
+    }
+    if ((code > 9)) {
+        return true;
+    }
+    if ((code == 7)) {
+        if (is_pass(got)) {
+            return false;
+        }
+        if (is_unimplemented(got)) {
+            return false;
+        }
         return true;
     }
     return false;
@@ -469,6 +498,14 @@ uint32_t with_tests(uint32_t reference, uint32_t vacuous) {
 /* invariant: no_total_in_the_ledger_header */
 /* invariant no_total_in_the_ledger_header is not a C constant expression: (header_stored(5) == false) */
 
+/* invariant: strict_ratchet_red_is_ratchet_is_red */
+/* invariant strict_ratchet_red_is_ratchet_is_red is not a C constant expression: (ratchet_red(0, 6, false) == ratchet_is_red(0)) */
+/* invariant strict_ratchet_red_is_ratchet_is_red is not a C constant expression: (ratchet_red(2, 0, false) == ratchet_is_red(2)) */
+/* invariant strict_ratchet_red_is_ratchet_is_red is not a C constant expression: (ratchet_red(3, 0, false) == ratchet_is_red(3)) */
+/* invariant strict_ratchet_red_is_ratchet_is_red is not a C constant expression: (ratchet_red(5, 0, false) == ratchet_is_red(5)) */
+/* invariant strict_ratchet_red_is_ratchet_is_red is not a C constant expression: (ratchet_red(7, 0, false) == ratchet_is_red(7)) */
+/* invariant strict_ratchet_red_is_ratchet_is_red is not a C constant expression: (ratchet_red(8, 0, false) == ratchet_is_red(8)) */
+
 /* invariant: gained_never_red */
 /* invariant gained_never_red is not a C constant expression: (delta_is_red(delta_code(0, 0, 2, 0, 0, 1)) == false) */
 
@@ -611,6 +648,60 @@ void test_ratchet_red_codes(void) {
     assert((ratchet_is_red(1) == false));
     assert((ratchet_is_red(4) == false));
     assert((ratchet_is_red(6) == false));
+}
+
+void test_pr_lag_is_pending(void) {
+    assert((ratchet_red(7, 0, true) == false));
+    assert((ratchet_red(7, 1, true) == false));
+    assert((ratchet_red(7, 2, true) == false));
+    assert((ratchet_red(7, 3, true) == false));
+    assert((ratchet_red(7, 4, true) == false));
+    assert((ratchet_red(3, 0, true) == false));
+    assert((ratchet_red(4, 2, true) == false));
+    assert((ratchet_red(5, 0, true) == false));
+    assert((ratchet_red(1, 1, true) == false));
+    assert((ratchet_red(6, 0, true) == false));
+    assert((ratchet_red(0, 0, true) == false));
+}
+
+void test_negative_pr_unlisted_mismatch_is_red(void) {
+    assert(ratchet_red(7, 6, true));
+}
+
+void test_negative_pr_unlisted_crash_is_red(void) {
+    assert(ratchet_red(7, 7, true));
+}
+
+void test_negative_pr_unlisted_fail_is_red(void) {
+    assert(ratchet_red(7, 5, true));
+}
+
+void test_negative_pr_unlisted_timeout_is_red(void) {
+    assert(ratchet_red(7, 8, true));
+}
+
+void test_negative_pr_unlisted_not_run_is_red(void) {
+    assert(ratchet_red(7, 9, true));
+}
+
+void test_negative_pr_unlisted_missing_is_red(void) {
+    assert(ratchet_red(7, 10, true));
+}
+
+void test_negative_pr_regression_is_red(void) {
+    assert(ratchet_red(2, 2, true));
+    assert(ratchet_red(2, 0, true));
+    assert(ratchet_red(8, 0, true));
+    assert(ratchet_red(9, 0, true));
+    assert(ratchet_red(10, 0, true));
+}
+
+void test_master_and_the_lab_stay_strict(void) {
+    assert(ratchet_red(7, 0, false));
+    assert(ratchet_red(7, 6, false));
+    assert(ratchet_red(3, 0, false));
+    assert(ratchet_red(5, 0, false));
+    assert((ratchet_red(4, 2, false) == false));
 }
 
 void test_bless_keeps_a_written_reason(void) {
@@ -1048,6 +1139,15 @@ int main(void) {
     test_ratchet_unlisted();
     test_ratchet_cap();
     test_ratchet_red_codes();
+    test_pr_lag_is_pending();
+    test_negative_pr_unlisted_mismatch_is_red();
+    test_negative_pr_unlisted_crash_is_red();
+    test_negative_pr_unlisted_fail_is_red();
+    test_negative_pr_unlisted_timeout_is_red();
+    test_negative_pr_unlisted_not_run_is_red();
+    test_negative_pr_unlisted_missing_is_red();
+    test_negative_pr_regression_is_red();
+    test_master_and_the_lab_stay_strict();
     test_bless_keeps_a_written_reason();
     test_bless_unimplemented();
     test_bless_refuses_a_defect();
@@ -1145,7 +1245,7 @@ int main(void) {
     test_ledger_stores_where_it_came_from();
     test_ledger_derives_its_counts();
     test_ledger_stores_no_unknown_field();
-    printf("All %d tests passed.\n", 128);
+    printf("All %d tests passed.\n", 137);
     return 0;
 }
 #endif /* T27_TEST_MAIN */

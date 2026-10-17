@@ -190,12 +190,10 @@ executed 0 runtime asserts), or its first blocker with a reason
 (`unimplemented` | `reference-bug` | `n/a`). `ratchet` diffs one lab run
 (latest.json shape) against it:
 
-  UNEXPECTED FAILURE  a ledger pass that is not a pass now (a pass that turned
-                      vacuous included); a ledger pass_vacuous that no longer
-                      passes at all
+  UNEXPECTED FAILURE  a ledger pass that is not a pass now (vacuous included);
+                      a ledger pass_vacuous that no longer passes at all
   UNEXPECTED PASS     a ledger non-pass that passes now; a pass_vacuous that
-                      is a real pass now. Red too: an improvement nobody
-                      blesses leaves slack for the next regression
+                      is a real pass now. Red: an unblessed gain leaves slack
   UNLISTED            the reference passes a spec the ledger does not name
   STALE               a ledger spec the reference now fails, or that is gone
   OVER CAP            more non-pass entries than `max_not_pass`, which only
@@ -203,17 +201,16 @@ executed 0 runtime asserts), or its first blocker with a reason
   BAD REASON          a non-pass entry whose reason is not one of the three
   -- not red --
   MOVED               still not a pass, but the first blocker changed
-  UNJUDGED            the reference could not judge the spec in this run
-                      (lab_error, timeout, skip): no verdict either way
-  VACUITY MEASURED    a ledger pass blessed from a run that did not count
-                      asserts (source.asserts_counted false) is pass_vacuous
-                      in a run that does: a first measurement, not a
-                      regression. Bless to record it
+  UNJUDGED            the reference gave no verdict (lab_error, timeout, skip)
+  VACUITY MEASURED    a ledger pass blessed before asserts were counted is
+                      pass_vacuous in a run that counts: a first measurement,
+                      not a regression. Bless to record it
 
     tri t27b ratchet                          # latest lab run vs the ledger
     tri t27b ratchet --run runs/<sha>.json    # a saved run (path or URL)
     tri t27b ratchet --bless                  # rewrite the ledger from the run
     tri t27b ratchet --json                   # the verdict, machine-readable
+    tri t27b ratchet --pr                     # a PR: lag pending, a defect red
 
 Exit 0 green, 1 red (or a refused bless), 2 usage or an unreadable input.
 """
@@ -876,7 +873,7 @@ def ratchet(run, ledger):
     """
     r = rules()
     found = []
-    add = lambda kind, path, what: found.append({"kind": kind, "path": path, "what": what})  # noqa: E731
+    add = lambda kind, path, what, t27b=None: found.append({"kind": kind, "path": path, "what": what, "t27b": t27b})  # noqa: E731
     by_path = {x.get("file"): x for x in run["results"]}
     entries = {e["path"]: e for e in ledger.get("entries", [])}
     # A ledger blessed from a run without assert counts cannot tell pass from
@@ -916,7 +913,7 @@ def ratchet(run, ledger):
         if r.unlisted(rec.get("reference") or "missing", path in entries):
             got, blocker = observed(rec)
             add("UNLISTED", path, f"the reference passes it and the ledger does not name it (t27b {got}"
-                + (f": {blocker})" if blocker else ")"))
+                + (f": {blocker})" if blocker else ")"), got)
     not_pass = sum(1 for e in entries.values() if not r.is_pass(e.get("t27b") or "missing"))
     cap = ledger.get("max_not_pass")
     if r.over_cap(not_pass, cap):
@@ -1020,6 +1017,7 @@ def ratchet_main(argv):
     ap.add_argument("--bless", action="store_true", help="rewrite the ledger from the run")
     ap.add_argument("--accept-new", action="store_true",
                     help="bless: let the cap rise by exactly the non-pass specs new to the ledger")
+    ap.add_argument("--pr", action="store_true", help="a pull request: lag is pending, a runtime defect stays red")
     ap.add_argument("--json", action="store_true")
     try:
         args = ap.parse_args(argv)
@@ -1059,7 +1057,7 @@ def ratchet_main(argv):
     try:
         found = ratchet(run, old)
         counts = {k: sum(1 for f in found if f["kind"] == k) for k in KINDS}
-        red = sum(v for k, v in counts.items() if rules().ratchet_is_red(k))
+        red = sum(1 for f in found if rules().ratchet_is_red(f["kind"], f["t27b"] or "pass", args.pr))
     except Exception as e:  # noqa: BLE001 -- RulesUnavailable lives in a lazily imported module
         if type(e).__name__ != "RulesUnavailable":
             raise

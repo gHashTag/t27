@@ -260,11 +260,13 @@ jobs:
 
       - name: tri t27b ratchet against the ledger
         id: ratchet
+        env:
+          PR_FLAG: ${{ github.event_name == 'pull_request' && '--pr' || '' }}
         run: |
           set +e
-          ./scripts/tri t27b ratchet --run run.json --json > ratchet.json 2> ratchet.err
+          ./scripts/tri t27b ratchet --run run.json $PR_FLAG --json > ratchet.json 2> ratchet.err
           code=$?
-          ./scripts/tri t27b ratchet --run run.json > ratchet.txt 2>&1
+          ./scripts/tri t27b ratchet --run run.json $PR_FLAG > ratchet.txt 2>&1
           cat ratchet.txt
           cat ratchet.err
           echo "exit=$code" >> "$GITHUB_OUTPUT"
