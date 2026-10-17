@@ -1,0 +1,34 @@
+module port::queen-roadmap;
+
+pub fn loadRoadmap() -> ?i32 {
+    return null;
+}
+
+pub fn boardFacts() -> i32 {
+    return 42;
+}
+
+pub fn createQueenRoadmapDataRoute() -> void {
+    return undefined;
+}
+
+pub fn createQueenRoadmapRoute() -> void {
+    return undefined;
+}
+
+test test1 {
+    assert(boardFacts() == 42);
+}
+
+test test2 {
+    const result = loadRoadmap();
+    assert(result == null);
+}
+
+test test3 {
+    assert(true);
+}
+
+test test4 {
+    assert(true);
+}
