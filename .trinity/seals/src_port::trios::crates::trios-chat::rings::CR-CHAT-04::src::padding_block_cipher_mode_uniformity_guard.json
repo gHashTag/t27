@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+01d0a635f",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:35d55166ef7e315b0ad32785b15b61a493edade6f6ec07003195d11c0205df9b",
+  "gen_hash_rust": "sha256:b7041cb856614753c97373f5c173ca9a1eb5d554ca55ffe861e54f7611530ebe",
+  "gen_hash_verilog": "sha256:2883e9f76eb4f382c6de4fcdc3d9e5b0e74477e551c7ee80ca1a237e54206c2e",
+  "gen_hash_zig": "sha256:4fb241944049c1638ac445beda1f9a9be1b7f6c2b1abb41c52ff431d64abf575",
+  "module": "port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_block_cipher_mode_uniformity_guard",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-16T14:20:48Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:b50aa799bb83f04bf37219034571a1a6917ca9317a23deb30e6dd043185afb43",
+  "spec_path": "specs/port/trios/crates/trios-chat/rings/CR-CHAT-04/src/padding_block_cipher_mode_uniformity_guard.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:1982ae948e24d00c5d221ccec12dfce1eb01204b53e37b0f857f93b16d64629d",
+    "zig": "0.16.0"
+  }
+}

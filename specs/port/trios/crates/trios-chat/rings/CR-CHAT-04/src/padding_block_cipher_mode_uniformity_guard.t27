@@ -1,0 +1,363 @@
+module port::trios::crates::trios-chat::rings::CR-CHAT-04::src::padding_block_cipher_mode_uniformity_guard;
+
+// Port of gHashTag/trios crates/trios-chat/rings/CR-CHAT-04/src/padding_block_cipher_mode_uniformity_guard.rs
+// (CR-CHAT-04 - Padding block cipher mode uniformity guard,
+// Wave-120 Lane B, requirement R-CHAT-4).
+//
+// Padded ciphertext blocks must be statistically uniform: a
+// padding block encrypted under a different distribution than a
+// payload block is separable by frequency analysis, ECB-style
+// modes fingerprint repeated patterns, and a chi-squared probe
+// reads the mode off the wire. The rules, in the original's
+// order: the batch ceiling, then per block the size check, the
+// zero-block probe, the entropy floor, the repeated-hash scan
+// and the repeated-index scan.
+//
+// The original returns Result<(), BlockUniformityError>. This
+// port carries the verdict as a named struct (owner decision D5):
+// Ok first, then the six error variants in the original's
+// declaration order - BelowMinEntropy, WrongSize, ZeroBlock,
+// DuplicateHash, DuplicateIndex, TooMany - with every payload
+// field: idx and the measured/min entropy for BelowMinEntropy,
+// idx and the got/expected sizes for WrongSize, idx for the
+// zero, hash and index rules, and got and max for the ceiling.
+//
+// The original's Vec<u8> block data becomes the fixed [16]u8
+// form plus its length (the bytes stay, the zero-block probe
+// reads them), and the Shannon entropy over the bytes arrives as
+// a number the caller computed - the lane convention for
+// statistics over byte buffers, and here also a necessity: the
+// t27c gen-rust backend does not yet lower @log (it emits a
+// zero-arity .log() call, E0061 under rustc), while the native
+// backend computes it fine. Both BTreeSet dedups become scans
+// over the blocks already visited.
+
+// Block size in bytes.
+pub const PBCU_BLOCK_SIZE: usize = 16;
+
+// Minimum entropy per block in bits per byte.
+pub const PBCU_MIN_ENTROPY: f64 = 3.0;
+
+// Maximum blocks per batch.
+pub const PBCU_MAX_BLOCKS: usize = 4096;
+
+// Hash length for dedup.
+pub const PBCU_HASH_LEN: usize = 32;
+
+// A ciphertext block record: the block index, the data length
+// and sixteen data bytes, the entropy the caller measured over
+// the data, and the dedup hash.
+pub struct BlockRecord {
+    block_index: u64,
+    data_len: usize,
+    block_data: [16]u8,
+    entropy: f64,
+    block_hash: [32]u8,
+}
+
+// Verdict codes: Ok(()) and BlockUniformityError's variants, in declaration order.
+pub enum BlockUniformityCode {
+    Ok,
+    BelowMinEntropy,
+    WrongSize,
+    ZeroBlock,
+    DuplicateHash,
+    DuplicateIndex,
+    TooMany,
+}
+
+// The verdict of the block uniformity validation, with every
+// error payload field.
+pub struct BlockUniformityVerdict {
+    code: BlockUniformityCode,
+    idx: usize,
+    got: usize,
+    bound: usize,
+    got_f: f64,
+    bound_f: f64,
+}
+
+// Whole-form equality over the fixed thirty-two hash bytes.
+pub fn block_hashes_equal(a: [32]u8, b: [32]u8) -> bool {
+    for i in 0..32 {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The all-zero block - the original's iter().all zero probe.
+pub fn block_data_zero(data: [16]u8) -> bool {
+    for i in 0..16 {
+        if (data[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether block i repeats an earlier hash - the original's
+// BTreeSet insert probe, answered by a scan.
+pub fn hash_seen_before(blocks: []const BlockRecord, i: usize) -> bool {
+    for j in 0..i {
+        if (block_hashes_equal(blocks[j].block_hash, blocks[i].block_hash)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Whether block i repeats an earlier index - the original's
+// second BTreeSet, answered by the same scan.
+pub fn index_seen_before(blocks: []const BlockRecord, i: usize) -> bool {
+    for j in 0..i {
+        if (blocks[j].block_index == blocks[i].block_index) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// [VERIFIED] Validate padding block cipher mode uniformity.
+// Returns Ok only when every rule holds, checked in the
+// original's order: the batch ceiling, then per block the size,
+// the zero probe, the entropy floor, the repeated hash and the
+// repeated index.
+pub fn validate_block_uniformity(blocks: []const BlockRecord) -> BlockUniformityVerdict {
+    if (blocks.len > PBCU_MAX_BLOCKS) {
+        return BlockUniformityVerdict { code: BlockUniformityCode.TooMany, idx: 0, got: blocks.len, bound: PBCU_MAX_BLOCKS, got_f: 0.0, bound_f: 0.0, };
+    }
+    for i in 0..blocks.len {
+        if (blocks[i].data_len != PBCU_BLOCK_SIZE) {
+            return BlockUniformityVerdict { code: BlockUniformityCode.WrongSize, idx: i, got: blocks[i].data_len, bound: PBCU_BLOCK_SIZE, got_f: 0.0, bound_f: 0.0, };
+        }
+        if (block_data_zero(blocks[i].block_data)) {
+            return BlockUniformityVerdict { code: BlockUniformityCode.ZeroBlock, idx: i, got: 0, bound: 0, got_f: 0.0, bound_f: 0.0, };
+        }
+        if (blocks[i].entropy < PBCU_MIN_ENTROPY) {
+            return BlockUniformityVerdict { code: BlockUniformityCode.BelowMinEntropy, idx: i, got: 0, bound: 0, got_f: blocks[i].entropy, bound_f: PBCU_MIN_ENTROPY, };
+        }
+        if (hash_seen_before(blocks, i)) {
+            return BlockUniformityVerdict { code: BlockUniformityCode.DuplicateHash, idx: i, got: 0, bound: 0, got_f: 0.0, bound_f: 0.0, };
+        }
+        if (index_seen_before(blocks, i)) {
+            return BlockUniformityVerdict { code: BlockUniformityCode.DuplicateIndex, idx: i, got: 0, bound: 0, got_f: 0.0, bound_f: 0.0, };
+        }
+    }
+    return BlockUniformityVerdict { code: BlockUniformityCode.Ok, idx: 0, got: 0, bound: 0, got_f: 0.0, bound_f: 0.0, };
+}
+
+// The block data of the fixtures: the original's
+// high_entropy_block(seed) walks (i * 79 + seed) mod 256 over
+// sixteen bytes - sixteen distinct values, a true four-bit
+// entropy each - and its low_entropy_block of sixteen 0x01.
+pub const HIGH_ENTROPY_42: [16]u8 = [16]u8{66, 145, 224, 47, 126, 205, 28, 107, 186, 9, 88, 167, 246, 69, 148, 227,};
+pub const HIGH_ENTROPY_55: [16]u8 = [16]u8{85, 164, 243, 66, 145, 224, 47, 126, 205, 28, 107, 186, 9, 88, 167, 246,};
+pub const HIGH_ENTROPY_99: [16]u8 = [16]u8{153, 232, 55, 134, 213, 36, 115, 194, 17, 96, 175, 254, 77, 156, 235, 58,};
+pub const LOW_ENTROPY_DATA: [16]u8 = [16]u8{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+pub const ZERO_DATA_16: [16]u8 = [16]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,};
+
+// The dedup hashes of the fixtures, one byte repeated thirty-two
+// times - the original's hash(byte) helper, entry by entry.
+pub const HASH_01: [32]u8 = [32]u8{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+pub const HASH_02: [32]u8 = [32]u8{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,};
+pub const HASH_03: [32]u8 = [32]u8{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,};
+
+// The hash bytes of the large-batch fixture: the original writes
+// the big-endian u64 of i + 1 into h[0..8], and for every value
+// in 1..=256 only the last two of those eight bytes can carry a
+// nonzero digit.
+pub const PBCU_H6_256: [256]u8 = [256]u8{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,};
+pub const PBCU_H7_256: [256]u8 = [256]u8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0,};
+pub const PBCU_FLOOD_4097: [4097]u8 = [4097]u8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 0, 1,};
+
+// **PBCU-01** - low entropy rejected: sixteen 0x01 bytes measure
+// zero bits per byte against the floor of three.
+test pbcu_01_low_entropy_rejected {
+    const blocks: [1]BlockRecord = [1]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: LOW_ENTROPY_DATA, entropy: 0.0, block_hash: HASH_01, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.BelowMinEntropy);
+    assert(v.idx == 0);
+    assert(v.got_f == 0.0);
+    assert(v.bound_f == 3.0);
+}
+
+// **PBCU-02** - wrong size rejected: eight bytes of the sixteen
+// the mode requires.
+test pbcu_02_wrong_size_rejected {
+    const blocks: [1]BlockRecord = [1]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 8, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.WrongSize);
+    assert(v.idx == 0);
+    assert(v.got == 8);
+    assert(v.bound == 16);
+}
+
+// **PBCU-03** - zero block rejected: sixteen zero bytes under a
+// live hash.
+test pbcu_03_zero_block_rejected {
+    const blocks: [1]BlockRecord = [1]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: ZERO_DATA_16, entropy: 4.0, block_hash: HASH_01, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.ZeroBlock);
+    assert(v.idx == 0);
+}
+
+// **PBCU-04** - duplicate hash rejected: the second block
+// repeats the first's hash under different data.
+test pbcu_04_duplicate_hash_rejected {
+    const blocks: [2]BlockRecord = [2]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+        BlockRecord { block_index: 1, data_len: 16, block_data: HIGH_ENTROPY_55, entropy: 4.0, block_hash: HASH_01, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.DuplicateHash);
+    assert(v.idx == 1);
+}
+
+// **PBCU-05** - duplicate index rejected: the second block
+// repeats the first's index under a different hash.
+test pbcu_05_duplicate_index_rejected {
+    const blocks: [2]BlockRecord = [2]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_55, entropy: 4.0, block_hash: HASH_02, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.DuplicateIndex);
+    assert(v.idx == 1);
+}
+
+// **PBCU-06** - too many rejected: 4097 blocks of a maximum
+// 4096, built in a loop like the original's. The batch rule
+// fires before any block is examined, so every record carries
+// the same minimal block.
+test pbcu_06_too_many_rejected {
+    var blocks: [4097]BlockRecord;
+    for i in 0..4097 {
+        var h: [32]u8;
+        for j in 0..32 {
+            h[j] = 0;
+        }
+        h[0] = PBCU_FLOOD_4097[i];
+        blocks[i] = BlockRecord { block_index: @as(u64, i), data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: h, };
+    }
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.TooMany);
+    assert(v.got == 4097);
+    assert(v.bound == 4096);
+}
+
+// **PBCU-07** - the valid batch accepted: three blocks, three
+// seeds, three hashes, three indices.
+test pbcu_07_valid_accepted {
+    const blocks: [3]BlockRecord = [3]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+        BlockRecord { block_index: 1, data_len: 16, block_data: HIGH_ENTROPY_55, entropy: 4.0, block_hash: HASH_02, },
+        BlockRecord { block_index: 2, data_len: 16, block_data: HIGH_ENTROPY_99, entropy: 4.0, block_hash: HASH_03, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.Ok);
+}
+
+// **PBCU-08** - an empty batch accepted.
+test pbcu_08_empty_accepted {
+    const blocks: [0]BlockRecord = [0]BlockRecord{};
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.Ok);
+}
+
+// **PBCU-09** - a single block accepted.
+test pbcu_09_single_accepted {
+    const blocks: [1]BlockRecord = [1]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+    };
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.Ok);
+}
+
+// **PBCU-10** - a large batch accepted: 256 blocks, each hash
+// the big-endian u64 of its index plus one. Every block carries
+// the same sixteen-byte spread - for each index the original's
+// (i * 79 + seed) walk yields sixteen distinct bytes and the
+// same four-bit entropy, and the entropy rule reads the
+// caller-computed field, never the data.
+test pbcu_10_large_batch_accepted {
+    var blocks: [256]BlockRecord;
+    for i in 0..256 {
+        var h: [32]u8;
+        for j in 0..32 {
+            h[j] = 0;
+        }
+        h[6] = PBCU_H6_256[i];
+        h[7] = PBCU_H7_256[i];
+        blocks[i] = BlockRecord { block_index: @as(u64, i), data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: h, };
+    }
+    const v = validate_block_uniformity(&blocks);
+    assert(v.code == BlockUniformityCode.Ok);
+}
+
+// The four helpers have direct tests (coverage: Untested 0).
+test pbcu_helpers_answer {
+    assert(block_hashes_equal(HASH_01, HASH_01));
+    assert(!block_hashes_equal(HASH_01, HASH_02));
+    assert(block_data_zero(ZERO_DATA_16));
+    assert(!block_data_zero(HIGH_ENTROPY_42));
+    const three: [3]BlockRecord = [3]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+        BlockRecord { block_index: 1, data_len: 16, block_data: HIGH_ENTROPY_55, entropy: 4.0, block_hash: HASH_02, },
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_99, entropy: 4.0, block_hash: HASH_01, },
+    };
+    assert(!hash_seen_before(&three, 0));
+    assert(!hash_seen_before(&three, 1));
+    assert(hash_seen_before(&three, 2));
+    assert(!index_seen_before(&three, 0));
+    assert(!index_seen_before(&three, 1));
+    assert(index_seen_before(&three, 2));
+}
+
+// Rule order is the original's: the size before the zero probe,
+// the zero probe before the entropy floor, the entropy floor
+// before the hash scan, the hash scan before the index scan -
+// and the batch ceiling before any block.
+test rule_order_matches_original {
+    const short_zero: [1]BlockRecord = [1]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 8, block_data: ZERO_DATA_16, entropy: 0.0, block_hash: HASH_01, },
+    };
+    const v1 = validate_block_uniformity(&short_zero);
+    assert(v1.code == BlockUniformityCode.WrongSize);
+
+    const zero_low: [1]BlockRecord = [1]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: ZERO_DATA_16, entropy: 0.0, block_hash: HASH_01, },
+    };
+    const v2 = validate_block_uniformity(&zero_low);
+    assert(v2.code == BlockUniformityCode.ZeroBlock);
+
+    const low_twin_hash: [2]BlockRecord = [2]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 0.0, block_hash: HASH_01, },
+        BlockRecord { block_index: 1, data_len: 16, block_data: HIGH_ENTROPY_55, entropy: 4.0, block_hash: HASH_01, },
+    };
+    const v3 = validate_block_uniformity(&low_twin_hash);
+    assert(v3.code == BlockUniformityCode.BelowMinEntropy);
+    assert(v3.idx == 0);
+
+    const twin_hash_twin_index: [2]BlockRecord = [2]BlockRecord{
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_42, entropy: 4.0, block_hash: HASH_01, },
+        BlockRecord { block_index: 0, data_len: 16, block_data: HIGH_ENTROPY_55, entropy: 4.0, block_hash: HASH_01, },
+    };
+    const v4 = validate_block_uniformity(&twin_hash_twin_index);
+    assert(v4.code == BlockUniformityCode.DuplicateHash);
+    assert(v4.idx == 1);
+
+    var flooded: [4097]BlockRecord;
+    for i in 0..4097 {
+        flooded[i] = BlockRecord { block_index: 0, data_len: 16, block_data: ZERO_DATA_16, entropy: 0.0, block_hash: HASH_01, };
+    }
+    const v5 = validate_block_uniformity(&flooded);
+    assert(v5.code == BlockUniformityCode.TooMany);
+}
