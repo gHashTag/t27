@@ -1,0 +1,85 @@
+module port::scripts::gen_w373;
+
+pub fn append_w373(text: []const u8) → bool {
+    // Check if text contains wave 372
+    var i: usize = 0;
+    while (i < text.len - 15) {
+        if (text[i] == '/' and text[i+1] == '/' and text[i+2] == ' ' and 
+            text[i+3] == 'W' and text[i+4] == 'a' and text[i+5] == 'v' and 
+            text[i+6] == 'e' and text[i+7] == ' ' and text[i+8] == 'L' and 
+            text[i+9] == 'o' and text[i+10] == 'o' and text[i+11] == 'p' and 
+            text[i+12] == ' ' and text[i+13] == '3' and text[i+14] == '7' and text[i+15] == '2') {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// Helper function to generate the replacement block
+fn generate_replacement_block() → []const u8 {
+    var result: [50]u8 = undefined;
+    var len: usize = 0;
+    
+    // Build "// Wave Loop 373"
+    result[0] = '/';
+    result[1] = '/';
+    result[2] = ' ';
+    result[3] = 'W';
+    result[4] = 'a';
+    result[5] = 'v';
+    result[6] = 'e';
+    result[7] = ' ';
+    result[8] = 'L';
+    result[9] = 'o';
+    result[10] = 'o';
+    result[11] = 'p';
+    result[12] = ' ';
+    result[13] = '3';
+    result[14] = '7';
+    result[15] = '3';
+    len = 16;
+    
+    // Add newline
+    if (len < result.len) {
+        result[len] = '\n';
+        len += 1;
+    }
+    
+    return result[0..len];
+}
+
+test find_wave_loop_372 {
+    var test_text = "// Wave Loop 372\ninvariant some condition true\n";
+    
+    var result = append_w373(test_text);
+    
+    assert(result == true);
+}
+
+test skip_non_372_wave {
+    var test_text = "// Wave Loop 371\ninvariant condition true\n";
+    
+    var result = append_w373(test_text);
+    
+    assert(result == false);
+}
+
+test no_wave_loop_blocks {
+    var test_text = "// some other content\ninvariant condition true\n";
+    
+    var result = append_w373(test_text);
+    
+    assert(result == false);
+}
+
+test generate_replacement {
+    var replacement = generate_replacement_block();
+    
+    assert(replacement.len > 0);
+    assert(replacement[0] == '/');
+    assert(replacement[1] == '/');
+    assert(replacement[2] == ' ');
+    assert(replacement[3] == 'W');
+    assert(replacement[15] == '3'); // Last character of "373"
+}
