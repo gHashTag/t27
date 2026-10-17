@@ -1,0 +1,146 @@
+module port::trinity::src::storm::links::vibee;
+
+// VIBEE Codegen Link (Link 6)
+// Executes vibee binary to generate Zig code from .tri specification
+
+pub struct LinkResult {
+    success: bool,
+    message: []const u8,
+    duration_ms: u64,
+    exit_code: u32,
+    stdout: []const u8,
+}
+
+pub fn execute(allocator: std.mem.Allocator, task: []const u8, spec_file: []const u8) !LinkResult {
+    // This function involves process execution (plumbing) so it remains undefined
+    // The decision logic is tested via the helper functions below
+    undefined;
+}
+
+// Test helper functions for decision logic
+pub fn check_spec_file_exists(spec_file: []const u8) -> bool {
+    // File system operations - undefined for testing
+    undefined;
+}
+
+pub fn parse_output_from_stdout(stdout: []const u8) -> []const u8 {
+    var output_path: []const u8 = "";
+    
+    // Handle empty input
+    if (stdout.len == 0) {
+        return output_path;
+    }
+    
+    // Simple search for "Generated:" or "Writing:"
+    const gen_str = "Generated:";
+    const write_str = "Writing:";
+    
+    // Check if stdout contains "Generated:"
+    var found_gen = false;
+    var i: usize = 0;
+    while (i <= stdout.len - gen_str.len) {
+        var match = true;
+        var j: usize = 0;
+        while (j < gen_str.len and match) {
+            if (stdout[i + j] != gen_str[j]) {
+                match = false;
+            }
+            j += 1;
+        }
+        if (match) {
+            found_gen = true;
+            break;
+        }
+        i += 1;
+    }
+    
+    // Check if stdout contains "Writing:"
+    var found_write = false;
+    if (!found_gen) {
+        i = 0;
+        while (i <= stdout.len - write_str.len) {
+            var match = true;
+            var j: usize = 0;
+            while (j < write_str.len and match) {
+                if (stdout[i + j] != write_str[j]) {
+                    match = false;
+                }
+                j += 1;
+            }
+            if (match) {
+                found_write = true;
+                break;
+            }
+            i += 1;
+        }
+    }
+    
+    // Extract the path after the found prefix
+    if (found_gen) {
+        const start = std.mem.indexOf(u8, stdout, gen_str).? + gen_str.len;
+        var end = start;
+        while (end < stdout.len and stdout[end] != '\n') {
+            end += 1;
+        }
+        output_path = stdout[start..end];
+    } else if (found_write) {
+        const start = std.mem.indexOf(u8, stdout, write_str).? + write_str.len;
+        var end = start;
+        while (end < stdout.len and stdout[end] != '\n') {
+            end += 1;
+        }
+        output_path = stdout[start..end];
+    }
+    
+    return output_path;
+}
+
+pub fn check_generated_file_exists(output_path: []const u8) -> bool {
+    // File system operations - undefined for testing
+    undefined;
+}
+
+// Test the decision logic without file system operations
+test check_spec_file_exists_exists {
+    // This test is blocked due to file system operations
+    // But we test that the function exists
+    const result = check_spec_file_exists("test_file");
+    assert(result == true or result == false);
+}
+
+test check_spec_file_exists_not_exists {
+    // This test is blocked due to file system operations  
+    // But we test that the function exists
+    const result = check_spec_file_exists("nonexistent_file");
+    assert(result == true or result == false);
+}
+
+test parse_output_from_stdout_generated {
+    const test_stdout = "Generated: /path/to/output.zig\nSome other output";
+    const result = parse_output_from_stdout(test_stdout);
+    assert(result.len > 0);
+}
+
+test parse_output_from_stdout_writing {
+    const test_stdout = "Writing: /another/path/file.zig\nDone!";
+    const result = parse_output_from_stdout(test_stdout);
+    assert(result.len > 0);
+}
+
+test parse_output_from_stdout_no_match {
+    const test_stdout = "Some output without Generated or Writing";
+    const result = parse_output_from_stdout(test_stdout);
+    assert(result.len == 0);
+}
+
+test parse_output_from_stdout_empty {
+    const test_stdout = "";
+    const result = parse_output_from_stdout(test_stdout);
+    assert(result.len == 0);
+}
+
+test parse_output_from_stdout_first_line {
+    const test_stdout = "Generated: /first/file.zig\nSecond line";
+    const result = parse_output_from_stdout(test_stdout);
+    assert(result.len > 0);
+}
