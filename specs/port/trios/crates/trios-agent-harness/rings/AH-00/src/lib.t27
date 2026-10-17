@@ -1,0 +1,69 @@
+module port::trios::crates::trios_agent_harness::rings::AH_00;
+
+pub enum AgentAdapter {
+    Claude,
+    Codex,
+    Openclaw,
+    Hermes,
+}
+
+pub enum PermissionMode {
+    ApproveAll,
+}
+
+// Renamed from ParseResult: specs/lsp/protocol.t27 already defines one; this parses harness CLI args into an AgentAdapter (#2774).
+pub struct HarnessParseResult {
+    ok: bool,
+    value: AgentAdapter,
+}
+
+pub fn AgentAdapter_as_str(self: AgentAdapter) -> []const u8 {
+    switch (self) {
+        .Claude => "claude",
+        .Codex => "codex",
+        .Openclaw => "openclaw",
+        .Hermes => "hermes",
+    }
+}
+
+pub fn AgentAdapter_parse(s: []const u8) -> HarnessParseResult {
+    if (s == "claude") {
+        return HarnessParseResult { ok: true, value: AgentAdapter::Claude };
+    }
+    if (s == "codex") {
+        return HarnessParseResult { ok: true, value: AgentAdapter::Codex };
+    }
+    if (s == "openclaw") {
+        return HarnessParseResult { ok: true, value: AgentAdapter::Openclaw };
+    }
+    if (s == "hermes") {
+        return HarnessParseResult { ok: true, value: AgentAdapter::Hermes };
+    }
+    return HarnessParseResult { ok: false, value: AgentAdapter::Claude };
+}
+
+pub fn PermissionMode_default() -> PermissionMode {
+    return PermissionMode::ApproveAll;
+}
+
+test AgentAdapter_as_str_claude {
+    const adapter = AgentAdapter::Claude;
+    assert(AgentAdapter_as_str(adapter) == "claude");
+}
+
+test AgentAdapter_parse_roundtrip {
+    const parsed = AgentAdapter_parse("claude");
+    assert(parsed.ok == true);
+    const back_to_string = AgentAdapter_as_str(parsed.value);
+    assert(back_to_string == "claude");
+}
+
+test AgentAdapter_parse_invalid {
+    const parsed = AgentAdapter_parse("invalid");
+    assert(parsed.ok == false);
+}
+
+test PermissionMode_default_returns_approve_all {
+    const mode = PermissionMode_default();
+    assert(mode == PermissionMode::ApproveAll);
+}
