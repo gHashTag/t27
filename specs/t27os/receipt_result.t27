@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/t27os/receipt_result.t27 -- the typed result section of a lab receipt: integer rows and
+// one branchable ok (issue #11954; board Trinity-S-AI-DNA/t27os#18, criterion 1).
+//
+// Measured 2026-10-23 at Trinity-S-AI-DNA/t27os runs/8f28c2d849.048f7f45.json: each per-spec row
+// is display text, {"tests": "tests=9", "pass": "pass=9", "FAIL": "FAIL=0", ...}, and the receipt
+// carries no overall outcome. A caller must parse key=value strings and recompute the verdict
+// itself, and per t27os#9 a spec the workflow swallowed is simply absent from the rows.
+//
+// The law here is the SHAPE: a row is five integers, the rows fold into one sum, and the sum
+// answers one boolean. The verdict rule itself is labs.t27 :: receipt_verdict (t27os#9), read
+// through `use`, never restated: an omitted, BLOCKED, failed or vacuous spec makes it RUN_FAILED.
+// This spec adds the one check that only typed rows make possible -- a row whose integers do not
+// add up (pass + fail != tests, or more vacuous tests than tests) is a bad row, and one bad row
+// makes the whole result false, so a writer that mangles a count cannot produce a green receipt.
+//
+// WHAT IS NOT HERE: the writer (the lab.yml step that emits "result", criterion 2, waits on the
+// workflow-scope request in t27os#3) and the consumer demo (criterion 3). ASCII only (L3).
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27osReceiptResult;
+
+use t27os::labs::{receipt_verdict, RUN_OK};
+
+// --- the row and the sum ---------------------------------------------------
+
+/// One spec's line of the result section, as t27c test-report already splits it.
+pub struct ResultRow {
+    tests: u32,
+    pass: u32,
+    fail: u32,
+    vacuous: u32,
+    blocked: u32,
+}
+
+/// The rows folded: how many were reported, their summed counts, and how many did not add up.
+pub struct ResultSum {
+    reported: u32,
+    fail: u32,
+    vacuous: u32,
+    blocked: u32,
+    bad_rows: u32,
+}
+
+// result_row(tests, pass, fail, vacuous, blocked): one typed row.
+pub fn result_row(tests: u32, pass: u32, fail: u32, vacuous: u32, blocked: u32) -> ResultRow {
+    return ResultRow { tests: tests, pass: pass, fail: fail, vacuous: vacuous, blocked: blocked };
+}
+
+// result_empty(): the sum before any row.
+pub fn result_empty() -> ResultSum {
+    return ResultSum { reported: 0, fail: 0, vacuous: 0, blocked: 0, bad_rows: 0 };
+}
+
+// row_consistent(r): the row's integers add up -- every test either passed or failed, and no
+// more tests are vacuous than ran.
+pub fn row_consistent(r: ResultRow) -> bool {
+    if (r.pass + r.fail != r.tests) {
+        return false;
+    }
+    return r.vacuous <= r.tests;
+}
+
+// result_add(s, r): the sum with one more row folded in.
+pub fn result_add(s: ResultSum, r: ResultRow) -> ResultSum {
+    var bad : u32 = s.bad_rows;
+    if (!row_consistent(r)) {
+        bad = bad + 1;
+    }
+    return ResultSum { reported: s.reported + 1, fail: s.fail + r.fail,
+                       vacuous: s.vacuous + r.vacuous, blocked: s.blocked + r.blocked,
+                       bad_rows: bad };
+}
+
+// result_ok(asked, s): the branchable verdict -- no bad row, and labs.t27's receipt_verdict on
+// the summed counts is RUN_OK.
+pub fn result_ok(asked: u32, s: ResultSum) -> bool {
+    if (s.bad_rows > 0) {
+        return false;
+    }
+    return receipt_verdict(asked, s.reported, s.fail, s.blocked, s.vacuous) == RUN_OK;
+}
+
+// --- tests -----------------------------------------------------------------
+
+test result_ok_clean_receipt {
+    // the measured receipt's row, typed: three specs asked, three clean rows reported
+    const s = result_add(result_add(result_add(result_empty(),
+        result_row(9, 9, 0, 0, 0)), result_row(4, 4, 0, 0, 0)), result_row(12, 12, 0, 0, 0));
+    assert s.reported == 3;
+    assert s.fail == 0;
+    assert s.bad_rows == 0;
+    assert result_ok(3, s);
+}
+
+test result_ok_false_on_failed_row {
+    const s = result_add(result_add(result_empty(),
+        result_row(9, 9, 0, 0, 0)), result_row(4, 3, 1, 0, 0));
+    assert s.fail == 1;
+    assert !result_ok(2, s);
+}
+
+test result_ok_false_on_vacuous_row {
+    const s = result_add(result_add(result_empty(),
+        result_row(9, 9, 0, 0, 0)), result_row(4, 4, 0, 1, 0));
+    assert s.vacuous == 1;
+    assert !result_ok(2, s);
+}
+
+test result_ok_false_when_a_spec_is_missing {
+    // asked for three, the workflow reported two: the t27os#9 silent omission
+    const s = result_add(result_add(result_empty(),
+        result_row(9, 9, 0, 0, 0)), result_row(4, 4, 0, 0, 0));
+    assert s.reported == 2;
+    assert !result_ok(3, s);
+    assert result_ok(2, s);
+}
+
+test result_ok_false_on_blocked_row {
+    const s = result_add(result_add(result_empty(),
+        result_row(9, 9, 0, 0, 0)), result_row(0, 0, 0, 0, 1));
+    assert s.blocked == 1;
+    assert s.bad_rows == 0;
+    assert !result_ok(2, s);
+}
+
+test result_ok_false_on_a_row_that_does_not_add_up {
+    // pass + fail != tests: a mangled count is a bad row even with fail == 0
+    const r = result_row(9, 8, 0, 0, 0);
+    assert !row_consistent(r);
+    const s = result_add(result_add(result_empty(), result_row(4, 4, 0, 0, 0)), r);
+    assert s.bad_rows == 1;
+    assert s.fail == 0;
+    assert !result_ok(2, s);
+    // more vacuous tests than tests
+    assert !row_consistent(result_row(2, 2, 0, 3, 0));
+    assert row_consistent(result_row(2, 2, 0, 2, 0));
+}
+
+test result_ok_false_on_nothing_asked {
+    assert !result_ok(0, result_empty());
+}
