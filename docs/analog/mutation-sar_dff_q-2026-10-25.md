@@ -36,8 +36,8 @@ By kind (same in both runs): drop-guard 6, flip-cmp 12, swap-logic 1, drop-step 
 | 120 | flip-cmp `w < VDD as f64` to `<=` | equivalent: at `w == VDD as f64` both branches return VDD | accepted |
 | 136 | flip-cmp `while (i < LG_R_OFF)` in `dq_scale` | test gap: nothing read the first rv word of a scaled table | killed by a new test |
 | 174 | flip-cmp `while (it < iters)` in `dq_solve_k` | test gap: nothing ran zero sweeps | killed by a new test |
-| 217 | flip-cmp on the 10 uV bar for Q | equivalent in practice: differs only when a gap equals the bar to the last bit of an f64 | accepted |
-| 218 | flip-cmp on the 10 uV bar for nQ | equivalent in practice: the same comparison | accepted |
+| 217 | flip-cmp on the 10 uV bar for Q | not constructed: differs only when a gap equals the bar to the last bit of an f64; no test builds that value | accepted |
+| 218 | flip-cmp on the 10 uV bar for nQ | not constructed: the same comparison, the same exact-equality case | accepted |
 
 The four hung mutants are drop-step mutants at lines 138, 142, 181 and 219: a dropped loop step makes the loop endless,
 so no test can go red and only the clock ends the mutant. They are named in the accepted file with that reason.
@@ -66,5 +66,8 @@ end of the spec for that reason.
 ## Not claimed
 
 - The four accepted `flip-cmp` lines are classified by reading, not proved equivalent by a tool.
+- Lines 217 and 218 are accepted because no test builds a gap equal to the 10 uV bar to the last bit of an f64. That is
+  not a proof the value is unreachable, so the accepted file says "not constructed", not "equivalent". A review of
+  PR #12085 (2026-10-25) made this point; lines 113 and 120 are equivalent by their own arithmetic and keep that word.
 - Only `sar_dff_q.t27` was gated. The other analog specs have a census with survivors that are not yet pinned; each is
   its own issue.
