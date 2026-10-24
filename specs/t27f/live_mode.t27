@@ -423,7 +423,7 @@ fn remu(a: u32, m: u32) -> u32 {
     return r;
 }
 
-fn sort_u32(a: []u32, n: u32) {
+pub fn sort_u32(a: []u32, n: u32) {
     var i : u32 = 1;
     while (i < n) {
         var j = i;

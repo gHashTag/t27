@@ -88,6 +88,7 @@ use t27f::live_mode::MEASURE_HARNESS;
 use t27f::live_mode::HAS_LOCAL_MEASURE;
 use t27f::live_mode::LAB_RUN_DONE;
 use t27f::live_mode::COALESCE_MS;
+use t27f::live_mode::sort_u32;
 
 // ---- the frame clock ----------------------------------------------------------------------------------
 
@@ -283,7 +284,7 @@ pub fn nearest_rank(n: u32, p: u32) -> u32 {
 /// one.
 pub fn percentile_nearest_rank(a: []u32, n: u32, p: u32) -> u32 {
     if (n == 0) { return 0; }
-    sort_asc_u32(a, n);
+    sort_u32(a, n);
     return a[(nearest_rank(n, p) - 1) as usize];
 }
 
@@ -357,20 +358,6 @@ pub fn record_perfect_frames(rec: *FrameRecord, n: u32, paint_us: u32) -> u8 {
 }
 
 // ---- helpers ---------------------------------------------------------------------------------------------
-
-fn sort_asc_u32(a: []u32, n: u32) {
-    var i : u32 = 1;
-    while (i < n) {
-        var j = i;
-        while (j > 0 and a[(j - 1) as usize] > a[j as usize]) {
-            const t = a[(j - 1) as usize];
-            a[(j - 1) as usize] = a[j as usize];
-            a[j as usize] = t;
-            j = j - 1;
-        }
-        i = i + 1;
-    }
-}
 
 /// v mod 100 by subtraction, for the permutation fixture (37 and 100 share no factor, so
 /// rem100(i * 37) + 1 visits every value 1..100 exactly once).

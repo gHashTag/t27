@@ -544,7 +544,6 @@ sm_info 2
 sm_off 2
 small_die 2
 solve 2
-sort_asc_u32 2
 sort_idx 2
 sort_names 2
 source_upload_file 2
