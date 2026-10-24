@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/t27os/lab_seal.t27 -- the reseal leg of the T27 OS lab (night loop Refs #11840;
+// board Trinity-S-AI-DNA/t27os#3).
+//
+// Measured 2026-10-24 (night tick 29): #11845 merged with its seals stale, so master carries
+// 51 stale gen hashes across 9 specs (fpga/wasm_opcodes, igla/coder/pipeline, t27f/a11y_mirror,
+// t27f/hud, tri/crypto/hex, tri/misread/shapes, tri/t27b/wasm, tri/utils/args,
+// tri/utils/template), and every open PR shows spec-guards red because of them. A seal must come
+// from a t27c built off master. The Mac is barred from builds, the Railway lab answers
+// Unauthorized, and lab.yml only runs test-report -- the task sat in .blocked for ticks 5-28.
+//
+// The executor, read before this law was written (retro tick 28): lab.yml job "run" is
+// runs-on ubuntu-latest (x86_64), checks t27 out at the resolved sha under
+// $GITHUB_WORKSPACE/t27, and builds ./target/release/t27c there. Sealing needs no JIT, so
+// x86_64 is enough, and a seal records its spec path relative to the working directory
+// (bootstrap/src/main.rs :: fn seal_spec_path), so the leg runs from the t27 checkout root
+// and no /Users home path can get into a seal.
+//
+// The leg reuses the repo's own repair, `tri seals drift --fix` (cli/tri/src/seals.rs:
+// rebuild, list the drift, seal --save each, sync-twins, re-check). It copies the seal files
+// that changed into runs/<sha>.seals/ next to the receipt; the existing "publish the
+// receipt" step pushes them (git add runs/). The leg writes nothing into t27 itself.
+// A tick then copies them into .trinity/seals/ on a PR branch. That is tool-written data,
+// not hand code, and it is allowed under only-t27 only when may_commit_seals says so.
+//
+// TRI CLAW makes two edits to Trinity-S-AI-DNA/t27os .github/workflows/lab.yml:
+//   1. SEAL_INPUT_YAML goes under workflow_dispatch.inputs (the sixth input; the limit is 10);
+//   2. SEAL_STEP_YAML goes after the "test-report every named spec" step of job "run".
+// ASCII only (L3). phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27osLabSeal;
+
+use t27os::keysync::contains;
+
+// --- the executor commands, as data for the lab.yml generator -----------
+
+pub const SEAL_IF : str = "if: inputs.seal == 'true'";
+pub const SEAL_BUILD : str = "cargo build --release -p tri";
+pub const SEAL_RUN : str = "./target/release/tri seals drift --fix";
+pub const SEAL_ROOT : str = "cd t27";
+pub const SEAL_SAME_SHA : str = "steps.sha.outputs.resolved";
+pub const SEAL_OUT_DIR : str = ".seals";
+pub const SEAL_CHANGED : str = "git ls-files -z -m -o --exclude-standard -- .trinity/seals";
+pub const SEAL_LIST : str = "CHANGED.txt";
+pub const HOME_PATH : str = "/Users/";
+pub const SELF_PUSH : str = "git push";
+
+pub const SEAL_INPUT_YAML : str = "      seal:\n        description: 'true = reseal what drifted (tri seals drift --fix) and publish the changed seals beside the receipt'\n        required: false\n        default: 'false'\n";
+
+pub const SEAL_STEP_YAML : str = "      - name: seal leg -- reseal what drifted with the lab's own t27c (t27#11840)\n        if: inputs.seal == 'true'\n        shell: bash\n        run: |\n          set -e\n          sha=${{ steps.sha.outputs.resolved }}\n          out=\"$GITHUB_WORKSPACE/runs/$sha.seals\"\n          mkdir -p \"$out\"\n          cd t27\n          cargo build --release -p tri\n          ./target/release/tri seals drift --fix 2>&1 | tee \"$out/drift.txt\"\n          git ls-files -z -m -o --exclude-standard -- .trinity/seals | xargs -0 -r cp -t \"$out\"\n          git ls-files -m -o --exclude-standard -- .trinity/seals > \"$out/CHANGED.txt\"\n          wc -l < \"$out/CHANGED.txt\"\n";
+
+// seal_step_ok(y): the step TRI CLAW inserts is the one this law asks for -- opt-in, at the
+// resolved sha, from the t27 checkout root, through the repo's own drift repair, publishing
+// every changed or new seal and the list of them, never a home path, never its own push.
+pub fn seal_step_ok(y: []const u8) -> bool {
+    return contains(y, SEAL_IF) and contains(y, SEAL_SAME_SHA) and contains(y, SEAL_ROOT)
+        and contains(y, SEAL_BUILD) and contains(y, SEAL_RUN)
+        and contains(y, SEAL_OUT_DIR) and contains(y, SEAL_CHANGED) and contains(y, SEAL_LIST)
+        and !contains(y, HOME_PATH) and !contains(y, SELF_PUSH);
+}
+
+// seal_input_ok(y): the dispatch input exists and is off by default, so scheduled runs and
+// every existing dispatch keep their meaning.
+pub fn seal_input_ok(y: []const u8) -> bool {
+    return contains(y, "      seal:") and contains(y, "default: 'false'");
+}
+
+// may_commit_seals(stamp_is_head, touches_compiler, changed, home_paths): a tick may copy
+// runs/<sha>.seals/ into a PR branch only when the receipt's t27c_build_stamp is that
+// branch's head (the seals describe this tree), the branch does not touch the compiler
+// (so the lab's t27c is a master-built t27c), the leg changed at least one seal, and no
+// copied seal names a home path (the scan check).
+pub fn may_commit_seals(stamp_is_head: bool, touches_compiler: bool, changed: u32, home_paths: u32) -> bool {
+    if (!stamp_is_head) {
+        return false;
+    }
+    if (touches_compiler) {
+        return false;
+    }
+    if (home_paths > 0) {
+        return false;
+    }
+    return changed > 0;
+}
+
+// --- tests ---------------------------------------------------------------
+
+test seal_step_is_the_law {
+    assert seal_step_ok(SEAL_STEP_YAML);
+    assert seal_input_ok(SEAL_INPUT_YAML);
+}
+
+test seal_step_refused_without_opt_in {
+    // negative control: a step with no if: would reseal on every scheduled run
+    assert seal_step_ok("      - run: |\n          cd t27\n          cargo build --release -p tri\n          ./target/release/tri seals drift --fix\n          steps.sha.outputs.resolved .seals git ls-files -z -m -o --exclude-standard -- .trinity/seals CHANGED.txt\n") == false;
+}
+
+test seal_step_refused_off_the_checkout_root {
+    // a seal run from outside the t27 root is refused by seal_spec_path, or records a home path
+    assert seal_step_ok("      - if: inputs.seal == 'true'\n        run: |\n          cd /Users/x/t27\n          cargo build --release -p tri\n          ./target/release/tri seals drift --fix\n          steps.sha.outputs.resolved .seals git ls-files -z -m -o --exclude-standard -- .trinity/seals CHANGED.txt\n") == false;
+    assert seal_step_ok("      - if: inputs.seal == 'true'\n        run: |\n          cargo build --release -p tri\n          ./target/release/tri seals drift --fix\n          steps.sha.outputs.resolved .seals git ls-files -z -m -o --exclude-standard -- .trinity/seals CHANGED.txt\n") == false;
+}
+
+test seal_step_refused_when_it_drops_new_seals {
+    // -m alone lists modified seals and drops a seal file that did not exist before
+    assert seal_step_ok("      - if: inputs.seal == 'true'\n        run: |\n          cd t27\n          cargo build --release -p tri\n          ./target/release/tri seals drift --fix\n          steps.sha.outputs.resolved .seals git ls-files -z -m -- .trinity/seals CHANGED.txt\n") == false;
+}
+
+test seal_step_refused_when_it_pushes_itself {
+    // the leg writes beside the receipt; only the publish step pushes, so one commit carries both
+    assert seal_step_ok("      - if: inputs.seal == 'true'\n        run: |\n          cd t27\n          cargo build --release -p tri\n          ./target/release/tri seals drift --fix\n          steps.sha.outputs.resolved .seals git ls-files -z -m -o --exclude-standard -- .trinity/seals CHANGED.txt\n          git push\n") == false;
+}
+
+test seal_input_refused_when_on_by_default {
+    assert seal_input_ok("      seal:\n        default: 'true'\n") == false;
+}
+
+test commit_needs_every_condition {
+    assert may_commit_seals(true, false, 51, 0) == true;
+    assert may_commit_seals(false, false, 51, 0) == false;
+    assert may_commit_seals(true, true, 51, 0) == false;
+    assert may_commit_seals(true, false, 0, 0) == false;
+    assert may_commit_seals(true, false, 51, 1) == false;
+}
+
+invariant a_compiler_branch_never_self_seals {
+    // a branch that changes t27c would seal with its own compiler, not master's
+    assert may_commit_seals(true, true, 1, 0) == false;
+}
