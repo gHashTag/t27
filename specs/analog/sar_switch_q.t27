@@ -624,3 +624,530 @@ test the_droop_is_the_off_switchs_leakage_read_at_the_tables_lowest_gate_row_ove
     assert(fabs64(dbig) > 0.0001);
     assert(!(fabs64(dbig) < hi));
 }
+
+; --- the tests below pin the mutants that the tests above let live (docs/analog/mutation-sar_switch_q-2026-10-25.md): they are appended after the last test so that no line above moves ----------
+test the_nmos_switch_reads_its_gate_drive_vds_and_body_bias_in_whole_words_and_its_current_and_charges_are_the_tables_at_those_words {
+    // Device 5 is the switch (drain vout, gate net3, source vin, bulk ground). With vout below the input the channel's low end is vout: gate drive net3 - vout, Vds vin - vout, source-to-bulk voltage
+    // vout, each a whole number of words computed here by hand from the node voltages. The expected current and charges are the tables read at those words, not a second run of qs_dev. A node
+    // voltage is a whole number of words, so the rounding (+ 0.5, then truncation) must hand back the same words; a rounding the other way is one word off, seen at the points counted below.
+    const vin : f64 = 11000000.0;
+    var nx : u32 = 0;
+    var ny : u32 = 0;
+    var nb : u32 = 0;
+    var k : u32 = 0;
+    while (k < 1024) {
+        const vlo : u32 = 9000000 + 13 * k;
+        const x : u32 = 12000000;
+        const y : u32 = 11000000 - vlo;
+        var v : [8]f64 = [0.0] ** 8;
+        v[0] = (vlo) as f64;
+        v[3] = (vlo + x) as f64;
+        var qa : [8]f64 = [0.0] ** 8;
+        var ia : [8]f64 = [0.0] ** 8;
+        qs_dev(5, &v, 0.0, vin, 0, &qa, &ia);
+        const i0 : u64 = sq_i(0, x, y, vlo);
+        assert(fabs64(ia[0] + (i0 as f64)) < 0.5);
+        const tqd : []const u32 = sq_qd_tab(0);
+        const tqg : []const u32 = sq_qg_tab(0);
+        const qd : u64 = sq_qt(tqd, x, 0, y, false);
+        const qg : u64 = sq_qt(tqg, x, 0, y, false);
+        const qs : u64 = sq_qsrc(qd, qg, sq_qt(tqd, x, 0, 0, false), sq_qt(tqg, x, 0, 0, false), sq_qt(tqd, 0, 0, y, false), sq_qt(tqg, 0, 0, y, false));
+        assert(fabs64(qa[3] - 500.0 * sq_wf(qg)) < 0.5);
+        assert(fabs64(qa[0] - 500.0 * sq_wf(qs)) < 0.5);
+        if (sq_i(0, x - 1, y, vlo) != i0) { nx = nx + 1; }
+        if (sq_i(0, x, y - 1, vlo) != i0) { ny = ny + 1; }
+        if (sq_i(0, x, y, vlo - 1) != i0) { nb = nb + 1; }
+        k = k + 1;
+    }
+    // the current moves with each of the three words at some of the points, so a word off in any of them is seen
+    assert(nx > 0);
+    assert(ny > 0);
+    assert(nb > 0);
+    // a channel with both ends at one voltage (device 1, drain net1 and source net2 at 9000000 words, the gate on the clock at 20000000): Vds 0, no current, and the charge the same on both ends,
+    // so which end is called the drain does not matter there
+    var v1 : [8]f64 = [0.0] ** 8;
+    v1[1] = 9000000.0;
+    v1[2] = 9000000.0;
+    var qb : [8]f64 = [0.0] ** 8;
+    var ib : [8]f64 = [0.0] ** 8;
+    qs_dev(1, &v1, 20000000.0, vin, 0, &qb, &ib);
+    assert_eq(sq_i(0, 11000000, 0, 9000000), 0);
+    assert(fabs64(ib[1]) < 0.5);
+    assert(fabs64(ib[2]) < 0.5);
+    assert(fabs64(qb[1] - qb[2]) < 0.5);
+    assert(fabs64(qb[1]) > 1000.0);
+}
+
+test below_its_source_the_nmos_gate_is_xn_words_under_it_and_the_charge_is_the_tables_charge_at_zero_plus_the_linear_tail {
+    // Device 5 with net3 below vout (8000000 less k words, vout 9000000): x 0, xn = vout - net3 (1000000 + k words), Vds 2000000, source-to-bulk 9000000. The charge goes on below the source linearly
+    // with the slope of the first cell, in whole words of table charge, so a word more or less of xn moves the table charge at only some of the points (counted below)
+    const vin : f64 = 11000000.0;
+    var nq : u32 = 0;
+    var k : u32 = 0;
+    while (k < 4096) {
+        const xn : u32 = 1000000 + k;
+        const y : u32 = 2000000;
+        var v : [8]f64 = [0.0] ** 8;
+        v[0] = 9000000.0;
+        v[3] = (9000000 - xn) as f64;
+        var qa : [8]f64 = [0.0] ** 8;
+        var ia : [8]f64 = [0.0] ** 8;
+        qs_dev(5, &v, 0.0, vin, 0, &qa, &ia);
+        const i0 : u64 = sq_i(0, 0, y, 9000000);
+        assert(fabs64(ia[0] + (i0 as f64)) < 0.5);
+        const tqd : []const u32 = sq_qd_tab(0);
+        const tqg : []const u32 = sq_qg_tab(0);
+        const qd : u64 = sq_qt(tqd, 0, xn, y, false);
+        const qg : u64 = sq_qt(tqg, 0, xn, y, false);
+        const qs : u64 = sq_qsrc(qd, qg, sq_qt(tqd, 0, xn, 0, false), sq_qt(tqg, 0, xn, 0, false), sq_qt(tqd, 0, 0, y, false), sq_qt(tqg, 0, 0, y, false));
+        assert(fabs64(qa[3] - 500.0 * sq_wf(qg)) < 0.5);
+        assert(fabs64(qa[0] - 500.0 * sq_wf(qs)) < 0.5);
+        if (sq_qt(tqg, 0, xn - 1, y, false) != qg) { nq = nq + 1; }
+        k = k + 1;
+    }
+    assert(nq > 0);
+}
+
+test the_pmos_pull_up_reads_its_gate_drive_from_its_high_end_and_its_current_and_charges_are_the_tables_at_those_words {
+    // Device 6 (XM7: drain the supply, gate net3, source and bulk net4) with net3 under the supply and net4 under it: high end the supply, gate drive x = supply - net3, Vds y = supply - net4, and the
+    // source-to-bulk voltage 0 (the bulk is the source). The drain end of a PMOS is the low end, so its charge lands on net4 and the gate's on net3
+    var nx : u32 = 0;
+    var ny : u32 = 0;
+    var k : u32 = 0;
+    while (k < 1024) {
+        const x : u32 = 25165824 - (12000000 + 11 * k);
+        const y : u32 = 25165824 - (10000000 + 29 * k);
+        var v : [8]f64 = [0.0] ** 8;
+        v[3] = (12000000 + 11 * k) as f64;
+        v[4] = (10000000 + 29 * k) as f64;
+        var qa : [8]f64 = [0.0] ** 8;
+        var ia : [8]f64 = [0.0] ** 8;
+        qs_dev(6, &v, 0.0, 0.0, 0, &qa, &ia);
+        const i0 : u64 = sq_i(1, x, y, 0);
+        assert(fabs64(ia[4] + (i0 as f64)) < 0.5);
+        const tqd : []const u32 = sq_qd_tab(1);
+        const tqg : []const u32 = sq_qg_tab(1);
+        const qd : u64 = sq_qt(tqd, x, 0, y, true);
+        const qg : u64 = sq_qt(tqg, x, 0, y, true);
+        assert(fabs64(qa[4] - 500.0 * sq_wf(qd)) < 0.5);
+        assert(fabs64(qa[3] - 500.0 * sq_wf(qg)) < 0.5);
+        if (sq_i(1, x - 1, y, 0) != i0) { nx = nx + 1; }
+        if (sq_i(1, x, y - 1, 0) != i0) { ny = ny + 1; }
+        k = k + 1;
+    }
+    assert(nx > 0);
+    assert(ny > 0);
+}
+
+test a_pmos_gate_above_its_high_end_is_xn_words_over_it_and_the_charge_is_the_tables_charge_at_zero_plus_the_linear_tail {
+    // Device 10 (the inverter's pull-up: drain n_clks at 20000000 words, gate the clock, source and bulk the supply) with the clock xn words over the supply: x 0, xn = clock - supply, Vds = supply - n_clks
+    const vin : f64 = 11000000.0;
+    var nq : u32 = 0;
+    var k : u32 = 0;
+    while (k < 4096) {
+        const xn : u32 = 1000000 + k;
+        const y : u32 = 25165824 - 20000000;
+        var v : [8]f64 = [0.0] ** 8;
+        v[6] = 20000000.0;
+        var qa : [8]f64 = [0.0] ** 8;
+        var ia : [8]f64 = [0.0] ** 8;
+        qs_dev(10, &v, 25165824.0 + (xn as f64), vin, 0, &qa, &ia);
+        const i0 : u64 = sq_i(1, 0, y, 0);
+        assert(fabs64(ia[6] + (i0 as f64)) < 0.5);
+        const tqd : []const u32 = sq_qd_tab(1);
+        const qd : u64 = sq_qt(tqd, 0, xn, y, true);
+        assert(fabs64(qa[6] - 500.0 * sq_wf(qd)) < 0.5);
+        if (sq_qt(tqd, 0, xn - 1, y, true) != qd) { nq = nq + 1; }
+        k = k + 1;
+    }
+    assert(nq > 0);
+}
+
+test the_nodes_carry_the_lumped_capacitors_and_the_boost_capacitor_and_the_clock_node_its_own_voltage_without_device_charge_and_the_devices_sum_with_it {
+    const vin : f64 = 12582912.0;
+    var v : [8]f64 = [0.0] ** 8;
+    qs_rest(vin, &v);
+    v[2] = 3000000.0;
+    v[3] = 7000000.0;
+    v[4] = 20000000.0;
+    v[5] = 1000000.0;
+    v[7] = 5000000.0;
+    // without device charge: C2 and the 2 pF on vout, 4, 4, 8, 4, 4 fF, nothing on n_clks but its own voltage, 1 fF on the inert node, and the 603.2 fF boost capacitor between net2 and net4
+    var qa : [8]f64 = [0.0] ** 8;
+    var ia : [8]f64 = [0.0] ** 8;
+    qs_nodes(&v, 0.0, vin, 2000.0, QS_M_NOCHARGE, &qa, &ia);
+    const cb : f64 = 603.2 * (v[2] - v[4]);
+    assert(fabs64(qa[0] - 2004.0 * v[0]) < 0.01);
+    assert(fabs64(qa[1] - 4.0 * v[1]) < 0.01);
+    assert(fabs64(qa[2] - (4.0 * v[2] + cb)) < 0.01);
+    assert(fabs64(qa[3] - 8.0 * v[3]) < 0.01);
+    assert(fabs64(qa[4] - (4.0 * v[4] - cb)) < 0.01);
+    assert(fabs64(qa[5] - 4.0 * v[5]) < 0.01);
+    assert(fabs64(qa[6] - v[6]) < 0.01);
+    assert(fabs64(qa[7] - v[7]) < 0.01);
+    // with it: the sum of the twelve devices, one at a time, plus the same lumped terms, and nothing extra on n_clks; the currents do not depend on the mode
+    var qb : [8]f64 = [0.0] ** 8;
+    var ib : [8]f64 = [0.0] ** 8;
+    qs_nodes(&v, 0.0, vin, 2000.0, 0, &qb, &ib);
+    var qd8 : [8]f64 = [0.0] ** 8;
+    var id8 : [8]f64 = [0.0] ** 8;
+    var e : usize = 0;
+    while (e < QS_NDEV) {
+        qs_dev(e, &v, 0.0, vin, 0, &qd8, &id8);
+        e = e + 1;
+    }
+    assert(fabs64(qb[0] - (qd8[0] + 2004.0 * v[0])) < 0.01);
+    assert(fabs64(qb[1] - (qd8[1] + 4.0 * v[1])) < 0.01);
+    assert(fabs64(qb[2] - (qd8[2] + 4.0 * v[2] + cb)) < 0.01);
+    assert(fabs64(qb[3] - (qd8[3] + 8.0 * v[3])) < 0.01);
+    assert(fabs64(qb[4] - (qd8[4] + 4.0 * v[4] - cb)) < 0.01);
+    assert(fabs64(qb[5] - (qd8[5] + 4.0 * v[5])) < 0.01);
+    assert(fabs64(qb[6] - qd8[6]) < 0.01);
+    assert(fabs64(qb[7] - (qd8[7] + v[7])) < 0.01);
+    var n : usize = 0;
+    while (n < 8) {
+        assert(fabs64(ib[n] - id8[n]) < 0.0000001);
+        assert(fabs64(ia[n] - id8[n]) < 0.0000001);
+        n = n + 1;
+    }
+    assert(fabs64(qb[6] - v[6]) > 1000.0);
+}
+
+test the_rest_state_is_the_decks_words_and_the_clock_ramps_over_2_ns_and_stays_at_its_rail_after_it_in_both_directions {
+    const vin : f64 = 12582912.0;
+    var v : [8]f64 = [0.0] ** 8;
+    qs_rest(vin, &v);
+    // vout 0.1 V (1677721.6 words) under the input; net1, net4 and n_clks at the supply; net2, net3, net5 and the inert node at ground
+    assert(fabs64(v[0] - 10905190.4) < 0.001);
+    assert(fabs64(v[1] - 25165824.0) < 0.001);
+    assert(fabs64(v[2]) < 0.001);
+    assert(fabs64(v[3]) < 0.001);
+    assert(fabs64(v[4] - 25165824.0) < 0.001);
+    assert(fabs64(v[5]) < 0.001);
+    assert(fabs64(v[6] - 25165824.0) < 0.001);
+    assert(fabs64(v[7]) < 0.001);
+    // the clock: 0 to the supply over 2000 ps, flat from 2000 ps on
+    var t0 : f64 = 0.0;
+    var t1 : f64 = 1999.0;
+    var t2 : f64 = 2000.0;
+    var t3 : f64 = 2001.0;
+    var t4 : f64 = 3000.0;
+    assert(fabs64(qs_clk_rise(t0)) < 0.001);
+    assert(fabs64(qs_clk_rise(t1) - 25165824.0 * 1999.0 / 2000.0) < 0.001);
+    assert(fabs64(qs_clk_rise(t2) - 25165824.0) < 0.001);
+    assert(fabs64(qs_clk_rise(t3) - 25165824.0) < 0.001);
+    assert(fabs64(qs_clk_rise(t4) - 25165824.0) < 0.001);
+    assert(fabs64(qs_clk_fall(t0) - 25165824.0) < 0.001);
+    assert(fabs64(qs_clk_fall(t1) - 25165824.0 / 2000.0) < 0.001);
+    assert(fabs64(qs_clk_fall(t2)) < 0.001);
+    assert(fabs64(qs_clk_fall(t3)) < 0.001);
+    assert(fabs64(qs_clk_fall(t4)) < 0.001);
+}
+
+test one_newton_iteration_moves_no_node_more_than_a_quarter_volt_and_a_step_reports_the_iterations_it_used_or_sixty_one_after_exactly_sixty {
+    const vin : f64 = 12582912.0;
+    var vr : [8]f64 = [0.0] ** 8;
+    qs_rest(vin, &vr);
+    var q0 : [8]f64 = [0.0] ** 8;
+    var i0 : [8]f64 = [0.0] ** 8;
+    qs_nodes(&vr, 0.0, vin, 2000.0, 0, &q0, &i0);
+    // (1) the limit: vout is 20 V (335544320 words) above where the charge q0 says it is; the move asked for is that, 80 times the limit, and the node moves by the limit (4194304 words) and no more
+    var v : [8]f64 = [0.0] ** 8;
+    var b4 : [8]f64 = [0.0] ** 8;
+    var n : usize = 0;
+    while (n < 8) {
+        v[n] = vr[n];
+        n = n + 1;
+    }
+    v[0] = v[0] + 335544320.0;
+    n = 0;
+    while (n < 8) {
+        b4[n] = v[n];
+        n = n + 1;
+    }
+    const m : f64 = qs_iter(&v, &q0, 0.0, vin, 1.953125, 2000.0, 0);
+    assert(m > 100000000.0);
+    var big : f64 = 0.0;
+    n = 0;
+    while (n < 8) {
+        big = fmax64(big, fabs64(v[n] - b4[n]));
+        n = n + 1;
+    }
+    assert(fabs64(big - 4194304.0) < 0.001);
+    assert(v[0] < b4[0]);
+}
+
+test a_step_reports_the_iterations_a_hand_loop_of_newton_moves_counts_and_leaves_the_same_state_node_for_node {
+    const vin : f64 = 12582912.0;
+    var vr : [8]f64 = [0.0] ** 8;
+    qs_rest(vin, &vr);
+    var q0 : [8]f64 = [0.0] ** 8;
+    var i0 : [8]f64 = [0.0] ** 8;
+    qs_nodes(&vr, 0.0, vin, 2000.0, 0, &q0, &i0);
+    var n : usize = 0;
+    // a step of 100 ps from the rest state, the clock going from 0 to each of five rails (0.15 V and 1.5 V settle in 3 and 7 to 12 iterations, 40 V in 31 to 60, 100 V and 200 V not at all: measured):
+    // the iterations it reports are the ones a hand loop of qs_iter counts (stop at the first move under 512 words, 61 when 60 did not settle), and the state it leaves is the hand loop's, node for node
+    var clks : [5]f64 = [2516582.4, 25165824.0, 671088640.0, 1677721600.0, 3355443200.0];
+    var c : usize = 0;
+    while (c < 5) {
+        var s : [8]f64 = [0.0] ** 8;
+        var h : [8]f64 = [0.0] ** 8;
+        qs_rest(vin, &s);
+        qs_rest(vin, &h);
+        const it : u32 = qs_step(&s, 0.0, clks[c], vin, 100.0, 2000.0, 0);
+        var done : bool = false;
+        var cnt : u32 = 0;
+        while (cnt < 60 and !done) {
+            const mm : f64 = qs_iter(&h, &q0, clks[c], vin, 1.953125, 2000.0, 0);
+            cnt = cnt + 1;
+            if (mm < 512.0) { done = true; }
+        }
+        var nh : u32 = 61;
+        if (done) { nh = cnt; }
+        assert_eq(it, nh);
+        n = 0;
+        while (n < 8) {
+            assert(fabs64(s[n] - h[n]) < 0.0000000001);
+            n = n + 1;
+        }
+        c = c + 1;
+    }
+}
+
+test a_step_to_a_clock_far_from_the_rest_state_does_not_settle_in_sixty_moves_and_one_to_a_near_clock_settles_in_a_few {
+    const vin : f64 = 12582912.0;
+    var clks : [5]f64 = [2516582.4, 25165824.0, 671088640.0, 1677721600.0, 3355443200.0];
+    var nset : u32 = 0;
+    var nuns : u32 = 0;
+    var c : usize = 0;
+    while (c < 5) {
+        var s : [8]f64 = [0.0] ** 8;
+        qs_rest(vin, &s);
+        const it : u32 = qs_step(&s, 0.0, clks[c], vin, 100.0, 2000.0, 0);
+        if (it == 61) { nuns = nuns + 1; }
+        if (it >= 2 and it <= 60) { nset = nset + 1; }
+        c = c + 1;
+    }
+    assert(nset > 0);
+    assert(nuns > 0);
+}
+
+test the_track_phase_is_the_step_schedule_its_comment_gives_to_the_word_in_four_cases {
+    // Each case lists the steps by hand (clock before, clock after, length in ps) and runs them with qs_step from the rest state; qs_track must leave the same eight words and report the same worst count.
+    //   0: 1499.75 ps steps (four, the fourth ends at 5999.0, one word under the end of the rise phase), then the one clipped step of 2 ps to the end at 6001.0
+    //   1: 10 ps steps to 20.5: two steps end at 20.0, and 20.0 is not under 20.5 - 0.5
+    //   2: 1499.75 ps steps again, to 5999.5: four, and none after, as 5999.0 is not under 5999.5 - 0.5
+    //   3: 300 ps steps (twenty, to 6000.0), then the growth by half a step: 450, then 500 three times in all with the last clipped to 37, to 7487.0
+    const vin : f64 = 9437184.0;
+    var cs : u32 = 0;
+    while (cs < 4) {
+        var dts : [24]f64 = [0.0] ** 24;
+        var c0s : [24]f64 = [0.0] ** 24;
+        var c1s : [24]f64 = [0.0] ** 24;
+        var ns : u32 = 0;
+        var dt : f64 = 0.0;
+        var tend : f64 = 0.0;
+        if (cs == 0) {
+            dt = 1499.75;
+            tend = 6001.0;
+            ns = 5;
+            dts[0] = 1499.75;
+            dts[1] = 1499.75;
+            dts[2] = 1499.75;
+            dts[3] = 1499.75;
+            dts[4] = 2.0;
+            c1s[0] = 25165824.0 * 1499.75 / 2000.0;
+            c0s[1] = c1s[0];
+            c1s[1] = 25165824.0;
+            c0s[2] = 25165824.0;
+            c1s[2] = 25165824.0;
+            c0s[3] = 25165824.0;
+            c1s[3] = 25165824.0;
+            c0s[4] = 25165824.0;
+            c1s[4] = 25165824.0;
+        }
+        if (cs == 1) {
+            dt = 10.0;
+            tend = 20.5;
+            ns = 2;
+            dts[0] = 10.0;
+            dts[1] = 10.0;
+            c1s[0] = 25165824.0 * 10.0 / 2000.0;
+            c0s[1] = c1s[0];
+            c1s[1] = 25165824.0 * 20.0 / 2000.0;
+        }
+        if (cs == 2) {
+            dt = 1499.75;
+            tend = 5999.5;
+            ns = 4;
+            dts[0] = 1499.75;
+            dts[1] = 1499.75;
+            dts[2] = 1499.75;
+            dts[3] = 1499.75;
+            c1s[0] = 25165824.0 * 1499.75 / 2000.0;
+            c0s[1] = c1s[0];
+            c1s[1] = 25165824.0;
+            c0s[2] = 25165824.0;
+            c1s[2] = 25165824.0;
+            c0s[3] = 25165824.0;
+            c1s[3] = 25165824.0;
+        }
+        if (cs == 3) {
+            dt = 300.0;
+            tend = 7487.0;
+            ns = 24;
+            var j : u32 = 0;
+            while (j < 24) {
+                dts[j as usize] = 300.0;
+                c0s[j as usize] = 25165824.0;
+                c1s[j as usize] = 25165824.0;
+                j = j + 1;
+            }
+            // the rise: the clock after step j is the ramp at 300 (j + 1) ps while that is under 2000 ps (steps 0 to 5), the supply after it
+            j = 0;
+            while (j < 6) {
+                c1s[j as usize] = 25165824.0 * (300.0 * ((j + 1) as f64)) / 2000.0;
+                j = j + 1;
+            }
+            c0s[0] = 0.0;
+            j = 1;
+            while (j < 7) {
+                c0s[j as usize] = c1s[(j - 1) as usize];
+                j = j + 1;
+            }
+            dts[20] = 450.0;
+            dts[21] = 500.0;
+            dts[22] = 500.0;
+            dts[23] = 37.0;
+        }
+        var r : [8]f64 = [0.0] ** 8;
+        qs_rest(vin, &r);
+        var wr : u32 = 0;
+        var j2 : u32 = 0;
+        while (j2 < ns) {
+            const it : u32 = qs_step(&r, c0s[j2 as usize], c1s[j2 as usize], vin, dts[j2 as usize], 2000.0, 0);
+            if (it > wr) { wr = it; }
+            j2 = j2 + 1;
+        }
+        var w : [8]f64 = [0.0] ** 8;
+        const wt : u32 = qs_track(vin, 2000.0, dt, tend, 0, &w);
+        assert_eq(wt, wr);
+        var q : usize = 0;
+        while (q < 8) {
+            assert(fabs64(w[q] - r[q]) < 0.0000000001);
+            q = q + 1;
+        }
+        cs = cs + 1;
+    }
+}
+
+test the_hold_run_reads_vout_when_4_ns_of_the_fall_have_passed_and_ends_6_ns_after_it_began_whatever_the_step {
+    const vin : f64 = 0.3 * QS_W;
+    // (1) steps of 20 ps: 300 fall steps, the reading after the 200th (4000 ps), the clock after step j the ramp down at 20 (j + 1) ps
+    var v : [8]f64 = [0.0] ** 8;
+    var worst : u32 = qs_track(vin, 2000.0, 20.0, QS_T_TRACK_PS, 0, &v);
+    const pre : f64 = v[0];
+    const gate : f64 = v[3] - vin;
+    var read : f64 = pre;
+    var f0 : f64 = 25165824.0;
+    var j : u32 = 0;
+    while (j < 300) {
+        const tn : f64 = 20.0 * ((j + 1) as f64);
+        var f1 : f64 = 0.0;
+        if (tn < 2000.0) { f1 = 25165824.0 * (2000.0 - tn) / 2000.0; }
+        const it : u32 = qs_step(&v, f0, f1, vin, 20.0, 2000.0, 0);
+        if (it > worst) { worst = it; }
+        f0 = f1;
+        if (j == 199) { read = v[0]; }
+        j = j + 1;
+    }
+    var qa : [8]f64 = [0.0] ** 8;
+    var ia : [8]f64 = [0.0] ** 8;
+    qs_nodes(&v, 0.0, vin, 2000.0, 0, &qa, &ia);
+    const a : QsHold = qs_hold(0.3, 2000.0, 20.0, 0);
+    assert(fabs64(a.qh_step_v - (read - pre) / 16777216.0) < 0.000000000001);
+    assert(fabs64(a.qh_track_v - (pre - vin) / 16777216.0) < 0.000000000001);
+    assert(fabs64(a.qh_gate_v - gate / 16777216.0) < 0.000000000001);
+    assert(fabs64(a.qh_leak_iu - ia[0]) < 0.000000001);
+    assert_eq(a.qh_iters, worst);
+    // vout still moves between the reading and the end of the run, so a reading taken at the end is another number
+    assert(fabs64(read - v[0]) > 0.0000001);
+    // (2) a step of 3999.5 ps: the first fall step ends at 3999.5 ps, the first instant the reading window [3999.5, 4000.5) of the run holds, and the window includes its lower edge
+    var v2 : [8]f64 = [0.0] ** 8;
+    const w2 : u32 = qs_track(vin, 2000.0, 3999.5, QS_T_TRACK_PS, 0, &v2);
+    const pre2 : f64 = v2[0];
+    const s2 : u32 = qs_step(&v2, 25165824.0, 0.0, vin, 3999.5, 2000.0, 0);
+    const read2 : f64 = v2[0];
+    const s3 : u32 = qs_step(&v2, 0.0, 0.0, vin, 3999.5, 2000.0, 0);
+    const b : QsHold = qs_hold(0.3, 2000.0, 3999.5, 0);
+    assert(fabs64(b.qh_step_v - (read2 - pre2) / 16777216.0) < 0.000000000001);
+    assert(fabs64(read2 - pre2) > 1000.0);
+    // (3) a step of 4000.5 ps: the first fall step ends at 4000.5 ps, which the window excludes at its upper edge: no reading is taken, and the step is exactly 0
+    const c : QsHold = qs_hold(0.3, 2000.0, 4000.5, 0);
+    assert(!(c.qh_step_v < 0.0));
+    assert(!(c.qh_step_v > 0.0));
+}
+
+test the_droop_is_the_leak_over_413_ns_into_the_load_plus_the_cells_4_fF_exactly_and_scales_with_the_multiplier {
+    // 4096 IUNIT out of vout for 413000 ps into 2004 fF: 4096 * 0.01953125 = 80 fF.word per ps, times 413000 ps, over 2004 fF * 2^24 words per volt
+    var leak : f64 = 0.0 - 4096.0;
+    const d : f64 = qs_droop_v(leak, 2000.0, 1.0);
+    assert(fabs64(d * 2004.0 * 16777216.0 - 33040000.0) < 0.001);
+    const d10 : f64 = qs_droop_v(leak, 2000.0, 10.0);
+    assert(fabs64(d10 * 2004.0 * 16777216.0 - 330400000.0) < 0.01);
+    // the load counts: 3930.2 fF and the cell's 4 fF
+    const d2 : f64 = qs_droop_v(leak, 3930.2, 1.0);
+    assert(fabs64(d2 * 3934.2 * 16777216.0 - 33040000.0) < 0.001);
+    // a current into vout raises it
+    var up : f64 = 4096.0;
+    assert(qs_droop_v(up, 2000.0, 1.0) < 0.0);
+}
+
+test the_hold_run_ends_in_the_state_of_one_hand_step_when_a_fall_step_is_6_ns_or_half_a_ps_short_of_it {
+    // The fall steps stop at 6 ns. A step of 6000 ps ends on it and a step of 5999.5 ps ends half a ps short of it: in both the run is that one step, and the leak and the iteration count it
+    // reports are those of a hand loop that takes the track phase and that one step (the same calls, so the leak is the same to the last bits)
+    const vin : f64 = 0.3 * QS_W;
+    var dts : [2]f64 = [6000.0, 5999.5];
+    var d : usize = 0;
+    while (d < 2) {
+        const dt : f64 = dts[d];
+        var v : [8]f64 = [0.0] ** 8;
+        var worst : u32 = qs_track(vin, 2000.0, dt, QS_T_TRACK_PS, 0, &v);
+        const it : u32 = qs_step(&v, 25165824.0, 0.0, vin, dt, 2000.0, 0);
+        if (it > worst) { worst = it; }
+        var qa : [8]f64 = [0.0] ** 8;
+        var ia : [8]f64 = [0.0] ** 8;
+        qs_nodes(&v, 0.0, vin, 2000.0, 0, &qa, &ia);
+        const a : QsHold = qs_hold(0.3, 2000.0, dt, 0);
+        assert(fabs64(a.qh_leak_iu - ia[0]) < 0.000000000000001);
+        assert_eq(a.qh_iters, worst);
+        assert(fabs64(ia[0]) > 0.1);
+        d = d + 1;
+    }
+}
+
+test one_more_fall_step_after_6_ns_moves_vout_and_the_gate_node_by_more_than_half_a_word_and_not_the_leak_of_the_off_switch {
+    // This pins why the two mutants of the fall loop bound at line 361 (one more step at the 6 ns end) are accepted in docs/analog/mutation-accepted-sar_switch_q.txt: the state the extra
+    // step leaves differs (vout and net3 each move by more than half a word) but the leak qs_hold returns is read at the table's lowest gate row, whole words of Vds, and does not change
+    // by one bit; qh_step_v is read at 4 ns and no extra step can end there, and the iteration count of a step from a settled state is below the worst of the run. If the leak ever moves, the
+    // test above kills those two mutants and this test fails first: drop the two accepted lines then.
+    const vin : f64 = 0.3 * QS_W;
+    var v : [8]f64 = [0.0] ** 8;
+    var w : u32 = qs_track(vin, 2000.0, 6000.0, QS_T_TRACK_PS, 0, &v);
+    const it : u32 = qs_step(&v, 25165824.0, 0.0, vin, 6000.0, 2000.0, 0);
+    assert(it < 61);
+    assert(w < 61);
+    const a0 : f64 = v[0];
+    const a3 : f64 = v[3];
+    var qa : [8]f64 = [0.0] ** 8;
+    var ia : [8]f64 = [0.0] ** 8;
+    qs_nodes(&v, 0.0, vin, 2000.0, 0, &qa, &ia);
+    assert(fabs64(ia[0]) > 0.1);
+    const it2 : u32 = qs_step(&v, 0.0, 0.0, vin, 6000.0, 2000.0, 0);
+    assert(fabs64(v[0] - a0) > 0.5);
+    assert(fabs64(v[3] - a3) > 0.5);
+    var qb : [8]f64 = [0.0] ** 8;
+    var ib : [8]f64 = [0.0] ** 8;
+    qs_nodes(&v, 0.0, vin, 2000.0, 0, &qb, &ib);
+    assert(ib[0] == ia[0]);
+}

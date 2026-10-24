@@ -1,5 +1,5 @@
 {
-  "built_by": "t27c-bootstrap@0.5.2+69eef64da",
+  "built_by": "t27c-bootstrap@0.5.2+19a89f1e3",
   "closure": [
     {
       "spec": "specs/analog/linear.t27",
@@ -23,23 +23,23 @@
     }
   ],
   "config": "gen=c,rust,verilog,zig;tests=zig",
-  "gen_hash_c": "sha256:60107ce74a5906a557e3ec5c6154b61180b79ce828b11ff751da5b434c53c16e",
-  "gen_hash_rust": "sha256:2c1e5bb7d00c7a33e0010b986effc2be260e611b80fd375ad0d765b4846de006",
-  "gen_hash_verilog": "sha256:a048858a9f8a605426aceb150ef81093976581a8a0515b93b817a8adba6987ad",
-  "gen_hash_zig": "sha256:cc9658aac3a545abfb01a861d9cdfa651d36bf8bea395de5026fc9ad4520c121",
+  "gen_hash_c": "sha256:41ea5739194a9e97414076d467b0c18cfdbd3641e625f7c91b7a87cb21a2c097",
+  "gen_hash_rust": "sha256:f9fbd956840f6482c45617e9d8846ab7a7058bd2003de15333a0acedbd06bcc1",
+  "gen_hash_verilog": "sha256:32094a4894eda3950b51b8d47241a89ae8399e7a975c7675ea36b3ab2e92e273",
+  "gen_hash_zig": "sha256:a75437a44106ff6bb3b8089618fc819a3e9d9483ad8a38d40840ccfd20302b86",
   "module": "AnalogSarSwitchQ",
   "ring": 12,
   "seal_schema": 2,
-  "sealed_at": "2026-10-24T16:47:25Z",
+  "sealed_at": "2026-10-24T20:20:41Z",
   "sealed_by": "t27c-bootstrap@0.5.2",
-  "spec_hash": "sha256:ad8a454ec5799d3b610a95d139d3b4bfce0206cd02d7a24b58ee13daed83092a",
+  "spec_hash": "sha256:a78aea1bdbb82d13738707cf1c9ebc6ffaa2c724f9833bedf643337940eff1d0",
   "spec_path": "specs/analog/sar_switch_q.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 8,
-    "total": 8,
+    "passed": 22,
+    "total": 22,
     "vacuous": 0
   },
   "toolchain": {
