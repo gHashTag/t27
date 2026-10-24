@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Probe 2 (cross-module const) for t27#11777: consumer module.
+module EmitterRegressionsCrossConstUse;
+
+use compiler::emitter_regressions::cross_const_def;
+
+pub fn uses_const() u32 {
+    return cross_const_def.MAX_NODES;
+}
+
+test uses_const_works {
+    assert uses_const() == 42;
+}

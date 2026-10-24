@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+a059416c5",
+  "closure": [
+    {
+      "spec": "specs/compiler/emitter_regressions/private_callee_def.t27",
+      "spec_hash": "sha256:8541151d9fa5ad6d997149ddec5026796bcdfd1cc4d303699dfc9d4d622358cc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:27d92e2d61d7461c023c31235be2b8454f39a1f6aa850132a145d0607eb97a16",
+  "gen_hash_rust": "sha256:a8f472a40ce944deddc555bc29c1459a7c597d21ca754532a303e46cd5b762b4",
+  "gen_hash_verilog": "sha256:62280cf011dd51a2d98fdc731ad5b899376e6c4c6fdb6104f000d2cfbd217cfc",
+  "gen_hash_zig": "sha256:a7475d8e3fd4905493165171e0d5231609bb09423d3ce9b7850ab44c684e1dc5",
+  "module": "EmitterRegressionsPrivateCalleeUse",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-23T12:09:43Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:49a42b09de43f34ca14b382f70eff824262fd933285faf6d70c3231c9b08bff5",
+  "spec_path": "specs/compiler/emitter_regressions/private_callee_use.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:8512b80da533b79289110fca4a65f3336abd7a059ca4b72ea595d5e33ff8ad10",
+    "zig": "0.16.0"
+  }
+}

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Probe 2 (cross-module const) for t27#11777: defining module.
+module EmitterRegressionsCrossConstDef;
+
+pub const MAX_NODES : u32 = 42;
+
+pub fn node_cap() u32 {
+    return MAX_NODES;
+}
+
+test cap_works {
+    assert node_cap() == 42;
+}

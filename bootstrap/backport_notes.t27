@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+// Backport note for t27#11777 (cross-module emission defect, fixed on master).
+// Older branches (pre-fix master) must backport the emitter changes that:
+//   - carry the transitive private callee closure of pub fns across modules
+//   - let pub consts cross the module boundary under explicit `use`
+//   - refuse (named error) instead of silently serving a stale sealed snapshot
+// The regression probes live at:
+//   specs/compiler/emitter_regressions/private_callee_def.t27 + _use.t27
+//   specs/compiler/emitter_regressions/cross_const_def.t27 + _use.t27
+//   specs/compiler/emitter_regressions/stale_seal_probe.t27
+// Verify with: t27c gen <consumer> then `zig test --test-no-exec` on the emitted Zig.
+module BootstrapBackportNotes;
+
+pub const NOTE : u8 = 1;
+
+pub fn note_value() u8 {
+    return NOTE;
+}
+
+test note_present {
+    var n: u8 = note_value();
+    assert n == 1;
+}

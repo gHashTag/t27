@@ -1,0 +1,28 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+a059416c5",
+  "closure": [],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:18bdf5b219483e0608ddb80482a25f5f73c534ffa4e23de9be45eea256f66539",
+  "gen_hash_rust": "sha256:3ef9b07e1fcf8318a6881ad2d7de310260ff6ee940a8e84cf3fd48fb472baedd",
+  "gen_hash_verilog": "sha256:0b17ee2031e46d1c8eb2ffb6e5dc25dbbf49ab29db31d8a252ecfe8ead260441",
+  "gen_hash_zig": "sha256:c1a3ac8677ea4cb49851cf02139d38767bf13f52404c02ac9b7c3cd157e92efe",
+  "module": "BootstrapBackportNotes",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-23T12:09:47Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:daa135b05618301848f2a429155ae191da5557a90eede9516a2ac1f4da5b03e1",
+  "spec_path": "bootstrap/backport_notes.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:8512b80da533b79289110fca4a65f3336abd7a059ca4b72ea595d5e33ff8ad10",
+    "zig": "0.16.0"
+  }
+}

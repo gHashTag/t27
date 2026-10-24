@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+// Probe 3 (stale seal) for t27#11777.
+// A consumer that imports an edited module must not silently serve the sealed
+// snapshot: rebuilding without re-sealing must name the seal mismatch (or
+// succeed only after `seal --save`). The scenario is exercised by editing the
+// import (private_callee_def.t27) and rebuilding this consumer without
+// re-sealing; the expected outcome is a named seal mismatch, never identical
+// error lines across different source texts.
+module EmitterRegressionsStaleSealProbe;
+
+use compiler::emitter_regressions::private_callee_def;
+
+pub fn consumer() i32 {
+    return private_callee_def.pub_entry(2);
+}
+
+test consumer_works {
+    assert consumer() == 5;
+}

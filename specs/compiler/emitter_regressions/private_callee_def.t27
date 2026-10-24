@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// Probe 1 (private callee closure) for t27#11777: defining module.
+// A pub fn whose body calls a private fn of the same module. The consumer
+// (private_callee_use.t27) must compile green on an emitter that carries the
+// transitive private callee closure across the module boundary.
+module EmitterRegressionsPrivateCalleeDef;
+
+pub fn pub_entry(x: i32) i32 {
+    return priv_helper(x) + 1;
+}
+
+fn priv_helper(x: i32) i32 {
+    return x * 2;
+}
+
+test pub_entry_works {
+    assert pub_entry(3) == 7;
+}

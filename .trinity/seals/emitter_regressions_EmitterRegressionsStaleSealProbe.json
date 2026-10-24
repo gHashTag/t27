@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+a059416c5",
+  "closure": [
+    {
+      "spec": "specs/compiler/emitter_regressions/private_callee_def.t27",
+      "spec_hash": "sha256:8541151d9fa5ad6d997149ddec5026796bcdfd1cc4d303699dfc9d4d622358cc"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:ab84d5818f06d978f210c210d32153709ff64d15eae29471d360f91feeadeeae",
+  "gen_hash_rust": "sha256:164ebffdbf0d3b783cac4328459cb04537a7fb97353ba5cacdb7e84174a5cc15",
+  "gen_hash_verilog": "sha256:d91aee2fd83b61aa404766075d8cf12f41e275b7ca21d7f94766ad45b0e072ae",
+  "gen_hash_zig": "sha256:dc6e616b9e50a3c17d5ed0a15488ee80f17f5859139acc2d31376e0b08a0f6b5",
+  "module": "EmitterRegressionsStaleSealProbe",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-23T12:09:45Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:6da54253c5d4b5683b532e1731db6a7f1548627e5bd2f53fb8521f7f8bd80893",
+  "spec_path": "specs/compiler/emitter_regressions/stale_seal_probe.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:8512b80da533b79289110fca4a65f3336abd7a059ca4b72ea595d5e33ff8ad10",
+    "zig": "0.16.0"
+  }
+}

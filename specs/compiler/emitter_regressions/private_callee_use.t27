@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Probe 1 (private callee closure) for t27#11777: consumer module.
+module EmitterRegressionsPrivateCalleeUse;
+
+use compiler::emitter_regressions::private_callee_def;
+
+pub fn consumer() i32 {
+    return private_callee_def.pub_entry(5);
+}
+
+test consumer_works {
+    assert consumer() == 11;
+}

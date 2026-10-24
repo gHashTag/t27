@@ -1,0 +1,33 @@
+{
+  "built_by": "t27c-bootstrap@0.5.2+a059416c5",
+  "closure": [
+    {
+      "spec": "specs/compiler/emitter_regressions/cross_const_def.t27",
+      "spec_hash": "sha256:2e997453df33a53783c60be63642cd092a1dd93346f04dcedb8d8aff99a046b3"
+    }
+  ],
+  "config": "gen=c,rust,verilog,zig;tests=zig",
+  "gen_hash_c": "sha256:d0449028cbad8a63c2d9c6b9ee9301c66414a426c614478699f057400c1d4202",
+  "gen_hash_rust": "sha256:ef4afff839513bdca0c0cf00bb5fc2cc26a584e587be9c60b308bce7b8b61fa3",
+  "gen_hash_verilog": "sha256:72e20b133da53bc800947b326fb198676ef90bd40bd6bc2ddfcf2858e4267508",
+  "gen_hash_zig": "sha256:da3a8d1cf84804e1ce9dd957eeace2377a8576f7409db356bfceb4a5ccfb23f1",
+  "module": "EmitterRegressionsCrossConstUse",
+  "ring": 12,
+  "seal_schema": 2,
+  "sealed_at": "2026-10-23T12:09:39Z",
+  "sealed_by": "t27c-bootstrap@0.5.2",
+  "spec_hash": "sha256:fedfc1453d2d6df9fd534f6923026409725324f7c64563b25b796f63d26f0b6e",
+  "spec_path": "specs/compiler/emitter_regressions/cross_const_use.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1,
+    "vacuous": 0
+  },
+  "toolchain": {
+    "test_runner": "sha256:8512b80da533b79289110fca4a65f3336abd7a059ca4b72ea595d5e33ff8ad10",
+    "zig": "0.16.0"
+  }
+}
