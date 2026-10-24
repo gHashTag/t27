@@ -1013,3 +1013,50 @@ test every_outcome_has_its_words {
     }
     assert say(O_ADD) == "added" and say(99) == say(O_NO_SKILL);
 }
+
+// Scenario: every byte classifier and key/secret helper answers for a real byte or span (100% coverage).
+test the_byte_classifiers_and_key_helpers_are_called {
+    assert lower(65) == 97 and lower(97) == 97 and lower(48) == 48;
+    assert is_digit(48) and !is_digit(65);
+    assert is_alnum(97) and !is_alnum(33);
+    assert is_hex(102) and is_hex(70) and !is_hex(103);
+    assert is_key(97) and is_key(128) and !is_key(33);
+    assert is_b64(43) and is_b64(47) and is_b64(61) and !is_b64(33);
+    assert is_tail(95) and is_tail(45) and !is_tail(33);
+    assert class_of(97) == 1 and class_of(65) == 2 and class_of(48) == 3 and class_of(33) == 0;
+    assert next_key("!!ab", 0, 4) == 2 and next_key("ab", 0, 2) == 0;
+    assert fold_at("abc", 0, 3, "ab", 0, 2) and !fold_at("abc", 0, 3, "ac", 0, 2);
+}
+
+// Scenario: the secret-shaped predicates are called over a real span.
+test the_secret_shape_helpers_are_called {
+    assert starts_at("ghp_x", 0, 5, "ghp_") and !starts_at("zghp_", 0, 5, "ghp_");
+    assert has_text("hello world", 0, 11, "world") and !has_text("hello", 0, 5, "xyz");
+    assert !mixed_run("abc", 0, 3);
+    assert !has_b64_run("abc", 0, 3);
+    assert prefix_len("github_pat_a", 0, 12) == 11;
+    assert prefix_len("ghp_abc", 0, 7) == 4 and prefix_len("sk-abc", 0, 6) == 3;
+    assert prefix_len("abc", 0, 3) == 0;
+    assert has_tail("ghp_abcdefgh", 4, 12) and !has_tail("ghp_ab", 4, 6);
+    assert has_prefixed_token("ghp_abcdefgh", 0, 12) and !has_prefixed_token("abc", 0, 3);
+    assert secret_shaped("ghp_abcdefgh", 0, 12) and !secret_shaped("plain", 0, 5);
+    assert date_ok("2026-10-19") and !date_ok("2026-13-01") and !date_ok("short");
+}
+
+// Scenario: the Traps-section walkers and the block matchers are called over a real file.
+test the_section_walkers_and_block_matchers_are_called {
+    assert next_line("ab\ncd", 0) == 3 and next_line("ab", 0) == 2;
+    assert blank_line("   ", 0, 3) and !blank_line(" a ", 0, 3);
+    assert insert_at(A, A_HEAD.len) == A_PRE.len;
+    assert is_bullet("- x", 0, 3) and is_bullet("* x", 0, 3) and !is_bullet("x", 0, 1);
+    assert block_says("- use curl", 0, 10, "use curl", 0, 8);
+    assert said("use curl here now that we can", 0, 29, "use curl here now that we can", 0, 29);
+}
+
+// Scenario: put_span copies a span into the out buffer and returns the new write cursor.
+test put_span_copies_the_span {
+    var buf : [16]u8 = undefined;
+    assert put_span(buf[0 .. 16], 0, "abc", 0, 3) == 3;
+    assert buf[0] == 97 and buf[2] == 99;
+    assert put_span(buf[0 .. 16], 2, "xy", 0, 2) == 4;
+}

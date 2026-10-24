@@ -928,3 +928,28 @@ test the_limit_is_the_ledgers {
     assert HASH_P1 * HASH_P2 < 1000000000000000000;
     assert HASH_P1 < 1000000000 and HASH_P2 < 1000000000;
 }
+
+// Scenario: the span, list, bar and every per-record action helper is called directly (100% coverage).
+test the_span_list_bar_and_action_helpers_are_called {
+    assert same_span("row L1", 0, 3, 0, 3) and !same_span("row L1", 0, 3, 4, 6) and !same_span("row", 0, 3, 0, 2);
+    assert bar_at("keep it | the cheaper one", 0, 25) == 7;
+    assert bar_at("no bar here", 0, 11) == 11;
+    assert listed(S_CRONS, K_CRON, 0, tok_from(S_CRONS, record_at(S_CRONS, 1), line_end(S_CRONS, record_at(S_CRONS, 1)), 0), tok_to(S_CRONS, record_at(S_CRONS, 1), line_end(S_CRONS, record_at(S_CRONS, 1)), 0), S_CRONS.len);
+
+    const at_now : usize = record_at(S_RUNNING, 0);
+    assert now_action(S_RUNNING, at_now, line_end(S_RUNNING, at_now)) == A_NONE;
+    const at_last : usize = record_at(NOOP_WITH_NOW, 1);
+    assert last_action(NOOP_WITH_NOW, at_last, line_end(NOOP_WITH_NOW, at_last)) == A_NONE;
+    const at_row : usize = record_at(S_RUNNING, 1);
+    assert row_action(S_RUNNING, at_row, line_end(S_RUNNING, at_row)) == A_NONE;
+    const at_want : usize = record_at(S_FRESH, 3);
+    assert want_action(S_FRESH, at_want, line_end(S_FRESH, at_want)) == A_NONE;
+    const at_pr : usize = record_at(S_PRS, 1);
+    assert pr_action(S_PRS, at_pr, line_end(S_PRS, at_pr)) == A_NONE;
+    const at_agent : usize = record_at(S_AGENTS, 3);
+    assert agent_action(S_AGENTS, at_agent, line_end(S_AGENTS, at_agent)) == A_NONE;
+    const at_cron : usize = record_at(S_CRONS, 1);
+    assert cron_action(S_CRONS, at_cron, line_end(S_CRONS, at_cron)) == A_NONE;
+    const at_req : usize = record_at(S_OPEN_DUE, 1);
+    assert req_action(S_OPEN_DUE, at_req, line_end(S_OPEN_DUE, at_req)) == A_CHASE;
+}

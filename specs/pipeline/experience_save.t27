@@ -123,4 +123,11 @@ module ExperienceSave {
         rec.commit_hash = 0;
         save_experience(&rec, VERDICT_PASS, 12345);
     }
+
+    // test: verdict_to_code maps a verdict to its code (100% coverage)
+    test verdict_to_code_maps {
+        assert verdict_to_code(VERDICT_PASS) == VERDICT_PASS;
+        assert verdict_to_code(VERDICT_FAIL) == VERDICT_FAIL;
+        assert verdict_to_code(VERDICT_SKIP) == VERDICT_SKIP;
+    }
 }

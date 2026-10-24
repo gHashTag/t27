@@ -166,4 +166,11 @@ module PipelineE2E {
         var count : usize = 0;
         pipeline_run(&stages, &results, &count);
     }
+
+    // test: stage_name returns the stage as its code (100% coverage)
+    test stage_name_returns_code {
+        assert stage_name(STAGE_INIT) == STAGE_INIT as i32;
+        assert stage_name(STAGE_DONE) == STAGE_DONE as i32;
+        assert stage_name(0) == 0;
+    }
 }
