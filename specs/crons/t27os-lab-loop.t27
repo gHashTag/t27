@@ -11,6 +11,8 @@
 
 module cron_t27os_lab_loop;
 
+use t27os::keysync::contains;
+
 pub const KIND : str = "cron";
 pub const ID : str = "github-actions/t27os/lab";
 pub const NAME : str = "T27 OS lab loop";
@@ -34,4 +36,59 @@ test the_loop_runs_every_quarter_hour_and_is_enabled {
     assert SCHEDULE_MINUTES == 15;
     assert ENABLED;
     assert HOST == "github-actions";
+}
+
+// --- the encoder step lab.yml runs (t27os#10) ------------------------------------------------
+// Hand-written workflow YAML is refused by the language rule, so the step's source lives here and
+// TRI CLAW copies ENCODER_STEP_YAML verbatim over the "check the encoder plumbing" step of SERVICE
+// (the pattern of specs/tools/t27o/install.t27 WORKFLOW_YAML). Evidence for the change: run
+// 39980640303 died on `xz: (stdin): File format not recognized` -- the step piped the
+// johnvansickle.com static download straight into tar on EVERY dispatch, m6 or not, and a CDN
+// hiccup killed the run before the receipt (5 failures + 4 cancellations in 15:13-15:43Z on
+// 2026-10-23). The distro ffmpeg (6.1.1) encoded the first receipt of the day.
+// The law of the step, each part checked by encoder_step_ok:
+//   1. M6 only: nothing is fetched unless the dispatch asked for the encode (m6 = "true");
+//   2. distro first: the runner's ffmpeg, then apt, and only then the static build;
+//   3. the static build is downloaded to a file with retries, never piped into tar, and a failed
+//      fetch or unpack is reported in /tmp/ffmpeg.txt, never fatal -- the step cannot kill the run.
+
+pub const ENCODER_STEP_YAML : str = "      - name: check the encoder plumbing (M6 only -- distro ffmpeg first, static build as fallback)\n        shell: bash\n        run: |\n          M6=\"${{ inputs.m6 }}\"\n          if ! command -v ffmpeg >/dev/null 2>&1 && [ \"$M6\" = \"true\" ]; then\n            sudo apt-get install -y -qq ffmpeg || echo \"apt ffmpeg failed\"\n          fi\n          if ! command -v ffmpeg >/dev/null 2>&1 && [ \"$M6\" = \"true\" ]; then\n            if curl -fsSL --retry 3 -o /tmp/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp; then\n              FFMPEG_DIR=$(ls -d /tmp/ffmpeg-*static | head -1)\n              export PATH=\"$FFMPEG_DIR:$PATH\"\n              echo \"$FFMPEG_DIR\" >> \"$GITHUB_PATH\"\n            else\n              echo \"static ffmpeg fetch failed\"\n            fi\n          fi\n          if command -v ffmpeg >/dev/null 2>&1; then\n            ffmpeg -version | head -1 | tee /tmp/ffmpeg.txt\n          else\n            echo \"ffmpeg absent (m6=$M6)\" | tee /tmp/ffmpeg.txt\n          fi\n";
+
+// The step as lab.yml ran it on 2026-10-23 (t27os master 234d76e, lines 99-111): the negative control.
+pub const ENCODER_STEP_YAML_OLD : str = "      - name: check the encoder plumbing (M6 -- export_video encodes on the lab)\n        shell: bash\n        run: |\n          curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar -xJ -C /tmp\n          echo \"/tmp/ffmpeg-\"*\"-static\" | xargs -I{} sh -c 'echo \"{}\"' > /dev/null\n          FFMPEG_DIR=$(ls -d /tmp/ffmpeg-*static | head -1)\n          export PATH=\"$FFMPEG_DIR:$PATH\"\n          echo \"$FFMPEG_DIR\" >> \"$GITHUB_PATH\"\n          if command -v ffmpeg >/dev/null 2>&1; then\n            ffmpeg -version | head -1 | tee /tmp/ffmpeg.txt\n          else\n            echo \"ffmpeg absent\" | tee /tmp/ffmpeg.txt\n          fi\n";
+
+// The markers encoder_step_ok looks for. DISTRO_THEN_STATIC pins the order by adjacency: the apt
+// fallback closes and the static branch opens right after it.
+pub const ENC_M6_ONLY : str = "&& [ \"$M6\" = \"true\" ]; then";
+pub const ENC_DISTRO_THEN_STATIC : str = "sudo apt-get install -y -qq ffmpeg || echo \"apt ffmpeg failed\"\n          fi\n          if ! command -v ffmpeg";
+pub const ENC_FETCH_TO_FILE : str = "curl -fsSL --retry 3 -o /tmp/ffmpeg.tar.xz ";
+pub const ENC_PIPE_INTO_TAR : str = "| tar";
+pub const ENC_NONFATAL : str = "else\n              echo \"static ffmpeg fetch failed\"";
+
+// encoder_step_ok(y): does the step y keep the three rules above.
+pub fn encoder_step_ok(y: []const u8) -> bool {
+    return contains(y, ENC_M6_ONLY) and contains(y, ENC_DISTRO_THEN_STATIC)
+        and contains(y, ENC_FETCH_TO_FILE) and !contains(y, ENC_PIPE_INTO_TAR)
+        and contains(y, ENC_NONFATAL);
+}
+
+test the_encoder_step_keeps_the_three_rules {
+    assert encoder_step_ok(ENCODER_STEP_YAML);
+}
+
+// negative control: the step that lost the receipts on 2026-10-23 is refused
+test the_step_that_lost_the_receipts_is_refused {
+    assert !encoder_step_ok(ENCODER_STEP_YAML_OLD);
+    assert contains(ENCODER_STEP_YAML_OLD, ENC_PIPE_INTO_TAR);
+    assert !contains(ENCODER_STEP_YAML_OLD, ENC_M6_ONLY);
+}
+
+// negative control: each rule alone is load-bearing -- the step with its M6 guard, its distro
+// branch or its fetch-to-file swapped for the old shape is refused
+test each_rule_is_load_bearing {
+    assert !encoder_step_ok(ENC_DISTRO_THEN_STATIC);
+    assert !encoder_step_ok(ENC_M6_ONLY);
+    assert !encoder_step_ok("");
+    assert contains(ENCODER_STEP_YAML, "if: ") == false;
+    assert contains(ENCODER_STEP_YAML, "johnvansickle.com");
 }
