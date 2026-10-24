@@ -155,6 +155,59 @@ pub fn settle_step(l: Ledger, tab: IdentityTable, rec: LabReceipt,
     return bridge_pay(l, tab, rec, v1, v2, node, (challenge as u32), verdict, record);
 }
 
+// --- the executor's surface steps (t27os#10: receipts lost) ----------------
+
+// The executor (t27os .github/workflows/lab.yml, proposed by TRI CLAW from
+// this law) measures the named specs, then runs optional surfaces, then
+// writes the receipt. Three measured ways a run lost its receipt: the
+// encoder fetch ran on every dispatch and died on a third-party CDN (~40%);
+// a surface failure skipped the receipt step after the measurement had
+// already run (run 39987596010); a full sha went through an unauthenticated
+// API lookup that answered null (run 39993710023).
+pub const SURF_ENCODER_FETCH : u8 = 0;
+pub const SURF_M6 : u8 = 1;
+pub const SURF_WASM : u8 = 2;
+pub const SURF_COUNT : u8 = 3;
+pub const SHA_HEX_LEN : u32 = 40;
+
+// surface_runs(s, m6, wasm): the encoder fetch belongs to M6 -- a dispatch
+// with m6 off never touches the encoder CDN. Out-of-range surfaces never run.
+pub fn surface_runs(s: u8, m6: bool, wasm: bool) -> bool {
+    if (s == SURF_ENCODER_FETCH or s == SURF_M6) {
+        return m6;
+    }
+    if (s == SURF_WASM) {
+        return wasm;
+    }
+    return false;
+}
+
+// receipt_written(measured, surface_failed): once the measurement step ran,
+// the receipt is written whatever a later surface did -- the failure goes
+// INTO the receipt, it does not erase it. No measurement, no receipt.
+pub fn receipt_written(measured: bool, surface_failed: bool) -> bool {
+    if (surface_failed and measured) {
+        return true;
+    }
+    return measured;
+}
+
+// sha_needs_lookup(len, lower_hex): a ref that is already 40 lowercase hex is
+// the sha; only a short sha, a branch or an empty ref goes to the API.
+pub fn sha_needs_lookup(len: u32, lower_hex: bool) -> bool {
+    if (len == SHA_HEX_LEN and lower_hex) {
+        return false;
+    }
+    return true;
+}
+
+// sha_resolved_ok(len, lower_hex): the lookup's answer is accepted only when
+// it is 40 hex; anything else (null, a rate-limit body) fails the step with
+// the body printed, never checks out a branch named "null".
+pub fn sha_resolved_ok(len: u32, lower_hex: bool) -> bool {
+    return len == SHA_HEX_LEN and lower_hex;
+}
+
 // The SETTLE step's contribution to the actor's run state: a settle is OK
 // only when payout() answered PAY_NORMAL for a verified receipt -- the green
 // settle. Everything else is RUN_FAILED: a refusal (nothing was attempted),
@@ -302,6 +355,39 @@ test settle_step_refuses_a_challenge_past_the_u32_nonce {
     assert a.attempt == false and a.refuse == SB_REFUSE_NONCE;
     assert truncated != big_challenge;
     assert a.outcome == OUT_NOT_ELIGIBLE and a.pay == PAY_NONE;
+}
+
+// t27os#10: an m6=false dispatch never runs the encoder fetch (the CDN that
+// killed ~40% of runs); with m6 on it does; wasm follows its own flag.
+test encoder_fetch_runs_only_with_m6 {
+    assert surface_runs(SURF_ENCODER_FETCH, false, false) == false;
+    assert surface_runs(SURF_ENCODER_FETCH, false, true) == false;
+    assert surface_runs(SURF_ENCODER_FETCH, true, false) == true;
+    assert surface_runs(SURF_M6, false, true) == false;
+    assert surface_runs(SURF_WASM, false, true) == true;
+    assert surface_runs(SURF_WASM, true, false) == false;
+    assert surface_runs(SURF_COUNT, true, true) == false;
+}
+
+// run 39987596010: step 7 measured kernel 10/10 and lanes_view 42/42, M6
+// failed, and no receipt was written. The law: that run writes its receipt.
+test a_surface_failure_keeps_the_receipt {
+    assert receipt_written(true, true) == true;
+    assert receipt_written(true, false) == true;
+    assert receipt_written(false, true) == false;
+    assert receipt_written(false, false) == false;
+}
+
+// run 39993710023: a full 40-hex sha went to the API and came back null.
+test a_full_sha_is_used_as_is {
+    assert sha_needs_lookup(40, true) == false;
+    assert sha_needs_lookup(9, true) == true;
+    assert sha_needs_lookup(40, false) == true;
+    assert sha_needs_lookup(0, false) == true;
+    // "null" is 4 bytes, not 40 hex: the step fails instead of checking it out
+    assert sha_resolved_ok(4, false) == false;
+    assert sha_resolved_ok(40, true) == true;
+    assert sha_resolved_ok(40, false) == false;
 }
 
 // The mapping, case by case, on real settle_step calls: PAY_NORMAL on a
